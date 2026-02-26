@@ -18,6 +18,14 @@ struct typed_program_node<gated_mlp> : public typed_program_node_base<gated_mlp>
     program_node& weights_gate() const { return get_dependency(1); }
     program_node& weights_up() const { return get_dependency(2); }
     program_node& weights_down() const { return get_dependency(3); }
+    bool has_compressed_weights() const { return get_primitive()->compressed_weights; }
+    bool has_decompression_zero_points() const { return get_primitive()->has_decompression_zero_points; }
+    program_node& decompression_scale_gate() const { return get_dependency(4); }
+    program_node& decompression_scale_up() const { return get_dependency(5); }
+    program_node& decompression_scale_down() const { return get_dependency(6); }
+    program_node& decompression_zero_point_gate() const { return get_dependency(7); }
+    program_node& decompression_zero_point_up() const { return get_dependency(8); }
+    program_node& decompression_zero_point_down() const { return get_dependency(9); }
 
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };

@@ -54,6 +54,8 @@ namespace onednn {
 struct gated_mlp_onednn : typed_primitive_onednn_impl<gated_mlp> {
     using parent = typed_primitive_onednn_impl<gated_mlp>;
     using parent::parent;
+    static constexpr int COMMON = 0;
+    static constexpr int PER_OC = 2;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::gated_mlp_onednn)
 
@@ -85,6 +87,37 @@ protected:
         args[DNNL_ARG_WEIGHTS_UP] = wu_mem->get_onednn_memory(wu_md, wu_off);
         args[DNNL_ARG_WEIGHTS_DOWN] = wd_mem->get_onednn_memory(wd_md, wd_off);
 
+        const auto& prim = instance.get_impl_params()->typed_desc<gated_mlp>();
+        if (prim->compressed_weights) {
+            int idx = 4;
+
+            auto scale_gate_mem = instance.dep_memory_ptr(idx++);
+            auto scale_up_mem = instance.dep_memory_ptr(idx++);
+            auto scale_down_mem = instance.dep_memory_ptr(idx++);
+
+            auto scale_desc_gate = onednn::layout_to_memory_desc_flatten(scale_gate_mem->get_layout(), dnnl::memory::format_tag::a);
+            auto scale_desc_up = onednn::layout_to_memory_desc_flatten(scale_up_mem->get_layout(), dnnl::memory::format_tag::a);
+            auto scale_desc_down = onednn::layout_to_memory_desc_flatten(scale_down_mem->get_layout(), dnnl::memory::format_tag::a);
+
+            args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS_GATE] = scale_gate_mem->get_onednn_memory(scale_desc_gate);
+            args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS_UP] = scale_up_mem->get_onednn_memory(scale_desc_up);
+            args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS_DOWN] = scale_down_mem->get_onednn_memory(scale_desc_down);
+
+            if (prim->has_decompression_zero_points) {
+                auto zp_gate_mem = instance.dep_memory_ptr(idx++);
+                auto zp_up_mem = instance.dep_memory_ptr(idx++);
+                auto zp_down_mem = instance.dep_memory_ptr(idx++);
+
+                auto zp_desc_gate = onednn::layout_to_memory_desc_flatten(zp_gate_mem->get_layout(), dnnl::memory::format_tag::a);
+                auto zp_desc_up = onednn::layout_to_memory_desc_flatten(zp_up_mem->get_layout(), dnnl::memory::format_tag::a);
+                auto zp_desc_down = onednn::layout_to_memory_desc_flatten(zp_down_mem->get_layout(), dnnl::memory::format_tag::a);
+
+                args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS_GATE] = zp_gate_mem->get_onednn_memory(zp_desc_gate);
+                args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS_UP] = zp_up_mem->get_onednn_memory(zp_desc_up);
+                args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS_DOWN] = zp_down_mem->get_onednn_memory(zp_desc_down);
+            }
+        }
+
         return args;
     }
 
@@ -115,6 +148,64 @@ protected:
         auto wd_md = to_2d_md(impl_params.get_input_layout(3), "weights_down");
         auto dst_md = to_2d_md(impl_params.get_output_layout(0), "dst");
 
+        if (prim->compressed_weights) {
+            static constexpr int GROUPED = 3;
+
+            auto set_scales = [&](int arg, const layout& weight_layout, const layout& scale_layout) {
+                const auto scale_dt = onednn::convert_data_type(scale_layout.data_type);
+                if (scale_layout.count() == 1) {
+                    attr->set_scales(arg, COMMON, dnnl::memory::dims{}, scale_dt);
+                    return;
+                }
+
+                const auto ifm = weight_layout.get_dim(0);
+                const auto ngroups = scale_layout.get_dim(0);
+                OPENVINO_ASSERT(ngroups > 0, "[GPU] Invalid grouped scale layout for gated_mlp: ngroups is zero");
+                OPENVINO_ASSERT(ifm % ngroups == 0,
+                                "[GPU] Invalid grouped scale layout for gated_mlp: ifm ", ifm,
+                                " is not divisible by ngroups ", ngroups);
+                const auto group_size = ifm / ngroups;
+
+                if (ngroups == 1) {
+                    attr->set_scales(arg, PER_OC, dnnl::memory::dims{}, scale_dt);
+                } else {
+                    attr->set_scales(arg, GROUPED, dnnl::memory::dims{group_size, 1}, scale_dt);
+                }
+            };
+
+            set_scales(DNNL_ARG_WEIGHTS_GATE, impl_params.get_input_layout(1), impl_params.get_input_layout(4));
+            set_scales(DNNL_ARG_WEIGHTS_UP, impl_params.get_input_layout(2), impl_params.get_input_layout(5));
+            set_scales(DNNL_ARG_WEIGHTS_DOWN, impl_params.get_input_layout(3), impl_params.get_input_layout(6));
+
+            if (prim->has_decompression_zero_points) {
+                auto set_zero_points = [&](int arg, const layout& weight_layout, const layout& zp_layout) {
+                    const auto zp_dt = onednn::convert_data_type(zp_layout.data_type);
+                    if (zp_layout.count() == 1) {
+                        attr->set_zero_points(arg, COMMON, dnnl::memory::dims{}, zp_dt);
+                        return;
+                    }
+
+                    const auto ifm = weight_layout.get_dim(0);
+                    const auto ngroups = zp_layout.get_dim(0);
+                    OPENVINO_ASSERT(ngroups > 0, "[GPU] Invalid grouped zero-point layout for gated_mlp: ngroups is zero");
+                    OPENVINO_ASSERT(ifm % ngroups == 0,
+                                    "[GPU] Invalid grouped zero-point layout for gated_mlp: ifm ", ifm,
+                                    " is not divisible by ngroups ", ngroups);
+                    const auto group_size = ifm / ngroups;
+
+                    if (ngroups == 1) {
+                        attr->set_zero_points(arg, PER_OC, dnnl::memory::dims{}, zp_dt);
+                    } else {
+                        attr->set_zero_points(arg, GROUPED, dnnl::memory::dims{group_size, 1}, zp_dt);
+                    }
+                };
+
+                set_zero_points(DNNL_ARG_WEIGHTS_GATE, impl_params.get_input_layout(1), impl_params.get_input_layout(7));
+                set_zero_points(DNNL_ARG_WEIGHTS_UP, impl_params.get_input_layout(2), impl_params.get_input_layout(8));
+                set_zero_points(DNNL_ARG_WEIGHTS_DOWN, impl_params.get_input_layout(3), impl_params.get_input_layout(9));
+            }
+        }
+
         dnnl_primitive_desc_t c_pd = nullptr;
         auto activation = to_dnnl_alg(prim->activation);
         auto status = dnnl_gated_mlp_primitive_desc_create(&c_pd,
@@ -134,6 +225,8 @@ protected:
                 << " (" << to_status_string(status) << ")"
                 << " c_pd=" << c_pd
                 << " activation=" << static_cast<int>(activation)
+                << " compressed_weights=" << prim->compressed_weights
+                << " has_decompression_zero_points=" << prim->has_decompression_zero_points
                 << " src layout=" << impl_params.get_input_layout(0).to_short_string()
                 << " md=" << onednn::memory_desc_to_string(src_md)
                 << " wg layout=" << impl_params.get_input_layout(1).to_short_string()

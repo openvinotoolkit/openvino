@@ -65,6 +65,18 @@ std::string gated_mlp_inst::to_string(gated_mlp_node const& node) {
     gated_mlp_info.add("weights_gate_id", node.weights_gate().id());
     gated_mlp_info.add("weights_up_id", node.weights_up().id());
     gated_mlp_info.add("weights_down_id", node.weights_down().id());
+    gated_mlp_info.add("compressed_weights", desc->compressed_weights);
+    gated_mlp_info.add("has_decompression_zero_points", desc->has_decompression_zero_points);
+    if (desc->compressed_weights) {
+        gated_mlp_info.add("decompression_scale_gate_id", node.decompression_scale_gate().id());
+        gated_mlp_info.add("decompression_scale_up_id", node.decompression_scale_up().id());
+        gated_mlp_info.add("decompression_scale_down_id", node.decompression_scale_down().id());
+        if (desc->has_decompression_zero_points) {
+            gated_mlp_info.add("decompression_zero_point_gate_id", node.decompression_zero_point_gate().id());
+            gated_mlp_info.add("decompression_zero_point_up_id", node.decompression_zero_point_up().id());
+            gated_mlp_info.add("decompression_zero_point_down_id", node.decompression_zero_point_down().id());
+        }
+    }
     gated_mlp_info.add("activation", static_cast<int64_t>(desc->activation));
 
     node_info->add("gated_mlp_info", gated_mlp_info);
