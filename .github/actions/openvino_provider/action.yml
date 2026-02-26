@@ -204,11 +204,11 @@ runs:
       if: steps.openvino_s3_download.outcome == 'success'
       shell: bash
       run: |
+        rc_version=$(echo ${{ steps.openvino_s3_download.outputs.ov_package_url }} |
+          grep -oP '\d{4}\.\d+\.\d+rc\d+' || true)
+
         release_version=$(echo ${{ steps.openvino_s3_download.outputs.ov_package_path }} |
           grep -oP '_\K\d{4}\.\d+\.\d+')
-
-        rc_version=$(echo ${{ steps.openvino_s3_download.outputs.ov_package_path }} |
-          grep -oP "${release_version//./\\.}\.rc\d+" || true)
 
         dev_version=$(echo ${{ steps.openvino_s3_download.outputs.ov_package_path }} |
           grep -oP "${release_version//./\\.}\.dev\d{8}" || true)
