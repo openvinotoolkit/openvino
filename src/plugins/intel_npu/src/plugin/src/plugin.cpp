@@ -526,7 +526,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
-    FilteredConfig localConfig = _propertiesManager->getConfig(localProperties, compiler.get());
+    FilteredConfig localConfig = _propertiesManager->getConfigForSpecificCompiler(localProperties, compiler.get());
 
     auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
         std::stringstream strStream;
@@ -906,8 +906,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         localProperties[ov::intel_npu::platform.name()] = compilationPlatform;
     }
 
-    FilteredConfig localConfig =
-        _propertiesManager->getConfig(localProperties, compiler.get(), OptionMode::CompileTime);
+    FilteredConfig localConfig = _propertiesManager->getConfigForSpecificCompiler(localProperties, compiler.get());
 
     if (modelSerializerChosenExplicitly) {
         if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
@@ -971,7 +970,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
-    FilteredConfig localConfig = _propertiesManager->getConfig(localProperties, OptionMode::RunTime);
+    FilteredConfig localConfig = _propertiesManager->getConfigWithCompilerPropertiesDisabled(localProperties);
 
     const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
     if (!loadedFromCache) {

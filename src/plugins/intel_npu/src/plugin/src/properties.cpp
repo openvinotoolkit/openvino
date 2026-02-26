@@ -996,7 +996,8 @@ bool Properties::isPropertyRegistered(const std::string& propertyName) const {
     return _properties.find(propertyName) != _properties.end();
 }
 
-FilteredConfig Properties::getConfig(const ov::AnyMap& properties, const ICompilerAdapter* compiler, OptionMode mode) {
+FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& properties,
+                                                        const ICompilerAdapter* compiler) {
     auto [updatedConfig, compilerConfigsFilteredByCompiler, currentlyUsedCompiler, currentlyUsedPlatform] = [&]() {
         std::lock_guard<std::mutex> lock(_mutex);
         return std::make_tuple(_config,
@@ -1042,12 +1043,12 @@ FilteredConfig Properties::getConfig(const ov::AnyMap& properties, const ICompil
         }
     }
 
-    updatedConfig.update(cfgsToSet, mode);
+    updatedConfig.update(cfgsToSet);
 
     return updatedConfig;
 }
 
-FilteredConfig Properties::getConfig(const ov::AnyMap& properties, OptionMode mode) {
+FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::AnyMap& properties) {
     auto [updatedConfig, compilerConfigsFilteredByCompiler] = [&]() {
         std::lock_guard<std::mutex> lock(_mutex);
         return std::make_tuple(_config, _compilerConfigsFilteredByCompiler);
@@ -1059,6 +1060,10 @@ FilteredConfig Properties::getConfig(const ov::AnyMap& properties, OptionMode mo
 
     // Special case for NPU_COMPILER_TYPE - don't need it in the config for this case.
     updatedConfig.enable(ov::intel_npu::compiler_type.name(), false);
+
+    if (properties.empty()) {
+        return updatedConfig;
+    }
 
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
     std::map<std::string, std::string> cfgsToSet;
@@ -1074,7 +1079,7 @@ FilteredConfig Properties::getConfig(const ov::AnyMap& properties, OptionMode mo
         cfgsToSet.emplace(key, value);
     }
 
-    updatedConfig.update(cfgsToSet, mode);
+    updatedConfig.update(cfgsToSet);
 
     return updatedConfig;
 }

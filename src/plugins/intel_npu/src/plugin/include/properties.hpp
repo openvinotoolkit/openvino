@@ -54,7 +54,7 @@ public:
      * @details
      * - Updates the config with the provided arguments and returns it.
      */
-    FilteredConfig getConfig(const ov::AnyMap& properties, OptionMode mode = OptionMode::Both);
+    FilteredConfig getConfigWithCompilerPropertiesDisabled(const ov::AnyMap& properties);
 
     /**
      * @brief Updates a copy of the config list based on the provided properties and compiler, and returns it.
@@ -63,9 +63,7 @@ public:
      * - Filters compiler options based on the current compiler.
      * - Updates the config with the provided arguments and returns it.
      */
-    FilteredConfig getConfig(const ov::AnyMap& properties,
-                             const ICompilerAdapter* compiler,
-                             OptionMode mode = OptionMode::Both);
+    FilteredConfig getConfigForSpecificCompiler(const ov::AnyMap& properties, const ICompilerAdapter* compiler);
 
     std::string determinePlatform(const ov::AnyMap& properties) const;
     std::string determineDeviceId(const ov::AnyMap& properties) const;
