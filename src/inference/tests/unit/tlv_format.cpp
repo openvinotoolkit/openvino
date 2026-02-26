@@ -21,14 +21,14 @@ using runtime::TLVFormat;
 TEST(TLVFormatTest, WriteReadEntryWithRawData) {
     auto stream = make_stream();
     const TLVFormat::TagType expected_tag = 77;
-    const std::array<uint8_t, 4> expected_data = {0x12, 0x34, 0x56, 0x78};
+    const std::vector<char> expected_data = {0x12, 0x34, 0x56, 0x78};
 
     TLVFormat::write_entry(stream, expected_tag, expected_data.size(), expected_data.data());
     stream.seekg(0);
 
     TLVFormat::TagType tag = 0;
     TLVFormat::LengthType size = 0;
-    std::vector<uint8_t> data;
+    std::vector<char> data;
     ASSERT_TRUE(TLVFormat::read_entry(stream, tag, size, data));
     EXPECT_EQ(tag, expected_tag);
     EXPECT_EQ(size, expected_data.size());
@@ -48,8 +48,9 @@ TEST(TLVFormatTest, WriteReadEntryWithWriter) {
 
     TLVFormat::TagType tag = 0;
     TLVFormat::LengthType size = 0;
-    std::string data;
-    ASSERT_TRUE(TLVFormat::read_entry(stream, tag, size, data));
+    std::vector<char> buffer;
+    ASSERT_TRUE(TLVFormat::read_entry(stream, tag, size, buffer));
+    const std::string data{buffer.begin(), buffer.end()};
     EXPECT_EQ(tag, expected_tag);
     EXPECT_EQ(size, expected_data.size());
     EXPECT_EQ(data, expected_data);
@@ -63,7 +64,7 @@ TEST(TLVFormatTest, WriteReadEntryWithZeroSize) {
         stream.seekg(0);
         TLVFormat::TagType tag = 0;
         TLVFormat::LengthType size = 123;
-        std::vector<uint8_t> data = {0xAB};
+        std::vector<char> data = {'A', 'B', 'C'};
         ASSERT_TRUE(TLVFormat::read_entry(stream, tag, size, data));
         EXPECT_EQ(tag, expected_tag);
         EXPECT_EQ(size, 0);
@@ -89,7 +90,7 @@ TEST(TLVFormatTest, ReadEntryReturnsFalseForTruncatedHeader) {
 
     TLVFormat::TagType read_tag = 0;
     TLVFormat::LengthType read_size = 0;
-    std::vector<uint8_t> data;
+    std::vector<char> data;
     EXPECT_FALSE(TLVFormat::read_entry(stream, read_tag, read_size, data));
 }
 
@@ -106,7 +107,7 @@ TEST(TLVFormatTest, ReadEntryReturnsFalseForTruncatedPayload) {
 
     TLVFormat::TagType read_tag = 0;
     TLVFormat::LengthType read_size = 0;
-    std::vector<uint8_t> data;
+    std::vector<char> data;
     EXPECT_FALSE(TLVFormat::read_entry(stream, read_tag, read_size, data));
 }
 
@@ -116,9 +117,9 @@ TEST(TLVFormatTest, ScanEntriesReadsMatchingTagsAndSkipsUnknown) {
     const std::string second_data = "skip_me";
     const std::string third_data = "three";
 
-    TLVFormat::write_entry(stream, 1, first_data.size(), reinterpret_cast<const uint8_t*>(first_data.data()));
-    TLVFormat::write_entry(stream, 2, second_data.size(), reinterpret_cast<const uint8_t*>(second_data.data()));
-    TLVFormat::write_entry(stream, 3, third_data.size(), reinterpret_cast<const uint8_t*>(third_data.data()));
+    TLVFormat::write_entry(stream, 1, first_data.size(), first_data.data());
+    TLVFormat::write_entry(stream, 2, second_data.size(), second_data.data());
+    TLVFormat::write_entry(stream, 3, third_data.size(), third_data.data());
 
     stream.seekg(0);
     const auto begin_pos = stream.tellg();
@@ -148,7 +149,7 @@ TEST(TLVFormatTest, ScanEntriesReadsMatchingTagsAndSkipsUnknown) {
 TEST(TLVFormatTest, ScanEntriesWithoutRewindLeavesStreamAtEnd) {
     auto stream = make_stream();
     const std::vector<uint8_t> data = {1, 2, 3, 4};
-    TLVFormat::write_entry(stream, 9, data.size(), data.data());
+    TLVFormat::write_entry(stream, 9, data.size(), reinterpret_cast<const char*>(data.data()));
 
     stream.seekg(0);
     stream.seekg(0, std::ios::end);

@@ -32,7 +32,7 @@ struct TLVFormat {
      * @param size Size of the entry value.
      * @param data Pointer to the entry value data.
      */
-    static void write_entry(std::ostream& stream, TagType tag, LengthType size, const uint8_t* data);
+    static void write_entry(std::ostream& stream, TagType tag, LengthType size, const char* data);
 
     /**
      * @brief Type of callable for writing TLV entry values based on their tag.
@@ -56,17 +56,7 @@ struct TLVFormat {
      * @param data Output parameter to store the read entry value.
      * @return True if the entry was successfully read, false otherwise.
      */
-    static bool read_entry(std::istream& stream, TagType& tag, LengthType& size, std::vector<uint8_t>& data);
-
-    /**
-     * @brief Read a TLV entry from the stream into a string.
-     * @param stream Input stream to read the entry from. It should be positioned at the beginning of an entry.
-     * @param tag Output parameter to store the tag of the read entry.
-     * @param size Output parameter to store the size of the read entry value.
-     * @param data Output parameter to store the read entry value.
-     * @return True if the entry was successfully read, false otherwise.
-     */
-    static bool read_entry(std::istream& stream, TagType& tag, LengthType& size, std::string& data);
+    static bool read_entry(std::istream& stream, TagType& tag, LengthType& size, std::vector<char>& data);
 
     /**
      * @brief Type of callable for reading TLV entry values based on their tag.

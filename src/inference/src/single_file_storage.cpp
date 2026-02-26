@@ -30,15 +30,19 @@ void validate_version(const SingleFileStorage::FormatVersion& version) {
 void write_tlv_string(std::ostream& stream, const std::string& str) {
     TLVFormat::write_entry(stream,
                            static_cast<TLVFormat::TagType>(SingleFileStorage::Tag::String),
-                           static_cast<TLVFormat::LengthType>(str.size()),
-                           reinterpret_cast<const uint8_t*>(str.data()));
+                           str.size(),
+                           str.data());
 }
 
 bool read_tlv_string(std::istream& stream, std::string& str) {
     TLVFormat::TagType tag;
     TLVFormat::LengthType size;
-    const auto read = TLVFormat::read_entry(stream, tag, size, str);
+    std::vector<char> buffer;
+    const auto read = TLVFormat::read_entry(stream, tag, size, buffer);
     OPENVINO_ASSERT(SingleFileStorage::Tag{tag} == SingleFileStorage::Tag::String);
+    if (read) {
+        str = std::string{buffer.begin(), buffer.end()};
+    }
     return read;
 }
 
@@ -216,8 +220,8 @@ void SingleFileStorage::scan_context(std::ifstream& stream) {
             }
             left_size -= const_meta_size;
 
-            m_shared_context.m_weight_registry[source_id][const_id] = {const_offset,
-                                                                       const_size,
+            m_shared_context.m_weight_registry[source_id][const_id] = {static_cast<size_t>(const_offset),
+                                                                       static_cast<size_t>(const_size),
                                                                        element::Type_t{const_type}};
         }
     };

@@ -11,7 +11,7 @@ namespace ov::runtime {
 
 // todo General: How to handle stream not good?
 
-void TLVFormat::write_entry(std::ostream& stream, TagType tag, LengthType size, const uint8_t* data) {
+void TLVFormat::write_entry(std::ostream& stream, TagType tag, LengthType size, const char* data) {
     stream.write(reinterpret_cast<const char*>(&tag), sizeof(tag));
     stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
     if (size && data) {
@@ -54,10 +54,7 @@ static bool read_entry_(std::istream& stream, TLVFormat::TagType& tag, TLVFormat
     return stream.good();
 }
 
-bool TLVFormat::read_entry(std::istream& stream, TagType& tag, LengthType& size, std::vector<uint8_t>& data) {
-    return read_entry_(stream, tag, size, data);
-}
-bool TLVFormat::read_entry(std::istream& stream, TagType& tag, LengthType& size, std::string& data) {
+bool TLVFormat::read_entry(std::istream& stream, TagType& tag, LengthType& size, std::vector<char>& data) {
     return read_entry_(stream, tag, size, data);
 }
 
