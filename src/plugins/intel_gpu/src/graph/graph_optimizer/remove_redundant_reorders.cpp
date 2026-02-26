@@ -22,7 +22,6 @@
 #include "fully_connected_inst.h"
 #include "group_normalization_inst.h"
 #include "mvn_inst.h"
-#include "reorder_inst.h"
 #include "rms_inst.h"
 
 #include <vector>
