@@ -293,8 +293,8 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     }
 
     if (blockSize > 1) {
-        params.attrs.padsBegin[1] /= blockSize;
-        params.attrs.padsEnd[1] /= blockSize;
+        params.attrs.padsBegin[1] /= static_cast<int>(blockSize);
+        params.attrs.padsEnd[1] /= static_cast<int>(blockSize);
         params.attrs.padsBegin.push_back(0);
         params.attrs.padsEnd.push_back(0);
     } else {
@@ -309,16 +309,16 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
         params.attrs.padsEnd = newPadsEnd;
     }
     params.attrs.beginPadIdx = 0;
-    params.attrs.endPadIdx = params.attrs.padsBegin.size() - 1;
+    params.attrs.endPadIdx = static_cast<int>(params.attrs.padsBegin.size()) - 1;
 
     for (size_t i = 0; i < params.attrs.padsBegin.size(); ++i) {
         if (params.attrs.padsBegin[i] != 0 || params.attrs.padsEnd[i] != 0) {
-            params.attrs.beginPadIdx = i - 1;
+            params.attrs.beginPadIdx = static_cast<int>(i) - 1;
             break;
         }
     }
 
-    for (int i = params.attrs.padsBegin.size() - 1; i >= 0; --i) {
+    for (int i = static_cast<int>(params.attrs.padsBegin.size()) - 1; i >= 0; --i) {
         if (params.attrs.padsBegin[i] != 0 || params.attrs.padsEnd[i] != 0) {
             params.attrs.endPadIdx = i;
             break;
@@ -349,7 +349,7 @@ void Pad::PadExecutor::workPartition() {
     size_t nDims = params.srcDims.size();
     params.srcStrides.resize(nDims, 1);
     params.dstStrides.resize(nDims, 1);
-    for (int i = nDims - 2; i >= 0; i--) {
+    for (int i = static_cast<int>(nDims) - 2; i >= 0; i--) {
         params.srcStrides[i] = params.srcStrides[i + 1] * params.srcDims[i + 1];
         params.dstStrides[i] = params.dstStrides[i + 1] * params.dstDims[i + 1];
     }
@@ -438,15 +438,15 @@ void Pad::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims& dims, std::vector<int32_t>& indexes) {
-    for (int j = nDims - 1; j >= 0; j--) {
-        indexes[j] = start % dims[j];
+    for (int j = static_cast<int>(nDims) - 1; j >= 0; j--) {
+        indexes[j] = static_cast<int32_t>(start % dims[j]);
         start = start / dims[j];
     }
     return start;
 }
 
 static inline void parallel_step(size_t nDims, const VectorDims& dims, std::vector<int32_t>& indexes) {
-    for (int j = nDims - 1; j >= 0; --j) {
+    for (int j = static_cast<int>(nDims) - 1; j >= 0; --j) {
         ++indexes[j];
         if (static_cast<size_t>(indexes[j]) < dims[j]) {
             break;

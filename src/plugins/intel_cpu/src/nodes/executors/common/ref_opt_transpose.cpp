@@ -37,9 +37,9 @@ void transpose_to_0312(const int MB,
     const auto* const src_data = srcMemPtr->getDataAs<const T>();
     auto dst_data = dstMemPtr->getDataAs<T>();
 
-    const int DIM1 = srcMemPtr->getStaticDims()[1];
-    const int DIM2 = srcMemPtr->getStaticDims()[2];
-    const int DIM3 = srcMemPtr->getStaticDims()[3];
+    const int DIM1 = static_cast<int>(srcMemPtr->getStaticDims()[1]);
+    const int DIM2 = static_cast<int>(srcMemPtr->getStaticDims()[2]);
+    const int DIM3 = static_cast<int>(srcMemPtr->getStaticDims()[3]);
 
     cpuParallel->parallel_for3d(MB, DIM1, DIM2, [&](const int n, const int dim1, const int dim2) {
         for (int dim3 = 0; dim3 < DIM3; ++dim3) {
@@ -59,10 +59,10 @@ void transpose_to_04123(const int MB,
     const auto* const src_data = srcMemPtr->getDataAs<const T>();
     auto dst_data = dstMemPtr->getDataAs<T>();
 
-    const int DIM1 = srcMemPtr->getStaticDims()[1];
-    const int DIM2 = srcMemPtr->getStaticDims()[2];
-    const int DIM3 = srcMemPtr->getStaticDims()[3];
-    const int DIM4 = srcMemPtr->getStaticDims()[4];
+    const int DIM1 = static_cast<int>(srcMemPtr->getStaticDims()[1]);
+    const int DIM2 = static_cast<int>(srcMemPtr->getStaticDims()[2]);
+    const int DIM3 = static_cast<int>(srcMemPtr->getStaticDims()[3]);
+    const int DIM4 = static_cast<int>(srcMemPtr->getStaticDims()[4]);
 
     cpuParallel->parallel_for4d(MB, DIM1, DIM2, DIM3, [&](const int n, const int dim1, const int dim2, const int dim3) {
         for (int dim4 = 0; dim4 < DIM4; ++dim4) {
@@ -84,11 +84,11 @@ void transpose_to_051234(const int MB,
     const auto* const src_data = srcMemPtr->getDataAs<const T>();
     auto dst_data = dstMemPtr->getDataAs<T>();
 
-    const int DIM1 = srcMemPtr->getStaticDims()[1];
-    const int DIM2 = srcMemPtr->getStaticDims()[2];
-    const int DIM3 = srcMemPtr->getStaticDims()[3];
-    const int DIM4 = srcMemPtr->getStaticDims()[4];
-    const int DIM5 = srcMemPtr->getStaticDims()[5];
+    const int DIM1 = static_cast<int>(srcMemPtr->getStaticDims()[1]);
+    const int DIM2 = static_cast<int>(srcMemPtr->getStaticDims()[2]);
+    const int DIM3 = static_cast<int>(srcMemPtr->getStaticDims()[3]);
+    const int DIM4 = static_cast<int>(srcMemPtr->getStaticDims()[4]);
+    const int DIM5 = static_cast<int>(srcMemPtr->getStaticDims()[5]);
 
     cpuParallel->parallel_for5d(
         MB,
@@ -129,7 +129,7 @@ struct TransposeOptimizedEmitter {
 }  // namespace
 void RefOptimizedTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
     const size_t dataSize = src[0]->getDesc().getPrecision().size();
-    const int MB = src[0]->getStaticDims()[0];
+    const int MB = static_cast<int>(src[0]->getStaticDims()[0]);
     TransposeContext ctx = {src[0], dst[0], MB, context->getCpuParallel()};
     OV_SWITCH(intel_cpu,
               TransposeOptimizedEmitter,

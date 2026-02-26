@@ -33,7 +33,7 @@ namespace ov::intel_cpu {
 VectorDims TileBroadcastCommon::calculateDenseStrides(const VectorDims& dims) {
     VectorDims strides(dims.size(), 1);
 
-    for (int i = strides.size() - 2; i >= 0; i--) {
+    for (int i = static_cast<int>(strides.size()) - 2; i >= 0; i--) {
         strides[i] = strides[i + 1] * dims[i + 1];
     }
 

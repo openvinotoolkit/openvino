@@ -401,7 +401,8 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
                     if (!isReorderRequired(parentDesc, curDesc)) {
                         estimate += 1;
                     } else {
-                        estimate += ov::shape_size<ov::intel_cpu::VectorDims>(curDesc->getShape().getMinDims());
+                        estimate += static_cast<int>(
+                            ov::shape_size<ov::intel_cpu::VectorDims>(curDesc->getShape().getMinDims()));
                     }
                 }
 
@@ -549,7 +550,7 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
 
             auto baseMemBlock = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryBlock();
             auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock);
-            const auto& childEdges = getChildEdgesAtPort(i);
+            const auto& childEdges = getChildEdgesAtPort(static_cast<int>(i));
 
             for (const auto& childEdge : childEdges) {
                 OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
@@ -862,7 +863,7 @@ void Node::redefineOutputMemory(const std::vector<VectorDims>& newOutputShapes) 
 }
 
 void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_shape) const {
-    const auto edges = getChildEdgesAtPort(port);
+    const auto edges = getChildEdgesAtPort(static_cast<int>(port));
 
     static const VectorDims single_element_shape = {1};
 
@@ -1479,16 +1480,16 @@ bool Node::isConfigDefined(const NodeConfig& config) {
 
 MemoryDescPtr Node::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
     if (getInputShapeAtPort(idx).isDynamic()) {
-        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(idx), getInputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(static_cast<int>(idx)), getInputShapeAtPort(idx));
     }
-    return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(idx));
+    return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(static_cast<int>(idx)));
 }
 
 MemoryDescPtr Node::getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
     if (getOutputShapeAtPort(idx).isDynamic()) {
-        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.dst_desc(idx), getOutputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.dst_desc(static_cast<int>(idx)), getOutputShapeAtPort(idx));
     }
-    return DnnlExtensionUtils::makeDescriptor(prim_desc.dst_desc(idx));
+    return DnnlExtensionUtils::makeDescriptor(prim_desc.dst_desc(static_cast<int>(idx)));
 }
 
 void Node::appendPostOpArgs([[maybe_unused]] const dnnl::primitive_attr& attr,

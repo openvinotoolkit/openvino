@@ -237,7 +237,7 @@ inline void scale_add_reduce_max(float* a, const float scale, const float* b, co
 
     // process tails
     if (i < size) {
-        auto mask = get_mask(size - i);
+        auto mask = get_mask(static_cast<int>(size - i));
         v_a = _mm256_maskload_ps(a + i, mask);
         v_b = _mm256_maskload_ps(b + i, mask);
         v_a = _mm256_fmadd_ps(v_a, v_scale, v_b);
@@ -500,7 +500,7 @@ inline void scale_add2_reduce_max(float* a,
 
     // process tails
     if (i < size) {
-        auto mask = get_mask(size - i);
+        auto mask = get_mask(static_cast<int>(size - i));
         v_a = _mm256_maskload_ps(a + i, mask);
         v_a = _mm256_mul_ps(v_a, v_scale);
 
@@ -899,7 +899,7 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
     }
 
     if (i < size) {
-        auto mask = get_mask(size - i);
+        auto mask = get_mask(static_cast<int>(size - i));
         v_a = _mm256_maskload_ps(a + i, mask);
         v_a = _mm256_sub_ps(v_a, v_max);
         exp_ps_avx2(v_a);
@@ -1099,7 +1099,7 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
         i += vec_len_f32_avx2;
     }
     if (i < size) {
-        auto mask = get_mask(size - i);
+        auto mask = get_mask(static_cast<int>(size - i));
         v_a = _mm256_maskload_ps(a + i, mask);
         v_a = _mm256_mul_ps(v_a, v_scale);
         mm256_uni_storeu_tail_ps(a_dst + i, v_a, size - i);

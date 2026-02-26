@@ -93,7 +93,7 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
 
             const auto comparison_start_pos = expected_shape.size() - node_shape.size();
             return std::equal(node_shape.begin(), node_shape.end(), expected_shape.begin() + comparison_start_pos) ||
-                   std::all_of(node_shape.cbegin(), node_shape.cend(), [](int dim) {
+                   std::all_of(node_shape.cbegin(), node_shape.cend(), [](auto dim) {
                        return dim == 1;
                    });
         };

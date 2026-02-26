@@ -31,9 +31,9 @@ public:
     static const CreatorsMap& getCommonCreators();
     static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> makeFilteredRange(
         const CreatorsMap& map,
-        unsigned rank);
+        size_t rank);
     static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
-    makeFilteredRange(const CreatorsMap& map, unsigned rank, const std::vector<LayoutType>& supportedTypes);
+    makeFilteredRange(const CreatorsMap& map, size_t rank, const std::vector<LayoutType>& supportedTypes);
     static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> makeFilteredRange(
         const CreatorsMap& map,
         Predicate predicate);

@@ -94,7 +94,7 @@ void ShapeOf::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto* dst = outPtr->getDataAs<int>();
 
     for (size_t i = 0; i < dimsCount; i++) {
-        dst[i] = inDims[i];
+        dst[i] = static_cast<int>(inDims[i]);
     }
 }
 

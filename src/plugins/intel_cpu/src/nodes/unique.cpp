@@ -71,7 +71,7 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         flattened = false;
         axis = ov::as_type<op::v0::Constant>(op->get_input_node_ptr(AXIS))->cast_vector<int>()[0];
         if (axis < 0) {
-            axis += op->get_input_partial_shape(IN_DATA).rank().get_length();
+            axis += static_cast<int>(op->get_input_partial_shape(IN_DATA).rank().get_length());
         }
         CPU_NODE_ASSERT(axis >= 0 && axis < op->get_input_partial_shape(IN_DATA).rank().get_length(),
                         "has invalid axis value: ",
@@ -172,7 +172,7 @@ void Unique::executeDynamicImpl(const dnnl::stream& strm) {
     VectorDims dstDataDims;
     Dim uniqLen = 1;
     if (flattened) {
-        uniqLen = std::accumulate(srcDataDims.begin(), srcDataDims.end(), 1, std::multiplies<>());
+        uniqLen = std::accumulate(srcDataDims.begin(), srcDataDims.end(), size_t{1}, std::multiplies<>());
         dstDataDims = {uniqLen};
     } else {
         uniqLen = srcDataDims[axis];
@@ -214,7 +214,7 @@ void Unique::flattenTensorExec() {
             for (T* it = first; it < last; it++) {
                 for (size_t i = 0; i < inputLen; i++) {
                     if (srcDataPtr[i] == *it) {
-                        *firstTmpPtr++ = i;
+                        *firstTmpPtr++ = static_cast<int>(i);
                         first++;
                         break;
                     }
@@ -229,7 +229,7 @@ void Unique::flattenTensorExec() {
                 }
                 for (size_t j = 0; j < uniqueLen; j++) {
                     if (srcDataPtr[i] == uniDataTmpPtr[j]) {
-                        inToOutTmpPtr[i] = j;
+                        inToOutTmpPtr[i] = static_cast<int>(j);
                         break;
                     }
                 }
@@ -254,12 +254,12 @@ void Unique::flattenTensorExec() {
         }
 
         for (size_t i = 0, j = 0; i < inputLen; ++i) {
-            auto it = uniq.emplace(srcDataPtr[i], j);
+            auto it = uniq.emplace(srcDataPtr[i], static_cast<int32_t>(j));
             if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
                 inToOutTmpPtr[i] = it.first->second;
                 if (it.second) {
                     if (definedOutputs[FIRST_UNIQUE_IDX]) {
-                        firstTmpPtr[j] = i;
+                        firstTmpPtr[j] = static_cast<int>(i);
                     }
                     ++j;
                 } else {
@@ -317,11 +317,11 @@ void Unique::slicedTensorExec() {
     const auto axisDim = srcDataShape[axis];
     int64_t outerLen = 1LU;
     if (axis > 0) {
-        outerLen = std::accumulate(srcDataShape.begin(), srcDataShape.begin() + axis, 1, std::multiplies<>());
+        outerLen = std::accumulate(srcDataShape.begin(), srcDataShape.begin() + axis, size_t{1}, std::multiplies<>());
     }
     int64_t innerLen = 1;
     if (static_cast<size_t>(axis) < srcDataShape.size() - 1) {
-        innerLen = std::accumulate(srcDataShape.begin() + axis + 1, srcDataShape.end(), 1, std::multiplies<>());
+        innerLen = std::accumulate(srcDataShape.begin() + axis + 1, srcDataShape.end(), size_t{1}, std::multiplies<>());
     }
     const auto innerSizeB = innerLen * sizeof(T);
     const auto srcOuterStep = innerLen * axisDim;
@@ -364,7 +364,7 @@ void Unique::slicedTensorExec() {
         }
         if (!equal) {
             if (definedOutputs[FIRST_UNIQUE_IDX]) {
-                firstTmpPtr[uniqueLen] = a;
+                firstTmpPtr[uniqueLen] = static_cast<int>(a);
             }
 
             uniqIdx[uniqueLen++] = a;
@@ -374,7 +374,7 @@ void Unique::slicedTensorExec() {
             }
         }
         if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-            inToOutTmpPtr[a] = uIdx;
+            inToOutTmpPtr[a] = static_cast<int>(uIdx);
         }
     }
 
@@ -467,7 +467,7 @@ void Unique::slicedTensorExec() {
                         if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
                             for (size_t ax = 0; ax < axisDim; ax++) {
                                 if (inToOut2[ax] == colToSort[u].idx) {
-                                    inToOut1[ax] = u;
+                                    inToOut1[ax] = static_cast<int>(u);
                                 }
                             }
                         }

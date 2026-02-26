@@ -116,7 +116,7 @@ void EmbeddingBag::processData(const T* srcData,
                 }
                 if (_reduction == Reduction::MEAN) {
                     for (size_t i = 0LU; i < _embDepth; i++) {
-                        dstData[dstIndex + i] /= indicesSize;
+                        dstData[dstIndex + i] /= static_cast<T>(indicesSize);
                     }
                 }
             } else {

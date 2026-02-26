@@ -60,7 +60,7 @@ PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ov::Node>& op, const 
     step_widths = attrs.step_widths;
     offset = attrs.offset;
 
-    number_of_priors = widths.size();
+    number_of_priors = static_cast<int>(widths.size());
 
     if (variances.empty()) {
         variances.push_back(0.1F);

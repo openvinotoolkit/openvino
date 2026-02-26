@@ -765,8 +765,8 @@ static dnnl::memory::dims getGroupDims(const VectorDims& weiDims, const VectorDi
         return {};
     }
 
-    int N = weiDims[weiDims.size() - 2];
-    int K = weiDims[weiDims.size() - 1];
+    int N = static_cast<int>(weiDims[weiDims.size() - 2]);
+    int K = static_cast<int>(weiDims[weiDims.size() - 1]);
     dnnl::memory::dim groupN = N / scaleDims[0];
     dnnl::memory::dim groupK = K / scaleDims[1];
 
@@ -776,8 +776,8 @@ static dnnl::memory::dims getGroupDims(const VectorDims& weiDims, const VectorDi
 static int getMask(const VectorDims& weiDims, const dnnl::memory::dims& groupDims) {
     const int maskN = 1 << (weiDims.size() - 1);
     const int maskK = 1 << (weiDims.size() - 2);
-    int N = weiDims[weiDims.size() - 2];
-    int K = weiDims[weiDims.size() - 1];
+    int N = static_cast<int>(weiDims[weiDims.size() - 2]);
+    int K = static_cast<int>(weiDims[weiDims.size() - 1]);
     int mask = 0;
     if (!groupDims.empty() && groupDims[1] != N) {
         mask += maskN;
@@ -899,7 +899,7 @@ void DnnlPostOpsComposer::appendAttrPostOpsLegacy(const ScaleShiftPostOp& postOp
 
     // always align for legacy scale/shift post ops
     constexpr int bufferAlignment = 16;
-    int bufferPaddingSize = rnd_up(channelSize, bufferAlignment) - channelSize;
+    int bufferPaddingSize = static_cast<int>(rnd_up(channelSize, static_cast<size_t>(bufferAlignment)) - channelSize);
     depthwiseData.resize(depthwiseDataSize + bufferPaddingSize, 0);
 
     std::array<size_t, 2> offsets = {0};
@@ -1138,12 +1138,12 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
         }
 
         if (const auto* const conv = std::any_cast<DepthwiseConvolutionPostOp>(&postOp)) {
-            appendDepthwiseConvolution(conv->ih(),
-                                       conv->iw(),
-                                       conv->kernel()[1],
-                                       conv->kernel()[0],
-                                       conv->strides()[1],
-                                       conv->strides()[0],
+            appendDepthwiseConvolution(static_cast<int>(conv->ih()),
+                                       static_cast<int>(conv->iw()),
+                                       static_cast<int>(conv->kernel()[1]),
+                                       static_cast<int>(conv->kernel()[0]),
+                                       static_cast<int>(conv->strides()[1]),
+                                       static_cast<int>(conv->strides()[0]),
                                        dnnl::memory::data_type::f32);
             continue;
         }

@@ -423,17 +423,17 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Xmm& xmmDstMask,
 
     mov(r64Ones, 0xFFFFFFFFFFFFFFFF);
     for (uint64_t i = 0; i < elPerVec; i++) {
-        cmp(rWorkRest, i);
+        cmp(rWorkRest, static_cast<int>(i));
         jle(lEnd, T_NEAR);
 
         if (typeSize == 1) {
-            pinsrb(xmmDstMask, r32Ones, i);
+            pinsrb(xmmDstMask, r32Ones, static_cast<int>(i));
         } else if (typeSize == 2) {
-            pinsrw(xmmDstMask, r32Ones, i);
+            pinsrw(xmmDstMask, r32Ones, static_cast<int>(i));
         } else if (typeSize == 4) {
-            pinsrd(xmmDstMask, r32Ones, i);
+            pinsrd(xmmDstMask, r32Ones, static_cast<int>(i));
         } else if (typeSize == 8) {
-            pinsrq(xmmDstMask, r64Ones, i);
+            pinsrq(xmmDstMask, r64Ones, static_cast<int>(i));
         }
     }
     L(lEnd);
@@ -454,20 +454,20 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Ymm& ymmDstMask,
     for (uint8_t i = 0; i < 2; i++) {
         Xbyak::Label lPerm;
         for (uint64_t j = 0; j < elPerVec; j++) {
-            cmp(rWorkRest, i * elPerVec + j);
+            cmp(rWorkRest, static_cast<int>(i * elPerVec + j));
             jle(i == 0 ? lEnd : lPerm, T_NEAR);
 
             if (typeSize == 1) {
-                pinsrb(xmmDstMask, r32Ones, j);
+                pinsrb(xmmDstMask, r32Ones, static_cast<int>(j));
             } else if (typeSize == 2) {
-                pinsrw(xmmDstMask, r32Ones, j);
+                pinsrw(xmmDstMask, r32Ones, static_cast<int>(j));
             } else if (typeSize == 4) {
-                pinsrd(xmmDstMask, r32Ones, j);
+                pinsrd(xmmDstMask, r32Ones, static_cast<int>(j));
             } else if (typeSize == 8) {
-                pinsrq(xmmDstMask, r64Ones, j);
+                pinsrq(xmmDstMask, r64Ones, static_cast<int>(j));
             }
         }
-        cmp(rWorkRest, elPerVec);
+        cmp(rWorkRest, static_cast<int>(elPerVec));
         je(lEnd, T_NEAR);
         L(lPerm);
         vperm2f128(ymmDstMask, ymmDstMask, ymmDstMask, 0x1);

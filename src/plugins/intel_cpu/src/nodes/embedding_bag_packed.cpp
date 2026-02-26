@@ -132,7 +132,7 @@ void EmbeddingBagPacked::getIndices(size_t embIndex,
     indices = _indices + embIndex * _indicesPerBag;
     size = _indicesPerBag;
 
-    weightsIdx = embIndex * _indicesPerBag;
+    weightsIdx = static_cast<int>(embIndex * _indicesPerBag);
 }
 
 void EmbeddingBagPacked::executeDynamicImpl(const dnnl::stream& strm) {

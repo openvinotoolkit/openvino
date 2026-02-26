@@ -290,10 +290,10 @@ void Pooling::initEffectiveAttributes(const Shape& inShape, const Shape& outShap
     const auto& outDims = outShape.getStaticDims();
 
     for (size_t i = 0; i < poolingAttrs.effective_pad_end.size(); i++) {
-        int krn = poolingAttrs.kernel[i];
-        int dil = poolingAttrs.dilation[i];
-        int src = inDims[2 + i];
-        int dst = outDims[2 + i];
+        int krn = static_cast<int>(poolingAttrs.kernel[i]);
+        int dil = static_cast<int>(poolingAttrs.dilation[i]);
+        int src = static_cast<int>(inDims[2 + i]);
+        int dst = static_cast<int>(outDims[2 + i]);
 
         poolingAttrs.effective_pad_end[i] =
             (dst - 1) * poolingAttrs.stride[i] - (src - (1 + (krn - 1) * dil) + poolingAttrs.data_pad_begin[i]);

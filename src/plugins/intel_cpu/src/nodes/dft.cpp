@@ -508,11 +508,12 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
 
 std::vector<float> DFT::generateTwiddlesDFT(size_t n_complex, bool inverse) {
     std::vector<float> twiddles(n_complex * n_complex * 2);
-    const float inverseMultiplier = inverse ? 1 : -1;
+    const float inverseMultiplier = inverse ? 1.0F : -1.0F;
     const auto& cpu_parallel = context->getCpuParallel();
     cpu_parallel->parallel_for(n_complex, [&](const size_t k) {
         for (size_t n = 0; n < n_complex; ++n) {
-            float phase = 2.0F * PI * static_cast<float>(n * k) / static_cast<float>(n_complex);
+            float phase = static_cast<float>(2.0 * PI * static_cast<double>(n) * static_cast<double>(k) /
+                                             static_cast<double>(n_complex));
             auto complexReal = std::cos(phase);
             auto complexImag = std::sin(phase) * inverseMultiplier;
             twiddles[2 * (k * n_complex + n)] = complexReal;
@@ -523,7 +524,7 @@ std::vector<float> DFT::generateTwiddlesDFT(size_t n_complex, bool inverse) {
 }
 
 void DFT::updateTwiddlesFFT(size_t n_complex, bool inverse) {
-    const float inverseMultiplier = inverse ? 1 : -1;
+    const float inverseMultiplier = inverse ? 1.0F : -1.0F;
     size_t numBlocks = 1;
 
     twiddlesFFT.reserve((n_complex - 1) * 2);

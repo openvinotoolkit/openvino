@@ -631,7 +631,7 @@ struct MHAHelper {
         if (init_alibi_lookup && (!_alibi_lookup || _alibi_lookup.m_dims[0] < kv_len)) {
             _alibi_lookup.resize<float>({kv_len * 2});
             for (size_t i = 0; i < _alibi_lookup.m_dims[0]; i++) {
-                _alibi_lookup.ptr<float>()[i] = -static_cast<int>((_alibi_lookup.m_dims[0] - 1 - i));
+                _alibi_lookup.ptr<float>()[i] = static_cast<float>(-static_cast<int>((_alibi_lookup.m_dims[0] - 1 - i)));
             }
         }
 
@@ -676,7 +676,7 @@ struct MHAHelper {
             auto tmp_buf_num = score_win_len ? q_end_idx_score_block - q_start_idx_score_block : 0;
             auto kv_len = past_lens.ptr<int32_t>()[i] + q_len;
             // aligned to cache line to avoid false sharing
-            auto kv_len_aligned = rnd_up(kv_len, cache_line_size / sizeof(float));
+            auto kv_len_aligned = rnd_up(kv_len, static_cast<int32_t>(cache_line_size / sizeof(float)));
             _score_infos[i].score_offsets_aligned = total_kv_len_aligned;
             _score_infos[i].score_offsets = total_kv_len;
             _score_infos[i].score_buf_num = tmp_buf_num;
@@ -2094,7 +2094,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         block_indices.assert_dims({0}, true);
         block_indices_begins.assert_dims({B_seq + 1});
         if (scale == 0.0F) {
-            scale = 1.0F / sqrt(S);
+            scale = 1.0F / sqrtf(static_cast<float>(S));
         }
         if (alibi_slopes) {
             alibi_slopes.assert_dims({H});

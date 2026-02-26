@@ -1105,14 +1105,14 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(
     jcp.kh = weiDims[2];
     jcp.kw = weiDims[3];
 
-    jcp.t_pad = defConvAttr.padL[0];
-    jcp.l_pad = defConvAttr.padL[1];
+    jcp.t_pad = static_cast<int>(defConvAttr.padL[0]);
+    jcp.l_pad = static_cast<int>(defConvAttr.padL[1]);
 
-    jcp.stride_h = defConvAttr.stride[0];
-    jcp.stride_w = defConvAttr.stride[1];
+    jcp.stride_h = static_cast<int>(defConvAttr.stride[0]);
+    jcp.stride_w = static_cast<int>(defConvAttr.stride[1]);
 
-    jcp.dilate_h = defConvAttr.dilation[0];
-    jcp.dilate_w = defConvAttr.dilation[1];
+    jcp.dilate_h = static_cast<int>(defConvAttr.dilation[0]);
+    jcp.dilate_w = static_cast<int>(defConvAttr.dilation[1]);
 
     jcp.with_bias = false;
     jcp.with_bi_pad = defConvAttr.with_bilinear_pad;

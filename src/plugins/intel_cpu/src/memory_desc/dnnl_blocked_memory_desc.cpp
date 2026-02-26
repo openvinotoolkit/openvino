@@ -194,7 +194,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
     desc.get()->format_kind = dnnl_blocked;
     desc.get()->extra.flags = 0;
     desc.get()->data_type = memory::convert_to_c(DnnlExtensionUtils::ElementTypeToDataType(prc));
-    desc.get()->ndims = dims.size();
+    desc.get()->ndims = static_cast<int>(dims.size());
     desc.get()->offset0 = DnnlExtensionUtils::convertToDnnlDim(offsetPadding);
     std::copy(dims.begin(), dims.end(), desc.get()->dims);
 
@@ -227,7 +227,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
 
     // Fill blocking desc
     auto& dnn_blk_desc = desc.get()->format_desc.blocking;
-    dnn_blk_desc.inner_nblks = inner_ndims;
+    dnn_blk_desc.inner_nblks = static_cast<int>(inner_ndims);
     std::copy(dnnlBlkDims.end() - inner_ndims, dnnlBlkDims.end(), dnn_blk_desc.inner_blks);
     std::copy(order.end() - inner_ndims, order.end(), dnn_blk_desc.inner_idxs);
 
@@ -474,8 +474,8 @@ static dnnl::memory::desc cloneDescWithNewDims(const dnnl::memory::desc& desc,
     std::vector<int> perm(convert_to_vector<int, size_t>(order.data(), mklDims.size()));
     auto innerBlks = clonedDesc.get_inner_blks();
     auto innerIdxs = clonedDesc.get_inner_idxs();
-    std::vector<int> innerBlksInt(innerBlks.begin(), innerBlks.end());
-    std::vector<int> innerIdxsInt(innerIdxs.begin(), innerIdxs.end());
+    std::vector<int> innerBlksInt = convert_to_vector<int>(innerBlks.data(), innerBlks.size());
+    std::vector<int> innerIdxsInt = convert_to_vector<int>(innerIdxs.data(), innerIdxs.size());
 
     auto retCode = dnnl::impl::fill_blocked(*clonedDesc.get(), perm, innerBlksInt, innerIdxsInt);
     OPENVINO_ASSERT(retCode == dnnl::impl::status::success,
@@ -497,12 +497,13 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims& dims)
                     "Can't clone desc if new dims are undefined");
 
     // TODO [DS]: add stride recalculation for strided blobs
-    for (int i = strides.size() - 2; i >= 0; i--) {
-        if (strides[i] == Shape::UNDEFINED_DIM) {
+    for (size_t i = strides.size(); i-- > 1;) {
+        const size_t idx = i - 1;
+        if (strides[idx] == Shape::UNDEFINED_DIM) {
             break;
         }
 
-        if (strides[i] != strides[i + 1] * blockedDims[i + 1]) {
+        if (strides[idx] != strides[idx + 1] * blockedDims[idx + 1]) {
             OPENVINO_THROW_NOT_IMPLEMENTED("Can't clone desc with new dims for not dense tensor");
         }
     }

@@ -57,7 +57,7 @@ ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const std::shared_p
     CPU_NODE_ASSERT(getInputShapeAtPort(INPUT_ROIS).getRank() == 2 && getInputShapeAtPort(INPUT_PROBS).getRank() == 1,
                     "has unsupported input shape");
 
-    max_rois_num_ = topKROI->get_max_rois();
+    max_rois_num_ = static_cast<int>(topKROI->get_max_rois());
 }
 
 void ExperimentalDetectronTopKROIs::initSupportedPrimitiveDescriptors() {
@@ -71,7 +71,7 @@ void ExperimentalDetectronTopKROIs::initSupportedPrimitiveDescriptors() {
 }
 
 void ExperimentalDetectronTopKROIs::execute([[maybe_unused]] const dnnl::stream& strm) {
-    const int input_rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
+    const int input_rois_num = static_cast<int>(getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0]);
     const int top_rois_num = (std::min)(max_rois_num_, input_rois_num);
 
     const auto* input_rois = getSrcDataAtPortAs<const float>(INPUT_ROIS);

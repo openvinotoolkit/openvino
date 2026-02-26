@@ -349,14 +349,14 @@ void Gather::createPrimitive() {
                     p.specIdxInBytes.resize(dataElPerVec);
                     p.idxBatchSumInBytes.resize(dataElPerVec);
                     p.dataBeforeAxisSumInBytes.resize(dataElPerVec);
-                    p.betweenBatchAndAxisIter = (dstStart / specIndicesSize) % betweenBatchAndAxisSize;
+                    p.betweenBatchAndAxisIter = static_cast<int32_t>((dstStart / specIndicesSize) % betweenBatchAndAxisSize);
                     for (uint64_t j = 0LU; j < dataElPerVec; j++) {
-                        p.specIdxInBytes[j] = (((dstStart + j) / afterAxisSize) % specIndicesSize) * idxTypeSize;
-                        p.idxBatchSumInBytes[j] =
+                        p.specIdxInBytes[j] = static_cast<int32_t>((((dstStart + j) / afterAxisSize) % specIndicesSize) * idxTypeSize);
+                        p.idxBatchSumInBytes[j] = static_cast<int32_t>(
                             ((dstStart + j) / (betweenBatchAndAxisSize * specIndicesSize * afterAxisSize)) *
-                            specIndicesSize * idxTypeSize;
-                        p.dataBeforeAxisSumInBytes[j] =
-                            ((dstStart + j) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes;
+                            specIndicesSize * idxTypeSize);
+                        p.dataBeforeAxisSumInBytes[j] = static_cast<int32_t>(
+                            ((dstStart + j) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes);
                     }
                     initShortParams(p, dstStart);
                 });
@@ -573,13 +573,13 @@ void Gather::executeDynamicImpl([[maybe_unused]] const dnnl::stream& strm) {
             int permIdxMask[16];
             int beforeAxisDiff[16];
             if (afterAxisSize == 1 && specIndicesSize < idxElPerVec) {
-                permIdxMask[0] = idxElPerVec - specIndicesSize;
-                int div = idxElPerVec / specIndicesSize;
-                int remainder = idxElPerVec % specIndicesSize;
+                permIdxMask[0] = static_cast<int>(idxElPerVec - specIndicesSize);
+                int div = static_cast<int>(idxElPerVec / specIndicesSize);
+                int remainder = static_cast<int>(idxElPerVec % specIndicesSize);
                 for (uint64_t i = 1; i < idxElPerVec; i++) {
                     permIdxMask[i] = permIdxMask[i - 1] + 1;
                     if (static_cast<uint64_t>(permIdxMask[i]) == idxElPerVec) {
-                        permIdxMask[i] = idxElPerVec - specIndicesSize;
+                        permIdxMask[i] = static_cast<int>(idxElPerVec - specIndicesSize);
                     }
                 }
                 for (uint64_t i = 0; i < idxElPerVec; i++) {
@@ -616,16 +616,16 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
         p.permIdxMask.resize(idxElPerVec);
         p.srcBeforeAxisDiff.resize(idxElPerVec);
 
-        p.permIdxMask[0] = idxElPerVec - specIndicesSize;
+        p.permIdxMask[0] = static_cast<int32_t>(idxElPerVec - specIndicesSize);
         for (uint64_t i = 1; i < idxElPerVec; i++) {
             p.permIdxMask[i] = p.permIdxMask[i - 1] + 1;
             if (static_cast<uint64_t>(p.permIdxMask[i]) == idxElPerVec) {
-                p.permIdxMask[i] = idxElPerVec - specIndicesSize;
+                p.permIdxMask[i] = static_cast<int32_t>(idxElPerVec - specIndicesSize);
             }
         }
 
-        const int div = idxElPerVec / specIndicesSize;
-        const int remainder = idxElPerVec % specIndicesSize;
+        const int div = static_cast<int>(idxElPerVec / specIndicesSize);
+        const int remainder = static_cast<int>(idxElPerVec % specIndicesSize);
         for (uint64_t i = 0; i < idxElPerVec; i++) {
             if (((start + i) % specIndicesSize) < (specIndicesSize - remainder)) {
                 p.srcBeforeAxisDiff[i] = axisDim * div;
@@ -644,37 +644,37 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
         p.specIdxDiff.resize(idxElPerVec);
         p.srcBeforeAxisDiff.resize(idxElPerVec);
 
-        int secondStart = start + idxElPerVec;
+        const uint64_t secondStart = start + idxElPerVec;
         for (uint64_t i = 0; i < idxElPerVec; i++) {
-            p.afterAxIdxInBytes[i] = (start + i) % afterAxisSize;
-            p.specIdxDiff[i] =
-                (((secondStart + i) / afterAxisSize) % specIndicesSize) * idxTypeSize - p.specIdxInBytes[i];
+            p.afterAxIdxInBytes[i] = static_cast<int32_t>((start + i) % afterAxisSize);
+            p.specIdxDiff[i] = static_cast<int32_t>(
+                (((secondStart + i) / afterAxisSize) % specIndicesSize) * idxTypeSize) - p.specIdxInBytes[i];
             if (p.specIdxDiff[i] < 0) {
-                p.specIdxDiff[i] += specIndicesSize * idxTypeSize;
+                p.specIdxDiff[i] += static_cast<int32_t>(specIndicesSize * idxTypeSize);
             }
-            p.srcBeforeAxisDiff[i] =
+            p.srcBeforeAxisDiff[i] = static_cast<int32_t>(
                 ((start + i + idxElPerVec) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes -
-                ((start + i) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes;
+                ((start + i) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes);
 
-            p.afterAxIdxInBytes[i] *= dataTypeSize;
-            p.afterAxPermMask[i] = idxElPerVec - afterAxisSize + i;
+            p.afterAxIdxInBytes[i] *= static_cast<int32_t>(dataTypeSize);
+            p.afterAxPermMask[i] = static_cast<int32_t>(idxElPerVec - afterAxisSize + i);
             for (size_t j = 0LU; j < 6LU; j++) {
                 if (static_cast<uint64_t>(p.afterAxPermMask[i]) >= idxElPerVec) {
-                    p.afterAxPermMask[i] -= afterAxisSize;
+                    p.afterAxPermMask[i] -= static_cast<int32_t>(afterAxisSize);
                 }
             }
         }
         if (specIndicesSize * afterAxisSize < idxElPerVec) {
-            p.beforeAxPermMask[0] = idxElPerVec - specIndicesSize * afterAxisSize;
+            p.beforeAxPermMask[0] = static_cast<int32_t>(idxElPerVec - specIndicesSize * afterAxisSize);
             for (uint64_t i = 1; i < idxElPerVec; i++) {
                 p.beforeAxPermMask[i] = p.beforeAxPermMask[i - 1] + 1;
                 if (static_cast<uint64_t>(p.beforeAxPermMask[i]) == idxElPerVec) {
-                    p.beforeAxPermMask[i] = idxElPerVec - specIndicesSize * afterAxisSize;
+                    p.beforeAxPermMask[i] = static_cast<int32_t>(idxElPerVec - specIndicesSize * afterAxisSize);
                 }
             }
         }
 
-        p.specIdxAndAfterAxIterB = (start * dataTypeSize) % specIdxAndAfterAxSizeB;
+        p.specIdxAndAfterAxIterB = static_cast<int32_t>((start * dataTypeSize) % specIdxAndAfterAxSizeB);
     }
 }
 
