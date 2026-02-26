@@ -23,6 +23,14 @@ prune __pycache__
 
 global-exclude *.pyc
 global-exclude *.pyo
+global-exclude *.so
+global-exclude *.pyd
+global-exclude *.dll
+global-exclude *.dylib
+global-exclude *.a
+global-exclude *.lib
+global-exclude *.o
+global-exclude *.obj
 global-exclude .git
 global-exclude .gitattributes
 global-exclude .gitignore

@@ -765,7 +765,9 @@ def get_package_dir(install_cfg):
 
 
 def get_sdist_package_dir():
-    return str(Path(OPENVINO_SOURCE_DIR) / "src" / "bindings" / "python" / "src")
+    # Use SCRIPT_DIR (not OPENVINO_SOURCE_DIR) to ensure sdist builds are
+    # self-contained and not affected by env var overrides.
+    return str(SCRIPT_DIR / "src" / "bindings" / "python" / "src")
 
 
 def find_entry_points(install_cfg):
