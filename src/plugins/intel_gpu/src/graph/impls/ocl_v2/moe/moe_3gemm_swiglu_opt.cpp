@@ -707,8 +707,7 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
 
     // Detect if zp is stored as u8 (one byte per element) instead of packed u4 (two per byte).
     // This happens when u4 zp Constants go through Reshape+Transpose which converts them to u8.
-    bool zp_is_u8 = (weight_dt == ov::element::u4 || weight_dt == ov::element::i4) &&
-                    (zp_dt == ov::element::u8 || zp_dt == ov::element::i8);
+    bool zp_is_u8 = (weight_dt == ov::element::u4 || weight_dt == ov::element::i4) && (zp_dt == ov::element::u8 || zp_dt == ov::element::i8);
     jit.make("ZP_IS_U8", zp_is_u8 ? 1 : 0);
 }
 
