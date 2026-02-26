@@ -29,14 +29,75 @@ struct gated_mlp : public primitive_base<gated_mlp> {
           activation(activation),
           output_size(output_size) {}
 
+        gated_mlp(const primitive_id& id,
+              const input_info& src,
+              const input_info& w_gate,
+              const input_info& w_up,
+              const input_info& w_down,
+              const input_info& scale_gate,
+              const input_info& scale_up,
+              const input_info& scale_down,
+              ov::op::internal::GLU::GluType activation,
+              const tensor& output_size,
+              const data_types output_dt)
+          : primitive_base(id, {src}, 1, {optional_data_type{output_dt}}),
+            weights_gate(w_gate),
+            weights_up(w_up),
+            weights_down(w_down),
+            decompression_scale_gate(scale_gate),
+            decompression_scale_up(scale_up),
+            decompression_scale_down(scale_down),
+            compressed_weights(true),
+            activation(activation),
+            output_size(output_size) {}
+
+        gated_mlp(const primitive_id& id,
+              const input_info& src,
+              const input_info& w_gate,
+              const input_info& w_up,
+              const input_info& w_down,
+              const input_info& scale_gate,
+              const input_info& scale_up,
+              const input_info& scale_down,
+              const input_info& zp_gate,
+              const input_info& zp_up,
+              const input_info& zp_down,
+              ov::op::internal::GLU::GluType activation,
+              const tensor& output_size,
+              const data_types output_dt)
+          : primitive_base(id, {src}, 1, {optional_data_type{output_dt}}),
+            weights_gate(w_gate),
+            weights_up(w_up),
+            weights_down(w_down),
+            decompression_scale_gate(scale_gate),
+            decompression_scale_up(scale_up),
+            decompression_scale_down(scale_down),
+            decompression_zero_point_gate(zp_gate),
+            decompression_zero_point_up(zp_up),
+            decompression_zero_point_down(zp_down),
+            compressed_weights(true),
+            has_decompression_zero_points(true),
+            activation(activation),
+            output_size(output_size) {}
+
     input_info weights_gate;
     input_info weights_up;
     input_info weights_down;
+    input_info decompression_scale_gate;
+    input_info decompression_scale_up;
+    input_info decompression_scale_down;
+    input_info decompression_zero_point_gate;
+    input_info decompression_zero_point_up;
+    input_info decompression_zero_point_down;
+    bool compressed_weights = false;
+    bool has_decompression_zero_points = false;
     ov::op::internal::GLU::GluType activation = ov::op::internal::GLU::GluType::Swish;
     tensor output_size;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
+        seed = hash_combine(seed, compressed_weights);
+        seed = hash_combine(seed, has_decompression_zero_points);
         seed = hash_combine(seed, static_cast<size_t>(activation));
         return seed;
     }
@@ -45,7 +106,9 @@ struct gated_mlp : public primitive_base<gated_mlp> {
         if (!compare_common_params(rhs))
             return false;
         auto rhs_casted = downcast<const gated_mlp>(rhs);
-        return activation == rhs_casted.activation;
+        return activation == rhs_casted.activation &&
+               compressed_weights == rhs_casted.compressed_weights &&
+               has_decompression_zero_points == rhs_casted.has_decompression_zero_points;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -53,6 +116,14 @@ struct gated_mlp : public primitive_base<gated_mlp> {
         ob << weights_gate;
         ob << weights_up;
         ob << weights_down;
+        ob << decompression_scale_gate;
+        ob << decompression_scale_up;
+        ob << decompression_scale_down;
+        ob << decompression_zero_point_gate;
+        ob << decompression_zero_point_up;
+        ob << decompression_zero_point_down;
+        ob << compressed_weights;
+        ob << has_decompression_zero_points;
         ob << make_data(&activation, sizeof(activation));
         ob << output_size;
     }
@@ -62,6 +133,14 @@ struct gated_mlp : public primitive_base<gated_mlp> {
         ib >> weights_gate;
         ib >> weights_up;
         ib >> weights_down;
+        ib >> decompression_scale_gate;
+        ib >> decompression_scale_up;
+        ib >> decompression_scale_down;
+        ib >> decompression_zero_point_gate;
+        ib >> decompression_zero_point_up;
+        ib >> decompression_zero_point_down;
+        ib >> compressed_weights;
+        ib >> has_decompression_zero_points;
         ib >> make_data(&activation, sizeof(activation));
         ib >> output_size;
     }
@@ -73,6 +152,17 @@ protected:
         ret[idx++] = &weights_gate;
         ret[idx++] = &weights_up;
         ret[idx++] = &weights_down;
+        if (compressed_weights) {
+            ret[idx++] = &decompression_scale_gate;
+            ret[idx++] = &decompression_scale_up;
+            ret[idx++] = &decompression_scale_down;
+
+            if (has_decompression_zero_points) {
+                ret[idx++] = &decompression_zero_point_gate;
+                ret[idx++] = &decompression_zero_point_up;
+                ret[idx++] = &decompression_zero_point_down;
+            }
+        }
         return ret;
     }
 };

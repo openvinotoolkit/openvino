@@ -12,11 +12,14 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+#include <cmath>
 #include <numeric>
 
 namespace ov::intel_gpu {
@@ -48,6 +51,17 @@ FuseFCSwiGLUToGatedMLP::FuseFCSwiGLUToGatedMLP() {
         if (!down || !up || !gate || !sw || transformation_callback(down))
             return false;
 
+        // const auto is_mlp1 = [](const std::shared_ptr<ov::Node>& node) {
+        //     if (!node)
+        //         return false;
+        //     const auto& name = node->get_friendly_name();
+        //     return name.find("layers.1.mlp") != std::string::npos ||
+        //            name.find("layers/1/mlp") != std::string::npos;
+        // };
+
+        // if (!is_mlp1(down) || !is_mlp1(up) || !is_mlp1(gate))
+        //     return false;
+
         if (down->get_transpose_a() || up->get_transpose_a() || gate->get_transpose_a())
             return false;
 
@@ -67,7 +81,7 @@ FuseFCSwiGLUToGatedMLP::FuseFCSwiGLUToGatedMLP() {
                 return false;
         }
 
-        auto create_transpose = [&](const ov::Output<ov::Node>& node, const std::string& transpose_name) {
+        auto create_transpose = [&](const ov::Output<ov::Node>& node, const std::string& transpose_name) -> ov::Output<ov::Node> {
             std::vector<size_t> transpose_order(node.get_partial_shape().size());
             std::iota(transpose_order.begin(), transpose_order.end(), 0);
             std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
@@ -81,26 +95,230 @@ FuseFCSwiGLUToGatedMLP::FuseFCSwiGLUToGatedMLP() {
             transpose->set_friendly_name(transpose_name);
             ov::disable_constant_folding(transpose);
             new_ops.push_back(transpose);
-            return transpose;
+            return transpose->output(0);
         };
 
-        auto gate_weights = gate->get_transpose_b()
-                                ? create_transpose(gate->input_value(1), gate->get_friendly_name() + "/transpose_b_for_gmlp")
-                                : gate->input_value(1);
-        auto up_weights = up->get_transpose_b()
-                              ? create_transpose(up->input_value(1), up->get_friendly_name() + "/transpose_b_for_gmlp")
-                              : up->input_value(1);
-        auto down_weights = down->get_transpose_b()
-                                ? create_transpose(down->input_value(1), down->get_friendly_name() + "/transpose_b_for_gmlp")
-                                : down->input_value(1);
+        ov::Output<ov::Node> gate_weights = gate->input_value(1);
+        ov::Output<ov::Node> up_weights = up->input_value(1);
+        ov::Output<ov::Node> down_weights = down->input_value(1);
+        if (gate->get_transpose_b()) {
+            gate_weights = create_transpose(gate->input_value(1), gate->get_friendly_name() + "/transpose_b_for_gmlp");
+        }
+        if (up->get_transpose_b()) {
+            up_weights = create_transpose(up->input_value(1), up->get_friendly_name() + "/transpose_b_for_gmlp");
+        }
+        if (down->get_transpose_b()) {
+            down_weights = create_transpose(down->input_value(1), down->get_friendly_name() + "/transpose_b_for_gmlp");
+        }
 
-        auto gmlp = std::make_shared<ov::intel_gpu::op::GatedMLP>(
-            up->input_value(0),
-            gate_weights,
-            up_weights,
-            down_weights,
-            ov::op::internal::GLU::GluType::Swish,
-            down->get_output_element_type(0));
+        struct decompression_info {
+            bool compressed = false;
+            bool has_zero_point = false;
+            ov::Output<ov::Node> weight;
+            ov::Output<ov::Node> scale;
+            ov::Output<ov::Node> zero_point;
+        };
+
+        auto is_compressed_const = [](const ov::Output<ov::Node>& output) {
+            const auto et = output.get_element_type();
+            return et == ov::element::u8 || et == ov::element::i8 || et == ov::element::u4 || et == ov::element::i4;
+        };
+
+        auto parse_decompression = [&](const ov::Output<ov::Node>& maybe_decompressed_weight) -> decompression_info {
+            decompression_info info;
+
+            auto direct_convert = ov::as_type_ptr<ov::op::v0::Convert>(maybe_decompressed_weight.get_node_shared_ptr());
+            if (direct_convert) {
+                auto compressed_weights = direct_convert->input_value(0);
+                if (is_compressed_const(compressed_weights)) {
+                    auto scale_const = ov::op::v0::Constant::create(direct_convert->get_output_element_type(0), ov::Shape{1}, {1.0f});
+                    new_ops.push_back(scale_const);
+                    info.compressed = true;
+                    info.has_zero_point = false;
+                    info.weight = compressed_weights;
+                    info.scale = scale_const;
+                    return info;
+                }
+            }
+
+            auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(maybe_decompressed_weight.get_node_shared_ptr());
+            if (!mul) {
+                return info;
+            }
+
+            ov::Output<ov::Node> dequant_input;
+            ov::Output<ov::Node> scale_input;
+            auto lhs_convert = ov::as_type_ptr<ov::op::v0::Convert>(mul->get_input_node_shared_ptr(0));
+            auto lhs_subtract = ov::as_type_ptr<ov::op::v1::Subtract>(mul->get_input_node_shared_ptr(0));
+            auto rhs_convert = ov::as_type_ptr<ov::op::v0::Convert>(mul->get_input_node_shared_ptr(1));
+            auto rhs_subtract = ov::as_type_ptr<ov::op::v1::Subtract>(mul->get_input_node_shared_ptr(1));
+
+            if (lhs_convert || lhs_subtract) {
+                dequant_input = mul->input_value(0);
+                scale_input = mul->input_value(1);
+            } else if (rhs_convert || rhs_subtract) {
+                dequant_input = mul->input_value(1);
+                scale_input = mul->input_value(0);
+            } else {
+                return info;
+            }
+
+            auto convert = ov::as_type_ptr<ov::op::v0::Convert>(dequant_input.get_node_shared_ptr());
+            if (convert) {
+                auto compressed_weights = convert->input_value(0);
+                if (!is_compressed_const(compressed_weights)) {
+                    return info;
+                }
+
+                info.compressed = true;
+                info.has_zero_point = false;
+                info.weight = compressed_weights;
+                info.scale = scale_input;
+                return info;
+            }
+
+            auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(dequant_input.get_node_shared_ptr());
+            if (!subtract) {
+                return info;
+            }
+
+            ov::Output<ov::Node> convert_output;
+            ov::Output<ov::Node> zp_output;
+
+            auto lhs_convert_in_sub = ov::as_type_ptr<ov::op::v0::Convert>(subtract->get_input_node_shared_ptr(0));
+            auto rhs_convert_in_sub = ov::as_type_ptr<ov::op::v0::Convert>(subtract->get_input_node_shared_ptr(1));
+
+            if (lhs_convert_in_sub) {
+                convert_output = subtract->input_value(0);
+                zp_output = subtract->input_value(1);
+            } else if (rhs_convert_in_sub) {
+                convert_output = subtract->input_value(1);
+                zp_output = subtract->input_value(0);
+            } else {
+                return info;
+            }
+
+            auto compressed_weights = convert_output.get_node_shared_ptr()->input_value(0);
+            if (!is_compressed_const(compressed_weights)) {
+                return info;
+            }
+
+            if (auto zp_convert = ov::as_type_ptr<ov::op::v0::Convert>(zp_output.get_node_shared_ptr())) {
+                auto candidate_zp = zp_convert->input_value(0);
+                if (ov::is_type<ov::op::v0::Constant>(candidate_zp.get_node())) {
+                    zp_output = candidate_zp;
+                }
+            }
+
+            const auto weight_et = compressed_weights.get_element_type();
+            const auto zp_et = zp_output.get_element_type();
+            if ((weight_et == ov::element::u8 || weight_et == ov::element::u4) && zp_et == ov::element::u4) {
+                auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_output, ov::element::u8);
+                new_ops.push_back(zp_convert);
+                MatcherPass::register_new_node(zp_convert);
+                zp_output = zp_convert;
+            } else if ((weight_et == ov::element::i8 || weight_et == ov::element::i4) && zp_et == ov::element::i4) {
+                auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_output, ov::element::i8);
+                new_ops.push_back(zp_convert);
+                MatcherPass::register_new_node(zp_convert);
+                zp_output = zp_convert;
+            }
+
+            info.compressed = true;
+            info.has_zero_point = true;
+            info.weight = compressed_weights;
+            info.scale = scale_input;
+            info.zero_point = zp_output;
+            return info;
+        };
+
+        std::shared_ptr<ov::Node> gmlp;
+        auto gate_dq = parse_decompression(gate->input_value(1));
+        auto up_dq = parse_decompression(up->input_value(1));
+        auto down_dq = parse_decompression(down->input_value(1));
+
+        const bool compressed_all = gate_dq.compressed && up_dq.compressed && down_dq.compressed;
+        const bool has_zp_all = gate_dq.has_zero_point && up_dq.has_zero_point && down_dq.has_zero_point;
+        const bool has_no_zp_all = !gate_dq.has_zero_point && !up_dq.has_zero_point && !down_dq.has_zero_point;
+
+        if (compressed_all && (has_zp_all || has_no_zp_all)) {
+            auto transpose_for_compressed = [&](ov::Output<ov::Node> tensor, bool need_transpose, const std::string& name_suffix) {
+                if (!need_transpose) {
+                    return tensor;
+                }
+
+                const auto rank = tensor.get_partial_shape().rank();
+                if (!rank.is_static() || rank.get_length() < 2) {
+                    return tensor;
+                }
+
+                return create_transpose(tensor, name_suffix);
+            };
+
+            auto gate_weight = transpose_for_compressed(gate_dq.weight,
+                                                        gate->get_transpose_b(),
+                                                        gate->get_friendly_name() + "/transpose_compressed_weight_for_gmlp");
+            auto up_weight = transpose_for_compressed(up_dq.weight,
+                                                      up->get_transpose_b(),
+                                                      up->get_friendly_name() + "/transpose_compressed_weight_for_gmlp");
+            auto down_weight = transpose_for_compressed(down_dq.weight,
+                                                        down->get_transpose_b(),
+                                                        down->get_friendly_name() + "/transpose_compressed_weight_for_gmlp");
+
+            auto gate_scale = transpose_for_compressed(gate_dq.scale,
+                                                       gate->get_transpose_b() && ov::shape_size(gate_dq.scale.get_shape()) > 1,
+                                                       gate->get_friendly_name() + "/transpose_compressed_scale_for_gmlp");
+            auto up_scale = transpose_for_compressed(up_dq.scale,
+                                                     up->get_transpose_b() && ov::shape_size(up_dq.scale.get_shape()) > 1,
+                                                     up->get_friendly_name() + "/transpose_compressed_scale_for_gmlp");
+            auto down_scale = transpose_for_compressed(down_dq.scale,
+                                                       down->get_transpose_b() && ov::shape_size(down_dq.scale.get_shape()) > 1,
+                                                       down->get_friendly_name() + "/transpose_compressed_scale_for_gmlp");
+
+            if (has_zp_all) {
+                auto gate_zp = transpose_for_compressed(gate_dq.zero_point,
+                                                        gate->get_transpose_b() && ov::shape_size(gate_dq.zero_point.get_shape()) > 1,
+                                                        gate->get_friendly_name() + "/transpose_compressed_zp_for_gmlp");
+                auto up_zp = transpose_for_compressed(up_dq.zero_point,
+                                                      up->get_transpose_b() && ov::shape_size(up_dq.zero_point.get_shape()) > 1,
+                                                      up->get_friendly_name() + "/transpose_compressed_zp_for_gmlp");
+                auto down_zp = transpose_for_compressed(down_dq.zero_point,
+                                                        down->get_transpose_b() && ov::shape_size(down_dq.zero_point.get_shape()) > 1,
+                                                        down->get_friendly_name() + "/transpose_compressed_zp_for_gmlp");
+
+                gmlp = std::make_shared<ov::intel_gpu::op::GatedMLP>(up->input_value(0),
+                                                                      gate_weight,
+                                                                      up_weight,
+                                                                      down_weight,
+                                                                      gate_scale,
+                                                                      up_scale,
+                                                                      down_scale,
+                                                                      gate_zp,
+                                                                      up_zp,
+                                                                      down_zp,
+                                                                      ov::op::internal::GLU::GluType::Swish,
+                                                                      down->get_output_element_type(0));
+            } else {
+                gmlp = std::make_shared<ov::intel_gpu::op::GatedMLP>(up->input_value(0),
+                                                                      gate_weight,
+                                                                      up_weight,
+                                                                      down_weight,
+                                                                      gate_scale,
+                                                                      up_scale,
+                                                                      down_scale,
+                                                                      ov::op::internal::GLU::GluType::Swish,
+                                                                      down->get_output_element_type(0));
+            }
+        }
+
+        if (!gmlp) {
+            gmlp = std::make_shared<ov::intel_gpu::op::GatedMLP>(up->input_value(0),
+                                                                  gate_weights,
+                                                                  up_weights,
+                                                                  down_weights,
+                                                                  ov::op::internal::GLU::GluType::Swish,
+                                                                  down->get_output_element_type(0));
+        }
 
         gmlp->set_friendly_name(down->get_friendly_name());
         new_ops.push_back(gmlp);
