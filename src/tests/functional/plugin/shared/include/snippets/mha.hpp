@@ -42,11 +42,11 @@ protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void init_thresholds() override;
-    void init_bf16_input_thresholds_for_f32_hint();
-    virtual std::shared_ptr<SnippetsFunctionBase> get_subgraph() const = 0;
+    virtual std::shared_ptr<SnippetsFunctionBase> get_subgraph() const;
     virtual void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) = 0;
 
     std::vector<ov::element::Type> m_input_types;
+    bool m_with_mul = false;
 };
 
 class MHA : public testing::WithParamInterface<ov::test::snippets::MHAParams>,
@@ -55,11 +55,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAParams>& obj);
 
 protected:
-    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
     void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) override;
-    void init_thresholds() override;
-
-    bool m_with_mul = false;
 };
 
 class MHA2D : public MHA {
@@ -141,12 +137,9 @@ public:
 
 protected:
     void compile_model() override;
-    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
     void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) override;
-    void init_thresholds() override;
 
     size_t m_thread_count = default_thread_count;
-    bool m_with_mul = false;
 };
 
 class MHASharedKV : public MHA {
