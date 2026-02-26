@@ -905,6 +905,10 @@ ov::Any Properties::getProperty(const std::string& name) {
 }
 
 void Properties::setProperty(const ov::AnyMap& properties) {
+    if (properties.count(ov::log::level.name()) != 0) {
+        _logger.setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
+    }
+
     std::unique_ptr<ICompilerAdapter> compiler = nullptr;
     std::lock_guard<std::mutex> lock(_mutex);
     if (_pType == PropertiesType::PLUGIN) {

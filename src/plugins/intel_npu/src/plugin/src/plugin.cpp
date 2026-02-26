@@ -209,17 +209,15 @@ int get_ir_version(const std::shared_ptr<const ov::Model>& model, const intel_np
     return 11;
 }
 
-void init_config(const std::shared_ptr<OptionsDesc>& options,
-                 const ov::SoPtr<IEngineBackend>& backend,
-                 FilteredConfig& config) {
+void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredConfig& config) {
     // Initialize (note: it will reset registered options)
-    options->reset();
+    options.reset();
 
 #define REGISTER_OPTION(OPT_TYPE)                             \
     do {                                                      \
         auto dummyopt = details::makeOptionModel<OPT_TYPE>(); \
         std::string o_name = dummyopt.key().data();           \
-        options->add<OPT_TYPE>();                             \
+        options.add<OPT_TYPE>();                              \
         config.enable(std::move(o_name), false);              \
     } while (0)
 
@@ -399,7 +397,7 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
     _backend = _backendsRegistry->getEngineBackend();
 
     OV_ITT_TASK_NEXT(PLUGIN, "InitConfig");
-    init_config(options, _backend, config);
+    init_config(_backend._ptr.get(), *options, config);
 
     if (_backend) {
         OV_ITT_TASK_NEXT(PLUGIN, "RegisterBackendOptions");

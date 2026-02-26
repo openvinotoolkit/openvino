@@ -514,12 +514,10 @@ TEST_P(CheckCompilerPropertyWhenImporting, ExpectedNoThrowFromImportWithCompiler
 
     ov::util::set_log_callback(log_cb);
     core_import.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
-
     OV_ASSERT_NO_THROW(core_import.import_model(export_stream, deviceName, {{ov::intel_npu::qdq_optimization(true)}}));
     ov::util::reset_log_callback();
 
-    ASSERT_NE(logs.find("Config key 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used for "
-                        "current configuration."),
+    ASSERT_NE(logs.find("Config key 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used"),
               std::string::npos);
 }
 
