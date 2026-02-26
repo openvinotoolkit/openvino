@@ -17,6 +17,7 @@
 #include "behavior/ov_infer_request/inference.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
+#include "common_test_utils/subgraph_builders/2_input_subtract.hpp"
 #include "compiler_adapter_factory.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/utils.hpp"
@@ -221,45 +222,93 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
     }
 }
 
-TEST_P(InferRequestRunTests, BooleanTensorDataTypesForBooleanModelWorks) {
+TEST_P(InferRequestRunTests, BooleanTensorDataTypesForU8AndBooleanModelsWork) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    const ov::Shape shape{1, 16, 16, 16};
+    auto model_u8 = ov::test::utils::make_2_input_subtract(shape, ov::element::u8);
 
     auto zeroEngineBackendPtr = std::make_shared<::intel_npu::ZeroEngineBackend>();
     ::intel_npu::CompilerAdapterFactory compilerAdapterFactory;
     ov::intel_npu::CompilerType compilerType = ov::intel_npu::CompilerType::PREFER_PLUGIN;
+
+    ov::CompiledModel compiled_model_u8;
+    OV_ASSERT_NO_THROW(compiled_model_u8 = core->compile_model(model_u8, target_device, configuration));
+    auto infer_request_u8 = compiled_model_u8.create_infer_request();
+
+    ov::Allocator alignedAllocator{::intel_npu::utils::AlignedAllocator{::intel_npu::utils::STANDARD_PAGE_SIZE}};
+    // U8 tensors
+    ov::Tensor importMemoryTensorU8(ov::element::u8, shape, alignedAllocator);
+    void* alignedAddrU8 = ::operator new(ov::element::u8.size() * ov::shape_size(shape) + 1,
+                                         std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
+    void* unalignedAddrU8 = static_cast<uint8_t*>(alignedAddrU8) + 1;
+    ov::Tensor unalignedTensorU8(ov::element::u8, shape, unalignedAddrU8);
+
+    // Boolean tensors
+    ov::Tensor importMemoryTensorBoolean(ov::element::boolean, shape, alignedAllocator);
+    void* alignedAddrBoolean = ::operator new(ov::element::boolean.size() * ov::shape_size(shape) + 1,
+                                              std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
+    void* unalignedAddrBoolean = static_cast<uint8_t*>(alignedAddrBoolean) + 1;
+    ov::Tensor unalignedTensorBoolean(ov::element::boolean, shape, unalignedAddrBoolean);
+
+    OPENVINO_ASSERT(compiled_model_u8.input(0).get_element_type() == ov::element::u8);
+    OPENVINO_ASSERT(compiled_model_u8.input(1).get_element_type() == ov::element::u8);
+
+    infer_request_u8.infer();
+
+    OV_ASSERT_NO_THROW(infer_request_u8.set_tensor(compiled_model_u8.input(0), importMemoryTensorU8));
+    OV_ASSERT_NO_THROW(infer_request_u8.set_tensor(compiled_model_u8.input(1), unalignedTensorU8));
+    infer_request_u8.infer();
+
+    OV_ASSERT_NO_THROW(infer_request_u8.set_tensor(compiled_model_u8.input(0), importMemoryTensorBoolean));
+    OV_ASSERT_NO_THROW(infer_request_u8.set_tensor(compiled_model_u8.input(1), unalignedTensorBoolean));
+    infer_request_u8.infer();
+
     // 7.30 version is an assumption for when LessEqual Op is updated in compiler,
     // might need to adjust
     if (compilerAdapterFactory
             .getCompiler(zeroEngineBackendPtr,
                          compilerType,
                          ov::intel_npu::Platform::standardize(ov::test::utils::getTestPlatform()))
-            ->get_version() < ZE_MAKE_VERSION(7, 30)) {
-        GTEST_SKIP() << "Skipping due to old compiler that won't support boolean input datatype for LessEqual Op!";
+            ->get_version() >= ZE_MAKE_VERSION(7, 30)) {
+        auto model_boolean = createTwoInputLessEqualModel(shape);
+        ov::CompiledModel compiled_model_boolean;
+        OV_ASSERT_NO_THROW(compiled_model_boolean = core->compile_model(model_boolean, target_device, configuration));
+        auto infer_request_boolean = compiled_model_boolean.create_infer_request();
+
+        // U8 tensors
+        ov::Tensor newImportMemoryTensorU8(ov::element::u8, shape, alignedAllocator);
+        void* newAlignedAddrU8 = ::operator new(ov::element::u8.size() * ov::shape_size(shape) + 1,
+                                                std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
+        void* newUnalignedAddrU8 = static_cast<uint8_t*>(newAlignedAddrU8) + 1;
+        ov::Tensor newUnalignedTensorU8(ov::element::u8, shape, newUnalignedAddrU8);
+
+        // Boolean tensors
+        ov::Tensor newImportMemoryTensorBoolean(ov::element::boolean, shape, alignedAllocator);
+        void* newAlignedAddrBoolean = ::operator new(ov::element::boolean.size() * ov::shape_size(shape) + 1,
+                                                     std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
+        void* newUnalignedAddrBoolean = static_cast<uint8_t*>(newAlignedAddrBoolean) + 1;
+        ov::Tensor newUnalignedTensorBoolean(ov::element::boolean, shape, newUnalignedAddrBoolean);
+
+        OPENVINO_ASSERT(compiled_model_boolean.input(0).get_element_type() == ov::element::boolean);
+        OPENVINO_ASSERT(compiled_model_boolean.input(1).get_element_type() == ov::element::boolean);
+
+        infer_request_boolean.infer();
+
+        OV_ASSERT_NO_THROW(infer_request_boolean.set_tensor(compiled_model_boolean.input(0), newImportMemoryTensorU8));
+        OV_ASSERT_NO_THROW(infer_request_boolean.set_tensor(compiled_model_boolean.input(1), newUnalignedTensorU8));
+        infer_request_boolean.infer();
+
+        OV_ASSERT_NO_THROW(
+            infer_request_boolean.set_tensor(compiled_model_boolean.input(0), newImportMemoryTensorBoolean));
+        OV_ASSERT_NO_THROW(
+            infer_request_boolean.set_tensor(compiled_model_boolean.input(1), newUnalignedTensorBoolean));
+        infer_request_boolean.infer();
+
+        ::operator delete(newAlignedAddrU8, std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
+        ::operator delete(newAlignedAddrBoolean, std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
     }
-
-    const ov::Shape shape{1, 16, 16, 16};
-    ov::CompiledModel compiled_model;
-
-    OV_ASSERT_NO_THROW(compiled_model =
-                           core->compile_model(createTwoInputLessEqualModel(shape), target_device, configuration));
-    auto infer_request = compiled_model.create_infer_request();
-    ov::Allocator alignedAllocator{::intel_npu::utils::AlignedAllocator{::intel_npu::utils::STANDARD_PAGE_SIZE}};
-    ov::Tensor importMemoryTensor(ov::element::boolean, shape, alignedAllocator);
-    void* alignedAddr = ::operator new(ov::element::boolean.size() * ov::shape_size(shape) + 1,
-                                       std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
-    void* unalignedAddr = static_cast<uint8_t*>(alignedAddr) + 1;
-    ov::Tensor unalignedTensor(ov::element::boolean, shape, unalignedAddr);
-
-    OPENVINO_ASSERT(compiled_model.input(0).get_element_type() == ov::element::boolean);
-    OPENVINO_ASSERT(compiled_model.input(1).get_element_type() == ov::element::boolean);
-
-    infer_request.infer();
-
-    OV_ASSERT_NO_THROW(infer_request.set_tensor(compiled_model.input(0), importMemoryTensor));
-    OV_ASSERT_NO_THROW(infer_request.set_tensor(compiled_model.input(1), unalignedTensor));
-    infer_request.infer();
-
-    ::operator delete(unalignedAddr, std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
+    ::operator delete(alignedAddrU8, std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
+    ::operator delete(alignedAddrBoolean, std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
 }
 
 using ProfilingBlob = InferRequestRunTests;
