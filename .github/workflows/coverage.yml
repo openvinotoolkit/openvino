@@ -709,6 +709,8 @@ jobs:
           echo "Applying exclude patterns (tests, thirdparty, protobuf generated)..."
           lcov --remove coverage.info \
                --ignore-errors unused,mismatch \
+               "${SRC_DIR}/build/*" \
+               "${SRC_DIR}/build_js/*" \
                "${SRC_DIR}/*.pb.cc" \
                "${SRC_DIR}/*.pb.h" \
                "${SRC_DIR}/*/tests/*" \
@@ -721,6 +723,10 @@ jobs:
                "${SRC_DIR}/thirdparty/*" \
                -o coverage.info
           rm -f "${MAIN_CPP_INFO}" "${JS_CPP_INFO}" || true
+
+          echo "Checking for remaining build-path entries in coverage.info..."
+          grep -m 5 "^SF:${SRC_DIR}/build/" coverage.info || true
+          grep -m 5 "^SF:${SRC_DIR}/build_js/" coverage.info || true
 
           mkdir -p "$REPORT_DIR"
           genhtml coverage.info \
@@ -880,5 +886,8 @@ jobs:
           files: ${{ matrix.upload.file }}
           disable_search: true
           flags: ${{ matrix.upload.flag }}
+          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          override_branch: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: false
           verbose: true
