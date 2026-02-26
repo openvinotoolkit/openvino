@@ -73,19 +73,44 @@ static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const OpenVIN
     return cv::gapi::networks(*network);
 }
 
-static void cfgExecutionProvider(cv::gapi::onnx::Params<cv::gapi::Generic>& network,
-                                 const ONNXRTParams::OpenVINO& ovep) {
-    network.cfgAddExecutionProvider(cv::gapi::onnx::ep::OpenVINO{ovep.params_map});
+// NB: Convert reshape map to OpenVINO EP reshape_input format: "input1[d1,d2] input2[d1,d2,d3]"
+static std::string toReshapeInputString(const AttrMap<std::vector<size_t>>& reshape_map) {
+    std::string result;
+    for (const auto& [name, shape] : reshape_map) {
+        if (!result.empty()) {
+            result += " ";
+        }
+        result += name + "[";
+        for (size_t i = 0; i < shape.size(); ++i) {
+            if (i > 0) result += ",";
+            result += std::to_string(shape[i]);
+        }
+        result += "]";
+    }
+    return result;
 }
 
-static void cfgExecutionProvider(cv::gapi::onnx::Params<cv::gapi::Generic>& network, const ONNXRTParams::EP& ep) {
+static void cfgExecutionProvider(cv::gapi::onnx::Params<cv::gapi::Generic>& network,
+                                 const ONNXRTParams::OpenVINO& ovep,
+                                 const LayerVariantAttr<std::vector<size_t>>& reshape) {
+    auto params_map = ovep.params_map;
+    // NB: Auto-generate reshape_input from reshape
+    if (std::holds_alternative<AttrMap<std::vector<size_t>>>(reshape)) {
+        params_map["reshape_input"] = toReshapeInputString(std::get<AttrMap<std::vector<size_t>>>(reshape));
+    }
+    network.cfgAddExecutionProvider(cv::gapi::onnx::ep::OpenVINO{params_map});
+}
+
+static void cfgExecutionProvider(cv::gapi::onnx::Params<cv::gapi::Generic>& network,
+                                 const ONNXRTParams::EP& ep,
+                                 const LayerVariantAttr<std::vector<size_t>>& reshape) {
     // NB: Nothing to configure for default MLAS EP
     if (std::holds_alternative<std::monostate>(ep)) {
         return;
     }
     // TODO: Extend for any other available execution provider
     ASSERT(std::holds_alternative<ONNXRTParams::OpenVINO>(ep));
-    cfgExecutionProvider(network, std::get<ONNXRTParams::OpenVINO>(ep));
+    cfgExecutionProvider(network, std::get<ONNXRTParams::OpenVINO>(ep), reshape);
 }
 
 static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const ONNXRTParams& params) {
@@ -94,7 +119,7 @@ static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const ONNXRTP
     if (params.opt_level.has_value()) {
         network.cfgOptLevel(params.opt_level.value());
     }
-    cfgExecutionProvider(network, params.ep);
+    cfgExecutionProvider(network, params.ep, params.reshape);
     return cv::gapi::networks(network);
 }
 
