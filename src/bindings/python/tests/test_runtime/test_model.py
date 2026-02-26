@@ -668,26 +668,26 @@ def test_reshape_with_python_types_for_variable():
 
 
 @pytest.fixture
-def model():
+def multi_input_model():
     return generate_multi_input_model()
 
 
-def test_reshape_list_of_shapes(model):
+def test_reshape_list_of_shapes(multi_input_model):
     """Multi-input: list-of-lists reshapes all inputs in order."""
     input_shapes = [[2, 2], [1, 3, 224, 244], [10]]
 
-    model.reshape(input_shapes)
+    multi_input_model.reshape(input_shapes)
 
-    assert model.input("A").shape == (2, 2)
-    assert model.input("B").shape == (1, 3, 224, 244)
-    assert model.input("C").shape == (10,)
+    assert multi_input_model.input("A").shape == (2, 2)
+    assert multi_input_model.input("B").shape == (1, 3, 224, 244)
+    assert multi_input_model.input("C").shape == (10,)
 
 
-def test_reshape_list_of_shapes_wrong_size(model):
+def test_reshape_list_of_shapes_wrong_size(multi_input_model):
     """Providing wrong number of shapes should raise an error."""
     input_shapes = [[2, 2], [1, 3, 224, 244]]  # Missing third input
     with pytest.raises(RuntimeError, match="Number of shapes does not match"):
-        model.reshape(input_shapes)
+        multi_input_model.reshape(input_shapes)
 
 
 def test_reshape_single_input_flat_list():
