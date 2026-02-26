@@ -47,7 +47,8 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
                                                                            std::shared_ptr<ov::Node> scale,
                                                                            bool casual,
                                                                            bool scale_after_matmul = false,
-                                                                           std::shared_ptr<ov::Node> sinks = nullptr);
+                                                                           std::shared_ptr<ov::Node> sinks = nullptr,
+                                                                           bool scale_on_k = false);
 
 TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionStaticBasic) {
     const PartialShape query_shape{1, 32, 32};
@@ -261,7 +262,8 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
                                                                            std::shared_ptr<ov::Node> scale,
                                                                            bool casual,
                                                                            bool scale_after_matmul,
-                                                                           std::shared_ptr<ov::Node> sinks) {
+                                                                           std::shared_ptr<ov::Node> sinks,
+                                                                           bool scale_on_k) {
     const auto q_shape = std::make_shared<v3::ShapeOf>(query, element::i32);
     const auto k_shape = std::make_shared<v3::ShapeOf>(key, element::i32);
     const auto minus_one = v0::Constant::create(element::i32, Shape{}, {-1});
@@ -301,7 +303,10 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
     const auto k_transposed = std::make_shared<v1::Transpose>(key, transpose_dims);
 
     Output<Node> scaled_atten;
-    if (scale_after_matmul) {
+    if (scale_on_k) {
+        const auto k_scaled = std::make_shared<v1::Multiply>(k_transposed, scale);
+        scaled_atten = std::make_shared<v0::MatMul>(query, k_scaled)->output(0);
+    } else if (scale_after_matmul) {
         const auto atten = std::make_shared<v0::MatMul>(query, k_transposed)->output(0);
         scaled_atten = std::make_shared<v1::Multiply>(atten, scale);
     } else {
@@ -359,6 +364,46 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
 
     const std::shared_ptr<ov::Node> result = std::make_shared<v0::MatMul>(scaled_atten, value);
     return result;
+}
+
+TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_PreScaledQuery_MultiplyOnK) {
+    // When query input is Multiply(raw_Q, scalar_constant), the decomposition should apply
+    // scale to K^T instead of Q to restore the original computation order.
+    // This matches the pattern created by SDPAFusion when absorbing K-side scale.
+    const PartialShape raw_query_shape{1, 6, 101, 64};
+    const PartialShape key_shape{1, 6, 101, 64};
+    const PartialShape value_shape{1, 6, 101, 64};
+    const PartialShape attention_mask_shape{1, 6, 101, 101};
+
+    auto raw_query = std::make_shared<v0::Parameter>(element::f32, raw_query_shape);
+    auto key = std::make_shared<v0::Parameter>(element::f32, key_shape);
+    auto value = std::make_shared<v0::Parameter>(element::f32, value_shape);
+    auto attention_mask = std::make_shared<v0::Parameter>(element::f32, attention_mask_shape);
+
+    // Q is pre-scaled by a scalar constant (as SDPAFusion leaves it)
+    auto q_scale_const = v0::Constant::create(element::f32, Shape{}, {0.353553f});
+    auto query_prescaled = std::make_shared<v1::Multiply>(raw_query, q_scale_const);
+
+    // SDPA scale = the K-side scale that was absorbed by SDPAFusion
+    auto sdpa_scale = v0::Constant::create(element::f32, Shape{}, {0.353553f});
+
+    const bool casual = false;
+
+    {
+        auto sdp = std::make_shared<v13::ScaledDotProductAttention>(
+            query_prescaled, key, value, attention_mask, sdpa_scale, casual);
+        model = std::make_shared<ov::Model>(OutputVector{sdp},
+                                            ParameterVector{raw_query, key, value, attention_mask});
+        manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
+    }
+
+    {
+        // Expected: scale applied to K^T (scale_on_k=true)
+        auto ref = scaled_dot_product_attention_decomposition(
+            query_prescaled, key, value, attention_mask, sdpa_scale, casual, false, nullptr, true);
+        model_ref = std::make_shared<ov::Model>(OutputVector{ref},
+                                                ParameterVector{raw_query, key, value, attention_mask});
+    }
 }
 
 TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_Sinks) {
