@@ -52,6 +52,13 @@ jobs:
       HF_HUB_VERBOSITY: debug
       TRANSFORMERS_VERBOSITY: debug
     steps:
+      - name: Configure pip index (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Add-Content -Path $env:GITHUB_ENV -Value "PIP_INDEX_URL=http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
+          Add-Content -Path $env:GITHUB_ENV -Value "PIP_TRUSTED_HOST=pip-proxy.pip-proxy.svc.cluster.local"
+        shell: pwsh
+
       - name: Fetch setup_python and install wheels actions
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
