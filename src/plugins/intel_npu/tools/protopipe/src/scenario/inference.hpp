@@ -108,6 +108,8 @@ struct ONNXRTParams {
     using EP = std::variant<std::monostate, OpenVINO>;
     std::optional<int> opt_level;
     EP ep;
+
+    LayerVariantAttr<std::vector<size_t>> reshape;
 };
 
 using InferenceParams = std::variant<std::monostate, OpenVINOParams, ONNXRTParams>;
