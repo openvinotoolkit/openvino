@@ -1044,6 +1044,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.reflection_pad3d.default", op::translate_reflection_pad_nd},
         {"aten.relu.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten.relu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
+        {"aten.rrelu.default", op::translate_rrelu},
+        {"aten.rrelu_.default", op::inplace_op<op::translate_rrelu>},
         {"aten.repeat.default", op::translate_repeat_fx},
         {"aten.rms_norm.default", op::translate_rms_norm},
         {"aten.roll.default", op::translate_roll},
