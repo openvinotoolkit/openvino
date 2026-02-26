@@ -23,12 +23,12 @@
 #include "npuw/llm_compiled_model.hpp"
 #include "npuw/serialization.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
-#include "openvino/util/file_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/file_util.hpp"
 #include "remote_context.hpp"
 #include "transformations.hpp"
 
@@ -350,7 +350,10 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
 
     config.enableRuntimeOptions();
 
-    // Special cases
+    // Special cases - options with OptionMode::Both must be enabled for the plugin even if the compiler does not
+    // support them, because they may be used by the plugin itself or by the driver.
+    // We still check compiler support to decide whether these options should be removed from the config string.
+
     // NPU_TURBO might be supported by the driver
     if (backend && backend->isCommandQueueExtSupported()) {
         config.enable(ov::intel_npu::turbo.name(), true);
