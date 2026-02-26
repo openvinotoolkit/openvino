@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -10,18 +11,16 @@ from copy import copy
 
 import numpy as np
 import pytest
-from tests.utils.helpers import (
-    create_filenames_for_ir,
-    generate_add_model,
-    generate_model_with_memory,
-    generate_multi_input_model,
-    generate_single_input_model,
-    generate_two_input_model,
-)
+from tests.utils.helpers import (create_filenames_for_ir, generate_add_model,
+                                 generate_model_with_memory,
+                                 generate_multi_input_model,
+                                 generate_single_input_model,
+                                 generate_two_input_model)
 
 import openvino.opset13 as ops
-from openvino import Core, Dimension, Layout, Model, Output, OVAny, \
-    PartialShape, Shape, Tensor, Type, get_batch, save_model, serialize, set_batch
+from openvino import (Core, Dimension, Layout, Model, Output, OVAny,
+                      PartialShape, Shape, Tensor, Type, get_batch, save_model,
+                      serialize, set_batch)
 from openvino.op.util import Variable, VariableInfo
 
 
@@ -261,16 +260,16 @@ def test_model_sink_ctors():
 
     # Model(list[openvino._pyopenvino.op.Result], list[ov::Output<ov::Node>],
     # list[openvino._pyopenvino.op.Parameter], list[openvino._pyopenvino.op.util.Variable], str = '')
-    model = Model(results=[res], sinks=[assign.output(0)],
-                  parameters=[input_data], variables=[variable_1], name="TestModel")
+    model = Model(results=[res], sinks=[assign.output(0)], parameters=[
+              input_data], variables=[variable_1], name="TestModel")
     model.validate_nodes_and_infer_types()
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
     assert sinks == [sink.get_type_name() for sink in model.get_sinks()]
 
     # Model(list[ov::Output<ov::Node>, list[ov::Output<ov::Node>],
     # list[openvino._pyopenvino.op.Parameter], list[openvino._pyopenvino.op.util.Variable], str = '')
-    model = Model(results=[res.output(0)], sinks=[assign.output(0)],
-                  parameters=[input_data], variables=[variable_1], name="TestModel")
+    model = Model(results=[res.output(0)], sinks=[assign.output(0)], parameters=[
+              input_data], variables=[variable_1], name="TestModel")
     model.validate_nodes_and_infer_types()
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
     assert sinks == [sink.get_type_name() for sink in model.get_sinks()]
@@ -509,15 +508,13 @@ def test_reshape_with_python_types():
     shape10 = [1, 1, 1, 1]
     with pytest.raises(TypeError) as e:
         model.reshape({model.input().node: shape10})
-    expected_msg = "Incorrect key type <class 'openvino._pyopenvino.op.Parameter'> to reshape a model, " \
-        "expected keys as openvino.Output, int or str."
-    assert expected_msg in str(e.value)
+    assert "Incorrect key type <class 'openvino._pyopenvino.op.Parameter'> to reshape a model, " "expected keys as openvino.Output, int or str." in str(
+        e.value)
 
     with pytest.raises(TypeError) as e:
         model.reshape({0: range(1, 9)})
-    expected_msg = "Incorrect value type <class 'range'> to reshape a model, " \
-        "expected values as openvino.PartialShape, str, list or tuple."
-    assert expected_msg in str(e.value)
+    assert "Incorrect value type <class 'range'> to reshape a model, " "expected values as openvino.PartialShape, str, list or tuple." in str(
+      e.value)
 
 
 def test_reshape_with_python_types_for_variable():
@@ -590,31 +587,31 @@ def test_reshape_with_python_types_for_variable():
 
     with pytest.raises(TypeError) as e:
         model.reshape({0: shape10}, {var_id: range(1, 9)})
-    assert "Incorrect value type <class 'range'> to reshape a model, " \
-        "expected values as openvino.PartialShape, str, list or tuple." in str(e.value)
+    assert "Incorrect value type <class 'range'> to reshape a model, " "expected values as openvino.PartialShape, str, list or tuple." in str(
+      e.value)
 
 
 @pytest.fixture
-def multi_input_model():
+def model():
     return generate_multi_input_model()
 
 
-def test_reshape_list_of_shapes(multi_input_model):
+def test_reshape_list_of_shapes(model):
     """Multi-input: list-of-lists reshapes all inputs in order."""
     input_shapes = [[2, 2], [1, 3, 224, 244], [10]]
 
-    multi_input_model.reshape(input_shapes)
+    model.reshape(input_shapes)
 
-    assert multi_input_model.input("A").shape == (2, 2)
-    assert multi_input_model.input("B").shape == (1, 3, 224, 244)
-    assert multi_input_model.input("C").shape == (10,)
+    assert model.input("A").shape == (2, 2)
+    assert model.input("B").shape == (1, 3, 224, 244)
+    assert model.input("C").shape == (10,)
 
 
-def test_reshape_list_of_shapes_wrong_size(multi_input_model):
+def test_reshape_list_of_shapes_wrong_size(model):
     """Providing wrong number of shapes should raise an error."""
     input_shapes = [[2, 2], [1, 3, 224, 244]]  # Missing third input
     with pytest.raises(RuntimeError, match="Number of shapes does not match"):
-        multi_input_model.reshape(input_shapes)
+        model.reshape(input_shapes)
 
 
 def test_reshape_single_input_flat_list():
@@ -633,22 +630,15 @@ def test_reshape_with_dynamic_dimensions():
     model.reshape(input_shapes)
 
     assert model.input("A").shape == (2, 2)
-
-
-def test_reshape_single_input_flat_list_with_list_intervals():
-    """Single-input flat list: ensure list-based dim intervals are treated as flat."""
-    param = ops.parameter([1, 3, 224, 224])
-    model = Model(ops.relu(param), [param])
-
-    # Use list-based intervals (inner lists) for dimensions — should be treated
-    # as a flat shape for single-input models and parsed as PartialShape.
-    shape = [1, 3, [224, 256], [224, 256]]
-    model.reshape(shape)
-
-    expected = PartialShape([Dimension(1), Dimension(3), Dimension(224, 256), Dimension(224, 256)])
-    for inp in model.inputs:
-        assert inp.partial_shape == expected
-    # single-input model: no inputs named "B", further checks not applicable
+    b_shape = model.input("B").get_partial_shape()
+    assert b_shape[0] == 1
+    assert b_shape[1] == 3
+    assert b_shape[2].is_dynamic
+    assert b_shape[2].get_min_length() == 224
+    assert b_shape[2].get_max_length() == 256
+    assert b_shape[3].is_dynamic
+    assert b_shape[3].get_min_length() == 224
+    assert b_shape[3].get_max_length() == 256
 
 
 def test_reshape_with_tuple_shapes_multi_input():
@@ -837,20 +827,20 @@ def test_serialize_complex_rt_info(request, tmp_path):
 
         assert model.get_rt_info(["config", "type_of_model"]).astype(str) == "classification"
         assert model.get_rt_info(["config", "converter_type"]).astype(str) == "classification"
-        assert math.isclose(model.get_rt_info(
-            ["config", "model_parameters", "threshold"]).astype(float), 13.23, rel_tol=0.0001)
-        assert math.isclose(model.get_rt_info(
-            ["config", "model_parameters", "min"]).astype(float), -3.24543, rel_tol=0.0001)
-        assert math.isclose(model.get_rt_info(
-            ["config", "model_parameters", "max"]).astype(float), 3.234223, rel_tol=0.0001)
+        assert math.isclose(model.get_rt_info(["config", "model_parameters",
+                            "threshold"]).astype(float), 13.23, rel_tol=0.0001)
+        assert math.isclose(model.get_rt_info(["config", "model_parameters",
+                            "min"]).astype(float), -3.24543, rel_tol=0.0001)
+        assert math.isclose(model.get_rt_info(["config", "model_parameters",
+                            "max"]).astype(float), 3.234223, rel_tol=0.0001)
         assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "type"]).astype(str) == "tree"
-        assert model.get_rt_info(
-            ["config", "model_parameters", "labels", "label_tree", "directed"]).astype(bool) is True
+        assert model.get_rt_info(["config", "model_parameters", "labels",
+                                  "label_tree", "directed"]).astype(bool) is True
 
         assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "float_empty"]).aslist() == []
         assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "nodes"]).aslist() == []
-        assert model.get_rt_info(
-            ["config", "model_parameters", "labels", "label_groups", "ids"]).aslist(str) == ["sasd", "fdfdfsdf"]
+        assert model.get_rt_info(["config", "model_parameters", "labels", "label_groups",
+                                  "ids"]).aslist(str) == ["sasd", "fdfdfsdf"]
         assert model.get_rt_info(["config", "model_parameters", "mean_values"]).aslist(float) == [22.3, 33.11, 44.0]
         assert model.get_rt_info("enum_info_int").astype(int) == 1
         assert model.get_rt_info("enum_info_str").astype(str) == "info_str"
