@@ -204,19 +204,18 @@ runs:
       if: steps.openvino_s3_download.outcome == 'success'
       shell: bash
       run: |
-        rc_version=$(echo ${{ steps.openvino_s3_download.outputs.ov_package_url }} |
-          grep -oP '(?<=pre-release\/)\d{4}\.\d+\.\d+rc\d+' || true)
-
         release_version=$(echo ${{ steps.openvino_s3_download.outputs.ov_package_path }} |
           grep -oP '_\K\d{4}\.\d+\.\d+')
+
+        rc_version=$(echo ${{ steps.openvino_s3_download.outputs.ov_package_path }} |
+          grep -oP "${release_version//./\\.}\.rc\d+" || true)
 
         dev_version=$(echo ${{ steps.openvino_s3_download.outputs.ov_package_path }} |
           grep -oP "${release_version//./\\.}\.dev\d{8}" || true)
 
         version=${rc_version:-${dev_version:-$release_version}}
 
-        extra_index="--pre --extra-index-url ${{ inputs.pip_extra_url }}/nightly \
-          --extra-index-url ${{ inputs.pip_extra_url }}/pre-release"
+        extra_index="--pre --extra-index-url ${{ inputs.pip_extra_url }}/nightly"
 
         echo "ov_version=$version" >> $GITHUB_OUTPUT
         echo "ov_wheel_source=$extra_index" >> $GITHUB_OUTPUT
