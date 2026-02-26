@@ -90,8 +90,14 @@ static std::string toReshapeInputString(const AttrMap<std::vector<size_t>>& resh
 }
 
 static void cfgExecutionProvider(cv::gapi::onnx::Params<cv::gapi::Generic>& network,
-                                 const ONNXRTParams::OpenVINO& ovep) {
-    network.cfgAddExecutionProvider(cv::gapi::onnx::ep::OpenVINO{ovep.params_map});
+                                 const ONNXRTParams::OpenVINO& ovep,
+                                 const LayerVariantAttr<std::vector<size_t>>& reshape) {
+    auto params_map = ovep.params_map;
+    // NB: Auto-generate reshape_input from reshape
+    if (std::holds_alternative<AttrMap<std::vector<size_t>>>(reshape)) {
+        params_map["reshape_input"] = toReshapeInputString(std::get<AttrMap<std::vector<size_t>>>(reshape));
+    }
+    network.cfgAddExecutionProvider(cv::gapi::onnx::ep::OpenVINO{params_map});
 }
 
 static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const ONNXRTParams& params) {
@@ -100,15 +106,7 @@ static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const ONNXRTP
     if (params.opt_level.has_value()) {
         network.cfgOptLevel(params.opt_level.value());
     }
-    if (std::holds_alternative<ONNXRTParams::OpenVINO>(params.ep)) {
-        auto ovep = std::get<ONNXRTParams::OpenVINO>(params.ep);
-        // NB: Generate reshape_input from reshape
-        if (std::holds_alternative<AttrMap<std::vector<size_t>>>(params.reshape)) {
-            ovep.params_map["reshape_input"] = toReshapeInputString(std::get<AttrMap<std::vector<size_t>>>(params.reshape));
-        }
-        cfgExecutionProvider(network, ovep);
-    }
-
+    cfgExecutionProvider(network, params.ep);
     return cv::gapi::networks(network);
 }
 
