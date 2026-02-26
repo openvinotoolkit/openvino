@@ -100,7 +100,7 @@ OpenVINO supports the CPU, GPU, and NPU [devices](https://docs.openvino.ai/2025/
 
 ## Generative AI with OpenVINO
 
-Get started with the OpenVINO GenAI [installation](https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-genai.html) and refer to the [detailed guide](https://docs.openvino.ai/2025/openvino-workflow-generative/generative-inference.html) to explore the capabilities of Generative AI using OpenVINO.
+Get started with the OpenVINO GenAI [installation](https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-genai.html) and refer to the [detailed guide](https://docs.openvino.ai/2025/openvino-workflow-generative/inference-with-genai.html) to explore the capabilities of Generative AI using OpenVINO.
 
 Learn how to run LLMs and GenAI with [Samples](https://github.com/openvinotoolkit/openvino.genai/tree/master/samples) in the [OpenVINO™ GenAI repo](https://github.com/openvinotoolkit/openvino.genai). See GenAI in action with Jupyter notebooks: [LLM-powered Chatbot](https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-chatbot) and [LLM Instruction-following pipeline](https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-question-answering).
 
@@ -114,7 +114,7 @@ Learn how to run LLMs and GenAI with [Samples](https://github.com/openvinotoolki
 
 ### OpenVINO Tools
 
--   [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) - advanced model optimization techniques including quantization, filter pruning, binarization, and sparsity.
+-   [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) - advanced model optimization techniques including quantization, and sparsity.
 -   [GenAI Repository](https://github.com/openvinotoolkit/openvino.genai) and [OpenVINO Tokenizers](https://github.com/openvinotoolkit/openvino_tokenizers) - resources and tools for developing and optimizing Generative AI applications.
 -   [OpenVINO™ Model Server (OVMS)](https://github.com/openvinotoolkit/model_server) - a scalable, high-performance solution for serving models optimized for Intel architectures.
 -   [Intel® Geti™](https://geti.intel.com/) - an interactive video and image annotation tool for computer vision use cases.

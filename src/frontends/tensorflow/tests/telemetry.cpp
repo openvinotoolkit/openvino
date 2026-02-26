@@ -86,7 +86,7 @@ TEST(TFTelemetryTest, test_nonexistent_add) {
         FAIL() << "Non-existent operation Adddd must not be supported by TF FE.";
     } catch (const OpConversionFailure& error) {
         std::string error_message = error.what();
-        std::string ref_message = "Internal error, no translator found for operation(s): Adddd";
+        std::string ref_message = "No conversion rule found for operations: Adddd";
         ASSERT_TRUE(error_message.find(ref_message) != std::string::npos);
         ASSERT_EQ(model, nullptr);
 

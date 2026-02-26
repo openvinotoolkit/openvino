@@ -167,6 +167,12 @@ NamedOutputs set_value(const NodeContext& node) {
         starts = get_tensor_list(starts_list);
     } else if (node.has_attribute("starts")) {
         auto start_vec = node.get_attribute<std::vector<int64_t>>("starts");
+        PADDLE_OP_CHECK(node,
+                        start_vec.size() >= axes.size(),
+                        "set_value 'starts' size must be >= 'axes' size; got starts=",
+                        start_vec.size(),
+                        ", axes=",
+                        axes.size());
         normalize(start_vec, input_node, axes);
         starts = handle_minus_index(start_vec, spec_dim_node);
     } else
@@ -177,6 +183,12 @@ NamedOutputs set_value(const NodeContext& node) {
         ends = get_tensor_list(ends_list);
     } else if (node.has_attribute("ends")) {
         auto ends_vec = node.get_attribute<std::vector<int64_t>>("ends");
+        PADDLE_OP_CHECK(node,
+                        ends_vec.size() >= axes.size(),
+                        "set_value 'ends' size must be >= 'axes' size; got ends=",
+                        ends_vec.size(),
+                        ", axes=",
+                        axes.size());
         normalize(ends_vec, input_node, axes);
         ends = handle_minus_index(ends_vec, spec_dim_node);
     } else
@@ -187,12 +199,18 @@ NamedOutputs set_value(const NodeContext& node) {
         steps = get_tensor_list(steps_list);
     } else if (node.has_attribute("steps")) {
         auto step_vec = node.get_attribute<std::vector<int64_t>>("steps");
+        PADDLE_OP_CHECK(node,
+                        step_vec.size() >= axes.size(),
+                        "set_value 'steps' size must be >= 'axes' size; got steps=",
+                        step_vec.size(),
+                        ", axes=",
+                        axes.size());
         normalize(step_vec, input_node, axes);
         steps = handle_minus_index(step_vec, spec_dim_node);
     } else
         PADDLE_OP_CHECK(node, (false), "Invalid arguments!");
 
-    // for unsepcified end: x[::2], end will be 2147483647
+    // for unspecified end: x[::2], end will be 2147483647
     ends = handle_maximum_index(ends, spec_dim_node);
 
     // 3.1 get starts node

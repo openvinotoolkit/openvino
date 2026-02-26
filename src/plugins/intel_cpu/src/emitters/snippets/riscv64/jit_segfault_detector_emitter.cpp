@@ -3,7 +3,6 @@
 //
 
 #include <cstddef>
-#include <memory>
 #include <string>
 #include <vector>
 #include <xbyak_riscv/xbyak_riscv.hpp>
@@ -11,18 +10,15 @@
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
 #include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
-#include "openvino/runtime/threading/thread_local.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    include <utility>
 
+#    include "emitters/snippets/common/jit_segfault_detector_emitter_base.hpp"
 #    include "jit_segfault_detector_emitter.hpp"
 #    include "utils.hpp"
 
 namespace ov::intel_cpu::riscv64 {
-
-const std::shared_ptr<ThreadLocal<jit_uni_segfault_detector_emitter*>> g_custom_segfault_handler =
-    std::make_shared<ThreadLocal<jit_uni_segfault_detector_emitter*>>();
 
 jit_uni_segfault_detector_emitter::jit_uni_segfault_detector_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                                                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
@@ -30,11 +26,7 @@ jit_uni_segfault_detector_emitter::jit_uni_segfault_detector_emitter(ov::intel_c
                                                                      bool is_load,
                                                                      bool is_store,
                                                                      std::string target_node_name)
-    : jit_emitter(host, host_isa),
-      m_target_emitter(target_emitter),
-      is_target_use_load_emitter(is_load),
-      is_target_use_store_emitter(is_store),
-      m_target_node_name(std::move(target_node_name)) {
+    : base_t(host, host_isa, target_emitter, is_load, is_store, std::move(target_node_name)) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
@@ -47,17 +39,7 @@ size_t jit_uni_segfault_detector_emitter::aux_gprs_count() const {
 }
 
 const jit_emitter* jit_uni_segfault_detector_emitter::get_target_emitter() const {
-    return m_target_emitter;
-}
-
-void jit_uni_segfault_detector_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
-                                                  const std::vector<size_t>& out_vec_idxs) const {
-    save_target_emitter();
-    if (is_target_use_load_emitter) {
-        memory_track(in_vec_idxs[0]);
-    } else if (is_target_use_store_emitter) {
-        memory_track(out_vec_idxs[0]);
-    }
+    return base_t::get_target_emitter();
 }
 
 void jit_uni_segfault_detector_emitter::save_target_emitter() const {
@@ -78,7 +60,8 @@ void jit_uni_segfault_detector_emitter::save_target_emitter() const {
 }
 
 void jit_uni_segfault_detector_emitter::set_local_handler(jit_uni_segfault_detector_emitter* emitter_address) {
-    g_custom_segfault_handler->local() = emitter_address;
+    base_t::set_local_handler_impl(ov::intel_cpu::g_custom_segfault_handler<jit_uni_segfault_detector_emitter>,
+                                   emitter_address);
 }
 
 void jit_uni_segfault_detector_emitter::memory_track(size_t gpr_idx_for_mem_address) const {

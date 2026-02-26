@@ -1,0 +1,79 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "sequence_construct_concat"
+  node {
+    input: "input_a"
+    input: "input_b"
+    input: "input_c"
+    output: "sequence"
+    op_type: "SequenceConstruct"
+  }
+  node {
+    input: "sequence"
+    output: "output"
+    op_type: "ConcatFromSequence"
+    attribute {
+      name: "axis"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "new_axis"
+      i: 1
+      type: INT
+    }
+  }
+  input {
+    name: "input_a"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "input_b"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "input_c"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 14
+}
