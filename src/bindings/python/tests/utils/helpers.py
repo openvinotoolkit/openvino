@@ -2,21 +2,20 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import base64
 import io
+import os
+import re
+import sys
+from pathlib import Path
+from sys import platform
 from typing import Union
 
-import os
-import sys
 import numpy as np
-import base64
-import re
-
-from sys import platform
-from pathlib import Path
 
 import openvino
-from openvino import Model, Core, Shape, Tensor, Type
 import openvino.opset13 as ops
+from openvino import Core, Model, Shape, Tensor, Type
 
 
 # noqa: C901 the function is too complex
@@ -231,7 +230,10 @@ def generate_relu_compiled_model_with_config(
 def generate_model_and_image(device, input_shape: list[int] = None):
     if input_shape is None:
         input_shape = [1, 3, 32, 32]
-    return (generate_relu_compiled_model(device, input_shape), generate_image(input_shape))
+    return (
+        generate_relu_compiled_model(device, input_shape),
+        generate_image(input_shape),
+    )
 
 
 def generate_add_model(input_shape: list[int] = None, input_dtype=np.float32) -> openvino.Model:
