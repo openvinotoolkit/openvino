@@ -41,7 +41,6 @@ std::string MLPSeq::getTestCaseName(const testing::TestParamInfo<ov::test::snipp
     const auto& [input_shapes,
                  elem_types,
                  prc,
-                 thread_count,
                  target_device,
                  additional_config,
                  num_hidden_layers_with_expectations,
@@ -55,7 +54,6 @@ std::string MLPSeq::getTestCaseName(const testing::TestParamInfo<ov::test::snipp
         result << "IS[" << i << "]=" << input_shapes[i] << "_";
     for (size_t i = 0; i < elem_types.size(); i++)
         result << "T[" << i << "]=" << elem_types[i] << "_";
-    result << "ThreadNum=" << thread_count << "_";
     result << "PRC=" << prc << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
@@ -76,7 +74,6 @@ void MLPSeq::init_params(std::vector<InputShape>& input_shapes, ov::element::Typ
     const auto& [_input_shapes,
                  _m_input_types,
                  _prc,
-                 _m_thread_count,
                  _targetDevice,
                  _additional_config,
                  num_hidden_layers_with_expectations,
@@ -84,7 +81,7 @@ void MLPSeq::init_params(std::vector<InputShape>& input_shapes, ov::element::Typ
     input_shapes = _input_shapes;
     m_input_types = _m_input_types;
     prc = _prc;
-    m_thread_count = _m_thread_count;
+    m_thread_count = default_thread_count;
     targetDevice = _targetDevice;
     additional_config = _additional_config;
     m_hidden_matmul_size = _m_hidden_matmul_size;

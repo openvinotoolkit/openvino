@@ -14,7 +14,6 @@ namespace snippets {
 typedef std::tuple<std::vector<InputShape>,                       // Input shapes
                    std::vector<ov::element::Type>,                // Input Element types
                    ov::element::Type,                             // Inference precision
-                   size_t,                                        // Thread count
                    std::string,                                   // Target Device
                    ov::AnyMap,                                    // Config
                    std::pair<size_t, std::pair<size_t, size_t>>,  // {number of hidden layers, {expected number of
