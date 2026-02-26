@@ -58,7 +58,7 @@ jobs:
       target_branch: ${{ steps.set_target_branch.outputs.target_branch }}
     steps:
       - name: checkout action
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
@@ -94,7 +94,7 @@ jobs:
       images: "${{ steps.handle_docker.outputs.images }}"
     steps:
       - name: Checkout
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
@@ -136,7 +136,7 @@ jobs:
 
     steps:
       - name: Clone OpenVINO
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
@@ -168,7 +168,7 @@ jobs:
       #
       - name: Clean ccache stats
         run: ccache --zero-stats
-      
+
       - name: CMake - Configure
         run: >
           cmake -G "${{ env.CMAKE_GENERATOR }}"
@@ -193,21 +193,21 @@ jobs:
         run: |
           ccache --show-stats
           ccache --cleanup
-        
+
       - name: Cmake install - OpenVINO
         run: |
           cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
           cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
         working-directory: ${{ env.BUILD_DIR }}
-          
+
       - name: Pack openvino_package
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
         working-directory: ${{ env.INSTALL_DIR }}
-        
+
       - name: Pack openvino_tests
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
         working-directory: ${{ env.INSTALL_TEST_DIR }}
-        
+
       - name: Upload openvino package
         if: ${{ always() }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -215,7 +215,7 @@ jobs:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
-          
+
       - name: Upload openvino tests package
         if: ${{ always() }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -223,7 +223,7 @@ jobs:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
-  
+
   CPU_Functional_Tests:
     name: CPU functional tests
     timeout-minutes: 30
@@ -247,13 +247,13 @@ jobs:
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
-      
+
       - name: Download OpenVINO artifacts (tests)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
-          
+
       - name: Extract OpenVINO packages and tests
         run: |
           pigz -dc openvino_package.tar.gz | tar -xvf - -C ${INSTALL_DIR}
