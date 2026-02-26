@@ -4,10 +4,12 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reverse.hpp"
 #include "openvino/op/scatter_update.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
 #include "utils.hpp"
 
@@ -21,18 +23,18 @@ OutputVector translate_rot90(const NodeContext& context) {
     auto tensor = context.get_input(0);
     const auto input_size = context.get_input_size();
     int64_t k = (input_size < 2 || context.input_is_none(1)) ? 1 : context.const_input<int64_t>(1);
-    const auto dims =
-        (input_size < 3 || context.input_is_none(2))
-            ? context.mark_node(v0::Constant::create(element::i64, {2}, {0, 1}))
-            : context.get_input(2);
+    auto dims = (input_size < 3 || context.input_is_none(2))
+                    ? context.mark_node(v0::Constant::create(element::i64, {2}, {0, 1}))
+                    : get_input_concat_if_list(context, 2);
     k = (k % 4 + 4) % 4;
     auto zero = v0::Constant::create(element::i64, Shape{}, {0});
     auto one = v0::Constant::create(element::i64, Shape{}, {1});
     // getting shape and rank of tensor
-    const auto shape_and_rank = get_shape_rank(context, tensor, true, element::i64);
-    const auto rank_scalar = std::get<1>(shape_and_rank);
+    const auto shape_and_rank = get_shape_rank(context, tensor, false, element::i64);
+    const auto rank = std::get<1>(shape_and_rank);
     // normalizing dims to handle negative values
-    const auto normalized_dims = normalize_axis(context, dims, rank_scalar);
+    dims = context.mark_node(std::make_shared<v1::ConvertLike>(dims, rank));
+    const auto normalized_dims = normalize_axis(context, dims, rank);
     // using these scalars for creating axes for flipping
     auto dim1_index = v0::Constant::create(element::i64, {1}, {1});
     auto dim1_axis = context.mark_node(std::make_shared<v8::Gather>(normalized_dims, dim1_index, zero));
@@ -45,7 +47,8 @@ OutputVector translate_rot90(const NodeContext& context) {
     // cases
     if (k == 1) {
         auto flipped = context.mark_node(std::make_shared<v1::Reverse>(tensor, dim1_axis, v1::Reverse::Mode::INDEX));
-        auto perm = context.mark_node(std::make_shared<v4::Range>(zero, rank_scalar, one, element::i64));
+        auto scalar_rank = context.mark_node(std::make_shared<v0::Squeeze>(rank, zero));
+        auto perm = context.mark_node(std::make_shared<v4::Range>(zero, scalar_rank, one, element::i64));
         auto dims_perm =
             context.mark_node(std::make_shared<v3::ScatterUpdate>(perm, normalized_dims, reverse_order, zero));
         auto transposed = context.mark_node(std::make_shared<v1::Transpose>(flipped, dims_perm));
@@ -58,7 +61,8 @@ OutputVector translate_rot90(const NodeContext& context) {
     }
     if (k == 3) {
         auto flipped = context.mark_node(std::make_shared<v1::Reverse>(tensor, dim0_axis, v1::Reverse::Mode::INDEX));
-        auto perm = context.mark_node(std::make_shared<v4::Range>(zero, rank_scalar, one, element::i64));
+        auto scalar_rank = context.mark_node(std::make_shared<v0::Squeeze>(rank, zero));
+        auto perm = context.mark_node(std::make_shared<v4::Range>(zero, scalar_rank, one, element::i64));
         auto dims_perm =
             context.mark_node(std::make_shared<v3::ScatterUpdate>(perm, normalized_dims, reverse_order, zero));
         auto transposed = context.mark_node(std::make_shared<v1::Transpose>(flipped, dims_perm));
