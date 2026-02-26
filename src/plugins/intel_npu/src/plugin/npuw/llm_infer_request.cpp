@@ -716,7 +716,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                                                             static_cast<uint32_t>(input_prompt_len));
         }
         // FIXME: If model has multiple outputs, should we accumulate them from chunks as done
-        //        for Eagle3 additional output? They escape slicing for now.
+        //        for Eagle3 additional output? They avoid slicing for now.
 
         if (enable_prefix_caching) {
             m_prefix_caching_helper->store_computed_blocks(current_prompts_len,
@@ -1067,7 +1067,6 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
                 }
                 return tensor;
             }
-            return tensor;
         }
     }
 

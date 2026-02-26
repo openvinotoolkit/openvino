@@ -640,7 +640,7 @@ void Partitioner::identifySubgraphs() {
                     const auto& links_from = result_cache.at(src_node);
                     NPUW_ASSERT(links_from.size() > 0);
                     // Note: It may happen that one output layer has more than one
-                    // Result nodes, that are the same!
+                    // Result nodes, that have different names, but output the same!
                     // Please see the `results_cache` filling below.
                     if (links_from.size() > 1) {
                         LOG_INFO("Parameter " << this_param->get_friendly_name()
