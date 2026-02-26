@@ -81,6 +81,8 @@ jobs:
           python3 -m pip install -r ${{ github.workspace }}/src/frontends/tensorflow/tests/requirements.txt
           # For running TensorFlow Lite frontend unit tests
           python3 -m pip install -r ${{ github.workspace }}/src/frontends/tensorflow_lite/tests/requirements.txt
+          # For running JAX frontend layer tests
+          python3 -m pip install -r ${{ github.workspace }}/tests/requirements_jax
 
       - name: Configure OpenVINO with CMake
         run: |
@@ -143,6 +145,13 @@ jobs:
 
       - name: Build and install OpenVINO JS addon package runtime
         run: |
+          if [[ "${TEST_PROFILE}" == "cpu_npu" || "${TEST_PROFILE}" == "cpu_npu_gpu" ]]; then
+            JS_NPU_FLAG="-DENABLE_INTEL_NPU=ON"
+          else
+            JS_NPU_FLAG="-DENABLE_INTEL_NPU=OFF"
+          fi
+          echo "Using JS NPU flag: ${JS_NPU_FLAG}"
+
           cmake -S ${{ github.workspace }} -B ${{ github.workspace }}/build_js \
             -GNinja \
             -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
@@ -153,6 +162,7 @@ jobs:
             -DENABLE_WHEEL=OFF \
             -DENABLE_PYTHON=OFF \
             -DENABLE_INTEL_GPU=OFF \
+            ${JS_NPU_FLAG} \
             -DENABLE_JS=ON \
             -DENABLE_COVERAGE=ON \
             -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/src/bindings/js/node/bin
@@ -401,6 +411,7 @@ jobs:
           TESTS_DIR="${{ github.workspace }}/install_pkg/tests"
           SRC_PY_TESTS_DIR="${{ github.workspace }}/src/bindings/python/tests"
           ONNX_PY_TESTS_DIR="${{ github.workspace }}/src/frontends/onnx/tests/tests_python"
+          WORKSPACE_LAYER_TESTS_DIR="${{ github.workspace }}/tests/layer_tests"
           PY_COV_CONFIG="${{ github.workspace }}/.python_coverage_ci.rc"
           PY_TOTAL_EXECUTED=0
           FAILED_PY_TESTS=()
@@ -409,6 +420,7 @@ jobs:
           python3 -m pip install -r "${TESTS_DIR}/bindings/python/requirements_test.txt"
           python3 -m pip install -r "${TESTS_DIR}/layer_tests/requirements.txt"
           python3 -m pip install -r "${TESTS_DIR}/requirements_onnx"
+          python3 -m pip install -r "${TESTS_DIR}/requirements_jax"
 
           export LD_LIBRARY_PATH="${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}:${LD_LIBRARY_PATH}"
           export PYTHONPATH="${TESTS_DIR}/python:${PYTHONPATH}"
@@ -474,6 +486,7 @@ jobs:
           TEST_DEVICE=CPU TEST_PRECISION=FP16 run_pytest_if_dir "onnx_layers" "${TESTS_DIR}/layer_tests/onnx_tests" -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
           TEST_DEVICE=CPU TEST_PRECISION=FP16 run_pytest_if_dir "pytorch_layers" "${TESTS_DIR}/layer_tests/pytorch_tests" -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
           TEST_DEVICE=CPU TEST_PRECISION=FP16 run_pytest_if_dir "paddle_layers" "${TESTS_DIR}/layer_tests/paddle_tests" -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          TEST_DEVICE=CPU TEST_PRECISION=FP16 run_pytest_if_dir "jax_layers_precommit" "${TESTS_DIR}/layer_tests/jax_tests" -m "precommit_jax_fe" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
           run_pytest_if_dir "src_py_runtime" "${SRC_PY_TESTS_DIR}/test_runtime" -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
           run_pytest_if_dir "src_py_graph" "${SRC_PY_TESTS_DIR}/test_graph" -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
           run_pytest_if_dir "src_py_transformations" "${SRC_PY_TESTS_DIR}/test_transformations" -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
@@ -481,6 +494,8 @@ jobs:
           run_pytest_if_dir "src_py_runtime_strict" "${SRC_PY_TESTS_DIR}/test_runtime" -q --maxfail=1 -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
           run_pytest_if_dir "src_py_utils" "${SRC_PY_TESTS_DIR}/test_utils" -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
           run_pytest "src_py_package_versions" -sv "${SRC_PY_TESTS_DIR}/test_package_versions.py" -n "${{ env.PYTEST_XDIST_WORKERS }}" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          TEST_DEVICE=CPU TEST_PRECISION=FP16 run_pytest_if_dir "tf_api_precommit_subset" "${WORKSPACE_LAYER_TESTS_DIR}/ovc_python_api_tests" -m "precommit_tf_fe" -k "test_tf" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          TEST_DEVICE=CPU TEST_PRECISION=FP16 run_pytest "ovc_python_api_paddle_precommit" -sv "${WORKSPACE_LAYER_TESTS_DIR}/ovc_python_api_tests/test_paddle.py" -n "${{ env.PYTEST_XDIST_WORKERS }}" -m "precommit" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
           run_python_cmd "ovc_cli_help" coverage run -a -m openvino.tools.ovc --help
 
           coverage xml -o "${{ github.workspace }}/python-coverage.xml"
@@ -551,6 +566,23 @@ jobs:
             fi
           }
 
+          run_js_c8_cmd() {
+            local test_name="$1"
+            local clean_mode="$2"
+            shift 2
+            JS_TOTAL_EXECUTED=$((JS_TOTAL_EXECUTED + 1))
+            echo "========== Running JS covered command: ${test_name} =========="
+            npx c8 --reporter=lcov --reporter=text --report-dir "${{ github.workspace }}/js-coverage" \
+              --clean="${clean_mode}" \
+              --exclude "tests/**" \
+              --exclude "thirdparty/**" \
+              "$@"
+            local rc=$?
+            if [[ ${rc} -ne 0 ]]; then
+              FAILED_JS_TESTS+=("${test_name} (exit ${rc})")
+            fi
+          }
+
           run_js_c8_unit() {
             local test_name="$1"
             local clean_mode="$2"
@@ -570,9 +602,10 @@ jobs:
 
           run_js_cmd "npm run lint" npm run lint
           run_js_cmd "npm run tsc" npm run tsc
-          run_js_cmd "npm run test_setup" npm run test_setup
+          run_js_c8_cmd "node tests/setup.js (covered)" true node ./tests/setup.js
+          run_js_c8_cmd "node scripts/download-runtime.js --ignore-if-exists (covered)" false node ./scripts/download-runtime.js --ignore-if-exists
 
-          run_js_c8_unit "node unit group 1" true \
+          run_js_c8_unit "node unit group 1" false \
             ./tests/unit/core.test.js \
             ./tests/unit/model.test.js \
             ./tests/unit/read_model.test.js \
