@@ -30,7 +30,6 @@ on:
 permissions: read-all
 
 env:
-  PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
   PYTHON_VERSION: '3.11'
   PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
   PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
@@ -83,7 +82,6 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
 
@@ -195,7 +193,6 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.10'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
 
@@ -205,7 +202,6 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.12'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
 
@@ -215,7 +211,6 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.13'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
 
@@ -225,7 +220,6 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.14'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
 
@@ -244,7 +238,6 @@ jobs:
 
             $pipVersion = & $pythonExecutablePath -c "import pip; print(pip.__version__)"
             Write-Host "Using pip version: $pipVersion for $pyVersion"
-            $env:PIP_CACHE_DIR="${{ env.PIP_CACHE_PATH }}/$pipVersion"
 
             & $pythonExecutablePath -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
 
@@ -271,7 +264,6 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.14t'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
           allow-prereleases: 'true'
@@ -290,7 +282,6 @@ jobs:
 
           $pipVersion = & $pythonExecutablePath -c "import pip; print(pip.__version__)"
           Write-Host "Using pip version: $pipVersion for $pyVersion"
-          $env:PIP_CACHE_DIR="${{ env.PIP_CACHE_PATH }}/$pipVersion"
 
           & $pythonExecutablePath -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
 
@@ -345,7 +336,6 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
 

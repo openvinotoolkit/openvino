@@ -24,7 +24,6 @@ concurrency:
 
 env:
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
-  PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
   PYTHON_VERSION: '3.11'
 
 permissions: read-all
@@ -323,7 +322,6 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
 
@@ -468,7 +466,6 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ matrix.python-version }}
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'true'
 
