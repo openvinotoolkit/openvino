@@ -25,7 +25,6 @@ permissions: read-all
 
 env:
   PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
-  PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
 
 jobs:
   PyTorch_FX_Layer_Tests:
@@ -101,7 +100,7 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: ${{ inputs.python-version }}
-          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH_LINUX || env.PIP_CACHE_PATH_WIN }}
+          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH_LINUX || '' }}
           should-setup-pip-paths: ${{ runner.os != 'macOS' }}
           self-hosted-runner: ${{ runner.os != 'macOS' }}
 
