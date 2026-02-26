@@ -21,12 +21,19 @@ class TestRot90(PytorchLayerTest):
                 self.dims = dims
 
             def forward(self, x):
-                return torch.rot90(x, self.k, self.dims)
+                if self.k is None and self.dims is None:
+                    return torch.rot90(x)
+                elif self.k is None:
+                    return torch.rot90(x, dims=self.dims)
+                elif self.dims is None:
+                    return torch.rot90(x, k=self.k)
+                else:
+                    return torch.rot90(x, k=self.k, dims=self.dims)
 
         return AtenRot90(k, dims), "aten::rot90"
 
-    @pytest.mark.parametrize("k", [1, 2, 3, 4, -1, -3])
-    @pytest.mark.parametrize("dims", [(0, 1), (1, 2), (0, 2), (-2, -3), (-1, 1), (-1, -3)])
+    @pytest.mark.parametrize("k", [1, 2, 3, 4, -1, -3, None])
+    @pytest.mark.parametrize("dims", [(0, 1), (1, 2), (0, 2), (-2, -3), (-1, 1), (-1, -3), None])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
