@@ -9,7 +9,7 @@ class TestRReLU(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
 
-        return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
+        return (self.random.randn(1, 3, 224, 224).astype(np.float32),)
 
     def create_model(self, lower, upper, inplace):
         import torch
