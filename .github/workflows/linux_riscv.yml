@@ -52,7 +52,7 @@ env:
   RISCV_SMOKE_GTEST_FILTER: '*smoke*'
   RISCV_CONCISE_GTEST_FILTER: '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*:smoke_Snippets*'
   RISCV_NIGHTLY_GTEST_FILTER: ${{ format('{0}:smoke_CompareWithRefs*', env.RISCV_CONCISE_GTEST_FILTER) }}
-  RISCV_TEST_FILTER_TYPE: ${{ github.event_name == 'schedule' && 'NIGHTLY' || inputs.testFilterType || 'CONCISE' }}
+  RISCV_TEST_FILTER_TYPE: ${{ github.event_name == 'schedule' && 'NIGHTLY' || inputs.testFilterType }}
 
 jobs:
   Smart_CI:
