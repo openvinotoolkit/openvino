@@ -3,12 +3,45 @@
 //
 
 #include <signal.h>
+#include <dlfcn.h>
 
 #include <sstream>
 #ifdef WIN32
 #    include <process.h>
 #endif
 #include "gtest/gtest.h"
+
+
+void* (*_dlopen)(const char *filename, int mode);
+char* (*_dlerror)(void);
+
+__attribute__((constructor))
+void init() {
+    _dlopen = reinterpret_cast<decltype(_dlopen)>(dlsym(RTLD_NEXT, "dlopen"));
+    _dlerror = reinterpret_cast<decltype(_dlerror)>(dlsym(RTLD_NEXT, "dlerror"));
+}
+
+thread_local char* dlopen_error_str = nullptr;
+
+extern "C" void* dlopen(const char *filename, int mode) {
+#define TRICK 1
+#if TRICK
+    if (filename && strstr(filename, "libze_intel_npu.so")) {
+        dlopen_error_str = (char*)"Failed to dlopen libze_intel_npu.so";
+        return nullptr;
+    }
+#endif
+    return _dlopen(filename, mode);
+}
+
+extern "C" char* dlerror(void) {
+    if (dlopen_error_str) {
+        char* ret = dlopen_error_str;
+        dlopen_error_str = nullptr;
+        return ret;
+    }
+    return _dlerror();
+}
 
 void sigsegv_handler(int errCode);
 
