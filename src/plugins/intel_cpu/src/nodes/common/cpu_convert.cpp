@@ -562,11 +562,24 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
 
         if (std::is_integral_v<src_t> || ctx.interimPrc.is_real() || std::is_integral_v<dst_t>) {
             parallel_for(ctx.size, [&, lbound = lbound, ubound = ubound](size_t i) {
+                if constexpr (std::is_floating_point_v<src_t> && std::is_floating_point_v<dst_t>) {
+                    if (std::isinf(src[i]) || std::isnan(src[i])) {
+                        dst[i] = static_cast<dst_t>(src[i]);
+                        return;
+                    }
+                }
                 dst[i] = static_cast<dst_t>(std::max(std::min(src[i], ubound), lbound));
             });
         } else {
             parallel_for(ctx.size, [&, lbound = lbound, ubound = ubound](size_t i) {
-                dst[i] = static_cast<dst_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
+                if constexpr (std::is_floating_point_v<src_t> && std::is_floating_point_v<dst_t>) {
+                    if (std::isinf(src[i]) || std::isnan(src[i])) {
+                        dst[i] = static_cast<dst_t>(src[i]);
+                        return;
+                    }
+                }
+                dst[i] = static_cast<dst_t>(
+                    std::trunc(std::max(std::min(src[i], ubound), lbound)));
             });
         }
 
