@@ -30,20 +30,6 @@ public:
     Properties& operator=(const Properties& other) = delete;
 
     /**
-     * @brief Initialize the properties map and try registering the properties for npu-plugin and compiled-model
-     * Can be used for both plugin and compiled-model properties maps, based on the provided pType param to the
-     * constructor of this object
-     * @details
-     * - it will reset the properties map
-     * - it will try registering config-backed option-based properties, with data from global configuration (supported,
-     * visibilty, mutability, value)
-     * - if an option is not present in the global config, it assumes it is not supported and will skip it
-     * - it will register metric-based properties, with data from the metrics interface
-     * - at the end it populates supported_properties with the now dynamically registered public properties
-     */
-    void registerProperties();
-
-    /**
      * @brief Get the values of a property in a map
      */
     ov::Any getProperty(const std::string& name);
@@ -57,11 +43,6 @@ public:
     void setProperty(const ov::AnyMap& properties);
 
     /**
-     * @brief Checks whether a property was registered by its name
-     */
-    bool isPropertyRegistered(const std::string& propertyName) const;
-
-    /**
      * @brief Get a const reference to the stored config
      */
     const FilteredConfig& getConfig() const {
@@ -69,27 +50,24 @@ public:
     }
 
     /**
-     * @brief Update the config map and register properties for the plugin.
+     * @brief Updates a copy of the config list based on the provided properties, and returns it.
      * @details
-     * - Checks if the compiler has changed; if so, re-filters properties.
-     * - Checks whether arguments are already registered; if not, checks if the options are supported.
-     * - Filters compiler options based on the current compiler.
-     * - Updates the config with the provided arguments.
+     * - Updates the config with the provided arguments and returns it.
      */
-    void updateConfig(const ov::AnyMap& properties,
-                      const ICompilerAdapter* compiler,
-                      OptionMode mode = OptionMode::Both);
+    FilteredConfig getConfigWithCompilerPropertiesDisabled(const ov::AnyMap& properties);
 
     /**
-     * @brief Update the config map.
+     * @brief Updates a copy of the config list based on the provided properties and compiler, and returns it.
      * @details
-     * - Updates the config with the provided arguments.
+     * - Checks if the compiler has changed; if so, re-filters configs.
+     * - Filters compiler options based on the current compiler.
+     * - Updates the config with the provided arguments and returns it.
      */
-    void updateConfig(const ov::AnyMap& properties, OptionMode mode = OptionMode::Both);
+    FilteredConfig getConfigForSpecificCompiler(const ov::AnyMap& properties, const ICompilerAdapter* compiler);
 
-    ov::intel_npu::CompilerType determineCompilerType(const ov::AnyMap& properties) const;
     std::string determinePlatform(const ov::AnyMap& properties) const;
     std::string determineDeviceId(const ov::AnyMap& properties) const;
+    ov::intel_npu::CompilerType determineCompilerType(const ov::AnyMap& properties) const;
 
 private:
     PropertiesType _pType;
@@ -101,18 +79,34 @@ private:
     ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
     std::string _currentlyUsedPlatform;
 
-    bool _initialized = false;  ///< Boolean to check whether properties was filtered with compiler supported properties
+    bool _compilerConfigsFilteredByCompiler =
+        false;  ///< Boolean to check whether properties was filtered with compiler supported properties
 
     // properties map: {name -> [supported, mutable, eval function]}
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
 
+    /**
+     * @brief Checks whether a property was registered by its name
+     */
+    bool isPropertyRegistered(const std::string& propertyName) const;
+
     // internal registration functions based on client object
+    /**
+     * @brief Initialize the properties map and try registering the properties for npu-plugin and compiled-model
+     * Can be used for both plugin and compiled-model properties maps, based on the provided pType param to the
+     * constructor of this object
+     * @details
+     * - it will reset the properties map
+     * - it will try registering config-backed option-based properties, with data from global configuration (supported,
+     * visibilty, mutability, value)
+     * - if an option is not present in the global config, it assumes it is not supported and will skip it
+     * - it will register metric-based properties, with data from the metrics interface
+     * - at the end it populates supported_properties with the now dynamically registered public properties
+     */
+    void registerProperties();
     void registerPluginProperties();
     void registerCompiledModelProperties();
-    void filterPropertiesByCompilerSupport(const ICompilerAdapter* compiler,
-                                           const ov::intel_npu::CompilerType compilerType,
-                                           const std::string& compilationPlatform);
 
     const std::vector<ov::PropertyName> _cachingProperties = {
         ov::cache_mode.name(),
