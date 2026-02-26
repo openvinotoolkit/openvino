@@ -15,7 +15,7 @@
 
 #include "convert_common.hpp"
 
-#ifdef GC_USE_IMEX // GC_GPU requires IMEX support
+#ifdef GC_USE_GPU // GC_GPU requires IMEX support
 #include "gc/Utils/Error.h"
 #include "gc/ExecutionEngine/GPURuntime/GpuOclRuntime.h"
 #endif
@@ -50,7 +50,7 @@ public:
     virtual ~MLIREvaluateBase() = default;
 };
 
-#ifdef GC_USE_IMEX // GC_GPU requires IMEX support
+#ifdef GC_USE_GPU // GC_GPU requires IMEX support
 
 class MLIREvaluateGcGPU : public MLIREvaluateBase {
     std::shared_ptr<const gc::gpu::OclModule> module;
@@ -67,7 +67,7 @@ private:
     static void maybe_set_result_event(const ov::EvaluationContext& evaluationContext, gc::gpu::OclContext& ctx);
 };
 
-#endif // GC_USE_IMEX
+#endif // GC_USE_GPU
 
 class MLIREvaluate : public MLIREvaluateBase {
     OwningOpRef<ModuleOp> module;  // FIXME: needs to be kept?

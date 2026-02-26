@@ -11,7 +11,7 @@
 			</output>
 		</layer>
 		<layer id="1" name="b" type="Parameter" version="opset1">
-			<data element_type="f16" shape="128, 128" offset="0" size="32768" />
+			<data element_type="f16" shape="128, 128"/>
 			<output>
 				<port id="0" precision="FP16">
 					<dim>128</dim>
