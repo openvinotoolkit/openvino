@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -174,4 +174,5 @@ TEST(propagate_constants, no_reselection_when_constants_are_static) {
     auto impl_after = eltwise_node.get_selected_impl();
     ASSERT_NE(impl_after, nullptr);
     ASSERT_FALSE(impl_after->is_dynamic());
+    ASSERT_EQ(impl_before, impl_after);
 }
