@@ -1048,15 +1048,17 @@ FilteredConfig Properties::getConfig(const ov::AnyMap& properties, const ICompil
 }
 
 FilteredConfig Properties::getConfig(const ov::AnyMap& properties, OptionMode mode) {
-    FilteredConfig updatedConfig = [&]() {
+    auto [updatedConfig, compilerConfigsFilteredByCompiler] = [&]() {
         std::lock_guard<std::mutex> lock(_mutex);
-        return _config;
+        return std::make_tuple(_config, _compilerConfigsFilteredByCompiler);
     }();
+
+    if (compilerConfigsFilteredByCompiler) {
+        disableCompilerProperties(updatedConfig, _backend);
+    }
 
     // Special case for NPU_COMPILER_TYPE - don't need it in the config for this case.
     updatedConfig.enable(ov::intel_npu::compiler_type.name(), false);
-    // Make sure all options are re-filtered based on a config with no compiler
-    disableCompilerProperties(updatedConfig, _backend);
 
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
     std::map<std::string, std::string> cfgsToSet;
