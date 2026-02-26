@@ -21,7 +21,7 @@ on:
       - ready_for_review
   merge_group:
     paths:
-      - '.github/workflows/linux_riscv_gnu_dev_cpu.yml'
+      - '.github/workflows/linux_riscv.yml'
       - 'src/plugins/intel_cpu/src/emitters/plugin/aarch64/**'
       - 'src/plugins/intel_cpu/src/emitters/plugin/riscv64/**'
       - 'src/plugins/intel_cpu/src/emitters/plugin/x64/**'
