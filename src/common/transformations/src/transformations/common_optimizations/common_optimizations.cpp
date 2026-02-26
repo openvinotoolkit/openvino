@@ -47,8 +47,6 @@
 #include "transformations/common_optimizations/reduce_merge.hpp"
 #include "transformations/common_optimizations/relu_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/remove_filtering_boxes_by_size.hpp"
-#include "transformations/common_optimizations/sdpa_fusion.hpp"
-#include "transformations/common_optimizations/sdpa_scale_fusion.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/common_optimizations/skip_gather_before_transpose_and_reshape.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
@@ -139,16 +137,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // Disable low_precision_enabled as all plugins handle low-precision sub-graph manually
     // before CommonOptimization pipeline execution
     REGISTER_PASS(manager, MOCTransformations, true, false)
-
-    // SDPAFusion and SDPAScaleFusion are registered here (in CommonOptimizations) rather than
-    // inside MOCTransformations so they only run during compile_model(), not during convert_model().
-    // This allows each plugin to control SDPA behavior:
-    // - CPU plugin disables SDPAFusion (doesn't want SDPA nodes)
-    // - GPU plugin keeps SDPAFusion and blocks SDPA decomposition
-    // Running SDPAFusion during convert_model() would create SDPA nodes that get decomposed
-    // with different FP32 computation order, causing accuracy loss.
-    REGISTER_PASS(manager, SDPAFusion)
-    REGISTER_PASS(manager, SDPAScaleFusion)
 
     // Enabling conversion of FP16 IR to legacy representation, each plugin have to disable it
     // after support for FP16 IR is implemented

@@ -45,6 +45,28 @@ namespace v8 = ov::op::v8;
 namespace v13 = ov::op::v13;
 namespace {
 
+bool is_query_prescaled(const ov::Output<ov::Node>& query) {
+    // Check if query is a Multiply(input, constant_scalar).
+    // This indicates Q was pre-scaled (common in transformers with symmetric Q/K scaling,
+    // e.g., SDPAFusion absorbs K-side scale into the SDPA scale parameter while Q pre-scale
+    // remains as a Multiply feeding into the SDPA node).
+    // In such cases, applying SDPA scale to K^T during decomposition restores the original
+    // computation order: (Q * s_q) @ (K^T * scale) instead of ((Q * s_q) * scale) @ K^T,
+    // which preserves FP32 numerical precision.
+    auto mul = ov::as_type_ptr<v1::Multiply>(query.get_node_shared_ptr());
+    if (!mul)
+        return false;
+    for (size_t i = 0; i < 2; ++i) {
+        auto constant = ov::as_type_ptr<v0::Constant>(mul->input_value(i).get_node_shared_ptr());
+        if (constant) {
+            const auto& shape = constant->get_shape();
+            if (ov::shape_size(shape) == 1)
+                return true;
+        }
+    }
+    return false;
+}
+
 bool can_move_scale_after_matmul(const ov::Output<ov::Node>& query,
                                  const ov::Output<ov::Node>& kT,
                                  const ov::Output<ov::Node>& scale) {
@@ -154,7 +176,13 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto k_transposed = register_new_node<v1::Transpose>(key, transpose_dims);
 
     ov::Output<Node> scaled_atten;
-    if (can_move_scale_after_matmul(query, k_transposed, scale)) {
+    if (is_query_prescaled(query)) {
+        // Q is already pre-scaled (e.g., by SDPAFusion absorbing K-side scale).
+        // Apply scale to K^T to restore the original computation order:
+        // (Q * s_q) @ (K^T * scale) instead of ((Q * s_q) * scale) @ K^T
+        auto k_scaled = register_new_node<v1::Multiply>(k_transposed, scale);
+        scaled_atten = register_new_node<v0::MatMul>(query, k_scaled)->output(0);
+    } else if (can_move_scale_after_matmul(query, k_transposed, scale)) {
         auto atten = register_new_node<v0::MatMul>(query, k_transposed)->output(0);
         scaled_atten = register_new_node<v1::Multiply>(atten, scale)->output(0);
     } else {
