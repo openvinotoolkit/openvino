@@ -21,6 +21,10 @@
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/emitter.hpp"
 
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include "emitters/snippets/common/jit_debug_emitter_base.hpp"
+#endif
+
 namespace ov::intel_cpu::aarch64 {
 
 enum emitter_in_out_map : uint8_t {
@@ -194,6 +198,10 @@ private:
                          const std::unordered_set<size_t>& ignore_vec_regs = {}) const;
 
 #ifdef SNIPPETS_DEBUG_CAPS
+    template <typename>
+    friend class ov::intel_cpu::jit_debug_emitter_base_common;
+    template <typename>
+    friend class jit_debug_emitter_aarch64_base;
     friend class jit_debug_emitter;
 #endif
 };
