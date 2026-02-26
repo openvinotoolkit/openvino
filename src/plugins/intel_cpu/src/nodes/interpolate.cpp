@@ -3955,7 +3955,7 @@ void Interpolate::InterpolateRefExecutor::setValue(uint8_t* base, size_t offset,
         break;
     }
     case ov::element::f64: {
-        double dValue = static_cast<double>(value);
+        auto dValue = static_cast<double>(value);
         cpu_memcpy(baseOffset, &dValue, sizeof(double));
         break;
     }
