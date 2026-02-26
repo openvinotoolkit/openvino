@@ -73,7 +73,12 @@ void PoolingLayerCPUTest::SetUp() {
         selectedType = getPrimitiveType();
     }
     if (isInt8)
+#if defined(OPENVINO_ARCH_ARM)
+        // int8 pooling on arm32 is executed with fp32
+        selectedType = selectedType + "_f32";
+#else
         selectedType = selectedType + "_I8";
+#endif
     else
         selectedType = makeSelectedTypeStr(selectedType, deduce_expected_precision(inPrc, configuration));
 
