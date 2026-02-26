@@ -4,8 +4,6 @@
 
 #include "intel_npu/utils/zero/zero_mem.hpp"
 
-#include <ze_mem_import_system_memory_ext.h>
-
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
@@ -62,11 +60,10 @@ ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
         if (is_input) {
             zero_memory_flag = ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
         }
-        _ze_external_memory_import_system_memory_t memory_import = {
-            ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_SYSTEM_MEMORY,
-            nullptr,
-            const_cast<void*>(data),
-            _size};
+        ze_external_memmap_sysmem_ext_desc_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMMAP_SYSMEM_EXT_DESC,
+                                                              nullptr,
+                                                              const_cast<void*>(data),
+                                                              _size};
         ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, &memory_import, zero_memory_flag};
         auto result = zeMemAllocHost(_init_structs->getContext(), &desc, _size, utils::STANDARD_PAGE_SIZE, &_ptr);
 

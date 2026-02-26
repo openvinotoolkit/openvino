@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <memory>
 #include <set>
+#include <utility>
 #include <vector>
 
 #include "common/utils.hpp"
@@ -22,6 +23,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/elu.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/relu.hpp"
@@ -36,6 +38,19 @@ namespace ov::intel_cpu::riscv64 {
 using namespace Xbyak_riscv;
 
 #define CONST_1_F 0x3f800000  // 1.F
+
+static std::pair<SEW, LMUL> getVTypeForElementSize(const ov::element::Type& type) {
+    switch (type.size()) {
+    case 4UL:
+        return {SEW::e32, LMUL::m1};
+    case 2UL:
+        return {SEW::e16, LMUL::mf2};
+    case 1UL:
+        return {SEW::e8, LMUL::mf4};
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Unsupported precision size for vtype setup: ", type);
+    }
+}
 
 /// ABS ///
 jit_abs_emitter::jit_abs_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
@@ -121,6 +136,416 @@ std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}, {element::f16, element::f16}, {element::i32, element::i32}};
 }
+
+/// ConvertSaturation ///
+jit_convert_saturation_emitter::jit_convert_saturation_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                                               ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                                               const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa) {
+    const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node);
+    OV_CPU_JIT_EMITTER_ASSERT(convert != nullptr, "Can't cast node to ov::op::v0::Convert");
+
+    input_type = convert->get_input_element_type(0);
+    output_type = convert->get_output_element_type(0);
+
+    const bool is_supported_input =
+        any_of(input_type, ov::element::f32, ov::element::f16, ov::element::i32, ov::element::i8, ov::element::u8);
+    const bool is_supported_output =
+        any_of(output_type, ov::element::f32, ov::element::f16, ov::element::i32, ov::element::i8, ov::element::u8);
+    OV_CPU_JIT_EMITTER_ASSERT(is_supported_input && is_supported_output,
+                              "Unsupported conversion: ",
+                              input_type,
+                              " -> ",
+                              output_type);
+}
+
+size_t jit_convert_saturation_emitter::get_inputs_num() const {
+    return 1;
+}
+
+size_t jit_convert_saturation_emitter::aux_gprs_count() const {
+    return 1;
+}
+
+void jit_convert_saturation_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                               const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit convert saturation kernel");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                              const std::vector<size_t>& out_vec_idxs) const {
+    auto src = VReg(in_vec_idxs[0]);
+    auto dst = VReg(out_vec_idxs[0]);
+    auto avl = Reg(aux_gpr_idxs[0]);
+    h->csrr(avl, CSR::vl);
+
+    const auto set_type_for = [&](const ov::element::Type& type) {
+        const auto [sew, lmul] = getVTypeForElementSize(type);
+        set_vector_length(h, 0, sew, aux_gpr_idxs, lmul, &avl);
+    };
+    const auto move_if_needed = [&](const VReg& from, const VReg& to) {
+        if (from.getIdx() != to.getIdx()) {
+            h->vmv_v_v(to, from);
+        }
+    };
+
+    const auto narrow_i32_to_i8 = [&](const VReg& from, const VReg& to) {
+        set_type_for(ov::element::i16);
+        h->vnclip_wi(to, from, 0);
+        set_type_for(ov::element::i8);
+        h->vnclip_wi(to, to, 0);
+    };
+    const auto narrow_i32_to_u8 = [&](const VReg& from, const VReg& to) {
+        set_type_for(ov::element::i16);
+        h->vnclipu_wi(to, from, 0);
+        set_type_for(ov::element::i8);
+        h->vnclipu_wi(to, to, 0);
+    };
+    const auto widen_f16_to_f32 = [&](const VReg& from, const VReg& to) {
+        set_type_for(ov::element::f16);
+        h->vfwcvt_f_f_v(to, from);
+        set_type_for(ov::element::f32);
+    };
+    const auto narrow_f32_to_f16 = [&](const VReg& from, const VReg& to) {
+        set_type_for(ov::element::f16);
+        h->vfncvt_f_f_w(to, from);
+    };
+    const auto widen_i8_to_i32 = [&](const VReg& from, const VReg& to, const bool is_signed) {
+        set_type_for(ov::element::i32);
+        if (is_signed) {
+            h->vsext_vf4(to, from);
+        } else {
+            h->vzext_vf4(to, from);
+        }
+    };
+    const auto saturate_i32_to_u8 = [&](const VReg& from, const VReg& to) {
+        // Convert through FP32 to clamp negatives to 0 before narrowing to unsigned.
+        set_type_for(ov::element::i32);
+        move_if_needed(from, to);
+        h->vfcvt_f_x_v(to, to);
+        h->vfcvt_xu_f_v(to, to);
+        narrow_i32_to_u8(to, to);
+    };
+
+    if (input_type == output_type) {
+        set_type_for(input_type);
+        move_if_needed(src, dst);
+        return;
+    }
+
+    if (output_type == ov::element::f32) {
+        if (input_type == ov::element::f16) {
+            widen_f16_to_f32(src, dst);
+        } else if (input_type == ov::element::i32) {
+            set_type_for(ov::element::i32);
+            h->vfcvt_f_x_v(dst, src);
+            set_type_for(ov::element::f32);
+        } else if (input_type == ov::element::i8) {
+            widen_i8_to_i32(src, dst, true);
+            h->vfcvt_f_x_v(dst, dst);
+            set_type_for(ov::element::f32);
+        } else if (input_type == ov::element::u8) {
+            widen_i8_to_i32(src, dst, false);
+            h->vfcvt_f_xu_v(dst, dst);
+            set_type_for(ov::element::f32);
+        } else {
+            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
+        }
+        return;
+    }
+
+    if (output_type == ov::element::f16) {
+        if (input_type == ov::element::f32) {
+            narrow_f32_to_f16(src, dst);
+        } else if (input_type == ov::element::i32) {
+            set_type_for(ov::element::i32);
+            h->vfcvt_f_x_v(dst, src);
+            set_type_for(ov::element::f32);
+            narrow_f32_to_f16(dst, dst);
+        } else if (input_type == ov::element::i8) {
+            widen_i8_to_i32(src, dst, true);
+            h->vfcvt_f_x_v(dst, dst);
+            set_type_for(ov::element::f32);
+            narrow_f32_to_f16(dst, dst);
+        } else if (input_type == ov::element::u8) {
+            widen_i8_to_i32(src, dst, false);
+            h->vfcvt_f_xu_v(dst, dst);
+            set_type_for(ov::element::f32);
+            narrow_f32_to_f16(dst, dst);
+        } else {
+            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
+        }
+        return;
+    }
+
+    if (output_type == ov::element::i32) {
+        if (input_type == ov::element::f32) {
+            set_type_for(ov::element::f32);
+            h->vfcvt_x_f_v(dst, src);
+            set_type_for(ov::element::i32);
+        } else if (input_type == ov::element::f16) {
+            widen_f16_to_f32(src, dst);
+            h->vfcvt_x_f_v(dst, dst);
+            set_type_for(ov::element::i32);
+        } else if (any_of(input_type, ov::element::i8, ov::element::u8)) {
+            widen_i8_to_i32(src, dst, input_type == ov::element::i8);
+        } else {
+            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
+        }
+        return;
+    }
+
+    if (output_type == ov::element::i8) {
+        if (input_type == ov::element::f32) {
+            set_type_for(ov::element::f32);
+            h->vfcvt_x_f_v(dst, src);
+            set_type_for(ov::element::i32);
+            narrow_i32_to_i8(dst, dst);
+        } else if (input_type == ov::element::f16) {
+            widen_f16_to_f32(src, dst);
+            h->vfcvt_x_f_v(dst, dst);
+            set_type_for(ov::element::i32);
+            narrow_i32_to_i8(dst, dst);
+        } else if (input_type == ov::element::i32) {
+            narrow_i32_to_i8(src, dst);
+        } else if (input_type == ov::element::u8) {
+            widen_i8_to_i32(src, dst, false);
+            narrow_i32_to_i8(dst, dst);
+        } else {
+            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
+        }
+        return;
+    }
+
+    if (output_type == ov::element::u8) {
+        if (input_type == ov::element::f32) {
+            set_type_for(ov::element::f32);
+            h->vfcvt_xu_f_v(dst, src);
+            set_type_for(ov::element::i32);
+            narrow_i32_to_u8(dst, dst);
+        } else if (input_type == ov::element::f16) {
+            widen_f16_to_f32(src, dst);
+            h->vfcvt_xu_f_v(dst, dst);
+            set_type_for(ov::element::i32);
+            narrow_i32_to_u8(dst, dst);
+        } else if (input_type == ov::element::i32) {
+            saturate_i32_to_u8(src, dst);
+        } else if (input_type == ov::element::i8) {
+            widen_i8_to_i32(src, dst, true);
+            saturate_i32_to_u8(dst, dst);
+        } else {
+            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
+        }
+        return;
+    }
+
+    OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
+}
+
+/// ConvertTruncation ///
+jit_convert_truncation_emitter::jit_convert_truncation_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                                               ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                                               const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa) {
+    const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node);
+    OV_CPU_JIT_EMITTER_ASSERT(convert != nullptr, "Can't cast node to ov::op::v0::Convert");
+
+    input_type = convert->get_input_element_type(0);
+    output_type = convert->get_output_element_type(0);
+
+    const bool is_supported_input =
+        any_of(input_type, ov::element::f32, ov::element::f16, ov::element::i32, ov::element::i8, ov::element::u8);
+    const bool is_supported_output =
+        any_of(output_type, ov::element::f32, ov::element::f16, ov::element::i32, ov::element::i8, ov::element::u8);
+    OV_CPU_JIT_EMITTER_ASSERT(is_supported_input && is_supported_output,
+                              "Unsupported conversion: ",
+                              input_type,
+                              " -> ",
+                              output_type);
+}
+
+size_t jit_convert_truncation_emitter::get_inputs_num() const {
+    return 1;
+}
+
+size_t jit_convert_truncation_emitter::aux_gprs_count() const {
+    return 1;
+}
+
+void jit_convert_truncation_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                               const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit convert truncation kernel");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                              const std::vector<size_t>& out_vec_idxs) const {
+    auto src = VReg(in_vec_idxs[0]);
+    auto dst = VReg(out_vec_idxs[0]);
+    auto avl = Reg(aux_gpr_idxs[0]);
+    h->csrr(avl, CSR::vl);
+
+    const auto set_type_for = [&](const ov::element::Type& type) {
+        const auto [sew, lmul] = getVTypeForElementSize(type);
+        set_vector_length(h, 0, sew, aux_gpr_idxs, lmul, &avl);
+    };
+    const auto move_if_needed = [&](const VReg& from, const VReg& to) {
+        if (from.getIdx() != to.getIdx()) {
+            h->vmv_v_v(to, from);
+        }
+    };
+
+    const auto truncate_i32_to_i8 = [&](const VReg& from, const VReg& to) {
+        set_type_for(ov::element::i16);
+        h->vnsra_wi(to, from, 0);
+        set_type_for(ov::element::i8);
+        h->vnsra_wi(to, to, 0);
+    };
+    const auto truncate_i32_to_u8 = [&](const VReg& from, const VReg& to) {
+        set_type_for(ov::element::i16);
+        h->vnsrl_wi(to, from, 0);
+        set_type_for(ov::element::i8);
+        h->vnsrl_wi(to, to, 0);
+    };
+    const auto widen_f16_to_f32 = [&](const VReg& from, const VReg& to) {
+        set_type_for(ov::element::f16);
+        h->vfwcvt_f_f_v(to, from);
+        set_type_for(ov::element::f32);
+    };
+    const auto narrow_f32_to_f16 = [&](const VReg& from, const VReg& to) {
+        set_type_for(ov::element::f16);
+        h->vfncvt_f_f_w(to, from);
+    };
+    const auto widen_i8_to_i32 = [&](const VReg& from, const VReg& to, const bool is_signed) {
+        set_type_for(ov::element::i32);
+        if (is_signed) {
+            h->vsext_vf4(to, from);
+        } else {
+            h->vzext_vf4(to, from);
+        }
+    };
+
+    if (input_type == output_type) {
+        set_type_for(input_type);
+        move_if_needed(src, dst);
+        return;
+    }
+
+    if (output_type == ov::element::f32) {
+        if (input_type == ov::element::f16) {
+            widen_f16_to_f32(src, dst);
+        } else if (input_type == ov::element::i32) {
+            set_type_for(ov::element::i32);
+            h->vfcvt_f_x_v(dst, src);
+            set_type_for(ov::element::f32);
+        } else if (input_type == ov::element::i8) {
+            widen_i8_to_i32(src, dst, true);
+            h->vfcvt_f_x_v(dst, dst);
+            set_type_for(ov::element::f32);
+        } else if (input_type == ov::element::u8) {
+            widen_i8_to_i32(src, dst, false);
+            h->vfcvt_f_xu_v(dst, dst);
+            set_type_for(ov::element::f32);
+        } else {
+            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
+        }
+        return;
+    }
+
+    if (output_type == ov::element::f16) {
+        if (input_type == ov::element::f32) {
+            narrow_f32_to_f16(src, dst);
+        } else if (input_type == ov::element::i32) {
+            set_type_for(ov::element::i32);
+            h->vfcvt_f_x_v(dst, src);
+            narrow_f32_to_f16(dst, dst);
+        } else if (input_type == ov::element::i8) {
+            widen_i8_to_i32(src, dst, true);
+            h->vfcvt_f_x_v(dst, dst);
+            narrow_f32_to_f16(dst, dst);
+        } else if (input_type == ov::element::u8) {
+            widen_i8_to_i32(src, dst, false);
+            h->vfcvt_f_xu_v(dst, dst);
+            narrow_f32_to_f16(dst, dst);
+        } else {
+            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
+        }
+        return;
+    }
+
+    if (output_type == ov::element::i32) {
+        if (input_type == ov::element::f32) {
+            set_type_for(ov::element::f32);
+            h->vfcvt_rtz_x_f_v(dst, src);
+            set_type_for(ov::element::i32);
+        } else if (input_type == ov::element::f16) {
+            widen_f16_to_f32(src, dst);
+            h->vfcvt_rtz_x_f_v(dst, dst);
+            set_type_for(ov::element::i32);
+        } else if (any_of(input_type, ov::element::i8, ov::element::u8)) {
+            widen_i8_to_i32(src, dst, input_type == ov::element::i8);
+        } else {
+            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
+        }
+        return;
+    }
+
+    if (output_type == ov::element::i8) {
+        if (input_type == ov::element::f32) {
+            set_type_for(ov::element::f32);
+            h->vfcvt_rtz_x_f_v(dst, src);
+            set_type_for(ov::element::i32);
+            truncate_i32_to_i8(dst, dst);
+        } else if (input_type == ov::element::f16) {
+            widen_f16_to_f32(src, dst);
+            h->vfcvt_rtz_x_f_v(dst, dst);
+            set_type_for(ov::element::i32);
+            truncate_i32_to_i8(dst, dst);
+        } else if (input_type == ov::element::i32) {
+            truncate_i32_to_i8(src, dst);
+        } else if (input_type == ov::element::u8) {
+            set_type_for(ov::element::i8);
+            move_if_needed(src, dst);
+        } else {
+            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
+        }
+        return;
+    }
+
+    if (output_type == ov::element::u8) {
+        if (input_type == ov::element::f32) {
+            set_type_for(ov::element::f32);
+            h->vfcvt_rtz_x_f_v(dst, src);
+            set_type_for(ov::element::i32);
+            truncate_i32_to_u8(dst, dst);
+        } else if (input_type == ov::element::f16) {
+            widen_f16_to_f32(src, dst);
+            h->vfcvt_rtz_x_f_v(dst, dst);
+            set_type_for(ov::element::i32);
+            truncate_i32_to_u8(dst, dst);
+        } else if (input_type == ov::element::i32) {
+            truncate_i32_to_u8(src, dst);
+        } else if (input_type == ov::element::i8) {
+            set_type_for(ov::element::i8);
+            move_if_needed(src, dst);
+        } else {
+            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
+        }
+        return;
+    }
+
+    OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
+}
+
 /// CEIL ///
 jit_ceil_emitter::jit_ceil_emitter(jit_generator_t* host, cpu_isa_t host_isa, const element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {

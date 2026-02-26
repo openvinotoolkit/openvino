@@ -15,8 +15,8 @@
 #include "intel_npu/utils/zero/zero_mem.hpp"
 #include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "model_serializer.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
-#include "vcl_serializer.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 #include "zero_init_mock.hpp"
 
@@ -78,8 +78,6 @@ public:
 
 protected:
     void SetUp() override {
-        using namespace ::driver_compiler_utils;
-
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
         std::tie(targetDevice, configuration, graphExtVersion) = this->GetParam();
@@ -103,7 +101,7 @@ protected:
         auto compilerProperties = zeroInitStruct->getCompilerProperties();
         const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
         serializedIR =
-            driver_compiler_utils::serializeIR(model, compilerProperties.compilerVersion, maxOpsetVersion, true);
+            ::intel_npu::compiler_utils::serializeIR(model, compilerProperties.compilerVersion, maxOpsetVersion, true);
     }
 
     bool bypassUmdCache() {
@@ -130,7 +128,7 @@ protected:
     std::shared_ptr<ZeGraphExtWrappers> zeGraphExt;
     ov::AnyMap configuration;
 
-    SerializedIR serializedIR;
+    ::intel_npu::SerializedIR serializedIR;
     GraphDescriptor graphDescriptor;
 
     std::shared_ptr<ov::Model> model;
@@ -371,5 +369,29 @@ TEST_P(ZeroGraphTest, CheckNoThrowOnUnsupportedFeature) {
     }
 }
 #endif
+
+using IsOptionSupported = ZeroGraphTest;
+
+TEST_P(IsOptionSupported, PropertyNotSupportedByDriver) {
+    std::optional<bool> isOptionSupportedResult;
+    OV_ASSERT_NO_THROW(isOptionSupportedResult = zeGraphExt->isOptionSupported("FAKE_OPTION"));
+    if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 11)) {
+        ASSERT_FALSE(isOptionSupportedResult.has_value());
+    } else {
+        ASSERT_TRUE(isOptionSupportedResult.has_value());
+        ASSERT_FALSE(isOptionSupportedResult.value());
+    }
+}
+
+TEST_P(IsOptionSupported, PropertySupportedByDriver) {
+    std::optional<bool> isOptionSupportedResult;
+    OV_ASSERT_NO_THROW(isOptionSupportedResult = zeGraphExt->isOptionSupported("PERFORMANCE_HINT"));
+    if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 11)) {
+        ASSERT_FALSE(isOptionSupportedResult.has_value());
+    } else {
+        ASSERT_TRUE(isOptionSupportedResult.has_value());
+        ASSERT_TRUE(isOptionSupportedResult.value());
+    }
+}
 
 }  // namespace ov::test::behavior
