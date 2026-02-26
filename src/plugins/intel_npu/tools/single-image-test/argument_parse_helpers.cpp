@@ -126,7 +126,8 @@ DEFINE_string(dataset, "NONE",
         "The dataset used to train the model. Useful for instances such as semantic segmentation to visualize "
         "the accuracy per-class");
 
-void parseCommandLine(int argc, char* argv[]) {
+
+void utils::parseCommandLine(int argc, char* argv[]) {
     std::ostringstream usage;
     usage << "Usage: " << argv[0] << "[<options>]";
     gflags::SetUsageMessage(usage.str());
@@ -200,9 +201,8 @@ void parseCommandLine(int argc, char* argv[]) {
  *          returns {"logits": 0.03, "pred_boxes": 0.05}
  * @example parsePerLayerValues("0.01", 1.0) returns {"*": 0.01}
  */
-utils::PerLayerValueMap utils::parsePerLayerValues(const std::string& str, double defaultValue)
-{
-    utils::PerLayerValueMap result;
+utils::PerLayerValueMap utils::parsePerLayerValues(const std::string& str, double defaultValue) {
+    PerLayerValueMap result;
 
     // Always store the default as the wildcard fallback so getValueForLayer
     // never needs a separate default parameter.
@@ -256,8 +256,7 @@ utils::PerLayerValueMap utils::parsePerLayerValues(const std::string& str, doubl
  * @param layerName Name of the layer
  * @return The threshold value for the layer
  */
-double utils::getValueForLayer(const PerLayerValueMap& valueMap, const std::string& layerName)
-{
+double utils::getValueForLayer(const PerLayerValueMap& valueMap, const std::string& layerName) {
     // First try exact match
     auto it = valueMap.find(layerName);
     if (it != valueMap.end()) {

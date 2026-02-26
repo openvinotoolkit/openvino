@@ -106,13 +106,13 @@ DECLARE_string(sem_seg_threshold);
 DECLARE_uint32(sem_seg_ignore_label);
 DECLARE_string(dataset);
 
-void parseCommandLine(int argc, char* argv[]);
-
 namespace utils {
+
+void parseCommandLine(int argc, char* argv[]);
 
 using PerLayerValueMap = std::map<std::string, double>;
 
 PerLayerValueMap parsePerLayerValues(const std::string& str, double defaultValue);
 double getValueForLayer(const PerLayerValueMap& valueMap, const std::string& layerName);
 
-} // namespace utils
+}  // namespace utils
