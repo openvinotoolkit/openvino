@@ -261,11 +261,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_user_property(orig_config, OptionVisibility::RELEASE);
+
+    auto tmp_config = orig_config;
+    tmp_config[ov::enable_profiling.name()] = true;
+    config.set_user_property(tmp_config, OptionVisibility::RELEASE);
+    config.set_property(ov::enable_profiling(true));
 
     auto transformed_model = clone_and_transform_model(model, config, context);
 
     config.finalize(context.get(), transformed_model.get());
+
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
         return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config);
@@ -283,7 +288,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_user_property(orig_config, OptionVisibility::RELEASE);
+    auto tmp_config = orig_config;
+    tmp_config[ov::enable_profiling.name()] = true;
+    config.set_user_property(tmp_config, OptionVisibility::RELEASE);
+    config.set_property(ov::enable_profiling(true));
 
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
 

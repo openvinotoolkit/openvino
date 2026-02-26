@@ -27,7 +27,8 @@ GraphContext::GraphContext(Config config,
                            bool isGraphQuantized,
                            ov::threading::IStreamsExecutor::Ptr streamExecutor,
                            std::shared_ptr<CpuParallel> cpuParallel,
-                           std::shared_ptr<SubMemoryManager> sub_memory_manager)
+                           std::shared_ptr<SubMemoryManager> sub_memory_manager,
+                           const std::string& name)
     : m_config(std::move(config)),
       m_weightsCache(std::move(w_cache)),
       m_rtParamsCache(std::make_shared<MultiCache>(m_config.rtCacheCapacity)),
@@ -58,6 +59,7 @@ GraphContext::GraphContext(Config config,
     if (!m_cpuParallel) {
         m_cpuParallel = std::make_shared<CpuParallel>(m_config.tbbPartitioner);
     }
+    setName(name);
 }
 
 const dnnl::engine& GraphContext::getEngine() {

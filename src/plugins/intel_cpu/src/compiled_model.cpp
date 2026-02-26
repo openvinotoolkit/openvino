@@ -205,7 +205,8 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                                                          isQuantizedFlag,
                                                          streamsExecutor,
                                                          cpuParallel,
-                                                         m_sub_memory_manager);
+                                                         m_sub_memory_manager,
+                                                         m_model->get_friendly_name());
                 }
 
                 const std::shared_ptr<const ov::Model> model = m_model;

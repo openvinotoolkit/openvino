@@ -40,6 +40,7 @@ public:
 
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
+    bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
 };
 }  // namespace v1
 }  // namespace op

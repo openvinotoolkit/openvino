@@ -630,6 +630,13 @@ void symbols_to_integer_and_key(const TensorSymbolVector& symbols,
         for (const auto& symbol : container) {
             if (symbol == nullptr)
                 continue;
+            // For leaf symbols, use the union-find root as identity.
+            // For compound symbols, use the symbol pointer directly (they don't
+            // participate in union-find, ancestor_of returns self).
+            // This allows compound symbols to pass through data-movement ops
+            // (Concat, Reshape, Gather, etc.) that just shuffle elements.
+            // Arithmetic ops that would corrupt these IDs must provide their own
+            // evaluate_symbol override instead of using default_symbol_evaluator.
             const auto& root = symbol::ancestor_of(symbol);
             if (key_for_encoding.find(root) == key_for_encoding.end()) {
                 x += 1;

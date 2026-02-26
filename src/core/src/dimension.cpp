@@ -132,7 +132,10 @@ Dimension Dimension::operator+(const Dimension& dim) const {
         return *this;
     else if (m_dimension == 0)
         return dim;
-    return Dimension(m_dimension + dim.m_dimension);
+    auto result = Dimension(m_dimension + dim.m_dimension);
+    if (m_symbol || dim.m_symbol)
+        result.m_symbol = ov::symbol::add(m_symbol, dim.m_symbol);
+    return result;
 }
 
 Dimension Dimension::operator-(const Dimension& dim) const {
@@ -157,7 +160,10 @@ Dimension Dimension::operator*(const Dimension& dim) const {
         return *this;
     else if (m_dimension == 1)
         return dim;
-    return Dimension(m_dimension * dim.m_dimension);
+    auto result = Dimension(m_dimension * dim.m_dimension);
+    if (m_symbol || dim.m_symbol)
+        result.m_symbol = ov::symbol::mul(m_symbol, dim.m_symbol);
+    return result;
 }
 
 Dimension Dimension::operator&(const Dimension& dim) const {

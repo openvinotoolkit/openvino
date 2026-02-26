@@ -30,6 +30,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <iostream>
 
 #include "allocation_context.hpp"
 #include "cpu_memory.h"
@@ -54,11 +55,13 @@
 #include "nodes/subgraph.h"
 #include "nodes/tensoriterator.h"
 #include "openvino/core/except.hpp"
+#include "openvino/core/interval.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/symbol.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/itt.hpp"
@@ -405,6 +408,72 @@ void Graph::Activate() {
 #endif
 
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
+
+    if (GetName() != "Model0") {
+        return;
+    }
+
+    if (std::getenv("CHECK_SYMBOLS")) {
+        for (auto& node : m_executableGraphNodes) {
+            // check that every executable to in a graph has a ov::Symbol for every dynamic dimension
+            if (node->isDynamicNode()) {
+                // auto placeholder = !node->originalInputShapes.empty() || node->getType() == Type::Input;
+                for (const auto& shape : node->originalInputShapes) {
+                    // ignore MemoryOutput nodes, since they memory is handled outside
+                    if (node->getType() == Type::MemoryOutput) {
+                        continue;
+                    }
+                    // ignore ShapeOf nodes, their do not have any real input memory and output is always static
+                    if (node->getType() == Type::ShapeOf) {
+                        continue;
+                    }
+                    for (const auto& dim : shape) {
+                        OPENVINO_ASSERT(!dim.is_dynamic() || (dim.get_interval() == ov::Interval(0, 1)) || dim.get_symbol(),
+                                        "Dynamic node ",
+                                        node->getName(),
+                                        ":",
+                                        node->getTypeStr(),
+                                        " has input with dynamic shape without symbolic dimensions: ",
+                                        shape,
+                                        " dimention: ",
+                                        dim.get_interval());
+                    }
+                }
+                for (const auto& shape : node->originalOutputShapes) {
+                    if (node->getType() == Type::MemoryInput) {
+                        continue;
+                    }
+
+                    // ignore PagedAttention output, since it is not used by any other nodes in a graph
+                    if (node->getType() == Type::PagedAttention) {
+                        continue;
+                    }
+
+                    for (const auto& dim : shape) {
+                        OPENVINO_ASSERT(!dim.is_dynamic() || (dim.get_interval() == ov::Interval(0, 1)) || dim.get_symbol(),
+                                        "Dynamic node ",
+                                        node->getName(),
+                                        ":",
+                                        node->getTypeStr(),
+                                        " has output with dynamic shape without symbolic dimensions: ",
+                                        shape,
+                                        " dimention: ",
+                                        dim.get_interval());
+                    }
+                }
+            }
+        }
+    }
+
+    // Build the symbol table and populate sym shapes on nodes
+    m_symbolTable.build(graphNodes);
+    if (!m_symbolTable.empty()) {
+        for (auto& node : graphNodes) {
+            if (node->isDynamicNode()) {
+                node->buildSymShapes(m_symbolTable);
+            }
+        }
+    }
 }
 
 void Graph::Configure([[maybe_unused]] bool optimize) {
@@ -909,7 +978,8 @@ std::vector<size_t> Graph::CreateExecutionGraph() {
         // this rule works for short graphs (usually subgraphs) when the amount of nodes is to low to process them in
         // parallel.
         const auto exec2sync = m_executableGraphNodes.size() / m_executableSyncNodesInds.size();
-        if (exec2sync < 10 || parallel_get_max_threads() < 2) {
+        static const bool forceSeq = std::getenv("OV_CPU_FORCE_SEQ_DYNAMIC") != nullptr;
+        if (exec2sync < 10 || parallel_get_max_threads() < 2 || forceSeq) {
             status = Status::ReadyDynamicSeq;
         }
     } else {
@@ -1057,6 +1127,9 @@ static MemoryRegions FormMemoryRegions(const EdgeClusters& clusters,
     MemoryRegions memoryRegions;
     memoryRegions.reserve(remaining);
 
+    int symId = 0;
+    std::unordered_map<std::shared_ptr<ov::Symbol>, int> symIds;
+
     for (size_t i = 0; i < remaining; ++i) {
         MemoryRegion reg = {std::numeric_limits<int>::max(),
                             0,
@@ -1114,6 +1187,68 @@ static MemoryRegions FormMemoryRegions(const EdgeClusters& clusters,
         }
 
         reg.size = boxSize;
+        const auto& cluster = clusters[i];
+
+
+        if (std::getenv("PRINT_MEM_REGIONS")) {
+            // print cluster with symbolic info
+            std::stringstream ss;
+            ss << "Cluster " << i << " (size: " << cluster.size() <<
+                ", exec range: [" << reg.start << ", " << reg.finish << "], alloc type: " << "):\n";
+            for (const auto& edge : cluster) {
+                // parent originalInputShape with symbols
+                const auto& parent = edge->getParent();
+                const auto& child = edge->getChild();
+                const auto& parentOriginalInputShape = parent->originalInputShapes;
+                const auto& parentOriginalOuputShape = parent->originalOutputShapes;
+                const auto& childOriginalInputShape = child->originalInputShapes;
+                const auto& childOriginalOuputShape = child->originalOutputShapes;
+
+                auto printShapeWithSymbols = [&](const ov::PartialShape& shape) {
+                    ss << "[";
+                    for (const auto& dim : shape) {
+                        if (dim.is_dynamic() && dim.has_symbol()) {
+                        
+                            auto [it, res] = symIds.insert({dim.get_symbol(), symId});
+                            if (res) {
+                                symId++;
+                            }
+
+                            int id = it->second;
+                            ss << "<" << id << ">,";
+                        } else {
+                            ss << dim << ",";
+                        }
+                    }
+                    ss << "]";
+                };
+
+                for (const auto& shape : parentOriginalInputShape) {
+                    ss << "pis:";
+                    printShapeWithSymbols(shape);
+                }
+
+                for (const auto& shape : parentOriginalOuputShape) {
+                    ss << "pos:";
+                    printShapeWithSymbols(shape);
+                }
+            
+                ss << "    " << *edge;
+
+                for (const auto& shape : childOriginalInputShape) {
+                    ss << "cis:";
+                    printShapeWithSymbols(shape);
+                }
+                for (const auto& shape : childOriginalOuputShape) {
+                    ss << "cos:";
+                    printShapeWithSymbols(shape);
+                }
+
+                ss << "\n";
+            }
+
+            std::cout << ss.str();
+        }
 
         if (isConst) {
             reg.type = MemoryRegion::RegionType::CONSTANT;
@@ -1196,7 +1331,7 @@ void Graph::Allocate() {
         SolveMemoryReuse(memoryControl, allocationContext, m_context, outputNodes);
 
     AllocateBaseEdges(edgeClusters, solution);
-
+    
     memoryControl->allocateMemory();
 
     AllocatedReferencingEdges(edgeClusters);
@@ -1653,9 +1788,15 @@ static int GetNumaNodeId([[maybe_unused]] const GraphContext::CPtr& context) {
 
 void Graph::Infer(SyncInferRequest* request) {
     DEBUG_LOG("Infer graph: ", GetName(), ". Status: ", static_cast<int>(status));
+    // std::cout << "Infer graph: " << GetName() << ". Status: " << static_cast<int>(status) << '\n';
     const int numaId = GetNumaNodeId(m_context);
 
     m_context->allocateMemory();
+
+    // Resolve symbol table from actual input shapes before dynamic inference
+    if (!m_symbolTable.empty() && IsDynamic()) {
+        m_symbolTable.resolve_inputs(inputNodes);
+    }
 
     switch (status) {
     case Status::ReadyDynamic:

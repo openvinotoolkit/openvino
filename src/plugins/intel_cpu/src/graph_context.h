@@ -37,7 +37,8 @@ public:
                  bool isGraphQuantized,
                  ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr,
                  std::shared_ptr<CpuParallel> cpuParallel = nullptr,
-                 std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
+                 std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr,
+                 const std::string& name = "");
 
     [[nodiscard]] const Config& getConfig() const {
         return m_config;
@@ -109,6 +110,14 @@ public:
         }
     }
 
+    void setName(const std::string& name) {
+        this->name = name;
+    }
+
+    [[nodiscard]] const std::string& getName() const {
+        return name;
+    }
+
 private:
     // model-level config
     Config m_config;
@@ -140,6 +149,7 @@ private:
     std::shared_ptr<NetworkMemoryControl> m_auxiliaryNetworkMemoryControl;
     // main memory control object, which is supposed to be globally reused
     MemoryControl::Ptr m_memoryControl;
+    std::string name;
 };
 
 }  // namespace ov::intel_cpu

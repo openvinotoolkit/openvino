@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <exception>
 #include <functional>
+#include <iostream>
 #include <limits>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
@@ -86,6 +87,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
 
         bool isScalar = shape.rank().get_length() == 0;
         inputShapes.emplace_back(isScalar ? ov::PartialShape{1} : shape);
+        originalInputShapes.emplace_back(shape);
         originalInputPrecisions.emplace_back(op->get_input_element_type(i));
     }
 
@@ -108,6 +110,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
 
             bool isScalar = shape.rank().get_length() == 0;
             outputShapes.emplace_back(isScalar ? ov::PartialShape{1} : shape);
+            originalOutputShapes.emplace_back(shape);
             originalOutputPrecisions.emplace_back(op->get_output_element_type(i));
         }
 
@@ -757,9 +760,60 @@ void Node::updateShapes() {
                     getName());
     try {
         if (needShapeInfer()) {
-            auto result = shapeInfer();
-            if (ShapeInferStatus::success == result.status) {
-                redefineOutputMemory(result.dims);
+            static const bool force_shape_infer = std::getenv("FORCE_SHAPE_INFER") != nullptr;
+            
+            struct DurationRAII {
+                DurationRAII(const char* msg)
+                    : m_msg(msg) {}
+ 
+                ~DurationRAII() {
+                    std::cout << m_msg << m_dur.count() << "\n";
+                }
+
+                void add(const std::chrono::duration<int64_t, std::ratio<1, 1000000>>& dur) {
+                    m_dur+=dur;
+                }
+ 
+                const char* m_msg;
+                std::chrono::duration<int64_t, std::ratio<1, 1000000>> m_dur = std::chrono::microseconds::zero();
+            };
+
+            if (context->getName() != "Model0") {
+                // std::cout << "Running default shape infer for graph: " << context->getName() << std::endl;
+                auto result = shapeInfer();
+                if (ShapeInferStatus::success == result.status) {
+                    redefineOutputMemory(result.dims);
+                }
+            } else if (m_fullySymbolized && !force_shape_infer) {
+                // Fast path: resolve output shapes from symbol table
+                // measure overall time spend in fast path with std::chrono::high_resolution_clock and static RAII helper class
+                static DurationRAII durationRAII("Symbolic shape infer (micro seconds):");
+                auto start = std::chrono::high_resolution_clock::now();
+                // Fast path: resolve in-place into pre-allocated buffer (zero allocations)
+                for (size_t i = 0; i < m_symOutputShapes.size(); ++i) {
+                    const auto& ss = m_symOutputShapes[i];
+                    auto& dst = m_resolvedOutputShapes[i];
+                    for (size_t j = 0; j < ss.size(); ++j) {
+                        dst[j] = static_cast<Dim>(m_symbolTable->resolve(ss[j]));
+                    }
+                }
+                auto end = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+                durationRAII.add(duration);
+
+                redefineOutputMemory(m_resolvedOutputShapes);
+            } else {
+                // std::cout << "Running normal shape infer: " << getName()  << ":" << getTypeStr() << std::endl;
+                static DurationRAII durationRAII("Normal shape infer (micro seconds):");
+                auto start = std::chrono::high_resolution_clock::now();
+                auto result = shapeInfer();
+                auto end = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+                durationRAII.add(duration);
+
+                if (ShapeInferStatus::success == result.status) {
+                    redefineOutputMemory(result.dims);
+                }
             }
         } else {
             // guard check for internal dynamic nodes to avoid possible overestimation of the required memory size
@@ -785,6 +839,27 @@ void Node::updateShapes() {
         }
     } catch (const std::exception& exp) {
         CPU_NODE_THROW(exp.what());
+    }
+}
+
+void Node::buildSymShapes(const SymbolTable& symbolTable) {
+    m_symbolTable = &symbolTable;
+    m_symOutputShapes.clear();
+    m_symOutputShapes.reserve(originalOutputShapes.size());
+    m_resolvedOutputShapes.resize(originalOutputShapes.size());
+    m_fullySymbolized = true;
+
+    for (size_t i = 0; i < originalOutputShapes.size(); ++i) {
+        auto symShape = symbolTable.to_sym_shape(originalOutputShapes[i]);
+        // Pre-allocate the resolved shape with the correct rank
+        m_resolvedOutputShapes[i].resize(symShape.size());
+        for (auto dim : symShape) {
+            if (dim == SYMDIM_UNDEFINED) {
+                m_fullySymbolized = false;
+                break;
+            }
+        }
+        m_symOutputShapes.push_back(std::move(symShape));
     }
 }
 
@@ -880,6 +955,15 @@ void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_
     const bool has_zero_dims = std::count(std::begin(new_shape), std::end(new_shape), 0LU) > 0;
     const auto mem_desc = getBaseMemDescAtOutputPort(port)->cloneWithNewDims(new_shape, has_zero_dims);
     for (size_t j = 0LU; j < edges.size(); j++) {  // NOLINT(modernize-loop-convert)
+        DEBUG_LOG(getName(),
+                  " redefine output memory for edge: ",
+                  *edges[j],
+                  " with new desc: ",
+                  *mem_desc,
+                  " ptr: ",
+                  mem_desc,
+                  " old desc: ",
+                  edges[j]->getMemory().getDesc());
         edges[j]->getMemoryPtr()->redefineDesc(mem_desc);
     }
 }
@@ -1872,6 +1956,8 @@ std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes
 }
 
 IShapeInfer::Result Node::shapeInfer() const {
+    IShapeInfer::Result result;
+    
     std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
     auto input_value_port_mask = shapeInference->get_port_mask();
 

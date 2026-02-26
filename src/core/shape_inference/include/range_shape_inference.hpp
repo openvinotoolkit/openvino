@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/op/add.hpp"
 #include "openvino/op/range.hpp"
 #include "utils.hpp"
 namespace ov {
@@ -20,10 +21,31 @@ void symbol_propagation(const Node* op,
                         bool step_val) {
     output_shapes[0] = ov::PartialShape::dynamic(1);
     if (op->get_input_size() == 3 && step_val && step == 1) {
-        auto start_symbol = op->input_value(0).get_tensor().get_value_symbol();
-        auto stop_symbol = op->input_value(1).get_tensor().get_value_symbol();
-        if (start_val && start == 0 && !stop_symbol.empty()) {
-            output_shapes[0][0].set_symbol(stop_symbol[0]);
+        auto start_symbols = op->input_value(0).get_tensor().get_value_symbol();
+        auto stop_symbols = op->input_value(1).get_tensor().get_value_symbol();
+        if (start_val && start == 0 && !stop_symbols.empty()) {
+            // Range(0, stop, 1) => output size = stop
+            output_shapes[0][0].set_symbol(stop_symbols[0]);
+        } else if (start_symbols.size() == 1 && start_symbols[0]) {
+            // Range(start, Add(start, shift), 1) => output size = shift
+            //   start    shift
+            //     |  \   /
+            //     |   Add   step == 1
+            //      \   /   /
+            //        Range
+            auto stop_node = op->input_value(1).get_node_shared_ptr();
+            if (ov::is_type<ov::op::v1::Add>(stop_node)) {
+                auto add_in0_syms = stop_node->get_input_tensor(0).get_value_symbol();
+                auto add_in1_syms = stop_node->get_input_tensor(1).get_value_symbol();
+                if (add_in0_syms.size() == 1 && add_in0_syms[0] &&
+                    add_in1_syms.size() == 1 && add_in1_syms[0]) {
+                    // @todo consider using symbol::are_equal instead of pointer comparison
+                    if (add_in0_syms[0] == start_symbols[0])
+                        output_shapes[0][0].set_symbol(add_in1_syms[0]);
+                    else if (add_in1_syms[0] == start_symbols[0])
+                        output_shapes[0][0].set_symbol(add_in0_syms[0]);
+                }
+            }
         }
     }
 }

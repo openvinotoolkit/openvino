@@ -27,6 +27,7 @@
 #include "cpu_shape.h"
 #include "cpu_types.h"
 #include "edge.h"
+#include "symbol_table.hpp"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
@@ -492,6 +493,7 @@ public:
     void executeStatic(const dnnl::stream& strm, int numaId = -1);
     void updateShapes();
     void updateDynamicParams();
+    void buildSymShapes(const SymbolTable& symbolTable);
     void executeDynamic(const dnnl::stream& strm, int numaId = -1);
     virtual void redefineOutputMemory(const std::vector<VectorDims>& newOutputShapes);
     void redefineOutputMemory(size_t port, const VectorDims& new_output_shape) const;
@@ -691,6 +693,9 @@ public:
         return keepOriginalPrecision;
     }
 
+    std::vector<ov::PartialShape> originalInputShapes;
+    std::vector<ov::PartialShape> originalOutputShapes;
+    
 protected:
     bool canFuseSimpleOperation(const NodePtr& node) const;
 
@@ -834,6 +839,12 @@ protected:
     }
 
     std::vector<VectorDims> lastInputDims;
+
+    // Symbol table fast path for shape inference
+    std::vector<SymShape> m_symOutputShapes;
+    std::vector<VectorDims> m_resolvedOutputShapes;  // pre-allocated, reused across inferences
+    const SymbolTable* m_symbolTable = nullptr;
+    bool m_fullySymbolized = false;
 
     std::shared_ptr<IShapeInfer> shapeInference;
 
