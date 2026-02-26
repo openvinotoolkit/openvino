@@ -81,7 +81,8 @@ private:
     ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
     std::string _currentlyUsedPlatform;
 
-    bool _initialized = false;  ///< Boolean to check whether properties was filtered with compiler supported properties
+    bool _compilerConfigsFilteredByCompiler =
+        false;  ///< Boolean to check whether properties was filtered with compiler supported properties
 
     // properties map: {name -> [supported, mutable, eval function]}
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;

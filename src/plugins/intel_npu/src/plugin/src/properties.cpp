@@ -440,7 +440,7 @@ Properties::Properties(const Properties& other)
       _logger("Properties", _config.get<LOG_LEVEL>()),
       _currentlyUsedCompiler(other._currentlyUsedCompiler),
       _currentlyUsedPlatform(other._currentlyUsedPlatform),
-      _initialized(other._initialized),
+      _compilerConfigsFilteredByCompiler(other._compilerConfigsFilteredByCompiler),
       _properties(other._properties),
       _supportedProperties(other._supportedProperties) {}
 
@@ -878,7 +878,7 @@ ov::Any Properties::getProperty(const std::string& name) {
                                 ex.what());
             }
 
-            if (compiler != nullptr && !(_initialized && compilerType == _currentlyUsedCompiler &&
+            if (compiler != nullptr && !(_compilerConfigsFilteredByCompiler && compilerType == _currentlyUsedCompiler &&
                                          compilationPlatform == _currentlyUsedPlatform)) {
                 // In case properties are not initialized or the compiler/platform was changed since last call -
                 // filter out options again
@@ -886,7 +886,7 @@ ov::Any Properties::getProperty(const std::string& name) {
 
                 // reset properties for the new options
                 registerProperties();
-                _initialized = true;
+                _compilerConfigsFilteredByCompiler = true;
                 _currentlyUsedCompiler = compilerType;
                 _currentlyUsedPlatform = compilationPlatform;
             }
@@ -948,7 +948,7 @@ void Properties::setProperty(const ov::AnyMap& properties) {
             CompilerAdapterFactory factory;
             compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
-            if (!(_initialized && compilerType == _currentlyUsedCompiler &&
+            if (!(_compilerConfigsFilteredByCompiler && compilerType == _currentlyUsedCompiler &&
                   compilationPlatform == _currentlyUsedPlatform)) {
                 // In case properties are not initialized or the compiler/platform was changed since last call -
                 // filter out options again
@@ -956,7 +956,7 @@ void Properties::setProperty(const ov::AnyMap& properties) {
 
                 // reset properties for the new options
                 registerProperties();
-                _initialized = true;
+                _compilerConfigsFilteredByCompiler = true;
                 _currentlyUsedCompiler = compilerType;
                 _currentlyUsedPlatform = compilationPlatform;
             }
@@ -997,14 +997,17 @@ bool Properties::isPropertyRegistered(const std::string& propertyName) const {
 }
 
 FilteredConfig Properties::getConfig(const ov::AnyMap& properties, const ICompilerAdapter* compiler, OptionMode mode) {
-    auto [updatedConfig, initialized, currentlyUsedCompiler, currentlyUsedPlatform] = [&]() {
+    auto [updatedConfig, compilerConfigsFilteredByCompiler, currentlyUsedCompiler, currentlyUsedPlatform] = [&]() {
         std::lock_guard<std::mutex> lock(_mutex);
-        return std::make_tuple(_config, _initialized, _currentlyUsedCompiler, _currentlyUsedPlatform);
+        return std::make_tuple(_config,
+                               _compilerConfigsFilteredByCompiler,
+                               _currentlyUsedCompiler,
+                               _currentlyUsedPlatform);
     }();
 
     std::optional<ov::intel_npu::CompilerType> propertiesCompilerType = std::nullopt;
     std::optional<std::string> propertiesPlatform = std::nullopt;
-    if (initialized) {
+    if (compilerConfigsFilteredByCompiler) {
         auto compilerType = properties.find(ov::intel_npu::compiler_type.name());
         if (compilerType != properties.end()) {
             propertiesCompilerType = compilerType->second.as<ov::intel_npu::CompilerType>();
@@ -1016,9 +1019,10 @@ FilteredConfig Properties::getConfig(const ov::AnyMap& properties, const ICompil
     }
 
     // filter out unsupported options
-    if (!(initialized && propertiesCompilerType.value_or(currentlyUsedCompiler) == currentlyUsedCompiler &&
+    if (!(compilerConfigsFilteredByCompiler &&
+          propertiesCompilerType.value_or(currentlyUsedCompiler) == currentlyUsedCompiler &&
           propertiesPlatform.value_or(currentlyUsedPlatform) == currentlyUsedPlatform)) {
-        // In case properties are not initialized or the compiler/platform was changed since last call -
+        // In case the compiler properties are not initialized or the compiler/platform was changed since last call -
         // filter out options again
         filterPropertiesByCompilerSupport(updatedConfig, compiler, _backend, _logger);
     }
