@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,9 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -48,7 +50,7 @@ OutputVector translate_segment_mean_csr(const NodeContext& context) {
     //   4. Divide by segment lengths to get means
     //
     // Limitations:
-    //   - indptr and src ranks must be static
+    //   - indptr rank must be static
     //   - Empty segments (indptr[i+1] == indptr[i]) produce 0 (length clamped to 1)
 
     num_inputs_check(context, 2, 3);
@@ -57,23 +59,23 @@ OutputVector translate_segment_mean_csr(const NodeContext& context) {
 
     // Validate indptr shape
     auto indptr_pshape = indptr.get_partial_shape();
-    PYTORCH_OP_CONVERSION_CHECK(indptr_pshape.rank().is_static(),
-                                "segment_mean_csr: indptr rank must be static");
+    PYTORCH_OP_CONVERSION_CHECK(indptr_pshape.rank().is_static(), "segment_mean_csr: indptr rank must be static");
     auto indptr_rank = indptr_pshape.rank().get_length();
     PYTORCH_OP_CONVERSION_CHECK(indptr_rank >= 1, "segment_mean_csr: indptr rank must be >= 1");
 
-    // Validate src shape
+    // Validate src shape (rank can be dynamic at conversion time)
     auto src_pshape = src.get_partial_shape();
-    PYTORCH_OP_CONVERSION_CHECK(src_pshape.rank().is_static(), "segment_mean_csr: src rank must be static");
-    auto src_rank = src_pshape.rank().get_length();
 
     // Segmentation axis = indptr.dim() - 1 (per torch_scatter semantics)
     int64_t axis = static_cast<int64_t>(indptr_rank) - 1;
-    PYTORCH_OP_CONVERSION_CHECK(axis >= 0 && axis < static_cast<int64_t>(src_rank),
-                                "segment_mean_csr: axis ",
-                                axis,
-                                " is out of range for src rank ",
-                                src_rank);
+    if (src_pshape.rank().is_static()) {
+        auto src_rank = src_pshape.rank().get_length();
+        PYTORCH_OP_CONVERSION_CHECK(axis >= 0 && axis < static_cast<int64_t>(src_rank),
+                                    "segment_mean_csr: axis ",
+                                    axis,
+                                    " is out of range for src rank ",
+                                    src_rank);
+    }
 
     // Create constants - use i64 for indices to avoid overflow with large sparse structures
     auto axis_const = context.mark_node(v0::Constant::create(element::i64, Shape{}, {axis}));
@@ -97,23 +99,22 @@ OutputVector translate_segment_mean_csr(const NodeContext& context) {
         auto indptr_last_dim = context.mark_node(std::make_shared<v8::Gather>(indptr_shape, axis_1d, axis_0));
         auto target_shape =
             context.mark_node(std::make_shared<v0::Concat>(OutputVector{batch_shape, indptr_last_dim}, 0));
-        indptr_indices = context.mark_node(
-            std::make_shared<v3::Broadcast>(indptr_i64, target_shape, BroadcastType::BIDIRECTIONAL));
+        indptr_indices =
+            context.mark_node(std::make_shared<v3::Broadcast>(indptr_i64, target_shape, BroadcastType::BIDIRECTIONAL));
     }
 
     // Create zero-padded source for prefix sum computation
     // We need a leading zero slice along the axis so boundaries[0] = 0
-    auto zero_slice = context.mark_node(std::make_shared<v8::Gather>(src, zero_1d, axis_const));
+    auto element_at_zero = context.mark_node(std::make_shared<v8::Gather>(src, zero_1d, axis_const));
     auto zero_like = context.mark_node(std::make_shared<v1::ConvertLike>(zero_scalar, src));
-    auto zero_padded = context.mark_node(std::make_shared<v1::Multiply>(zero_slice, zero_like));
+    auto zero_padded = context.mark_node(std::make_shared<v1::Multiply>(element_at_zero, zero_like));
     auto src_padded = context.mark_node(std::make_shared<v0::Concat>(OutputVector{zero_padded, src}, axis));
 
     // Compute prefix sums along the segmentation axis
     auto prefix = context.mark_node(std::make_shared<v0::CumSum>(src_padded, axis_const));
 
     // Gather boundary values at indptr positions
-    auto boundaries =
-        context.mark_node(std::make_shared<v8::Gather>(prefix, indptr_indices, axis_const, axis));
+    auto boundaries = context.mark_node(std::make_shared<v8::Gather>(prefix, indptr_indices, axis_const, axis));
 
     // Compute segment lengths and sums from boundaries
     auto indptr_shape = context.mark_node(std::make_shared<v3::ShapeOf>(indptr_indices, element::i64));
@@ -136,19 +137,23 @@ OutputVector translate_segment_mean_csr(const NodeContext& context) {
 
     // Handle empty segments: clamp length to 1 to avoid division by zero
     // Empty segments will produce 0 (sum=0, len=1 -> mean=0)
-    auto lens_nonzero = context.mark_node(std::make_shared<v1::Maximum>(lens, one_1d));
+    auto lens_clamped = context.mark_node(std::make_shared<v1::Maximum>(lens, one_1d));
 
-    // Reshape lens to broadcast correctly with sums for trailing dimensions
-    Output<Node> lens_reshaped = lens_nonzero;
-    auto tail_rank = static_cast<int64_t>(src_rank) - axis - 1;
-    if (tail_rank > 0) {
-        std::vector<int64_t> ones_vals(static_cast<size_t>(tail_rank), 1);
-        auto ones_tail = context.mark_node(
-            v0::Constant::create(element::i64, Shape{static_cast<size_t>(tail_rank)}, ones_vals));
-        auto lens_shape = context.mark_node(std::make_shared<v3::ShapeOf>(lens_nonzero, element::i64));
-        auto new_lens_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{lens_shape, ones_tail}, 0));
-        lens_reshaped = context.mark_node(std::make_shared<v1::Reshape>(lens_nonzero, new_lens_shape, false));
-    }
+    // Reshape lens to broadcast correctly with sums for trailing dimensions.
+    // Build the number of trailing dims dynamically to support dynamic-rank src.
+    auto src_shape_vec = context.mark_node(std::make_shared<v3::ShapeOf>(src, element::i64));
+    auto src_rank_1d = context.mark_node(std::make_shared<v3::ShapeOf>(src_shape_vec, element::i64));
+    auto src_rank = context.mark_node(std::make_shared<v0::Squeeze>(src_rank_1d, axis_0_1d));
+    auto axis_plus_one = context.mark_node(v0::Constant::create(element::i64, Shape{}, {axis + 1}));
+    auto num_trailing_dims = context.mark_node(std::make_shared<v1::Subtract>(src_rank, axis_plus_one));
+
+    auto one_scalar = context.mark_node(v0::Constant::create(element::i64, Shape{}, {1}));
+    auto num_trailing_dims_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(num_trailing_dims, axis_0_1d));
+    auto ones_tail = context.mark_node(std::make_shared<v3::Broadcast>(one_scalar, num_trailing_dims_1d));
+
+    auto lens_shape = context.mark_node(std::make_shared<v3::ShapeOf>(lens_clamped, element::i64));
+    auto new_lens_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{lens_shape, ones_tail}, 0));
+    auto lens_reshaped = context.mark_node(std::make_shared<v1::Reshape>(lens_clamped, new_lens_shape, false));
 
     // Compute mean = sums / lens
     auto lens_cast = context.mark_node(std::make_shared<v1::ConvertLike>(lens_reshaped, sums));
@@ -165,4 +170,3 @@ OutputVector translate_segment_mean_csr(const NodeContext& context) {
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov
-

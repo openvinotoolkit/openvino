@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -20,7 +20,6 @@ except ImportError:
 )
 class TestSegmentMeanCSR(PytorchLayerTest):
     def _prepare_input(self, shape, dtype):
-        # Use arange for easier debugging of segment boundaries
         data = np.arange(np.prod(shape), dtype=dtype).reshape(shape)
         return (data,)
 
@@ -31,11 +30,10 @@ class TestSegmentMeanCSR(PytorchLayerTest):
                 self.indptr = indptr
 
             def forward(self, src):
-                # Use segment_csr with reduce="mean" as shown in the issue example
+                # segment_csr(..., reduce="mean") emits torch_scatter::segment_mean_csr
                 return segment_csr(src, self.indptr, reduce="mean")  # type: ignore[possibly-undefined]
 
         ref_net = None
-        # segment_csr with reduce="mean" emits torch_scatter::segment_mean_csr in TorchScript
         return SegmentMeanCSR(indptr), ref_net, "torch_scatter::segment_mean_csr"
 
     @pytest.mark.nightly
@@ -62,4 +60,3 @@ class TestSegmentMeanCSR(PytorchLayerTest):
             kwargs_to_prepare_input={"shape": src_shape, "dtype": np.float32},
             freeze_model=True,
         )
-
