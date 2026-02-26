@@ -17,7 +17,7 @@
 #include "behavior/ov_infer_request/inference.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "common_test_utils/subgraph_builders/2_input_subtract.hpp"
+#include "common_test_utils/subgraph_builders/concat_with_params.hpp"
 #include "compiler_adapter_factory.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/utils.hpp"
@@ -225,7 +225,7 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
 TEST_P(InferRequestRunTests, BooleanTensorDataTypesForU8AndBooleanModelsWork) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const ov::Shape shape{1, 16, 16, 16};
-    auto model_u8 = ov::test::utils::make_2_input_subtract(shape, ov::element::u8);
+    auto model_u8 = ov::test::utils::make_concat_with_params(shape, ov::element::u8);
 
     auto zeroEngineBackendPtr = std::make_shared<::intel_npu::ZeroEngineBackend>();
     ::intel_npu::CompilerAdapterFactory compilerAdapterFactory;
