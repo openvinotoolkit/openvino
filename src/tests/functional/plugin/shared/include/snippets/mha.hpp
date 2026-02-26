@@ -45,18 +45,14 @@ typedef std::tuple<std::vector<InputShape>,         // Input shapes
 MHAWithThreadCountParams;
 
 class MHABase :  virtual public SnippetsTestsCommon {
-public:
-    constexpr static size_t default_thread_count = 0;
-
 protected:
     void SetUp() override;
-    void compile_model() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void init_thresholds() override;
+    void init_bf16_input_thresholds_for_f32_hint();
     virtual std::shared_ptr<SnippetsFunctionBase> get_subgraph() const = 0;
     virtual void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) = 0;
 
-    size_t m_thread_count;
     std::vector<ov::element::Type> m_input_types;
 };
 
@@ -147,13 +143,16 @@ protected:
 class MHAWithThreadCount : public testing::WithParamInterface<ov::test::snippets::MHAWithThreadCountParams>,
                            virtual public MHABase {
 public:
+    constexpr static size_t default_thread_count = 0;
     static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAWithThreadCountParams>& obj);
 
 protected:
+    void compile_model() override;
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
     void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) override;
     void init_thresholds() override;
 
+    size_t m_thread_count = default_thread_count;
     bool m_with_mul = false;
 };
 

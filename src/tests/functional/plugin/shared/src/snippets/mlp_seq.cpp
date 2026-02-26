@@ -14,12 +14,6 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-void MLPSeqBase::compile_model() {
-    if (m_thread_count != default_thread_count)
-        core->set_property(targetDevice, ov::inference_num_threads(m_thread_count));
-    SubgraphBaseTest::compile_model();
-}
-
 void MLPSeqBase::SetUp() {
     std::vector<InputShape> input_shapes;
     ov::element::Type prc;
@@ -81,7 +75,6 @@ void MLPSeq::init_params(std::vector<InputShape>& input_shapes, ov::element::Typ
     input_shapes = _input_shapes;
     m_input_types = _m_input_types;
     prc = _prc;
-    m_thread_count = default_thread_count;
     targetDevice = _targetDevice;
     additional_config = _additional_config;
     m_hidden_matmul_size = _m_hidden_matmul_size;
