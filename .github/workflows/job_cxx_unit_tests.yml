@@ -57,6 +57,13 @@ jobs:
       SOURCE_COMMAND: ${{ contains(inputs.runner, 'linux') && 'source' || '.' }}
       SETUPVARS: ${{ github.workspace }}/install/${{ contains(inputs.runner, 'win') && 'setupvars.ps1' || 'setupvars.sh' }}
     steps:
+      - name: Configure pip index (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Add-Content -Path $env:GITHUB_ENV -Value "PIP_INDEX_URL=http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
+          Add-Content -Path $env:GITHUB_ENV -Value "PIP_TRUSTED_HOST=pip-proxy.pip-proxy.svc.cluster.local"
+        shell: pwsh
+
       - name: Download OpenVINO artifacts (package)
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
