@@ -4,10 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <iostream>
-
-#include "model_builder/model_builder.hpp"
-#include "openvino/openvino.hpp"
+#include "npuw/test_engine/models/model_builder.hpp"
 
 using ov::test::npuw::ModelBuilder;
 
