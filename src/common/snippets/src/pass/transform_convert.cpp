@@ -14,7 +14,6 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/op/convert_truncation.hpp"
@@ -28,20 +27,20 @@ ov::snippets::pass::TransformConvertToConvertTruncation::TransformConvertToConve
                    !ov::is_type_any_of<op::ConvertTruncation, op::ConvertSaturation>(n);
         });
 
-    register_matcher(
-        std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::wrap_type<ov::opset1::Convert>(), matcher_name),
-        [](ov::pass::pattern::Matcher& m) {
-            OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform,
-                               "Snippets::op::TransformConvertToConvertTruncation")
-            const auto root = m.get_match_root();
-            const auto convert = ov::as_type_ptr<ov::opset1::Convert>(root);
-            OPENVINO_ASSERT(convert, "Convert op is invalid");
-            auto convert_truncation = std::make_shared<op::ConvertTruncation>(convert->get_input_source_output(0),
-                                                                              convert->get_destination_type());
-            convert_truncation->set_friendly_name(convert->get_friendly_name());
-            ov::copy_runtime_info(convert, convert_truncation);
-            ov::replace_node(convert, convert_truncation);
+    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(convert, matcher_name),
+                     [](ov::pass::pattern::Matcher& m) {
+                         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform,
+                                            "Snippets::op::TransformConvertToConvertTruncation")
+                         const auto root = m.get_match_root();
+                         const auto convert = ov::as_type_ptr<ov::opset1::Convert>(root);
+                         OPENVINO_ASSERT(convert, "Convert op is invalid");
+                         auto convert_truncation =
+                             std::make_shared<op::ConvertTruncation>(convert->get_input_source_output(0),
+                                                                     convert->get_destination_type());
+                         convert_truncation->set_friendly_name(convert->get_friendly_name());
+                         ov::copy_runtime_info(convert, convert_truncation);
+                         ov::replace_node(convert, convert_truncation);
 
-            return true;
-        });
+                         return true;
+                     });
 }
