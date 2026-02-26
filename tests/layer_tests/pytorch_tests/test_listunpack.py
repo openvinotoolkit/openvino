@@ -12,10 +12,10 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestListUnpack(PytorchLayerTest):
     def _prepare_input(self):
         return (
-            np.random.randn(8, 3, 512, 512).astype(np.float32),
-            np.random.randn(1, 3, 224, 224).astype(np.float32),
-            np.random.randn(10, 1, 8, 8).astype(np.float32),
-            np.random.randn(1, 1, 1, 1).astype(np.float32),
+            self.random.randn(8, 3, 512, 512),
+            self.random.randn(1, 3, 224, 224),
+            self.random.randn(10, 1, 8, 8),
+            self.random.randn(1, 1, 1, 1),
         )
 
     def create_model_size_listunpack(self):
@@ -24,12 +24,9 @@ class TestListUnpack(PytorchLayerTest):
                 a, b, c, d = in1.size()
                 return a, b, c, d
 
-        ref_net = None
 
         return (
-            prim_listunpack(),
-            ref_net,
-            "prim::ListUnpack",
+            prim_listunpack(), "prim::ListUnpack",
         )
 
     def create_model_size_slice_listunpack(self, slices):
@@ -38,15 +35,14 @@ class TestListUnpack(PytorchLayerTest):
                 self.start = slices[0]
                 self.stop = slices[1]
                 self.step = slices[2]
-                super(prim_listunpack, self).__init__()
+                super().__init__()
 
             def forward(self, in1, in2, in3, in4):
                 a, b = in1.size()[self.start: self.stop: self.step]
                 return a, b
 
-        ref_net = None
 
-        return prim_listunpack(slices), ref_net, "prim::ListUnpack"
+        return prim_listunpack(slices), "prim::ListUnpack"
 
     def create_model_listconstruct_append_listunpack(self):
         class prim_listunpack(torch.nn.Module):
@@ -57,15 +53,14 @@ class TestListUnpack(PytorchLayerTest):
                 a, b, c, d = in_list
                 return a, b, c, d
 
-        ref_net = None
 
-        return prim_listunpack(), ref_net, "prim::ListUnpack"
+        return prim_listunpack(), "prim::ListUnpack"
 
     def create_model_listconstruct_getitem_listunpack(self, idx):
         class prim_listunpack(torch.nn.Module):
             def __init__(self, idx):
                 self.idx = idx
-                super(prim_listunpack, self).__init__()
+                super().__init__()
 
             def forward(self, in1, in2, in3, in4):
                 items: list[list[int]] = []
@@ -77,9 +72,8 @@ class TestListUnpack(PytorchLayerTest):
                 a, b, c, d = getitem_0
                 return a, b, c, d
 
-        ref_net = None
 
-        return prim_listunpack(idx), ref_net, "prim::ListUnpack"
+        return prim_listunpack(idx), "prim::ListUnpack"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -129,17 +123,17 @@ class TestListUnpack(PytorchLayerTest):
 class TestMeshgridListUnpack(PytorchLayerTest):
     def _prepare_input(self):
         return (
-            np.random.randn(3),
-            np.random.randn(5),
-            np.random.randn(7),
-            np.random.randn(11),
+            self.random.randn(3),
+            self.random.randn(5),
+            self.random.randn(7),
+            self.random.randn(11),
         )
 
     def create_model_meshgrid_listunpack_1_in(self, idx):
         class prim_listunpack(torch.nn.Module):
             def __init__(self, idx):
                 self.idx = idx
-                super(prim_listunpack, self).__init__()
+                super().__init__()
 
             def forward(self, in1, in2, in3, in4):
                 (
@@ -147,15 +141,14 @@ class TestMeshgridListUnpack(PytorchLayerTest):
                 ) = torch.meshgrid(in1, indexing=self.idx)
                 return a
 
-        ref_net = None
 
-        return prim_listunpack(idx), ref_net, ["aten::meshgrid", "prim::ListUnpack"]
+        return prim_listunpack(idx), ["aten::meshgrid", "prim::ListUnpack"]
 
     def create_model_meshgrid_listunpack_2_in(self, idx):
         class prim_listunpack(torch.nn.Module):
             def __init__(self, idx):
                 self.idx = idx
-                super(prim_listunpack, self).__init__()
+                super().__init__()
 
             def forward(self, in1, in2, in3, in4):
                 (
@@ -164,38 +157,35 @@ class TestMeshgridListUnpack(PytorchLayerTest):
                 ) = torch.meshgrid(in1, in2, indexing=self.idx)
                 return a, b
 
-        ref_net = None
 
-        return prim_listunpack(idx), ref_net, ["aten::meshgrid", "prim::ListUnpack"]
+        return prim_listunpack(idx), ["aten::meshgrid", "prim::ListUnpack"]
 
     def create_model_meshgrid_listunpack_3_in(self, idx):
         class prim_listunpack(torch.nn.Module):
             def __init__(self, idx):
                 self.idx = idx
-                super(prim_listunpack, self).__init__()
+                super().__init__()
 
             def forward(self, in1, in2, in3, in4):
                 a, b, c = torch.meshgrid(in1, in2, in3, indexing=self.idx)
                 return a, b, c
 
-        ref_net = None
 
-        return prim_listunpack(idx), ref_net, ["aten::meshgrid", "prim::ListUnpack"]
+        return prim_listunpack(idx), ["aten::meshgrid", "prim::ListUnpack"]
 
     def create_model_meshgrid_listunpack_4_in(self, idx):
         class prim_listunpack(torch.nn.Module):
             def __init__(self, idx):
                 self.idx = idx
-                super(prim_listunpack, self).__init__()
+                super().__init__()
 
             def forward(self, in1, in2, in3, in4):
                 a, b, c, d = torch.meshgrid(
                     in1, in2, in3, in4, indexing=self.idx)
                 return a, b, c, d
 
-        ref_net = None
 
-        return prim_listunpack(idx), ref_net, ["aten::meshgrid", "prim::ListUnpack"]
+        return prim_listunpack(idx), ["aten::meshgrid", "prim::ListUnpack"]
 
     @pytest.mark.parametrize("idx", ["ij", "xy"])
     @pytest.mark.parametrize("inp", [1, 2, 3, 4])
@@ -209,7 +199,7 @@ class TestMeshgridListUnpack(PytorchLayerTest):
 class TestMeshgridListUnpackStack(PytorchLayerTest):
     def _prepare_input(self):
         return (
-            np.random.randn(28, 28),
+            self.random.randn(28, 28),
         )
 
     def create_model(self):
@@ -221,7 +211,7 @@ class TestMeshgridListUnpackStack(PytorchLayerTest):
                 coords = torch.stack([coords2, coords1], dim=0)
                 return coords.float()
 
-        return meshgrid_model(), None, ["aten::meshgrid", "aten::stack", "prim::ListUnpack"]
+        return meshgrid_model(), ["aten::meshgrid", "aten::stack", "prim::ListUnpack"]
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -232,7 +222,7 @@ class TestMeshgridListUnpackStack(PytorchLayerTest):
 class TestListUnpackParameterSingle(PytorchLayerTest):
     def _prepare_input(self):
         def tensor_gen():
-            return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
+            return self.random.uniform(0, 50, (1, 2, 10), dtype=np.float32)
         return ((tensor_gen(), tensor_gen()), )
 
     def create_model(self):
@@ -244,7 +234,7 @@ class TestListUnpackParameterSingle(PytorchLayerTest):
                 x1, x2 = x
                 return x1, x2
 
-        return model(), None, ["prim::ListUnpack"]
+        return model(), ["prim::ListUnpack"]
 
     @pytest.mark.nightly
     def test(self, ie_device, precision, ir_version):
@@ -254,11 +244,11 @@ class TestListUnpackParameterSingle(PytorchLayerTest):
 class TestListUnpackParameterSingleMixed(PytorchLayerTest):
     def _prepare_input(self):
         def tensor_gen():
-            return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
+            return self.random.uniform(0, 50, (1, 2, 10), dtype=np.float32)
         # generate tensor with a different shape for easier mismatch detection in case of mixed input order
 
         def tensor_gen_2():
-            return np.random.uniform(0, 50, (2, 3)).astype(np.float32)
+            return self.random.uniform(0, 50, (2, 3), dtype=np.float32)
         return (tensor_gen_2(), (tensor_gen(), tensor_gen()), tensor_gen_2())
 
     def create_model(self):
@@ -270,7 +260,7 @@ class TestListUnpackParameterSingleMixed(PytorchLayerTest):
                 x1, x2 = x
                 return x1, x2, y1, y2
 
-        return model(), None, ["prim::ListUnpack"]
+        return model(), ["prim::ListUnpack"]
 
     @pytest.mark.nightly
     def test(self, ie_device, precision, ir_version):
@@ -280,7 +270,7 @@ class TestListUnpackParameterSingleMixed(PytorchLayerTest):
 class TestListUnpackParameterNested(PytorchLayerTest):
     def _prepare_input(self):
         def tensor_gen():
-            return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
+            return self.random.uniform(0, 50, (1, 2, 10), dtype=np.float32)
         return (((tensor_gen(), tensor_gen()), (tensor_gen(), tensor_gen())), )
 
     def create_model(self):
@@ -294,7 +284,7 @@ class TestListUnpackParameterNested(PytorchLayerTest):
                 y3, y4 = x2
                 return y1, y2, y3, y4
 
-        return model(), None, ["prim::ListUnpack"]
+        return model(), ["prim::ListUnpack"]
 
     @pytest.mark.nightly
     def test(self, ie_device, precision, ir_version):
@@ -304,7 +294,7 @@ class TestListUnpackParameterNested(PytorchLayerTest):
 class TestListUnpackParameterMultiple(PytorchLayerTest):
     def _prepare_input(self):
         def tensor_gen():
-            return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
+            return self.random.uniform(0, 50, (1, 2, 10), dtype=np.float32)
         return ((tensor_gen(), tensor_gen()), (tensor_gen(), tensor_gen()))
 
     def create_model(self):
@@ -317,7 +307,7 @@ class TestListUnpackParameterMultiple(PytorchLayerTest):
                 z3, z4 = y
                 return z1, z2, z3, z4
 
-        return model(), None, ["prim::ListUnpack"]
+        return model(), ["prim::ListUnpack"]
 
     @pytest.mark.nightly
     def test(self, ie_device, precision, ir_version):
@@ -332,15 +322,13 @@ class TestComplexListUnpack(PytorchLayerTest):
     """
 
     def _prepare_input(self):
-        rng = np.random.default_rng(43)
-        return (rng.standard_normal((2, 4, 2)).astype(np.float32),)
+        return (self.random.randn(2, 4, 2),)
 
     def create_model(self):
         class ComplexListUnpack(torch.nn.Module):
-            def __init__(self):
+            def __init__(self, rng):
                 super().__init__()
-                g = torch.Generator().manual_seed(42)
-                freqs = torch.randn(4, 2, generator=g)
+                freqs = rng.torch_randn(4, 2)
                 complex_freqs = torch.view_as_complex(freqs)
                 self.register_buffer('freqs', torch.view_as_real(complex_freqs))
 
@@ -350,7 +338,7 @@ class TestComplexListUnpack(PytorchLayerTest):
                 result = cx * cf
                 return torch.view_as_real(result)
 
-        return ComplexListUnpack(), None, "aten::mul"
+        return ComplexListUnpack(self.random), "aten::mul"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
