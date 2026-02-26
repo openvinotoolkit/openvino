@@ -77,14 +77,15 @@ void parse_tensordot_dims(const NodeContext& ctx, Output<Node> a, Output<Node> b
 
     // ---- dims = ([...], [...]) ----
     // By the time a translator runs, all producer nodes have already been translated.
-    // prim::ListConstruct is translated to v0::Concat (usually constant-folded to a
-    // v0::Constant) by translate_list_construct before tensordot is reached.  This means
-    // a tuple-of-two-lists dims arrives here as a 2D Constant of shape {2, num_axes}:
+    // In this frontend, prim::ListConstruct is typically represented as a SequenceMark
+    // node when it reaches this point. Use list/sequence concatenation utilities to
+    // normalize it to a single tensor, which is then usually constant-folded to a
+    // v0::Constant of shape {2, num_axes}:
     //   row 0 = a_axes, row 1 = b_axes.
-    // Detecting the FrameworkNode via cast_fw_node would always miss because the node
-    // is no longer a prim::ListConstruct FrameworkNode at this point.
     auto dims_input = ctx.get_input_from_visible_context(2);
-    if (auto dims_2d = ov::util::get_constant_from_source(dims_input)) {
+    // Normalize possible SequenceMark / list-construct input into a single tensor.
+    auto dims_normalized = concat_list_construct(ctx, dims_input);
+    if (auto dims_2d = ov::util::get_constant_from_source(dims_normalized)) {
         const auto& shape = dims_2d->get_shape();
         if (shape.size() == 2 && shape[0] == 2) {
             // shape is {2, num_axes}: first row = a_axes, second row = b_axes.
