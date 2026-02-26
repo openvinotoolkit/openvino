@@ -38,6 +38,11 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
 
 .. dropdown:: ``pip install --no-binary openvino openvino`` fails
 
+   .. note::
+
+      Source distribution (sdist) installation is experimental. For most users, the
+      recommended path is ``pip install openvino`` (prebuilt wheel).
+
    Installation from source distribution requires local build tools and Python build dependencies.
    Before retrying installation, update your packaging tools:
 
