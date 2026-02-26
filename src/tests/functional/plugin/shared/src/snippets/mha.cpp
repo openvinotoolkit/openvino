@@ -144,15 +144,15 @@ std::string MHAWithDynamicMul::getTestCaseName(const testing::TestParamInfo<ov::
 }
 
 std::string MHAWithThreadCount::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAWithThreadCountParams>& obj) {
+    const auto& [mha_params, thread_count] = obj.param;
     const auto& [input_shapes,
                  elem_types,
                  prc,
                  with_mul,
-                 thread_count,
                  num_nodes,
                  num_subgraphs,
                  target_device,
-                 additional_config] = obj.param;
+                 additional_config] = mha_params;
 
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); i++)
@@ -185,8 +185,10 @@ void MHAWithDynamicMul::init_params(std::vector<InputShape>& input_shapes, ov::e
 }
 
 void MHAWithThreadCount::init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) {
-    std::tie(input_shapes, m_input_types, prc, m_with_mul, m_thread_count, ref_num_nodes, ref_num_subgraphs,
-             targetDevice, additional_config) = this->GetParam();
+    const auto& [mha_params, thread_count] = this->GetParam();
+    std::tie(input_shapes, m_input_types, prc, m_with_mul, ref_num_nodes, ref_num_subgraphs, targetDevice, additional_config) =
+        mha_params;
+    m_thread_count = thread_count;
 }
 
 std::shared_ptr<SnippetsFunctionBase> MHA::get_subgraph() const {

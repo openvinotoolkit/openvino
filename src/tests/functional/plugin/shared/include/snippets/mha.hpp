@@ -32,17 +32,10 @@ typedef std::tuple<std::vector<InputShape>,         // Input shapes
                    >
 MHAWithDynamicMulParams;
 
-typedef std::tuple<std::vector<InputShape>,         // Input shapes
-                   std::vector<ov::element::Type>,  // Input Element types
-                   ov::element::Type,               // Inference precision
-                   bool,                            // With Multiply
-                   size_t,                          // Thread count
-                   size_t,                          // Expected num nodes
-                   size_t,                          // Expected num subgraphs
-                   std::string,                     // Target Device
-                   ov::AnyMap                       // Config
+typedef std::tuple<MHAParams,  // Base MHA params
+                   size_t      // Thread count
                    >
-MHAWithThreadCountParams;
+    MHAWithThreadCountParams;
 
 class MHABase :  virtual public SnippetsTestsCommon {
 protected:
