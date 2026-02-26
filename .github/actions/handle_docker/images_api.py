@@ -54,10 +54,14 @@ class Image:
                 cache_cmd += f"--cache-from type=registry,ref={self.base_ref()}-cache "
 
         if export_cache:
-            cache_cmd += f"--cache-to type=registry,ref={self.ref()}-cache,mode=max "
+            cache_cmd += f"--cache-to type=registry,ref={self.ref()}-cache,"
+            cache_cmd += "mode=max,compression=zstd,compression-level=22,"
+            cache_cmd += "force-compression=true,oci-mediatypes=true "
 
         build_cmd = f"docker buildx build --builder={docker_builder}"
-        output = f"--output type=image,compression=zstd,compression-level=22,force-compression=true,oci-mediatypes=true"
+
+        output = f"--output type=image,compression=zstd,compression-level=22,"
+        output += "force-compression=true,oci-mediatypes=true"
         output += f",name={self.ref()}"
         output += ",push=true" if push else ""
 
