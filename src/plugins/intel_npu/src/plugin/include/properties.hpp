@@ -197,8 +197,7 @@ private:
         ov::intel_npu::npuw::eagle::enabled.name()};
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
-                                                                        ov::internal::caching_with_mmap.name(),
-                                                                        ov::internal::cache_header_alignment.name()};
+                                                                        ov::internal::caching_with_mmap.name()};
 
     std::mutex _mutex;
 };
