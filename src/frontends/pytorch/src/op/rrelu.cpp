@@ -22,19 +22,22 @@ OutputVector translate_rrelu(const NodeContext& context) {
     float default_mean = 11 / 48.0f;
     Output<Node> lower = v0::Constant::create(element::f32, Shape{1}, {default_lower});
     Output<Node> upper = v0::Constant::create(element::f32, Shape{1}, {default_upper});
-    if (context.input_is_none(1) && context.input_is_none(2)) {
+    const auto input_size = context.get_input_size();
+    const auto has_lower = (input_size > 1 && !context.input_is_none(1));
+    const auto has_upper = (input_size > 2 && !context.input_is_none(2));
+    if (!has_lower && !has_upper) {
         // no limits are given
         auto average = context.mark_node(v0::Constant::create(element::f32, Shape{}, {default_mean}));
         average = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(average, x));
         return {context.mark_node(std::make_shared<v0::PRelu>(x, average))};
-    } else if (context.input_is_none(1) && !context.input_is_none(2)) {
+    } else if (!has_lower && has_upper) {
         // upper limit is given
         float upper_limit = context.const_input<float>(2);
         float mean = default_mean + (upper_limit - default_upper) / 2.0f;
         auto average = context.mark_node(v0::Constant::create(element::f32, Shape{}, {mean}));
         average = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(average, x));
         return {context.mark_node(std::make_shared<v0::PRelu>(x, average))};
-    } else if (!context.input_is_none(1) && context.input_is_none(2)) {
+    } else if (has_lower && !has_upper) {
         // lower limit is given
         float lower_limit = context.const_input<float>(1);
         float mean = default_mean + (lower_limit - default_lower) / 2.0f;
