@@ -1,5 +1,8 @@
 name: Linux RISC-V (Ubuntu 22.04, Python 3.10)
 on:
+  schedule:
+    # at 00:00 on Wednesday and Saturday
+    - cron: '0 0 * * 3,6'
   workflow_dispatch:
     inputs:
       target-branch:
@@ -7,7 +10,7 @@ on:
         type: string
         required: false
       testFilterType:
-        description: 'Filter for google tests {SMOKE | CONCISE}'
+        description: 'Filter for google tests {SMOKE | CONCISE | NIGHTLY}'
         required: true
         default: 'CONCISE'
   pull_request:
@@ -46,6 +49,10 @@ permissions: read-all
 env:
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
   RISCV_TOOLCHAIN_ROOT: /opt/riscv
+  RISCV_SMOKE_GTEST_FILTER: '*smoke*'
+  RISCV_CONCISE_GTEST_FILTER: '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*:smoke_Snippets*'
+  RISCV_NIGHTLY_GTEST_FILTER: ${{ format('{0}:smoke_CompareWithRefs*', env.RISCV_CONCISE_GTEST_FILTER) }}
+  RISCV_TEST_FILTER_TYPE: ${{ github.event_name == 'schedule' && 'NIGHTLY' || inputs.testFilterType || 'CONCISE' }}
 
 jobs:
   Smart_CI:
@@ -239,7 +246,7 @@ jobs:
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*:smoke_Snippets*' }}
+      GTEST_FILTER: ${{ env.RISCV_TEST_FILTER_TYPE == 'SMOKE' && env.RISCV_SMOKE_GTEST_FILTER || env.RISCV_TEST_FILTER_TYPE == 'NIGHTLY' && env.RISCV_NIGHTLY_GTEST_FILTER || env.RISCV_CONCISE_GTEST_FILTER }}
 
     steps:
       - name: Download OpenVINO artifacts (package)
@@ -263,7 +270,7 @@ jobs:
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.RISCV_TOOLCHAIN_ROOT}}/bin/qemu-riscv64 -cpu rv64,x-v=true,vlen=256 ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=${{ env.GTEST_FILTER }}
-        timeout-minutes: ${{ inputs.testFilterType == 'SMOKE' && 125 || 25}}
+        timeout-minutes: ${{ env.RISCV_TEST_FILTER_TYPE == 'CONCISE' && 25 || 125 }}
 
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv
