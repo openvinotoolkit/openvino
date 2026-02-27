@@ -64,7 +64,9 @@ TEST_F(SingleFileStorageTest, CacheEntryWriteRead) {
         {std::to_string(std::numeric_limits<uint64_t>::max()), std::vector<uint8_t>(1, 0)},
     };
 
-    for (const auto& [blob_id, blob_data] : test_blobs) {
+    for (const auto& test_blob : test_blobs) {
+        const auto& blob_id = test_blob.first;
+        const auto& blob_data = test_blob.second;
         m_storage->write_cache_entry(blob_id, [&](std::ostream& stream) {
             stream.write(reinterpret_cast<const char*>(blob_data.data()), blob_data.size());
         });
@@ -72,7 +74,9 @@ TEST_F(SingleFileStorageTest, CacheEntryWriteRead) {
 
     const auto blob_read_test = [&](SingleFileStorage& storage) {
         size_t read_count = 0;
-        for (const auto& [blob_id, blob_data] : test_blobs) {
+        for (const auto& test_blob : test_blobs) {
+            const auto& blob_id = test_blob.first;
+            const auto& blob_data = test_blob.second;
             storage.read_cache_entry(blob_id, false, [&](const ICacheManager::CompiledBlobVariant& compiled_blob) {
                 ASSERT_TRUE(std::holds_alternative<std::reference_wrapper<std::istream>>(compiled_blob));
                 ++read_count;
@@ -106,7 +110,9 @@ TEST_F(SingleFileStorageTest, BlobAlignment) {
     const std::unordered_map<uint64_t, std::vector<uint8_t>> test_blobs{{1, std::vector<uint8_t>(4099, 0xAB)},
                                                                         {2, std::vector<uint8_t>(400, 0xCD)},
                                                                         {3, std::vector<uint8_t>(5, 0xEF)}};
-    for (const auto& [blob_id, blob_data] : test_blobs) {
+    for (const auto& test_blob : test_blobs) {
+        const auto& blob_id = test_blob.first;
+        const auto& blob_data = test_blob.second;
         m_storage->write_cache_entry(std::to_string(blob_id), [&](std::ostream& stream) {
             stream.write(reinterpret_cast<const char*>(blob_data.data()), blob_data.size());
         });
