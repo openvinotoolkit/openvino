@@ -57,7 +57,8 @@ constexpr float ISA_THRESHOLD_AMX = 4.0F;
 
 constexpr float MEM_TOLERANCE_VERY_HIGH = 50.0F;
 constexpr float MEM_TOLERANCE_HIGH = 4.5F;
-constexpr float MEM_TOLERANCE_MEDIUM = 2.5F;
+constexpr float MEM_TOLERANCE_MEDIUM_HIGH = 2.5F;
+constexpr float MEM_TOLERANCE_MEDIUM = 1.0F;
 constexpr float MEM_TOLERANCE_MEDIUM_LOW = 0.5F;
 constexpr float MEM_TOLERANCE_LOW = 0.2F;
 constexpr float MEM_TOLERANCE_SECONDARY_LOW = 0.08F;
@@ -96,6 +97,7 @@ constexpr int APPLE_THREADS_HIGH = 4;
 }  // namespace ThreadPreferenceConstants
 
 inline float get_isa_threshold_multiplier(dnnl::cpu_isa isa) {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     using namespace ThreadPreferenceConstants;
     switch (isa) {
     case dnnl::cpu_isa::sse41:
@@ -112,6 +114,9 @@ inline float get_isa_threshold_multiplier(dnnl::cpu_isa isa) {
     default:
         return ISA_THRESHOLD_AVX2;
     }
+#else
+    return 1.0F;
+#endif
 }
 
 inline bool should_use_all_cores_for_latency(int main_cores, int efficient_cores, bool int8_intensive) {
@@ -186,7 +191,7 @@ inline bool is_static_partitioner_case_3_without_lp_ecores(const ov::MemBandwidt
 inline bool is_static_partitioner_case_4_with_lp_ecores(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.total_convs == 0 &&
-           (tolerance.max_mem_tolerance > MEM_TOLERANCE_MEDIUM ||
+           (tolerance.max_mem_tolerance > MEM_TOLERANCE_MEDIUM_HIGH ||
             static_cast<float>(tolerance.total_gemms) >= GEMM_RATIO_HIGH * static_cast<float>(tolerance.total_nodes));
 }
 
@@ -271,32 +276,32 @@ inline bool is_lp_main_core_case_2(const ov::MemBandwidthPressure& tolerance) {
 
 inline bool is_lp_auto_case_1(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
+    return tolerance.max_mem_tolerance < MEM_TOLERANCE_MEDIUM && tolerance.ratio_compute_convs == 0 &&
+           tolerance.ratio_mem_limited_convs == 0;
+}
+
+inline bool is_lp_auto_case_2(const ov::MemBandwidthPressure& tolerance) {
+    using namespace ThreadPreferenceConstants;
+    return tolerance.ratio_compute_convs + tolerance.ratio_mem_limited_convs >= 1.0F &&
+           tolerance.ratio_mem_limited_deconvs < 1.0F;
+}
+
+inline bool is_lp_auto_case_3(const ov::MemBandwidthPressure& tolerance) {
+    using namespace ThreadPreferenceConstants;
     return tolerance.total_convs > 52 && tolerance.ratio_compute_convs > 0 && tolerance.ratio_mem_limited_convs > 0 &&
            tolerance.ratio_mem_limited_convs < CONV_RATIO_VERY_LOW;
 }
 
-inline bool is_lp_auto_case_2(const ov::MemBandwidthPressure& tolerance) {
+inline bool is_lp_auto_case_4(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.max_mem_tolerance < MEM_TOLERANCE_SECONDARY_LOW &&
            tolerance.ratio_compute_convs < CONV_RATIO_HIGH && tolerance.ratio_mem_limited_convs < CONV_RATIO_MEDIUM_LOW;
 }
 
-inline bool is_lp_auto_case_3(const ov::MemBandwidthPressure& tolerance) {
+inline bool is_lp_auto_case_5(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.ratio_compute_convs > 0 && tolerance.ratio_compute_convs < CONV_RATIO_ULTRA_LOW &&
            tolerance.ratio_mem_limited_convs >= CONV_RATIO_VERY_LOW;
-}
-
-inline bool is_lp_auto_case_4(const ov::MemBandwidthPressure& tolerance) {
-    using namespace ThreadPreferenceConstants;
-    return tolerance.max_mem_tolerance > MEM_TOLERANCE_LOW && tolerance.ratio_compute_convs > CONV_RATIO_MEDIUM_LOW &&
-           tolerance.ratio_mem_limited_adds > 0 &&
-           static_cast<float>(tolerance.total_adds) < CONV_RATIO_VERY_LOW * static_cast<float>(tolerance.total_nodes);
-}
-
-inline bool is_lp_auto_case_5(const ov::MemBandwidthPressure& tolerance) {
-    using namespace ThreadPreferenceConstants;
-    return tolerance.max_mem_tolerance <= MEM_TOLERANCE_SECONDARY_LOW && tolerance.total_light_convs > 10;
 }
 
 void sort_table_by_numa_node_id(int current_numa_node, std::vector<std::vector<int>>& proc_type_table) {
