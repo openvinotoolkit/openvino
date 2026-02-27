@@ -9,7 +9,9 @@
 #include <cstdlib>
 #include <memory>
 #include <mutex>
-#include <oneapi/dnnl/dnnl.hpp>
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <oneapi/dnnl/dnnl.hpp>
+#endif
 #include <set>
 #include <string>
 #include <unordered_set>
