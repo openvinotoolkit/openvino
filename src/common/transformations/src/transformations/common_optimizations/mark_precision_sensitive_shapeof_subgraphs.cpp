@@ -38,7 +38,7 @@ ov::pass::MarkPrecisionSensitiveConstants::MarkPrecisionSensitiveConstants() {
 ov::pass::MarkDividesInShapeSubgraphs::MarkDividesInShapeSubgraphs() {
     m_markup_func = [](Node* node) {
         if (ov::is_type<ov::op::v1::Divide>(node)) {
-            ov::disable_compression_to(node->shared_from_this(), element::f16);
+            ov::disable_divide_conversion(node->shared_from_this());
         }
     };
 }
