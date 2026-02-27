@@ -14,6 +14,20 @@ namespace ov {
 namespace test {
 namespace snippets {
 
+namespace {
+size_t get_inference_thread_count(const ov::AnyMap& config, size_t default_value = 0) {
+    const auto thread_count = config.find(ov::inference_num_threads.name());
+    if (thread_count == config.end())
+        return default_value;
+
+    try {
+        return thread_count->second.as<size_t>();
+    } catch (const ov::Exception&) {
+        return default_value;
+    }
+}
+}  // namespace
+
 void MHABase::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& model_inputs = function->inputs();
@@ -62,19 +76,6 @@ void MHABase::init_thresholds() {
         rel_threshold = 0.05f;
     if (infer_precision == ov::element::f16)
         abs_threshold = 2e-2;
-    auto precision_hint = configuration.count(ov::hint::inference_precision.name())
-                              ? configuration.at(ov::hint::inference_precision.name())
-                              : ov::element::f32;
-    if (m_input_types.size() > 1 && m_input_types[0] == ov::element::bf16 && precision_hint == ov::element::f32) {
-        rel_threshold = 0.01f;
-        abs_threshold = 0.0078125f;
-    }
-}
-
-std::shared_ptr<SnippetsFunctionBase> MHABase::get_subgraph() const {
-    const bool is_with_reshape =
-        std::all_of(inputDynamicShapes.begin(), inputDynamicShapes.end(), [](const ov::PartialShape& ps) { return ps.is_static(); });
-    return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes, m_input_types, m_with_mul, is_with_reshape);
 }
 
 std::string MHA::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAParams>& obj) {
@@ -135,14 +136,18 @@ std::string MHAWithDynamicMul::getTestCaseName(const testing::TestParamInfo<ov::
     return result.str();
 }
 
-std::string MHAWithThreadCount::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAWithThreadCountParams>& obj) {
-    const auto& [mha_params, thread_count] = obj.param;
-    const testing::TestParamInfo<ov::test::snippets::MHAParams> test_info{mha_params, obj.index};
+std::string MHAWithThreadCount::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAParams>& obj) {
+    auto params_without_thread_count = obj.param;
+    auto& additional_config = std::get<7>(params_without_thread_count);
+    const auto thread_count = get_inference_thread_count(additional_config, MHAWithThreadCount::default_thread_count);
+    additional_config.erase(ov::inference_num_threads.name());
+
+    const testing::TestParamInfo<ov::test::snippets::MHAParams> test_info{params_without_thread_count, obj.index};
     return MHA::getTestCaseName(test_info) + "_ThreadNum=" + std::to_string(thread_count);
 }
 
 void MHA::init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) {
-    std::tie(input_shapes, m_input_types, prc, m_with_mul, ref_num_nodes, ref_num_subgraphs, targetDevice, additional_config) =
+    std::tie(input_shapes, m_input_types, prc, std::ignore, ref_num_nodes, ref_num_subgraphs, targetDevice, additional_config) =
         this->GetParam();
 }
 
@@ -150,17 +155,30 @@ void MHAWithDynamicMul::init_params(std::vector<InputShape>& input_shapes, ov::e
     std::tie(input_shapes, m_input_types, prc, ref_num_nodes, ref_num_subgraphs, targetDevice, additional_config) = this->GetParam();
 }
 
-void MHAWithThreadCount::init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) {
-    const auto& [mha_params, thread_count] = this->GetParam();
-    std::tie(input_shapes, m_input_types, prc, m_with_mul, ref_num_nodes, ref_num_subgraphs, targetDevice, additional_config) =
-        mha_params;
-    m_thread_count = thread_count;
+void MHAWithThreadCount::compile_model() {
+    const auto thread_count = get_inference_thread_count(configuration, default_thread_count);
+    if (thread_count != default_thread_count)
+        core->set_property(targetDevice, ov::inference_num_threads(thread_count));
+    configuration.erase(ov::inference_num_threads.name());
+    SubgraphBaseTest::compile_model();
 }
 
-void MHAWithThreadCount::compile_model() {
-    if (m_thread_count != default_thread_count)
-        core->set_property(targetDevice, ov::inference_num_threads(m_thread_count));
-    SubgraphBaseTest::compile_model();
+std::shared_ptr<SnippetsFunctionBase> MHA::get_subgraph() const {
+    const auto with_mul = std::get<3>(this->GetParam());
+    const bool is_with_reshape =
+        std::all_of(inputDynamicShapes.begin(), inputDynamicShapes.end(), [](const ov::PartialShape& ps) { return ps.is_static(); });
+    return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes, m_input_types, with_mul, is_with_reshape);
+}
+
+void MHA::init_thresholds() {
+    MHABase::init_thresholds();
+    auto precision_hint = configuration.count(ov::hint::inference_precision.name())
+                              ? configuration.at(ov::hint::inference_precision.name())
+                              : ov::element::f32;
+    if (m_input_types.size() > 1 && m_input_types[0] == ov::element::bf16 && precision_hint == ov::element::f32) {
+        rel_threshold = 0.01f;
+        abs_threshold = 0.0078125f;
+    }
 }
 
 std::shared_ptr<SnippetsFunctionBase> MHA2D::get_subgraph() const {

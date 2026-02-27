@@ -32,21 +32,15 @@ typedef std::tuple<std::vector<InputShape>,         // Input shapes
                    >
 MHAWithDynamicMulParams;
 
-typedef std::tuple<MHAParams,  // Base MHA params
-                   size_t      // Thread count
-                   >
-    MHAWithThreadCountParams;
-
 class MHABase :  virtual public SnippetsTestsCommon {
 protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void init_thresholds() override;
-    virtual std::shared_ptr<SnippetsFunctionBase> get_subgraph() const;
+    virtual std::shared_ptr<SnippetsFunctionBase> get_subgraph() const = 0;
     virtual void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) = 0;
 
     std::vector<ov::element::Type> m_input_types;
-    bool m_with_mul = false;
 };
 
 class MHA : public testing::WithParamInterface<ov::test::snippets::MHAParams>,
@@ -55,7 +49,10 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAParams>& obj);
 
 protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
     void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) override;
+
+    void init_thresholds() override;
 };
 
 class MHA2D : public MHA {
@@ -129,17 +126,13 @@ protected:
     void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) override;
 };
 
-class MHAWithThreadCount : public testing::WithParamInterface<ov::test::snippets::MHAWithThreadCountParams>,
-                           virtual public MHABase {
+class MHAWithThreadCount : public MHA {
 public:
     constexpr static size_t default_thread_count = 0;
-    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAWithThreadCountParams>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAParams>& obj);
 
 protected:
     void compile_model() override;
-    void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) override;
-
-    size_t m_thread_count = default_thread_count;
 };
 
 class MHASharedKV : public MHA {
