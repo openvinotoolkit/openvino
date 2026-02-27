@@ -55,6 +55,8 @@ public:
 
     const ov::element::Type& get_element_type() const override;
 
+    void set_element_type(const ov::element::Type& element_type);
+
     const ov::Shape& get_shape() const override;
 
     void set_shape(ov::Shape new_shape) override;
