@@ -36,7 +36,7 @@ protected:
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> ov_model;
 
-    Microsoft::WRL::ComPtr<ID3D12Device9> device;
+    Microsoft::WRL::ComPtr<ID3D12Device> device;
     Microsoft::WRL::ComPtr<ID3D12Heap> heap = nullptr;
     Microsoft::WRL::ComPtr<ID3D12Resource> placed_resources = nullptr;
     Microsoft::WRL::ComPtr<ID3D12Resource> comitted_resource;
@@ -176,8 +176,8 @@ public:
         res = device->CreateFence(0, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS(fence.ReleaseAndGetAddressOf()));
         ASSERT_FALSE(FAILED(res)) << "CreateFence failed.";
 
-        res = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE,
-                                             IID_PPV_ARGS(command_allocator.ReleaseAndGetAddressOf()));
+        res = device.Get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE,
+                                                   IID_PPV_ARGS(command_allocator.ReleaseAndGetAddressOf()));
         ASSERT_FALSE(FAILED(res)) << "CreateCommandAllocator failed.";
 
         res = device->CreateCommandList(0,
