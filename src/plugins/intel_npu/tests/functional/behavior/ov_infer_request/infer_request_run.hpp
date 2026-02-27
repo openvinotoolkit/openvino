@@ -224,8 +224,10 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
 
 TEST_P(InferRequestRunTests, BooleanTensorDataTypesForU8AndBooleanModelsWork) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const ov::Shape shape{1, 16, 16, 16};
-    auto model_u8 = ov::test::utils::make_concat_with_params(shape, ov::element::u8);
+    const ov::Shape batchedShape{2, 16, 16, 16};
+    auto model_u8 = ov::test::utils::make_concat_with_params(batchedShape, ov::element::u8);
+    model_u8->get_parameters()[0]->set_layout("N...");
+    model_u8->get_parameters()[1]->set_layout("N...");
 
     auto zeroEngineBackendPtr = std::make_shared<::intel_npu::ZeroEngineBackend>();
     ::intel_npu::CompilerAdapterFactory compilerAdapterFactory;
@@ -237,26 +239,40 @@ TEST_P(InferRequestRunTests, BooleanTensorDataTypesForU8AndBooleanModelsWork) {
 
     ov::Allocator alignedAllocator{::intel_npu::utils::AlignedAllocator{::intel_npu::utils::STANDARD_PAGE_SIZE}};
     // U8 tensors
-    ov::Tensor importMemoryTensorU8(ov::element::u8, shape, alignedAllocator);
-    void* alignedAddrU8 = ::operator new(ov::element::u8.size() * ov::shape_size(shape) + 1,
+    ov::Tensor importMemoryBatchedTensorU8(ov::element::u8, batchedShape, alignedAllocator);
+    ov::Tensor importMemoryTensorU8_1(importMemoryBatchedTensorU8,
+                                      ov::Coordinate{0, 0, 0, 0},
+                                      ov::Coordinate{1, 16, 16, 16});
+    ov::Tensor importMemoryTensorU8_2(importMemoryBatchedTensorU8,
+                                      ov::Coordinate{1, 0, 0, 0},
+                                      ov::Coordinate{2, 16, 16, 16});
+    void* alignedAddrU8 = ::operator new(ov::element::u8.size() * ov::shape_size(batchedShape) + 1,
                                          std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
     void* unalignedAddrU8 = static_cast<uint8_t*>(alignedAddrU8) + 1;
-    ov::Tensor unalignedTensorU8(ov::element::u8, shape, unalignedAddrU8);
+    ov::Tensor unalignedBatchedTensorU8(ov::element::u8, batchedShape, unalignedAddrU8);
+    ov::Tensor unalignedTensorU8_1(unalignedBatchedTensorU8, ov::Coordinate{0, 0, 0, 0}, ov::Coordinate{1, 16, 16, 16});
+    ov::Tensor unalignedTensorU8_2(unalignedBatchedTensorU8, ov::Coordinate{1, 0, 0, 0}, ov::Coordinate{2, 16, 16, 16});
 
     // Boolean tensors
-    ov::Tensor importMemoryTensorBoolean(ov::element::boolean, shape, alignedAllocator);
-    void* alignedAddrBoolean = ::operator new(ov::element::boolean.size() * ov::shape_size(shape) + 1,
+    ov::Tensor importMemoryTensorBoolean(ov::element::boolean, batchedShape, alignedAllocator);
+    void* alignedAddrBoolean = ::operator new(ov::element::boolean.size() * ov::shape_size(batchedShape) + 1,
                                               std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
     void* unalignedAddrBoolean = static_cast<uint8_t*>(alignedAddrBoolean) + 1;
-    ov::Tensor unalignedTensorBoolean(ov::element::boolean, shape, unalignedAddrBoolean);
+    ov::Tensor unalignedTensorBoolean(ov::element::boolean, batchedShape, unalignedAddrBoolean);
 
     OPENVINO_ASSERT(compiled_model_u8.input(0).get_element_type() == ov::element::u8);
     OPENVINO_ASSERT(compiled_model_u8.input(1).get_element_type() == ov::element::u8);
 
     infer_request_u8.infer();
 
-    OV_ASSERT_NO_THROW(infer_request_u8.set_tensor(compiled_model_u8.input(0), importMemoryTensorU8));
-    OV_ASSERT_NO_THROW(infer_request_u8.set_tensor(compiled_model_u8.input(1), unalignedTensorU8));
+    OV_ASSERT_NO_THROW(
+        infer_request_u8.set_tensors(compiled_model_u8.input(0), {importMemoryTensorU8_1, unalignedTensorU8_2}));
+    OV_ASSERT_NO_THROW(
+        infer_request_u8.set_tensors(compiled_model_u8.input(1), {importMemoryTensorU8_2, unalignedTensorU8_1}));
+    infer_request_u8.infer();
+
+    OV_ASSERT_NO_THROW(infer_request_u8.set_tensor(compiled_model_u8.input(0), importMemoryBatchedTensorU8));
+    OV_ASSERT_NO_THROW(infer_request_u8.set_tensor(compiled_model_u8.input(1), unalignedBatchedTensorU8));
     infer_request_u8.infer();
 
     OV_ASSERT_NO_THROW(infer_request_u8.set_tensor(compiled_model_u8.input(0), importMemoryTensorBoolean));
@@ -269,25 +285,27 @@ TEST_P(InferRequestRunTests, BooleanTensorDataTypesForU8AndBooleanModelsWork) {
             .getCompiler(zeroEngineBackendPtr,
                          compilerType,
                          ov::intel_npu::Platform::standardize(ov::test::utils::getTestPlatform()))
-            ->get_version() >= ZE_MAKE_VERSION(7, 30)) {
-        auto model_boolean = createTwoInputLessEqualModel(shape);
+            ->get_version() >= ZE_MAKE_VERSION(7, 29)) {
+        auto model_boolean = createTwoInputLessEqualModel(batchedShape);
+        model_boolean->get_parameters()[0]->set_layout("N...");
+        model_boolean->get_parameters()[1]->set_layout("N...");
         ov::CompiledModel compiled_model_boolean;
         OV_ASSERT_NO_THROW(compiled_model_boolean = core->compile_model(model_boolean, target_device, configuration));
         auto infer_request_boolean = compiled_model_boolean.create_infer_request();
 
         // U8 tensors
-        ov::Tensor newImportMemoryTensorU8(ov::element::u8, shape, alignedAllocator);
-        void* newAlignedAddrU8 = ::operator new(ov::element::u8.size() * ov::shape_size(shape) + 1,
+        ov::Tensor newImportMemoryTensorU8(ov::element::u8, batchedShape, alignedAllocator);
+        void* newAlignedAddrU8 = ::operator new(ov::element::u8.size() * ov::shape_size(batchedShape) + 1,
                                                 std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
         void* newUnalignedAddrU8 = static_cast<uint8_t*>(newAlignedAddrU8) + 1;
-        ov::Tensor newUnalignedTensorU8(ov::element::u8, shape, newUnalignedAddrU8);
+        ov::Tensor newUnalignedTensorU8(ov::element::u8, batchedShape, newUnalignedAddrU8);
 
         // Boolean tensors
-        ov::Tensor newImportMemoryTensorBoolean(ov::element::boolean, shape, alignedAllocator);
-        void* newAlignedAddrBoolean = ::operator new(ov::element::boolean.size() * ov::shape_size(shape) + 1,
+        ov::Tensor newImportMemoryTensorBoolean(ov::element::boolean, batchedShape, alignedAllocator);
+        void* newAlignedAddrBoolean = ::operator new(ov::element::boolean.size() * ov::shape_size(batchedShape) + 1,
                                                      std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
         void* newUnalignedAddrBoolean = static_cast<uint8_t*>(newAlignedAddrBoolean) + 1;
-        ov::Tensor newUnalignedTensorBoolean(ov::element::boolean, shape, newUnalignedAddrBoolean);
+        ov::Tensor newUnalignedTensorBoolean(ov::element::boolean, batchedShape, newUnalignedAddrBoolean);
 
         OPENVINO_ASSERT(compiled_model_boolean.input(0).get_element_type() == ov::element::boolean);
         OPENVINO_ASSERT(compiled_model_boolean.input(1).get_element_type() == ov::element::boolean);
