@@ -49,9 +49,8 @@ permissions: read-all
 env:
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
   RISCV_TOOLCHAIN_ROOT: /opt/riscv
-  RISCV_SMOKE_GTEST_FILTER: '*smoke*'
   RISCV_CONCISE_GTEST_FILTER: '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*:smoke_Snippets*'
-  RISCV_NIGHTLY_GTEST_FILTER: ${{ format('{0}:smoke_CompareWithRefs*', env.RISCV_CONCISE_GTEST_FILTER) }}
+  RISCV_NIGHTLY_GTEST_FILTER: '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*:smoke_Snippets*:smoke_CompareWithRefs*'
 
 jobs:
   Smart_CI:
@@ -245,7 +244,6 @@ jobs:
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && env.RISCV_SMOKE_GTEST_FILTER || inputs.testFilterType == 'NIGHTLY' && env.RISCV_NIGHTLY_GTEST_FILTER || github.event_name == 'schedule' && env.RISCV_NIGHTLY_GTEST_FILTER || env.RISCV_CONCISE_GTEST_FILTER }}
 
     steps:
       - name: Download OpenVINO artifacts (package)
@@ -268,7 +266,18 @@ jobs:
       - name: Intel CPU plugin func tests (parallel)
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.RISCV_TOOLCHAIN_ROOT}}/bin/qemu-riscv64 -cpu rv64,x-v=true,vlen=256 ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=${{ env.GTEST_FILTER }}
+          case "${{ github.event_name == 'schedule' && 'NIGHTLY' || inputs.testFilterType || 'CONCISE' }}" in
+            SMOKE)
+              GTEST_FILTER="${RISCV_SMOKE_GTEST_FILTER}"
+              ;;
+            NIGHTLY)
+              GTEST_FILTER="${RISCV_NIGHTLY_GTEST_FILTER}"
+              ;;
+            *)
+              GTEST_FILTER="${RISCV_CONCISE_GTEST_FILTER}"
+              ;;
+          esac
+          ${{ env.RISCV_TOOLCHAIN_ROOT}}/bin/qemu-riscv64 -cpu rv64,x-v=true,vlen=256 ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter="${GTEST_FILTER}"
         timeout-minutes: ${{ (inputs.testFilterType == 'CONCISE' || (!inputs.testFilterType && github.event_name != 'schedule')) && 25 || 125 }}
 
   Overall_Status:
