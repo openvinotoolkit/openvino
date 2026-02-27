@@ -18,6 +18,7 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/fill.hpp"
 #include "xbyak_riscv/xbyak_riscv.hpp"
+#include "xbyak_riscv/xbyak_riscv_csr.hpp"
 
 namespace ov::intel_cpu::riscv64 {
 
