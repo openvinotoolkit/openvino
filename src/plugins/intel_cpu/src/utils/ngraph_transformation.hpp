@@ -74,33 +74,35 @@ private:
     void dump(const std::string&& postfix) {
         static int num = 0;  // just to keep dumped IRs ordered in filesystem
         const std::filesystem::path dumpDir{config.dumpIR.dir};
-        const auto pathAndName = dumpDir / ("ir_" + std::to_string(num) + '_' + infoMap.at(type).name + postfix);
+        const std::filesystem::path irFileName{"ir_" + std::to_string(num) + '_' + infoMap.at(type).name + postfix};
+        // example: intel_cpu_dump/<model_name>/ir_0_preLpt_in.xml
+        const auto fullPath = dumpDir / model->get_friendly_name() / irFileName;
 
         ov::util::create_directory_recursive(dumpDir);
 
         ov::pass::Manager serializer;
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::XmlBin]) {
-            auto xmlPath = pathAndName;
+            auto xmlPath = fullPath;
             xmlPath.replace_extension(".xml");
             serializer.register_pass<ov::pass::Serialize>(xmlPath, std::filesystem::path{});
         }
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::Xml]) {
-            auto xmlFile = pathAndName;
+            auto xmlFile = fullPath;
             xmlFile.replace_extension(".xml");
 
             serializer.register_pass<ov::pass::Serialize>(xmlFile, std::filesystem::path{NULL_STREAM});
         }
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::Svg]) {
-            auto svgFile = pathAndName;
+            auto svgFile = fullPath;
             svgFile.replace_extension(".svg");
             serializer.register_pass<ov::pass::VisualizeTree>(svgFile);
         }
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::Dot]) {
-            auto dotFile = pathAndName;
+            auto dotFile = fullPath;
             dotFile.replace_extension(".dot");
             serializer.register_pass<ov::pass::VisualizeTree>(dotFile);
         }
