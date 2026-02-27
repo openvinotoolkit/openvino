@@ -175,7 +175,8 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
                        int32_t group_size,
                        bool is_symmetric,
                        std::vector<ov::float16>& weight_scale,
-                       std::vector<ov::float16>& weight_zp) {
+                       std::vector<ov::float16>& weight_zp_f16,
+                       std::vector<uint8_t>& weight_zp) {
         const size_t K_q = K / 2;
         const size_t num_elements_per_byte = 2;
         const size_t num_scale_groups = K / group_size;
@@ -195,11 +196,16 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
                         OPENVINO_ASSERT(!is_symmetric);
                         const uint8_t q_max = 15;
                         const uint8_t q_min = 0;
-                        float range = (float)amax - (float)amin;
+                        float famax = (float)amax;
+                        float famin = (float)amin;
+                        float range = famax - famin;
                         if (range <= 1e-5f)
                             range = 1e-2f;
                         float inv_scale = (q_max - q_min) / range;
-                        float zp_tmp = (float) (q_min - amin * inv_scale);
+                        float zp_tmp = (float) (q_min - famin * inv_scale);
+                        zp_tmp = std::min(std::max(zp_tmp, float(q_min)), float(q_max));
+                        uint8_t q_zp = static_cast<uint8_t>(std::round(zp_tmp));
+                        zp_tmp = q_zp; // ensure zp is in valid range after rounding
                         ov::float16 zp = zp_tmp;
                         // quantize asym u4
                         for (size_t ki = 0; ki < group_size / num_elements_per_byte; ki++)  {
@@ -213,7 +219,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
                         }
                         ov::float16 scale = 1 / inv_scale;
                         weight_scale[b * N + n * num_scale_groups + group_iter ] = scale;
-                        weight_zp[b * N + n * num_scale_groups + group_iter] = zp;
+                        weight_zp_f16[b * N + n * num_scale_groups + group_iter] = zp;
                     } else if (q_dt == cldnn::data_types::i4) {
                         OPENVINO_ASSERT(is_symmetric);
                         const int8_t q_max = 7;
@@ -236,10 +242,35 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
                 }
             }
         }
+
+        if (q_dt == cldnn::data_types::u4) {
+            for (size_t b = 0; b < B; b++) {
+                for (size_t g = 0; g < num_scale_groups; g++) {
+                    for (size_t n = 0; n < N; n += 2) {
+                        size_t idx0 = b * N * num_scale_groups + n * num_scale_groups + g;
+                        size_t idx1 = b * N * num_scale_groups + (n + 1) * num_scale_groups + g;
+                        uint8_t zp0 = static_cast<uint8_t>(std::round(float(weight_zp_f16[idx0])));
+                        uint8_t zp1 = static_cast<uint8_t>(std::round(float(weight_zp_f16[idx1])));
+                        uint8_t z0z1 = (zp1 << 4) | (zp0 & 0x0F);
+                        weight_zp[(b * N * num_scale_groups + g * N + n) / 2] = uint8_t(z0z1);
+                    }
+                }
+            }
+        }
+    }
+
+    void transpose_weight_scales(const std::vector<ov::float16>& scales_data, std::vector<ov::float16>& scales_data_transposed, size_t num_total_experts, size_t num_scale_groups, size_t N) {
+        for (size_t e = 0; e < num_total_experts; e++) {
+            for (size_t n = 0; n < N; n++) {
+                for (size_t g = 0; g < num_scale_groups; g++) {
+                    scales_data_transposed[e * N * num_scale_groups + g * N + n] = scales_data[e * N * num_scale_groups + n * num_scale_groups + g];
+                }
+            }
+        }
     }
 
     void create_weight_data_and_topology(T& p, topology& topo, std::vector<ov::float16>& experts_data_f16, std::vector<uint8_t>& experts_data_quant,
-                         std::vector<ov::float16>& scales_data, std::vector<ov::float16>& zp_data, bool is_weight_compressed) {
+                         std::vector<ov::float16>& scales_data, std::vector<ov::float16>& zp_data_f16, std::vector<uint8_t>& zp_data, bool is_weight_compressed) {
         ov::intel_gpu::op::MOECompressed::Config moe_config;
         moe_config.top_k = p.num_experts_per_token;
         moe_config.num_expert = p.num_total_experts;
@@ -298,24 +329,27 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
             experts_data_quant.resize(p.num_total_experts * p.hidden_size * p.out_N / 2);
             scales_data.resize(p.num_total_experts * p.out_N * num_scale_groups);
             if (!p.weight_symmetric_quant) {
-                zp_data.resize(p.num_total_experts * p.out_N * num_scale_groups);
+                zp_data_f16.resize(p.num_total_experts * p.out_N * num_scale_groups);
+                zp_data.resize(p.num_total_experts * p.out_N * num_scale_groups / 2);
             }
-            quantize_4bit(experts_data_f16, experts_data_quant, p.weight_dt, p.num_total_experts, p.out_N, p.hidden_size, p.scale_group_size, p.weight_symmetric_quant, scales_data, zp_data);
+            quantize_4bit(experts_data_f16, experts_data_quant, p.weight_dt, p.num_total_experts, p.out_N, p.hidden_size, p.scale_group_size, p.weight_symmetric_quant, scales_data, zp_data_f16, zp_data);
             set_values(experts_mem, experts_data_quant);
-            auto scale_shape = num_scale_groups > 1 ? ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(p.out_N), ov::Dimension(num_scale_groups), ov::Dimension(1)} : 
+            auto scale_shape = num_scale_groups > 1 ? ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(num_scale_groups), ov::Dimension(p.out_N), ov::Dimension(1)} :
                                                     ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(p.out_N), ov::Dimension(1)};
             auto scale_layout = layout{scale_shape, data_types::f16, format::bfyx};
             auto scale_mem = engine.allocate_memory(scale_layout);
-            set_values(scale_mem, scales_data);
+            std::vector<ov::float16> scales_data_transposed(scales_data.size());
+            transpose_weight_scales(scales_data, scales_data_transposed, p.num_total_experts, num_scale_groups, p.out_N);
+            set_values(scale_mem, scales_data_transposed);
 
             auto moe_experts_prim = data("moe_experts", experts_mem);
             auto moe_experts_scale_prim = data("moe_experts_scale", scale_mem);
             topo.add(moe_experts_prim);
             topo.add(moe_experts_scale_prim);
             if (!p.weight_symmetric_quant) {
-                auto zp_shape = num_scale_groups > 1 ? ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(p.out_N), ov::Dimension(num_scale_groups), ov::Dimension(1)} : 
+                auto zp_shape = num_scale_groups > 1 ? ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(num_scale_groups), ov::Dimension(p.out_N), ov::Dimension(1)} :
                                                        ov::PartialShape{ov::Dimension(p.num_total_experts), ov::Dimension(p.out_N), ov::Dimension(1)};
-                auto zp_layout = layout{zp_shape, data_types::f16, format::bfyx};
+                auto zp_layout = layout{zp_shape, p.weight_dt, format::bfyx};
                 auto zp_mem = engine.allocate_memory(zp_layout);
                 set_values(zp_mem, zp_data);
                 auto moe_experts_zp_prim = data("moe_experts_zp", zp_mem);
@@ -364,7 +398,8 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
         std::vector<ov::float16> experts_data_f16;
         std::vector<uint8_t> experts_data_q4;
         std::vector<ov::float16> scales_data;
-        std::vector<ov::float16> zp_data;
+        std::vector<ov::float16> zp_data_f16;
+        std::vector<uint8_t> zp_data;
         std::vector<cldnn::data_types> quant_types = {data_types::i4, data_types::u4, data_types::i8, data_types::u8};
         if (!engine.get_device_info().supports_immad || engine.get_device_info().arch != gpu_arch::xe2)
             return;
@@ -372,7 +407,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
         bool is_weight_compressed = std::any_of(quant_types.begin(), quant_types.end(), [=](const cldnn::data_types& t) -> bool {
             return t == p.weight_dt;
         });
-        create_weight_data_and_topology(p, topo, experts_data_f16, experts_data_q4, scales_data, zp_data, is_weight_compressed);
+        create_weight_data_and_topology(p, topo, experts_data_f16, experts_data_q4, scales_data, zp_data_f16, zp_data, is_weight_compressed);
         auto config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
@@ -444,7 +479,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
                                    static_cast<int32_t>(p.out_N),
                                    static_cast<int32_t>(p.hidden_size),
                                    scales_data,
-                                   zp_data,
+                                   zp_data_f16,
                                    p.scale_group_size,
                                    is_weight_compressed,
                                    p.weight_symmetric_quant,
@@ -460,7 +495,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
                                    static_cast<int32_t>(p.out_N),
                                    static_cast<int32_t>(p.hidden_size),
                                    scales_data,
-                                   zp_data,
+                                   zp_data_f16,
                                    p.scale_group_size,
                                    is_weight_compressed,
                                    p.weight_symmetric_quant,
