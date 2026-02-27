@@ -83,6 +83,9 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, Upda
         const auto pa_op = m.get_match_root();
         auto key_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(3));
         auto value_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(4));
+        OPENVINO_ASSERT(key_cache->get_partial_shape()[0] == value_cache->get_partial_shape()[0],
+                        "The first dimension of key cache and value cache are expected to be the same");
+        const auto num_blocks_pull = key_cache->get_partial_shape()[0];
         auto format_cache_precision = [](ov::element::Type cache_precision, ov::element::Type infer_precision) {
             return cache_precision == ov::element::f16 && infer_precision == ov::element::bf16 ? infer_precision
                                                                                                : cache_precision;
@@ -108,7 +111,7 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, Upda
             m_update_shape_func(precision, bychannel, group_num, _head_size, _block_size);
 
             auto block_shape = ov::PartialShape::dynamic(4);
-            block_shape[orders[0]] = -1;
+            block_shape[orders[0]] = num_blocks_pull;
             block_shape[orders[1]] = _head_nums;
             block_shape[orders[2]] = _block_size;
             block_shape[orders[3]] = _head_size;
