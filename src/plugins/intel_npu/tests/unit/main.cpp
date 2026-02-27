@@ -3,15 +3,22 @@
 //
 
 #include <signal.h>
+
+#include <openvino/runtime/intel_npu/properties.hpp>
+
+#ifdef _linux_
 #include <dlfcn.h>
+#endif
 
 #include <sstream>
 #ifdef WIN32
-#    include <process.h>
+#   include <process.h>
+#   include <windows.h>
+#   include <libloaderapi.h>
 #endif
 #include "gtest/gtest.h"
 
-
+#ifdef _linux_
 void* (*_dlopen)(const char *filename, int mode);
 char* (*_dlerror)(void);
 
@@ -23,14 +30,11 @@ void init() {
 
 thread_local char* dlopen_error_str = nullptr;
 
-extern "C" void* dlopen(const char *filename, int mode) {
-#define TRICK 1
-#if TRICK
+extern "C" void* dlopen(const char *filename, int mode) {   
     if (filename && strstr(filename, "libze_intel_npu.so")) {
         dlopen_error_str = (char*)"Failed to dlopen libze_intel_npu.so";
         return nullptr;
     }
-#endif
     return _dlopen(filename, mode);
 }
 
@@ -42,6 +46,42 @@ extern "C" char* dlerror(void) {
     }
     return _dlerror();
 }
+#endif
+
+#ifdef __cplusplus
+    #define INITIALIZER(f) \
+        static void f(void); \
+        struct f##_t_ { f##_t_(void) { f(); } }; static f##_t_ f##_; \
+        static void f(void)
+#elif defined(_MSC_VER)
+    #pragma section(".CRT$XCU",read)
+    #define INITIALIZER2_(f,p) \
+        static void f(void); \
+        __declspec(allocate(".CRT$XCU")) void (*f##_)(void) = f; \
+        __pragma(comment(linker,"/include:" p #f "_")) \
+        static void f(void)
+    #ifdef _WIN64
+        #define INITIALIZER(f) INITIALIZER2_(f,"")
+    #else
+        #define INITIALIZER(f) INITIALIZER2_(f,"_")
+    #endif
+#endif
+
+#ifdef WIN32
+    HMODULE (*_LoadLibraryW)(LPCWSTR lpLibFileName);
+
+    INITIALIZER(init) {
+        _LoadLibraryW = reinterpret_cast<decltype(_LoadLibraryW)>(GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), TEXT("LoadLibraryW")));
+    }
+
+    __declspec(dllimport)
+    inline HMODULE LoadLibraryW(LPCWSTR lpLibFileName) {
+        if (lpLibFileName && lstrcmpW(lpLibFileName, L"npu_level_zero_umd.dll") == 0) {
+            return nullptr;
+        }
+        return _LoadLibraryW(lpLibFileName);
+    }
+#endif
 
 void sigsegv_handler(int errCode);
 
