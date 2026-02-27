@@ -128,7 +128,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_I8, PoolingLayerCPUTest,
                               ::testing::ValuesIn(inputShapes4D_int8()),
                               ::testing::Values(ElementType::f32),
                               ::testing::Values(true),
-                              ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_4D())),
+                              ::testing::ValuesIn(filterCPUInfo(vecCpuConfigsFusing_4D())),
                               ::testing::Values(emptyFusingSpec),
                               ::testing::Values(CPUTestUtils::empty_plugin_config)),
                           PoolingLayerCPUTest::getTestCaseName);
