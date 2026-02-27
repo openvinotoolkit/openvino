@@ -18,30 +18,27 @@
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 #ifdef _WIN32
-#    ifdef ENABLE_DX12
-#        include <initguid.h>  // it has to be placed before dxcore
-#    endif
+#    include <initguid.h>  // it has to be placed before dxcore
 #endif
 
 #ifdef _WIN32
-#    ifdef ENABLE_DX12
-#        ifndef NOMINMAX
-#            define NOMINMAX
-#            define NOMINMAX_DEFINED_CTX_UT
-#        endif
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#        define NOMINMAX_DEFINED_CTX_UT
+#    endif
 
-#        include <combaseapi.h>
-#        include <d3d12.h>
-#        include <d3dcommon.h>
-#        include <dxcore.h>
-#        include <dxcore_interface.h>
-#        include <wrl.h>
-#        include <wrl/client.h>
+#    include <combaseapi.h>
+#    include <d3d12.h>
+#    include <d3dcommon.h>
+#    include <dxcore.h>
+#    include <dxcore_interface.h>
+#    include <wrl.h>
+#    include <wrl/client.h>
 
-#        ifdef NOMINMAX_DEFINED_CTX_UT
-#            undef NOMINMAX
-#            undef NOMINMAX_DEFINED_CTX_UT
-#        endif
+#    ifdef NOMINMAX_DEFINED_CTX_UT
+#        undef NOMINMAX
+#        undef NOMINMAX_DEFINED_CTX_UT
+#    endif
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -355,5 +352,4 @@ TEST_P(DX12RemoteRunTests, CheckOutputDataFromMultipleRuns) {
 }  // namespace test
 }  // namespace ov
 
-#    endif
 #endif
