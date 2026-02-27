@@ -135,6 +135,7 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     // cached single-token Q chunking
     SingleTokenQChunking q_chunking;
     // below are rt params for xattn
+    size_t block_wg_m;
     size_t q_block_pad;
     size_t k_block_pad;
     size_t q_stride_pad;

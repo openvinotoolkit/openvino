@@ -642,7 +642,8 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         const size_t WALK_HQ = desc->heads_num != desc->kv_heads_num ? 2 : 1;
 
         auto& wgs = kd.params.workGroups;
-        wgs.global = {rtp->N_kq_groups * (rtp->q_stride_pad / get_block_wg_m(params)) * SG_N * WALK_HQ, SG_M, desc->heads_num / WALK_HQ};
+        OPENVINO_ASSERT(rtp->block_wg_m != 0, "Invalid block_wg_m in runtime params");
+        wgs.global = {rtp->N_kq_groups * (rtp->q_stride_pad / rtp->block_wg_m) * SG_N * WALK_HQ, SG_M, desc->heads_num / WALK_HQ};
         wgs.local = {SG_N, SG_M, 1};
 
         const size_t q_start_strided = N - M;

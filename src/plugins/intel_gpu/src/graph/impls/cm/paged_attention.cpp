@@ -86,6 +86,7 @@ public:
         const auto k_block_pad = k_block_in_group * N_kq_groups;
 
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        rt_params->block_wg_m = block_wg_m;
         rt_params->q_block_pad = q_block_pad;
         rt_params->k_block_pad = k_block_pad;
 
