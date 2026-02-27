@@ -1,5 +1,5 @@
 -c ../constraints.txt
---extra-index-url https://download.pytorch.org/whl/cpu
+--extra-index-url http://pip-proxy.pip-proxy.svc.cluster.local/pytorch/whl/cpu
 optimum-intel[tests,nncf]
 whowhatbench @ git+https://github.com/openvinotoolkit/openvino.genai.git#subdirectory=tools/who_what_benchmark
 pytest
