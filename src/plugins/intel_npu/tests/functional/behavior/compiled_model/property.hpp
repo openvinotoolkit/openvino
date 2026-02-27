@@ -479,4 +479,97 @@ TEST_P(CheckCompilerTypeProperty, GetCompilerVersion) {
     logs.clear();
 }
 
+using CheckCompilerPropertyWhenImporting = ClassExecutableNetworkGetPropertiesTestNPU;
+
+TEST_P(CheckCompilerPropertyWhenImporting, ExpectedThrowFromImportWithUnsupportedProperty) {
+    ov::Core core_compile, core_import;
+    ov::CompiledModel compiled_model;
+    std::stringstream export_stream;
+
+    OV_ASSERT_NO_THROW(compiled_model = core_compile.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
+    compiled_model = {};
+
+    ASSERT_THROW(core_import.import_model(export_stream, deviceName, {{{"DUMMY_PROPERTY", ov::Any("DUMMY_VALUE")}}}),
+                 ov::Exception);  // Expect to throw due to unsupported property
+}
+
+TEST_P(CheckCompilerPropertyWhenImporting, ExpectedNoThrowFromImportWithCompilerProperty) {
+    std::string logs;
+    std::mutex logs_mutex;
+    ov::Core core_compile, core_import;
+    ov::CompiledModel compiled_model;
+    std::stringstream export_stream;
+
+    OV_ASSERT_NO_THROW(compiled_model = core_compile.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
+    compiled_model = {};
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    ov::util::set_log_callback(log_cb);
+    core_import.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
+    OV_ASSERT_NO_THROW(core_import.import_model(export_stream, deviceName, {{ov::intel_npu::qdq_optimization(true)}}));
+    ov::util::reset_log_callback();
+
+    ASSERT_NE(logs.find("Config key 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used"),
+              std::string::npos);
+}
+
+TEST_P(CheckCompilerPropertyWhenImporting, ExpectedNoThrowFromImportWithBothProperty) {
+    ov::Core core_compile, core_import;
+    ov::CompiledModel compiled_model, imported_model;
+    std::stringstream export_stream0, export_stream1;
+
+    OV_ASSERT_NO_THROW(compiled_model = core_compile.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream0));
+    OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream1));
+    compiled_model = {};
+
+    OV_ASSERT_NO_THROW(imported_model =
+                           core_import.import_model(export_stream0, deviceName, {{ov::intel_npu::turbo(true)}}));
+    bool turbo = false;
+    OV_ASSERT_NO_THROW(turbo = imported_model.get_property(ov::intel_npu::turbo));
+    ASSERT_TRUE(turbo == true);
+
+    OV_ASSERT_NO_THROW(imported_model = core_import.import_model(
+                           export_stream1,
+                           deviceName,
+                           {{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}}));
+    ASSERT_THROW(imported_model.get_property(ov::intel_npu::turbo),
+                 ov::Exception);  // Expect to throw due to unsupported property
+
+    ov::hint::PerformanceMode perf_mode = ov::hint::PerformanceMode::LATENCY;
+    OV_ASSERT_NO_THROW(perf_mode = imported_model.get_property(ov::hint::performance_mode));
+    ASSERT_TRUE(perf_mode == ov::hint::PerformanceMode::THROUGHPUT);
+}
+
+TEST_P(CheckCompilerPropertyWhenImporting, ExpectedNoThrowFromImportWithRuntimeProperty) {
+    ov::Core core_compile, core_import;
+    ov::CompiledModel compiled_model, imported_model;
+    std::stringstream export_stream;
+
+    OV_ASSERT_NO_THROW(compiled_model = core_compile.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
+    compiled_model = {};
+
+    OV_ASSERT_NO_THROW(imported_model =
+                           core_import.import_model(export_stream,
+                                                    deviceName,
+                                                    {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+                                                      ov::workload_type(ov::WorkloadType::EFFICIENT)}}));
+
+    ASSERT_THROW(imported_model.get_property(ov::intel_npu::compiler_type),
+                 ov::Exception);  // Expect to throw due to unsupported property
+
+    ov::WorkloadType workload_type = ov::WorkloadType::DEFAULT;
+    OV_ASSERT_NO_THROW(workload_type = imported_model.get_property(ov::workload_type));
+    ASSERT_TRUE(workload_type == ov::WorkloadType::EFFICIENT);
+}
+
 }  // namespace
