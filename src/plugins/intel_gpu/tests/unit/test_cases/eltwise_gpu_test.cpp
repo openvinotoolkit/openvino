@@ -2606,10 +2606,10 @@ TEST(eltwise_gpu_int, basic_in4x4x4x4) {
                     6.f,  8.f,  1.f,  4.f
                 } :
                 std::vector<float>{
-                    0.f,  2.f,  0.f, -1.f,
+                    1.f,  2.f,  3.f, -1.f,
                     5.f,   7.f,   2.f,   2.f,
                     15.f,  17.f,   8.f,   8.f,
-                    6.f,   8.f, 0.f,  10.f };
+                    6.f,   8.f, 2.f,  10.f };
 
             network network(engine, topology, get_test_default_config(engine));
             network.set_input_data("input", input);
@@ -2771,10 +2771,10 @@ TEST(eltwise_gpu_f32_int, basic_in4x4x4x4) {
                     6.f,  8.f,  1.f,  4.f
                 } :
                 std::vector<float>{
-                    0.f,  2.f,  0.f, -1.f,
+                    1.f,  2.f,  3.f, -1.f,
                     5.f,   7.f,   2.f,   2.f,
                     15.f,  17.f,   8.f,   8.f,
-                    6.f,   8.f, 0.f,  10.f };
+                    6.f,   8.f, 2.f,  10.f };
 
             network network(engine, topology, get_test_default_config(engine));
             network.set_input_data("input", input);
