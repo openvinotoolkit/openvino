@@ -7,6 +7,7 @@
 #include <iostream>
 #include <iterator>
 
+#include "compiler_impl.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
@@ -405,12 +406,10 @@ void DynamicGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescript
 DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                            std::optional<ov::Tensor> blob,
                            bool blobAllocatedByPlugin,
-                           const FilteredConfig& config,
-                           const ov::SoPtr<VCLCompilerImpl>& compiler)
+                           const FilteredConfig& config)
     : _zeroInitStruct(zeroInitStruct),
       _blob(std::move(blob)),
       _blobAllocatedByPlugin(blobAllocatedByPlugin),
-      _compiler(compiler),
       _logger("DynamicGraph", config.get<LOG_LEVEL>()) {
     _logger.info("Create DynamicGraph");
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
@@ -520,20 +519,13 @@ void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) const 
 }
 
 std::vector<ov::ProfilingInfo> DynamicGraph::process_profiling_output(const std::vector<uint8_t>& profData) const {
-    ov::SoPtr<VCLCompilerImpl> localCompiler = _compiler;
-
-    if (localCompiler == nullptr) {
-        auto vclCompilerPtr = VCLCompilerImpl::getInstance();
-        OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
-        auto vclLib = vclCompilerPtr->getLinkedLibrary();
-        OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
-        localCompiler = ov::SoPtr<VCLCompilerImpl>(vclCompilerPtr, vclLib);
-    }
+    auto compiler = VCLCompilerImpl::getInstance();
+    OPENVINO_ASSERT(compiler != nullptr, "VCL compiler is nullptr");
 
     std::vector<uint8_t> blob(_blob->get_byte_size());
     blob.assign(reinterpret_cast<const uint8_t*>(_blob->data()),
                 reinterpret_cast<const uint8_t*>(_blob->data()) + _blob->get_byte_size());
-    return localCompiler->process_profiling_output(profData, blob);
+    return compiler->process_profiling_output(profData, blob);
 }
 
 void DynamicGraph::set_argument_value(uint32_t argi, const void* argv) const {

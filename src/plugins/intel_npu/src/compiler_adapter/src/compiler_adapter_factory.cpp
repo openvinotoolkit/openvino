@@ -19,18 +19,16 @@ ov::intel_npu::CompilerType CompilerAdapterFactory::determineAppropriateCompiler
     return ov::intel_npu::CompilerType::DRIVER;
 }
 
-std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
-    const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStructs,
-    ov::intel_npu::CompilerType& compilerType,
-    std::string_view platform,
-    std::optional<std::string_view> deviceName) const {
+std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                                                      ov::intel_npu::CompilerType& compilerType,
+                                                                      std::string_view platform) const {
     if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
-        if (zeroInitStructs != nullptr) {
+        if (engineBackend != nullptr) {
             compilerType = determineAppropriateCompilerTypeBasedOnPlatform(platform);
             if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
                 if (_pluginCompilerIsPresent) {
                     try {
-                        return std::make_unique<PluginCompilerAdapter>(zeroInitStructs);
+                        return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
                     } catch (...) {
                         _pluginCompilerIsPresent = false;
                         compilerType = ov::intel_npu::CompilerType::DRIVER;
@@ -47,24 +45,25 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     }
 
     if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
-        if (zeroInitStructs == nullptr) {
+        if (engineBackend == nullptr) {
             return std::make_unique<PluginCompilerAdapter>(nullptr);
         }
 
-        return std::make_unique<PluginCompilerAdapter>(zeroInitStructs);
+        return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
     } else if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
-        if (zeroInitStructs == nullptr || !deviceName.has_value()) {
+        if (engineBackend == nullptr || engineBackend->getDevice() == nullptr) {
             OPENVINO_THROW("Could not find an NPU device. The driver compiler requires a valid device to be present in "
                            "the system.");
         }
 
         // It is required to check if the device is compatible with the provided platform, as the driver compiler
         // will be used.
-        if (deviceName.value() != platform && deviceName.value() != "AUTO_DETECT") {
+        auto deviceName = engineBackend->getDevice()->getName();
+        if (deviceName != platform && deviceName != "AUTO_DETECT") {
             OPENVINO_THROW("Could not find a valid NPU device for the provided configuration.");
         }
 
-        return std::make_unique<DriverCompilerAdapter>(zeroInitStructs);
+        return std::make_unique<DriverCompilerAdapter>(engineBackend->getInitStructs());
     } else {
         OPENVINO_THROW("Invalid NPU_COMPILER_TYPE");
     }

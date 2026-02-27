@@ -73,7 +73,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     if (config.get<COMPILATION_MODE>() == "HostCompile") {
         // no _compiler::parse call is required. networkmetadata will be obtained in DynamicGraph constructor
         _logger.debug("blob is not ELF format, create graph for LLVM IR!");
-        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), true, config, _compiler);
+        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), true, config);
     }
 
     GraphDescriptor graphDesc;
@@ -102,8 +102,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         std::move(networkMeta),
         std::move(tensor),
         config,
-        /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
-        _compiler);
+        /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
@@ -250,8 +249,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         tensorsInits,
         std::move(model),
         localConfig,
-        /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
-        _compiler);
+        /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

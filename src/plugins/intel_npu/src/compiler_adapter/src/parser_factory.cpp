@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "dynamic_parser.hpp"
 #include "intel_npu/common/parser_factory.hpp"
+
+#include "dynamic_parser.hpp"
 #include "parser.hpp"
 
 namespace intel_npu {

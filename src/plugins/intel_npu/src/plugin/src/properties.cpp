@@ -715,11 +715,7 @@ void Properties::registerPluginProperties() {
                 _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
             CompilerAdapterFactory factory;
-            auto dummyCompiler = factory.getCompiler(
-                _backend == nullptr ? nullptr : _backend->getInitStructs(),
-                compilerType,
-                compilationPlatform,
-                device == nullptr ? std::nullopt : std::optional<std::string_view>(device->getName()));
+            auto dummyCompiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
             return dummyCompiler->get_version();
         });
@@ -871,11 +867,7 @@ ov::Any Properties::getProperty(const std::string& name) {
             // Create a compiler to get the type and fetch version and supported options if needed
             CompilerAdapterFactory factory;
             try {
-                compiler = factory.getCompiler(
-                    _backend == nullptr ? nullptr : _backend->getInitStructs(),
-                    compilerType,
-                    compilationPlatform,
-                    device == nullptr ? std::nullopt : std::optional<std::string_view>(device->getName()));
+                compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
             } catch (const std::exception& ex) {
                 if (_config.hasOpt(name) && _config.getOpt(name).mode() == OptionMode::CompileTime) {
                     OPENVINO_THROW("Failed to create compiler for getting property ", name, " with error: ", ex.what());
@@ -955,11 +947,7 @@ void Properties::setProperty(const ov::AnyMap& properties) {
 
             // Create a compiler to get the type and fetch version and supported options if needed
             CompilerAdapterFactory factory;
-            compiler = factory.getCompiler(
-                _backend == nullptr ? nullptr : _backend->getInitStructs(),
-                compilerType,
-                compilationPlatform,
-                device == nullptr ? std::nullopt : std::optional<std::string_view>(device->getName()));
+            compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
             if (!(_compilerConfigsFilteredByCompiler && compilerType == _currentlyUsedCompiler &&
                   compilationPlatform == _currentlyUsedPlatform)) {

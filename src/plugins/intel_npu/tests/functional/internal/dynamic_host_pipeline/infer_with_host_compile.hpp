@@ -2,17 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/ov_tensor_utils.hpp>
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <vector>
+#pragma once
 
-#include "openvino/openvino.hpp"
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/serialize.hpp"
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+
+#    include <common_test_utils/ov_tensor_utils.hpp>
+#    include <iostream>
+#    include <sstream>
+#    include <string>
+#    include <vector>
+
+#    include "openvino/openvino.hpp"
+#    include "openvino/opsets/opset6.hpp"
+#    include "openvino/pass/manager.hpp"
+#    include "openvino/pass/serialize.hpp"
+#    include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 namespace ov {
 namespace test {
 namespace behavior {
@@ -121,3 +125,5 @@ TEST_P(InferWithHostCompileTests, CompileAndImport) {
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
+
+#endif

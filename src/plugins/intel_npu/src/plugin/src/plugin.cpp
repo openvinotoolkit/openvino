@@ -518,11 +518,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
     CompilerAdapterFactory factory;
-    auto compiler =
-        factory.getCompiler(_backend == nullptr ? nullptr : _backend->getInitStructs(),
-                            compilerType,
-                            compilationPlatform,
-                            device == nullptr ? std::nullopt : std::optional<std::string_view>(device->getName()));
+    auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
     localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     if (!compilationPlatform.empty()) {
@@ -903,11 +899,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
     CompilerAdapterFactory factory;
-    auto compiler =
-        factory.getCompiler(_backend == nullptr ? nullptr : _backend->getInitStructs(),
-                            compilerType,
-                            compilationPlatform,
-                            device == nullptr ? std::nullopt : std::optional<std::string_view>(device->getName()));
+    auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
     localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     if (!compilationPlatform.empty()) {
@@ -1057,10 +1049,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     if (localConfig.has<PERF_COUNT>() && localConfig.get<PERF_COUNT>() &&
         compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
         CompilerAdapterFactory factory;
-        auto compiler = factory.getCompiler(_backend->getInitStructs(),
-                                            compilerType,
-                                            device->getName(),
-                                            std::optional<std::string_view>(device->getName()));
+        auto compiler = factory.getCompiler(_backend, compilerType, device->getName());
     }
 
     if (compilerType != localConfig.get<COMPILER_TYPE>()) {

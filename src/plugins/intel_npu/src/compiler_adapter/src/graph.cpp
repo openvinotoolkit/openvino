@@ -6,6 +6,7 @@
 
 #include <iterator>
 
+#include "compiler_impl.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -20,7 +21,6 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              std::optional<ov::Tensor> blob,
              const FilteredConfig& config,
              const bool blobIsPersistent,
-             const ov::SoPtr<VCLCompilerImpl>& compiler,
              const bool calledFromWeightlessGraph)
     : IGraph(),
       _zeGraphExt(zeGraphExt),
@@ -29,7 +29,6 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _metadata(std::move(metadata)),
       _blob(std::move(blob)),
       _blobIsPersistent(blobIsPersistent),
-      _compiler(compiler),
       _logger("Graph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
         _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
@@ -139,20 +138,13 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData) const {
-    ov::SoPtr<VCLCompilerImpl> localCompiler = _compiler;
-
-    if (localCompiler == nullptr) {
-        auto vclCompilerPtr = VCLCompilerImpl::getInstance();
-        OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
-        auto vclLib = vclCompilerPtr->getLinkedLibrary();
-        OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
-        localCompiler = ov::SoPtr<VCLCompilerImpl>(vclCompilerPtr, vclLib);
-    }
+    auto compiler = VCLCompilerImpl::getInstance();
+    OPENVINO_ASSERT(compiler != nullptr, "VCL compiler is nullptr");
 
     std::vector<uint8_t> blob(_blob->get_byte_size());
     blob.assign(reinterpret_cast<const uint8_t*>(_blob->data()),
                 reinterpret_cast<const uint8_t*>(_blob->data()) + _blob->get_byte_size());
-    return localCompiler->process_profiling_output(profData, blob);
+    return compiler->process_profiling_output(profData, blob);
 }
 
 void Graph::set_argument_value(uint32_t id, const void* data) const {
