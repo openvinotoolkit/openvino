@@ -262,7 +262,7 @@ TEST(PropertyValidation, AutoBatchTimeoutRejectsNegativeString) {
 }
 
 // String edge case
-TEST(PropertiesValidation, NumRequestsRejectsNegativeStringWithWhitespace) {
+TEST(PropertyValidation, NumRequestsRejectsNegativeStringWithWhitespace) {
     // " -1" with leading whitespace should be rejected
     OV_EXPECT_THROW(std::ignore = ov::hint::num_requests(" -1"),
                     ov::Exception,
