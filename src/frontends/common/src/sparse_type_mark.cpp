@@ -81,7 +81,8 @@ ov::Output<ov::Node> SparseTypeMark::sparse_mm(const NodeContext& context,
         return context.mark_node(std::make_shared<v0::MatMul>(dense_sparse, matrix, false, false));
     }
 
-    FRONT_END_OP_CONVERSION_CHECK(!matrix_mark, "aten::_sparse_mm does not support Dense x Sparse matrix multiplication.");
+    FRONT_END_OP_CONVERSION_CHECK(!matrix_mark,
+                                  "aten::_sparse_mm does not support Dense x Sparse matrix multiplication.");
 
     return context.mark_node(std::make_shared<v0::MatMul>(sparse, matrix, false, false));
 }

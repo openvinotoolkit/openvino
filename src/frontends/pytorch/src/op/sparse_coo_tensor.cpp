@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/frontend/sparse_type_mark.hpp"
@@ -19,14 +20,14 @@ OutputVector translate_sparse_coo_tensor(const NodeContext& context) {
     auto values = context.get_input(1);   // [nnz]
     auto size = context.get_input(2);     // [ndim] - shape of dense tensor
 
-    // Note: Shape validation (indices vs values) is deferred to the execution stage 
+    // Note: Shape validation (indices vs values) is deferred to the execution stage
     // (ScatterNDUpdate in to_dense()) to allow dynamic shapes to propagate correctly.
     // Defer dense conversion via SparseTypeMark
     auto sparse_mark = context.mark_node(
         std::make_shared<ov::frontend::SparseTypeMark>(indices, values, size, values.get_element_type()));
 
     return {sparse_mark};
-};
+}
 
 OutputVector translate_to_dense(const NodeContext& context) {
     // aten::to_dense(Tensor self, ScalarType? dtype=None, bool? masked_grad=None) -> Tensor
@@ -38,7 +39,7 @@ OutputVector translate_to_dense(const NodeContext& context) {
     }
     // Already dense, return as-is
     return {input};
-};
+}
 
 }  // namespace op
 }  // namespace pytorch
