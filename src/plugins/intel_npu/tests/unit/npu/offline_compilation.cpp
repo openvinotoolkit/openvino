@@ -32,11 +32,11 @@ protected:
 
         ov::util::reset_log_callback();
 
-        #ifdef __linux__
+#ifdef __linux__
         ASSERT_NE(logs.find("Only offline compilation can be done"), std::string::npos);
-        #elif defined WIN32
+#elif defined WIN32
         ASSERT_NE(logs.find("PCI information not available in driver"), std::string::npos);
-        #endif
+#endif
     }
 
     ov::Core core;
