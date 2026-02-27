@@ -96,8 +96,8 @@ constexpr int APPLE_THREADS_HIGH = 4;
 
 }  // namespace ThreadPreferenceConstants
 
-inline float get_isa_threshold_multiplier(dnnl::cpu_isa isa) {
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+inline float get_isa_threshold_multiplier(dnnl::cpu_isa isa) {
     using namespace ThreadPreferenceConstants;
     switch (isa) {
     case dnnl::cpu_isa::sse41:
@@ -114,10 +114,8 @@ inline float get_isa_threshold_multiplier(dnnl::cpu_isa isa) {
     default:
         return ISA_THRESHOLD_AVX2;
     }
-#else
-    return 1.0F;
-#endif
 }
+#endif
 
 inline bool should_use_all_cores_for_latency(int main_cores, int efficient_cores, bool int8_intensive) {
     using namespace ThreadPreferenceConstants;
@@ -1073,7 +1071,11 @@ int get_model_prefer_threads(const int num_streams,
 #else
 
         if (isaSpecificThreshold == -1) {
+#    if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
             isaSpecificThreshold = get_isa_threshold_multiplier(dnnl::get_effective_cpu_isa());
+#    else
+            isaSpecificThreshold = 1.0F;
+#    endif
         }
 
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
