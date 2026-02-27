@@ -26,6 +26,10 @@ public:
     }
 
 protected:
+    size_t aux_gprs_count() const override {
+        return 2;
+    }
+
     size_t aux_fp_gprs_count() const override {
         return 2;
     }

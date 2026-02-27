@@ -53,35 +53,47 @@ void jit_horizon_emitter::emit_isa(const std::vector<size_t>& in, const std::vec
     static constexpr auto stack_size = static_cast<int>(lane_count * sizeof(float));
     static constexpr auto elt_size = static_cast<int>(sizeof(float));
 
+    OPENVINO_ASSERT(aux_gpr_idxs.size() >= 2, "Horizon emitter expects two auxiliary GPR registers");
     OPENVINO_ASSERT(aux_fp_gpr_idxs.size() >= 2, "Horizon emitter expects two auxiliary FP GPR registers");
 
     auto src = Xbyak_riscv::VReg(in[0]);
     auto dst = Xbyak_riscv::VReg(out[0]);
+    auto active_lanes = Xbyak_riscv::Reg(static_cast<int>(aux_gpr_idxs[0]));
+    auto iter = Xbyak_riscv::Reg(static_cast<int>(aux_gpr_idxs[1]));
     auto acc = Xbyak_riscv::FReg(static_cast<int>(aux_fp_gpr_idxs[0]));
     auto tmp = Xbyak_riscv::FReg(static_cast<int>(aux_fp_gpr_idxs[1]));
-
-    h->vsetivli(Xbyak_riscv::zero, lane_count, Xbyak_riscv::SEW::e32, Xbyak_riscv::LMUL::m1);
+    Xbyak_riscv::Label reduce_done;
+    Xbyak_riscv::Label reduce_loop;
 
     if (src.getIdx() != dst.getIdx()) {
         h->vmv_v_v(dst, src);
     }
 
-    // Scalar horizontal reduction via stack is simple and robust for current 4-lane e32 execution.
+    // Respect current active vector length (tail count) and reduce only active lanes.
+    h->csrr(active_lanes, Xbyak_riscv::CSR::vl);
     h->addi(Xbyak_riscv::sp, Xbyak_riscv::sp, -stack_size);
     h->vse32_v(dst, Xbyak_riscv::sp);
 
     h->flw(acc, Xbyak_riscv::sp, 0);
-    for (size_t i = 1; i < lane_count; i++) {
-        h->flw(tmp, Xbyak_riscv::sp, static_cast<int32_t>(i * elt_size));
-        if (m_op_type == OpType::max) {
-            h->fmax_s(acc, acc, tmp);
-        } else {
-            h->fadd_s(acc, acc, tmp);
-        }
+    h->uni_li(iter, 1);
+    h->bge(iter, active_lanes, reduce_done);
+    h->addi(active_lanes, active_lanes, -1);
+    h->addi(iter, Xbyak_riscv::sp, elt_size);
+    h->L(reduce_loop);
+    h->flw(tmp, iter, 0);
+    if (m_op_type == OpType::max) {
+        h->fmax_s(acc, acc, tmp);
+    } else {
+        h->fadd_s(acc, acc, tmp);
     }
-    h->fsw(acc, Xbyak_riscv::sp, 0);
+    h->addi(iter, iter, elt_size);
+    h->addi(active_lanes, active_lanes, -1);
+    h->bne(active_lanes, Xbyak_riscv::zero, reduce_loop);
+    h->L(reduce_done);
 
-    h->vle32_v(dst, Xbyak_riscv::sp);
+    // Keep x64 behavior: replicate reduced scalar to all lanes.
+    h->vsetivli(Xbyak_riscv::zero, lane_count, Xbyak_riscv::SEW::e32, Xbyak_riscv::LMUL::m1);
+    h->vfmv_v_f(dst, acc);
     h->addi(Xbyak_riscv::sp, Xbyak_riscv::sp, stack_size);
 }
 
