@@ -348,11 +348,9 @@ set(PCH_EXCLUDE_FILES
     src/emitters/plugin/x64/debug_capabilities.cpp
     src/emitters/plugin/aarch64/debug_capabilities.cpp
     src/nodes/executors/printers.cpp
-    src/emitters/snippets/x64/jit_debug_emitter.cpp
     src/emitters/snippets/x64/jit_perf_count_rdtsc_emitters.cpp
     src/emitters/snippets/x64/jit_segfault_detector_emitter.cpp
     src/emitters/snippets/x64/verbose.cpp
-    src/emitters/snippets/aarch64/jit_debug_emitter.cpp
     src/emitters/snippets/aarch64/jit_segfault_detector_emitter.cpp
     src/emitters/snippets/aarch64/verbose.cpp
     src/transformations/snippets/x64/op/perf_count_rdtsc.cpp)
