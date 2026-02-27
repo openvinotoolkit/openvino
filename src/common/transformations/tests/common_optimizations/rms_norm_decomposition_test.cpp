@@ -387,7 +387,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest11) {
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
-// Explicitly set the mean axes instead of using -1. 
+// Explicitly set the mean axes instead of using -1.
 TEST_F(TransformationTestsF, RMSNormFusionTest12) {
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 6});
@@ -402,8 +402,8 @@ TEST_F(TransformationTestsF, RMSNormFusionTest12) {
         auto div = std::make_shared<ov::op::v1::Power>(sqrt, div_const);
         auto mul1 = std::make_shared<ov::op::v1::Multiply>(input, div);
         auto gamma = ov::op::v0::Constant::create(ov::element::f32,
-                                                   ov::Shape{6},
-                                                   {0.029f, 0.014f, 0.003f, 0.013f, 0.015f, 0.009f});
+                                                  ov::Shape{6},
+                                                  {0.029f, 0.014f, 0.003f, 0.013f, 0.015f, 0.009f});
         auto mul2 = std::make_shared<ov::op::v1::Multiply>(gamma, mul1);
         auto comp = std::make_shared<ov::op::v0::Convert>(mul2, ov::element::f16);
 
@@ -414,8 +414,8 @@ TEST_F(TransformationTestsF, RMSNormFusionTest12) {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 6});
 
         auto rms_const = ov::op::v0::Constant::create(ov::element::f32,
-                                                       ov::Shape{6},
-                                                       {0.029f, 0.014f, 0.003f, 0.013f, 0.015f, 0.009f});
+                                                      ov::Shape{6},
+                                                      {0.029f, 0.014f, 0.003f, 0.013f, 0.015f, 0.009f});
         auto rms = std::make_shared<ov::op::internal::RMS>(input, rms_const, 1e-5f, ov::element::f16);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{rms}, ov::ParameterVector{input});

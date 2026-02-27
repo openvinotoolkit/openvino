@@ -16,6 +16,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rms.hpp"
 #include "transformations/utils/utils.hpp"
@@ -26,29 +27,13 @@ namespace op_util = ov::op::util;
 
 namespace ov::pass {
 
-namespace {
-std::function<bool(ov::Output<ov::Node>)> constant_value(const float target_value) {
-    return [=](const ov::Output<ov::Node>& output) -> bool {
-        auto node = ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr());
-        if (!node) {
-            return false;
-        }
-        float value;
-        if (!op_util::get_single_value(node, value)) {
-            return false;
-        }
-        return value == target_value;
-    };
-}
-}  // namespace
-
 RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x, bool enable_without_gamma) {
     // Detect RMS decomposition pattern
     //  x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
     auto x = pattern::any_input();
 
     // x^2
-    auto const_power = pattern::wrap_type<v0::Constant>(constant_value(2));
+    auto const_power = pattern::wrap_type<v0::Constant>(pattern::value_matches("2"));
     auto const_power_convert = pattern::optional<v0::Convert>(const_power);
     auto power = pattern::wrap_type<v1::Power>({x, const_power_convert});
 
@@ -65,11 +50,11 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x, bool enable_wit
     auto sqrt = pattern::wrap_type<v0::Sqrt>({add_eps});
 
     // 1/Sqrt(ReduceMean(x^2,axes)+eps)
-    auto const_pow = pattern::wrap_type<v0::Constant>(constant_value(-1));
+    auto const_pow = pattern::wrap_type<v0::Constant>(pattern::value_matches("-1"));
     auto const_pow_convert = pattern::optional<v0::Convert>(const_pow);
     auto pow = pattern::wrap_type<v1::Power>({sqrt, const_pow_convert});
 
-    auto const_div = pattern::wrap_type<v0::Constant>(constant_value(1));
+    auto const_div = pattern::wrap_type<v0::Constant>(pattern::value_matches("1"));
     auto const_div_convert = pattern::optional<v0::Convert>(const_div);
     auto div = pattern::wrap_type<v1::Divide>({const_div_convert, sqrt});
     auto div_or_pow = std::make_shared<pattern::op::Or>(OutputVector{div, pow});
