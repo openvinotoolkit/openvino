@@ -5,7 +5,6 @@
 #include "jit_horizon_emitter.hpp"
 
 #include <cstddef>
-#include <cstdint>
 #include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 #include <vector>
 
