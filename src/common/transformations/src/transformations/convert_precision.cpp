@@ -42,19 +42,20 @@ namespace v14 = ov::op::v14;
 namespace v15 = ov::op::v15;
 namespace op_util = ov::op::util;
 static bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
-                            const precisions_map& precisions,
-                            bool convert_input_precision);
+                                   const precisions_map& precisions,
+                                   bool convert_input_precision);
 
 // this function inserts Convert operations to 'data' input and outputs of `node`
 // to execute 'node' with the original type. This function supports nodes with single output.
 static bool wrap_into_original_type(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 static bool store_original_type_as_attribute(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 
-static bool fuse_type_to_variable(const std::shared_ptr<op::util::Variable>& variable, const precisions_map& precisions);
+static bool fuse_type_to_variable(const std::shared_ptr<op::util::Variable>& variable,
+                                  const precisions_map& precisions);
 
 static bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
-                           const precisions_map& precisions,
-                           const std::vector<ov::Input<ov::Node>>& consumers);
+                                  const precisions_map& precisions,
+                                  const std::vector<ov::Input<ov::Node>>& consumers);
 static bool fuse_type_to_shapeof(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 static bool fuse_type_to_shapeof_v0(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 static bool fuse_type_to_random_uniform_v8(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
@@ -75,7 +76,8 @@ static bool fuse_type_to_topk(const std::shared_ptr<ov::Node>& node, const preci
 static bool fuse_type_to_maxpool(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 static bool fuse_type_to_nonzero(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 static bool fuse_type_to_bucketize(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
-static bool fuse_type_to_ctc_greedy_decoder_seq_len(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
+static bool fuse_type_to_ctc_greedy_decoder_seq_len(const std::shared_ptr<ov::Node>& node,
+                                                    const precisions_map& precisions);
 static bool fuse_type_to_rms(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 
 static bool fuse_type_to_random_uniform_v8(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
@@ -453,13 +455,12 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
 
 
 #ifdef SELECTIVE_BUILD
-#    define ADD_FUSE_ENTRY(op_type, func, scope_name) \
+#    define ADD_FUSE_ENTRY(op_type, func, scope_name)                     \
         if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, scope_name))) { \
-            type_to_fuse[op_type::get_type_info_static()] = func; \
+            type_to_fuse[op_type::get_type_info_static()] = func;         \
         }
 #else
-#    define ADD_FUSE_ENTRY(op_type, func, scope_name) \
-        type_to_fuse[op_type::get_type_info_static()] = func;
+#    define ADD_FUSE_ENTRY(op_type, func, scope_name) type_to_fuse[op_type::get_type_info_static()] = func;
 #endif
 
     type_to_fuse_map type_to_fuse;
@@ -481,7 +482,9 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
     ADD_FUSE_ENTRY(v8::MulticlassNms, fuse_type_to_multiclass_nms, fuse_type_to_multiclass_nms);
     ADD_FUSE_ENTRY(v9::MulticlassNms, fuse_type_to_multiclass_nms, fuse_type_to_multiclass_nms);
     ADD_FUSE_ENTRY(v9::GenerateProposals, fuse_type_to_generate_proposals, fuse_type_to_generate_proposals);
-    ADD_FUSE_ENTRY(v6::CTCGreedyDecoderSeqLen, fuse_type_to_ctc_greedy_decoder_seq_len, fuse_type_to_ctc_greedy_decoder_seq_len);
+    ADD_FUSE_ENTRY(v6::CTCGreedyDecoderSeqLen,
+                   fuse_type_to_ctc_greedy_decoder_seq_len,
+                   fuse_type_to_ctc_greedy_decoder_seq_len);
     ADD_FUSE_ENTRY(v1::TopK, fuse_type_to_topk, fuse_type_to_topk);
     ADD_FUSE_ENTRY(v3::TopK, fuse_type_to_topk, fuse_type_to_topk);
     ADD_FUSE_ENTRY(ov::op::v11::TopK, fuse_type_to_topk, fuse_type_to_topk);
@@ -652,8 +655,8 @@ static bool fuse_type_to_eye_v9(const std::shared_ptr<ov::Node>& node, const pre
 }
 
 static bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
-                            const precisions_map& precisions,
-                            bool convert_input_precision) {
+                                   const precisions_map& precisions,
+                                   bool convert_input_precision) {
     // Parameter marked with is_keep_const_precision should be kept in their own precision until they reach the plugin
     if (is_keep_const_precision(node))
         return false;
@@ -729,7 +732,8 @@ static bool store_original_type_as_attribute(const std::shared_ptr<ov::Node>& no
     return true;
 }
 
-static bool fuse_type_to_variable(const std::shared_ptr<op::util::Variable>& variable, const precisions_map& precisions) {
+static bool fuse_type_to_variable(const std::shared_ptr<op::util::Variable>& variable,
+                                  const precisions_map& precisions) {
     auto it = precisions.find(variable->get_info().data_type);
     if (it == precisions.end())
         return false;
@@ -1057,7 +1061,8 @@ static bool fuse_type_to_maxpool(const std::shared_ptr<ov::Node>& node, const pr
     return false;
 }
 
-static bool fuse_type_to_ctc_greedy_decoder_seq_len(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
+static bool fuse_type_to_ctc_greedy_decoder_seq_len(const std::shared_ptr<ov::Node>& node,
+                                                    const precisions_map& precisions) {
     OV_SCOPE(ov_pass, fuse_type_to_ctc_greedy_decoder_seq_len);
     OV_SCOPE(ov_pass, fuse_type_to_ctc_greedy_decoder_seq_len);
     bool res = false;
@@ -1377,8 +1382,8 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<v0::Constant>& 
 }  // namespace
 
 static bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
-                           const precisions_map& precisions,
-                           const std::vector<Input<Node>>& consumers) {
+                                  const precisions_map& precisions,
+                                  const std::vector<Input<Node>>& consumers) {
     // Consts marked with is_keep_const_precision should be kept in their own precision until they reach the plugin
     if (is_keep_const_precision(node))
         return false;
