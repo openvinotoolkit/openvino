@@ -52,12 +52,8 @@ std::vector<Detection> parseDetectionsFromOutputs(const std::map<std::string, ov
     auto pred_boxes_it = outputs.find("pred_boxes");
     auto logits_it = outputs.find("logits");
 
-    // Parse confidence_threshold (can be per-layer or global)
-    auto confMap = parsePerLayerValues(FLAGS_confidence_threshold, metric_defaults::confidence_threshold);
-    float confThresh = static_cast<float>(getValueForLayer(confMap, "logits"));
-    if (confidence_threshold > 0.0f) {
-        confThresh = confidence_threshold;  // Use passed parameter if provided
-    }
+    // Use the provided confidence_threshold parameter as the single source of truth
+    const float confThresh = confidence_threshold;
 
     if (pred_boxes_it == outputs.end()) {
         std::cout << "Warning: 'pred_boxes' output not found" << std::endl;
