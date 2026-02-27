@@ -40,7 +40,7 @@ struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, ov::hint::Performan
     }
 
     static OptionMode mode() {
-        return OptionMode::CompileTime;
+        return OptionMode::Both;
     }
 
     static ov::hint::PerformanceMode parse(std::string_view val) {

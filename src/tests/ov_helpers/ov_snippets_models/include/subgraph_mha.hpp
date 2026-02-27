@@ -57,6 +57,39 @@ protected:
     const std::vector<ov::element::Type> precisions;
 };
 
+class MHAConstBFunction : public SnippetsFunctionBase {
+public:
+    explicit MHAConstBFunction(const std::vector<PartialShape>& inputShapes,
+                               const std::vector<ov::element::Type>& precisions,
+                               bool with_mul = true,
+                               bool with_reshape = true,
+                               bool const_b_matmul0 = false,
+                               bool const_b_matmul1 = false)
+        : SnippetsFunctionBase(inputShapes),
+          with_mul(with_mul),
+          with_reshape(with_reshape),
+          const_b_matmul0(const_b_matmul0),
+          const_b_matmul1(const_b_matmul1),
+          precisions(precisions) {
+        OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(precisions.size() == 4, "Got invalid number of input precisions");
+        OPENVINO_ASSERT(!const_b_matmul0 || input_shapes[1].is_static(),
+                        "MHAConstBFunction expects static shape for MatMul0 constant B");
+        OPENVINO_ASSERT(!const_b_matmul1 || input_shapes[3].is_static(),
+                        "MHAConstBFunction expects static shape for MatMul1 constant B");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+    std::shared_ptr<ov::Model> initReference() const override;
+    void validate_function(const std::shared_ptr<Model>& f) const override;
+
+    const bool with_mul = true;
+    const bool with_reshape = true;
+    const bool const_b_matmul0 = false;
+    const bool const_b_matmul1 = false;
+    const std::vector<ov::element::Type> precisions;
+};
+
 class MHA2DFunction : public SnippetsFunctionBase {
 public:
     explicit MHA2DFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
