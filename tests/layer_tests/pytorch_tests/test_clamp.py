@@ -51,7 +51,7 @@ class TestClamp(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     def test_clamp(self, minimum, maximum, as_tensors, op_type, ie_device, precision, ir_version):
         self._test(*self.create_model(minimum, maximum, as_tensors,
-                   op_type), ie_device, precision, ir_version)
+                   op_type), ie_device, precision, ir_version, fx_kind="aten.clamp")
 
 
 class TestClampMin(PytorchLayerTest):
@@ -124,4 +124,4 @@ class TestClampMax(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     def test_clamp_max(self, maximum, as_tensor, inplace, ie_device, precision, ir_version):
         self._test(*self.create_model(maximum, as_tensor, inplace), ie_device,
-                   precision, ir_version, use_convert_model=True, trace_model=True)
+                   precision, ir_version, use_convert_model=True, trace_model=True, fx_kind="aten.clamp_max")

@@ -22,7 +22,7 @@ using InputsMap = std::map<ov::NodeTypeInfo, std::function<ov::Tensor(
         const ov::Shape& targetShape,
         std::shared_ptr<InputGenerateData> inGenRangeData)>>;
 
-InputsMap getInputMap();
+const InputsMap& getInputMap();
 
 } // namespace utils
 } // namespace test

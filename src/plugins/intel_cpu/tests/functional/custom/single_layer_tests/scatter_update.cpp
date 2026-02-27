@@ -73,7 +73,7 @@ protected:
         auto axis_node = ov::op::v0::Constant::create(idxPrecision, {}, {axis});
         auto scatter = std::make_shared<ov::op::v3::ScatterUpdate>(params[0], indicesNode, params[1], axis_node);
 
-        function = makeNgraphFunction(inputPrecision, params, scatter, "ScatterUpdateLayerCPUTest");
+        function = create_ov_model(inputPrecision, params, scatter, "ScatterUpdateLayerCPUTest");
     }
 };
 

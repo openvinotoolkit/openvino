@@ -91,11 +91,11 @@ protected:
             auto eyelikeBatchShape =
                 std::make_shared<ov::op::v9::Eye>(rowsPar, colsPar, diagPar, batchShapePar, ov::element::i32);
             eyelikeBatchShape->get_rt_info() = getCPUInfo();
-            return makeNgraphFunction(ov::element::i32, inputParams, eyelikeBatchShape, "Eye");
+            return create_ov_model(ov::element::i32, inputParams, eyelikeBatchShape, "Eye");
         } else {
             auto eyelikePure = std::make_shared<ov::op::v9::Eye>(rowsPar, colsPar, diagPar, ov::element::i32);
             eyelikePure->get_rt_info() = getCPUInfo();
-            return makeNgraphFunction(ov::element::i32, inputParams, eyelikePure, "Eye");
+            return create_ov_model(ov::element::i32, inputParams, eyelikePure, "Eye");
         }
     }
 

@@ -285,4 +285,5 @@ class TestScatterAdd(PytorchLayerTest):
             precision,
             ir_version,
             kwargs_to_prepare_input={"dtype": dtype},
+            fx_kind="aten.scatter_add",
         )

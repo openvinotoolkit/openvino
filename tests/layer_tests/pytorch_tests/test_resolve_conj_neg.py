@@ -44,7 +44,8 @@ class TestResolveConjNeg(PytorchLayerTest):
     @pytest.mark.parametrize("op_type", ["resolve_neg", "resolve_conj"])
     @pytest.mark.parametrize("dtype", ["float32", "int32"])
     def test_reslove(self, op_type, dtype, ie_device, precision, ir_version):
-        self._test(*self.create_model(op_type), ie_device, precision, ir_version, kwargs_to_prepare_input={"dtype": dtype})
+        self._test(*self.create_model(op_type), ie_device, precision, ir_version, kwargs_to_prepare_input={"dtype": dtype},
+                   fx_kind=f"aten.{op_type}")
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -53,4 +54,5 @@ class TestResolveConjNeg(PytorchLayerTest):
     @pytest.mark.xfail(reason="complex dtype is not supported yet")
     def test_resolve_complex(self, op_type, ie_device, precision, ir_version):
         self._prepare_input = self._prepare_input_complex
-        self._test(*self.create_model(op_type), ie_device, precision, ir_version)
+        self._test(*self.create_model(op_type), ie_device, precision, ir_version,
+                   fx_kind=f"aten.{op_type}")

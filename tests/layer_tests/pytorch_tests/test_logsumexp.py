@@ -32,4 +32,4 @@ class TestLogsumexp(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     def test_logsumexp(self, dim, keepdim, ie_device, precision, ir_version):
         self._test(aten_logsumexp(dim, keepdim), None, "aten::logsumexp",
-                   ie_device, precision, ir_version)
+                   ie_device, precision, ir_version, fx_kind="aten.logsumexp.default")
