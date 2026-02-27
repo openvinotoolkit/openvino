@@ -264,9 +264,11 @@ jobs:
           pigz -dc openvino_tests.tar.gz | tar -xvf - -C ${INSTALL_DIR}
         working-directory: ${{ env.INSTALL_DIR }}
       - name: Intel CPU plugin func tests (parallel)
+        env:
+          TEST_FILTER_TYPE: ${{ github.event_name == 'schedule' && 'NIGHTLY' || inputs.testFilterType || 'CONCISE' }}
         run: |
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
-          case "${{ github.event_name == 'schedule' && 'NIGHTLY' || inputs.testFilterType || 'CONCISE' }}" in
+          source "${INSTALL_DIR}/setupvars.sh"
+          case "${TEST_FILTER_TYPE}" in
             SMOKE)
               GTEST_FILTER="${RISCV_SMOKE_GTEST_FILTER}"
               ;;
@@ -277,7 +279,11 @@ jobs:
               GTEST_FILTER="${RISCV_CONCISE_GTEST_FILTER}"
               ;;
           esac
-          ${{ env.RISCV_TOOLCHAIN_ROOT}}/bin/qemu-riscv64 -cpu rv64,x-v=true,vlen=256 ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter="${GTEST_FILTER}"
+          "${RISCV_TOOLCHAIN_ROOT}"/bin/qemu-riscv64 \
+            -cpu rv64,x-v=true,vlen=256 \
+            "${INSTALL_TEST_DIR}"/ov_cpu_func_tests \
+            --gtest_print_time=1 \
+            --gtest_filter="${GTEST_FILTER}"
         timeout-minutes: ${{ (inputs.testFilterType == 'CONCISE' || (!inputs.testFilterType && github.event_name != 'schedule')) && 25 || 125 }}
 
   Overall_Status:
