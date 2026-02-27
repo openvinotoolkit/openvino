@@ -251,14 +251,18 @@ TEST(PropertyValidation, AutoBatchTimeoutRejectsOverflowFromInt64) {
 // uint32_t properties: string "-1" should be rejected
 TEST(PropertyValidation, NumRequestsRejectsNegativeString) {
     // String "-1" should behave the same as int -1
-    OV_EXPECT_THROW(std::ignore = ov::hint::num_requests("-1"), ov::Exception, testing::HasSubstr(""));
-    OV_EXPECT_THROW(std::ignore = ov::hint::num_requests(std::string{"-1"}), ov::Exception, testing::HasSubstr(""));
-    OV_EXPECT_THROW(std::ignore = ov::hint::num_requests("-100"), ov::Exception, testing::HasSubstr(""));
+    OV_EXPECT_THROW(std::ignore = ov::hint::num_requests("-1"), ov::Exception, testing::HasSubstr("negative"));
+    OV_EXPECT_THROW(std::ignore = ov::hint::num_requests(std::string{"-1"}),
+                    ov::Exception,
+                    testing::HasSubstr("negative"));
+    OV_EXPECT_THROW(std::ignore = ov::hint::num_requests("-100"), ov::Exception, testing::HasSubstr("negative"));
 }
 
 TEST(PropertyValidation, AutoBatchTimeoutRejectsNegativeString) {
-    OV_EXPECT_THROW(std::ignore = ov::auto_batch_timeout("-1"), ov::Exception, testing::HasSubstr(""));
-    OV_EXPECT_THROW(std::ignore = ov::auto_batch_timeout(std::string{"-500"}), ov::Exception, testing::HasSubstr(""));
+    OV_EXPECT_THROW(std::ignore = ov::auto_batch_timeout("-1"), ov::Exception, testing::HasSubstr("negative"));
+    OV_EXPECT_THROW(std::ignore = ov::auto_batch_timeout(std::string{"-500"}),
+                    ov::Exception,
+                    testing::HasSubstr("negative"));
 }
 
 // String edge case
