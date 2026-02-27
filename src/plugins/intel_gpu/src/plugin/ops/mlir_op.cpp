@@ -115,10 +115,13 @@ void CreateMLIRSubgraphOp(ProgramBuilder& p, const std::shared_ptr<ov::op::mlir:
 
         return ev;
     };
-    cldnn::generic_primitive::shape_infer_function shape_infer_f = [&op](
+    cldnn::generic_primitive::shape_infer_function shape_infer_f = [op](
             const std::vector<ov::PartialShape>& input_shapes) -> std::vector<ov::PartialShape> {
-        // Dummy shape infer
-        return {input_shapes[0]};
+        std::vector<ov::PartialShape> output_shapes;
+        for (size_t i = 0, n = op->get_output_size(); i < n; ++i) {
+            output_shapes.push_back(op->get_output_partial_shape(i));
+        }
+        return output_shapes;
     };
 
     auto inputs = p.GetInputInfo(op);

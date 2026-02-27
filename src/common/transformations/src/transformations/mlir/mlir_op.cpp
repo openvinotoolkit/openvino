@@ -65,7 +65,7 @@
 #ifdef GRAPH_COMPILER
 #include "gc/Transforms/Passes.h"
 
-#ifdef GC_USE_GPU // GC_GPU requires IMEX support
+#ifdef GC_USE_GPU
 #include "gc/Utils/Error.h"
 #include "gc/ExecutionEngine/GPURuntime/GpuOclRuntime.h"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
@@ -303,7 +303,7 @@ std::shared_ptr<MLIREvaluateBase> MLIREvaluateBase::create(OwningOpRef<ModuleOp>
                                                            MlirMode mode,
                                                            std::shared_ptr<ov::EvaluationContext> loweringContext) {
     switch (mode) {
-        #ifdef GC_USE_GPU // GC_GPU requires IMEX support
+        #ifdef GC_USE_GPU
         case MLIR_MODE_GC_GPU:
             return std::make_shared<MLIREvaluateGcGPU>(std::move(module), loweringContext);
         #endif
@@ -316,7 +316,7 @@ std::shared_ptr<MLIREvaluateBase> MLIREvaluateBase::create(OwningOpRef<ModuleOp>
     }
 }
 
-#ifdef GC_USE_GPU // GC_GPU requires IMEX support
+#ifdef GC_USE_GPU
 
 cl_device_id extract_device_from_context(cl_context context) {
     size_t devices_size;
@@ -385,6 +385,7 @@ bool MLIREvaluateGcGPU::invoke(const ov::TensorVector& inputs, ov::TensorVector&
     for (size_t i = 0, j = inputs.size(); i < outputs.size(); ++i, ++j) {
         exec.arg(outputs[i].data(), arg_types[j]);
     }
+
     exec(ctx);
     maybe_set_result_event(evaluationContext, ctx);
     return true;

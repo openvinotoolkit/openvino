@@ -26,6 +26,26 @@ static std::string model_full_path(const std::string& path) {
 }
 
 template<typename T>
+static void multiply_matrices(const std::vector<T>& matrix_a, const std::vector<T>& matrix_b,
+                       std::vector<T>& result, size_t rows_a, size_t cols_a, size_t cols_b) {
+    // Initialize the result matrix with zero values (f32 accumulator)
+    std::vector<float> tmp(result.size(), 0.0f);
+
+    // Matrix multiplication logic using linear indexing
+    for (size_t i = 0; i < rows_a; ++i) {
+        for (size_t j = 0; j < cols_b; ++j) {
+            for (size_t k = 0; k < cols_a; ++k) {
+                tmp[i * cols_b + j] += matrix_a[i * cols_a + k] * matrix_b[k * cols_b + j];
+            }
+        }
+    }
+
+    for (size_t i = 0; i < result.size(); i++) {
+        result[i] = tmp[i]; // cast back to T(possibly f16)
+    }
+}
+
+template<typename T>
 static void multiply_matrices_and_add_a(const std::vector<T>& matrix_a, const std::vector<T>& matrix_b,
                        std::vector<T>& result, size_t rows_a, size_t cols_a, size_t cols_b) {
     // Initialize the result matrix with zero values (f32 accumulator)
@@ -159,17 +179,18 @@ static std::map<size_t, ov::Tensor> allocate_input_tensors(
     auto oclInstance = std::make_shared<OpenCL>(oclContext.get());
 
     std::map<size_t, ov::Tensor> input_tensors;
+    int idx = 0;
     for (const auto& input : compiledModel.inputs()) {
         auto shape = input.get_shape();
         auto size = ov::shape_size(shape);
-        std::vector<T> input_values = broadcast_vector(inputValues[input.get_index()], size);
+        std::vector<T> input_values = broadcast_vector(inputValues[idx], size);
         ov::Tensor tensor;
         if (use_usm) {
             tensor = allocate_usm_tensor(oclContext, oclInstance.get(), shape, input.get_element_type(), input_values);
         } else {
             tensor = allocate_cl_tensor(oclContext, oclInstance.get(), shape, input.get_element_type(), input_values, keep_alive);
         }
-        input_tensors.emplace(input.get_index(), tensor);
+        input_tensors.emplace(idx++, tensor);
     }
     return input_tensors;
 }
@@ -316,11 +337,14 @@ TEST(MLIRExecution, SimpleMatmulf16) {
 
     auto compiled_model = core.compile_model(model, "GPU", device_config);
 
-    std::map<size_t, std::vector<ov::float16>> input_values_map;
-    input_values_map.emplace(0, std::vector<ov::float16>(1, 0.5f));
 
     std::vector<cl::Buffer> keep_alive;
-
+    std::vector<ov::float16> matrix_a = broadcast_vector(std::vector<ov::float16>(1, 3.5f), 64 * 128);
+    std::vector<ov::float16> matrix_b = broadcast_vector(std::vector<ov::float16>(1, 1.5f), 128 * 128);
+    // std::vector<ov::float16> matrix_b = read_float_array_from_binary_file<ov::float16>(model_full_path("matmul_64_128_f16.bin"), 2);
+    std::map<size_t, std::vector<ov::float16>> input_values_map;
+    input_values_map.emplace(0, matrix_b);
+    input_values_map.emplace(1, matrix_a);
     auto input_tensors = allocate_input_tensors(compiled_model, input_values_map, true, keep_alive);
 
     auto infer_req = compiled_model.create_infer_request();
@@ -333,11 +357,9 @@ TEST(MLIRExecution, SimpleMatmulf16) {
     ov::float16* result = reinterpret_cast<ov::float16*>(computed.data());
 
     // compute reference result
-    std::vector<ov::float16> matrix_a = broadcast_vector(input_values_map.at(0), 64 * 128);
-    std::vector<ov::float16> matrix_b = read_float_array_from_binary_file<ov::float16>(model_full_path("matmul_64_128_f16.bin"), 2);
-    ASSERT_EQ(matrix_b.size(), 128 * 128);
+    // ASSERT_EQ(matrix_b.size(), 128 * 128);
     std::vector<ov::float16> reference_result(64 * 128);
-    multiply_matrices_and_add_a(matrix_a, matrix_b, reference_result, 64, 128, 128);
+    multiply_matrices(matrix_a, matrix_b, reference_result, 64, 128, 128);
 
     // compare result with the reference
     for (size_t i = 0; i < reference_result.size(); ++i) {

@@ -457,9 +457,9 @@ void ov::pass::transformMLIR(std::shared_ptr<ov::Model> model,
                 "[ ERROR ] OpenVINO wasn't compiled with GRAPH_COMPILER support, "
                 "but OV_MLIR_MODE environment variable is set to GC_GPU.");
 #endif
-#ifndef GC_USE_GPU // GC_GPU requires IMEX support
+#ifndef GC_USE_GPU
             OPENVINO_THROW(
-                "[ ERROR ] GraphCompiler wasn't compiled with IMEX support (-DGC_ENABLE_IMEX), "
+                "[ ERROR ] GraphCompiler wasn't compiled with Graph Compiler support (-DENABLE_GRAPH_COMPILER), "
                 "but OV_MLIR_MODE environment variable is set to GC_GPU.");
 #endif
             mode = MLIR_MODE_GC_GPU;
