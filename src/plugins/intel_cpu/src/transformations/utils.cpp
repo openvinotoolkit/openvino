@@ -16,6 +16,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/avg_pool.hpp"
+#include "openvino/op/max_pool.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
@@ -73,7 +74,8 @@ bool match_acl_int8_pooling_fq_chain(const std::shared_ptr<const ov::Node>& node
     // returns true if Pooling-FQ chain will be fused into int8 pooling and handled by ACL executor
     return ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
            any_of(node->get_output_element_type(0), ov::element::Type_t::u8, ov::element::Type_t::i8) &&
-           ov::is_type<const ov::op::v1::AvgPool>(node->get_input_node_shared_ptr(0));
+           (ov::is_type<const ov::op::v1::AvgPool>(node->get_input_node_shared_ptr(0)) ||
+            ov::is_type<const ov::op::v1::MaxPool>(node->get_input_node_shared_ptr(0)));
 }
 
 bool match_acl_int8_conv_fq_chain(const std::shared_ptr<const ov::Node>& node) {
