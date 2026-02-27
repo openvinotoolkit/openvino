@@ -9,14 +9,9 @@
 #include <string>
 
 #include "backends_registry.hpp"
-#include "intel_npu/common/filtered_config.hpp"
-#include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
-#include "intel_npu/config/config.hpp"
-#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "metadata.hpp"
-#include "metrics.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "properties.hpp"
@@ -65,7 +60,6 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    void init_options(FilteredConfig& filteredConfig);
     void update_log_level(const ov::AnyMap& properties) const;
 
     /**
@@ -90,9 +84,7 @@ private:
     //  Appropriate checks are needed in plugin/metrics/properties when actions depend on a backend.
     ov::SoPtr<IEngineBackend> _backend;
 
-    std::shared_ptr<OptionsDesc> _options;
     mutable Logger _logger;
-    std::shared_ptr<Metrics> _metrics;
     std::unique_ptr<Properties> _propertiesManager;
 
     static std::atomic<int> _compiledModelLoadCounter;

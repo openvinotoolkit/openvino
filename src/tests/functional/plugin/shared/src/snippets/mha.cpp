@@ -108,6 +108,40 @@ std::string MHA::getTestCaseName(const testing::TestParamInfo<ov::test::snippets
     return result.str();
 }
 
+std::string MHAConstB::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAConstBParams>& obj) {
+    const auto& [input_shapes,
+                 elem_types,
+                 prc,
+                 with_mul,
+                 const_b_matmul0,
+                 const_b_matmul1,
+                 num_nodes,
+                 num_subgraphs,
+                 target_device,
+                 additional_config] = obj.param;
+
+    std::ostringstream result;
+    for (size_t i = 0; i < input_shapes.size(); i++)
+        result << "IS[" << i << "]=" << input_shapes[i] << "_";
+    for (size_t i = 0; i < elem_types.size(); i++)
+        result << "T[" << i << "]=" << elem_types[i] << "_";
+    result << "Mul=" << with_mul << "_";
+    result << "ConstBMatMul0=" << const_b_matmul0 << "_";
+    result << "ConstBMatMul1=" << const_b_matmul1 << "_";
+    result << "PRC=" << prc << "_";
+    result << "#N=" << num_nodes << "_";
+    result << "#S=" << num_subgraphs << "_";
+    result << "targetDevice=" << target_device << "_";
+
+    if (!additional_config.empty()) {
+        result << "_PluginConf";
+        for (auto& item : additional_config) {
+            result << "_" << item.first << "=" << item.second.as<std::string>();
+        }
+    }
+    return result.str();
+}
+
 std::string MHAWithDynamicMul::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAWithDynamicMulParams>& obj) {
     const auto& [input_shapes,
                  elem_types,
@@ -155,6 +189,19 @@ void MHAWithDynamicMul::init_params(std::vector<InputShape>& input_shapes, ov::e
     std::tie(input_shapes, m_input_types, prc, ref_num_nodes, ref_num_subgraphs, targetDevice, additional_config) = this->GetParam();
 }
 
+void MHAConstB::init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) {
+    std::tie(input_shapes,
+             m_input_types,
+             prc,
+             m_with_mul,
+             m_const_b_matmul0,
+             m_const_b_matmul1,
+             ref_num_nodes,
+             ref_num_subgraphs,
+             targetDevice,
+             additional_config) = this->GetParam();
+}
+
 void MHAWithThreadCount::compile_model() {
     const auto thread_count = get_inference_thread_count(configuration, default_thread_count);
     if (thread_count != default_thread_count)
@@ -170,7 +217,29 @@ std::shared_ptr<SnippetsFunctionBase> MHA::get_subgraph() const {
     return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes, m_input_types, with_mul, is_with_reshape);
 }
 
+std::shared_ptr<SnippetsFunctionBase> MHAConstB::get_subgraph() const {
+    const bool is_with_reshape =
+        std::all_of(inputDynamicShapes.begin(), inputDynamicShapes.end(), [](const PartialShape& ps) { return ps.is_static(); });
+    return std::make_shared<ov::test::snippets::MHAConstBFunction>(inputDynamicShapes,
+                                                                   m_input_types,
+                                                                   m_with_mul,
+                                                                   is_with_reshape,
+                                                                   m_const_b_matmul0,
+                                                                   m_const_b_matmul1);
+}
+
 void MHA::init_thresholds() {
+    MHABase::init_thresholds();
+    auto precision_hint = configuration.count(ov::hint::inference_precision.name())
+                              ? configuration.at(ov::hint::inference_precision.name())
+                              : ov::element::f32;
+    if (m_input_types.size() > 1 && m_input_types[0] == ov::element::bf16 && precision_hint == ov::element::f32) {
+        rel_threshold = 0.01f;
+        abs_threshold = 0.0078125f;
+    }
+}
+
+void MHAConstB::init_thresholds() {
     MHABase::init_thresholds();
     auto precision_hint = configuration.count(ov::hint::inference_precision.name())
                               ? configuration.at(ov::hint::inference_precision.name())
@@ -279,6 +348,12 @@ std::shared_ptr<SnippetsFunctionBase> MHASharedKV::get_subgraph() const {
 }
 
 TEST_P(MHA, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHAConstB, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();

@@ -25,6 +25,19 @@ typedef std::tuple<std::vector<InputShape>,         // Input shapes
 typedef std::tuple<std::vector<InputShape>,         // Input shapes
                    std::vector<ov::element::Type>,  // Input Element types
                    ov::element::Type,               // Inference precision
+                   bool,                            // With Multiply
+                   bool,                            // MatMul0 with const B
+                   bool,                            // MatMul1 with const B
+                   size_t,                          // Expected num nodes
+                   size_t,                          // Expected num subgraphs
+                   std::string,                     // Target Device
+                   ov::AnyMap                       // Config
+                   >
+    MHAConstBParams;
+
+typedef std::tuple<std::vector<InputShape>,         // Input shapes
+                   std::vector<ov::element::Type>,  // Input Element types
+                   ov::element::Type,               // Inference precision
                    size_t,                          // Expected num nodes
                    size_t,                          // Expected num subgraphs
                    std::string,                     // Target Device
@@ -53,6 +66,21 @@ protected:
     void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) override;
 
     void init_thresholds() override;
+};
+
+class MHAConstB : public testing::WithParamInterface<ov::test::snippets::MHAConstBParams>,
+                  virtual public MHABase {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAConstBParams>& obj);
+
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
+    void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) override;
+    void init_thresholds() override;
+
+    bool m_with_mul = false;
+    bool m_const_b_matmul0 = false;
+    bool m_const_b_matmul1 = false;
 };
 
 class MHA2D : public MHA {
