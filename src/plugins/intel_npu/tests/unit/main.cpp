@@ -12,9 +12,11 @@
 
 #include <sstream>
 #ifdef WIN32
-#    include <libloaderapi.h>
+// clang-format off
 #    include <process.h>
 #    include <windows.h>
+#    include <libloaderapi.h>
+// clang-format on
 #endif
 #include "gtest/gtest.h"
 
