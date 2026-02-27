@@ -73,8 +73,8 @@ public:
         // XAttention estimate is following afer kvcache_update.
         auto out_shape = params.output_layouts[0].get_shape();
         const size_t block_size = get_xattn_block_size(params);
-        const uint32_t block_wg_n = get_block_wg_n(params);
-        const uint32_t block_wg_m = get_block_wg_m(params);
+        const uint32_t block_wg_n = XAttentionEstimateGeneratorBase::get_block_wg_n(params);
+        const uint32_t block_wg_m = XAttentionEstimateGeneratorBase::get_block_wg_m(params);
         const size_t kv_len = get_max_context_len(params);
         const size_t q_len = out_shape[0];
         const size_t N = kv_len / STRIDE;
@@ -90,14 +90,8 @@ public:
         rt_params->q_block_pad = q_block_pad;
         rt_params->k_block_pad = k_block_pad;
 
-        auto get_merged_q_num = [&]() {
-            const auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1u : 2u;
-            const size_t q_step = get_q_step(xe_arch, false);
-            const size_t wg_seq_len = WG_SIZE * q_step;
-            return wg_seq_len / get_xattn_block_size(params);
-        };
-
-        rt_params->q_block_pad_merged = ceil_div(q_block_pad, get_merged_q_num());
+        const size_t merged_q_num = PagedAttentionGeneratorMultiToken::get_wg_seq_len(params) / block_size;
+        rt_params->q_block_pad_merged = ceil_div(q_block_pad, merged_q_num);
 
         const size_t head_size = desc->k_head_size;
 

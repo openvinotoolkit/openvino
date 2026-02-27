@@ -94,38 +94,6 @@ constexpr uint32_t SG_N = 8;
 constexpr size_t WG_SIZE = 16;
 constexpr int STRIDE = 16;
 
-inline bool is_xe2_or_xe3(const kernel_impl_params& params) {
-    const auto arch = params.get_device_info().arch;
-    return arch == gpu_arch::xe2 || arch == gpu_arch::xe3;
-}
-
-inline uint32_t get_block_sg_m(const kernel_impl_params& params) {
-    return is_xe2_or_xe3(params) ? 64u : 32u;
-}
-
-inline uint32_t get_block_sg_n(const kernel_impl_params& params) {
-    return is_xe2_or_xe3(params) ? 32u : 16u;
-}
-
-inline uint32_t get_block_wg_m(const kernel_impl_params& params) {
-    return get_block_sg_m(params) * SG_M;
-}
-
-inline uint32_t get_block_wg_n(const kernel_impl_params& params) {
-    return get_block_sg_n(params) * SG_N;
-}
-
-inline size_t get_q_step(size_t arch, bool is_single_token = false) {
-    if (arch == 1) {
-        return is_single_token ? 1 : 8;  // For Xe1
-    } else if (arch == 2) {
-        // For Xe2, q_step = CM_GRF_WIDTH / 32
-        return is_single_token ? 1 : 16;  // For Xe2
-    }
-    OPENVINO_ASSERT(false, "Unsupported architecture for Q step");
-    return 0;  // Fallback case, should not be reached
-}
-
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     PagedAttentionStage stage;
@@ -193,6 +161,20 @@ public:
 class PagedAttentionGeneratorMultiToken : public PagedAttentionGeneratorBase {
 public:
     PagedAttentionGeneratorMultiToken() : PagedAttentionGeneratorBase("pa_multi_token") {}
+
+    static size_t get_q_step(const kernel_impl_params& params) {
+        const auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
+        if (xe_arch == 1) {
+            return 8;  // For Xe1
+        }
+        // For Xe2, q_step = CM_GRF_WIDTH / 32
+        return 16;  // For Xe2+
+    }
+
+    static size_t get_wg_seq_len(const kernel_impl_params& params) {
+        return WG_SIZE * get_q_step(params);
+    }
+
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
@@ -222,6 +204,23 @@ public:
     explicit XAttentionEstimateGeneratorBase(std::string_view kernel_name, size_t xattn_block_size, std::string_view stage_suffix = "_cm")
         : KernelGenerator(kernel_name, stage_suffix),
           _xattn_block_size(xattn_block_size) {}
+
+    static uint32_t get_block_sg_m(const kernel_impl_params& params) {
+        return is_xe2_or_xe3(params) ? 64u : 32u;
+    }
+
+    static uint32_t get_block_sg_n(const kernel_impl_params& params) {
+        return is_xe2_or_xe3(params) ? 32u : 16u;
+    }
+
+    static uint32_t get_block_wg_m(const kernel_impl_params& params) {
+        return get_block_sg_m(params) * SG_M;
+    }
+
+    static uint32_t get_block_wg_n(const kernel_impl_params& params) {
+        return get_block_sg_n(params) * SG_N;
+    }
+
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
         return KernelGenerator::get_build_options(params) + get_pa_build_options();
     }
@@ -229,6 +228,12 @@ public:
 
 protected:
     size_t _xattn_block_size;
+
+private:
+    static bool is_xe2_or_xe3(const kernel_impl_params& params) {
+        const auto arch = params.get_device_info().arch;
+        return arch == gpu_arch::xe2 || arch == gpu_arch::xe3;
+    }
 };
 class XAttentionEstimateGEMMQK : public XAttentionEstimateGeneratorBase {
 public:

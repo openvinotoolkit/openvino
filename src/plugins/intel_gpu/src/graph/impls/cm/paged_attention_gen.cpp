@@ -301,7 +301,6 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
     const auto desc = params.typed_desc<paged_attention>();
     const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
-    auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
 
     jit.make("CMFLA_NUM_HEADS", desc->heads_num);
     jit.make("CMFLA_NUM_KV_HEADS", desc->kv_heads_num);
@@ -315,7 +314,6 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
         jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE);
         jit.make("IS_BLOCK_SPARSE", 0);
     }
-    jit.make("Q_STEP", get_q_step(xe_arch, true));
 
     if (get_kv_compressed(params)) {
         jit.make("CMPA_KVCACHE_U8", 1);
@@ -339,9 +337,8 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
         const size_t batch = out_shape.size() < 4 ? 1 : out_shape[0];
         const size_t q_len = out_shape[0];
 
-        auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
-        const size_t q_step = get_q_step(xe_arch, false);
-        const size_t wg_seq_len = WG_SIZE * q_step;
+        const size_t q_step = get_q_step(params);
+        const size_t wg_seq_len = get_wg_seq_len(params);
         const size_t wg_count = align_to(q_len, wg_seq_len) / wg_seq_len;
 
         wgs.global = {batch, heads_num, wg_count * WG_SIZE};
@@ -380,7 +377,6 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     auto desc = params.typed_desc<paged_attention>();
     const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
     const size_t kv_partition_size = get_partition_size(desc->has_xattention);
-    auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
     jit.make("KV_PARTITION_SIZE", kv_partition_size);
     if (desc->has_xattention) {
         jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
@@ -391,7 +387,6 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     jit.make("HEAD_SIZE", desc->k_head_size);
     jit.make("HEADS_NUM", desc->heads_num);
     jit.make("KV_HEADS_NUM", desc->kv_heads_num);
-    jit.make("Q_STEP", get_q_step(xe_arch, true));
 
     const auto q_chunking = get_single_token_q_chunking(params, *desc, kv_partition_size);
     jit.make("Q_head_chunks_per_kv_head", q_chunking.q_head_chunks_per_kv_head);
@@ -748,14 +743,7 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
 JitConstants XAttentionEstimatePostProc::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = XAttentionEstimateGeneratorBase::get_jit_constants(params);
 
-    auto get_merged_q_num = [&]() {
-        const auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1u : 2u;
-        const size_t q_step = get_q_step(xe_arch, false);
-        const size_t wg_seq_len = WG_SIZE * q_step;
-        return wg_seq_len / _xattn_block_size;
-    };
-
-    jit.make("MERGED_Q_NUM", get_merged_q_num());
+    jit.make("MERGED_Q_NUM", PagedAttentionGeneratorMultiToken::get_wg_seq_len(params) / _xattn_block_size);
 
     return jit;
 }
