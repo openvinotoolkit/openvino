@@ -66,10 +66,19 @@ protected:
             dnnl::memory::dim d1 = wei_scales_shape[1];
             dnnl::memory::dim d2 = wei_scales_shape[2];
             dnnl::memory::desc wei_scales_md(
-                    {d0, d1, d2}, dnnl::memory::data_type::f16, dnnl::memory::format_tag::abc);
+                    {d0, d1, d2}, convert_data_type(wei_scales.get_layout().data_type), dnnl::memory::format_tag::abc);
             dnnl::memory wei_scales_mem = dnnl::ocl_interop::make_memory(wei_scales_md, onednn_engine, dnnl::ocl_interop::memory_kind::usm,
                 reinterpret_cast<uint8_t*>(wei_scales.buffer_ptr()));
             args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, wei_scales_mem});
+
+            if (!moe_cfg.is_weight_symmetric_quantized) {
+                auto& wei_zp = instance.input_memory(moe_cfg.weight_zp_idx);
+                dnnl::memory::desc wei_zp_md(
+                        {d0, d1, d2}, convert_data_type(wei_zp.get_layout().data_type), dnnl::memory::format_tag::abc);
+                dnnl::memory wei_zp_mem = dnnl::ocl_interop::make_memory(wei_zp_md, onednn_engine, dnnl::ocl_interop::memory_kind::usm,
+                    reinterpret_cast<uint8_t*>(wei_zp.buffer_ptr()));
+                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, wei_zp_mem});
+            }
         }
 
         if (moe_cfg.has_bias) {
@@ -152,6 +161,13 @@ public:
                              (1 << 0) | (1 << 1) | (1 << 2),
                              {moe_cfg.weight_group_size, 1},
                              convert_data_type(impl_params.get_input_layout(moe_cfg.weight_scale_idx).data_type));
+
+            if (!moe_cfg.is_weight_symmetric_quantized) {
+                attr->set_zero_points(DNNL_ARG_WEIGHTS,
+                                      (1 << 0) | (1 << 1) | (1 << 2),
+                                      {moe_cfg.weight_group_size, 1},
+                                      convert_data_type(impl_params.get_input_layout(moe_cfg.weight_zp_idx).data_type));
+            }
         }
 
         auto prim_desc = get_moe_gemm_primitive_descriptor(impl_params, *attr);

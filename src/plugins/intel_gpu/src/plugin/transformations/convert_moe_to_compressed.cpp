@@ -272,14 +272,13 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             args.push_back(pattern_map.at(topk_indices_gemm2_m));
             // params for up
             args.push_back(pattern_map.at(compressed_weights_m_up));
+            auto transposed_index = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 1, 3});
             {
-                auto transposed_index = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 1, 3});
                 auto scale = std::make_shared<ov::op::v1::Transpose>(pattern_map.at(mul_const_m_up), transposed_index);
                 args.push_back(scale);
             }
             if (pattern_map.count(sub_const_m_up)) {
-                auto zp_shape = pattern_map.at(sub_const_m_up).get_node_shared_ptr()->get_shape();
-                auto zp = std::make_shared<ov::op::v0::Convert>(pattern_map.at(sub_const_m_up), element::f16);
+                auto zp = std::make_shared<ov::op::v1::Transpose>(pattern_map.at(sub_const_m_up), transposed_index);
                 args.push_back(zp);
                 config.has_zp = true;
             }
@@ -287,12 +286,11 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             // params for down
             args.push_back(pattern_map.at(compressed_weights_m_down));
             {
-                auto transposed_index = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 1, 3});
                 auto scale = std::make_shared<ov::op::v1::Transpose>(pattern_map.at(mul_const_m_down), transposed_index);
                 args.push_back(scale);
             }
             if (pattern_map.count(sub_const_m_down)) {
-                auto zp = std::make_shared<ov::op::v0::Convert>(pattern_map.at(sub_const_m_down), element::f16);
+                auto zp = std::make_shared<ov::op::v1::Transpose>(pattern_map.at(sub_const_m_down), transposed_index);
                 args.push_back(zp);
                 config.has_zp = true;
             } else if (config.has_zp) {
