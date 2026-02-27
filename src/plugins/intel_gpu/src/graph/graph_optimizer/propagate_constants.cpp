@@ -155,7 +155,7 @@ void propagate_constants::run(program& p) {
             } else {
                 fail_reason = "choose_impl returned nullptr (no matching implementation found)";
             }
-        } catch (std::exception& e) {
+        } catch (const std::exception& e) {
             fail_reason = e.what();
         }
 
