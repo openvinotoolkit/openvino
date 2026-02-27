@@ -71,7 +71,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     auto down_zp_m = any_input();
 
     // moe compressed
-    auto moe_compressed_no_shared_m = wrap_type<ov::op::internal::MOECompressed>({hidden_state_m->output(0),
+    auto moe_compressed_no_shared_m = wrap_type<ov::intel_gpu::op::MOECompressed>({hidden_state_m->output(0),
                                                                          unsqueeze_moe_m->output(0),
                                                                          topk_m->output(1),
                                                                          gate_wei_m->output(0),
@@ -94,7 +94,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     auto shared_down_scale_m = any_input();
     auto shared_down_zp_m = any_input();
 
-    auto moe_compressed_shared_m = wrap_type<ov::op::internal::MOECompressed>({hidden_state_m->output(0),
+    auto moe_compressed_shared_m = wrap_type<ov::intel_gpu::op::MOECompressed>({hidden_state_m->output(0),
                                                                          unsqueeze_moe_m->output(0),
                                                                          topk_m->output(1),
                                                                          gate_wei_m->output(0),

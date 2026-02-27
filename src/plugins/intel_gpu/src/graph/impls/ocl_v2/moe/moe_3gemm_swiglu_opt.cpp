@@ -696,10 +696,11 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("GATE_UP_ENABLE", 1);
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
-            params.input_layouts.size() > static_cast<size_t>(MOEInputIndex::SHARED_GATE_WEIGHT)) {
+            params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
             jit.make("SHARED_EXPERT_ENABLE", 1);
         } else {
             jit.make("SHARED_EXPERT_ENABLE", 0);
@@ -729,10 +730,11 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("DOWN_ENABLE", 1);
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
-            params.input_layouts.size() > static_cast<size_t>(MOEInputIndex::SHARED_GATE_WEIGHT)) {
+            params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
             jit.make("SHARED_EXPERT_ENABLE", 1);
         } else {
             jit.make("SHARED_EXPERT_ENABLE", 0);
@@ -762,10 +764,11 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("REDUCE_ENABLE", 1);
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
-            params.input_layouts.size() > static_cast<size_t>(MOEInputIndex::SHARED_GATE_WEIGHT)) {
+            params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
             jit.make("SHARED_EXPERT_ENABLE", 1);
         } else {
             jit.make("SHARED_EXPERT_ENABLE", 0);
@@ -1253,24 +1256,24 @@ public:
 
         // shared expert
         size_t dep_count = instance.dependencies().size();
-        if (dep_count >= static_cast<size_t>(MOEInputIndex::SHARED_GATE_GATE_WEIGHT) + 1) {
+        if (dep_count >= static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_GATE_WEIGHT) + 1) {
             // Gate
-            scratch.moe_fusion_wei_addr.shared_weight[0] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::SHARED_GATE_WEIGHT));
-            scratch.moe_fusion_wei_addr.shared_scale[0] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::SHARED_GATE_SCALE));
-            scratch.moe_fusion_wei_addr.shared_zp[0] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::SHARED_GATE_ZP));
+            scratch.moe_fusion_wei_addr.shared_weight[0] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT));
+            scratch.moe_fusion_wei_addr.shared_scale[0] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_SCALE));
+            scratch.moe_fusion_wei_addr.shared_zp[0] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_ZP));
 
             // Up
-            scratch.moe_fusion_wei_addr.shared_weight[1] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::SHARED_UP_WEIGHT));
-            scratch.moe_fusion_wei_addr.shared_scale[1] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::SHARED_UP_SCALE));
-            scratch.moe_fusion_wei_addr.shared_zp[1] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::SHARED_UP_ZP));
+            scratch.moe_fusion_wei_addr.shared_weight[1] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_UP_WEIGHT));
+            scratch.moe_fusion_wei_addr.shared_scale[1] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_UP_SCALE));
+            scratch.moe_fusion_wei_addr.shared_zp[1] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_UP_ZP));
 
             // Down
-            scratch.moe_fusion_wei_addr.shared_weight[2] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::SHARED_DOWN_WEIGHT));
-            scratch.moe_fusion_wei_addr.shared_scale[2] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::SHARED_DOWN_SCALE));
-            scratch.moe_fusion_wei_addr.shared_zp[2] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::SHARED_DOWN_ZP));
+            scratch.moe_fusion_wei_addr.shared_weight[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_DOWN_WEIGHT));
+            scratch.moe_fusion_wei_addr.shared_scale[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_DOWN_SCALE));
+            scratch.moe_fusion_wei_addr.shared_zp[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_DOWN_ZP));
 
             // Scalar Gate - f16
-            scratch.moe_fusion_wei_addr.shared_weight[3] = instance.input_memory_ptr(static_cast<size_t>(MOEInputIndex::SHARED_GATE_GATE_WEIGHT));
+            scratch.moe_fusion_wei_addr.shared_weight[3] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_GATE_WEIGHT));
         }
     }
 
@@ -2001,9 +2004,9 @@ public:
             return exec_single_token({topk_event}, instance, scratch);
         }
 
+        auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         // onednn path will accumulate to the output
         if (!use_micro_gemm_prefill) {
-            auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
             final_hidden_states_mem_ptr->fill(stream, false);
         }
         const bool use_gpu_mask_gen = use_gpu_mask_gen_prefill;
@@ -2023,10 +2026,10 @@ public:
 
         if (_has_shared_expert) {
             auto& engine = instance.get_network().get_engine();
-            init_shared_primitives(engine, scratch.moe_fusion_wei_addr, batch);
-            if (result_event)
-                result_event->wait();
-            execute_shared_expert(stream.get_onednn_stream(), batch, hidden_states_mem_ptr, final_hidden_states_mem_ptr, scratch);
+            init_shared_primitives(engine, scratch.moe_fusion_wei_addr, token_num);
+            if (ret_env)
+                ret_env->wait();
+            execute_shared_expert(stream.get_onednn_stream(), token_num, hidden_states_mem_ptr, final_hidden_states_mem_ptr, scratch);
         }
         // Wait for the final event to be ready
         // ret_env->wait();

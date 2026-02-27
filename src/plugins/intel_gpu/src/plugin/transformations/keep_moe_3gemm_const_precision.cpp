@@ -32,11 +32,11 @@ KeepMOE3GemmConstPrecision::KeepMOE3GemmConstPrecision() {
     auto sh_down_wei_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
     auto sh_down_zp_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
 
-    auto moe_3gemm_fused_compressed_m_shared = wrap_type<ov::op::internal::MOE3GemmFusedCompressed>(
+    auto moe_3gemm_fused_compressed_m_shared = wrap_type<ov::intel_gpu::op::MOECompressed>(
         {any_input(), any_input(),   wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(),
          zp_2_m, sh_gate_wei_m, any_input(), sh_gate_zp_m, sh_up_wei_m, any_input(), sh_up_zp_m,  sh_down_wei_m, any_input(), sh_down_zp_m, any_input()});
     
-    auto moe_3gemm_fused_compressed_m_no_shared = wrap_type<ov::op::internal::MOE3GemmFusedCompressed>(
+    auto moe_3gemm_fused_compressed_m_no_shared = wrap_type<ov::intel_gpu::op::MOECompressed>(
         {any_input(), any_input(),   wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(),
          zp_2_m});
 
