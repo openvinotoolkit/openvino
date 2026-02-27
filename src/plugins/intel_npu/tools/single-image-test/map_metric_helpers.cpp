@@ -144,8 +144,8 @@ std::vector<Detection> parseDetectionsFromOutputs(const std::map<std::string, ov
         // Confidence is the softmax probability of the best class
         float confidence = 1.0f / exp_sum;
 
-        // Filter by confidence threshold
-        if (confidence > confidence_threshold && best_class >= 0) {
+        // Filter by confidence threshold (use resolved per-layer threshold)
+        if (confidence > confThresh && best_class >= 0) {
             detections.emplace_back(x_min, y_min, x_max, y_max, confidence, best_class);
         }
     }
