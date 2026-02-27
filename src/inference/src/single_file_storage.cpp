@@ -67,16 +67,15 @@ bool SingleFileStorage::FormatVersion::operator==(const FormatVersion& other) co
 SingleFileStorage::SingleFileStorage(const std::filesystem::path& path) : m_file_path{path} {
     util::create_directory_recursive(m_file_path.parent_path());
     if (!util::file_exists(m_file_path)) {
-        std::ofstream stream(m_file_path, std::ios_base::binary);
+        std::ofstream stream(m_file_path, std::ios::binary);
         write_version(stream, m_version);
     } else {
-        std::ifstream stream(m_file_path, std::ios_base::binary);
+        std::ifstream stream(m_file_path, std::ios::binary);
         FormatVersion file_version;
         read_version(stream, file_version);
         validate_version(file_version);
 
-        scan_blob_map(stream);
-        scan_context(stream);
+        build_content_index(stream);
 
         // todo Add error handling and validation (e.g. check that blob entries are present for all blob ids in blob
         //      map). If file is corrupted, it should be handled gracefully without throwing exceptions or crashing
@@ -84,7 +83,7 @@ SingleFileStorage::SingleFileStorage(const std::filesystem::path& path) : m_file
     }
 }
 
-void SingleFileStorage::scan_blob_map(std::ifstream& stream) {
+void SingleFileStorage::build_content_index(std::ifstream& stream) {
     const auto blob_reader = [this](std::istream& stream, TLVFormat::LengthType size) {
         if (size == 0) {
             return;
@@ -99,11 +98,10 @@ void SingleFileStorage::scan_blob_map(std::ifstream& stream) {
         }
         const auto blob_data_pos = stream.tellg();
         const auto blob_data_size = size - sizeof(id) - sizeof(padding_size) - padding_size;
-        m_blob_map[id].offset = blob_data_pos;
-        m_blob_map[id].size = blob_data_size;
+        m_blob_index[id].offset = blob_data_pos;
+        m_blob_index[id].size = blob_data_size;
         stream.seekg(blob_data_size, std::ios::cur);
     };
-
     const auto blob_map_reader = [this](std::istream& stream, TLVFormat::LengthType size) {
         if (size == 0) {
             return;
@@ -114,90 +112,9 @@ void SingleFileStorage::scan_blob_map(std::ifstream& stream) {
             return;
         }
         if (std::string model_name; read_tlv_string(stream, model_name)) {
-            m_blob_map[id].model_name = model_name;
+            m_blob_index[id].model_name = model_name;
         }
     };
-
-    const TLVFormat::ValueScanner scanners = {
-        {static_cast<TLVFormat::TagType>(Tag::Blob), blob_reader},
-        {static_cast<TLVFormat::TagType>(Tag::BlobMap), blob_map_reader},
-    };
-    TLVFormat::scan_entries(stream, scanners, true);
-}
-
-SingleFileStorage::BlobIdType SingleFileStorage::convert_blob_id(const std::string& blob_id) {
-    // todo stoull used unconditionally - what if BlobIdType isn't uint64_t?
-    return static_cast<BlobIdType>(std::stoull(blob_id.c_str()));
-}
-
-bool SingleFileStorage::has_blob_id(BlobIdType blob_id) const {
-    return m_blob_map.find(blob_id) != m_blob_map.end();
-}
-
-void SingleFileStorage::write_blob_entry(BlobIdType blob_id, StreamWriter& writer, std::ofstream& stream) {
-    OPENVINO_ASSERT(!has_blob_id(blob_id), "Blob with id ", blob_id, " already exists in cache.");
-
-    std::streampos blob_pos;
-    std::streamoff blob_size;
-
-    const auto blob_writer = [&](std::ostream& s) {
-        s.write(reinterpret_cast<const char*>(&blob_id), sizeof(blob_id));
-        write_padding(s, m_alignment);
-        blob_pos = s.tellp();
-        writer(s);
-        blob_size = s.tellp() - blob_pos;
-    };
-    TLVFormat::write_entry(stream, static_cast<TLVFormat::TagType>(Tag::Blob), blob_writer);
-
-    std::string model_name{"dev/invalid name"};  // todo Where to get it from?
-
-    const auto blob_map_writer = [&](std::ostream& s) {
-        s.write(reinterpret_cast<const char*>(&blob_id), sizeof(blob_id));
-        write_tlv_string(s, model_name);
-    };
-    TLVFormat::write_entry(stream, static_cast<TLVFormat::TagType>(Tag::BlobMap), blob_map_writer);
-
-    m_blob_map[blob_id] = {blob_pos, blob_size, model_name};
-}
-
-void SingleFileStorage::write_cache_entry(const std::string& blob_id, StreamWriter writer) {
-    ScopedLocale plocal_C(LC_ALL, "C");
-    // todo Check whether `std::ios_base::in` is needed
-    std::ofstream stream(m_file_path, std::ios_base::binary | std::ios_base::in | std::ios_base::ate);
-    write_blob_entry(convert_blob_id(blob_id), writer, stream);
-}
-
-void SingleFileStorage::read_cache_entry(const std::string& blob_id, bool enable_mmap, StreamReader reader) {
-    ScopedLocale plocal_C(LC_ALL, "C");
-
-    const auto cid = convert_blob_id(blob_id);
-
-    if (std::filesystem::exists(m_file_path) && has_blob_id(cid)) {
-        const auto& [blob_pos, blob_size, model_name] = m_blob_map[cid];
-        if (enable_mmap) {
-            // todo Extend memory mapping helpers to suport partial file mapping
-            CompiledBlobVariant compiled_blob{std::in_place_index<0>,
-                                              ov::read_tensor_data(m_file_path,
-                                                                   element::u8,
-                                                                   {static_cast<PartialShape::value_type>(blob_size)},
-                                                                   blob_pos)};
-            reader(compiled_blob);
-        } else {
-            std::ifstream stream(m_file_path, std::ios_base::binary);
-            stream.seekg(blob_pos);
-            CompiledBlobVariant compiled_blob{std::in_place_index<1>, std::ref(stream)};
-            reader(compiled_blob);
-        }
-    }
-}
-
-void SingleFileStorage::remove_cache_entry(const std::string& id) {}
-
-weight_sharing::Context SingleFileStorage::get_context() const {
-    return m_shared_context;
-}
-
-void SingleFileStorage::scan_context(std::ifstream& stream) {
     const auto constant_meta_reader = [this](std::istream& stream, TLVFormat::LengthType size) {
         if (size == 0) {
             return;
@@ -225,7 +142,6 @@ void SingleFileStorage::scan_context(std::ifstream& stream) {
                                                                        element::Type_t{const_type}};
         }
     };
-
     const auto constant_source_reader = [this](std::istream& stream, TLVFormat::LengthType size) {
         if (size == 0) {
             return;
@@ -246,15 +162,88 @@ void SingleFileStorage::scan_context(std::ifstream& stream) {
     };
 
     const TLVFormat::ValueScanner scanners = {
+        {static_cast<TLVFormat::TagType>(Tag::Blob), blob_reader},
+        {static_cast<TLVFormat::TagType>(Tag::BlobMap), blob_map_reader},
         {static_cast<TLVFormat::TagType>(Tag::ConstantMeta), constant_meta_reader},
         {static_cast<TLVFormat::TagType>(Tag::WeightSource), constant_source_reader},
     };
     TLVFormat::scan_entries(stream, scanners, true);
 }
 
+SingleFileStorage::BlobIdType SingleFileStorage::convert_blob_id(const std::string& blob_id) {
+    // todo stoull used unconditionally - what if BlobIdType isn't uint64_t?
+    return static_cast<BlobIdType>(std::stoull(blob_id.c_str()));
+}
+
+bool SingleFileStorage::has_blob_id(BlobIdType blob_id) const {
+    return m_blob_index.find(blob_id) != m_blob_index.end();
+}
+
+void SingleFileStorage::write_blob_entry(std::ofstream& stream, BlobIdType blob_id, StreamWriter& writer) {
+    OPENVINO_ASSERT(!has_blob_id(blob_id), "Blob with id ", blob_id, " already exists in cache.");
+
+    std::streampos blob_pos;
+    std::streamoff blob_size;
+
+    const auto blob_writer = [&](std::ostream& s) {
+        s.write(reinterpret_cast<const char*>(&blob_id), sizeof(blob_id));
+        write_padding(s, m_alignment);
+        blob_pos = s.tellp();
+        writer(s);
+        blob_size = s.tellp() - blob_pos;
+    };
+    TLVFormat::write_entry(stream, static_cast<TLVFormat::TagType>(Tag::Blob), blob_writer);
+
+    std::string model_name{"dev/invalid name"};  // todo Where to get it from?
+
+    const auto blob_map_writer = [&](std::ostream& s) {
+        s.write(reinterpret_cast<const char*>(&blob_id), sizeof(blob_id));
+        write_tlv_string(s, model_name);
+    };
+    TLVFormat::write_entry(stream, static_cast<TLVFormat::TagType>(Tag::BlobMap), blob_map_writer);
+
+    m_blob_index[blob_id] = {blob_pos, blob_size, model_name};
+}
+
+void SingleFileStorage::write_cache_entry(const std::string& blob_id, StreamWriter writer) {
+    ScopedLocale plocal_C(LC_ALL, "C");
+    std::ofstream stream(m_file_path, std::ios::binary | std::ios::in | std::ios::ate);
+    write_blob_entry(stream, convert_blob_id(blob_id), writer);
+}
+
+void SingleFileStorage::read_cache_entry(const std::string& blob_id, bool enable_mmap, StreamReader reader) {
+    ScopedLocale plocal_C(LC_ALL, "C");
+
+    const auto cid = convert_blob_id(blob_id);
+
+    if (std::filesystem::exists(m_file_path) && has_blob_id(cid)) {
+        const auto& [blob_pos, blob_size, model_name] = m_blob_index[cid];
+        if (enable_mmap) {
+            // todo Extend memory mapping helpers to suport partial file mapping
+            CompiledBlobVariant compiled_blob{std::in_place_index<0>,
+                                              ov::read_tensor_data(m_file_path,
+                                                                   element::u8,
+                                                                   {static_cast<PartialShape::value_type>(blob_size)},
+                                                                   blob_pos)};
+            reader(compiled_blob);
+        } else {
+            std::ifstream stream(m_file_path, std::ios::binary);
+            stream.seekg(blob_pos);
+            CompiledBlobVariant compiled_blob{std::in_place_index<1>, std::ref(stream)};
+            reader(compiled_blob);
+        }
+    }
+}
+
+void SingleFileStorage::remove_cache_entry(const std::string& id) {}
+
+weight_sharing::Context SingleFileStorage::get_context() const {
+    return m_shared_context;
+}
+
 void SingleFileStorage::write_context(const weight_sharing::Context& context) {
     ScopedLocale plocal_C(LC_ALL, "C");
-    std::ofstream stream(m_file_path, std::ios_base::binary | std::ios_base::in | std::ios_base::ate);
+    std::ofstream stream(m_file_path, std::ios::binary | std::ios::in | std::ios::ate);
 
     // todo Add delta writing - not the whole.
 

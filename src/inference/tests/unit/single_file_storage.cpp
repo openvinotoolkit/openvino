@@ -42,13 +42,13 @@ protected:
 TEST_F(SingleFileStorageTest, FileHeader) {
     ASSERT_EQ(version_size(), 6);
     m_storage.reset();
-    std::ifstream stream(m_file_path, std::ios_base::binary);
+    std::ifstream stream(m_file_path, std::ios::binary);
 
     std::vector<uint16_t> header_data(version_size() / sizeof(uint16_t));
     stream.read(reinterpret_cast<char*>(header_data.data()), version_size());
     const auto last_pos = stream.tellg();
     ASSERT_NE(last_pos, std::streampos(-1));
-    stream.seekg(0, std::ios_base::end);
+    stream.seekg(0, std::ios::end);
     const auto end_pos = stream.tellg();
     EXPECT_EQ(last_pos, end_pos);  // No more data after header in just created file
 
@@ -118,10 +118,9 @@ TEST_F(SingleFileStorageTest, BlobAlignment) {
         });
     }
 
-    std::ifstream stream(m_file_path, std::ios_base::binary);
-    stream.seekg(0, std::ios::end);
+    std::ifstream stream(m_file_path, std::ios::binary | std::ios::ate);
     const auto stream_end = stream.tellg();
-    stream.seekg(version_size(), std::ios_base::beg);
+    stream.seekg(version_size(), std::ios::beg);
 
     // todo Make it configurable and/or detect actual file system page size
     constexpr std::streamoff alignment = 4096;
@@ -142,15 +141,15 @@ TEST_F(SingleFileStorageTest, BlobAlignment) {
             stream.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
             ASSERT_TRUE(stream.good());
 
-            stream.seekg(padding_size, std::ios_base::cur);
+            stream.seekg(padding_size, std::ios::cur);
             const auto blob_data_pos = stream.tellg();
             EXPECT_EQ(blob_data_pos % alignment, 0) << "Blob with id " << id << " is not properly aligned";
 
             const auto expected_pos = blob_id_pos + static_cast<std::streamoff>(entry_size);
-            stream.seekg(test_blobs.at(id).size(), std::ios_base::cur);
+            stream.seekg(test_blobs.at(id).size(), std::ios::cur);
             ASSERT_EQ(expected_pos, stream.tellg()) << "Blob with id " << id << " has incorrect entry size";
         } else {
-            stream.seekg(entry_size, std::ios_base::cur);
+            stream.seekg(entry_size, std::ios::cur);
         }
     }
 }
@@ -219,8 +218,6 @@ TEST_F(SingleFileStorageTest, ContextMetaWriteRead) {
     meta_read_test(*m_storage);
     m_storage.reset();
 
-    auto stream = std::ifstream(m_file_path, std::ios_base::binary);
-
     SingleFileStorage reopened_storage(m_file_path);
     meta_read_test(reopened_storage);
 }
@@ -235,10 +232,9 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
     test_context.m_cache_sources[1] = std::weak_ptr<ov::AlignedBuffer>{buffer};
     m_storage->write_context(test_context);
 
-    std::ifstream stream(m_file_path, std::ios_base::binary);
-    stream.seekg(0, std::ios::end);
+    std::ifstream stream(m_file_path, std::ios::binary | std::ios::ate);
     const auto stream_end = stream.tellg();
-    stream.seekg(version_size(), std::ios_base::beg);
+    stream.seekg(version_size(), std::ios::beg);
 
     // todo Make it configurable and/or detect actual file system page size
     constexpr std::streamoff alignment = 4096;
@@ -258,7 +254,7 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
             stream.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
             ASSERT_TRUE(stream.good());
 
-            stream.seekg(padding_size, std::ios_base::cur);
+            stream.seekg(padding_size, std::ios::cur);
             const auto weight_pos = stream.tellg();
             ASSERT_EQ(weight_pos % alignment, 0);
             const auto weight_size =
@@ -268,7 +264,7 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
             stream.read(reinterpret_cast<char*>(read_data.data()), read_data.size());
             EXPECT_EQ(std::memcmp(read_data.data(), buffer->get_ptr(), buffer->size()), 0);
         } else {
-            stream.seekg(entry_size, std::ios_base::cur);
+            stream.seekg(entry_size, std::ios::cur);
         }
     }
 }

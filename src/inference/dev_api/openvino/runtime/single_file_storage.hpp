@@ -83,16 +83,12 @@ private:
         std::streamoff size;
         std::string model_name;
     };
-    std::unordered_map<BlobIdType, BlobInfo> m_blob_map;
-
+    std::unordered_map<BlobIdType, BlobInfo> m_blob_index;
     weight_sharing::Context m_shared_context;
-
-    // todo Combine scan_blob_map and scan_context into single function.
-    void scan_blob_map(std::ifstream& stream);
-    void scan_context(std::ifstream& stream);
+    void build_content_index(std::ifstream& stream);
 
     static BlobIdType convert_blob_id(const std::string& blob_id);
-    void write_blob_entry(BlobIdType blob_id, StreamWriter& writer, std::ofstream& stream);
+    void write_blob_entry(std::ofstream& stream, BlobIdType blob_id, StreamWriter& writer);
     bool has_blob_id(BlobIdType blob_id) const;
 };
 }  // namespace ov::runtime
