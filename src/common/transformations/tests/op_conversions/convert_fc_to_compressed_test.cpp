@@ -21,267 +21,116 @@
 using namespace testing;
 using namespace ov::pass;
 
-TEST_F(TransformationTestsF, ConvertFCToCompressed1) {
+namespace {
+struct ConvertFCToCompressedParams {
+    ov::element::Type compressed_type;
+    bool with_zp;
+    bool grouped;
+    ov::PartialShape in_shape;
+    ov::Shape wei_shape;
+    ov::Shape scale_zp_shape;
+};
+
+class ConvertFCToCompressed : public testing::WithParamInterface<ConvertFCToCompressedParams>,
+                              public TransformationTestsF {};
+
+TEST_P(ConvertFCToCompressed, ConvertFCToCompressedTest) {
+    const auto& params = GetParam();
+    ov::element::Type compressed_type_ = params.compressed_type;
+    bool with_zp_ = params.with_zp;
+    bool grouped_ = params.grouped;
+    ov::PartialShape in_shape_ = params.in_shape;
+    ov::Shape wei_shape_ = params.wei_shape;
+    ov::Shape scale_zp_shape_ = params.scale_zp_shape;
+    const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
+    const std::vector<ov::element::Type> supported_weights_types{compressed_type_};
+
+    manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>(supported_activation_types,
+                                                                           supported_weights_types);
+
+    auto weight_reshaped_dims = [&]() {
+        std::vector<int64_t> wei_reshaped;
+        for (size_t i = 0; i < wei_shape_.size() - 2; ++i) {
+            wei_reshaped.push_back(static_cast<int64_t>(wei_shape_[i]));
+        }
+        int64_t combined_dim = static_cast<int64_t>(wei_shape_[wei_shape_.size() - 2]) *
+                               static_cast<int64_t>(wei_shape_[wei_shape_.size() - 1]);
+        wei_reshaped.push_back(combined_dim);
+        return wei_reshaped;
+    };
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, 2048});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{5, 2048}, {1});
-        auto wei_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{5, 1}, {1});
-        auto wei_scale = std::make_shared<ov::op::v1::Multiply>(wei_convert, scale_const);
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, in_shape_);
+        auto weights_const = ov::op::v0::Constant::create(compressed_type_, wei_shape_, {1});
+        std::shared_ptr<ov::op::Op> wei_convert =
+            std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
+
+        if (with_zp_) {
+            auto zp_const = ov::op::v0::Constant::create(compressed_type_, scale_zp_shape_, {1});
+            auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_const, ov::element::f32);
+            wei_convert = std::make_shared<ov::op::v1::Subtract>(wei_convert, zp_convert);
+        }
+
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, scale_zp_shape_, {1});
+        std::shared_ptr<ov::op::Op> wei_scale = std::make_shared<ov::op::v1::Multiply>(wei_convert, scale_const);
+
+        if (grouped_) {
+            std::vector<int64_t> wei_reshaped = weight_reshaped_dims();
+            auto reshape_pattern =
+                ov::op::v0::Constant::create(ov::element::i32, ov::Shape{wei_reshaped.size()}, wei_reshaped);
+            wei_scale = std::make_shared<ov::op::v1::Reshape>(wei_scale, reshape_pattern, false);
+        }
         auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
         auto fc = std::make_shared<ov::op::internal::FullyConnected>(input, wei_scale, bias);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
-
-        const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
-        const std::vector<ov::element::Type> supported_weights_types{ov::element::u8};
-        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>(supported_activation_types,
-                                                                               supported_weights_types);
     }
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, 2048});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{5, 2048}, {1});
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{5, 1}, {1});
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, in_shape_);
+        auto reshape_dims = wei_shape_;
+        if (grouped_) {
+            std::vector<int64_t> reshaped_vec = weight_reshaped_dims();
+            reshape_dims = ov::Shape(reshaped_vec.begin(), reshaped_vec.end());
+        }
+        auto weights_const = ov::op::v0::Constant::create(compressed_type_, reshape_dims, {1});
+        auto scale_zp_shape = scale_zp_shape_;
+        if (grouped_) {
+            scale_zp_shape.pop_back();
+        }
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, scale_zp_shape, {1});
         auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
         auto fc_compressed =
             std::make_shared<ov::op::internal::FullyConnectedCompressed>(input, weights_const, bias, scale_const);
-
+        if (with_zp_) {
+            auto zp_const = ov::op::v0::Constant::create(compressed_type_, scale_zp_shape, {1});
+            fc_compressed = std::make_shared<ov::op::internal::FullyConnectedCompressed>(input,
+                                                                                         weights_const,
+                                                                                         bias,
+                                                                                         scale_const,
+                                                                                         zp_const);
+        }
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input});
     }
 }
 
-// with zp
-TEST_F(TransformationTestsF, ConvertFCToCompressed2) {
-    {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, 2048});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{5, 2048}, {1});
-        auto wei_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
-        auto zp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{5, 1}, {1});
-        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_const, ov::element::f32);
-        auto wei_zp = std::make_shared<ov::op::v1::Subtract>(wei_convert, zp_convert);
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{5, 1}, {1});
-        auto wei_scale = std::make_shared<ov::op::v1::Multiply>(wei_zp, scale_const);
-        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
-        auto fc = std::make_shared<ov::op::internal::FullyConnected>(input, wei_scale, bias);
+const auto params = std::vector<ConvertFCToCompressedParams>{
+    {ov::element::u8, false, false, ov::PartialShape{10, 2048}, ov::Shape{5, 2048}, ov::Shape{5, 1}},
+    {ov::element::u8, true, false, ov::PartialShape{10, 2048}, ov::Shape{5, 2048}, ov::Shape{5, 1}},
+    // grouped
+    {ov::element::u8, false, true, ov::PartialShape{10, 2048}, ov::Shape{5, 16, 128}, ov::Shape{5, 16, 1}},
+    {ov::element::u8, true, true, ov::PartialShape{10, 2048}, ov::Shape{5, 16, 128}, ov::Shape{5, 16, 1}},
+    // grouped with output channel 1
+    {ov::element::u8, false, true, ov::PartialShape{10, 2048}, ov::Shape{1, 16, 128}, ov::Shape{1, 16, 1}},
+    {ov::element::u8, true, true, ov::PartialShape{10, 2048}, ov::Shape{1, 16, 128}, ov::Shape{1, 16, 1}},
 
-        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    {ov::element::u4, false, false, ov::PartialShape{-1, 512}, ov::Shape{3, 512}, ov::Shape{3, 1}},
+    {ov::element::u4, true, false, ov::PartialShape{-1, 512}, ov::Shape{3, 512}, ov::Shape{3, 1}},
+    // grouped
+    {ov::element::u4, false, true, ov::PartialShape{-1, 512}, ov::Shape{3, 4, 128}, ov::Shape{3, 4, 1}},
+    {ov::element::u4, true, true, ov::PartialShape{-1, 512}, ov::Shape{3, 4, 128}, ov::Shape{3, 4, 1}},
+    // grouped with output channel 1
+    {ov::element::u4, false, true, ov::PartialShape{-1, 512}, ov::Shape{1, 4, 128}, ov::Shape{1, 4, 1}},
+    {ov::element::u4, true, true, ov::PartialShape{-1, 512}, ov::Shape{1, 4, 128}, ov::Shape{1, 4, 1}},
+};
+}  // namespace
 
-        const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
-        const std::vector<ov::element::Type> supported_weights_types{ov::element::u8};
-        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>(supported_activation_types,
-                                                                               supported_weights_types);
-    }
-    {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, 2048});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{5, 2048}, {1});
-        auto zp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{5, 1}, {1});
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{5, 1}, {1});
-        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
-        auto fc_compressed = std::make_shared<ov::op::internal::FullyConnectedCompressed>(input,
-                                                                                          weights_const,
-                                                                                          bias,
-                                                                                          scale_const,
-                                                                                          zp_const);
-
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input});
-    }
-}
-
-// group compressed
-TEST_F(TransformationTestsF, ConvertFCToCompressed3) {
-    {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, 2048});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{5, 16, 128}, {1});
-        auto wei_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{5, 16, 1}, {1});
-        auto wei_scale = std::make_shared<ov::op::v1::Multiply>(wei_convert, scale_const);
-        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {-1, 2048});
-        auto wei_reshape = std::make_shared<ov::op::v1::Reshape>(wei_scale, reshape_const, false);
-        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
-
-        auto fc = std::make_shared<ov::op::internal::FullyConnected>(input, wei_reshape, bias);
-
-        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
-
-        const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
-        const std::vector<ov::element::Type> supported_weights_types{ov::element::u8};
-        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>(supported_activation_types,
-                                                                               supported_weights_types);
-    }
-    {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, 2048});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{5, 2048}, {1});
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{5, 16}, {1});
-        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
-        auto fc_compressed =
-            std::make_shared<ov::op::internal::FullyConnectedCompressed>(input, weights_const, bias, scale_const);
-
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input});
-    }
-}
-
-// group compressed with single out channel
-TEST_F(TransformationTestsF, ConvertFCToCompressed4) {
-    {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, 2048});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{1, 16, 128}, {1});
-        auto wei_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 16, 1}, {1});
-        auto wei_scale = std::make_shared<ov::op::v1::Multiply>(wei_convert, scale_const);
-        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {-1, 2048});
-        auto wei_reshape = std::make_shared<ov::op::v1::Reshape>(wei_scale, reshape_const, false);
-        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
-
-        auto fc = std::make_shared<ov::op::internal::FullyConnected>(input, wei_reshape, bias);
-
-        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
-
-        const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
-        const std::vector<ov::element::Type> supported_weights_types{ov::element::u8};
-        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>(supported_activation_types,
-                                                                               supported_weights_types);
-    }
-    {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, 2048});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{1, 2048}, {1});
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 16}, {1});
-        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
-        auto fc_compressed =
-            std::make_shared<ov::op::internal::FullyConnectedCompressed>(input, weights_const, bias, scale_const);
-
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input});
-    }
-}
-
-// u4
-TEST_F(TransformationTestsF, ConvertFCToCompressed5) {
-    {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, 2048});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{5, 2048}, {1});
-        auto wei_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{5, 1}, {1});
-        auto wei_scale = std::make_shared<ov::op::v1::Multiply>(wei_convert, scale_const);
-        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
-        auto fc = std::make_shared<ov::op::internal::FullyConnected>(input, wei_scale, bias);
-
-        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
-
-        const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
-        const std::vector<ov::element::Type> supported_weights_types{ov::element::u4};
-        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>(supported_activation_types,
-                                                                               supported_weights_types);
-    }
-    {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, 2048});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{5, 2048}, {1});
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{5, 1}, {1});
-        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
-        auto fc_compressed =
-            std::make_shared<ov::op::internal::FullyConnectedCompressed>(input, weights_const, bias, scale_const);
-
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input});
-    }
-}
-
-// with zp
-TEST_F(TransformationTestsF, ConvertFCToCompressed6) {
-    {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, 2048});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{5, 2048}, {1});
-        auto wei_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
-        auto zp_const = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{5, 1}, {1});
-        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_const, ov::element::f32);
-        auto wei_zp = std::make_shared<ov::op::v1::Subtract>(wei_convert, zp_convert);
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{5, 1}, {1});
-        auto wei_scale = std::make_shared<ov::op::v1::Multiply>(wei_zp, scale_const);
-        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
-        auto fc = std::make_shared<ov::op::internal::FullyConnected>(input, wei_scale, bias);
-
-        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
-
-        const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
-        const std::vector<ov::element::Type> supported_weights_types{ov::element::u4};
-        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>(supported_activation_types,
-                                                                               supported_weights_types);
-    }
-    {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, 2048});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{5, 2048}, {1});
-        auto zp_const = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{5, 1}, {1});
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{5, 1}, {1});
-        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
-        auto fc_compressed = std::make_shared<ov::op::internal::FullyConnectedCompressed>(input,
-                                                                                          weights_const,
-                                                                                          bias,
-                                                                                          scale_const,
-                                                                                          zp_const);
-
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input});
-    }
-}
-
-// group compressed
-TEST_F(TransformationTestsF, ConvertFCToCompressed7) {
-    {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, 2048});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{5, 16, 128}, {1});
-        auto wei_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{5, 16, 1}, {1});
-        auto wei_scale = std::make_shared<ov::op::v1::Multiply>(wei_convert, scale_const);
-        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {-1, 2048});
-        auto wei_reshape = std::make_shared<ov::op::v1::Reshape>(wei_scale, reshape_const, false);
-        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
-
-        auto fc = std::make_shared<ov::op::internal::FullyConnected>(input, wei_reshape, bias);
-
-        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
-
-        const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
-        const std::vector<ov::element::Type> supported_weights_types{ov::element::u4};
-        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>(supported_activation_types,
-                                                                               supported_weights_types);
-    }
-    {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, 2048});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{5, 2048}, {1});
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{5, 16}, {1});
-        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
-        auto fc_compressed =
-            std::make_shared<ov::op::internal::FullyConnectedCompressed>(input, weights_const, bias, scale_const);
-
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input});
-    }
-}
-
-// group compressed with single out channel
-TEST_F(TransformationTestsF, ConvertFCToCompressed8) {
-    {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, 2048});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{1, 16, 128}, {1});
-        auto wei_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 16, 1}, {1});
-        auto wei_scale = std::make_shared<ov::op::v1::Multiply>(wei_convert, scale_const);
-        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {-1, 2048});
-        auto wei_reshape = std::make_shared<ov::op::v1::Reshape>(wei_scale, reshape_const, false);
-        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
-
-        auto fc = std::make_shared<ov::op::internal::FullyConnected>(input, wei_reshape, bias);
-
-        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
-
-        const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
-        const std::vector<ov::element::Type> supported_weights_types{ov::element::u4};
-        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>(supported_activation_types,
-                                                                               supported_weights_types);
-    }
-    {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, 2048});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{1, 2048}, {1});
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 16}, {1});
-        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
-        auto fc_compressed =
-            std::make_shared<ov::op::internal::FullyConnectedCompressed>(input, weights_const, bias, scale_const);
-
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input});
-    }
-}
+INSTANTIATE_TEST_SUITE_P(TransformationTests, ConvertFCToCompressed, ::testing::ValuesIn(params));
