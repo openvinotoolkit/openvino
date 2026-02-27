@@ -11,6 +11,7 @@
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/so_ptr.hpp"

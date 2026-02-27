@@ -5,7 +5,7 @@
 // Plugin
 #include "properties.hpp"
 
-#include "compiler_adapter_factory.hpp"
+#include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
@@ -715,7 +715,12 @@ void Properties::registerPluginProperties() {
                 _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
             CompilerAdapterFactory factory;
-            auto dummyCompiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+            auto dummyCompiler = factory.getCompiler(
+                _backend == nullptr ? nullptr : _backend->getInitStructs(),
+                compilerType,
+                compilationPlatform,
+                device == nullptr ? std::nullopt : std::optional<std::string_view>(device->getName()));
+
             return dummyCompiler->get_version();
         });
         REGISTER_CUSTOM_METRIC(ov::internal::caching_properties, false, [&](const Config& config) {
@@ -760,9 +765,9 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::compilation_num_threads, COMPILATION_NUM_THREADS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_mode, CACHE_MODE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compiler_type, COMPILER_TYPE);
 
     // Properties we shall only enable if they were set prior-to-compilation
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_type, COMPILER_TYPE);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::weights_path, WEIGHTS_PATH);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::cache_dir, CACHE_DIR);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::enable_profiling, PERF_COUNT);
@@ -866,7 +871,11 @@ ov::Any Properties::getProperty(const std::string& name) {
             // Create a compiler to get the type and fetch version and supported options if needed
             CompilerAdapterFactory factory;
             try {
-                compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+                compiler = factory.getCompiler(
+                    _backend == nullptr ? nullptr : _backend->getInitStructs(),
+                    compilerType,
+                    compilationPlatform,
+                    device == nullptr ? std::nullopt : std::optional<std::string_view>(device->getName()));
             } catch (const std::exception& ex) {
                 if (_config.hasOpt(name) && _config.getOpt(name).mode() == OptionMode::CompileTime) {
                     OPENVINO_THROW("Failed to create compiler for getting property ", name, " with error: ", ex.what());
@@ -946,7 +955,11 @@ void Properties::setProperty(const ov::AnyMap& properties) {
 
             // Create a compiler to get the type and fetch version and supported options if needed
             CompilerAdapterFactory factory;
-            compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+            compiler = factory.getCompiler(
+                _backend == nullptr ? nullptr : _backend->getInitStructs(),
+                compilerType,
+                compilationPlatform,
+                device == nullptr ? std::nullopt : std::optional<std::string_view>(device->getName()));
 
             if (!(_compilerConfigsFilteredByCompiler && compilerType == _currentlyUsedCompiler &&
                   compilationPlatform == _currentlyUsedPlatform)) {
@@ -1057,9 +1070,6 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
     if (compilerConfigsFilteredByCompiler) {
         disableCompilerProperties(updatedConfig, _backend);
     }
-
-    // Special case for NPU_COMPILER_TYPE - don't need it in the config for this case.
-    updatedConfig.enable(ov::intel_npu::compiler_type.name(), false);
 
     if (properties.empty()) {
         return updatedConfig;

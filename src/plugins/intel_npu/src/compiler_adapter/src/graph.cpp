@@ -139,14 +139,20 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData) const {
-    if (_compiler == nullptr) {
-        OPENVINO_THROW("Profiling post-processing is not supported.");
+    ov::SoPtr<VCLCompilerImpl> localCompiler = _compiler;
+
+    if (localCompiler == nullptr) {
+        auto vclCompilerPtr = VCLCompilerImpl::getInstance();
+        OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
+        auto vclLib = vclCompilerPtr->getLinkedLibrary();
+        OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
+        localCompiler = ov::SoPtr<VCLCompilerImpl>(vclCompilerPtr, vclLib);
     }
 
     std::vector<uint8_t> blob(_blob->get_byte_size());
     blob.assign(reinterpret_cast<const uint8_t*>(_blob->data()),
                 reinterpret_cast<const uint8_t*>(_blob->data()) + _blob->get_byte_size());
-    return _compiler->process_profiling_output(profData, blob);
+    return localCompiler->process_profiling_output(profData, blob);
 }
 
 void Graph::set_argument_value(uint32_t id, const void* data) const {
