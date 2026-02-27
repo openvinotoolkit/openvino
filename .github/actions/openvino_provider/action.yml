@@ -210,8 +210,8 @@ runs:
         dev_version=$(echo ${{ steps.openvino_s3_download.outputs.ov_package_path }} |
           grep -oP "${release_version//./\\.}\.dev\d{8}" || true)
 
-        rc_version=$(echo ${{ steps.openvino_s3_download.outputs.ov_package_path }} |
-          grep -oP "${release_version//./\\.}rc\d+" || true)
+        rc_version=$(echo ${{ steps.openvino_s3_download.outputs.ov_package_url }} |
+          grep -oP '(?<=pre-release\/)\d{4}\.\d+\.\d+rc\d+' || true)
 
         version=${rc_version:-${dev_version:-$release_version}}
 
