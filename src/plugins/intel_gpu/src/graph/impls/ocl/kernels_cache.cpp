@@ -154,10 +154,12 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             auto need_separate_batch = [&](std::string& unique_kernel_name) -> bool {
                 const std::vector<std::string> special_kernels = {"gemm_tiled_opt"};
 
-                // check if the current kernel name is in special_kernels
-                for (auto& special_kernel : special_kernels) {
-                    if (entry_point.find(special_kernel) != std::string::npos)
-                        return true;
+                if (current_bucket.back().kernels_counter > 0) {
+                    // check if the current kernel name is in special_kernels
+                    for (auto& special_kernel : special_kernels) {
+                        if (entry_point.find(special_kernel) != std::string::npos)
+                            return true;
+                    }
                 }
 
                 // check if the current_batch has one of special_kernels
@@ -295,6 +297,10 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     GPU_DEBUG_IF(!dump_sources_dir.empty()) {
         dump_sources = true;
     }
+    // Skip batches that do not contain kernels
+    if (batch.kernels_counter == 0) {
+        return;
+    }
 
     std::string current_dump_file_name = "";
     if (dump_sources) {
@@ -329,13 +335,13 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     } else {
         auto combined_source = join_strings(batch.source);
         _builder->build_kernels(combined_source.data(), combined_source.size(), KernelFormat::SOURCE, batch.options, kernels);
+        OPENVINO_ASSERT(kernels.size() > 0, "[GPU] Expected to compile more than 0 kernels in the batch");
+        OPENVINO_ASSERT(kernels.size() == batch.kernels_counter, "[GPU] Number of compiled kernels is different than kernel batch size");
         if (dump_sources && dump_file.good()) {
             dump_file << "\n/* Build Log:\n";
             // Retreive build log from the first kernel only
             // It should be the same for all kernels in batch
-            if (kernels.size() > 1) {
-                dump_file << kernels[0]->get_build_log();
-            }
+            dump_file << kernels[0]->get_build_log();
             dump_file << "\n*/\n";
         }
         if (batch.has_microkernels) {
