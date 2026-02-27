@@ -33,8 +33,7 @@ class TestSegmentMeanCSR(PytorchLayerTest):
                 # segment_csr(..., reduce="mean") emits torch_scatter::segment_mean_csr
                 return segment_csr(src, self.indptr, reduce="mean")  # type: ignore[possibly-undefined]
 
-        ref_net = None
-        return SegmentMeanCSR(indptr), ref_net, "torch_scatter::segment_mean_csr"
+        return SegmentMeanCSR(indptr), "torch_scatter::segment_mean_csr"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

@@ -12,7 +12,6 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/maximum.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -107,7 +106,8 @@ OutputVector translate_segment_mean_csr(const NodeContext& context) {
     // We need a leading zero slice along the axis so boundaries[0] = 0
     auto element_at_zero = context.mark_node(std::make_shared<v8::Gather>(src, zero_1d, axis_const));
     auto zero_like = context.mark_node(std::make_shared<v1::ConvertLike>(zero_scalar, src));
-    auto zero_padded = context.mark_node(std::make_shared<v1::Multiply>(element_at_zero, zero_like));
+    auto zero_shape = context.mark_node(std::make_shared<v3::ShapeOf>(element_at_zero, element::i64));
+    auto zero_padded = context.mark_node(std::make_shared<v3::Broadcast>(zero_like, zero_shape));
     auto src_padded = context.mark_node(std::make_shared<v0::Concat>(OutputVector{zero_padded, src}, axis));
 
     // Compute prefix sums along the segmentation axis
