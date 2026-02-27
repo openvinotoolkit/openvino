@@ -139,10 +139,19 @@ class Property : public util::BaseProperty<T, mutability_> {
         }
 
         template <typename U,
-                  typename std::enable_if<!std::is_same<typename std::decay<U>::type, std::string>::value &&
+                  typename std::enable_if<!std::is_same<std::decay_t<U>, std::string>::value &&
                                               std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
+            using UType = std::decay_t<U>;
+            if constexpr (std::is_integral_v<UType> && std::is_unsigned_v<UType>) {
+                const std::string str_value = value;
+                // Find first non-whitespace character
+                const auto pos = str_value.find_first_not_of(" \t\n\r");
+                if (pos != std::string::npos && str_value[pos] == '-') {
+                    OPENVINO_THROW("Cannot assign negative value ", str_value, " to unsigned property");
+                }
+            }
             return Any{value}.as<U>();
         }
 
