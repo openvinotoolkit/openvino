@@ -18,7 +18,7 @@ DynamicParser::DynamicParser(const std::shared_ptr<ZeroInitStructsHolder>& zeroI
 std::shared_ptr<IGraph> DynamicParser::parse(const ov::Tensor& mainBlob,
                                              const FilteredConfig& config,
                                              const std::optional<std::vector<ov::Tensor>>&,
-                                             std::optional<std::shared_ptr<const ov::Model>>&& model) const {
+                                             std::optional<std::shared_ptr<const ov::Model>>&&) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DynamicParser", "parse");
 
     _logger.debug("Create graph for LLVM IR!");

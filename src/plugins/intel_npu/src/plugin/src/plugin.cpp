@@ -1043,15 +1043,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     ov::intel_npu::CompilerType compilerType = localConfig.get<COMPILER_TYPE>();
     ParserFactory parserFactory;
+    // compilerType can be rewritten at this point based on the blob content, so get the parser first
+    // and update the config only after compiler type detection is complete.
     auto parser = parserFactory.getParser(_backend->getInitStructs(), compilerType, tensorMain);
 
-    // Special case for PERF_COUNT as it requires compiler_type detection
+    // Special case for PERF_COUNT as it requires compiler_type detection in case it is still set to PREFER_PLUGIN
     if (localConfig.has<PERF_COUNT>() && localConfig.get<PERF_COUNT>() &&
         compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
         CompilerAdapterFactory factory;
-        auto compiler = factory.getCompiler(_backend, compilerType, device->getName());
+        (void)factory.getCompiler(_backend, compilerType, device->getName());
     }
 
+    // Update compiler type in config if it was changed
     if (compilerType != localConfig.get<COMPILER_TYPE>()) {
         localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
     }
