@@ -41,6 +41,14 @@ KERNEL(moe_mask_gen)(
     }
 
     experts_info_start_idx[expert_id] = tokens_per_expert_iter + num_tokens_per_curr_expert;
+    // barrier(CLK_LOCAL_MEM_FENCE);
+    // if (expert_id == 0) {
+    //     printf("%d", num_tokens_per_curr_expert);
+    //     for (int i = 1; i < 32; i++) {
+    //         printf(",%d", (experts_info_start_idx[i] - experts_info_start_idx[i-1]));
+    //     }
+    //     printf("\n");
+    // }
 
     if (num_tokens_per_curr_expert == 0) {
         return;
