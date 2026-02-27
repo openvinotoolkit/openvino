@@ -41,7 +41,18 @@ enum class MOE3GemmInputIndex : uint8_t {
     ZP_1 = 7,
     WEIGHT_2 = 8,
     SCALE_2 = 9,
-    ZP_2 = 10
+    ZP_2 = 10,
+    // Shared expert inputs
+    SHARED_GATE_WEIGHT = 11,
+    SHARED_GATE_SCALE = 12,
+    SHARED_GATE_ZP = 13,
+    SHARED_UP_WEIGHT = 14,
+    SHARED_UP_SCALE = 15,
+    SHARED_UP_ZP = 16,
+    SHARED_DOWN_WEIGHT = 17,
+    SHARED_DOWN_SCALE = 18,
+    SHARED_DOWN_ZP = 19,
+    SHARED_GATE_GATE_WEIGHT = 20
 };
 
 struct moe_3gemm_config {

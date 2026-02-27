@@ -1,22 +1,22 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "openvino/op/constant.hpp"
 #include "openvino/op/moe.hpp"
-#include "intel_gpu/op/moe_compressed.hpp"
-#include "intel_gpu/plugin/program_builder.hpp"
+
+#include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/moe_gather.hpp>
+#include <intel_gpu/primitives/moe_scatter_reduction.hpp>
+#include <intel_gpu/primitives/swiglu.hpp>
+#include <limits>
+
 #include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
+#include "intel_gpu/op/moe_compressed.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "intel_gpu/primitives/moe_gemm.hpp"
 #include "intel_gpu/primitives/moe_mask_gen.hpp"
-#include <intel_gpu/primitives/moe_scatter_reduction.hpp>
-#include <intel_gpu/primitives/moe_gather.hpp>
-#include <intel_gpu/primitives/swiglu.hpp>
-#include <intel_gpu/primitives/eltwise.hpp>
-
-#include <limits>
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace op {
@@ -53,7 +53,29 @@ static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared
     ///                  shape [num_experts, hidden_size, group_num, 1]
     ///   10: w2_zp - expert zp for final projection for compressed experts,
     ///                  shape [num_experts, hidden_size, group_num, 1]
-    validate_inputs_count(op, {11});
+    ///
+    ///   Options for shared experts (if config.num_shared_expert > 0):
+    ///   11: shared_gate_weight - shared expert weights for first projection,
+    ///                   shape [1, inter_size, group_num, group_size]
+    ///   12: shared_gate_scale - shared expert scale for first projection,
+    ///                   shape [1, inter_size, group_num, 1]
+    ///   13: shared_gate_zp - shared expert zp for first projection,
+    ///                   shape [1, inter_size, group_num, 1]
+    ///   14: shared_up_weight - shared expert weights for second projection,
+    ///                   shape [1, inter_size, group_num, group_size]
+    ///   15: shared_up_scale - shared expert scale for second projection,
+    ///                   shape [1, inter_size, group_num, 1]
+    ///   16: shared_up_zp - shared expert zp for second projection,
+    ///                   shape [1, inter_size, group_num, 1]
+    ///   17: shared_down_weight - shared expert weights for final projection,
+    ///                   shape [1, hidden_size, group_num, group_size]
+    ///   18: shared_down_scale - shared expert scale for final projection,
+    ///                   shape [1, hidden_size, group_num, 1]
+    ///   19: shared_down_zp - shared expert zp for final projection,
+    ///                   shape [1, hidden_size, group_num, 1]
+    ///   20: shared_gate_gate_weight - shared expert gate weight for gating,
+    ///                   shape [hidden_size]
+    validate_inputs_count(op, {11, 21});
 
     const std::string layerName = layer_type_name_ID(op);
     const cldnn::moe_3gemm_fused_compressed moe(layerName, inputs, config);
@@ -94,7 +116,7 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         //   shape [num_experts, hidden_size, group_num, 1]
 
         // Use moe_3gemm_fused_compressed to replace it.
-    } else  {
+    } else {
         // Create GEMM2_BIAS_SWIGLU_CLAMP specific primitives
         // input0 : input {#tokens, hidden_size}
         // input1 : topk_weight {#tokens, num_experts_per_token}
@@ -112,15 +134,15 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         // moe_gemm_down + bias
         // moe_scatter_reduce
         std::string prim_name_base = layer_type_name_ID(op);
-        auto  moe_mask_gen_name = prim_name_base + "_moe_mask_gen";
-        auto  moe_mask_gen_reshape_name = prim_name_base + "_moe_mask_gen_reshape";
-        auto  moe_gather_name = prim_name_base + "_moe_gather";
-        auto  moe_bias_up_name = prim_name_base + "_moe_bias_up";
-        auto  moe_gemm_up_name = prim_name_base + "_moe_gemm_up";
-        auto  moe_swiglu_name = prim_name_base + "_moe_swiglu";
-        auto  moe_gemm_down_name = prim_name_base + "_moe_gemm_down";
-        auto  moe_bias_down_name = prim_name_base + "_moe_bias_down";
-        auto  moe_scatter_reduce_name = prim_name_base + "_moe_scatter_reduce";
+        auto moe_mask_gen_name = prim_name_base + "_moe_mask_gen";
+        auto moe_mask_gen_reshape_name = prim_name_base + "_moe_mask_gen_reshape";
+        auto moe_gather_name = prim_name_base + "_moe_gather";
+        auto moe_bias_up_name = prim_name_base + "_moe_bias_up";
+        auto moe_gemm_up_name = prim_name_base + "_moe_gemm_up";
+        auto moe_swiglu_name = prim_name_base + "_moe_swiglu";
+        auto moe_gemm_down_name = prim_name_base + "_moe_gemm_down";
+        auto moe_bias_down_name = prim_name_base + "_moe_bias_down";
+        auto moe_scatter_reduce_name = prim_name_base + "_moe_scatter_reduce";
         auto moe_mask_gen_prim = cldnn::moe_mask_gen(moe_mask_gen_name,
                                                      input_infos[2],  // topk indices
                                                      static_cast<int32_t>(config.num_expert),
@@ -141,11 +163,10 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         p.add_primitive(*op, moe_gather_prim);
         std::vector<cldnn::input_info> moe_gemm_up_inputs = {
             input_info(moe_gather_name),  // topk_weight
-            input_infos[3],  // compressed_weights_input_up
+            input_infos[3],               // compressed_weights_input_up
             input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_ID),
             input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_INFO_START_IDX),
-            input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_LENS_PER_EXPERT)
-        };
+            input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_LENS_PER_EXPERT)};
         size_t down_idx = 0;
         if (config.has_zp) {
             moe_gemm_up_inputs.push_back(input_infos[6]);  // bias_up
@@ -172,14 +193,14 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         // TODO : update for each new pattern
         auto moe_swiglu_prim = cldnn::swiglu(moe_swiglu_name,
                                              input_info(moe_gemm_up_name),
-                                             2, // axis
-                                             2, // glu_stride
+                                             2,  // axis
+                                             2,  // glu_stride
                                              ov::op::internal::GLU::GluType::Swish,
-                                             0,                    // gate idx
-                                             -config.expert_alpha, // clamp_min
-                                             config.expert_alpha,  // clamp_max
-                                             config.expert_beta,   // swish beta
-                                             1.0f,                 // up_add_val
+                                             0,                     // gate idx
+                                             -config.expert_alpha,  // clamp_min
+                                             config.expert_alpha,   // clamp_max
+                                             config.expert_beta,    // swish beta
+                                             1.0f,                  // up_add_val
                                              cldnn::tensor());
         p.add_primitive(*op, moe_swiglu_prim);
         std::vector<cldnn::input_info> moe_gemm_down_inputs = {
@@ -202,15 +223,16 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         auto moe_gemm_down = cldnn::moe_gemm(moe_gemm_down_name, moe_gemm_down_inputs, config);
         moe_gemm_down.has_bias = true;
         p.add_primitive(*op, moe_gemm_down);
-        auto moe_scatter_reduce_prim = cldnn::moe_scatter_reduction(moe_scatter_reduce_name,
-                input_info(moe_gemm_down_name),
-                input_infos[2],
-                input_infos[1],
-                input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_PER_EXPERT),
-                input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_INFO_START_IDX),
-                input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_LENS_PER_EXPERT),
-                input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_ID),
-                config);
+        auto moe_scatter_reduce_prim =
+            cldnn::moe_scatter_reduction(moe_scatter_reduce_name,
+                                         input_info(moe_gemm_down_name),
+                                         input_infos[2],
+                                         input_infos[1],
+                                         input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_PER_EXPERT),
+                                         input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_INFO_START_IDX),
+                                         input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_LENS_PER_EXPERT),
+                                         input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_ID),
+                                         config);
         p.add_primitive(*op, moe_scatter_reduce_prim);
     }
 }
