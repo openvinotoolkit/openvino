@@ -24,7 +24,7 @@ namespace ov::intel_cpu::aarch64 {
  */
 class jit_binary_call_emitter : public jit_emitter {
 public:
-    jit_binary_call_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_binary_call_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                             dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                             std::set<snippets::Reg> live_regs);
 

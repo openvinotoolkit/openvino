@@ -352,25 +352,16 @@ uint32_t PluginCompilerAdapter::get_version() const {
     return _compiler->get_version();
 }
 
-std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
-    // For VCL, we can return the supported options from compiler
-    VCLCompilerImpl* vclCompiler = dynamic_cast<VCLCompilerImpl*>(_compiler.operator->());
-    if (vclCompiler == nullptr) {
-        // If _compiler  cannot be cast to VCLCompilerImpl, it should use the mlir library.
-        // PluginCompiler has all the same options as plugin
-        // Returing empty string to let the plugin fallback to legacy registration
-        _logger.warning("Failed to cast compiler to VCLCompilerImpl. Returning empty supported options.");
-        return {};
-    }
+std::optional<std::vector<std::string>> PluginCompilerAdapter::get_supported_options() const {
     std::vector<char> options;
-    if (!vclCompiler->get_supported_options(options)) {
+    if (!_compiler->get_supported_options(options)) {
         _logger.warning("VCLCompilerImpl get_supported_options failed. Returning empty supported options.");
-        return {};
+        return std::nullopt;
     }
 
     if (options.empty()) {
-        _logger.warning("get_supported_options returned empty options.");
-        return {};
+        _logger.warning("get_supported_options returned no options; returning an empty supported options vector.");
+        return std::vector<std::string>{};
     }
 
     std::string compilerOptionsStr(options.data(), options.size());
@@ -386,17 +377,8 @@ std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
 }
 
 bool PluginCompilerAdapter::is_option_supported(std::string optname, std::optional<std::string> optValue) const {
-    VCLCompilerImpl* vclCompiler = dynamic_cast<VCLCompilerImpl*>(_compiler.operator->());
-    if (vclCompiler == nullptr) {
-        // If _compiler  cannot be cast to VCLCompilerImpl, it should use the mlir library.
-        // This functions has no utility in PluginCompiler
-        // returning false for any request to avoid the option of spamming the plugin
-        _logger.warning("Failed to cast compiler to VCLCompilerImpl. Returning false for check.");
-        return false;
-    }
-
     const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
-    if (vclCompiler->is_option_supported(optname, optValue)) {
+    if (_compiler->is_option_supported(optname, optValue)) {
         _logger.debug("Option %s is supported `%s` by VCLCompilerImpl",
                       optname.c_str(),
                       optvalue_ch ? optvalue_ch : "null");
