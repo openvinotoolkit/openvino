@@ -48,6 +48,7 @@
 
 namespace ov::intel_gpu {
 FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
+<<<<<<< HEAD
     using namespace ov::pass::pattern;
     using namespace ov::pass;
 #define ANY any_input()

@@ -722,6 +722,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("GATE_UP_ENABLE", 1);
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
@@ -755,6 +756,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("DOWN_ENABLE", 1);
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
@@ -788,6 +790,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("REDUCE_ENABLE", 1);
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
@@ -2052,9 +2055,9 @@ public:
             return exec_single_token({topk_event}, instance, scratch);
         }
 
+        auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         // onednn path will accumulate to the output
         if (!use_micro_gemm_prefill) {
-            auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
             final_hidden_states_mem_ptr->fill(stream, false);
         }
         const bool use_gpu_mask_gen = use_gpu_mask_gen_prefill;
@@ -2074,10 +2077,10 @@ public:
 
         if (_has_shared_expert) {
             auto& engine = instance.get_network().get_engine();
-            init_shared_primitives(engine, scratch.moe_fusion_wei_addr, batch);
-            if (result_event)
-                result_event->wait();
-            execute_shared_expert(stream.get_onednn_stream(), batch, hidden_states_mem_ptr, final_hidden_states_mem_ptr, scratch);
+            init_shared_primitives(engine, scratch.moe_fusion_wei_addr, token_num);
+            if (ret_env)
+                ret_env->wait();
+            execute_shared_expert(stream.get_onednn_stream(), token_num, hidden_states_mem_ptr, final_hidden_states_mem_ptr, scratch);
         }
         // Wait for the final event to be ready
         // ret_env->wait();
