@@ -886,8 +886,8 @@ jobs:
           files: ${{ matrix.upload.file }}
           disable_search: true
           flags: ${{ matrix.upload.flag }}
+          token: ${{ secrets.CODECOV_TOKEN }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_branch: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: false
           verbose: true
