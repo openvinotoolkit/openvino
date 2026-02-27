@@ -8,7 +8,7 @@ This page demonstrates how to use NPU Compile Tool to convert OpenVINO™ Interm
 Compile tool is a C++ application that enables you to compile a model for inference on a specific device and export the compiled representation to a binary file.
 With this tool, you can compile a model using supported OpenVINO Runtime devices on a machine that does not have the physical device connected, i.e. without NPU driver and Runtime loading, and then transfer a generated file to any machine with the target inference device available.
 
-Using Compile Tool is not a basic approach to end-to-end execution and/or application but mostly suitable for debugging and validation and some specific use cases. If one is looking for the standard way of reducing application startup delays by exporting and reusing the compiled model automatically, refer to [Model Caching article](https://docs.openvino.ai/2025/openvino-workflow/running-inference/inference-devices-and-modes/npu-device.html#model-caching)
+Using Compile Tool is not a basic approach to end-to-end execution and/or application but mostly suitable for debugging and validation and some specific use cases. If one is looking for the standard way of reducing application startup delays by exporting and reusing the compiled model automatically, refer to [Model Caching article](https://docs.openvino.ai/2026/openvino-workflow/running-inference/inference-devices-and-modes/npu-device.html#model-caching)
 
 ## Workflow of the Compile tool
 
@@ -25,7 +25,7 @@ If you need to configure a release package layout and have Compile Tool in it, u
 ### Standalone build
 
 #### Prerequisites
-* [OpenVINO™ Runtime release package](https://docs.openvino.ai/2025/get-started/install-openvino.html)
+* [OpenVINO™ Runtime release package](https://docs.openvino.ai/2026/get-started/install-openvino.html)
 
 #### Build instructions
 1. Download and install OpenVINO™ Runtime package
@@ -37,7 +37,7 @@ If you need to configure a release package layout and have Compile Tool in it, u
     cmake --install . --prefix <compile_tool_install_dir>
     ```
     > Note 1: command line instruction might differ on different platforms (e.g. Windows cmd)
-    > Note 2: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, specifying OpenVINO_DIR and calling `setupvars` script might not be needed. Refer [documentation](https://docs.openvino.ai/2025/get-started/install-openvino.html) for details.
+    > Note 2: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, specifying OpenVINO_DIR and calling `setupvars` script might not be needed. Refer [documentation](https://docs.openvino.ai/2026/get-started/install-openvino.html) for details.
     > Note 3: `<compile_tool_install_dir>` can be any directory on your filesystem that you want to use for installation including `<openvino_install_dir>` if you wish to extend OpenVINO package
 3. Verify the installation
     ```sh
@@ -45,7 +45,7 @@ If you need to configure a release package layout and have Compile Tool in it, u
     <compile_tool_install_dir>/tools/compile_tool/compile_tool -h
     ```
     > Note 1: command line might differ depending on your platform
-    > Note 2: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, calling setupvars might not be needed. Refer [documentation](https://docs.openvino.ai/2025/get-started/install-openvino.html) for details.
+    > Note 2: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, calling setupvars might not be needed. Refer [documentation](https://docs.openvino.ai/2026/get-started/install-openvino.html) for details.
 
     Successful build will show the information about Compile Tool CLI options
 

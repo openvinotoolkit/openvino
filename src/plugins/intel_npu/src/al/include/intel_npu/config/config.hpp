@@ -430,7 +430,7 @@ public:
     std::vector<ov::PropertyName> getSupportedOptions(bool includePrivate = false) const;
     std::string getSupportedAsString(bool includePrivate = false) const;
 
-    details::OptionConcept get(std::string_view key, OptionMode mode = OptionMode::Both) const;
+    details::OptionConcept get(std::string_view key) const;
     void walk(std::function<void(const details::OptionConcept&)> cb) const;
 
 private:
@@ -464,7 +464,7 @@ public:
 
     explicit Config(const std::shared_ptr<const OptionsDesc>& desc);
 
-    virtual void update(const ConfigMap& options, OptionMode mode = OptionMode::Both);
+    virtual void update(const ConfigMap& options);
 
     void parseEnvVars();
 
