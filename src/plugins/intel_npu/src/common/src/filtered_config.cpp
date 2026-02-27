@@ -24,14 +24,14 @@ bool FilteredConfig::isOptPublic(std::string_view key) const {
     }
 }
 
-void FilteredConfig::update(const ConfigMap& options, OptionMode mode) {
+void FilteredConfig::update(const ConfigMap& options) {
     auto log = Logger::global().clone("Config");
 
     for (const auto& p : options) {
         log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());
 
         if (isAvailable(p.first)) {
-            const auto opt = _desc->get(p.first, mode);
+            const auto opt = _desc->get(p.first);
             _impl[opt.key().data()] = opt.validateAndParse(p.second);
         } else {
             OPENVINO_THROW("[ NOT_FOUND ] Option '" + p.first + "' is not supported for current configuration");
@@ -132,14 +132,6 @@ std::string FilteredConfig::toStringForCompiler() const {
     }
 
     return resultStream.str();
-}
-
-void FilteredConfig::markAsInitialized() {
-    _initialized = true;
-}
-
-bool FilteredConfig::wasInitialized() const {
-    return _initialized;
 }
 
 }  // namespace intel_npu

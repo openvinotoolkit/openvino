@@ -42,6 +42,10 @@
 #include "transformations/utils/utils.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "openvino/op/multiply.hpp"
+#    include "transformations/utils.hpp"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -259,6 +263,26 @@ bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
            ov::op::util::is_on_path<ov::op::v0::Constant>(node->input_value(1));
 }
 
+#if defined(OPENVINO_ARCH_ARM64)
+bool isACLInt8ConvFQChainMarked(const std::shared_ptr<Node>& node) {
+    if (!match_acl_int8_conv_fq_chain(node)) {
+        return false;
+    }
+    snippets::pass::SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+
+    const auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(node->get_input_node_shared_ptr(0));
+    if (!mul) {
+        return true;
+    }
+    snippets::pass::SetSnippetsNodeType(mul, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+
+    if (const auto add = ov::as_type_ptr<ov::op::v1::Add>(mul->get_input_node_shared_ptr(0)); add) {
+        snippets::pass::SetSnippetsNodeType(add, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+    }
+    return true;
+}
+#endif
+
 }  // namespace
 
 bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
@@ -268,6 +292,11 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
         if (is_skipped_op(node)) {
             continue;
         }
+#if defined(OPENVINO_ARCH_ARM64)
+        if (isACLInt8ConvFQChainMarked(node)) {
+            continue;
+        }
+#endif
         // We perform this check separately because we mark here only weights path
         // Matmul itself will be checked further
         if (isSuitableMatMulWithConstantPath(node)) {
