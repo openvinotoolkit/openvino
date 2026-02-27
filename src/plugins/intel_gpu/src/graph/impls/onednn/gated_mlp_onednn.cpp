@@ -151,6 +151,8 @@ protected:
         if (prim->compressed_weights) {
             static constexpr int GROUPED = 3;
 
+            attr->set_fpmath_mode(dnnl::fpmath_mode::any, true);
+
             auto set_scales = [&](int arg, const layout& weight_layout, const layout& scale_layout) {
                 const auto scale_dt = onednn::convert_data_type(scale_layout.data_type);
                 if (scale_layout.count() == 1) {
