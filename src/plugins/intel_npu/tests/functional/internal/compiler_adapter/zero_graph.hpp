@@ -372,6 +372,16 @@ TEST_P(ZeroGraphTest, CheckNoThrowOnUnsupportedFeature) {
 
 using IsOptionSupported = ZeroGraphTest;
 
+TEST_P(IsOptionSupported, GetCompilerSupportedOptions) {
+    std::optional<std::string> compilerSupportedOptions;
+    OV_ASSERT_NO_THROW(compilerSupportedOptions = zeGraphExt->getCompilerSupportedOptions());
+    if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 11)) {
+        ASSERT_FALSE(compilerSupportedOptions.has_value());
+    } else {
+        ASSERT_TRUE(compilerSupportedOptions.has_value());
+    }
+}
+
 TEST_P(IsOptionSupported, PropertyNotSupportedByDriver) {
     std::optional<bool> isOptionSupportedResult;
     OV_ASSERT_NO_THROW(isOptionSupportedResult = zeGraphExt->isOptionSupported("FAKE_OPTION"));
