@@ -91,11 +91,11 @@ public:
         multiply_k(scale);
     }
 
-    void squeeze(InputType which, const vector<size_t>& axes) {
+    void squeeze(InputType which, const vector<int64_t>& axes) {
         auto axes_const = op::v0::Constant::create(element::i64, {axes.size()}, axes);
         nodes[which] = make_shared<op::v0::Squeeze>(nodes[which], axes_const);
     }
-    void unsqueeze(InputType which, const vector<size_t>& axes) {
+    void unsqueeze(InputType which, const vector<int64_t>& axes) {
         auto axes_const = op::v0::Constant::create(element::i64, {axes.size()}, axes);
         nodes[which] = make_shared<op::v0::Unsqueeze>(nodes[which], axes_const);
     }
@@ -121,29 +121,29 @@ public:
         reshape(InputType::SDPA, shape);
     }
 
-    void unsqueeze_q(const vector<size_t>& axes) {
+    void unsqueeze_q(const vector<int64_t>& axes) {
         unsqueeze(InputType::Q, axes);
     }
-    void unsqueeze_k(const vector<size_t>& axes) {
+    void unsqueeze_k(const vector<int64_t>& axes) {
         unsqueeze(InputType::K, axes);
     }
-    void unsqueeze_v(const vector<size_t>& axes) {
+    void unsqueeze_v(const vector<int64_t>& axes) {
         unsqueeze(InputType::V, axes);
     }
-    void unsqueeze_sdpa(const vector<size_t>& axes) {
+    void unsqueeze_sdpa(const vector<int64_t>& axes) {
         unsqueeze(InputType::SDPA, axes);
     }
 
-    void squeeze_q(const vector<size_t>& axes) {
+    void squeeze_q(const vector<int64_t>& axes) {
         squeeze(InputType::Q, axes);
     }
-    void squeeze_k(const vector<size_t>& axes) {
+    void squeeze_k(const vector<int64_t>& axes) {
         squeeze(InputType::K, axes);
     }
-    void squeeze_v(const vector<size_t>& axes) {
+    void squeeze_v(const vector<int64_t>& axes) {
         squeeze(InputType::V, axes);
     }
-    void squeeze_sdpa(const vector<size_t>& axes) {
+    void squeeze_sdpa(const vector<int64_t>& axes) {
         squeeze(InputType::SDPA, axes);
     }
 
