@@ -120,9 +120,9 @@ std::shared_ptr<ov::Node> try_align_outputs(const std::shared_ptr<ov::Node>& src
     int64_t rank_diff = dst_rank.get_length() - src_rank.get_length();
     std::vector<int64_t> axes(std::abs(rank_diff));
     std::iota(axes.begin(), axes.end(), 0);
+    auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
 
     if (rank_diff > 0) {
-        auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
         reshape = std::make_shared<v0::Unsqueeze>(src, axes_const);
     } else if (rank_diff < 0) {
         for (auto axis : axes) {
@@ -130,7 +130,6 @@ std::shared_ptr<ov::Node> try_align_outputs(const std::shared_ptr<ov::Node>& src
                 return nullptr;
             }
         }
-        auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
         reshape = std::make_shared<v0::Squeeze>(src, axes_const);
     }
 
