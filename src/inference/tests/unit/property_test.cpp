@@ -261,6 +261,14 @@ TEST(PropertyValidation, AutoBatchTimeoutRejectsNegativeString) {
     OV_EXPECT_THROW(std::ignore = ov::auto_batch_timeout(std::string{"-500"}), ov::Exception, testing::HasSubstr(""));
 }
 
+// String edge case
+TEST(PropertiesValidation, NumRequestsRejectsNegativeStringWithWhitespace) {
+    // " -1" with leading whitespace should be rejected
+    OV_EXPECT_THROW(std::ignore = ov::hint::num_requests(" -1"),
+                    ov::Exception,
+                    testing::HasSubstr("negative"));
+}
+
 // Positive string values should be accepted
 TEST(PropertyValidation, NumRequestsAcceptsPositiveString) {
     OV_ASSERT_NO_THROW({
