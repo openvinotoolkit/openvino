@@ -183,7 +183,7 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 [pugixml]:https://pugixml.org/
 [ONNX]:https://onnx.ai/
 [protobuf]:https://github.com/protocolbuffers/protobuf
-[OpenVINO Runtime Introduction]:https://docs.openvino.ai/2025/openvino-workflow/running-inference.html
+[OpenVINO Runtime Introduction]:https://docs.openvino.ai/2026/openvino-workflow/running-inference.html
 [PDPD]:https://github.com/PaddlePaddle/Paddle
 [TensorFlow]:https://www.tensorflow.org/
 [TensorFlow Lite]:https://www.tensorflow.org/lite
