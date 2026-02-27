@@ -116,7 +116,7 @@ Step 1: Download and Install the OpenVINO Core Components
 
          .. code-block:: sh
 
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.0/linux/openvino_toolkit_ubuntu22_2026.0.0.20965.c6d6a13a886_arm64.tgz -O openvino_2026.0.0.tgz
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.0/linux/openvino_toolkit_ubuntu22_2026.0.0.20965.c6d6a13a886_arm64.tgz --output openvino_2026.0.0.tgz
             tar -xf openvino_2026.0.0.tgz
             sudo mv openvino_toolkit_ubuntu22_2026.0.0.20965.c6d6a13a886_arm64 /opt/intel/openvino_2026.0.0
 
@@ -125,7 +125,7 @@ Step 1: Download and Install the OpenVINO Core Components
 
          .. code-block:: sh
 
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.0/linux/openvino_toolkit_debian10_2026.0.0.20965.c6d6a13a886_armhf.tgz -O openvino_2026.0.0.tgz
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.0/linux/openvino_toolkit_debian10_2026.0.0.20965.c6d6a13a886_armhf.tgz --output openvino_2026.0.0.tgz
             tar -xf openvino_2026.0.0.tgz
             sudo mv openvino_toolkit_debian10_2026.0.0.20965.c6d6a13a886_armhf /opt/intel/openvino_2026.0.0
 

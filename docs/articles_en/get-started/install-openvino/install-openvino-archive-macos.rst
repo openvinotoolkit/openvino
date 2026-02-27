@@ -52,13 +52,6 @@ Step 1: Install OpenVINO Core Components
 
    .. tab-set::
 
-      .. tab-item:: x86, 64-bit
-         :sync: x86-64
-
-         .. code-block:: sh
-
-            n.a.
-
       .. tab-item:: ARM, 64-bit
          :sync: arm-64
 

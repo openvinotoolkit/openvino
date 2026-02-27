@@ -89,7 +89,7 @@ Linux
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.0/linux/openvino_genai_ubuntu20_2026.0.0.0_arm64.tar.gz -O openvino_genai_2026.0.0.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.0/linux/openvino_genai_ubuntu20_2026.0.0.0_arm64.tar.gz --output openvino_genai_2026.0.0.0.tgz
          tar -xf openvino_genai_2026.0.0.0.tgz
 
 
