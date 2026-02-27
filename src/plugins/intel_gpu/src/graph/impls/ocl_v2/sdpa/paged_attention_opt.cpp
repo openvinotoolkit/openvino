@@ -759,8 +759,7 @@ protected:
         constexpr static std::array input_ids = {PagedAttentionInputIdx::BLOCK_INDICES,
                                                  PagedAttentionInputIdx::BLOCK_INDICES_BEGINS,
                                                  PagedAttentionInputIdx::BLOCK_UPDATE_INDICES,
-                                                 PagedAttentionInputIdx::BLOCK_UPDATE_INDICES_BEGINS,
-                                                 PagedAttentionInputIdx::SUBSEQUENCE_BEGINS};
+                                                 PagedAttentionInputIdx::BLOCK_UPDATE_INDICES_BEGINS};
 
         for (size_t i = 0; i < input_ids.size(); i++) {
             const size_t tensor_id = input_ids.at(i);
@@ -817,7 +816,6 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});         // block_indices_begins
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_UPDATE_INDICES});         // block_update_indices
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_UPDATE_INDICES_BEGINS});  // block_update_indices_begins
-        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});           // subsequence_begins
 
         // Outputs
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});    // key_cache
@@ -841,9 +839,10 @@ protected:
             const auto begins_len = static_cast<size_t>(begins_input.get_partial_shape()[0].get_length());
             OPENVINO_ASSERT(begins_len >= 1, "[GPU] BLOCK_UPDATE_INDICES_BEGINS must have at least 1 element");
             const auto sequences_number = begins_len - 1;
-
+            const bool is_kv_compressed = get_kv_compressed(params);
+            auto wg_heads_number = std::min(heads_number, static_cast<size_t>((params.get_device_info().max_work_group_size) / heads_number));
             wgs.global = {sequences_number, heads_number, subgroup_size};
-            wgs.local = {1, 1, subgroup_size};
+            wgs.local = {1, is_kv_compressed ? 1 : wg_heads_number, subgroup_size};
         }};
     }
 };
@@ -1864,7 +1863,7 @@ public:
 
         if (stage == PagedAttentionStage::MIXED && !use_micro_sdpa) {
             size_t sequential_gws_subseq_mapping_idx = 6;
-            if (has_score_aggregation) {
+            if (has_score_aggregation && has_scores_output) {
                 sequential_gws_subseq_mapping_idx = 9;
             } else if (has_scores_output) {
                 sequential_gws_subseq_mapping_idx = 8;
