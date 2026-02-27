@@ -9,7 +9,8 @@ Give high-signal review comments that help maintainers merge safely with minimal
 - Copilot code review is a purpose-built system with limited context windows and non-zero hallucination risk.
 - Optimize for **precision over recall**: fewer high-confidence comments are better than many speculative comments.
 - Prefer comments tied to changed lines and immediate dependencies; avoid broad architectural speculation unless the diff clearly implies it.
-- Do not duplicate the same issue across many files; report one representative location with clear scope.
+- Do not duplicate the same issue across many files; report one representative location with clear scope. Before posting, verify no prior comment in the same review addresses the same root issue. If the same problem appears in N files, post once and state "same issue applies to N other locations."
+- Do not assert specific runtime behavior of OpenVINO internal APIs (e.g., whether a method modifies input in-place vs returns a new object) unless the behavior is visible in the diff. If unsure about API semantics, ask a clarifying question instead of making a correctness claim.
 
 ## OpenVINO Context You Must Assume
 - This repository is a large multi-component C++/Python project with strict CI and component ownership.
@@ -27,14 +28,25 @@ Give high-signal review comments that help maintainers merge safely with minimal
 
 ## Review Activation Rules
 
-### PRs in Draft state
-- Do not initiate automatic review.
-- Review only when explicitly triggered by a user.
+### Default behavior
+- Initiate automatic review for every non-suppressed PR upon opening and on each new push.
+- On re-reviews triggered by new pushes, focus exclusively on newly changed or previously-flagged lines. Do not re-raise resolved issues or repeat the full review. If no new issues are found, a clean pass with zero comments is the correct outcome.
 
-### PRs labeled `do_not_review`
+### Suppressed PRs
+Automatic review is suppressed when **any** of the following conditions apply:
+- PR is in **Draft** state.
+- PR title contains **WIP** or **POC** (case-insensitive).
+- PR carries the `do_not_review` label.
+
+For suppressed PRs:
 - Do not initiate automatic review.
 - Review only when explicitly triggered by a user.
-- If the label is removed after prior review results were published: perform a new review but do not duplicate previously reported observations; focus exclusively on areas not covered by prior reviews.
+- Apply the same review protocol, quality criteria, and comment budget as for any regular PR. Suppression affects only activation timing, not review rigor.
+
+### Re-activation on suppression removal
+When a suppression condition is lifted (Draft → Ready for review, WIP/POC removed from title, or `do_not_review` label removed):
+- Automatically initiate a full review as if the PR were newly opened.
+- If prior review results exist from a manual trigger, do not duplicate previously reported observations; focus on areas not yet covered and on changes made since the prior review.
 
 ## Revert PRs
 A revert PR restores a previously merged change. It is identified by the word "Revert" in the PR title or description, and typically references the original PR being reverted (e.g., `Reverts openvinotoolkit/openvino#NNNNN`).
@@ -66,6 +78,7 @@ For PRs labeled `ExternalPR`, apply stricter evidence-based checks while keeping
 4. If buildability is in question, reference failing required checks and concrete failure symptoms; do not speculate.
 5. Do not request extra local validation steps when required CI checks are green.
 6. Keep comments focused on merge blockers, regressions, and security/performance risks; avoid style-only expansion.
+7. Verify that all commits in the PR touch only files relevant to the stated PR description. If any commit modifies files outside the declared scope (e.g., CPU plugin changes in an ONNX FE PR), flag it as `[HIGH]` — accidental out-of-scope commits are a common ExternalPR issue.
 
 Before posting any comment, apply this gate:
 - **Evidence gate**: point to exact changed code and explain the failure mode.
@@ -80,6 +93,7 @@ Before posting any comment, apply this gate:
 - Avoid review comments on unrelated legacy code not touched by the PR.
 - Do not request large refactors in bug-fix PRs unless needed to prevent correctness/security regression.
 - Highlight out-of-scope or accidental changes and request revert when they are not required for the stated fix.
+- Do not comment on copyright header format — CI enforces the `Copyright (C) 2018-YYYY` convention automatically. Do not flag year ranges, header ordering, or boilerplate format.
 
 ## Ignore List for Automated Reviews
 - Do not review vendored/third-party sources under `thirdparty/` unless the PR explicitly modifies integration or patch logic.
@@ -92,11 +106,13 @@ Before posting any comment, apply this gate:
 - Favor minimal, deterministic transformations and guard against pattern-matching regressions.
 - Watch for shape/dtype/attribute corner cases and cross-platform behavior differences.
 - Require tests for bug fixes and transformation pattern updates.
+- For stateful components (e.g., state helpers, cached parameters), verify that state is properly initialized, updated, and cleared across inference runs. Flag cases where state set in one call path is never reset in alternative paths.
 
 ### CPU/GPU/NPU Plugins
 - Prioritize inference-path performance and memory correctness.
 - Flag changes that may alter layout assumptions, memory reuse safety, threading behavior, or backend-specific semantics.
 - Ask for targeted unit/functional tests reproducing the issue and preventing regressions.
+- Prefer `ov::op::vX::OpName` namespace style over `opsetX::OpName` in new code.
 
 ### Frontends (ONNX/TF/TFLite/PyTorch/JAX/Paddle)
 - Treat all model/input metadata as untrusted; require overflow-safe and bounds-safe logic.
@@ -123,7 +139,7 @@ Before posting any comment, apply this gate:
 - Avoid hidden behavior changes and silent fallback/config mutation without explicit handling.
 - Keep fixes minimal and root-cause oriented; avoid unrelated refactors.
 - Prefer clear naming.
-- Avoid duplicated logic; suggest usage of existing utilities for component, flag duplicated patterns, and suggest consolidation.
+- Avoid duplicated logic; suggest usage of existing utilities for component, flag duplicated patterns, and suggest consolidation. Specifically watch for: identical or near-identical code in if/else branches, repeated computations inside loops that could be hoisted, and duplicated helper logic across functions in the same file.
 - For constructor-heavy code, prefer proper initializer lists and explicit ownership semantics.
 
 ## Security Review Heuristics
@@ -135,22 +151,30 @@ Before posting any comment, apply this gate:
 
 ## Testing Expectations
 - Every behavioral change should have corresponding tests in existing suites when possible.
-- For bug fixes, require a regression test that fails before and passes after.
+- For bug fixes, actively verify that the PR includes a regression test exercising the specific fix scenario. If no such test is present, post a `[HIGH]` comment requesting one. This is the single most common gap in bug-fix PRs.
 - For architecture-specific changes (x64/ARM64/RISCV, CPU/GPU/NPU), verify appropriate platform/test gating.
 - If tests are skipped/disabled, require explicit rationale and limited scope.
 - If required validation jobs fail, cite the exact failing job(s) and explain impact on merge readiness.
 
-### CI Failure Log Analysis
-When CI/GitHub Actions results are available and a job has failed:
-- Inspect the available failure logs to determine the root cause.
-- Classify the failure into one of three categories:
-  1. **Infrastructure/environment issue** — flaky runner, network timeout, resource exhaustion, dependency mirror outage, or similar non-code problems.
-  2. **Test issue** — pre-existing flaky or broken test unrelated to the PR's changes (e.g., known intermittent failure, test environment mismatch).
-  3. **Change-induced failure** — the PR's code changes directly cause the build or test failure.
-- Post a follow-up review comment with the identified category, the failing job name, and a concise explanation of what went wrong.
-- For change-induced failures, provide actionable guidance on what in the diff likely caused it and how to fix it. Use the changed files and neighboring code context to build confidence in proposed solutions; only post fix suggestions at high confidence.
-- For infrastructure or pre-existing test issues, note that the failure appears unrelated to the PR to help the author avoid unnecessary debugging.
-- Apply the same evidence/impact/fix gate as for code review comments. Do not post low-confidence CI analysis.
+### CI Monitoring and Iterative Feedback
+Proactively track GitHub Actions CI pipeline status for the PR under review. Deliver follow-up review iterations as new CI results become available.
+
+**Continuous tracking rules:**
+- When new CI results arrive after an initial review, post follow-up comments reflecting the latest CI state.
+- If a prior CI analysis comment is outdated (e.g., a re-run resolved the failure), note the updated status concisely rather than leaving stale analysis.
+- CI follow-up comments do not count toward the 5-comment review budget but must still pass the evidence/impact/fix gate.
+
+**Failure analysis protocol:**
+When a GitHub Actions job has failed:
+- Inspect available failure logs to determine root cause.
+- Classify the failure:
+  1. **Infrastructure/environment** — flaky runner, network timeout, resource exhaustion, dependency mirror outage.
+  2. **Pre-existing test issue** — known intermittent or broken test unrelated to the PR.
+  3. **Change-induced** — the PR's code changes directly cause the failure.
+- Post a follow-up comment with the category, failing job name, and concise root-cause explanation.
+- For change-induced failures, provide actionable fix guidance tied to the diff; only post fix suggestions at high confidence.
+- For infrastructure or pre-existing test issues, note that the failure appears unrelated to the PR.
+- Apply the evidence/impact/fix gate. Do not post low-confidence CI analysis.
 
 ## How to Write Review Comments
 - Use this severity prefix:
@@ -170,7 +194,7 @@ Comment quality constraints:
 - If confidence is low, ask one targeted question instead of asserting.
 
 ## Comment Budget
-- Prefer at most 5 substantive comments per review pass.
+- Do not exceed 5 comments per review pass. All severity levels (`[BLOCKER]`, `[HIGH]`, `[MEDIUM]`, `[LOW]`) count toward this limit.
 - Rank by severity and likely merge-blocking impact.
 - Skip low-value nits when BLOCKER/HIGH issues are present.
 - For `ExternalPR`, bias toward fewer, higher-confidence comments to avoid misleading contributors.
