@@ -122,9 +122,33 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
                                    down_wei_m,
                                    down_scale_m,
                                    down_zp_m};
-    auto moe_compressed_m = wrap_type<ov::intel_gpu::op::MOECompressed>(moe_inputs);
-#undef ANY
+    auto moe_compressed_no_shared_m = wrap_type<ov::intel_gpu::op::MOECompressed>(moe_inputs);
 
+    // ── Shared expert weights ───────────────────────────────────────────
+    auto shared_gate_wei_m = wrap_const();
+    auto shared_gate_scale_m = ANY;
+    auto shared_gate_zp_m = ANY;
+    auto shared_up_wei_m = wrap_const();
+    auto shared_up_scale_m = ANY;
+    auto shared_up_zp_m = ANY;
+    auto shared_down_wei_m = wrap_const();
+    auto shared_down_scale_m = ANY;
+    auto shared_down_zp_m = ANY;
+
+    ov::OutputVector moe_inputs_shared = moe_inputs;
+    moe_inputs_shared.push_back(shared_gate_wei_m);
+    moe_inputs_shared.push_back(shared_gate_scale_m);
+    moe_inputs_shared.push_back(shared_gate_zp_m);
+    moe_inputs_shared.push_back(shared_up_wei_m);
+    moe_inputs_shared.push_back(shared_up_scale_m);
+    moe_inputs_shared.push_back(shared_up_zp_m);
+    moe_inputs_shared.push_back(shared_down_wei_m);
+    moe_inputs_shared.push_back(shared_down_scale_m);
+    moe_inputs_shared.push_back(shared_down_zp_m);
+    auto moe_compressed_shared_m = wrap_type<ov::intel_gpu::op::MOECompressed>(moe_inputs_shared);
+
+    auto moe_compressed_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{moe_compressed_no_shared_m, moe_compressed_shared_m});
+#undef ANY
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
@@ -134,6 +158,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
         }
 
         auto config = moe_compressed->get_config();
+        bool has_shared_expert = pattern_map.count(shared_gate_wei_m) > 0;
         OutputVector args{
             pattern_map.at(hidden_state_reshape),
             pattern_map.at(matmul),
@@ -151,6 +176,17 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
             args.push_back(pattern_map.at(sig_routing_bias));
             args.push_back(pattern_map.at(sig_eps_value));
             config.routing_type = ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS;
+        }
+        if (has_shared_expert) {
+            args.push_back(pattern_map.at(shared_gate_wei_m));
+            args.push_back(pattern_map.at(shared_gate_scale_m));
+            args.push_back(pattern_map.at(shared_gate_zp_m));
+            args.push_back(pattern_map.at(shared_up_wei_m));
+            args.push_back(pattern_map.at(shared_up_scale_m));
+            args.push_back(pattern_map.at(shared_up_zp_m));
+            args.push_back(pattern_map.at(shared_down_wei_m));
+            args.push_back(pattern_map.at(shared_down_scale_m));
+            args.push_back(pattern_map.at(shared_down_zp_m));
         }
 
         std::shared_ptr<ov::Node> moe_router_fused = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, config);

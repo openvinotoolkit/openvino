@@ -30,6 +30,7 @@ struct Moe3GemmConfig {
     size_t top_k;
     size_t group_size;
     bool is_u4;
+    bool has_shared_expert = false;
 };
 
 struct Moe3GemmReference {
@@ -116,7 +117,11 @@ struct Moe3GemmReference {
                                                    const std::vector<ov::float16>& routing_weights,
                                                    const std::vector<float>& w0_data,
                                                    const std::vector<float>& w1_data,
-                                                   const std::vector<float>& w2_data) {
+                                                   const std::vector<float>& w2_data,
+                                                   const std::vector<float>& s_gate_data = {},
+                                                   const std::vector<float>& s_up_data = {},
+                                                   const std::vector<float>& s_down_data = {},
+                                                   const std::vector<float>& s_gate_scalar_data = {}) {
         size_t batch_size = config.batch_size;
         size_t seq_len = config.seq_len;
         size_t num_experts = config.num_experts;
@@ -163,6 +168,48 @@ struct Moe3GemmReference {
                 for (size_t k = 0; k < top_k; ++k)
                     top_k_normalized[k] = {expert_weights[k].first / sum_weights, expert_weights[k].second};
                 apply_top_k_experts(b, s, hidden_states, w0_data, w1_data, w2_data, top_k_normalized, output);
+
+                // Shared Expert
+                if (config.has_shared_expert) {
+                    std::vector<float> shared_gate(inter_size);
+                    std::vector<float> shared_up(inter_size);
+                    float shared_scalar_gate = 0.0f;
+
+                    // Compute scalar gate
+                    for (size_t j = 0; j < hidden_size; ++j) {
+                        float x = static_cast<float>(hidden_states[b * seq_len * hidden_size + s * hidden_size + j]);
+                        shared_scalar_gate += x * s_gate_scalar_data[j];
+                    }
+                    shared_scalar_gate = 1.0f / (1.0f + std::exp(-shared_scalar_gate));
+
+                    // Compute gate and up
+                    for (size_t i = 0; i < inter_size; ++i) {
+                        float gate_val = 0.0f;
+                        float up_val = 0.0f;
+                        for (size_t j = 0; j < hidden_size; ++j) {
+                            float x_val = static_cast<float>(hidden_states[b * seq_len * hidden_size + s * hidden_size + j]);
+                            gate_val += x_val * s_gate_data[j * inter_size + i];
+                            up_val += x_val * s_up_data[j * inter_size + i];
+                        }
+                        shared_gate[i] = gate_val;
+                        shared_up[i] = up_val;
+                    }
+
+                    std::vector<float> shared_act(inter_size);
+                    for (size_t i = 0; i < inter_size; ++i) {
+                        float silu = shared_gate[i] / (1.0f + std::exp(-shared_gate[i]));
+                        shared_act[i] = silu * shared_up[i];
+                    }
+
+                    // Compute out = act @ s_down * scalar_gate
+                    for (size_t j = 0; j < hidden_size; ++j) {
+                        float out_val = 0.0f;
+                        for (size_t i = 0; i < inter_size; ++i) {
+                            out_val += shared_act[i] * s_down_data[i * hidden_size + j];
+                        }
+                        output[b * seq_len * hidden_size + s * hidden_size + j] += static_cast<ov::float16>(out_val * shared_scalar_gate);
+                    }
+                }
             }
         }
         return output;
@@ -466,6 +513,238 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                                               Moe3GemmTestParams{16, false, 128, 256, 4, 2, 128})));
 
 class moe_3gemm_compressed_gpu_u4 : public ::testing::TestWithParam<cldnn::MOE3GemmFusedCompressed::RoutingType> {};
+
+class moe_3gemm_compressed_gpu_shared_random : public ::testing::TestWithParam<Moe3GemmTestParams> {};
+
+TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_random) {
+    auto param = GetParam();
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        return;
+    }
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    Moe3GemmConfig config;
+    config.batch_size = 1;
+    config.seq_len = param.seq_len;
+    config.hidden_size = param.hidden_size;
+    config.inter_size = param.inter_size;
+    config.num_experts = param.num_experts;
+    config.top_k = param.top_k;
+    config.group_size = param.group_size;
+    config.is_u4 = param.is_u4;
+    config.has_shared_expert = true;
+
+    Moe3GemmReference ref(config, rg);
+
+    // Generate random data
+    auto hidden_states = rg.generate_random_1d<ov::float16>(config.batch_size * config.seq_len * config.hidden_size, -1.0f, 1.0f, 1000);
+    auto routing_weights = rg.generate_random_1d<ov::float16>(config.batch_size * config.seq_len * config.num_experts, 0.0f, 1.0f, 1000);
+
+    auto w0_data = rg.generate_random_1d<float>(config.num_experts * config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);
+    auto w1_data = rg.generate_random_1d<float>(config.num_experts * config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);
+    auto w2_data = rg.generate_random_1d<float>(config.num_experts * config.inter_size * config.hidden_size, -1.0f, 0.0f, 1000);
+    
+    // Shared Expert Data
+    auto s_gate_data = rg.generate_random_1d<float>(config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);
+    auto s_up_data = rg.generate_random_1d<float>(config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000); // [hidden, inter]
+    auto s_down_data = rg.generate_random_1d<float>(config.inter_size * config.hidden_size, -1.0f, 0.0f, 1000); // [inter, hidden]
+    auto s_gate_scalar_data = rg.generate_random_1d<float>(config.hidden_size, -1.0f, 0.0f, 1000);
+
+    for (size_t i = 0; i < config.num_experts * config.hidden_size * config.inter_size; ++i) {
+        w0_data[i] /= 7.0f;
+        w1_data[i] /= 11.0f;
+        w2_data[i] /= 7.0f;
+        if (i < config.hidden_size * config.inter_size) {
+             s_gate_data[i] /= 7.0f;
+             s_up_data[i] /= 11.0f;
+             s_down_data[i] /= 7.0f;
+        }
+    }
+    
+    // Quantize Experts
+    auto [w0_q, w0_scale, w0_zp] = ref.quantize(w0_data, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
+    auto [w1_q, w1_scale, w1_zp] = ref.quantize(w1_data, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
+    auto [w2_q, w2_scale, w2_zp] = ref.quantize(w2_data, config.num_experts, config.inter_size, config.hidden_size, config.group_size);
+
+    // Quantize Shared Experts (Treat as 1 expert)
+    auto [s_gate_q, s_gate_scale, s_gate_zp] = ref.quantize(s_gate_data, 1, config.hidden_size, config.inter_size, config.group_size);
+    auto [s_up_q, s_up_scale, s_up_zp] = ref.quantize(s_up_data, 1, config.hidden_size, config.inter_size, config.group_size);
+    auto [s_down_q, s_down_scale, s_down_zp] = ref.quantize(s_down_data, 1, config.inter_size, config.hidden_size, config.group_size);
+
+    auto w0_q_packed = ref.pack(w0_q);
+    auto w0_zp_packed = ref.pack(w0_zp);
+    auto w1_q_packed = ref.pack(w1_q);
+    auto w1_zp_packed = ref.pack(w1_zp);
+    auto w2_q_packed = ref.pack(w2_q);
+    auto w2_zp_packed = ref.pack(w2_zp);
+
+    auto s_gate_q_packed = ref.pack(s_gate_q);
+    auto s_gate_zp_packed = ref.pack(s_gate_zp);
+    auto s_up_q_packed = ref.pack(s_up_q);
+    auto s_up_zp_packed = ref.pack(s_up_zp);
+    auto s_down_q_packed = ref.pack(s_down_q);
+    auto s_down_zp_packed = ref.pack(s_down_zp);
+
+    // Create tensors
+    auto create_weight_tensor = [&](const std::vector<uint8_t>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
+        auto dt = config.is_u4 ? data_types::u4 : data_types::u8;
+        auto mem = engine.allocate_memory({dt, format::bfyx, {b, f, y, x}});
+        set_values(mem, values);
+        get_test_stream().finish();
+        return mem;
+    };
+
+    auto create_zp_tensor = [&](const std::vector<uint8_t>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
+        auto dt = config.is_u4 ? data_types::u4 : data_types::u8;
+        auto mem = engine.allocate_memory({dt, format::bfyx, {b, f, y, x}});
+        set_values(mem, values);
+        get_test_stream().finish();
+        return mem;
+    };
+
+    auto create_f16_tensor = [&](const std::vector<ov::float16>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
+        auto mem = engine.allocate_memory({data_types::f16, format::bfyx, {b, f, y, x}});
+        set_values(mem, values);
+        get_test_stream().finish();
+        return mem;
+    };
+    
+    // For Scalar Gate Weights - assuming 1D tensor [hidden_size]
+    auto create_scalar_gate_tensor = [&](const std::vector<float>& values) {
+        std::vector<ov::float16> fp16_values;
+        for(float v : values) fp16_values.push_back(static_cast<ov::float16>(v));
+        // Shape: [hidden_size]
+        auto mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, static_cast<int64_t>(values.size())}});
+        set_values(mem, fp16_values);
+        get_test_stream().finish();
+        return mem;
+    };
+
+    auto hidden_states_mem = create_f16_tensor(hidden_states, config.batch_size, config.seq_len, config.hidden_size, 1);
+    auto routing_weights_mem = create_f16_tensor(routing_weights, config.batch_size, config.seq_len, config.num_experts, 1);
+
+    size_t group_num = config.hidden_size / config.group_size;
+    size_t group_num2 = config.inter_size / config.group_size;
+
+    // Expert Weights
+    auto w0_weight_mem = create_weight_tensor(w0_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
+    auto w0_scale_mem = create_f16_tensor(w0_scale, config.num_experts, group_num, 1, config.inter_size);
+    auto w0_zp_mem = create_zp_tensor(w0_zp_packed, config.num_experts, group_num, 1, config.inter_size);
+
+    auto w1_weight_mem = create_weight_tensor(w1_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
+    auto w1_scale_mem = create_f16_tensor(w1_scale, config.num_experts, group_num, 1, config.inter_size);
+    auto w1_zp_mem = create_zp_tensor(w1_zp_packed, config.num_experts, group_num, 1, config.inter_size);
+
+    auto w2_weight_mem = create_weight_tensor(w2_q_packed, config.num_experts, config.hidden_size, config.group_size, group_num2);
+    auto w2_scale_mem = create_f16_tensor(w2_scale, config.num_experts, group_num2, 1, config.hidden_size);
+    auto w2_zp_mem = create_zp_tensor(w2_zp_packed, config.num_experts, group_num2, 1, config.hidden_size);
+    
+    // Shared Expert Weights (num_experts = 1)
+    // create_weight_tensor(values, b, f, y, x) -> b=1, f=inter_size, y=group_num, x=group_size
+    auto s_gate_weight_mem = create_weight_tensor(s_gate_q_packed, 1, config.inter_size, config.group_size, group_num);
+    auto s_gate_scale_mem = create_f16_tensor(s_gate_scale, 1, group_num, 1, config.inter_size);
+    auto s_gate_zp_mem = create_zp_tensor(s_gate_zp_packed, 1, group_num, 1, config.inter_size);
+
+    auto s_up_weight_mem = create_weight_tensor(s_up_q_packed, 1, config.inter_size, config.group_size, group_num);
+    auto s_up_scale_mem = create_f16_tensor(s_up_scale, 1, group_num, 1, config.inter_size);
+    auto s_up_zp_mem = create_zp_tensor(s_up_zp_packed, 1, group_num, 1, config.inter_size);
+    
+    // down: b=1, f=hidden_size, y=group_num2, x=group_size
+    auto s_down_weight_mem = create_weight_tensor(s_down_q_packed, 1, config.hidden_size, config.group_size, group_num2);
+    auto s_down_scale_mem = create_f16_tensor(s_down_scale, 1, group_num2, 1, config.hidden_size);
+    auto s_down_zp_mem = create_zp_tensor(s_down_zp_packed, 1, group_num2, 1, config.hidden_size);
+    
+    auto s_gate_scalar_mem = create_scalar_gate_tensor(s_gate_scalar_data);
+
+    // Build topology
+    topology topology;
+    topology.add(input_layout("hidden_states", hidden_states_mem->get_layout()));
+    topology.add(input_layout("routing_weights", routing_weights_mem->get_layout()));
+    
+    topology.add(data("w0_weight", w0_weight_mem));
+    topology.add(data("w0_scale", w0_scale_mem));
+    topology.add(data("w0_zp", w0_zp_mem));
+    topology.add(data("w1_weight", w1_weight_mem));
+    topology.add(data("w1_scale", w1_scale_mem));
+    topology.add(data("w1_zp", w1_zp_mem));
+    topology.add(data("w2_weight", w2_weight_mem));
+    topology.add(data("w2_scale", w2_scale_mem));
+    topology.add(data("w2_zp", w2_zp_mem));
+    
+    // Add shared inputs
+    topology.add(data("s_gate_weight", s_gate_weight_mem));
+    topology.add(data("s_gate_scale", s_gate_scale_mem));
+    topology.add(data("s_gate_zp", s_gate_zp_mem));
+    topology.add(data("s_up_weight", s_up_weight_mem));
+    topology.add(data("s_up_scale", s_up_scale_mem));
+    topology.add(data("s_up_zp", s_up_zp_mem));
+    topology.add(data("s_down_weight", s_down_weight_mem));
+    topology.add(data("s_down_scale", s_down_scale_mem));
+    topology.add(data("s_down_zp", s_down_zp_mem));
+    topology.add(data("s_gate_scalar", s_gate_scalar_mem));
+
+    cldnn::MOE3GemmFusedCompressed::Config moe_config;
+    moe_config.hidden_size = config.hidden_size;
+    moe_config.inter_size = config.inter_size;
+    moe_config.num_expert = config.num_experts;
+    moe_config.top_k = config.top_k;
+    moe_config.group_size = config.group_size;
+    moe_config.out_type = data_types::f16;
+    moe_config.num_shared_expert = 1;
+    // has_batch_dim default is 0.
+
+    // Create Primitive with extended inputs
+    auto moe_prim = moe_3gemm_fused_compressed("moe_3gemm_fused_compressed",
+                                               {input_info("hidden_states"),
+                                                input_info("routing_weights"),
+                                                input_info("w0_weight"),
+                                                input_info("w0_scale"),
+                                                input_info("w0_zp"),
+                                                input_info("w1_weight"),
+                                                input_info("w1_scale"),
+                                                input_info("w1_zp"),
+                                                input_info("w2_weight"),
+                                                input_info("w2_scale"),
+                                                input_info("w2_zp"),
+                                                // Shared Expert Inputs
+                                                input_info("s_gate_weight"),
+                                                input_info("s_gate_scale"),
+                                                input_info("s_gate_zp"),
+                                                input_info("s_up_weight"),
+                                                input_info("s_up_scale"),
+                                                input_info("s_up_zp"),
+                                                input_info("s_down_weight"),
+                                                input_info("s_down_scale"),
+                                                input_info("s_down_zp"),
+                                                input_info("s_gate_scalar")
+                                                },
+                                               moe_config);
+
+    topology.add(moe_prim);
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("hidden_states", hidden_states_mem);
+    network.set_input_data("routing_weights", routing_weights_mem);
+
+    auto outputs = network.execute();
+    auto output_prim = outputs.begin()->second.get_memory();
+    get_test_stream().flush();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
+
+    auto ref_output = ref.run_reference_softmax(hidden_states, routing_weights, w0_data, w1_data, w2_data, 
+                                        s_gate_data, s_up_data, s_down_data, s_gate_scalar_data);
+    
+    // Check accuracy
+    for (size_t i = 0; i < ref_output.size(); ++i) {
+        EXPECT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), 0.2f);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         moe_3gemm_compressed_gpu_shared_random,
+                         ::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{16, true, 128, 256, 4, 2, 128}));
 
 TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
     auto routing_type = GetParam();

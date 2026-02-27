@@ -42,8 +42,22 @@ enum class MOE3GemmInputIndex : uint8_t {
     WEIGHT_2 = 8,
     SCALE_2 = 9,
     ZP_2 = 10,
+    // Sigmoid routing (optional, SIGMOID_BIAS only)
     ROUTING_BIAS = 11,
-    ROUTING_EPS = 12
+    ROUTING_EPS = 12,
+    // Shared expert inputs (optional, when num_shared_expert > 0)
+    // Note: For SOFTMAX routing, shared expert inputs start at index 11 (same offsets as ROUTING_BIAS/EPS).
+    // Currently shared expert and SIGMOID_BIAS routing are mutually exclusive.
+    SHARED_GATE_WEIGHT = 11,
+    SHARED_GATE_SCALE = 12,
+    SHARED_GATE_ZP = 13,
+    SHARED_UP_WEIGHT = 14,
+    SHARED_UP_SCALE = 15,
+    SHARED_UP_ZP = 16,
+    SHARED_DOWN_WEIGHT = 17,
+    SHARED_DOWN_SCALE = 18,
+    SHARED_DOWN_ZP = 19,
+    SHARED_GATE_GATE_WEIGHT = 20
 };
 
 struct moe_3gemm_config {
