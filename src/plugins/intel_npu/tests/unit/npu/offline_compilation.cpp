@@ -45,7 +45,6 @@ protected:
 };
 
 TEST_F(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalledSetProperty) {
-    ov::Core core;
     ov::AnyMap config;
 
     config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
@@ -57,7 +56,6 @@ TEST_F(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalledSetPrope
 }
 
 TEST_F(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalled) {
-    ov::Core core;
     ov::AnyMap config;
 
     config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
