@@ -140,6 +140,13 @@ const ov::element::Type& ZeroTensor::get_element_type() const {
     return _element_type;
 }
 
+void ZeroTensor::set_element_type(const ov::element::Type& element_type) {
+    OPENVINO_ASSERT((element_type == ov::element::boolean && _element_type == ov::element::u8) ||
+                        (element_type == ov::element::u8 && _element_type == ov::element::boolean),
+                    "set_element_type should be used only for special case of boolean and u8 types!");
+    _element_type = element_type;
+}
+
 const ov::Shape& ZeroTensor::get_shape() const {
     return _shape;
 }
