@@ -17,6 +17,8 @@
 #include "emitters/plugin/riscv64/jit_eltwise_emitters.hpp"
 #include "emitters/snippets/common/emitter_factory.hpp"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "jit_fill_emitter.hpp"
+#include "jit_horizon_emitter.hpp"
 #include "jit_kernel_emitter.hpp"
 #include "jit_loop_emitters.hpp"
 #include "jit_memory_emitters.hpp"
@@ -73,16 +75,24 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/broadcastload.hpp"
 #include "snippets/op/broadcastmove.hpp"
+#include "snippets/op/buffer.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/op/convert_truncation.hpp"
+#include "snippets/op/fill.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
 #include "snippets/op/kernel.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/op/powerstatic.hpp"
 #include "snippets/op/rank_normalization.hpp"
+#include "snippets/op/reduce.hpp"
+#include "snippets/op/reorder.hpp"
+#include "snippets/op/reshape.hpp"
 #include "snippets/op/result.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
+#include "snippets/op/vector_buffer.hpp"
 #include "snippets/target_machine.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "utils/general_utils.h"
@@ -215,7 +225,11 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     // data movement
     jitters[op::v0::Parameter::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
     jitters[snippets::op::Result::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
+    jitters[snippets::op::Buffer::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
+    jitters[snippets::op::VectorBuffer::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
     jitters[snippets::op::RankNormalization::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
+    jitters[snippets::op::Reshape::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
+    jitters[snippets::op::Reorder::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
     jitters[snippets::op::Scalar::get_type_info_static()] = emitter_factory.from_expr<jit_scalar_emitter>();
     jitters[snippets::op::BroadcastMove::get_type_info_static()] =
         emitter_factory.from_expr<jit_broadcast_move_emitter>();
@@ -230,6 +244,15 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     jitters[snippets::op::BroadcastLoad::get_type_info_static()] =
         emitter_factory.from_expr<jit_load_broadcast_emitter>();
     jitters[snippets::op::Store::get_type_info_static()] = emitter_factory.from_expr<jit_store_memory_emitter>();
+    jitters[snippets::op::Fill::get_type_info_static()] = emitter_factory.from_expr<jit_fill_emitter>();
+
+    // reductions
+    jitters[ov::snippets::op::ReduceMax::get_type_info_static()] =
+        decltype(emitter_factory)::undefined({{ov::element::f32}});
+    jitters[ov::snippets::op::ReduceSum::get_type_info_static()] =
+        decltype(emitter_factory)::undefined({{ov::element::f32}});
+    jitters[ov::snippets::op::HorizonMax::get_type_info_static()] = emitter_factory.from_expr<jit_horizon_emitter>();
+    jitters[ov::snippets::op::HorizonSum::get_type_info_static()] = emitter_factory.from_expr<jit_horizon_emitter>();
 
     // loop control
     jitters[snippets::op::LoopBegin::get_type_info_static()] = emitter_factory.from_expr<jit_loop_begin_emitter>();

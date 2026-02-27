@@ -479,7 +479,10 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*proposal_params/.*)"),
             // Quantized models unsupported
             std::regex(R"(.*Quantized.*)"),
-            std::regex(R"(smoke_Snippets(?!_(Eltwise|ThreeInputsEltwise|PrecisionPropagation_Convertion|Convert.*|Transpose)(/|_)).*)"),
+            std::regex(R"(smoke_Snippets(?!_(Eltwise|ThreeInputsEltwise|PrecisionPropagation_Convertion|Convert.*|Transpose[^/_]*|Reduce|Softmax[^/_]*|AddSoftmax)(/|_)).*)"),
+            std::regex(R"(.*smoke_Snippets_SoftmaxSum/SoftmaxSum\.CompareWithRefImpl/IS\[0\]=\[\?\.1\.\.8\.1\.\.16\.1\.\.16\].*IS\[1\]=\[\?\.1\.\.8\.\?\.1\.\.16\].*)"),
+            std::regex(R"(.*smoke_Snippets_SoftmaxSum/SoftmaxSum\.CompareWithRefImpl/IS\[0\]=\[\?\.\?\.5\.\?\].*IS\[1\]=\[\?\.\?\.5\.\?\].*)"),
+            std::regex(R"(.*smoke_Snippets_TransposeMatMulBias/ExplicitTransposeMatMulBias.*)"),
             std::regex(R"(.*_enforceSnippets=1.*)"),
 #endif
 #if !defined(OPENVINO_ARCH_X86_64)
