@@ -32,9 +32,8 @@ public:
     /**
      * @brief Updates the configuration with new options if the key is enabled state
      * @param options A map of key-value pairs representing the new configuration options.
-     * @param mode Specifies the mode in which the options should be updated (default is `OptionMode::Both`).
      */
-    void update(const ConfigMap& options, OptionMode mode = OptionMode::Both) override;
+    void update(const ConfigMap& options) override;
 
     /**
      * @brief Checks if a specific option exists in the configuration's descriptorDesc.
