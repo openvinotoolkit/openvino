@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 #include <nodes/kernels/riscv64/jit_generator.hpp>
 #include <vector>
@@ -30,7 +31,7 @@ protected:
     }
 
 private:
-    enum class OpType { max, sum };
+    enum class OpType : std::uint8_t { max, sum };
 
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 

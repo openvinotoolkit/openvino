@@ -5,13 +5,20 @@
 #include "jit_horizon_emitter.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 #include <vector>
 
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "nodes/kernels/riscv64/jit_generator.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/horizon_max.hpp"
 #include "snippets/op/horizon_sum.hpp"
+#include "xbyak_riscv/xbyak_riscv.hpp"
 
 namespace ov::intel_cpu::riscv64 {
 
@@ -42,8 +49,8 @@ void jit_horizon_emitter::emit_impl(const std::vector<size_t>& in, const std::ve
 template <cpu_isa_t isa>
 void jit_horizon_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     static constexpr size_t lane_count = 4;
-    static constexpr int stack_size = static_cast<int>(lane_count * sizeof(float));
-    static constexpr int elt_size = static_cast<int>(sizeof(float));
+    static constexpr auto stack_size = static_cast<int>(lane_count * sizeof(float));
+    static constexpr auto elt_size = static_cast<int>(sizeof(float));
 
     OPENVINO_ASSERT(aux_fp_gpr_idxs.size() >= 2, "Horizon emitter expects two auxiliary FP GPR registers");
 

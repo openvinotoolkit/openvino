@@ -10,9 +10,14 @@
 #include <vector>
 
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/fill.hpp"
+#include "xbyak_riscv/xbyak_riscv.hpp"
 
 namespace ov::intel_cpu::riscv64 {
 
@@ -80,7 +85,7 @@ void jit_fill_emitter::fill_full(const std::vector<size_t>& out) const {
 template <cpu_isa_t isa>
 void jit_fill_emitter::fill_tail(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     static constexpr size_t supported_et_count = 4;
-    static constexpr int stack_size = static_cast<int>(supported_et_count * sizeof(uint32_t));
+    static constexpr auto stack_size = static_cast<int>(supported_et_count * sizeof(uint32_t));
 
     auto src = Xbyak_riscv::VReg(in[0]);
     auto dst = Xbyak_riscv::VReg(out[0]);
