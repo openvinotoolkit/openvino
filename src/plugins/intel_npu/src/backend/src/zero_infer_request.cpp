@@ -352,43 +352,41 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 void ZeroInferRequest::update_command_list_for_tensor(SyncInferRequest::FoundPort& foundPort,
                                                       const ov::SoPtr<ov::ITensor>& tensor) {
     OV_ITT_TASK_CHAIN(ZERO_SET_TENSOR, itt::domains::LevelZeroBackend, "set_tensor", "update_command_list_for_tensor");
-    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
-        auto& levelZeroTensor =
-            foundPort.is_input() ? get_level_zero_input(foundPort.idx) : _levelZeroOutputTensors.at(foundPort.idx);
+    auto& levelZeroTensor =
+        foundPort.is_input() ? get_level_zero_input(foundPort.idx) : _levelZeroOutputTensors.at(foundPort.idx);
 
-        bool updateCommandListArg = false;
+    bool updateCommandListArg = false;
 
-        try {
-            _logger.debug("ZeroInferRequest::set_tensor - create zero tensor");
-            OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "create zero tensor");
-            // Try to use the user tensor directly if its underlying data is already allocated in the same Level Zero
-            // context.
-            levelZeroTensor = std::make_shared<ZeroTensor>(_initStructs, _config, tensor);
+    try {
+        _logger.debug("ZeroInferRequest::set_tensor - create zero tensor");
+        OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "create zero tensor");
+        // Try to use the user tensor directly if its underlying data is already allocated in the same Level Zero
+        // context.
+        levelZeroTensor = std::make_shared<ZeroTensor>(_initStructs, _config, tensor);
+        updateCommandListArg = true;
+    } catch (const ZeroMemException& exception) {
+        _logger.debug("ZeroInferRequest::set_tensor - exception caught while trying to create a Level Zero tensor "
+                      "from the user tensor: %s",
+                      exception.what());
+
+        // Check if the current Level Zero tensor was previously shared with the user. If so, it cannot be reused;
+        // allocate a new tensor to back up the user tensor (which cannot be imported or used directly).
+        // Also for corner cases when a tensor was allocated having compiler precision, but new user tensor's
+        // precision differs, zero tensor needs to be reallocated.
+        if (_dynamicBatchValueChanged || levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused() ||
+            tensor->get_element_type() != levelZeroTensor->get_element_type()) {
+            _logger.debug("ZeroInferRequest::set_tensor - allocate locally L0 tensor");
+            OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
+
+            auto batch = _graph->get_batch_size();
+            levelZeroTensor = allocate_tensor(foundPort.idx, foundPort.is_input(), tensor->get_element_type(), batch);
             updateCommandListArg = true;
-        } catch (const ZeroMemException& exception) {
-            _logger.debug("ZeroInferRequest::set_tensor - exception caught while trying to create a Level Zero tensor "
-                          "from the user tensor: %s",
-                          exception.what());
-
-            // Check if the current Level Zero tensor was previously shared with the user. If so, it cannot be reused;
-            // allocate a new tensor to back up the user tensor (which cannot be imported or used directly).
-            // Also for corner cases when a tensor was allocated having compiler precision, but new user tensor's
-            // precision differs, zero tensor needs to be reallocated.
-            if (_dynamicBatchValueChanged || levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused() ||
-                tensor->get_element_type() != levelZeroTensor->get_element_type()) {
-                _logger.debug("ZeroInferRequest::set_tensor - allocate locally L0 tensor");
-                OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
-
-                auto batch = _graph->get_batch_size();
-                levelZeroTensor =
-                    allocate_tensor(foundPort.idx, foundPort.is_input(), tensor->get_element_type(), batch);
-                updateCommandListArg = true;
-            } else {
-                _logger.debug("ZeroInferRequest::set_tensor - reusing the level zero tensor since it is not shared "
-                              "with the user");
-            }
+        } else {
+            _logger.debug("ZeroInferRequest::set_tensor - reusing the level zero tensor since it is not shared "
+                          "with the user");
         }
-
+    }
+    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
         if (_pipelineIsCreated && updateCommandListArg && !_dynamicBatchValueChanged) {
             _logger.debug("ZeroInferRequest::infer_async - update command list");
 
@@ -460,27 +458,25 @@ void ZeroInferRequest::update_command_list_for_tensors(SyncInferRequest::FoundPo
                       itt::domains::LevelZeroBackend,
                       "set_tensors",
                       "update_command_list_for_tensors");
-    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) && batchSizeCandidate.has_value()) {
-        get_level_zero_inputs(foundPort.idx).resize(tensors.size());
+    get_level_zero_inputs(foundPort.idx).resize(tensors.size());
 
-        for (size_t i = 0; i < tensors.size(); i++) {
-            try {
-                _logger.debug("ZeroInferRequest::set_tensors - create zero tensor");
-                OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "create zero tensor");
-                get_level_zero_input(foundPort.idx, i) =
-                    std::make_shared<ZeroTensor>(_initStructs, _config, tensors.at(i));
-            } catch (const ZeroMemException& exception) {
-                _logger.debug(
-                    "ZeroInferRequest::set_tensors - exception caught while trying to create a Level Zero tensor "
-                    "from the user tensor: %s",
-                    exception.what());
+    for (size_t i = 0; i < tensors.size(); i++) {
+        try {
+            _logger.debug("ZeroInferRequest::set_tensors - create zero tensor");
+            OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "create zero tensor");
+            get_level_zero_input(foundPort.idx, i) = std::make_shared<ZeroTensor>(_initStructs, _config, tensors.at(i));
+        } catch (const ZeroMemException& exception) {
+            _logger.debug("ZeroInferRequest::set_tensors - exception caught while trying to create a Level Zero tensor "
+                          "from the user tensor: %s",
+                          exception.what());
 
-                _logger.debug("ZeroInferRequest::set_tensors - allocate locally L0 tensor");
-                OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "allocate tensor");
-                get_level_zero_input(foundPort.idx, i) =
-                    allocate_tensor(foundPort.idx, INPUT, tensors.at(i)->get_element_type(), batchSizeCandidate);
-            }
-
+            _logger.debug("ZeroInferRequest::set_tensors - allocate locally L0 tensor");
+            OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "allocate tensor");
+            get_level_zero_input(foundPort.idx, i) =
+                allocate_tensor(foundPort.idx, INPUT, tensors.at(i)->get_element_type(), batchSizeCandidate);
+        }
+        if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) &&
+            batchSizeCandidate.has_value()) {
             if (_pipelineIsCreated && !_dynamicBatchValueChanged) {
                 OPENVINO_ASSERT(get_level_zero_input(foundPort.idx, i)->data(), "Empty buffer");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "updateCommandList");
