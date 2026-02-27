@@ -6,7 +6,7 @@ This page demonstrates how to use the Benchmark C++ Tool to estimate deep learni
 
 For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2026/get-started/learn-openvino/openvino-samples/benchmark-tool.html)
 
-## Requriements
+## Requirements
 
 To use the C++ benchmark_app, you must first build it following the [Build the Sample Applications](https://docs.openvino.ai/2026/get-started/learn-openvino/openvino-samples.html) instructions and then set up paths and environment variables by following the [Get Ready for Running the Sample Applications](https://docs.openvino.ai/2026/get-started/learn-openvino/openvino-samples/get-started-demos.html) instructions. Navigate to the directory where the benchmark_app C++ sample binary was built.
 
