@@ -405,10 +405,13 @@ void Eagle3Extension::adjust_kvcache_before_infer(
     LOG_DEBUG("Eagle3: Discarding " << tokens_to_discard << " tokens, keeping " << result.num_accepted_tokens
                                     << " tokens");
 
-    // Fast path: If accepted tokens are contiguous from the start, simply rollback
+    // Fast path: If accepted tokens are contiguous from the start, simply rollback.
+    // num_stored_tokens already equals the correct target value (gen_start_pos + num_accepted_tokens),
+    // because it is derived from the first input position id of this round which is organized
+    // by the pipeline after the previous validation. No arithmetic needed here.
     if (is_contiguous_acceptance()) {
-        LOG_DEBUG("Eagle3: Accepted tokens are contiguous, using fast rollback");
-        num_stored_tokens -= tokens_to_discard;
+        LOG_DEBUG("Eagle3: Accepted tokens are contiguous, using fast rollback (num_stored_tokens already correct)");
+        // num_stored_tokens is already correct, nothing to do
     } else {
         // Complex path: Rearrange KV cache to keep only accepted tokens
         LOG_DEBUG("Eagle3: Accepted tokens are non-contiguous, rearranging KV cache");
@@ -435,8 +438,23 @@ void Eagle3Extension::trim_kvcache_by_sampling(
     // Get the compiled model to iterate through outputs
     auto& compiled = request->get_compiled_model();
 
-    // The starting position of the generated tokens in the KV cache
-    uint32_t gen_start_pos = num_stored_tokens - result.num_total_generated;
+    // The starting position of the generated tokens in the KV cache.
+    //
+    // num_stored_tokens is the first input position id of this round, which equals
+    // (gen_start_pos + num_accepted_tokens) because the pipeline organizes position ids
+    // based on the previous validation result.
+    //
+    // Therefore:
+    //   gen_start_pos = num_stored_tokens - num_accepted_tokens
+    //
+    // Example: prompt=14, draft generated 8 tokens, 2 accepted
+    //   Physical KV cache length = 14 + 8 = 22
+    //   num_stored_tokens        = 16  (= first position id, set by pipeline)
+    //   gen_start_pos            = 16 - 2 = 14  ✓
+    //
+    // The old (incorrect) formula was: gen_start_pos = num_stored_tokens - num_total_generated
+    //   which would give 16 - 8 = 8  ✗
+    uint32_t gen_start_pos = num_stored_tokens - result.num_accepted_tokens;
 
     LOG_VERB("Eagle3: Rearranging KV cache, gen_start_pos=" << gen_start_pos
                                                             << ", num_stored_tokens=" << num_stored_tokens);
@@ -510,9 +528,10 @@ void Eagle3Extension::trim_kvcache_by_sampling(
         }
     }
 
-    // Update the actual number of stored tokens
-    num_stored_tokens = gen_start_pos + result.num_accepted_tokens;
-    LOG_VERB("Eagle3: KV cache rearrangement complete, new num_stored_tokens=" << num_stored_tokens);
+    // num_stored_tokens is already the correct target value (gen_start_pos + num_accepted_tokens),
+    // so no update is needed here.
+    LOG_VERB("Eagle3: KV cache rearrangement complete, num_stored_tokens=" << num_stored_tokens
+                                                                           << " (unchanged, already correct)");
 }
 
 bool Eagle3Extension::is_contiguous_acceptance() const {
