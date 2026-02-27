@@ -116,8 +116,6 @@ ov_add_target(
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
     EXCLUDED_SOURCE_PATHS
         ${EXCLUDE_PATHS}
-    OBJECT_FILES
-        ${OBJ_FILES}
     INCLUDES
         PUBLIC
             ${COMMON_INCLUDE_DIRS}
@@ -139,3 +137,20 @@ ov_set_threading_interface_for(${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
+
+
+# Link all object files from ./impls/* into a different library to avoid giant files
+
+add_library(${TARGET_NAME}_impls STATIC ${OBJ_FILES})
+
+target_link_libraries(${TARGET_NAME}_impls PUBLIC ${COMMON_LINK_LIBRARIES} ${EXTRA_LINK_LIBRARIES} openvino::reference)
+
+add_dependencies(${TARGET_NAME}_impls run_codegen_test)
+
+target_compile_options(${TARGET_NAME}_impls PRIVATE ${COMMON_COMPILE_OPTIONS})
+
+ov_set_threading_interface_for(${TARGET_NAME}_impls)
+
+set_target_properties(${TARGET_NAME}_impls PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+ov_install_static_lib(${TARGET_NAME}_impls ${OV_CPACK_COMP_CORE})

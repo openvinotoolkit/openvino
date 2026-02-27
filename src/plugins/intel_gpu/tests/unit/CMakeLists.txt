@@ -69,6 +69,7 @@ endif()
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
+                                             openvino_intel_gpu_graph_impls
                                              OpenCL::OpenCL
                                              gtest
                                              gtest_main
