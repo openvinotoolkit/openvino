@@ -245,9 +245,16 @@ void SingleFileStorage::write_context(const weight_sharing::Context& context) {
     ScopedLocale plocal_C(LC_ALL, "C");
     std::ofstream stream(m_file_path, std::ios::binary | std::ios::in | std::ios::ate);
 
-    // todo Add delta writing - not the whole.
-
-    for (const auto& meta_map : context.m_weight_registry) {
+    weight_sharing::WeightRegistry delta_weight_registry;
+    for (const auto& [source_id, const_meta_map] : context.m_weight_registry) {
+        for (const auto& [const_id, const_meta] : const_meta_map) {
+            if (m_shared_context.m_weight_registry.count(source_id) == 0 ||
+                m_shared_context.m_weight_registry[source_id].count(const_id) == 0) {
+                delta_weight_registry[source_id][const_id] = const_meta;
+            }
+        }
+    }
+    for (const auto& meta_map : delta_weight_registry) {
         const auto const_meta_writer = [&](std::ostream& s) {
             const auto& [source_id, const_meta] = meta_map;
             s.write(reinterpret_cast<const char*>(&source_id), sizeof(source_id));
@@ -267,7 +274,13 @@ void SingleFileStorage::write_context(const weight_sharing::Context& context) {
         TLVFormat::write_entry(stream, static_cast<TLVFormat::TagType>(Tag::ConstantMeta), const_meta_writer);
     }
 
-    for (const auto& cache_registry : context.m_cache_sources) {
+    weight_sharing::WeightSourceRegistry delta_cache_sources;
+    for (const auto& [source_id, weight_buffer] : context.m_cache_sources) {
+        if (m_shared_context.m_cache_sources.count(source_id) == 0) {
+            delta_cache_sources[source_id] = weight_buffer;
+        }
+    }
+    for (const auto& cache_registry : delta_cache_sources) {
         const auto weight_source_writer = [&](std::ostream& s) {
             const auto& [source_id, weight_buffer] = cache_registry;
             const auto device_id = static_cast<DataIdType>(0);  // todo Where to get it from?

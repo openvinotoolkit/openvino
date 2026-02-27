@@ -222,6 +222,28 @@ TEST_F(SingleFileStorageTest, ContextMetaWriteRead) {
     meta_read_test(reopened_storage);
 }
 
+TEST_F(SingleFileStorageTest, ContextMetaAppendDelta) {
+    weight_sharing::Context test_context;
+    test_context.m_weight_registry[1][11] = {100, 200, element::Type_t::f32};
+    m_storage->write_context(test_context);
+
+    test_context.m_weight_registry[1][12] = {300, 400, element::Type_t::i8};
+    test_context.m_weight_registry[2][21] = {500, 600, element::Type_t::u8};
+    m_storage->write_context(test_context);
+
+    auto got_context = m_storage->get_context();
+    EXPECT_EQ(got_context.m_weight_registry.size(), 2);
+    EXPECT_EQ(got_context.m_weight_registry[1].size(), 2);
+    EXPECT_EQ(got_context.m_weight_registry[2].size(), 1);
+    m_storage.reset();
+    const auto file_size_after_first_write = std::ifstream{m_file_path, std::ios::binary | std::ios::ate}.tellg();
+
+    SingleFileStorage{m_file_path}.write_context(test_context);
+    const auto file_size_after_second_write = std::ifstream{m_file_path, std::ios::binary | std::ios::ate}.tellg();
+    EXPECT_EQ(file_size_after_second_write, file_size_after_first_write)
+        << "Rewriting the same context should not increase file size";
+}
+
 TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
     weight_sharing::Context test_context;
     const auto buffer = std::make_shared<ov::AlignedBuffer>(1024);
@@ -267,5 +289,22 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
             stream.seekg(entry_size, std::ios::cur);
         }
     }
+}
+
+TEST_F(SingleFileStorageTest, ContextWeightSourceAppendDelta) {
+    weight_sharing::Context test_context;
+    test_context.m_cache_sources[1] = std::weak_ptr<ov::AlignedBuffer>{std::make_shared<ov::AlignedBuffer>(1024)};
+    m_storage->write_context(test_context);
+    test_context.m_cache_sources[11] = std::weak_ptr<ov::AlignedBuffer>{std::make_shared<ov::AlignedBuffer>(47)};
+    m_storage->write_context(test_context);
+
+    EXPECT_EQ(m_storage->get_context().m_cache_sources.size(), 2);
+    m_storage.reset();
+    const auto file_size_after_first_write = std::ifstream{m_file_path, std::ios::binary | std::ios::ate}.tellg();
+
+    SingleFileStorage{m_file_path}.write_context(test_context);
+    const auto file_size_after_second_write = std::ifstream{m_file_path, std::ios::binary | std::ios::ate}.tellg();
+    EXPECT_EQ(file_size_after_second_write, file_size_after_first_write)
+        << "Rewriting the same context should not increase file size";
 }
 }  // namespace ov::test
