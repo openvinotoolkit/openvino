@@ -44,9 +44,7 @@ struct SingleTokenQChunking {
     int32_t q_head_chunk_size;
 };
 
-inline SingleTokenQChunking get_single_token_q_chunking(const kernel_impl_params& params,
-                                                        const paged_attention& desc,
-                                                        size_t kv_partition_size) {
+inline SingleTokenQChunking get_single_token_q_chunking(const kernel_impl_params& params, const paged_attention& desc, size_t kv_partition_size) {
     // Must match kernel mapping in pa_single_token.cm:
     //   kv_head_num_idx = gid1 / Q_head_chunks_per_kv_head
     //   head_num_idx    = gid1 * Q_head_chunk_size
