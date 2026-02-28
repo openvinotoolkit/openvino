@@ -31,6 +31,15 @@ TEST(ov_tensor, ov_tensor_create_from_host_ptr) {
     ov_shape_free(&shape);
 }
 
+TEST(ov_tensor, ov_tensor_create_with_shape_overflow) {
+    ov_tensor_t* tensor = nullptr;
+    ov_shape_t shape;
+    const int64_t dims[2] = {std::numeric_limits<int64_t>::max(), 100};
+    ov_shape_create(2, dims, &shape);
+    OV_EXPECT_NOT_OK(ov_tensor_create(ov_element_type_e::U8, shape, &tensor));
+    ov_shape_free(&shape);
+}
+
 TEST(ov_tensor, ov_tensor_create_from_string_array) {
     const char* string_array[4] = {"test", "me", "hi", "there"};
     ov_tensor_t* tensor = nullptr;
