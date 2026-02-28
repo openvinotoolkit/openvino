@@ -867,6 +867,7 @@ static void configure_arm64_linux_threads(Config& config,
                                           const std::vector<std::vector<int>>& proc_type_table,
                                           bool int8_intensive,
                                           bool is_LLM) {
+    using namespace ThreadPreferenceConstants;
     config.modelPreferThreadsThroughput = ARM64_THREADS_DEFAULT;
     if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::cpu_isa_t::sve_128)) {
         config.modelPreferThreadsThroughput = ARM64_THREADS_SVE;
@@ -891,6 +892,7 @@ void configure_arm_linux_threads(Config& config,
                                  const ov::MemBandwidthPressure& tolerance,
                                  bool int8_intensive,
                                  bool is_LLM) {
+    using namespace ThreadPreferenceConstants;
     config.modelPreferThreadsThroughput = ARM_THREADS_DEFAULT;
 
     if (tolerance.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
@@ -923,6 +925,7 @@ void configure_apple_threads(Config& config,
                              float memThresholdAssumeLimitedForISA,
                              bool int8_intensive,
                              bool is_LLM) {
+    using namespace ThreadPreferenceConstants;
     const int main_cores = proc_type_table[0][MAIN_CORE_PROC];
     const int efficient_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
 
