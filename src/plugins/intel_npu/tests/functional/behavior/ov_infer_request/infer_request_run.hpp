@@ -232,13 +232,21 @@ TEST_P(InferRequestRunTests, BooleanTensorDataTypesForU8AndBooleanModelsWork) {
     model_u8->get_parameters()[0]->set_layout("N...");
     model_u8->get_parameters()[1]->set_layout("N...");
 
+    // preparation to check if compiler supports boolean input for LessEqual Op
     auto zeroEngineBackendPtr = std::make_shared<::intel_npu::ZeroEngineBackend>();
     ::intel_npu::CompilerAdapterFactory compilerAdapterFactory;
     ov::intel_npu::CompilerType compilerType = ov::intel_npu::CompilerType::PREFER_PLUGIN;
 
+    auto supportedProperties = core->get_property(target_device, ov::supported_properties);
+    auto isBatchModeSupported =
+        std::find(supportedProperties.begin(), supportedProperties.end(), ov::intel_npu::batch_mode.name()) !=
+        supportedProperties.end();
+
     ov::CompiledModel compiled_model_u8;
     for (const auto batchMode : {ov::intel_npu::BatchMode::PLUGIN, ov::intel_npu::BatchMode::COMPILER}) {
-        configuration[ov::intel_npu::batch_mode.name()] = batchMode;
+        if (isBatchModeSupported) {
+            configuration[ov::intel_npu::batch_mode.name()] = batchMode;
+        }
         OV_ASSERT_NO_THROW(compiled_model_u8 = core->compile_model(model_u8, target_device, configuration));
         auto infer_request_u8 = compiled_model_u8.create_infer_request();
 
@@ -397,6 +405,10 @@ TEST_P(InferRequestRunTests, BooleanTensorDataTypesForU8AndBooleanModelsWork) {
         }
         ::operator delete(alignedAddrU8, std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
         ::operator delete(alignedAddrBoolean, std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
+
+        if (!isBatchModeSupported) {
+            break;
+        }
     }  // for batchMode
 }
 
