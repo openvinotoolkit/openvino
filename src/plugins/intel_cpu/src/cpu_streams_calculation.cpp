@@ -26,8 +26,9 @@
 #if (defined(OPENVINO_ARCH_ARM64) && defined(__linux__))
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #else
-#    include <oneapi/dnnl/dnnl.hpp>
-
+#    if !defined(OPENVINO_ARCH_RISCV64)
+#        include <oneapi/dnnl/dnnl.hpp>
+#    endif
 #    include "onednn/dnnl.h"
 #    include "openvino/runtime/performance_heuristics.hpp"
 #endif
