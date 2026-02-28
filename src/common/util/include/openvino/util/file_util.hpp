@@ -262,7 +262,6 @@ std::vector<uint8_t> load_binary(const std::filesystem::path& path);
  */
 bool read_binary_file_parallel(const std::filesystem::path& path, void* buffer, size_t size, size_t offset);
 
-
 /**
  * @brief save binary data to file
  * @param path - binary file path to store
