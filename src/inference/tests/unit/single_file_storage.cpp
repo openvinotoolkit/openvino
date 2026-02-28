@@ -6,12 +6,12 @@
 
 #include <gtest/gtest.h>
 
-#include <limits>
 #ifdef _WIN32
 #    include <windows.h>
 #else
 #    include <unistd.h>
 #endif
+#include <limits>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
