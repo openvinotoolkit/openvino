@@ -310,11 +310,16 @@ uint32_t DriverCompilerAdapter::get_version() const {
     return _zeroInitStruct->getCompilerVersion();
 }
 
-std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
-    std::string compilerOptionsStr;
+std::optional<std::vector<std::string>> DriverCompilerAdapter::get_supported_options() const {
+    std::optional<std::string> compilerOptionsStr;
     compilerOptionsStr = _zeGraphExt->getCompilerSupportedOptions();
+
+    if (!compilerOptionsStr.has_value()) {
+        return std::nullopt;
+    }
+
     // vectorize string
-    std::istringstream suppstream(compilerOptionsStr);
+    std::istringstream suppstream(compilerOptionsStr.value());
     std::vector<std::string> compilerOpts;
     std::string option;
     while (suppstream >> option) {

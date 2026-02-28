@@ -57,7 +57,7 @@ The tables below list the key performance indicators for inference on built-in G
    
    .. grid-item::
 
-      .. button-link:: https://docs.openvino.ai/2025/_static/download/benchmark_genai_platform_list.pdf
+      .. button-link:: https://docs.openvino.ai/2026/_static/download/benchmark_genai_platform_list.pdf
          :color: primary
          :outline:
          :expand:
