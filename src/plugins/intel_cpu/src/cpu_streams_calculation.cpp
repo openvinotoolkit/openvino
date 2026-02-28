@@ -52,17 +52,17 @@ namespace ThreadPreferenceConstants {
 constexpr int INT8_EFFICIENCY_THRESHOLD = 4;
 constexpr int FP32_EFFICIENCY_THRESHOLD = 2;
 
-constexpr float ISA_THRESHOLD_SSE41 = 0.5F;
-constexpr float ISA_THRESHOLD_AVX2 = 1.0F;
-constexpr float ISA_THRESHOLD_VNNI = 2.0F;
-constexpr float ISA_THRESHOLD_AMX = 4.0F;
+[[maybe_unused]] constexpr float ISA_THRESHOLD_SSE41 = 0.5F;
+[[maybe_unused]] constexpr float ISA_THRESHOLD_AVX2 = 1.0F;
+[[maybe_unused]] constexpr float ISA_THRESHOLD_VNNI = 2.0F;
+[[maybe_unused]] constexpr float ISA_THRESHOLD_AMX = 4.0F;
 
 constexpr float MEM_TOLERANCE_VERY_HIGH = 50.0F;
 constexpr float MEM_TOLERANCE_HIGH = 4.5F;
 constexpr float MEM_TOLERANCE_MEDIUM_HIGH = 2.5F;
 constexpr float MEM_TOLERANCE_MEDIUM = 1.0F;
 constexpr float MEM_TOLERANCE_MEDIUM_LOW = 0.5F;
-constexpr float MEM_TOLERANCE_LOW = 0.2F;
+[[maybe_unused]] constexpr float MEM_TOLERANCE_LOW = 0.2F;
 constexpr float MEM_TOLERANCE_SECONDARY_LOW = 0.08F;
 constexpr float MEM_TOLERANCE_VERY_LOW = 0.06F;
 
@@ -80,21 +80,15 @@ constexpr float GEMM_RATIO_LOW = 0.05F;
 
 constexpr int ECORE_RATIO_THRESHOLD = 2;
 
-#if defined(OPENVINO_ARCH_ARM64) && defined(__linux__)
-constexpr int ARM64_THREADS_DEFAULT = 8;
-constexpr int ARM64_THREADS_SVE = 16;
-#endif
+[[maybe_unused]] constexpr int ARM64_THREADS_DEFAULT = 8;
+[[maybe_unused]] constexpr int ARM64_THREADS_SVE = 16;
 
-#if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
-constexpr int ARM_THREADS_DEFAULT = 4;
-constexpr int ARM_THREADS_HIGH = 8;
-#endif
+[[maybe_unused]] constexpr int ARM_THREADS_DEFAULT = 4;
+[[maybe_unused]] constexpr int ARM_THREADS_HIGH = 8;
 
-#if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
-constexpr int APPLE_THREADS_MINIMAL = 1;
-constexpr int APPLE_THREADS_LOW = 2;
-constexpr int APPLE_THREADS_HIGH = 4;
-#endif
+[[maybe_unused]] constexpr int APPLE_THREADS_MINIMAL = 1;
+[[maybe_unused]] constexpr int APPLE_THREADS_LOW = 2;
+[[maybe_unused]] constexpr int APPLE_THREADS_HIGH = 4;
 
 }  // namespace ThreadPreferenceConstants
 
