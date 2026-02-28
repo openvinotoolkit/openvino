@@ -273,7 +273,7 @@ bool ov::util::read_binary_file_parallel(const std::filesystem::path& path, void
         return false;
 
     // CreateFileW expects wchar_t*
-    std::wstring wpath = path.wstring();
+    const std::wstring& wpath = path.native();
 
     HANDLE hFile = CreateFileW(wpath.c_str(),
                                GENERIC_READ,
@@ -420,7 +420,6 @@ bool ov::util::read_binary_file_parallel(const std::filesystem::path& path, void
     size_t chunk_size = size / num_threads;
     chunk_size = (chunk_size + 4095) & ~4095;
     size_t current_offset = 0;
-    //std::cout << "Data_size = " << size << ", chunk_size = " << chunk_size << ", num_threads = " << num_threads << std::endl;
 
     // We open file in each thread to have independent file pointers
     for (size_t i = 0; i < num_threads; i++) {

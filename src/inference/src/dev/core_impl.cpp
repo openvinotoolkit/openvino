@@ -1577,6 +1577,21 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                     }
                 }
 
+                // Pass the cached blob file path to plugins that support it (e.g. GPU plugin)
+                // so they can use optimized parallel I/O to read weights directly from the blob file
+                if (!cacheContent.m_blob_id.empty() &&
+                    util::contains(plugin.get_property(ov::supported_properties),
+                                   ov::PropertyName("GPU_CACHED_BLOB_PATH"))) {
+                    if (auto cache_dir_it = config.find(ov::cache_dir.name());
+                        cache_dir_it != config.end()) {
+                        auto blob_path = std::filesystem::path(cache_dir_it->second.as<std::string>()) /
+                                         (cacheContent.m_blob_id + ".blob");
+                        if (ov::util::file_exists(blob_path)) {
+                            update_config["GPU_CACHED_BLOB_PATH"] = util::path_to_string(blob_path);
+                        }
+                    }
+                }
+
                 ov::util::VariantVisitor model_importer{
                     [&](const ov::Tensor& compiled_blob) -> ov::SoPtr<ov::ICompiledModel> {
                         const ov::Tensor compiled_blob_without_header{compiled_blob,
