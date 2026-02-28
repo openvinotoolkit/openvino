@@ -1076,8 +1076,13 @@ int get_model_prefer_threads(const int num_streams,
         }
 
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
+#    if defined(OPENVINO_ARCH_RISCV64)
+        // oneDNN C++ API (dnnl::utils::get_cache_size) is not available on RISC-V;
+        // use a fallback value for L2 cache size.
+        const float L2_cache_size = 1.0F;
+#    else
         const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
-
+#    endif
         ov::MemBandwidthPressure networkToleranceForLowCache =
             ov::mem_bandwidth_pressure_tolerance(model,
                                                  L2_cache_size,
