@@ -9,9 +9,6 @@
 #include <cstdlib>
 #include <memory>
 #include <mutex>
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <oneapi/dnnl/dnnl.hpp>
-#endif
 #include <set>
 #include <string>
 #include <unordered_set>
@@ -29,6 +26,8 @@
 #if (defined(OPENVINO_ARCH_ARM64) && defined(__linux__))
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #else
+#    include <oneapi/dnnl/dnnl.hpp>
+
 #    include "onednn/dnnl.h"
 #    include "openvino/runtime/performance_heuristics.hpp"
 #endif
