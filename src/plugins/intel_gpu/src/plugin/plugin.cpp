@@ -145,6 +145,7 @@ void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionC
 std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_ptr<const ov::Model>& model,
                                                              const ExecutionConfig& config,
                                                              const std::shared_ptr<RemoteContextImpl>& context) const {
+    std::cout << "wzx debug clone_and_tranfom" << std::endl;
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::clone_and_transform_model");
     GPU_DEBUG_DEFINE_MEM_LOGGER("Plugin::clone_and_transform_model");
 
@@ -177,7 +178,7 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
         if (!ov::util::validate_weights_path(weights_path) && !is_weightless_cache_attributes_set(cloned_model))
             set_weightless_cache_attributes(cloned_model);
     }
-
+    std::cout << "wzx debug transfomr" << std::endl;
     transform_model(cloned_model, config_copy, context);
 
     // Transformations for some reason may drop output tensor names, so here we copy those from the original model

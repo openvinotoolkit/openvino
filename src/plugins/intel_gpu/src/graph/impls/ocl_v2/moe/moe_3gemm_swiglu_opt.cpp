@@ -14,12 +14,22 @@
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <initializer_list>
+#    include <cstdint>
+#    include <fstream>
+#    include <iostream>
+#    include <limits>
+#    include <mutex>
 #    include <oneapi/dnnl/dnnl.hpp>
 #    include <oneapi/dnnl/dnnl_ocl.hpp>
 #    include <sstream>
 #    include <string_view>
 #    include <tuple>
 #    include <utility>
+
+#    ifdef _WIN32
+#        include <windows.h>
+#        include <psapi.h>
+#    endif
 
 #    include "../primitive_ocl_base.hpp"
 #    include "../utils/kernel_generator.hpp"
@@ -1337,12 +1347,45 @@ public:
     static void fill_weights_memory_from_disk_v2(cldnn::engine& engine, const std::shared_ptr<MOE3GemmFusedCompressed>& op, 
         cldnn::moe_weights& wei_mem, const std::vector<uint32_t>& experts_list, const std::vector<uint32_t>& lru_experts) {
         auto num_expert = op->get_config().num_expert;
-        auto mapped_memory = get_mapped_memory();
+        const char* io_mode_env = std::getenv("OTD_WEIGHT_IO_MODE");
+        const bool use_mmap = io_mode_env != nullptr && std::string(io_mode_env) == "mmap";
+        std::shared_ptr<ov::MappedMemory> mapped_memory;
+        static std::once_flag file_open_flag;
+        static std::unique_ptr<std::ifstream> weight_file;
+        static std::mutex weight_file_mutex;
+        if (use_mmap) {
+            mapped_memory = get_mapped_memory();
+        } else {
+            std::call_once(file_open_flag, [] {
+                auto file = std::make_unique<std::ifstream>(cldnn::file_path.c_str(), std::ios::in | std::ios::binary);
+                if (!file->is_open()) {
+                    throw std::runtime_error("Failed to open weight file for OTD streaming read");
+                }
+                weight_file = std::move(file);
+            });
+        }
+
+        const bool mem_trace = std::getenv("OTD_MEM_TRACE") != nullptr;
+        static size_t trace_calls = 0;
+        ++trace_calls;
+        const bool should_log = mem_trace && (trace_calls <= 10 || trace_calls % 100 == 0);
 
         auto get_constant_input = [&](size_t index) {
             auto node = op->input_value(index).get_node_shared_ptr();
             return std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
         };
+
+        auto weight_0_const = get_constant_input((size_t)MOE3GemmInputIndex::WEIGHT_0);
+        auto weight_1_const = get_constant_input((size_t)MOE3GemmInputIndex::WEIGHT_1);
+        auto weight_2_const = get_constant_input((size_t)MOE3GemmInputIndex::WEIGHT_2);
+        auto scale_0_const = get_constant_input((size_t)MOE3GemmInputIndex::SCALE_0);
+        auto scale_1_const = get_constant_input((size_t)MOE3GemmInputIndex::SCALE_1);
+        auto scale_2_const = get_constant_input((size_t)MOE3GemmInputIndex::SCALE_2);
+        auto zp_0_const = get_constant_input((size_t)MOE3GemmInputIndex::ZP_0);
+        auto zp_1_const = get_constant_input((size_t)MOE3GemmInputIndex::ZP_1);
+        auto zp_2_const = get_constant_input((size_t)MOE3GemmInputIndex::ZP_2);
+
+        std::vector<uint8_t> bounce;
 
         auto fill_from_disk = [&] (const std::shared_ptr<ov::op::v0::Constant>& const_op,
                                cldnn::memory_ptr mem,
@@ -1364,18 +1407,34 @@ public:
             size_t base_offset = weightless_cache.bin_offset;
             size_t src_offset = base_offset + expert_no * per_expert_size;
 
-            // ---- 1. mmap source (read-only) ----
-            const uint8_t* mmap_src =
-                reinterpret_cast<const uint8_t*>(mapped_memory->data()) + src_offset;
+            // ---- 1. bounce buffer (GPU-safe host memory) ----
+            if (bounce.size() < per_expert_size) {
+                bounce.resize(per_expert_size);
+            }
 
-            // ---- 2. bounce buffer (GPU-safe host memory) ----
-            std::unique_ptr<uint8_t[]> bounce(new uint8_t[per_expert_size]);
-
-            std::memcpy(bounce.get(), mmap_src, per_expert_size);
+            // ---- 2. host load (mmap or streaming read) ----
+            if (use_mmap) {
+                const uint8_t* mmap_src =
+                    reinterpret_cast<const uint8_t*>(mapped_memory->data()) + src_offset;
+                std::memcpy(bounce.data(), mmap_src, per_expert_size);
+            } else {
+                OPENVINO_ASSERT(per_expert_size <= static_cast<size_t>(std::numeric_limits<std::streamsize>::max()),
+                                "per_expert_size is too large for stream read");
+                std::lock_guard<std::mutex> guard(weight_file_mutex);
+                weight_file->clear();
+                weight_file->seekg(static_cast<std::streamoff>(src_offset), std::ios::beg);
+                if (!weight_file->good()) {
+                    throw std::runtime_error("Failed to seek OTD weight file");
+                }
+                weight_file->read(reinterpret_cast<char*>(bounce.data()), static_cast<std::streamsize>(per_expert_size));
+                if (weight_file->gcount() != static_cast<std::streamsize>(per_expert_size)) {
+                    throw std::runtime_error("Failed to read enough bytes from OTD weight file");
+                }
+            }
 
             // ---- 3. GPU copy (safe) ----
             mem->copy_from(engine.get_service_stream(),
-                           bounce.get(),
+                           bounce.data(),
                            0,  // src offset
                            lru_expert_no * per_expert_size,
                            per_expert_size,
@@ -1384,33 +1443,60 @@ public:
 
         size_t i = 0; 
         for (uint32_t expert: experts_list) {
-            fill_from_disk(get_constant_input((size_t)MOE3GemmInputIndex::WEIGHT_0),
+            fill_from_disk(weight_0_const,
                wei_mem.gate_w, expert, lru_experts[i]);
 
-            fill_from_disk(get_constant_input((size_t)MOE3GemmInputIndex::WEIGHT_1),
+            fill_from_disk(weight_1_const,
                            wei_mem.up_w, expert, lru_experts[i]);
 
-            fill_from_disk(get_constant_input((size_t)MOE3GemmInputIndex::WEIGHT_2),
+            fill_from_disk(weight_2_const,
                            wei_mem.down_w, expert, lru_experts[i]);
 
-            fill_from_disk(get_constant_input((size_t)MOE3GemmInputIndex::SCALE_0),
+            fill_from_disk(scale_0_const,
                            wei_mem.gate_s, expert, lru_experts[i]);
 
-            fill_from_disk(get_constant_input((size_t)MOE3GemmInputIndex::ZP_0),
+            fill_from_disk(zp_0_const,
                            wei_mem.gate_z, expert, lru_experts[i]);
 
-            fill_from_disk(get_constant_input((size_t)MOE3GemmInputIndex::SCALE_1),
+            fill_from_disk(scale_1_const,
                            wei_mem.up_s, expert, lru_experts[i]);
 
-            fill_from_disk(get_constant_input((size_t)MOE3GemmInputIndex::ZP_1),
+            fill_from_disk(zp_1_const,
                            wei_mem.up_z, expert, lru_experts[i]);
 
-            fill_from_disk(get_constant_input((size_t)MOE3GemmInputIndex::SCALE_2),
+            fill_from_disk(scale_2_const,
                            wei_mem.down_s, expert, lru_experts[i]);
 
-            fill_from_disk(get_constant_input((size_t)MOE3GemmInputIndex::ZP_2),
+            fill_from_disk(zp_2_const,
                            wei_mem.down_z, expert, lru_experts[i]);
             i++;
+        }
+
+        if (should_log) {
+#ifdef _WIN32
+            PROCESS_MEMORY_COUNTERS_EX pmc;
+            std::memset(&pmc, 0, sizeof(pmc));
+            pmc.cb = sizeof(pmc);
+            SIZE_T working_set = 0;
+            SIZE_T private_usage = 0;
+            if (GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pmc), sizeof(pmc))) {
+                working_set = pmc.WorkingSetSize;
+                private_usage = pmc.PrivateUsage;
+            }
+            std::cout << "[OTD_MEM_TRACE] calls=" << trace_calls
+                      << ", experts=" << experts_list.size()
+                      << ", io_mode=" << (use_mmap ? "mmap" : "stream")
+                      << ", bounce_cap=" << bounce.capacity()
+                      << ", ws_mb=" << (working_set / (1024 * 1024))
+                      << ", private_mb=" << (private_usage / (1024 * 1024))
+                      << std::endl;
+#else
+            std::cout << "[OTD_MEM_TRACE] calls=" << trace_calls
+                      << ", experts=" << experts_list.size()
+                      << ", io_mode=" << (use_mmap ? "mmap" : "stream")
+                      << ", bounce_cap=" << bounce.capacity()
+                      << std::endl;
+#endif
         }
     }
 
@@ -1990,7 +2076,7 @@ public:
 
             if (cldnn::lru_expert_num) {
                 auto& dnnl_weights = _dnnl_weights[expert_no];
-                auto  lru_expert_no = get_lru_expert_no_v2(instance, static_cast<uint32_t>(expert_no), cache, tmp_weights);
+                auto lru_expert_no = get_lru_expert_no(instance, static_cast<uint32_t>(expert_no), cache);
                 auto& params = instance._weights;
 
                 #define CONVERT_DNNL(name, i)  \
@@ -2090,11 +2176,6 @@ public:
 
         if (cldnn::lru_expert_num) {
             auto& op = cur_moe->_op;
-            if (token_num > 1) {
-                tmp_addr = pre_allocate_weights(cur_net.get_engine(), op);
-                create_weights_memory(cur_net.get_engine(), tmp_addr, tmp_weights, op);
-                fill_weights_memory(cur_net.get_engine(), op, tmp_weights);
-            }
             if (!cache.m_initialized) {
                 instance._base = pre_allocate_weights(cur_net.get_engine(), op, cldnn::lru_expert_num);
                 create_weights_memory(cur_net.get_engine(), instance._base, instance._weights, op, cldnn::lru_expert_num);
@@ -2141,6 +2222,7 @@ public:
         } else {
             ret_env = exec_prefill_onednn({topk_event}, stream, instance, scratch, cache, tmp_weights);
         }
+
         // Wait for the final event to be ready
         // ret_env->wait();
         return ret_env;

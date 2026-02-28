@@ -25,10 +25,20 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/bucketize.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/moe.hpp"
 #include "openvino/op/util/binary_elementwise_bitwise.hpp"
+
+#include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
+#include "intel_gpu/op/moe_compressed.hpp"
 
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
+#include <cstring>
+#include <string>
 
 namespace ov::intel_gpu {
 
@@ -73,6 +83,45 @@ struct ConstProperties {
     bool needsBatchInterpretation;
 };
 
+static bool is_experimental_lazy_moe_enabled() {
+    static const bool enabled = []() {
+        auto is_env_enabled = [](const char* env) {
+            if (env == nullptr) {
+                return false;
+            }
+
+            char* end = nullptr;
+            long int_value = std::strtol(env, &end, 10);
+            if (end != env) {
+                return int_value != 0;
+            }
+
+            std::string value(env);
+            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+                return static_cast<char>(std::tolower(c));
+            });
+            return value == "true" || value == "on" || value == "yes";
+        };
+
+        return is_env_enabled(std::getenv("OTD"));
+    }();
+
+    return enabled;
+}
+
+static bool is_moe_related_constant(const std::shared_ptr<ov::op::v0::Constant>& op) {
+    const auto users = op->get_output_target_inputs(0);
+    for (const auto& input : users) {
+        const auto* node = input.get_node();
+        if (ov::is_type<ov::op::internal::MOE>(node) ||
+            ov::is_type<ov::intel_gpu::op::MOECompressed>(node) ||
+            ov::is_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(node)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const std::shared_ptr<ov::op::v0::Constant>& op, const ConstProperties& props) {
     cldnn::tensor constTensor = getConstTensor(const_shape);
     auto constFormat = cldnn::format::get_default_format(const_shape.size());
@@ -99,10 +148,17 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
+        const bool skip_moe_const_upload = is_experimental_lazy_moe_enabled() && is_moe_related_constant(op);
         cldnn::memory::ptr mem = nullptr;
-        if (constLayout.bytes_count() > 0) {
+        if (skip_moe_const_upload && constLayout.bytes_count() > 0) {
+            auto one_dim_layout = cldnn::layout(ov::PartialShape({1}), constLayout.data_type, constLayout.format);
+            auto one_dim_mem = p.get_engine().allocate_memory(one_dim_layout, false);
+            mem = p.get_engine().reinterpret_buffer(*one_dim_mem, constLayout);
+            std::cout << "[EXPERIMENTAL] Skip MOE constant full allocation at compile stage: "
+                          << op->get_friendly_name() << ", target_bytes=" << constLayout.bytes_count() << std::endl;
+        } else if (constLayout.bytes_count() > 0) {
             mem = p.get_engine().allocate_memory(constLayout, false);
-        } else {
+        } else { 
             // In the case of empty const data with {0} shape, it has zero byte.
             // To avoid zero byte memory allocation issue, reinterpret one dimension memory to zero dimension memory.
             auto one_dim_layout = cldnn::layout(ov::PartialShape({1}), constLayout.data_type, constLayout.format);
@@ -117,33 +173,42 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         auto buf = lock.data();
         auto bufSize = constLayout.bytes_count();
 
-        // If a constant has element type f64 but contains no elements (empty tensor),
-        // convert it to f32 because the GPU plugin only supports the f32 data type internally.
-        if (ov::shape_size(const_shape) == 1 &&
-            out_dtype == cldnn::data_types::f32 &&
-            op->get_output_element_type(0) == ov::element::f64) {
-            const auto* f64data = op->get_data_ptr<double>();
-            auto f32buf = reinterpret_cast<float*>(buf);
-            f32buf[0] = static_cast<float>(f64data[0]);
-        } else if (out_dtype == cldnn::data_types::f32 &&
-                   (op->get_output_element_type(0) == ov::element::u16 ||
-                    op->get_output_element_type(0) == ov::element::i16)) {
-            size_t count = ov::shape_size(const_shape);
-            auto f32buf = reinterpret_cast<float*>(buf);
+        if (skip_moe_const_upload) {
+            if (buf != nullptr && bufSize > 0) {
+                std::memset(buf, 0, std::min<size_t>(bufSize, 64));
+            }
+            GPU_DEBUG_LOG << "[EXPERIMENTAL] Skip MOE constant upload at compile stage: "
+                          << op->get_friendly_name() << ", bytes=" << bufSize << std::endl;
+        } else {
 
-            if (op->get_output_element_type(0) == ov::element::u16) {
-                const auto* u16data = op->get_data_ptr<uint16_t>();
-                for (size_t i = 0; i < count; i++) {
-                    f32buf[i] = static_cast<float>(u16data[i]);
+            // If a constant has element type f64 but contains no elements (empty tensor),
+            // convert it to f32 because the GPU plugin only supports the f32 data type internally.
+            if (ov::shape_size(const_shape) == 1 &&
+                out_dtype == cldnn::data_types::f32 &&
+                op->get_output_element_type(0) == ov::element::f64) {
+                const auto* f64data = op->get_data_ptr<double>();
+                auto f32buf = reinterpret_cast<float*>(buf);
+                f32buf[0] = static_cast<float>(f64data[0]);
+            } else if (out_dtype == cldnn::data_types::f32 &&
+                       (op->get_output_element_type(0) == ov::element::u16 ||
+                        op->get_output_element_type(0) == ov::element::i16)) {
+                size_t count = ov::shape_size(const_shape);
+                auto f32buf = reinterpret_cast<float*>(buf);
+
+                if (op->get_output_element_type(0) == ov::element::u16) {
+                    const auto* u16data = op->get_data_ptr<uint16_t>();
+                    for (size_t i = 0; i < count; i++) {
+                        f32buf[i] = static_cast<float>(u16data[i]);
+                    }
+                } else {
+                    const auto* i16data = op->get_data_ptr<int16_t>();
+                    for (size_t i = 0; i < count; i++) {
+                        f32buf[i] = static_cast<float>(i16data[i]);
+                    }
                 }
             } else {
-                const auto* i16data = op->get_data_ptr<int16_t>();
-                for (size_t i = 0; i < count; i++) {
-                    f32buf[i] = static_cast<float>(i16data[i]);
-                }
+                std::memcpy(&buf[0], &data[0], bufSize);
             }
-        } else {
-            std::memcpy(&buf[0], &data[0], bufSize);
         }
         p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
         p.blobMemCache[cache_key] = initialconstPrimID;

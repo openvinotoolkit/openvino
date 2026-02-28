@@ -1,6 +1,8 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <thread>
+#include <chrono>
 
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "registry/implementation_manager.hpp"
@@ -161,7 +163,11 @@ program::program(engine& engine_ref,
       is_internal(is_internal),
       _is_body_program(is_body_program),
       _compilation_context(compilation_context) {
+    std::cout << "wzx debug begin init primitives" << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(5));
     init_primitives();
+    std::cout << "wzx debug init primitives" << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(5));
     _config.finalize(_engine);
     _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
     GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
@@ -491,13 +497,18 @@ void program::set_options() {
 }
 
 void program::build_program(bool is_internal) {
+    std::cout << "wzx debug begin init_graph" << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     init_graph();
+    std::cout << "wzx debug init_graph" << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     _config.finalize(_engine);
     _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
     { pre_optimize_graph(is_internal); }
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
-
+    std::cout << "wzx debug beigin optimize_graph" << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 #ifdef GPU_DEBUG_CONFIG
     if (get_config().get_dry_run_path().empty() || is_internal) {
 #else
@@ -505,6 +516,8 @@ void program::build_program(bool is_internal) {
 #endif
         prepare_memory_dependencies();
         apply_opt_pass<build_implementations>();
+        std::cout << "wzx debug apply_opt_pass" << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
     if (!is_internal) {

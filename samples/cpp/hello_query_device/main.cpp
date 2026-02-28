@@ -21,50 +21,30 @@
  * @param reference on OV Parameter
  * @return void
  */
-void print_any_value(const ov::Any& value) {
-    if (value.empty()) {
-        slog::info << "EMPTY VALUE" << slog::endl;
-    } else {
-        std::string stringValue = value.as<std::string>();
-        slog::info << (stringValue.empty() ? "\"\"" : stringValue) << slog::endl;
-    }
-}
 
 int main(int argc, char* argv[]) {
     try {
-        // -------- Get OpenVINO runtime version --------
-        slog::info << ov::get_openvino_version() << slog::endl;
-
-        // -------- Parsing and validation of input arguments --------
-        if (argc != 1) {
-            std::cout << "Usage : " << argv[0] << std::endl;
-            return EXIT_FAILURE;
-        }
-
-        // -------- Step 1. Initialize OpenVINO Runtime Core --------
+        std::cout << "OpenVINO Runtime: " << ov::get_openvino_version() << std::endl;
         ov::Core core;
+        std::string models_path = "C:\\Users\\openvino-228v001\\wzx\\OV_FP16-4BIT_DEFAULT\\OV_FP16-4BIT_DEFAULT\\openvino_model.xml";
 
-        // -------- Step 2. Get list of available devices --------
-        std::vector<std::string> availableDevices = core.get_available_devices();
-
-        // -------- Step 3. Query and print supported metrics and config keys --------
-        slog::info << "Available devices: " << slog::endl;
-        for (auto&& device : availableDevices) {
-            slog::info << device << slog::endl;
-
-            // Query supported properties and print all of them
-            slog::info << "\tSUPPORTED_PROPERTIES: " << slog::endl;
-            auto supported_properties = core.get_property(device, ov::supported_properties);
-            for (auto&& property : supported_properties) {
-                if (property != ov::supported_properties.name()) {
-                    slog::info << "\t\t" << (property.is_mutable() ? "Mutable: " : "Immutable: ") << property << " : "
-                               << slog::flush;
-                    print_any_value(core.get_property(device, property));
-                }
-            }
-
-            slog::info << slog::endl;
+        ov::AnyMap config;
+        config[ov::enable_weightless.name()] = true;
+        config[ov::cache_mode.name()] = ov::CacheMode::OPTIMIZE_SIZE;
+        config[ov::cache_dir.name()] = "C:/Users/openvino-228v001/wzx/openvino/temp/ov_cache";
+        config[ov::cache_model_path.name()] = models_path;
+        if (models_path.size() >= 4 && models_path.substr(models_path.size() - 4) == ".xml") {
+            config[ov::weights_path.name()] = models_path.substr(0, models_path.size() - 4) + ".bin";
         }
+
+        auto model = core.read_model(models_path);
+
+        // ⭐ 关键：只到 compile
+        auto compiled_model = core.compile_model(model, "GPU", config);
+
+        // 程序直接 sleep，不 infer
+        std::this_thread::sleep_for(std::chrono::seconds(10));
+        // std::string models_path = argv[1];
     } catch (const std::exception& ex) {
         std::cerr << std::endl << "Exception occurred: " << ex.what() << std::endl << std::flush;
         return EXIT_FAILURE;
