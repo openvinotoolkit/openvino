@@ -862,8 +862,6 @@ std::vector<std::vector<int>> get_streams_rank_table(const std::vector<std::vect
     return rank_table;
 }
 
-using namespace ov::intel_cpu::ThreadPreferenceConstants;
-
 #if defined(OPENVINO_ARCH_ARM64) && defined(__linux__)
 static void configure_arm64_linux_threads(Config& config,
                                           const std::vector<std::vector<int>>& proc_type_table,
