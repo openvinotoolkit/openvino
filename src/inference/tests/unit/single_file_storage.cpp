@@ -5,6 +5,8 @@
 #include "openvino/runtime/single_file_storage.hpp"
 
 #include <gtest/gtest.h>
+
+#include <limits>
 #ifdef _WIN32
 #    include <windows.h>
 #else
