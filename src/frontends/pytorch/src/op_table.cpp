@@ -792,7 +792,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"ov_ext::linear", op::translate_linear_ext},
         {"prim::abs", op::translate_1to1_match_1_inputs<opset10::Abs>},
         {"prim::CallMethod", op::translate_call_method},
-    {"prim::Constant", op::translate_constant},
+        {"prim::Constant", op::translate_constant},
         {"prim::device", op::translate_constant},
         // prim::DictConstruct - Supported in limited set of patterns
         {"prim::fork", op::translate_pythonop},
