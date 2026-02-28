@@ -57,12 +57,8 @@ void ov::symbol::set_equal(const std::shared_ptr<Symbol>& lhs, const std::shared
 }
 
 std::shared_ptr<ov::Symbol> ov::symbol::add(const std::shared_ptr<Symbol>& lhs, const std::shared_ptr<Symbol>& rhs) {
-    if (lhs == nullptr && rhs == nullptr)
+    if (lhs == nullptr || rhs == nullptr)
         return nullptr;
-    if (lhs == nullptr)
-        return rhs;
-    if (rhs == nullptr)
-        return lhs;
     auto result = std::make_shared<Symbol>();
     result->m_kind = SymbolKind::ADD;
     result->m_lhs = lhs;
@@ -71,12 +67,8 @@ std::shared_ptr<ov::Symbol> ov::symbol::add(const std::shared_ptr<Symbol>& lhs, 
 }
 
 std::shared_ptr<ov::Symbol> ov::symbol::mul(const std::shared_ptr<Symbol>& lhs, const std::shared_ptr<Symbol>& rhs) {
-    if (lhs == nullptr && rhs == nullptr)
+    if (lhs == nullptr || rhs == nullptr)
         return nullptr;
-    if (lhs == nullptr)
-        return rhs;
-    if (rhs == nullptr)
-        return lhs;
     auto result = std::make_shared<Symbol>();
     result->m_kind = SymbolKind::MUL;
     result->m_lhs = lhs;
