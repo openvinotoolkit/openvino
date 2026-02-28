@@ -386,7 +386,8 @@ Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
             ov::js::validate<Napi::Buffer<uint8_t>, Napi::String>(info, allowed_signatures) ||
             ov::js::validate<Napi::Buffer<uint8_t>, Napi::String, Napi::Object>(info, allowed_signatures)) {
             // Prepare validated data that will be transferred to the new thread.
-            auto context_data = new ImportModelContext(env, _core);
+            auto context_holder = std::make_unique<ImportModelContext>(env, _core);
+            auto* context_data = context_holder.get();
 
             // ---- Handle input memory safely ----
             if (ov::js::validate_value<TensorWrap>(env, info[0])) {
