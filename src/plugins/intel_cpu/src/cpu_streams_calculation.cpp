@@ -28,8 +28,9 @@
 #else
 #    if !defined(OPENVINO_ARCH_RISCV64)
 #        include <oneapi/dnnl/dnnl.hpp>
+
+#        include "onednn/dnnl.h"
 #    endif
-#    include "onednn/dnnl.h"
 #    include "openvino/runtime/performance_heuristics.hpp"
 #endif
 #include "cpu_map_scheduling.hpp"
@@ -521,8 +522,7 @@ std::vector<std::vector<int>> get_streams_info_table(
                     n_threads_per_stream = proc_type_table[0][ALL_PROC] - proc_type_table[0][LP_EFFICIENT_CORE_PROC];
                     if (proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0 &&
                         proc_type_table[0][EFFICIENT_CORE_PROC] == 0) {
-                        n_threads_per_stream =
-                            model_prefer_threads > n_threads_per_stream ? model_prefer_threads : n_threads_per_stream;
+                        n_threads_per_stream = std::max(model_prefer_threads, n_threads_per_stream);
                         n_threads_per_stream = std::min(n_threads_per_stream, proc_type_table[0][ALL_PROC]);
                     }
                 }
