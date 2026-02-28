@@ -8,6 +8,7 @@
  */
 #pragma once
 
+#include <array>
 #include <map>
 #include <memory>
 #include <set>
@@ -29,6 +30,27 @@ class Any;
 using AnyMap = std::map<std::string, Any>;
 
 namespace util {
+template <typename T>
+struct ArrayView {
+    const T* data = nullptr;
+    size_t size = 0;
+
+    ArrayView() = default;
+    ArrayView(const T* data, size_t size) : data{data}, size{size} {}
+
+    const T* begin() const {
+        return data;
+    }
+    const T* end() const {
+        return data + size;
+    }
+    const T& operator[](size_t i) const {
+        return data[i];
+    }
+    bool empty() const {
+        return size == 0;
+    }
+};
 
 OPENVINO_API bool equal(std::type_index lhs, std::type_index rhs);
 
@@ -473,9 +495,9 @@ class OPENVINO_API Any {
 
     template <typename... Args>
     struct TupleToTypeIndex<std::tuple<Args...>> {
-        static const std::vector<std::type_index>& get() {
-            static const std::vector<std::type_index> types = {typeid(Args)...};
-            return types;
+        static util::ArrayView<const std::type_index> get() {
+            static const std::array<std::type_index, sizeof...(Args)> types = {std::type_index(typeid(Args))...};
+            return util::ArrayView<const std::type_index>(types.data(), types.size());
         }
     };
 
@@ -485,7 +507,7 @@ class OPENVINO_API Any {
 
         using Ptr = std::shared_ptr<Base>;
         virtual const std::type_info& type_info() const = 0;
-        virtual const std::vector<std::type_index>& base_type_info() const = 0;
+        virtual const util::ArrayView<const std::type_index> base_type_info() const = 0;
         bool is_base_type_info(const std::type_info& type_info) const;
         virtual const void* addressof() const = 0;
         void* addressof() {
@@ -574,9 +596,9 @@ class OPENVINO_API Any {
             return typeid(T);
         }
 
-        const std::vector<std::type_index>& base_type_info() const override {
-            static const std::vector<std::type_index> base_types = {typeid(std::shared_ptr<RuntimeAttribute>)};
-            return base_types;
+        const util::ArrayView<const std::type_index> base_type_info() const override {
+            static const std::array<std::type_index, 1> base_types = {typeid(std::shared_ptr<RuntimeAttribute>)};
+            return util::ArrayView<const std::type_index>(base_types.data(), base_types.size());
         }
 
         const void* addressof() const override {
@@ -626,18 +648,18 @@ class OPENVINO_API Any {
         }
 
         template <class U>
-        static const std::vector<std::type_index>& base_type_info_impl(
+        static const util::ArrayView<const std::type_index> base_type_info_impl(
             typename std::enable_if<HasBaseMemberType<U>::value, std::true_type>::type = {}) {
             return TupleToTypeIndex<typename T::Base>::get();
         }
         template <class U>
-        static const std::vector<std::type_index>& base_type_info_impl(
+        static const util::ArrayView<const std::type_index> base_type_info_impl(
             typename std::enable_if<!HasBaseMemberType<U>::value, std::false_type>::type = {}) {
-            static const std::vector<std::type_index> base_types = {typeid(T)};
-            return base_types;
+            static const std::array<std::type_index, 1> base_types = {typeid(T)};
+            return util::ArrayView<const std::type_index>(base_types.data(), base_types.size());
         }
 
-        const std::vector<std::type_index>& base_type_info() const override {
+        const util::ArrayView<const std::type_index> base_type_info() const override {
             return base_type_info_impl<T>();
         }
 
