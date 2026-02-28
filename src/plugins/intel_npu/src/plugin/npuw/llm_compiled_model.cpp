@@ -1051,14 +1051,9 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
             new_shape[0] = 1;  // batch_dim
-        } else if (ov::npuw::matchEagle3HiddenStatesString(input_name)) {
-            new_shape = ov::npuw::Eagle3Extension::get_static_input(model, input, input_size);
-        } else if (ov::npuw::matchEagle3TreeMaskString(input_name)) {
-            if (is_prefill) {
-                new_shape = ov::PartialShape({1, 1, 1, 1});
-            } else {
-                new_shape = ov::PartialShape({1, 1, input_size, kvcache_size});
-            }
+        } else if (ov::npuw::matchEagle3HiddenStatesString(input_name) ||
+                   ov::npuw::matchEagle3TreeMaskString(input_name)) {
+            new_shape = ov::npuw::Eagle3Extension::get_static_input(model, input, input_size, kvcache_size, is_prefill);
         } else if (ov::npuw::util::matchLoRAMatMulAString(input_name)) {
             new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
         } else if (ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
@@ -1520,8 +1515,7 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
                           kv_size,
                           axes,
                           m_max_lora_rank,
-                          whisper_lhs_seq_size,
-                          false);
+                          whisper_lhs_seq_size);
 
         // Set unique name for this variant
         generate_variant->set_friendly_name(generate_model->get_friendly_name() + "_kv" + std::to_string(kv_size));

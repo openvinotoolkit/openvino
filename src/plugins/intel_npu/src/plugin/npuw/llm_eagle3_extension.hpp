@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -39,10 +38,15 @@ enum class Eagle3ModelRole {
     Draft    ///< Draft model: has hidden_states as input, and outputs last_hidden_state
 };
 
-// Special VariableState for Eagle3 sampling result communication
-// This allows external pipelines to pass sampling results through standard OpenVINO API
+// Special VariableState for Eagle3 sampling result communication.
+// Allows external pipelines to pass sampling results through the standard OpenVINO API.
 //
-// Usage in pipeline:
+// Tensor layout (element type: int64):
+//   [0]               num_total_generated
+//   [1]               num_accepted_tokens
+//   [2 .. 2+N-1]      accepted_token_mask (1 = accepted, 0 = rejected), N = num_total_generated
+//
+// Usage example:
 //   auto states = infer_request.query_state();
 //   for (auto& state : states) {
 //       if (state->get_name() == "npuw_eagle3_sampling_result") {
@@ -50,49 +54,38 @@ enum class Eagle3ModelRole {
 //           auto* data = tensor.data<int64_t>();
 //           data[0] = num_total_generated;
 //           data[1] = num_accepted_tokens;
-//           for (size_t i = 0; i < mask.size(); ++i) {
-//               data[2 + i] = mask[i] ? 1 : 0;
-//           }
+//           for (size_t i = 0; i < mask.size(); ++i)
+//               data[Eagle3SamplingState::kHeaderSize + i] = mask[i] ? 1 : 0;
 //           state->set_state(tensor);
 //           break;
 //       }
 //   }
 class Eagle3SamplingState : public ov::IVariableState {
 public:
+    // Maximum number of tokens in a single speculative decoding round.
+    // Format: [num_total_generated, num_accepted_tokens, mask[0], mask[1], ...]
+    static constexpr size_t kMaxSpecTokens = 512;
+    static constexpr size_t kHeaderSize = 2;  // num_total_generated + num_accepted_tokens
+
     Eagle3SamplingState() : ov::IVariableState("npuw_eagle3_sampling_result") {
-        // Create a tensor to hold sampling result
-        // Format: [num_total_generated, num_accepted_tokens, mask[0], mask[1], ...]
-        // Max size: 2 + max_tokens (assume max 512 tokens for speculative decoding)
-        constexpr size_t max_capacity = 2 + 512;
-        auto tensor = ov::Tensor(ov::element::i64, ov::Shape{max_capacity});
+        auto tensor = ov::Tensor(ov::element::i64, ov::Shape{kHeaderSize + kMaxSpecTokens});
         m_state = ov::get_tensor_impl(tensor);
         reset();
     }
 
     void reset() override {
-        // Clear the state
         std::fill_n(m_state->data<int64_t>(), m_state->get_size(), 0);
     }
 
     void set_state(const ov::SoPtr<ov::ITensor>& state) override {
+        // Copy the caller-provided tensor into our fixed-size internal buffer.
         OPENVINO_ASSERT(state->get_element_type() == ov::element::i64, "Eagle3SamplingState expects int64 tensor");
-        OPENVINO_ASSERT(state->get_size() >= 2, "Eagle3SamplingState tensor must have at least 2 elements");
-
-        // Copy the state
-        if (state->get_size() <= m_state->get_size()) {
-            std::copy_n(state->data<int64_t>(), state->get_size(), m_state->data<int64_t>());
-        } else {
-            // Need to resize
-            auto tensor = ov::Tensor(ov::element::i64, state->get_shape());
-            m_state = ov::get_tensor_impl(tensor);
-            std::copy_n(state->data<int64_t>(), state->get_size(), m_state->data<int64_t>());
-        }
-    }
-
-    // Check if there's valid sampling result to process
-    bool has_result() const {
-        auto* data = m_state->data<int64_t>();
-        return data[0] > 0;  // num_total_generated > 0
+        OPENVINO_ASSERT(state->get_size() >= kHeaderSize, "Eagle3SamplingState tensor must have at least 2 elements");
+        OPENVINO_ASSERT(state->get_size() <= m_state->get_size(),
+                        "Eagle3SamplingState: input tensor size (" + std::to_string(state->get_size()) +
+                            ") exceeds maximum capacity (" + std::to_string(m_state->get_size()) +
+                            "). Consider increasing kMaxSpecTokens.");
+        std::copy_n(state->data<int64_t>(), state->get_size(), m_state->data<int64_t>());
     }
 
     // Extract sampling result and clear the state
@@ -108,12 +101,17 @@ public:
         mask.clear();
         mask.reserve(num_total);
         for (uint32_t i = 0; i < num_total; ++i) {
-            mask.push_back(data[2 + i] != 0);
+            mask.push_back(data[kHeaderSize + i] != 0);
         }
 
-        // Clear after extraction
         reset();
         return true;
+    }
+
+private:
+    // Returns true if the state tensor contains a valid (non-empty) sampling result
+    bool has_result() const {
+        return m_state->data<int64_t>()[0] > 0;  // num_total_generated > 0
     }
 };
 
@@ -121,10 +119,14 @@ public:
 // Handles Eagle3-specific input/output logic for draft and target models
 class Eagle3Extension {
 public:
-    // Get static shape for Eagle3 input tensors
+    // Compute the static shape for Eagle3-specific inputs (hidden_states, eagle_tree_mask).
+    // is_prefill drives eagle_tree_mask shape: prefill uses {1,1,1,1}
+    // generate uses {1,1,input_size,kvcache_size}
     static ov::PartialShape get_static_input(const std::shared_ptr<ov::Model>& model,
                                              const ov::Output<ov::Node>& input,
-                                             uint32_t input_size);
+                                             uint32_t input_size,
+                                             uint32_t kvcache_size,
+                                             bool is_prefill);
 
     // Detect Eagle3 model role (Draft/Target/None) based on is_eagle flag and inputs/outputs
     void initialize(bool is_eagle_model,
@@ -134,10 +136,6 @@ public:
     // Returns true if model is Eagle3 draft or target
     bool is_eagle3_model() const {
         return m_role != Eagle3ModelRole::None;
-    }
-
-    Eagle3ModelRole get_role() const {
-        return m_role;
     }
 
     // Store eagle3 specific inputs (eagle_tree_mask, hidden_states) from the inference request
@@ -173,70 +171,48 @@ public:
         m_chunked_seq_offset = 0;
     }
 
+    // Returns the last_hidden_state tensor from the most recent inference.
+    // For chunked prefill, this is the fully-assembled tensor across all chunks.
     ov::SoPtr<ov::ITensor> get_last_hidden_state() const {
         return m_last_hidden_state;
     }
 
-    ov::SoPtr<ov::ITensor> get_eagle_tree_mask() const {
-        return m_eagle_tree_mask;
-    }
-
-    // Get Eagle3 sampling state for query_state()
+    // Returns the Eagle3SamplingState VariableState exposed via query_state().
+    // External pipelines write sampling results into this state; the plugin reads
+    // them back in process_sampling_result_from_state() before the next inference.
     std::shared_ptr<Eagle3SamplingState> get_sampling_state() const {
         return m_sampling_state;
     }
 
-    // Process sampling result from VariableState (called in infer_generate)
-    // Returns true if sampling result was found and processed
-    bool process_sampling_result_from_state(
-        std::shared_ptr<ov::IAsyncInferRequest> request,
-        const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
-        const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
-        uint32_t& num_stored_tokens,
-        bool v_transposed,
-        uint32_t kv_dim);
+    // Read the sampling result from the Eagle3SamplingState VariableState and apply
+    // any required KV cache adjustment (discard rejected draft tokens) before infer.
+    bool process_sampling_result_from_state(std::shared_ptr<ov::IAsyncInferRequest> request,
+                                            const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
+                                            uint32_t& num_stored_tokens,
+                                            bool v_transposed,
+                                            uint32_t kv_dim);
 
-    // Sampling result information for KV cache adjustment
-    // Usage example:
-    //   SamplingResult result;
-    //   result.accepted_token_mask = {true, true, false, true, false};  // Accept tokens 0,1,3
-    //   result.num_total_generated = 5;
-    //   result.num_accepted_tokens = 3;
-    //   eagle3_ext.set_sampling_result(result);
+private:
+    // Internal representation of a speculative decoding sampling result
     struct SamplingResult {
-        std::vector<bool> accepted_token_mask;  ///< Mask indicating which tokens are accepted (true) or rejected (false)
-        uint32_t num_total_generated = 0;       ///< Total number of tokens generated (should equal accepted_token_mask.size())
-        uint32_t num_accepted_tokens = 0;       ///< Number of accepted tokens (should equal count of true in accepted_token_mask)
+        std::vector<bool> accepted_token_mask;  ///< true = token accepted, false = rejected
+        uint32_t num_total_generated = 0;       ///< Total tokens generated (== accepted_token_mask.size())
+        uint32_t num_accepted_tokens = 0;       ///< Count of accepted tokens (== count of true in mask)
     };
 
-    // Set sampling result from pipeline (to be processed in next infer)
-    void set_sampling_result(const SamplingResult& result) {
-        m_pending_sampling_result = result;
-    }
-
     // Adjust KV cache based on sampling result before inference
-    // Should be called at the beginning of infer_generate
     void adjust_kvcache_before_infer(std::shared_ptr<ov::IAsyncInferRequest> request,
                                      const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
-                                     const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
                                      uint32_t& num_stored_tokens,
                                      bool v_transposed,
                                      uint32_t kv_dim);
 
-private:
-    void validate_hidden_state_tensor(const ov::SoPtr<ov::ITensor>& tensor, const std::string& name);
-    void validate_tree_mask_tensor(const ov::SoPtr<ov::ITensor>& tensor, const std::string& name);
-
     // Trim KV cache by rearranging only accepted tokens
     void trim_kvcache_by_sampling(std::shared_ptr<ov::IAsyncInferRequest> request,
                                   const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
-                                  const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
                                   uint32_t& num_stored_tokens,
                                   bool v_transposed,
                                   uint32_t kv_dim);
-
-    // Check if accepted tokens are contiguous from the start (e.g., [true, true, true, false, false])
-    bool is_contiguous_acceptance() const;
 
     Eagle3ModelRole m_role = Eagle3ModelRole::None;
 

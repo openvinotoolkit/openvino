@@ -861,7 +861,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     if (m_eagle3_ext.is_eagle3_model() && m_generate_initialized) {
         m_eagle3_ext.process_sampling_result_from_state(m_kvcache_request,
                                                         m_kvcache_in_ports,
-                                                        m_kvcache_out_ports,
                                                         kvcache_desc.num_stored_tokens,
                                                         kvcache_desc.v_tensors_transposed_gen,
                                                         kvcache_desc.dim);
