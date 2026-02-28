@@ -132,11 +132,13 @@ TEST(TLVFormatTest, ScanEntriesReadsMatchingTagsAndSkipsUnknown) {
         scanned_first.resize(size);
         s.read(scanned_first.data(), size);
         ++scanner_calls;
+        return s.good();
     });
     scanners.emplace(3, [&](std::istream& s, TLVFormat::LengthType size) {
         scanned_third.resize(size);
         s.read(scanned_third.data(), size);
         ++scanner_calls;
+        return s.good();
     });
 
     TLVFormat::scan_entries(stream, scanners, true);

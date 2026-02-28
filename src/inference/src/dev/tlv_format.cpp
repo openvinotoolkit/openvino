@@ -9,8 +9,6 @@
 
 namespace ov::runtime {
 
-// todo General: How to handle stream not good?
-
 void TLVFormat::write_entry(std::ostream& stream, TagType tag, LengthType size, const char* data) {
     stream.write(reinterpret_cast<const char*>(&tag), sizeof(tag));
     stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
@@ -58,26 +56,30 @@ bool TLVFormat::read_entry(std::istream& stream, TagType& tag, LengthType& size,
     return read_entry_(stream, tag, size, data);
 }
 
-void TLVFormat::scan_entries(std::istream& stream, const ValueScanner& scanners, bool rewind) {
+bool TLVFormat::scan_entries(std::istream& stream, const ValueScanner& scanners, bool rewind) {
     const auto beginning_pos = stream.tellg();
     stream.seekg(0, std::ios::end);
     const auto stream_end = stream.tellg();
     stream.seekg(beginning_pos);
 
+    bool all_records_good = true;
     while (stream.good() && stream.tellg() < stream_end) {
         TLVFormat::TagType tag{};
         TLVFormat::LengthType size{};
         stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
         if (!stream.good()) {
-            break;
+            return false;
         }
         stream.read(reinterpret_cast<char*>(&size), sizeof(size));
         if (!stream.good()) {
-            break;
+            return false;
         }
 
         if (auto scanner_it = scanners.find(tag); scanner_it != scanners.end()) {
-            scanner_it->second(stream, size);
+            all_records_good &= scanner_it->second(stream, size);
+            if (!all_records_good) {
+                break;
+            }
         } else {
             stream.seekg(size, std::ios::cur);
         }
@@ -85,5 +87,6 @@ void TLVFormat::scan_entries(std::istream& stream, const ValueScanner& scanners,
     if (rewind) {
         stream.seekg(beginning_pos, std::ios::beg);
     }
+    return all_records_good;
 }
 }  // namespace ov::runtime

@@ -91,65 +91,67 @@ SingleFileStorage::SingleFileStorage(const std::filesystem::path& path) : m_file
         read_version(stream, file_version);
         validate_version(file_version);
 
-        build_content_index(stream);
-
-        // todo Add error handling and validation (e.g. check that blob entries are present for all blob ids in blob
-        //      map). If file is corrupted, it should be handled gracefully without throwing exceptions or crashing
-        //      (e.g. by ignoring invalid entries and logging warnings).
+        if (!build_content_index(stream)) {
+            m_blob_index.clear();
+            m_shared_context.m_cache_sources.clear();
+            m_shared_context.m_weight_registry.clear();
+        }
     }
 }
 
-void SingleFileStorage::build_content_index(std::ifstream& stream) {
-    const auto blob_reader = [this](std::istream& stream, TLVFormat::LengthType size) {
+bool SingleFileStorage::build_content_index(std::ifstream& stream) {
+    const auto blob_reader = [this](std::istream& s, TLVFormat::LengthType size) {
         if (size == 0) {
-            return;
+            return true;
         }
         BlobIdType id;
         PadSizeType padding_size;
-        stream.read(reinterpret_cast<char*>(&id), sizeof(id));
-        stream.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
-        stream.seekg(padding_size, std::ios::cur);
-        if (!stream.good()) {
-            return;
+        s.read(reinterpret_cast<char*>(&id), sizeof(id));
+        s.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
+        s.seekg(padding_size, std::ios::cur);
+        if (!s.good()) {
+            return false;
         }
-        const auto blob_data_pos = stream.tellg();
+        const auto blob_data_pos = s.tellg();
         const auto blob_data_size = size - sizeof(id) - sizeof(padding_size) - padding_size;
         m_blob_index[id].offset = blob_data_pos;
         m_blob_index[id].size = blob_data_size;
-        stream.seekg(blob_data_size, std::ios::cur);
+        s.seekg(blob_data_size, std::ios::cur);
+        return s.good();
     };
-    const auto blob_map_reader = [this](std::istream& stream, TLVFormat::LengthType size) {
+    const auto blob_map_reader = [this](std::istream& s, TLVFormat::LengthType size) {
         if (size == 0) {
-            return;
+            return true;
         }
         BlobIdType id;
-        stream.read(reinterpret_cast<char*>(&id), sizeof(id));
-        if (!stream.good()) {
-            return;
+        s.read(reinterpret_cast<char*>(&id), sizeof(id));
+        if (!s.good()) {
+            return false;
         }
-        if (std::string model_name; read_tlv_string(stream, model_name)) {
+        if (std::string model_name; read_tlv_string(s, model_name)) {
             m_blob_index[id].model_name = model_name;
         }
+        return s.good();
     };
-    const auto constant_meta_reader = [this](std::istream& stream, TLVFormat::LengthType size) {
+    const auto constant_meta_reader = [this](std::istream& s, TLVFormat::LengthType size) {
         if (size == 0) {
-            return;
+            return true;
         }
         uint64_t source_id;
-        stream.read(reinterpret_cast<char*>(&source_id), sizeof(source_id));
+        s.read(reinterpret_cast<char*>(&source_id), sizeof(source_id));
         auto left_size = size - sizeof(source_id);
 
-        while (stream.good() && left_size > 0) {
+        while (s.good() && left_size > 0) {
             uint64_t const_id, const_offset, const_size;
             uint8_t const_type;
             constexpr auto const_meta_size =
                 sizeof(const_id) + sizeof(const_offset) + sizeof(const_size) + sizeof(const_type);
-            stream.read(reinterpret_cast<char*>(&const_id), sizeof(const_id));
-            stream.read(reinterpret_cast<char*>(&const_offset), sizeof(const_offset));
-            stream.read(reinterpret_cast<char*>(&const_size), sizeof(const_size));
-            stream.read(reinterpret_cast<char*>(&const_type), sizeof(const_type));
-            if (!stream.good()) {
-                break;
+            s.read(reinterpret_cast<char*>(&const_id), sizeof(const_id));
+            s.read(reinterpret_cast<char*>(&const_offset), sizeof(const_offset));
+            s.read(reinterpret_cast<char*>(&const_size), sizeof(const_size));
+            s.read(reinterpret_cast<char*>(&const_type), sizeof(const_type));
+            if (!s.good()) {
+                return false;
             }
             left_size -= const_meta_size;
 
@@ -157,33 +159,33 @@ void SingleFileStorage::build_content_index(std::ifstream& stream) {
                                                                        static_cast<size_t>(const_size),
                                                                        element::Type_t{const_type}};
         }
+        return s.good();
     };
-    const auto constant_source_reader = [this](std::istream& stream, TLVFormat::LengthType size) {
+    const auto constant_source_reader = [this](std::istream& s, TLVFormat::LengthType size) {
         if (size == 0) {
-            return;
+            return true;
         }
         DataIdType device_id, source_id;
         PadSizeType padding_size;
-        stream.read(reinterpret_cast<char*>(&device_id), sizeof(device_id));
-        stream.read(reinterpret_cast<char*>(&source_id), sizeof(source_id));
-        stream.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
-        stream.seekg(padding_size, std::ios::cur);
-        if (!stream.good()) {
-            return;
+        s.read(reinterpret_cast<char*>(&device_id), sizeof(device_id));
+        s.read(reinterpret_cast<char*>(&source_id), sizeof(source_id));
+        s.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
+        s.seekg(padding_size, std::ios::cur);
+        if (!s.good()) {
+            return false;
         }
-        // const auto weight_pos = stream.tellg();
         const auto weight_size = size - sizeof(device_id) - sizeof(source_id) - sizeof(padding_size) - padding_size;
         m_shared_context.m_cache_sources[source_id] = {};
-        stream.seekg(weight_size, std::ios::cur);
+        s.seekg(weight_size, std::ios::cur);
+        return s.good();
     };
-
     const TLVFormat::ValueScanner scanners = {
         {static_cast<TLVFormat::TagType>(Tag::Blob), blob_reader},
         {static_cast<TLVFormat::TagType>(Tag::BlobMap), blob_map_reader},
         {static_cast<TLVFormat::TagType>(Tag::ConstantMeta), constant_meta_reader},
         {static_cast<TLVFormat::TagType>(Tag::WeightSource), constant_source_reader},
     };
-    TLVFormat::scan_entries(stream, scanners, true);
+    return TLVFormat::scan_entries(stream, scanners, true);
 }
 
 SingleFileStorage::BlobIdType SingleFileStorage::convert_blob_id(const std::string& blob_id) {

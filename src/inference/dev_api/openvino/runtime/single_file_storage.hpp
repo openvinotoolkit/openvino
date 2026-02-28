@@ -82,7 +82,7 @@ private:
     };
     std::unordered_map<BlobIdType, BlobInfo> m_blob_index;
     weight_sharing::Context m_shared_context;
-    void build_content_index(std::ifstream& stream);
+    bool build_content_index(std::ifstream& stream);
 
     static BlobIdType convert_blob_id(const std::string& blob_id);
     void write_blob_entry(std::ofstream& stream, BlobIdType blob_id, StreamWriter& writer);
