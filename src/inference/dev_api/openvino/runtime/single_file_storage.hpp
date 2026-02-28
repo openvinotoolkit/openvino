@@ -73,9 +73,6 @@ public:
     using PadSizeType = uint64_t;
 
 private:
-    // todo Make it configurable and/or detect actual file system page size
-    static constexpr uint64_t m_alignment = 4096;
-
     std::filesystem::path m_file_path;
 
     struct BlobInfo {

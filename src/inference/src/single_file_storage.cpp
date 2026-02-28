@@ -4,6 +4,12 @@
 
 #include "openvino/runtime/single_file_storage.hpp"
 
+#ifdef _WIN32
+#    include <windows.h>
+#else
+#    include <unistd.h>
+#endif
+
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -33,6 +39,16 @@ void write_tlv_string(std::ostream& stream, const std::string& str) {
                            str.size(),
                            str.data());
 }
+
+static const uint64_t alignment = []() {
+#ifdef _WIN32
+    SYSTEM_INFO sysInfo;
+    GetSystemInfo(&sysInfo);
+    return static_cast<uint64_t>(sysInfo.dwPageSize);
+#else
+    return static_cast<uint64_t>(sysconf(_SC_PAGE_SIZE));
+#endif
+}();
 
 bool read_tlv_string(std::istream& stream, std::string& str) {
     TLVFormat::TagType tag;
@@ -171,7 +187,6 @@ void SingleFileStorage::build_content_index(std::ifstream& stream) {
 }
 
 SingleFileStorage::BlobIdType SingleFileStorage::convert_blob_id(const std::string& blob_id) {
-    // todo stoull used unconditionally - what if BlobIdType isn't uint64_t?
     return static_cast<BlobIdType>(std::stoull(blob_id.c_str()));
 }
 
@@ -187,7 +202,7 @@ void SingleFileStorage::write_blob_entry(std::ofstream& stream, BlobIdType blob_
 
     const auto blob_writer = [&](std::ostream& s) {
         s.write(reinterpret_cast<const char*>(&blob_id), sizeof(blob_id));
-        write_padding(s, m_alignment);
+        write_padding(s, alignment);
         blob_pos = s.tellp();
         writer(s);
         blob_size = s.tellp() - blob_pos;
@@ -286,7 +301,7 @@ void SingleFileStorage::write_context(const weight_sharing::Context& context) {
             const auto device_id = static_cast<DataIdType>(0);  // todo Where to get it from?
             s.write(reinterpret_cast<const char*>(&device_id), sizeof(device_id));
             s.write(reinterpret_cast<const char*>(&source_id), sizeof(source_id));
-            write_padding(s, m_alignment);
+            write_padding(s, alignment);
 
             const auto buffer_writer =
                 ov::util::VariantVisitor{[&](const std::weak_ptr<ov::AlignedBuffer>& weak_buf) {

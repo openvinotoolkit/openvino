@@ -5,6 +5,11 @@
 #include "openvino/runtime/single_file_storage.hpp"
 
 #include <gtest/gtest.h>
+#ifdef _WIN32
+#    include <windows.h>
+#else
+#    include <unistd.h>
+#endif
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
@@ -19,6 +24,16 @@ namespace {
 constexpr uint64_t version_size() {
     return sizeof(SingleFileStorage::FormatVersion::major) + sizeof(SingleFileStorage::FormatVersion::minor) +
            sizeof(SingleFileStorage::FormatVersion::patch);
+}
+
+std::streamoff get_system_page_size() {
+#ifdef _WIN32
+    SYSTEM_INFO sysInfo;
+    GetSystemInfo(&sysInfo);
+    return static_cast<std::streamoff>(sysInfo.dwPageSize);
+#else
+    return static_cast<std::streamoff>(sysconf(_SC_PAGE_SIZE));
+#endif
 }
 }  // namespace
 
@@ -122,8 +137,7 @@ TEST_F(SingleFileStorageTest, BlobAlignment) {
     const auto stream_end = stream.tellg();
     stream.seekg(version_size(), std::ios::beg);
 
-    // todo Make it configurable and/or detect actual file system page size
-    constexpr std::streamoff alignment = 4096;
+    const auto alignment = get_system_page_size();
 
     while (stream.good() && stream.tellg() < stream_end) {
         SingleFileStorage::Tag tag;
@@ -258,8 +272,7 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
     const auto stream_end = stream.tellg();
     stream.seekg(version_size(), std::ios::beg);
 
-    // todo Make it configurable and/or detect actual file system page size
-    constexpr std::streamoff alignment = 4096;
+    const auto alignment = get_system_page_size();
 
     while (stream.good() && stream.tellg() < stream_end) {
         SingleFileStorage::Tag tag;
