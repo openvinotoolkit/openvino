@@ -1365,7 +1365,8 @@ public:
             });
         }
 
-        const bool mem_trace = std::getenv("OTD_MEM_TRACE") != nullptr;
+        const char* mem_trace_env = std::getenv("OTD_MEM_TRACE");
+        const bool mem_trace = mem_trace_env != nullptr && std::string(mem_trace_env) == "1";
         static size_t trace_calls = 0;
         ++trace_calls;
         const bool should_log = mem_trace && (trace_calls <= 10 || trace_calls % 100 == 0);
