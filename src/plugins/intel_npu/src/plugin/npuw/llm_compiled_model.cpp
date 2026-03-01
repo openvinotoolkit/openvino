@@ -614,12 +614,13 @@ public:
         };
 
         auto past_kv_len = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
-        auto full_ctx_len = opp::wrap_type<ov::op::v1::Add>({past_kv_len, opp::any_input()});
-        auto query_range = opp::wrap_type<ov::op::v4::Range>({past_kv_len, full_ctx_len, opp::any_input()});
+        auto past_kv_len_squeeze = opp::optional<ov::op::v0::Squeeze>({past_kv_len});
+        auto full_ctx_len = opp::wrap_type<ov::op::v1::Add>({past_kv_len_squeeze, opp::any_input()});
+        auto query_range = opp::wrap_type<ov::op::v4::Range>({past_kv_len_squeeze, full_ctx_len, opp::any_input()});
         auto query_range_column = unsqueeze_sequence(query_range);
 
         auto zero_const = opp::wrap_type<ov::op::v0::Constant>();
-        auto full_ctx_len_2 = opp::wrap_type<ov::op::v1::Add>({opp::any_input(), past_kv_len});
+        auto full_ctx_len_2 = opp::wrap_type<ov::op::v1::Add>({opp::any_input(), past_kv_len_squeeze});
         auto key_range = opp::wrap_type<ov::op::v4::Range>({zero_const, full_ctx_len_2, opp::any_input()});
         auto key_range_row = unsqueeze_sequence(key_range);
         auto opt_key_range_row_f32 = opp::optional<ov::op::v0::Convert>({key_range_row->output(0)});
@@ -638,7 +639,8 @@ public:
             LOG_INFO("Found (4.53) pattern for Phi-3 Sliding Window Attention, will be replaced with custom for static "
                      "shapes.");
             auto& node_to_output = m.get_pattern_value_map();
-            auto node_past_kv_len = node_to_output.at(past_kv_len).get_node_shared_ptr();
+            auto optional_squeeze = node_to_output.find(past_kv_len_squeeze);
+            auto node_past_kv_len = optional_squeeze != node_to_output.end() ? optional_squeeze->second.get_node_shared_ptr() :  node_to_output.at(past_kv_len).get_node_shared_ptr();
             auto node_full_ctx_len = node_to_output.at(full_ctx_len).get_node_shared_ptr();
             auto node_neg_window_size = node_to_output.at(neg_window_size).get_node_shared_ptr();
             auto node_sliding_mask = node_to_output.at(sliding_mask).get_node_shared_ptr();
