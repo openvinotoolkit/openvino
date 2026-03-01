@@ -239,6 +239,47 @@ def test_get_sink_index(device):
     )
 
 
+@pytest.fixture
+def test_model():
+    parameters = [ops.Parameter([1, 2], dtype=ops.Type.f32)]
+    results = [ops.Output(ops.Node())]
+    return ops.Model(results=results, parameters=parameters, name="TestModel")
+
+
+def test_reshape_valid_input_shapes(test_model):
+    input_shapes = [[2, 2], [1, 3, 224, 244], [10]]
+    test_model.reshape(input_shapes)
+    inputs = test_model.inputs()
+
+    assert len(inputs) == len(input_shapes), "Number of model inputs should match number of provided shapes"
+
+    for i, shape in enumerate(input_shapes):
+        assert inputs[i].shape == shape, f"Input {i} shape mismatch: expected {shape}, got {inputs[i].shape}"
+
+
+def test_reshape_invalid_input_shapes(test_model):
+    input_shapes = [[2, 2], [1, 3, 224]]
+    with pytest.raises(RuntimeError, match="Number of provided shapes does not match number of model inputs."):
+        test_model.reshape(input_shapes)
+
+
+def test_reshape_shape_mismatch(test_model):
+    input_shapes = [[2, 2], [1, 2, 224, 244], [10, 10]]
+    with pytest.raises(RuntimeError, match="Number of provided shapes does not match number of model inputs."):
+        test_model.reshape(input_shapes)
+
+
+def test_reshape_check_shape_modification(test_model):
+    input_shapes = [[2, 2], [1, 3, 224, 224], [10]]
+    test_model.reshape(input_shapes)
+    inputs = test_model.inputs()
+
+    assert len(inputs) == len(input_shapes), "Mismatch in number of inputs after reshape."
+
+    for i, shape in enumerate(input_shapes):
+        assert inputs[i].shape == shape, f"Shape mismatch for input {i}: expected {shape}, got {inputs[i].shape}"
+
+
 def test_model_sink_ctors():
     input_data = ops.parameter([2, 2], name="input_data", dtype=np.float32)
     rv = ops.read_value("var_id_667", np.float32, [2, 2])
