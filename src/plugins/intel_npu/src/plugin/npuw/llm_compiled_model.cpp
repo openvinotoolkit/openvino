@@ -887,8 +887,7 @@ public:
         }
 
         auto ppp_result = ppp.build();
-        // PrePostProcessor is expected to modify the model in-place, so it should return the same model instance.
-        // If it returns a different instance, it means that a new model was created and we are not supporting that.
+        // PrePostProcessor currently always modifies the model in-place and returns the same model pointer, but let's be defensive here and check it just in case
         OPENVINO_ASSERT(ppp_result == model,
                         "PrePostProcessor should not create a new model, but returned a different one.");
 
@@ -1325,6 +1324,7 @@ ov::element::Type choose_kv_cache_storage_type(const std::shared_ptr<ov::Model>&
     return kv_kache_storage_type;
 }
 
+// NOTE: will be removed on the next iteration of refactoring
 std::tuple<bool, bool, bool, bool> detect_model_type(const std::shared_ptr<ov::Model>& model,
                                                      ::intel_npu::Config& cfg,
                                                      ov::AnyMap& other_props,
