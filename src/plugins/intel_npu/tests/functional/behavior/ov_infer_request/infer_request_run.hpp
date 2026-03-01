@@ -237,10 +237,22 @@ TEST_P(InferRequestRunTests, BooleanTensorDataTypesForU8AndBooleanModelsWork) {
     ::intel_npu::CompilerAdapterFactory compilerAdapterFactory;
     ov::intel_npu::CompilerType compilerType = ov::intel_npu::CompilerType::PREFER_PLUGIN;
 
-    auto supportedProperties = core->get_property(target_device, ov::supported_properties);
-    auto isBatchModeSupported =
+    const auto supportedProperties = core->get_property(target_device, ov::supported_properties);
+    const bool isBatchModeSupported =
         std::find(supportedProperties.begin(), supportedProperties.end(), ov::intel_npu::batch_mode.name()) !=
         supportedProperties.end();
+    const bool isUpdateMutableCommandListSupported =
+        zeroEngineBackendPtr->getInitStructs()->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0);
+
+    auto reset_infer_request_if_needed = [isUpdateMutableCommandListSupported](
+                                             ov::InferRequest& infer_request,
+                                             ov::CompiledModel& compiled_model) -> void {
+        if (!isUpdateMutableCommandListSupported) {
+            // tensor rellocations won't work for PV driver thus
+            // need to reset infer request after each infer()
+            infer_request = compiled_model.create_infer_request();
+        }
+    };
 
     ov::CompiledModel compiled_model_u8;
     for (const auto batchMode : {ov::intel_npu::BatchMode::PLUGIN, ov::intel_npu::BatchMode::COMPILER}) {
@@ -293,20 +305,24 @@ TEST_P(InferRequestRunTests, BooleanTensorDataTypesForU8AndBooleanModelsWork) {
         OPENVINO_ASSERT(compiled_model_u8.input(1).get_element_type() == ov::element::u8);
 
         infer_request_u8.infer();
+        reset_infer_request_if_needed(infer_request_u8, compiled_model_u8);
 
         OV_ASSERT_NO_THROW(infer_request_u8.set_tensors(compiled_model_u8.input(0),
                                                         {importMemoryTensorU8_1, unalignedTensorBoolean_2}));
         OV_ASSERT_NO_THROW(infer_request_u8.set_tensors(compiled_model_u8.input(1),
                                                         {unalignedTensorU8_2, importMemoryTensorBoolean_1}));
         infer_request_u8.infer();
+        reset_infer_request_if_needed(infer_request_u8, compiled_model_u8);
 
         OV_ASSERT_NO_THROW(infer_request_u8.set_tensor(compiled_model_u8.input(0), importMemoryBatchedTensorU8));
         OV_ASSERT_NO_THROW(infer_request_u8.set_tensor(compiled_model_u8.input(1), unalignedBatchedTensorU8));
         infer_request_u8.infer();
+        reset_infer_request_if_needed(infer_request_u8, compiled_model_u8);
 
         OV_ASSERT_NO_THROW(infer_request_u8.set_tensor(compiled_model_u8.input(0), importMemoryBatchedTensorBoolean));
         OV_ASSERT_NO_THROW(infer_request_u8.set_tensor(compiled_model_u8.input(1), unalignedBatchedTensorBoolean));
         infer_request_u8.infer();
+        reset_infer_request_if_needed(infer_request_u8, compiled_model_u8);
 
         OV_ASSERT_NO_THROW(infer_request_u8.set_tensors(compiled_model_u8.input(0),
                                                         {unalignedTensorBoolean_1, importMemoryTensorU8_2}));
@@ -371,6 +387,7 @@ TEST_P(InferRequestRunTests, BooleanTensorDataTypesForU8AndBooleanModelsWork) {
             OPENVINO_ASSERT(compiled_model_boolean.input(1).get_element_type() == ov::element::boolean);
 
             infer_request_boolean.infer();
+            reset_infer_request_if_needed(infer_request_boolean, compiled_model_boolean);
 
             OV_ASSERT_NO_THROW(
                 infer_request_boolean.set_tensors(compiled_model_boolean.input(0),
@@ -379,18 +396,21 @@ TEST_P(InferRequestRunTests, BooleanTensorDataTypesForU8AndBooleanModelsWork) {
                 infer_request_boolean.set_tensors(compiled_model_boolean.input(1),
                                                   {newUnalignedTensorU8_2, newImportMemoryTensorBoolean_1}));
             infer_request_boolean.infer();
+            reset_infer_request_if_needed(infer_request_boolean, compiled_model_boolean);
 
             OV_ASSERT_NO_THROW(
                 infer_request_boolean.set_tensor(compiled_model_boolean.input(0), newImportMemoryBatchedTensorU8));
             OV_ASSERT_NO_THROW(
                 infer_request_boolean.set_tensor(compiled_model_boolean.input(1), newUnalignedBatchedTensorU8));
             infer_request_boolean.infer();
+            reset_infer_request_if_needed(infer_request_boolean, compiled_model_boolean);
 
             OV_ASSERT_NO_THROW(
                 infer_request_boolean.set_tensor(compiled_model_boolean.input(0), newImportMemoryBatchedTensorBoolean));
             OV_ASSERT_NO_THROW(
                 infer_request_boolean.set_tensor(compiled_model_boolean.input(1), newUnalignedBatchedTensorBoolean));
             infer_request_boolean.infer();
+            reset_infer_request_if_needed(infer_request_boolean, compiled_model_boolean);
 
             OV_ASSERT_NO_THROW(
                 infer_request_boolean.set_tensors(compiled_model_boolean.input(0),

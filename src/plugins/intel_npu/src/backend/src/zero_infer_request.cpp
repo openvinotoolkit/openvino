@@ -301,11 +301,9 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 
         if (is_batched_input(foundPort.idx)) {
             // Reset vector size to 1 if set_tensor is called after set_tensors
-            if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
-                get_level_zero_inputs(foundPort.idx).resize(1);
-                get_level_zero_inputs(foundPort.idx).shrink_to_fit();
-                get_level_zero_input(foundPort.idx) = {};
-            }
+            get_level_zero_inputs(foundPort.idx).resize(1);
+            get_level_zero_inputs(foundPort.idx).shrink_to_fit();
+            get_level_zero_input(foundPort.idx) = {};
             get_user_inputs(foundPort.idx).resize(1);
             get_user_inputs(foundPort.idx).shrink_to_fit();
             get_user_input(foundPort.idx) = {};
@@ -731,7 +729,7 @@ void ZeroInferRequest::prepare_inputs() {
         // 1. Batch size is set and batching is handled by the plugin.
         // 2. Batch size is not set and batching is handled by the compiler.
         if (is_batched_input(inputIndex)) {
-            if (batch_size.has_value() && _initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
+            if (batch_size.has_value()) {
                 for (size_t i = 0; i < userTensor.size(); i++) {
                     const auto& levelZeroTensor = get_level_zero_input(inputIndex, i);
                     OPENVINO_ASSERT(levelZeroTensor, "Input zero tensor is not allocated.");
