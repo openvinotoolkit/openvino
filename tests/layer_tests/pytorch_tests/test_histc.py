@@ -14,7 +14,10 @@ class TestHistc(PytorchLayerTest):
         if min_val < max_val:
             data = np.random.uniform(min_val, max_val, input_shape).astype(input_dtype)
         else:
+            # For equal min/max, inject one element equal to min_val so the
+            # middle-bin counting path (range_is_zero) is actually exercised.
             data = np.random.randn(*input_shape).astype(input_dtype)
+            data.flat[0] = min_val
         return (data,)
 
     def create_model(self, bins, min_val, max_val):

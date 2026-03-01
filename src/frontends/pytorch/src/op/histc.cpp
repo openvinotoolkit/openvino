@@ -42,6 +42,9 @@ OutputVector translate_histc(const NodeContext& context) {
     if (!context.input_is_none(3))
         max_val = context.const_input<double>(3);
 
+    FRONT_END_OP_CONVERSION_CHECK(bins > 0,
+                                  "Pytorch frontend: histc expects 'bins' to be a positive integer, got ",
+                                  bins);
     // Flatten and cast to f64
     auto flat_shape = v0::Constant::create(element::i64, Shape{1}, {-1});
     auto flat_input = context.mark_node(std::make_shared<v1::Reshape>(input, flat_shape, false));
@@ -68,21 +71,19 @@ OutputVector translate_histc(const NodeContext& context) {
     auto safe_range = context.mark_node(std::make_shared<v1::Select>(range_is_zero, one_f64, range));
     auto bin_width = context.mark_node(std::make_shared<v1::Divide>(safe_range, bins_const));
 
-    // Compute bin index: floor((x - min) / bin_width)
+    // Compute bin index: floor((x - min) / bin_width).
+    // Clamp in float domain before converting to i64 to avoid UB from out-of-range casts.
     auto shift = context.mark_node(std::make_shared<v1::Subtract>(f64_input, min_node));
-    auto bin_idxs = context.mark_node(std::make_shared<v0::Convert>(
-        context.mark_node(std::make_shared<v0::Floor>(
-            context.mark_node(std::make_shared<v1::Divide>(shift, bin_width)))),
-        element::i64));
+    auto floored = context.mark_node(std::make_shared<v0::Floor>(
+        context.mark_node(std::make_shared<v1::Divide>(shift, bin_width))));
+    auto clamped_f = context.mark_node(std::make_shared<v0::Clamp>(floored, 0.0, static_cast<double>(bins - 1)));
+    auto bin_idxs = context.mark_node(std::make_shared<v0::Convert>(clamped_f, element::i64));
 
     // When range is zero, put all elements in the middle bin (PyTorch behaviour)
     auto input_size = context.mark_node(std::make_shared<v3::ShapeOf>(flat_input, element::i64));
     auto mid_bin = context.mark_node(std::make_shared<v3::Broadcast>(
         v0::Constant::create(element::i64, Shape{}, {bins / 2}), input_size));
-    auto safe_idxs = context.mark_node(std::make_shared<v1::Select>(range_is_zero, mid_bin, bin_idxs));
-
-    // Clamp to valid index range (out-of-range elements are zeroed out below, so clamping is index-safe only)
-    auto clamped_idxs = context.mark_node(std::make_shared<v0::Clamp>(safe_idxs, 0, bins - 1));
+    auto clamped_idxs = context.mark_node(std::make_shared<v1::Select>(range_is_zero, mid_bin, bin_idxs));
 
     // Mask out-of-range elements so they contribute 0 to the histogram
     auto in_range = context.mark_node(std::make_shared<v1::LogicalAnd>(
