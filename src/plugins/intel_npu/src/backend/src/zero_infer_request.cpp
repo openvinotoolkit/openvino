@@ -724,7 +724,7 @@ void ZeroInferRequest::prepare_inputs() {
         // 1. Batch size is set and batching is handled by the plugin.
         // 2. Batch size is not set and batching is handled by the compiler.
         if (is_batched_input(inputIndex)) {
-            if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) && batch_size.has_value()) {
+            if (batch_size.has_value()) {
                 for (size_t i = 0; i < userTensor.size(); i++) {
                     const auto& levelZeroTensor = get_level_zero_input(inputIndex, i);
                     OPENVINO_ASSERT(levelZeroTensor, "Input zero tensor is not allocated.");
