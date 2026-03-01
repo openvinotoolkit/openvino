@@ -189,6 +189,7 @@ namespace v0 {
 Constant::Constant(const Tensor& tensor)
     : m_element_type{tensor.get_element_type()},
       m_shape{tensor.get_shape()},
+      m_shape_size{shape_size(m_shape)},
       m_byte_strides{m_element_type.bitwidth() >= 8 ? tensor.get_strides() : Strides{}},
       // cast is for internal use only to store tensor data in shared buffer (not for modification)
       m_data{std::make_shared<SharedBuffer<Tensor>>(const_cast<char*>(static_cast<const char*>(tensor.data())),
@@ -199,7 +200,7 @@ Constant::Constant(const Tensor& tensor)
 
 Constant::Constant(const element::Type& type, const Shape& shape, const std::vector<std::string>& values)
     : Constant(false, type, shape) {
-    const auto this_shape_size = shape_size(m_shape);
+    const auto this_shape_size = m_shape_size;
     const auto values_size = values.size();
     const auto has_single_value = (values_size == 1);
     NODE_VALIDATION_CHECK(this,
@@ -230,6 +231,7 @@ Constant::Constant(const element::Type& type, const Shape& shape) : Constant(tru
 Constant::Constant(bool memset_allocation, const element::Type& type, const Shape& shape)
     : m_element_type(type),
       m_shape(shape),
+      m_shape_size(shape_size(m_shape)),
       m_byte_strides{calc_byte_strides(m_shape, m_element_type)} {
     allocate_buffer(memset_allocation);
     constructor_validate_and_infer_types();
@@ -241,7 +243,7 @@ void Constant::allocate_buffer(bool memset_allocation) {
     const auto byte_size = ov::util::get_memory_size_safe(m_element_type, m_shape);
     OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", m_element_type, " and shape: ", m_shape);
     if (m_element_type == ov::element::string) {
-        const auto num_elements = shape_size(m_shape);
+        const auto num_elements = m_shape_size;
         m_data = std::make_shared<StringAlignedBuffer>(num_elements, *byte_size, host_alignment(), memset_allocation);
     } else {
         constexpr uint8_t init_value = 0;
@@ -260,7 +262,7 @@ void Constant::set_unused_bits(void* buffer) const {
     const auto byte_size = m_data->size();
 
     if (byte_size > 0) {
-        const auto num_elements = shape_size(m_shape);
+        const auto num_elements = m_shape_size;
 
         if (element::is_bit_type(m_element_type)) {
             constexpr size_t storage_unit_byte_size = 1;
@@ -287,7 +289,7 @@ void Constant::set_unused_bits(void* buffer) const {
 }
 
 Constant::Constant(const element::Type& type, const Shape& shape, const void* data) : Constant(false, type, shape) {
-    const auto num_elements = shape_size(m_shape);
+    const auto num_elements = m_shape_size;
     if (m_element_type == ov::element::string) {
         const auto src_strings = static_cast<const std::string*>(data);
         const auto dst_strings = static_cast<std::string*>(get_data_ptr_nc());
@@ -300,6 +302,7 @@ Constant::Constant(const element::Type& type, const Shape& shape, const void* da
 Constant::Constant(const element::Type& type, const Shape& shape, const std::shared_ptr<ov::AlignedBuffer>& data)
     : m_element_type(type),
       m_shape(shape),
+      m_shape_size(shape_size(m_shape)),
       m_byte_strides(calc_byte_strides(m_shape, m_element_type)),
       m_data(data) {
     constructor_validate_and_infer_types();
@@ -308,6 +311,7 @@ Constant::Constant(const element::Type& type, const Shape& shape, const std::sha
 Constant::Constant(const Constant& other)
     : m_element_type{other.m_element_type},
       m_shape{other.m_shape},
+      m_shape_size{other.m_shape_size},
       m_byte_strides{other.m_byte_strides},
       m_data{other.m_data},
       m_all_elements_bitwise_identical{other.m_all_elements_bitwise_identical.load()},
@@ -319,12 +323,13 @@ Constant::Constant(const Constant& other)
 Constant::Constant(const Constant& other, const Shape& new_shape)
     : m_element_type{other.m_element_type},
       m_shape{new_shape},
+      m_shape_size{shape_size(m_shape)},
       m_byte_strides{calc_byte_strides(m_shape, m_element_type)},
       m_data{other.m_data},
       m_all_elements_bitwise_identical{other.m_all_elements_bitwise_identical.load()},
       m_all_elements_bitwise_identical_checked{other.m_all_elements_bitwise_identical_checked.load()} {
-    const auto new_size = shape_size(new_shape);
-    const auto other_size = shape_size(other.m_shape);
+    const auto new_size = m_shape_size;
+    const auto other_size = other.m_shape_size;
     OPENVINO_ASSERT(other_size == new_size, "ov::Shape size ", new_size, " is not equal to ", other_size);
     constructor_validate_and_infer_types();
 }
@@ -384,8 +389,7 @@ std::string Constant::convert_value_to_string(size_t index) const {
 
 size_t Constant::get_byte_size() const {
     // Returns 0 when shape is "empty" (equals 0).
-    // TODO: refactor shape_size(m_shape) calculations and store it as a member.
-    return shape_size(m_shape) ? m_data->size() : 0;
+    return m_shape_size ? m_data->size() : 0;
 }
 
 const void* Constant::get_data_ptr() const {
@@ -434,7 +438,7 @@ struct ValuesToString : ov::element::NotSupported<void> {
 std::vector<std::string> Constant::get_value_strings() const {
     std::vector<std::string> out;
     using namespace ov::element;
-    IfTypeOf<SUPPORTED_ET, string>::apply<ValuesToString>(get_element_type(), get_data_ptr(), shape_size(m_shape), out);
+    IfTypeOf<SUPPORTED_ET, string>::apply<ValuesToString>(get_element_type(), get_data_ptr(), m_shape_size, out);
     return out;
 }
 
@@ -492,26 +496,26 @@ bool Constant::are_all_data_elements_bitwise_identical() const {
     case element::Type_t::boolean:
     case element::Type_t::i8:
     case element::Type_t::u8:
-        all_identical = test_bitwise_identical(get_data_ptr<uint8_t>(), shape_size(m_shape));
+        all_identical = test_bitwise_identical(get_data_ptr<uint8_t>(), m_shape_size);
         break;
     case element::Type_t::bf16:
     case element::Type_t::f16:
     case element::Type_t::i16:
     case element::Type_t::u16:
-        all_identical = test_bitwise_identical(get_data_ptr<uint16_t>(), shape_size(m_shape));
+        all_identical = test_bitwise_identical(get_data_ptr<uint16_t>(), m_shape_size);
         break;
     case element::Type_t::f32:
     case element::Type_t::i32:
     case element::Type_t::u32:
-        all_identical = test_bitwise_identical(get_data_ptr<uint32_t>(), shape_size(m_shape));
+        all_identical = test_bitwise_identical(get_data_ptr<uint32_t>(), m_shape_size);
         break;
     case element::Type_t::f64:
     case element::Type_t::i64:
     case element::Type_t::u64:
-        all_identical = test_bitwise_identical(get_data_ptr<uint64_t>(), shape_size(m_shape));
+        all_identical = test_bitwise_identical(get_data_ptr<uint64_t>(), m_shape_size);
         break;
     case element::Type_t::string:
-        all_identical = test_bitwise_identical(get_data_ptr<std::string>(), shape_size(m_shape));
+        all_identical = test_bitwise_identical(get_data_ptr<std::string>(), m_shape_size);
         break;
     default:
         all_identical = false;
@@ -535,6 +539,8 @@ bool Constant::visit_attributes(AttributeVisitor& visitor) {
     const auto prev_type = m_element_type;
     visitor.on_attribute("element_type", m_element_type);
     visitor.on_attribute("shape", m_shape);
+
+    m_shape_size = shape_size(m_shape);
 
     const auto need_to_reallocate = (m_shape != prev_shape) || (prev_type != m_element_type);
     const auto is_string_constant = (m_element_type == element::string);
@@ -583,7 +589,7 @@ bool Constant::evaluate(TensorVector& outputs, const TensorVector& inputs) const
         outputs[0].set_shape(m_shape);
 
     if (m_element_type == ov::element::string) {
-        auto num_elements = shape_size(m_shape);
+        auto num_elements = m_shape_size;
         auto src_strings = static_cast<const std::string*>(get_data_ptr());
         auto dst_strings = static_cast<std::string*>(outputs[0].data());
         std::copy_n(src_strings, num_elements, dst_strings);
@@ -631,7 +637,7 @@ const Strides& Constant::get_strides() const {
 }
 
 size_t Constant::get_num_elements_to_cast(const int64_t n) const {
-    auto num_elements_in_shape = shape_size(m_shape);
+    auto num_elements_in_shape = m_shape_size;
     return (n < 0 ? num_elements_in_shape : std::min(static_cast<size_t>(n), num_elements_in_shape));
 }
 
