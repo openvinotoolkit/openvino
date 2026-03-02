@@ -93,7 +93,7 @@ TEST(F8E8M0Test, f32_normal_to_lower) {
     EXPECT_EQ(f8.to_bits(), 0b00000001);
 }
 
-TEST(F8E8M0Test, f32_normal_boundry_to_even) {
+TEST(F8E8M0Test, f32_normal_boundary_to_even) {
     const auto f8 = ov::float8_e8m0(1.763241526233431261953105E-38);
 
     EXPECT_EQ(f8.to_bits(), 0b00000010);
@@ -111,7 +111,7 @@ TEST(F8E8M0Test, f32_normal_to_lower_2) {
     EXPECT_EQ(f8.to_bits(), 0b00000010);
 }
 
-TEST(F8E8M0Test, f32_normal_boundry_to_even_2) {
+TEST(F8E8M0Test, f32_normal_boundary_to_even_2) {
     const auto f8 = ov::float8_e8m0(3.526483052466862523906210E-38);
 
     EXPECT_EQ(f8.to_bits(), 0b00000010);
