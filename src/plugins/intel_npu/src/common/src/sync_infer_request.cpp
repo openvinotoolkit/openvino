@@ -307,9 +307,10 @@ void SyncInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& p
         OPENVINO_ASSERT(item, "Unintialized tensor is provided!");
         auto item_shape = item->get_shape();
         item_shape[batch_idx] = batched_shape[batch_idx];
-        bool specialCase = ((item->get_element_type() == ov::element::u8 && element_type == ov::element::boolean) ||
-                            (item->get_element_type() == ov::element::boolean && element_type == ov::element::u8));
-        OPENVINO_ASSERT((item_shape == batched_shape && item->get_element_type() == element_type) || specialCase,
+        const bool specialCase =
+            ((item->get_element_type() == ov::element::u8 && element_type == ov::element::boolean) ||
+             (item->get_element_type() == ov::element::boolean && element_type == ov::element::u8));
+        OPENVINO_ASSERT(item_shape == batched_shape && (item->get_element_type() == element_type || specialCase),
                         "set_input_tensors/set_tensors error. Tensor with element type ",
                         item->get_element_type(),
                         " and shape ",
