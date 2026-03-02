@@ -1278,63 +1278,6 @@ public:
         return weights_size;
     }
 
-    [[maybe_unused]] static cldnn::memory::ptr pre_allocate_weights(cldnn::engine& engine, const std::shared_ptr<MOE3GemmFusedCompressed>& op, size_t num_expert = 0) {
-        auto size = get_weights_size(op);
-        if (num_expert != 0) {
-            size = size * num_expert / op->get_config().num_expert;
-        }
-        auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(size)}, ov::element::i8, cldnn::format::bfyx);
-        auto alloc_type = engine.get_preferred_memory_allocation_type(false);
-        auto mem = engine.allocate_memory(layout, alloc_type, false);
-        return mem;
-    }
-    
-    [[maybe_unused]]
-    static void fill_weights_memory(
-        cldnn::engine& engine,
-        const std::shared_ptr<MOE3GemmFusedCompressed>& op,
-        moe_weights& wei_mem) {
-
-        auto& stream = engine.get_service_stream();
-
-        auto get_constant_input = [&](size_t index) {
-            auto node = op->input_value(index).get_node_shared_ptr();
-            return std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
-        };
-
-        auto fill = [&](const std::shared_ptr<ov::op::v0::Constant>& const_op,
-                    cldnn::memory_ptr mem) {
-
-            if (!mem || !const_op)
-                return;
-
-            auto const_shape = const_op->get_shape();
-            auto format = cldnn::format::get_default_format(const_shape.size());
-            auto dtype =
-                cldnn::element_type_to_data_type(
-                    const_op->get_output_element_type(0));
-
-            cldnn::layout layout(const_shape, dtype, format);
-
-            auto data = const_op->get_data_ptr<uint8_t>();
-
-            mem->copy_from(stream, data, 0, 0,
-                           layout.bytes_count(), true);
-        };
-
-        fill(get_constant_input((size_t)MOE3GemmInputIndex::WEIGHT_0), wei_mem.gate_w);
-        fill(get_constant_input((size_t)MOE3GemmInputIndex::ZP_0), wei_mem.gate_z);
-        fill(get_constant_input((size_t)MOE3GemmInputIndex::SCALE_0), wei_mem.gate_s);
-
-        fill(get_constant_input((size_t)MOE3GemmInputIndex::WEIGHT_1), wei_mem.up_w);
-        fill(get_constant_input((size_t)MOE3GemmInputIndex::ZP_1), wei_mem.up_z);
-        fill(get_constant_input((size_t)MOE3GemmInputIndex::SCALE_1), wei_mem.up_s);
-
-        fill(get_constant_input((size_t)MOE3GemmInputIndex::WEIGHT_2), wei_mem.down_w);
-        fill(get_constant_input((size_t)MOE3GemmInputIndex::SCALE_2), wei_mem.down_s);
-        fill(get_constant_input((size_t)MOE3GemmInputIndex::ZP_2), wei_mem.down_z);
-    }
-
     static std::shared_ptr<ov::MappedMemory> get_mapped_memory() {
         static std::once_flag init_flag;
         static std::shared_ptr<ov::MappedMemory> mapped_memory;
@@ -2180,10 +2123,18 @@ public:
         size_t token_num = get_seq_len(hidden_states_layout);
 
         if (cldnn::lru_expert_num) {
-            auto& op = cur_moe->_op;
             if (!cache.m_initialized) {
-                instance._base = pre_allocate_weights(cur_net.get_engine(), op, cldnn::lru_expert_num);
-                create_weights_memory(cur_net.get_engine(), instance._base, instance._weights, op, cldnn::lru_expert_num);
+                instance._weights.gate_w = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0));
+                instance._weights.gate_z = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_0));
+                instance._weights.gate_s = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0));
+
+                instance._weights.up_w = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1));
+                instance._weights.up_z = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_1));
+                instance._weights.up_s = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_1));
+
+                instance._weights.down_w = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2));
+                instance._weights.down_z = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_2));
+                instance._weights.down_s = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_2));
                 cache.m_initialized = true;
             }
         }
