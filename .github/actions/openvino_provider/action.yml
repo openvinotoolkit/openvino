@@ -217,14 +217,14 @@ runs:
 
         if [ -n "$rc_version" ]; then
           version=$rc_version
-          pip_spec="--pre openvino~=${release_version}.rc"
+          ov_wheel_source="--pre openvino==${rc_version} ${extra_index}"
         elif [ -n "$dev_version" ]; then
           version=$dev_version
-          pip_spec="--pre openvino>=${release_version}.dev,<${release_version}.rc"
+          ov_wheel_source="--pre openvino~=${release_version}.dev ${extra_index}"
         else
           version=$release_version
-          pip_spec="--pre openvino==${release_version}.*"
+          ov_wheel_source="--pre openvino==${release_version}.* ${extra_index}"
         fi
 
         echo "ov_version=$version" >> $GITHUB_OUTPUT
-        echo "ov_wheel_source=$pip_spec $extra_index" >> $GITHUB_OUTPUT
+        echo "ov_wheel_source=$ov_wheel_source" >> $GITHUB_OUTPUT
