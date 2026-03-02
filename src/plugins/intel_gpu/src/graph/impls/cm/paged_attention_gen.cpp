@@ -282,17 +282,14 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});    // subsequence_begins
 
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
 
     if (desc->has_xattention) {
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});         // sparse_block_mask
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK_MERGED});  // sparse_block_mask_wg
-    }
 
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
-    if (desc->has_xattention) {
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // q_block_pad
         args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // k_block_pad
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // SPARSE_BLOCK_SIZE
     }
     return args;
 }
@@ -309,10 +306,10 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
     jit.make("CMFLA_IS_CAUSAL", 1);
     if (desc->has_xattention) {
         jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE_XATTN);
-        jit.make("IS_BLOCK_SPARSE", 1);
+        jit.make("SPARSE_BLOCK_SIZE", 128);
     } else {
         jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE);
-        jit.make("IS_BLOCK_SPARSE", 0);
+        jit.make("SPARSE_BLOCK_SIZE", 1);
     }
 
     if (get_kv_compressed(params)) {
@@ -320,6 +317,9 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
     } else {
         jit.make("CMPA_KVCACHE_U8", 0);
     }
+
+    jit.make("CMPA_WG_SEQ_LEN", get_wg_seq_len(params));
+
     return jit;
 }
 
@@ -350,7 +350,7 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
                       << ", wg_seq_len: " << wg_seq_len << ", wg_count: " << wg_count << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", "
                       << wgs.global[2] << "]" << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
-        auto num_scalers = desc->has_xattention ? 4 : 1;
+        auto num_scalers = desc->has_xattention ? 3 : 1;
         scalars.resize(num_scalers);
         scalars[0].t = ScalarDescriptor::Types::INT32;
         scalars[0].v.s32 = static_cast<int32_t>(q_len);
@@ -360,10 +360,6 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
 
             scalars[2].t = ScalarDescriptor::Types::INT32;
             scalars[2].v.s32 = static_cast<int32_t>(rtp->k_block_pad);
-
-            scalars[3].t = ScalarDescriptor::Types::INT32;
-            const bool validate = !bypass_xattn(params);
-            scalars[3].v.s32 = static_cast<int32_t>(validate ? rtp->xattn_block_size : 1);
         }
     }};
 }
