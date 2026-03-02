@@ -3,6 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/gather.hpp"
@@ -19,12 +20,12 @@ OutputVector translate_tuple_index(const NodeContext& context) {
     // prim::TupleIndex(Any tup, int i) -> Any
     num_inputs_check(context, 2, 2);
     auto tuple = context.get_input(0).get_node_shared_ptr();
-    if (cast_fw_node(tuple, "prim::TupleConstruct")) {
+    if (auto seq_mark = ov::as_type_ptr<SequenceMark>(tuple)) {
         // this case require index to be constant
         auto index = context.const_input<int64_t>(1);
-        PYTORCH_OP_CONVERSION_CHECK(static_cast<size_t>(index) < tuple->get_input_size(),
+        PYTORCH_OP_CONVERSION_CHECK(static_cast<size_t>(index) < seq_mark->size(),
                                     "Index of TupleIndex operation is higher then number of tuple elements.");
-        return {tuple->get_input_source_output(index)};
+        return {seq_mark->get_element(index)};
     } else {
         // Assume this case is when tuple is represented as tensor
         auto index = context.get_input(1);

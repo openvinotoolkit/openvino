@@ -7,6 +7,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -35,7 +36,8 @@ using namespace ov::pass;
 using namespace ov::op;
 
 ListConstructReplacer::ListConstructReplacer() {
-    // Transformation for torch operators for cases where prim::ListConstruct can be replaced with Concat.
+    // Transformation for torch operators for cases where prim::ListConstruct or SequenceMark can be replaced with
+    // Concat.
     const auto& list = pattern::wrap_type<ov::op::util::FrameworkNode>();
 
     const auto& broadcast_op = pattern::wrap_type<v3::Broadcast>({pattern::any_input(), list});

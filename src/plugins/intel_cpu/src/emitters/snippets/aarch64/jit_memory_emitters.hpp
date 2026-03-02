@@ -15,11 +15,15 @@
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
 
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include "emitters/snippets/common/verbose_utils.hpp"
+#endif
+
 namespace ov::intel_cpu::aarch64 {
 
 class jit_memory_emitter : public jit_emitter {
 public:
-    jit_memory_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_memory_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                        dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr,
                        emitter_in_out_map in_out_type);
@@ -43,13 +47,14 @@ protected:
     bool is_offset_runtime = false;
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    friend std::string init_info_jit_memory_emitter(const jit_memory_emitter* emitter);
+    template <typename MemoryEmitter>
+    friend std::string snippets_common::format_memory_emitter_info(const MemoryEmitter* emitter);
 #endif
 };
 
 class jit_load_memory_emitter : public jit_memory_emitter {
 public:
-    jit_load_memory_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_load_memory_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                             dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                             const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -66,7 +71,7 @@ private:
 
 class jit_load_broadcast_emitter : public jit_memory_emitter {
 public:
-    jit_load_broadcast_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_load_broadcast_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                                const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -85,7 +90,7 @@ private:
 
 class jit_store_memory_emitter : public jit_memory_emitter {
 public:
-    jit_store_memory_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_store_memory_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                              dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                              const ov::snippets::lowered::ExpressionPtr& expr);
 
