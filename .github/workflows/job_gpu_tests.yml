@@ -130,7 +130,10 @@ jobs:
           apt-get install -y python3.11-dev python3.11-venv
           # Create venv so python3/pip resolve to Python 3.11
           python3.11 -m venv /opt/venv
-          /opt/venv/bin/pip install --upgrade pip
+          # Configure pip to use system CA bundle (more reliable than PIP_CERT env var
+          # which pip 24.0 may ignore in favour of its bundled certifi)
+          /opt/venv/bin/pip config --site set global.cert /etc/ssl/certs/ca-certificates.crt
+          /opt/venv/bin/pip install --upgrade pip certifi
           echo "/opt/venv/bin" >> $GITHUB_PATH
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
