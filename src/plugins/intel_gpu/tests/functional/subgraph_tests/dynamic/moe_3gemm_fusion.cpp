@@ -46,8 +46,7 @@ enum class RoutingType { SOFTMAX, SIGMOID_BIAS };
 // The GPU plugin transformation pipeline converts this into a fused kernel:
 //   FuseVectorizedMOE3GEMM       (folds the expert+combination subgraph into op::internal::MOE)
 //   ConvertMOEToMOECompressed     (absorbs compressed weights into MOECompressed)
-//   FuseMOE3GemmCompressed        (fuses routing subgraph for Softmax routing)
-//   FuseMOE3GemmCompressedSigmoid (fuses routing subgraph for Sigmoid+bias routing)
+//   FuseMOE3GemmCompressed        (fuses routing subgraph for Softmax / Sigmoid+bias routing)
 // which collapse the subgraph into a single MOE3GemmFusedCompressed kernel.
 //
 // Model parameters (kept small for fast execution):

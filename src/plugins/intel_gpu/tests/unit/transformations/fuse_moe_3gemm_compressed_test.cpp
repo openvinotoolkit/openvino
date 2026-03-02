@@ -148,7 +148,7 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
             unsqueeze_moe = std::make_shared<ov::op::v0::Unsqueeze>(reshape, unsqueeze_axis); // [128, 1, 32, 1]
             topk_indices = convert_topk;
 
-            manager.register_pass<FuseMOE3GemmCompressedSigmoid>();
+            manager.register_pass<FuseMOE3GemmCompressed>();
         }
 
         auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});

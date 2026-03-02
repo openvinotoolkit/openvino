@@ -4,22 +4,16 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 
 namespace ov::intel_gpu {
 
-// Fuse subgraph between router and MOECompressed into MOE3GemmFusedCompressed operation.
-class FuseMOE3GemmCompressed: public ov::pass::MatcherPass {
+// Fuse routing subgraph + MOECompressed into MOE3GemmFusedCompressed.
+// Handles both Softmax and Sigmoid+bias routing patterns via pattern::op::Or.
+class FuseMOE3GemmCompressed : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("FuseMOE3GemmCompressed");
     FuseMOE3GemmCompressed();
-};
-
-// Fuse subgraph between router (Sigmoid+bias routing) and MOECompressed into MOE3GemmFusedCompressed operation.
-class FuseMOE3GemmCompressedSigmoid: public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("FuseMOE3GemmCompressedSigmoid");
-    FuseMOE3GemmCompressedSigmoid();
 };
 
 }   // namespace ov::intel_gpu
