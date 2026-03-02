@@ -143,7 +143,7 @@ TEST_F(WeightShareExtensionTest, get_constant_sources_for_model_with_source_id) 
     ASSERT_GE(weight_sources.size(), 1);
 
     const auto& wt_weak_buffer = weight_sources.begin()->second;
-    auto buffer = wt_weak_buffer.lock();
+    auto buffer = wt_weak_buffer.m_weights.lock();
     ASSERT_TRUE(buffer);
     EXPECT_EQ(buffer->size(), sizeof(float) * 4000);
 }
@@ -242,7 +242,7 @@ TEST_F(WeightShareExtensionTest, set_constant_buffer_with_id) {
         buffer->size(),
         buffer,
         ov::create_base_descriptor(12, 0, buffer));
-    auto c = Constant(element::f32, Shape{100}, wt_buffer);
+    auto c = Constant(element::f32, Shape{1000}, wt_buffer);
 
     ASSERT_TRUE(weight_sharing::set_constant(shared_ctx, c));
     const auto& [const_offset, const_size, const_type] = shared_ctx.m_weight_registry[12][100];

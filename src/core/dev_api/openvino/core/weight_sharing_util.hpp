@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <optional>
 #include <unordered_map>
-#include <variant>
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -45,17 +44,23 @@ struct WeightOriginMetaData {
     ov::element::Type m_type;
 };
 
-/** @brief Variant type for weight buffer shared pointer*/
+/** @brief Type for weight buffer shared pointer*/
 using WeightBuffer = std::shared_ptr<ov::AlignedBuffer>;
-/** @brief Variant type for weight buffer observer*/
+/** @brief Type for weight buffer observer*/
 using WeakWeightBuffer = std::weak_ptr<ov::AlignedBuffer>;
+
+/** @brief Structure representing a weight source */
+struct WeightSource {
+    std::string m_device;
+    WeakWeightBuffer m_weights;
+};
 
 /** @brief Map [key: Constant ID, value: WeightMetaData] of constant meta data for single container. */
 using WeightMetaMap = std::unordered_map<DataID, WeightMetaData>;
 /** @brief Map [key: Source ID, value: WeightMetaMap] of constant metadata for constant sources. */
 using WeightRegistry = std::unordered_map<DataID, WeightMetaMap>;
-/** @brief Map [key: Source ID, value: WeakWeightBuffer] of pointers to constant sources. */
-using WeightSourceRegistry = std::unordered_map<DataID, WeakWeightBuffer>;
+/** @brief Map [key: Source ID, value: WeightSource] of pointers to constant sources. */
+using WeightSourceRegistry = std::unordered_map<DataID, WeightSource>;
 /** @brief Map [key: Blob ID, value: blob name] of blobs to model name/tag */
 using BlobMap = std::unordered_map<DataID, std::string>;
 

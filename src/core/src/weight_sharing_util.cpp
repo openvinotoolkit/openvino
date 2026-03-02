@@ -18,7 +18,7 @@ bool set_source_buffer(ov::wsh::WeightSourceRegistry& sources, const ov::wsh::We
     const auto& desc = buffer ? buffer->get_descriptor() : nullptr;
     const auto source_id = desc ? desc->get_id() : ov::wsh::invalid_source_id;
     if (source_id != ov::wsh::invalid_source_id) {
-        sources[source_id] = buffer;
+        sources[source_id] = ov::wsh::WeightSource{{}, buffer};
         return true;
     } else {
         return false;
@@ -55,7 +55,7 @@ WeightSourceRegistry Extension::get_weight_sources(const Model& model) {
         if (const auto const_node = ov::as_type<ov::op::v0::Constant>(node.get())) {
             if (const auto desc = const_node->m_data->get_descriptor()) {
                 if (auto src_buffer = desc->get_source_buffer()) {
-                    src_map.emplace(desc->get_id(), std::move(src_buffer));
+                    src_map.emplace(desc->get_id(), WeightSource{{}, src_buffer});
                 }
             }
         }
@@ -102,7 +102,7 @@ std::shared_ptr<ov::AlignedBuffer> Extension::get_constant_source_buffer(const o
 std::shared_ptr<ov::AlignedBuffer> get_source_buffer(const Context& shared_context, const DataID source_id) {
     const auto& weights = shared_context.m_cache_sources;
     if (auto weight_it = weights.find(source_id); weight_it != weights.end()) {
-        if (auto source_buffer = weight_it->second.lock()) {
+        if (auto source_buffer = weight_it->second.m_weights.lock()) {
             return std::make_shared<ov::SharedBuffer<WeightBuffer>>(source_buffer->get_ptr<char>(),
                                                                     source_buffer->size(),
                                                                     source_buffer);
@@ -116,7 +116,7 @@ std::shared_ptr<ov::AlignedBuffer> get_buffer(const Context& shared_context,
                                               const DataID constant_id) {
     if (const auto source_it = shared_context.m_cache_sources.find(source_id);
         source_it != shared_context.m_cache_sources.end()) {
-        if (auto wt_buffer = source_it->second.lock()) {
+        if (auto wt_buffer = source_it->second.m_weights.lock()) {
             if (auto meta = get_constant_meta(shared_context.m_weight_registry, source_id, constant_id)) {
                 return std::make_shared<ov::SharedBuffer<WeightBuffer>>(wt_buffer->get_ptr<char>() + meta->m_offset,
                                                                         meta->m_size,
@@ -148,8 +148,8 @@ std::shared_ptr<ov::AlignedBuffer> get_buffer(const Context& shared_context,
                                               const std::shared_ptr<ov::MappedMemory>& source_buffer,
                                               const DataID constant_id) {
     if (source_buffer) {
-        const auto wt_id = source_buffer ? source_buffer->get_id() : ov::wsh::invalid_source_id;
-        const auto& meta_data = get_constant_meta(shared_context.m_weight_registry, wt_id, constant_id);
+        const auto meta_data =
+            get_constant_meta(shared_context.m_weight_registry, source_buffer->get_id(), constant_id);
         if (meta_data) {
             return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
                 source_buffer->data() + meta_data->m_offset,
