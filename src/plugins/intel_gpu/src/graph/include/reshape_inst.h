@@ -66,10 +66,14 @@ public:
         auto axis = input().as<crop>().get_primitive()->axis;
         const auto& input_pshape = input().get_output_layout(false).get_partial_shape();
 
-        // Support crop along the outermost axis (axis=0): the batch padding offset transfers
-        // directly to the reshape's leading axis when the cropped batch size is exactly 1
-        if (axis == 0 && !input_pshape[0].is_dynamic())
+        // directly to the reshape's leading axis when the cropped batch size is exactly 1.
+        // Keep the same safeguard as for inner-axis crops: if the reshape output pattern is
+        // not known at model loading time, do not enable runtime padding propagation.
+        if (axis == 0 && !input_pshape[0].is_dynamic()) {
+            if (prim->output_pattern.empty())
+                return false;
             return input_pshape[0].get_length() == 1;
+        }
 
         auto input_rank = input_pshape.size();
         auto input_last_dim = static_cast<int64_t>(input_rank - 1);
