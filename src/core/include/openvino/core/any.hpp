@@ -8,7 +8,6 @@
  */
 #pragma once
 
-#include <array>
 #include <map>
 #include <memory>
 #include <set>
@@ -30,27 +29,6 @@ class Any;
 using AnyMap = std::map<std::string, Any>;
 
 namespace util {
-template <typename T>
-struct ArrayView {
-    const T* data = nullptr;
-    size_t size = 0;
-
-    ArrayView() = default;
-    ArrayView(const T* data, size_t size) : data{data}, size{size} {}
-
-    const T* begin() const {
-        return data;
-    }
-    const T* end() const {
-        return data + size;
-    }
-    const T& operator[](size_t i) const {
-        return data[i];
-    }
-    bool empty() const {
-        return size == 0;
-    }
-};
 
 OPENVINO_API bool equal(std::type_index lhs, std::type_index rhs);
 
@@ -490,25 +468,13 @@ class OPENVINO_API Any {
         constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
     };
 
-    template <typename>
-    struct TupleToTypeIndex;
-
-    template <typename... Args>
-    struct TupleToTypeIndex<std::tuple<Args...>> {
-        static util::ArrayView<const std::type_index> get() {
-            static const std::array<std::type_index, sizeof...(Args)> types = {std::type_index(typeid(Args))...};
-            return util::ArrayView<const std::type_index>(types.data(), types.size());
-        }
-    };
-
     class OPENVINO_API Base : public std::enable_shared_from_this<Base> {
     public:
         void type_check(const std::type_info&) const;
 
         using Ptr = std::shared_ptr<Base>;
         virtual const std::type_info& type_info() const = 0;
-        virtual const util::ArrayView<const std::type_index> base_type_info() const = 0;
-        bool is_base_type_info(const std::type_info& type_info) const;
+        virtual bool is_base_type_info(const std::type_info& type_info) const = 0;
         virtual const void* addressof() const = 0;
         void* addressof() {
             return const_cast<void*>(const_cast<const Base*>(this)->addressof());
@@ -596,9 +562,8 @@ class OPENVINO_API Any {
             return typeid(T);
         }
 
-        const util::ArrayView<const std::type_index> base_type_info() const override {
-            static const std::array<std::type_index, 1> base_types = {typeid(std::shared_ptr<RuntimeAttribute>)};
-            return util::ArrayView<const std::type_index>(base_types.data(), base_types.size());
+        bool is_base_type_info(const std::type_info& user_type) const override {
+            return util::equal(typeid(std::shared_ptr<RuntimeAttribute>), user_type);
         }
 
         const void* addressof() const override {
@@ -647,20 +612,27 @@ class OPENVINO_API Any {
             return std::make_shared<Impl<T>>(this->value);
         }
 
-        template <class U>
-        static const util::ArrayView<const std::type_index> base_type_info_impl(
-            typename std::enable_if<HasBaseMemberType<U>::value, std::true_type>::type = {}) {
-            return TupleToTypeIndex<typename T::Base>::get();
-        }
-        template <class U>
-        static const util::ArrayView<const std::type_index> base_type_info_impl(
-            typename std::enable_if<!HasBaseMemberType<U>::value, std::false_type>::type = {}) {
-            static const std::array<std::type_index, 1> base_types = {typeid(T)};
-            return util::ArrayView<const std::type_index>(base_types.data(), base_types.size());
+        template <typename... Args>
+        static bool is_base_type_info_tuple(const std::type_info& user_type, std::tuple<Args...>*) {
+            return (util::equal(typeid(Args), user_type) || ...);
         }
 
-        const util::ArrayView<const std::type_index> base_type_info() const override {
-            return base_type_info_impl<T>();
+        template <class U>
+        static bool is_base_type_info_impl(
+            const std::type_info& user_type,
+            typename std::enable_if<HasBaseMemberType<U>::value, std::true_type>::type = {}) {
+            return is_base_type_info_tuple(user_type, static_cast<typename T::Base*>(nullptr));
+        }
+
+        template <class U>
+        static bool is_base_type_info_impl(
+            const std::type_info& user_type,
+            typename std::enable_if<!HasBaseMemberType<U>::value, std::false_type>::type = {}) {
+            return util::equal(typeid(T), user_type);
+        }
+
+        bool is_base_type_info(const std::type_info& user_type) const override {
+            return is_base_type_info_impl<T>(user_type);
         }
 
         bool equal(const Base& rhs) const override {
