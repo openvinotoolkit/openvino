@@ -55,9 +55,10 @@ public:
     }
 };
 
-class MapHolder : public MappedMemory {
+class MapHolder final : public MappedMemory {
     void* m_data = MAP_FAILED;
     size_t m_size = 0;
+    uint64_t m_id = std::numeric_limits<uint64_t>::max();
     HandleHolder m_handle;
 
 public:
@@ -71,6 +72,7 @@ public:
                                      " for mapping. Ensure that file exists and has appropriate permissions");
         }
         set_from_fd(fd);
+        m_id = std::hash<std::string>{}(path.native());
     }
 
     void set_from_fd(const int fd) {
@@ -90,6 +92,10 @@ public:
         } else {
             m_data = MAP_FAILED;
         }
+    }
+
+    uint64_t get_id() const noexcept override {
+        return m_id;
     }
 
     ~MapHolder() {
