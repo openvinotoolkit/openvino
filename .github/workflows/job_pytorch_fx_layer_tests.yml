@@ -76,8 +76,6 @@ jobs:
         run: |
           Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
           Add-Content -Path $env:GITHUB_ENV -Value "HUGGINGFACE_HUB_CACHE=C:\\mount\\caches\\huggingface"
-          Add-Content -Path $env:GITHUB_ENV -Value "PIP_INDEX_URL=http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
-          Add-Content -Path $env:GITHUB_ENV -Value "PIP_TRUSTED_HOST=pip-proxy.pip-proxy.svc.cluster.local"
 
       - name: Setup Variables
         run: |
