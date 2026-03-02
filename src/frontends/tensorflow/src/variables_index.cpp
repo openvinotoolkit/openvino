@@ -173,8 +173,7 @@ void VariablesIndex::read_checkpointable_object_graph() {
                                      "CMO (mmap)");
     } else {
         shard->second.stream->seekg(0, std::ios::end);
-        FRONT_END_GENERAL_CHECK(*shard->second.stream,
-                                "CMO (stream): failed to seek to end of data file");
+        FRONT_END_GENERAL_CHECK(*shard->second.stream, "CMO (stream): failed to seek to end of data file");
         auto pos = shard->second.stream->tellg();
         FRONT_END_GENERAL_CHECK(pos != static_cast<std::streampos>(-1),
                                 "CMO (stream): failed to determine data file size");
