@@ -72,7 +72,7 @@ void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
     for (size_t i = 0; i < orginInputNumber; i++) {
         inputs[i] = getSrcMemoryAtPort(i);
     }
-    std::vector<VectorDims> output_dims = {inputs[0]->getStaticDims(), inputs[5]->getStaticDims()};
+    std::vector<VectorDims> output_dims = {inputs[0]->getStaticDims(), inputs[3]->getStaticDims()};
     redefineOutputMemory(output_dims);
 
     outputs[0] = getDstMemoryAtPort(0);
@@ -85,7 +85,7 @@ void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
     PlainTensor gate(inputs[4]);
     PlainTensor beta(inputs[5]);
     PlainTensor output_attn(outputs[0]);
-    PlainTensor output_recurrent_state(inputs[1]);
+    PlainTensor output_recurrent_state(outputs[1]);
     recurrent_linear_attn(query, key, value, recurrent_state, gate, beta, output_attn, output_recurrent_state);
 }
 

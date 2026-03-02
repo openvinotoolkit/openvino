@@ -76,15 +76,15 @@ void GatedDeltaNet::validate_and_infer_types() {
     input_check(this, 0, "query", {4}, {});
     input_check(this, 1, "key", {4}, {});
     input_check(this, 2, "value", {4}, {});
-    input_check(this, 5, "recurrent_state", {4}, {});
-    input_check(this, 3, "gate", {3}, {});
-    input_check(this, 4, "beta", {3}, {});
+    input_check(this, 3, "recurrent_state", {4}, {});
+    input_check(this, 4, "gate", {3}, {});
+    input_check(this, 5, "beta", {3}, {});
 
     // value head_size may be not same with key
     auto out_ps = get_input_partial_shape(2);
-    const auto&  h_ps= get_input_partial_shape(5);
+    const auto&  h_ps= get_input_partial_shape(3);
     set_output_type(0, get_input_element_type(0), out_ps);
-    set_output_type(1, get_input_element_type(5), h_ps);
+    set_output_type(1, get_input_element_type(3), h_ps);
 }
 
 std::shared_ptr<ov::Node> GatedDeltaNet::clone_with_new_inputs(const ov::OutputVector& new_args) const {

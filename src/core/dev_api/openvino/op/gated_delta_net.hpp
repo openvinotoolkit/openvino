@@ -15,15 +15,24 @@ public:
     OPENVINO_OP("GatedDeltaNet");
 
     GatedDeltaNet() = default;
-
+    struct Config {
+        bool fuse_qk_l2norm = false;
+        bool fuse_q_scale = false;
+    };
     GatedDeltaNet(const ov::OutputVector& args);
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
-
+    const Config& get_config() const {
+        return m_config;
+    }
+    void set_config(const Config& config) {
+        m_config = config;
+    }
     void set_out_type(int index, const ov::element::Type& output_type);
 
 protected:
     std::vector<ov::element::Type> m_output_type = {ov::element::dynamic, ov::element::dynamic, ov::element::dynamic};
+    Config m_config;
 };
 
 }  // namespace op

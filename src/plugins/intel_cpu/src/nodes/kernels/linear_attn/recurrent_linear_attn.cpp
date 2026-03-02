@@ -192,7 +192,8 @@ void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
             // scale(init_state, b_g, K_HEAD_DIMS);
             multiply_scalar(init_state, init_state, b_g, K_HEAD_DIMS);
 			float h_k = dot_product(init_state, b_k, K_HEAD_DIMS);
-			float b_v = v_ptr[i_v + i * H* K_HEAD_DIMS];
+            // B, T, H, V
+			float b_v = v_ptr[i_v + i * H * K_HEAD_DIMS];
 			b_v -= h_k;
 			// b_v * b_k
 			b_v *= b_beta;
