@@ -643,28 +643,19 @@ public:
                      "shapes.");
             auto& node_to_output = m.get_pattern_value_map();
             auto optional_squeeze = node_to_output.find(past_kv_len_squeeze);
-            auto node_past_kv_len = optional_squeeze != node_to_output.end()
-                                        ? optional_squeeze->second.get_node_shared_ptr()
-                                        : node_to_output.at(past_kv_len).get_node_shared_ptr();
-            auto node_full_ctx_len = node_to_output.at(full_ctx_len).get_node_shared_ptr();
+            auto matched_past_kv_len = optional_squeeze != node_to_output.end()
+                                           ? optional_squeeze->second.get_node_shared_ptr()
+                                           : node_to_output.at(past_kv_len).get_node_shared_ptr();
+            auto matched_full_ctx_len = node_to_output.at(full_ctx_len).get_node_shared_ptr();
             auto node_neg_window_size = node_to_output.at(neg_window_size).get_node_shared_ptr();
-            auto node_sliding_mask = node_to_output.at(sliding_mask).get_node_shared_ptr();
-            auto node_sliding_and_causal_mask = node_to_output.at(sliding_and_causal_mask).get_node_shared_ptr();
+            auto matched_sliding_mask = node_to_output.at(sliding_mask).get_node_shared_ptr();
+            auto matched_sliding_and_causal_mask = node_to_output.at(sliding_and_causal_mask).get_node_shared_ptr();
 
-            auto matched_past_kv_len = std::static_pointer_cast<ov::op::v8::Gather>(node_past_kv_len);
-            auto matched_full_ctx_len = std::static_pointer_cast<ov::op::v1::Add>(node_full_ctx_len);
-            std::shared_ptr<ov::Node> matched_key_range_row = nullptr;
-            if (node_to_output.count(opt_key_range_row_f32)) {
-                auto node_key_range_row_f32 = node_to_output[opt_key_range_row_f32].get_node_shared_ptr();
-                matched_key_range_row = std::static_pointer_cast<ov::op::v0::Convert>(node_key_range_row_f32);
-            } else {
-                auto node_key_range_row = node_to_output.at(key_range_row).get_node_shared_ptr();
-                matched_key_range_row = std::static_pointer_cast<ov::op::v0::Unsqueeze>(node_key_range_row);
-            }
+            auto optional_convert = node_to_output.find(opt_key_range_row_f32);
+            std::shared_ptr<ov::Node> matched_key_range_row =
+                optional_convert != node_to_output.end() ? optional_convert->second.get_node_shared_ptr()
+                                                         : node_to_output.at(key_range_row).get_node_shared_ptr();
             auto matched_neg_window_size = std::static_pointer_cast<ov::op::v0::Constant>(node_neg_window_size);
-            auto matched_sliding_mask = std::static_pointer_cast<ov::op::v1::Greater>(node_sliding_mask);
-            auto matched_sliding_and_causal_mask =
-                std::static_pointer_cast<ov::op::v13::BitwiseAnd>(node_sliding_and_causal_mask);
             OPENVINO_ASSERT(matched_neg_window_size->get_output_size() == 1,
                             "Sliding window size constant must be of size 1, but got " +
                                 std::to_string(matched_neg_window_size->get_output_size()));
