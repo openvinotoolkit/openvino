@@ -130,9 +130,13 @@ jobs:
           apt-get install -y python3.11-dev python3.11-venv
           # Create venv so python3/pip resolve to Python 3.11
           python3.11 -m venv /opt/venv
-          # Configure pip to use system CA bundle (more reliable than PIP_CERT env var
-          # which pip 24.0 may ignore in favour of its bundled certifi)
-          /opt/venv/bin/pip config --site set global.cert /etc/ssl/certs/ca-certificates.crt
+          # Inject custom CA certs into pip's bundled certifi. Pip 24.0 initializes
+          # its SSL context from pip._vendor.certifi before reading PIP_CERT or
+          # pip.conf global.cert, so env vars and config alone don't work.
+          PIP_CERTIFI=$(/opt/venv/bin/python3 -c "from pip._vendor.certifi import where; print(where())")
+          if ls /usr/local/share/ca-certificates/*.crt &>/dev/null; then
+            cat /usr/local/share/ca-certificates/*.crt >> "$PIP_CERTIFI"
+          fi
           /opt/venv/bin/pip install --upgrade pip certifi
           echo "/opt/venv/bin" >> $GITHUB_PATH
 
