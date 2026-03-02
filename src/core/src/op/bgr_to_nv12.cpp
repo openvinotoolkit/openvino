@@ -3,6 +3,7 @@
 //
 
 #include "openvino/op/bgr_to_nv12.hpp"
+
 #include "itt.hpp"
 ov::op::v16::BGRtoNV12::BGRtoNV12(const Output<Node>& arg)
     : util::ConvertColorToNV12Base(arg, util::ConvertColorToNV12Base::ColorConversion::BGR_TO_NV12) {

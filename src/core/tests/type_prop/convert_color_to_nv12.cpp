@@ -3,8 +3,8 @@
 //
 
 #include "convert_color_to_nv12_base.hpp"
-#include "openvino/op/rgb_to_nv12.hpp"
 #include "openvino/op/bgr_to_nv12.hpp"
+#include "openvino/op/rgb_to_nv12.hpp"
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_rgb_to_nv12, ConvertToNV12BaseTest, ::testing::Types<ov::op::v16::RGBtoNV12>);
 

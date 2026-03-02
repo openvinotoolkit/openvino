@@ -33,15 +33,15 @@ namespace v16 {
 class OPENVINO_API RGBtoNV12 : public util::ConvertColorToNV12Base {
 public:
     OPENVINO_OP("RGBtoNV12", "opset16", util::ConvertColorToNV12Base);
-    
+
     RGBtoNV12() = default;
-    
+
     /// \brief Constructs a conversion operation from input image in RGB format.
     /// Output is single-plane NV12.
     ///
     /// \param arg  Node that produces the input tensor (NHWC layout, C=3).
     explicit RGBtoNV12(const Output<Node>& arg);
-    
+
     /// \brief Constructs a conversion operation from input image in RGB format
     /// with configurable output format.
     ///
@@ -49,7 +49,7 @@ public:
     /// \param single_plane If true, output is single-plane NV12 [N, H*3/2, W, 1].
     ///                     If false, output is two planes: Y [N, H, W, 1] and UV [N, H/2, W/2, 2].
     explicit RGBtoNV12(const Output<Node>& arg, bool single_plane);
-    
+
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 }  // namespace v16
