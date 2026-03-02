@@ -40,7 +40,7 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
     }
     if (header.find("ELF") == std::string::npos) {
         _logger.debug("Create graph for LLVM IR!");
-        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(mainBlob), true, config);
+        return std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, true, config);
     }
 #endif
 
