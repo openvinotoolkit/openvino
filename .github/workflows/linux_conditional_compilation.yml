@@ -192,6 +192,8 @@ jobs:
             -DENABLE_DEBUG_CAPS=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
+            -DCMAKE_JOB_POOLS:STRING=link_jobs=8 \
+            -DCMAKE_JOB_POOL_LINK:STRING=link_jobs \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
