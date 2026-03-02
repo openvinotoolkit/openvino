@@ -17,8 +17,10 @@
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gather_elements.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -28,6 +30,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/sigmoid.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/swish.hpp"
@@ -309,7 +312,9 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     const std::optional<ov::test::utils::DecompressionType> decompression_multiply_type,
     const std::optional<ov::test::utils::DecompressionType> decompression_subtract_type,
     const std::optional<bool> reshape_on_decompression,
-    const std::optional<int> decompression_group_size) {
+    const std::optional<int> decompression_group_size,
+    MoERoutingType routing_type,
+    std::optional<ov::element::Type> input_precision) {
     // Use parameters from shape_params - static shapes only
     const auto& data_shape = moe_params.data_shape;
     const size_t intermediate_size = moe_params.intermediate_size;
@@ -319,15 +324,21 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     const auto expert_alpha = 1.702f;
 
     const auto& input_shape = data_shape.first;
-    // Create input parameter with dynamic shape - batch and hidden_size are fixed, seq_len is dynamic
-    auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, input_shape);
+    const auto input_rank = static_cast<size_t>(input_shape.rank().get_length());
+    OPENVINO_ASSERT(input_rank >= 2 && input_shape[input_rank - 1].is_static());
+    const auto hidden_size = static_cast<size_t>(input_shape[input_rank - 1].get_length());
 
-    OPENVINO_ASSERT(input_shape[2].is_static());
-    const auto hidden_size = static_cast<size_t>(input_shape[2].get_length());
+    // Create input parameter.  For GPU the parameter is f16 while computation runs in data_precision (f32).
+    auto input = std::make_shared<ov::op::v0::Parameter>(
+        input_precision.value_or(data_precision), input_shape);
+    ov::Output<ov::Node> input_data = input;
+    if (input_precision.has_value()) {
+        input_data = std::make_shared<ov::op::v0::Convert>(input, data_precision);
+    }
 
     // Expert processing path - use -1 for dynamic reshape like in reference
     auto experts_reshape = std::make_shared<ov::op::v1::Reshape>(
-        input,
+        input_data,
         ov::op::v0::Constant::create(
             ov::element::i64,
             ov::Shape{2},
@@ -419,50 +430,109 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
                                                     reshape_on_decompression,
                                                     decompression_group_size);
 
-    auto reshape_2nd_consumer_router_matmul =
+    auto router_matmul =
         std::make_shared<ov::op::v0::MatMul>(experts_reshape, router_weights_moe3, false, true);
-
-    auto router_softmax = std::make_shared<ov::op::v1::Softmax>(reshape_2nd_consumer_router_matmul, 1);
-
-    auto router_topk_values_and_indices =
-        std::make_shared<ov::op::v11::TopK>(router_softmax,
-                                            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {topk}),
-                                            -1,
-                                            ov::op::v11::TopK::Mode::MAX,
-                                            ov::op::v11::TopK::SortType::SORT_VALUES,
-                                            ov::element::i64);
-
-    auto router_topk_values_reduce = std::make_shared<ov::op::v1::ReduceSum>(
-        router_topk_values_and_indices->output(0),
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1}),
-        true);
-    auto router_topk_values_normalization =
-        std::make_shared<ov::op::v1::Divide>(router_topk_values_and_indices->output(0), router_topk_values_reduce);
-    auto router_topk_indices = router_topk_values_and_indices->output(1);
 
     const auto number_of_experts_const =
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(number_of_experts)});
+    auto minus_one = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
 
-    auto zero_const =
-        ov::op::v0::Constant::create(router_topk_values_normalization->get_output_element_type(0), ov::Shape{1}, {0});
-    auto first_topk_dim = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(router_topk_indices, {0});
-    auto bcast_target_shape =
-        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{first_topk_dim, number_of_experts_const}, 0);
+    ov::Output<ov::Node> router_topk_indices;
+    ov::Output<ov::Node> scatter_weights;
+    ov::Output<ov::Node> bcast_target_shape;
+
+    if (routing_type == MoERoutingType::SOFTMAX) {
+        auto router_softmax = std::make_shared<ov::op::v1::Softmax>(router_matmul, 1);
+
+        auto router_topk = std::make_shared<ov::op::v11::TopK>(
+            router_softmax,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {topk}),
+            -1,
+            ov::op::v11::TopK::Mode::MAX,
+            ov::op::v11::TopK::SortType::SORT_VALUES,
+            ov::element::i64);
+
+        auto reduce = std::make_shared<ov::op::v1::ReduceSum>(
+            router_topk->output(0),
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1}),
+            true);
+        scatter_weights = std::make_shared<ov::op::v1::Divide>(router_topk->output(0), reduce);
+        router_topk_indices = router_topk->output(1);
+
+        auto first_topk_dim =
+            ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(router_topk_indices, {0});
+        bcast_target_shape =
+            std::make_shared<ov::op::v0::Concat>(ov::OutputVector{first_topk_dim, number_of_experts_const}, 0);
+    } else {
+        // SIGMOID_BIAS: Sigmoid → Add(bias) → TopK → Convert(i32) → GatherElements → normalize → Slice
+        auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(router_matmul);
+        auto routing_bias = ov::op::v0::Constant::create(
+            data_precision, ov::Shape{1, number_of_experts}, std::vector<float>(number_of_experts, 0.1f));
+        auto sigmoid_add = std::make_shared<ov::op::v1::Add>(sigmoid, routing_bias);
+
+        auto router_topk = std::make_shared<ov::op::v11::TopK>(
+            sigmoid_add,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {topk}),
+            -1,
+            ov::op::v11::TopK::Mode::MAX,
+            ov::op::v11::TopK::SortType::SORT_VALUES,
+            ov::element::i64);
+
+        auto convert_topk = std::make_shared<ov::op::v0::Convert>(router_topk->output(1), ov::element::i32);
+        router_topk_indices = convert_topk;
+
+        auto gather_el = std::make_shared<ov::op::v6::GatherElements>(sigmoid, convert_topk, 1);
+        auto reduce = std::make_shared<ov::op::v1::ReduceSum>(
+            gather_el,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1}),
+            true);
+        auto eps = ov::op::v0::Constant::create(data_precision, ov::Shape{1, 1}, {1e-6f});
+        auto add_eps = std::make_shared<ov::op::v1::Add>(reduce, eps);
+        auto norm = std::make_shared<ov::op::v1::Divide>(gather_el, add_eps);
+
+        auto sl_stop = std::make_shared<ov::op::v3::ShapeOf>(convert_topk, ov::element::i32);
+        auto slice = std::make_shared<ov::op::v8::Slice>(
+            norm,
+            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{0, 0}),
+            sl_stop,
+            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{1, 1}),
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{0, 1}));
+        scatter_weights = slice;
+
+        auto first_topk_dim =
+            ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(router_topk_indices, {0});
+        bcast_target_shape =
+            std::make_shared<ov::op::v0::Concat>(ov::OutputVector{first_topk_dim, number_of_experts_const}, 0);
+    }
+
+    auto zero_const = ov::op::v0::Constant::create(
+        scatter_weights.get_element_type(), ov::Shape{1}, {0});
     auto broadcast_zero = std::make_shared<ov::op::v3::Broadcast>(zero_const, bcast_target_shape);
 
     auto scatter_elements_update = std::make_shared<ov::op::v12::ScatterElementsUpdate>(
         broadcast_zero,
         router_topk_indices,
-        router_topk_values_normalization,
+        scatter_weights,
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1}));
 
     auto router_transpose = std::make_shared<ov::op::v1::Transpose>(
         scatter_elements_update,
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{1, 0}));
 
-    auto minus_one = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
-    const auto router_shape =
-        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{number_of_experts_const, first_topk_dim, minus_one}, 0);
+    auto first_topk_dim_for_reshape =
+        ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(router_topk_indices, {0});
+    auto one_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
+
+    // Softmax routing:  [ne, seq]  -> reshape {ne, seq, -1}  -> [ne, seq, 1]  -> unsqueeze -> [ne, seq, 1, 1]
+    // Sigmoid routing:  [ne, seq]  -> reshape {ne, 1,  -1}   -> [ne, 1,  seq] -> unsqueeze -> [ne, 1,  seq, 1]
+    std::shared_ptr<ov::op::v0::Concat> router_shape;
+    if (routing_type == MoERoutingType::SOFTMAX) {
+        ov::OutputVector router_dims{number_of_experts_const, first_topk_dim_for_reshape, minus_one};
+        router_shape = std::make_shared<ov::op::v0::Concat>(router_dims, 0);
+    } else {
+        ov::OutputVector router_dims{number_of_experts_const, one_const, minus_one};
+        router_shape = std::make_shared<ov::op::v0::Concat>(router_dims, 0);
+    }
 
     auto router_reshape = std::make_shared<ov::op::v1::Reshape>(router_transpose, router_shape, true);
 
@@ -470,10 +540,19 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
         router_reshape,
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{3}));
 
-    auto last_in_dim = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(input, {2});
-    auto end_shape = std::make_shared<ov::op::v0::Concat>(
-        ov::OutputVector{number_of_experts_const, first_topk_dim, minus_one, last_in_dim},
-        0);
+    auto last_in_dim = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(
+        input, {input_rank - 1});
+
+    // Softmax: end_reshape [ne, seq, 1, hidden]  matched by mul with [ne, seq, 1, 1]
+    // Sigmoid: end_reshape [ne, 1, seq, hidden]  matched by mul with [ne, 1, seq, 1]
+    std::shared_ptr<ov::op::v0::Concat> end_shape;
+    if (routing_type == MoERoutingType::SOFTMAX) {
+        ov::OutputVector end_dims{number_of_experts_const, first_topk_dim_for_reshape, minus_one, last_in_dim};
+        end_shape = std::make_shared<ov::op::v0::Concat>(end_dims, 0);
+    } else {
+        ov::OutputVector end_dims{number_of_experts_const, one_const, first_topk_dim_for_reshape, last_in_dim};
+        end_shape = std::make_shared<ov::op::v0::Concat>(end_dims, 0);
+    }
     auto end_reshape = std::make_shared<ov::op::v1::Reshape>(down_matmul, end_shape, true);
 
     auto mul3 = std::make_shared<ov::op::v1::Multiply>(end_reshape, unsqueeze_routing_weights);
@@ -483,10 +562,10 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
         false);
 
-    // Note: here we imitate a real model scenario with special zero value
+    // Flatten any leading dimensions to [batch*seq, hidden] regardless of routing type
     auto final_reshape_const = ov::op::v0::Constant::create(ov::element::i64,
                                                             ov::Shape{2},
-                                                            std::vector<int64_t>{0, static_cast<int64_t>(hidden_size)});
+                                                            std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)});
     auto final_reshape = std::make_shared<ov::op::v1::Reshape>(reduce_sum, final_reshape_const, true);
 
     ov::ParameterVector params = {input};
