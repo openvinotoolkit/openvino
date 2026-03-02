@@ -1,0 +1,424 @@
+
+13s
+Run eval cmake -G 'Ninja Multi-Config' -DENABLE_NCC_STYLE=OFF -DENABLE_TESTS=ON -DENABLE_STRICT_DEPENDENCIES=OFF -DENABLE_SYSTEM_OPENCL=ON -DCPACK_GENERATOR=TGZ -DENABLE_WHEEL=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -S /home/runner/_work/openvino/openvino/openvino -B /home/runner/_work/openvino/openvino/openvino/openvino_build
+CMake Warning:
+  Ignoring extra path from command line:
+
+   "/__w/openvino/openvino/Multi-Config"
+
+
+-- The C compiler identification is GNU 11.4.0
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test OPENVINO_STDLIB_GNU
+-- Performing Test OPENVINO_STDLIB_GNU - Success
+-- Performing Test OPENVINO_GLIBC_MUSL
+-- Performing Test OPENVINO_GLIBC_MUSL - Failed
+CMake Warning at cmake/developer_package/version.cmake:121 (message):
+-- OpenVINO version is 2026.1.0 (Build 55739)
+  OpenVINO_VERSION_BUILD parsed from CI_BUILD_NUMBER (55739) and determined
+  by git (1) are different
+Call Stack (most recent call first):
+  cmake/developer_package/OpenVINODeveloperScriptsConfig.cmake:32 (ov_parse_ci_build_number)
+  cmake/developer_package/OpenVINODeveloperScriptsConfig.cmake:48 (ov_set_ci_build_number)
+  CMakeLists.txt:44 (find_package)
+
+
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Performing Test SUGGEST_OVERRIDE_SUPPORTED
+-- Performing Test SUGGEST_OVERRIDE_SUPPORTED - Success
+-- Performing Test UNUSED_BUT_SET_VARIABLE_SUPPORTED
+-- Performing Test UNUSED_BUT_SET_VARIABLE_SUPPORTED - Success
+CMake Warning at cmake/developer_package/clang_format/clang_format.cmake:23 (message):
+-- Found clang-format: CLANG_FORMAT-NOTFOUND
+  Supported clang-format-18 is not found!
+Call Stack (most recent call first):
+  cmake/developer_package/OpenVINODeveloperScriptsConfig.cmake:316 (include)
+  CMakeLists.txt:44 (find_package)
+
+
+-- OpenVINO Runtime enabled features: 
+-- 
+--     CI_BUILD_NUMBER: 2026.1.0-55739-cf340b7b24e-refs/pull/34312/merge
+--     ENABLE_LTO = OFF
+--     OS_FOLDER = OFF
+--     USE_BUILD_TYPE_SUBFOLDER = ON
+--     CMAKE_COMPILE_WARNING_AS_ERROR = ON
+--     ENABLE_QSPECTRE = OFF
+--     ENABLE_INTEGRITYCHECK = OFF
+--     ENABLE_SANITIZER = OFF
+--     ENABLE_UB_SANITIZER = OFF
+--     ENABLE_THREAD_SANITIZER = OFF
+--     ENABLE_COVERAGE = OFF
+--     ENABLE_API_VALIDATOR = OFF
+--     ENABLE_PDB_IN_RELEASE = OFF
+--     ENABLE_SSE42 = ON
+--     ENABLE_AVX2 = ON
+--     ENABLE_AVX512F = ON
+--     ENABLE_NEON_FP16 = OFF
+--     ENABLE_SVE = OFF
+--     BUILD_SHARED_LIBS = ON
+--     ENABLE_LIBRARY_VERSIONING = ON
+--     ENABLE_SYSTEM_FLATBUFFERS = ON
+--     ENABLE_SYSTEM_OPENCL = ON
+--     ENABLE_SYSTEM_PROTOBUF = OFF
+--     ENABLE_SYSTEM_SNAPPY = OFF
+--     ENABLE_SYSTEM_LEVEL_ZERO = OFF
+--     ENABLE_JS = ON
+--     ENABLE_OPENVINO_DEBUG = OFF
+-- 
+-- CMAKE_VERSION ......................... 4.1.1
+-- CMAKE_CROSSCOMPILING .................. FALSE
+-- OpenVINO_SOURCE_DIR ................... /home/runner/_work/openvino/openvino/openvino
+-- OpenVINO_BINARY_DIR ................... /home/runner/_work/openvino/openvino/openvino/openvino_build
+-- CMAKE_GENERATOR ....................... Ninja
+-- CPACK_GENERATOR ....................... TGZ
+-- CMAKE_C_COMPILER_ID ................... GNU
+-- CMAKE_CXX_COMPILER_ID ................. GNU
+-- CMAKE_CXX_STANDARD .................... 17
+-- CMAKE_BUILD_TYPE ...................... Release
+-- LIBC_VERSION .......................... 2.35
+-- STDLIB ................................ GNU
+-- Found Python3: /venv/bin/python3.11 (found version "3.11.14") found components: Interpreter
+-- Found Git: /usr/bin/git (found version "2.53.0")
+-- Performing Test COMPILER_SUPPORTS_CXX14
+-- Performing Test COMPILER_SUPPORTS_CXX14 - Success
+-- Building loader as dynamic library
+-- Saved Product GUID: 1.27.0
+-- project version: 1.27.0
+-- Using Product GUID: ed00a7db-f557-48c2-9f90-c1f97b56ad91 for version 1.27.0
+-- Looking for C++ include unistd.h
+-- Looking for C++ include unistd.h - found
+-- Looking for C++ include stdint.h
+-- Looking for C++ include stdint.h - found
+-- Looking for C++ include sys/types.h
+-- Looking for C++ include sys/types.h - found
+-- Looking for C++ include fnmatch.h
+-- Looking for C++ include fnmatch.h - found
+-- Looking for strtoll
+-- Looking for strtoll - found
+-- Protocol Buffers Configuring...
+-- 
+-- 3.21.12.0
+-- Configuration script parsing status [
+--   Description : Protocol Buffers
+--   Version     : 3.21.12.0 (3.21.12)
+--   Contact     : protobuf@googlegroups.com
+-- ]
+-- Performing Test protobuf_HAVE_LD_VERSION_SCRIPT
+-- Performing Test protobuf_HAVE_LD_VERSION_SCRIPT - Success
+-- Performing Test protobuf_HAVE_BUILTIN_ATOMICS
+-- Performing Test protobuf_HAVE_BUILTIN_ATOMICS - Success
+-- Protocol Buffers Configuring done
+-- Looking for sys/mman.h
+-- Looking for sys/mman.h - found
+-- Looking for sys/resource.h
+-- Looking for sys/resource.h - found
+-- Looking for sys/time.h
+-- Looking for sys/time.h - found
+-- Looking for sys/uio.h
+-- Looking for sys/uio.h - found
+-- Looking for windows.h
+-- Looking for windows.h - not found
+-- Looking for zlibVersion in z
+-- Looking for zlibVersion in z - found
+-- Looking for lzo1x_1_15_compress in lzo2
+-- Looking for lzo1x_1_15_compress in lzo2 - not found
+-- Looking for LZ4_compress_default in lz4
+-- Looking for LZ4_compress_default in lz4 - not found
+-- Performing Test HAVE_VISUAL_STUDIO_ARCH_AVX
+-- Performing Test HAVE_VISUAL_STUDIO_ARCH_AVX - Failed
+-- Performing Test HAVE_VISUAL_STUDIO_ARCH_AVX2
+-- Performing Test HAVE_VISUAL_STUDIO_ARCH_AVX2 - Failed
+-- Performing Test HAVE_CLANG_MAVX
+-- Performing Test HAVE_CLANG_MAVX - Success
+-- Performing Test HAVE_CLANG_MBMI2
+-- Performing Test HAVE_CLANG_MBMI2 - Success
+-- Performing Test SNAPPY_HAVE_NO_MISSING_FIELD_INITIALIZERS
+-- Performing Test SNAPPY_HAVE_NO_MISSING_FIELD_INITIALIZERS - Success
+-- Performing Test SNAPPY_HAVE_NO_IMPLICIT_INT_FLOAT_CONVERSION
+-- Performing Test SNAPPY_HAVE_NO_IMPLICIT_INT_FLOAT_CONVERSION - Success
+-- Performing Test HAVE_BUILTIN_EXPECT
+-- Performing Test HAVE_BUILTIN_EXPECT - Success
+-- Performing Test HAVE_BUILTIN_CTZ
+-- Performing Test HAVE_BUILTIN_CTZ - Success
+-- Performing Test HAVE_BUILTIN_PREFETCH
+-- Performing Test HAVE_BUILTIN_PREFETCH - Success
+-- Performing Test HAVE_ATTRIBUTE_ALWAYS_INLINE
+-- Performing Test HAVE_ATTRIBUTE_ALWAYS_INLINE - Success
+-- Performing Test SNAPPY_HAVE_SSSE3
+-- Performing Test SNAPPY_HAVE_SSSE3 - Failed
+-- Performing Test SNAPPY_HAVE_X86_CRC32
+-- Performing Test SNAPPY_HAVE_X86_CRC32 - Failed
+-- Performing Test SNAPPY_HAVE_NEON_CRC32
+-- Performing Test SNAPPY_HAVE_NEON_CRC32 - Failed
+-- Performing Test SNAPPY_HAVE_BMI2
+-- Performing Test SNAPPY_HAVE_BMI2 - Failed
+-- Performing Test SNAPPY_HAVE_NEON
+-- Performing Test SNAPPY_HAVE_NEON - Failed
+-- Looking for mmap
+-- Looking for mmap - found
+-- Looking for sysconf
+-- Looking for sysconf - found
+Generated: /home/runner/_work/openvino/openvino/openvino/openvino_build/thirdparty/onnx/onnx/onnx/onnx_openvino_onnx-ml.proto
+-- ONNX_PROTOC_EXECUTABLE: $<TARGET_FILE:protobuf::protoc>
+Generated: /home/runner/_work/openvino/openvino/openvino/openvino_build/thirdparty/onnx/onnx/onnx/onnx-operators_openvino_onnx-ml.proto
+Generated: /home/runner/_work/openvino/openvino/openvino/openvino_build/thirdparty/onnx/onnx/onnx/onnx-data_openvino_onnx.proto
+-- Protobuf_VERSION: 
+-- 
+-- ******** Summary ********
+--   CMake version                     : 4.1.1
+--   CMake command                     : /usr/local/bin/cmake
+--   System                            : Linux
+--   C++ compiler                      : /usr/bin/c++
+--   C++ compiler version              : 11.4.0
+--   CXX flags                         : -Wsuggest-override  -fsigned-char -ffunction-sections -fdata-sections -fdiagnostics-show-option -Wall -Wundef -Wno-suggest-override -Wnon-virtual-dtor
+--   Build type                        : Release
+--   Compile definitions               : OV_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino"
+--   CMAKE_PREFIX_PATH                 : 
+--   CMAKE_INSTALL_PREFIX              : /usr/local
+--   CMAKE_MODULE_PATH                 : 
+-- 
+--   ONNX version                      : 1.18.0
+--   ONNX NAMESPACE                    : openvino_onnx
+--   ONNX_USE_LITE_PROTO               : ON
+--   USE_PROTOBUF_SHARED_LIBS          : OFF
+--   ONNX_DISABLE_EXCEPTIONS           : OFF
+--   ONNX_DISABLE_STATIC_REGISTRATION  : OFF
+--   ONNX_WERROR                       : OFF
+--   ONNX_BUILD_TESTS                  : OFF
+--   BUILD_SHARED_LIBS                 : OFF
+-- 
+--   Protobuf compiler                 : $<TARGET_FILE:protobuf::protoc>
+--   Protobuf includes                 : 
+--   Protobuf libraries                : 
+--   ONNX_BUILD_PYTHON                 : OFF
+-- Downloading from https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/oneapi-tbb-2021.13.1-lin-release.tgz to /home/runner/_work/openvino/openvino/openvino/temp/download/oneapi-tbb-2021.13.1-lin-release.tgz ...
+-- /usr/bin/wget --no-cache
+              --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 --tries=5 https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/oneapi-tbb-2021.13.1-lin-release.tgz
+--2026-03-02 14:42:46--  https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/oneapi-tbb-2021.13.1-lin-release.tgz
+Resolving storage.openvinotoolkit.org (storage.openvinotoolkit.org)... 18.238.238.38, 18.238.238.123, 18.238.238.2, ...
+Connecting to storage.openvinotoolkit.org (storage.openvinotoolkit.org)|18.238.238.38|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 608665 (594K) [application/octet-stream]
+Saving to: '/home/runner/_work/openvino/openvino/openvino/temp/download/oneapi-tbb-2021.13.1-lin-release.tgz'
+
+     0K .......... .......... .......... .......... ..........  8%  423K 1s
+    50K .......... .......... .......... .......... .......... 16%  432K 1s
+   100K .......... .......... .......... .......... .......... 25% 13.4M 1s
+   150K .......... .......... .......... .......... .......... 33%  443K 1s
+   200K .......... .......... .......... .......... .......... 42% 22.9M 0s
+   250K .......... .......... .......... .......... .......... 50% 25.3M 0s
+   300K .......... .......... .......... .......... .......... 58% 39.1M 0s
+   350K .......... .......... .......... .......... .......... 67%  449K 0s
+   400K .......... .......... .......... .......... .......... 75% 54.7M 0s
+   450K .......... .......... .......... .......... .......... 84% 67.8M 0s
+   500K .......... .......... .......... .......... .......... 92% 43.5M 0s
+   550K .......... .......... .......... .......... ....      100% 49.4M=0.5s
+
+2026-03-02 14:42:47 (1.23 MB/s) - '/home/runner/_work/openvino/openvino/openvino/temp/download/oneapi-tbb-2021.13.1-lin-release.tgz' saved [608665/608665]
+
+-- extracting...
+         src='/home/runner/_work/openvino/openvino/openvino/temp/download/oneapi-tbb-2021.13.1-lin-release.tgz'
+         dst='/home/runner/_work/openvino/openvino/openvino/temp/Linux_x86_64/tbb'
+-- extracting... [tar xfz] 
+-- TBB (2021.13.1) is found at /home/runner/_work/openvino/openvino/openvino/temp/Linux_x86_64/tbb/lib/cmake/TBB
+-- Static tbbbind_2_5 package usage is disabled, since oneTBB (ver. 2021.13.1) provides dynamic TBBBind 2.5+
+-- ONNX frontend test enabled
+-- Adding unit test for backend IE_CPU
+-- Adding unit test for backend IE_GPU
+-- Adding unit test for backend INTERPRETER
+-- PaddlePaddle version: 3.0.0
+-- Downloading from https://raw.githubusercontent.com/PaddlePaddle/PaddleDetection/release/2.8.1/ppdet/modeling/ops.py to /home/runner/_work/openvino/openvino/openvino/openvino_build/src/frontends/paddle/tests/pdmodel_test/thirdparty/PaddleDetection/release281/ppdet/modeling//ops.py ...
+-- /usr/bin/wget --no-cache
+              --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 --tries=5 https://raw.githubusercontent.com/PaddlePaddle/PaddleDetection/release/2.8.1/ppdet/modeling/ops.py
+--2026-03-02 14:42:48--  https://raw.githubusercontent.com/PaddlePaddle/PaddleDetection/release/2.8.1/ppdet/modeling/ops.py
+Resolving raw.githubusercontent.com (raw.githubusercontent.com)... 185.199.108.133, 185.199.109.133, 185.199.111.133, ...
+Connecting to raw.githubusercontent.com (raw.githubusercontent.com)|185.199.108.133|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 47810 (47K) [text/plain]
+Saving to: '/home/runner/_work/openvino/openvino/openvino/openvino_build/src/frontends/paddle/tests/pdmodel_test/thirdparty/PaddleDetection/release281/ppdet/modeling//ops.py'
+
+     0K .......... .......... .......... .......... ......    100% 7.56M=0.006s
+
+2026-03-02 14:42:48 (7.56 MB/s) - '/home/runner/_work/openvino/openvino/openvino/openvino_build/src/frontends/paddle/tests/pdmodel_test/thirdparty/PaddleDetection/release281/ppdet/modeling//ops.py' saved [47810/47810]
+
+-- The ASM compiler identification is GNU
+-- Found assembler: /usr/bin/cc
+-- The ASM_MASM compiler identification is unknown
+-- Found assembler: ml
+-- DNNL_TARGET_ARCH: X64
+-- DNNL_LIBRARY_NAME: openvino_onednn_cpu
+-- Found OpenMP_C: -fopenmp (found version "4.5")
+-- Found OpenMP_CXX: -fopenmp (found version "4.5")
+-- Found OpenMP: TRUE (found version "4.5")
+-- Threadpool testing: standalone
+-- Enabled testing coverage: CI
+-- Enabled workload: INFERENCE
+-- Enabled primitives: CONVOLUTION;DECONVOLUTION;CONCAT;LRN;INNER_PRODUCT;MATMUL;POOLING;REDUCTION;REORDER;RNN;SOFTMAX
+-- Enabled primitive CPU ISA: ALL
+-- Enabled primitive GPU ISA: ALL
+-- Enabled GeMM kernels ISA: SSE41
+-- Primitive cache is enabled
+-- RapidJSON found. Headers: /usr/include
+-- Downloading prebuilt NPU Plugin compiler libraries
+-- The prebuilt compiler version is 7.5.0
+-- https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/npu_compiler_vcl_ubuntu_22_04-7_5_0-a1ae54e9.tar.gz is not empty
+-- Downloading prebuilt Plugin compiler libraries from https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/npu_compiler_vcl_ubuntu_22_04-7_5_0-a1ae54e9.tar.gz
+-- [download 0% complete]
+-- [download 1% complete]
+-- [download 2% complete]
+-- [download 3% complete]
+-- [download 4% complete]
+-- [download 5% complete]
+-- [download 6% complete]
+-- [download 7% complete]
+-- [download 8% complete]
+-- [download 9% complete]
+-- [download 10% complete]
+-- [download 11% complete]
+-- [download 12% complete]
+-- [download 13% complete]
+-- [download 14% complete]
+-- [download 15% complete]
+-- [download 16% complete]
+-- [download 17% complete]
+-- [download 18% complete]
+-- [download 19% complete]
+-- [download 20% complete]
+-- [download 21% complete]
+-- [download 22% complete]
+-- [download 23% complete]
+-- [download 24% complete]
+-- [download 25% complete]
+-- [download 26% complete]
+-- [download 27% complete]
+-- [download 28% complete]
+-- [download 29% complete]
+-- [download 30% complete]
+-- [download 31% complete]
+-- [download 32% complete]
+-- [download 33% complete]
+-- [download 34% complete]
+-- [download 35% complete]
+-- [download 36% complete]
+-- [download 37% complete]
+-- [download 38% complete]
+-- [download 39% complete]
+-- [download 40% complete]
+-- [download 41% complete]
+-- [download 42% complete]
+-- [download 43% complete]
+-- [download 44% complete]
+-- [download 45% complete]
+-- [download 46% complete]
+-- [download 47% complete]
+-- [download 48% complete]
+-- [download 49% complete]
+-- [download 50% complete]
+-- [download 51% complete]
+-- [download 52% complete]
+-- [download 53% complete]
+-- [download 54% complete]
+-- [download 55% complete]
+-- [download 56% complete]
+-- [download 57% complete]
+-- [download 58% complete]
+-- [download 59% complete]
+-- [download 60% complete]
+-- [download 61% complete]
+-- [download 62% complete]
+-- [download 63% complete]
+-- [download 64% complete]
+-- [download 65% complete]
+-- [download 66% complete]
+-- [download 67% complete]
+-- [download 68% complete]
+-- [download 69% complete]
+-- [download 70% complete]
+-- [download 71% complete]
+-- [download 72% complete]
+-- [download 73% complete]
+-- [download 74% complete]
+-- [download 75% complete]
+-- [download 76% complete]
+-- [download 77% complete]
+-- [download 78% complete]
+-- [download 79% complete]
+-- [download 80% complete]
+-- [download 81% complete]
+-- [download 82% complete]
+-- [download 83% complete]
+-- [download 84% complete]
+-- [download 85% complete]
+-- [download 86% complete]
+-- [download 87% complete]
+-- [download 88% complete]
+-- [download 89% complete]
+-- [download 90% complete]
+-- [download 91% complete]
+-- [download 92% complete]
+-- [download 93% complete]
+-- [download 94% complete]
+-- [download 95% complete]
+-- [download 96% complete]
+-- [download 97% complete]
+-- [download 98% complete]
+-- [download 99% complete]
+-- [download 100% complete]
+-- Download completed: /home/runner/_work/openvino/openvino/openvino/src/plugins/intel_npu/temp/compiler_libs/ubuntu22.04/npu_compiler_vcl_ubuntu_22_04-7_5_0-a1ae54e9.tar.gz
+-- Unzipping prebuilt Plugin compiler libraries to /home/runner/_work/openvino/openvino/openvino/src/plugins/intel_npu/temp/compiler_libs/ubuntu22.04/npu_compiler_vcl_ubuntu_22_04-7_5_0-a1ae54e9
+-- Directory /home/runner/_work/openvino/openvino/openvino/src/plugins/intel_npu/temp/compiler_libs/ubuntu22.04/npu_compiler_vcl_ubuntu_22_04-7_5_0-a1ae54e9 created to unzip.
+-- Copying prebuilt Plugin compiler libraries libopenvino_intel_npu_compiler.so to /home/runner/_work/openvino/openvino/openvino/bin/intel64/Release for Ubuntu 22.04
+-- NPU single-image-test tool is disabled due to missing dependencies: opencv_core;opencv_imgproc;opencv_imgcodecs
+fatal: not a git repository (or any parent up to mount point /)
+Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+-- NPU protopipe tool is disabled due to missing dependencies: gapi from OpenCV >= 4.9.
+-- Python3 executable: /venv/bin/python3.11
+-- Python3 version: 3.11.14
+-- Python3 interpreter ID: Python
+-- Python3 SOABI: cpython-311-x86_64-linux-gnu
+-- Python3 include dirs: /usr/include/python3.11
+-- Python3 libraries: 
+-- Found Python3: /venv/bin/python3.11 (found version "3.11.14") found components: Interpreter Development.Module
+-- pybind11 v3.0.1 
+-- Performing Test HAS_FLTO_AUTO
+-- Performing Test HAS_FLTO_AUTO - Success
+CMake Warning at samples/cpp/common/format_reader/CMakeLists.txt:22 (message):
+  OpenCV ver.  3.0+ is not found, format_reader will be built without OpenCV
+  support
+
+
+CMake Warning at samples/cpp/benchmark_app/CMakeLists.txt:112 (message):
+  OpenCV ver.  3.0+ is not found, benchmark_app will be built without OpenCV
+  support.  Set OpenCV_DIR
+
+
+CMake Warning at samples/c/common/opencv_c_wrapper/CMakeLists.txt:20 (message):
+  OpenCV ver.  3.0+ is not found, opencv_c_wrapper is built without OPENCV
+  support
+
+
+-- Register template to be built in build-modules/template
+CMake Warning at src/plugins/template/tests/functional/CMakeLists.txt:37 (message):
+  Reference preprocessing: OpenCV tests are disabled, because OpenCV ver.
+  3.4+ is not found
+
+
+-- Register template_extension to be built in build-modules/template_extension
+-- /usr/bin/pkg-config: libva (1.14.0) is found at /usr
+-- Configuring done (11.6s)
+-- Generating done (1.2s)
+-- Build files have been written to: /home/runner/_work/openvino/openvino/openvino/openvino_build
+0s

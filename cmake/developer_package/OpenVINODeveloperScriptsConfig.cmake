@@ -24,6 +24,13 @@ macro(ov_set_if_not_defined var value)
     endif()
 endmacro()
 
+# Log section divider for clearer configure output (core, plugins, third-party)
+macro(ov_log_section section_name)
+    message(STATUS "")
+    message(STATUS "========== ${section_name} ==========")
+    message(STATUS "")
+endmacro()
+
 set(OLD_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
 set(CMAKE_MODULE_PATH "${OpenVINODeveloperScripts_DIR}")
 

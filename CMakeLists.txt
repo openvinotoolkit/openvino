@@ -61,6 +61,7 @@ if(APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET AND
 endif()
 
 # resolving dependencies for the project
+ov_log_section("OpenVINO core configuration")
 message (STATUS "CMAKE_VERSION ......................... " ${CMAKE_VERSION})
 message (STATUS "CMAKE_CROSSCOMPILING .................. " ${CMAKE_CROSSCOMPILING})
 message (STATUS "OpenVINO_SOURCE_DIR ................... " ${OpenVINO_SOURCE_DIR})
@@ -186,6 +187,7 @@ if(ENABLE_TESTS)
     include(cmake/test_model_zoo.cmake)
 endif()
 
+ov_log_section("Third-party dependencies")
 include(thirdparty/dependencies.cmake)
 add_subdirectory(src)
 
