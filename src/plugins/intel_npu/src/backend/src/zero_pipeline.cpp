@@ -354,14 +354,14 @@ std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
         return _npu_profiling->getNpuInferStatistics();
     }
     /// PROFILING_TYPE = MODEL or undefined = fallback to model profiling
-    if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PLUGIN) {
+    if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER) {
+        _logger.debug("InferRequest::get_profiling_info complete with _profiling_query.getLayerStatistics().");
+        return _profiling_query->getLayerStatistics();
+    } else {
         // For plugin compiler retreive raw profiling data from backend and delegate
         // processing to the compiler
         _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
         return _graph->process_profiling_output(_profiling_query->getData<uint8_t>());
-    } else {
-        _logger.debug("InferRequest::get_profiling_info complete with _profiling_query.getLayerStatistics().");
-        return _profiling_query->getLayerStatistics();
     }
 }
 
