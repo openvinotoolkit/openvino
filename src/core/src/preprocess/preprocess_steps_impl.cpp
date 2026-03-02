@@ -912,8 +912,7 @@ void PreStepsList::add_flip_impl(FlipMode mode) {
             auto reverse_op =
                 std::make_shared<ov::op::v1::Reverse>(nodes[0], axis_node, ov::op::v1::Reverse::Mode::INDEX);
 
-            reverse_op->set_friendly_name("Preprocessing_Flip");
-
+                
             // Return the result
             return std::make_tuple(std::vector<Output<Node>>{reverse_op}, true);
         },
