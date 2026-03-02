@@ -156,8 +156,9 @@ void ov::npuw::WhisperInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_
 
     if (kvcache_desc.num_stored_tokens == kvcache_desc.total_size) {
         // KV-cache is full, but it's not expected, so force eos_token as WA
-        std::cout << "[WARNING] Whisper model is stuck (KV-cache is full), not full audio chunk could be processed !" << std::endl;
-        float* logits_data = m_logits->data<float>(); // logits for generate model has shape [1, 1, vocab_size]
+        std::cout << "[WARNING] Whisper model stuck (KVcache is full), not full audio chunk could be processed !"
+                  << std::endl;
+        float* logits_data = m_logits->data<float>();  // logits for generate model has shape [1, 1, vocab_size]
         logits_data[m_npuw_llm_compiled_model->m_eos_token_id] = std::numeric_limits<float>::infinity();
         return;
     }
