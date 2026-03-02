@@ -56,13 +56,12 @@ bool TLVFormat::read_entry(std::istream& stream, TagType& tag, LengthType& size,
     return read_entry_(stream, tag, size, data);
 }
 
-bool TLVFormat::scan_entries(std::istream& stream, const ValueScanner& scanners, bool rewind) {
+bool TLVFormat::scan_entries(std::istream& stream, const ValueScanner& scanners) {
     const auto beginning_pos = stream.tellg();
     stream.seekg(0, std::ios::end);
     const auto stream_end = stream.tellg();
     stream.seekg(beginning_pos);
 
-    bool all_records_good = true;
     while (stream.good() && stream.tellg() < stream_end) {
         TLVFormat::TagType tag{};
         TLVFormat::LengthType size{};
@@ -76,17 +75,13 @@ bool TLVFormat::scan_entries(std::istream& stream, const ValueScanner& scanners,
         }
 
         if (auto scanner_it = scanners.find(tag); scanner_it != scanners.end()) {
-            all_records_good &= scanner_it->second(stream, size);
-            if (!all_records_good) {
-                break;
+            if (!scanner_it->second(stream, size)) {
+                return false;
             }
         } else {
             stream.seekg(size, std::ios::cur);
         }
     }
-    if (rewind) {
-        stream.seekg(beginning_pos, std::ios::beg);
-    }
-    return all_records_good;
+    return true;
 }
 }  // namespace ov::runtime

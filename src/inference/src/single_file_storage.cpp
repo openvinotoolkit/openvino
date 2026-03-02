@@ -16,20 +16,28 @@
 #include "openvino/util/variant_visitor.hpp"
 
 namespace ov::runtime {
+
 namespace {
-void write_version(std::ostream& stream, const SingleFileStorage::FormatVersion& version) {
-    stream.write(reinterpret_cast<const char*>(&version.major), sizeof(version.major));
-    stream.write(reinterpret_cast<const char*>(&version.minor), sizeof(version.minor));
-    stream.write(reinterpret_cast<const char*>(&version.patch), sizeof(version.patch));
+void write_version(std::ostream& stream, const util::Version& version) {
+    const uint16_t major = version.major, minor = version.minor, patch = version.patch;
+    stream.write(reinterpret_cast<const char*>(&major), sizeof(major));
+    stream.write(reinterpret_cast<const char*>(&minor), sizeof(minor));
+    stream.write(reinterpret_cast<const char*>(&patch), sizeof(patch));
 }
 
-void read_version(std::istream& stream, SingleFileStorage::FormatVersion& version) {
-    stream.read(reinterpret_cast<char*>(&version.major), sizeof(version.major));
-    stream.read(reinterpret_cast<char*>(&version.minor), sizeof(version.minor));
-    stream.read(reinterpret_cast<char*>(&version.patch), sizeof(version.patch));
+void read_version(std::istream& stream, util::Version& version) {
+    uint16_t major = 0, minor = 0, patch = 0;
+    stream.read(reinterpret_cast<char*>(&major), sizeof(major));
+    stream.read(reinterpret_cast<char*>(&minor), sizeof(minor));
+    stream.read(reinterpret_cast<char*>(&patch), sizeof(patch));
+    if (stream.good()) {
+        version.major = major;
+        version.minor = minor;
+        version.patch = patch;
+    }
 }
 
-void validate_version(const SingleFileStorage::FormatVersion& version) {
+void validate_version(const util::Version& version) {
     // todo Implement version compatibility check
 }
 
@@ -76,10 +84,6 @@ void write_padding(std::ostream& stream, uint64_t alignment) {
 }
 }  // namespace
 
-bool SingleFileStorage::FormatVersion::operator==(const FormatVersion& other) const {
-    return major == other.major && minor == other.minor && patch == other.patch;
-}
-
 SingleFileStorage::SingleFileStorage(const std::filesystem::path& path) : m_file_path{path} {
     util::create_directory_recursive(m_file_path.parent_path());
     if (!util::file_exists(m_file_path)) {
@@ -87,7 +91,7 @@ SingleFileStorage::SingleFileStorage(const std::filesystem::path& path) : m_file
         write_version(stream, m_version);
     } else {
         std::ifstream stream(m_file_path, std::ios::binary);
-        FormatVersion file_version;
+        util::Version file_version{"0.0.0-0-"};
         read_version(stream, file_version);
         validate_version(file_version);
 
@@ -185,7 +189,7 @@ bool SingleFileStorage::build_content_index(std::ifstream& stream) {
         {static_cast<TLVFormat::TagType>(Tag::ConstantMeta), constant_meta_reader},
         {static_cast<TLVFormat::TagType>(Tag::WeightSource), constant_source_reader},
     };
-    return TLVFormat::scan_entries(stream, scanners, true);
+    return TLVFormat::scan_entries(stream, scanners);
 }
 
 SingleFileStorage::BlobIdType SingleFileStorage::convert_blob_id(const std::string& blob_id) {

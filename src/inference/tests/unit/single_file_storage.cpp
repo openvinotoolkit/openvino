@@ -11,9 +11,9 @@
 #else
 #    include <unistd.h>
 #endif
-#include <limits>
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 
@@ -24,8 +24,7 @@ using runtime::TLVFormat;
 
 namespace {
 constexpr uint64_t version_size() {
-    return sizeof(SingleFileStorage::FormatVersion::major) + sizeof(SingleFileStorage::FormatVersion::minor) +
-           sizeof(SingleFileStorage::FormatVersion::patch);
+    return 3 * sizeof(uint16_t);  // major, minor, patch
 }
 
 std::streamoff get_system_page_size() {
@@ -45,7 +44,7 @@ protected:
     std::unique_ptr<SingleFileStorage> m_storage;
 
     void SetUp() override {
-        m_file_path = ov::test::utils::generateTestFilePrefix() + ".cache";
+        m_file_path = ov::test::utils::generateTestFilePrefix() + ".bin";
         m_storage = std::make_unique<SingleFileStorage>(m_file_path);
         ASSERT_TRUE(std::filesystem::exists(m_file_path));
     }
@@ -57,19 +56,17 @@ protected:
 };
 
 TEST_F(SingleFileStorageTest, FileHeader) {
-    ASSERT_EQ(version_size(), 6);
     m_storage.reset();
     std::ifstream stream(m_file_path, std::ios::binary);
 
-    std::vector<uint16_t> header_data(version_size() / sizeof(uint16_t));
-    stream.read(reinterpret_cast<char*>(header_data.data()), version_size());
+    std::vector<uint16_t> header_data(3);
+    stream.read(reinterpret_cast<char*>(header_data.data()), 6);
     const auto last_pos = stream.tellg();
     ASSERT_NE(last_pos, std::streampos(-1));
-    stream.seekg(0, std::ios::end);
-    const auto end_pos = stream.tellg();
+    const auto end_pos = stream.seekg(0, std::ios::end).tellg();
     EXPECT_EQ(last_pos, end_pos);  // No more data after header in just created file
 
-    SingleFileStorage::FormatVersion read_version{header_data[0], header_data[1], header_data[2]};
+    util::Version read_version{header_data[0], header_data[1], header_data[2], 0, 0};
     EXPECT_EQ(read_version, SingleFileStorage::m_version);
 }
 
@@ -78,7 +75,7 @@ TEST_F(SingleFileStorageTest, CacheEntryWriteRead) {
         {"12", std::vector<uint8_t>(124, 0xAB)},
         {"0345", std::vector<uint8_t>(481, 0xCD)},
         {"006789", std::vector<uint8_t>(4967, 0xEF)},
-        {std::to_string(std::numeric_limits<uint64_t>::max()), std::vector<uint8_t>(1, 0)},
+        {std::to_string(UINT64_MAX), std::vector<uint8_t>(1, 0)},
     };
 
     for (const auto& test_blob : test_blobs) {
@@ -252,10 +249,10 @@ TEST_F(SingleFileStorageTest, ContextMetaAppendDelta) {
     EXPECT_EQ(got_context.m_weight_registry[1].size(), 2);
     EXPECT_EQ(got_context.m_weight_registry[2].size(), 1);
     m_storage.reset();
-    const auto file_size_after_first_write = std::ifstream{m_file_path, std::ios::binary | std::ios::ate}.tellg();
+    const auto file_size_after_first_write = test::utils::fileSize(m_file_path);
 
     SingleFileStorage{m_file_path}.write_context(test_context);
-    const auto file_size_after_second_write = std::ifstream{m_file_path, std::ios::binary | std::ios::ate}.tellg();
+    const auto file_size_after_second_write = test::utils::fileSize(m_file_path);
     EXPECT_EQ(file_size_after_second_write, file_size_after_first_write)
         << "Rewriting the same context should not increase file size";
 }
@@ -315,10 +312,10 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceAppendDelta) {
 
     EXPECT_EQ(m_storage->get_context().m_cache_sources.size(), 2);
     m_storage.reset();
-    const auto file_size_after_first_write = std::ifstream{m_file_path, std::ios::binary | std::ios::ate}.tellg();
+    const auto file_size_after_first_write = test::utils::fileSize(m_file_path);
 
     SingleFileStorage{m_file_path}.write_context(test_context);
-    const auto file_size_after_second_write = std::ifstream{m_file_path, std::ios::binary | std::ios::ate}.tellg();
+    const auto file_size_after_second_write = test::utils::fileSize(m_file_path);
     EXPECT_EQ(file_size_after_second_write, file_size_after_first_write)
         << "Rewriting the same context should not increase file size";
 }

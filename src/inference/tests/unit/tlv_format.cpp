@@ -121,9 +121,6 @@ TEST(TLVFormatTest, ScanEntriesReadsMatchingTagsAndSkipsUnknown) {
     TLVFormat::write_entry(stream, 2, second_data.size(), second_data.data());
     TLVFormat::write_entry(stream, 3, third_data.size(), third_data.data());
 
-    stream.seekg(0);
-    const auto begin_pos = stream.tellg();
-
     size_t scanner_calls = 0;
     std::string scanned_first;
     std::string scanned_third;
@@ -141,25 +138,10 @@ TEST(TLVFormatTest, ScanEntriesReadsMatchingTagsAndSkipsUnknown) {
         return s.good();
     });
 
-    TLVFormat::scan_entries(stream, scanners, true);
+    stream.seekg(0);
+    TLVFormat::scan_entries(stream, scanners);
     EXPECT_EQ(scanner_calls, 2);
     EXPECT_EQ(scanned_first, first_data);
     EXPECT_EQ(scanned_third, third_data);
-    EXPECT_EQ(stream.tellg(), begin_pos);
 }
-
-TEST(TLVFormatTest, ScanEntriesWithoutRewindLeavesStreamAtEnd) {
-    auto stream = make_stream();
-    const std::vector<uint8_t> data = {1, 2, 3, 4};
-    TLVFormat::write_entry(stream, 9, data.size(), reinterpret_cast<const char*>(data.data()));
-
-    stream.seekg(0);
-    stream.seekg(0, std::ios::end);
-    const auto end_pos = stream.tellg();
-    stream.seekg(0);
-
-    TLVFormat::scan_entries(stream, {}, false);
-    EXPECT_EQ(stream.tellg(), end_pos);
-}
-
 }  // namespace ov::test

@@ -7,22 +7,13 @@
 #include "icache_manager.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/runtime/tlv_format.hpp"
+#include "openvino/util/ov_version.hpp"
 
 namespace ov::runtime {
 class SingleFileStorage final : public ICacheManager, public IContextStore {
 public:
-    /**
-     * @brief Version of the single file storage format. It is stored in the beginning of the file and is used to check
-     * compatibility of the file with the implementation.
-     */
-    struct FormatVersion {
-        uint16_t major{};
-        uint16_t minor{};
-        uint16_t patch{};
-        bool operator==(const FormatVersion&) const;
-    };
     /** @brief Current version of the single file storage format. */
-    static constexpr FormatVersion m_version = {0, 1, 2};
+    static constexpr util::Version m_version{1, 0, 0, 0, 0};
 
     enum class Tag : TLVFormat::TagType {
         String = 0x02,

@@ -77,10 +77,8 @@ struct TLVFormat {
      * @param scanners Map of tag to value reader callable. Value reader will be called with the stream positioned at
      * the beginning of entry value and size of the value as parameters. Value reader is expected to read exactly size
      * bytes from the stream. Failure to do so may result in incorrect parsing of subsequent entries.
-     * @param rewind If true, the stream will be rewound to the original position after scanning. If false, the stream
-     * will be left at the position after the last scanned entry.
      * @return False if an error occurred during scanning, true otherwise.
      */
-    static bool scan_entries(std::istream& stream, const ValueScanner& scanners, bool rewind);
+    static bool scan_entries(std::istream& stream, const ValueScanner& scanners);
 };
 }  // namespace ov::runtime
