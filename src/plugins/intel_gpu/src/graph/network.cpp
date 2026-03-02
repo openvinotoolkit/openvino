@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/plugin/variable_state.hpp"
+#include "intel_gpu/plugin/output_memory_block.hpp"
 #include "intel_gpu/primitives/read_value.hpp"
 #include "intel_gpu/primitives/lora.hpp"
 #include "intel_gpu/primitives/data.hpp"
@@ -669,6 +670,55 @@ void network::reset_output_remote_memory_ptrs() {
     if (!_output_remote_mem_ptrs.empty()) {
         _output_remote_mem_ptrs.clear();
     }
+}
+
+void network::invalidate_output_memory_chain(const primitive_id& id) {
+    auto p_inst = find_primitive(id);
+    p_inst->clear_output_memory();
+
+    auto o_iter = _output_chains.find(id);
+    if (o_iter != _output_chains.end()) {
+        for (auto* prim : o_iter->second) {
+            if (prim != p_inst.get()) {
+                prim->clear_output_memory();
+            }
+        }
+    }
+}
+
+void network::register_output_memory_block(const primitive_id& id, ov::intel_gpu::OutputMemoryBlock* block) {
+    OPENVINO_ASSERT(block != nullptr, "[GPU] Use unregister path (nullptr) via clear_output_memory_blocks or erase");
+
+    auto [it, inserted] = _output_memory_blocks.emplace(id, block);
+    if (!inserted) {
+        if (it->second == block)
+            return;  // Same block already registered — nothing to do
+        it->second = block;
+    }
+
+    // Block changed (newly inserted or replaced) — invalidate the graph's cached
+    // output memory so realloc_outputs() doesn't reuse memory from a different block.
+    invalidate_output_memory_chain(id);
+}
+
+void network::unregister_output_memory_block(const primitive_id& id) {
+    auto it = _output_memory_blocks.find(id);
+    if (it != _output_memory_blocks.end()) {
+        _output_memory_blocks.erase(it);
+        invalidate_output_memory_chain(id);
+    }
+}
+
+ov::intel_gpu::OutputMemoryBlock* network::get_output_memory_block(const primitive_id& id) const {
+    auto it = _output_memory_blocks.find(id);
+    return (it != _output_memory_blocks.end()) ? it->second : nullptr;
+}
+
+void network::clear_output_memory_blocks() {
+    for (auto& [prim_id, block_ptr] : _output_memory_blocks) {
+        invalidate_output_memory_chain(prim_id);
+    }
+    _output_memory_blocks.clear();
 }
 
 void network::add_to_exec_order(const primitive_id& id) {

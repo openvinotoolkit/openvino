@@ -100,6 +100,17 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
     allocate_states();
 }
 
+SyncInferRequest::~SyncInferRequest() {
+    // Clear the network's non-owning pointers to our OutputMemoryBlocks
+    // before they are destroyed, to prevent dangling pointers.
+    if (!m_output_memory_blocks.empty()) {
+        auto network = m_graph->get_network();
+        if (network) {
+            network->clear_output_memory_blocks();
+        }
+    }
+}
+
 void SyncInferRequest::infer() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::infer");
     setup_stream_graph();
@@ -398,12 +409,25 @@ void SyncInferRequest::wait() {
             if (is_dynamic) {
                 bool need_reallocate = true;
                 auto usm_host_tensor = std::dynamic_pointer_cast<USMHostTensor>(output_tensor);
-                if (usm_host_tensor && output_memory)
-                    need_reallocate = usm_host_tensor->get_impl()->get_original_memory()->size() < output_memory->size();
-                else if (!is_remote_tensor_impl && output_memory)
-                    need_reallocate = output_tensor_wrapper.actual_size < output_memory->size();
-                else if (is_remote_tensor_impl && output_memory)
+
+                // Zero-copy path: if we have an OutputMemoryBlock for this output,
+                // the block already owns the memory that the GPU wrote into.
+                // Update the USMHostTensor's backing memory to point to the block's buffer.
+                auto block_it = m_output_memory_blocks.find(port_idx);
+                if (block_it != m_output_memory_blocks.end() && block_it->second->memory() && usm_host_tensor
+                    && output_tensor_wrapper.owner == TensorOwner::PLUGIN) {
+                    auto block_mem = block_it->second->memory();
+                    auto* impl = usm_host_tensor->get_impl().get();
+                    // Update the backing memory to match the block's current buffer and actual data size
+                    impl->set_memory(block_mem, output_memory->count());
                     need_reallocate = false;
+                } else if (usm_host_tensor && output_memory) {
+                    need_reallocate = usm_host_tensor->get_impl()->get_original_memory()->size() < output_memory->size();
+                } else if (!is_remote_tensor_impl && output_memory) {
+                    need_reallocate = output_tensor_wrapper.actual_size < output_memory->size();
+                } else if (is_remote_tensor_impl && output_memory) {
+                    need_reallocate = false;
+                }
 
                 if (need_reallocate) {
                     std::string internal_name = m_output_names_map.at(port_idx);
@@ -491,7 +515,17 @@ void SyncInferRequest::setup_stream_graph() {
         auto num_graphs = stream_graphs.size();
         stream_id = stream_id % num_graphs;
     }
-    m_graph = stream_graphs[stream_id];
+
+    auto new_graph = stream_graphs[stream_id];
+    // When switching to a different graph, clear the old graph's non-owning pointers
+    // to our OutputMemoryBlocks to prevent dangling pointers and stale associations.
+    if (new_graph != m_graph && !m_output_memory_blocks.empty()) {
+        auto network = m_graph->get_network();
+        if (network) {
+            network->clear_output_memory_blocks();
+        }
+    }
+    m_graph = new_graph;
 }
 
 std::shared_ptr<ov::ITensor> SyncInferRequest::create_host_tensor(const ov::PartialShape& port_shape, const ov::element::Type& port_element_type) const {
@@ -600,6 +634,15 @@ void SyncInferRequest::allocate_output(const ov::Output<const ov::Node>& port, s
 
     m_user_outputs[output_idx] = { create_host_tensor(shape, element_type), TensorOwner::PLUGIN };
     ov::ISyncInferRequest::set_tensor(port, m_user_outputs.at(output_idx).ptr);
+
+    // For dynamic outputs with USM host support, create an OutputMemoryBlock
+    // that will be plugged into the graph to enable zero-copy output.
+    if (shape.is_dynamic() && can_use_usm_host(m_graph->get_engine(), total_output_bytes)) {
+        auto device_et = convert_to_supported_device_type(element_type);
+        if (!is_convert_required(device_et, element_type)) {
+            m_output_memory_blocks[output_idx] = std::make_unique<OutputMemoryBlock>(m_graph->get_engine());
+        }
+    }
 }
 
 void SyncInferRequest::allocate_inputs() {
@@ -954,8 +997,21 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     }
 
     // Missing output in _plugin_outputs means that the network is dynamic and outputs couldn't be pre-allocated
-    if (m_plugin_outputs.find(output_idx) == m_plugin_outputs.end())
+    if (m_plugin_outputs.find(output_idx) == m_plugin_outputs.end()) {
+        // For dynamic PLUGIN-owned outputs with an OutputMemoryBlock, register the block
+        // into the network so that realloc_outputs() can use it for zero-copy output.
+        if (is_dynamic && user_tensor_wrapper.owner == TensorOwner::PLUGIN) {
+            auto block_it = m_output_memory_blocks.find(output_idx);
+            if (block_it != m_output_memory_blocks.end()) {
+                network->register_output_memory_block(internal_name, block_it->second.get());
+            }
+        } else if (is_dynamic) {
+            // User set a custom tensor — unregister any previously registered block
+            // so the graph uses its normal memory pool and copies to user's tensor.
+            network->unregister_output_memory_block(internal_name);
+        }
         return {};
+    }
 
     auto output_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(m_plugin_outputs.at(output_idx).ptr);
     auto output_memory = output_tensor->get_memory();

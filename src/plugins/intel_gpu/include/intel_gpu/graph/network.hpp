@@ -24,6 +24,10 @@
 #include <list>
 #include <set>
 
+namespace ov::intel_gpu {
+class OutputMemoryBlock;
+}  // namespace ov::intel_gpu
+
 namespace cldnn {
 
 /// @brief Represents network output returned by @ref network::get_output().
@@ -187,6 +191,23 @@ public:
     bool has_output_remote_memory_ptr(const primitive_id& id) const;
     void reset_output_remote_memory_ptrs();
 
+    /// @brief Register an externally-owned output memory block for a network output primitive.
+    /// The block is owned by the infer request; the network holds a non-owning pointer.
+    /// If the block pointer changes from the previously registered one, the graph's cached
+    /// output memory for the primitive chain is invalidated.
+    void register_output_memory_block(const primitive_id& id, ov::intel_gpu::OutputMemoryBlock* block);
+
+    /// @brief Unregister a previously registered output memory block for a primitive.
+    /// Invalidates cached output memory so the graph falls back to its normal memory pool.
+    void unregister_output_memory_block(const primitive_id& id);
+
+    /// @brief Get the registered output memory block for a primitive, or nullptr if none.
+    ov::intel_gpu::OutputMemoryBlock* get_output_memory_block(const primitive_id& id) const;
+
+    /// @brief Clear all registered output memory blocks (called on infer request destruction
+    /// or when switching to a different graph).
+    void clear_output_memory_blocks();
+
     memory_pool& get_memory_pool() const {
         return *_memory_pool;
     }
@@ -229,6 +250,7 @@ private:
     memory::ptr _shape_info_ptr;
 
     std::unordered_map<primitive_id, memory::ptr> _output_remote_mem_ptrs;
+    std::unordered_map<primitive_id, ov::intel_gpu::OutputMemoryBlock*> _output_memory_blocks;
 
     std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
     std::vector<shared_mem_type> _in_out_shared_mem_types;
@@ -254,6 +276,7 @@ private:
     void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);
     void add_to_exec_order(const primitive_id& id);
     std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id) const;
+    void invalidate_output_memory_chain(const primitive_id& id);
     void add_default_output_chains();
     void calculate_weights_cache_capacity();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
