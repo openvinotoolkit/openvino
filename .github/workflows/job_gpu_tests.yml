@@ -55,9 +55,6 @@ jobs:
       GTEST_PARALLEL_SCRIPT: ${{ github.workspace }}/gtest_parallel.py
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
       NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
-      REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
-      PIP_CERT: /etc/ssl/certs/ca-certificates.crt
-      SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
       HF_HUB_CACHE: /mount/caches/huggingface
       USE_SYSTEM_CACHE: False
     steps:
@@ -115,29 +112,11 @@ jobs:
       - name: Install Python 3.11
         if: ${{ inputs.test_type == 'rope' }}
         run: |
-          # Copy custom CA certs from read-only mount and rebuild trust store
-          # (Intel proxy CA on self-hosted runners)
-          if ls /usr/local/share/ca-certificates/*.crt &>/dev/null; then
-            for cert in /usr/local/share/ca-certificates/*.crt; do
-              name="$(basename "$cert")"
-              cp "$cert" "/usr/share/ca-certificates/$name"
-              echo "$name" >> /etc/ca-certificates.conf
-            done
-            update-ca-certificates
-          fi
           # Install Python 3.11 from deadsnakes PPA (same as ov_test Dockerfile)
           add-apt-repository --yes ppa:deadsnakes/ppa
           apt-get install -y python3.11-dev python3.11-venv
           # Create venv so python3/pip resolve to Python 3.11
           python3.11 -m venv /opt/venv
-          # Inject custom CA certs into pip's bundled certifi. Pip 24.0 initializes
-          # its SSL context from pip._vendor.certifi before reading PIP_CERT or
-          # pip.conf global.cert, so env vars and config alone don't work.
-          PIP_CERTIFI=$(/opt/venv/bin/python3 -c "from pip._vendor.certifi import where; print(where())")
-          if ls /usr/local/share/ca-certificates/*.crt &>/dev/null; then
-            cat /usr/local/share/ca-certificates/*.crt >> "$PIP_CERTIFI"
-          fi
-          /opt/venv/bin/pip install --upgrade pip certifi
           echo "/opt/venv/bin" >> $GITHUB_PATH
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}

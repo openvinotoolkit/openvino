@@ -37,21 +37,7 @@ runs:
     - if: ${{ runner.os == 'Linux' && inputs.self-hosted-runner == 'true' && steps.check_python.outputs.installed == 'false' }}
       name: Install 'actions/setup-python@v4' dependencies
       shell: bash
-      run: |
-        apt-get update && apt-get install -y ca-certificates software-properties-common gpg-agent tzdata
-        # On self-hosted runners, custom CA certs (e.g. Intel proxy CA) are mounted
-        # read-only at /usr/local/share/ca-certificates/. The ca-certificates package
-        # post-install script fails to chmod/chown that directory, so the custom certs
-        # are not included in /etc/ssl/certs/ca-certificates.crt. Fix: copy certs to
-        # a writable location and rebuild the trust store.
-        if ls /usr/local/share/ca-certificates/*.crt &>/dev/null; then
-          for cert in /usr/local/share/ca-certificates/*.crt; do
-            name="$(basename "$cert")"
-            cp "$cert" "/usr/share/ca-certificates/$name"
-            echo "$name" >> /etc/ca-certificates.conf
-          done
-          update-ca-certificates
-        fi
+      run: apt-get update && apt-get install -y ca-certificates software-properties-common gpg-agent tzdata
       env:
         DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
         TZ: "Europe/London" # to prevent tzdata from waiting user input
