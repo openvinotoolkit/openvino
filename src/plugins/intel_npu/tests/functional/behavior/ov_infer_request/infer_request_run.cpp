@@ -19,6 +19,12 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                                             ::testing::ValuesIn(configsInferRequestRunTests)),
                          InferRequestRunTests::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+                         BooleanPrecisionInferRequestRunTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(configsInferRequestRunTests)),
+                         BooleanPrecisionInferRequestRunTests::getTestCaseName);
+
 const std::vector<ov::AnyMap> profilingConfigs{{ov::intel_npu::profiling_type(ov::intel_npu::ProfilingType::MODEL)},
                                                {ov::intel_npu::profiling_type(ov::intel_npu::ProfilingType::INFER)}};
 

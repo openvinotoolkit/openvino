@@ -876,4 +876,27 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- C#182232 -->
+    <skip_config>
+        <message>ROI Tensor tests fail since UD2026.08 CiP update.</message>
+        <enable_rules>
+            <device>4000</device>
+            <device>5010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*RoiTensorsTestsRun.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- C#181730 -->
+    <skip_config>
+        <message>Cannot compile LessEqual Op with boolean input yet</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*BooleanPrecisionInferRequestRunTests.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
