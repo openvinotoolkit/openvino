@@ -9,35 +9,42 @@ class TestRReLU(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
 
-        return (self.random.randn(1, 3, 224, 224).astype(np.float32),)
+        return (self.random.randn(1, 3, 224, 224),)
 
-    def create_model(self, lower, upper, inplace):
+    def create_model(self, lower, upper, training, inplace):
         import torch
         import torch.nn.functional as F
 
         class AtenRReLU(torch.nn.Module):
-            def __init__(self, lower=1 / 8, upper=1 / 3, inplace=False):
+            def __init__(self, lower=1 / 8, upper=1 / 3, training=False, inplace=False):
                 super(AtenRReLU, self).__init__()
-                if lower is not None:
-                    self.lower = lower
-                else:
-                    self.lower = 0.125
-                if upper is not None:
-                    self.upper = upper
-                else:
-                    self.upper = 0.3333333333333333
+                self.lower = lower
+                self.upper = upper
+                self.training = training
                 self.inplace = inplace
 
             def forward(self, x):
-                return x, F.rrelu(x, self.lower, self.upper, inplace=self.inplace, training=False)
+                # Call F.rrelu with different argument combinations depending
+                # on which bounds were provided, to cover converter branches.
+                if self.lower is None and self.upper is None:
+                    out = F.rrelu(x, training=self.training, inplace=self.inplace)
+                elif self.lower is None:
+                    out = F.rrelu(x, upper=self.upper, training=self.training, inplace=self.inplace)
+                elif self.upper is None:
+                    out = F.rrelu(x, self.lower, training=self.training, inplace=self.inplace)
+                else:
+                    out = F.rrelu(x, self.lower, self.upper, self.training, self.inplace)
+                return x, out
 
-        return AtenRReLU(lower, upper, inplace), "aten::rrelu" if not inplace else "aten::rrelu_"
+        return AtenRReLU(lower, upper, training, inplace), "aten::rrelu" if not inplace else "aten::rrelu_"
 
     @pytest.mark.parametrize("lower", [0.125, 0.1, 0.05, None])
     @pytest.mark.parametrize("upper", [0.333, 0.4, 0.5, None])
+    @pytest.mark.parametrize("training", [True, False])
     @pytest.mark.parametrize("inplace", [skip_if_export(True), False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
-    def test_rrelu(self, lower, upper, inplace, ie_device, precision, ir_version):
-        self._test(*self.create_model(lower, upper, inplace), ie_device, precision, ir_version)
+    def test_rrelu(self, lower, upper, training, inplace, ie_device, precision, ir_version):
+        self._test(*self.create_model(lower, upper, training, inplace), ie_device, precision, ir_version)
