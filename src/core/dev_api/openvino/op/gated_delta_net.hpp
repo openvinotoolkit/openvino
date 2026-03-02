@@ -10,13 +10,13 @@ namespace op {
 
 // This is an experimental operation that is implemented in the plugins.
 // Do not use in user applications, backward compatibility is not guaranteed in future releases.
-class OPENVINO_API LinearAttention : public ov::op::Op {
+class OPENVINO_API GatedDeltaNet : public ov::op::Op {
 public:
-    OPENVINO_OP("LinearAttention");
+    OPENVINO_OP("GatedDeltaNet");
 
-    LinearAttention() = default;
+    GatedDeltaNet() = default;
 
-    LinearAttention(const ov::OutputVector& args);
+    GatedDeltaNet(const ov::OutputVector& args);
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 

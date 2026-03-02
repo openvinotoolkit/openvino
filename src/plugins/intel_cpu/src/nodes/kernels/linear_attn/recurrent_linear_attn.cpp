@@ -24,87 +24,145 @@
 
 namespace ov::Extensions::Cpu::XARCH {
 
-float dot_product(float* a, float* b, size_t n) {
-float result = 0.0f;
-size_t i = 0;
+inline float dot_product(float* a, float* b, size_t n) {
 #if defined(HAVE_AVX512F)
-    auto vsum0 = _mm512_setzero_ps();
-    auto vsum1 = _mm512_setzero_ps();
-    auto vsum2 = _mm512_setzero_ps();
-    auto vsum3 = _mm512_setzero_ps();
-    for (; i + 4 * vec_len_f32_avx512 <= n; i += 4 * vec_len_f32_avx512) {
-        auto va0 = mm512_uni_loadu_ps(a + i);
-        auto va1 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512);
-        auto va2 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512 * 2);
-        auto va3 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512 * 3);
-
-        auto vb0 = mm512_uni_loadu_ps(b + i);
-        auto vb1 = mm512_uni_loadu_ps(b + i + vec_len_f32_avx512);
-        auto vb2 = mm512_uni_loadu_ps(b + i + vec_len_f32_avx512 * 2);
-        auto vb3 = mm512_uni_loadu_ps(b + i + vec_len_f32_avx512 * 3);
-
-        vsum0 = _mm512_fmadd_ps(va0, vb0, vsum0);
-        vsum1 = _mm512_fmadd_ps(va1, vb1, vsum1);
-        vsum2 = _mm512_fmadd_ps(va2, vb2, vsum2);
-        vsum3 = _mm512_fmadd_ps(va3, vb3, vsum3);
-    }
-    if (i + 2 * vec_len_f32_avx512 <= n) {
-        auto va0 = mm512_uni_loadu_ps(a + i);
-        auto va1 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512);
-
-        auto vb0 = mm512_uni_loadu_ps(b + i);
-        auto vb1 = mm512_uni_loadu_ps(b + i + vec_len_f32_avx512);
-
-        vsum0 = _mm512_fmadd_ps(va0, vb0, vsum0);
-        vsum1 = _mm512_fmadd_ps(va1, vb1, vsum1);
-        i += 2 * vec_len_f32_avx512;
-    }
-    if (i + vec_len_f32_avx512 <= n) {
-        auto va0 = mm512_uni_loadu_ps(a + i);
-        auto vb0 = mm512_uni_loadu_ps(b + i);
-        vsum0 = _mm512_fmadd_ps(va0, vb0, vsum0);
-        i += vec_len_f32_avx512;
-    }
-    vsum0 = _mm512_add_ps(vsum0, vsum1);
-    vsum2 = _mm512_add_ps(vsum2, vsum3);
-    vsum0 = _mm512_add_ps(vsum0, vsum2);
-    result = _mm512_reduce_add_ps(vsum0);
+	size_t i = 0;
+	__m512 vsum = _mm512_setzero_ps();
+	for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
+		__m512 va = _mm512_loadu_ps(a + i);
+		__m512 vb = _mm512_loadu_ps(b + i);
+		vsum = _mm512_fmadd_ps(va, vb, vsum);
+	}
+	float result = _mm512_reduce_add_ps(vsum);
+	for (; i < n; ++i) {
+		result += a[i] * b[i];
+	}
+	return result;
+#elif defined(HAVE_AVX2)
+	size_t i = 0;
+	__m256 vsum = _mm256_setzero_ps();
+	for (; i + 8 <= n; i += 8) {
+		__m256 va = _mm256_loadu_ps(a + i);
+		__m256 vb = _mm256_loadu_ps(b + i);
+		vsum = _mm256_fmadd_ps(va, vb, vsum);
+	}
+	float result = hsum(vsum);
+	for (; i < n; ++i) {
+		result += a[i] * b[i];
+	}
+	return result;
 #else
-    for (; i < n; i++) {
-        result += a[i] * b[i];
-    }
+	float result = 0.0f;
+	for (size_t i = 0; i < n; ++i) {
+		result += a[i] * b[i];
+	}
+	return result;
 #endif
-    return result;
 }
 
-void scale(float *a, float scale, size_t n) {
-    for (size_t i = 0; i < n; i++) {
-        a[i] = a[i] * scale;
-    }
+inline void add(float* a, float* b, size_t n) {
+#if defined(HAVE_AVX512F)
+	size_t i = 0;
+	for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
+		__m512 va = _mm512_loadu_ps(a + i);
+		__m512 vb = _mm512_loadu_ps(b + i);
+		va = _mm512_add_ps(va, vb);
+		_mm512_storeu_ps(a + i, va);
+	}
+	for (; i < n; ++i) {
+		a[i] += b[i];
+	}
+#elif defined(HAVE_AVX2)
+	size_t i = 0;
+	for (; i + 8 <= n; i += 8) {
+		__m256 va = _mm256_loadu_ps(a + i);
+		__m256 vb = _mm256_loadu_ps(b + i);
+		va = _mm256_add_ps(va, vb);
+		_mm256_storeu_ps(a + i, va);
+	}
+	for (; i < n; ++i) {
+		a[i] += b[i];
+	}
+#else
+	for (size_t i = 0; i < n; i++) {
+		a[i] += b[i];
+	}
+#endif
 }
 
-void add(float *a, float* b, size_t n) {
-    for (size_t i = 0; i < n; i++) {
-        a[i] += b[i];
-    }
+static inline void l2norm(float* a, size_t n) {
+	float sum = 0.0f;
+#if defined(HAVE_AVX512F)
+	size_t i = 0;
+	__m512 vsum = _mm512_setzero_ps();
+	for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
+		__m512 v = _mm512_loadu_ps(a + i);
+		vsum = _mm512_fmadd_ps(v, v, vsum);
+	}
+	sum = _mm512_reduce_add_ps(vsum);
+	for (; i < n; ++i) {
+		sum += a[i] * a[i];
+	}
+	float inv = 1.0f / std::sqrt(sum + 1e-6f);
+	__m512 vscale = _mm512_set1_ps(inv);
+	i = 0;
+	for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
+		__m512 v = _mm512_loadu_ps(a + i);
+		v = _mm512_mul_ps(v, vscale);
+		_mm512_storeu_ps(a + i, v);
+	}
+	for (; i < n; ++i) {
+		a[i] *= inv;
+	}
+#elif defined(HAVE_AVX2)
+	size_t i = 0;
+	__m256 vsum = _mm256_setzero_ps();
+	for (; i + 8 <= n; i += 8) {
+		__m256 v = _mm256_loadu_ps(a + i);
+		vsum = _mm256_fmadd_ps(v, v, vsum);
+	}
+    float sum = hsum(vsum);
+	for (; i < n; ++i) {
+		sum += a[i] * a[i];
+	}
+	float inv = 1.0f / std::sqrt(sum + 1e-6f);
+	__m256 vscale = _mm256_set1_ps(inv);
+	i = 0;
+	for (; i + 8 <= n; i += 8) {
+		__m256 v = _mm256_loadu_ps(a + i);
+		v = _mm256_mul_ps(v, vscale);
+		_mm256_storeu_ps(a + i, v);
+	}
+	for (; i < n; ++i) {
+		a[i] *= inv;
+	}
+#else
+	for (size_t j = 0; j < n; j++) {
+		sum += a[j] * a[j];
+	}
+	float inv = 1.0f / std::sqrt(sum + 1e-6f);
+	for (size_t j = 0; j < n; j++) {
+		a[j] *= inv;
+	}
+#endif
 }
 
 void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
                       const ov::intel_cpu::PlainTensor& key,
                       const ov::intel_cpu::PlainTensor& value,
+                      const ov::intel_cpu::PlainTensor& recurrent_state,
+                      const ov::intel_cpu::PlainTensor& gate,
                       const ov::intel_cpu::PlainTensor& beta,
-                      const ov::intel_cpu::PlainTensor& g,
-                      const ov::intel_cpu::PlainTensor& initial_states,
-                      ov::intel_cpu::PlainTensor& output,
-                      ov::intel_cpu::PlainTensor& output_hidden_states) {
+                      ov::intel_cpu::PlainTensor& output_attn,
+                      ov::intel_cpu::PlainTensor& output_recurrent_state) {
 	size_t B = query.m_dims[0];
 	size_t T = query.m_dims[1];
 	size_t H = query.m_dims[2];
 	size_t K = query.m_dims[3];
 	size_t V = value.m_dims[3];
-	// printf(" B %ld T %ld H %ld K %ld V %ld \n", B, T, H, K, V);
-	constexpr size_t K_HEAD_DIMS = 128;
-	constexpr size_t V_HEAD_DIMS = 128;
+	const size_t K_HEAD_DIMS = K;
+	const size_t V_HEAD_DIMS = V;
+    const float q_scale = 1 / std::sqrt(static_cast<float>(K_HEAD_DIMS));
 	ov::parallel_for3d(B, H, V, [&](size_t i_b, size_t i_h, size_t i_v) {
 		float init_state[128] = {0};
 		float b_k[128] = {0};
@@ -115,22 +173,26 @@ void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
 		float* v_ptr = value.ptr<float>(i_b, 0, i_h);
 		// B, H, K, V
 		for (size_t j = 0; j < K_HEAD_DIMS; j++) {
-			init_state[j] = initial_states.at<float>({i_b, i_h, j, i_v});
+			init_state[j] = recurrent_state.at<float>({i_b, i_h, j, i_v});
 		}
+
 		for (size_t i = 0; i < T; i++) {
-			// g: B, T, H
-			float b_g = g.at<float>({i_b, i, i_h});
+			// gate: B, T, H
+			float b_g = gate.at<float>({i_b, i, i_h});
 			float b_beta = beta.at<float>({i_b, i, i_h});
 			b_g = exp(b_g);
 			for (int j = 0; j < K_HEAD_DIMS; j++) {
-				b_k[j] = k_ptr[i * K_HEAD_DIMS  + j];
-				b_q[j] = q_ptr[i * K_HEAD_DIMS  + j] * 1 / sqrt(128);
+				b_k[j] = k_ptr[i * H * K_HEAD_DIMS  + j];
+				b_q[j] = q_ptr[i * H * K_HEAD_DIMS  + j];
 			}
-			// h0 * g
-			// scale(init_state, b_g, K_HEAD_DIMS);
+            l2norm(b_k, K_HEAD_DIMS);
+            l2norm(b_q, K_HEAD_DIMS);
+            multiply_scalar(b_q, b_q, q_scale, K_HEAD_DIMS);
+			// h0 * gate
+            // scale(init_state, b_g, K_HEAD_DIMS);
             multiply_scalar(init_state, init_state, b_g, K_HEAD_DIMS);
 			float h_k = dot_product(init_state, b_k, K_HEAD_DIMS);
-			float b_v = v_ptr[i_v + i * K_HEAD_DIMS];
+			float b_v = v_ptr[i_v + i * H* K_HEAD_DIMS];
 			b_v -= h_k;
 			// b_v * b_k
 			b_v *= b_beta;
@@ -139,10 +201,10 @@ void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
 			// h = h0 + update
 			add(init_state, b_k, K_HEAD_DIMS);
 			float b_output  = dot_product(init_state, b_q, K_HEAD_DIMS);
-			output.at<float>({i_b, i, i_h, i_v}) = b_output;
+			output_attn.at<float>({i_b, i, i_h, i_v}) = b_output;
 		}
 		for (size_t j = 0; j < K_HEAD_DIMS; j++) {
-			initial_states.at<float>({i_b, i_h, j, i_v}) = init_state[j];
+			output_recurrent_state.at<float>({i_b, i_h, j, i_v}) = init_state[j];
 		}
 	});
 }

@@ -18,13 +18,13 @@
 
 namespace ov::intel_cpu::node {
 
-class LinearAttention : public Node {
+class GatedDeltaNet : public Node {
 public:
-    LinearAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
+    GatedDeltaNet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override {}
     bool created() const override {
-        return getType() == Type::LinearAttention;
+        return getType() == Type::GatedDeltaNet;
     }
 
     // pastkv may have zero dimension

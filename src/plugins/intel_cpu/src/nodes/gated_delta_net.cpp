@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "linear_attn.h"
+#include "gated_delta_net.h"
 
 #include <common/utils.hpp>
 #include <cstddef>
@@ -39,7 +39,7 @@ using namespace ov::Extensions::Cpu::XARCH;
 
 namespace ov::intel_cpu::node {
 
-LinearAttention::LinearAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+GatedDeltaNet::GatedDeltaNet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -47,7 +47,7 @@ LinearAttention::LinearAttention(const std::shared_ptr<ov::Node>& op, const Grap
     }
 }
 
-void LinearAttention::initSupportedPrimitiveDescriptors() {
+void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
     auto dataPrecision = getOriginalInputPrecisionAtPort(0);
     std::vector<PortConfigurator> inPortConfigs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
@@ -60,11 +60,11 @@ void LinearAttention::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
-void LinearAttention::createPrimitive() {
+void GatedDeltaNet::createPrimitive() {
     return;
 }
 
-void LinearAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
+void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto orginInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
     std::vector<MemoryPtr> outputs(2);
@@ -81,15 +81,15 @@ void LinearAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
     PlainTensor query(inputs[0]);
     PlainTensor key(inputs[1]);
     PlainTensor value(inputs[2]);
-    PlainTensor beta(inputs[3]);
-    PlainTensor g(inputs[4]);
-    PlainTensor initial_states(outputs[0]);
-    PlainTensor output(outputs[0]);
-    PlainTensor output_hidden_states(inputs[1]);
-    recurrent_linear_attn(query, key, value, beta, g, initial_states, output, output_hidden_states);
+    PlainTensor recurrent_state(inputs[3]);
+    PlainTensor gate(inputs[4]);
+    PlainTensor beta(inputs[5]);
+    PlainTensor output_attn(outputs[0]);
+    PlainTensor output_recurrent_state(inputs[1]);
+    recurrent_linear_attn(query, key, value, recurrent_state, gate, beta, output_attn, output_recurrent_state);
 }
 
-bool LinearAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+bool GatedDeltaNet::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
     return true;
 }

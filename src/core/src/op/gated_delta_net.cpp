@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/linear_attn.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 
 #include "dimension_util.hpp"
 #include "itt.hpp"
@@ -60,25 +60,25 @@ inline void input_check(const ov::Node* node,
 namespace ov {
 namespace op {
 
-LinearAttention::LinearAttention(const ov::OutputVector& args) : ov::op::Op(args) {
+GatedDeltaNet::GatedDeltaNet(const ov::OutputVector& args) : ov::op::Op(args) {
     constructor_validate_and_infer_types();
 }
 
-void LinearAttention::validate_and_infer_types() {
+void GatedDeltaNet::validate_and_infer_types() {
     OV_OP_SCOPE(LinearAttention_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
                           get_input_size() == 6,
-                          "LinearAttention expects 6 inputs, but it has ",
+                          "GatedDeltaNet expects 6 inputs, but it has ",
                           get_input_size());
 
     // format: Node*, input_idx, name, {rank_list}, {type_list}
     input_check(this, 0, "query", {4}, {});
     input_check(this, 1, "key", {4}, {});
     input_check(this, 2, "value", {4}, {});
-    input_check(this, 3, "beta", {3}, {});
-    input_check(this, 4, "g", {3}, {});
-    input_check(this, 5, "initial_states", {4}, {});
+    input_check(this, 5, "recurrent_state", {4}, {});
+    input_check(this, 3, "gate", {3}, {});
+    input_check(this, 4, "beta", {3}, {});
 
     // value head_size may be not same with key
     auto out_ps = get_input_partial_shape(2);
@@ -87,11 +87,11 @@ void LinearAttention::validate_and_infer_types() {
     set_output_type(1, get_input_element_type(5), h_ps);
 }
 
-std::shared_ptr<ov::Node> LinearAttention::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    return std::make_shared<LinearAttention>(new_args);
+std::shared_ptr<ov::Node> GatedDeltaNet::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+    return std::make_shared<GatedDeltaNet>(new_args);
 }
 
-void LinearAttention::set_out_type(int index, const ov::element::Type& output_type) {
+void GatedDeltaNet::set_out_type(int index, const ov::element::Type& output_type) {
     OPENVINO_ASSERT(index < 2, "Output index should be 0 or 1, but got " + std::to_string(index));
     m_output_type[index] = output_type;
 }

@@ -263,7 +263,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"LoraSubgraph", Type::LoRA},
         {"BatchGatherMatmul", Type::GatherMatmul},
         {"BatchGatherMatmulCompressed", Type::GatherMatmul},
-        {"LinearAttention", Type::LinearAttention}};
+        {"GatedDeltaNet", Type::GatedDeltaNet}};
     return type_to_name_tbl;
 }
 
@@ -399,7 +399,7 @@ std::string NameFromType(const Type type) {
         CASE(SegmentMax);
         CASE(LoRA);
         CASE(GatherMatmul);
-        CASE(LinearAttention);
+        CASE(GatedDeltaNet);
         CASE(Unknown);
     }
 #undef CASE

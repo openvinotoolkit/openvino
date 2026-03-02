@@ -8,4 +8,4 @@
 
 namespace py = pybind11;
 
-void regclass_graph_op_LinearAttention(py::module m);
+void regclass_graph_op_GatedDeltaNet(py::module m);
