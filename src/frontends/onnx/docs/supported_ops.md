@@ -35,7 +35,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Celu                                                    |12                      |12                              |                                |
 |                        |CenterCropPad                                           |18                      |18                              |                                |
 |                        |Clip                                                    |11, 1                   |13, 12, 11, 6, 1                |                                |
-|                        |Col2Im                                                  |                        |18                              |                                |
+|                        |Col2Im                                                  |18                      |18                              |                                |
 |                        |Compress                                                |9                       |11, 9                           |                                |
 |                        |Concat                                                  |1                       |13, 11, 4, 1                    |                                |
 |                        |ConcatFromSequence                                      |11                      |11                              |Supported only in certain patterns|
