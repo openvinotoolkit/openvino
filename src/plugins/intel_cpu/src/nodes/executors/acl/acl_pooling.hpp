@@ -61,7 +61,7 @@ public:
         const bool isSrc1PrecisionSupported = !hasSecondSrc || isSupportedPrecision(srcDescs[1]->getPrecision());
         const bool isDst0PrecisionSupported = isSupportedPrecision(dstDescs[0]->getPrecision());
 
-        if (!(isSrc0PrecisionSupported && isSrc1PrecisionSupported && isDst0PrecisionSupported)) {
+        if (!isSrc0PrecisionSupported || !isSrc1PrecisionSupported || !isDst0PrecisionSupported) {
             if (hasSecondSrc) {
                 DEBUG_LOG("AclPoolingExecutor does not support precisions:",
                           " src[0]=",
