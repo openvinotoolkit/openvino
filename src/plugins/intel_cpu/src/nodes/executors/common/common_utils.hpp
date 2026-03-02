@@ -8,8 +8,10 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <functional>
+#include <limits>
 #include <numeric>
 #include <vector>
 
@@ -18,6 +20,59 @@
 #include "utils/cpu_utils.hpp"
 
 namespace ov::intel_cpu {
+
+inline bool isPerTensorDataWithTolerance(const std::vector<float>& values,
+                                         const float tolerance = std::numeric_limits<float>::min()) {
+    if (values.empty()) {
+        return true;
+    }
+
+    const auto ref = values.front();
+    return std::all_of(values.cbegin(), values.cend(), [&](const float value) {
+        return std::fabs(value - ref) < tolerance;
+    });
+}
+
+inline void multiplyAndBroadcastScales(std::vector<float>& dstScales,
+                                       const std::vector<float>& srcScales,
+                                       const std::size_t channelCount) {
+    OPENVINO_ASSERT(any_of(srcScales.size(), static_cast<std::size_t>(1), channelCount),
+                    "Invalid source scales size: ",
+                    srcScales.size(),
+                    ", expected 1 or ",
+                    channelCount);
+
+    if (dstScales.empty()) {
+        dstScales.assign(srcScales.size() > 1 ? channelCount : static_cast<std::size_t>(1), 1.0F);
+    }
+
+    OPENVINO_ASSERT(any_of(dstScales.size(), static_cast<std::size_t>(1), channelCount),
+                    "Invalid destination scales size: ",
+                    dstScales.size(),
+                    ", expected 1 or ",
+                    channelCount);
+
+    if (dstScales.size() == 1 && srcScales.size() > 1) {
+        dstScales.assign(channelCount, dstScales.front());
+    }
+
+    if (srcScales.size() == 1) {
+        for (auto& dstScale : dstScales) {
+            dstScale *= srcScales.front();
+        }
+        return;
+    }
+
+    OPENVINO_ASSERT(dstScales.size() == channelCount,
+                    "Invalid destination scales size after broadcasting: ",
+                    dstScales.size(),
+                    ", expected ",
+                    channelCount);
+
+    for (size_t i = 0; i < channelCount; i++) {
+        dstScales[i] *= srcScales[i];
+    }
+}
 
 [[maybe_unused]] static std::vector<float> getDeQuantizedScales(const MemoryArgs& memory) {
     if (memory.find(ARG_DST_DEQ_SCALE) == memory.end()) {

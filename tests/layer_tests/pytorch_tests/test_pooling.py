@@ -42,7 +42,7 @@ class TestPooling(PytorchLayerTest):
     def create_model(self, op_type, kernel_size, stride, padding, dilation=1, ceil_mode=True, count_include_pad=True, dtype=torch.float32):
         class aten_avg_pooling_base(torch.nn.Module):
             def __init__(self):
-                super(aten_avg_pooling_base, self).__init__()
+                super().__init__()
                 self.kernel_size = kernel_size
                 self.stride = stride
                 self.padding = padding
@@ -54,7 +54,7 @@ class TestPooling(PytorchLayerTest):
 
         class aten_max_pooling_base(torch.nn.Module):
             def __init__(self):
-                super(aten_max_pooling_base, self).__init__()
+                super().__init__()
                 self.kernel_size = kernel_size
                 self.stride = stride
                 self.padding = padding
@@ -122,10 +122,9 @@ class TestPooling(PytorchLayerTest):
             "max_pool3d_with_indices": aten_max_pool3d_indices,
         }
 
-        ref_net = None
         aten_pooling = ops[op_type]
 
-        return aten_pooling(), ref_net, f"aten::{op_type}"
+        return aten_pooling(), f"aten::{op_type}"
 
     @pytest.mark.parametrize("input_shape", [[1, 3, 15], [3, 15]])
     @pytest.mark.parametrize("params", d1_params)
@@ -138,7 +137,7 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_avg_pool1d(self, input_shape, params, ceil_mode, count_include_pad, ie_device, precision, ir_version, is_dynamic_shapes):
-        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
+        self.input_tensor = self.random.randn(*input_shape)
         self._test(*self.create_model("avg_pool1d", **params, ceil_mode=ceil_mode, count_include_pad=count_include_pad),
                    ie_device, precision, ir_version, trace_model=True,
                    dynamic_shapes=is_dynamic_shapes)
@@ -157,7 +156,7 @@ class TestPooling(PytorchLayerTest):
     def test_avg_pool2d(self, input_shape, params, ceil_mode, count_include_pad, ie_device, precision, ir_version, is_dynamic_shapes):
         if ceil_mode and count_include_pad and np.array_equal(np.array(params["kernel_size"]), np.array([8, 8])):
             pytest.xfail("Ticket - 150292")
-        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
+        self.input_tensor = self.random.randn(*input_shape)
         self._test(*self.create_model("avg_pool2d", **params, ceil_mode=ceil_mode, count_include_pad=count_include_pad),
                    ie_device, precision, ir_version, trace_model=True, freeze_model=False, dynamic_shapes=is_dynamic_shapes)
 
@@ -173,7 +172,7 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_avg_pool3d(self, input_shape, params, ceil_mode, count_include_pad, ie_device, precision, ir_version, is_dynamic_shapes):
-        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
+        self.input_tensor = self.random.randn(*input_shape)
         self._test(*self.create_model("avg_pool3d", **params, ceil_mode=ceil_mode, count_include_pad=count_include_pad),
                    ie_device, precision, ir_version, trace_model=True,
                    dynamic_shapes=is_dynamic_shapes)
@@ -189,7 +188,7 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_max_pool1d(self, input_shape, params, ceil_mode, dilation, ie_device, precision, ir_version, is_dynamic_shapes):
-        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
+        self.input_tensor = self.random.randn(*input_shape)
         self._test(*self.create_model("max_pool1d", **params, ceil_mode=ceil_mode, dilation=dilation),
                    ie_device, precision, ir_version, dynamic_shapes=is_dynamic_shapes)
 
@@ -208,7 +207,7 @@ class TestPooling(PytorchLayerTest):
         to_trace = False
         if params["stride"] == []:
             to_trace = True
-        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
+        self.input_tensor = self.random.randn(*input_shape)
         self._test(*self.create_model("max_pool2d", **params, ceil_mode=ceil_mode, dilation=dilation, dtype=dtype),
                    ie_device, precision, ir_version, dynamic_shapes=is_dynamic_shapes, trace_model=to_trace)
 
@@ -223,7 +222,7 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_max_pool3d(self, input_shape, params, ceil_mode, dilation, ie_device, precision, ir_version, is_dynamic_shapes):
-        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
+        self.input_tensor = self.random.randn(*input_shape)
         self._test(*self.create_model("max_pool3d", **params, ceil_mode=ceil_mode, dilation=dilation),
                    ie_device, precision, ir_version,  dynamic_shapes=is_dynamic_shapes)
 
@@ -238,7 +237,7 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_max_pool1d_indices(self, input_shape, params, ceil_mode, dilation, ie_device, precision, ir_version, is_dynamic_shapes):
-        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
+        self.input_tensor = self.random.randn(*input_shape)
         self._test(*self.create_model("max_pool1d_with_indices", **params, ceil_mode=ceil_mode, dilation=dilation),
                    ie_device, precision, ir_version, dynamic_shapes=is_dynamic_shapes)
 
@@ -257,7 +256,7 @@ class TestPooling(PytorchLayerTest):
         to_trace = False
         if params["stride"] == []:
             to_trace = True
-        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
+        self.input_tensor = self.random.randn(*input_shape)
         self._test(*self.create_model("max_pool2d_with_indices", **params, ceil_mode=ceil_mode, dilation=dilation),
                    ie_device, precision, ir_version, dynamic_shapes=is_dynamic_shapes, trace_model=to_trace)
 
@@ -273,6 +272,6 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_max_pool3d_indices(self, input_shape, params, ceil_mode, dilation, ie_device, precision, ir_version, is_dynamic_shapes):
-        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
+        self.input_tensor = self.random.randn(*input_shape)
         self._test(*self.create_model("max_pool3d_with_indices", **params, ceil_mode=ceil_mode, dilation=dilation),
                    ie_device, precision, ir_version, dynamic_shapes=is_dynamic_shapes)
