@@ -4,6 +4,8 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "frontend_test.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/proposal.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -566,6 +568,32 @@ TEST_P(IRFrontendMMapTests, model_with_lp_weights_reading_from_disk) {
             EXPECT_EQ(v[0], 0x08);
         }
     }
+}
+
+TEST_P(IRFrontendMMapTests, read_model_get_weights_map) {
+    {
+        auto p1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 1});
+        auto a1 = std::make_shared<ov::opset1::Add>(
+            p1,
+            std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{1, 4}, 1.0f));
+        auto a2 = std::make_shared<ov::opset1::Add>(
+            a1,
+            std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{6, 1}, 2.0f));
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::opset1::Result>(a2)},
+                                                 ov::ParameterVector{p1});
+        ov::save_model(model, xmlFileName);
+    }
+
+    const auto model = core.read_model(xmlFileName, binFileName, {ov::enable_mmap(GetParam())});
+
+    const auto wt_sources = ov::wsh::Extension::get_weight_sources(*model);
+    ASSERT_GE(wt_sources.size(), 1);
+
+    const auto wt_map = ov::wsh::Extension::get_weight_registry(*model);
+    ASSERT_GE(wt_map.size(), 1);
+
+    const auto& wt_meta_map = wt_map.begin()->second;
+    EXPECT_EQ(wt_meta_map.size(), 2);
 }
 
 INSTANTIATE_TEST_SUITE_P(EnableMMapPropery, IRFrontendMMapTests, ::testing::Bool());
