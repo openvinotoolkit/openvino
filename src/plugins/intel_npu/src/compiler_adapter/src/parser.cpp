@@ -4,6 +4,7 @@
 
 #include "parser.hpp"
 
+#include "dynamic_graph.hpp"
 #include "graph.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
@@ -27,6 +28,21 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
                                       const std::optional<std::vector<ov::Tensor>>& initBlobs,
                                       std::optional<std::shared_ptr<const ov::Model>>&& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "Parser", "parse");
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    const void* data = mainBlob.data();
+    size_t size = mainBlob.get_byte_size();
+    std::string header;
+    if (size >= 20) {
+        header.assign(static_cast<const char*>(data), 20);
+    } else {
+        header.assign(static_cast<const char*>(data), size);
+    }
+    if (header.find("ELF") == std::string::npos) {
+        _logger.debug("Create graph for LLVM IR!");
+        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(mainBlob), true, config);
+    }
+#endif
 
     GraphDescriptor mainGraphDesc;
     NetworkMetadata mainNetworkMetadata;

@@ -12,9 +12,7 @@ namespace intel_npu {
 
 class ParserFactory final {
 public:
-    std::unique_ptr<IParser> getParser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStructs,
-                                       ov::intel_npu::CompilerType& compilerType,
-                                       const ov::Tensor& blob) const;
+    std::unique_ptr<IParser> getParser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStructs) const;
 };
 
 }  // namespace intel_npu

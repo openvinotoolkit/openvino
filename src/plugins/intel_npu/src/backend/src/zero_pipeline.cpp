@@ -357,11 +357,13 @@ std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
     if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER) {
         _logger.debug("InferRequest::get_profiling_info complete with _profiling_query.getLayerStatistics().");
         return _profiling_query->getLayerStatistics();
-    } else {
+    } else if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PLUGIN) {
         // For plugin compiler retreive raw profiling data from backend and delegate
         // processing to the compiler
         _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
         return _graph->process_profiling_output(_profiling_query->getData<uint8_t>());
+    } else {
+        OPENVINO_THROW("Cannot get profiling info, unknown compiler type");
     }
 }
 
