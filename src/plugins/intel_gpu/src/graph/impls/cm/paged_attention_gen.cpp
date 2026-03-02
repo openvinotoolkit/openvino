@@ -284,7 +284,7 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
 
-    if (desc->has_xattention) {
+    if (_xattn_block_size > 1 && desc->has_xattention) {
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});         // sparse_block_mask
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK_MERGED});  // sparse_block_mask_wg
 
@@ -298,15 +298,18 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
     const auto desc = params.typed_desc<paged_attention>();
     const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
+    OPENVINO_ASSERT(_xattn_block_size == 1 || _xattn_block_size == 128 || _xattn_block_size == 256,
+                    "Unsupported xattention block size for multi token kernel: ",
+                    _xattn_block_size);
 
     jit.make("CMFLA_NUM_HEADS", desc->heads_num);
     jit.make("CMFLA_NUM_KV_HEADS", desc->kv_heads_num);
     jit.make("CMFLA_HEAD_SIZE", desc->k_head_size);
     jit.add(make_jit_constant("CMFLA_SCALE_FACTOR", scale_factor));
     jit.make("CMFLA_IS_CAUSAL", 1);
-    if (desc->has_xattention) {
+    if (_xattn_block_size > 1) {
         jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE_XATTN);
-        jit.make("SPARSE_BLOCK_SIZE", 128);
+        jit.make("SPARSE_BLOCK_SIZE", _xattn_block_size);
     } else {
         jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE);
         jit.make("SPARSE_BLOCK_SIZE", 1);

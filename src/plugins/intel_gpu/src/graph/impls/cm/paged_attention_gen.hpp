@@ -160,7 +160,9 @@ public:
 
 class PagedAttentionGeneratorMultiToken : public PagedAttentionGeneratorBase {
 public:
-    PagedAttentionGeneratorMultiToken() : PagedAttentionGeneratorBase("pa_multi_token") {}
+    explicit PagedAttentionGeneratorMultiToken(size_t xattn_block_size = 1)
+        : PagedAttentionGeneratorBase("pa_multi_token"),
+          _xattn_block_size(xattn_block_size) {}
 
     static size_t get_q_step(const kernel_impl_params& params) {
         const auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
@@ -178,6 +180,9 @@ public:
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+
+private:
+    size_t _xattn_block_size;
 };
 
 class PagedAttentionGeneratorSingleToken : public PagedAttentionGeneratorBase {
