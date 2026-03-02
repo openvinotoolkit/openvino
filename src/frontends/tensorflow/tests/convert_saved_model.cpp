@@ -210,8 +210,10 @@ TEST(FrontEndConvertModelTest, SavedModelMaliciousOverflowOffset) {
                     error_message.find("size") != string::npos)
             << "Unexpected error message: " << error_message;
         EXPECT_EQ(model, nullptr);
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected exception type: " << e.what();
     } catch (...) {
-        // Any exception is acceptable (not a crash), but we prefer ov::Exception
+        FAIL() << "Unexpected non-std exception thrown";
     }
 }
 
@@ -228,7 +230,9 @@ TEST(FrontEndConvertModelTest, SavedModelMaliciousOverflowOffsetNoMmap) {
                     error_message.find("size") != string::npos)
             << "Unexpected error message: " << error_message;
         EXPECT_EQ(model, nullptr);
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected exception type: " << e.what();
     } catch (...) {
-        // Any exception is acceptable (not a crash), but we prefer ov::Exception
+        FAIL() << "Unexpected non-std exception thrown";
     }
 }

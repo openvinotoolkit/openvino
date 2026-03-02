@@ -60,7 +60,15 @@ static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<VariablesIndex> v
             TENSORFLOW_OP_VALIDATION(node, var_index, "[TensorFlow Frontend] Internal error: Cannot get shard file.");
         }
         fs->seekg(0, std::ios::end);
-        auto file_size = static_cast<uint64_t>(fs->tellg());
+        TENSORFLOW_OP_VALIDATION(node,
+                                 fs->good(),
+                                 "[TensorFlow Frontend] Variable data (stream): failed to seek to end of data file");
+        auto pos = fs->tellg();
+        TENSORFLOW_OP_VALIDATION(
+            node,
+            pos != static_cast<std::streampos>(-1),
+            "[TensorFlow Frontend] Variable data (stream): failed to determine data file size");
+        auto file_size = static_cast<uint64_t>(pos);
         validate_bundle_entry_bounds(entry.offset(),
                                      entry.size(),
                                      file_size,
