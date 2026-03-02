@@ -4,19 +4,17 @@
 
 #pragma once
 
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+#include <common_test_utils/ov_tensor_utils.hpp>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
 
-#    include <common_test_utils/ov_tensor_utils.hpp>
-#    include <iostream>
-#    include <sstream>
-#    include <string>
-#    include <vector>
-
-#    include "openvino/openvino.hpp"
-#    include "openvino/opsets/opset6.hpp"
-#    include "openvino/pass/manager.hpp"
-#    include "openvino/pass/serialize.hpp"
-#    include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+#include "openvino/openvino.hpp"
+#include "openvino/opsets/opset6.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 namespace ov {
 namespace test {
 namespace behavior {
@@ -81,6 +79,46 @@ protected:
     ov::AnyMap configuration;
 };
 
+TEST_P(InferWithHostCompileTests, Compile) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    auto model = createMaxPoolModel();
+
+    ov::CompiledModel compiledModel;
+    // Compilation shall pass since load of npu_mlir_runtime is deffered with NPU_CREATE_EXECUTOR=0
+    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
+
+    std::stringstream modelStream;
+    OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
+
+    // With HostCompile, the modelStream shall contain "llvm.func"
+    std::string line;
+    auto pos = modelStream.tellg();
+    modelStream.seekg(0, std::ios::beg);
+    bool isLLVMStream = false;
+    int searchRegion = 10;
+    while (std::getline(modelStream, line)) {
+        if (line.find("llvm.func") != std::string::npos) {
+            modelStream.clear();
+            modelStream.seekg(pos);
+            isLLVMStream = true;
+            break;
+        }
+        if (searchRegion-- < 0) {
+            break;
+        }
+    }
+    modelStream.clear();
+    modelStream.seekg(pos);
+    ASSERT_TRUE(isLLVMStream) << "CompiledStream from HostCompile mode shall has 'llvm.func' inside it";
+
+    ov::InferRequest reqDynamic;
+    // Add shape check once npu_mlir_runtime is inside test package
+    EXPECT_THROW(reqDynamic = compiledModel.create_infer_request(), ov::Exception);
+}
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+
 TEST_P(InferWithHostCompileTests, CompileAndImport) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -122,8 +160,8 @@ TEST_P(InferWithHostCompileTests, CompileAndImport) {
     EXPECT_THROW(reqDynamic = importedModel.create_infer_request(), ov::Exception);
 }
 
+#endif
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
-
-#endif
