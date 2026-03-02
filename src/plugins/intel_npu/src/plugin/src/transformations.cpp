@@ -243,7 +243,7 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
     } catch (const std::exception& ex) {
         if (batchMode == ov::intel_npu::BatchMode::AUTO) {
             logger.info("Couldn't validate and reshape the model. Batching will be handled by compiler. Error: %s",
-                    ex.what());
+                        ex.what());
             updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
         } else {
             OPENVINO_THROW("Couldn't validate and reshape the model for PLUGIN batch mode. Error: %s", ex.what());
