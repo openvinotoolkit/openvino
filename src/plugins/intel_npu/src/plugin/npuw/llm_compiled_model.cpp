@@ -614,6 +614,9 @@ public:
         };
 
         auto past_kv_len = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
+        // TODO: ov::op::v0::Squeeze may accept or not accept optional axes input, so we need to cover both cases in
+        // pattern If Squeeze accepts axes it doesn't match with pattern without axes, and if it doesn't accept axes it
+        // doesn't match with pattern with axes. So we need to add two branches in pattern to cover both cases.
         auto past_kv_len_squeeze = opp::optional<ov::op::v0::Squeeze>({past_kv_len});
         auto full_ctx_len = opp::wrap_type<ov::op::v1::Add>({past_kv_len_squeeze, opp::any_input()});
         auto query_range = opp::wrap_type<ov::op::v4::Range>({past_kv_len_squeeze, full_ctx_len, opp::any_input()});
@@ -640,7 +643,9 @@ public:
                      "shapes.");
             auto& node_to_output = m.get_pattern_value_map();
             auto optional_squeeze = node_to_output.find(past_kv_len_squeeze);
-            auto node_past_kv_len = optional_squeeze != node_to_output.end() ? optional_squeeze->second.get_node_shared_ptr() :  node_to_output.at(past_kv_len).get_node_shared_ptr();
+            auto node_past_kv_len = optional_squeeze != node_to_output.end()
+                                        ? optional_squeeze->second.get_node_shared_ptr()
+                                        : node_to_output.at(past_kv_len).get_node_shared_ptr();
             auto node_full_ctx_len = node_to_output.at(full_ctx_len).get_node_shared_ptr();
             auto node_neg_window_size = node_to_output.at(neg_window_size).get_node_shared_ptr();
             auto node_sliding_mask = node_to_output.at(sliding_mask).get_node_shared_ptr();
