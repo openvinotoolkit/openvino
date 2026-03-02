@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,7 @@ protected:
         auto conv =
             std::make_shared<ov::op::v1::Convolution>(select, conv_filter, strides, pads_begin, pads_end, dilations);
 
-        function = makeNgraphFunction(ElementType::f32, parameters, conv, "Eltwise");
+        function = create_ov_model(ElementType::f32, parameters, conv, "Eltwise");
         configuration.insert({ov::hint::inference_precision(ov::element::bf16)});
     }
 

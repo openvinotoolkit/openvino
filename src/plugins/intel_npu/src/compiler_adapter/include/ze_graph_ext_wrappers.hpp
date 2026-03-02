@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,16 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
+#include <memory>
+#include <optional>
+#include <string>
+#include <unordered_set>
+#include <vector>
+
 #include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "vcl_serializer.hpp"
+#include "model_serializer.hpp"
 
 namespace intel_npu {
 
@@ -43,17 +49,40 @@ public:
 
     void destroyGraph(GraphDescriptor& graphDescriptor);
 
-    std::string getCompilerSupportedOptions() const;
+    /**
+     * @brief Returns the list of compiler options supported by the driver.
+     * @return `std::optional<std::string>` containing the list of supported options if the query is supported,
+     *         or `std::nullopt` if the query itself is not supported.
+     */
+    std::optional<std::string> getCompilerSupportedOptions() const;
 
-    bool isOptionSupported(std::string optName, std::optional<std::string> optValue = std::nullopt) const;
-    bool isTurboOptionSupported(const ze_graph_compiler_version_info_t& compilerVersion) const;
+    /**
+     * @brief Checks whether the specified driver/compiler option is supported by the driver.
+     * @param optName The name of the option to check.
+     * @param optValue The value of the option to check (optional).
+     * @return `true` if the option is supported, `false` if it is not supported,
+     *         and `std::nullopt` if the option-support query itself is not supported.
+     */
+    std::optional<bool> isOptionSupported(std::string optName,
+                                          std::optional<std::string> optValue = std::nullopt) const;
+
+    /**
+     * @brief Tells us whether or not the driver is able to receive and take into account a hash of the model instead of
+     * computing its own within the UMD.
+     */
+    bool isPluginModelHashSupported() const;
 
     void getGraphBinary(const GraphDescriptor& graphDescriptor,
                         std::vector<uint8_t>& blob,
                         const uint8_t*& blobPtr,
                         size_t& blobSize) const;
 
-    void setGraphArgumentValue(const GraphDescriptor& graphDescriptor, uint32_t argi_, const void* argv) const;
+    void setGraphArgumentValue(const GraphDescriptor& graphDescriptor, uint32_t id, const void* data) const;
+
+    void setGraphArgumentValueWithStrides(const GraphDescriptor& graphDescriptor,
+                                          uint32_t id,
+                                          const void* data,
+                                          const std::vector<size_t>& strides) const;
 
     void initializeGraph(const GraphDescriptor& graphDescriptor, uint32_t commandQueueGroupOrdinal) const;
 
@@ -71,6 +100,7 @@ private:
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     uint32_t _graphExtVersion;
+    bool _isCompilerOptionQuerySupported;
 
     Logger _logger;
 };

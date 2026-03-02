@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,9 @@ std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo> ov::frontend::t
     if (quantization->get_zero_point().empty() && quantization->get_scale().empty())
         return {};
     quantization->set_axis(tf_quantization->quantized_dimension());
+    FRONT_END_GENERAL_CHECK(quantization->get_axis() >= 0,
+                            "Quantized dimension must be non-negative, got: ",
+                            quantization->get_axis());
     return quantization;
 }
 

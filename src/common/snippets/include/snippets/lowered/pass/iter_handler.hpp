@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,23 +29,6 @@ public:
 
 private:
     size_t m_count;
-};
-
-/**
- * @interface SetFillOffset
- * @brief The pass changes offset of all Fill ops
- * @param m_offset - offset which must be set
- * @ingroup snippets
- */
-class SetFillOffset : public pass::RangedPass {
-public:
-    explicit SetFillOffset(size_t offset);
-    OPENVINO_RTTI("SetFillOffset", "", RangedPass);
-    bool run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) override;
-    std::shared_ptr<pass::PassBase> merge(const std::shared_ptr<pass::PassBase>& other) override;
-
-private:
-    size_t m_offset;
 };
 
 /**

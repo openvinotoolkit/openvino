@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,9 @@ public:
 
     [[nodiscard]] size_t getBatchDimIdx() const override;
 
-    void exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) override;
+    void exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+              const VectorDims& dims_out,
+              const CpuParallelPtr& cpu_parallel) override;
 
 protected:
     void init_ptr(const jit_eltwise_call_args_ptrs& args_ptrs,
@@ -78,7 +80,9 @@ class EltwiseRefExecutor : public EltwiseRefBaseExecutor<T> {
 public:
     EltwiseRefExecutor(const EltwiseRefKey& key);
 
-    void exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) override;
+    void exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+              const VectorDims& dims_out,
+              const CpuParallelPtr& cpu_parallel) override;
 
     static bool supports([[maybe_unused]] const EltwiseConfig& config);
 };
@@ -91,7 +95,9 @@ class BitwiseRefExecutor : public EltwiseRefBaseExecutor<T> {
 public:
     BitwiseRefExecutor(const EltwiseRefKey& key);
 
-    void exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) override;
+    void exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+              const VectorDims& dims_out,
+              [[maybe_unused]] const CpuParallelPtr& cpu_parallel) override;
 
     static bool isSupportedConfiguration(const EltwiseConfig& config);
 };

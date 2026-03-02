@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,6 +42,10 @@ class TRANSFORMATIONS_API ConvertWeightCompressedConv1x1ToMatmul;
  *     | Transpose/  |           +----------+               |
  *     | Reshape     |           | Multiply |<--------------+
  *     +-------------+           +----------+
+ *           |                        |
+ *           |                  *-----------+
+ *           |                  | Reshape   | (optional)
+ *           |                  +-----------+
  *           |                        |
  *           |                        v
  *           |                  +-----------+
@@ -91,6 +95,11 @@ class TRANSFORMATIONS_API ConvertWeightCompressedConv1x1ToMatmul;
  *           |              +----------+               |
  *           |              | Multiply |<--------------+
  *           |              +----------+
+ *           |                   |
+ *           |                   v
+ *           |             *----------+
+ *           |             | Reshape  | (optional)
+ *           |             +----------+
  *           |                   |
  *           |                   v
  *           |               +--------+

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@ void KernelData::save(cldnn::BinaryOutputBuffer& ob) const {
         microkernel->save(ob);
     }
 #endif
+    ob << params.local_memory_args;
 }
 
 void KernelData::load(cldnn::BinaryInputBuffer& ib) {
@@ -60,6 +61,7 @@ void KernelData::load(cldnn::BinaryInputBuffer& ib) {
         micro_kernels.push_back(microkernel);
     }
 #endif
+    ib >> params.local_memory_args;
 }
 
 }  // namespace ov::intel_gpu

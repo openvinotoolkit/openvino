@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ namespace ov::intel_cpu::aarch64 {
  */
 class jit_binary_call_emitter : public jit_emitter {
 public:
-    jit_binary_call_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_binary_call_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                             dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                             std::set<snippets::Reg> live_regs);
 

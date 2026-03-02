@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -399,7 +399,7 @@ TEST(MakeUndefinedDnnlDesc, extraData) {
         const auto& [fmt, dims] = item;
         memory::desc origin(dims, dataType, fmt);
 
-        origin.get()->extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
+        origin.get()->extra.flags = dnnl::impl::dnnl_memory_extra_flag_compensation_conv_s8s8;
         origin.get()->extra.compensation_mask = 1;
         origin.get()->extra.scale_adjust = 2.0f;
 

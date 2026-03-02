@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -208,7 +208,7 @@ REGISTER_DEFAULT_IMPLS(one_hot, OCL_S);
 REGISTER_DEFAULT_IMPLS(permute, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(prior_box, OCL_S);
 REGISTER_DEFAULT_IMPLS(quantize, OCL_S, OCL_D);
-REGISTER_DEFAULT_IMPLS(random_uniform, OCL_S);
+REGISTER_DEFAULT_IMPLS(random_uniform, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(region_yolo, OCL_S);
 REGISTER_DEFAULT_IMPLS(reorg_yolo, OCL_S);
 REGISTER_DEFAULT_IMPLS(reverse, OCL_S);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,8 +62,8 @@ SyncInferRequest::FoundPort SyncInferRequest::find_port(const ov::Output<const o
     // Find port without caching work slow because we need each time iterate over all ports and compare different
     // strings So use WA with caching in order to make 2+ calls for the same ports faster.
     // Calculate hash for the port
-    size_t port_hash = ov::util::hash_combine(
-        std::vector<size_t>{std::hash<const ov::Node*>()(port.get_node()), std::hash<size_t>()(port.get_index())});
+    size_t port_hash =
+        ov::util::hash_combine({std::hash<const ov::Node*>()(port.get_node()), std::hash<size_t>()(port.get_index())});
     {
         std::lock_guard<std::mutex> lock(_cacheMutex);
         if (_cachedPorts.find(port_hash) != _cachedPorts.end()) {
@@ -128,7 +128,10 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     auto foundPort = find_port(port);
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
     try {
-        check_tensor(port, tensor);
+        check_tensor(port,
+                     tensor,
+                     foundPort.is_input() ? _metadata.inputs.at(foundPort.idx).supportsStridedLayout
+                                          : _metadata.outputs.at(foundPort.idx).supportsStridedLayout);
     } catch (const ov::Exception& ex) {
         OPENVINO_THROW("Failed to set tensor. ", ex.what());
     }
@@ -165,64 +168,77 @@ void SyncInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 }
 
 void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
-                                    const ov::SoPtr<ov::ITensor>& tensor) const {
+                                    const ov::SoPtr<ov::ITensor>& tensor,
+                                    const bool support_strides) const {
     if (tensor == nullptr)
         OPENVINO_THROW("The tensor is not initialized!");
 
     bool is_input = ov::op::util::is_parameter(port.get_node());
-    std::string tensor_type = is_input ? "input" : "output";
+    const std::string_view tensor_type = is_input ? "input" : "output";
 
-    OPENVINO_ASSERT(tensor->is_continuous(), "The tensor is not continuous");
-
-    if ((port.get_element_type() == ov::element::Type_t::boolean ||
-         tensor->get_element_type() == ov::element::Type_t::boolean) &&
-        port.get_element_type() != tensor->get_element_type()) {
-        // Exception case for boolean treated as u8 in the NPU driver
+    if (!support_strides) {
         OPENVINO_ASSERT(
-            port.get_element_type() == ov::element::Type_t::u8 || tensor->get_element_type() == ov::element::Type_t::u8,
-            "The tensor element type is not corresponding with output element type (",
-            tensor->get_element_type(),
-            " != ",
-            port.get_element_type());
-    } else {
-        OPENVINO_ASSERT(port.get_element_type() == tensor->get_element_type(),
-                        "The tensor element type is not corresponding with output element type (",
-                        tensor->get_element_type(),
-                        " != ",
-                        port.get_element_type());
+            tensor->is_continuous(),
+            "The tensor has a non-contiguous memory layout (custom strides), which is not supported by the "
+            "current driver/compiler version. To use strided tensors, either:\n"
+            "  1. Upgrade to a driver version that supports strides, or\n"
+            "  2. Enable stride support using the 'enable_strides_for' configuration property if this is supported.");
     }
 
-    bool is_dynamic = port.get_partial_shape().is_dynamic();
+    const auto& port_element_type = port.get_element_type();
+    const auto& tensor_element_type = tensor->get_element_type();
+
+    if ((port_element_type == ov::element::Type_t::boolean || tensor_element_type == ov::element::Type_t::boolean) &&
+        port_element_type != tensor_element_type) {
+        // Exception case for boolean treated as u8 in the NPU driver
+        OPENVINO_ASSERT(port_element_type == ov::element::Type_t::u8 || tensor_element_type == ov::element::Type_t::u8,
+                        "The tensor element type is not corresponding with output element type (",
+                        tensor_element_type,
+                        " != ",
+                        port_element_type);
+    } else {
+        OPENVINO_ASSERT(port_element_type == tensor_element_type,
+                        "The tensor element type is not corresponding with output element type (",
+                        tensor_element_type,
+                        " != ",
+                        port_element_type);
+    }
+
+    const auto& port_partial_shape = port.get_partial_shape();
+    const auto& tensor_shape = tensor->get_shape();
+
+    bool is_dynamic = port_partial_shape.is_dynamic();
 
     if (is_dynamic) {
-        auto port_length = port.get_partial_shape().rank().get_length();
-        OPENVINO_ASSERT(ov::PartialShape(tensor->get_shape()).rank().get_length() == port_length,
+        auto port_length = port_partial_shape.rank().get_length();
+        OPENVINO_ASSERT(ov::PartialShape(tensor_shape).rank().get_length() == port_length,
                         "The tensor shape size is not equal to the model input/output rank: got ",
-                        tensor->get_shape().size(),
+                        tensor_shape.size(),
                         " expecting ",
                         port_length);
 
         if (port_length > 0) {
+            const auto& port_max_shape = port_partial_shape.get_max_shape();
             for (auto i = 0; i < port_length; ++i) {
-                if (tensor->get_shape()[i] > port.get_partial_shape().get_max_shape()[i]) {
+                if (tensor_shape[i] > port_max_shape[i]) {
                     OPENVINO_THROW("The tensor shape is not compatible with the model input/output max shape: got ",
-                                   tensor->get_shape(),
+                                   tensor_shape,
                                    " expecting max shape ",
-                                   port.get_partial_shape().get_max_shape());
+                                   port_max_shape);
                 }
             }
         }
     }
 
-    OPENVINO_ASSERT(is_dynamic || port.get_shape() == tensor->get_shape(),
+    OPENVINO_ASSERT(is_dynamic || port_partial_shape == tensor_shape,
                     "The ",
                     tensor_type,
                     " tensor size is not equal to the model ",
                     tensor_type,
                     " type: got ",
-                    tensor->get_shape(),
+                    tensor_shape,
                     " expecting ",
-                    port.get_shape(),
+                    port_partial_shape,
                     ".");
     OPENVINO_ASSERT(
         std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) || tensor->data() != nullptr || is_dynamic,
@@ -230,7 +246,8 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
 }
 
 void SyncInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& port,
-                                             const std::vector<ov::SoPtr<ov::ITensor>>& tensors) const {
+                                             const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
+                                             const bool support_strides) const {
     OPENVINO_ASSERT(!tensors.empty(), "set_input_tensors/set_tensors can't be called with empty tensors");
     OPENVINO_ASSERT(
         tensors.size() != 1,
@@ -299,7 +316,16 @@ void SyncInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& p
                         element_type,
                         " and shape ",
                         batched_shape);
-        OPENVINO_ASSERT(item->is_continuous(), "Strides for batched tensors should be default.");
+
+        if (!support_strides) {
+            OPENVINO_ASSERT(
+                item->is_continuous(),
+                "The tensor has a non-contiguous memory layout (custom strides), which is not supported by the "
+                "current driver/compiler version. To use strided tensors, either:\n"
+                "  1. Upgrade to a driver version that supports strides, or\n"
+                "  2. Enable stride support using the 'NPU_ENABLE_STRIDES_FOR' configuration property if this is "
+                "supported.");
+        }
     }
 }
 
@@ -307,18 +333,18 @@ void SyncInferRequest::check_tensors() const {
     const auto& inputs = _compiledModel->inputs();
     for (size_t i = 0; i < inputs.size(); i++) {
         if (is_batched_input(i)) {
-            check_batched_tensors(inputs[i], get_user_inputs(i));
+            check_batched_tensors(inputs[i], get_user_inputs(i), _metadata.inputs.at(i).supportsStridedLayout);
             continue;
         }
         if (get_user_input(i)) {
-            check_tensor(inputs[i], get_user_input(i));
+            check_tensor(inputs[i], get_user_input(i), _metadata.inputs.at(i).supportsStridedLayout);
         }
     }
 
     const auto& outputs = _compiledModel->outputs();
     for (size_t i = 0; i < outputs.size(); i++) {
         if (_userOutputTensors.at(i)) {
-            check_tensor(outputs[i], _userOutputTensors.at(i));
+            check_tensor(outputs[i], _userOutputTensors.at(i), _metadata.outputs.at(i).supportsStridedLayout);
         }
     }
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,8 +34,32 @@ static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_const_scalar_data) {
+    auto model = convert_model("quantize_linear_const_scalar_data.onnx");
+
+    auto fq = ov::as_type_ptr<op::v0::FakeQuantize>(model->get_parameters().back()->get_users().back());
+    EXPECT_NE(fq, nullptr);
+    // Check that all inputs are scalars
+    for (size_t i = 0; i <= 4; ++i) {
+        EXPECT_EQ(fq->input_value(i).get_shape(), Shape{}) << "Input " << i << " is not a scalar";
+    }
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input(std::vector<float>{32.25f});
+
+    test_case.add_expected_output(std::vector<std::uint8_t>{64});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_const_scale_const_zero_p) {
     auto model = convert_model("quantize_linear_const.onnx");
+
+    auto fq = ov::as_type_ptr<op::v0::FakeQuantize>(model->get_parameters().back()->get_users().back());
+    EXPECT_NE(fq, nullptr);
+    // Check that all bound inputs (input_low, input_high, output_low, output_high) are scalars
+    for (size_t i = 1; i <= 4; ++i) {
+        EXPECT_EQ(fq->input_value(i).get_shape(), Shape{}) << "Input " << i << " is not a scalar";
+    }
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
@@ -547,7 +571,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dynamic_quantize_linear_3x4) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input<float>({1.0f,  2.1f, 1.3f, 2.5f,
                                 3.34f, 4.0f, 1.5f, 2.6f,
@@ -567,7 +591,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input(std::vector<uint8_t>{ 1,  2,  3,  4,  5,  6,  7,  8,  9,
                                              10, 11, 12, 13, 14, 15, 16, 17, 18,
@@ -617,7 +641,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_3d) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input(std::vector<uint8_t>{130,  14, 244,  53,
                                              244, 119, 236,  79,
@@ -675,7 +699,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_onnx_example) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input(std::vector<uint8_t>{255, 174, 162,  25, 203, 168,  58,
                                               15,  59, 237,  95, 129,   0,  64,
@@ -726,7 +750,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_2d_simple_zero_point) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input(std::vector<uint8_t>{11, 7, 3,
                                              10, 6, 2,
@@ -751,7 +775,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_int8) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input(std::vector<int8_t>{-3,  7, 5, -6,
                                              4, -5, 8,  7});                            // A
@@ -773,7 +797,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_vectorized_zero_point) 
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input(std::vector<uint8_t>{11, 22, 33, 44, 55,
                                              22, 33, 44, 55, 66,
@@ -800,7 +824,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_no_zero_point) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input(std::vector<uint8_t>{11, 22, 33, 44, 55,
                                              22, 33, 44, 55, 66,
@@ -825,7 +849,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_2d_x_3d) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input(std::vector<int8_t>{7, -3,  1, 2,
                                             0,  2, -4, 6});                         // A
@@ -854,7 +878,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_3d_x_2d) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input(std::vector<int8_t>{-13, 11, -1, -2,
                                               4, -2,  3, 10,
@@ -882,7 +906,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_3d) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input(std::vector<uint8_t>{125, 135, 145, 155,
                                              130, 140, 150, 160,
@@ -916,7 +940,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input(std::vector<uint8_t>{0, 1,  2,  3,
                                              4, 5,  6,  7,
@@ -954,7 +978,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d_zero_point) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input(std::vector<uint8_t>{0,  1,  2,  3,
                                              4,  5,  6,  7,
@@ -991,7 +1015,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_matrix_zero_point) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input(std::vector<int8_t>{0, 1, 2, 3,
                                              4, 5, 6, 7,
@@ -1051,7 +1075,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv_integer_simple_zero_point) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input(std::vector<uint8_t>{11, 22, 33,
                                              44, 55, 66,
@@ -1092,7 +1116,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv_integer_int8) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input(std::vector<int8_t>{-11,  22, -33,
                                               44, -55,  66,
@@ -1113,7 +1137,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv_integer_no_zero_point) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input(std::vector<int8_t>{-100, -89, -78,
                                              -67, -56, -45,
@@ -1132,7 +1156,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv_integer_vector_w_zero_point) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input(std::vector<uint8_t>{11, 22, 33, 44,
                                             55, 66, 77, 88,
@@ -1175,7 +1199,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv_integer_overload) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // don't change style for better readibility
+    // don't change style for better readability
     // clang-format off
     test_case.add_input(std::vector<uint8_t>{255, 255, 255,
                                                0,   0,   0,

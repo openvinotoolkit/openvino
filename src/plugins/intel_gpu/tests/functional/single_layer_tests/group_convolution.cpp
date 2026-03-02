@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -84,7 +84,7 @@ protected:
         if (weightsScaling) {
             size_t convInChannels = static_cast<size_t>(targetStaticShapes.front()[0][1] / group);
             ov::Shape filter_weights_shape;
-            if (weightsReshape) 
+            if (weightsReshape)
                 filter_weights_shape = {group * convOutChannels, convInChannels};
             else
                 filter_weights_shape = {group, convOutChannels, convInChannels};

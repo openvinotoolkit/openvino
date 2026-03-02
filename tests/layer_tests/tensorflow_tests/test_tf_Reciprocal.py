@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -50,7 +50,7 @@ class TestComplexReciprocal(CommonTFLayerTest):
         inputs_data = {}
         inputs_data['param_real_1:0'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
         inputs_data['param_imag_1:0'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
-        
+
         return inputs_data
 
     def create_complex_reciprocal_net(self, x_shape,x_type):
@@ -67,12 +67,12 @@ class TestComplexReciprocal(CommonTFLayerTest):
             tf_net = sess.graph_def
 
         return tf_net, None
-        
+
     test_data_basic = [
         dict(x_shape=[], x_type=np.float32),
         dict(x_shape=[2, 3], x_type=np.float32),
         dict(x_shape=[4, 1, 3], x_type=np.float32),
-    ]    
+    ]
 
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
