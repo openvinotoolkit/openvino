@@ -6,12 +6,11 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "gtest/gtest.h"
+#include "openvino/core/symbol.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/tensor_iterator.hpp"
-#include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 
@@ -837,6 +836,11 @@ void Comparator::compare_inputs(ov::Node* node1, ov::Node* node2, std::ostream& 
                     << name(node1) << " Input(" << i << ") " << node1->input(i).get_partial_shape() << " and "
                     << name(node2) << " Input(" << i << ") " << node2->input(i).get_partial_shape() << std::endl;
         }
+        if (should_compare(CmpValues::SYMBOLS) &&
+            !compare_symbols(node1->input(i).get_partial_shape(), node2->input(i).get_partial_shape(), err_log)) {
+            err_log << "Different shape symbols detected\n"
+                    << name(node1) << " Input(" << i << ") and " << name(node2) << " Input(" << i << ")" << std::endl;
+        }
 
         if (node1->get_input_source_output(i).get_index() != node2->get_input_source_output(i).get_index()) {
             auto idx1 = node1->get_input_source_output(i).get_index();
@@ -871,6 +875,11 @@ void Comparator::compare_outputs(ov::Node* node1, ov::Node* node2, std::ostream&
             err_log << "Different shape detected\n"
                     << name(node1) << " Output(" << i << ") " << node1->output(i).get_partial_shape() << " and "
                     << name(node2) << " Output(" << i << ") " << node2->output(i).get_partial_shape() << std::endl;
+        }
+        if (should_compare(CmpValues::SYMBOLS) &&
+            !compare_symbols(node1->output(i).get_partial_shape(), node2->output(i).get_partial_shape(), err_log)) {
+            err_log << "Different shape symbols detected\n"
+                    << name(node1) << " Output(" << i << ") and " << name(node2) << " Output(" << i << ")" << std::endl;
         }
 
         if (should_compare(CmpValues::RUNTIME_KEYS) && !compare_rt_keys(node1->output(i), node2->output(i), err_log)) {
@@ -909,6 +918,49 @@ void Comparator::add_nodes_inputs_to_queue(ov::Node* node1, ov::Node* node2) {
             used.insert(node1->input_value(i).get_node());
         }
     }
+}
+
+bool Comparator::compare_symbols(const ov::PartialShape& lhs, const ov::PartialShape& rhs, std::ostream& err_log) {
+    const auto& lhs_rank = lhs.rank();
+    const auto& rhs_rank = rhs.rank();
+
+    if (lhs_rank.is_dynamic() && rhs_rank.is_dynamic()) {
+        return true;
+    }
+
+    if (!lhs_rank.is_static() || !rhs_rank.is_static()) {
+        err_log << "Cannot compare symbols for non-static ranks." << std::endl;
+        return false;
+    }
+
+    if (lhs_rank.get_length() != rhs_rank.get_length()) {
+        err_log << "Cannot compare symbols for ranks with different lengths: " << lhs_rank.get_length() << " and "
+                << rhs_rank.get_length() << std::endl;
+        return false;
+    }
+
+    for (int64_t i = 0; i < lhs_rank.get_length(); ++i) {
+        const auto lhs_symbol = lhs[i].get_symbol();
+        const auto rhs_symbol = rhs[i].get_symbol();
+
+        if (!lhs_symbol && !rhs_symbol) {
+            continue;
+        }
+        if (!lhs_symbol || !rhs_symbol) {
+            err_log << "Symbol mismatch at dimension " << i << ": one shape has symbol and the other does not."
+                    << std::endl;
+            return false;
+        }
+
+        const auto lhs_root = ov::symbol::ancestor_of(lhs_symbol);
+        const auto rhs_root = ov::symbol::ancestor_of(rhs_symbol);
+        if (lhs_root.get() != rhs_root.get()) {
+            err_log << "Symbol mismatch at dimension " << i << ": symbol identity differs." << std::endl;
+            return false;
+        }
+    }
+
+    return true;
 }
 
 FunctionsComparator::Result FunctionsComparator::compare(const std::shared_ptr<ov::Model>& f,

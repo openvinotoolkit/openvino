@@ -7,14 +7,12 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/core/rt_info.hpp"
+#include "openvino/core/symbol.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "transformations/utils/gen_pattern.hpp"
 
 using namespace ov::test;
 using namespace ov;
-using namespace ov::gen_pattern;
 using ConvertPagedAttnInputsParams = std::tuple<std::vector<ov::element::Type>,  // cache_precision
                                                 std::vector<size_t>,             // cache_group_size
                                                 std::vector<size_t>,             // block_size
@@ -89,6 +87,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
 
     numValueHeads = 2;
     valueHeadSize = 64;
+    const auto num_blocks_symbol = std::make_shared<ov::Symbol>();
     {
         auto Q = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{-1, 4 * 32});
         auto K = std::make_shared<v0::Parameter>(
@@ -102,8 +101,12 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto block_indices = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto subsequence_begins = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto past_lens = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto key_cache_0 = std::make_shared<v0::Parameter>(ov::element::dynamic, PartialShape::dynamic(4));
-        auto value_cache_0 = std::make_shared<v0::Parameter>(ov::element::dynamic, PartialShape::dynamic(4));
+        auto key_cache_shape = PartialShape::dynamic(4);
+        key_cache_shape[0].set_symbol(num_blocks_symbol);
+        auto value_cache_shape = PartialShape::dynamic(4);
+        value_cache_shape[0].set_symbol(num_blocks_symbol);
+        auto key_cache_0 = std::make_shared<v0::Parameter>(ov::element::dynamic, key_cache_shape);
+        auto value_cache_0 = std::make_shared<v0::Parameter>(ov::element::dynamic, value_cache_shape);
         auto scale = std::make_shared<v0::Constant>(element::f32, Shape{}, 0.5f);
         auto sliding_window = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
         auto alibi_slopes = std::make_shared<v0::Constant>(element::f32, Shape{0});
@@ -227,16 +230,18 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto block_indices = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto subsequence_begins = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto past_lens = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto key_cache_0 = std::make_shared<v0::Parameter>(keyCachePrecision,
-                                                           getCacheShape(keyCachePrecision,
-                                                                         numKeyHeads,
-                                                                         keyHeadSize,
-                                                                         keyCacheGroupSize,
-                                                                         blockSize[0],
-                                                                         quantKeybychannel));
-        auto value_cache_0 = std::make_shared<v0::Parameter>(
-            valueCachePrecision,
-            getCacheShape(valueCachePrecision, numKeyHeads, valueHeadSize, valueCacheGroupSize, blockSize[1], false));
+        auto key_cache_shape = getCacheShape(keyCachePrecision,
+                                             numKeyHeads,
+                                             keyHeadSize,
+                                             keyCacheGroupSize,
+                                             blockSize[0],
+                                             quantKeybychannel);
+        key_cache_shape[0].set_symbol(num_blocks_symbol);
+        auto value_cache_shape =
+            getCacheShape(valueCachePrecision, numKeyHeads, valueHeadSize, valueCacheGroupSize, blockSize[1], false);
+        value_cache_shape[0].set_symbol(num_blocks_symbol);
+        auto key_cache_0 = std::make_shared<v0::Parameter>(keyCachePrecision, key_cache_shape);
+        auto value_cache_0 = std::make_shared<v0::Parameter>(valueCachePrecision, value_cache_shape);
         auto scale = std::make_shared<v0::Constant>(element::f32, Shape{}, 0.5f);
         auto sliding_window = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
         auto alibi_slopes = std::make_shared<v0::Constant>(element::f32, Shape{0});
@@ -341,6 +346,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
     manager.register_pass<ov::pass::ConvertPagedAttnInputs>(cacheConfig, update_paged_attention_shape_func);
     comparator.disable(FunctionsComparator::ACCURACY);
     comparator.disable(FunctionsComparator::RUNTIME_KEYS);
+    comparator.enable(FunctionsComparator::SYMBOLS);
     disable_result_friendly_names_check();
     disable_rt_info_check();
 }
