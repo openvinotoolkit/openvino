@@ -112,6 +112,27 @@ jobs:
           DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
           TZ: "Europe/London" # to prevent tzdata from waiting user input
 
+      - name: Install Python 3.11
+        if: ${{ inputs.test_type == 'rope' }}
+        run: |
+          # Copy custom CA certs from read-only mount and rebuild trust store
+          # (Intel proxy CA on self-hosted runners)
+          if ls /usr/local/share/ca-certificates/*.crt &>/dev/null; then
+            for cert in /usr/local/share/ca-certificates/*.crt; do
+              name="$(basename "$cert")"
+              cp "$cert" "/usr/share/ca-certificates/$name"
+              echo "$name" >> /etc/ca-certificates.conf
+            done
+            update-ca-certificates
+          fi
+          # Install Python 3.11 from deadsnakes PPA (same as ov_test Dockerfile)
+          add-apt-repository --yes ppa:deadsnakes/ppa
+          apt-get install -y python3.11-dev python3.11-venv
+          # Create venv so python3/pip resolve to Python 3.11
+          python3.11 -m venv /opt/venv
+          /opt/venv/bin/pip install --upgrade pip
+          echo "/opt/venv/bin" >> $GITHUB_PATH
+
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         if: ${{ inputs.test_type != 'rope' }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0

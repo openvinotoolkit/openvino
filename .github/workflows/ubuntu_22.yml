@@ -616,14 +616,14 @@ jobs:
 
   iGPU_RoPE_Tests:
     name: iGPU RoPE Tests
-    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_gpu_tests.yml
     with:
       device: 'igpu'
       test_type: 'rope'
       runner: "[ 'self-hosted', 'igpu' ]"
       runner-group: 'Intel-GPU'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+      image: ubuntu:22.04
       options: "--group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128 -e HF_TOKEN"
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
 
