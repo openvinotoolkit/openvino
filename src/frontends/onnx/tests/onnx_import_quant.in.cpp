@@ -1357,7 +1357,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e5m2) {
     test_case.run();
 }
 
-/// 8-bit floating point QuantizeLinear - DequantizeLinear test - - negative values
+/// 8-bit floating point QuantizeLinear - DequantizeLinear test - f8e4m3 - negative values
 ///
 /// Expected outputs were verified against ONNX Runtime 1.19
 ///
@@ -1399,7 +1399,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e4m3_saturation) {
 /// where fp8_round saturates out-of-range values to the fp8 type maximum.
 ///
 /// f8e5m2 with sub-unity scale: scale=0.5 shifts the quantization grid
-/// x/0.5 = [-2, -0.5, 0, 0.5, 2] — all exactly representable in 
+/// x/0.5 = [-2, -0.5, 0, 0.5, 2] — all exactly representable in f8e5m2
 /// DQ: Q_out * 0.5 recovers x exactly (lossless for this input)
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e5m2_small_scale) {
     auto model = convert_model("quant_dequant_f8e5m2.onnx");
