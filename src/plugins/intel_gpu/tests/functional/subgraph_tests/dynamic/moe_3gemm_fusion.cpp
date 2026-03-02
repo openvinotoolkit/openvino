@@ -82,13 +82,15 @@ protected:
 
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
         inputs.clear();
-        ov::test::utils::InputGenerateData in_data;
-        in_data.start_from = -1;
-        in_data.range = 2;
-        in_data.resolution = 32;
-        const auto& model_inputs = function->inputs();
-        inputs.insert(
-            {model_inputs[0].get_node_shared_ptr(), ov::test::utils::create_and_fill_tensor(ov::element::f16, target_input_static_shapes[0], in_data)});
+        const auto& itTargetShape = target_input_static_shapes.front();
+        const auto& params = function->get_parameters();
+        ASSERT_EQ(params.size(), 1);
+        auto param = params.front();
+        auto type = param->get_element_type();
+
+        auto input_tensor = ov::test::utils::create_and_fill_tensor(type, itTargetShape, ov::test::utils::InputGenerateData(0.125, 2, 8, 1234));
+
+        inputs.insert({param, input_tensor});
     }
 };
 
