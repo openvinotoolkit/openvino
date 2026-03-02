@@ -1209,10 +1209,10 @@ static RefPreprocessParams post_convert_color_rgb_to_nv12() {
     };
 
     // Pure red 2x2: R=255,G=0,B=0 -> Y=82,U=90,V=240
-    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::f32,
+    res.inputs.emplace_back(Shape{1, 2, 2, 3},
+                            element::f32,
                             std::vector<float>{255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0});
-    res.expected.emplace_back(Shape{1, 3, 2, 1}, element::f32,
-                              std::vector<float>{82, 82, 82, 82, 90, 240});
+    res.expected.emplace_back(Shape{1, 3, 2, 1}, element::f32, std::vector<float>{82, 82, 82, 82, 90, 240});
     return res;
 }
 
@@ -1230,10 +1230,10 @@ static RefPreprocessParams post_convert_color_bgr_to_nv12() {
     };
 
     // Pure blue via BGR: B=255,G=0,R=0 -> Y=41,U=240,V=110
-    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::f32,
+    res.inputs.emplace_back(Shape{1, 2, 2, 3},
+                            element::f32,
                             std::vector<float>{255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0});
-    res.expected.emplace_back(Shape{1, 3, 2, 1}, element::f32,
-                              std::vector<float>{41, 41, 41, 41, 240, 110});
+    res.expected.emplace_back(Shape{1, 3, 2, 1}, element::f32, std::vector<float>{41, 41, 41, 41, 240, 110});
     return res;
 }
 

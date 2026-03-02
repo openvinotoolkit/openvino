@@ -107,7 +107,7 @@ TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_two_plane_dynamic) {
     EXPECT_EQ(op->get_output_size(), 2);
     EXPECT_EQ(op->output(0).get_element_type(), element::f32);
     EXPECT_EQ(op->output(1).get_element_type(), element::f32);
-    
+
     EXPECT_EQ(op->output(0).get_partial_shape(), out_y_shape);
     EXPECT_EQ(op->output(1).get_partial_shape(), out_uv_shape);
 }
@@ -175,10 +175,10 @@ TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_two_plane_dynamic_dims) {
     auto param_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), 8, 3};
     auto expected_y_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), 8, 1};
     auto expected_uv_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), 4, 2};
-    
+
     auto param = std::make_shared<op::v0::Parameter>(element::u8, param_shape);
     auto op = std::make_shared<TypeParam>(param, false);
-    
+
     EXPECT_EQ(op->get_output_size(), 2);
     EXPECT_EQ(op->output(0).get_partial_shape(), expected_y_shape);
     EXPECT_EQ(op->output(1).get_partial_shape(), expected_uv_shape);
@@ -201,23 +201,22 @@ TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_two_plane_interval_dims_and_
     EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
                 ElementsAre(symbols[0], symbols[1], symbols[2], nullptr));
 
-    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(1)),
-                ElementsAre(symbols[0], nullptr, nullptr, nullptr));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(1)), ElementsAre(symbols[0], nullptr, nullptr, nullptr));
 }
 
 TYPED_TEST_P(ConvertToNV12BaseTest, shape_inference_two_plane_dynamic_type) {
     auto param_shape = PartialShape{1, 480, 640, 3};
     auto out_y_shape = PartialShape{1, 480, 640, 1};
     auto out_uv_shape = PartialShape{1, 240, 320, 2};
-    
+
     auto param = std::make_shared<op::v0::Parameter>(element::dynamic, param_shape);
     auto op = std::make_shared<TypeParam>(param, false);
-    
+
     EXPECT_EQ(op->get_output_size(), 2);
-    
+
     EXPECT_EQ(op->output(0).get_element_type(), element::dynamic);
     EXPECT_EQ(op->output(1).get_element_type(), element::dynamic);
-    
+
     EXPECT_EQ(op->output(0).get_partial_shape(), out_y_shape);
     EXPECT_EQ(op->output(1).get_partial_shape(), out_uv_shape);
 }

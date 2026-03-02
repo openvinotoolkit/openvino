@@ -3,8 +3,8 @@
 //
 
 #include "openvino/op/util/convert_color_to_nv12_base.hpp"
-#include "itt.hpp"
 
+#include "itt.hpp"
 #include "rgb_bgr_to_nv12_shape_inference.hpp"
 
 ov::op::util::ConvertColorToNV12Base::ConvertColorToNV12Base(const Output<Node>& arg, ColorConversion format)
@@ -13,8 +13,8 @@ ov::op::util::ConvertColorToNV12Base::ConvertColorToNV12Base(const Output<Node>&
       m_single_plane(true) {}
 
 ov::op::util::ConvertColorToNV12Base::ConvertColorToNV12Base(const Output<Node>& arg,
-                                                       ColorConversion format,
-                                                       bool single_plane)
+                                                             ColorConversion format,
+                                                             bool single_plane)
     : Op({arg}),
       m_format(format),
       m_single_plane(single_plane) {}

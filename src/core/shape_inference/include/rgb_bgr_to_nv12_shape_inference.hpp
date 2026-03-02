@@ -6,7 +6,6 @@
 
 #include "dimension_util.hpp"
 #include "openvino/op/util/convert_color_to_nv12_base.hpp"
-
 #include "utils.hpp"
 
 namespace ov {
