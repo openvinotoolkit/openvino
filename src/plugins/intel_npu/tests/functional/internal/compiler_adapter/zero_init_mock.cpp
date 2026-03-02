@@ -8,7 +8,6 @@
 #include <ze_context_npu_ext.h>
 #include <ze_driver_npu_ext.h>
 #include <ze_graph_ext.h>
-#include <ze_mem_import_system_memory_ext.h>
 
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
@@ -19,6 +18,7 @@ constexpr uint32_t TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION = ZE_COMMAND_QUEUE_NP
 constexpr uint32_t TARGET_ZE_PROFILING_NPU_EXT_VERSION = ZE_PROFILING_DATA_EXT_VERSION_1_0;
 constexpr uint32_t TARGET_ZE_CONTEXT_NPU_EXT_VERSION = ZE_CONTEXT_NPU_EXT_VERSION_1_0;
 constexpr uint32_t TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION = ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_1;
+constexpr uint32_t TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION = ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION_1_0;
 
 constexpr ze_driver_uuid_t uuid = ze_intel_npu_driver_uuid;
 
@@ -351,6 +351,21 @@ ZeroInitStructsMock::ZeroInitStructsMock(int extVersion)
             ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) {
             _external_memory_standard_allocation_supported = true;
         }
+    }
+
+    uint32_t external_memory_mapping_ext_version = 0;
+    std::tie(external_memory_mapping_ext_version, std::ignore) =
+        queryDriverExtensionVersion(ZE_EXTERNAL_MEMORY_MAPPING_EXT_NAME,
+                                    TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION,
+                                    extProps,
+                                    count);
+
+    _log.debug("External memory mapping version %d.%d",
+               ZE_MAJOR_VERSION(external_memory_mapping_ext_version),
+               ZE_MINOR_VERSION(external_memory_mapping_ext_version));
+
+    if (external_memory_mapping_ext_version > 0) {
+        _external_memory_standard_allocation_supported = true;
     }
 }
 

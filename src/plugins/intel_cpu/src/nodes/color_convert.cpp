@@ -21,6 +21,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -28,7 +29,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/custom/color_convert.hpp"
 
@@ -336,7 +336,8 @@ protected:
                  size_t height,
                  size_t width,
                  size_t stride_y,
-                 size_t stride_uv);
+                 size_t stride_uv,
+                 const CpuParallelPtr& cpu_parallel);
 };
 
 RefConverter::RefConverter(Node* node) : Converter(node) {
@@ -353,8 +354,9 @@ void RefConverter::convert(const T* y,
                            size_t height,
                            size_t width,
                            size_t stride_y,
-                           size_t stride_uv) {
-    ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
+                           size_t stride_uv,
+                           const CpuParallelPtr& cpu_parallel) {
+    cpu_parallel->parallel_for2d(batch_size, height, [&](int batch, int h) {
         T* out = dst + batch * width * height * 3;
         auto y_ptr = y + batch * stride_y;
         auto uv_ptr = uv + batch * stride_uv;
@@ -378,7 +380,7 @@ class SinglePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute([[maybe_unused]] const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const size_t batch_size = dims[N_DIM];
@@ -389,7 +391,7 @@ public:
         const T* uv = y + width * height;
         T* dst = static_cast<T*>(output(0));
 
-        convert<T>(y, uv, dst, batch_size, height, width, height * width * 3 / 2, height * width * 3 / 2);
+        convert<T>(y, uv, dst, batch_size, height, width, height * width * 3 / 2, height * width * 3 / 2, cpu_parallel);
     }
 };
 
@@ -398,7 +400,7 @@ class TwoPlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute([[maybe_unused]] const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const T* y = static_cast<const T*>(input(0));
@@ -409,7 +411,7 @@ public:
         const size_t height = dims[H_DIM];
         const size_t width = dims[W_DIM];
 
-        convert<T>(y, uv, dst, batch_size, height, width, height * width, height * width / 2);
+        convert<T>(y, uv, dst, batch_size, height, width, height * width, height * width / 2, cpu_parallel);
     }
 };
 
@@ -561,7 +563,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute([[maybe_unused]] const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -576,7 +578,7 @@ public:
         const size_t stride_y = height * width * 3 / 2;
         const size_t stride_uv = height * width * 3 / 2;
 
-        ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
+        cpu_parallel->parallel_for2d(batch_size, height, [&](int batch, int h) {
             auto u_v = uv + batch * stride_uv + (h / 2) * width;
             typename jit_uni_converter::Params args{
                 y + batch * stride_y + h * width,
@@ -597,7 +599,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute([[maybe_unused]] const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -612,7 +614,7 @@ public:
         const size_t stride_y = height * width;
         const size_t stride_uv = height * width / 2;
 
-        ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
+        cpu_parallel->parallel_for2d(batch_size, height, [&](int batch, int h) {
             auto u_v = uv + batch * stride_uv + (h / 2) * width;
             typename jit_uni_converter::Params args{
                 y + batch * stride_y + h * width,
@@ -666,7 +668,8 @@ protected:
                  size_t height,
                  size_t width,
                  size_t stride_y,
-                 size_t stride_uv);
+                 size_t stride_uv,
+                 const CpuParallelPtr& cpu_parallel);
 };
 
 RefConverter::RefConverter(Node* node) : Converter(node) {
@@ -684,8 +687,9 @@ void RefConverter::convert(const T* y,
                            size_t height,
                            size_t width,
                            size_t stride_y,
-                           size_t stride_uv) {
-    ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
+                           size_t stride_uv,
+                           const CpuParallelPtr& cpu_parallel) {
+    cpu_parallel->parallel_for2d(batch_size, height, [&](int batch, int h) {
         T* out = dst + batch * width * height * 3;
         auto y_ptr = y + batch * stride_y;
         auto u_ptr = u + batch * stride_uv;
@@ -710,7 +714,7 @@ class SinglePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute([[maybe_unused]] const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const size_t batch_size = dims[N_DIM];
@@ -722,7 +726,8 @@ public:
         const T* v = y + 5 * width * height / 4;
         T* dst = static_cast<T*>(output(0));
 
-        convert<T>(y, u, v, dst, batch_size, height, width, height * width * 3 / 2, height * width * 3 / 2);
+        convert<
+            T>(y, u, v, dst, batch_size, height, width, height * width * 3 / 2, height * width * 3 / 2, cpu_parallel);
     }
 };
 
@@ -731,7 +736,7 @@ class ThreePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute([[maybe_unused]] const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const T* y = static_cast<const T*>(input(0));
@@ -743,7 +748,7 @@ public:
         const size_t height = dims[H_DIM];
         const size_t width = dims[W_DIM];
 
-        convert<T>(y, u, v, dst, batch_size, height, width, height * width, height * width / 4);
+        convert<T>(y, u, v, dst, batch_size, height, width, height * width, height * width / 4, cpu_parallel);
     }
 };
 
@@ -894,7 +899,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute([[maybe_unused]] const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -910,7 +915,7 @@ public:
         const size_t stride_y = height * width * 3 / 2;
         const size_t stride_uv = height * width * 3 / 2;
 
-        ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
+        cpu_parallel->parallel_for2d(batch_size, height, [&](int batch, int h) {
             typename jit_uni_converter::Params args{
                 y + batch * stride_y + h * width,                // y
                 u + batch * stride_uv + (h / 2) * (width / 2),   // u
@@ -931,7 +936,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute([[maybe_unused]] const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -947,7 +952,7 @@ public:
         const size_t stride_y = height * width;
         const size_t stride_uv = height * width / 4;
 
-        ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
+        cpu_parallel->parallel_for2d(batch_size, height, [&](int batch, int h) {
             typename jit_uni_converter::Params args{
                 y + batch * stride_y + h * width,                // y
                 u + batch * stride_uv + (h / 2) * (width / 2),   // u
@@ -1111,7 +1116,7 @@ void ColorConvert::createPrimitive() {
 
 void ColorConvert::execute(const dnnl::stream& strm) {
     CPU_NODE_ASSERT(_impl, "has no any implemented converter");
-    _impl->execute(strm);
+    _impl->execute(context->getCpuParallel(), strm);
 }
 
 bool ColorConvert::created() const {

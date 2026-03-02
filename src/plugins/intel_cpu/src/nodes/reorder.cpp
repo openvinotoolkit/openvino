@@ -604,7 +604,7 @@ void Reorder::reorderData(const IMemory& input,
                             tmpBuff.data(),
                             DnnlExtensionUtils::DataTypeToElementType(input.getDataType()),
                             outPrc,
-                            input.getSize() / input.getDesc().getPrecision().size());
+                            input.getDesc().getShape().getElementsCount());
 
                 auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
                 Memory tmpMem(engine, tmpDesc, tmpBuff.data());
