@@ -138,8 +138,11 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
-
-# Link all object files from ./impls/* into a different library to avoid giant files
+# Debug build on Windows in some situations yields such an error
+# if we link everything to a single library:
+# > ...\openvino_intel_gpu_graphd.lib: fatal error LNK1248:
+# > image size (100B121A5) exceeds maximum allowable size (FFFFFFFF)
+# To avoid that, linking impls/* objects into a different library.
 
 add_library(${TARGET_NAME}_impls STATIC ${OBJ_FILES})
 
