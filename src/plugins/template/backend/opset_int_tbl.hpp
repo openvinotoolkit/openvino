@@ -183,6 +183,8 @@ _OPENVINO_OP_REG(ISTFT, ov::op::v16)
 _OPENVINO_OP_REG(SegmentMax, ov::op::v16)
 _OPENVINO_OP_REG(SparseFillEmptyRows, ov::op::v16)
 _OPENVINO_OP_REG(OneHot, ov::op::v16)
+_OPENVINO_OP_REG(RGBtoNV12, ov::op::v16)
+_OPENVINO_OP_REG(BGRtoNV12, ov::op::v16)
 
 _OPENVINO_OP_REG(AUGRUCell, ov::op::internal)
 _OPENVINO_OP_REG(AUGRUSequence, ov::op::internal)
