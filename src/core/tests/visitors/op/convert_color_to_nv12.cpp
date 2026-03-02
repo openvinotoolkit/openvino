@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include "openvino/op/rgb_to_nv12.hpp"
 #include "openvino/op/bgr_to_nv12.hpp"
+#include "openvino/op/rgb_to_nv12.hpp"
 #include "visitors/visitors.hpp"
 
 using namespace std;
