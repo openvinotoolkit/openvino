@@ -618,17 +618,12 @@ class OPENVINO_API Any {
         }
 
         template <class U>
-        static bool is_base_type_info_impl(
-            const std::type_info& user_type,
-            typename std::enable_if<HasBaseMemberType<U>::value, std::true_type>::type = {}) {
-            return is_base_type_info_tuple(user_type, static_cast<typename T::Base*>(nullptr));
-        }
-
-        template <class U>
-        static bool is_base_type_info_impl(
-            const std::type_info& user_type,
-            typename std::enable_if<!HasBaseMemberType<U>::value, std::false_type>::type = {}) {
-            return util::equal(typeid(T), user_type);
+        static bool is_base_type_info_impl(const std::type_info& user_type) {
+            if constexpr (HasBaseMemberType<U>::value) {
+                return is_base_type_info_tuple(user_type, static_cast<typename T::Base*>(nullptr));
+            } else {
+                return util::equal(typeid(T), user_type);
+            }
         }
 
         bool is_base_type_info(const std::type_info& user_type) const override {
