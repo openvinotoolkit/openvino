@@ -67,7 +67,7 @@ bool Multinomial::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
 }
 
 void Multinomial::getSupportedDescriptors() {
-    if (getParentEdges().size() != 2) {
+    if (getParentEdgese().size() != 2) {
         CPU_NODE_THROW("has incorrect number of input edges.");
     }
     if (getChildEdges().size() != 1) {
