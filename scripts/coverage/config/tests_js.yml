@@ -1,0 +1,54 @@
+schema_version: 1
+suite: js
+tests:
+  - name: node tests/setup.js (covered)
+    kind: command
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=true --exclude 'tests/**' --exclude 'thirdparty/**' node ./tests/setup.js"
+
+  - name: node scripts/download-runtime.js --ignore-if-exists (covered)
+    kind: command
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node ./scripts/download-runtime.js --ignore-if-exists"
+
+  - name: node unit core.test.js
+    kind: command
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test --test-concurrency=${JS_TEST_CONCURRENCY} ./tests/unit/core.test.js"
+
+  - name: node unit model.test.js
+    kind: command
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test --test-concurrency=${JS_TEST_CONCURRENCY} ./tests/unit/model.test.js"
+
+  - name: node unit read_model.test.js
+    kind: command
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test --test-concurrency=${JS_TEST_CONCURRENCY} ./tests/unit/read_model.test.js"
+
+  - name: node unit basic.test.js
+    kind: command
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test --test-concurrency=${JS_TEST_CONCURRENCY} ./tests/unit/basic.test.js"
+
+  - name: node unit compiled_model.test.js
+    kind: command
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test --test-concurrency=${JS_TEST_CONCURRENCY} ./tests/unit/compiled_model.test.js"
+
+  - name: node unit infer_request.test.js
+    kind: command
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test --test-concurrency=${JS_TEST_CONCURRENCY} ./tests/unit/infer_request.test.js"
+
+  - name: node unit async_infer_queue.test.js
+    kind: command
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test --test-concurrency=${JS_TEST_CONCURRENCY} ./tests/unit/async_infer_queue.test.js"
+
+  - name: node unit tensor.test.js
+    kind: command
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test --test-concurrency=${JS_TEST_CONCURRENCY} ./tests/unit/tensor.test.js"
+
+  - name: node unit partial_shape.test.js
+    kind: command
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test --test-concurrency=${JS_TEST_CONCURRENCY} ./tests/unit/partial_shape.test.js"
+
+  - name: node unit pre_post_processor.test.js
+    kind: command
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test --test-concurrency=${JS_TEST_CONCURRENCY} ./tests/unit/pre_post_processor.test.js"
+
+  - name: npm run test:e2e
+    kind: command
+    command: "Xvfb :99 & export DISPLAY=:99 && npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' npm run test:e2e --loglevel=silly"
