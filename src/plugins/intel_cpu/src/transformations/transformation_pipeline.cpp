@@ -269,7 +269,6 @@
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)
-#    include "openvino/op/gelu.hpp"
 #    include "openvino/op/power.hpp"
 #    include "openvino/op/select.hpp"
 #    include "openvino/op/swish.hpp"
@@ -1402,9 +1401,6 @@ void Transformations::MainSnippets() {
         // CPU Plugin supports Swish in Subgraph via conversion to SwishCPU that requires scalar beta.
         // CPU Plugin does not support Mish for x64
         auto is_unsupported = [](const std::shared_ptr<const ov::Node>& n) {
-#if defined(OPENVINO_ARCH_RISCV64)
-            const auto gelu_v7 = ov::as_type_ptr<const ov::op::v7::Gelu>(n);
-#endif
             return (ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
                     !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)))
 #if defined(OPENVINO_ARCH_X86_64)
@@ -1412,7 +1408,6 @@ void Transformations::MainSnippets() {
 #elif defined(OPENVINO_ARCH_RISCV64)
                    // These operations are not currently supported in the RISC-V snippets target machine.
                    || ov::is_type<const ov::op::v4::Swish>(n) ||
-                   (gelu_v7 && gelu_v7->get_approximation_mode() == ov::op::GeluApproximationMode::TANH) ||
                    ov::is_type_any_of<const ov::op::v0::Ceiling,
                                       const ov::op::v1::Power,
                                       const ov::op::v1::Select,
