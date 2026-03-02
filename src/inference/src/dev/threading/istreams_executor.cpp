@@ -53,18 +53,18 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
             } catch (const std::exception&) {
                 OPENVINO_THROW("Wrong value for property key ",
                                ov::inference_num_threads.name(),
-                               ". Expected only positive numbers (#threads)");
+                               ". Expected only non negative integer numbers.");
             }
-            if (val_i < 0) {
-                OPENVINO_THROW("Wrong value for property key ",
-                               ov::inference_num_threads.name(),
-                               ". Expected only positive numbers (#threads)");
-            }
+            OPENVINO_ASSERT(val_i >= 0,
+                            "Wrong value for property key ",
+                            ov::inference_num_threads.name(),
+                            ". Expected only non negative integer numbers. Got: ",
+                            val_i);
             _threads = val_i;
         } else if (key == ov::internal::threads_per_stream) {
             _threads_per_stream = static_cast<int>(value.as<size_t>());
         } else {
-            OPENVINO_THROW("Wrong value for property key ", key);
+            OPENVINO_THROW("Not recognized property key ", key);
         }
     }
 }
