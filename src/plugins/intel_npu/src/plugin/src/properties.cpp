@@ -1066,8 +1066,7 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
     std::map<std::string, std::string> cfgsToSet;
     for (const auto& [key, value] : rawConfig) {
-        if ((updatedConfig.hasOpt(key) && updatedConfig.getOpt(key).mode() == OptionMode::CompileTime) ||
-            key == ov::intel_npu::compiler_type.name()) {
+        if ((updatedConfig.hasOpt(key) && updatedConfig.getOpt(key).mode() == OptionMode::CompileTime)) {
             _logger.info(
                 "Config key '%s' is recognized as a compiler option, will not be used for current configuration.",
                 key.c_str());
