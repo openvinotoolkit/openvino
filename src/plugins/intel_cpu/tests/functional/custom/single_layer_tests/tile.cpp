@@ -156,7 +156,7 @@ const std::vector<std::vector<ov::test::InputShape>> staticInputShapes4D = {{{{}
                                                                                {2, 16, 3, 4}}}},
                                                                             {{{},
                                                                               {// Static shapes
-                                                                               {1, 16, 1, 1}}}}};
+                                                                               {1, 16, 3, 1}}}}};
 const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes4D = {
     {{// Origin dynamic shapes
       {ov::Dimension(1, 20), ov::Dimension(10, 20), ov::Dimension(1, 20), ov::Dimension(1, 20)},
