@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -128,7 +128,7 @@ protected:
                                                       direction,
                                                       seqMode);
 
-        function = makeNgraphFunction(netPrecision, params, gruSequenceOp, "gruSequenceOp");
+        function = create_ov_model(netPrecision, params, gruSequenceOp, "gruSequenceOp");
 
         if (seqMode != ov::test::utils::SequenceTestsMode::PURE_SEQ) {
             ov::pass::Manager manager;

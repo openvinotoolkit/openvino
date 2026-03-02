@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,6 +39,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/weights_path.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
@@ -164,8 +165,8 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
 
     std::string dump_path = GPU_DEBUG_VALUE_OR(config_copy.get_dump_graphs_path(), "");
     GPU_DEBUG_IF(!dump_path.empty()) {
-        auto path_base = dump_path + "/" + cloned_model->get_name();
-        ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
+        auto path_base = ov::util::make_path(dump_path) / (cloned_model->get_name() + ".svg");
+        ov::pass::VisualizeTree(path_base).run_on_model(cloned_model);
     }
 
     // Set weightless cache attribute only for non IR (e.g. onnxruntime) models
@@ -193,20 +194,37 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     }
 
     GPU_DEBUG_IF(!dump_path.empty()) {
-        auto path_base = dump_path + "/" + cloned_model->get_name() + "_" +  "transformed_func";
-        ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
+        auto path_base = std::filesystem::path(dump_path) / (cloned_model->get_name() + "_" + "transformed_func.svg");
+        ov::pass::VisualizeTree(path_base).run_on_model(cloned_model);
     }
     return cloned_model;
 }
 
+// weak map to hold singleton default contexts
+// Weak singleton map is used to share contexts between multiple plugin(or Core) instances.
+// It is needed to ensure that context is released before plugin is unloaded.
+// As the actual ownership is in plugin class, the ownership is released when plugin is destructed.
+std::map<std::string, std::weak_ptr<RemoteContextImpl>> weak_singleton_default_contexts;
+std::mutex singleton_default_contexts_mutex;
+
 std::map<std::string, RemoteContextImpl::Ptr> Plugin::get_default_contexts() const {
     std::call_once(m_default_contexts_once, [this]() {
-        // Create default context
+        std::lock_guard<std::mutex> lock(singleton_default_contexts_mutex);
         for (auto& device : m_device_map) {
             const auto device_name = get_device_name() + "." + device.first;
+
+            // If already initialized, use existing one
+            if (weak_singleton_default_contexts.find(device.first) != weak_singleton_default_contexts.end()) {
+                if (auto ctx = weak_singleton_default_contexts[device.first].lock()) {
+                    m_default_contexts[device.first] = ctx;
+                    continue;
+                }
+            }
+            // If context is not created yet or expired, create new one
             const auto initialize = false;
             auto ctx = std::make_shared<RemoteContextImpl>(device_name, std::vector<cldnn::device::ptr>{device.second}, initialize);
-            m_default_contexts.insert({device.first, ctx});
+            weak_singleton_default_contexts[device.first] = ctx;
+            m_default_contexts[device.first] = ctx;
         }
     });
     return m_default_contexts;
@@ -709,6 +727,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::enable_sdpa_optimization.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::enable_lora_operation.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::hint::enable_large_allocations.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RW},
         ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RW},

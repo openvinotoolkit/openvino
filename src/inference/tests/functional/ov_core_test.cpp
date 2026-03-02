@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,8 +61,8 @@ static void create_plugin_xml(const std::filesystem::path& file_name, const std:
 
     file << "<ie><plugins><plugin location=\"";
     file << ov::test::utils::getExecutableDirectory();
-    file << ov::util::FileTraits<char>::file_separator;
-    file << ov::util::FileTraits<char>::library_prefix();
+    file << ov::test::utils::FileTraits<char>::file_separator;
+    file << ov::test::utils::FileTraits<char>::library_prefix();
     file << "mock_engine";
     file << OV_BUILD_POSTFIX;
     file << ov::util::library_extension().string();
@@ -78,7 +78,7 @@ static void remove_plugin_xml(const std::filesystem::path& file_name) {
 TEST_F(CoreBaseTest, LoadPluginXML) {
     std::string xml_file_name = "test_plugin.xml";
     std::string xml_file_path =
-        ov::test::utils::getOpenvinoLibDirectory() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        ov::test::utils::getOpenvinoLibDirectory() + ov::test::utils::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(xml_file_path);
     EXPECT_NO_THROW(ov::Core core(xml_file_name));
     remove_plugin_xml(xml_file_path);
@@ -118,7 +118,7 @@ TEST_P(CoreBaseTestP, registerPlugins) {
 TEST_F(CoreBaseTest, LoadPluginDifferentXMLExtension) {
     std::string xml_file_name = "test_plugin.test";
     std::string xml_file_path =
-        ov::test::utils::getOpenvinoLibDirectory() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        ov::test::utils::getOpenvinoLibDirectory() + ov::test::utils::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(xml_file_path);
     EXPECT_NO_THROW(ov::Core core(xml_file_name));
     remove_plugin_xml(xml_file_path);
@@ -127,7 +127,7 @@ TEST_F(CoreBaseTest, LoadPluginDifferentXMLExtension) {
 TEST_F(CoreBaseTest, LoadAbsoluteOVPathPluginXML) {
     std::string xml_file_name = "test_plugin.xml";
     std::string xml_file_path =
-        ov::test::utils::getOpenvinoLibDirectory() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        ov::test::utils::getOpenvinoLibDirectory() + ov::test::utils::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(xml_file_path);
     EXPECT_NO_THROW(ov::Core core(xml_file_path));
     remove_plugin_xml(xml_file_path);
@@ -136,7 +136,7 @@ TEST_F(CoreBaseTest, LoadAbsoluteOVPathPluginXML) {
 TEST_F(CoreBaseTest, LoadAbsoluteCWPathPluginXML) {
     std::string xml_file_name = "test_plugin.xml";
     std::string xml_file_path =
-        ov::test::utils::getCurrentWorkingDir() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        ov::test::utils::getCurrentWorkingDir() + ov::test::utils::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(xml_file_path);
     EXPECT_NO_THROW(ov::Core core(xml_file_path));
     remove_plugin_xml(xml_file_path);
@@ -145,7 +145,7 @@ TEST_F(CoreBaseTest, LoadAbsoluteCWPathPluginXML) {
 TEST_F(CoreBaseTest, LoadRelativeCWPathPluginXML) {
     std::string xml_file_name = "test_plugin.xml";
     std::string xml_file_path =
-        ov::test::utils::getCurrentWorkingDir() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        ov::test::utils::getCurrentWorkingDir() + ov::test::utils::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(xml_file_path);
     EXPECT_NO_THROW(ov::Core core(xml_file_name));
     remove_plugin_xml(xml_file_path);
@@ -154,9 +154,9 @@ TEST_F(CoreBaseTest, LoadRelativeCWPathPluginXML) {
 TEST_F(CoreBaseTest, LoadOVFolderOverCWPathPluginXML) {
     std::string xml_file_name = "test_plugin.xml";
     std::string cwd_file_path =
-        ov::test::utils::getCurrentWorkingDir() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        ov::test::utils::getCurrentWorkingDir() + ov::test::utils::FileTraits<char>::file_separator + xml_file_name;
     std::string ov_file_path =
-        ov::test::utils::getOpenvinoLibDirectory() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        ov::test::utils::getOpenvinoLibDirectory() + ov::test::utils::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(cwd_file_path);
     create_plugin_xml(ov_file_path, "2");
     ov::Core core(xml_file_name);
@@ -206,6 +206,43 @@ TEST_F(CoreBaseTest, read_model_with_std_fs_path) {
     }
 }
 
+TEST_F(CoreBaseTest, read_model_variadic_properties_std_string) {
+    generate_test_model_files("test-model-variadic");
+
+    ov::Core core;
+    const auto model = core.read_model(model_file_name,
+                                       weight_file_name,
+                                       std::pair<std::string, std::string>("prop1", "val1"),
+                                       std::pair<std::string, std::string>("prop2", "val2"));
+    EXPECT_NE(model, nullptr);
+}
+
+TEST_F(CoreBaseTest, read_model_variadic_properties_fs_path) {
+    generate_test_model_files("test-model-variadic");
+
+    const auto model_path = std::filesystem::path(model_file_name);
+    const auto weight_path = std::filesystem::path(weight_file_name);
+
+    ov::Core core;
+    const auto model = core.read_model(model_path,
+                                       weight_path,
+                                       std::pair<std::string, std::string>("prop1", "val1"),
+                                       std::pair<std::string, std::string>("prop2", "val2"));
+    EXPECT_NE(model, nullptr);
+}
+
+TEST_F(CoreBaseTest, read_model_rvalue_anymap_fs_path) {
+    generate_test_model_files("test-model-anymap");
+
+    const auto model_path = std::filesystem::path(model_file_name);
+    const auto weight_path = std::filesystem::path(weight_file_name);
+
+    ov::Core core;
+    ov::AnyMap properties = {{"prop1", "val1"}, {"prop2", "val2"}};
+    const auto model = core.read_model(model_path, weight_path, std::move(properties));
+    EXPECT_NE(model, nullptr);
+}
+
 TEST_F(CoreBaseTest, compile_model_with_std_fs_path) {
     generate_test_model_files("model2");
 
@@ -239,4 +276,31 @@ TEST_F(CoreBaseTest, compile_model_with_std_fs_path) {
     }
 #endif
 }
+
+TEST_P(UnicodePathTest, read_compile_model) {
+    const std::string model_name = "test-model.xml";
+    const auto prefix_dir = utils::generateTestFilePrefix();
+
+    const auto model_path =
+        std::filesystem::path(prefix_dir) / utils::to_fs_path(GetParam()) / std::filesystem::path(model_name);
+    ov::test::utils::generate_test_model(model_path, "");
+
+    ov::Core core;
+    const auto visitor = [&](const auto& param) {
+        using ParamT = std::decay_t<decltype(param)>;
+
+        const auto sep = ov::test::utils::FileTraits<typename ParamT::value_type>::file_separator;
+        const auto model_path = ParamT(prefix_dir.begin(), prefix_dir.end()) + sep + param + sep +
+                                ParamT(model_name.begin(), model_name.end());
+
+        const auto model = core.read_model(model_path);
+        EXPECT_NE(model, nullptr);
+
+        const auto compiled_model = core.compile_model(model_path);
+        EXPECT_TRUE(compiled_model);
+    };
+    run_test_visitor(visitor);
+    std::filesystem::remove_all(prefix_dir);
+}
+
 }  // namespace ov::test

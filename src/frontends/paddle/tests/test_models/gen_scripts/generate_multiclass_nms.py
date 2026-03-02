@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # multiclass_nms paddle model generator
@@ -377,14 +377,14 @@ def multiclass_nms_lod(appendix : str = '_default', background = -1, score_thres
     scores = np.array([[0.34, 0.66 ],
                     [0.45, 0.61 ],
                     [0.39, 0.59 ]]).astype('float32')
-    
+
     boxes = np.array([[[7.55, 1.10, 18.28, 14.47 ],
                     [7.25, 0.47, 12.28, 17.77 ]],
                     [[4.06, 5.15, 16.11, 18.40 ],
                     [9.66, 3.36, 18.57, 13.26 ]],
                     [[6.50, 7.00, 13.33, 17.63 ],
                     [0.73, 5.34, 19.97, 19.97 ]]]).astype('float32')
-    
+
     box_lod = [3]
     rois_num = np.array(box_lod).astype('int32')
 
@@ -400,7 +400,7 @@ def multiclass_nms_lod(appendix : str = '_default', background = -1, score_thres
         'return_index': True
     }
     NMS("multiclass_nms_lod_roisnum_single_image" + appendix, boxes, scores, pdpd_attrs, rois_num)
-    
+
     box_lod = [1, 2]
     rois_num = np.array(box_lod).astype('int32')
     NMS("multiclass_nms_lod_roisnum_multiple_images" + appendix, boxes, scores, pdpd_attrs, rois_num)
@@ -408,7 +408,7 @@ def multiclass_nms_lod(appendix : str = '_default', background = -1, score_thres
     box_lod = [0, 3]
     rois_num = np.array(box_lod).astype('int32')
     NMS("multiclass_nms_lod_roisnum_multiple_images_0" + appendix, boxes, scores, pdpd_attrs, rois_num)
-    
+
 if __name__ == "__main__":
     main()
     #TEST1()

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -288,7 +288,7 @@ void BrgemmAMXKernelExecutor::execute_brgemm_copy_a_kernel(
     ctx.current_M_blk = M;
     ctx.zp_b_compensation_buffer_ptr = nullptr;
     ctx.zp_a_compensation_result_ptr = nullptr;
-    ctx.zp_b_neg_value_ptr = nullptr;
+    ctx.zp_b_neg_val_ptr = nullptr;
     ctx.zp_ab_comp_ptr = nullptr;
     ctx.src = src;
     ctx.tr_src = tr_src;

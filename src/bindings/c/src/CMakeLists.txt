@@ -1,11 +1,8 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME openvino_c)
-
-# Suppress warnings due to catch macro with legacy exception types
-ov_disable_deprecated_warnings()
 
 add_definitions(-DIN_OV_COMPONENT)
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "vcl_serializer.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
 namespace intel_npu {
@@ -22,25 +21,28 @@ public:
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
                                     const FilteredConfig& config) const override;
 
-    std::shared_ptr<IGraph> compileWS(const std::shared_ptr<ov::Model>& model,
-                                      const FilteredConfig& config) const override;
+    std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model, const FilteredConfig& config) const override;
 
     std::shared_ptr<IGraph> parse(
         const ov::Tensor& mainBlob,
         const FilteredConfig& config,
         const std::optional<std::vector<ov::Tensor>>& initBlobs = std::nullopt,
-        const std::optional<std::shared_ptr<const ov::Model>>& model = std::nullopt) const override;
+        std::optional<std::shared_ptr<const ov::Model>>&& model = std::nullopt) const override;
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
                               const FilteredConfig& config) const override;
 
-    std::vector<std::string> get_supported_options() const override;
+    std::optional<std::vector<std::string>> get_supported_options() const override;
 
     bool is_option_supported(std::string optName, std::optional<std::string> optValue = std::nullopt) const override;
 
     uint32_t get_version() const override;
 
 private:
+    bool isCompilerOptionSupported(const FilteredConfig& config,
+                                   const ze_graph_compiler_version_info_t& compilerVersion,
+                                   const std::string& optionName) const;
+
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
 

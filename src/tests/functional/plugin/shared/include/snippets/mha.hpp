@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@ typedef std::tuple<std::vector<InputShape>,         // Input shapes
                    std::vector<ov::element::Type>,  // Input Element types
                    ov::element::Type,               // Inference precision
                    bool,                            // With Multiply
-                   size_t,                          // Thread count
                    size_t,                          // Expected num nodes
                    size_t,                          // Expected num subgraphs
                    std::string,                     // Target Device
@@ -26,7 +25,19 @@ typedef std::tuple<std::vector<InputShape>,         // Input shapes
 typedef std::tuple<std::vector<InputShape>,         // Input shapes
                    std::vector<ov::element::Type>,  // Input Element types
                    ov::element::Type,               // Inference precision
-                   size_t,                          // Thread count
+                   bool,                            // With Multiply
+                   bool,                            // MatMul0 with const B
+                   bool,                            // MatMul1 with const B
+                   size_t,                          // Expected num nodes
+                   size_t,                          // Expected num subgraphs
+                   std::string,                     // Target Device
+                   ov::AnyMap                       // Config
+                   >
+    MHAConstBParams;
+
+typedef std::tuple<std::vector<InputShape>,         // Input shapes
+                   std::vector<ov::element::Type>,  // Input Element types
+                   ov::element::Type,               // Inference precision
                    size_t,                          // Expected num nodes
                    size_t,                          // Expected num subgraphs
                    std::string,                     // Target Device
@@ -35,18 +46,13 @@ typedef std::tuple<std::vector<InputShape>,         // Input shapes
 MHAWithDynamicMulParams;
 
 class MHABase :  virtual public SnippetsTestsCommon {
-public:
-    constexpr static size_t default_thread_count = 0;
-
 protected:
     void SetUp() override;
-    void compile_model() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void init_thresholds() override;
     virtual std::shared_ptr<SnippetsFunctionBase> get_subgraph() const = 0;
     virtual void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) = 0;
 
-    size_t m_thread_count;
     std::vector<ov::element::Type> m_input_types;
 };
 
@@ -58,9 +64,23 @@ public:
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
     void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) override;
+
+    void init_thresholds() override;
+};
+
+class MHAConstB : public testing::WithParamInterface<ov::test::snippets::MHAConstBParams>,
+                  virtual public MHABase {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAConstBParams>& obj);
+
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
+    void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) override;
     void init_thresholds() override;
 
     bool m_with_mul = false;
+    bool m_const_b_matmul0 = false;
+    bool m_const_b_matmul1 = false;
 };
 
 class MHA2D : public MHA {
@@ -132,6 +152,15 @@ public:
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
     void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) override;
+};
+
+class MHAWithThreadCount : public MHA {
+public:
+    constexpr static size_t default_thread_count = 0;
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAParams>& obj);
+
+protected:
+    void compile_model() override;
 };
 
 class MHASharedKV : public MHA {

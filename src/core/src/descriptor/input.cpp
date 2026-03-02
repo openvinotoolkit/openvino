@@ -1,12 +1,14 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/core/descriptor/input.hpp"
 
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/util/symbolic_info.hpp"
 #include "shared_node_info.hpp"
 
 ov::descriptor::Input::Input(ov::Node* node, size_t index, Output& output)
@@ -32,6 +34,13 @@ ov::descriptor::Input::~Input() {
 
 void ov::descriptor::Input::replace_output(Output& new_output) {
     if (m_output != nullptr) {
+        if (!ov::util::have_same_bounds(m_output->get_tensor(), new_output.get_tensor())) {
+            for (size_t port = 0; port < m_node->get_output_size(); ++port) {
+                if (auto& tensor = m_node->get_output_tensor(port); ov::skip_invalidation(tensor)) {
+                    ov::util::set_force_invalidation(tensor);
+                }
+            }
+        }
         m_output->remove_input(this);
     }
     new_output.add_input(this);
