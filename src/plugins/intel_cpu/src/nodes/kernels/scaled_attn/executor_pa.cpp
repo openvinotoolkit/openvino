@@ -461,6 +461,7 @@ struct MHAHelper {
     bool _use_softmax_sparse_mask = false;
 
     // Bidirectional attention for image token groups (e.g. Gemma3 VLM)
+    bool _has_image_tokens = false;         // true only when token_type_ids input is provided
     PlainTensor _token_type;                // [total_batched_tokens], int32 — 0=text, 1=image
     std::vector<int32_t> _image_group_end;  // for image token i, the exclusive end of its group
 
@@ -470,6 +471,7 @@ struct MHAHelper {
     void set_token_type(const PlainTensor& token_type,
                         const PlainTensor& subsequence_begins,
                         const PlainTensor& past_lens) {
+        _has_image_tokens = true;
         _token_type = token_type;
         auto total_tokens = static_cast<int32_t>(token_type.m_dims[0]);
         _image_group_end.resize(total_tokens);
@@ -497,7 +499,7 @@ struct MHAHelper {
     // Return the adjusted ncausal that extends to the image group end for image tokens.
     // For text tokens, returns the original ncausal unchanged.
     size_t get_ncausal(size_t q_global_idx, size_t default_ncausal, size_t cur_kv_len) const {
-        if (!_token_type || q_global_idx >= _image_group_end.size()) {
+        if (!_has_image_tokens || q_global_idx >= _image_group_end.size()) {
             return default_ncausal;
         }
         if (_token_type.ptr<int32_t>()[q_global_idx] == 1) {
@@ -744,6 +746,8 @@ struct MHAHelper {
     //  output_emb: [L, H * S]
     //  qk_scratch_b: [rnd_up(kv_len, block_size), Hk, scratch_b_size]
     //  wv_scratch_b: [rnd_up(kv_len, block_size), Hk, scratch_b_size]
+    //  q_token_start: global token index of the first query token in this subsequence, used to
+    //                 look up per-token data when computing ncausal
     void exec_kernel_multiple(const PlainTensor& query,
                               const PlainTensor& present_value,
                               const PlainTensor& output_emb,
@@ -1420,7 +1424,6 @@ struct MHAHelper {
             auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
             auto q_token_start = static_cast<size_t>(subsequence_begins.ptr<int32_t>()[b]);
             auto ncausal = get_ncausal(q_token_start + pq, cur_kv_len, cur_kv_len);
-            // std::cout << ncausal << std::endl;
             //  apply attention mask & sofmax
             float* score = _weight_bhl.ptr<float>(b, h, pq);
             OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight_bhl buffer must be allocated");
@@ -1428,7 +1431,7 @@ struct MHAHelper {
             float alibi_slope = 0.F;
             if (alibi_slopes) {
                 alibi_slope = alibi_slopes.ptr<float>()[h];
-                alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
+                alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - ncausal;
             }
             float* sink = nullptr;
             if (sinks) {
@@ -2199,6 +2202,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             }
         }
 
+        if (token_type_ids) {
+            token_type_ids.assert_dims({B_token});
+        }
+
         output_emb.assert_dims({B_token, H * SV});
         output_emb = output_emb.reshape({B_token, 1, H * SV});
 
@@ -2378,6 +2385,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         if (token_type_ids) {
             _helper.set_token_type(token_type_ids, subsequence_begins, past_lens);
+        } else {
+            _helper._token_type = PlainTensor();
+            _helper._image_group_end.clear();
         }
 
         if (rotated_block_indices) {

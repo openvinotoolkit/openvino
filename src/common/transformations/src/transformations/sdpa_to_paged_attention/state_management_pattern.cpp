@@ -202,7 +202,10 @@ static std::shared_ptr<ov::Node> handle_gemma3_token_type_ids(
     const std::map<std::string, std::shared_ptr<v0::Parameter>>& optional_model_wide_params) {
     if (optional_model_wide_params.find("token_type_ids") != optional_model_wide_params.end()) {
         auto param = optional_model_wide_params.at("token_type_ids");
-        return std::make_shared<v0::Convert>(param, ov::element::i32);
+        if (param->get_element_type() != ov::element::i32) {
+            return std::make_shared<v0::Convert>(param, ov::element::i32);
+        }
+        return param;
     }
     return v0::Constant::create(ov::element::i32, ov::Shape{0}, {});
 }

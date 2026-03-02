@@ -588,6 +588,11 @@ struct PagedAttentionManager {
         return get_memory_from_vec(adaptive_rkv_diversity_block_set_indices_begins);
     }
 
+    memory::ptr get_token_type_ids_memory() {
+        std::vector<int> token_type_ids = { 0 };
+        return get_memory_from_vec(token_type_ids);
+    }
+
     float get_default_scale() {
         return static_cast<float>(1.f / std::sqrt(k_head_size));
     }
@@ -1465,6 +1470,7 @@ public:
         auto adaptive_rkv_evictable_sizes_mem = pam.get_adaptive_rkv_evictable_sizes_memory();
         auto adaptive_rkv_diversity_block_set_indices_mem = pam.get_adaptive_rkv_diversity_block_set_indices_memory();
         auto adaptive_rkv_diversity_block_set_indices_begins_mem = pam.get_adaptive_rkv_diversity_block_set_indices_begins_memory();
+        auto token_type_ids_mem = pam.get_token_type_ids_memory();
 
         auto query_layout = query_mem->get_layout();
         auto key_layout = key_mem->get_layout();
@@ -1491,6 +1497,7 @@ public:
         auto adaptive_rkv_evictable_sizes_layout = adaptive_rkv_evictable_sizes_mem->get_layout();
         auto adaptive_rkv_diversity_block_set_indices_layout = adaptive_rkv_diversity_block_set_indices_mem->get_layout();
         auto adaptive_rkv_diversity_block_set_indices_begins_layout = adaptive_rkv_diversity_block_set_indices_begins_mem->get_layout();
+        auto token_type_ids_layout = token_type_ids_mem->get_layout();
 
         // make layouts dynamic
         query_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.k_head_size });
@@ -1578,6 +1585,7 @@ public:
             input_info("adaptive_rkv_evictable_sizes"),
             input_info("adaptive_rkv_diversity_block_set_indices"),
             input_info("adaptive_rkv_diversity_block_set_indices_begins"),
+            input_info("token_type_ids"),
         };
 
         auto pa_prim = paged_attention("paged_attention", pa_inputs);
@@ -1649,6 +1657,7 @@ public:
             topology.add(input_layout("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_layout));
             topology.add(input_layout("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_layout));
             topology.add(input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_layout));
+            topology.add(input_layout("token_type_ids", token_type_ids_layout));
         }
 
         ExecutionConfig config = get_test_default_config(get_test_engine());
@@ -1683,6 +1692,7 @@ public:
         network->set_input_data("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_mem);
         network->set_input_data("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem);
         network->set_input_data("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem);
+        network->set_input_data("token_type_ids", token_type_ids_mem);
 
         auto outputs = network->execute();
 
