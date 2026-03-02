@@ -20,26 +20,26 @@ OpenVINO™ toolkit is officially supported and validated on the following platf
 
 ## High Level Design
 
-Starting with the 2026.0 release, the compiler library is available in the OpenVINO package as a preview feature (`Compiler-In-Plugin`).  
-The default compiler type remains `Compiler-In-Driver` (the compiler library included in the driver package).  
+The NPU compiler library was first introduced in the OpenVINO 2026.0 release package as a preview feature (`Compiler-In-Plugin`).  
+Starting with the 2026.1 release, `Compiler-In-Plugin` becomes the preferred compiler type used by the NPU Plugin.  
 Users can override the default compiler selection by setting `ov::intel_npu::compiler_type`. For more details, see [ov::intel_npu::compiler_type](#ovintel_npucompiler_type).
 
 ```mermaid
 graph TD
-    OpenVINO --> NPU-Plugin
+    OpenVINO --> NPU_Plugin
 
-    NPU-Plugin --> CompilerAdapter
-    NPU-Plugin --> InferRequest
-    NPU-Plugin --> CompiledModel
+    NPU_Plugin --> CompilerAdapter
+    NPU_Plugin --> InferRequest
+    NPU_Plugin --> CompiledModel
 
-    CompilerAdapter --> |NPU_COMPILER_TYPE=PLUGIN|Compiler-In-Plugin
+    CompilerAdapter --> |NPU_COMPILER_TYPE=PLUGIN|CompilerInPlugin
     CompilerAdapter --> |NPU_COMPILER_TYPE=DRIVER|Driver
 
     CompiledModel --> Driver
     InferRequest --> Driver
 
-    Driver --> Compiler-In-Driver
-    Driver --> NPU-HW
+    Driver --> CompilerInDriver
+    Driver --> NPU_HW
 
 ```
 <br>
@@ -213,7 +213,7 @@ The following properties are supported (may differ based on current system confi
 | `ov::intel_npu::device_alloc_mem_size`/</br>`NPU_DEVICE_ALLOC_MEM_SIZE` | RO | Size of already allocated NPU DDR memory | `N/A` | `N/A` |
 | `ov::intel_npu::device_total_mem_size`/</br>`NPU_DEVICE_TOTAL_MEM_SIZE` | RO | Size of available NPU DDR memory | `N/A` | `N/A` |
 | `ov::intel_npu::driver_version`/</br>`NPU_DRIVER_VERSION` | RO | NPU driver version. | `N/A` | `N/A` |
-| `ov::intel_npu::compiler_type`/</br>`NPU_COMPILER_TYPE` | RW | Selects the compiler type to be used | `PREFER_PLUGIN`</br> `PLUGIN`</br>`DRIVER`| `DRIVER` |
+| `ov::intel_npu::compiler_type`/</br>`NPU_COMPILER_TYPE` | RW | Selects the compiler type to be used | `PREFER_PLUGIN`</br> `PLUGIN`</br>`DRIVER`| `PREFER_PLUGIN` |
 | `ov::intel_npu::compiler_version`/</br>`NPU_COMPILER_VERSION` | RO | NPU compiler version. MSB 16 bits are Major version, LSB 16 bits are Minor version | `N/A` | `N/A` |
 | `ov::intel_npu::compilation_mode_params`/</br>`NPU_COMPILATION_MODE_PARAMS` | RW | Set various parameters supported by the NPU compiler. (See bellow) | `<std::string>`| `N/A` |
 | `ov::intel_npu::compiler_dynamic_quantization`/</br>`NPU_COMPILER_DYNAMIC_QUANTIZATION` | RW | Enable/Disable dynamic quantization by NPU compiler | `YES` / `NO` | `N/A` |
@@ -300,7 +300,7 @@ For on-device compilation, the plugin queries the driver for the available numbe
 Note that `ov::intel_npu::max_tiles` represents the maximum number of tiles available, but the compiler may target a lower number of tiles depending on other properties. Users can set ``ov::intel_npu::tiles`` to override the number of tiles selected by the compiler based on other properties.  
 
 When setting ``ov::intel_npu::tiles``, users must ensure that the value does not exceed ``ov::intel_npu::max_tiles``.  
-Any tile count other than 1 may impact cross-device compatibility if it is not explicitly validated against the target devices's `ov::intel_npu::max_tiles` value.
+Any tile count other than 1 may impact cross-device compatibility if it is not explicitly validated against the target device's `ov::intel_npu::max_tiles` value.
 <br>  
 
 ### ov::intel_npu::turbo notes
@@ -309,11 +309,12 @@ NPU_TURBO usage may cause higher compile time, memory footprint, affect workload
 
 ### ov::intel_npu::compiler_type
 This property allows users to override the default compiler type selected by the plugin.  
-To use ``Compiler-In-Plugin`` whenever possible, users can set the property to ``PREFER_PLUGIN``. This instructs the plugin to use the integrated compiler when all the following conditions are met:  
+By default, the NPU Plugin behavior corresponds to the ``PREFER_PLUGIN`` setting.  
+In this mode, the integrated compiler (``Compiler-In-Plugin``) is used when all the following conditions are met:  
 - The library is present
 - The compiler supports the current platform ``or`` there is no platform detected (offline compilation)  
 - Compatibility is maintained between the current compiler version and all drivers released for the platform ``or`` there is no platform detected (offline compilation)  
-Note: On Meteor Lake (3720), when the property is set to ``PREFER_PLUGIN``, the plugin will fall back to ``Compiler-in-Driver`` because  
+Note: On Meteor Lake (3720), when the property is set to ``PREFER_PLUGIN`` (by default), the plugin will fall back to ``Compiler-in-Driver`` because  
 the compiler library integrated in the plugin may not be compatible with driver versions lower than v2565.  
 Users can set ``ov::intel_npu::compiler_type`` to ``PLUGIN`` to force ``Compiler-in-Plugin``, but the blob will fail to execute on incompatible drivers.
 
