@@ -858,6 +858,10 @@ public:
             // micro_gemm is better than gemm, default to use it
             use_micro_gemm_prefill = true;
         }
+        if (cldnn::lru_expert_num) {
+            // when lru_expert_num is set, the expert number is limited, micro_gemm kernel may not be efficient, turn off micro_gemm prefill
+            use_micro_gemm_prefill = false;
+        }
 
         auto use_gpu_mask_gen_prefill_str = std::getenv("MOE_USE_GPU_MASK_PREFILL");
         if (use_gpu_mask_gen_prefill_str) {
@@ -2218,7 +2222,7 @@ public:
         GPU_DEBUG_TRACE_DETAIL << "\nMoE3GemmFusedCompressed exec(): token_num=" << token_num << ", max_topk=" << static_cast<int>(config.top_k)
                                << ", use_micro_gemm_prefill=" << use_micro_gemm_prefill << std::endl;
         update_rt_params(instance);
-        if (use_micro_gemm_prefill && !cldnn::lru_expert_num) {
+        if (use_micro_gemm_prefill) {
             ret_env = exec_prefill_micro_gemm({topk_event}, instance, scratch, use_gpu_mask_gen);
         } else {
             ret_env = exec_prefill_onednn({topk_event}, stream, instance, scratch, cache, tmp_weights);
