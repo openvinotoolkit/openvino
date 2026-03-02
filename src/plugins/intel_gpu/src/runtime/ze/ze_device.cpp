@@ -11,6 +11,7 @@
 #include <vector>
 #include <algorithm>
 #include <cassert>
+#include <optional>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -130,9 +131,14 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     OV_ZE_EXPECT(zeDeviceGetCommandQueueGroupProperties(device, &queue_properties_count, &queue_properties[0]));
 
-    auto compute_queue_props = std::find_if(queue_properties.begin(), queue_properties.end(), [](const ze_command_queue_group_properties_t& qp) {
-        return (qp.flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE) != 0;
-    });
+    auto compute_queue_props = queue_properties.end();
+    for (auto it = queue_properties.begin(); it != queue_properties.end(); it++) {
+        if ((it->flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE) != 0) {
+            if (compute_queue_props == queue_properties.end() || it->numQueues > compute_queue_props->numQueues) {
+                compute_queue_props = it;
+            }
+        }
+    }
 
     OPENVINO_ASSERT(compute_queue_props != queue_properties.end());
 
@@ -223,6 +229,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.supports_intel_subgroups_short = true;
     info.supports_intel_subgroups_char = true;
     info.supports_intel_required_subgroup_size = true;
+    // queue families correspond to L0 cmd queue ordinal and index
     info.supports_queue_families = true;
 
     if (supports_ip_version) {
