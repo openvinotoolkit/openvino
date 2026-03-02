@@ -10,7 +10,7 @@
 
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/subgraph/moe_builders.hpp"
+#include "common_test_utils/node_builders/moe_builders.hpp"
 #include "shared_test_classes/subgraph/weights_decompression_params.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
