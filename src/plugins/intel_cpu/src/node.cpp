@@ -853,6 +853,17 @@ void Node::buildSymShapes(const SymbolTable& symbolTable) {
         auto symShape = symbolTable.to_sym_shape(originalOutputShapes[i]);
         // Pre-allocate the resolved shape with the correct rank
         m_resolvedOutputShapes[i].resize(symShape.size());
+
+        // if no child edge is connected to the output port
+        // we can skip the check of the dimension value
+        // since it won't be used in any shape inference
+        // and won't cause any issue even if it's undefined
+        // The only problem here is that CPU plugin add dummy
+        // Output nodes in this case
+        if (getChildEdgesAtPort(i).empty()) {
+            continue;
+        }
+
         for (auto dim : symShape) {
             if (dim == SYMDIM_UNDEFINED) {
                 m_fullySymbolized = false;
