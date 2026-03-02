@@ -1,3 +1,4 @@
+//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -72,26 +73,19 @@ static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const OpenVIN
     return cv::gapi::networks(*network);
 }
 
-// NB: Convert reshape map to OpenVINO EP reshape_input format: "input1[d1,d2] input2[d1,d2,d3]"
-static std::string toReshapeInputString(const AttrMap<std::vector<size_t>>& reshape_map) {
-    std::string result;
-    for (const auto& [name, shape] : reshape_map) {
-        if (!result.empty()) {
-            result += " ";
-        }
-        result += name + "[";
-        for (size_t i = 0; i < shape.size(); ++i) {
-            if (i > 0) result += ",";
-            result += std::to_string(shape[i]);
-        }
-        result += "]";
-    }
-    return result;
-}
-
 static void cfgExecutionProvider(cv::gapi::onnx::Params<cv::gapi::Generic>& network,
                                  const ONNXRTParams::OpenVINO& ovep) {
     network.cfgAddExecutionProvider(cv::gapi::onnx::ep::OpenVINO{ovep.params_map});
+}
+
+static void cfgExecutionProvider(cv::gapi::onnx::Params<cv::gapi::Generic>& network, const ONNXRTParams::EP& ep) {
+    // NB: Nothing to configure for default MLAS EP
+    if (std::holds_alternative<std::monostate>(ep)) {
+        return;
+    }
+    // TODO: Extend for any other available execution provider
+    ASSERT(std::holds_alternative<ONNXRTParams::OpenVINO>(ep));
+    cfgExecutionProvider(network, std::get<ONNXRTParams::OpenVINO>(ep));
 }
 
 static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const ONNXRTParams& params) {
@@ -100,15 +94,7 @@ static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const ONNXRTP
     if (params.opt_level.has_value()) {
         network.cfgOptLevel(params.opt_level.value());
     }
-    if (std::holds_alternative<ONNXRTParams::OpenVINO>(params.ep)) {
-        auto ovep = std::get<ONNXRTParams::OpenVINO>(params.ep);
-        // NB: Generate reshape_input from reshape
-        if (std::holds_alternative<AttrMap<std::vector<size_t>>>(params.reshape)) {
-            ovep.params_map["reshape_input"] = toReshapeInputString(std::get<AttrMap<std::vector<size_t>>>(params.reshape));
-        }
-        cfgExecutionProvider(network, ovep);
-    }
-
+    cfgExecutionProvider(network, params.ep);
     return cv::gapi::networks(network);
 }
 
