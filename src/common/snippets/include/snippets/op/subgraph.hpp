@@ -162,7 +162,7 @@ public:
     // Non-scalar Constants are tokenized as Parameters inside Subgraph body but some operations with constant inputs
     // should have explicit Constants even if they're non-scalar (Reshape, Transpose, Broadcast)
     // This check returns True if Constant op which is input of this op should be inside Subgraph body
-    static auto constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool;
+    static auto constant_input_should_be_inside_body(const Input<ov::Node>& node_input) -> bool;
     static bool check_broadcast(const std::shared_ptr<const ov::Node>& node);
     // Return estimated unique buffer count (upper bound). It's needed for tokenization
     static auto get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t;
