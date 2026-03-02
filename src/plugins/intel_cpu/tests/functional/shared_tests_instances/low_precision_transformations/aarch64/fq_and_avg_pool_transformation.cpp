@@ -15,27 +15,16 @@ const std::vector<ov::element::Type> precisions = {
     ov::element::f32
 };
 
-const ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeI8 = {
-    256ul, {}, {-12.8f}, {12.7f}, {-12.8f}, {12.7f}
+const std::vector<ov::builder::subgraph::FakeQuantizeOnData> fakeQuantizes = {
+    {256ul, {}, {-12.8f}, {12.7f}, {-12.8f}, {12.7f}},
+    {256ul, {}, {0.f}, {25.5f}, {0.f}, {25.5f}},
 };
 
-const ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeU8 = {
-    256ul, {}, {0.f}, {25.5f}, {0.f}, {25.5f}
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_LPT_i8,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          FakeQuantizeAndAvgPoolTransformation,
                          ::testing::Combine(::testing::ValuesIn(precisions),
                                             ::testing::Values(ov::PartialShape({1, 32, 72, 48})),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::Values(fakeQuantizeI8)),
-                         FakeQuantizeAndAvgPoolTransformation::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_LPT_u8,
-                         FakeQuantizeAndAvgPoolTransformation,
-                         ::testing::Combine(::testing::ValuesIn(precisions),
-                                            ::testing::Values(ov::PartialShape({1, 32, 72, 48})),
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::Values(fakeQuantizeU8)),
+                                            ::testing::ValuesIn(fakeQuantizes)),
                          FakeQuantizeAndAvgPoolTransformation::getTestCaseName);
 }  // namespace
