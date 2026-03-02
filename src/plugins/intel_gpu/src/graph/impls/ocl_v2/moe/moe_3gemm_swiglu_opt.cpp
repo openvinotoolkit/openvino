@@ -986,7 +986,6 @@ public:
         _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
         _gate_up_group_size = static_cast<int>(cur_moe->_config.group_size);
         _down_group_size = static_cast<int>(cur_moe->_config.group_size);
-        _shared_intermediate_size = _intermediate_size;
 
         if (cur_moe->_config.group_size == std::numeric_limits<size_t>::max()) {
             _gate_up_group_size = static_cast<int>(cur_moe->_config.hidden_size);
@@ -1119,17 +1118,9 @@ public:
         }
 
         if (sg_w) {
-            _shared_gate_gate_proj = std::make_shared<onednn_linear>(onednn_linear::create(eng,
-                                                                                           dnnl::memory::data_type::f16,
-                                                                                           sg_w_dt,
-                                                                                           batch,
-                                                                                           _hidden_size,
-                                                                                           1,
-                                                                                           -1,
-                                                                                           t::with_sigmoid,
-                                                                                           sg_w,
-                                                                                           dnnl::memory(),
-                                                                                           dnnl::memory()));
+            _shared_gate_gate_proj = std::make_shared<onednn_linear>(
+                onednn_linear::
+                    create(eng, dnnl::memory::data_type::f16, sg_w_dt, batch, _hidden_size, 1, -1, t::with_sigmoid, sg_w, dnnl::memory(), dnnl::memory()));
         }
 
         // 4. Down (BinMul + Sum)
@@ -1450,10 +1441,8 @@ public:
         auto batch_mem_ptr = scratch.topk_id;
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
         auto routing_mem_ptr = scratch.topk_weights;
-
         _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
         _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
-        OPENVINO_ASSERT(_shared_intermediate_size == _intermediate_size, "Shared expert _intermediate_size should be same with moe experts");
 
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
         const size_t max_work_group_size = instance.get_impl_params()->get_device_info().max_work_group_size;
@@ -2016,6 +2005,16 @@ public:
         auto& stream = cur_net.get_stream();
         cldnn::event::ptr ret_env = nullptr;
         _has_shared_expert = (config.num_shared_expert > 0);
+
+        if (_has_shared_expert) {
+            if (config.num_shared_expert > 1) {
+                OPENVINO_THROW("num_shared_expert=", config.num_shared_expert, " is not supported yet, only support 0 or 1");
+            }
+            auto shared_expert_weight_layout = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT))->get_layout();
+            auto hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
+            _shared_intermediate_size = static_cast<int>(shared_expert_weight_layout.count() / hidden_size);
+            OPENVINO_ASSERT(_shared_intermediate_size == _intermediate_size, "Shared expert _intermediate_size should be same with moe experts");
+        }
 
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
         size_t token_num = get_seq_len(hidden_states_layout);

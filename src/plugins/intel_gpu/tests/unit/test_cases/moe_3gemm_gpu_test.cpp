@@ -744,7 +744,9 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
 INSTANTIATE_TEST_SUITE_P(smoke,
                          moe_3gemm_compressed_gpu_shared_random,
                          ::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 128},
-                                           Moe3GemmTestParams{16, true, 128, 256, 4, 2, 128}));
+                                           Moe3GemmTestParams{16, true, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{1, false, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{16, false, 128, 256, 4, 2, 128}));
 
 TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
     auto routing_type = GetParam();
