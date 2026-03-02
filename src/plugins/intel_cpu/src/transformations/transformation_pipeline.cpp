@@ -193,6 +193,7 @@
 #    include "nodes/rms_norm.h"
 #    include "onednn/dnnl.h"
 #    include "openvino/op/group_normalization.hpp"
+#    include "openvino/op/mish.hpp"
 #    include "openvino/op/multiply.hpp"
 #    include "openvino/op/softmax.hpp"
 #    include "openvino/op/subtract.hpp"
@@ -268,23 +269,10 @@
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)
-#    include "openvino/op/elu.hpp"
-#    include "openvino/op/erf.hpp"
-#    include "openvino/op/exp.hpp"
-#    include "openvino/op/floor.hpp"
-#    include "openvino/op/gelu.hpp"
-#    include "openvino/op/hsigmoid.hpp"
-#    include "openvino/op/hswish.hpp"
-#    include "openvino/op/is_finite.hpp"
-#    include "openvino/op/is_inf.hpp"
-#    include "openvino/op/is_nan.hpp"
-#    include "openvino/op/mish.hpp"
-#    include "openvino/op/negative.hpp"
-#    include "openvino/op/relu.hpp"
-#    include "openvino/op/sigmoid.hpp"
-#    include "openvino/op/softsign.hpp"
-#    include "openvino/op/sqrt.hpp"
-#    include "openvino/op/tanh.hpp"
+#    include "openvino/op/power.hpp"
+#    include "openvino/op/select.hpp"
+#    include "openvino/op/swish.hpp"
+#    include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #endif
 
 #if defined(SNIPPETS_LIBXSMM_TPP)
@@ -655,7 +643,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS3ToNMS9);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS4ToNMS9);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS5ToNMS9);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_ARM64(manager, ov::pass::HardSigmoidDecomposition);
@@ -664,7 +651,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part2);
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::low_precision::ConvertSubtractConstant, defaultPrecisions);
     }
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     // Common ConvertPrecision pass handles only a limited set of opevino operations to match the list of precisions
     // supported by the plugin. However, if the extension operation produces an output precision that is not natively
     // supported, this may lead to inconsistency during element type propagation. This transformation is called before
@@ -701,7 +687,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_X86(manager, DecomposeIntegerDivide);
 
     CPU_REGISTER_PASS_COMMON(manager, PermuteSliceAndInterpolation);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
 
     // SpaceToDepth/ DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
     CPU_SET_CALLBACK_COMMON(
@@ -917,6 +902,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::LoraSubgraphFusion);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
 
     manager.run_passes(model);
 }
@@ -1085,6 +1071,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         },
         FuseConvertTransformation);
 
+    CPU_REGISTER_PASS_COMMON(lptManager, ov::pass::Validate);
     lptManager.run_passes(model);
 }
 
@@ -1122,7 +1109,6 @@ void Transformations::PostLpt() {
             return false;
         },
         ov::pass::MoveEltwiseUpThroughDataMovScalar);
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::Validate);
 
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConstantFolding);
 
@@ -1134,6 +1120,7 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionFlux);
+    CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionLtxVideo);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -1205,23 +1192,12 @@ void Transformations::PostLpt() {
     auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::SymbolicOptimizations, false);
     symbolic_pipeline->get_manager()->register_pass<NgramFusion>();
 
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::Validate);
     postLPTPassManager.run_passes(model);
 }
 
 void Transformations::MainSnippets() {
     using namespace snippets::pass;
-// Disable MainSnippets for int8 models on arm platforms due to performance issues
-// Ticket: 163408
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    using namespace ov::pass::low_precision;
-    static const std::set<levels>& supported_fq_levels = {levels::int4,
-                                                          levels::int4_narrow_range,
-                                                          levels::int8,
-                                                          levels::int8_narrow_range};
-    if (LowPrecision::isFunctionQuantized(model, supported_fq_levels)) {
-        return;
-    }
-#endif
 
     auto is_supported_isa = []() {
 #if defined(OPENVINO_ARCH_X86_64)
@@ -1422,38 +1398,21 @@ void Transformations::MainSnippets() {
 #endif  // OPENVINO_ARCH_X86_64
 
     auto is_supported_op = []([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
-#if defined(OPENVINO_ARCH_RISCV64)
-        auto is_supported = [](const std::shared_ptr<const ov::Node>& n) {
-            return (ov::is_type_any_of<ov::op::v0::Abs,
-                                       ov::op::v0::Clamp,
-                                       ov::op::v0::Elu,
-                                       ov::op::v0::Erf,
-                                       ov::op::v0::Exp,
-                                       ov::op::v0::Floor,
-                                       ov::op::v0::Gelu,
-                                       ov::op::v5::HSigmoid,
-                                       ov::op::v4::HSwish,
-                                       ov::op::v10::IsFinite,
-                                       ov::op::v10::IsInf,
-                                       ov::op::v10::IsNaN,
-                                       ov::op::v4::Mish,
-                                       ov::op::v0::Negative,
-                                       ov::op::v0::Relu,
-                                       ov::op::v0::Sigmoid,
-                                       ov::op::v9::SoftSign,
-                                       ov::op::v0::Sqrt,
-                                       ov::op::v0::Tanh>(n));
-        };
-        return is_supported(n);
-#else
-        // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
-        // and CPU Plugin does not support Mish for x64
+        // CPU Plugin supports Swish in Subgraph via conversion to SwishCPU that requires scalar beta.
+        // CPU Plugin does not support Mish for x64
         auto is_unsupported = [](const std::shared_ptr<const ov::Node>& n) {
             return (ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
                     !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)))
-#    if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64)
                    || ov::is_type<const ov::op::v4::Mish>(n)
-#    endif
+#elif defined(OPENVINO_ARCH_RISCV64)
+                   // These operations are not currently supported in the RISC-V snippets target machine.
+                   || ov::is_type<const ov::op::v4::Swish>(n) ||
+                   ov::is_type_any_of<const ov::op::v0::Ceiling,
+                                      const ov::op::v1::Power,
+                                      const ov::op::v1::Select,
+                                      const ov::intel_cpu::SwishNode>(n)
+#endif
                 ;
         };
         // todo: general tokenization flow is not currently supported for these operations.
@@ -1469,7 +1428,6 @@ void Transformations::MainSnippets() {
                                        const ov::op::v1::ReduceSum>(n));
         };
         return !is_unsupported(n) && !is_unsupported_by_common_tokenization(n);
-#endif
     };
 
     auto has_supported_tensors = [ignoreCallback](const std::shared_ptr<const ov::Node>& n) -> bool {
@@ -1649,14 +1607,7 @@ void Transformations::PostSnippets() {
     CPU_SET_CALLBACK_ARM(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
-            if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
-                ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
-                // int8 ACL Convolution executor supports only same activation and output types
-                // if types are different, decompose FQ to avoid reference FQ
-                return match_conv_fq_same_types(node) ||
-                       match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvAddMul);
-            }
-            return false;
+            return match_acl_int8_conv_fq_chain(node);
         },
         ov::pass::FakeQuantizeDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);
