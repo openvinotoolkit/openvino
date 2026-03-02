@@ -31,7 +31,7 @@ can't find Windows SDK version. Try to use vcvarsall.bat script")
     endif()
 
     if(WDK_PATHS)
-        message(STATUS "Trying to find apivalidator in: ")
+        message(VERBOSE "Trying to find apivalidator in: ")
         foreach(wdk_path IN LISTS WDK_PATHS)
             message("    * ${wdk_path}")
         endforeach()

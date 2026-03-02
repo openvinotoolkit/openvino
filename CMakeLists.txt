@@ -162,8 +162,7 @@ if(CMAKE_GENERATOR STREQUAL "Ninja" OR CMAKE_GENERATOR STREQUAL "Ninja Multi-Con
     set_property(GLOBAL PROPERTY JOB_POOLS "${CMAKE_JOB_POOLS};four_jobs=4")
 
     if(CMAKE_JOB_POOLS)
-        message(STATUS "")
-        message(STATUS "Job pools configuration for Ninja generator:")
+        ov_log_section("Job pools configuration for Ninja generator")
         get_property(current_job_pools GLOBAL PROPERTY JOB_POOLS)
         message(STATUS "CMAKE_JOB_POOLS is set to: ${CMAKE_JOB_POOLS}")
         message(STATUS "JOB_POOLS global property is set to: ${current_job_pools}")
