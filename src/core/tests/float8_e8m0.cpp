@@ -75,7 +75,7 @@ TEST(F8E8M0Test, f32_subnormal_to_lower) {
     EXPECT_EQ(f8.to_bits(), 0b00000000);
 }
 
-TEST(F8E8M0Test, f32_subnormal_boundry_to_even) {
+TEST(F8E8M0Test, f32_subnormal_boundary_to_even) {
     const auto f8 = ov::float8_e8m0(8.816207631167156309765524E-39f);
 
     EXPECT_EQ(f8.to_bits(), 0b00000000);
