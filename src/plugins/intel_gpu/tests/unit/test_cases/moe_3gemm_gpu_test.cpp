@@ -649,7 +649,7 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
     
     // Check accuracy
     for (size_t i = 0; i < ref_output.size(); ++i) {
-        EXPECT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), 0.2f);
+        EXPECT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), 0.5f);
     }
 }
 

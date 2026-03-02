@@ -804,12 +804,12 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_reduce)(const __global MOE_DTYPE* x,  // [MAX_TOPK, HIDDEN_SIZE]
                                                                              __global MOE_DTYPE* y) {      // [1, HIDDEN_SIZE]
     int n = get_global_id(1);
-    half sum[MAX_TOPK] = {0};
 #    if SHARED_EXPERT_ENABLE
 #        define REDUCE_COUNT (MAX_TOPK + 1)
 #    else
 #        define REDUCE_COUNT MAX_TOPK
 #    endif
+    half sum[REDUCE_COUNT] = {0};
     __attribute__((opencl_unroll_hint(REDUCE_COUNT))) for (int i = 0; i < REDUCE_COUNT; i++) {
         sum[i] = as_half(intel_sub_group_block_read_us((const __global ushort*)(x + i * HIDDEN_SIZE + n)));
     }
