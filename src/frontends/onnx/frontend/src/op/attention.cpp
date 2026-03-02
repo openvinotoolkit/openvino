@@ -247,9 +247,9 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
     auto V = inputs[2];
 
     // Optional inputs
-    bool has_attn_mask = num_inputs > 3 && !ov::op::util::is_null(inputs[3]);
-    bool has_past_key = num_inputs > 4 && !ov::op::util::is_null(inputs[4]);
-    bool has_past_value = num_inputs > 5 && !ov::op::util::is_null(inputs[5]);
+    bool has_attn_mask = common::is_input_valid(node, 3);
+    bool has_past_key = common::is_input_valid(node, 4);
+    bool has_past_value = common::is_input_valid(node, 5);
 
     CHECK_VALID_NODE(node,
                      has_past_key == has_past_value,
@@ -271,7 +271,8 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
 
     // Determine number of requested outputs
     size_t num_outputs = node.get_outputs_size();
-    bool needs_qk_output = num_outputs > 3;
+    const auto& output_names = node.get_output_names();
+    bool needs_qk_output = output_names.size() > 3 && !output_names[3].get().empty();
 
     // Determine if inputs are 3D and need reshaping
     auto q_rank = Q.get_partial_shape().rank();
@@ -283,14 +284,14 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
     if (q_rank.is_static()) {
         q_is_3d = (q_rank.get_length() == 3);
         CHECK_VALID_NODE(node,
-                         q_rank.get_length() == 3 || q_rank.get_length() == 4,
+                         q_is_3d || q_rank.get_length() == 4,
                          "Q input rank must be 3 or 4, got: ",
                          q_rank.get_length());
     }
     if (k_rank.is_static()) {
         kv_is_3d = (k_rank.get_length() == 3);
         CHECK_VALID_NODE(node,
-                         k_rank.get_length() == 3 || k_rank.get_length() == 4,
+                         kv_is_3d || k_rank.get_length() == 4,
                          "K input rank must be 3 or 4, got: ",
                          k_rank.get_length());
     }
@@ -369,11 +370,12 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
         }
     }
 
-    // When KV cache is used with is_causal, SDPA's internal causal mask doesn't account for
-    // KV cache offset (seq_kv > seq_q). Build an explicit offset-aware causal mask and pass it
-    // as attn_mask instead, disabling SDPA's is_causal flag.
-    if (is_causal && has_past_key) {
-        auto causal_mask = detail::build_causal_mask(Q, K, true);
+    // Build an explicit causal mask instead of relying on SDPA's internal is_causal flag.
+    // SDPA's internal mask uses offset-based semantics (ncausal = kv_len - q_len + m + 1)
+    // which doesn't match the ONNX spec's np.tril(k=0) for non-square attention matrices
+    // (seq_q != seq_kv). For KV cache scenarios, use offset to account for past sequence.
+    if (is_causal) {
+        auto causal_mask = detail::build_causal_mask(Q, K, has_past_key);
         if (has_attn_mask) {
             attn_mask = std::make_shared<v1::Add>(attn_mask, causal_mask);
         } else {
@@ -417,7 +419,6 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
     // Output names from the ONNX graph determine which outputs are actually requested.
     // Empty names indicate unused optional outputs — push NullNode for those to avoid
     // creating shared input/output parameters that confuse port resolution.
-    auto output_names = node.get_output_names();
     ov::OutputVector results;
     results.push_back(Y);
 
