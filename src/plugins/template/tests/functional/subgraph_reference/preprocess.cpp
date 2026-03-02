@@ -1195,6 +1195,48 @@ static RefPreprocessParams post_convert_color_bgr_to_rgb() {
     return res;
 }
 
+static RefPreprocessParams post_convert_color_rgb_to_nv12() {
+    RefPreprocessParams res("post_convert_color_rgb_to_nv12");
+    res.abs_threshold = 2.f;
+    res.rel_threshold = 1.f;
+    res.function = []() {
+        auto f = create_simple_function(element::f32, Shape{1, 2, 2, 3});
+        auto p = PrePostProcessor(f);
+        p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+        p.output().postprocess().convert_color(ColorFormat::NV12_SINGLE_PLANE);
+        p.build();
+        return f;
+    };
+
+    // Pure red 2x2: R=255,G=0,B=0 -> Y=82,U=90,V=240
+    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::f32,
+                            std::vector<float>{255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0});
+    res.expected.emplace_back(Shape{1, 3, 2, 1}, element::f32,
+                              std::vector<float>{82, 82, 82, 82, 90, 240});
+    return res;
+}
+
+static RefPreprocessParams post_convert_color_bgr_to_nv12() {
+    RefPreprocessParams res("post_convert_color_bgr_to_nv12");
+    res.abs_threshold = 2.f;
+    res.rel_threshold = 1.f;
+    res.function = []() {
+        auto f = create_simple_function(element::f32, Shape{1, 2, 2, 3});
+        auto p = PrePostProcessor(f);
+        p.output().model().set_layout("NHWC").set_color_format(ColorFormat::BGR);
+        p.output().postprocess().convert_color(ColorFormat::NV12_SINGLE_PLANE);
+        p.build();
+        return f;
+    };
+
+    // Pure blue via BGR: B=255,G=0,R=0 -> Y=41,U=240,V=110
+    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::f32,
+                            std::vector<float>{255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0});
+    res.expected.emplace_back(Shape{1, 3, 2, 1}, element::f32,
+                              std::vector<float>{41, 41, 41, 41, 240, 110});
+    return res;
+}
+
 static RefPreprocessParams pre_and_post_processing() {
     RefPreprocessParams res("pre_and_post_processing");
     res.function = []() {
@@ -1420,6 +1462,8 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
                                             post_convert_layout_by_dims_multi(),
                                             post_convert_color_rgb_to_bgr(),
                                             post_convert_color_bgr_to_rgb(),
+                                            post_convert_color_rgb_to_nv12(),
+                                            post_convert_color_bgr_to_nv12(),
                                             pre_and_post_processing(),
                                             rgb_to_bgr(),
                                             bgr_to_rgb(),
