@@ -123,6 +123,10 @@ private:
     // Per-output-port OutputMemoryBlock for zero-copy dynamic output.
     // Keyed by output port index. Only populated when USM host memory is available.
     std::unordered_map<size_t, std::unique_ptr<OutputMemoryBlock>> m_output_memory_blocks;
+
+    // Variable to hold the inference request string with compiled model name
+    // to prevent this string being constructed for each inference call
+    std::string m_itt_infer_request_str;
 };
 
 }  // namespace ov::intel_gpu

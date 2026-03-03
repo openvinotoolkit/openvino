@@ -138,6 +138,7 @@ DEFINE_OPT(NPUW_ACC_THRESH, double, 0.01, npuw::accuracy::threshold, RunTime);
 DEFINE_OPT(NPUW_ACC_DEVICE, std::string, "", npuw::accuracy::reference_device, RunTime);
 DEFINE_OPT(NPUW_DUMP_FULL, bool, false, npuw::dump::full, RunTime);
 DEFINE_OPT(NPUW_DUMP_SUBS, std::string, "", npuw::dump::subgraphs, RunTime);
+DEFINE_OPT(NPUW_DUMP_SUBS_DIR, std::string, "", npuw::dump::subgraphs_dir, RunTime);
 DEFINE_OPT(NPUW_DUMP_SUBS_ON_FAIL, std::string, "", npuw::dump::subgraphs_on_fail, RunTime);
 DEFINE_OPT(NPUW_DUMP_IO, std::string, "", npuw::dump::inputs_outputs, RunTime);
 DEFINE_OPT(NPUW_DUMP_IO_ITERS, bool, false, npuw::dump::io_iters, RunTime);

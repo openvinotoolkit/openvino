@@ -119,7 +119,7 @@ jobs:
           GIT_TRACE: 1
           GIT_TRACE_PERFORMANCE: 1
           GIT_CURL_VERBOSE: 1
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
@@ -127,7 +127,7 @@ jobs:
 
       - name: Clone OpenVINO
         if: ${{ inputs.os != 'fedora_29' }}
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
@@ -143,7 +143,7 @@ jobs:
           git rev-parse HEAD
 
       - name: Clone OpenVINO Contrib
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/openvino_contrib'

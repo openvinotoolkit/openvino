@@ -40,7 +40,7 @@ struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, ov::hint::Performan
     }
 
     static OptionMode mode() {
-        return OptionMode::CompileTime;
+        return OptionMode::Both;
     }
 
     static ov::hint::PerformanceMode parse(std::string_view val) {
@@ -696,7 +696,7 @@ struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
 
     static void validateValue(const ov::streams::Num& num) {
         if (defaultValue() != num && ov::streams::AUTO != num) {
-            throw std::runtime_error("NUM_STREAMS can not be set");
+            OPENVINO_THROW("NUM_STREAMS can not be set");
         }
     }
 
