@@ -17,6 +17,14 @@ struct MoeTestShapeParams {
     size_t intermediate_size;
 };
 
+static const char* routing_type_str(MoERoutingType rt) {
+    switch (rt) {
+    case MoERoutingType::SOFTMAX:      return "Softmax";
+    case MoERoutingType::SIGMOID_BIAS: return "SigmoidBias";
+    default: OPENVINO_THROW("Unsupported MoERoutingType");
+    }
+}
+
 using MoE3GemmParams = std::tuple<MoeTestShapeParams, MoERoutingType>;
 using MoE3GemmCompressedParams = std::tuple<MoeTestShapeParams,
                                             MoERoutingType,
@@ -40,7 +48,7 @@ public:
         result << "topk=" << moe_params.topk << "_";
         result << "experts=" << moe_params.number_of_experts << "_";
         result << "inter=" << moe_params.intermediate_size << "_";
-        result << "routing=" << (routing_type == MoERoutingType::SIGMOID_BIAS ? "SigmoidBias" : "Softmax");
+        result << "routing=" << routing_type_str(routing_type);
         return result.str();
     }
 
@@ -88,7 +96,7 @@ public:
         result << "topk=" << moe_params.topk << "_";
         result << "experts=" << moe_params.number_of_experts << "_";
         result << "inter=" << moe_params.intermediate_size << "_";
-        result << "routing=" << (routing_type == MoERoutingType::SIGMOID_BIAS ? "SigmoidBias" : "Softmax") << "_";
+        result << "routing=" << routing_type_str(routing_type) << "_";
         result << "WP=" << wp << "_";
         result << "DP=" << dp << "_";
         result << "SP=" << sp << "_";

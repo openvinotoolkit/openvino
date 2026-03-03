@@ -562,10 +562,18 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
 
     auto router_matmul = std::make_shared<ov::op::v0::MatMul>(experts_reshape, router_weights_moe3, false, true);
 
-    auto [unsqueeze_routing_weights, router_topk_indices] =
-        routing_type == MoERoutingType::SOFTMAX
-            ? build_softmax_routing_subgraph(router_matmul, number_of_experts, topk)
-            : build_sigmoid_bias_routing_subgraph(router_matmul, data_precision, number_of_experts, topk);
+    std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> routing_outputs;
+    switch (routing_type) {
+    case MoERoutingType::SOFTMAX:
+        routing_outputs = build_softmax_routing_subgraph(router_matmul, number_of_experts, topk);
+        break;
+    case MoERoutingType::SIGMOID_BIAS:
+        routing_outputs = build_sigmoid_bias_routing_subgraph(router_matmul, data_precision, number_of_experts, topk);
+        break;
+    default:
+        OPENVINO_THROW("Unsupported MoERoutingType");
+    }
+    auto [unsqueeze_routing_weights, router_topk_indices] = routing_outputs;
 
     const auto number_of_experts_const =
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(number_of_experts)});
