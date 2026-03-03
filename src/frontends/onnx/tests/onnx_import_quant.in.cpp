@@ -1441,3 +1441,31 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e4m3_per_axis) {
     test_case.add_expected_output<float>({2, 3}, std::vector<float>{4.0f, 8.0f, 16.0f, 6.0f, 1024.0f, 3584.0f});
     test_case.run();
 }
+
+/// 8-bit floating point QuantizeLinear - DequantizeLinear test - f8e4m3 - blocked quantization mode
+///
+/// Blocked quantization (axis=1, block_size=2) on input shape (2, 4):
+///   scale shape is (2, ceil(4/2)) = (2, 2) — one independent scale per 2-element block.
+///   y[r, c] = fp8_round(x[r, c] / scale[r, c/block_size]) * scale[r, c/block_size]
+///
+/// scale = [[2.0, 4.0],    x = [[  2.0,   6.0,   8.0, 500.0],
+///          [1.0, 4.0]]         [  1.0,   3.0,  56.0, 2000.0]]
+///
+///   row 0, block 0 (cols 0-1), scale=2.0:  x/s = [1.0,  3.0]  - exact - DQ [2.0,   6.0]
+///   row 0, block 1 (cols 2-3), scale=4.0:  x/s = [2.0, 125.0] - 125.0 rounds to 128.0
+///      (|125-120|=5 vs |125-128|=3, 128 is nearer) - DQ [8.0, 512.0]
+///
+///   row 1, block 0 (cols 0-1), scale=1.0:  x/s = [1.0,  3.0]  - exact - DQ [1.0,   3.0]
+///   row 1, block 1 (cols 2-3), scale=4.0:  x/s = [14.0, 500.0] - 14.0 exact;
+///     500.0 > 448.0 (f8e4m3fn max) - saturates - DQ [56.0, 1792.0]
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e4m3_blocksize) {
+    auto model = convert_model("quant_dequant_f8e4m3_blocksize.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({2.0f, 6.0f, 8.0f, 500.0f, 1.0f, 3.0f, 56.0f, 2000.0f});  // x, shape (2, 4), row-major
+    test_case.add_input<float>({2.0f, 4.0f, 1.0f, 4.0f});  // scale, shape (2, 2), row-major
+
+    test_case.add_expected_output<float>({2, 4},
+                                         std::vector<float>{2.0f, 6.0f, 8.0f, 512.0f, 1.0f, 3.0f, 56.0f, 1792.0f});
+    test_case.run();
+}
