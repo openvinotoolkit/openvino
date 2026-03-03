@@ -97,9 +97,6 @@ static void paged_attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
         }
         auto block_number = slot / block_size;
         auto block_offset = slot % block_size;
-        if (block_number >= past_k_output.m_dims[0]) {
-            return;
-        }
         attn_copy(past_k_output.ptr<T2>(block_number, h, block_offset, 0), k_input.ptr<T>(b, h, m, 0), S);
         attn_copy(past_v_output.ptr<T2>(block_number, h, block_offset, 0), v_input.ptr<T>(b, h, m, 0), SV);
     });
@@ -123,9 +120,6 @@ static void paged_attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
         }
         auto block_number = slot / block_size;
         auto block_offset = slot % block_size;
-        if (block_number >= past_k_output.m_dims[0]) {
-            return;
-        }
         std::memcpy(past_k_output.ptr_v(block_number, h, block_offset, 0),
                     k_input.ptr_v(b, h, m, 0),
                     S * k_input.m_element_size);

@@ -85,9 +85,6 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
         parallel_for(total_blocks, [&](int32_t block_count) {
             const auto block_id = block_number_start + block_count;
             const auto block_number = block_indices.ptr<int32_t>()[block_id];
-            if (block_number < 0 || block_number >= static_cast<int32_t>(dst.m_dims[0])) {
-                return;
-            }
             const auto token_num =
                 (block_count == (total_blocks - 1)) ? (q_len - block_count * block_size) : block_size;
             const size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_count * block_size;
@@ -120,9 +117,6 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
             }
             const size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_size * block_id - offset;
             const auto block_number = block_indices.ptr<int32_t>()[block_id + block_offset];
-            if (block_number < 0 || block_number >= static_cast<int32_t>(dst.m_dims[0])) {
-                return;
-            }
             auto base = dst.ptr<uint8_t, DST_PREC>(block_number, h, 0, 0);
             auto p_scales = reinterpret_cast<float*>(base);
             auto p_zps = p_scales + S;
@@ -300,9 +294,6 @@ static void saged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
         }
         auto block_number = slot / block_size;
         auto block_offset = slot % block_size;
-        if (block_number >= k_dst.m_dims[0]) {
-            return;
-        }
         quantize_block_by_dims<T, KEY_DST_PREC>(k_src,
                                                 k_dst,
                                                 b,
@@ -390,9 +381,6 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
             }
             auto block_number = slot / block_size;
             auto block_offset = slot % block_size;
-            if (block_number >= v_dst.m_dims[0]) {
-                return;
-            }
             quantize_block_by_dims<T, VALUE_DST_PREC>(v_src,
                                                       v_dst,
                                                       b,

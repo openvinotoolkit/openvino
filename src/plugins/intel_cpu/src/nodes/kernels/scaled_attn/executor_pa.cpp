@@ -2348,14 +2348,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         auto B_token = k.size(0);
         _slot_mapping.resize<int32_t>({B_token});
         size_t idx = 0;
-        if (subsequence_begins.size(0) != past_lens.size(0) + 1 ||
-            block_indices_begins.size(0) != past_lens.size(0) + 1) {
-            return;
-        }
-        if (block_indices_begins.ptr<int32_t>()[block_indices_begins.size(0) - 1] >
-            static_cast<int32_t>(block_indices.size(0))) {
-            return;
-        }
         for (size_t i = 0; i < past_lens.size(0); i++) {
             auto q_len = subsequence_begins.ptr<int32_t>()[i + 1] - subsequence_begins.ptr<int32_t>()[i];
             auto kv_len = past_lens.ptr<int32_t>()[i] + q_len;
@@ -2363,13 +2355,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             auto block_offset_start = kv_len - q_len;
             for (int32_t j = 0; j < q_len; j++) {
                 auto block_offset = block_offset_start + j;
-                const auto block_number_idx =
-                    block_number_start + block_offset / static_cast<int32_t>(_helper._block_size);
-                if (block_number_idx < 0 || block_number_idx >= static_cast<int32_t>(block_indices.size(0)) ||
-                    idx >= B_token) {
-                    continue;
-                }
-                auto block_number = block_indices.ptr<int32_t>()[block_number_idx];
+                auto block_number =
+                    block_indices.ptr<int32_t>()[block_number_start + block_offset / _helper._block_size];
                 _slot_mapping.ptr<int32_t>()[idx++] =
                     block_number * _helper._block_size + block_offset % _helper._block_size;
             }
@@ -2416,9 +2403,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         const auto B_seq = block_indices_begins.size(0) - 1;
-        if (block_update_indices_begins.size(0) < B_seq + 1) {
-            return;
-        }
         const auto block_size = _helper._block_size;
         const auto Hk = k_cache.size(1);
         const auto num_blocks = static_cast<int32_t>(k_cache.size(0));
@@ -2430,10 +2414,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         const auto* subseq_begins_ptr = subsequence_begins.ptr<int32_t>();
         const auto* update_ptr = block_update_indices.ptr<int32_t>();
         const auto* update_begins_ptr = block_update_indices_begins.ptr<int32_t>();
-        const auto total_ops = update_begins_ptr[B_seq];
-        if (total_ops < 0 || static_cast<size_t>(total_ops) * 2 > block_update_indices.size(0)) {
-            return;
-        }
 
         const size_t key_elem_size = k_cache.get_precision().size();
         const size_t key_sub_byte = get_sub_byte_multiplier(k_cache.get_precision());
@@ -2481,9 +2461,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
             const int32_t op_begin = update_begins_ptr[seq];
             const int32_t op_end = update_begins_ptr[seq + 1];
-            if (op_begin < 0 || op_end < 0 || op_end < op_begin || op_end > total_ops) {
-                continue;
-            }
             if (op_end <= op_begin) {
                 continue;
             }
