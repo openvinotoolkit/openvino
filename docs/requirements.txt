@@ -28,7 +28,7 @@ pytest==9.0.2
 pytest-html==4.2.0
 pytest-metadata==3.1.1
 py>=1.11.0
-pytz==2022.7
+pytz==2026.1.post1
 pyyaml==6.0.3
 requests==2.32.5
 six==1.17.0
