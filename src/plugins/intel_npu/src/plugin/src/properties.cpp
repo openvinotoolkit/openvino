@@ -5,7 +5,7 @@
 // Plugin
 #include "properties.hpp"
 
-#include "compiler_adapter_factory.hpp"
+#include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
@@ -716,6 +716,7 @@ void Properties::registerPluginProperties() {
 
             CompilerAdapterFactory factory;
             auto dummyCompiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+
             return dummyCompiler->get_version();
         });
         REGISTER_CUSTOM_METRIC(ov::internal::caching_properties, false, [&](const Config& config) {
@@ -760,9 +761,9 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::compilation_num_threads, COMPILATION_NUM_THREADS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_mode, CACHE_MODE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compiler_type, COMPILER_TYPE);
 
     // Properties we shall only enable if they were set prior-to-compilation
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_type, COMPILER_TYPE);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::weights_path, WEIGHTS_PATH);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::cache_dir, CACHE_DIR);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::enable_profiling, PERF_COUNT);
@@ -1058,9 +1059,6 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
         disableCompilerProperties(updatedConfig, _backend);
     }
 
-    // Special case for NPU_COMPILER_TYPE - don't need it in the config for this case.
-    updatedConfig.enable(ov::intel_npu::compiler_type.name(), false);
-
     if (properties.empty()) {
         return updatedConfig;
     }
@@ -1068,8 +1066,7 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
     std::map<std::string, std::string> cfgsToSet;
     for (const auto& [key, value] : rawConfig) {
-        if ((updatedConfig.hasOpt(key) && updatedConfig.getOpt(key).mode() == OptionMode::CompileTime) ||
-            key == ov::intel_npu::compiler_type.name()) {
+        if ((updatedConfig.hasOpt(key) && updatedConfig.getOpt(key).mode() == OptionMode::CompileTime)) {
             _logger.info(
                 "Config key '%s' is recognized as a compiler option, will not be used for current configuration.",
                 key.c_str());
