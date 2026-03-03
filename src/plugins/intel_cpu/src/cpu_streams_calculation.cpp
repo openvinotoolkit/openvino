@@ -25,10 +25,7 @@
 
 #if (defined(OPENVINO_ARCH_ARM64) && defined(__linux__))
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
-#endif
-
-/* Include oneDNN only for architectures that need dnnl symbols. */
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
+#else
 #    include <oneapi/dnnl/dnnl.hpp>
 
 #    include "onednn/dnnl.h"
