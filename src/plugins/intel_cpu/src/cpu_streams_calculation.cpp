@@ -1107,7 +1107,7 @@ int get_model_prefer_threads(const int num_streams,
                                 is_LLM);
 
 #    else
-#        if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#        if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_RISCV64)
         const int main_cores = proc_type_table[0][MAIN_CORE_PROC];
         const int efficient_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
         const int lp_efficient_cores = proc_type_table[0][LP_EFFICIENT_CORE_PROC];
