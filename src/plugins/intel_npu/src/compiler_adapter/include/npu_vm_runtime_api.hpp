@@ -74,7 +74,7 @@ private:
 #define nmr_symbol_statement(symbol)                                                                        \
     template <typename... Args>                                                                             \
     inline typename std::invoke_result<decltype(&::symbol), Args...>::type wrapped_##symbol(Args... args) { \
-        const auto& ptr = NPUVMRuntimeApi::getInstance();                                                 \
+        const auto& ptr = NPUVMRuntimeApi::getInstance();                                                   \
         if (ptr->symbol == nullptr) {                                                                       \
             OPENVINO_THROW("Unsupported symbol " #symbol);                                                  \
         }                                                                                                   \
