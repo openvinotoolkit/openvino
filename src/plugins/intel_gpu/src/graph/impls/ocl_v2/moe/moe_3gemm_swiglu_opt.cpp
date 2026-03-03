@@ -16,7 +16,6 @@
 #    include <initializer_list>
 #    include <cstdint>
 #    include <fstream>
-#    include <iostream>
 #    include <limits>
 #    include <mutex>
 #    include <oneapi/dnnl/dnnl.hpp>
@@ -25,11 +24,6 @@
 #    include <string_view>
 #    include <tuple>
 #    include <utility>
-
-#    ifdef _WIN32
-#        include <windows.h>
-#        include <psapi.h>
-#    endif
 
 #    include "../primitive_ocl_base.hpp"
 #    include "../utils/kernel_generator.hpp"
@@ -1308,12 +1302,6 @@ public:
             });
         }
 
-        const char* mem_trace_env = std::getenv("OTD_MEM_TRACE");
-        const bool mem_trace = mem_trace_env != nullptr && std::string(mem_trace_env) == "1";
-        static size_t trace_calls = 0;
-        ++trace_calls;
-        const bool should_log = mem_trace && (trace_calls <= 10 || trace_calls % 100 == 0);
-
         auto get_constant_input = [&](size_t index) {
             auto node = op->input_value(index).get_node_shared_ptr();
             return std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
@@ -1416,32 +1404,6 @@ public:
             i++;
         }
 
-        if (should_log) {
-#ifdef _WIN32
-            PROCESS_MEMORY_COUNTERS_EX pmc;
-            std::memset(&pmc, 0, sizeof(pmc));
-            pmc.cb = sizeof(pmc);
-            SIZE_T working_set = 0;
-            SIZE_T private_usage = 0;
-            if (GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pmc), sizeof(pmc))) {
-                working_set = pmc.WorkingSetSize;
-                private_usage = pmc.PrivateUsage;
-            }
-            std::cout << "[OTD_MEM_TRACE] calls=" << trace_calls
-                      << ", experts=" << experts_list.size()
-                      << ", io_mode=" << (use_mmap ? "mmap" : "stream")
-                      << ", bounce_cap=" << bounce.capacity()
-                      << ", ws_mb=" << (working_set / (1024 * 1024))
-                      << ", private_mb=" << (private_usage / (1024 * 1024))
-                      << std::endl;
-#else
-            std::cout << "[OTD_MEM_TRACE] calls=" << trace_calls
-                      << ", experts=" << experts_list.size()
-                      << ", io_mode=" << (use_mmap ? "mmap" : "stream")
-                      << ", bounce_cap=" << bounce.capacity()
-                      << std::endl;
-#endif
-        }
     }
 
     static uint32_t get_lru_expert_no(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, uint32_t expert, LRUCache& cache) {
