@@ -18,6 +18,7 @@ const std::vector<ov::element::Type> precisions = {
 const std::vector<ov::builder::subgraph::FakeQuantizeOnData> fakeQuantizes = {
     {256ul, {}, {-12.8f}, {12.7f}, {-12.8f}, {12.7f}},
     {256ul, {}, {0.f}, {25.5f}, {0.f}, {25.5f}},
+    {256ul, {}, {-12.8f}, {12.7f}, {0.f}, {25.5f}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,

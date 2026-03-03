@@ -44,6 +44,7 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/avg_pool_base.hpp"
 #include "openvino/op/util/max_pool_base.hpp"
+#include "post_ops.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
@@ -490,6 +491,8 @@ void Pooling::prepareParams() {
             poolingAttrs.data_pad_end = shapeInference->get_pads_end();
         }
     }
+    poolingAttrs.postOps = getPostOps(fusedWith, ov::element::dynamic);
+
     if (useACL) {
         auto dstMemPtr = getDstMemoryAtPort(0);
         auto srcMemPtr = getSrcMemoryAtPort(0);

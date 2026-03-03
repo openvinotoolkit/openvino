@@ -8,6 +8,7 @@
 #include <arm_compute/core/Error.h>
 #include <arm_compute/core/TensorInfo.h>
 #include <arm_compute/core/Types.h>
+#include <arm_compute/core/QuantizationInfo.h>
 #include <arm_compute/runtime/IFunction.h>
 #include <arm_compute/runtime/NEON/functions/NEPooling3dLayer.h>
 #include <arm_compute/runtime/NEON/functions/NEPoolingLayer.h>
@@ -171,6 +172,23 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
                                           1,
                                           convertToQuantizedType(precisionToAclDataType(dstDescs[0]->getPrecision())),
                                           getAclDataLayoutByMemoryDesc(dstDescs[0]));
+
+    if (any_of(srcDescs[0]->getPrecision(), ov::element::u8, ov::element::i8) ||
+        any_of(dstDescs[0]->getPrecision(), ov::element::u8, ov::element::i8)) {
+        float dstScale = 1.0F;
+        int dstShift = 0;
+
+        if (const auto* const fq = std::any_cast<FakeQuantizePostOp>(poolingAttrs.postOps.data())) {
+            const auto& fqInputScale = fq->inputScale();
+            const auto& fqInputShift = fq->inputShift();
+
+            dstScale = fqInputScale.empty() ? 1.0F : 1.0F / fqInputScale[0];
+            dstShift = fqInputShift.empty() ? 0 : static_cast<int>(fqInputShift[0]);
+        }
+
+        srcTensorInfo.set_quantization_info(arm_compute::QuantizationInfo(1.0F));
+        dstTensorInfo.set_quantization_info(arm_compute::QuantizationInfo(dstScale, dstShift));
+    }
 
     srcTensor.allocator()->init(srcTensorInfo);
     dstTensor.allocator()->init(dstTensorInfo);
