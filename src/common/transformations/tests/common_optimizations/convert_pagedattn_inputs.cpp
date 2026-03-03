@@ -351,6 +351,7 @@ std::vector<std::vector<ov::element::Type>> get_cache_prec() {
         {ov::element::f16, ov::element::f16},
         {ov::element::u8, ov::element::u8},
         {ov::element::u8, ov::element::u4},
+        {ov::element::u4, ov::element::u4},
     };
 }
 
