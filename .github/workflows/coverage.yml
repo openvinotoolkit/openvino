@@ -61,42 +61,42 @@ jobs:
           submodules: 'true'
 
       - name: Install dependencies
-        run: bash ${{ github.workspace }}/scripts/coverage/install_deps.sh
+        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step install-deps
 
       - name: Configure OpenVINO with CMake
         env:
           CC: ${{ matrix.config.cc }}
           CXX: ${{ matrix.config.cxx }}
-        run: bash ${{ github.workspace }}/scripts/coverage/configure_ov.sh
+        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step configure
 
       - name: Build and install coverage artifacts
-        run: bash ${{ github.workspace }}/scripts/coverage/build_install.sh
+        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step build-install
 
       - name: Run selected C++ coverage tests
         continue-on-error: true
-        run: bash ${{ github.workspace }}/scripts/coverage/run_cpp_tests.sh
+        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-cpp-tests
 
       - name: Run Python API/Frontend/Layer/OVC tests with coverage
         continue-on-error: true
-        run: bash ${{ github.workspace }}/scripts/coverage/run_python_tests.sh
+        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-python-tests
 
       - name: Run Node.js bindings unit/e2e tests with coverage
         continue-on-error: true
-        run: bash ${{ github.workspace }}/scripts/coverage/run_js_tests.sh
+        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-js-tests
 
       - name: Generate C/C++ coverage report
         continue-on-error: true
-        run: bash ${{ github.workspace }}/scripts/coverage/collect_cpp_coverage.sh
+        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step collect-cpp-coverage
 
       - name: Coverage summary
         if: ${{ always() }}
         continue-on-error: true
-        run: bash ${{ github.workspace }}/scripts/coverage/write_summary.sh
+        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step write-summary
 
       - name: Package coverage report
         if: ${{ always() }}
         continue-on-error: true
-        run: bash ${{ github.workspace }}/scripts/coverage/package_artifacts.sh
+        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step package-artifacts
 
       - name: Upload coverage artifact
         if: ${{ always() }}

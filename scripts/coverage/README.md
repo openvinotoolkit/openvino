@@ -1,60 +1,67 @@
 # Coverage Scripts
 
-This directory contains the Bash implementation used by `.github/workflows/coverage.yml`.
+Coverage workflow orchestration is implemented in Python and used by `.github/workflows/coverage.yml`.
 
-## Goals
-- Keep workflow YAML small and maintainable.
-- Reuse the same scripts in CI and local reproduction.
-- Preserve existing CI behavior (including continue-through-failures for tests).
+## Main Entrypoint
+
+```bash
+python3 scripts/coverage/coverage.py <command>
+```
+
+## Commands
+- `step <name>`: run one workflow step.
+- `run-all`: run all steps locally with optional range selection.
+- `list-tests --suite <cpp|python|js> --profile <...>`: print resolved tests.
+- `validate-config`: validate YAML test configs.
+
+Step names:
+- `install-deps`
+- `configure`
+- `build-install`
+- `run-cpp-tests`
+- `run-python-tests`
+- `run-js-tests`
+- `collect-cpp-coverage`
+- `write-summary`
+- `package-artifacts`
 
 ## Config-Driven Test Lists
-Coverage test sets are defined as YAML files:
 - `config/tests_cpp.yml`
 - `config/tests_python.yml`
 - `config/tests_js.yml`
 
-All three use the same top-level structure (`schema_version`, `suite`, `tests`) and are read by `lib/coverage_config.py`.
+Each file uses the same top-level schema:
+- `schema_version`
+- `suite`
+- `tests`
 
-For C++, profile-aware filters are configured directly in YAML via `args` maps, for example:
-
-```yaml
-args:
-  cpu: "-*IE_GPU*"
-  cpu_npu: "-*IE_GPU*"
-  default: ""
-```
-
-## Main Entry Points
-- `install_deps.sh`: apt + pip prerequisites used in coverage workflow.
-- `configure_ov.sh`: CMake configure for coverage build.
-- `build_install.sh`: build OpenVINO, install runtime/tests/wheels, build JS addon runtime.
-- `run_cpp_tests.sh`: C++ test suite execution and per-suite summary counters.
-- `run_python_tests.sh`: Python API/frontend/layer/OVC coverage tests.
-- `run_js_tests.sh`: Node.js lint/tsc/unit/e2e coverage tests.
-- `collect_cpp_coverage.sh`: lcov/genhtml collection for native code.
-- `write_summary.sh`: writes final Markdown summary table.
-- `package_artifacts.sh`: creates `coverage-report.tgz`.
-- `run_full.sh`: local orchestration wrapper.
+Profile-aware fields are supported (for example C++ `args` maps for CPU vs GPU profiles).
 
 ## Local Usage
 Run full flow in CPU profile:
 
 ```bash
-bash scripts/coverage/run_full.sh --profile cpu
+python3 scripts/coverage/coverage.py run-all --profile cpu
 ```
 
 Run with dependency installation:
 
 ```bash
-bash scripts/coverage/run_full.sh --profile cpu --install-deps
+python3 scripts/coverage/coverage.py run-all --profile cpu --install-deps
 ```
 
-Run a subset:
+Run subset:
 
 ```bash
-bash scripts/coverage/run_full.sh --from run_cpp_tests --to package_artifacts
+python3 scripts/coverage/coverage.py run-all --from run-cpp-tests --to package-artifacts
+```
+
+Validate config files:
+
+```bash
+python3 scripts/coverage/coverage.py validate-config
 ```
 
 ## Notes
-- Profiles supported: `cpu`, `cpu_gpu`, `cpu_npu`, `cpu_npu_gpu`.
-- Local mode stores summary/env emulation under `.tmp/coverage-local/`.
+- Supported profiles: `cpu`, `cpu_gpu`, `cpu_npu`, `cpu_npu_gpu`.
+- Local mode writes emulated GitHub outputs to `.tmp/coverage-local/`.

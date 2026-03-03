@@ -107,4 +107,4 @@ tests:
 
   - name: ovc_cli_help
     kind: command
-    command: "coverage run -a -m openvino.tools.ovc --help"
+    command: "python3 -m coverage run -a -m openvino.tools.ovc --help"
