@@ -20,8 +20,8 @@ namespace test {
 namespace intel_gpu {
 
 using ov::test::MoERoutingType;
-using ov::test::MoeRoutingResult;
-using ov::test::build_moe_routing_subgraph;
+using ov::test::build_softmax_routing_subgraph;
+using ov::test::build_sigmoid_bias_routing_subgraph;
 
 class FuseMOE3GemmCompressedTest : public TransformationTestsF, public ::testing::WithParamInterface<MoERoutingType> {
 public:
@@ -46,10 +46,10 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
         auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states, routers);
 
         // tokens:32, num_experts:128, topk:8
-        auto routing = build_moe_routing_subgraph(
-            routing_weights, routing_type, element::f16, 128, 8);
-        const auto& unsqueeze_moe = routing.unsqueeze_moe;
-        const auto& topk_indices  = routing.topk_indices;
+        auto [unsqueeze_moe, topk_indices] =
+            routing_type == MoERoutingType::SOFTMAX
+                ? build_softmax_routing_subgraph(routing_weights, 128, 8)
+                : build_sigmoid_bias_routing_subgraph(routing_weights, element::f16, 128, 8);
 
         auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
         auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 16, 768}, {0.01f});

@@ -10,16 +10,25 @@ namespace {
 using ov::test::InputShape;
 using ov::test::MoERoutingType;
 
+// Test-specific wrapper: holds InputShape for init_input_shapes and
+// shape-independent params. Converts to MoePatternParams before builder calls.
+struct MoeTestShapeParams {
+    InputShape data_shape;  // first=PartialShape, second=static shapes
+    size_t topk;
+    size_t number_of_experts;
+    size_t intermediate_size;
+};
+
 // ─── Parameter types ─────────────────────────────────────────────────────────
 
-// Non-compressed: (MoePatternParams, MoERoutingType)
-using MoE3GemmParams = std::tuple<ov::test::MoePatternParams, MoERoutingType>;
+// Non-compressed: (MoeTestShapeParams, MoERoutingType)
+using MoE3GemmParams = std::tuple<MoeTestShapeParams, MoERoutingType>;
 
-// Compressed:     (MoePatternParams, MoERoutingType, weights_precision,
+// Compressed:     (MoeTestShapeParams, MoERoutingType, weights_precision,
 //                  decompression_precision, scale_precision,
 //                  decompression_multiply_type, decompression_subtract_type,
 //                  reshape_on_decompression, group_size)
-using MoE3GemmCompressedParams = std::tuple<ov::test::MoePatternParams,
+using MoE3GemmCompressedParams = std::tuple<MoeTestShapeParams,
                                             MoERoutingType,
                                             ov::element::Type,                          // weights_precision
                                             ov::element::Type,                          // decompression_precision
@@ -40,15 +49,15 @@ class MoE3GemmFusionTest : public testing::WithParamInterface<MoE3GemmParams>,
                            virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MoE3GemmParams>& info) {
-        const auto& [moe_params, routing_type] = info.param;
+        const auto& [tc, routing_type] = info.param;
         std::ostringstream result;
-        result << "IS=" << ov::test::utils::partialShape2str({moe_params.data_shape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({tc.data_shape.first}) << "_";
         result << "TS=";
-        for (const auto& s : moe_params.data_shape.second)
+        for (const auto& s : tc.data_shape.second)
             result << ov::test::utils::vec2str(s) << ",";
-        result << "topk=" << moe_params.topk << "_";
-        result << "experts=" << moe_params.number_of_experts << "_";
-        result << "inter=" << moe_params.intermediate_size << "_";
+        result << "topk=" << tc.topk << "_";
+        result << "experts=" << tc.number_of_experts << "_";
+        result << "inter=" << tc.intermediate_size << "_";
         result << "routing=" << (routing_type == MoERoutingType::SIGMOID_BIAS ? "SigmoidBias" : "Softmax");
         return result.str();
     }
@@ -60,8 +69,9 @@ protected:
         // which is required by the MOE3GemmFusedCompressed kernel.
         inType = outType = ov::element::f16;
 
-        const auto& [moe_params, routing_type] = GetParam();
-        init_input_shapes({moe_params.data_shape});
+        const auto& [tc, routing_type] = GetParam();
+        init_input_shapes({tc.data_shape});
+        const ov::test::MoePatternParams moe_params{tc.data_shape.first, tc.topk, tc.number_of_experts, tc.intermediate_size};
 
         function = ov::test::initMoE3GeMMSubgraph(
             moe_params,
@@ -91,15 +101,15 @@ class MoE3GemmCompressedFusionTest : public testing::WithParamInterface<MoE3Gemm
                                      virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MoE3GemmCompressedParams>& info) {
-        const auto& [moe_params, routing_type, wp, dp, sp, dm, ds, rd, gs] = info.param;
+        const auto& [tc, routing_type, wp, dp, sp, dm, ds, rd, gs] = info.param;
         std::ostringstream result;
-        result << "IS=" << ov::test::utils::partialShape2str({moe_params.data_shape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({tc.data_shape.first}) << "_";
         result << "TS=";
-        for (const auto& s : moe_params.data_shape.second)
+        for (const auto& s : tc.data_shape.second)
             result << ov::test::utils::vec2str(s) << ",";
-        result << "topk=" << moe_params.topk << "_";
-        result << "experts=" << moe_params.number_of_experts << "_";
-        result << "inter=" << moe_params.intermediate_size << "_";
+        result << "topk=" << tc.topk << "_";
+        result << "experts=" << tc.number_of_experts << "_";
+        result << "inter=" << tc.intermediate_size << "_";
         result << "routing=" << (routing_type == MoERoutingType::SIGMOID_BIAS ? "SigmoidBias" : "Softmax") << "_";
         result << "WP=" << wp << "_";
         result << "DP=" << dp << "_";
@@ -116,8 +126,9 @@ protected:
         targetDevice = ov::test::utils::DEVICE_GPU;
         inType = outType = ov::element::f16;
 
-        const auto& [moe_params, routing_type, wp, dp, sp, dm, ds, rd, gs] = GetParam();
-        init_input_shapes({moe_params.data_shape});
+        const auto& [tc, routing_type, wp, dp, sp, dm, ds, rd, gs] = GetParam();
+        init_input_shapes({tc.data_shape});
+        const ov::test::MoePatternParams moe_params{tc.data_shape.first, tc.topk, tc.number_of_experts, tc.intermediate_size};
 
         function = ov::test::initMoE3GeMMSubgraph(
             moe_params,
@@ -157,7 +168,7 @@ TEST_P(MoE3GemmCompressedFusionTest, Inference) {
 
 const std::vector<MoERoutingType> routing_types = {MoERoutingType::SOFTMAX, MoERoutingType::SIGMOID_BIAS};
 
-const std::vector<ov::test::MoePatternParams> moe_params_smoke = {
+const std::vector<MoeTestShapeParams> moe_params_smoke = {
     {
         {ov::PartialShape{-1, -1, 256}, {{2, 15, 256}, {2, 1, 256}, {3, 8, 256}}},  // dynamic seq_len, hidden=256
         4,    // topk
