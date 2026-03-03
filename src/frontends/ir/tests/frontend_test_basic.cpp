@@ -1739,7 +1739,7 @@ TEST_F(IRFrontendTests, load_model_weights_not_exist_at_path) {
 
     OV_EXPECT_THROW(fe->load(model_file_path, weights_file_path),
                     ov::Exception,
-                    testing::HasSubstr(weights_file_path + error_msg));
+                    testing::HasSubstr('\"' + weights_file_path + '\"' + error_msg));
 
     std::remove(model_file_path.c_str());
 }
