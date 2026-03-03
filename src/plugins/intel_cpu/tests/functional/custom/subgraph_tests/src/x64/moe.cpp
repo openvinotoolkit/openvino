@@ -32,10 +32,8 @@ inline std::ostream& operator<<(std::ostream& os, const MoEType& type) {
     }
 }
 
-// Test-specific wrapper: holds InputShape for init_input_shapes and
-// shape-independent params. Converts to MoePatternParams before builder calls.
 struct MoeTestShapeParams {
-    InputShape data_shape;  // first=PartialShape, second=static shapes
+    InputShape data_shape;
     size_t topk;
     size_t number_of_experts;
     size_t intermediate_size;
@@ -283,17 +281,17 @@ const std::vector<MoEType> moe_types = {MoEType::MoE2GeMM, MoEType::MoE3GeMM};
 
 const std::vector<MoeTestShapeParams> moe_params_smoke = {
     {
-        {ov::PartialShape{-1, -1, 256},
-         {{2, 15, 256}, {2, 1, 256}, {3, 8, 256}}},  // data_shape: seq_len=dynamic, hidden_size=256
-        4,                                           // topk
-        8,                                           // number_of_experts
-        512,                                         // intermediate_size
+        {{-1, -1, 256}, {{2, 15, 256}, {2, 1, 256}, {3, 8, 256}}},  // data_shape,
+                                                                    // seq_len=dynamic, hidden_size=256
+        4,                                                          // topk
+        8,                                                          // number_of_experts
+        512                                                         // intermediate_size
     },
     {
-        {ov::PartialShape{-1, -1, 128}, {{1, 32, 128}, {1, 1, 128}, {1, 16, 128}}},  // data_shape: different seq length
-        2,                                                                           // topk
-        4,                                                                           // number_of_experts
-        256,                                                                         // intermediate_size
+        {{-1, -1, 128}, {{1, 32, 128}, {1, 1, 128}, {1, 16, 128}}},  // Different seq length
+        2,                                                           // topk
+        4,                                                           // number_of_experts
+        256                                                          // intermediate_size
     },
 };
 

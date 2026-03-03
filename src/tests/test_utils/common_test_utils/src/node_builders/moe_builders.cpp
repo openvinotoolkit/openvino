@@ -196,9 +196,13 @@ std::shared_ptr<ov::Node> build_matmul_weights(
         // since MoE matmuls are supported only in case of transpose_b=true
         auto transposed_weights_shape = weights_shape;
         std::swap(*transposed_weights_shape.rbegin(), *(transposed_weights_shape.rbegin() + 1));
-        return ov::test::utils::make_constant(weights_precision,
-                                              transposed_weights_shape,
-                                              utils::InputGenerateData(0, 10, 1, seed));
+        std::shared_ptr<ov::Node> weights = ov::test::utils::make_constant(weights_precision,
+                                                                           transposed_weights_shape,
+                                                                           utils::InputGenerateData(0, 10, 1, seed));
+        if (weights_precision != data_precision) {
+            weights = std::make_shared<ov::op::v0::Convert>(weights, data_precision);
+        }
+        return weights;
     } else {
         OPENVINO_ASSERT(decompression_precision.has_value(),
                         "decompression_precision must be set when use_weight_decompression is true");
@@ -446,8 +450,7 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     const std::optional<ov::test::utils::DecompressionType> decompression_subtract_type,
     const std::optional<bool> reshape_on_decompression,
     const std::optional<int> decompression_group_size,
-    MoERoutingType routing_type,
-    std::optional<ov::element::Type> input_precision) {
+    MoERoutingType routing_type) {
     // Use parameters from shape_params - static shapes only
     const auto& input_shape = moe_params.data_shape;
     const size_t intermediate_size = moe_params.intermediate_size;
@@ -459,12 +462,9 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     OPENVINO_ASSERT(input_rank >= 2 && input_shape[input_rank - 1].is_static());
     const auto hidden_size = static_cast<size_t>(input_shape[input_rank - 1].get_length());
 
-    // Create input parameter.  For GPU the parameter is f16 while computation runs in data_precision (f32).
-    auto input = std::make_shared<ov::op::v0::Parameter>(input_precision.value_or(data_precision), input_shape);
+    // Create input parameter
+    auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, input_shape);
     ov::Output<ov::Node> input_data = input;
-    if (input_precision.has_value()) {
-        input_data = std::make_shared<ov::op::v0::Convert>(input, data_precision);
-    }
 
     // Expert processing path - use -1 for dynamic reshape like in reference
     auto experts_reshape = std::make_shared<ov::op::v1::Reshape>(

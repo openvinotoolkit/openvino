@@ -68,8 +68,7 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     const std::optional<ov::test::utils::DecompressionType> decompression_subtract_type = std::nullopt,
     const std::optional<bool> reshape_on_decompression = std::nullopt,
     const std::optional<int> decompression_group_size = std::nullopt,
-    MoERoutingType routing_type = MoERoutingType::SOFTMAX,
-    std::optional<ov::element::Type> input_precision = std::nullopt);
+    MoERoutingType routing_type = MoERoutingType::SOFTMAX);
 
 }  // namespace test
 }  // namespace ov

@@ -19,10 +19,7 @@ namespace ov {
 namespace test {
 namespace intel_gpu {
 
-using ov::test::MoERoutingType;
-using ov::test::build_softmax_routing_subgraph;
-using ov::test::build_sigmoid_bias_routing_subgraph;
-
+using namespace ov::test;
 class FuseMOE3GemmCompressedTest : public TransformationTestsF, public ::testing::WithParamInterface<MoERoutingType> {
 public:
     static std::string get_test_case_name(const ::testing::TestParamInfo<MoERoutingType>& info) {
@@ -72,8 +69,8 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
             ov::OutputVector{hidden_states, unsqueeze_moe, topk_indices,
                 wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up, wei_down, scale_down, zp_down}, config);
         model = std::make_shared<ov::Model>(moe_compressed, ov::ParameterVector{hidden_states});
-        manager.register_pass<FuseMOE3GemmCompressed>();
     }
+    manager.register_pass<FuseMOE3GemmCompressed>();
     {
         // tokens:32, hidden_size:2048, inter_size:768, experts:128, topk:8
         auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});

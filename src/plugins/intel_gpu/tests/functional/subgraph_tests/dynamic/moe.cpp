@@ -10,24 +10,14 @@ namespace {
 using ov::test::InputShape;
 using ov::test::MoERoutingType;
 
-// Test-specific wrapper: holds InputShape for init_input_shapes and
-// shape-independent params. Converts to MoePatternParams before builder calls.
 struct MoeTestShapeParams {
-    InputShape data_shape;  // first=PartialShape, second=static shapes
+    InputShape data_shape;
     size_t topk;
     size_t number_of_experts;
     size_t intermediate_size;
 };
 
-// ─── Parameter types ─────────────────────────────────────────────────────────
-
-// Non-compressed: (MoeTestShapeParams, MoERoutingType)
 using MoE3GemmParams = std::tuple<MoeTestShapeParams, MoERoutingType>;
-
-// Compressed:     (MoeTestShapeParams, MoERoutingType, weights_precision,
-//                  decompression_precision, scale_precision,
-//                  decompression_multiply_type, decompression_subtract_type,
-//                  reshape_on_decompression, group_size)
 using MoE3GemmCompressedParams = std::tuple<MoeTestShapeParams,
                                             MoERoutingType,
                                             ov::element::Type,                          // weights_precision
@@ -37,13 +27,6 @@ using MoE3GemmCompressedParams = std::tuple<MoeTestShapeParams,
                                             ov::test::utils::DecompressionType,         // subtract type
                                             bool,                                       // reshape_on_decompression
                                             int>;                                       // group_size
-
-// ─── Shared base ─────────────────────────────────────────────────────────────
-
-// Default group size for weight decompression on GPU.
-static constexpr int GROUP_SIZE = 128;
-
-// ─── Non-compressed test class ───────────────────────────────────────────────
 
 class MoE3GemmFusionTest : public testing::WithParamInterface<MoE3GemmParams>,
                            virtual public ov::test::SubgraphBaseTest {
@@ -65,9 +48,6 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
-        // f16 parameter makes the GPU plugin select inference_precision=f16,
-        // which is required by the MOE3GemmFusedCompressed kernel.
-        inType = outType = ov::element::f16;
 
         const auto& [tc, routing_type] = GetParam();
         init_input_shapes({tc.data_shape});
@@ -75,12 +55,11 @@ protected:
 
         function = ov::test::initMoE3GeMMSubgraph(
             moe_params,
-            ov::element::f32,  // data_precision – computation in f32
-            ov::element::f32,  // weights_precision – plain f32 weights (no decompression)
+            ov::element::f32,  // data_precision – f16 computation matches GPU inference_precision
+            ov::element::f16,  // weights_precision – plain f32 weights (no decompression)
             false,             // use_weight_decompression
             std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt,
-            routing_type,
-            ov::element::f16); // input_precision – f16 Parameter
+            routing_type);
     }
 
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
@@ -94,8 +73,6 @@ protected:
                            ov::test::utils::InputGenerateData(0.125f, 2, 8, 1234))});
     }
 };
-
-// ─── Compressed-weights test class ───────────────────────────────────────────
 
 class MoE3GemmCompressedFusionTest : public testing::WithParamInterface<MoE3GemmCompressedParams>,
                                      virtual public ov::test::SubgraphBaseTest {
@@ -124,7 +101,6 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
-        inType = outType = ov::element::f16;
 
         const auto& [tc, routing_type, wp, dp, sp, dm, ds, rd, gs] = GetParam();
         init_input_shapes({tc.data_shape});
@@ -141,8 +117,7 @@ protected:
             ds,                // decompression_subtract_type
             rd,                // reshape_on_decompression
             gs,                // group_size
-            routing_type,
-            ov::element::f16); // input_precision – f16 Parameter
+            routing_type);
     }
 
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
@@ -183,7 +158,6 @@ const std::vector<MoeTestShapeParams> moe_params_smoke = {
     },
 };
 
-// Plain f32 weights – no decompression pipeline
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmFusion,
                          MoE3GemmFusionTest,
                          ::testing::Combine(
@@ -211,7 +185,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion,
                              ::testing::Values(ov::test::utils::DecompressionType::full),
                              ::testing::Values(ov::test::utils::DecompressionType::full),
                              ::testing::Values(true),              // reshape_on_decompression
-                             ::testing::Values(static_cast<int>(GROUP_SIZE))),
+                             ::testing::Values(128)),
                          MoE3GemmCompressedFusionTest::getTestCaseName);
 
 }  // namespace

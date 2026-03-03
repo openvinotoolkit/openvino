@@ -6,7 +6,6 @@
 
 #include <limits>
 #include <memory>
-#include <iostream>
 
 #include "intel_gpu/op/moe_compressed.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -179,7 +178,6 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
         if (!moe || transformation_callback(moe)) {
             return false;
         }
-
         if (moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU) {
             auto wei_partial_shape = pattern_map.at(gemm3_compressed_weights_m_up).get_partial_shape();
             if (!wei_partial_shape.is_static()) {
@@ -270,8 +268,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             ov::intel_gpu::op::MOECompressed::Config config(moe->get_config());
             config.num_expert = weight_shape[0];
             config.hidden_size = weight_shape[2];
-            if (weight_shape.size() == 4)
-                config.hidden_size *= weight_shape[3];
+            if (weight_shape.size() == 4) config.hidden_size *= weight_shape[3];
             config.inter_size = weight_shape[1];
             config.group_size = (weight_shape.size() == 3) ? config.hidden_size : scale_shape[3];
             config.top_k = topk_shape.rbegin()->get_length();
