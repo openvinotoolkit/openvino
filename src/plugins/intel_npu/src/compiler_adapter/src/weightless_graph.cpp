@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
-#define USE_SINGLE_THREADED_RUN_INIT 0
+#define USE_SINGLE_THREADED_RUN_INIT 1
 
 namespace intel_npu {
 
@@ -155,10 +155,10 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
                                  const std::vector<GraphDescriptor>& initGraphDesc,
                                  std::vector<NetworkMetadata> initMetadata,
                                  std::optional<std::vector<ov::Tensor>> initBlobs,
-                                 const std::shared_ptr<const ov::Model>& model,
+                                 std::shared_ptr<const ov::Model>&& model,
                                  const Config& config,
                                  const bool blobIsPersistent,
-                                 const ov::SoPtr<ICompiler>& compiler)
+                                 const ov::SoPtr<VCLCompilerImpl>& compiler)
     : Graph(zeGraphExt,
             zeroInitStruct,
             mainGraphDesc,
@@ -171,7 +171,7 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),
-      _model(model),
+      _model(std::move(model)),
       _wgLogger("WeightlessGraph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
         _wgLogger.info("Graph initialize is deferred from the \"WeightlessGraph\" constructor");
@@ -198,6 +198,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
         std::vector<uint8_t> blob;
 
         if (blobTensor == std::nullopt) {
+            OPENVINO_ASSERT(_zeGraphExt != nullptr, "Zero compiler adapter wasn't initialized");
             // when compiling the model using Compiler in Driver, the blob is handled by the driver
             _zeGraphExt->getGraphBinary(_graphDesc, blob, blobRawPtr, blobSize);
         } else {
@@ -275,48 +276,22 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
 }
 
 void WeightlessGraph::initialize(const Config& config) {
+    if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
+        // To ensure that does not throw an issue when subsequently calling `_zeroInitStruct->getDevice()`
+        return;
+    }
+
     // Simplified version for init schedules
     const size_t numberOfInits = _initsGraphDesc.size();
-    _initsInputDescriptors.resize(numberOfInits);
-    _initsOutputDescriptors.resize(numberOfInits);
     _initsCommandQueueOrdinals.resize(numberOfInits);
     _initsCommandLists.resize(numberOfInits);
     _initsFences.resize(numberOfInits);
 
     for (size_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
         _wgLogger.debug("WeightlessGraph initialize start, init schedule ", initIndex);
-        std::vector<ArgumentDescriptor>& initInputDescriptors = _initsInputDescriptors.at(initIndex);
-        std::vector<ArgumentDescriptor>& initOutputDescriptors = _initsOutputDescriptors.at(initIndex);
         uint32_t& initCommandQueueOrdinal = _initsCommandQueueOrdinals.at(initIndex);
 
         // Code similar to "Graph::initialize"
-        _wgLogger.debug("performing pfnGetProperties");
-        ze_graph_properties_t props{};
-        props.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
-        auto result =
-            _zeroInitStruct->getGraphDdiTable().pfnGetProperties(_initsGraphDesc.at(initIndex)._handle, &props);
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _zeroInitStruct->getGraphDdiTable());
-
-        _wgLogger.debug("performing pfnGetArgumentProperties3");
-        for (uint32_t index = 0; index < props.numGraphArgs; ++index) {
-            ze_graph_argument_properties_3_t arg3{};
-            arg3.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
-            auto result =
-                _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(_initsGraphDesc.at(initIndex)._handle,
-                                                                              index,
-                                                                              &arg3);
-            THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
-
-            if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
-                initInputDescriptors.push_back(ArgumentDescriptor{arg3, index});
-            } else {
-                initOutputDescriptors.push_back(ArgumentDescriptor{arg3, index});
-            }
-        }
-
-        initInputDescriptors.shrink_to_fit();
-        initOutputDescriptors.shrink_to_fit();
-
         initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
                                                                           ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
@@ -371,8 +346,6 @@ void WeightlessGraph::initialize(const Config& config) {
         release_graphs();
     }
 
-    _initsInputDescriptors.clear();
-    _initsOutputDescriptors.clear();
     _initsCommandQueueOrdinals.clear();
     _initsCommandLists.clear();
     _initsFences.clear();
@@ -387,7 +360,7 @@ void WeightlessGraph::initialize(const Config& config) {
 
 WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
     const size_t initIndex,
-    const std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants) {
+    std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants) {
     std::vector<std::shared_ptr<ov::ITensor>> initInputsViewTensors;
     size_t initInputsByteSize = 0;
 
@@ -428,6 +401,11 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
         initInputsViewTensors.push_back(
             ov::make_tensor(constant->get_element_type(), constant->get_shape(), currentInputBufferLocation));
         offset += currentInputSize;
+
+        // Note: By construction of the weight schedule, every constant from OV
+        // model appears exactly once across all schedules. Thus, one can delete
+        // the handle to the constant memory early.
+        constants.erase(id);
     }
 
     return {initInputsViewTensors, initInputsAllocatedTensor};
@@ -471,14 +449,12 @@ void WeightlessGraph::run_init_single_threaded() {
     auto constants = get_all_constants_in_topological_order(_model, _wgLogger);
     const size_t numberOfInits = _initsGraphDesc.size();
 
+    // Note: Delete model prematurely, constants are still valid due to
+    // shared_ptr semantics.
+    _model = nullptr;
+
     for (size_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
         auto [initInputsViewTensors, initInputsAllocatedTensor] = allocate_inputs(initIndex, constants);
-        if (initIndex == numberOfInits - 1) {
-            // We don't need these anymore, potentially save some memory
-            _model = nullptr;
-            constants = {};
-        }
-
         auto [initOutputsViewTensors, initOutputsAllocatedTensor, initOutputsViewTensorsMap] =
             allocate_outputs(initIndex);
 
@@ -506,7 +482,7 @@ void WeightlessGraph::run_init_multi_threaded() {
     //                                    allocate I/O -> create Pipeline -> run Pipeline
     Parallelizer multiThreadedRunner(
         _model,
-        [&](const std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants,
+        [&](std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants,
             int64_t initIndex) -> QueueData {
             QueueData data{};
             data.initIndex = initIndex;
@@ -535,8 +511,11 @@ void WeightlessGraph::run_init_multi_threaded() {
         },
         _wgLogger);
 
-    multiThreadedRunner.callForAllAndWait(_initsGraphDesc.size());
+    // Note: Delete model prematurely, constants are still valid due to
+    // shared_ptr semantics.
     _model = nullptr;
+
+    multiThreadedRunner.callForAllAndWait(_initsGraphDesc.size());
 }
 
 void WeightlessGraph::create_pipeline(const size_t initIndex,
@@ -553,15 +532,19 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
     _initsFences.at(initIndex) = std::make_unique<Fence>(_initsCommandQueue);
 
     size_t io_index = 0;
-    for (const auto& desc : _initsInputDescriptors.at(initIndex)) {
+    for (const auto& desc : _initsMetadata.at(initIndex).inputs) {
         void* data = inputTensors.at(io_index++)->data();
-        _zeGraphExt->setGraphArgumentValue(_initsGraphDesc.at(initIndex), desc.idx, static_cast<unsigned char*>(data));
+        _zeGraphExt->setGraphArgumentValue(_initsGraphDesc.at(initIndex),
+                                           desc.indexUsedByDriver,
+                                           static_cast<unsigned char*>(data));
     }
 
     io_index = 0;
-    for (const auto& desc : _initsOutputDescriptors.at(initIndex)) {
+    for (const auto& desc : _initsMetadata.at(initIndex).outputs) {
         void* data = outputTensors.at(io_index++)->data();
-        _zeGraphExt->setGraphArgumentValue(_initsGraphDesc.at(initIndex), desc.idx, static_cast<unsigned char*>(data));
+        _zeGraphExt->setGraphArgumentValue(_initsGraphDesc.at(initIndex),
+                                           desc.indexUsedByDriver,
+                                           static_cast<unsigned char*>(data));
     }
 
     _initsCommandLists.at(initIndex)->appendGraphExecute(
@@ -584,18 +567,17 @@ void WeightlessGraph::run_pipeline(const size_t initIndex) {
 }
 
 void WeightlessGraph::set_weights_inputs() {
-    for (const auto& desc : _inputDescriptors) {
-        if (!isMainInputWeightsName(desc.info.name)) {
+    for (const auto& desc : _metadata.inputs) {
+        if (!desc.isMainInputWeights) {
             continue;
         }
 
-        const std::string weightsInputName = std::string(desc.info.name).substr(MAIN_INPUT_WEIGHTS_PREFIX.size());
-        OPENVINO_ASSERT(_mainInputsViewTensors.count(weightsInputName),
+        OPENVINO_ASSERT(_mainInputsViewTensors.count(desc.nameFromCompiler),
                         "Mismatch between main inputs and init outputs. The input of the main schedule \"",
-                        weightsInputName,
+                        desc.nameFromCompiler,
                         "\" has no correspondent within the init outputs.");
-        std::shared_ptr<ov::ITensor> weightsTensor = _mainInputsViewTensors.at(weightsInputName);
-        set_argument_value(desc.idx, static_cast<unsigned char*>(weightsTensor->data()));
+        std::shared_ptr<ov::ITensor> weightsTensor = _mainInputsViewTensors.at(desc.nameFromCompiler);
+        set_argument_value(desc.indexUsedByDriver, static_cast<unsigned char*>(weightsTensor->data()));
     }
 }
 
@@ -606,7 +588,7 @@ void WeightlessGraph::release_init_blob(const size_t initIndex) {
     }
 
     ze_graph_properties_2_t properties = {};
-    properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
+    properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_2;
     _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(_initsGraphDesc.at(initIndex)._handle, &properties);
 
     if (~properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {

@@ -1,0 +1,117 @@
+ir_version: 8
+producer_name: "onnx-example"
+graph {
+  node {
+    input: "input"
+    input: "weights"
+    input: "bias"
+    output: "output"
+    op_type: "ConvTranspose"
+    attribute {
+      name: "auto_pad"
+      s: "SAME_UPPER"
+      type: STRING
+    }
+    attribute {
+      name: "kernel_shape"
+      ints: 3
+      ints: 3
+      type: INTS
+    }
+    attribute {
+      name: "strides"
+      ints: 2
+      ints: 2
+      type: INTS
+    }
+  }
+  name: "complex_model"
+  initializer {
+    dims: 3
+    dims: 1
+    dims: 3
+    dims: 3
+    data_type: 1
+    float_data: 0.84014213
+    float_data: 1.7282453
+    float_data: -0.3263198
+    float_data: -0.48273504
+    float_data: 0.25233305
+    float_data: -0.40771398
+    float_data: -1.2935431
+    float_data: -0.36785364
+    float_data: -1.2410039
+    float_data: 0.8345059
+    float_data: 0.24356616
+    float_data: 1.004215
+    float_data: -0.81657827
+    float_data: -0.67410517
+    float_data: 0.4060925
+    float_data: 0.65320534
+    float_data: -0.8198668
+    float_data: -1.4369859
+    float_data: -0.117572695
+    float_data: -0.8670695
+    float_data: 0.49399605
+    float_data: -1.0330713
+    float_data: -1.787455
+    float_data: -0.30436283
+    float_data: 0.06804885
+    float_data: -0.950185
+    float_data: 0.7083448
+    name: "weights"
+  }
+  initializer {
+    dims: 1
+    data_type: 1
+    float_data: 1.3708473
+    name: "bias"
+  }
+  input {
+    name: "input"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 8
+          }
+          dim {
+            dim_value: 8
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 16
+          }
+          dim {
+            dim_value: 16
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 14
+}

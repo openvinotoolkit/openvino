@@ -4,14 +4,16 @@
   "license": "Apache-2.0",
   "type": "commonjs",
   "dependencies": {
-    "openvino-node": "^2025.3.0"
+    "openvino-node": "^2025.4.0"
   },
   "devDependencies": {
-    "@napi-rs/canvas": "^0.1.59",
-    "@tensorflow/tfjs-node": "^4.19.0",
+    "@eslint/js": "^9.39.1",
+    "globals": "^16.5.0",
+    "@napi-rs/canvas": "^0.1.83",
+    "@tensorflow/tfjs-node": "^4.22.0",
     "args": "^5.0.3",
-    "eslint": "^8.39.0",
-    "https-proxy-agent": "^7.0.2"
+    "eslint": "^9.39.1",
+    "https-proxy-agent": "^7.0.6"
   },
   "scripts": {
     "lint": "eslint .",

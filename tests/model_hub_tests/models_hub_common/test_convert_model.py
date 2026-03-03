@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import gc
 
@@ -109,7 +109,7 @@ class TestConvertModel:
         ov_model = self.convert_model(fw_model)
         print("Infer ov::Model")
         ov_outputs = self.infer_ov_model(ov_model, inputs, ie_device)
-        
+
         # Run original FW inference after OV inference, as original FW inference may change original FW model,
         # which results in corruption of shared memory.
         print("Infer the original model")

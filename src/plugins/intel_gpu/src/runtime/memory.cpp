@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,6 +52,12 @@ std::unique_ptr<surfaces_lock> surfaces_lock::create(engine_types engine_type, s
         return std::unique_ptr<ocl::ocl_surfaces_lock>(new ocl::ocl_surfaces_lock(mem, stream));
     default: throw std::runtime_error("Unsupported engine type in surfaces_lock::create");
     }
+}
+
+bool surfaces_lock::is_lock_needed(const shared_mem_type& mem_type) {
+    return mem_type == shared_mem_type::shared_mem_vasurface ||
+           mem_type == shared_mem_type::shared_mem_dxbuffer ||
+           mem_type == shared_mem_type::shared_mem_image;
 }
 
 }  // namespace cldnn

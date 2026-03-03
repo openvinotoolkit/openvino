@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/util/log.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
@@ -323,7 +324,7 @@ bool LowPrecision::isFunctionQuantized(const std::shared_ptr<const ov::Model>& m
         } else if (const auto multiSubGraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             // Look inside subraph operations, such as TensorIterator, Loop, If, etc
             for (size_t i = 0; i < multiSubGraph->get_internal_subgraphs_size(); i++) {
-                if (isFunctionQuantized(multiSubGraph->get_function(i))) {
+                if (isFunctionQuantized(multiSubGraph->get_function(i), supported_levels, check_fake_convert)) {
                     return true;
                 }
             }
@@ -332,60 +333,28 @@ bool LowPrecision::isFunctionQuantized(const std::shared_ptr<const ov::Model>& m
     return false;
 }
 
-bool ov::pass::low_precision::LowPrecision::doesFunctionContainF8DynQuanPatterns(
+bool ov::pass::low_precision::LowPrecision::doesModelContainMXFPPatterns(
         const std::shared_ptr<const ov::Model>& model) {
-    std::vector<std::shared_ptr<ov::Node>> nodes = model->get_ops();
-    for (auto& node : nodes) {
-        const auto mult = as_type_ptr<ov::opset1::Multiply>(node);
-        if (mult == nullptr) {
-            continue;
+    using namespace ov::op;
+    using namespace ov::pass::pattern;
+    MATCHER_SCOPE(doesModelContainMXFPPatterns);
+
+    auto weight_pattern = any_input(
+        type_matches_any({ov::element::Type_t::f8e4m3, ov::element::Type_t::f8e5m2, ov::element::Type_t::f4e2m1}) &&
+        shape_matches("[Dims..., 32]"));
+    auto weight_cvt_pattern = wrap_type<v0::Convert>({weight_pattern});
+
+    auto scale_pattern = any_input(type_matches(ov::element::Type_t::f8e8m0) && shape_matches("[Dims..., 1]"));
+    auto scale_cvt_pattern = wrap_type<v0::Convert>({scale_pattern});
+
+    auto mult_pattern = wrap_type<v1::Multiply>({weight_cvt_pattern, scale_cvt_pattern});
+
+    auto m = std::make_shared<Matcher>(mult_pattern, "doesModelContainMXFPPatterns");
+
+    for (const auto& n : model->get_ordered_ops()) {
+        if (m->match(n)) {
+            return true;
         }
-
-        const auto cvt1 = ov::as_type_ptr<ov::opset1::Convert>(mult->get_input_node_shared_ptr(0));
-        const auto cvt2 = ov::as_type_ptr<ov::opset1::Convert>(mult->get_input_node_shared_ptr(1));
-        if (cvt1 == nullptr || cvt2 == nullptr) {
-            continue;
-        }
-
-        const auto const1 = ov::as_type_ptr<ov::opset1::Constant>(
-            cvt1->get_input_node_shared_ptr(0));
-        const auto const2 = ov::as_type_ptr<ov::opset1::Constant>(
-            cvt2->get_input_node_shared_ptr(0));
-        if (const1 == nullptr || const2 == nullptr) {
-            continue;
-        }
-
-        const auto const1_type = const1->get_element_type();
-        const auto const2_type = const2->get_element_type();
-
-        if (const1_type != ov::element::f8e8m0 && const2_type != ov::element::f8e8m0) {
-            continue;
-        }
-
-        const auto scale = (const1_type == ov::element::f8e8m0) ? const1 : const2;
-        const auto weight = (const1_type == ov::element::f8e8m0) ? const2 : const1;
-        const auto scale_shape = scale->get_shape();
-        const auto weight_shape = weight->get_shape();
-
-        bool weight_dtype_check = (weight->get_element_type() == ov::element::f8e4m3 ||
-                                   weight->get_element_type() == ov::element::f8e5m2 ||
-                                   weight->get_element_type() == ov::element::f4e2m1);
-
-        std::vector<size_t> possible_group_sizes{32}; // TODO: check all possible group sizes
-        bool shape_check = scale_shape.size() == weight_shape.size();
-        shape_check = shape_check && std::equal(scale_shape.begin(),
-                                                scale_shape.begin() + scale_shape.size() - 1,
-                                                weight_shape.begin(),
-                                                [](size_t a, size_t b) {
-                                                    return a == b;
-                                                });
-        shape_check = shape_check && scale_shape.back() == 1;
-        shape_check = shape_check && (std::find(possible_group_sizes.begin(), possible_group_sizes.end(), weight_shape.back()) != possible_group_sizes.end());
-
-        if (!weight_dtype_check || !shape_check) {
-            continue;
-        }
-        return true;
     }
 
     return false;

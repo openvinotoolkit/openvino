@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,8 +71,6 @@ OPENVINO_API op::Predicate output_index_matches(size_t expected_index);
 OPENVINO_API op::Predicate output_index_matches(const std::vector<size_t>& expected_indices);
 
 namespace op {
-OPENVINO_DEPRECATED("This method is deprecated. Use constructor of ov::pass::pattern::Predicate instead")
-OPENVINO_API Predicate as_value_predicate(NodePredicate pred);
 
 class OPENVINO_API Pattern : public Node {
 public:

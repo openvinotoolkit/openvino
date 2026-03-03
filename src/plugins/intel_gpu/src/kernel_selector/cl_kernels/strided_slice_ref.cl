@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,10 +29,10 @@ inline void FUNC(get_slice_step)(OPTIONAL_SHAPE_INFO_ARG
     *step_batch = batch_index < STRIDE_DIMS ? stride[batch_index] : 1;
     *step_feature = feature_index < STRIDE_DIMS ? stride[feature_index] : 1;
 #ifdef OUTPUT_LAYOUT_BFYX
-    *step_w = 0;
-    *step_z = 0;
+    *step_w = 1;
+    *step_z = 1;
 #elif OUTPUT_LAYOUT_BFZYX
-    *step_w = 0;
+    *step_w = 1;
     *step_z = z_index < STRIDE_DIMS ? stride[z_index] : 1;
 #elif OUTPUT_LAYOUT_BFWZYX
     *step_w = w_index < STRIDE_DIMS ? stride[w_index] : 1;
@@ -202,9 +202,9 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
 {
     const uint batch = get_global_id(0);
     const uint feature = get_global_id(1);
-    int step_batch, step_feature, step_w, step_z, step_y, step_x;
-    int begin_batch, begin_feature, begin_w, begin_z, begin_y, begin_x;
-    int end_batch, end_feature, end_w, end_z, end_y, end_x;
+    int step_batch = 0, step_feature = 0, step_w = 0, step_z = 0, step_y = 0, step_x = 0;
+    int begin_batch = 0, begin_feature = 0, begin_w = 0, begin_z = 0, begin_y = 0, begin_x = 0;
+    int end_batch = 0, end_feature = 0, end_w = 0, end_z = 0, end_y = 0, end_x = 0;
 
 #ifdef STRIDE_TYPE
     FUNC_CALL(get_slice_step)(OPTIONAL_SHAPE_INFO_TENSOR stride, &step_batch, &step_feature, &step_w, &step_z, &step_y, &step_x);
@@ -314,7 +314,7 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint y_input = yx_input / OUTPUT_SIZE_X;
     const uint x_input = yx_input % OUTPUT_SIZE_X;
 #endif
-    
+
     const uint input_index = INPUT0_OFFSET +
         batch * INPUT0_BATCH_PITCH +
         input_feature_id * INPUT0_FEATURE_PITCH +
@@ -342,7 +342,7 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint x = yx % OUTPUT_SIZE_X;
     const uint output_index = OUTPUT_GET_INDEX(batch, feature, w, z, y, x);
 #endif
-    
+
     output[output_index] = input[input_index];
 
 #else // NEW_AXIS_MODE

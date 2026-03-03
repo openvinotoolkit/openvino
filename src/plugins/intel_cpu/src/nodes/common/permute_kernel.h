@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <memory>
 #include <utility>
 
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 
 namespace ov::intel_cpu {
@@ -62,14 +63,14 @@ class PermuteKernel {
 public:
     explicit PermuteKernel(const PermuteParams& params);
 
-    void execute(const uint8_t* src_data, uint8_t* dst_data);
-    void execute(const uint8_t* src_data, uint8_t* dst_data, int mb);
+    void execute(const uint8_t* src_data, uint8_t* dst_data, const CpuParallelPtr& cpu_parallel);
+    void execute(const uint8_t* src_data, uint8_t* dst_data, int mb, const CpuParallelPtr& cpu_parallel);
     [[nodiscard]] const PermuteParams& getPermuteParams() const {
         return params;
     }
 
 private:
-    void optimizedExecute(const uint8_t* src_data, const uint8_t* dst_data, int mb);
+    void optimizedExecute(const uint8_t* src_data, const uint8_t* dst_data, int mb, const CpuParallelPtr& cpu_parallel);
 
     jit_permute_config_params jcp = {};
     std::shared_ptr<jit_uni_permute_kernel> permute_kernel;

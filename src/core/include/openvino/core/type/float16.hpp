@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,12 +33,6 @@ public:
 
     template <typename I>
     explicit float16(I value) : m_value{float16{static_cast<float>(value)}.m_value} {}
-
-    OPENVINO_DEPRECATED("This type is deprecated and will be removed in 2026.0. Use `std::to_string` instead.")
-    std::string to_string() const;
-
-    OPENVINO_DEPRECATED("This type is deprecated and will be removed in 2026.0. Use `sizeof` instead.")
-    size_t size() const;
 
     template <typename T>
     bool operator==(const T& other) const;
@@ -223,7 +217,7 @@ public:
         return ov::float16::from_bits(0);
     }
     static constexpr bool is_iec559 = false;
-    static constexpr bool is_bounded = false;
+    static constexpr bool is_bounded = true;
     static constexpr bool is_modulo = false;
     static constexpr bool traps = false;
     static constexpr bool tinyness_before = false;

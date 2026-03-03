@@ -66,10 +66,10 @@ async function main(modelPath, imagePath, deviceName) {
     [53, 183, 120, 255],
     [199, 216, 52, 255],
   ];
-  const size = outputData.length/4;
+  const size = outputData.length / 4;
 
   for (let i = 0; i < size; i++) {
-    const valueAt = (i, number) => outputData[i + number*size];
+    const valueAt = (i, number) => outputData[i + number * size];
     const currentValues = {
       bg: valueAt(i, 0),
       c: valueAt(i, 1),
@@ -96,8 +96,9 @@ async function main(modelPath, imagePath, deviceName) {
   try {
     await mergedImg.save(filename);
     console.log(`Image '${filename}' was created.`);
-  } catch(err) {
+  } catch (err) {
     console.log(`Image '${filename}' was not created. Check your permissions.`);
+    console.error(err);
   }
 
   console.log('\nThis sample is an API example, for any performance '

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -24,7 +24,7 @@ def main():
 
     # [compile_model_no_auto_batching]
     # disabling the automatic batching
-    # leaving intact other configurations options that the device selects for the 'throughput' hint 
+    # leaving intact other configurations options that the device selects for the 'throughput' hint
     config = {hints.performance_mode: hints.PerformanceMode.THROUGHPUT,
               hints.allow_auto_batching: False}
     compiled_model = core.compile_model(model, "GPU", config)
@@ -42,7 +42,7 @@ def main():
     config = {hints.performance_mode: hints.PerformanceMode.THROUGHPUT,
               hints.num_requests: "4"}
     # limiting the available parallel slack for the 'throughput'
-    # so that certain parameters (like selected batch size) are automatically accommodated accordingly 
+    # so that certain parameters (like selected batch size) are automatically accommodated accordingly
     compiled_model = core.compile_model(model, "GPU", config)
     # [hint_num_requests]
 

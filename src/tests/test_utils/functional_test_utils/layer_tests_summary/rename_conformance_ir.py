@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import defusedxml.ElementTree as ET
@@ -19,7 +19,7 @@ import errno
 logger = get_logger('rename_conformance_ir')
 
 try:
-    from openvino.runtime import Core
+    from openvino import Core
 except:
     script_dir, _ = os.path.split(os.path.abspath(__file__))
     ov_bin_path = get_ov_path(script_dir, None, True)

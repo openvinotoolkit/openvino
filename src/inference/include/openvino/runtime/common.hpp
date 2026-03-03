@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,7 +48,6 @@ namespace ov {
  *   - `value` means device name supporting this operation
  */
 using SupportedOpsMap = std::map<std::string, std::string>;
-
 }  // namespace ov
 
 #if defined(_WIN32) && !defined(__GNUC__)

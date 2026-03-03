@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,6 +54,7 @@ std::string getTestsPlatformFromEnvironmentOr(const std::string& instead);
 std::string getDeviceNameTestCase(const std::string& str);
 std::string getDeviceName();
 std::string getDeviceNameID(const std::string& str);
+std::string getTestPlatform();
 
 }  // namespace ov::test::utils
 

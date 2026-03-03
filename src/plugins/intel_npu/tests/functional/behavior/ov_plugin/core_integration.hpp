@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include "common_test_utils/subgraph_builders/kso_func.hpp"
 #include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
@@ -98,7 +99,8 @@ public:
     void TearDown() override {
         for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
             std::wstring postfix = ov::test::utils::test_unicode_postfix_vector[testIndex];
-            std::wstring unicode_path = ov::test::utils::stringToWString(ov::util::get_ov_lib_path() + "/") + postfix;
+            std::wstring unicode_path =
+                ov::test::utils::stringToWString(ov::util::path_to_string(ov::util::get_ov_lib_path()) + "/") + postfix;
 #ifndef _WIN32
             removeDirFilesRecursive(ov::util::wstring_to_string(unicode_path));
 #else
@@ -265,6 +267,41 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, NpuDeviceAllocMemSizeSameAfterDestroyCom
                                core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
         deviceAllocMemSizeFinal = deviceAllocMemSizeAny.as<uint64_t>();
         ASSERT_EQ(deviceAllocMemSize, deviceAllocMemSizeFinal) << " at iteration " << i;
+    }
+}
+
+TEST_P(OVClassGetMetricAndPrintNoThrow, NpuDeviceAllocMemSizeSameAfterDestroyCompiledModelWithTurboAndSeqRun) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getCommandQueueDdiTable().version() >
+        ZE_MAKE_VERSION(1, 0)) {
+        ov::Core core;
+        ov::Any deviceAllocMemSizeAny;
+        ov::AnyMap configuration;
+
+        configuration[intel_npu::turbo.name()] = true;
+        configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
+
+        auto model = createModelWithLargeSize();
+
+        OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                               core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+        uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
+        uint64_t deviceAllocMemSizeFinal;
+
+        for (size_t i = 0; i < 10; ++i) {
+            ov::CompiledModel compiledModel;
+            OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device, configuration));
+
+            compiledModel = {};
+
+            OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                                   core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+            deviceAllocMemSizeFinal = deviceAllocMemSizeAny.as<uint64_t>();
+            ASSERT_EQ(deviceAllocMemSize, deviceAllocMemSizeFinal) << " at iteration " << i;
+        }
+    } else {
+        GTEST_SKIP() << "Test is skipped due to driver version";
     }
 }
 
@@ -437,7 +474,7 @@ TEST_P(OVClassBasicTestPNPU, smoke_registerPluginsLibrariesUnicodePath) {
                     ov::util::make_plugin_library_name(::ov::util::wstring_to_string(unicode_path), lib));
                 bool is_copy_successfully = ov::test::utils::copyFile(libPath, libPathNew);
                 if (!is_copy_successfully) {
-                    FAIL() << "Unable to copy from '" << libPath << "' to '" << libPathNew << "'";
+                    FAIL() << "Unable to copy from '" << libPath.c_str() << "' to '" << libPathNew.c_str() << "'";
                 }
             }
 
@@ -456,6 +493,58 @@ TEST_P(OVClassBasicTestPNPU, smoke_registerPluginsLibrariesUnicodePath) {
     }
 }
 #endif
+
+static void checkLibrariesInProcessMemoryMap(bool checkExist) {
+#ifdef __linux__
+    std::unordered_map<const char*, bool> librariesFound = {
+        /*
+        TODO: uncomment when unloading driver and loader is fixed
+        {"libnpu_driver_compiler.so", false},
+        {"libze_intel_npu.so", false},
+        {"libze_loader.so", false},
+        */
+        {"libopenvino_intel_npu_plugin.so", false},
+    };
+    std::ifstream file("/proc/self/maps");
+    std::string line;
+    while (!file.eof()) {
+        std::getline(file, line);
+        for (auto [library, _] : librariesFound) {
+            if (strstr(line.c_str(), library)) {
+                librariesFound[library] = true;
+                break;
+            }
+        }
+    }
+    for (auto [library, found] : librariesFound) {
+        if (checkExist) {
+            EXPECT_TRUE(found) << "NPU related library (" << library << ") is not loaded";
+        } else {
+            EXPECT_FALSE(found) << "NPU related library (" << library << ") is still loaded";
+        }
+    }
+#endif
+}
+
+TEST(OVClassBaseTestNPU, UnloadPlugin) {
+    auto core = ov::test::utils::PluginCache::get().core();
+    {
+        auto model = ov::test::utils::make_conv_pool_relu();
+        auto compiled_model = core->compile_model(model, ov::test::utils::DEVICE_NPU);
+        auto req = compiled_model.create_infer_request();
+        req.infer();
+    }
+
+    checkLibrariesInProcessMemoryMap(true);
+    core->unload_plugin(ov::test::utils::DEVICE_NPU);
+    checkLibrariesInProcessMemoryMap(false);
+
+    // check if Core can load the plugin again and run the inference
+    auto model = ov::test::utils::make_conv_pool_relu();
+    auto compiled_model = core->compile_model(model, ov::test::utils::DEVICE_NPU);
+    auto req = compiled_model.create_infer_request();
+    req.infer();
+}
 
 }  // namespace behavior
 }  // namespace test

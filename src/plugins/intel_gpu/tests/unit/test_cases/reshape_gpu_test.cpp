@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -547,7 +547,7 @@ TEST(reshape_gpu_f32, calc_output_shape) {
 template <typename T>
 void test_calc_output_support_shape(bool is_caching_test) {
     //  reshape does not handle some cases when format is updated.
-    //  some of which will be incompatible between output and input. 
+    //  some of which will be incompatible between output and input.
     //  for example, a default input  layout of [1,  1,  157, 1024] with bfyx
     //  is compatible with the output layout of [157,1,  1024] with bfyx.
     //  but if the format is updated by some pass to i.e, ybfx.
@@ -555,7 +555,7 @@ void test_calc_output_support_shape(bool is_caching_test) {
     //  thus the primitie will refuse to update shape when running calc_output_layouts.
     //
     //  This situation is observed in RNNT model, whose format is updated by ov::pass::reorder_input.
-    //  The incompatible caused by refuse update will be fixed by the following passes.  
+    //  The incompatible caused by refuse update will be fixed by the following passes.
 
     auto& engine = get_test_engine();
     ov::Shape in1_shape = { 1, 1, 3, 3 };
@@ -574,7 +574,7 @@ void test_calc_output_support_shape(bool is_caching_test) {
         );
     topology.add(input_layout("input", out1_layout));
     topology.add(shape_of("shape_of_input", input_info("input"), data_types::i32));
-    
+
     topology.add(reshape("reshape", input_info("gemm"), false, { 3, 1, 7, 1 }, ov::PartialShape{ 3, 1, 7, 1 }));
 
     set_values(input1, {-1.f, 2.f, -3.f,
@@ -604,7 +604,7 @@ void test_calc_output_support_shape(bool is_caching_test) {
     auto ori_layout = reshape_node.get_output_layout(0);
     reshape_node.get_kernel_impl_params()->memory_deps = {{1,input1}};
     reshape_node.recalc_output_layouts(false);
-    
+
     ASSERT_TRUE(reshape_node.get_output_layout(0) == ori_layout);
 
 }

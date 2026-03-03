@@ -1,26 +1,23 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_npu/utils/zero/zero_api.hpp"
+
+#include <mutex>
 
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
 namespace intel_npu {
 ZeroApi::ZeroApi() {
-    const std::string baseName = "ze_loader";
+    const std::filesystem::path baseName = "ze_loader";
     try {
         auto libpath = ov::util::make_plugin_library_name({}, baseName);
 #if !defined(_WIN32) && !defined(ANDROID)
-        libpath = libpath + LIB_ZE_LOADER_SUFFIX;
+        libpath += LIB_ZE_LOADER_SUFFIX;
 #endif
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        this->lib = ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
-#else
-        this->lib = ov::util::load_shared_object(libpath.c_str());
-#endif
+        this->lib = ov::util::load_shared_object(libpath);
     } catch (const std::runtime_error& error) {
         OPENVINO_THROW(error.what());
     }
@@ -49,8 +46,16 @@ ZeroApi::ZeroApi() {
 #undef symbol_statement
 }
 
-const std::shared_ptr<ZeroApi>& ZeroApi::getInstance() {
-    static std::shared_ptr<ZeroApi> instance = std::make_shared<ZeroApi>();
+const std::shared_ptr<ZeroApi> ZeroApi::getInstance() {
+    static std::mutex mutex;
+    static std::weak_ptr<ZeroApi> weak_instance;
+
+    std::lock_guard<std::mutex> lock(mutex);
+    auto instance = weak_instance.lock();
+    if (!instance) {
+        instance = std::make_shared<ZeroApi>();
+        weak_instance = instance;
+    }
     return instance;
 }
 

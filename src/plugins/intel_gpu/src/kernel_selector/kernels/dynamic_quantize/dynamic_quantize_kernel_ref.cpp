@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -163,6 +163,11 @@ KernelsPriority DynamicQuantizeKernelRef::GetKernelsPriority(const Params& /*par
 bool DynamicQuantizeKernelRef::Validate(const Params& params) const {
     if (!KernelBaseOpenCL::Validate(params))
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+
+    const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
+    if (dq_params.generate_precomputed_reduction && cldnn::one_of(dq_params.outputs[0].GetDType(), {Datatype::F8E4M3, Datatype::F8E5M2})) {
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     return true;
 }

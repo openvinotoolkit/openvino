@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ Output<Node> pairwise_distance(const NodeContext& context,
 
 OutputVector translate_cdist(const NodeContext& context) {
     // aten::cdist(Tensor x1, Tensor x2, float p=2., int? compute_mode=None) -> Tensor
-    // compute_mode can be ignored as we will always use matrix multiplication for euclidian distance computation
+    // compute_mode can be ignored as we will always use matrix multiplication for euclidean distance computation
     num_inputs_check(context, 2, 4);
     auto x = context.get_input(0);
     auto y = context.get_input(1);

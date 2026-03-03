@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,10 @@
 #include "include/batch_headers/f8_utils.cl"
 #include "include/batch_headers/f4_utils.cl"
 #include "include/batch_headers/fetch_data.cl"
+#if IS_F8
+#include "include/batch_headers/common.cl"
+#include "include/batch_headers/f8_utils.cl"
+#endif
 
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFF
 

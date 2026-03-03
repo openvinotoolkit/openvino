@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -65,7 +65,6 @@ macro(ov_gpu_add_backend_target)
         NAME ${ARG_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         TYPE OBJECT
-        ADD_CPPLINT
         INCLUDES
             PRIVATE
                 ${TARGET_INCLUDES}
@@ -129,7 +128,6 @@ ov_add_target(
             openvino::reference # for loop primitive subroutines
     DEPENDENCIES
         run_codegen_test
-    ADD_CPPLINT
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)

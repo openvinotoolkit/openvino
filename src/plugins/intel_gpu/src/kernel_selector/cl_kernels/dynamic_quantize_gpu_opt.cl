@@ -91,12 +91,21 @@ KERNEL(dynamic_quantize_gpu_opt)(
     }
 
 #if IS_MXFP
-    float out_dt_max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(_convert_float(OUTPUT_VAL_MAX)));
+
+ float out_dt_max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(_convert_float(OUTPUT_VAL_MAX)));
     float max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(max_value));
-    SCALE_TYPE quan_scale = out_dt_max_val_rounded_down / max_val_rounded_down;
-    printf("%f %f %f %f \n", OUTPUT_VAL_MAX, _convert_float(OUTPUT_VAL_MAX), TO_OUTPUT1_TYPE(_convert_float(OUTPUT_VAL_MAX)), out_dt_max_val_rounded_down);
-    printf("%f %f %f %f \n", max_val_rounded_down);
-     printf("%f \n", quan_scale);
+    float ideal_scale_old = out_dt_max_val_rounded_down / max_val_rounded_down;
+    SCALE_TYPE quan_scale2 = out_dt_max_val_rounded_down / max_val_rounded_down;
+    
+    float ideal_scale = 6.0f / max_value; 
+    float power_of_two_scale = exp2(floor(log2(ideal_scale)));
+    SCALE_TYPE quan_scale = (SCALE_TYPE)power_of_two_scale;
+
+    //float ideal_scale = max_value / 6.0f; 
+    //float power_of_two_scale = exp2(ceil(log2(ideal_scale)));
+    //SCALE_TYPE quan_scale = (SCALE_TYPE)(1.0f / power_of_two_scale);
+
+    printf("normal %f new %f ideal_scale_old %f ideal_scale_new %f \n", quan_scale2, quan_scale, ideal_scale_old, ideal_scale);
 #else
     SCALE_TYPE quan_scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_value;
     FOR_PRECOMPUTED_REDUCTION(int precomputed_reduction = 0);
@@ -104,8 +113,11 @@ KERNEL(dynamic_quantize_gpu_opt)(
     printf("KERNEL OPT \n");
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
 #if IS_F8
-        quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, convert_float4(input_0[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, 4))quan_scale);
-        vstore2(quantized_value[i].data, 0, (uchar*)(&output[output_offset + i * 2]));
+        float4 val_f = convert_float4(input_0[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, 4))quan_scale;
+        val_f = clamp(val_f, -6.0f, 6.0f);
+        quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, val_f);
+        //vstore2(quantized_value[i].data, 0, (uchar*)(&output[output_offset + i * 2]));
+        vstore2(quantized_value[i].data, 0, ((uchar*)output) + output_offset + i * 2);
 #else
         quantized_value[i] = convert_char4(input_0[i] * (half4)quan_scale);
         FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += quantized_value[i][0] + quantized_value[i][1] + quantized_value[i][2] + quantized_value[i][3]);
@@ -118,7 +130,8 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #else
     const uint output_idx = OUTPUT1_GET_INDEX(b, f, y_grp, 0);
 #endif
-    output_scale[output_idx] = TO_OUTPUT1_TYPE(1.0h / quan_scale);
+    output_scale[output_idx] = TO_OUTPUT1_TYPE(1.0f / quan_scale);
+    //output_scale[output_idx] = TO_OUTPUT1_TYPE(power_of_two_scale);
 
     FOR_PRECOMPUTED_REDUCTION(output_precomputed_reduction[output_idx] = precomputed_reduction);
 }

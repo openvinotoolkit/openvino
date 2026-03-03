@@ -262,7 +262,7 @@ To check what devices are present in the system, you can use Device API, as list
 
         .. code-block:: sh
 
-           openvino.runtime.Core.available_devices
+           openvino.Core.available_devices
 
         See the Hello Query Device Python Sample for reference.
 

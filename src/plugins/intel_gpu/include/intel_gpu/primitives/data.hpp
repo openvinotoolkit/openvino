@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,7 @@ namespace cldnn {
 
 class WeightsMemory {
 public:
-    WeightsMemory(std::shared_ptr<const ov::Model> model, 
+    WeightsMemory(std::shared_ptr<const ov::Model> model,
                   std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map = nullptr) : weights_memory(model) {
         fill_offset_to_constant_map(model, cache_attr_map);
     }
@@ -79,10 +79,10 @@ public:
     }
 
 private:
-    void fill_offset_to_constant_map(std::shared_ptr<const ov::Model> model, 
+    void fill_offset_to_constant_map(std::shared_ptr<const ov::Model> model,
                                      std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map = nullptr) {
         const auto& ops = model->get_ops();
-        
+
         if (cache_attr_map != nullptr && cache_attr_map->size() > 0) {
             for (const auto& node : ops) {
                 if (ov::op::util::is_constant(node)) {
@@ -314,7 +314,10 @@ private:
             reorder_rep.reorder->input = {input_info("input")};
             topology topology(input_layout("input", *reorder_rep.input_layout),
                               *reorder_rep.reorder);
-            cldnn::network network(engine, topology, {});
+
+            ExecutionConfig config;
+            config.set_property(ov::intel_gpu::optimize_data(false));
+            cldnn::network network(engine, topology, config, true);
             network.set_input_data("input", input_mem);
             network.set_output_memory(reorder_rep.reorder->id, dst_mem);
             auto outputs = network.execute();

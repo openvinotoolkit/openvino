@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -207,6 +207,10 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
 
     if (get_dynamic_quantize_mode(dq_params) == DynQuanMode::PER_TOKEN && dq_params.generate_precomputed_reduction)
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+
+    if (dq_params.generate_precomputed_reduction && cldnn::one_of(dq_params.outputs[0].GetDType(), {Datatype::F8E4M3, Datatype::F8E5M2})) {
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     auto bf = get_input_bf_size(dq_params);
     if (((bf.second) % (simd * 2)) != 0)

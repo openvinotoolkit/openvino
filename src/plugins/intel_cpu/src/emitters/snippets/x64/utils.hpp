@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +41,12 @@ public:
                        const std::vector<size_t>& used_gpr_idxs);
 
     ~jit_aux_gpr_holder();
+
+    jit_aux_gpr_holder(const jit_aux_gpr_holder&) = delete;
+    jit_aux_gpr_holder& operator=(const jit_aux_gpr_holder&) = delete;
+
+    jit_aux_gpr_holder(jit_aux_gpr_holder&&) = delete;
+    jit_aux_gpr_holder& operator=(jit_aux_gpr_holder&&) = delete;
 
     [[nodiscard]] const Xbyak::Reg64& get_reg() const {
         return m_aux_gpr_idx;

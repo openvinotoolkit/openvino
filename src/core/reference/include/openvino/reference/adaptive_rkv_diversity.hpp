@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,7 +79,7 @@ public:
                 for (size_t reduced_dim_idx = 0; reduced_dim_idx < in_out_shape[2]; reduced_dim_idx++) {
                     size_t target_offset = in_head_offset + token_offset + reduced_dim_idx;
                     T filled_val = in_out[target_offset];
-                    in_out[target_offset] = filled_val >= mean_val ? filled_val : 0.0;
+                    in_out[target_offset] = filled_val >= mean_val ? filled_val : T{0};
                 }
             }
         }

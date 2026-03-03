@@ -36,6 +36,9 @@ RUN apt-get update && \
         python3.12-venv \
         python3.13-dev \
         python3.13-venv \
+        python3.14-nogil \
+        python3.14-venv \
+        python3.14-dev \
         # For Java API
         default-jdk \
         # To build documentation
@@ -73,6 +76,7 @@ RUN wget https://cmake.org/files/v4.1/cmake-4.1.1-linux-x86_64.sh && \
     rm cmake-4.1.1-linux-x86_64.sh
 
 ENV PATH="$SCCACHE_HOME:$PATH"
+
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
@@ -81,6 +85,8 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.12 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.14 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.14t get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
 # Use Python 3.11 as default
@@ -108,4 +114,3 @@ RUN mkdir -p ${DOXYGEN_HOME} && cd ${DOXYGEN_HOME} && wget https://www.doxygen.n
     tar -I pigz -xf doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz && \
     rm -f doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz
 ENV PATH="${DOXYGEN_HOME}/doxygen-$DOXYGEN_VERSION/bin:$PATH"
-

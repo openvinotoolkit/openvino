@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ protected:
 
         auto eltwise = ov::test::utils::make_eltwise(input[0], secondaryInput, eltwiseType);
 
-        function = makeNgraphFunction(netPrecision, input, eltwise, "Eltwise");
+        function = create_ov_model(netPrecision, input, eltwise, "Eltwise");
     }
 };
 

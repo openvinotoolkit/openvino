@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,11 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(dynamic_quantize);
 
 // We should skip dynamic_quantization execution for 2nd token of LLM because it does not show performance gain.
 // can_be_optimized flag will be turned on from primitive_inst::update_shape function
-static bool should_skip_execution(dynamic_quantize_node const& node, const layout &act_layout) {
-    return false; // TODO: Remove this before merging to the main branch. This is a temporary change for the sake of accuracy testing.
+static bool should_skip_execution(const dynamic_quantize_node& node, const layout& act_layout, const dynamic_quantize::Attributes& attrs) {
+    if (cldnn::data_type_traits::is_floating_point(attrs.quantization_dt)) {
+        return false; // Execute unconditionally for floating point types.
+    }
+
     if (!node.is_runtime_skippable()
         || !act_layout.is_static())
         return false;
@@ -70,7 +73,7 @@ std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(const dynamic_q
     std::vector<layout> output_layouts = {  layout(output_shapes[0], attrs.quantization_dt, output_format),
                                             layout(output_shapes[1], attrs.scale_dt, output_format) };
 
-    auto flag_skip_execution = should_skip_execution(node, act_layout);
+    auto flag_skip_execution = should_skip_execution(node, act_layout, attrs);
 
     GPU_DEBUG_TRACE_DETAIL << node.id() << "  should_skip_execution " << flag_skip_execution << std::endl;
 

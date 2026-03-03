@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,8 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         if (precomputed_reduction && adj_group_size != UINT64_MAX && adj_group_size > 0 && has_static_wzp) {
             auto weight_zp_shape = m_fc->get_input_partial_shape(4);
             auto weight_scale_shape = m_fc->get_input_partial_shape(3);
-            const size_t wei_zp_group_size = innermost_size / weight_zp_shape[weight_zp_shape.size() - 1].get_length();
+            const bool is_zp_scalar = has_static_wzp && ov::shape_size(m_fc->get_input_shape(4)) == 1;
+            const size_t wei_zp_group_size = is_zp_scalar ? innermost_size : innermost_size / weight_zp_shape[weight_zp_shape.size() - 1].get_length();
             const size_t wei_scale_group_size = innermost_size / weight_scale_shape[weight_scale_shape.size() - 1].get_length();
             const size_t required_group_size = std::min(wei_zp_group_size, wei_scale_group_size);
             if (adj_group_size > required_group_size) {
@@ -84,33 +85,30 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             return false;
         }
 
-        auto rank = m_fc->get_input_partial_shape(0).size();
+        const auto rank = m_fc->get_input_partial_shape(0).size();
+        if (adj_group_size < 32) {
+            GPU_DEBUG_LOG << "Dynamic quantization: quantized activation by group size " << adj_group_size
+                            << " is not supported by onednn matmul if it is less than 32" << std::endl;
+            return false;
+        }
+
         std::vector<uint64_t> shape_group_size(rank, 1);
         shape_group_size.back() = adj_group_size;
 
-        switch (dtype_scheme) {
-            case ov::hint::DynamicQuantizationDataType::INT8:
-                config.quantization_dt = element::i8;
-                break;
-            case ov::hint::DynamicQuantizationDataType::F8E4M3:
-            case ov::hint::DynamicQuantizationDataType::MXF8E4M3:
-                config.quantization_dt = element::f8e4m3;
-                break;
-            case ov::hint::DynamicQuantizationDataType::F8E5M2:
-            case ov::hint::DynamicQuantizationDataType::MXF8E5M2:
-                config.quantization_dt = element::f8e5m2;
-                break;
-            case ov::hint::DynamicQuantizationDataType::F4E2M1:
-            case ov::hint::DynamicQuantizationDataType::MXF4E2M1:
-                config.quantization_dt = element::f4e2m1;
-                break;
-            default:
-                OPENVINO_THROW("Unexpected dtype scheme.");
+        auto weight_dtype = m_fc->get_input_element_type(1);
+        auto scale_dtype = m_fc->get_input_element_type(3);
+        if (weight_dtype.is_integral()) {
+            config.quantization_dt = element::i8;
+        } else if (weight_dtype == element::f8e4m3) {
+            config.quantization_dt = element::f8e4m3;
+        } else if (weight_dtype == element::f8e5m2) {
+            config.quantization_dt = element::f8e5m2;
+        } else if (weight_dtype == element::f4e2m1) {
+            config.quantization_dt = element::f4e2m1;
+        } else {
+            OPENVINO_THROW("Unexpected weight data type: " + weight_dtype.to_string());
         }
-        bool is_mxfp = cldnn::one_of(dtype_scheme,
-                                     {ov::hint::DynamicQuantizationDataType::MXF8E4M3,
-                                      ov::hint::DynamicQuantizationDataType::MXF8E5M2,
-                                      ov::hint::DynamicQuantizationDataType::MXF4E2M1});
+        const bool is_mxfp = scale_dtype == element::f8e8m0;
 
         config.quantization_type = QuantizationType::Symmetric;
         config.scale_dt = is_mxfp ? element::f8e8m0 : element::f16;
@@ -122,7 +120,26 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             config.zp_dt = element::u8; // it supports u8 only now
         }
 
-        auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_fc->input_value(0), config);
+        std::shared_ptr<ov::op::internal::DynamicQuantize> dyn_quan = nullptr;
+        
+        // If the parent already has an identical dynamic quantize as a user, reuse it instead of creating a new one.
+        const auto siblings = m_fc->get_input_node_shared_ptr(0)->get_users();
+        for (const auto& sibling : siblings) {
+            if (auto dyn_quan_sibling = as_type_ptr<ov::op::internal::DynamicQuantize>(sibling)) {
+                if (dyn_quan_sibling->is_config_equal(config)) {
+                    dyn_quan = dyn_quan_sibling;
+                }
+            }
+
+            if (dyn_quan) {
+                break;
+            }
+        }
+
+        if (!dyn_quan) {
+            dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_fc->input_value(0), config);
+        }
+
         int dyn_quan_output_idx = 2;
         auto optional_a_zp = config.quantization_type == QuantizationType::Symmetric ?
                                 std::make_shared<ov::intel_gpu::op::Placeholder>() : dyn_quan->output(dyn_quan_output_idx++);

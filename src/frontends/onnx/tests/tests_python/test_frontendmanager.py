@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pickle
 import os
 from pathlib import Path
 
-from openvino.runtime import PartialShape
+from openvino import PartialShape
 from openvino.frontend import FrontEndManager, InitializationFailure, TelemetryExtension
-from openvino.runtime.utils.types import get_element_type
+from openvino.utils.types import get_element_type
 
 import numpy as np
 

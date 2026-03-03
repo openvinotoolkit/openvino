@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -242,6 +242,10 @@ private:
     std::shared_future<void> future;
     mutable bool done = false;
 };
+
+bool isPastKeyValuesKey(const std::string& str);
+
+bool isPastKeyValuesValue(const std::string& str);
 
 }  // namespace util
 }  // namespace npuw

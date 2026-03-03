@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ private:
             return m_size;
         } else {
             // No seek support
-            throw std::runtime_error("Seek operation is not supported for counting_streambuf");
+            OPENVINO_THROW("Seek operation is not supported for counting_streambuf");
         }
     }
 
@@ -71,8 +71,13 @@ private:
             return std::distance(startIt, writeIt);
         } else {
             // No seek support
-            throw std::runtime_error("Seek operation is not supported for writer_streambuf");
+            OPENVINO_THROW("Seek operation is not supported for writer_streambuf");
         }
+    }
+
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
+        writeIt = startIt + pos;
+        return pos;
     }
 
     OutputIt startIt;

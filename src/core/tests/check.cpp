@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/util/file_util.hpp"
@@ -61,3 +62,18 @@ TEST(check, ov_throw_exception_check_relative_path_to_source) {
                     ov::Exception,
                     AnyOf(StartsWith(exp_native_slash), StartsWith(exp_fwd_slash)));
 }
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+TEST(check, error_message_with_fs_path_and_unicode) {
+    const auto path = ov::test::utils::to_fs_path("这是.folder") / ov::test::utils::to_fs_path(L"这.txt");
+    auto description = std::string("Error detail");
+    const auto exp_error_str = std::string("Test read file: \"这是.folder") +
+                               ov::test::utils::FileTraits<char>::file_separator +
+                               std::string("这.txt\", because: Error detail");
+
+    std::stringstream error;
+    ov::write_all_to_stream(error, "Test read file: ", path, ", because: ", description);
+
+    EXPECT_EQ(error.str(), exp_error_str);
+}
+#endif

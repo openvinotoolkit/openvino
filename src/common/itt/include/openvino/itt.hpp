@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,6 +48,7 @@ void taskEnd(domain_t d);
 void threadName(const char* name);
 void regionBegin(domain_t d, handle_t t);
 void regionEnd(domain_t d);
+void shutdown();
 }  // namespace internal
 /**
  * @endcond

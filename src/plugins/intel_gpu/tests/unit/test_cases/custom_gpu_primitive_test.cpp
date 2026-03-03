@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,7 +66,7 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
         entry_point,
         parameters,
         "-cl-mad-enable",
-        output_layout,
+        { output_layout },
         gws));
 
     set_values(input, {
@@ -171,7 +171,7 @@ void add_basic_in2x2x2x2_with_reorder()
         entry_point,
         parameters,
         "-cl-mad-enable",
-        output_layout,
+        { output_layout },
         gws));
     topology.add(reorder("to_float", input_info("user_kernel"), { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } }));
 
@@ -272,7 +272,7 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
         entry_point,
         parameters,
         "-cl-mad-enable",
-        output_layout,
+        { output_layout },
         gws));
 
     set_values(input, {
@@ -364,7 +364,7 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
         entry_point,
         parameters,
         "-cl-mad-enable -DSCALAR=1",
-        output_layout,
+        { output_layout },
         gws));
     topology.add(eltwise("eltwise", { input_info("user_kernel"), input_info("input2") }, eltwise_mode::sum));
 
@@ -464,7 +464,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
         entry_point,
         parameters,
         "-cl-mad-enable -DSCALAR=1",
-        output_layout,
+        { output_layout },
         gws));
     topology.add(custom_gpu_primitive(
         "user_kernel2",
@@ -473,7 +473,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
         entry_point,
         parameters,
         "-cl-mad-enable -DSCALAR=3",
-        output_layout,
+        { output_layout },
         gws));
 
     set_values(input, {
@@ -530,7 +530,7 @@ void test_custom_gpu_primitive_u8_add_basic_in2x2x2x2(bool is_caching_test) {
         entry_point,
         parameters,
         "-cl-mad-enable",
-        output_layout,
+        { output_layout },
         gws));
 
     set_values<T>(input, {

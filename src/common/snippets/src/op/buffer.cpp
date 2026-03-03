@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,8 +88,8 @@ Buffer::IntermediateMemoryImpl::ShapeInfer::Result Buffer::IntermediateMemoryImp
     return {{input_shapes[0].get()}, ShapeInferStatus::success};
 }
 
-Buffer::NewMemoryImpl::NewMemoryImpl(ov::Shape shape, ov::element::Type element_type)
-    : m_shape(std::move(shape)),
+Buffer::NewMemoryImpl::NewMemoryImpl(const ov::Shape& shape, ov::element::Type element_type)
+    : m_shape(shape),
       m_element_type(element_type) {}
 
 size_t Buffer::NewMemoryImpl::get_allocation_size() const {
@@ -112,7 +112,7 @@ bool Buffer::NewMemoryImpl::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-Buffer::NewMemoryImpl::ShapeInfer::ShapeInfer(ov::Shape shape) : m_shape(std::move(shape)) {}
+Buffer::NewMemoryImpl::ShapeInfer::ShapeInfer(const ov::Shape& shape) : m_shape(shape) {}
 
 Buffer::NewMemoryImpl::ShapeInfer::Result Buffer::NewMemoryImpl::ShapeInfer::infer(
     const std::vector<VectorDimsRef>& input_shapes) {

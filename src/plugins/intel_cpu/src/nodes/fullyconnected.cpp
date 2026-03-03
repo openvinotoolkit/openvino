@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,6 +40,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
@@ -111,15 +112,15 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
         }
 
         if (ov::is_type<const ov::op::internal::FullyConnected>(op)) {
-            if (!ov::op::util::is_on_constant_path(op->input_value(BIAS))) {
+            if (!ov::op::util::is_on_path<ov::op::v0::Constant>(op->input_value(BIAS))) {
                 errorMessage = "Only Constant operation on 'bias' input is supported";
                 return false;
             }
         }
 
         if (ov::is_type<const ov::op::internal::FullyConnectedCompressed>(op)) {
-            if (!ov::op::util::is_on_constant_path(op->input_value(WEIGHT_SCALES)) ||
-                !ov::op::util::is_on_constant_path(op->input_value(WEIGHT_ZERO_POINTS))) {
+            if (!ov::op::util::is_on_path<ov::op::v0::Constant>(op->input_value(WEIGHT_SCALES)) ||
+                !ov::op::util::is_on_path<ov::op::v0::Constant>(op->input_value(WEIGHT_ZERO_POINTS))) {
                 errorMessage =
                     "Only Constant operation on 'weight scales', and 'weight zero points' inputs is supported";
                 return false;
@@ -166,6 +167,11 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
         }
 
         if (IC % G != 0 || IC / G < 4 || OC == 1) {
+            return false;
+        }
+
+        // 3D weights decompression is not supported due to the oneDNN limitations.
+        if (op->get_input_partial_shape(WEIGHTS).rank().get_length() == 3) {
             return false;
         }
     } catch (...) {
@@ -424,9 +430,6 @@ void FullyConnected::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 bool FullyConnected::canFuse(const NodePtr& node) const {
-#if defined(OV_CPU_WITH_SHL)
-    return false;
-#endif
     if (node->getType() == Type::FakeQuantize) {
         auto* fq = dynamic_cast<FakeQuantize*>(node.get());
         if (!fq) {
@@ -465,7 +468,6 @@ const std::vector<impl_desc_type>& FullyConnected::getDefaultImplPriority() {
     static const std::vector<impl_desc_type> priorities = {
         impl_desc_type::unknown,
         impl_desc_type::acl,
-        impl_desc_type::shl,
         impl_desc_type::brgemm_sparse_avx512_amx,
         impl_desc_type::brgemm_avx512_amx,
         impl_desc_type::brgconv_avx512_1x1,
@@ -561,8 +563,6 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
 }
 
 void FullyConnected::initSupportedPrimitiveDescriptors() {
-    attrs.withBias = getOriginalInputPrecisionAtPort(BIAS) != ov::element::dynamic;
-
     attrs.sparseWeights = useSparseWeightsDecompression(getParentEdgeAt(WEIGHTS)->getParent(),
                                                         getOriginalInputPrecisionAtPort(DATA),
                                                         context->getConfig().fcSparseWeiDecompressionRate);
@@ -638,12 +638,13 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         // wgt
         // split N direction
         tp_cfg.cached_splited_weight =
-            attrs.weightsNonTransposed ? split_vertical(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size)
-                                       : split_horizontal(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size);
+            attrs.weightsNonTransposed
+                ? split_vertical(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size, context->getCpuParallel())
+                : split_horizontal(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size);
         memory[ARG_WEI] = tp_cfg.cached_splited_weight;
         // bias
-        if (attrs.withBias) {
-            auto bias = getSrcMemoryAtPort(BIAS);
+        const auto& bias = getSrcMemoryAtPort(BIAS);
+        if (!bias->getDesc().empty()) {
             auto select_bias = split_horizontal(context->getEngine(), bias, 0, tp_cfg.w_rank, tp_cfg.w_size);
             tp_cfg.cached_splited_bias = std::move(select_bias);
         } else {
@@ -661,7 +662,12 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         if (auto it = memory.find(ARG_WEI | ARG_ATTR_SCALES); it != memory.end()) {
             auto scale_mem = std::const_pointer_cast<IMemory>(it->second);
             it->second = attrs.weightsNonTransposed
-                             ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                             ? split_vertical(context->getEngine(),
+                                              scale_mem,
+                                              0,
+                                              tp_cfg.w_rank,
+                                              tp_cfg.w_size,
+                                              context->getCpuParallel())
                              : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
         }
 
@@ -671,7 +677,12 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
             if (element_num != 1) {
                 it->second =
                     attrs.weightsNonTransposed
-                        ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                        ? split_vertical(context->getEngine(),
+                                         zeropoint_mem,
+                                         0,
+                                         tp_cfg.w_rank,
+                                         tp_cfg.w_size,
+                                         context->getCpuParallel())
                         : split_horizontal(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
             }
         }

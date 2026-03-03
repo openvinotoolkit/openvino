@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ namespace ov::intel_cpu::node {
 using Result = IShapeInfer::Result;
 
 /**
- * Implements Color Convert shape inference algorithm. Depending on wether it has only single plain H dimension is
+ * Implements Color Convert shape inference algorithm. Depending on whether it has only single plain H dimension is
  * passed through or recalculated as 2/3 of the initial size.
  *
  */

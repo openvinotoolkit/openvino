@@ -7,7 +7,7 @@ To create transformation, you need to:
 2. Redefine the run_on_model method that will receive ``Model`` as an argument.
 '''
 
-from openvino.runtime.passes import ModelPass
+from openvino.passes import ModelPass
 from snippets import get_model
 
 class MyModelPass(ModelPass):
@@ -26,10 +26,9 @@ You create ``Model`` with ``Relu``, ``Parameter`` and ``Result`` nodes. After ru
 In order to run this script, you need to export PYTHONPATH as the path to binary OpenVINO python models.
 '''
 
-from openvino.runtime.passes import Manager, GraphRewrite, BackwardGraphRewrite, Serialize
-from openvino import Model, PartialShape
-from openvino.runtime import opset13 as ops
-from openvino.runtime.passes import ModelPass, Matcher, MatcherPass, WrapType
+from openvino.passes import Manager, GraphRewrite, BackwardGraphRewrite, Serialize
+from openvino import opset13 as ops
+from openvino.passes import ModelPass, Matcher, MatcherPass, WrapType
 
 
 class MyModelPass(ModelPass):

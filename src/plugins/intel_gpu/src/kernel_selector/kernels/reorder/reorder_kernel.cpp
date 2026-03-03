@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,8 @@ ParamsKey ReorderKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::UINT16);
     k.EnableOutputDataType(Datatype::UINT32);
+    k.EnableOutputDataType(Datatype::UINT4);
+    k.EnableOutputDataType(Datatype::INT4);
     k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F4E2M1);
     k.EnableOutputDataType(Datatype::F8E4M3);
@@ -80,6 +82,14 @@ JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) con
 
     if ( params.inputs[0].GetDType() == Datatype::UINT4 ) {
          jit.AddConstant(MakeJitConstant("UINT4_INPUT", true));
+    }
+
+    if ( params.outputs[0].GetDType() == Datatype::UINT4 ) {
+         jit.AddConstant(MakeJitConstant("UINT4_OUTPUT", true));
+    }
+
+    if ( params.outputs[0].GetDType() == Datatype::INT4 ) {
+         jit.AddConstant(MakeJitConstant("INT4_OUTPUT", true));
     }
 
     return jit;

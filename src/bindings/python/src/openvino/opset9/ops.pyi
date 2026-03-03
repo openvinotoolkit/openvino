@@ -40,9 +40,12 @@ def generate_proposals(*args, **kwargs) -> openvino._pyopenvino.Node:
         :param nms_threshold: Specifies threshold to be used in the NMS stage.
         :param pre_nms_count: Specifies number of top-n proposals before NMS.
         :param post_nms_count: Specifies number of top-n proposals after NMS.
-        :param normalized: Specifies whether proposal bboxes are normalized or not. Optional attribute, default value is `True`.
-        :param nms_eta: Specifies eta parameter for adaptive NMS., must be in range `[0.0, 1.0]`. Optional attribute, default value is `1.0`.
-        :param roi_num_type: Specifies the element type of the third output `rpnroisnum`. Optional attribute, range of values: `i64` (default) or `i32`.
+        :param normalized: Specifies whether proposal bboxes are normalized or not.
+                           Optional attribute, default value is `True`.
+        :param nms_eta: Specifies eta parameter for adaptive NMS., must be in range `[0.0, 1.0]`.
+                        Optional attribute, default value is `1.0`.
+        :param roi_num_type: Specifies the element type of the third output `rpnroisnum`.
+                             Optional attribute, range of values: `i64` (default) or `i32`.
         :param name: The optional name for the output node.
         :return: New node performing GenerateProposals operation.
         

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -142,7 +142,7 @@ void MatMulLayerCPUTest::SetUp() {
     }
 
     auto matMul = std::make_shared<ov::op::v0::MatMul>(paramOuts[0], matrixB, transpA, transpB);
-    function = makeNgraphFunction(netType, params, matMul, cpuNodeType);
+    function = create_ov_model(netType, params, matMul, cpuNodeType);
     checkFusingPosition = false;
 }
 

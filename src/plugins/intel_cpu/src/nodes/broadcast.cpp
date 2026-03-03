@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -212,7 +212,7 @@ void Broadcast::executeDynamicImpl(const dnnl::stream& strm) {
 
 void Broadcast::execute(const dnnl::stream& strm) {
     if (optimizedCase) {
-        optimizedExecute(getSrcMemoryAtPort(INPUT_DATA_IDX), getDstMemoryAtPort(0));
+        optimizedExecute(getSrcMemoryAtPort(INPUT_DATA_IDX), getDstMemoryAtPort(0), context->getCpuParallel());
     } else {
         plainExecute(strm);
     }

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from utils.conformance_utils import get_logger
@@ -7,7 +7,7 @@ from utils.constants import FULL_DEVICE_PROPERTY, SUPPORTED_PROPERTIES, DEVICE_A
 logger = get_logger("get_available_device")
 
 try:
-    from openvino.runtime import Core
+    from openvino import Core
 except:
     from utils.file_utils import get_ov_path, find_latest_dir
     import os

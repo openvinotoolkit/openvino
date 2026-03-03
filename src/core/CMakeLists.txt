@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -140,10 +140,9 @@ ov_build_target_faster(openvino_core_obj
     PCH_EXCLUDE
         "src/op/util/attr_types.cpp"
         "src/runtime/tensor.cpp")
-
-#-----------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------
 # Installation logic...
-#-----------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
         DESTINATION ${OV_CPACK_INCLUDEDIR}

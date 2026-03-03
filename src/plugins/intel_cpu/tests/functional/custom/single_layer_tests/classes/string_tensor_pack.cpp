@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,7 +82,7 @@ void StringTensorPackLayerCPUTest::SetUp() {
     auto StringTensorPack =
         std::make_shared<ov::op::v15::StringTensorPack>(beginsParameter, endsParameter, symbolsParameter);
     ov::ParameterVector params{beginsParameter, endsParameter, symbolsParameter};
-    function = makeNgraphFunction(ov::element::string, params, StringTensorPack, "StringTensorPack");
+    function = create_ov_model(ov::element::string, params, StringTensorPack, "StringTensorPack");
 }
 
 TEST_P(StringTensorPackLayerCPUTest, CompareWithRefs) {
