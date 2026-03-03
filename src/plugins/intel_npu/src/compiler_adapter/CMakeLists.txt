@@ -27,15 +27,9 @@ target_link_libraries(${TARGET_NAME}
         openvino_npu_common
         openvino::npu_al
         openvino::xml_util
+        openvino::npu_mlir_runtime_api
 )
 
-# VM is an experimental feature, so it is only available for Developer build
-if(ENABLE_NPU_DEBUG_CAPS)
-    target_link_libraries(${TARGET_NAME}
-        PRIVATE
-            openvino::npu_mlir_runtime_api
-    )
-endif()
 #
 # targets install
 #
