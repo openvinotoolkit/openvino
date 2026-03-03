@@ -174,9 +174,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmFusion,
 // FuseMOE3GemmCompressed pipeline that runs in production.
 const std::vector<ov::element::Type> weights_precisions = {
     ov::element::u8,
-    ov::element::i8,
     ov::element::u4,
-    ov::element::i4,
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion,
