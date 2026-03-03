@@ -16,7 +16,6 @@
 
 #include "config.h"
 #include "openvino/core/model.hpp"
-#include "openvino/runtime/performance_heuristics.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov::intel_cpu {
