@@ -159,12 +159,6 @@ static FlashAttentionResults execute_compiler_flash_attention(const HFATileF32No
                                                               const std::shared_ptr<ov::Node>& q_input,
                                                               const std::shared_ptr<ov::Node>& k_input,
                                                               const std::shared_ptr<ov::Node>& v_input,
-                                                              size_t batch,
-                                                              size_t num_heads,
-                                                              size_t kv_num_heads,
-                                                              size_t seq_len,
-                                                              size_t tile_size,
-                                                              size_t head_dim,
                                                               bool is_last_tile = false,
                                                               bool is_first_tile = false) {
     ov::intel_npu::op::FlashAttentionTile::Config config;
@@ -173,13 +167,9 @@ static FlashAttentionResults execute_compiler_flash_attention(const HFATileF32No
 
     auto v_shape = v_input->get_output_partial_shape(0);
     auto rank = v_shape.rank().get_length();
-    std::vector<int64_t> transpose_v_order(rank);
-    // std::copy(v_shape.get_shape().begin(), v_shape.get_shape().end(), transpose_v_order.begin());
-    for (int64_t i = 0; i < rank; i++) {
-        transpose_v_order[i] = i;
-    }
-    std::swap(transpose_v_order[rank - 2], transpose_v_order[rank - 1]);
-
+    if (rank != 4)
+        OPENVINO_THROW("v_input rank must be 4 for flash attention");
+    std::vector<int64_t> transpose_v_order({0, 1, 3, 2});
     auto transpose_order = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                                   ov::Shape{static_cast<size_t>(rank)},
                                                                   transpose_v_order);
@@ -634,17 +624,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                          head_dim);
     if (compiler_flash_attention) {
         // Execute flash attention node implemented on compiler side
-        results = execute_compiler_flash_attention(f32_nodes,
-                                                   f32_nodes.q_f32,
-                                                   k_broadcast,
-                                                   v_broadcast,
-                                                   batch,
-                                                   num_heads,
-                                                   kv_num_heads,
-                                                   seq_len,
-                                                   tile_size,
-                                                   head_dim,
-                                                   is_final_tile);
+        results = execute_compiler_flash_attention(f32_nodes, f32_nodes.q_f32, k_broadcast, v_broadcast, is_final_tile);
     } else {
         // Execute flash attention algorithm with broadcasted K/V
         results = execute_host_flash_attention(f32_nodes,
@@ -684,7 +664,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
             model_results = create_regular_tile_outputs_compiler(results, input_dtype);
 
         } else {
-            LOG_DEBUG("Using host FlashAttentionTile implementation - outputs acc, max, d from the same node");
+            LOG_DEBUG("Using host flash attention implementation - outputs acc, max, d from the same node");
             model_results = create_regular_tile_outputs(results, input_dtype);
         }
         model_name = "HFA_Tile";

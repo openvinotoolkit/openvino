@@ -1595,26 +1595,30 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     // Decide on using compiler flash attention based on provided option and NPU capabilities
-    const auto compiler_flash_attention_tile = pop_option(other_props, std::string("NPUW_ATTN_COMPILER_FA_TILE"));
+    const auto attn_compiler_fa_tile = pop_option(other_props, std::string("NPUW_ATTN_COMPILER_FA_TILE"));
     const auto hint_it = npuw_llm_props.find("NPUW_LLM_PREFILL_ATTENTION_HINT");
     const auto is_hfa = hint_it != npuw_llm_props.end() && hint_it->second.as<std::string>() == "HFA";
-    auto supported = false;
-    if (compiler_flash_attention_tile.has_value()) {
+    bool supported = false;
+    if (attn_compiler_fa_tile.has_value()) {
         if (!is_hfa) {
             LOG_WARN(
-                "NPUW_LLM_PREFILL_ATTENTION_HINT is not set or not set to HFA, ignoring NPUW_ATTN_COMPILER_FA_TILE");
+                "NPUW_LLM_PREFILL_ATTENTION_HINT is not set or not equal to HFA, ignoring NPUW_ATTN_COMPILER_FA_TILE");
         } else {
-            // In case of some npu versions the flash attention is not supported, rewrite the config to disable it, to
-            // avoid compilation failure. In case of supported - keep the option enabled if not set explicitly to false
-            supported = compiler_flash_attention_tile.value().as<bool>() && npudesc.has_value() &&
-                        npudesc->support_flash_attention_tile;
-            LOG_INFO("Compiler flash attention is set to " << supported);
+            const bool user_requested = attn_compiler_fa_tile.value().as<bool>();
+            const bool hw_supported = npudesc.has_value() && npudesc->support_flash_attention_tile;
+            if (user_requested && !hw_supported) {
+                LOG_WARN("Flash attention tile is not supported by the NPU, ignoring NPUW_ATTN_COMPILER_FA_TILE");
+            }
+            supported = user_requested && hw_supported;
         }
     } else {
-        // By default, enable compiler flash attention
+        // If config option is not set, enable compiler flash attention tile if attention hint is set to HFA and NPU
+        // supports it
         supported = is_hfa && npudesc.has_value() && npudesc->support_flash_attention_tile;
     }
     other_props["NPUW_ATTN_COMPILER_FA_TILE"] = supported ? "YES" : "NO";
+    LOG_INFO("Compiler flash attention tile use is set to "
+             << other_props["NPUW_ATTN_COMPILER_FA_TILE"].as<std::string>());
 
     m_is_whisper = use_whisper_key.value_or(false).as<bool>() == true;
     if (m_is_whisper) {
