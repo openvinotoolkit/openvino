@@ -257,6 +257,7 @@ bool is_below_general_threshold(float max_tolerance) {
     return max_tolerance > ov::MemBandwidthPressure::LIMITED;
 }
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_RISCV64)
 bool is_lp_main_core_case_1(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.total_convs == 0 && tolerance.max_mem_tolerance > MEM_TOLERANCE_VERY_HIGH &&
@@ -300,6 +301,7 @@ bool is_lp_auto_case_5(const ov::MemBandwidthPressure& tolerance) {
     return tolerance.ratio_compute_convs > 0 && tolerance.ratio_compute_convs < CONV_RATIO_ULTRA_LOW &&
            tolerance.ratio_mem_limited_convs >= CONV_RATIO_VERY_LOW;
 }
+#endif
 
 }  // namespace
 
@@ -1119,12 +1121,12 @@ int get_model_prefer_threads(const int num_streams,
         } else {
             configure_x86_non_hybrid_threads(config, proc_type_table);
         }
+#        endif
 
         configure_x86_throughput_threads(config,
                                          proc_type_table,
                                          networkToleranceForLowCache,
                                          memThresholdAssumeLimitedForISA);
-#        endif
 #    endif
 #endif
     }
