@@ -67,12 +67,12 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         topo.add(input_layout("q", q_layout));
         topo.add(input_layout("k", k_layout));
         topo.add(input_layout("v", v_layout));
+        topo.add(input_layout("state", state_layout));
         topo.add(input_layout("g", g_layout));
         topo.add(input_layout("beta", beta_layout));
-        topo.add(input_layout("state", state_layout));
 
         auto linear_attn_prim =
-            linear_attention("vlsdpa", {input_info("q"), input_info("k"), input_info("v"), input_info("g"), input_info("beta"), input_info("state")});
+            gated_delta_net("gated_delta_net", {input_info("q"), input_info("k"), input_info("v"), input_info("g"), input_info("beta"), input_info("state")});
 
         topo.add(linear_attn_prim);
         return topo;
@@ -105,7 +105,7 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         return {output, net};
     }
 
-    void execute(linear_attention_test_params& p, const bool is_caching_test = false) {
+    void execute(gated_delta_net_test_params& p, const bool is_caching_test = false) {
         const auto batch = p.head_size;
         const auto t = p.t;
         const auto num_heads = p.num_heads;
@@ -163,8 +163,8 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
     }
 
     static std::string
-    PrintToStringParamName(const testing::TestParamInfo<linear_attention_test_params>& info) {
-        std::string result = "linear_attention_gpu_test_" + std::to_string(info.param.batch) + "_" +
+    PrintToStringParamName(const testing::TestParamInfo<gated_delta_net_test_params>& info) {
+        std::string result = "gated_delta_net_gpu_test_" + std::to_string(info.param.batch) + "_" +
                std::to_string(info.param.t) + "_" + std::to_string(info.param.num_heads) + "_" +
                std::to_string(info.param.head_size);
 
@@ -182,7 +182,7 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
     }
 };
 
-TEST_P(linear_attention_gpu_test, basic) {
+TEST_P(gated_delta_net_gpu_test, basic) {
     if (!check_cm_available())
         GTEST_SKIP();
 
@@ -190,7 +190,7 @@ TEST_P(linear_attention_gpu_test, basic) {
     execute(p);
 }
 
-// TEST_P(linear_attention_gpu_test, basic_caching) {
+// TEST_P(gated_delta_net_gpu_test, basic_caching) {
 //     if (!check_cm_available())
 //         GTEST_SKIP();
 
