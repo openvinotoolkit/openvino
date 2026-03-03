@@ -43,12 +43,6 @@ bool isUseBaseModelSerializer(UsedVersion useVersion, const intel_npu::FilteredC
         return true;
     }
 
-    // user pass use_base_model_serializer config
-    if (config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) &&
-        config.has(ov::intel_npu::use_base_model_serializer.name())) {
-        return config.get<intel_npu::USE_BASE_MODEL_SERIALIZER>();
-    }
-
     // user pass model_serializer_version config
     if (config.isAvailable(ov::intel_npu::model_serializer_version.name()) &&
         config.has(ov::intel_npu::model_serializer_version.name())) {
