@@ -40,7 +40,7 @@ public:
             if (!config.dumpIR.transformations.filter[prev]) {
                 break;
             }
-            if (wasDumped()[prev]) {
+            if (wasDumped(model->get_friendly_name())[prev]) {
                 return;
             }
         }
@@ -48,7 +48,7 @@ public:
     }
     ~TransformationDumper() {
         dump("_out");
-        wasDumped().set(type);
+        wasDumped(model->get_friendly_name()).set(type);
     }
 
 private:
@@ -67,16 +67,21 @@ private:
         {TransformationType::PostLpt, {"postLpt", TransformationType::Lpt}},
         {TransformationType::Snippets, {"snippets", TransformationType::PostLpt}},
         {TransformationType::Specific, {"cpuSpecific", TransformationType::Snippets}}};
-    static std::bitset<TransformationType::NumOfTypes>& wasDumped() {
-        static std::bitset<TransformationType::NumOfTypes> wasDumped;
-        return wasDumped;
+    static std::bitset<TransformationType::NumOfTypes>& wasDumped(const std::string& modelName) {
+        static std::unordered_map<std::string, std::bitset<TransformationType::NumOfTypes>> wasDumpedPerModel;
+        return wasDumpedPerModel[modelName];
     }
+
     void dump(const std::string&& postfix) {
-        static int num = 0;  // just to keep dumped IRs ordered in filesystem
-        const std::filesystem::path dumpDir{config.dumpIR.dir};
+        static std::unordered_map<std::string, int> numPerModel;
+        const std::filesystem::path dir{config.dumpIR.dir};
+        // include model name to a path so more than one model can be dumped without overriding dumps of each other
+        const std::filesystem::path dumpDir{dir / model->get_friendly_name()};
+        // add a serial number to the prefix to ensure the correct order in 'ls' output
+        auto& num = numPerModel[model->get_friendly_name()];
         const std::filesystem::path irFileName{"ir_" + std::to_string(num) + '_' + infoMap.at(type).name + postfix};
-        // example: intel_cpu_dump/<model_name>/ir_0_preLpt_in.xml
-        const auto fullPath = dumpDir / model->get_friendly_name() / irFileName;
+        // fullPath example: intel_cpu_dump/<model_name>/ir_0_preLpt_in.xml
+        const auto fullPath = dumpDir / irFileName;
 
         ov::util::create_directory_recursive(dumpDir);
 
