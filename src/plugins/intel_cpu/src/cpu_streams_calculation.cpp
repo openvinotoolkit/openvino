@@ -30,6 +30,7 @@
 /* Include oneDNN only for architectures that need dnnl symbols. */
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
 #    include <oneapi/dnnl/dnnl.hpp>
+
 #    include "onednn/dnnl.h"
 #endif
 #include "cpu_map_scheduling.hpp"
