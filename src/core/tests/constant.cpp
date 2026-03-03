@@ -2663,6 +2663,7 @@ TEST(constant, hold_shared_memory_different_precision) {
     EXPECT_EQ(c.get_data_ptr(), storage.data());
     EXPECT_EQ(c.get_vector<uint8_t>(), std::vector<uint8_t>({1, 0, 0, 0, 2, 0}));
     EXPECT_EQ(c.cast_vector<uint8_t>(), std::vector<uint8_t>({1, 0, 0, 0, 2, 0}));
+    EXPECT_EQ(c.get_byte_size(), 6);
 }
 
 TEST(constant, own_shared_memory) {
@@ -2863,6 +2864,11 @@ TEST(constant, dynamic_type_get_vector_throws) {
 TEST(constant, dynamic_type_cast_vector_throws) {
     ov::op::v0::Constant c(element::dynamic, Shape{2});
     EXPECT_THROW(c.cast_vector<int64_t>(), ov::Exception);
+}
+
+TEST(constant, create_with_incorrect_buffer_size_or_shape_and_precision) {
+    auto buffer = std::make_shared<ov::AlignedBuffer>(100);
+    EXPECT_THROW(std::ignore = ov::op::v0::Constant(element::u8, Shape{10}, buffer), ov::Exception);
 }
 
 }  // namespace test

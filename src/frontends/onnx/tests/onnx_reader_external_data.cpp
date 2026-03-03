@@ -120,11 +120,9 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_incorrect_size_exception) {
         const auto model = core.read_model(path);
         FAIL() << "Incorrect size of external data not detected";
     } catch (const Exception& ex) {
-        EXPECT_PRED_FORMAT2(
-            testing::IsSubstring,
-            string(
-                "The size of the external data file does not match the byte size of an initializer 'A' in the model"),
-            ex.what());
+        EXPECT_PRED_FORMAT2(testing::IsSubstring,
+                            string("The Constant byte size and input data byte size not same"),
+                            ex.what());
     } catch (...) {
         FAIL() << "Importing onnx model failed for unexpected reason";
     }
