@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/ov_plugin_cache.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
@@ -29,6 +31,13 @@ void core_configuration(ov::test::SubgraphBaseTest* test) {
     // Enable CPU pinning in CPU funtional tests to save validation time of Intel CPU plugin func tests (parallel)
     // on Windows
     config.insert({ov::hint::enable_cpu_pinning.name(), true});
+
+    // Temporary keep snippets disabled on ARM64 to investigate intermittent crashes
+    // Ticket: 177544
+#if defined(OPENVINO_ARCH_ARM64)
+    ov::test::utils::global_plugin_config[ov::intel_cpu::snippets_mode.name()] = ov::intel_cpu::SnippetsMode::DISABLE;
+    config[ov::intel_cpu::snippets_mode.name()] = ov::intel_cpu::SnippetsMode::DISABLE;
+#endif
 }
 
 } // namespace test
