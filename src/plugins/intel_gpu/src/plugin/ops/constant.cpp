@@ -167,14 +167,19 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         const size_t otd_expert_num = get_experimental_lazy_moe_expert_num();
         const bool partial_moe_const_upload = lazy_moe_enabled && otd_expert_num > 0;
         cldnn::memory::ptr mem = nullptr;
-        cldnn::memory::ptr upload_mem = nullptr;
+        cldnn::memory::ptr upload_lock_mem = nullptr;
         size_t upload_bytes = constLayout.bytes_count();
         ov::Shape upload_shape = const_shape;
+        const size_t total_experts = const_shape.empty() ? static_cast<size_t>(0) : const_shape[0];
+        size_t upload_experts = upload_shape.empty() ? static_cast<size_t>(0) : upload_shape[0];
+
         if (partial_moe_const_upload && constLayout.bytes_count() > 0 && !const_shape.empty() && const_shape[0] > 0) {
             upload_shape[0] = std::min<size_t>(const_shape[0], otd_expert_num);
             auto upload_layout = cldnn::layout(upload_shape, out_dtype, constFormat);
-            upload_mem = p.get_engine().allocate_memory(upload_layout, false);
+            auto upload_mem = p.get_engine().allocate_memory(upload_layout, false);
+            upload_experts = upload_shape[0];
             mem = p.get_engine().reinterpret_buffer(*upload_mem, constLayout);
+            upload_lock_mem = upload_mem;
             upload_bytes = upload_layout.bytes_count();
             std::cout << "[EXPERIMENTAL] OTD partial constant allocation at compile stage: "
                       << op->get_friendly_name() << ", experts=" << upload_shape[0]
@@ -182,29 +187,31 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
                       << ", target_bytes=" << constLayout.bytes_count() << std::endl;
         } else if (constLayout.bytes_count() > 0) {
             mem = p.get_engine().allocate_memory(constLayout, false);
-            upload_mem = mem;
+            upload_lock_mem = mem;
         } else { 
             // In the case of empty const data with {0} shape, it has zero byte.
             // To avoid zero byte memory allocation issue, reinterpret one dimension memory to zero dimension memory.
             auto one_dim_layout = cldnn::layout(ov::PartialShape({1}), constLayout.data_type, constLayout.format);
             auto one_dim_mem = p.get_engine().allocate_memory(one_dim_layout, false);
             mem = p.get_engine().reinterpret_buffer(*one_dim_mem, constLayout);
-            upload_mem = one_dim_mem;
+            upload_lock_mem = one_dim_mem;
         }
 
         GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: "
                         << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)"<< std::endl;
         auto& stream = p.get_engine().get_service_stream();
-        cldnn::mem_lock<char> lock{upload_mem, stream};
+        cldnn::mem_lock<char> lock{upload_lock_mem, stream};
         auto buf = lock.data();
         auto bufSize = upload_bytes;
         auto upload_count = ov::shape_size(upload_shape);
 
         {
+            const bool skip_partial_const_memcpy = partial_moe_const_upload;
 
             // If a constant has element type f64 but contains no elements (empty tensor),
             // convert it to f32 because the GPU plugin only supports the f32 data type internally.
-            if (upload_count == 1 &&
+            if (skip_partial_const_memcpy) {
+            } else if (upload_count == 1 &&
                 out_dtype == cldnn::data_types::f32 &&
                 op->get_output_element_type(0) == ov::element::f64) {
                 const auto* f64data = op->get_data_ptr<double>();
