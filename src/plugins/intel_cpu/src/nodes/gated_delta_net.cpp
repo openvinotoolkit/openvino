@@ -48,7 +48,7 @@ GatedDeltaNet::GatedDeltaNet(const std::shared_ptr<ov::Node>& op, const GraphCon
 }
 
 void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
-    auto dataPrecision = getOriginalInputPrecisionAtPort(0);
+    auto dataPrecision = ov::element::f32;
     std::vector<PortConfigurator> inPortConfigs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
         inPortConfigs.emplace_back(LayoutType::ncsp, dataPrecision, getInputShapeAtPort(i), false, -1);
