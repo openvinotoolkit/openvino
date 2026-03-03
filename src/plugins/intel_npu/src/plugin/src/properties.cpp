@@ -1028,7 +1028,18 @@ bool Properties::isPropertySupported(const std::string& name) {
 
         // Create a compiler to get the type and fetch version and supported options if needed
         CompilerAdapterFactory factory;
-        compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+        try {
+            compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+        } catch (const std::exception& ex) {
+            if (_config.hasOpt(name) && _config.getOpt(name).mode() == OptionMode::CompileTime) {
+                return false;
+            }
+
+            _logger.warning("Failed to create compiler to query property %s with error: %s. "
+                            "Registering only runtime properties and metrics that do not require compiler support.",
+                            name.c_str(),
+                            ex.what());
+        }
 
         if (compiler != nullptr && !(_compilerConfigsFilteredByCompiler && compilerType == _currentlyUsedCompiler &&
                                      compilationPlatform == _currentlyUsedPlatform)) {
