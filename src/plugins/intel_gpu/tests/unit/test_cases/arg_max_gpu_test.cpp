@@ -1019,3 +1019,327 @@ TEST(arg_max_min_test, check_second_output_data_type) {
     auto second_output_layout = arg_max_min_node.get_output_layout(false, 1);
     ASSERT_EQ(second_output_layout.data_type, data_types::i32);
 }
+
+// =============================================================================
+// Tests for arg_max_min_topk_radix kernel
+// Conditions: f16 input, SORT_VALUES, N >= 2, N <= 65535, SLM fits
+// =============================================================================
+
+// Basic radix test: f16 input, MAX mode, axis=feature(1), sort by values
+TEST(arg_max_gpu_topk_radix, f16_max_axis_feature_sort_values) {
+    static const int32_t x_size = 1, y_size = 1, feature_num = 16, batch_num = 1;
+    auto& engine = get_test_engine();
+    const int top_k = 4;
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {batch_num, feature_num, x_size, y_size}});
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(arg_max_min("arg_max",
+                             { input_info("input") },
+                             ov::op::TopKMode::MAX,
+                             top_k,
+                             1,
+                             ov::op::TopKSortType::SORT_VALUES,
+                             true,
+                             false,
+                             data_types::f16,
+                             2));
+
+    // feature_num=16 values, top_k=4 MAX => expect top 4 values descending
+    std::vector<ov::float16> input_vec = {
+        ov::float16(1.0f), ov::float16(5.0f), ov::float16(3.0f), ov::float16(9.0f),
+        ov::float16(2.0f), ov::float16(7.0f), ov::float16(4.0f), ov::float16(8.0f),
+        ov::float16(6.0f), ov::float16(0.5f), ov::float16(10.0f), ov::float16(0.1f),
+        ov::float16(15.0f), ov::float16(12.0f), ov::float16(11.0f), ov::float16(0.2f)
+    };
+    // Sorted MAX top4: 15.0(idx=12), 12.0(idx=13), 11.0(idx=14), 10.0(idx=10)
+    std::vector<float> ref_values = {15.0f, 12.0f, 11.0f, 10.0f};
+    std::vector<float> ref_indices = {12.0f, 13.0f, 14.0f, 10.0f};
+
+    set_values(input, input_vec);
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
+    auto output = outputs.at("arg_max").get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+    for (uint32_t i = 0; i < top_k; i++) {
+        float val = static_cast<float>(output_ptr[i]);
+        ASSERT_NEAR(val, ref_values[i], 0.01f) << "value mismatch at i=" << i;
+    }
+}
+
+// Radix test: f16 MIN mode, axis=feature(1), sort by values
+TEST(arg_max_gpu_topk_radix, f16_min_axis_feature_sort_values) {
+    static const int32_t x_size = 1, y_size = 1, feature_num = 16, batch_num = 1;
+    auto& engine = get_test_engine();
+    const int top_k = 4;
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {batch_num, feature_num, x_size, y_size}});
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(arg_max_min("arg_max",
+                             { input_info("input") },
+                             ov::op::TopKMode::MIN,
+                             top_k,
+                             1,
+                             ov::op::TopKSortType::SORT_VALUES,
+                             true,
+                             false,
+                             data_types::f16,
+                             2));
+
+    std::vector<ov::float16> input_vec = {
+        ov::float16(1.0f), ov::float16(5.0f), ov::float16(3.0f), ov::float16(9.0f),
+        ov::float16(2.0f), ov::float16(7.0f), ov::float16(4.0f), ov::float16(8.0f),
+        ov::float16(6.0f), ov::float16(0.5f), ov::float16(-1.0f), ov::float16(0.1f),
+        ov::float16(15.0f), ov::float16(12.0f), ov::float16(11.0f), ov::float16(-2.0f)
+    };
+    // Sorted MIN top4: -2.0(idx=15), -1.0(idx=10), 0.1(idx=11), 0.5(idx=9)
+    std::vector<float> ref_values = {-2.0f, -1.0f, 0.1f, 0.5f};
+
+    set_values(input, input_vec);
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("arg_max").get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+    for (uint32_t i = 0; i < top_k; i++) {
+        float val = static_cast<float>(output_ptr[i]);
+        ASSERT_NEAR(val, ref_values[i], 0.01f) << "value mismatch at i=" << i;
+    }
+}
+
+// Radix test: f16 MAX, second output (indices), axis=feature(1)
+TEST(arg_max_gpu_topk_radix, f16_max_second_output_indices) {
+    static const int32_t x_size = 1, y_size = 1, feature_num = 32, batch_num = 1;
+    auto& engine = get_test_engine();
+    const int top_k = 8;
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {batch_num, feature_num, x_size, y_size}});
+    auto top_k_input = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
+    auto second_output = engine.allocate_memory({data_types::f32, format::bfyx, {batch_num, top_k, x_size, y_size}});
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(cldnn::data("const", top_k_input));
+    topology.add(mutable_data("second_output", second_output));
+    topology.add(arg_max_min("arg_max",
+                             { input_info("input"), input_info("const"), input_info("second_output") },
+                             ov::op::TopKMode::MAX,
+                             top_k,
+                             1,
+                             ov::op::TopKSortType::SORT_VALUES,
+                             true,
+                             false,
+                             data_types::f16));
+
+    // 32 values: set known pattern
+    std::vector<ov::float16> input_vec(feature_num);
+    for (int i = 0; i < feature_num; i++) {
+        input_vec[i] = ov::float16(static_cast<float>(i * 3 % 17));
+    }
+    // Values: 0,3,6,9,12,15,1,4,7,10,13,16,2,5,8,11,14,0,3,6,9,12,15,1,4,7,10,13,16,2,5,8
+    // Top 8 MAX (sorted desc): 16(idx=11), 16(idx=28), 15(idx=5), 15(idx=22), 14(idx=16), 13(idx=10), 13(idx=27), 12(idx=4)
+
+    set_values(input, input_vec);
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("arg_max").get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+
+    // Verify values are in descending order
+    for (int i = 1; i < top_k; i++) {
+        float prev = static_cast<float>(output_ptr[i - 1]);
+        float curr = static_cast<float>(output_ptr[i]);
+        ASSERT_GE(prev, curr) << "values not sorted descending at i=" << i;
+    }
+    // Verify top value is 16
+    ASSERT_NEAR(static_cast<float>(output_ptr[0]), 16.0f, 0.01f);
+
+    // Check second output (indices)
+    cldnn::mem_lock<float> idx_ptr(second_output, get_test_stream());
+    ASSERT_EQ(static_cast<int>(idx_ptr[0]), 11);  // first 16 is at idx=11
+}
+
+// Radix test: larger N (N=1000, K=10), axis=batch(0), MAX
+TEST(arg_max_gpu_topk_radix, f16_max_large_n_axis_batch) {
+    static const int32_t x_size = 1, y_size = 1, feature_num = 1, batch_num = 1000;
+    auto& engine = get_test_engine();
+    const int top_k = 10;
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {batch_num, feature_num, x_size, y_size}});
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(arg_max_min("arg_max",
+                             { input_info("input") },
+                             ov::op::TopKMode::MAX,
+                             top_k,
+                             0,
+                             ov::op::TopKSortType::SORT_VALUES,
+                             true,
+                             false,
+                             data_types::f16));
+
+    // Fill with values: i * 0.01, so max values at end
+    std::vector<ov::float16> input_vec(batch_num);
+    for (int i = 0; i < batch_num; i++) {
+        input_vec[i] = ov::float16(static_cast<float>(i) * 0.01f);
+    }
+    // Top 10 MAX descending: 9.99, 9.98, 9.97, ..., 9.90
+    // Indices: 999, 998, 997, ..., 990
+
+    set_values(input, input_vec);
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("arg_max").get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+    for (int i = 0; i < top_k; i++) {
+        float expected = static_cast<float>(batch_num - 1 - i) * 0.01f;
+        float actual = static_cast<float>(output_ptr[i]);
+        ASSERT_NEAR(actual, expected, 0.02f) << "mismatch at i=" << i;
+    }
+}
+
+// Radix test: negative values, axis=feature(1), MAX
+TEST(arg_max_gpu_topk_radix, f16_max_with_negatives) {
+    static const int32_t x_size = 1, y_size = 1, feature_num = 8, batch_num = 1;
+    auto& engine = get_test_engine();
+    const int top_k = 3;
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {batch_num, feature_num, x_size, y_size}});
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(arg_max_min("arg_max",
+                             { input_info("input") },
+                             ov::op::TopKMode::MAX,
+                             top_k,
+                             1,
+                             ov::op::TopKSortType::SORT_VALUES,
+                             true,
+                             false,
+                             data_types::f16));
+
+    std::vector<ov::float16> input_vec = {
+        ov::float16(-5.0f), ov::float16(-1.0f), ov::float16(-8.0f), ov::float16(-0.5f),
+        ov::float16(-3.0f), ov::float16(-10.0f), ov::float16(-2.0f), ov::float16(-0.1f)
+    };
+    // MAX top3 descending: -0.1(idx=7), -0.5(idx=3), -1.0(idx=1)
+    std::vector<float> ref_values = {-0.1f, -0.5f, -1.0f};
+
+    set_values(input, input_vec);
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("arg_max").get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+    for (uint32_t i = 0; i < top_k; i++) {
+        float val = static_cast<float>(output_ptr[i]);
+        ASSERT_NEAR(val, ref_values[i], 0.01f) << "value mismatch at i=" << i;
+    }
+}
+
+// Radix test: duplicate values tiebreaking (smaller index first)
+TEST(arg_max_gpu_topk_radix, f16_max_duplicate_values_tiebreak) {
+    static const int32_t x_size = 1, y_size = 1, feature_num = 10, batch_num = 1;
+    auto& engine = get_test_engine();
+    const int top_k = 5;
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {batch_num, feature_num, x_size, y_size}});
+    auto top_k_input = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
+    auto second_output = engine.allocate_memory({data_types::f32, format::bfyx, {batch_num, top_k, x_size, y_size}});
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(cldnn::data("const", top_k_input));
+    topology.add(mutable_data("second_output", second_output));
+    topology.add(arg_max_min("arg_max",
+                             { input_info("input"), input_info("const"), input_info("second_output") },
+                             ov::op::TopKMode::MAX,
+                             top_k,
+                             1,
+                             ov::op::TopKSortType::SORT_VALUES,
+                             true,
+                             false,
+                             data_types::f16));
+
+    // Many duplicates: 5,5,5,5,5,3,3,3,1,1
+    std::vector<ov::float16> input_vec = {
+        ov::float16(5.0f), ov::float16(5.0f), ov::float16(5.0f), ov::float16(5.0f), ov::float16(5.0f),
+        ov::float16(3.0f), ov::float16(3.0f), ov::float16(3.0f), ov::float16(1.0f), ov::float16(1.0f)
+    };
+    // MAX top5: all 5.0 values, indices should be 0,1,2,3,4 (smaller index first for tiebreak)
+
+    set_values(input, input_vec);
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("arg_max").get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+    // All top-5 values should be 5.0
+    for (int i = 0; i < top_k; i++) {
+        ASSERT_NEAR(static_cast<float>(output_ptr[i]), 5.0f, 0.01f) << "value mismatch at i=" << i;
+    }
+    // Indices should be 0,1,2,3,4 (tiebreak by ascending index)
+    cldnn::mem_lock<float> idx_ptr(second_output, get_test_stream());
+    for (int i = 0; i < top_k; i++) {
+        ASSERT_EQ(static_cast<int>(idx_ptr[i]), i) << "index tiebreak mismatch at i=" << i;
+    }
+}
+
+// Radix test: YOLOv26n-like scenario (N=8400, K=300, axis=feature)
+TEST(arg_max_gpu_topk_radix, f16_max_yolov26n_like) {
+    static const int32_t x_size = 1, y_size = 1, feature_num = 8400, batch_num = 1;
+    auto& engine = get_test_engine();
+    const int top_k = 300;
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {batch_num, feature_num, x_size, y_size}});
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(arg_max_min("arg_max",
+                             { input_info("input") },
+                             ov::op::TopKMode::MAX,
+                             top_k,
+                             1,
+                             ov::op::TopKSortType::SORT_VALUES,
+                             true,
+                             false,
+                             data_types::f16));
+
+    // Generate pseudo-random data with known top values
+    std::vector<ov::float16> input_vec(feature_num);
+    for (int i = 0; i < feature_num; i++) {
+        // Base value: small numbers
+        input_vec[i] = ov::float16(static_cast<float>(i % 100) * 0.01f);
+    }
+    // Plant known top-300 values at specific locations
+    for (int i = 0; i < 300; i++) {
+        input_vec[i * 28] = ov::float16(100.0f + static_cast<float>(300 - i) * 0.1f);
+    }
+
+    set_values(input, input_vec);
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("arg_max").get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+
+    // Verify descending order
+    for (int i = 1; i < top_k; i++) {
+        float prev = static_cast<float>(output_ptr[i - 1]);
+        float curr = static_cast<float>(output_ptr[i]);
+        ASSERT_GE(prev, curr) << "values not sorted descending at i=" << i;
+    }
+    // Verify top value is 130.0 (100.0 + 300*0.1)
+    ASSERT_NEAR(static_cast<float>(output_ptr[0]), 130.0f, 0.2f);
+    // Verify last top-K value is > base values (~0.99 max)
+    ASSERT_GT(static_cast<float>(output_ptr[top_k - 1]), 50.0f);
+}
