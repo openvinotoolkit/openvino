@@ -1412,3 +1412,32 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e5m2_small_scale) {
     test_case.add_expected_output<float>({-1.0f, -0.25f, 0.0f, 0.25f, 1.0f});
     test_case.run();
 }
+
+/// 8-bit floating point QuantizeLinear - DequantizeLinear test - f8e4m3 - per-axis mode
+///
+/// Per-axis quantization (axis=1) on input shape (2, 3):
+///   scale has shape (3,) — one scale per column.
+///   y[r,c] = fp8_round(x[r,c] / scale[c]) * scale[c]
+///
+/// With scale = [2.0, 4.0, 8.0]:
+///   x / scale (broadcast per column):
+///     row 0: [4/2,    8/4,   16/8]  = [2.0,   2.0,   2.0] -- exact in f8e4m3
+///     row 1: [6/2, 1000/4, 4000/8]  = [3.0, 250.0, 500.0]
+///
+///   f8e4m3 rounding (max = 448.0):
+///     250.0 - nearest representable is 256.0  (distance 240-250 is 10, 250-256 is 6)
+///     500.0 - saturates to 448.0 (exceeds f8e4m3fn max)
+///
+///   DQ (multiply by per-column scale):
+///     row 0: [2×2,   2×4,    2×8] = [  4.0,    8.0,   16.0]
+///     row 1: [3×2, 256×4, 448×8]  = [  6.0, 1024.0, 3584.0]
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e4m3_per_axis) {
+    auto model = convert_model("quant_dequant_f8e4m3_per_axis.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({4.0f, 8.0f, 16.0f, 6.0f, 1000.0f, 4000.0f});  // x, shape (2, 3), row-major
+    test_case.add_input<float>({2.0f, 4.0f, 8.0f});                           // scale, shape (3,)
+
+    test_case.add_expected_output<float>({2, 3}, std::vector<float>{4.0f, 8.0f, 16.0f, 6.0f, 1024.0f, 3584.0f});
+    test_case.run();
+}
