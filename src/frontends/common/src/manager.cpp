@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/manager.hpp"
 
+#include "openvino/frontend/common/path_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
@@ -159,22 +160,10 @@ private:
         if (variants.empty()) {
             return nullptr;
         }
-        std::string model_path;
 
-        const auto& model_variant = variants.at(0);
-        if (model_variant.is<std::string>()) {
-            const auto& tmp_path = model_variant.as<std::string>();
-            model_path = tmp_path;
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        } else if (model_variant.is<std::wstring>()) {
-            auto wpath = model_variant.as<std::wstring>();
-            model_path = ov::util::wstring_to_string(wpath);
-#endif
-        } else if (model_variant.is<std::filesystem::path>()) {
-            model_path = ov::util::path_to_string(model_variant.as<std::filesystem::path>());
-        }
-        if (!model_path.empty()) {
-            auto ext = ov::util::path_to_string(ov::util::make_path(model_path).extension());
+        const auto model_path = get_path_from_any(variants.at(0));
+        if (model_path.has_value()) {
+            auto ext = ov::util::path_to_string(model_path.value().extension());
             auto it = priority_fe_extensions.find(ext);
             if (it != priority_fe_extensions.end()) {
                 // Priority FE is found by file extension, try this first

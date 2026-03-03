@@ -9,6 +9,7 @@
 #include "op/op_translation_utils.hpp"
 #include "op_table.hpp"
 #include "openvino/core/so_extension.hpp"
+#include "openvino/frontend/common/path_util.hpp"
 #include "openvino/frontend/tensorflow_lite/extension/op.hpp"
 #include "openvino/util/common_util.hpp"
 #include "tensor_lite_place.hpp"
@@ -56,10 +57,9 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants.size() != 1 + extra_variants_num)
         return false;
 
-    if (variants[0].is<std::string>() || variants[0].is<std::filesystem::path>()) {
-        std::string model_path = variants[0].is<std::string>()
-                                     ? variants[0].as<std::string>()
-                                     : ov::util::path_to_string(variants[0].as<std::filesystem::path>());
+    if (const auto path = ov::frontend::get_path_from_any(variants[0]);
+        path.has_value() && !variants[0].is<std::wstring>()) {
+        std::string model_path = ov::util::path_to_string(path.value());
         if (GraphIteratorFlatBuffer::is_supported(model_path)) {
             return true;
         }
@@ -82,10 +82,9 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     // Last boolean flag in `variants` (if presented) is reserved for FE configuration
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     if (variants.size() == 1 + extra_variants_num) {
-        if (variants[0].is<std::string>() || variants[0].is<std::filesystem::path>()) {
-            std::string model_path = variants[0].is<std::string>()
-                                         ? variants[0].as<std::string>()
-                                         : ov::util::path_to_string(variants[0].as<std::filesystem::path>());
+        if (const auto path = ov::frontend::get_path_from_any(variants[0]);
+            path.has_value() && !variants[0].is<std::wstring>()) {
+            std::string model_path = ov::util::path_to_string(path.value());
             if (GraphIteratorFlatBuffer::is_supported(model_path)) {
                 return std::make_shared<tensorflow_lite::InputModel>(
                     std::make_shared<GraphIteratorFlatBuffer>(model_path),

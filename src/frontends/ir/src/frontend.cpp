@@ -11,6 +11,7 @@
 #include "input_model.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/so_extension.hpp"
+#include "openvino/frontend/common/path_util.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
@@ -104,27 +105,15 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         return false;
     }
 
-    const auto& model_variant = variants[0];
-    if (model_variant.is<std::string>()) {
-        const auto& path = model_variant.as<std::string>();
-        validate_path(path);
-        local_model_stream.open(path, std::ios::in | std::ifstream::binary);
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    } else if (model_variant.is<std::wstring>()) {
-        const auto& path = model_variant.as<std::wstring>();
-        validate_path(path);
-        local_model_stream.open(path.c_str(), std::ios::in | std::ifstream::binary);
-#endif
-    } else if (model_variant.is<std::filesystem::path>()) {
-        const auto& path = model_variant.as<std::filesystem::path>();
-        validate_path(path);
-        local_model_stream.open(path, std::ios::in | std::ifstream::binary);
-    } else if (model_variant.is<std::istream*>()) {
+    if (const auto& model_variant = variants[0]; model_variant.is<std::istream*>()) {
         provided_model_stream = model_variant.as<std::istream*>();
     } else if (model_variant.is<std::istringstream*>()) {
         provided_model_stream = model_variant.as<std::istringstream*>();
     } else if (model_variant.is<std::shared_ptr<AlignedBuffer>>()) {
         model_buffer = model_variant.as<std::shared_ptr<AlignedBuffer>>();
+    } else if (const auto path = get_path_from_any(model_variant); path.has_value()) {
+        validate_path(path.value());
+        local_model_stream.open(path.value(), std::ios::in | std::ifstream::binary);
     }
 
     if (provided_model_stream && local_model_stream.is_open()) {
@@ -194,42 +183,24 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 
     std::filesystem::path weights_path, model_path;
 
-    const auto& model_variant = variants.at(0);
-
-    if (model_variant.is<std::string>()) {
-        const auto& tmp_path = model_variant.as<std::string>();
-        validate_path(tmp_path);
-        model_path = ov::util::make_path(tmp_path);
-        local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    } else if (model_variant.is<std::wstring>()) {
-        model_path = ov::util::make_path(model_variant.as<std::wstring>());
-        validate_path(model_path);
-        local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
-#endif
-    } else if (model_variant.is<std::filesystem::path>()) {
-        model_path = model_variant.as<std::filesystem::path>();
-        validate_path(model_path);
-        local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
-    } else if (model_variant.is<std::istream*>()) {
+    if (const auto& model_variant = variants[0]; model_variant.is<std::istream*>()) {
         provided_model_stream = model_variant.as<std::istream*>();
     } else if (model_variant.is<std::istringstream*>()) {
         provided_model_stream = model_variant.as<std::istringstream*>();
     } else if (model_variant.is<std::shared_ptr<AlignedBuffer>>()) {
         model_buf = model_variant.as<std::shared_ptr<AlignedBuffer>>();
+    } else if (const auto path = get_path_from_any(model_variant); path.has_value()) {
+        model_path = path.value();
+        validate_path(model_path);
+        local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
     }
 
     // Check weights and extensions
     for (size_t variant_id = 1; variant_id < variants.size(); ++variant_id) {
-        const auto& variant = variants.at(variant_id);
-        if (variant.is<std::string>()) {
-            weights_path = ov::util::make_path(variant.as<std::string>());
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        } else if (variant.is<std::wstring>()) {
-            weights_path = ov::util::make_path(variant.as<std::wstring>());
-#endif
-        } else if (variant.is<std::shared_ptr<ov::AlignedBuffer>>()) {
+        if (const auto& variant = variants.at(variant_id); variant.is<std::shared_ptr<ov::AlignedBuffer>>()) {
             weights = variant.as<std::shared_ptr<ov::AlignedBuffer>>();
+        } else if (const auto path = get_path_from_any(variant); path.has_value()) {
+            weights_path = path.value();
         }
     }
     bool enable_mmap = variants[variants.size() - 1].is<bool>() ? variants[variants.size() - 1].as<bool>() : false;

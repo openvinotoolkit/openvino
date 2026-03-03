@@ -23,6 +23,7 @@
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/frontend/common/path_util.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
@@ -142,10 +143,8 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         return false;
 
     std::string model_path, checkpoints_dir;
-    if (variants[0].is<std::string>()) {
-        model_path = variants[0].as<std::string>();
-    } else if (variants[0].is<std::filesystem::path>()) {
-        model_path = ov::util::path_to_string(variants[0].as<std::filesystem::path>());
+    if (const auto path = ov::frontend::get_path_from_any(variants[0]); path.has_value()) {
+        model_path = ov::util::path_to_string(path.value());
     } else if (variants[0].is<std::vector<std::string>>() && variants[0].as<std::vector<std::string>>().size() == 2) {
         const auto paths = variants[0].as<std::vector<std::string>>();
         model_path = paths[0];
@@ -240,10 +239,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         "frozen formats (.pb and .pbtxt), SavedModel and MetaGraph (.meta) formats, and v1 checkpoints.");
 
     std::string model_path, checkpoints_dir;
-    if (variants[0].is<std::string>()) {
-        model_path = variants[0].as<std::string>();
-    } else if (variants[0].is<std::filesystem::path>()) {
-        model_path = ov::util::path_to_string(variants[0].as<std::filesystem::path>());
+    if (const auto path = ov::frontend::get_path_from_any(variants[0]); path.has_value()) {
+        model_path = ov::util::path_to_string(path.value());
     } else if (variants[0].is<std::vector<std::string>>() && variants[0].as<std::vector<std::string>>().size() == 2) {
         const auto paths = variants[0].as<std::vector<std::string>>();
         FRONT_END_GENERAL_CHECK(
