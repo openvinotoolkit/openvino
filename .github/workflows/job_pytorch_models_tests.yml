@@ -167,7 +167,11 @@ jobs:
           py_version=$(python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
           for wheel in openvino openvino_tokenizers; do
             wheel_path=$(find ${INSTALL_DIR} -name "${wheel}-*cp${py_version}*.whl" ! -name "*cp${py_version}t*.whl")
-            python3 -m pip install $wheel_path
+            if [ -n "${wheel_path}" ]; then
+              python3 -m pip install ${wheel_path}
+            else
+              python3 -m pip install ${INSTALL_DIR}/${wheel}-*.whl
+            fi
           done
           # Install base requirements then upgrade to latest for RoPE regression testing
           python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_pytorch
