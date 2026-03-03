@@ -209,6 +209,7 @@ bool is_static_partitioner_case_5(const ov::MemBandwidthPressure& tolerance) {
                CONV_RATIO_ULTRA_LOW * static_cast<float>(tolerance.total_nodes);
 }
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_RISCV64)
 void determine_tbb_partitioner_and_threads(Config& config,
                                            const std::vector<std::vector<int>>& proc_type_table,
                                            const ov::MemBandwidthPressure& tolerance,
@@ -243,17 +244,18 @@ void determine_tbb_partitioner_and_threads(Config& config,
         config.tbbPartitioner = TbbPartitioner::AUTO;
     }
 }
+#endif
 
-bool is_network_compute_limited(const ov::MemBandwidthPressure& tolerance) {
+[[maybe_unused]] bool is_network_compute_limited(const ov::MemBandwidthPressure& tolerance) {
     return tolerance.ratio_compute_convs == ov::MemBandwidthPressure::ALL ||
            tolerance.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL;
 }
 
-bool is_below_isa_threshold(float max_tolerance, float memThresholdAssumeLimitedForISA) {
+[[maybe_unused]] bool is_below_isa_threshold(float max_tolerance, float memThresholdAssumeLimitedForISA) {
     return max_tolerance > memThresholdAssumeLimitedForISA;
 }
 
-bool is_below_general_threshold(float max_tolerance) {
+[[maybe_unused]] bool is_below_general_threshold(float max_tolerance) {
     return max_tolerance > ov::MemBandwidthPressure::LIMITED;
 }
 
