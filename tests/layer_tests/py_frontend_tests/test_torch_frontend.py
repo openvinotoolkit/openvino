@@ -1573,6 +1573,75 @@ class TestBuildDynamicShapes:
         else:
             assert result[0] is None
 
+    # ── Nested tuple inputs (e.g. past_key_values) ─────────────────
+
+    def test_nested_tuple_single_layer(self):
+        """past_key_values with one layer: ((key, value),)."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        x = torch.randn(2, 4)
+        past_kv = ((torch.randn(2, 4, 3, 8), torch.randn(2, 4, 3, 8)),)
+        example_input = (x, past_kv)
+        # 3 flat specs: x, key, value
+        inp = [self._make_spec([-1, 4]),
+               self._make_spec([-1, 4, 3, 8]),
+               self._make_spec([-1, 4, 3, 8])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        # Result must mirror nested structure: (dims_x, ((dims_k, dims_v),))
+        assert result[0] == {0: Dim.AUTO}
+        assert result[1][0][0] == {0: Dim.AUTO}
+        assert result[1][0][1] == {0: Dim.AUTO}
+
+    def test_nested_tuple_two_layers(self):
+        """past_key_values with two layers: ((k0, v0), (k1, v1))."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        x = torch.randn(1, 16)
+        past_kv = (
+            (torch.randn(1, 8, 5, 64), torch.randn(1, 8, 5, 64)),
+            (torch.randn(1, 8, 5, 64), torch.randn(1, 8, 5, 64)),
+        )
+        example_input = (x, past_kv)
+        # 5 flat specs
+        inp = [self._make_spec([-1, 16]),
+               self._make_spec([-1, 8, -1, 64]),
+               self._make_spec([-1, 8, -1, 64]),
+               self._make_spec([-1, 8, -1, 64]),
+               self._make_spec([-1, 8, -1, 64])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+        for layer in range(2):
+            for kv in range(2):
+                d = result[1][layer][kv]
+                assert 0 in d and 2 in d
+                assert d[0] is Dim.AUTO
+                assert d[2] is Dim.AUTO
+
+    def test_nested_tuple_static_specs(self):
+        """Nested inputs with all-static specs → None per leaf."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        x = torch.randn(2, 4)
+        past_kv = ((torch.randn(2, 4, 3, 8),),)
+        example_input = (x, past_kv)
+        inp = [self._make_spec([2, 4]),
+               self._make_spec([2, 4, 3, 8])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] is None
+        assert result[1][0][0] is None
+
+    def test_nested_list_input(self):
+        """List containing tensors (auto-converted by pytree)."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 4), [torch.randn(2, 8), torch.randn(2, 8)])
+        inp = [self._make_spec([-1, 4]),
+               self._make_spec([-1, 8]),
+               self._make_spec([-1, 8])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+        assert result[1][0] == {0: Dim.AUTO}
+        assert result[1][1] == {0: Dim.AUTO}
+
 
 class TestConvertModelDynamo:
     """Tests for convert_model with dynamo=True (torch.export path)."""

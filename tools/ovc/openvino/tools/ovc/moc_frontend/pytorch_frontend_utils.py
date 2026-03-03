@@ -31,12 +31,14 @@ def _build_dynamic_shapes(inputs, input_specs=None):
     When no specs are given returns None so that torch.export.export produces
     a fully static graph.
 
-    Returns a tuple (positional) when inputs are a tuple/list/Tensor,
-    or a dict (keyed by the dict's own keys) when inputs are a dict.
-    The model signature is never inspected.
+    The input_specs list is flat (one spec per leaf tensor), while inputs may
+    contain nested tuples/lists (e.g. past_key_values). pytree is used to
+    flatten inputs, pair each leaf with its spec, and then unflatten the
+    result back into the original structure that torch.export expects.
     """
     import torch
     from torch.export import Dim
+    from torch.utils._pytree import tree_flatten, tree_unflatten
 
     if input_specs is None:
         return None
@@ -73,7 +75,7 @@ def _build_dynamic_shapes(inputs, input_specs=None):
             return None
         return dims
 
-    # Resolve spec shapes (list of dim descriptors aligned to inputs).
+    # Resolve spec shapes (list of dim descriptors aligned to flat leaves).
     # Each dim is: int (static), -1 (fully dynamic), or (min, max) tuple.
     def _get_spec_shapes():
         shapes = []
@@ -104,23 +106,21 @@ def _build_dynamic_shapes(inputs, input_specs=None):
 
     spec_shapes = _get_spec_shapes()
 
-    if isinstance(inputs, dict):
-        dynamic_shapes = {}
-        for idx, (name, tensor) in enumerate(inputs.items()):
-            ss = spec_shapes[idx] if idx < len(spec_shapes) else None
-            dynamic_shapes[name] = _dims_for_tensor(tensor, ss, idx)
-        return dynamic_shapes
-
+    # Flatten the (possibly nested) inputs to get leaf tensors and the
+    # tree structure.  Build a flat list of per-leaf dim specs, then
+    # unflatten back so that dynamic_shapes mirrors the input structure
+    # exactly as torch.export.export requires.
     if isinstance(inputs, torch.Tensor):
         inputs = (inputs,)
-    if isinstance(inputs, list):
-        inputs = tuple(inputs)
 
-    dynamic_shapes = []
-    for i, inp in enumerate(inputs):
+    flat_leaves, tree_spec = tree_flatten(inputs)
+
+    flat_dim_specs = []
+    for i, leaf in enumerate(flat_leaves):
         ss = spec_shapes[i] if i < len(spec_shapes) else None
-        dynamic_shapes.append(_dims_for_tensor(inp, ss, i))
-    return tuple(dynamic_shapes)
+        flat_dim_specs.append(_dims_for_tensor(leaf, ss, i))
+
+    return tree_unflatten(flat_dim_specs, tree_spec)
 
 
 def _export_torch_model(model, inputs, input_specs=None):
