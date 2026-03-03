@@ -1185,6 +1185,12 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     }
 
     desc.compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
+
+    if (desc.arch == "5000" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(3, 26)) {
+        // Flash attention tile is supported starting from compiler version 3.26 on NPU5000
+        desc.support_flash_attention_tile = true;
+    }
+
     return std::make_optional(std::move(desc));
 }
 
@@ -1589,28 +1595,26 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     // Decide on using compiler flash attention based on provided option and NPU capabilities
-    auto compiler_flash_attention_tile = pop_option(other_props, std::string("NPUW_ATTN_COMPILER_FA_TILE"));
+    const auto compiler_flash_attention_tile = pop_option(other_props, std::string("NPUW_ATTN_COMPILER_FA_TILE"));
+    const auto hint_it = npuw_llm_props.find("NPUW_LLM_PREFILL_ATTENTION_HINT");
+    const auto is_hfa = hint_it != npuw_llm_props.end() && hint_it->second.as<std::string>() == "HFA";
+    auto supported = false;
     if (compiler_flash_attention_tile.has_value()) {
-        auto it = npuw_llm_props.find("NPUW_LLM_PREFILL_ATTENTION_HINT");
-        if (it == npuw_llm_props.end()) {
-            LOG_WARN("NPUW_LLM_PREFILL_ATTENTION_HINT is not set, ignoring NPUW_ATTN_COMPILER_FA_TILE");
-        } else if (it->second.as<std::string>() != "HFA") {
-            LOG_WARN("NPUW_LLM_PREFILL_ATTENTION_HINT is not set to HFA, ignoring NPUW_ATTN_COMPILER_FA_TILE");
+        if (!is_hfa) {
+            LOG_WARN(
+                "NPUW_LLM_PREFILL_ATTENTION_HINT is not set or not set to HFA, ignoring NPUW_ATTN_COMPILER_FA_TILE");
         } else {
             // In case of some npu versions the flash attention is not supported, rewrite the config to disable it, to
             // avoid compilation failure. In case of supported - keep the option enabled if not set explicitly to false
-            auto supported = compiler_flash_attention_tile.value().as<bool>() && npudesc.has_value() &&
-                             npudesc->support_flash_attention_tile;
-            other_props["NPUW_ATTN_COMPILER_FA_TILE"] = supported || true ? "YES" : "NO";
+            supported = compiler_flash_attention_tile.value().as<bool>() && npudesc.has_value() &&
+                        npudesc->support_flash_attention_tile;
             LOG_INFO("Compiler flash attention is set to " << supported);
         }
     } else {
         // By default, enable compiler flash attention
-        auto it = npuw_llm_props.find("NPUW_LLM_PREFILL_ATTENTION_HINT");
-        auto is_hfa = it != npuw_llm_props.end() && it->second.as<std::string>() == "HFA";
-        auto supported = is_hfa && npudesc.has_value() && npudesc->support_flash_attention_tile;
-        other_props["NPUW_ATTN_COMPILER_FA_TILE"] = supported ? "YES" : "NO";
+        supported = is_hfa && npudesc.has_value() && npudesc->support_flash_attention_tile;
     }
+    other_props["NPUW_ATTN_COMPILER_FA_TILE"] = supported ? "YES" : "NO";
 
     m_is_whisper = use_whisper_key.value_or(false).as<bool>() == true;
     if (m_is_whisper) {
