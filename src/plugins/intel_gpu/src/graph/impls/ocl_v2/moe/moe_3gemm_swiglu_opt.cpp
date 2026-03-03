@@ -843,13 +843,6 @@ public:
     int _gate_up_group_size;
     int _down_group_size;
 
-    static bool is_env_enabled(const char* name) {
-        const char* value = std::getenv(name);
-        if (!value)
-            return false;
-        return std::string(value) == "1" || std::string(value) == "true" || std::string(value) == "TRUE";
-    }
-
     moe_3gemm_swiglu_opt_impl() : PrimitiveImplOCL(moe_3gemm_swiglu_opt::get_type_info_static()) {}
     moe_3gemm_swiglu_opt_impl(const program_node& node, const RuntimeParams& params) : moe_3gemm_swiglu_opt_impl() {
         if (m_rt_params == nullptr) {
@@ -864,14 +857,6 @@ public:
         } else {
             // micro_gemm is better than gemm, default to use it
             use_micro_gemm_prefill = true;
-        }
-        if (cldnn::lru_expert_num) {
-            const bool otd_micro_experiment_enabled = is_env_enabled("OTD_ENABLE_MICRO_GEMM_EXPERIMENT");
-            // Keep default behavior for OTD unless explicit experiment is enabled.
-            // Even with experiment enabled, require explicit MOE_USE_MICRO_GEMM_PREFILL override.
-            if (!otd_micro_experiment_enabled || !use_micro_gemm_prefill_str) {
-                use_micro_gemm_prefill = false;
-            }
         }
 
         auto use_gpu_mask_gen_prefill_str = std::getenv("MOE_USE_GPU_MASK_PREFILL");
@@ -1459,21 +1444,14 @@ public:
         }
     }
 
-    static uint32_t get_lru_expert_no(typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                      uint32_t expert,
-                                      LRUCache& cache,
-                                      bool* loaded_from_disk = nullptr) {
+    static uint32_t get_lru_expert_no(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, uint32_t expert, LRUCache& cache) {
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         auto& engine = instance.get_network().get_engine();
         auto& op = cur_moe->_op;
         size_t layer = get_layer(instance);
         cldnn::moe_weights params;
         auto item = cache.get_lru_item(layer, expert);
-        const bool should_load_from_disk = !item.second;
-        if (loaded_from_disk != nullptr) {
-            *loaded_from_disk = should_load_from_disk;
-        }
-        if (should_load_from_disk) {
+        if(!item.second) {
             std::vector<uint32_t> experts_list_single;
             experts_list_single.push_back(expert);
             std::vector<uint32_t> lru_experts_list_single;
@@ -1603,7 +1581,7 @@ public:
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         // [batch, max_topk]
         auto batch_mem_ptr = scratch.topk_id;
-        auto hidden_states_layout = std::get<1>(get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)));
+        auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
         auto routing_mem_ptr = scratch.topk_weights;
         auto input_layout = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES))->get_layout();
         auto token_num = get_seq_len(input_layout);
@@ -2026,8 +2004,6 @@ public:
         };
         auto lws_size = get_best_lws(_hidden_size);
         auto max_topk = static_cast<int64_t>(config.top_k);
-        size_t active_experts = 0;
-        size_t loaded_experts = 0;
 
         // [batch, max_topk]
         auto topk_id_mem = scratch.topk_id;
@@ -2042,13 +2018,10 @@ public:
             if (can_skip_subgraph) {
                 continue;
             }
-            active_experts++;
 
             if (cldnn::lru_expert_num) {
                 auto& dnnl_weights = _dnnl_weights[expert_no];
-                bool loaded_now = false;
-                auto lru_expert_no = get_lru_expert_no(instance, static_cast<uint32_t>(expert_no), cache, &loaded_now);
-                loaded_experts += loaded_now ? 1 : 0;
+                auto lru_expert_no = get_lru_expert_no(instance, static_cast<uint32_t>(expert_no), cache);
                 auto& params = instance._weights;
 
                 #define CONVERT_DNNL(name, i)  \
@@ -2124,19 +2097,6 @@ public:
                                          true /*instance.needs_completion_event()*/);
         }
 
-        if (cldnn::lru_expert_num && is_env_enabled("OTD_RUNTIME_TRACE")) {
-            static size_t trace_seq = 0;
-            trace_seq++;
-            std::cout << "[OTD_RUNTIME_TRACE] seq=" << trace_seq
-                      << ", token_num=" << get_seq_len(hidden_states_layout)
-                      << ", topk=" << static_cast<int>(config.top_k)
-                      << ", active_experts=" << active_experts
-                      << ", loaded_experts=" << loaded_experts
-                      << ", cache_size=" << cache.size()
-                      << ", cache_capacity=" << cldnn::lru_expert_num
-                      << std::endl;
-        }
-
         return result_event;
     }
 
@@ -2154,7 +2114,7 @@ public:
 
         cldnn::event::ptr ret_env = nullptr;
 
-        auto hidden_states_layout = std::get<1>(get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)));
+        auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
         size_t token_num = get_seq_len(hidden_states_layout);
 
         if (cldnn::lru_expert_num) {
