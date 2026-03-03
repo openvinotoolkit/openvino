@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <optional>
 #include <unordered_map>
-#include <variant>
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -25,10 +24,10 @@ class Constant;
 namespace ov::weight_sharing {
 using DataID = uint64_t;
 
-/** @brief Defined INVALID ID for weight source */
-inline constexpr auto INVALID_SOURCE_ID = 0;
-/** @brief Defined INVALID ID for constant */
-inline constexpr auto INVALID_CONSTANT_ID = INVALID_SOURCE_ID;
+/** @brief Defined invalid ID for weight source */
+inline constexpr DataID invalid_source_id = 0;
+/** @brief Defined invalid ID for constant */
+inline constexpr DataID invalid_constant_id = invalid_source_id;
 
 /** @brief Metadata for a weight */
 struct WeightMetaData {
@@ -45,23 +44,28 @@ struct WeightOriginMetaData {
     ov::element::Type m_type;
 };
 
-/** @brief Variant type for weight buffer shared pointer*/
-using WeightBuffer = std::variant<std::shared_ptr<ov::AlignedBuffer>, std::shared_ptr<ov::MappedMemory>>;
-/** @brief Variant type for weight buffer observer*/
-using WeakWeightBuffer = std::variant<std::weak_ptr<ov::AlignedBuffer>, std::weak_ptr<ov::MappedMemory>>;
+/** @brief Type for weight buffer shared pointer*/
+using WeightBuffer = std::shared_ptr<ov::AlignedBuffer>;
+/** @brief Type for weight buffer observer*/
+using WeakWeightBuffer = std::weak_ptr<ov::AlignedBuffer>;
+
+/** @brief Structure representing a weight source */
+struct WeightSource {
+    std::string m_device;
+    WeakWeightBuffer m_weights;
+};
 
 /** @brief Map [key: Constant ID, value: WeightMetaData] of constant meta data for single container. */
 using WeightMetaMap = std::unordered_map<DataID, WeightMetaData>;
 /** @brief Map [key: Source ID, value: WeightMetaMap] of constant metadata for constant sources. */
 using WeightRegistry = std::unordered_map<DataID, WeightMetaMap>;
-/** @brief Map [key: Source ID, value: WeakWeightBuffer] of pointers to constant sources. */
-using WeightSourceRegistry = std::unordered_map<DataID, WeakWeightBuffer>;
+/** @brief Map [key: Source ID, value: WeightSource] of pointers to constant sources. */
+using WeightSourceRegistry = std::unordered_map<DataID, WeightSource>;
 /** @brief Map [key: Blob ID, value: blob name] of blobs to model name/tag */
 using BlobMap = std::unordered_map<DataID, std::string>;
 
 /** @brief Shared context for weight and constant management */
 struct Context {
-    // keep as standard layout as will be used between libraries
     WeightRegistry m_weight_registry;        //!< Weight metadata stored in cache for weight sources.
     WeightSourceRegistry m_cache_sources;    //!< Weight sources stored in cache.
     WeightSourceRegistry m_runtime_sources;  //!< Weight sources available in runtime, not stored in cache.
@@ -89,6 +93,13 @@ struct OPENVINO_API Extension {
      * @return Return optional with ConstantOriginMetaData if found, std::nullopt otherwise.
      */
     static std::optional<WeightOriginMetaData> get_constant_origin(const ov::op::v0::Constant& constant);
+
+    /** @brief Get the constant source buffer for constant node.
+     *
+     * @param constant Constant node to get source buffer for.
+     * @return Return shared pointer to AlignedBuffer if found, nullptr otherwise.
+     */
+    static std::shared_ptr<ov::AlignedBuffer> get_constant_source_buffer(const ov::op::v0::Constant& constant);
 
     /**
      * @brief Set constant metadata in weight registry for given constant node.
@@ -136,18 +147,24 @@ OPENVINO_API std::shared_ptr<ov::AlignedBuffer> get_buffer(const Context& shared
                                                            const DataID source_id,
                                                            const DataID constant_id);
 
-/** @brief Get the buffer for a given weight buffer (provide source id as hint) and constant id.
+/** @brief Get the buffer for a given source buffer (provide source id as hint) and constant id.
  *
  * The returned buffer is ready to use for Constant node creation.
  *
  * @param shared_context Shared context to get buffer from.
- * @param weight_buffer Weight buffer to get buffer from.
+ * @param source_buffer Source buffer to restore constant buffer to get buffer from.
  * @param constant_id Constant id to get buffer for.
  * @return Return shared pointer to AlignedBuffer if found, nullptr otherwise.
+ * @{
  */
 OPENVINO_API std::shared_ptr<ov::AlignedBuffer> get_buffer(const Context& shared_context,
-                                                           const WeightBuffer& weight_buffer,
+                                                           const std::shared_ptr<ov::AlignedBuffer>& source_buffer,
                                                            const DataID constant_id);
+
+OPENVINO_API std::shared_ptr<ov::AlignedBuffer> get_buffer(const Context& shared_context,
+                                                           const std::shared_ptr<ov::MappedMemory>& source_buffer,
+                                                           const DataID constant_id);
+/** @} */
 
 /** @brief Set the constant's buffer in context for sharing.
  *
@@ -160,18 +177,27 @@ OPENVINO_API bool set_constant(Context& shared_context, const ov::op::v0::Consta
 /** @brief Set the weight source in context for sharing.
  *
  * @param shared_context Shared context to set weight source in.
- * @param weight_buffer Weight buffer to set as source.
+ * @param source_buffer Weight buffer to set as source.
  * @return Return true if source was set successfully, false otherwise.
  */
-OPENVINO_API bool set_weight_source(Context& shared_context, const WeightBuffer& weight_buffer);
+OPENVINO_API bool set_weight_source(Context& shared_context, const WeightBuffer& source_buffer);
+
+/**
+ * @brief Set the weight source object for a given constant node.
+ *
+ * @param shared_context Shared context to set weight source in.
+ * @param constant Constant node to extract source buffer and set as weight source.
+ * @return Return true if source was set successfully, false otherwise.
+ */
+OPENVINO_API bool set_weight_source(Context& shared_context, const ov::op::v0::Constant& constant);
 
 /** @brief Set the weight source in runtime source map of context for sharing.
  *
  * @param shared_context Shared context to set weight source in.
- * @param weight_buffer Weight buffer to set as source.
+ * @param source_buffer Weight buffer to set as source.
  * @return Return true if source was set successfully, false otherwise.
  */
-OPENVINO_API bool set_runtime_weight_source(Context& shared_context, const WeightBuffer& weight_buffer);
+OPENVINO_API bool set_runtime_weight_source(Context& shared_context, const WeightBuffer& source_buffer);
 }  // namespace ov::weight_sharing
 
 namespace ov {

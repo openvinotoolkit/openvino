@@ -240,7 +240,7 @@ void SingleFileStorage::read_cache_entry(const std::string& blob_id, bool enable
     if (std::filesystem::exists(m_file_path) && has_blob_id(cid)) {
         const auto& [blob_pos, blob_size, model_name] = m_blob_index[cid];
         if (enable_mmap) {
-            // todo Extend memory mapping helpers to suport partial file mapping
+            // CVS-181859 Extend memory mapping helpers to suport partial file mapping
             CompiledBlobVariant compiled_blob{std::in_place_index<0>,
                                               ov::read_tensor_data(m_file_path,
                                                                    element::u8,
@@ -304,23 +304,13 @@ void SingleFileStorage::write_context(const weight_sharing::Context& context) {
     for (const auto& cache_registry : delta_cache_sources) {
         const auto weight_source_writer = [&](std::ostream& s) {
             const auto& [source_id, weight_buffer] = cache_registry;
-            const auto device_id = static_cast<DataIdType>(0);  // todo Where to get it from?
-            s.write(reinterpret_cast<const char*>(&device_id), sizeof(device_id));
-            s.write(reinterpret_cast<const char*>(&source_id), sizeof(source_id));
-            write_padding(s, alignment);
-
-            const auto buffer_writer =
-                ov::util::VariantVisitor{[&](const std::weak_ptr<ov::AlignedBuffer>& weak_buf) {
-                                             if (auto buf = weak_buf.lock()) {
-                                                 s.write(reinterpret_cast<const char*>(buf->get_ptr()), buf->size());
-                                             }
-                                         },
-                                         [&](const std::weak_ptr<ov::MappedMemory>& weak_mem) {
-                                             if (auto mem = weak_mem.lock()) {
-                                                 s.write(reinterpret_cast<const char*>(mem->data()), mem->size());
-                                             }
-                                         }};
-            std::visit(buffer_writer, weight_buffer);
+            if (auto buf = weight_buffer.m_weights.lock()) {
+                const auto device_id = static_cast<DataIdType>(0);  // todo Where to get it from?
+                s.write(reinterpret_cast<const char*>(&device_id), sizeof(device_id));
+                s.write(reinterpret_cast<const char*>(&source_id), sizeof(source_id));
+                write_padding(s, alignment);
+                s.write(reinterpret_cast<const char*>(buf->get_ptr()), buf->size());
+            }
 
             m_shared_context.m_cache_sources[source_id] = weight_buffer;
         };

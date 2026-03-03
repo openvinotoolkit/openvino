@@ -134,6 +134,10 @@ inline long long fileSize(const std::string& fileName) {
     return fileSize(fileName.c_str());
 }
 
+inline long long fileSize(const std::filesystem::path& file_path) {
+    return fileSize(file_path.string().c_str());
+}
+
 inline bool fileExists(const char* fileName) {
     return fileSize(fileName) >= 0;
 }

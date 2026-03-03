@@ -103,7 +103,7 @@ TEST_F(SingleFileStorageTest, CacheEntryWriteRead) {
             storage.read_cache_entry(blob_id, true, [&](const ICacheManager::CompiledBlobVariant& compiled_blob) {
                 ASSERT_TRUE(std::holds_alternative<const ov::Tensor>(compiled_blob));
                 ++read_count;
-                // todo Check support for multimap memory mapping
+                // CVS-181859 Check support for multimap memory mapping
                 auto& tensor = std::get<const ov::Tensor>(compiled_blob);
                 ASSERT_EQ(tensor.get_byte_size(), blob_data.size());
                 std::vector<uint8_t> read_data(blob_data.size());
@@ -264,7 +264,7 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
         buffer->get_ptr<uint8_t>()[i] = 0xAB;
         buffer->get_ptr<uint8_t>()[i + 1] = 0xCD;
     }
-    test_context.m_cache_sources[1] = std::weak_ptr<ov::AlignedBuffer>{buffer};
+    test_context.m_cache_sources[1].m_weights = std::weak_ptr<ov::AlignedBuffer>{buffer};
     m_storage->write_context(test_context);
 
     std::ifstream stream(m_file_path, std::ios::binary | std::ios::ate);
@@ -305,9 +305,12 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
 
 TEST_F(SingleFileStorageTest, ContextWeightSourceAppendDelta) {
     weight_sharing::Context test_context;
-    test_context.m_cache_sources[1] = std::weak_ptr<ov::AlignedBuffer>{std::make_shared<ov::AlignedBuffer>(1024)};
+    const auto buffer_1 = std::make_shared<ov::AlignedBuffer>(1024);
+    test_context.m_cache_sources[1].m_weights = buffer_1;
     m_storage->write_context(test_context);
-    test_context.m_cache_sources[11] = std::weak_ptr<ov::AlignedBuffer>{std::make_shared<ov::AlignedBuffer>(47)};
+
+    const auto buffer_2 = std::make_shared<ov::AlignedBuffer>(47);
+    test_context.m_cache_sources[11].m_weights = buffer_2;
     m_storage->write_context(test_context);
 
     EXPECT_EQ(m_storage->get_context().m_cache_sources.size(), 2);
