@@ -281,7 +281,11 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
             weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
                 aligned_weights_buffer->get_ptr<char>(),
                 aligned_weights_buffer->size(),
-                aligned_weights_buffer);
+                aligned_weights_buffer,
+                ov::create_base_descriptor(
+                    std::hash<std::decay_t<decltype(weights_path.native())>>{}(weights_path.native()),
+                    0,
+                    aligned_weights_buffer));
         }
     }
 
