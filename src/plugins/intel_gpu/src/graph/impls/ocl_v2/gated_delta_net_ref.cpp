@@ -46,9 +46,9 @@ protected:
         const float scale_factor = 1.0f / std::sqrt(static_cast<double>(k_head_dims));
         const auto output_state = params.output_layouts.size() > 1 ? 1 : 0;
 
-        jit.make("Q_HEAD_NUMS", q_head_nums);
-        jit.make("V_HEAD_NUMS", v_head_nums);
-        jit.make("K_HEAD_DIMS", k_head_dims);
+        jit.make("K_HEAD_NUM", q_head_nums);
+        jit.make("V_HEAD_NUM", v_head_nums);
+        jit.make("K_HEAD_DIM", k_head_dims);
         jit.make("SUBGROUP_SIZE", get_subgroup_size(params.get_device_info().arch));
         jit.make("IO_TYPE", io_type);
         jit.make("SCALE_FACTOR", scale_factor);
@@ -86,6 +86,7 @@ protected:
             const size_t head_nums = v_shape[2].get_length();
             const size_t k_head_dims = q_shape[3].get_length();
             const size_t v_blocks = (k_head_dims + v_block_size - 1) / v_block_size;
+            std::cout << "!!@@@@|" << get_subgroup_size(params.get_device_info().arch) << std::endl;
             const size_t subgroup_size = get_subgroup_size(params.get_device_info().arch);
 
             auto get_simple_offset = [](const cldnn::layout& layout) {

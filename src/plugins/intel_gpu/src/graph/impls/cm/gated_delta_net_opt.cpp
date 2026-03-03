@@ -1,8 +1,6 @@
 // Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "vl_sdpa_opt.hpp"
-
 #include <algorithm>
 #include <cmath>
 
@@ -17,44 +15,52 @@
 namespace ov::intel_gpu::cm {
 namespace {
 
-constexpr auto get_linear_attention_build_options() {
+constexpr auto get_gated_delta_net_build_options() {
     return " -cmc -Qxcm_register_file_size=256";
 }
 
 class GatedDeltaNetGenerator : public KernelGenerator {
 public:
-    GatedDeltaNetGenerator() : KernelGenerator("recurrent_gated_delta_rule") {}
+    GatedDeltaNetGenerator() : KernelGenerator("cm_gated_delta_net") {}
 
 protected:
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
-        return KernelGenerator::get_build_options(params) + get_linear_attention_build_options();
+        return KernelGenerator::get_build_options(params) + get_gated_delta_net_build_options();
     }
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
 
         auto desc = params.typed_desc<gated_delta_net>();
+
         const auto query_shape = params.get_input_layout(0).get_partial_shape();
         const auto key_shape = params.get_input_layout(1).get_partial_shape();
         const auto value_shape = params.get_input_layout(2).get_partial_shape();
 
         const size_t k_head_size = key_shape[query_shape.size() - 1].get_length();
         const size_t v_head_size = value_shape[query_shape.size() - 1].get_length();
-        const size_t num_k_heads = query_shape[query_shape.size() - 3].get_length();
-        const size_t num_v_heads = value_shape[key_shape.size() - 3].get_length();
+        const size_t num_k_heads = query_shape[query_shape.size() - 2].get_length();
+        const size_t num_v_heads = value_shape[key_shape.size() - 2].get_length();
         const float scale_factor = 1.0 / std::sqrt(static_cast<double>(k_head_size));
+        const auto io_type = params.get_input_layout(0).data_type == data_types::f16 ? 0 : 1;
+        const auto num_outputs = desc->output_size();
 
-        GPU_DEBUG_TRACE_DETAIL << "GatedDeltaNet query_shape " << query_shape << ", key_shape " << key_shape << ", k_head_size="
-                               << k_head_size << ", v_head_size=" << v_head_size << ", num_k_heads=" << num_k_heads << ", num_v_heads=" << num_v_heads << '\n';
-
+        GPU_DEBUG_TRACE_DETAIL << "GatedDeltaNet io_type" << io_type << " query_shape " << query_shape << ", key_shape " << key_shape
+                               << ", k_head_size=" << k_head_size << ", v_head_size=" << v_head_size << ", num_k_heads=" << num_k_heads
+                               << ", num_v_heads=" << num_v_heads << ", num_outputs=" << num_outputs << '\n';
         jit.add({
             make_jit_constant("KERNEL_NAME", get_entry_point(params)),
             make_jit_constant("K_HEAD_NUMS", num_k_heads),
             make_jit_constant("V_HEAD_NUMS", num_v_heads),
             make_jit_constant("K_HEAD_DIMS", k_head_size),
-            make_jit_constant("V_HEAD_DIMS", num_v_heads),
+            make_jit_constant("V_HEAD_DIMS", v_head_size),
             make_jit_constant("SCALE_FACTOR", scale_factor),
+            make_jit_constant("IO_TYPE", io_type),
         });
+
+        if (params.output_layouts.size() > 1) {
+            jit.add(make_jit_constant("OUTPUT_STATE", 1));
+        }
 
         return jit;
     }
@@ -62,14 +68,16 @@ protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
 
-        for (uint32_t i = 0; i < params.input_layouts.size() - 1; i++) {  // inputs: q, k, v
+        for (uint32_t i = 0; i < params.input_layouts.size(); i++) {  // inputs: q, k, v
             args.push_back({ArgumentDescriptor::Types::INPUT, i});
         }
 
         for (uint32_t i = 0; i < params.output_layouts.size(); i++) {
             args.push_back({ArgumentDescriptor::Types::OUTPUT, i});
         }
-
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});
         return args;
     }
 
@@ -78,13 +86,41 @@ protected:
             assert(!params.is_dynamic());
             auto desc = params.typed_desc<gated_delta_net>();
             const auto query_shape = params.get_input_layout(0).get_shape();
+            const auto value_shape = params.get_input_layout(2).get_shape();
             // B, T, H, K
             const size_t batch = query_shape[0];
-            const size_t head_nums = query_shape[2];
+            const size_t seq = query_shape[1];
+            const size_t head_nums = value_shape[2];
 
+            const auto& info = params.get_device_info();
+            const size_t thread_nums = (info.arch <= gpu_arch::xe_hpc) ? 16 : 8;
             auto& wgs = kd.params.workGroups;
-            wgs.global = {batch, head_nums, 1};
-            wgs.local = {1, 1, 8};
+            wgs.global = {batch, head_nums, thread_nums};
+            wgs.local = {1, 1, thread_nums};
+            auto key_layout = params.input_layouts[1];
+            auto value_layout = params.input_layouts[2];
+            auto get_simple_offset = [](const cldnn::layout& layout) {
+                size_t offset = 0;
+                const auto& data_padding = layout.data_padding;
+                const auto& lower_pads = data_padding._lower_size;
+                for (auto& it : lower_pads) {
+                    if (it > 0) {
+                        offset = it;
+                        break;
+                    }
+                }
+                return offset;
+            };
+            size_t key_offset = get_simple_offset(key_layout);
+            size_t value_offset = get_simple_offset(value_layout);
+            std::vector<int32_t> scalars{static_cast<int32_t>(seq), static_cast<int32_t>(key_offset), static_cast<int32_t>(value_offset)};
+            kd.params.scalars.clear();
+            for (auto i : scalars) {
+                scalar_desc desc;
+                desc.t = scalar_desc::Types::INT32;
+                desc.v.s32 = static_cast<int32_t>(i);
+                kd.params.scalars.push_back(desc);
+            }
         }};
     }
 };
@@ -94,6 +130,7 @@ public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::GatedDeltaNetOptImpl)
 
     Stage::Ptr gated_delta_net = make_stage<GatedDeltaNetGenerator>();
+
     GatedDeltaNetOptImpl() : PrimitiveImplOCL(GatedDeltaNetOptImplementationManager::get_type_info_static()) {
     }
     GatedDeltaNetOptImpl(const program_node& node, const RuntimeParams& params) : GatedDeltaNetOptImpl() {
