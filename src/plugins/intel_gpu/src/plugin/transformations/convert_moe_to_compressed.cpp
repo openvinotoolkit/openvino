@@ -233,9 +233,8 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
                 OPENVINO_THROW("K dimenion in moe topk input should be static..");
             }
             config.top_k = topk_shape[1].get_length();
-            config.out_type = ov::element::dynamic;
+            config.out_type = ov::element::f16;
             config.has_batch_dim = is_pa ? 0 : 1;
-
             std::shared_ptr<ov::Node> moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
             moe_compressed->set_friendly_name(moe->get_friendly_name());
             ov::copy_runtime_info(moe, moe_compressed);
