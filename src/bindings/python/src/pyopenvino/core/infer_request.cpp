@@ -817,13 +817,12 @@ void regclass_InferRequest(py::module m) {
             :rtype: float
         )");
 
-    cls.def_property_readonly(
-        "profiling_info",
-        [](InferRequestWrapper& self) {
-            return self.m_request.get_profiling_info();
-        },
-        py::call_guard<py::gil_scoped_release>(),
-        R"(
+    cls.def_property_readonly("profiling_info",
+                              py::cpp_function([](InferRequestWrapper& self) {
+                                  py::gil_scoped_release release;
+                                  return self.m_request.get_profiling_info();
+                              }),
+                              R"(
             Performance is measured per layer to get feedback on the most time-consuming operation.
             Not all plugins provide meaningful data!
 
