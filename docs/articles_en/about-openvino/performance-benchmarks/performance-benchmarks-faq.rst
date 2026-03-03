@@ -95,7 +95,7 @@ Performance Information F.A.Q.
         - Huggingface
         - Auto regressive language
         - 32K
-     * - `Stable-Diffusion-V1-5 <https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5>`__
+      * - `Stable-Diffusion-V1-5 <https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5>`__
         - Hugginface
         - Latent Diffusion Model
         - 77
