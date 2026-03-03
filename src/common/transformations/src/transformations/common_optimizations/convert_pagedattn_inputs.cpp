@@ -149,6 +149,11 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, Upda
 
         key_cache->validate_and_infer_types();
         value_cache->validate_and_infer_types();
+        // Re-validate the PA op so that its output types/shapes reflect the
+        // updated cache parameter types.  Without this, consumers of the PA op
+        // may see stale element types (e.g. element::dynamic) inherited from
+        // the original model construction.
+        pa_op->validate_and_infer_types();
         return status;
     };
 

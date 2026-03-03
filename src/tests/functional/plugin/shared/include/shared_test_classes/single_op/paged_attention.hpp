@@ -94,38 +94,43 @@ private:
         auto block_indices = make_param({ov::Dimension::dynamic()}, ov::element::i32, "block_indices");
         auto block_indices_begins = make_param({ov::Dimension::dynamic()}, ov::element::i32, "block_indices_begins");
 
+        // Use explicit Constant constructors with properly-typed empty vectors for
+        // zero-element tensors (shape {0}).  This avoids ambiguities with
+        // Constant::create overload resolution and matches the working CPU test.
         const float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
-        auto scale = ov::op::v0::Constant::create(ov::element::f32, {}, {scale_value});
-        auto sliding_windows = ov::op::v0::Constant::create(ov::element::i32, {}, {sliding_window});
-        auto alibi_slopes = ov::op::v0::Constant::create(ov::element::f32, {0}, {0.0f});
-        auto max_context_len = ov::op::v0::Constant::create(ov::element::i32, {}, {1024});
-        auto score_aggregation_window = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
+        auto scale = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
+        auto sliding_windows = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{sliding_window});
+        auto alibi_slopes = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0}, std::vector<float>{});
+        auto max_context_len = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<float>{1024});
+        auto score_aggregation_window = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{0});
 
-        auto rotated_block_indices = ov::op::v0::Constant::create(ov::element::i32, {0}, {});
-        auto rotation_deltas      = ov::op::v0::Constant::create(ov::element::i32, {0}, {});
-        auto rotation_trig_lut    = ov::op::v0::Constant::create(ov::element::f32, {0}, {});
+        auto rotated_block_indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{0});
+        auto rotation_deltas       = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{0});
+        auto rotation_trig_lut     = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0}, std::vector<float>{0});
 
         std::shared_ptr<ov::op::v0::Constant> xattention_threshold;
-if (enable_xattn) {
-    xattention_threshold = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.9f});
-} else {
-    xattention_threshold = ov::op::v0::Constant::create(ov::element::f32, {0}, std::vector<float>{});
-}
-        auto xattention_block_size = ov::op::v0::Constant::create(ov::element::i32, {}, {64});
-        auto xattention_stride     = ov::op::v0::Constant::create(ov::element::i32, {}, {8});
+        if (enable_xattn) {
+            xattention_threshold = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0.9f});
+        } else {
+            xattention_threshold = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0}, std::vector<float>{0});
+        }
+        auto xattention_block_size = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{64});
+        auto xattention_stride     = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{8});
 
+        // Sink input: [1, H, 1, 1] when enabled, empty [0] when disabled.
+        // Matching the pattern used by the CPU-specific test.
         std::shared_ptr<ov::op::v0::Constant> sinks;
         if (use_sink_input) {
-            sinks = ov::op::v0::Constant::create(data_type, {1, static_cast<size_t>(head_num), 1, 1}, {0.0f});
+            sinks = std::make_shared<ov::op::v0::Constant>(data_type, ov::Shape{1, static_cast<size_t>(head_num), 1, 1}, std::vector<float>{0.0f});
         } else {
-            sinks = ov::op::v0::Constant::create(data_type, {0}, std::vector<float>{});
+            sinks = std::make_shared<ov::op::v0::Constant>(data_type, ov::Shape{0}, std::vector<float>{});
         }
 
-        // adaptive_rkv inputs (ignored)
-        auto adaptive_rkv_start_size = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
-        auto adaptive_rkv_evictable_sizes = ov::op::v0::Constant::create(ov::element::i32, {0}, {});
-        auto adaptive_rkv_diversity_block_set_indices = ov::op::v0::Constant::create(ov::element::i32, {0}, {});
-        auto adaptive_rkv_diversity_block_set_indices_begins = ov::op::v0::Constant::create(ov::element::i32, {0}, {});
+        // adaptive_rkv inputs (unused — provide empty / zero placeholders)
+        auto adaptive_rkv_start_size = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{0});
+        auto adaptive_rkv_evictable_sizes = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{0});
+        auto adaptive_rkv_diversity_block_set_indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{0});
+        auto adaptive_rkv_diversity_block_set_indices_begins = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{0});
 
         ov::ParameterVector params = {q,k,v,key_cache,value_cache,past_lens,subseq_begins,block_indices,block_indices_begins};
         ov::OutputVector pa_inputs = {q,k,v,key_cache,value_cache,past_lens,subseq_begins,block_indices,block_indices_begins,
@@ -137,26 +142,19 @@ if (enable_xattn) {
                                       adaptive_rkv_diversity_block_set_indices,adaptive_rkv_diversity_block_set_indices_begins};
 
         auto pa = std::make_shared<ov::op::PagedAttentionExtension>(pa_inputs);
-        // Ensure a cache manager is always available for TEMPLATE (reference) evaluation and any plugin paths
-        // that rely on shared cache state.
+        // Ensure a cache manager is always available for TEMPLATE (reference) evaluation
+        // and any plugin paths that rely on shared cache state.
         pa->set_cache_manager(ov::op::make_paged_cache_handle(data_type));
 
-        // Provide head metadata expected by some plugin implementations via rt_info.
-// Keys follow the common PagedAttention conventions used in OpenVINO examples.
-auto& rt = pa->get_rt_info();
-rt["num_k_heads"] = head_num;
-rt["k_head_size"] = head_size;
-rt["num_v_heads"] = head_num;
-rt["v_head_size"] = head_size;
+        // Provide head metadata required by ConvertPagedAttnInputs transformation.
+        // These keys are the canonical ones read by the transformation callback.
+        auto& rt = pa->get_rt_info();
+        rt["num_k_heads"] = static_cast<size_t>(head_num);
+        rt["k_head_size"] = static_cast<size_t>(head_size);
+        rt["num_v_heads"] = static_cast<size_t>(head_num);
+        rt["v_head_size"] = static_cast<size_t>(head_size);
 
-// aliases used by various plugin paths / historical revisions
-rt["num_heads"] = head_num;
-rt["num_q_heads"] = head_num;
-rt["num_kv_heads"] = head_num;
-rt["head_size"] = head_size;
-rt["kv_head_size"] = head_size;
-rt["block_size"] = int64_t{32};
-return std::make_shared<ov::Model>(ov::OutputVector{pa->output(0)}, params, "pa_vsref");
+        return std::make_shared<ov::Model>(ov::OutputVector{pa->output(0)}, params, "pa_vsref");
     }
 
     // ---------- Input generation ----------
@@ -271,32 +269,7 @@ public:
                                        bool extendBlockIndices,
                                        const std::vector<StepInputs>& steps) {
         ov::Core core;
-        //// =====================
-
-        for (size_t i = 0; i < model->inputs().size(); ++i) {
-            const auto& p = model->input(i);
-            std::cerr << "MODEL IN[" << i << "] " << p.get_any_name()
-                    << " " << p.get_element_type()
-                    << " " << p.get_partial_shape() << "\n";
-        }
-        std::cerr << "CPU supported_properties:\n";
-        auto props = core.get_property("CPU", ov::supported_properties);
-
-for (const ov::PropertyName& p : props) {
-    std::cerr << p << std::endl;
-}
-        //// =====================
-
         auto compiled = core.compile_model(model, device, cfg);
-        //// =====================
-        auto inputs = compiled.inputs();
-        for (size_t i = 0; i < inputs.size(); ++i) {
-            const auto& p = inputs[i];
-            std::cerr << "COMPILED IN[" << i << "] name=" << p.get_any_name()
-                    << " type=" << p.get_element_type()
-                    << " shape=" << p.get_partial_shape() << "\n";
-        }
-        //// =====================
         auto req = compiled.create_infer_request();
 
         std::vector<ov::Tensor> outs;

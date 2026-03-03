@@ -348,36 +348,57 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
 bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
     try {
+        if (op->get_type_name() != std::string("PagedAttentionExtension")) {
+            errorMessage = "Not a PagedAttentionExtension operation";
+            return false;
+        }
+
+        auto orgInput = static_cast<int>(op->get_input_size());
+
+        // Accept both the legacy 21-input format (up to sinks) and the
+        // modern 25-input format (includes adaptive_rkv inputs).
+        const int EXPECTED_25 = 25;
+        const int EXPECTED_21 = static_cast<int>(PagedAttentionExecutor::ID_SINKS) + 1;  // 21
+        if (orgInput != EXPECTED_25 && orgInput != EXPECTED_21) {
+            errorMessage = "PagedAttentionExtension expected 21 or 25 inputs, got " + std::to_string(orgInput);
+            return false;
+        }
+
+        // Cache precision validation.
+        // element::dynamic is accepted here — the ConvertPagedAttnInputs transformation
+        // resolves it to a concrete type before execution.  After the transformation
+        // fires, the concrete precision will be validated on the next compile cycle.
         auto vCachePrecision = op->get_input_element_type(PagedAttentionExecutor::ID_VCACHE);
         auto kCachePrecision = op->get_input_element_type(PagedAttentionExecutor::ID_KCACHE);
-        if (any_of(vCachePrecision,
-                   ov::element::u4,
-                   ov::element::u8,
-                   ov::element::f32,
-                   ov::element::f16,
-                   ov::element::bf16)) {
-            if (none_of(kCachePrecision,
-                        ov::element::u4,
-                        ov::element::i8,
-                        ov::element::u8,
-                        ov::element::f16,
-                        ov::element::f32,
-                        ov::element::bf16)) {
-                errorMessage = "PageAttn key value cache compression doesn't support key cache prec " +
-                               kCachePrecision.to_string() + " value cache prec " + vCachePrecision.to_string();
-                return false;
+        if (!vCachePrecision.is_dynamic() && !kCachePrecision.is_dynamic()) {
+            if (any_of(vCachePrecision,
+                       ov::element::u4,
+                       ov::element::u8,
+                       ov::element::f32,
+                       ov::element::f16,
+                       ov::element::bf16)) {
+                if (none_of(kCachePrecision,
+                            ov::element::u4,
+                            ov::element::i8,
+                            ov::element::u8,
+                            ov::element::f16,
+                            ov::element::f32,
+                            ov::element::bf16)) {
+                    errorMessage = "PageAttn key value cache compression doesn't support key cache prec " +
+                                   kCachePrecision.to_string() + " value cache prec " + vCachePrecision.to_string();
+                    return false;
+                }
             }
         }
-        auto orgInput = static_cast<int>(op->get_input_size());
-        if (op->get_type_name() == std::string("PagedAttentionExtension") &&
-            orgInput == PagedAttentionExecutor::ID_SINKS + 1) {
+
+        // Sink input validation — applies to both 21- and 25-input formats.
+        if (orgInput > static_cast<int>(PagedAttentionExecutor::ID_SINKS)) {
             if (!ov::op::util::is_on_path<ov::op::v0::Constant>(op->input_value(PagedAttentionExecutor::ID_SINKS))) {
                 errorMessage = "Only Constant operation on sink input is supported";
                 return false;
             }
 #ifndef OPENVINO_ARCH_X86_64
             // Non-x86_64 platforms do not support non-empty sink tensors yet
-            // Fail fast if the sink input shape has any elements
             const auto& sink_shape = op->get_input_partial_shape(PagedAttentionExecutor::ID_SINKS);
             if (sink_shape.is_static() && ov::shape_size(sink_shape.to_shape()) > 0) {
                 errorMessage =
@@ -385,8 +406,9 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
                 return false;
             }
 #endif
-            return true;
         }
+
+        return true;
     } catch (...) {
         return false;
     }
