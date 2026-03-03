@@ -50,9 +50,9 @@ struct HFATileF32Nodes {
 // Helper struct: Flash attention computation results (all in f32 precision)
 // Contains: acc (accumulator), maxx (maximum values), d (normalization denominator)
 struct FlashAttentionResults {
-    std::shared_ptr<ov::Node> acc;
-    std::shared_ptr<ov::Node> maxx;
-    std::shared_ptr<ov::Node> d;
+    ov::Output<ov::Node> acc;
+    ov::Output<ov::Node> maxx;
+    ov::Output<ov::Node> d;
 };
 
 // ============================================================================
@@ -195,9 +195,9 @@ static FlashAttentionResults execute_compiler_flash_attention(const HFATileF32No
                                                                                    config);
     flash_attn_tile->set_friendly_name("npu_op_flash_attention_tile");
     FlashAttentionResults results;
-    results.acc = flash_attn_tile;
-    results.maxx = flash_attn_tile;
-    results.d = flash_attn_tile;
+    results.acc = flash_attn_tile->output(0);
+    results.maxx = flash_attn_tile->output(1);
+    results.d = flash_attn_tile->output(2);
     return results;
 }
 
@@ -266,8 +266,9 @@ static FlashAttentionResults execute_host_flash_attention(const HFATileF32Nodes&
     auto qkm_max = std::make_shared<ov::op::v1::ReduceMax>(qkm, axes_const, true);
     qkm_max->set_friendly_name("qkm_max");
 
-    results.maxx = std::make_shared<ov::op::v1::Maximum>(qkm_max, f32_nodes.past_max_f32);
-    results.maxx->set_friendly_name("maxx");
+    auto maxx_node = std::make_shared<ov::op::v1::Maximum>(qkm_max, f32_nodes.past_max_f32);
+    maxx_node->set_friendly_name("maxx");
+    results.maxx = maxx_node->output(0);
 
     // p = exp(qkm - maxx)
     auto qkm_sub_maxx = std::make_shared<ov::op::v1::Subtract>(qkm, results.maxx);
@@ -285,8 +286,9 @@ static FlashAttentionResults execute_host_flash_attention(const HFATileF32Nodes&
 
     // d = past_d * alpha + l
     auto past_d_alpha = std::make_shared<ov::op::v1::Multiply>(f32_nodes.past_d_f32, alpha);
-    results.d = std::make_shared<ov::op::v1::Add>(past_d_alpha, l);
-    results.d->set_friendly_name("d");
+    auto d_node = std::make_shared<ov::op::v1::Add>(past_d_alpha, l);
+    d_node->set_friendly_name("d");
+    results.d = d_node->output(0);
 
     // ========================================================================
     // Step 3: Compute PV and final accumulator (method differs based on use_grouped flag)
@@ -338,8 +340,9 @@ static FlashAttentionResults execute_host_flash_attention(const HFATileF32Nodes&
     }
 
     // acc = past_acc * alpha + pv
-    results.acc = std::make_shared<ov::op::v1::Add>(past_acc_alpha, pv);
-    results.acc->set_friendly_name("acc");
+    auto acc_node = std::make_shared<ov::op::v1::Add>(past_acc_alpha, pv);
+    acc_node->set_friendly_name("acc");
+    results.acc = acc_node->output(0);
 
     return results;
 }
@@ -445,12 +448,13 @@ static ov::ResultVector create_final_tile_outputs(const FlashAttentionResults& r
     std::shared_ptr<ov::Node> final_result;
     if (compiler_flash_attention) {
         // If using FlashAttentionTile node, the output is already normalized, so skip division
-        final_result = results.acc;
+        final_result = results.acc.get_node_shared_ptr();
         final_result->set_friendly_name("final_result");
 
     } else {
         // Division: result = acc / d
-        final_result = std::make_shared<ov::op::v1::Divide>(results.acc, results.d);
+        final_result =
+            std::make_shared<ov::op::v1::Divide>(results.acc.get_node_shared_ptr(), results.d.get_node_shared_ptr());
         final_result->set_friendly_name("final_result");
     }
     // Transpose (0,2,1,3): [batch, num_heads, seq_len, head_dim] -> [batch, seq_len, num_heads, head_dim]
@@ -517,19 +521,19 @@ static ov::ResultVector create_regular_tile_outputs(const FlashAttentionResults&
 // ============================================================================
 static ov::ResultVector create_regular_tile_outputs_compiler(const FlashAttentionResults& results,
                                                              const ov::element::Type& input_dtype) {
-    auto acc_output = std::make_shared<ov::op::v0::Convert>(results.acc->output(0), input_dtype);
+    auto acc_output = std::make_shared<ov::op::v0::Convert>(results.acc, input_dtype);
     acc_output->set_friendly_name("acc_output");
     acc_output->output(0).get_tensor().set_names({"acc"});
 
     auto axes = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
 
-    auto maxx_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(results.acc->output(1), axes);
+    auto maxx_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(results.maxx, axes);
     maxx_unsqueezed->set_friendly_name("maxx_unsqueezed");
     auto maxx_output = std::make_shared<ov::op::v0::Convert>(maxx_unsqueezed, input_dtype);
     maxx_output->set_friendly_name("maxx_output");
     maxx_output->output(0).get_tensor().set_names({"maxx"});
 
-    auto d_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(results.acc->output(2), axes);
+    auto d_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(results.d, axes);
     d_unsqueezed->set_friendly_name("d_unsqueezed");
     auto d_output = std::make_shared<ov::op::v0::Convert>(d_unsqueezed, input_dtype);
     d_output->set_friendly_name("d_output");
