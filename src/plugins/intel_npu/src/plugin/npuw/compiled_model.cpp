@@ -2515,6 +2515,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::f16_interconnect, NPUW_F16IC),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
                           BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
+                          BIND(npuw::partitioning::compiler_flash_attention_tile, NPUW_ATTN_COMPILER_FA_TILE),
                           BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                           BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),
                           BIND(npuw::unfold_ireqs, NPUW_UNFOLD_IREQS),

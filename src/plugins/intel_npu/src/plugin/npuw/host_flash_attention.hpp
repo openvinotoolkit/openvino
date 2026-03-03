@@ -164,7 +164,8 @@ struct HostFlashAttention {
     }
 
     // Factory method
-    static std::optional<HostFlashAttention> from(const std::shared_ptr<ov::Model>& model);
+    static std::optional<HostFlashAttention> from(const std::shared_ptr<ov::Model>& model,
+                                                  bool compiler_flash_attention_tile = true);
 };
 
 }  // namespace function

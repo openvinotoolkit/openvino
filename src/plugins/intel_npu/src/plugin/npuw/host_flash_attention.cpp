@@ -451,7 +451,7 @@ static ov::ResultVector create_final_tile_outputs(const FlashAttentionResults& r
                                                   size_t seq_len,
                                                   size_t num_heads,
                                                   size_t head_dim,
-                                                  const bool compiler_flash_attention = false) {
+                                                  bool compiler_flash_attention = false) {
     std::shared_ptr<ov::Node> final_result;
     if (compiler_flash_attention) {
         // If using FlashAttentionTile node, the output is already normalized, so skip division
@@ -570,10 +570,12 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                         int64_t tile_size,
                                                         size_t kv_num_heads,
                                                         bool is_final_tile = false,
+                                                        bool compiler_flash_attention = false,
                                                         const ov::element::Type& output_dtype = ov::element::f16) {
     LOG_DEBUG("Creating HFA " << (is_final_tile ? "FINAL " : "") << "tile model with tile_size=" << tile_size
                               << ", kv_num_heads=" << kv_num_heads << ", mask_dtype=" << mask_dtype
-                              << (is_final_tile ? ", output_dtype=" + output_dtype.get_type_name() : ""));
+                              << (is_final_tile ? ", output_dtype=" + output_dtype.get_type_name() : "")
+                              << ", compiler_flash_attention=" << compiler_flash_attention);
 
     // Extract dimensions
     NPUW_ASSERT(q_shape.size() == 4);
@@ -630,8 +632,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                          kv_num_heads,
                                                          tile_size,
                                                          head_dim);
-    bool use_compiler_flash_attention = true;  // Set to true to use flash attention implementation in compiler
-    if (use_compiler_flash_attention) {
+    if (compiler_flash_attention) {
         // Execute flash attention node implemented on compiler side
         results = execute_compiler_flash_attention(f32_nodes,
                                                    f32_nodes.q_f32,
@@ -672,13 +673,13 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                   seq_len,
                                                   num_heads,
                                                   head_dim,
-                                                  use_compiler_flash_attention);
+                                                  compiler_flash_attention);
         model_name = "HFA_Final_Tile";
         LOG_DEBUG("HFA FINAL tile model created: inputs=" << input_dtype << ", compute=" << compute_dtype
                                                           << ", output=" << output_dtype);
     } else {
         // === REGULAR TILE: Output intermediate states (acc, max, d) ===
-        if (use_compiler_flash_attention) {
+        if (compiler_flash_attention) {
             LOG_DEBUG("Using compiler flash attention implementation - outputs acc, max, d from separate nodes");
             model_results = create_regular_tile_outputs_compiler(results, input_dtype);
 
@@ -890,7 +891,8 @@ static std::optional<std::size_t> extract_sequence_dim_from_concat(const std::sh
     return ov::util::try_normalize_axis(concat_op->get_axis(), concat_out_shape.rank(), *concat_op);
 }
 
-std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr<ov::Model>& model) {
+std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr<ov::Model>& model,
+                                                           bool compiler_flash_attention) {
     LOG_INFO("Attempting to create HostFlashAttention from model");
     LOG_BLOCK();
 
@@ -996,14 +998,26 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // Step 5: Create tile models using query_size as tile_size
     // ========================================================================
     LOG_INFO("Creating HFA tile models with tile_size=" << query_size);
-    auto tile_model = create_hfa_tile_model(q_shape_static, dtype, mask_dtype, query_size, kv_num_heads, false);
+    auto tile_model = create_hfa_tile_model(q_shape_static,
+                                            dtype,
+                                            mask_dtype,
+                                            query_size,
+                                            kv_num_heads,
+                                            false,
+                                            compiler_flash_attention);
     if (!tile_model) {
         LOG_WARN("Failed to create HFA tile model");
         return std::nullopt;
     }
 
-    auto final_tile_model =
-        create_hfa_tile_model(q_shape_static, dtype, mask_dtype, query_size, kv_num_heads, true, output_dtype);
+    auto final_tile_model = create_hfa_tile_model(q_shape_static,
+                                                  dtype,
+                                                  mask_dtype,
+                                                  query_size,
+                                                  kv_num_heads,
+                                                  true,
+                                                  compiler_flash_attention,
+                                                  output_dtype);
     if (!final_tile_model) {
         LOG_WARN("Failed to create HFA final tile model");
         return std::nullopt;
