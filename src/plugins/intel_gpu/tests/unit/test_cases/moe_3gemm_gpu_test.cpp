@@ -371,8 +371,15 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
         return mem;
     };
 
-    auto hidden_states_mem = create_f16_tensor(hidden_states, config.batch_size, config.seq_len, config.hidden_size, 1);
-    auto routing_weights_mem = create_f16_tensor(routing_weights, config.batch_size, config.seq_len, config.num_experts, 1);
+    auto create_f16_tensor_3d = [&](const std::vector<ov::float16>& values, int64_t d0, int64_t d1, int64_t d2) {
+        auto mem = engine.allocate_memory(layout{ov::PartialShape{d0, d1, d2}, data_types::f16, format::bfyx});
+        set_values(mem, values);
+        get_test_stream().finish();
+        return mem;
+    };
+
+    auto hidden_states_mem = create_f16_tensor_3d(hidden_states, config.batch_size, config.seq_len, config.hidden_size);
+    auto routing_weights_mem = create_f16_tensor_3d(routing_weights, config.batch_size, config.seq_len, config.num_experts);
     auto routing_bias_data = rg.generate_random_1d<ov::float16>(config.num_experts, -0.5f, 0.5f, 1000);
     auto routing_bias_mem = create_f16_tensor(routing_bias_data, 1, 1, 1, config.num_experts);
 
@@ -501,10 +508,17 @@ TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
         return mem;
     };
 
-    auto hidden_states = create_f16_tensor(hidden_states_data, batch_size, seq_len, hidden_size, 1);
+    auto create_f16_tensor_3d = [&](const std::vector<ov::float16>& values, int64_t d0, int64_t d1, int64_t d2) {
+        auto mem = engine.allocate_memory(layout{ov::PartialShape{d0, d1, d2}, data_types::f16, format::bfyx});
+        set_values(mem, values);
+        get_test_stream().finish();
+        return mem;
+    };
+
+    auto hidden_states = create_f16_tensor_3d(hidden_states_data, batch_size, seq_len, hidden_size);
 
     // Input 1: routing_weights [batch_size, seq_len, num_experts]
-    auto routing_weights = create_f16_tensor(router_weights_data, batch_size, seq_len, num_experts, 1);
+    auto routing_weights = create_f16_tensor_3d(router_weights_data, batch_size, seq_len, num_experts);
     auto routing_bias = create_f16_tensor(routing_bias_data, 1, 1, 1, num_experts);
 
     // Input 3: w0_weight [num_experts, inter_size, group_num, group_size]
