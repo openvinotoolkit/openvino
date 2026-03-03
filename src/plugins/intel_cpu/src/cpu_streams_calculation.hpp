@@ -141,7 +141,7 @@ void configure_apple_threads(Config& config,
                              bool is_LLM);
 #endif
 
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_RISCV64)
 // Make internal hybrid configuration helper publicly callable
 void configure_x86_hybrid_threads(Config& config,
                                   const std::vector<std::vector<int>>& proc_type_table,
