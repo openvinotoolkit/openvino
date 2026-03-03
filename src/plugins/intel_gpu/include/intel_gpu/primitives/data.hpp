@@ -446,9 +446,9 @@ struct data : public primitive_base<data> {
                         }
 
                         used_fast_io = ov::util::read_binary_file_parallel(ov::util::make_path(weights_path),
-                                                                             mem->buffer_ptr(),
-                                                                             data_size,
-                                                                             (size_t)cur_offset + offset_compensation);
+                                                                           mem->buffer_ptr(),
+                                                                           data_size,
+                                                                           (size_t)cur_offset + offset_compensation);
                         if (used_fast_io) {
                             ib.get_stream().seekg(data_size, std::ios::cur);
                         }
@@ -465,146 +465,81 @@ struct data : public primitive_base<data> {
                     ib >> make_data(_buf.data(), data_size);
                     mem->copy_from(strm, _buf.data());
                 } else {
-                    bool used_fast_io = false;
+                    // Pre-calculate file offset if weights_path is available for fast parallel IO
+                    bool can_use_fast_io = !weights_path.empty() && data_size >= FAST_IO_THRESHOLD;
+                    size_t file_base_offset = 0;
+                    auto file_path = ov::util::make_path(weights_path);
 
-                    // Try parallel file read + pipelined async GPU copy for non-host-accessible memory
-                    if (!weights_path.empty() && data_size >= FAST_IO_THRESHOLD) {
+                    if (can_use_fast_io) {
                         auto cur_offset = ib.get_stream().tellg();
-
-                        // Auto-detect header offset compensation (same as host-accessible path)
                         size_t offset_compensation = 0;
                         auto restore_pos = ib.get_stream().tellg();
                         ib.get_stream().seekg(0, std::ios::end);
                         auto stream_end = (size_t)ib.get_stream().tellg();
                         ib.get_stream().seekg(restore_pos, std::ios::beg);
 
-                        int64_t phys_size = ov::util::file_size(ov::util::make_path(weights_path));
+                        int64_t phys_size = ov::util::file_size(file_path);
                         size_t physical_size = (phys_size >= 0) ? static_cast<size_t>(phys_size) : 0;
+
                         if (physical_size > stream_end) {
                             offset_compensation = physical_size - stream_end;
                         }
-
-                        size_t file_base_offset = (size_t)cur_offset + offset_compensation;
-                        auto file_path = ov::util::make_path(weights_path);
-
-                        // Pipelined: parallel file read into double-buffered CPU staging + async GPU copy
-                        // This overlaps reading chunk N+1 from disk with GPU DMA of chunk N
-                        const size_t PIPE_CHUNK_SIZE = 32 * 1024 * 1024;  // 32MB per pipeline stage
-                        size_t actual_chunk = std::min(PIPE_CHUNK_SIZE, data_size);
-                        std::vector<uint8_t> staging_a(actual_chunk);
-                        std::vector<uint8_t> staging_b(actual_chunk);
-
-                        size_t num_blocks = (data_size + PIPE_CHUNK_SIZE - 1) / PIPE_CHUNK_SIZE;
-                        size_t first_chunk = std::min(PIPE_CHUNK_SIZE, data_size);
-
-                        // Use ITaskExecutor to dispatch file read tasks instead of std::async
-                        auto io_executor_cfg = ov::threading::IStreamsExecutor::Config{"GPUWeightLoadIO", 1};
-                        auto io_executor = ov::threading::executor_manager()->get_idle_cpu_streams_executor(io_executor_cfg);
-
-                        // Helper: submit a file read task via executor, return a future<bool>
-                        auto submit_read = [&io_executor](const std::filesystem::path& path, uint8_t* buf,
-                                                          size_t size, size_t offset) {
-                            auto promise = std::make_shared<std::promise<bool>>();
-                            auto future = promise->get_future();
-                            io_executor->run([promise, path, buf, size, offset]() {
-                                try {
-                                    promise->set_value(
-                                        ov::util::read_binary_file_parallel(path, buf, size, offset));
-                                } catch (...) {
-                                    promise->set_exception(std::current_exception());
-                                }
-                            });
-                            return future;
-                        };
-
-                        // Kick off first parallel file read
-                        auto read_future = submit_read(file_path, staging_a.data(),
-                                                       first_chunk, file_base_offset);
-
-                        event::ptr gpu_ev = nullptr;
-                        size_t dst_offset = 0;
-                        bool cur_is_a = true;
-                        used_fast_io = true;
-
-                        for (size_t block = 0; block < num_blocks && used_fast_io; block++) {
-                            size_t chunk_size = std::min(PIPE_CHUNK_SIZE, data_size - dst_offset);
-                            uint8_t* cur_buf = cur_is_a ? staging_a.data() : staging_b.data();
-
-                            // Wait for current chunk's file read to complete
-                            if (!read_future.get()) {
-                                used_fast_io = false;
-                                break;
-                            }
-
-                            // Start next chunk's parallel file read into the OTHER staging buffer
-                            // This overlaps with the GPU copy of the current chunk below
-                            if (block + 1 < num_blocks) {
-                                size_t next_offset = dst_offset + chunk_size;
-                                size_t next_chunk = std::min(PIPE_CHUNK_SIZE, data_size - next_offset);
-                                uint8_t* next_buf = cur_is_a ? staging_b.data() : staging_a.data();
-                                size_t next_file_off = file_base_offset + next_offset;
-                                read_future = submit_read(file_path, next_buf,
-                                                          next_chunk, next_file_off);
-                            }
-
-                            // Wait for previous GPU copy to complete before reusing its staging buffer
-                            if (gpu_ev != nullptr) {
-                                gpu_ev->wait();
-                                gpu_ev = nullptr;
-                            }
-
-                            // Issue async GPU copy from current staging buffer
-                            gpu_ev = mem->copy_from(strm, cur_buf, 0, dst_offset, chunk_size, false);
-
-                            dst_offset += chunk_size;
-                            cur_is_a = !cur_is_a;
-                        }
-
-                        if (gpu_ev != nullptr) {
-                            gpu_ev->wait();
-                        }
-
-                        if (used_fast_io) {
-                            ib.get_stream().seekg(data_size, std::ios::cur);
-                        }
+                        file_base_offset = (size_t)cur_offset + offset_compensation;
                     }
 
-                    if (!used_fast_io) {
-                        // Fallback: double-buffered sequential stream read + async GPU copy
-                        std::vector<uint8_t> _buf1(DATA_BLOCK_SIZE);
-                        std::vector<uint8_t> _buf2(DATA_BLOCK_SIZE);
-                        bool buf_flag = true;
-                        event::ptr ev1, ev2;
-                        ev1 = ev2 = nullptr;
-                        size_t dst_offset = 0;
-                        while (dst_offset < data_size) {
-                            const bool is_blocking = false;
-                            const size_t src_offset = 0;
-                            size_t copy_size = (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
-                            if (buf_flag) {
-                                ib >> make_data(_buf1.data(), copy_size);
-                                if (ev2 != nullptr) {
-                                    ev2->wait();
-                                    ev2 = nullptr;
-                                }
-                                ev1 = mem->copy_from(strm, _buf1.data(), src_offset, dst_offset, copy_size, is_blocking);
+                    // Double-buffered sequential stream read + async GPU copy.
+                    // Uses 4MB chunk size to perfectly fit in CPU L3 cache and maintain fine-grained pipeline overlap.
+                    auto block_layout = layout(ov::PartialShape{static_cast<int64_t>(DATA_BLOCK_SIZE)}, data_types::u8, format::bfyx);
+                    auto buf1_mem = ib.get_engine().allocate_memory(block_layout, allocation_type::usm_host, false);
+                    auto buf2_mem = ib.get_engine().allocate_memory(block_layout, allocation_type::usm_host, false);
+                    uint8_t* _buf1 = reinterpret_cast<uint8_t*>(buf1_mem->buffer_ptr());
+                    uint8_t* _buf2 = reinterpret_cast<uint8_t*>(buf2_mem->buffer_ptr());
+                    bool buf_flag = true;
+                    event::ptr ev1, ev2;
+                    ev1 = ev2 = nullptr;
+                    size_t dst_offset = 0;
+
+                    while (dst_offset < data_size) {
+                        const bool is_blocking = false;
+                        const size_t src_offset = 0;
+                        size_t copy_size = (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
+
+                        if (buf_flag) {
+                            if (can_use_fast_io) {
+                                ov::util::read_binary_file_parallel(file_path, _buf1, copy_size, file_base_offset + dst_offset);
                             } else {
-                                ib >> make_data(_buf2.data(), copy_size);
-                                if (ev1 != nullptr) {
-                                    ev1->wait();
-                                    ev1 = nullptr;
-                                }
-                                ev2 = mem->copy_from(strm, _buf2.data(), src_offset, dst_offset, copy_size, is_blocking);
+                                ib >> make_data(_buf1, copy_size);
                             }
-                            dst_offset += DATA_BLOCK_SIZE;
-                            buf_flag = !buf_flag;
+                            if (ev2 != nullptr) {
+                                ev2->wait();
+                                ev2 = nullptr;
+                            }
+                            ev1 = mem->copy_from(strm, *buf1_mem, src_offset, dst_offset, copy_size, is_blocking);
+                        } else {
+                            if (can_use_fast_io) {
+                                ov::util::read_binary_file_parallel(file_path, _buf2, copy_size, file_base_offset + dst_offset);
+                            } else {
+                                ib >> make_data(_buf2, copy_size);
+                            }
+                            if (ev1 != nullptr) {
+                                ev1->wait();
+                                ev1 = nullptr;
+                            }
+                            ev2 = mem->copy_from(strm, *buf2_mem, src_offset, dst_offset, copy_size, is_blocking);
                         }
-                        if (ev2 != nullptr) {
-                            ev2->wait();
-                        }
-                        if (ev1 != nullptr) {
-                            ev1->wait();
-                        }
+                        dst_offset += DATA_BLOCK_SIZE;
+                        buf_flag = !buf_flag;
+                    }
+                    if (ev2 != nullptr) {
+                        ev2->wait();
+                    }
+                    if (ev1 != nullptr) {
+                        ev1->wait();
+                    }
+
+                    if (can_use_fast_io) {
+                        // Advance the global stream pointer by the amount we read directly
+                        ib.get_stream().seekg(data_size, std::ios::cur);
                     }
                 }
             }
