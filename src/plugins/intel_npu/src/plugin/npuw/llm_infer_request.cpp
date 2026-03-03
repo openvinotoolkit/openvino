@@ -523,8 +523,9 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                 // the effective KV "token" dimension differs (pre_kv_dim != gen_kv_dim), so an in-place move/copy
                 // would corrupt data. Therefore, we only use in-place copy when pre_kv_dim == gen_kv_dim;
                 // otherwise we must copy via a temporary tensor.
+                constexpr size_t kInplaceCopyMinTokens = 4096u;
                 if (m_past_kv_bound) {
-                    if (pre_kv_dim == gen_kv_dim) {
+                    if (pre_kv_dim == gen_kv_dim && tokens_in_past_chunks > kInplaceCopyMinTokens) {
                         prefill_past_kv_chunks = uu::make_tensor_slice(prefill_past_kv,
                                                                        pre_kv_dim,
                                                                        0u,
