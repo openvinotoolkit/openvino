@@ -32,6 +32,7 @@
 #    include <oneapi/dnnl/dnnl.hpp>
 
 #    include "onednn/dnnl.h"
+#    include "openvino/runtime/performance_heuristics.hpp"
 #endif
 #include "cpu_map_scheduling.hpp"
 #include "openvino/op/fake_quantize.hpp"
