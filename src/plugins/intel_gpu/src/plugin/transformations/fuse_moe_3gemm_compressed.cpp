@@ -119,20 +119,14 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
         args[10] = pattern_map.at(down_zp_m);
 
         std::shared_ptr<ov::op::Op> final = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, moe_compressed->get_config());
-
+        ov::copy_runtime_info(moe_compressed, final);
         if (moe_compressed->input_value(0) == pattern_map.at(hidden_state_m)) {
-            const auto& add = moe_compressed->get_users().front();
-            if (ov::is_type<ov::op::v1::Add>(add)) {
-                const auto reshape = add->get_input_node_ptr(0);
-                if (ov::is_type<ov::op::v1::Reshape>(reshape)) {
-                    auto target_shape = reshape->input_value(1);
-                    final = std::make_shared<ov::op::v1::Reshape>(final, target_shape, false);
-                }
-            }
+            auto hidden_state_shape = std::make_shared<ov::op::v3::ShapeOf>(pattern_map.at(hidden_state_m));
+            final = std::make_shared<ov::op::v1::Reshape>(final, hidden_state_shape, false);
+            ov::copy_runtime_info(moe_compressed, {hidden_state_shape, final});
         }
 
         final->set_friendly_name(moe_compressed->get_friendly_name());
-        ov::copy_runtime_info(moe_compressed, final);
         ov::replace_node(moe_compressed, final);
 
         return true;
