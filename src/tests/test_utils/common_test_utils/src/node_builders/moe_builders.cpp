@@ -107,9 +107,8 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_sigmoid_bias_routing
     using namespace ov::op;
 
     auto sigmoid = std::make_shared<v0::Sigmoid>(routing_weights);
-    auto bias = v0::Constant::create(data_precision,
-                                     ov::Shape{1, number_of_experts},
-                                     std::vector<float>(number_of_experts, 0.1f));
+    auto bias_test_data = ov::test::utils::InputGenerateData(0., 1, 100);
+    auto bias = ov::test::utils::make_constant(data_precision, ov::Shape{1, number_of_experts}, bias_test_data);
     auto sig_add = std::make_shared<v1::Add>(sigmoid, bias);
 
     auto router_topk =
