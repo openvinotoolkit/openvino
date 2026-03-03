@@ -110,6 +110,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
+        inType = outType = inference_precision = ov::element::f16;
 
         const auto& [moe_params, routing_type, wp, dp, sp, dm, ds, rd, gs] = GetParam();
         init_input_shapes({moe_params.data_shape});
