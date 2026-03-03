@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -43,6 +45,23 @@ void validate_zero_point_type(const Node& onnx_node, const ov::Output<ov::Node>&
              y_zero_point_et == ov::element::f8e4m3 || y_zero_point_et == ov::element::f8e5m2),
         "\"y_zero_point\" input data for QuantizeLinear operator must be one of the supported types: u4, i4, u8, i8, "
         "u16, i16, f8e4m3 or f8e5m2.");
+
+    // The ONNX spec requires the zero point to be 0 for fp8 types.
+    // Both f8e4m3 and f8e5m2 encode 0.0 as the all-zero bit pattern (0x00),
+    // so checking that every raw byte is zero is sufficient.
+    if (y_zero_point_et == ov::element::f8e4m3 || y_zero_point_et == ov::element::f8e5m2) {
+        const auto zp_const = ov::util::get_constant_from_source(y_zero_point);
+        if (zp_const) {
+            const auto raw = zp_const->cast_vector<uint8_t>();
+            CHECK_VALID_NODE(onnx_node,
+                             std::all_of(raw.begin(),
+                                         raw.end(),
+                                         [](const uint8_t b) {
+                                             return b == 0u;
+                                         }),
+                             "Expecting \"y_zero_point\" in QuantizeLinear equal zero for 8-bit floating point types.");
+        }
+    }
 }
 
 ov::Output<ov::Node> validate_scale(const Node& onnx_node, const ov::Output<ov::Node>& y_scale) {
