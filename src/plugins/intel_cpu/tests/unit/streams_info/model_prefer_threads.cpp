@@ -22,9 +22,11 @@ using ov::intel_cpu::configure_arm_linux_threads;
 #if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
 using ov::intel_cpu::configure_apple_threads;
 #endif
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_RISCV64)
 using ov::intel_cpu::configure_x86_hybrid_threads;
 using ov::intel_cpu::configure_x86_non_hybrid_threads;
 using ov::intel_cpu::configure_x86_throughput_threads;
+#endif
 
 namespace {
 
