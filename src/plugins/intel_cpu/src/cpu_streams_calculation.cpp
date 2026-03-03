@@ -25,13 +25,12 @@
 
 #if (defined(OPENVINO_ARCH_ARM64) && defined(__linux__))
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
-#else
-#    if !defined(OPENVINO_ARCH_RISCV64)
-#        include <oneapi/dnnl/dnnl.hpp>
+#endif
 
-#        include "onednn/dnnl.h"
-#    endif
-#    include "openvino/runtime/performance_heuristics.hpp"
+/* Include oneDNN only for architectures that need dnnl symbols. */
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
+#    include <oneapi/dnnl/dnnl.hpp>
+#    include "onednn/dnnl.h"
 #endif
 #include "cpu_map_scheduling.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -127,6 +126,7 @@ bool should_use_ecores_for_llm(int efficient_cores, int main_cores) {
     return efficient_cores > ECORE_RATIO_THRESHOLD * main_cores;
 }
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_RISCV64)
 bool is_main_core_case_1(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.ratio_mem_limited_convs > CONV_RATIO_HIGH;
@@ -209,7 +209,6 @@ bool is_static_partitioner_case_5(const ov::MemBandwidthPressure& tolerance) {
                CONV_RATIO_ULTRA_LOW * static_cast<float>(tolerance.total_nodes);
 }
 
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_RISCV64)
 void determine_tbb_partitioner_and_threads(Config& config,
                                            const std::vector<std::vector<int>>& proc_type_table,
                                            const ov::MemBandwidthPressure& tolerance,
