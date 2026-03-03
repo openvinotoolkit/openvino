@@ -130,15 +130,37 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     const auto& shape = port.get_partial_shape();
 
     OPENVINO_ASSERT(tensor != nullptr, "[GPU] Failed to set empty tensor to port with index: \'", port_index, "\'");
-    OPENVINO_ASSERT(port.get_element_type() == tensor->get_element_type(),
-                    "[GPU] Mismatch tensor and port type: ", port.get_element_type(), " vs ", tensor->get_element_type());
-    OPENVINO_ASSERT(shape.compatible(ov::PartialShape(tensor->get_shape())) || tensor->get_shape() == ov::Shape {0} || port.get_partial_shape().is_dynamic(),
+
+    auto port_type = port.get_element_type();
+    auto tensor_type = tensor->get_element_type();
+    ov::SoPtr<ov::ITensor> actual_tensor = tensor;
+
+    if (port_type != tensor_type) {
+        // Automatically convert f64 input tensors to f32 if the model port expects f32.
+        // This is required for backward compatibility where users might provide double precision inputs
+        if (port_type == ov::element::f32 && tensor_type == ov::element::f64) {
+            auto converted_shape = tensor->get_shape();
+            auto converted_tensor = ov::make_tensor(ov::element::f32, converted_shape);
+            const double* src = static_cast<const double*>(tensor->data());
+            float* dst = static_cast<float*>(converted_tensor->data());
+            size_t num_elements = tensor->get_size();
+            for (size_t i = 0; i < num_elements; ++i) {
+                dst[i] = static_cast<float>(src[i]);
+            }
+            actual_tensor._ptr = converted_tensor;
+            actual_tensor._so = nullptr;
+        } else {
+             OPENVINO_ASSERT(false, "[GPU] Mismatch tensor and port type: ", port_type, " vs ", tensor_type);
+        }
+    }
+
+    OPENVINO_ASSERT(shape.compatible(ov::PartialShape(actual_tensor->get_shape())) || actual_tensor->get_shape() == ov::Shape {0} || port.get_partial_shape().is_dynamic(),
                     "[GPU] The tensor size is not equal to model, can't set input tensor with index: ",
                     port_index,
                     ", because model input (shape=",
                     shape,
                     ") and tensor (shape=",
-                    tensor->get_shape(),
+                    actual_tensor->get_shape(),
                     ") are incompatible");
 
     auto update_tensors_maps = [](size_t port_index,
@@ -164,12 +186,12 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 
     bool is_input = port_info.type == ov::ISyncInferRequest::FoundPort::Type::INPUT;
     if (is_input) {
-        update_tensors_maps(port_index, m_user_inputs, m_plugin_inputs, tensor);
+        update_tensors_maps(port_index, m_user_inputs, m_plugin_inputs, actual_tensor);
     } else {
-        update_tensors_maps(port_index, m_user_outputs, m_plugin_outputs, tensor);
+        update_tensors_maps(port_index, m_user_outputs, m_plugin_outputs, actual_tensor);
     }
 
-    ov::ISyncInferRequest::set_tensor(port, tensor);
+    ov::ISyncInferRequest::set_tensor(port, actual_tensor);
 }
 
 void SyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
