@@ -820,6 +820,12 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     auto device_tensor_et = convert_to_supported_device_type(element_type);
     bool convert_needed = is_convert_required(element_type, device_tensor_et);
 
+    // True when the input tensor's data pointer matches an output memory block's
+    // buffer — i.e. the user fed the previous output back as input.  When set,
+    // zero-copy sharing of this input is disabled so the kernel doesn't read
+    // from and write to the same buffer simultaneously.
+    bool aliases_output_block = false;
+
     if (is_remote_tensor_impl) {
         if (convert_needed) {
             m_plugin_inputs[input_idx] = { create_device_tensor(pshape,
@@ -829,17 +835,36 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
             m_plugin_inputs[input_idx] = user_tensor_wrapper;
         }
     } else if (is_usm_host_tensor && !convert_needed) {
-        if (element_type != ::data_type_for_remote_tensor(element_type)) {
+        for (const auto& [idx, block] : m_output_memory_blocks) {
+            if (block->memory() && block->memory()->buffer_ptr() == user_tensor->data()) {
+                aliases_output_block = true;
+                break;
+            }
+        }
+
+        if (aliases_output_block) {
+            // Ensure we have a PLUGIN-owned device buffer (not a shared USM host
+            // wrapper).  The downstream reuse logic will resize it if too small.
+            auto it = m_plugin_inputs.find(input_idx);
+            if (it == m_plugin_inputs.end() || it->second.owner != TensorOwner::PLUGIN) {
+                m_plugin_inputs[input_idx] = { create_device_tensor(user_tensor->get_shape(),
+                                                                    device_tensor_et,
+                                                                    need_lockable_mem), TensorOwner::PLUGIN };
+            }
+            GPU_DEBUG_TRACE_DETAIL << internal_name
+                                   << ": input aliases output memory block — forcing device copy" << std::endl;
+        } else if (element_type != ::data_type_for_remote_tensor(element_type)) {
             m_plugin_inputs[input_idx] = {std::make_shared<RemoteTensorImpl>(m_context,
                                                                              user_tensor->get_shape(),
                                                                              ::data_type_for_remote_tensor(element_type),
                                                                              TensorType::BT_USM_SHARED,
                                                                              user_tensor->data()),
                                           TensorOwner::USER};
+            is_remote_tensor_impl = true;
         } else {
             m_plugin_inputs[input_idx] = { usm_host_ptr->get_impl(), user_tensor_wrapper.owner };
+            is_remote_tensor_impl = true;
         }
-        is_remote_tensor_impl = true;
     }
 
     auto user_tensor_mem_type = cldnn::allocation_type::unknown;
@@ -857,9 +882,10 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     auto usm_host_raw_ptr = engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu &&
                             user_tensor_mem_type == cldnn::allocation_type::usm_host;
 
-    bool update_device_tensor = (m_plugin_inputs.count(input_idx) == 0) ||
-                                (m_plugin_inputs[input_idx].owner == TensorOwner::USER && !is_remote_tensor_impl) ||
-                                (plugin_tensor_mem_type != cldnn::allocation_type::usm_host && usm_host_raw_ptr);
+    bool update_device_tensor = !aliases_output_block &&
+                                ((m_plugin_inputs.count(input_idx) == 0) ||
+                                 (m_plugin_inputs[input_idx].owner == TensorOwner::USER && !is_remote_tensor_impl) ||
+                                 (plugin_tensor_mem_type != cldnn::allocation_type::usm_host && usm_host_raw_ptr));
     if (update_device_tensor) {
         // If device input hasn't been created, then try to use user memory if it's usm_host, or allocate new device buffer
         m_plugin_inputs[input_idx] =
