@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/moe_builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "common_test_utils/node_builders/moe_builders.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -20,27 +20,26 @@ struct MoeTestShapeParams {
 using MoE3GemmParams = std::tuple<MoeTestShapeParams, MoERoutingType>;
 using MoE3GemmCompressedParams = std::tuple<MoeTestShapeParams,
                                             MoERoutingType,
-                                            ov::element::Type,                          // weights_precision
-                                            ov::element::Type,                          // decompression_precision
-                                            ov::element::Type,                          // scale_precision
-                                            ov::test::utils::DecompressionType,         // multiply type
-                                            ov::test::utils::DecompressionType,         // subtract type
-                                            bool,                                       // reshape_on_decompression
-                                            int>;                                       // group_size
+                                            ov::element::Type,                   // weights_precision
+                                            ov::element::Type,                   // decompression_precision
+                                            ov::element::Type,                   // scale_precision
+                                            ov::test::utils::DecompressionType,  // multiply type
+                                            ov::test::utils::DecompressionType,  // subtract type
+                                            bool,                                // reshape_on_decompression
+                                            int>;                                // group_size
 
-class MoE3GemmFusionTest : public testing::WithParamInterface<MoE3GemmParams>,
-                           virtual public ov::test::SubgraphBaseTest {
+class MoE3GemmFusionTest : public testing::WithParamInterface<MoE3GemmParams>, virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MoE3GemmParams>& info) {
-        const auto& [tc, routing_type] = info.param;
+        const auto& [moe_params, routing_type] = info.param;
         std::ostringstream result;
-        result << "IS=" << ov::test::utils::partialShape2str({tc.data_shape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({moe_params.data_shape.first}) << "_";
         result << "TS=";
-        for (const auto& s : tc.data_shape.second)
+        for (const auto& s : moe_params.data_shape.second)
             result << ov::test::utils::vec2str(s) << ",";
-        result << "topk=" << tc.topk << "_";
-        result << "experts=" << tc.number_of_experts << "_";
-        result << "inter=" << tc.intermediate_size << "_";
+        result << "topk=" << moe_params.topk << "_";
+        result << "experts=" << moe_params.number_of_experts << "_";
+        result << "inter=" << moe_params.intermediate_size << "_";
         result << "routing=" << (routing_type == MoERoutingType::SIGMOID_BIAS ? "SigmoidBias" : "Softmax");
         return result.str();
     }
@@ -49,17 +48,21 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        const auto& [tc, routing_type] = GetParam();
-        init_input_shapes({tc.data_shape});
-        const ov::test::MoePatternParams moe_params{tc.data_shape.first, tc.topk, tc.number_of_experts, tc.intermediate_size};
+        const auto& [moe_params, routing_type] = GetParam();
+        init_input_shapes({moe_params.data_shape});
+        const ov::test::MoePatternParams shape_params{moe_params.data_shape.first, moe_params.topk, moe_params.number_of_experts, moe_params.intermediate_size};
 
-        function = ov::test::initMoE3GeMMSubgraph(
-            moe_params,
-            ov::element::f32,  // data_precision – f16 computation matches GPU inference_precision
-            ov::element::f16,  // weights_precision – plain f32 weights (no decompression)
-            false,             // use_weight_decompression
-            std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt,
-            routing_type);
+        function = ov::test::initMoE3GeMMSubgraph(shape_params,
+                                                  ov::element::f32,  // data_precision – f16 computation matches GPU inference_precision
+                                                  ov::element::f16,  // weights_precision – plain f32 weights (no decompression)
+                                                  false,             // use_weight_decompression
+                                                  std::nullopt,
+                                                  std::nullopt,
+                                                  std::nullopt,
+                                                  std::nullopt,
+                                                  std::nullopt,
+                                                  std::nullopt,
+                                                  routing_type);
     }
 
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
@@ -67,26 +70,24 @@ protected:
         const auto& params = function->get_parameters();
         ASSERT_EQ(params.size(), 1);
         inputs.insert({params[0],
-                       ov::test::utils::create_and_fill_tensor(
-                           params[0]->get_element_type(),
-                           target_input_static_shapes[0],
-                           ov::test::utils::InputGenerateData(0.125f, 2, 8, 1234))});
+                       ov::test::utils::create_and_fill_tensor(params[0]->get_element_type(),
+                                                               target_input_static_shapes[0],
+                                                               ov::test::utils::InputGenerateData(0.125f, 2, 8, 1234))});
     }
 };
 
-class MoE3GemmCompressedFusionTest : public testing::WithParamInterface<MoE3GemmCompressedParams>,
-                                     virtual public ov::test::SubgraphBaseTest {
+class MoE3GemmCompressedFusionTest : public testing::WithParamInterface<MoE3GemmCompressedParams>, virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MoE3GemmCompressedParams>& info) {
-        const auto& [tc, routing_type, wp, dp, sp, dm, ds, rd, gs] = info.param;
+        const auto& [moe_params, routing_type, wp, dp, sp, dm, ds, rd, gs] = info.param;
         std::ostringstream result;
-        result << "IS=" << ov::test::utils::partialShape2str({tc.data_shape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({moe_params.data_shape.first}) << "_";
         result << "TS=";
-        for (const auto& s : tc.data_shape.second)
+        for (const auto& s : moe_params.data_shape.second)
             result << ov::test::utils::vec2str(s) << ",";
-        result << "topk=" << tc.topk << "_";
-        result << "experts=" << tc.number_of_experts << "_";
-        result << "inter=" << tc.intermediate_size << "_";
+        result << "topk=" << moe_params.topk << "_";
+        result << "experts=" << moe_params.number_of_experts << "_";
+        result << "inter=" << moe_params.intermediate_size << "_";
         result << "routing=" << (routing_type == MoERoutingType::SIGMOID_BIAS ? "SigmoidBias" : "Softmax") << "_";
         result << "WP=" << wp << "_";
         result << "DP=" << dp << "_";
@@ -102,22 +103,21 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        const auto& [tc, routing_type, wp, dp, sp, dm, ds, rd, gs] = GetParam();
-        init_input_shapes({tc.data_shape});
-        const ov::test::MoePatternParams moe_params{tc.data_shape.first, tc.topk, tc.number_of_experts, tc.intermediate_size};
+        const auto& [moe_params, routing_type, wp, dp, sp, dm, ds, rd, gs] = GetParam();
+        init_input_shapes({moe_params.data_shape});
+        const ov::test::MoePatternParams shape_params{moe_params.data_shape.first, moe_params.topk, moe_params.number_of_experts, moe_params.intermediate_size};
 
-        function = ov::test::initMoE3GeMMSubgraph(
-            moe_params,
-            ov::element::f32,  // data_precision
-            wp,                // weights_precision
-            true,              // use_weight_decompression
-            dp,                // decompression_precision
-            sp,                // scale_precision
-            dm,                // decompression_multiply_type
-            ds,                // decompression_subtract_type
-            rd,                // reshape_on_decompression
-            gs,                // group_size
-            routing_type);
+        function = ov::test::initMoE3GeMMSubgraph(shape_params,
+                                                  ov::element::f32,  // data_precision
+                                                  wp,                // weights_precision
+                                                  true,              // use_weight_decompression
+                                                  dp,                // decompression_precision
+                                                  sp,                // scale_precision
+                                                  dm,                // decompression_multiply_type
+                                                  ds,                // decompression_subtract_type
+                                                  rd,                // reshape_on_decompression
+                                                  gs,                // group_size
+                                                  routing_type);
     }
 
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
@@ -125,13 +125,11 @@ protected:
         const auto& params = function->get_parameters();
         ASSERT_EQ(params.size(), 1);
         inputs.insert({params[0],
-                       ov::test::utils::create_and_fill_tensor(
-                           params[0]->get_element_type(),
-                           target_input_static_shapes[0],
-                           ov::test::utils::InputGenerateData(0.125f, 2, 8, 1234))});
+                       ov::test::utils::create_and_fill_tensor(params[0]->get_element_type(),
+                                                               target_input_static_shapes[0],
+                                                               ov::test::utils::InputGenerateData(0.125f, 2, 8, 1234))});
     }
 };
-
 
 TEST_P(MoE3GemmFusionTest, Inference) {
     run();
@@ -145,24 +143,23 @@ const std::vector<MoERoutingType> routing_types = {MoERoutingType::SOFTMAX, MoER
 
 const std::vector<MoeTestShapeParams> moe_params_smoke = {
     {
-        {ov::PartialShape{-1, -1, 256}, {{2, 15, 256}, {2, 1, 256}, {3, 8, 256}}},  // dynamic seq_len, hidden=256
-        4,    // topk
-        8,    // number_of_experts
-        512,  // intermediate_size
+        {{-1, -1, 256}, {{2, 15, 256}, {2, 1, 256}, {3, 8, 256}}},  // data_shape,
+                                                                    // seq_len=dynamic, hidden_size=256
+        4,                                                          // topk
+        8,                                                          // number_of_experts
+        512                                                         // intermediate_size
     },
     {
-        {ov::PartialShape{-1, -1, 128}, {{1, 32, 128}, {1, 1, 128}, {1, 16, 128}}},  // different seq length, hidden=128
-        2,    // topk
-        4,    // number_of_experts
-        256,  // intermediate_size
+        {{-1, -1, 128}, {{1, 32, 128}, {1, 1, 128}, {1, 16, 128}}},  // Different seq length
+        2,                                                           // topk
+        4,                                                           // number_of_experts
+        256                                                          // intermediate_size
     },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmFusion,
                          MoE3GemmFusionTest,
-                         ::testing::Combine(
-                             ::testing::ValuesIn(moe_params_smoke),
-                             ::testing::ValuesIn(routing_types)),
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke), ::testing::ValuesIn(routing_types)),
                          MoE3GemmFusionTest::getTestCaseName);
 
 // Compressed weights – covers the full FuseVectorizedMOE3GEMM + ConvertMOEToMOECompressed +
@@ -176,16 +173,15 @@ const std::vector<ov::element::Type> weights_precisions = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion,
                          MoE3GemmCompressedFusionTest,
-                         ::testing::Combine(
-                             ::testing::ValuesIn(moe_params_smoke),
-                             ::testing::ValuesIn(routing_types),
-                             ::testing::ValuesIn(weights_precisions),
-                             ::testing::Values(ov::element::f16),  // decompression_precision
-                             ::testing::Values(ov::element::f16),  // scale_precision
-                             ::testing::Values(ov::test::utils::DecompressionType::full),
-                             ::testing::Values(ov::test::utils::DecompressionType::full),
-                             ::testing::Values(true),              // reshape_on_decompression
-                             ::testing::Values(128)),
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
+                                            ::testing::ValuesIn(routing_types),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::Values(ov::element::f16),  // decompression_precision
+                                            ::testing::Values(ov::element::f16),  // scale_precision
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(true),  // reshape_on_decompression
+                                            ::testing::Values(128)),
                          MoE3GemmCompressedFusionTest::getTestCaseName);
 
 }  // namespace
