@@ -210,9 +210,9 @@ bool is_static_partitioner_case_5(const ov::MemBandwidthPressure& tolerance) {
 }
 
 void determine_tbb_partitioner_and_threads(Config& config,
-                                                  const std::vector<std::vector<int>>& proc_type_table,
-                                                  const ov::MemBandwidthPressure& tolerance,
-                                                  bool int8_intensive) {
+                                           const std::vector<std::vector<int>>& proc_type_table,
+                                           const ov::MemBandwidthPressure& tolerance,
+                                           bool int8_intensive) {
     if (config.tbbPartitioner != TbbPartitioner::NONE) {
         return;
     }
