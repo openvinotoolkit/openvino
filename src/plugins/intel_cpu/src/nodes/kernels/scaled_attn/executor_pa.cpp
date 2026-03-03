@@ -65,24 +65,9 @@ static inline void apply_qq_bias_mask(float* score,
         return;
     }
 
-    if (batch_in_seq + 1 >= qq_bias_begins.size(0)) {
-        std::cout << "apply_qq_bias_mask: invalid batch_in_seq=" << batch_in_seq
-                  << " qq_bias_begins.size(0)=" << qq_bias_begins.size(0)
-                  << std::endl;
-        return;
-    }
-
     const auto* begins = qq_bias_begins.ptr<int32_t>();
     const auto spec_num = static_cast<size_t>(begins[batch_in_seq + 1] - begins[batch_in_seq]);
     if (spec_num == 0) {
-        return;
-    }
-
-    if (begins[batch_in_seq + 1] < begins[batch_in_seq]) {
-        std::cout << "apply_qq_bias_mask: invalid begins range, begin=" << begins[batch_in_seq]
-                  << " end=" << begins[batch_in_seq + 1]
-                  << " batch_in_seq=" << batch_in_seq
-                  << std::endl;
         return;
     }
 
@@ -92,14 +77,6 @@ static inline void apply_qq_bias_mask(float* score,
 
     const auto cumulated_spec_num = static_cast<size_t>(begins[batch_in_seq]);
     const auto base = cumulated_spec_num * spec_num + q_idx * spec_num;
-    if (base + spec_num > qq_bias.size(0)) {
-        std::cout << "apply_qq_bias_mask: invalid qq_bias range, base=" << base
-                  << " spec_num=" << spec_num
-                  << " qq_bias.size(0)=" << qq_bias.size(0)
-                  << std::endl;
-        return;
-    }
-
     const auto* qq_ptr = qq_bias.ptr<uint8_t>();
     const auto mask_start = std::max(start_idx, past_len);
     for (size_t token_idx = mask_start; token_idx < ncausal; ++token_idx) {
@@ -2112,28 +2089,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         block_update_indices_begins.reset(inputs[ID_BLOCK_UPDATE_INDICES_BEGINS]);
 
         static bool printed_input_debug = false;
-        if (!printed_input_debug) {
-            std::cout << "PA inputs: qq_bias.size(0)=" << qq_bias.size(0)
-                      << " qq_bias_begins.size(0)=" << qq_bias_begins.size(0)
-                      << " block_update_indices.size(0)=" << block_update_indices.size(0)
-                      << " block_update_indices_begins.size(0)=" << block_update_indices_begins.size(0)
-                      << std::endl;
-            if (qq_bias_begins && qq_bias_begins.size(0) > 1) {
-                const auto* begins = qq_bias_begins.ptr<int32_t>();
-                std::cout << "PA inputs: qq_bias_begins[0]=" << begins[0]
-                          << " qq_bias_begins[last]=" << begins[qq_bias_begins.size(0) - 1]
-                          << std::endl;
-            }
-            if (block_update_indices_begins && block_update_indices_begins.size(0) > 1) {
-                const auto* begins = block_update_indices_begins.ptr<int32_t>();
-                std::cout << "PA inputs: block_update_indices_begins[0]=" << begins[0]
-                          << " block_update_indices_begins[last]="
-                          << begins[block_update_indices_begins.size(0) - 1]
-                          << std::endl;
-            }
-            printed_input_debug = true;
-        }
-
         output_emb.reset(outputs[0]);
         if (outputs.size() >= 2) {
             output_score.reset(outputs[1]);
@@ -2443,22 +2398,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         for (size_t seq = 0; seq < B_seq; ++seq) {
-            static bool printed = false;
-            if (!printed) {
-                std::cout << "kv_cache_reorder: B_seq: " << B_seq << ", block_size: " << block_size
-                          << ", Hk: " << Hk << ", key_by_channel: " << key_by_channel
-                          << ", value_by_channel: " << value_by_channel << std::endl;
-                std::cout << "key_prec: " << ov::element::Type(KEY_PREC).to_string() << std::endl;
-                std::cout << "key_elem_size" << key_elem_size
-                          << "key_sub_byte" << key_sub_byte
-                          << "key_token_bytes" << key_token_bytes
-                          << "key_stride_bytes" << key_stride_bytes
-                          << "key_hidden" << key_hidden
-                          << "key_params_offsetd" << key_params_offset
-                          << std::endl;
-                printed = true;
-            }
-
             const int32_t op_begin = update_begins_ptr[seq];
             const int32_t op_end = update_begins_ptr[seq + 1];
             if (op_end <= op_begin) {
@@ -2499,15 +2438,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 }
                 const int32_t dst_slot = local_dst - dst_block_in_seq * static_cast<int32_t>(block_size);
                 const int32_t dst_block = block_idx_ptr[block_indices_base + dst_block_in_seq];
-
-                if (src_block < 0 || src_block >= num_blocks || dst_block < 0 || dst_block >= num_blocks) {
-                    std::cout << "kv_cache_reorder: invalid block index src_block=" << src_block
-                              << " dst_block=" << dst_block << " num_blocks=" << num_blocks
-                              << " seq=" << seq << " op=" << op
-                              << " local_src=" << local_src << " local_dst=" << local_dst
-                              << std::endl;
-                    continue;
-                }
 
                 for (size_t hk = 0; hk < Hk; ++hk) {
                     constexpr bool support_dequant_key = any_of(KEY_PREC, ov::element::u8, ov::element::u4);
