@@ -21,6 +21,7 @@ def convert_model(
         extension: [str, pathlib.Path, list, Any] = None,
         verbose: bool = False,
         share_weights: bool = True,
+        dynamo: bool = False,
 ) -> Model:
     """
     Converts the model from original framework to OpenVino Model.
@@ -95,6 +96,14 @@ def convert_model(
             then mmap is used to allocate weights directly from file. If input model is
             runtime object, then original memory regions allocated in the original model
             are reused for weights in the converted model.
+        :param dynamo:
+            Use torch.export to export a PyTorch model instead of torch.jit.trace.
+            Requires example_input to be provided and PyTorch >= 2.6. Default is False.
+            By default the exported model is fully static (shapes taken from example_input).
+            To make specific dimensions dynamic, combine with the ``input`` parameter:
+            dimensions set to -1 or Dimension(-1) become dynamic via torch.export.Dim.AUTO,
+            and constrained dimensions (e.g. Dimension(1, 10)) are mapped to
+            torch.export.Dim with explicit min/max bounds.
 
     Returns:
         openvino.Model
