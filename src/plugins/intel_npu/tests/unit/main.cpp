@@ -78,19 +78,56 @@ extern "C" __attribute__((visibility("default"))) char* dlerror(void) {
 #    endif
 #endif
 
-#ifdef WIN32
-HMODULE (*_LoadLibraryW)(LPCWSTR lpLibFileName);
+#if defined _WIN32 || defined _WIN64
+/*
+Inline hook for LoadLibraryW — intercepts ALL callers in the process,
+including DLLs, exactly like the Linux dlopen override above.
 
-INITIALIZER(init) {
-    _LoadLibraryW = reinterpret_cast<decltype(_LoadLibraryW)>(
-        GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), TEXT("LoadLibraryW")));
-}
+Strategy:
+  Overwrite the entry of KernelBase!LoadLibraryW with a 14-byte absolute
+  indirect JMP to our hook.  For the passthrough we call LoadLibraryExW
+  directly (LoadLibraryW is just LoadLibraryExW(name, NULL, 0)), which
+  avoids any trampoline that would need a disassembler to safely relocate
+  RIP-relative instructions.
+*/
 
-__declspec(dllimport) inline HMODULE LoadLibraryW(LPCWSTR lpLibFileName) {
-    if (lpLibFileName && lstrcmpW(lpLibFileName, L"npu_level_zero_umd.dll") == 0) {
+typedef HMODULE(WINAPI* LoadLibraryExW_t)(LPCWSTR, HANDLE, DWORD);
+static LoadLibraryExW_t g_LoadLibraryExW = nullptr;
+
+static const size_t HOOK_SIZE = 14;  // FF 25 00000000 <addr64>
+
+static HMODULE WINAPI Hooked_LoadLibraryW(LPCWSTR lpLibFileName) {
+    if (lpLibFileName && wcsstr(lpLibFileName, L"ze_loader.dll") != nullptr) {
+        SetLastError(ERROR_MOD_NOT_FOUND);
         return nullptr;
     }
-    return _LoadLibraryW(lpLibFileName);
+    // LoadLibraryW(name) == LoadLibraryExW(name, NULL, 0) — call the real
+    // implementation directly, bypassing our patched LoadLibraryW entry.
+    return g_LoadLibraryExW(lpLibFileName, nullptr, 0);
+}
+
+// Write a 14-byte absolute indirect JMP: FF 25 00000000 <addr64>
+static void WriteAbsJmp64(BYTE* dst, void* target) {
+    dst[0] = 0xFF;
+    dst[1] = 0x25;
+    *reinterpret_cast<DWORD*>(dst + 2) = 0;  // JMP [RIP+0]
+    *reinterpret_cast<ULONG_PTR*>(dst + 6) = reinterpret_cast<ULONG_PTR>(target);
+}
+
+INITIALIZER(init) {
+    HMODULE hKernelBase = GetModuleHandleA("KernelBase.dll");
+    HMODULE hMod = hKernelBase ? hKernelBase : GetModuleHandleA("kernel32.dll");
+
+    g_LoadLibraryExW = reinterpret_cast<LoadLibraryExW_t>(GetProcAddress(hMod, "LoadLibraryExW"));
+    BYTE* real = reinterpret_cast<BYTE*>(GetProcAddress(hMod, "LoadLibraryW"));
+    if (!real || !g_LoadLibraryExW)
+        return;
+
+    DWORD oldProtect = 0;
+    VirtualProtect(real, HOOK_SIZE, PAGE_EXECUTE_READWRITE, &oldProtect);
+    WriteAbsJmp64(real, reinterpret_cast<void*>(Hooked_LoadLibraryW));
+    VirtualProtect(real, HOOK_SIZE, oldProtect, &oldProtect);
+    FlushInstructionCache(GetCurrentProcess(), real, HOOK_SIZE);
 }
 #endif
 

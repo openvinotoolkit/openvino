@@ -24,6 +24,7 @@ ov_add_test_target(
             openvino::runtime
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
+            ${CMAKE_CURRENT_SOURCE_DIR}/npu
             ${CMAKE_CURRENT_SOURCE_DIR}/npuw
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/utils/include
