@@ -93,8 +93,10 @@ constexpr int ECORE_RATIO_THRESHOLD = 2;
 
 }  // namespace ThreadPreferenceConstants
 
+namespace {
+
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-inline float get_isa_threshold_multiplier(dnnl::cpu_isa isa) {
+float get_isa_threshold_multiplier(dnnl::cpu_isa isa) {
     using namespace ThreadPreferenceConstants;
     switch (isa) {
     case dnnl::cpu_isa::sse41:
@@ -114,29 +116,29 @@ inline float get_isa_threshold_multiplier(dnnl::cpu_isa isa) {
 }
 #endif
 
-inline bool should_use_all_cores_for_latency(int main_cores, int efficient_cores, bool int8_intensive) {
+bool should_use_all_cores_for_latency(int main_cores, int efficient_cores, bool int8_intensive) {
     using namespace ThreadPreferenceConstants;
     const int threshold = int8_intensive ? INT8_EFFICIENCY_THRESHOLD : FP32_EFFICIENCY_THRESHOLD;
     return main_cores * threshold <= efficient_cores;
 }
 
-inline bool should_use_ecores_for_llm(int efficient_cores, int main_cores) {
+bool should_use_ecores_for_llm(int efficient_cores, int main_cores) {
     using namespace ThreadPreferenceConstants;
     return efficient_cores > ECORE_RATIO_THRESHOLD * main_cores;
 }
 
-inline bool is_main_core_case_1(const ov::MemBandwidthPressure& tolerance) {
+bool is_main_core_case_1(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.ratio_mem_limited_convs > CONV_RATIO_HIGH;
 }
 
-inline bool is_main_core_case_2(const ov::MemBandwidthPressure& tolerance) {
+bool is_main_core_case_2(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.ratio_mem_limited_convs == 0.0F && tolerance.ratio_compute_convs == 0.0F &&
            tolerance.max_mem_tolerance >= MEM_TOLERANCE_HIGH;
 }
 
-inline bool is_main_core_case_3(const ov::MemBandwidthPressure& tolerance) {
+bool is_main_core_case_3(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.ratio_mem_limited_convs == 0.0F && tolerance.ratio_compute_convs > 0.0F &&
            tolerance.ratio_compute_convs < 1.0F &&
@@ -144,23 +146,23 @@ inline bool is_main_core_case_3(const ov::MemBandwidthPressure& tolerance) {
                CONV_RATIO_VERY_HIGH * static_cast<float>(tolerance.total_convs);
 }
 
-inline bool is_main_core_case_4(const ov::MemBandwidthPressure& tolerance) {
+bool is_main_core_case_4(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.ratio_mem_limited_convs > 0.0F && tolerance.ratio_compute_convs > 0.0F &&
            static_cast<float>(tolerance.total_light_convs) > CONV_RATIO_LOW * static_cast<float>(tolerance.total_convs);
 }
 
-inline bool is_static_partitioner_case_1(const ov::MemBandwidthPressure& tolerance) {
+bool is_static_partitioner_case_1(const ov::MemBandwidthPressure& tolerance) {
     return tolerance.total_nodes == 0;
 }
 
-inline bool is_static_partitioner_case_2(const ov::MemBandwidthPressure& tolerance) {
+bool is_static_partitioner_case_2(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.total_convs > 0 && static_cast<float>(tolerance.total_light_convs) >
                                             CONV_RATIO_MEDIUM * static_cast<float>(tolerance.total_convs);
 }
 
-inline bool is_static_partitioner_case_3_with_lp_ecores(const ov::MemBandwidthPressure& tolerance) {
+bool is_static_partitioner_case_3_with_lp_ecores(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.total_convs > 0 &&
            static_cast<float>(tolerance.total_light_convs) <=
@@ -172,7 +174,7 @@ inline bool is_static_partitioner_case_3_with_lp_ecores(const ov::MemBandwidthPr
             tolerance.ratio_compute_convs == 0 || tolerance.ratio_mem_limited_convs == 0);
 }
 
-inline bool is_static_partitioner_case_3_without_lp_ecores(const ov::MemBandwidthPressure& tolerance) {
+bool is_static_partitioner_case_3_without_lp_ecores(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.total_convs > 0 &&
            static_cast<float>(tolerance.total_light_convs) <=
@@ -183,20 +185,20 @@ inline bool is_static_partitioner_case_3_without_lp_ecores(const ov::MemBandwidt
            tolerance.max_mem_tolerance >= MEM_TOLERANCE_VERY_LOW;
 }
 
-inline bool is_static_partitioner_case_4_with_lp_ecores(const ov::MemBandwidthPressure& tolerance) {
+bool is_static_partitioner_case_4_with_lp_ecores(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.total_convs == 0 &&
            (tolerance.max_mem_tolerance > MEM_TOLERANCE_MEDIUM_HIGH ||
             static_cast<float>(tolerance.total_gemms) >= GEMM_RATIO_HIGH * static_cast<float>(tolerance.total_nodes));
 }
 
-inline bool is_static_partitioner_case_4_without_lp_ecores(const ov::MemBandwidthPressure& tolerance) {
+bool is_static_partitioner_case_4_without_lp_ecores(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.total_convs == 0 &&
            static_cast<float>(tolerance.total_gemms) < GEMM_RATIO_LOW * static_cast<float>(tolerance.total_nodes);
 }
 
-inline bool is_static_partitioner_case_5(const ov::MemBandwidthPressure& tolerance) {
+bool is_static_partitioner_case_5(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.total_convs > 0 &&
            static_cast<float>(tolerance.total_light_convs) <=
@@ -207,7 +209,7 @@ inline bool is_static_partitioner_case_5(const ov::MemBandwidthPressure& toleran
                CONV_RATIO_ULTRA_LOW * static_cast<float>(tolerance.total_nodes);
 }
 
-inline void determine_tbb_partitioner_and_threads(Config& config,
+void determine_tbb_partitioner_and_threads(Config& config,
                                                   const std::vector<std::vector<int>>& proc_type_table,
                                                   const ov::MemBandwidthPressure& tolerance,
                                                   bool int8_intensive) {
@@ -242,26 +244,26 @@ inline void determine_tbb_partitioner_and_threads(Config& config,
     }
 }
 
-inline bool is_network_compute_limited(const ov::MemBandwidthPressure& tolerance) {
+bool is_network_compute_limited(const ov::MemBandwidthPressure& tolerance) {
     return tolerance.ratio_compute_convs == ov::MemBandwidthPressure::ALL ||
            tolerance.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL;
 }
 
-inline bool is_below_isa_threshold(float max_tolerance, float memThresholdAssumeLimitedForISA) {
+bool is_below_isa_threshold(float max_tolerance, float memThresholdAssumeLimitedForISA) {
     return max_tolerance > memThresholdAssumeLimitedForISA;
 }
 
-inline bool is_below_general_threshold(float max_tolerance) {
+bool is_below_general_threshold(float max_tolerance) {
     return max_tolerance > ov::MemBandwidthPressure::LIMITED;
 }
 
-inline bool is_lp_main_core_case_1(const ov::MemBandwidthPressure& tolerance) {
+bool is_lp_main_core_case_1(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.total_convs == 0 && tolerance.max_mem_tolerance > MEM_TOLERANCE_VERY_HIGH &&
            static_cast<float>(tolerance.total_gemms) < GEMM_RATIO_LOW * static_cast<float>(tolerance.total_nodes);
 }
 
-inline bool is_lp_main_core_case_2(const ov::MemBandwidthPressure& tolerance) {
+bool is_lp_main_core_case_2(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.total_convs > 0 && tolerance.total_gemms == 1 &&
            tolerance.max_mem_tolerance<MEM_TOLERANCE_MEDIUM_LOW&& static_cast<float>(
@@ -269,35 +271,37 @@ inline bool is_lp_main_core_case_2(const ov::MemBandwidthPressure& tolerance) {
                static_cast<float>(tolerance.total_convs);
 }
 
-inline bool is_lp_auto_case_1(const ov::MemBandwidthPressure& tolerance) {
+bool is_lp_auto_case_1(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.max_mem_tolerance < MEM_TOLERANCE_MEDIUM && tolerance.ratio_compute_convs == 0 &&
            tolerance.ratio_mem_limited_convs == 0;
 }
 
-inline bool is_lp_auto_case_2(const ov::MemBandwidthPressure& tolerance) {
+bool is_lp_auto_case_2(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.ratio_compute_convs + tolerance.ratio_mem_limited_convs >= 1.0F &&
            tolerance.ratio_mem_limited_deconvs < 1.0F;
 }
 
-inline bool is_lp_auto_case_3(const ov::MemBandwidthPressure& tolerance) {
+bool is_lp_auto_case_3(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.total_convs > 52 && tolerance.ratio_compute_convs > 0 && tolerance.ratio_mem_limited_convs > 0 &&
            tolerance.ratio_mem_limited_convs < CONV_RATIO_VERY_LOW;
 }
 
-inline bool is_lp_auto_case_4(const ov::MemBandwidthPressure& tolerance) {
+bool is_lp_auto_case_4(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.max_mem_tolerance < MEM_TOLERANCE_SECONDARY_LOW &&
            tolerance.ratio_compute_convs < CONV_RATIO_HIGH && tolerance.ratio_mem_limited_convs < CONV_RATIO_MEDIUM_LOW;
 }
 
-inline bool is_lp_auto_case_5(const ov::MemBandwidthPressure& tolerance) {
+bool is_lp_auto_case_5(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.ratio_compute_convs > 0 && tolerance.ratio_compute_convs < CONV_RATIO_ULTRA_LOW &&
            tolerance.ratio_mem_limited_convs >= CONV_RATIO_VERY_LOW;
 }
+
+}  // namespace
 
 void sort_table_by_numa_node_id(int current_numa_node, std::vector<std::vector<int>>& proc_type_table) {
     if (proc_type_table.size() > 1) {
@@ -962,6 +966,7 @@ void configure_apple_threads(Config& config,
 }
 #endif
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 void configure_x86_hybrid_threads(Config& config,
                                   const std::vector<std::vector<int>>& proc_type_table,
                                   const ov::MemBandwidthPressure& tolerance,
@@ -1045,6 +1050,7 @@ void configure_x86_throughput_threads(Config& config,
         config.modelPreferThreadsThroughput = 2;
     }
 }
+#endif
 
 int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>>& proc_type_table,
@@ -1101,6 +1107,7 @@ int get_model_prefer_threads(const int num_streams,
                                 is_LLM);
 
 #    else
+#        if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         const int main_cores = proc_type_table[0][MAIN_CORE_PROC];
         const int efficient_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
         const int lp_efficient_cores = proc_type_table[0][LP_EFFICIENT_CORE_PROC];
@@ -1117,6 +1124,7 @@ int get_model_prefer_threads(const int num_streams,
                                          proc_type_table,
                                          networkToleranceForLowCache,
                                          memThresholdAssumeLimitedForISA);
+#        endif
 #    endif
 #endif
     }

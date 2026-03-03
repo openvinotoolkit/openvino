@@ -141,6 +141,7 @@ void configure_apple_threads(Config& config,
                              bool is_LLM);
 #endif
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 // Make internal hybrid configuration helper publicly callable
 void configure_x86_hybrid_threads(Config& config,
                                   const std::vector<std::vector<int>>& proc_type_table,
@@ -160,4 +161,5 @@ void configure_x86_throughput_threads(Config& config,
                                       const std::vector<std::vector<int>>& proc_type_table,
                                       const ov::MemBandwidthPressure& tolerance,
                                       float memThresholdAssumeLimitedForISA);
+#endif
 }  // namespace ov::intel_cpu
