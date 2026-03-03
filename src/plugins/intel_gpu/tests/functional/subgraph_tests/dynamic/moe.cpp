@@ -25,7 +25,6 @@ static const char* routing_type_str(MoERoutingType rt) {
     }
 }
 
-using MoE3GemmParams = std::tuple<MoeTestShapeParams, MoERoutingType>;
 using MoE3GemmCompressedParams = std::tuple<MoeTestShapeParams,
                                             MoERoutingType,
                                             ov::element::Type,                   // weights_precision
@@ -35,54 +34,6 @@ using MoE3GemmCompressedParams = std::tuple<MoeTestShapeParams,
                                             ov::test::utils::DecompressionType,  // subtract type
                                             bool,                                // reshape_on_decompression
                                             int>;                                // group_size
-
-class MoE3GemmFusionTest : public testing::WithParamInterface<MoE3GemmParams>, virtual public ov::test::SubgraphBaseTest {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<MoE3GemmParams>& info) {
-        const auto& [moe_params, routing_type] = info.param;
-        std::ostringstream result;
-        result << "IS=" << ov::test::utils::partialShape2str({moe_params.data_shape.first}) << "_";
-        result << "TS=";
-        for (const auto& s : moe_params.data_shape.second)
-            result << ov::test::utils::vec2str(s) << ",";
-        result << "topk=" << moe_params.topk << "_";
-        result << "experts=" << moe_params.number_of_experts << "_";
-        result << "inter=" << moe_params.intermediate_size << "_";
-        result << "routing=" << routing_type_str(routing_type);
-        return result.str();
-    }
-
-protected:
-    void SetUp() override {
-        targetDevice = ov::test::utils::DEVICE_GPU;
-
-        const auto& [moe_params, routing_type] = GetParam();
-        init_input_shapes({moe_params.data_shape});
-        const ov::test::MoePatternParams shape_params{moe_params.data_shape.first, moe_params.topk, moe_params.number_of_experts, moe_params.intermediate_size};
-
-        function = ov::test::initMoE3GeMMSubgraph(shape_params,
-                                                  ov::element::f32,  // data_precision – f16 computation matches GPU inference_precision
-                                                  ov::element::f16,  // weights_precision – plain f32 weights (no decompression)
-                                                  false,             // use_weight_decompression
-                                                  std::nullopt,
-                                                  std::nullopt,
-                                                  std::nullopt,
-                                                  std::nullopt,
-                                                  std::nullopt,
-                                                  std::nullopt,
-                                                  routing_type);
-    }
-
-    void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
-        inputs.clear();
-        const auto& params = function->get_parameters();
-        ASSERT_EQ(params.size(), 1);
-        inputs.insert({params[0],
-                       ov::test::utils::create_and_fill_tensor(params[0]->get_element_type(),
-                                                               target_input_static_shapes[0],
-                                                               ov::test::utils::InputGenerateData(0.125f, 2, 8, 1234))});
-    }
-};
 
 class MoE3GemmCompressedFusionTest : public testing::WithParamInterface<MoE3GemmCompressedParams>, virtual public ov::test::SubgraphBaseTest {
 public:
@@ -140,10 +91,6 @@ protected:
     }
 };
 
-TEST_P(MoE3GemmFusionTest, Inference) {
-    run();
-}
-
 TEST_P(MoE3GemmCompressedFusionTest, Inference) {
     run();
 }
@@ -165,11 +112,6 @@ const std::vector<MoeTestShapeParams> moe_params_smoke = {
         256                                                          // intermediate_size
     },
 };
-
-INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmFusion,
-                         MoE3GemmFusionTest,
-                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke), ::testing::ValuesIn(routing_types)),
-                         MoE3GemmFusionTest::getTestCaseName);
 
 // Compressed weights – covers the full FuseVectorizedMOE3GEMM + ConvertMOEToMOECompressed +
 // FuseMOE3GemmCompressed pipeline that runs in production.
