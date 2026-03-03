@@ -115,6 +115,10 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         validate_path(path);
         local_model_stream.open(path.c_str(), std::ios::in | std::ifstream::binary);
 #endif
+    } else if (model_variant.is<std::filesystem::path>()) {
+        const auto& path = model_variant.as<std::filesystem::path>();
+        validate_path(path);
+        local_model_stream.open(path, std::ios::in | std::ifstream::binary);
     } else if (model_variant.is<std::istream*>()) {
         provided_model_stream = model_variant.as<std::istream*>();
     } else if (model_variant.is<std::istringstream*>()) {
@@ -188,29 +192,25 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         return nullptr;
     };
 
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring weights_path, model_path;
-#else
-    std::string weights_path, model_path;
-#endif
+    std::filesystem::path weights_path, model_path;
 
     const auto& model_variant = variants.at(0);
 
     if (model_variant.is<std::string>()) {
         const auto& tmp_path = model_variant.as<std::string>();
         validate_path(tmp_path);
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        model_path = ov::util::string_to_wstring(tmp_path.c_str());
-#else
-        model_path = tmp_path;
-#endif
-        local_model_stream.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
+        model_path = ov::util::make_path(tmp_path);
+        local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     } else if (model_variant.is<std::wstring>()) {
-        model_path = model_variant.as<std::wstring>();
+        model_path = ov::util::make_path(model_variant.as<std::wstring>());
         validate_path(model_path);
-        local_model_stream.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
+        local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
 #endif
+    } else if (model_variant.is<std::filesystem::path>()) {
+        model_path = model_variant.as<std::filesystem::path>();
+        validate_path(model_path);
+        local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
     } else if (model_variant.is<std::istream*>()) {
         provided_model_stream = model_variant.as<std::istream*>();
     } else if (model_variant.is<std::istringstream*>()) {
@@ -223,15 +223,10 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     for (size_t variant_id = 1; variant_id < variants.size(); ++variant_id) {
         const auto& variant = variants.at(variant_id);
         if (variant.is<std::string>()) {
-            const auto& tmp_path = variant.as<std::string>();
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-            weights_path = ov::util::string_to_wstring(tmp_path.c_str());
-#else
-            weights_path = tmp_path;
-#endif
+            weights_path = ov::util::make_path(variant.as<std::string>());
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         } else if (variant.is<std::wstring>()) {
-            weights_path = variant.as<std::wstring>();
+            weights_path = ov::util::make_path(variant.as<std::wstring>());
 #endif
         } else if (variant.is<std::shared_ptr<ov::AlignedBuffer>>()) {
             weights = variant.as<std::shared_ptr<ov::AlignedBuffer>>();
@@ -241,35 +236,24 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 
     // Find weights if only path to xml was provided
     if (weights_path.empty()) {
-        auto pos = model_path.rfind('.');
-        if (pos != model_path.npos)
-            weights_path = model_path.substr(0, pos);
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        weights_path += L".bin";
-#else
-        weights_path += ".bin";
-#endif
+        weights_path = model_path;
+        weights_path.replace_extension(".bin");
         if (!ov::util::file_exists(weights_path)) {
             weights_path.clear();
         }
     }
     if (!weights_path.empty()) {
         if (enable_mmap) {
-            auto mapped_memory = ov::load_mmap_object(ov::util::make_path(weights_path));
+            auto mapped_memory = ov::load_mmap_object(weights_path);
             weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
                                                                                         mapped_memory->size(),
                                                                                         mapped_memory);
         } else {
             std::ifstream bin_stream;
-            bin_stream.open(weights_path.c_str(), std::ios::binary);
-            if (!bin_stream.is_open())
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-                OPENVINO_THROW("Weights file ", ov::util::wstring_to_string(weights_path), " cannot be opened!");
-#else
+            bin_stream.open(weights_path, std::ios::binary);
+            if (!bin_stream.is_open()) {
                 OPENVINO_THROW("Weights file ", weights_path, " cannot be opened!");
-#endif
-
+            }
             bin_stream.seekg(0, std::ios::end);
             size_t file_size = bin_stream.tellg();
             bin_stream.seekg(0, std::ios::beg);

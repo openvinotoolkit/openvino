@@ -141,11 +141,26 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants.size() != 1 + extra_variants_num)
         return false;
 
+    std::string model_path, checkpoints_dir;
+    if (variants[0].is<std::string>()) {
+        model_path = variants[0].as<std::string>();
+    } else if (variants[0].is<std::filesystem::path>()) {
+        model_path = ov::util::path_to_string(variants[0].as<std::filesystem::path>());
+    } else if (variants[0].is<std::vector<std::string>>() && variants[0].as<std::vector<std::string>>().size() == 2) {
+        const auto paths = variants[0].as<std::vector<std::string>>();
+        model_path = paths[0];
+        checkpoints_dir = paths[1];
+    } else if (variants[0].is<std::vector<std::filesystem::path>>() &&
+               variants[0].as<std::vector<std::filesystem::path>>().size() == 2) {
+        const auto paths = variants[0].as<std::vector<std::filesystem::path>>();
+        model_path = ov::util::path_to_string(paths[0]);
+        checkpoints_dir = ov::util::path_to_string(paths[1]);
+    }
+
     // to figure out if the model with v1 checkpoints is supported,
     // it is sufficient to check only the input model format
     // avoid parsing of checkpoints here
-    if (variants[0].is<std::string>()) {
-        std::string model_path = variants[0].as<std::string>();
+    if (!model_path.empty() && checkpoints_dir.empty()) {
         if (GraphIteratorProto::is_supported(model_path)) {
             // handle binary protobuf format
             // for automatic deduction of the frontend to convert the model
@@ -159,11 +174,8 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
             // handle text protobuf format
             return true;
         }
-    } else if (variants[0].is<std::vector<std::string>>() && variants[0].as<std::vector<std::string>>().size() == 2) {
+    } else if (!model_path.empty() && !checkpoints_dir.empty()) {
         // here, we assume to get the input model path and checkpoints directory
-        auto paths = variants[0].as<std::vector<std::string>>();
-        auto model_path = paths[0];
-        auto checkpoints_dir = paths[1];
         if (GraphIteratorProto::is_supported(model_path)) {
             // binary protobuf format with checkpoints
             return true;
@@ -227,8 +239,31 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         "[TensorFlow Frontend] Internal error or inconsistent input model: the frontend supports "
         "frozen formats (.pb and .pbtxt), SavedModel and MetaGraph (.meta) formats, and v1 checkpoints.");
 
+    std::string model_path, checkpoints_dir;
     if (variants[0].is<std::string>()) {
-        auto model_path = variants[0].as<std::string>();
+        model_path = variants[0].as<std::string>();
+    } else if (variants[0].is<std::filesystem::path>()) {
+        model_path = ov::util::path_to_string(variants[0].as<std::filesystem::path>());
+    } else if (variants[0].is<std::vector<std::string>>() && variants[0].as<std::vector<std::string>>().size() == 2) {
+        const auto paths = variants[0].as<std::vector<std::string>>();
+        FRONT_END_GENERAL_CHECK(
+            paths.size() == 2,
+            "[TensorFlow Frontend] Internal error or inconsistent input model: the frontend supports "
+            "frozen formats (.pb and .pbtxt), SavedModel and MetaGraph (.meta) formats, and v1 checkpoints.");
+        model_path = paths[0];
+        checkpoints_dir = paths[1];
+    } else if (variants[0].is<std::vector<std::filesystem::path>>() &&
+               variants[0].as<std::vector<std::filesystem::path>>().size() == 2) {
+        const auto paths = variants[0].as<std::vector<std::filesystem::path>>();
+        FRONT_END_GENERAL_CHECK(
+            paths.size() == 2,
+            "[TensorFlow Frontend] Internal error or inconsistent input model: the frontend supports "
+            "frozen formats (.pb and .pbtxt), SavedModel and MetaGraph (.meta) formats, and v1 checkpoints.");
+        model_path = ov::util::path_to_string(paths[0]);
+        checkpoints_dir = ov::util::path_to_string(paths[1]);
+    }
+
+    if (!model_path.empty() && checkpoints_dir.empty()) {
         if (GraphIteratorProto::is_supported(model_path)) {
             // handle binary protobuf format
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
@@ -259,15 +294,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             // handle text protobuf format
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProtoTxt>(model_path), m_telemetry);
         }
-    } else if (variants[0].is<std::vector<std::string>>()) {
+    } else if (!model_path.empty() && !checkpoints_dir.empty()) {
         // here, we assume to get the input model path and checkpoints directory
-        auto paths = variants[0].as<std::vector<std::string>>();
-        FRONT_END_GENERAL_CHECK(
-            paths.size() == 2,
-            "[TensorFlow Frontend] Internal error or inconsistent input model: the frontend supports "
-            "frozen formats (.pb and .pbtxt), SavedModel and MetaGraph (.meta) formats, and v1 checkpoints.");
-        auto model_path = paths[0];
-        auto checkpoints_dir = paths[1];
         if (GraphIteratorProto::is_supported(model_path)) {
             auto graph_iterator = std::make_shared<GraphIteratorProto>(model_path, checkpoints_dir);
             // handle binary protobuf format with checkpoints
@@ -293,7 +321,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_checkpoint_v1_reader(),
                                                 false);
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
-            auto saved_model_tags = paths[1];
+            auto saved_model_tags = checkpoints_dir;
             std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
             graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, saved_model_tags, mmap_enabled);
             return std::make_shared<InputModel>(graph_iterator,

@@ -170,6 +170,8 @@ private:
             auto wpath = model_variant.as<std::wstring>();
             model_path = ov::util::wstring_to_string(wpath);
 #endif
+        } else if (model_variant.is<std::filesystem::path>()) {
+            model_path = ov::util::path_to_string(model_variant.as<std::filesystem::path>());
         }
         if (!model_path.empty()) {
             auto ext = ov::util::path_to_string(ov::util::make_path(model_path).extension());

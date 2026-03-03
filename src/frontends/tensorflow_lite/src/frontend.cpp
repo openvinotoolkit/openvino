@@ -56,8 +56,10 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants.size() != 1 + extra_variants_num)
         return false;
 
-    if (variants[0].is<std::string>()) {
-        std::string model_path = variants[0].as<std::string>();
+    if (variants[0].is<std::string>() || variants[0].is<std::filesystem::path>()) {
+        std::string model_path = variants[0].is<std::string>()
+                                     ? variants[0].as<std::string>()
+                                     : ov::util::path_to_string(variants[0].as<std::filesystem::path>());
         if (GraphIteratorFlatBuffer::is_supported(model_path)) {
             return true;
         }
@@ -80,8 +82,10 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     // Last boolean flag in `variants` (if presented) is reserved for FE configuration
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     if (variants.size() == 1 + extra_variants_num) {
-        if (variants[0].is<std::string>()) {
-            std::string model_path = variants[0].as<std::string>();
+        if (variants[0].is<std::string>() || variants[0].is<std::filesystem::path>()) {
+            std::string model_path = variants[0].is<std::string>()
+                                         ? variants[0].as<std::string>()
+                                         : ov::util::path_to_string(variants[0].as<std::filesystem::path>());
             if (GraphIteratorFlatBuffer::is_supported(model_path)) {
                 return std::make_shared<tensorflow_lite::InputModel>(
                     std::make_shared<GraphIteratorFlatBuffer>(model_path),

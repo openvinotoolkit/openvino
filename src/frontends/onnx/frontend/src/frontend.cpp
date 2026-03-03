@@ -198,6 +198,13 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         return create_iterator_model(std::filesystem::path{path});
     }
 #endif
+    else if (variants[0].is<std::filesystem::path>()) {
+        const auto path = variants[0].as<std::filesystem::path>();
+        if (!gi_enabled) {
+            return std::make_shared<InputModel>(ov::util::path_to_string(path), enable_mmap, m_extensions);
+        }
+        return create_iterator_model(path);
+    }
     if (variants[0].is<std::istream*>()) {
         const auto stream = variants[0].as<std::istream*>();
         if (variants.size() > 1 && variants[1].is<std::string>()) {
@@ -361,6 +368,11 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         model_stream.open(path.c_str(), std::ios::in | std::ifstream::binary);
     }
 #endif
+    else if (variants[0].is<std::filesystem::path>()) {
+        const auto path = variants[0].as<std::filesystem::path>();
+        validate_path(path);
+        model_stream.open(path, std::ios::in | std::ifstream::binary);
+    }
     if (model_stream.is_open()) {
         model_stream.seekg(0, model_stream.beg);
         const bool is_valid_model = ::ov::frontend::onnx::common::is_valid_model(model_stream);

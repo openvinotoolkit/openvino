@@ -149,8 +149,10 @@ std::istream* variant_to_stream_ptr(const ov::Any& variant, std::fstream& fs, st
         ss.write(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size());
         FRONT_END_INITIALIZATION_CHECK(ss && ss.good(), "Cannot open ov::tensor.");
         return &ss;
-    } else if (variant.is<std::string>()) {
-        const auto& model_path = variant.as<std::string>();
+    } else if (variant.is<std::string>() || variant.is<std::filesystem::path>()) {
+        const auto& model_path = variant.is<std::string>()
+                                     ? variant.as<std::string>()
+                                     : ov::util::path_to_string(variant.as<std::filesystem::path>());
         fs.open(model_path, std::ios::in | std::ifstream::binary);
         FRONT_END_INITIALIZATION_CHECK(fs && fs.is_open(), "Cannot open model file.");
         return &fs;
@@ -379,37 +381,25 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants.empty() || variants.size() > 2 + extra_variants_num)
         return false;
 
+    std::filesystem::path model_fs_path;
+    if (variants[0].is<std::string>() || variants[0].is<std::wstring>() || variants[0].is<std::filesystem::path>()) {
+        model_fs_path = variants[0].as<std::filesystem::path>();
+    }
     // Validating first path, it must contain a model
-    if (variants[0].is<std::string>()) {
+    if (!model_fs_path.empty()) {
         std::string suffix = ".pdmodel";
-        std::string model_path = variants[0].as<std::string>();
-        FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: \"", model_path, '"');
-        if (!ov::util::ends_with(model_path, suffix)) {
-            model_path += paddle::get_path_sep<char>() + "__model__";
+        if (model_fs_path.extension() != ".pdmodel") {
+            model_fs_path /= "__model__";
         }
-        std::ifstream model_str(model_path, std::ios::in | std::ifstream::binary);
-        // It is possible to validate here that protobuf can read model from the stream,
-        // but it will complicate the check, while it should be as quick as possible
-        return model_str && model_str.is_open();
-    }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    else if (variants[0].is<std::wstring>()) {
-        std::wstring suffix = L".pdmodel";
-        std::wstring model_path = variants[0].as<std::wstring>();
-        FRONT_END_GENERAL_CHECK(util::file_exists(model_path),
+        FRONT_END_GENERAL_CHECK(util::file_exists(model_fs_path),
                                 "Could not open the file: \"",
-                                util::path_to_string(model_path),
+                                util::path_to_string(model_fs_path),
                                 '"');
-        if (!ov::util::ends_with(model_path, suffix)) {
-            model_path += paddle::get_path_sep<wchar_t>() + L"__model__";
-        }
-        std::ifstream model_str(model_path.c_str(), std::ios::in | std::ifstream::binary);
+        std::ifstream model_str(model_fs_path, std::ios::in | std::ifstream::binary);
         // It is possible to validate here that protobuf can read model from the stream,
         // but it will complicate the check, while it should be as quick as possible
         return model_str && model_str.is_open();
-    }
-#endif
-    else if (variants[0].is<std::istream*>()) {
+    } else if (variants[0].is<std::istream*>()) {
         // Validating first stream, it must contain a model
         // step 1:
         // PDPD API ParseFromIstream always deconstructs the context in model stream.
@@ -431,8 +421,10 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     if (variants.size() == 1 + extra_variants_num) {
         // The case when folder with __model__ and weight files is provided or .pdmodel file
-        if (variants[0].is<std::string>()) {
-            std::string m_path = variants[0].as<std::string>();
+        if (variants[0].is<std::string>() || variants[0].is<std::filesystem::path>()) {
+            std::string m_path = variants[0].is<std::string>()
+                                     ? variants[0].as<std::string>()
+                                     : ov::util::path_to_string(variants[0].as<std::filesystem::path>());
             return std::make_shared<InputModel>(m_path, m_telemetry);
         }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
