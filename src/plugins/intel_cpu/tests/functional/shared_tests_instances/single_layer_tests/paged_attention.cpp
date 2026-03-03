@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/visibility.hpp"
+
+#ifdef OPENVINO_ARCH_X86_64
+
 #include <vector>
 
 #include "common_test_utils/test_enums.hpp"
@@ -56,3 +60,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionLayerTest,
                                             ::testing::ValuesIn(additional_configs_ref)),
                          PagedAttentionLayerTest::getTestCaseName);
 }  // namespace
+
+#endif  // OPENVINO_ARCH_X86_64
