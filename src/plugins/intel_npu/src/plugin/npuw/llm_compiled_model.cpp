@@ -1186,8 +1186,8 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
 
     desc.compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
 
-    if (desc.arch == "5000" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(3, 26)) {
-        // Flash attention tile is supported starting from compiler version 3.26 on NPU5000
+    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
+        // Flash attention tile is supported starting from compiler version 7.29 on NPU5010
         desc.support_flash_attention_tile = true;
     }
 
