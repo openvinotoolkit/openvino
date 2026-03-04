@@ -29,7 +29,7 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
                                       std::optional<std::shared_ptr<const ov::Model>>&& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "Parser", "parse");
 
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    // Detect blob format
     const void* data = mainBlob.data();
     size_t size = mainBlob.get_byte_size();
     std::string header;
@@ -38,11 +38,10 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
     } else {
         header.assign(static_cast<const char*>(data), size);
     }
-    if (header.find("ELF") == std::string::npos) {
-        _logger.debug("Create graph for LLVM IR!");
+    if (header.find("llvm") != std::string::npos) {
+        _logger.debug("Create graph for LLVM IR, use internal function to get metadata!");
         return std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, true, config);
     }
-#endif
 
     GraphDescriptor mainGraphDesc;
     NetworkMetadata mainNetworkMetadata;
