@@ -23,8 +23,7 @@ namespace ov::intel_gpu {
 DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size,
                                                             bool asymmetric,
                                                             bool precomputed_reduction,
-                                                            bool use_gs128_for_int8_per_token,
-                                                            ov::hint::DynamicQuantizationDataType dtype_scheme)
+                                                            bool use_gs128_for_int8_per_token)
     : ov::pass::MatcherPass() {
     using namespace ov::pass::pattern;
     using QuantizationType = ov::op::internal::DynamicQuantize::QuantizationType;
