@@ -1,6 +1,6 @@
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 class TestTakeAlongDim(PytorchLayerTest):
     def _prepare_input(self, m, n, max_val, out=False, flattenize=False):
@@ -45,10 +45,11 @@ class TestTakeAlongDim(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("m", [2, 10, 100])
     @pytest.mark.parametrize("n", [2, 10, 100])
     @pytest.mark.parametrize("axis", [0, 1, None])
-    @pytest.mark.parametrize("out", [True, False])
+    @pytest.mark.parametrize("out", [skip_if_export(True), False])
     def test_gather(self, m, n, axis, out, ie_device, precision, ir_version):
         self._test(*self.create_model(axis, out), ie_device, precision, ir_version, kwargs_to_prepare_input={
             "m": m, "n": n, "max_val": m if axis == 0 else n, "out": out, "flattenize": axis is None

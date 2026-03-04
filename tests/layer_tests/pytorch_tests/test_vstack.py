@@ -6,7 +6,7 @@ import torch
 import numpy as np
 import numpy as np
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 class aten_vstack(torch.nn.Module):
     def forward(self, x):
@@ -30,7 +30,8 @@ class TestVstack(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("out", [False, True])
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("out", [False, skip_if_export(True)])
     def test_vstack(self, out, ie_device, precision, ir_version):
         model = aten_vstack() if not out else aten_vstack_out()
         self._test(model, "aten::vstack", ie_device,
@@ -82,6 +83,7 @@ class TestVstackAlignTypes(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_align_types_vstack(self, ie_device, precision, ir_version, in_types):
         self._test(self.create_model(len(in_types)), "aten::vstack",
                    ie_device, precision, ir_version, kwargs_to_prepare_input={"in_types": in_types})
