@@ -28,7 +28,6 @@ void dot(const T* arg0,
         float,
         T>;
 
-    std::fill(out, out + shape_size(out_shape), T{0});
     const size_t arg0_rank = arg0_shape.size();
     const size_t arg1_rank = arg1_shape.size();
 
