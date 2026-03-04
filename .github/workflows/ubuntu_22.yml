@@ -11,13 +11,6 @@ on:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
-        # to be deleted after testing
-      use_latest_onednn:
-        description: 'Checkout the latest OneDNN for GPU (schedule: auto-detected; manual run: use this flag)'
-        type: boolean
-        required: false
-        default: true
-        # to be deleted after testing
   pull_request:
     types:
       - opened
@@ -80,17 +73,15 @@ jobs:
         id: onednn_day
         shell: bash
         env:
-          EVENT_NAME: ${{ github.event_name }}
           EVENT_SCHEDULE: ${{ github.event.schedule }}
-          INPUT_USE_LATEST_ONEDNN: ${{ inputs.use_latest_onednn }}
         run: |
-          if [[ "$EVENT_NAME" == 'workflow_dispatch' ]]; then
-            echo "use_latest_onednn=$INPUT_USE_LATEST_ONEDNN" >> "$GITHUB_OUTPUT"
-          elif [[ "$EVENT_SCHEDULE" == '0 0 * * 3,6' ]]; then
-            echo "use_latest_onednn=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "use_latest_onednn=false" >> "$GITHUB_OUTPUT"
-          fi
+          # if [[ "$EVENT_SCHEDULE" == '0 0 * * 3,6' ]]; then
+          #   echo "use_latest_onednn=true" >> "$GITHUB_OUTPUT"
+          # else
+          #   echo "use_latest_onednn=false" >> "$GITHUB_OUTPUT"
+          # fi
+          # hardcode to true for testing purposes
+          echo "use_latest_onednn=true" >> "$GITHUB_OUTPUT"
 
   Docker:
     needs: Smart_CI
