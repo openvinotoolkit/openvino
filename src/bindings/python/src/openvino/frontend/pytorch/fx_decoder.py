@@ -263,7 +263,6 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                     self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
 
     @classmethod
-    @classmethod
     def from_exported_program(
         cls, exported_program: torch.export.ExportedProgram, dynamic_shapes=True
     ) -> "TorchFXPythonDecoder":
