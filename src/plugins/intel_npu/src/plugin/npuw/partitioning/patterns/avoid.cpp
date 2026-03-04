@@ -43,9 +43,6 @@ static void avoid_node(const std::shared_ptr<ov::Node>& node,
 // bool.  When a tagged node produces a boolean output we also tag
 // its input producers so the boolean value is produced entirely
 // within the CPU partition.
-// TODO(CVS-XXXXX): remove this function once NPU preserves bool
-// dtype at partition boundaries, and replace all call-sites with
-// plain avoid_node().
 static void avoid_node_bool_wa(const std::shared_ptr<ov::Node>& node,
                                const std::shared_ptr<NodeToGroupMap>& node_to_gptr,
                                const std::string& avoid_device) {
