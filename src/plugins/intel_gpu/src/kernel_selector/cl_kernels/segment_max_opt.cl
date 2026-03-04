@@ -24,11 +24,11 @@
 // Binary search: find first index in [lo, hi) where segment_ids[index] >= target.
 inline int __attribute__((always_inline)) lower_bound(
     const __global INPUT1_TYPE* restrict segment_ids,
-    int lo, int hi, int target)
+    int lo, int hi, INPUT1_TYPE target)
 {
     while (lo < hi) {
         int mid = lo + ((hi - lo) >> 1);
-        if ((int)segment_ids[mid] < target)
+        if (segment_ids[mid] < target)
             lo = mid + 1;
         else
             hi = mid;
@@ -39,11 +39,11 @@ inline int __attribute__((always_inline)) lower_bound(
 // Binary search: find first index in [lo, hi) where segment_ids[index] > target.
 inline int __attribute__((always_inline)) upper_bound(
     const __global INPUT1_TYPE* restrict segment_ids,
-    int lo, int hi, int target)
+    int lo, int hi, INPUT1_TYPE target)
 {
     while (lo < hi) {
         int mid = lo + ((hi - lo) >> 1);
-        if ((int)segment_ids[mid] <= target)
+        if (segment_ids[mid] <= target)
             lo = mid + 1;
         else
             hi = mid;
@@ -69,8 +69,8 @@ KERNEL(segment_max_opt)(
 
     // Binary search for the half-open range [start, end) of rows belonging
     // to this segment.  O(log num_rows) instead of O(num_rows).
-    const int start = lower_bound(segment_ids, 0, num_rows, seg);
-    const int end   = upper_bound(segment_ids, start, num_rows, seg);
+    const int start = lower_bound(segment_ids, 0, num_rows, (INPUT1_TYPE)seg);
+    const int end   = upper_bound(segment_ids, start, num_rows, (INPUT1_TYPE)seg);
 
     const int out_idx = seg * inner_dim_size + j;
 

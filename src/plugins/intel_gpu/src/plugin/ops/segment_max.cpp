@@ -4,6 +4,7 @@
 
 #include "openvino/op/segment_max.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/core/validation_util.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
@@ -22,9 +23,10 @@ static void CreateSegmentMaxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
                                    inputs[1],   // segment_ids
                                    fill_mode);
 
-    // Store segment_ids constant data for compile-time shape inference
-    auto seg_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-            op->input_value(1).get_node_shared_ptr());
+    // Store segment_ids constant data for compile-time shape inference.
+    // Use get_constant_from_source to handle cases where the constant is
+    // wrapped by Convert/Reshape/etc.
+    auto seg_const = ov::util::get_constant_from_source(op->input_value(1));
 
     // When num_segments is not provided (2-input form), segment_ids must be a Constant
     // so that the primitive can infer the output shape based on max(segment_ids) + 1.
@@ -42,8 +44,7 @@ static void CreateSegmentMaxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     // Note: The current primitive/kernel only supports num_segments as a compile-time constant.
     // A non-constant num_segments tensor is not wired as a primitive input.
     if (op->get_input_size() > 2) {
-        auto ns_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-                op->input_value(2).get_node_shared_ptr());
+        auto ns_const = ov::util::get_constant_from_source(op->input_value(2));
         OPENVINO_ASSERT(ns_const, "[GPU] SegmentMax: num_segments input must be a Constant. "
                                   "Non-constant num_segments is not yet supported.");
         prim.num_segments_val = ns_const->cast_vector<int64_t>()[0];
