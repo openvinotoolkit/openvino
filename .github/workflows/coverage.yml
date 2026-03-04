@@ -31,7 +31,6 @@ env:
 
 jobs:
   BuildCoverageArtifacts:
-    continue-on-error: true
     runs-on: ubuntu-latest-64-cores
     outputs:
       artifact_name: ${{ steps.artifact_name.outputs.value }}
@@ -67,11 +66,10 @@ jobs:
           CXX: g++
         run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step configure
 
-      - name: Build and install coverage artifacts
+      - name: Build and install
         run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step build-install
 
       - name: Prepare reusable build artifact
-        continue-on-error: true
         run: |
           set -euxo pipefail
           artifact_dir="${{ github.workspace }}/coverage-build-artifact"
@@ -80,6 +78,7 @@ jobs:
 
           rsync -a "${{ github.workspace }}/bin/" "${artifact_dir}/bin/"
           rsync -a "${{ github.workspace }}/install_pkg/" "${artifact_dir}/install_pkg/"
+          mkdir -p "${artifact_dir}/src/bindings/js/node"
           rsync -a "${{ github.workspace }}/src/bindings/js/node/bin/" "${artifact_dir}/src/bindings/js/node/bin/"
 
           rsync -a --prune-empty-dirs \
@@ -97,16 +96,16 @@ jobs:
         run: echo "value=coverage-build-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
 
       - name: Upload reusable build artifact
-        continue-on-error: true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ${{ steps.artifact_name.outputs.value }}
           path: coverage-build-artifact
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 3
           compression-level: 0
 
   CoverageCpp:
+    if: ${{ needs.BuildCoverageArtifacts.result == 'success' }}
     continue-on-error: true
     needs: BuildCoverageArtifacts
     runs-on: ubuntu-latest-4-cores
@@ -237,6 +236,7 @@ jobs:
           verbose: true
 
   CoveragePython:
+    if: ${{ needs.BuildCoverageArtifacts.result == 'success' }}
     continue-on-error: true
     needs: BuildCoverageArtifacts
     runs-on: ubuntu-latest-8-cores
@@ -396,6 +396,7 @@ jobs:
           verbose: true
 
   CoverageJS:
+    if: ${{ needs.BuildCoverageArtifacts.result == 'success' }}
     continue-on-error: true
     needs: BuildCoverageArtifacts
     runs-on: ubuntu-latest-8-cores
@@ -560,9 +561,9 @@ jobs:
           verbose: true
 
   CoverageSummary:
-    if: ${{ always() }}
+    if: ${{ always() && needs.BuildCoverageArtifacts.result == 'success' }}
     continue-on-error: true
-    needs: [CoverageCpp, CoveragePython, CoverageJS]
+    needs: [BuildCoverageArtifacts, CoverageCpp, CoveragePython, CoverageJS]
     runs-on: ubuntu-latest-4-cores
     env:
       CPP_JOB_RESULT: ${{ needs.CoverageCpp.result }}
