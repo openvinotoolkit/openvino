@@ -390,19 +390,29 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_PreScaledQue
     const bool casual = false;
 
     {
-        auto sdp = std::make_shared<v13::ScaledDotProductAttention>(
-            query_prescaled, key, value, attention_mask, sdpa_scale, casual);
-        model = std::make_shared<ov::Model>(OutputVector{sdp},
-                                            ParameterVector{raw_query, key, value, attention_mask});
+        auto sdp = std::make_shared<v13::ScaledDotProductAttention>(query_prescaled,
+                                                                    key,
+                                                                    value,
+                                                                    attention_mask,
+                                                                    sdpa_scale,
+                                                                    casual);
+        model = std::make_shared<ov::Model>(OutputVector{sdp}, ParameterVector{raw_query, key, value, attention_mask});
         manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
     }
 
     {
         // Expected: scale applied to K^T (scale_on_k=true)
-        auto ref = scaled_dot_product_attention_decomposition(
-            query_prescaled, key, value, attention_mask, sdpa_scale, casual, false, nullptr, true);
-        model_ref = std::make_shared<ov::Model>(OutputVector{ref},
-                                                ParameterVector{raw_query, key, value, attention_mask});
+        auto ref = scaled_dot_product_attention_decomposition(query_prescaled,
+                                                              key,
+                                                              value,
+                                                              attention_mask,
+                                                              sdpa_scale,
+                                                              casual,
+                                                              false,
+                                                              nullptr,
+                                                              true);
+        model_ref =
+            std::make_shared<ov::Model>(OutputVector{ref}, ParameterVector{raw_query, key, value, attention_mask});
     }
 }
 
