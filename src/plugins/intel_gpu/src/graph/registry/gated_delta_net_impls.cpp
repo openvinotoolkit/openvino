@@ -10,6 +10,10 @@
     #include "impls/cm/gated_delta_net_opt.hpp"
 #endif
 
+#if OV_GPU_WITH_OCL
+    #include "impls/ocl_v2/gated_delta_net_ref.hpp"
+#endif
+
 namespace ov::intel_gpu {
 
 using namespace cldnn;
@@ -19,6 +23,9 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<gated
 #if OV_GPU_WITH_CM
     OV_GPU_CREATE_INSTANCE_CM(cm::GatedDeltaNetOptImplementationManager, shape_types::any)
 #endif
+// #if OV_GPU_WITH_OCL
+//     OV_GPU_CREATE_INSTANCE_OCL(ocl::GatedDeltaNetRef, shape_types::any)
+// #endif
     };
 
     return impls;
