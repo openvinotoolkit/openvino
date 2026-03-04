@@ -81,7 +81,7 @@ private:
                                                      bool use_sink_input = false,
                                                      int32_t sliding_window = 0) {
         // PA expects q/k/v as [tokens, features]
-        auto q = make_param({ov::Dimension::dynamic(), head_num * head_size}, data_type, "q");
+        auto q = make_param({ov::Dimension::dynamic(), ov::Dimension::dynamic()}, data_type, "q");
         auto k = make_param({ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
         auto v = make_param({ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
 

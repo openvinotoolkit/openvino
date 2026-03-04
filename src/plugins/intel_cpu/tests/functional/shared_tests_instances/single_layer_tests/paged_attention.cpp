@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/visibility.hpp"
 
-#ifdef OPENVINO_ARCH_X86_64
 
 #include <vector>
 
@@ -16,6 +14,7 @@
 
 #include "internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace {
 using ov::test::PagedAttentionLayerTest;
@@ -24,16 +23,10 @@ using InputShapes = std::vector<ov::test::InputShape>;
 
 const std::vector<InputShapes> input_shapes_ref = {  // greedy search
 {
-    /* 
-    // L1, B, H, S
+    // L, B=1, H, S   (B must be 1: scalar metadata constants in the PA model
+    //                  are only valid for single-sequence operation)
     {{-1, 1, 8, 64}, {{10, 1, 8, 64}, {1, 1, 8, 64}}},
-    // B, L0, H, S
     {{-1, 1, 8, 64}, {{0, 1, 8, 64}, {10, 1, 8, 64}}},
-    */
-   // L1, B, H, S
-    {{-1, 8, 8, 64}, {{10, 8, 8, 64}, {1, 8, 8, 64}}},
-    // B, L0, H, S
-    {{-1, 8, 8, 64}, {{0, 8, 8, 64}, {10, 8, 8, 64}}},
 }};
 
 const std::vector<ov::AnyMap> additional_configs_ref = {{
@@ -49,6 +42,8 @@ const std::vector<ov::AnyMap> additional_configs_ref = {{
     {ov::value_cache_group_size.name(), 0},
 }};
 
+#ifdef OPENVINO_ARCH_X86_64
+
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionLayerTest,
                          PagedAttentionLayerTest,
                          ::testing::Combine(::testing::Values(ElementType::f32),
@@ -59,6 +54,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionLayerTest,
                                             ::testing::Values(0),      // sliding_window = 0
                                             ::testing::ValuesIn(additional_configs_ref)),
                          PagedAttentionLayerTest::getTestCaseName);
-}  // namespace
 
 #endif  // OPENVINO_ARCH_X86_64
+}  // namespace
+
+
