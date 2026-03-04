@@ -8,9 +8,7 @@ from pathlib import Path
 import shlex
 import shutil
 
-from ..config import load_cpp_tests
-from ..context import CoverageContext
-from ..runner import env_from_assignments, run_cmd, warn
+from coverage_workflow import CoverageContext, env_from_assignments, load_cpp_tests, run_cmd, warn
 
 
 def _remove_gcda(root: Path) -> None:

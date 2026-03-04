@@ -5,8 +5,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ..context import CoverageContext
-from ..runner import run_cmd
+from coverage_workflow import CoverageContext, run_cmd
 
 
 def _find_openvino_wheel(wheels_dir: Path) -> Path:

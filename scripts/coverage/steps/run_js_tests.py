@@ -6,21 +6,51 @@ from __future__ import annotations
 import os
 import shutil
 
-from ..config import load_js_tests
-from ..context import CoverageContext
-from ..runner import run_cmd, warn
+from coverage_workflow import CoverageContext, load_js_tests, run_cmd, warn
 
 
 def run(ctx: CoverageContext) -> None:
+    if shutil.which("node") is None or shutil.which("npm") is None:
+        raise RuntimeError(
+            "Node.js/npm are not available. Install them first, for example via: "
+            "`python3 scripts/coverage/coverage.py step install-deps --install-nodejs --nodejs-version 22`"
+        )
+
     config = ctx.workspace / "scripts" / "coverage" / "config" / "tests_js.yml"
+    tests = load_js_tests(config, ctx.test_profile)
+
+    if not any(test.enabled for test in tests):
+        skipped = [f"{test.name} ({test.skip_reason})" for test in tests]
+        ctx.io.export_env("JS_TESTS_TOTAL", str(len(skipped)))
+        ctx.io.export_env("JS_TESTS_PASSED", "0")
+        ctx.io.export_env("JS_TESTS_FAILED", "0")
+        ctx.io.export_env("JS_TESTS_SKIPPED", str(len(skipped)))
+
+        lines = [
+            "",
+            "## JS coverage test execution summary",
+            "JS tests executed: 0",
+            "JS tests passed: 0",
+            "JS tests failed: 0",
+            f"JS tests skipped: {len(skipped)}",
+            "",
+            "Failed tests: none",
+            "",
+        ]
+        if skipped:
+            lines.append("Skipped tests:")
+            lines.extend(f"- {item}" for item in skipped)
+        else:
+            lines.append("Skipped tests: none")
+        ctx.io.append_summary("\n".join(lines) + "\n")
+        warn(f"No JS tests are enabled for TEST_PROFILE={ctx.test_profile}; skipping JS suite.")
+        return
 
     os.environ["JS_TEST_CONCURRENCY"] = str(ctx.js_test_concurrency)
     os.environ["OV_WORKSPACE"] = str(ctx.workspace)
 
     run_cmd(["npm", "i"], cwd=ctx.paths.js_dir)
     run_cmd(["npm", "i", "--no-save", "c8"], cwd=ctx.paths.js_dir)
-
-    tests = load_js_tests(config, ctx.test_profile)
 
     executed = 0
     skipped_count = 0

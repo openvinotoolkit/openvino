@@ -5,8 +5,7 @@ from __future__ import annotations
 
 import os
 
-from ..context import CoverageContext
-from ..runner import run_cmd_capture
+from coverage_workflow import CoverageContext, run_cmd_capture
 
 
 def _int_env(name: str) -> int:

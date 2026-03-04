@@ -3,8 +3,7 @@
 
 from __future__ import annotations
 
-from ..context import CoverageContext
-from ..runner import run_cmd
+from coverage_workflow import CoverageContext, run_cmd
 
 
 def run(ctx: CoverageContext) -> None:

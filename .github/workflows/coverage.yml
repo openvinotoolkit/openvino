@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - cpu
+          - gpu
           - cpu_gpu
           - cpu_npu
           - cpu_npu_gpu
@@ -20,23 +21,20 @@ concurrency:
 
 permissions: read-all
 
-jobs:
-  Coverage:
-    continue-on-error: true
-    runs-on: ${{ matrix.config.os }}
-    env:
-      CMAKE_BUILD_TYPE: 'Release'
-      PARALLEL_JOBS: '64'
-      PYTEST_XDIST_WORKERS: '1'
-      JS_TEST_CONCURRENCY: '1'
-      TEST_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'cpu' }}
-      NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
-    strategy:
-      fail-fast: false
-      matrix:
-        config:
-          - { name: "Ubuntu-gcc", os: ubuntu-latest-64-cores, cc: "gcc", cxx: "g++" }
+env:
+  CMAKE_BUILD_TYPE: 'Release'
+  PARALLEL_JOBS: '64'
+  PYTEST_XDIST_WORKERS: '1'
+  JS_TEST_CONCURRENCY: '1'
+  TEST_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'cpu' }}
+  NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
 
+jobs:
+  BuildCoverageArtifacts:
+    continue-on-error: true
+    runs-on: ubuntu-latest-64-cores
+    outputs:
+      artifact_name: ${{ steps.artifact_name.outputs.value }}
     steps:
       - name: Setup python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -65,121 +63,627 @@ jobs:
 
       - name: Configure OpenVINO with CMake
         env:
-          CC: ${{ matrix.config.cc }}
-          CXX: ${{ matrix.config.cxx }}
+          CC: gcc
+          CXX: g++
         run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step configure
 
       - name: Build and install coverage artifacts
         run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step build-install
 
-      - name: Run selected C++ coverage tests
+      - name: Prepare reusable build artifact
         continue-on-error: true
-        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-cpp-tests
+        run: |
+          set -euxo pipefail
+          artifact_dir="${{ github.workspace }}/coverage-build-artifact"
+          rm -rf "${artifact_dir}"
+          mkdir -p "${artifact_dir}"
 
-      - name: Run Python API/Frontend/Layer/OVC tests with coverage
-        continue-on-error: true
-        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-python-tests
+          rsync -a "${{ github.workspace }}/bin/" "${artifact_dir}/bin/"
+          rsync -a "${{ github.workspace }}/install_pkg/" "${artifact_dir}/install_pkg/"
+          rsync -a "${{ github.workspace }}/src/bindings/js/node/bin/" "${artifact_dir}/src/bindings/js/node/bin/"
 
-      - name: Run Node.js bindings unit/e2e tests with coverage
-        continue-on-error: true
-        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-js-tests
+          rsync -a --prune-empty-dirs \
+            --include='*/' --include='*.gcno' --exclude='*' \
+            "${{ github.workspace }}/build/" "${artifact_dir}/build/"
 
-      - name: Generate C/C++ coverage report
-        continue-on-error: true
-        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step collect-cpp-coverage
+          rsync -a --prune-empty-dirs \
+            --include='*/' --include='*.gcno' --exclude='*' \
+            "${{ github.workspace }}/build_js/" "${artifact_dir}/build_js/"
 
-      - name: Coverage summary
-        if: ${{ always() }}
-        continue-on-error: true
-        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step write-summary
+          du -sh "${artifact_dir}" || true
 
-      - name: Package coverage report
-        if: ${{ always() }}
-        continue-on-error: true
-        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step package-artifacts
+      - name: Set build artifact name
+        id: artifact_name
+        run: echo "value=coverage-build-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload coverage artifact
-        if: ${{ always() }}
+      - name: Upload reusable build artifact
         continue-on-error: true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: coverage-report-${{ matrix.config.name }}
-          path: |
-            coverage-report.tgz
-            coverage.info
-            python-coverage.xml
-            js-lcov.info
+          name: ${{ steps.artifact_name.outputs.value }}
+          path: coverage-build-artifact
           if-no-files-found: warn
-          retention-days: 30
+          retention-days: 3
           compression-level: 0
 
-  UploadCoverage:
-    if: ${{ always() }}
+  CoverageCpp:
     continue-on-error: true
-    needs: Coverage
-    runs-on: ubuntu-latest-4-cores
-    strategy:
-      fail-fast: false
-      max-parallel: 3
-      matrix:
-        upload:
-          - { name: "C++", file: "coverage.info", flag: "cpp-runtime-tests" }
-          - { name: "Python", file: "python-coverage.xml", flag: "python-api-frontend-layer-ovc" }
-          - { name: "JS", file: "js-lcov.info", flag: "nodejs-bindings-unit-e2e" }
+    needs: BuildCoverageArtifacts
+    runs-on: ubuntu-latest-64-cores
     steps:
-      - name: Checkout sources for Codecov path mapping
+      - name: Setup python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.10.10'
+          architecture: 'x64'
+
+      - name: Checkout sources for path mapping
         continue-on-error: true
         uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         with:
           fetch-depth: 0
           submodules: 'true'
 
-      - name: Download coverage artifacts
+      - name: Download reusable build artifact
         continue-on-error: true
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          pattern: coverage-report-*
-          path: ${{ github.workspace }}
-          merge-multiple: true
+          name: ${{ needs.BuildCoverageArtifacts.outputs.artifact_name }}
+          path: ${{ github.workspace }}/_artifact
 
-      - name: List downloaded coverage files
+      - name: Restore build artifact into workspace
+        id: restore_artifact
         continue-on-error: true
         run: |
-          ls -lah "${{ github.workspace }}" || true
-          ls -lah "${{ github.workspace }}/coverage.info" "${{ github.workspace }}/python-coverage.xml" "${{ github.workspace }}/js-lcov.info" 2>/dev/null || true
+          set -euo pipefail
+          src="${{ github.workspace }}/_artifact/coverage-build-artifact"
+          if [[ ! -d "${src}" ]]; then
+            src="${{ github.workspace }}/_artifact"
+          fi
 
-      - name: Verify coverage input file
-        id: verify_file
+          if [[ -d "${src}/build" && -d "${src}/install_pkg" ]]; then
+            cp -a "${src}/." "${{ github.workspace }}/"
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Build artifact restored from: ${src}"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Build artifact is missing required directories"
+          fi
+
+      - name: Install C++ coverage prerequisites
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
         continue-on-error: true
         run: |
-          target="${{ github.workspace }}/${{ matrix.upload.file }}"
+          sudo apt --assume-yes update
+          sudo apt --assume-yes install lcov ca-certificates
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml
+
+      - name: Run selected C++ coverage tests
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
+        continue-on-error: true
+        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-cpp-tests
+
+      - name: Persist C++ suite stats
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          mkdir -p "${{ github.workspace }}/.coverage-stats"
+          cat > "${{ github.workspace }}/.coverage-stats/cpp.env" <<EOF
+          CXX_TESTS_TOTAL=${CXX_TESTS_TOTAL:-0}
+          CXX_TESTS_EXECUTED=${CXX_TESTS_EXECUTED:-0}
+          CXX_TESTS_PASSED=${CXX_TESTS_PASSED:-0}
+          CXX_TESTS_FAILED=${CXX_TESTS_FAILED:-0}
+          CXX_TESTS_SKIPPED=${CXX_TESTS_SKIPPED:-0}
+          EOF
+
+      - name: Detect native coverage data (C++)
+        id: detect_gcda
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
+        continue-on-error: true
+        run: |
+          if find "${{ github.workspace }}/build" "${{ github.workspace }}/build_js" -type f -name '*.gcda' -print -quit | grep -q .; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate native C/C++ coverage report (C++ tests)
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' && steps.detect_gcda.outputs.exists == 'true' }}
+        continue-on-error: true
+        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step collect-cpp-coverage
+
+      - name: Verify C++ coverage file
+        id: verify_cpp_cov
+        continue-on-error: true
+        run: |
+          target="${{ github.workspace }}/coverage.info"
           if [[ -s "${target}" ]]; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
             echo "Using coverage file: ${target}"
             ls -lh "${target}" || true
-            case "${{ matrix.upload.file }}" in
-              *.info)
-                grep -m 3 '^SF:' "${target}" || true
-                ;;
-              *.xml)
-                head -n 5 "${target}" || true
-                ;;
-            esac
+            grep -m 3 '^SF:' "${target}" || true
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "Coverage file missing or empty: ${target}"
           fi
 
-      - name: Collect coverage (${{ matrix.upload.name }})
-        if: ${{ steps.verify_file.outputs.exists == 'true' }}
+      - name: Upload C++ coverage artifact
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: coverage-cpp-${{ env.TEST_PROFILE }}
+          path: |
+            coverage.info
+            coverage-report
+            .coverage-stats/cpp.env
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0
+
+      - name: Upload Codecov (C++ runtime, C++ suite)
+        if: ${{ steps.verify_cpp_cov.outputs.exists == 'true' }}
         continue-on-error: true
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: ${{ matrix.upload.file }}
+          files: coverage.info
           disable_search: true
-          flags: ${{ matrix.upload.flag }}
+          flags: cpp-runtime-cpp-${{ env.TEST_PROFILE }}
           token: ${{ secrets.CODECOV_TOKEN }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: false
           verbose: true
+
+  CoveragePython:
+    continue-on-error: true
+    needs: BuildCoverageArtifacts
+    runs-on: ubuntu-latest-64-cores
+    steps:
+      - name: Setup python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.10.10'
+          architecture: 'x64'
+
+      - name: Checkout sources for path mapping
+        continue-on-error: true
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        with:
+          fetch-depth: 0
+          submodules: 'true'
+
+      - name: Download reusable build artifact
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: ${{ needs.BuildCoverageArtifacts.outputs.artifact_name }}
+          path: ${{ github.workspace }}/_artifact
+
+      - name: Restore build artifact into workspace
+        id: restore_artifact
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          src="${{ github.workspace }}/_artifact/coverage-build-artifact"
+          if [[ ! -d "${src}" ]]; then
+            src="${{ github.workspace }}/_artifact"
+          fi
+
+          if [[ -d "${src}/build" && -d "${src}/install_pkg" ]]; then
+            cp -a "${src}/." "${{ github.workspace }}/"
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Build artifact restored from: ${src}"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Build artifact is missing required directories"
+          fi
+
+      - name: Install Python coverage prerequisites
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
+        continue-on-error: true
+        run: |
+          sudo apt --assume-yes update
+          sudo apt --assume-yes install lcov ca-certificates
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml coverage pytest pytest-cov pytest-xdist[psutil]
+
+      - name: Run Python API/Frontend/Layer/OVC tests with coverage
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
+        continue-on-error: true
+        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-python-tests
+
+      - name: Persist Python suite stats
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          mkdir -p "${{ github.workspace }}/.coverage-stats"
+          cat > "${{ github.workspace }}/.coverage-stats/python.env" <<EOF
+          PY_TESTS_TOTAL=${PY_TESTS_TOTAL:-0}
+          PY_TESTS_PASSED=${PY_TESTS_PASSED:-0}
+          PY_TESTS_FAILED=${PY_TESTS_FAILED:-0}
+          PY_TESTS_SKIPPED=${PY_TESTS_SKIPPED:-0}
+          EOF
+
+      - name: Detect native coverage data (Python-driven)
+        id: detect_gcda
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
+        continue-on-error: true
+        run: |
+          if find "${{ github.workspace }}/build" "${{ github.workspace }}/build_js" -type f -name '*.gcda' -print -quit | grep -q .; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate native C/C++ coverage report (Python-driven)
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' && steps.detect_gcda.outputs.exists == 'true' }}
+        continue-on-error: true
+        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step collect-cpp-coverage
+
+      - name: Verify Python coverage file
+        id: verify_py_cov
+        continue-on-error: true
+        run: |
+          target="${{ github.workspace }}/python-coverage.xml"
+          if [[ -s "${target}" ]]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Using coverage file: ${target}"
+            ls -lh "${target}" || true
+            head -n 5 "${target}" || true
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Coverage file missing or empty: ${target}"
+          fi
+
+      - name: Verify native C/C++ coverage file (Python-driven)
+        id: verify_cpp_cov
+        continue-on-error: true
+        run: |
+          target="${{ github.workspace }}/coverage.info"
+          if [[ -s "${target}" ]]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Using native coverage file: ${target}"
+            ls -lh "${target}" || true
+            grep -m 3 '^SF:' "${target}" || true
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Coverage file missing or empty: ${target}"
+          fi
+
+      - name: Upload Python coverage artifact
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: coverage-python-${{ env.TEST_PROFILE }}
+          path: |
+            python-coverage.xml
+            coverage.info
+            coverage-report
+            .coverage-stats/python.env
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0
+
+      - name: Upload Codecov (Python API)
+        if: ${{ steps.verify_py_cov.outputs.exists == 'true' }}
+        continue-on-error: true
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: python-coverage.xml
+          disable_search: true
+          flags: python-api-frontend-layer-ovc-${{ env.TEST_PROFILE }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          fail_ci_if_error: false
+          verbose: true
+
+      - name: Upload Codecov (C++ runtime, Python suite)
+        if: ${{ steps.verify_cpp_cov.outputs.exists == 'true' }}
+        continue-on-error: true
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: coverage.info
+          disable_search: true
+          flags: cpp-runtime-python-${{ env.TEST_PROFILE }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          fail_ci_if_error: false
+          verbose: true
+
+  CoverageJS:
+    continue-on-error: true
+    needs: BuildCoverageArtifacts
+    runs-on: ubuntu-latest-64-cores
+    steps:
+      - name: Setup python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.10.10'
+          architecture: 'x64'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: '22'
+
+      - name: Checkout sources for path mapping
+        continue-on-error: true
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        with:
+          fetch-depth: 0
+          submodules: 'true'
+
+      - name: Download reusable build artifact
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: ${{ needs.BuildCoverageArtifacts.outputs.artifact_name }}
+          path: ${{ github.workspace }}/_artifact
+
+      - name: Restore build artifact into workspace
+        id: restore_artifact
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          src="${{ github.workspace }}/_artifact/coverage-build-artifact"
+          if [[ ! -d "${src}" ]]; then
+            src="${{ github.workspace }}/_artifact"
+          fi
+
+          if [[ -d "${src}/build_js" && -d "${src}/src/bindings/js/node/bin" ]]; then
+            cp -a "${src}/." "${{ github.workspace }}/"
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Build artifact restored from: ${src}"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Build artifact is missing required JS directories"
+          fi
+
+      - name: Install JS coverage prerequisites
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
+        continue-on-error: true
+        run: |
+          sudo apt --assume-yes update
+          sudo apt --assume-yes install lcov xvfb ca-certificates
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml
+
+      - name: Run Node.js bindings unit/e2e tests with coverage
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
+        continue-on-error: true
+        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-js-tests
+
+      - name: Persist JS suite stats
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          mkdir -p "${{ github.workspace }}/.coverage-stats"
+          cat > "${{ github.workspace }}/.coverage-stats/js.env" <<EOF
+          JS_TESTS_TOTAL=${JS_TESTS_TOTAL:-0}
+          JS_TESTS_PASSED=${JS_TESTS_PASSED:-0}
+          JS_TESTS_FAILED=${JS_TESTS_FAILED:-0}
+          JS_TESTS_SKIPPED=${JS_TESTS_SKIPPED:-0}
+          EOF
+
+      - name: Detect native coverage data (JS-driven)
+        id: detect_gcda
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
+        continue-on-error: true
+        run: |
+          if find "${{ github.workspace }}/build" "${{ github.workspace }}/build_js" -type f -name '*.gcda' -print -quit | grep -q .; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate native C/C++ coverage report (JS-driven)
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' && steps.detect_gcda.outputs.exists == 'true' }}
+        continue-on-error: true
+        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step collect-cpp-coverage
+
+      - name: Verify JS coverage file
+        id: verify_js_cov
+        continue-on-error: true
+        run: |
+          target="${{ github.workspace }}/js-lcov.info"
+          if [[ -s "${target}" ]]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Using coverage file: ${target}"
+            ls -lh "${target}" || true
+            grep -m 3 '^SF:' "${target}" || true
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Coverage file missing or empty: ${target}"
+          fi
+
+      - name: Verify native C/C++ coverage file (JS-driven)
+        id: verify_cpp_cov
+        continue-on-error: true
+        run: |
+          target="${{ github.workspace }}/coverage.info"
+          if [[ -s "${target}" ]]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Using native coverage file: ${target}"
+            ls -lh "${target}" || true
+            grep -m 3 '^SF:' "${target}" || true
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Coverage file missing or empty: ${target}"
+          fi
+
+      - name: Upload JS coverage artifact
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: coverage-js-${{ env.TEST_PROFILE }}
+          path: |
+            js-lcov.info
+            coverage.info
+            coverage-report
+            .coverage-stats/js.env
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0
+
+      - name: Upload Codecov (Node.js bindings)
+        if: ${{ steps.verify_js_cov.outputs.exists == 'true' }}
+        continue-on-error: true
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: js-lcov.info
+          disable_search: true
+          flags: nodejs-bindings-unit-e2e-${{ env.TEST_PROFILE }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          fail_ci_if_error: false
+          verbose: true
+
+      - name: Upload Codecov (C++ runtime, JS suite)
+        if: ${{ steps.verify_cpp_cov.outputs.exists == 'true' }}
+        continue-on-error: true
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: coverage.info
+          disable_search: true
+          flags: cpp-runtime-js-${{ env.TEST_PROFILE }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          fail_ci_if_error: false
+          verbose: true
+
+  CoverageSummary:
+    if: ${{ always() }}
+    continue-on-error: true
+    needs: [CoverageCpp, CoveragePython, CoverageJS]
+    runs-on: ubuntu-latest-4-cores
+    env:
+      CPP_JOB_RESULT: ${{ needs.CoverageCpp.result }}
+      PY_JOB_RESULT: ${{ needs.CoveragePython.result }}
+      JS_JOB_RESULT: ${{ needs.CoverageJS.result }}
+    steps:
+      - name: Download C++ artifact
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: coverage-cpp-${{ env.TEST_PROFILE }}
+          path: ${{ github.workspace }}/artifacts/cpp
+
+      - name: Download Python artifact
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: coverage-python-${{ env.TEST_PROFILE }}
+          path: ${{ github.workspace }}/artifacts/python
+
+      - name: Download JS artifact
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: coverage-js-${{ env.TEST_PROFILE }}
+          path: ${{ github.workspace }}/artifacts/js
+
+      - name: Generate final summary
+        continue-on-error: true
+        run: |
+          set +e
+
+          read_stat() {
+            file="$1"
+            key="$2"
+            if [[ -f "${file}" ]]; then
+              grep -E "^${key}=" "${file}" | tail -n1 | cut -d= -f2-
+            else
+              echo "0"
+            fi
+          }
+
+          file_size() {
+            file="$1"
+            if [[ -s "${file}" ]]; then
+              stat -c '%s' "${file}"
+            else
+              echo "0"
+            fi
+          }
+
+          CPP_STATS="${{ github.workspace }}/artifacts/cpp/.coverage-stats/cpp.env"
+          PY_STATS="${{ github.workspace }}/artifacts/python/.coverage-stats/python.env"
+          JS_STATS="${{ github.workspace }}/artifacts/js/.coverage-stats/js.env"
+
+          CXX_TOTAL="$(read_stat "${CPP_STATS}" CXX_TESTS_TOTAL)"
+          CXX_EXECUTED="$(read_stat "${CPP_STATS}" CXX_TESTS_EXECUTED)"
+          CXX_PASSED="$(read_stat "${CPP_STATS}" CXX_TESTS_PASSED)"
+          CXX_FAILED="$(read_stat "${CPP_STATS}" CXX_TESTS_FAILED)"
+          CXX_SKIPPED="$(read_stat "${CPP_STATS}" CXX_TESTS_SKIPPED)"
+
+          PY_TOTAL="$(read_stat "${PY_STATS}" PY_TESTS_TOTAL)"
+          PY_PASSED="$(read_stat "${PY_STATS}" PY_TESTS_PASSED)"
+          PY_FAILED="$(read_stat "${PY_STATS}" PY_TESTS_FAILED)"
+          PY_SKIPPED="$(read_stat "${PY_STATS}" PY_TESTS_SKIPPED)"
+
+          JS_TOTAL="$(read_stat "${JS_STATS}" JS_TESTS_TOTAL)"
+          JS_PASSED="$(read_stat "${JS_STATS}" JS_TESTS_PASSED)"
+          JS_FAILED="$(read_stat "${JS_STATS}" JS_TESTS_FAILED)"
+          JS_SKIPPED="$(read_stat "${JS_STATS}" JS_TESTS_SKIPPED)"
+
+          ALL_TOTAL=$((CXX_TOTAL + PY_TOTAL + JS_TOTAL))
+          ALL_PASSED=$((CXX_PASSED + PY_PASSED + JS_PASSED))
+          ALL_FAILED=$((CXX_FAILED + PY_FAILED + JS_FAILED))
+          ALL_SKIPPED=$((CXX_SKIPPED + PY_SKIPPED + JS_SKIPPED))
+
+          if [[ "${ALL_TOTAL}" -gt 0 ]]; then
+            ALL_RATE="$(awk "BEGIN { printf \"%.1f\", (${ALL_PASSED}*100.0)/${ALL_TOTAL} }")"
+          else
+            ALL_RATE="0.0"
+          fi
+
+          CPP_FILE="${{ github.workspace }}/artifacts/cpp/coverage.info"
+          PY_FILE="${{ github.workspace }}/artifacts/python/python-coverage.xml"
+          JS_FILE="${{ github.workspace }}/artifacts/js/js-lcov.info"
+
+          CPP_SIZE="$(file_size "${CPP_FILE}")"
+          PY_SIZE="$(file_size "${PY_FILE}")"
+          JS_SIZE="$(file_size "${JS_FILE}")"
+
+          {
+            echo "## Coverage Summary"
+            echo ""
+            echo "**Profile:** \`${TEST_PROFILE}\`"
+            echo ""
+            echo "### Job Status"
+            echo "| Job | Result |"
+            echo "| --- | --- |"
+            echo "| C++ | ${CPP_JOB_RESULT} |"
+            echo "| Python | ${PY_JOB_RESULT} |"
+            echo "| JS | ${JS_JOB_RESULT} |"
+            echo ""
+            echo "### Test Results"
+            echo "| Suite | Total | Executed | Passed | Failed | Skipped |"
+            echo "| --- | ---: | ---: | ---: | ---: | ---: |"
+            echo "| C++ | ${CXX_TOTAL} | ${CXX_EXECUTED} | ${CXX_PASSED} | ${CXX_FAILED} | ${CXX_SKIPPED} |"
+            echo "| Python | ${PY_TOTAL} | ${PY_TOTAL} | ${PY_PASSED} | ${PY_FAILED} | ${PY_SKIPPED} |"
+            echo "| JS | ${JS_TOTAL} | ${JS_TOTAL} | ${JS_PASSED} | ${JS_FAILED} | ${JS_SKIPPED} |"
+            echo "| Overall | ${ALL_TOTAL} | ${ALL_TOTAL} | ${ALL_PASSED} | ${ALL_FAILED} | ${ALL_SKIPPED} |"
+            echo ""
+            echo "**Overall pass rate:** \`${ALL_RATE}%\`"
+            echo ""
+            echo "### Coverage Reports"
+            echo "| Suite | File | Size (bytes) | Codecov Flag |"
+            echo "| --- | --- | ---: | --- |"
+            echo "| C++ | \`coverage.info\` | ${CPP_SIZE} | \`cpp-runtime-cpp-${TEST_PROFILE}\` |"
+            echo "| Python | \`python-coverage.xml\` | ${PY_SIZE} | \`python-api-frontend-layer-ovc-${TEST_PROFILE}\` |"
+            echo "| JS | \`js-lcov.info\` | ${JS_SIZE} | \`nodejs-bindings-unit-e2e-${TEST_PROFILE}\` |"
+            echo ""
+            echo "### Native C++ Runtime Flags By Suite"
+            echo "- \`cpp-runtime-cpp-${TEST_PROFILE}\`"
+            echo "- \`cpp-runtime-python-${TEST_PROFILE}\`"
+            echo "- \`cpp-runtime-js-${TEST_PROFILE}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"

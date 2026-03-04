@@ -7,9 +7,7 @@ import os
 from pathlib import Path
 import shlex
 
-from ..config import load_python_tests
-from ..context import CoverageContext
-from ..runner import env_from_assignments, run_cmd, warn
+from coverage_workflow import CoverageContext, env_from_assignments, load_python_tests, run_cmd, warn
 
 
 PYCOV_CONFIG = """[run]
@@ -28,6 +26,13 @@ omit =
 
 def _expand(value: str) -> str:
     return os.path.expandvars(value)
+
+
+def _find_openvino_wheel(wheels_dir: Path) -> Path:
+    candidates = sorted(wheels_dir.glob("openvino-*.whl"))
+    if not candidates:
+        raise FileNotFoundError(f"OpenVINO wheel not found in {wheels_dir}")
+    return candidates[0]
 
 
 def _run_pytest(test_name: str, target: str, args: str, env_assignments: str) -> int:
@@ -51,6 +56,34 @@ def _run_python_command(test_name: str, command: str, env_assignments: str) -> i
 
 def run(ctx: CoverageContext) -> None:
     config = ctx.workspace / "scripts" / "coverage" / "config" / "tests_python.yml"
+    tests = load_python_tests(config, ctx.test_profile)
+
+    if not any(test.enabled for test in tests):
+        skipped = [f"{test.name} ({test.skip_reason})" for test in tests]
+        ctx.io.export_env("PY_TESTS_TOTAL", str(len(skipped)))
+        ctx.io.export_env("PY_TESTS_PASSED", "0")
+        ctx.io.export_env("PY_TESTS_FAILED", "0")
+        ctx.io.export_env("PY_TESTS_SKIPPED", str(len(skipped)))
+
+        lines = [
+            "",
+            "## Python coverage test execution summary",
+            "Python tests executed: 0",
+            "Python tests passed: 0",
+            "Python tests failed: 0",
+            f"Python tests skipped: {len(skipped)}",
+            "",
+            "Failed tests: none",
+            "",
+        ]
+        if skipped:
+            lines.append("Skipped tests:")
+            lines.extend(f"- {item}" for item in skipped)
+        else:
+            lines.append("Skipped tests: none")
+        ctx.io.append_summary("\n".join(lines) + "\n")
+        warn(f"No Python tests are enabled for TEST_PROFILE={ctx.test_profile}; skipping Python suite.")
+        return
 
     tests_dir = ctx.paths.install_pkg_dir / "tests"
     src_py_tests = ctx.workspace / "src" / "bindings" / "python" / "tests"
@@ -62,6 +95,8 @@ def run(ctx: CoverageContext) -> None:
     run_cmd(["python3", "-m", "pip", "install", "-r", str(tests_dir / "layer_tests/requirements.txt")])
     run_cmd(["python3", "-m", "pip", "install", "-r", str(tests_dir / "requirements_onnx")])
     run_cmd(["python3", "-m", "pip", "install", "-r", str(tests_dir / "requirements_jax")])
+    wheel = _find_openvino_wheel(ctx.paths.install_pkg_dir / "wheels")
+    run_cmd(["python3", "-m", "pip", "install", "--force-reinstall", str(wheel)])
 
     os.environ["LD_LIBRARY_PATH"] = f"{ctx.paths.bin_dir}:{os.environ.get('LD_LIBRARY_PATH', '')}".rstrip(":")
     os.environ["PYTHONPATH"] = f"{tests_dir / 'python'}:{os.environ.get('PYTHONPATH', '')}".rstrip(":")
@@ -75,8 +110,6 @@ def run(ctx: CoverageContext) -> None:
 
     py_cov_config.write_text(PYCOV_CONFIG, encoding="utf-8")
     run_cmd(["python3", "-m", "coverage", "erase"])
-
-    tests = load_python_tests(config, ctx.test_profile)
 
     executed = 0
     failed: list[str] = []

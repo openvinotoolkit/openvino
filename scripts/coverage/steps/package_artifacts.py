@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import tarfile
 
-from ..context import CoverageContext
+from coverage_workflow import CoverageContext
 
 
 def run(ctx: CoverageContext) -> None:

@@ -1,67 +1,84 @@
 # Coverage Scripts
 
-Coverage workflow orchestration is implemented in Python and used by `.github/workflows/coverage.yml`.
+Coverage workflow orchestration is implemented in Python and is used by `.github/workflows/coverage.yml`.
 
-## Main Entrypoint
-
+## Entrypoint
 ```bash
 python3 scripts/coverage/coverage.py <command>
 ```
 
 ## Commands
-- `step <name>`: run one workflow step.
-- `run-all`: run all steps locally with optional range selection.
-- `list-tests --suite <cpp|python|js> --profile <...>`: print resolved tests.
-- `validate-config`: validate YAML test configs.
+- `run-all`: run the full local flow (or a selected range).
+- `step <name>`: run a single step.
+- `list-tests --suite <cpp|python|js> --profile <...>`: show resolved tests for a profile.
+- `validate-config`: validate YAML suite configs.
 
-Step names:
-- `install-deps`
-- `configure`
-- `build-install`
-- `run-cpp-tests`
-- `run-python-tests`
-- `run-js-tests`
-- `collect-cpp-coverage`
-- `write-summary`
-- `package-artifacts`
+Step modules are in `scripts/coverage/steps/`.
 
-## Config-Driven Test Lists
-- `config/tests_cpp.yml`
-- `config/tests_python.yml`
-- `config/tests_js.yml`
+## Profiles
+Supported profiles:
+- `cpu`
+- `gpu` (GPU-only; runs only tests explicitly marked for GPU-only execution)
+- `cpu_gpu`
+- `cpu_npu`
+- `cpu_npu_gpu`
 
-Each file uses the same top-level schema:
-- `schema_version`
-- `suite`
-- `tests`
+Profile-specific test selection and args are defined in:
+- `scripts/coverage/config/tests_cpp.yml`
+- `scripts/coverage/config/tests_python.yml`
+- `scripts/coverage/config/tests_js.yml`
 
-Profile-aware fields are supported (for example C++ `args` maps for CPU vs GPU profiles).
+## Local Prerequisites
+- Python 3.10+
+- C/C++ build toolchain and system deps (installed by `install-deps`)
+- Node.js + npm for JS coverage steps
 
-## Local Usage
-Run full flow in CPU profile:
+To install dependencies locally (including Node.js):
+```bash
+python3 scripts/coverage/coverage.py step install-deps --install-nodejs --nodejs-version 22
+```
 
+`--install-nodejs` is optional. If omitted and Node.js is missing, JS coverage steps will fail.
+
+## Typical Local Flows
+Run full flow with dependency installation:
+```bash
+python3 scripts/coverage/coverage.py run-all --profile cpu --install-deps --install-nodejs --nodejs-version 22
+```
+
+Run full flow without reinstalling deps:
 ```bash
 python3 scripts/coverage/coverage.py run-all --profile cpu
 ```
 
-Run with dependency installation:
-
+Run only test + coverage collection phase:
 ```bash
-python3 scripts/coverage/coverage.py run-all --profile cpu --install-deps
+python3 scripts/coverage/coverage.py run-all --profile cpu --from run-cpp-tests --to package-artifacts
 ```
 
-Run subset:
-
-```bash
-python3 scripts/coverage/coverage.py run-all --from run-cpp-tests --to package-artifacts
-```
-
-Validate config files:
-
+Validate configs:
 ```bash
 python3 scripts/coverage/coverage.py validate-config
 ```
 
-## Notes
-- Supported profiles: `cpu`, `cpu_gpu`, `cpu_npu`, `cpu_npu_gpu`.
-- Local mode writes emulated GitHub outputs to `.tmp/coverage-local/`.
+Inspect resolved tests:
+```bash
+python3 scripts/coverage/coverage.py list-tests --suite python --profile cpu_gpu
+```
+
+## Outputs
+Main artifacts in workspace root:
+- `coverage.info` (native C/C++ lcov)
+- `python-coverage.xml` (Python coverage XML)
+- `js-lcov.info` (Node.js lcov)
+- `coverage-report/index.html` (HTML report)
+- `.tmp/coverage-local/step_summary.md` (local summary when not in GitHub Actions)
+
+## Key Runtime Options
+- `--parallel-jobs <N>`
+- `--pytest-workers <N>`
+- `--js-test-concurrency <N>`
+- `--profile <name>`
+- `--install-deps`
+- `--install-nodejs`
+- `--nodejs-version <major>`
