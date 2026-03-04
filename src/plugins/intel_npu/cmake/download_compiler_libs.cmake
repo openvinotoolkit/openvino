@@ -4,13 +4,13 @@
 
 # Function to download and extract files
 # download vcl prebuilt package info:
-#     vcl version: 7.5.0
-#     release: npu_ud_2025_48_rc1
+#     vcl version: 7.6.0
+#     release: npu_cip_ud_2026_08_rc2
 #     storage localtion: https://storage.openvinotoolkit.org/dependencies/thirdparty
-#     WINDOWS: npu_compiler_vcl_windows_2022-7_5_0-a1ae54e9.zip
+#     WINDOWS: npu_compiler_vcl_windows_2022-7_6_0-c74b126.zip
 #     LINUX: 
-#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_5_0-a1ae54e9.tar.gz
-#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_5_0-a1ae54e9.tar.gz
+#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_6_0-c74b126.tar.gz
+#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_6_0-c74b126.tar.gz
 function(download_and_extract url zip_file extracted_dir)
 
     # Check if the prebuilt Plugin compiler libraries not exist
