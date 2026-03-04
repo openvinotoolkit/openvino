@@ -843,20 +843,20 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
 
     auto device_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(m_plugin_inputs.at(input_idx).ptr);
     if (is_dynamic) {
-        OPENVINO_ASSERT(device_tensor->get_original_memory()->size() >= user_tensor->get_byte_size(),
+        OPENVINO_ASSERT(device_tensor->get_original_memory()->size() >= user_tensor->get_size(),
                         "[GPU] Size of input device tensor (=",
                         device_tensor->get_original_memory()->size(),
                         ") is expected to be greater or equal to user tensor (=",
-                        user_tensor->get_byte_size(),
+                        user_tensor->get_size(),
                         ") in dynamic case for ", internal_name);
         // tensor reshape below is expected to work w/o reallocation
         device_tensor->set_shape(user_tensor->get_shape());
     } else {
-        OPENVINO_ASSERT(device_tensor->get_byte_size() == user_tensor->get_byte_size(),
+        OPENVINO_ASSERT(device_tensor->get_size() == user_tensor->get_size(),
                         "[GPU] Size of user tensor (=",
-                        user_tensor->get_byte_size(),
+                        user_tensor->get_size(),
                         ") and device tensor (=",
-                        device_tensor->get_byte_size(),
+                        device_tensor->get_size(),
                         ") don't match for ", internal_name,
                         ". Those are expected to be equal in case of static shape of the port");
     }
