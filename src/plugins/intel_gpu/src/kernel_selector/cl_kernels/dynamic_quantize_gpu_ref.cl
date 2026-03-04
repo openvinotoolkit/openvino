@@ -155,9 +155,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #else  // !ASYMMETRIC_QUANTIZATION
     max_val = work_group_reduce_max(max_val);
 #if IS_MXFP
-    float out_dt_max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(_convert_float(OUTPUT_VAL_MAX)));
-    float max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(max_val));
-    SCALE_TYPE scale = out_dt_max_val_rounded_down / max_val_rounded_down;
+    SCALE_TYPE scale = (SCALE_TYPE)(exp2(floor(log2(_convert_float(OUTPUT_VAL_MAX) / _convert_float(max_val)))));
 #else
     SCALE_TYPE scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_val;
 #endif // IS_FP8
