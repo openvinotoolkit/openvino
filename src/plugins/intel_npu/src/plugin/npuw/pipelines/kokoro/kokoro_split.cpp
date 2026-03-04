@@ -51,9 +51,8 @@ void replace_text_mask_with_parameter(std::shared_ptr<ov::Model>& model) {
     LOG_DEBUG("replacing text_mask generation with Parameter input");
 
     // text_mask shape is [1, seq_len] with element type BOOL
-    auto text_mask_param = std::make_shared<ov::op::v0::Parameter>(
-        text_mask_node->get_output_element_type(0),
-        text_mask_node->get_output_partial_shape(0));
+    auto text_mask_param = std::make_shared<ov::op::v0::Parameter>(text_mask_node->get_output_element_type(0),
+                                                                   text_mask_node->get_output_partial_shape(0));
     text_mask_param->set_friendly_name("text_mask");
     text_mask_param->output(0).get_tensor().set_names({"text_mask"});
 

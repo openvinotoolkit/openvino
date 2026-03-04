@@ -4,8 +4,6 @@
 
 #include "kokoro_infer_request.hpp"
 
-#include "kokoro_utils.hpp"
-
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -16,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include "kokoro_utils.hpp"
 #include "npuw/infer_request_utils.hpp"
 #include "npuw/logging.hpp"
 #include "npuw/util.hpp"
@@ -239,9 +238,7 @@ void ov::npuw::KokoroInferRequest::infer() {
     // 2) Build repeat-interleave indices
     //    Only use the first m_real_seq_len entries (real tokens before padding).
     const std::size_t full_len = pred_dur_tensor->get_size();
-    const std::size_t l_max = (m_real_seq_len > 0 && m_real_seq_len <= full_len)
-                                  ? m_real_seq_len
-                                  : full_len;
+    const std::size_t l_max = (m_real_seq_len > 0 && m_real_seq_len <= full_len) ? m_real_seq_len : full_len;
 
     std::vector<int64_t> pred;
     pred.resize(l_max);
@@ -479,7 +476,7 @@ void ov::npuw::KokoroInferRequest::fill_text_mask() {
     m_real_seq_len = real_len;
 
     LOG_DEBUG("text_mask filled — real_len=" << real_len << ", seq_len=" << seq_len
-                                                      << ", padded=" << (seq_len - real_len));
+                                             << ", padded=" << (seq_len - real_len));
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::KokoroInferRequest::query_state() const {
