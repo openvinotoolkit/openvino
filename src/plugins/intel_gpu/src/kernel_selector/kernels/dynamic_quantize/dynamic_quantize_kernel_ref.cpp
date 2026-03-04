@@ -165,7 +165,7 @@ bool DynamicQuantizeKernelRef::Validate(const Params& params) const {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
-    if (dq_params.generate_precomputed_reduction && cldnn::one_of(dq_params.outputs[0].GetDType(), {Datatype::F8E4M3, Datatype::F8E5M2})) {
+    if (dq_params.generate_precomputed_reduction && cldnn::one_of(dq_params.outputs[0].GetDType(), {Datatype::F4E2M1, Datatype::F8E4M3, Datatype::F8E5M2})) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
