@@ -108,7 +108,7 @@ jobs:
       - name: Install Pytorch FX Layer tests dependencies
         run: |
           # pytorch test requirements
-          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch.txt
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
           # transformers needed by test_repeat.py (not in base to keep timm/torchvision envs slim)
           python3 -m pip install transformers==4.47.1
 

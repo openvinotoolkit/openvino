@@ -1,6 +1,6 @@
 # Base requirements shared by layer tests and model hub tests.
 # Model-hub-specific deps live in tests/model_hub_tests/pytorch/envs/*.txt
-# and are installed on top of this file via `uv pip install -r envs/<group>.txt`.
+# and are installed on top of this file via `pip install -r envs/<group>.txt`.
 
 # test ovc with NumPy 2.x on Ubuntu 24 with default Python 3.12
 # test against NumPy 1.x with older Python versions
