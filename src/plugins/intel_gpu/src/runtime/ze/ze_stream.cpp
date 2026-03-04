@@ -342,7 +342,7 @@ event::ptr ze_stream::create_base_event() {
 }
 
 std::unique_ptr<surfaces_lock> ze_stream::create_surfaces_lock(const std::vector<memory::ptr> &mem) const {
-    // Level Zero egnine currently does not support surfaces lock
+    // Level Zero engine currently does not support surfaces lock
     return nullptr;
 }
 

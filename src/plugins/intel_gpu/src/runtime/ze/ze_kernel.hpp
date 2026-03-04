@@ -67,7 +67,7 @@ public:
         }
     }
 
-    virtual bool is_same(const kernel &other) const override {
+    bool is_same(const kernel &other) const override {
         auto other_ptr = dynamic_cast<const ze_kernel*>(&other);
         if (other_ptr == nullptr) {
             return false;
