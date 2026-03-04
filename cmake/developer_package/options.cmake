@@ -49,7 +49,6 @@ function (ov_print_enabled_features)
         message(FATAL_ERROR "CI_BUILD_NUMBER is not set yet")
     endif()
 
-    ov_log_section("OpenVINO Runtime enabled features")
     message(STATUS "    CI_BUILD_NUMBER: ${CI_BUILD_NUMBER}")
     foreach(_var IN LISTS OV_OPTIONS)
         message(STATUS "    ${_var} = ${${_var}}")

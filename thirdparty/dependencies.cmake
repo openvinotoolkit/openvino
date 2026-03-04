@@ -50,14 +50,12 @@ if(NOT ENABLE_PROFILING_ITT STREQUAL "OFF")
                 INTERFACE_COMPILE_DEFINITIONS ENABLE_PROFILING_ITT)
         endif()
     else()
-        ov_log_section("Third-party: ittapi")
         add_subdirectory(thirdparty/ittapi)
         ov_developer_package_export_targets(
             TARGET ittapi::ittnotify
             INSTALL_INCLUDE_DIRECTORIES
                 $<TARGET_PROPERTY:ittapi::ittnotify,INTERFACE_INCLUDE_DIRECTORIES>/)
     endif()
-    ov_log_section("Third-party: itt_collector")
     add_subdirectory(thirdparty/itt_collector)
 endif()
 
@@ -66,7 +64,6 @@ if(X86_64 OR X86 OR UNIVERSAL2)
     if(xbyak_FOUND)
         # conan creates alias xbyak::xbyak, no extra steps are required
     else()
-        ov_log_section("Third-party: xbyak")
         add_subdirectory(thirdparty/xbyak EXCLUDE_FROM_ALL)
     endif()
 endif()
@@ -88,7 +85,6 @@ if(ENABLE_INTEL_NPU)
     endif()
 
     if(NOT level_zero_FOUND)
-        ov_log_section("Third-party: level_zero")
         add_subdirectory(thirdparty/level_zero EXCLUDE_FROM_ALL)
         add_library(LevelZero::LevelZero ALIAS ze_loader)
     endif()
@@ -137,7 +133,6 @@ if(ENABLE_INTEL_GPU)
                 INTERFACE_COMPILE_DEFINITIONS "${opencl_interface_definitions}")
         endif()
     else()
-        ov_log_section("Third-party: ocl")
         add_subdirectory(thirdparty/ocl)
     endif()
 
@@ -171,7 +166,6 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
-    ov_log_section("Third-party: zlib")
     add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
 endif()
 
@@ -180,7 +174,6 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
-    ov_log_section("Third-party: cnpy")
     add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
 endif()
 
@@ -297,7 +290,6 @@ if(NOT TARGET openvino::pugixml)
         function(ov_build_pugixml_static)
             set(BUILD_SHARED_LIBS OFF)
             set(PUGIXML_INSTALL OFF CACHE BOOL "" FORCE)
-            ov_log_section("Third-party: pugixml")
             add_subdirectory(thirdparty/pugixml EXCLUDE_FROM_ALL)
         endfunction()
         ov_build_pugixml_static()
@@ -318,7 +310,6 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS OR ENABLE_INTEL_NPU_INTERNAL)
-    ov_log_section("Third-party: gflags")
     add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
     ov_developer_package_export_targets(
         TARGET gflags
@@ -343,7 +334,6 @@ if(ENABLE_TESTS)
             add_library(${gtest_target} ALIAS GTest::${gtest_target})
         endforeach()
     else()
-        ov_log_section("Third-party: gtest")
         add_subdirectory(thirdparty/gtest EXCLUDE_FROM_ALL)
         # install & export
         set(googletest_root "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gtest/gtest")
@@ -397,7 +387,6 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
             set(PROTOC_EXECUTABLE protobuf::protoc)
         endif()
     else()
-        ov_log_section("Third-party: protobuf")
         add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
         # protobuf fails to build with -fsanitize=thread by clang
         if(ENABLE_THREAD_SANITIZER AND OV_COMPILER_IS_CLANG)
@@ -461,7 +450,6 @@ if(ENABLE_OV_TF_LITE_FRONTEND OR ENABLE_INTEL_NPU)
         endif()
         set(flatbuffers_COMPILER flatbuffers::flatc)
     else()
-        ov_log_section("Third-party: flatbuffers")
         add_subdirectory(thirdparty/flatbuffers EXCLUDE_FROM_ALL)
         if(ENABLE_INTEL_NPU)
             # NPU plugin requires flatbuffers to be built always
@@ -531,7 +519,6 @@ if(ENABLE_SNAPPY_COMPRESSION)
                 ov_add_compiler_flags(/WX-)
             endif()
 
-            ov_log_section("Third-party: snappy")
             add_subdirectory(thirdparty/snappy EXCLUDE_FROM_ALL)
             # need to create alias openvino::snappy
             add_library(openvino::snappy ALIAS snappy)
@@ -564,7 +551,6 @@ if(ENABLE_OV_ONNX_FRONTEND)
             add_library(onnx_proto ALIAS ONNX::onnx_proto)
         endif()
     else()
-        ov_log_section("Third-party: onnx")
         add_subdirectory(thirdparty/onnx)
     endif()
 endif()
@@ -578,7 +564,6 @@ find_package(nlohmann_json 3.9.0 QUIET)
 if(nlohmann_json_FOUND)
     # conan and vcpkg create imported target nlohmann_json::nlohmann_json
 else()
-    ov_log_section("Third-party: nlohmann_json")
     add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
 
     # this is required only because of NPU plugin reused this: export & install
