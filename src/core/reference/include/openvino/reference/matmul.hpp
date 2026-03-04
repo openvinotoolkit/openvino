@@ -49,9 +49,13 @@ void dot(const T* arg0,
         }
     }
 
-    std::transform(outTemp.begin(), outTemp.end(), out, [](Acc val) {
-        return static_cast<T>(val);
-    });
+    if constexpr (std::is_same_v<Acc, T>) {
+        std::copy(outTemp.begin(), outTemp.end(), out);
+    } else {
+        std::transform(outTemp.begin(), outTemp.end(), out, [](Acc val) {
+            return static_cast<T>(val);
+        });
+    }
 }
 
 std::vector<size_t> get_transpose_order(const Shape& input_shape);
