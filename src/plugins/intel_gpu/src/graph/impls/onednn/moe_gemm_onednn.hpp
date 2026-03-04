@@ -160,7 +160,7 @@ struct MoEGemmImplementationManager : public ImplementationManager {
             // weight scales : [#experts, num_groups, ofm, 1]
             auto scale_group_dim = 1;
             auto num_scale_groups = (weight_shape.size() == 4) ? params.input_layouts[moe_cfg.weight_scale_idx].get_shape()[scale_group_dim] : 1;
-            moe_cfg.weight_group_size = (num_scale_groups == 1) ? -1 : (k / num_scale_groups);
+            moe_cfg.weight_group_size = (num_scale_groups == 1) ? -1 : static_cast<int32_t>(k / num_scale_groups);
             if (static_cast<int32_t>(params.input_layouts.size()) > moe_cfg.weight_zp_idx) {
                 moe_cfg.is_weight_symmetric_quantized = false;
             } else {
