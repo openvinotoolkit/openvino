@@ -101,7 +101,7 @@ private:
         auto scale = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
         auto sliding_windows = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{sliding_window});
         auto alibi_slopes = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0}, std::vector<float>{});
-        auto max_context_len = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<float>{1024});
+        auto max_context_len = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{1024});
         auto score_aggregation_window = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{0});
 
         auto rotated_block_indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{0});
