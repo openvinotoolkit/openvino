@@ -43,6 +43,11 @@ public:
     void setProperty(const ov::AnyMap& properties);
 
     /**
+     * @brief Checks if a property is supported by the plugin.
+     */
+    bool isPropertySupported(const std::string& name);
+
+    /**
      * @brief Get a const reference to the stored config
      */
     const FilteredConfig& getConfig() const {
