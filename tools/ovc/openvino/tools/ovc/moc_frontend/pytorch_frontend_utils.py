@@ -9,7 +9,7 @@ import numpy as np
 
 # pylint: disable=no-name-in-module,import-error
 from openvino import Tensor, PartialShape
-from openvino.tools.ovc.cli_parser import single_input_to_input_cut_info, _InputCutInfo
+from openvino.tools.ovc.cli_parser import input_to_input_cut_info, single_input_to_input_cut_info, _InputCutInfo
 from openvino.tools.ovc.error import Error
 
 
@@ -188,8 +188,11 @@ def get_pytorch_decoder(model, example_inputs, args):
         elif use_dynamo and isinstance(model, torch.nn.Module):
             if inputs is None:
                 raise Error("example_input is required when dynamo=True")
-            # Extract user-provided input shape specs to constrain dynamic dims
-            input_specs = args.get('input', None) or None
+            # Extract user-provided input shape specs to constrain dynamic dims.
+            # Normalize raw user input (PartialShape, list, etc.) to list of _InputCutInfo
+            # because _build_dynamic_shapes expects _InputCutInfo objects with .shape attribute.
+            raw_input = args.get('input', None) or None
+            input_specs = input_to_input_cut_info(raw_input) if raw_input is not None else None
             exported_program = _export_torch_model(model, inputs, input_specs=input_specs)
             has_dynamic = input_specs is not None
             decoder = TorchFXPythonDecoder.from_exported_program(
