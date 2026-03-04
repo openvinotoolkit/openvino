@@ -11,7 +11,7 @@
 namespace ov::frontend {
 
 /// @brief Extracts std::filesystem::path from ov::Any containing path, string, or wstring.
-/// @return Path if conversion succeeded, empty path otherwise.
+/// @return Path if conversion succeeded, std::nullopt otherwise.
 inline std::optional<std::filesystem::path> get_path_from_any(const ov::Any& param) {
     if (param.is<std::filesystem::path>()) {
         return std::make_optional(param.as<std::filesystem::path>());
