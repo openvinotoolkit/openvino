@@ -50,36 +50,36 @@ namespace ov::intel_cpu {
 
 namespace ThreadPreferenceConstants {
 
-constexpr int INT8_EFFICIENCY_THRESHOLD = 4;
-constexpr int FP32_EFFICIENCY_THRESHOLD = 2;
+[[maybe_unused]] constexpr int INT8_EFFICIENCY_THRESHOLD = 4;
+[[maybe_unused]] constexpr int FP32_EFFICIENCY_THRESHOLD = 2;
 
 [[maybe_unused]] constexpr float ISA_THRESHOLD_SSE41 = 0.5F;
 [[maybe_unused]] constexpr float ISA_THRESHOLD_AVX2 = 1.0F;
 [[maybe_unused]] constexpr float ISA_THRESHOLD_VNNI = 2.0F;
 [[maybe_unused]] constexpr float ISA_THRESHOLD_AMX = 4.0F;
 
-constexpr float MEM_TOLERANCE_VERY_HIGH = 50.0F;
-constexpr float MEM_TOLERANCE_HIGH = 4.5F;
-constexpr float MEM_TOLERANCE_MEDIUM_HIGH = 2.5F;
-constexpr float MEM_TOLERANCE_MEDIUM = 1.0F;
-constexpr float MEM_TOLERANCE_MEDIUM_LOW = 0.5F;
+[[maybe_unused]] constexpr float MEM_TOLERANCE_VERY_HIGH = 50.0F;
+[[maybe_unused]] constexpr float MEM_TOLERANCE_HIGH = 4.5F;
+[[maybe_unused]] constexpr float MEM_TOLERANCE_MEDIUM_HIGH = 2.5F;
+[[maybe_unused]] constexpr float MEM_TOLERANCE_MEDIUM = 1.0F;
+[[maybe_unused]] constexpr float MEM_TOLERANCE_MEDIUM_LOW = 0.5F;
 [[maybe_unused]] constexpr float MEM_TOLERANCE_LOW = 0.2F;
-constexpr float MEM_TOLERANCE_SECONDARY_LOW = 0.08F;
-constexpr float MEM_TOLERANCE_VERY_LOW = 0.06F;
+[[maybe_unused]] constexpr float MEM_TOLERANCE_SECONDARY_LOW = 0.08F;
+[[maybe_unused]] constexpr float MEM_TOLERANCE_VERY_LOW = 0.06F;
 
-constexpr float CONV_RATIO_VERY_HIGH = 0.9F;
-constexpr float CONV_RATIO_HIGH = 0.8F;
-constexpr float CONV_RATIO_MEDIUM = 0.6F;
-constexpr float CONV_RATIO_MEDIUM_LOW = 0.5F;
-constexpr float CONV_RATIO_LOW = 0.46F;
-constexpr float CONV_RATIO_MINIMAL = 0.28F;
-constexpr float CONV_RATIO_VERY_LOW = 0.2F;
-constexpr float CONV_RATIO_ULTRA_LOW = 0.1F;
+[[maybe_unused]] constexpr float CONV_RATIO_VERY_HIGH = 0.9F;
+[[maybe_unused]] constexpr float CONV_RATIO_HIGH = 0.8F;
+[[maybe_unused]] constexpr float CONV_RATIO_MEDIUM = 0.6F;
+[[maybe_unused]] constexpr float CONV_RATIO_MEDIUM_LOW = 0.5F;
+[[maybe_unused]] constexpr float CONV_RATIO_LOW = 0.46F;
+[[maybe_unused]] constexpr float CONV_RATIO_MINIMAL = 0.28F;
+[[maybe_unused]] constexpr float CONV_RATIO_VERY_LOW = 0.2F;
+[[maybe_unused]] constexpr float CONV_RATIO_ULTRA_LOW = 0.1F;
 
-constexpr float GEMM_RATIO_HIGH = 0.14F;
-constexpr float GEMM_RATIO_LOW = 0.05F;
+[[maybe_unused]] constexpr float GEMM_RATIO_HIGH = 0.14F;
+[[maybe_unused]] constexpr float GEMM_RATIO_LOW = 0.05F;
 
-constexpr int ECORE_RATIO_THRESHOLD = 2;
+[[maybe_unused]] constexpr int ECORE_RATIO_THRESHOLD = 2;
 
 [[maybe_unused]] constexpr int ARM64_THREADS_DEFAULT = 8;
 [[maybe_unused]] constexpr int ARM64_THREADS_SVE = 16;
