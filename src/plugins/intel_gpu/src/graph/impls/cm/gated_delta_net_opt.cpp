@@ -68,7 +68,7 @@ protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
 
-        for (uint32_t i = 0; i < params.input_layouts.size(); i++) {  // inputs: q, k, v
+        for (uint32_t i = 0; i < params.input_layouts.size(); i++) {  // inputs: q, k, v, initial_state, g, beta
             args.push_back({ArgumentDescriptor::Types::INPUT, i});
         }
 
@@ -84,7 +84,6 @@ protected:
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
             assert(!params.is_dynamic());
-            auto desc = params.typed_desc<gated_delta_net>();
             const auto query_shape = params.get_input_layout(0).get_shape();
             const auto value_shape = params.get_input_layout(2).get_shape();
             // B, T, H, K

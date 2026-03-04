@@ -51,7 +51,11 @@ CM_INLINE void cm_store_by_row(SurfaceIndex base, vector_ref<SRC_TYPE, N> data, 
     static_assert(std::is_same<DST_TYPE, half>::value);
     if constexpr (std::is_same<DST_TYPE, half>::value) {
         vector<half, N> temp(data);
-        cm_store<uint, N / 2>(base, offset, temp.format<uint>());
+        if constexpr (N >= 2) {
+            cm_store<uint, N / 2>(base, offset, temp.format<uint>());
+        } else {
+            write(base, offset / sizeof(half), 0, half(data[0]));
+        }
     }
 }
 
@@ -112,14 +116,6 @@ void recurrent_linear_attn(int b_idx,
         cm_load_by_row<float, IN_OUT_DTYPE, 1>(b_beta, beta, stride * sizeof(IN_OUT_DTYPE));
         vector<float, 1> b_g;  // cm_load<float, 1>(g, stride * sizeof(IN_OUT_DTYPE));
         cm_load_by_row<float, IN_OUT_DTYPE, 1>(b_g, g, stride * sizeof(IN_OUT_DTYPE));
-        // if (head_dim_t_idx == 0) {
-        //     printf("b_idx %d head_idx %d head_dim_t_idx %d beta_cur %f b_g %f\n",
-        //            b_idx,
-        //            head_idx,
-        //            head_dim_t_idx,
-        //            b_beta[0],
-        //            b_g[0]);
-        // }
         // B, T, HK, K
         int q_stride = b_idx * seq * k_num_heads * k_head_dims + s * k_num_heads * k_head_dims + qk_head_idx * k_head_dims;
         int k_stride = b_idx * seq * k_num_heads * k_head_dims + s * (k_num_heads + key_offset) * k_head_dims + (qk_head_idx + key_offset) * k_head_dims;
@@ -163,10 +159,7 @@ void recurrent_linear_attn(int b_idx,
         } else {
             cm_barrier();
         }
-        // if (head_dim_t_idx == 0) {
-        //     printf("v_stride %d b_idx %d s %d head_idx %d head_dim_t_idx %d b_v0 %f b_v1 %f b_v2 %f b_v3 %f b_v4 %f b_v5 %f b_v6 %f b_v7 %f b_v8 %f b_v9 %f b_v10 %f b_v11 %f b_v12 %f b_v13 %f b_v14 %f b_v15 %f\n",
-        //         v_stride, b_idx, s, head_idx, head_dim_t_idx, b_v[0], b_v[1], b_v[2], b_v[3], b_v[4], b_v[5], b_v[6], b_v[7], b_v[8], b_v[9], b_v[10], b_v[11], b_v[12], b_v[13], b_v[14], b_v[15]);
-        // }
+
         vector<float, v_head_dim_per_t> cur_output;
         vector<float, v_head_dim_per_t> h_k;
         constexpr float log2e = 1.4426950408889634f;
@@ -176,36 +169,14 @@ void recurrent_linear_attn(int b_idx,
         for (int i = 0; i < v_head_dim_per_t; i++) {
             h0.select<k_head_dims, 1>(k_head_dims * i) = h0.select<k_head_dims, 1>(k_head_dims * i) * g_cur;
             h_k[i] = cm_sum<float>(h0.select<k_head_dims, 1>(k_head_dims * i) * b_k);
-            // if (head_dim_t_idx == 0 && b_idx == 1) {
-            //     printf("b_idx %d head_idx %d head_dim_t_idx %d h_k %f g_cur %f\n",
-            //            b_idx,
-            //            head_idx,
-            //            head_dim_t_idx,
-            //            h_k[i],
-            //            g_cur);
-            // }
         }
         vector<float, v_head_dim_per_t> delta_full = (b_v - h_k) * b_beta[0];
-        // if (head_dim_t_idx == 0 && b_idx == 1) {
-        //     printf("b_idx %d head_idx %d head_dim_t_idx %d delta_full %f\n",
-        //            b_idx,
-        //            head_idx,
-        //            head_dim_t_idx,
-        //            delta_full[0]);
-        // }
 
 #pragma unroll
         for (int i = 0; i < v_head_dim_per_t; i++) {
             float detla = delta_full[i];
             h0.select<k_head_dims, 1>(k_head_dims * i) = h0.select<k_head_dims, 1>(k_head_dims * i) + b_k * detla;
             cur_output[i] = cm_sum<float>(h0.select<k_head_dims, 1>(k_head_dims * i) * b_q);
-            // if (head_dim_t_idx == 0 && b_idx == 1) {
-            //     printf("b_idx %d head_idx %d head_dim_t_idx %d h_k %f\n",
-            //            b_idx,
-            //            head_idx,
-            //            head_dim_t_idx,
-            //            h0.select<k_head_dims, 1>(k_head_dims * i)[0]);
-            // }
         }
         // B, T, HV, V
         int output_stride =
@@ -217,12 +188,6 @@ void recurrent_linear_attn(int b_idx,
         int v_head_dim_idx = head_dim_t_idx * v_head_dim_per_t + i;
         int stride = b_idx * v_num_heads * v_head_dims * k_head_dims + head_idx * v_head_dims * k_head_dims + v_head_dim_idx * k_head_dims;
         cm_store_by_row<IN_OUT_DTYPE, float, k_head_dims>(output_state, h0.select<k_head_dims, 1>(k_head_dims * i), stride * sizeof(IN_OUT_DTYPE));
-        // if constexpr (k_head_dims == 128) {
-        //     cm_store<float, 64>(initial_state, stride * 4, h0.select<64, 1>(k_head_dims * i));
-        //     cm_store<float, 64>(initial_state, stride * 4 + 4 * 64, h0.select<64, 1>(k_head_dims * i + 64));
-        // } else if constexpr (k_head_dims <= 64) {
-        //     cm_store<float, k_head_dims>(initial_state, stride * 4, h0.select<k_head_dims, 1>(k_head_dims * i));
-        // }
     }
 }
 

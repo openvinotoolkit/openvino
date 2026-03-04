@@ -21,9 +21,9 @@ namespace KERNEL_NAME {
 extern "C" _GENX_MAIN_ void KERNEL_NAME(SurfaceIndex q [[type("buffer_t")]],
                              SurfaceIndex k [[type("buffer_t")]],
                              SurfaceIndex v [[type("buffer_t")]],
+                             SurfaceIndex initial_state [[type("buffer_t")]],
                              SurfaceIndex g [[type("buffer_t")]],
                              SurfaceIndex beta [[type("buffer_t")]],
-                             SurfaceIndex initial_state [[type("buffer_t")]],
                              SurfaceIndex output [[type("buffer_t")]],
 #ifdef OUTPUT_STATE
                              SurfaceIndex output_state [[type("buffer_t")]],

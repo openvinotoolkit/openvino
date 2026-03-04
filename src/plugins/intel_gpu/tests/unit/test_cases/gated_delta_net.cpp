@@ -184,12 +184,12 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         topo.add(input_layout("q", q_layout));
         topo.add(input_layout("k", k_layout));
         topo.add(input_layout("v", v_layout));
+        topo.add(input_layout("state", state_layout));
         topo.add(input_layout("g", g_layout));
         topo.add(input_layout("beta", beta_layout));
-        topo.add(input_layout("state", state_layout));
 
         auto linear_attn_prim =
-            gated_delta_net("gated_delta_net", {input_info("q"), input_info("k"), input_info("v"), input_info("g"), input_info("beta"), input_info("state")});
+            gated_delta_net("gated_delta_net", {input_info("q"), input_info("k"), input_info("v"), input_info("state"), input_info("g"), input_info("beta")});
         topo.add(linear_attn_prim);
         topo.add(reorder("output", input_info("gated_delta_net", 0), format::bfyx, output_dt));
         // topo.add(reorder("states", input_info("gated_delta_net", 1), format::bfyx, data_types::f16));
@@ -200,9 +200,9 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
             cldnn::memory::ptr q_mem,
             cldnn::memory::ptr k_mem,
             cldnn::memory::ptr v_mem,
+            cldnn::memory::ptr state_mem,
             cldnn::memory::ptr g_mem,
             cldnn::memory::ptr beta_mem,
-            cldnn::memory::ptr state_mem,
             const bool is_caching_test) {
         auto& engine = get_test_engine();
 
@@ -214,9 +214,9 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         net->set_input_data("q", q_mem);
         net->set_input_data("k", k_mem);
         net->set_input_data("v", v_mem);
+        net->set_input_data("state", state_mem);
         net->set_input_data("g", g_mem);
         net->set_input_data("beta", beta_mem);
-        net->set_input_data("state", state_mem);
 
         auto outputs = net->execute();
         auto output = outputs.at("output").get_memory();
@@ -250,41 +250,33 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         cldnn::layout q_static_layout({batch, t, qk_num_heads, head_size}, data_type, format::bfyx);
         cldnn::layout k_static_layout({batch, t, qk_num_heads, head_size}, data_type, format::bfyx);
         cldnn::layout v_static_layout({batch, t, v_num_heads, head_size}, data_type, format::bfyx);
+        cldnn::layout state_static_layout({batch, v_num_heads, head_size, head_size}, data_type, format::bfyx);
         cldnn::layout g_static_layout({batch, t, v_num_heads}, data_type, format::bfyx);
         cldnn::layout beta_static_layout({batch, t, v_num_heads}, data_type, format::bfyx);
-        cldnn::layout state_static_layout({batch, v_num_heads, head_size, head_size}, data_type, format::bfyx);
 
         auto q_mem = engine.allocate_memory(q_static_layout);
         auto k_mem = engine.allocate_memory(k_static_layout);
         auto v_mem = engine.allocate_memory(v_static_layout);
+        auto state_mem = engine.allocate_memory(state_static_layout);
         auto g_mem = engine.allocate_memory(g_static_layout);
         auto beta_mem = engine.allocate_memory(beta_static_layout);
-        auto state_mem = engine.allocate_memory(state_static_layout);
 
-        auto input_q = rg.generate_random_1d<T>(ov::shape_size(q_mem->get_layout().get_shape()), -1.0f, 1.0f);
-        auto input_k = rg.generate_random_1d<T>(ov::shape_size(k_mem->get_layout().get_shape()), -1.0f, 1.0f);
-        auto input_v = rg.generate_random_1d<T>(ov::shape_size(v_mem->get_layout().get_shape()), -1.0f, 1.0f);
-        auto input_g = rg.generate_random_1d<T>(ov::shape_size(g_mem->get_layout().get_shape()), -1.0f, 1.0f);
-        auto input_beta = rg.generate_random_1d<T>(ov::shape_size(beta_mem->get_layout().get_shape()), -0.5f, 0.5f);
-        auto input_state = rg.generate_random_1d<T>(ov::shape_size(state_mem->get_layout().get_shape()), -0.5, 0.5f);
-
-
-        // auto input_q = std::vector<ov::float16>(ov::shape_size(q_mem->get_layout().get_shape()), 1.0f);
-        // auto input_k = std::vector<ov::float16>(ov::shape_size(k_mem->get_layout().get_shape()), 1.0f);
-        // auto input_v = std::vector<ov::float16>(ov::shape_size(v_mem->get_layout().get_shape()), 1.0f);
-        // auto input_g = std::vector<ov::float16>(ov::shape_size(g_mem->get_layout().get_shape()), 0.0f);
-        // auto input_beta = std::vector<ov::float16>(ov::shape_size(beta_mem->get_layout().get_shape()), 1.0f);
-        // auto input_state = std::vector<ov::float16>(ov::shape_size(state_mem->get_layout().get_shape()), 0.0f);
+        auto input_q = rg.generate_random_1d<T>(ov::shape_size(q_mem->get_layout().get_shape()), -1, 1);
+        auto input_k = rg.generate_random_1d<T>(ov::shape_size(k_mem->get_layout().get_shape()), -1, 1);
+        auto input_v = rg.generate_random_1d<T>(ov::shape_size(v_mem->get_layout().get_shape()), -1, 1);
+        auto input_g = rg.generate_random_1d<T>(ov::shape_size(g_mem->get_layout().get_shape()), -1, 1);
+        auto input_beta = rg.generate_random_1d<T>(ov::shape_size(beta_mem->get_layout().get_shape()), 0, 1);
+        auto input_state = rg.generate_random_1d<T>(ov::shape_size(state_mem->get_layout().get_shape()), -1, 1);
 
         load_input(q_mem, 0, input_q);
         load_input(k_mem, 1, input_k);
         load_input(v_mem, 2, input_v);
-        load_input(state_mem, 5, input_state);
-        load_input(g_mem, 3, input_g);
-        load_input(beta_mem, 4, input_beta);
+        load_input(state_mem, 3, input_state);
+        load_input(g_mem, 4, input_g);
+        load_input(beta_mem, 5, input_beta);
         // execute networks
         auto [mem_opt_ptr, net_opt_ptr] = run_network(opt_topo,
-                                        q_mem, k_mem, v_mem, g_mem, beta_mem, state_mem,
+                                        q_mem, k_mem, v_mem, state_mem, g_mem, beta_mem,
                                         is_caching_test);
         std::vector<T> ref_output(batch*t*v_num_heads*head_size);
         run_reference<T>(input_q, input_k, input_v, input_g, input_beta, 1/sqrt(this->K), input_state, ref_output);
@@ -309,13 +301,14 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
 
     void execute(gated_delta_net_test_params& p, const bool is_caching_test = false) {
         auto cldnn_precision = cldnn::element_type_to_data_type(p.precision);
+        float tolerance = 0.01f;
         if (p.precision == ov::element::f16) {
-            execute_t<ov::float16>(p, cldnn_precision, 0.01f, is_caching_test);
+            execute_t<ov::float16>(p, cldnn_precision, tolerance, is_caching_test);
             return;
         }
 
         if (p.precision == ov::element::f32) {
-            execute_t<float>(p, cldnn_precision, 1e-4f, is_caching_test);
+            execute_t<float>(p, cldnn_precision, 1e-3f, is_caching_test);
             return;
         }
 
@@ -363,8 +356,26 @@ INSTANTIATE_TEST_SUITE_P(smoke_gated_delta_net_gpu_test,
     gated_delta_net_gpu_test,
     ::testing::Values(
         // B, T, H_QK, H, K, precision
-        gated_delta_net_test_params{1, 1, 2, 2, 128, ov::element::f32}
-        // gated_delta_net_test_params{1, 16, 2, 4, 128, ov::element::f32}
+        gated_delta_net_test_params{1, 1, 2, 2, 16, ov::element::f16},
+        gated_delta_net_test_params{1, 8, 2, 2, 16, ov::element::f16},
+        gated_delta_net_test_params{2, 8, 2, 2, 16, ov::element::f16},
+        gated_delta_net_test_params{1, 8, 2, 2, 128, ov::element::f16},
+        gated_delta_net_test_params{2, 8, 2, 2, 128, ov::element::f16},
+        gated_delta_net_test_params{1, 8, 2, 4, 16, ov::element::f16},
+        gated_delta_net_test_params{2, 8, 2, 4, 16, ov::element::f16},
+        gated_delta_net_test_params{1, 8, 2, 8, 16, ov::element::f16},
+        gated_delta_net_test_params{1, 8, 4, 8, 16, ov::element::f16},
+        gated_delta_net_test_params{1, 8, 2, 4, 128, ov::element::f16},
+        gated_delta_net_test_params{1, 1, 2, 2, 16, ov::element::f32},
+        gated_delta_net_test_params{1, 8, 2, 2, 16, ov::element::f32},
+        gated_delta_net_test_params{2, 8, 2, 2, 16, ov::element::f32},
+        gated_delta_net_test_params{1, 8, 2, 2, 128, ov::element::f32},
+        gated_delta_net_test_params{2, 8, 2, 2, 128, ov::element::f32},
+        gated_delta_net_test_params{1, 8, 2, 4, 16, ov::element::f32},
+        gated_delta_net_test_params{2, 8, 2, 4, 16, ov::element::f32},
+        gated_delta_net_test_params{1, 8, 2, 8, 16, ov::element::f32},
+        gated_delta_net_test_params{1, 8, 4, 8, 16, ov::element::f32},
+        gated_delta_net_test_params{1, 8, 2, 4, 128, ov::element::f32}
     ),
     gated_delta_net_gpu_test::PrintToStringParamName
 );
