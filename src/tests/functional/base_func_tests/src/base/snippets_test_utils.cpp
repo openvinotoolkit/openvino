@@ -10,6 +10,20 @@
 namespace ov {
 namespace test {
 namespace snippets {
+void SnippetsTestsCommon::run() {
+    // Temporary skip tests that enable snippets to investigate intermittent crashes
+    // Ticket: 177544
+#if defined(OPENVINO_ARCH_ARM64)
+    const auto mode_it = configuration.find("SNIPPETS_MODE");
+    if (mode_it != configuration.end()) {
+        if (mode_it->second.as<std::string>() != "DISABLE") {
+            GTEST_SKIP() << "Temporary skip tests with  enabled snippets on ARM64";
+        }
+    }
+#endif
+    SubgraphBaseTest::run();
+}
+
 void SnippetsTestsCommon::validateNumSubgraphs() {
     bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
     if (isCurrentTestDisabled)

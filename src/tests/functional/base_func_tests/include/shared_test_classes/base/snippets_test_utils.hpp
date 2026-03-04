@@ -12,6 +12,9 @@ namespace test {
 namespace snippets {
 using ov::test::operator<<;
 class SnippetsTestsCommon : virtual public ov::test::SubgraphBaseTest {
+public:
+    void run() override;
+
 protected:
     void validateNumSubgraphs();
 
