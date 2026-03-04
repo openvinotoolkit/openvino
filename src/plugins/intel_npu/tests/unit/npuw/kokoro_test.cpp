@@ -26,8 +26,8 @@ TEST(KokoroPadding, FillTextMask_TypicalPaddedInput) {
     const auto real_len = find_real_sequence_length(ids.data(), seq_len);
     EXPECT_EQ(real_len, 5u);  // BOS + 3 phonemes + EOS
 
-    std::vector<bool> mask(seq_len);
-    fill_text_mask_from_lengths(mask.data(), seq_len, real_len);
+    bool mask[8] = {};
+    fill_text_mask_from_lengths(mask, seq_len, real_len);
 
     // Valid positions (BOS, tok, tok, tok, EOS) → false
     for (std::size_t i = 0; i < 5; ++i) {
@@ -47,8 +47,8 @@ TEST(KokoroPadding, FillTextMask_NoPadding) {
     const auto real_len = find_real_sequence_length(ids.data(), seq_len);
     EXPECT_EQ(real_len, seq_len);  // no EOS found → entire buffer is valid
 
-    std::vector<bool> mask(seq_len);
-    fill_text_mask_from_lengths(mask.data(), seq_len, real_len);
+    bool mask[6] = {};
+    fill_text_mask_from_lengths(mask, seq_len, real_len);
 
     for (std::size_t i = 0; i < seq_len; ++i) {
         EXPECT_FALSE(mask[i]);
@@ -61,8 +61,8 @@ TEST(KokoroPadding, FillTextMask_EmptyPhonemes) {
     const auto real_len = find_real_sequence_length(ids.data(), ids.size());
     EXPECT_EQ(real_len, 2u);  // BOS + EOS only
 
-    std::vector<bool> mask(ids.size());
-    fill_text_mask_from_lengths(mask.data(), ids.size(), real_len);
+    bool mask[4] = {};
+    fill_text_mask_from_lengths(mask, ids.size(), real_len);
 
     EXPECT_FALSE(mask[0]);  // BOS
     EXPECT_FALSE(mask[1]);  // EOS
@@ -79,8 +79,8 @@ TEST(KokoroPadding, FillTextMask_NonZeroPaddingAfterEos) {
     const auto real_len = find_real_sequence_length(ids.data(), seq_len);
     EXPECT_EQ(real_len, 3u);  // BOS + 1 phoneme + EOS
 
-    std::vector<bool> mask(seq_len);
-    fill_text_mask_from_lengths(mask.data(), seq_len, real_len);
+    bool mask[6] = {};
+    fill_text_mask_from_lengths(mask, seq_len, real_len);
 
     EXPECT_FALSE(mask[0]);  // BOS
     EXPECT_FALSE(mask[1]);  // tok
