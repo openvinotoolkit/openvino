@@ -381,6 +381,14 @@ void ZeroInferRequest::update_command_list_for_tensor(SyncInferRequest::FoundPor
                               "with the user");
             }
         }
+        if (foundPort.is_input()) {
+            const auto& userTensorElementType = tensor->get_element_type();
+            // corner case for boolean inputs as compiler maps them as u8
+            if (userTensorElementType == ov::element::boolean &&
+                levelZeroTensor->get_element_type() == ov::element::u8) {
+                levelZeroTensor->set_element_type(userTensorElementType);
+            }
+        }
 
         if (_pipelineIsCreated && updateCommandListArg && !_dynamicBatchValueChanged) {
             _logger.debug("ZeroInferRequest::infer_async - update command list");
@@ -471,6 +479,15 @@ void ZeroInferRequest::update_command_list_for_tensors(SyncInferRequest::FoundPo
                 _logger.debug("ZeroInferRequest::set_tensors - allocate locally L0 tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "allocate tensor");
                 get_level_zero_input(foundPort.idx, i) = allocate_tensor(foundPort.idx, INPUT, batchSizeCandidate);
+            }
+            if (foundPort.is_input()) {
+                auto& levelZeroTensor = get_level_zero_input(foundPort.idx, i);
+                const auto& userTensorElementType = tensors.at(i)->get_element_type();
+                // corner case for boolean inputs as compiler maps them as u8
+                if (userTensorElementType == ov::element::boolean &&
+                    levelZeroTensor->get_element_type() == ov::element::u8) {
+                    levelZeroTensor->set_element_type(userTensorElementType);
+                }
             }
 
             if (_pipelineIsCreated && !_dynamicBatchValueChanged) {
@@ -752,12 +769,6 @@ void ZeroInferRequest::prepare_inputs() {
                             inputIndex,
                             userTensorPtr->get_byte_size(),
                             levelZeroTensor->get_byte_size());
-                        const auto userTensorElementType = userTensorPtr->get_element_type();
-                        const auto zeroTensorElementType = levelZeroTensor->get_element_type();
-                        if ((zeroTensorElementType == ov::element::u8 &&
-                             userTensorElementType == ov::element::boolean)) {
-                            levelZeroTensor->set_element_type(userTensorElementType);
-                        }
                         OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
                         userTensorPtr->copy_to(levelZeroTensor);
                     }
@@ -772,15 +783,11 @@ void ZeroInferRequest::prepare_inputs() {
                               levelZeroTensor->get_byte_size());
                 size_t copied_bytes_from_user = 0;
                 for (size_t i = 0; i < userTensor.size(); i++) {
-                    auto viewTensor = ov::make_tensor(
-                        levelZeroTensor->get_element_type(),
-                        levelZeroTensor->get_shape(),
-                        static_cast<unsigned char*>(levelZeroTensor->data()) + (i * userTensor.at(i)->get_byte_size()));
-                    const auto userTensorElementType = userTensor.at(i)->get_element_type();
-                    const auto zeroTensorElementType = levelZeroTensor->get_element_type()->get_element_type();
-                    if (zeroTensorElementType == ov::element::u8 && userTensorElementType == ov::element::boolean) {
-                        levelZeroTensor->set_element_type(userTensorElementType);
-                    }
+                    auto viewTensor =
+                        ov::make_tensor(levelZeroTensor->get_element_type(),
+                                        levelZeroTensor->get_shape(),
+                                        static_cast<unsigned char*>(get_level_zero_input(inputIndex)->data()) +
+                                            (i * userTensor.at(i)->get_byte_size()));
 
                     userTensor.at(i)->copy_to(viewTensor);
                     copied_bytes_from_user += userTensor.at(i)->get_byte_size();
@@ -813,11 +820,6 @@ void ZeroInferRequest::prepare_inputs() {
             OPENVINO_ASSERT(userBuffer != nullptr && levelZeroBuffer != nullptr, "Empty buffer");
 
             _logger.info("Tensor is not allocated in the current Level Zero context");
-            const auto userTensorElementType = userTensor.at(SINGLE_TENSOR)->get_element_type();
-            const auto zeroTensorElementType = get_level_zero_input(inputIndex)->get_element_type();
-            if (zeroTensorElementType == ov::element::u8 && userTensorElementType == ov::element::boolean) {
-                get_level_zero_input(inputIndex)->set_element_type(userTensorElementType);
-            }
             OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
             userTensor.at(SINGLE_TENSOR)->copy_to(levelZeroTensor);
         }
