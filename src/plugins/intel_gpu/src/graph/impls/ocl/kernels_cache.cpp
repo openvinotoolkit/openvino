@@ -50,7 +50,7 @@
 namespace {
 std::mutex cacheAccessMutex;
 
-std::string join_strings(const std::vector<std::string> strings) {
+std::string join_strings(const std::vector<std::string> &strings) {
     size_t total_size = 0;
     for (auto &str : strings) {
         total_size += str.size();
