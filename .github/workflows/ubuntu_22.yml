@@ -1,8 +1,10 @@
 name: Linux (Ubuntu 22.04, Python 3.11)
 on:
   schedule:
-    # at 00:00 on Wednesday and Saturday
+    # at 00:00 on Wednesday and Saturday (with latest OneDNN)
     - cron: '0 0 * * 3,6'
+    # at 00:00 on Tuesday and Thursday (without latest OneDNN)
+    - cron: '0 0 * * 2,4'
   workflow_dispatch:
     inputs:
       target-branch:
@@ -41,6 +43,7 @@ jobs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+      use_latest_onednn: "${{ steps.onednn_day.outputs.use_latest_onednn }}"
     steps:
       - name: checkout action
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
@@ -65,6 +68,16 @@ jobs:
         run: |
           echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
         shell: bash
+
+      - name: Determine if OneDNN is needed
+        id: onednn_day
+        shell: bash
+        run: |
+          if [[ "${{ github.event.schedule }}" == '0 0 * * 3,6' ]]; then
+            echo "use_latest_onednn=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "use_latest_onednn=false" >> "$GITHUB_OUTPUT"
+          fi
 
   Docker:
     needs: Smart_CI
@@ -107,6 +120,7 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
+      use_latest_onednn: ${{ needs.smart_ci.outputs.use_latest_onednn == 'true' }}
       os: 'ubuntu_22_04'
       build-js: true
       build-contrib: true
