@@ -76,19 +76,23 @@ OutputVector translate_histc(const NodeContext& context) {
     auto shift = context.mark_node(std::make_shared<v1::Subtract>(f64_input, min_node));
     auto floored = context.mark_node(std::make_shared<v0::Floor>(
         context.mark_node(std::make_shared<v1::Divide>(shift, bin_width))));
-    auto clamped_f = context.mark_node(std::make_shared<v0::Clamp>(floored, 0.0, static_cast<double>(bins - 1)));
-    auto bin_idxs = context.mark_node(std::make_shared<v0::Convert>(clamped_f, element::i64));
+    auto clamped_f =
+        context.mark_node(std::make_shared<v0::Clamp>(floored, 0.0, static_cast<double>(bins - 1)));
+    // Mask out-of-range elements so they contribute 0 to the histogram and to avoid NaN-to-integer casts.
+    auto in_range = context.mark_node(std::make_shared<v1::LogicalAnd>(
+        context.mark_node(std::make_shared<v1::GreaterEqual>(f64_input, min_node)),
+        context.mark_node(std::make_shared<v1::LessEqual>(f64_input, max_node))));
+    auto clamped_f_safe =
+        context.mark_node(std::make_shared<v1::Select>(in_range, clamped_f, zero_f64));
+    auto bin_idxs =
+        context.mark_node(std::make_shared<v0::Convert>(clamped_f_safe, element::i64));
 
     // When range is zero, put all elements in the middle bin (PyTorch behaviour)
     auto input_size = context.mark_node(std::make_shared<v3::ShapeOf>(flat_input, element::i64));
     auto mid_bin = context.mark_node(std::make_shared<v3::Broadcast>(
         v0::Constant::create(element::i64, Shape{}, {bins / 2}), input_size));
-    auto clamped_idxs = context.mark_node(std::make_shared<v1::Select>(range_is_zero, mid_bin, bin_idxs));
-
-    // Mask out-of-range elements so they contribute 0 to the histogram
-    auto in_range = context.mark_node(std::make_shared<v1::LogicalAnd>(
-        context.mark_node(std::make_shared<v1::GreaterEqual>(f64_input, min_node)),
-        context.mark_node(std::make_shared<v1::LessEqual>(f64_input, max_node))));
+    auto clamped_idxs =
+        context.mark_node(std::make_shared<v1::Select>(range_is_zero, mid_bin, bin_idxs));
     auto ones = context.mark_node(std::make_shared<v3::Broadcast>(one_f64, input_size));
     auto updates = context.mark_node(std::make_shared<v1::Select>(in_range, ones, zero_f64));
 

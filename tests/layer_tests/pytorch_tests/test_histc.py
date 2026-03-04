@@ -77,3 +77,36 @@ class TestHistcDefaultParams(PytorchLayerTest):
                        "input_shape": input_shape,
                        "input_dtype": input_dtype
                    })
+
+
+class TestHistcNanInf(PytorchLayerTest):
+    """Tests NaN/Inf handling: these out-of-range values should not be counted in any bin."""
+
+    def _prepare_input(self, input_shape, input_dtype, special_value):
+        # Use explicit min/max (not auto-range) to avoid ReduceMin/ReduceMax issues with NaN/Inf
+        data = np.random.uniform(0, 10, input_shape).astype(input_dtype)
+        # Inject NaN or Inf into first element
+        data.flat[0] = special_value
+        return (data,)
+
+    def create_model(self, special_value):
+        class aten_histc_nan_inf(torch.nn.Module):
+            def forward(self, input):
+                # Use explicit range [0, 10] so NaN/Inf are outside and should be masked
+                return torch.histc(input, bins=10, min=0, max=10)
+
+        ref_net = None
+        return aten_histc_nan_inf(), ref_net, "aten::histc"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("input_shape", [[20], [5, 4]])
+    @pytest.mark.parametrize("input_dtype", ["float32"])
+    @pytest.mark.parametrize("special_value", [np.nan, np.inf, -np.inf])
+    def test_histc_nan_inf(self, input_shape, input_dtype, special_value, ie_device, precision, ir_version):
+        self._test(*self.create_model(special_value), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={
+                       "input_shape": input_shape,
+                       "input_dtype": input_dtype,
+                       "special_value": special_value
+                   })
