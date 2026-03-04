@@ -1,0 +1,8 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+optimum-intel==1.27.0
+transformers==4.57.6
+torch==2.10.0
+diffusers==0.36.0
+pytest==7.2.0
+pytest-html==4.2.0
+pytest-xdist[psutil]==3.6.1
