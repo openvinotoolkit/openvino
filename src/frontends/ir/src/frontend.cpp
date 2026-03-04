@@ -111,7 +111,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         provided_model_stream = model_variant.as<std::istringstream*>();
     } else if (model_variant.is<std::shared_ptr<AlignedBuffer>>()) {
         model_buffer = model_variant.as<std::shared_ptr<AlignedBuffer>>();
-    } else if (const auto path = get_path_from_any(model_variant); path.has_value()) {
+    } else if (const auto path = get_path_from_any(model_variant)) {
         validate_path(path.value());
         local_model_stream.open(path.value(), std::ios::in | std::ifstream::binary);
     }
@@ -189,7 +189,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         provided_model_stream = model_variant.as<std::istringstream*>();
     } else if (model_variant.is<std::shared_ptr<AlignedBuffer>>()) {
         model_buf = model_variant.as<std::shared_ptr<AlignedBuffer>>();
-    } else if (const auto path = get_path_from_any(model_variant); path.has_value()) {
+    } else if (const auto path = get_path_from_any(model_variant)) {
         model_path = path.value();
         validate_path(model_path);
         local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
@@ -199,7 +199,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     for (size_t variant_id = 1; variant_id < variants.size(); ++variant_id) {
         if (const auto& variant = variants.at(variant_id); variant.is<std::shared_ptr<ov::AlignedBuffer>>()) {
             weights = variant.as<std::shared_ptr<ov::AlignedBuffer>>();
-        } else if (const auto path = get_path_from_any(variant); path.has_value()) {
+        } else if (const auto path = get_path_from_any(variant)) {
             weights_path = path.value();
         }
     }

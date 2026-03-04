@@ -57,22 +57,12 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants.size() != 1 + extra_variants_num)
         return false;
 
-    if (const auto path = ov::frontend::get_path_from_any(variants[0]);
-        path.has_value() && !variants[0].is<std::wstring>()) {
-        std::string model_path = ov::util::path_to_string(path.value());
+    if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
+        const auto model_path = path.value().native();
         if (GraphIteratorFlatBuffer::is_supported(model_path)) {
             return true;
         }
-    }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    else if (variants[0].is<std::wstring>()) {
-        std::wstring model_path = variants[0].as<std::wstring>();
-        if (GraphIteratorFlatBuffer::is_supported(model_path)) {
-            return true;
-        }
-    }
-#endif
-    else if (variants[0].is<GraphIterator::Ptr>()) {
+    } else if (variants[0].is<GraphIterator::Ptr>()) {
         return true;
     }
     return false;
@@ -82,26 +72,14 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     // Last boolean flag in `variants` (if presented) is reserved for FE configuration
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     if (variants.size() == 1 + extra_variants_num) {
-        if (const auto path = ov::frontend::get_path_from_any(variants[0]);
-            path.has_value() && !variants[0].is<std::wstring>()) {
-            std::string model_path = ov::util::path_to_string(path.value());
+        if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
+            const auto model_path = path.value().native();
             if (GraphIteratorFlatBuffer::is_supported(model_path)) {
                 return std::make_shared<tensorflow_lite::InputModel>(
                     std::make_shared<GraphIteratorFlatBuffer>(model_path),
                     m_telemetry);
             }
-        }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        else if (variants[0].is<std::wstring>()) {
-            std::wstring model_path = variants[0].as<std::wstring>();
-            if (GraphIteratorFlatBuffer::is_supported(model_path)) {
-                return std::make_shared<tensorflow_lite::InputModel>(
-                    std::make_shared<GraphIteratorFlatBuffer>(model_path),
-                    m_telemetry);
-            }
-        }
-#endif
-        else if (variants[0].is<GraphIterator::Ptr>()) {
+        } else if (variants[0].is<GraphIterator::Ptr>()) {
             auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
             return std::make_shared<tensorflow_lite::InputModel>(graph_iterator, m_telemetry);
         }

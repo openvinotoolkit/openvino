@@ -183,34 +183,17 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry);
     };
 
-    if (variants[0].is<std::string>() || variants[0].is<std::filesystem::path>()) {
-        const auto path = get_path_from_any(variants[0]).value();
+    if (const auto path = get_path_from_any(variants[0])) {
         if (!gi_enabled) {
-            return std::make_shared<InputModel>(ov::util::path_to_string(path), enable_mmap, m_extensions);
+            return std::make_shared<InputModel>(path.value().native(), enable_mmap, m_extensions);
         }
-        return create_iterator_model(path);
+        return create_iterator_model(path.value());
     }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    if (variants[0].is<std::wstring>()) {
-        const auto path = variants[0].as<std::wstring>();
-        if (!gi_enabled) {
-            return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
-        }
-        return create_iterator_model(std::filesystem::path{path});
-    }
-#endif
     if (variants[0].is<std::istream*>()) {
         const auto stream = variants[0].as<std::istream*>();
-        if (variants.size() > 1 && (variants[1].is<std::string>() || variants[1].is<std::filesystem::path>())) {
-            const auto path = get_path_from_any(variants[1]).value();
-            return std::make_shared<InputModel>(*stream, ov::util::path_to_string(path), enable_mmap, m_extensions);
+        if (const auto path = variants.size() > 1 ? get_path_from_any(variants[1]) : std::nullopt) {
+            return std::make_shared<InputModel>(*stream, path.value().native(), enable_mmap, m_extensions);
         }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        if (variants.size() > 1 && variants[1].is<std::wstring>()) {
-            const auto path = variants[1].as<std::wstring>();
-            return std::make_shared<InputModel>(*stream, path, enable_mmap, m_extensions);
-        }
-#endif
         return std::make_shared<InputModel>(*stream, enable_mmap, m_extensions);
     }
     // !!! Experimental feature, it may be changed or removed in the future !!!
@@ -350,7 +333,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         return false;
     }
     std::ifstream model_stream;
-    if (const auto path = get_path_from_any(variants[0]); path.has_value()) {
+    if (const auto path = get_path_from_any(variants[0])) {
         validate_path(path.value());
         model_stream.open(path.value(), std::ios::in | std::ifstream::binary);
     }

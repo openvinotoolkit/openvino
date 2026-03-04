@@ -150,7 +150,7 @@ std::istream* variant_to_stream_ptr(const ov::Any& variant, std::fstream& fs, st
         ss.write(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size());
         FRONT_END_INITIALIZATION_CHECK(ss && ss.good(), "Cannot open ov::tensor.");
         return &ss;
-    } else if (const auto path = ov::frontend::get_path_from_any(variant); path.has_value()) {
+    } else if (const auto path = ov::frontend::get_path_from_any(variant)) {
         fs.open(path.value(), std::ios::in | std::ifstream::binary);
         FRONT_END_INITIALIZATION_CHECK(fs && fs.is_open(), "Cannot open model file.");
         return &fs;
@@ -371,18 +371,15 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants.empty() || variants.size() > 2 + extra_variants_num)
         return false;
 
-    if (const auto path = ov::frontend::get_path_from_any(variants[0]); path.has_value()) {
-        std::filesystem::path model_fs_path = path.value();
+    if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
+        std::filesystem::path model_path = path.value();
         // Validating first path, it must contain a model
         std::string suffix = ".pdmodel";
-        FRONT_END_GENERAL_CHECK(util::file_exists(model_fs_path),
-                                "Could not open the file: \"",
-                                util::path_to_string(model_fs_path),
-                                '"');
-        if (model_fs_path.extension() != ".pdmodel") {
-            model_fs_path /= "__model__";
+        FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: ", model_path);
+        if (model_path.extension() != ".pdmodel") {
+            model_path /= "__model__";
         }
-        std::ifstream model_str(model_fs_path, std::ios::in | std::ifstream::binary);
+        std::ifstream model_str(model_path, std::ios::in | std::ifstream::binary);
         // It is possible to validate here that protobuf can read model from the stream,
         // but it will complicate the check, while it should be as quick as possible
         return model_str && model_str.is_open();
@@ -408,17 +405,9 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     if (variants.size() == 1 + extra_variants_num) {
         // The case when folder with __model__ and weight files is provided or .pdmodel file
-        if (const auto path = ov::frontend::get_path_from_any(variants[0]);
-            path.has_value() && !variants[0].is<std::wstring>()) {
-            std::string m_path = ov::util::path_to_string(path.value());
-            return std::make_shared<InputModel>(m_path, m_telemetry);
+        if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
+            return std::make_shared<InputModel>(path.value().native(), m_telemetry);
         }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        else if (variants[0].is<std::wstring>()) {
-            std::wstring m_path = variants[0].as<std::wstring>();
-            return std::make_shared<InputModel>(m_path, m_telemetry);
-        }
-#endif
         // The case with only model stream provided and no weights. This means model has
         // no learnable weights
         else if (variants[0].is<std::istream*>()) {
