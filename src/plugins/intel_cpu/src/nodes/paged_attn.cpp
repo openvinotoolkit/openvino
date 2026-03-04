@@ -265,17 +265,6 @@ void PagedAttention::createPrimitive() {
 }
 
 void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
-    {
-        auto q = getSrcMemoryAtPort(0);
-        auto pl = getSrcMemoryAtPort(5);
-        auto qd = q->getStaticDims();
-        std::cerr << "[PA_KERNEL_DBG] CPU kernel entered, q_shape=[" << qd[0] << "," << qd[1] << "], past_lens=[";
-        auto pld = pl->getStaticDims();
-        const auto* p = pl->getDataAs<const int32_t>();
-        for (size_t i = 0; i < pld[0]; ++i)
-            std::cerr << (i ? "," : "") << p[i];
-        std::cerr << "]" << std::endl;
-    }
     auto orginInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
     size_t num_outputs = 1;

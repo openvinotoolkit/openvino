@@ -5,7 +5,6 @@
 #include "openvino/op/paged_attention.hpp"
 
 #include <cstring>
-#include <iostream>
 #include <numeric>
 
 #include "evaluate_node.hpp"
@@ -54,11 +53,7 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
     OPENVINO_ASSERT(inputs.size() == 25, "PagedAttentionExtension: expected 25 inputs");
     OPENVINO_ASSERT(outputs.size() == 3, "PagedAttentionExtension: expected 3 outputs");
 
-    std::cerr << "[PA_KERNEL_DBG] TEMPLATE reference kernel entered, q_shape=[" << inputs[0].get_shape()[0] << ","
-              << inputs[0].get_shape()[1] << "], past_lens=[";
     for (size_t i = 0; i < inputs[5].get_shape()[0]; ++i)
-        std::cerr << (i ? "," : "") << inputs[5].data<int32_t>()[i];
-    std::cerr << "]" << std::endl;
 
     resize_pa_outputs(pa_op, outputs, inputs);
 

@@ -10,13 +10,11 @@
 #include <map>
 #include <set>
 
-
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/test_enums.hpp"
 
 #include "openvino/op/paged_attention.hpp"
 
-#include <iostream>
 
 namespace ov {
 namespace test {
@@ -245,13 +243,8 @@ private:
             model_outputs.push_back(pa->output(2));
         }
         auto model = std::make_shared<ov::Model>(model_outputs, params, "pa_vsref");
-        std::cout << "[PA_DBG] Model created: " << model->get_parameters().size() << " params, "
-                  << model->get_results().size() << " results" << std::endl;
         for (size_t i = 0; i < model->get_parameters().size(); ++i) {
             const auto& p = model->get_parameters()[i];
-            std::cout << "[PA_DBG]   param[" << i << "] " << p->get_friendly_name()
-                      << "  ps=" << p->get_partial_shape()
-                      << "  et=" << p->get_element_type() << std::endl;
         }
         return model;
     }
@@ -358,29 +351,6 @@ out.tensors[params[8]] = bi_begins;
 
 past_len_count += static_cast<int32_t>(L);
 
-        // --- debug prints for this step ---
-        std::cout << "[PA_DBG] make_step_inputs: step=" << step_idx
-                  << "  L=" << L << " B=" << B << " H=" << H << " S=" << S
-                  << "  tokens=" << tokens << " feats=" << feats << std::endl;
-        std::cout << "[PA_DBG]   block_size=" << block_size << " used_blocks/seq=" << used_blocks_per_seq
-                  << " bi_count/seq=" << bi_count_per_seq
-                  << " max_blocks/seq=" << max_blocks_per_seq_ << std::endl;
-        std::cout << "[PA_DBG]   past_lens=[";
-        for (size_t s = 0; s < batch_seq; ++s) std::cout << (s?" ":"")<< pl[s];
-        std::cout << "]" << std::endl;
-        std::cout << "[PA_DBG]   subseq_begins=[";
-        for (size_t s = 0; s <= batch_seq; ++s) std::cout << (s?" ":"")<< sb[s];
-        std::cout << "]" << std::endl;
-        std::cout << "[PA_DBG]   block_indices=[";
-        for (size_t s = 0; s < batch_seq * static_cast<size_t>(bi_count_per_seq); ++s) std::cout << (s?" ":"")<< b[s];
-        std::cout << "]" << std::endl;
-        std::cout << "[PA_DBG]   block_indices_begins=[";
-        for (size_t s = 0; s <= batch_seq; ++s) std::cout << (s?" ":"")<< bb[s];
-        std::cout << "]" << std::endl;
-        std::cout << "[PA_DBG]   key_cache shape: [";
-        for (size_t d = 0; d < key_cache.get_shape().size(); ++d) std::cout << (d?",":"")<< key_cache.get_shape()[d];
-        std::cout << "]  bytes=" << key_cache.get_byte_size() << std::endl;
-
         return out;
     }
 
@@ -391,9 +361,7 @@ public:
                                                     ov::AnyMap cfg,
                                                     bool extendBlockIndices,
                                                     const std::vector<StepInputs>& steps) {
-        std::cout << "[PA_DBG] run_device: device=" << device << std::endl;
         auto compiled = core.compile_model(model, device, cfg);
-        std::cout << "[PA_DBG]   compile_model OK" << std::endl;
         auto req = compiled.create_infer_request();
         const size_t num_outputs = compiled.outputs().size();
 
@@ -402,30 +370,16 @@ public:
 
         for (size_t si = 0; si < steps.size(); ++si) {
             const auto& step = steps[si];
-            std::cout << "[PA_DBG]   step " << si << " setting " << step.tensors.size() << " tensors" << std::endl;
             for (const auto& kv : step.tensors) {
-                std::cout << "[PA_DBG]     " << kv.first->get_friendly_name()
-                          << "  shape=[";
-                for (size_t d = 0; d < kv.second.get_shape().size(); ++d)
-                    std::cout << (d?",":"")<< kv.second.get_shape()[d];
-                std::cout << "]" << std::endl;
                 req.set_tensor(kv.first, kv.second);
             }
 
-            std::cout << "[PA_DBG]   inferring on " << device << " ..." << std::flush;
             req.infer();
-            std::cout << " done" << std::endl;
 
             std::vector<ov::Tensor> step_outs;
             step_outs.reserve(num_outputs);
             for (size_t oi = 0; oi < num_outputs; ++oi) {
                 auto t = req.get_output_tensor(oi);
-                if (oi == 0) {
-                    std::cout << "[PA_DBG]   output[0] shape=[";
-                    for (size_t d = 0; d < t.get_shape().size(); ++d)
-                        std::cout << (d?",":"")<< t.get_shape()[d];
-                    std::cout << "]" << std::endl;
-                }
                 ov::Tensor copy(t.get_element_type(), t.get_shape());
                 t.copy_to(copy);
                 step_outs.push_back(std::move(copy));
@@ -508,25 +462,9 @@ pa_model_ = make_paged_attn_model(inType, enableXattn, head_size, head_num, sink
     }
 
     allocate_caches_for_model(pa_model_, batch_size_ * max_blocks_per_seq_, inType);
-
-    std::cout << "[PA_DBG] SetUp: batch_size=" << batch_size_
-              << " block_size=" << block_size_
-              << " max_blocks_per_seq=" << max_blocks_per_seq_
-              << " total_blocks=" << batch_size_ * max_blocks_per_seq_ << std::endl;
-    std::cout << "[PA_DBG]   key_cache_init shape: [";
-    for (size_t d = 0; d < key_cache_init_.get_shape().size(); ++d)
-        std::cout << (d?",":"")<< key_cache_init_.get_shape()[d];
-    std::cout << "]  et=" << key_cache_init_.get_element_type()
-              << "  bytes=" << key_cache_init_.get_byte_size() << std::endl;
-    std::cout << "[PA_DBG]   steps: " << targetStaticShapes.size() << std::endl;
-    for (size_t i = 0; i < targetStaticShapes.size(); ++i) {
-        const auto& lbhs = targetStaticShapes[i][0];
-        std::cout << "[PA_DBG]     step " << i << " LBHS=[" << lbhs[0] << "," << lbhs[1]
-                  << "," << lbhs[2] << "," << lbhs[3] << "]" << std::endl;
-    }
 }
 
-int32_t past = 0;
+        int32_t past = 0;
         steps_.clear();
         steps_.reserve(targetStaticShapes.size());
         for (size_t i = 0; i < targetStaticShapes.size(); ++i) {
