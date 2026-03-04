@@ -45,8 +45,7 @@ public:
 class DownsampleInterpolate : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::avoid::DownsampleInterpolate");
-    DownsampleInterpolate(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
-                          const std::string& avoid_device);
+    DownsampleInterpolate(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& avoid_device);
 };
 
 // Pattern: FloorMod and its direct input producer — both need FP32 precision.

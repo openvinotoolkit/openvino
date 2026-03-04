@@ -108,7 +108,8 @@ ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Mod
         properties_model_b["NPUW_ONLINE_PIPELINE"] = "REP";
     }
     if (!properties_model_b.count("NPUW_ONLINE_AVOID")) {
-        properties_model_b["NPUW_ONLINE_AVOID"] = "P:DownsampleInterpolate/NPU,P:FloorModFP32/NPU,P:CumSumSinGen/NPU,P:BoxMullerNoise/NPU,P:AngleComplex/NPU,Op:ISTFT/NPU";
+        properties_model_b["NPUW_ONLINE_AVOID"] = "P:DownsampleInterpolate/NPU,P:FloorModFP32/NPU,P:CumSumSinGen/"
+                                                  "NPU,P:BoxMullerNoise/NPU,P:AngleComplex/NPU,Op:ISTFT/NPU";
     }
     m_model_b_compiled = std::dynamic_pointer_cast<ov::npuw::ICompiledModel>(
         ov::npuw::ICompiledModel::create(split_result.model_b, plugin, properties_model_b));

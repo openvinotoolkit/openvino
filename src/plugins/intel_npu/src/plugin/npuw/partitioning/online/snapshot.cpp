@@ -598,8 +598,7 @@ void Snapshot::earlyAvoids() {
             } else if (avoid.pattern == "GemmaRoPE") {
                 rewr.add_matcher<ov::npuw::patterns::avoid::GemmaRoPE>(shared_from_this(), avoid.device);
             } else if (avoid.pattern == "DownsampleInterpolate") {
-                rewr.add_matcher<ov::npuw::patterns::avoid::DownsampleInterpolate>(shared_from_this(),
-                                                                                   avoid.device);
+                rewr.add_matcher<ov::npuw::patterns::avoid::DownsampleInterpolate>(shared_from_this(), avoid.device);
             } else if (avoid.pattern == "FloorModFP32") {
                 rewr.add_matcher<ov::npuw::patterns::avoid::FloorModFP32>(shared_from_this(), avoid.device);
             } else if (avoid.pattern == "CumSumSinGen") {

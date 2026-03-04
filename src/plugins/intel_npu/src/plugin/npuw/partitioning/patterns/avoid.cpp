@@ -51,8 +51,7 @@ static void avoid_node_bool_wa(const std::shared_ptr<ov::Node>& node,
                                const std::string& avoid_device) {
     avoid_node(node, node_to_gptr, avoid_device);
 
-    if (node->get_output_size() > 0 &&
-        node->get_output_element_type(0) == ov::element::boolean) {
+    if (node->get_output_size() > 0 && node->get_output_element_type(0) == ov::element::boolean) {
         for (size_t i = 0; i < node->get_input_size(); ++i) {
             auto pred = node->input_value(i).get_node_shared_ptr();
             avoid_node(pred, node_to_gptr, avoid_device);
@@ -215,8 +214,7 @@ DownsampleInterpolate::DownsampleInterpolate(const std::shared_ptr<ov::npuw::onl
 
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(interpolate, "TagDownsampleInterpolateAvoid"),
-                     std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(interpolate, "TagDownsampleInterpolateAvoid"), std::move(callback));
 }
 
 //------------------------------------------------------------------------------
@@ -274,8 +272,8 @@ CumSumSinGen::CumSumSinGen(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto mul_1 = opp::wrap_type<ov::op::v1::Multiply>({cumsum, opp::any_input()});
     auto transpose_2 = opp::wrap_type<ov::op::v1::Transpose>({mul_1, opp::any_input()});
     auto mul_2 = opp::wrap_type<ov::op::v1::Multiply>({transpose_2, opp::any_input()});
-    auto interpolate = opp::wrap_type<ov::op::v4::Interpolate, ov::op::v11::Interpolate>(
-        {mul_2, opp::any_input(), opp::any_input()});
+    auto interpolate =
+        opp::wrap_type<ov::op::v4::Interpolate, ov::op::v11::Interpolate>({mul_2, opp::any_input(), opp::any_input()});
     auto transpose_3 = opp::wrap_type<ov::op::v1::Transpose>({interpolate, opp::any_input()});
     auto sin = opp::wrap_type<ov::op::v0::Sin>({transpose_3});
 
@@ -296,9 +294,8 @@ CumSumSinGen::CumSumSinGen(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         auto cumsum_input = matched_cumsum->input_value(0).get_node_shared_ptr();
         avoid_node(cumsum_input, node_to_gptr, avoid_device);
 
-        LOG_DEBUG("Avoiding CumSumSinGen chain: "
-                  << matched_cumsum->get_friendly_name() << " \u2192 "
-                  << matched_sin->get_friendly_name());
+        LOG_DEBUG("Avoiding CumSumSinGen chain: " << matched_cumsum->get_friendly_name() << " \u2192 "
+                                                  << matched_sin->get_friendly_name());
 
         avoid_node(matched_cumsum, node_to_gptr, avoid_device);
         avoid_node(matched_mul_1, node_to_gptr, avoid_device);
@@ -354,9 +351,8 @@ BoxMullerNoise::BoxMullerNoise(const std::shared_ptr<ov::npuw::online::Snapshot>
         auto cos_input = matched_cos->input_value(0).get_node_shared_ptr();
         avoid_node(cos_input, node_to_gptr, avoid_device);
 
-        LOG_DEBUG("Avoiding BoxMullerNoise chain: "
-                  << matched_rand_1->get_friendly_name() << " \u2192 "
-                  << matched_mul_out->get_friendly_name());
+        LOG_DEBUG("Avoiding BoxMullerNoise chain: " << matched_rand_1->get_friendly_name() << " \u2192 "
+                                                    << matched_mul_out->get_friendly_name());
 
         avoid_node(matched_rand_1, node_to_gptr, avoid_device);
         avoid_node(matched_log, node_to_gptr, avoid_device);
@@ -422,9 +418,8 @@ AngleComplex::AngleComplex(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         auto matched_select_2 = node_to_output.at(select_2).get_node_shared_ptr();
         auto matched_select_3 = node_to_output.at(select_3).get_node_shared_ptr();
 
-        LOG_DEBUG("Avoiding AngleComplex chain: "
-                  << matched_divide->get_friendly_name() << " -> "
-                  << matched_select_3->get_friendly_name());
+        LOG_DEBUG("Avoiding AngleComplex chain: " << matched_divide->get_friendly_name() << " -> "
+                                                  << matched_select_3->get_friendly_name());
 
         // Tag core arithmetic chain (no boolean outputs here)
         avoid_node(matched_divide, node_to_gptr, avoid_device);
