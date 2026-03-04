@@ -36,7 +36,7 @@ enum emitter_in_out_map : uint8_t {
 
 class jit_emitter : public ov::snippets::Emitter {
 public:
-    jit_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+    jit_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                 ov::element::Type exec_prc = ov::element::f32,
                 emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
@@ -47,7 +47,7 @@ public:
           p_table(0),
           l_table(new Xbyak_aarch64::Label()) {}
 
-    jit_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+    jit_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                 [[maybe_unused]] const std::shared_ptr<ov::Node>& n,
                 ov::element::Type exec_prc = ov::element::f32,
@@ -83,7 +83,7 @@ protected:
     mutable std::vector<size_t> aux_vec_idxs;
     mutable std::vector<size_t> aux_gpr_idxs;
 
-    dnnl::impl::cpu::aarch64::jit_generator* h;
+    dnnl::impl::cpu::aarch64::jit_generator_t* h;
     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa_;
     ov::element::Type exec_prc_;
 
