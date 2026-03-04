@@ -24,10 +24,7 @@ void dot(const T* arg0,
          const Shape& arg0_shape,
          const Shape& arg1_shape,
          const Shape& out_shape) {
-    using Acc = std::conditional_t<
-        !std::is_integral_v<T> && (sizeof(T) < sizeof(float)),
-        float,
-        T>;
+    using Acc = std::conditional_t<!std::is_integral_v<T> && (sizeof(T) < sizeof(float)), float, T>;
 
     const size_t arg0_rank = arg0_shape.size();
     const size_t arg1_rank = arg1_shape.size();
