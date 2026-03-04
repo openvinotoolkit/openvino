@@ -470,6 +470,14 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
         auto input_offset_per_expert_mem = engine.allocate_memory(input_offset_per_expert_data_layout);
         set_values(input_offset_per_expert_mem, input_offset_per_expert_data);
 
+        network.set_input_data("input", input_mem);
+        network.set_input_data("experts_ids", experts_ids_mem);
+        network.set_input_data("input_offset_per_expert", input_offset_per_expert_mem);
+        network.set_input_data("input_tokens_lens", input_tokens_lens_mem);
+        auto outputs = network.execute();
+        auto output = outputs.at("moe_gemm").get_memory();
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+
         std::vector<ov::float16> output_ref(M * p.out_N, 0.0f);
         if (is_weight_compressed) {
             get_reference<uint8_t>(input_data,
@@ -504,14 +512,6 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
                                    p.weight_dt,
                                    {});
         }
-
-        network.set_input_data("input", input_mem);
-        network.set_input_data("experts_ids", experts_ids_mem);
-        network.set_input_data("input_offset_per_expert", input_offset_per_expert_mem);
-        network.set_input_data("input_tokens_lens", input_tokens_lens_mem);
-        auto outputs = network.execute();
-        auto output = outputs.at("moe_gemm").get_memory();
-        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < M * p.out_N; i++) {
             auto tolerance = std::max(std::abs(output_ref[i] * 0.01f), 0.1f);
@@ -583,12 +583,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                                                                                // i4 / symmetric/ group size 32 / prefill
                                                                                moe_gemm_test_params{
                                                                                    PHASE::PREFILL,           /*phase*/
-                                                                                   static_cast<size_t>(30),  /*num_tokens*/
+                                                                                   static_cast<size_t>(32),  /*num_tokens*/
                                                                                    static_cast<size_t>(32),  /*num_total_experts*/
-                                                                                   static_cast<size_t>(2),   /*num_experts_per_token*/
-                                                                                   static_cast<size_t>(3),   /*num_actually_used_experts*/
-                                                                                   static_cast<size_t>(128), /*hidden_size*/
-                                                                                   static_cast<size_t>(64),  /*out_N*/
+                                                                                   static_cast<size_t>(4),   /*num_experts_per_token*/
+                                                                                   static_cast<size_t>(32),   /*num_actually_used_experts*/
+                                                                                   static_cast<size_t>(2880), /*hidden_size*/
+                                                                                   static_cast<size_t>(2880),  /*out_N*/
                                                                                    false,                    /*has_bias*/
                                                                                    cldnn::data_types::f16,   /*input_dt*/
                                                                                    cldnn::data_types::i4,    /*weight_dt*/
