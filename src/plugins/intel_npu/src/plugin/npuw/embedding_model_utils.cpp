@@ -16,6 +16,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pass.hpp"
+#include "openvino/pass/pattern/multi_matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -187,7 +188,7 @@ public:
     }
 };
 
-class AddPositionIdsNode : public ov::pass::MatcherPass {
+class AddPositionIdsNode : public ov::pass::MultiMatcher {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::AddPositionIdsNode");
     explicit AddPositionIdsNode(std::vector<NodePair>& node_pair, ov::ParameterVector& new_params) {
@@ -198,28 +199,35 @@ public:
         auto unsqueeze1_axes = opp::wrap_type<ov::op::v0::Constant>();
         auto unsqueeze1 = opp::wrap_type<ov::op::v0::Unsqueeze>({unsqueeze, unsqueeze1_axes});
 
-        auto convert = opp::wrap_type<ov::op::v0::Convert>({unsqueeze1});
+        auto convert = opp::optional<ov::op::v0::Convert>({unsqueeze1});
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), convert});
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
 
         auto concat = opp::wrap_type<ov::op::v0::Concat>({transpose, transpose});
-        auto sin = opp::wrap_type<ov::op::v0::Sin>(concat);
         auto cos = opp::wrap_type<ov::op::v0::Cos>(concat);
+        auto sin = opp::wrap_type<ov::op::v0::Sin>(concat);
 
-        ov::matcher_pass_callback callback = [=, &node_pair, &new_params](ov::pass::pattern::Matcher& m) {
-            auto& pattern_to_output = m.get_pattern_value_map();
+        ov::pass::MultiMatcher::Callback callback = [=, &node_pair, &new_params](const auto& m) {
+            auto& pattern_to_output = m.at(cos).front();
+            const bool no_convert = pattern_to_output.find(convert) == pattern_to_output.end();
 
             auto unsqueeze1_node = pattern_to_output.at(unsqueeze1).get_node_shared_ptr();
             auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
             set_node_name(position_ids, "position_ids");
 
-            node_pair.push_back(std::pair{unsqueeze1_node, position_ids});
+            if (no_convert) {
+                auto unsqueeze1_type = unsqueeze1_node->get_output_element_type(0);
+                auto convert_i64 = std::make_shared<ov::op::v0::Convert>(position_ids, unsqueeze1_type);
+                node_pair.push_back(std::pair{unsqueeze1_node, convert_i64});
+            } else {
+                node_pair.push_back(std::pair{unsqueeze1_node, position_ids});
+            }
+
             new_params.push_back(position_ids);
             return true;
         };
 
-        auto m = std::make_shared<ov::pass::pattern::Matcher>(cos, "AddPositionIdsNode");
-        register_matcher(m, std::move(callback));
+        register_patterns({sin, cos}, std::move(callback));
     }
 };
 

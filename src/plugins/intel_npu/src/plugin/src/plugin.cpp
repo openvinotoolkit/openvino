@@ -7,13 +7,13 @@
 #include <fstream>
 
 #include "compiled_model.hpp"
-#include "compiler_adapter_factory.hpp"
-#include "driver_compiler_adapter.hpp"
+#include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/common/parser_factory.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
@@ -369,7 +369,7 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
         if (device) {
             auto platformName = device->getName();
             CompilerAdapterFactory compilerFactory;
-            auto compileType = compilerFactory.determinteAppropriateCompilerTypeBasedOnPlatform(platformName);
+            auto compileType = compilerFactory.determineAppropriateCompilerTypeBasedOnPlatform(platformName);
             if (compileType == ov::intel_npu::CompilerType::DRIVER) {
                 config.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType)}});
             }
@@ -956,18 +956,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     // list of properties
     auto originalModel = exclude_model_ptr_from_map(localProperties);
 
-    ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
-    auto deviceId = _propertiesManager->determineDeviceId(localProperties);
+    std::shared_ptr<IDevice> device =
+        utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(localProperties));
 
-    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId);
-
-    const auto compilationPlatform =
-        utils::getCompilationPlatform(_propertiesManager->determinePlatform(localProperties),
-                                      device == nullptr ? deviceId : device->getName(),
-                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
-
-    CompilerAdapterFactory factory;
-    auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+    if (_backend == nullptr || device == nullptr) {
+        OPENVINO_THROW("Device not found.");
+    }
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
     FilteredConfig localConfig = _propertiesManager->getConfigWithCompilerPropertiesDisabled(localProperties);
@@ -1047,11 +1041,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     const std::optional<std::vector<ov::Tensor>> initBlobs =
         weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt;
 
-    auto graph =
-        compiler->parse(tensorMain,
-                        localConfig,
-                        initBlobs,
-                        weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt);
+    // Special case for PERF_COUNT as it requires compiler_type detection in case it is still set to PREFER_PLUGIN
+    if (localConfig.has<PERF_COUNT>() && localConfig.get<PERF_COUNT>() &&
+        localConfig.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
+        ov::intel_npu::CompilerType compilerType = localConfig.get<COMPILER_TYPE>();
+        CompilerAdapterFactory factory;
+        (void)factory.getCompiler(_backend, compilerType, device->getName());
+
+        localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
+    }
+
+    ParserFactory parserFactory;
+    auto parser = parserFactory.getParser(_backend->getInitStructs());
+    auto graph = parser->parse(tensorMain,
+                               localConfig,
+                               initBlobs,
+                               weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =
