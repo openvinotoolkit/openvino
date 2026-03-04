@@ -12,6 +12,9 @@ using namespace ov::test::behavior;
 namespace {
 
 const std::vector<ov::AnyMap> configsInferRequestRunTests = {{}};
+const std::vector<ov::AnyMap> configsBooleanPrecisionInferRequestRunTests = {
+    {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
+    {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}}};
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          InferRequestRunTests,
@@ -19,10 +22,10 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                                             ::testing::ValuesIn(configsInferRequestRunTests)),
                          InferRequestRunTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          BooleanPrecisionInferRequestRunTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configsInferRequestRunTests)),
+                                            ::testing::ValuesIn(configsBooleanPrecisionInferRequestRunTests)),
                          BooleanPrecisionInferRequestRunTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> profilingConfigs{{ov::intel_npu::profiling_type(ov::intel_npu::ProfilingType::MODEL)},
