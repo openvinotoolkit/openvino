@@ -61,6 +61,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*OVClassQueryModelTest.*QueryModelWithDeviceID.*)"),
             // Issue 67214
             std::regex(R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)"),
+            // TODO: Implement RGBtoNV12/BGRtoNV12 in CPU plugin.
+            std::regex(R"(.*smoke_PostProcess.*convert_color_(rgb|bgr)_to_nv12.*)"),
             // Issue: 69086
             // need to add support convert BIN -> FP32
             // if we set output precision as BIN, when we create output blob precision looks like UNSPECIFIED
