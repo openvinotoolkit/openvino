@@ -3,6 +3,7 @@
 //
 
 #include <filesystem>
+#include <optional>
 
 #include "openvino/core/any.hpp"
 #include "openvino/util/file_util.hpp"
