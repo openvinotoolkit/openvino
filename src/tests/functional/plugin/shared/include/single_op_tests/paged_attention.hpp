@@ -16,6 +16,9 @@ TEST_P(PagedAttentionLayerTest, Inference) {
     const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] = GetParam();
     (void)inputShapes; (void)enableXattn; (void)sinkInput; (void)slidingWindow;
 
+    // Single Core from the test framework (avoids re-registration errors).
+    auto& core_ref = *core;
+
     // CPU config
     ov::AnyMap cpu_cfg = additional_config;
     cpu_cfg[ov::hint::inference_precision.name()] = ov::element::f32;
@@ -34,7 +37,7 @@ TEST_P(PagedAttentionLayerTest, Inference) {
         s.tensors[pa_model_->get_parameters()[3]] = key_cache_cpu;
         s.tensors[pa_model_->get_parameters()[4]] = value_cache_cpu;
     }
-    auto cpu_out = run_device(pa_model_, ov::test::utils::DEVICE_CPU, cpu_cfg, extendBlockIndices, steps_cpu);
+    auto cpu_out = run_device(core_ref, pa_model_, ov::test::utils::DEVICE_CPU, cpu_cfg, extendBlockIndices, steps_cpu);
 
     // Run TEMPLATE with an independent fresh cache copy
     ov::Tensor key_cache_tmpl(key_cache_init_.get_element_type(), key_cache_init_.get_shape());
@@ -47,7 +50,7 @@ TEST_P(PagedAttentionLayerTest, Inference) {
         s.tensors[pa_model_->get_parameters()[3]] = key_cache_tmpl;
         s.tensors[pa_model_->get_parameters()[4]] = value_cache_tmpl;
     }
-    auto tmpl_out = run_device(pa_model_, ov::test::utils::DEVICE_TEMPLATE, tmpl_cfg, extendBlockIndices, steps_tmpl);
+    auto tmpl_out = run_device(core_ref, pa_model_, ov::test::utils::DEVICE_TEMPLATE, tmpl_cfg, extendBlockIndices, steps_tmpl);
 
     for (size_t i = 0; i < cpu_out.size(); ++i)
         ov::test::utils::compare(tmpl_out[i], cpu_out[i], /*abs*/1e-3f, /*rel*/1e-2f);

@@ -5,13 +5,31 @@
 #include "openvino/op/paged_attention.hpp"
 
 #include <cstring>
+#include <numeric>
 
 #include "evaluate_node.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/reference/paged_attention.hpp"
 #include "openvino/reference/utils/paged_cache_manager.hpp"
+#include "paged_attention_shape_inference.hpp"
 
 namespace {
+
+// TEMPLATE allocates output tensors with shape {0} when the output partial
+// shape is dynamic.  PagedAttention has dynamic outputs so we must resize
+// them to the correct runtime shapes before the reference kernel writes to
+// them.  Uses the central helper in paged_attention_shape_inference.hpp.
+void resize_pa_outputs(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
+    const auto shapes = ov::op::pa_runtime_output_shapes(inputs[0].get_shape(),
+                                                         inputs[1].get_shape(),
+                                                         inputs[2].get_shape(),
+                                                         inputs[5].data<int32_t>(),
+                                                         inputs[5].get_shape()[0]);
+    OPENVINO_ASSERT(shapes.size() == 3 && outputs.size() == 3);
+    for (size_t i = 0; i < 3; ++i) {
+        outputs[i].set_shape(shapes[i]);
+    }
+}
 
 template <ov::element::Type_t ET>
 bool evaluate(ov::TensorVector& outputs,
@@ -22,6 +40,9 @@ bool evaluate(ov::TensorVector& outputs,
 
     OPENVINO_ASSERT(inputs.size() == 25, "PagedAttentionExtension: expected 25 inputs");
     OPENVINO_ASSERT(outputs.size() == 3, "PagedAttentionExtension: expected 3 outputs");
+
+    // Ensure output tensors are large enough for the current inputs.
+    resize_pa_outputs(outputs, inputs);
 
     // Third output is currently shape-infer only
     // so I'm keeping it as 0 filled for determinism
