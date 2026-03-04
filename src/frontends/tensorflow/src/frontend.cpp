@@ -143,7 +143,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         return false;
 
     std::string model_path, checkpoints_dir;
-    if (const auto path = ov::frontend::get_path_from_any(variants[0]); path.has_value()) {
+    if (const auto path = ov::frontend::get_path_from_any(variants[0]); path.has_value() && !variants[0].is<std::wstring>()) {
         model_path = ov::util::path_to_string(path.value());
     } else if (variants[0].is<std::vector<std::string>>() && variants[0].as<std::vector<std::string>>().size() == 2) {
         const auto paths = variants[0].as<std::vector<std::string>>();
@@ -239,7 +239,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         "frozen formats (.pb and .pbtxt), SavedModel and MetaGraph (.meta) formats, and v1 checkpoints.");
 
     std::string model_path, checkpoints_dir;
-    if (const auto path = ov::frontend::get_path_from_any(variants[0]); path.has_value()) {
+    if (const auto path = ov::frontend::get_path_from_any(variants[0]); path.has_value() && !variants[0].is<std::wstring>()) {
         model_path = ov::util::path_to_string(path.value());
     } else if (variants[0].is<std::vector<std::string>>() && variants[0].as<std::vector<std::string>>().size() == 2) {
         const auto paths = variants[0].as<std::vector<std::string>>();
