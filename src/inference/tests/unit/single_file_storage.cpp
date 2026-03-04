@@ -20,7 +20,6 @@
 namespace ov::test {
 
 using runtime::SingleFileStorage;
-using runtime::TLVFormat;
 
 namespace {
 constexpr uint64_t version_size() {
@@ -70,7 +69,7 @@ TEST_F(SingleFileStorageTest, FileHeader) {
     EXPECT_EQ(read_version, SingleFileStorage::m_version);
 }
 
-TEST_F(SingleFileStorageTest, CacheEntryWriteRead) {
+TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
     const std::vector<std::pair<std::string, std::vector<uint8_t>>> test_blobs{
         {"12", std::vector<uint8_t>(124, 0xAB)},
         {"0345", std::vector<uint8_t>(481, 0xCD)},
@@ -140,10 +139,10 @@ TEST_F(SingleFileStorageTest, BlobAlignment) {
 
     while (stream.good() && stream.tellg() < stream_end) {
         SingleFileStorage::Tag tag;
-        TLVFormat::LengthType entry_size;
+        runtime::TLVTraits::LengthType length;
         stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
         ASSERT_TRUE(stream.good());
-        stream.read(reinterpret_cast<char*>(&entry_size), sizeof(entry_size));
+        stream.read(reinterpret_cast<char*>(&length), sizeof(length));
         ASSERT_TRUE(stream.good());
         const auto blob_id_pos = stream.tellg();
         if (tag == SingleFileStorage::Tag::Blob) {
@@ -158,11 +157,11 @@ TEST_F(SingleFileStorageTest, BlobAlignment) {
             const auto blob_data_pos = stream.tellg();
             EXPECT_EQ(blob_data_pos % alignment, 0) << "Blob with id " << id << " is not properly aligned";
 
-            const auto expected_pos = blob_id_pos + static_cast<std::streamoff>(entry_size);
+            const auto expected_pos = blob_id_pos + static_cast<std::streamoff>(length);
             stream.seekg(test_blobs.at(id).size(), std::ios::cur);
-            ASSERT_EQ(expected_pos, stream.tellg()) << "Blob with id " << id << " has incorrect entry size";
+            ASSERT_EQ(expected_pos, stream.tellg()) << "Blob with id " << id << " has incorrect record size";
         } else {
-            stream.seekg(entry_size, std::ios::cur);
+            stream.seekg(length, std::ios::cur);
         }
     }
 }
@@ -249,10 +248,10 @@ TEST_F(SingleFileStorageTest, ContextMetaAppendDelta) {
     EXPECT_EQ(got_context.m_weight_registry[1].size(), 2);
     EXPECT_EQ(got_context.m_weight_registry[2].size(), 1);
     m_storage.reset();
-    const auto file_size_after_first_write = test::utils::fileSize(m_file_path);
+    const auto file_size_after_first_write = test::utils::fileSize(m_file_path.string());
 
     SingleFileStorage{m_file_path}.write_context(test_context);
-    const auto file_size_after_second_write = test::utils::fileSize(m_file_path);
+    const auto file_size_after_second_write = test::utils::fileSize(m_file_path.string());
     EXPECT_EQ(file_size_after_second_write, file_size_after_first_write)
         << "Rewriting the same context should not increase file size";
 }
@@ -275,10 +274,10 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
 
     while (stream.good() && stream.tellg() < stream_end) {
         SingleFileStorage::Tag tag;
-        TLVFormat::LengthType entry_size;
+        runtime::TLVTraits::LengthType length;
         stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
         ASSERT_TRUE(stream.good());
-        stream.read(reinterpret_cast<char*>(&entry_size), sizeof(entry_size));
+        stream.read(reinterpret_cast<char*>(&length), sizeof(length));
         ASSERT_TRUE(stream.good());
         if (tag == SingleFileStorage::Tag::WeightSource) {
             SingleFileStorage::DataIdType device_id, source_id;
@@ -292,13 +291,13 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
             const auto weight_pos = stream.tellg();
             ASSERT_EQ(weight_pos % alignment, 0);
             const auto weight_size =
-                entry_size - sizeof(device_id) - sizeof(source_id) - sizeof(padding_size) - padding_size;
+                length - sizeof(device_id) - sizeof(source_id) - sizeof(padding_size) - padding_size;
             ASSERT_EQ(weight_size, buffer->size());
             std::vector<uint8_t> read_data(weight_size);
             stream.read(reinterpret_cast<char*>(read_data.data()), read_data.size());
             EXPECT_EQ(std::memcmp(read_data.data(), buffer->get_ptr(), buffer->size()), 0);
         } else {
-            stream.seekg(entry_size, std::ios::cur);
+            stream.seekg(length, std::ios::cur);
         }
     }
 }
@@ -315,10 +314,10 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceAppendDelta) {
 
     EXPECT_EQ(m_storage->get_context().m_cache_sources.size(), 2);
     m_storage.reset();
-    const auto file_size_after_first_write = test::utils::fileSize(m_file_path);
+    const auto file_size_after_first_write = test::utils::fileSize(m_file_path.string());
 
     SingleFileStorage{m_file_path}.write_context(test_context);
-    const auto file_size_after_second_write = test::utils::fileSize(m_file_path);
+    const auto file_size_after_second_write = test::utils::fileSize(m_file_path.string());
     EXPECT_EQ(file_size_after_second_write, file_size_after_first_write)
         << "Rewriting the same context should not increase file size";
 }

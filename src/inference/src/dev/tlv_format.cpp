@@ -9,7 +9,7 @@
 
 namespace ov::runtime {
 
-void TLVFormat::write_entry(std::ostream& stream, TagType tag, LengthType size, const char* data) {
+void write_tlv_record(std::ostream& stream, TLVTraits::TagType tag, TLVTraits::LengthType size, const char* data) {
     stream.write(reinterpret_cast<const char*>(&tag), sizeof(tag));
     stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
     if (size && data) {
@@ -17,10 +17,10 @@ void TLVFormat::write_entry(std::ostream& stream, TagType tag, LengthType size, 
     }
 }
 
-void TLVFormat::write_entry(std::ostream& stream, TagType tag, const ValueWriter& writer) {
+void write_tlv_record(std::ostream& stream, TLVTraits::TagType tag, const TLVValueWriter& writer) {
     stream.write(reinterpret_cast<const char*>(&tag), sizeof(tag));
     const auto size_pos = stream.tellp();
-    LengthType size = 0;
+    TLVTraits::LengthType size = 0;
     stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
     if (writer) {
         const auto value_pos = stream.tellp();
@@ -33,8 +33,9 @@ void TLVFormat::write_entry(std::ostream& stream, TagType tag, const ValueWriter
     }
 }
 
+namespace {
 template <typename Container>
-static bool read_entry_(std::istream& stream, TLVFormat::TagType& tag, TLVFormat::LengthType& size, Container& data) {
+static bool read_record(std::istream& stream, TLVTraits::TagType& tag, TLVTraits::LengthType& size, Container& data) {
     stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
     if (!stream.good()) {
         return false;
@@ -51,20 +52,24 @@ static bool read_entry_(std::istream& stream, TLVFormat::TagType& tag, TLVFormat
     stream.read(reinterpret_cast<char*>(data.data()), size);
     return stream.good();
 }
+}  // namespace
 
-bool TLVFormat::read_entry(std::istream& stream, TagType& tag, LengthType& size, std::vector<char>& data) {
-    return read_entry_(stream, tag, size, data);
+bool read_tlv_record(std::istream& stream,
+                     TLVTraits::TagType& tag,
+                     TLVTraits::LengthType& size,
+                     std::vector<char>& data) {
+    return read_record(stream, tag, size, data);
 }
 
-bool TLVFormat::scan_entries(std::istream& stream, const ValueScanner& scanners) {
+bool scan_tlv_records(std::istream& stream, const TLVValueScanner& scanners) {
     const auto beginning_pos = stream.tellg();
     stream.seekg(0, std::ios::end);
     const auto stream_end = stream.tellg();
     stream.seekg(beginning_pos);
 
     while (stream.good() && stream.tellg() < stream_end) {
-        TLVFormat::TagType tag{};
-        TLVFormat::LengthType size{};
+        TLVTraits::TagType tag{};
+        TLVTraits::LengthType size{};
         stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
         if (!stream.good()) {
             return false;
