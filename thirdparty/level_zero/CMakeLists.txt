@@ -32,14 +32,16 @@ add_subdirectory(level-zero EXCLUDE_FROM_ALL)
 
 set(ZE_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include/")
 file(GLOB_RECURSE COMPUTE_RUNTIME_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/compute-runtime/*.h")
-file(GLOB_RECURSE LEVEL_ZERO_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/level-zero/include")
-add_custom_command(OUTPUT "${ZE_INCLUDE_DIR}"
+file(GLOB_RECURSE LEVEL_ZERO_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/level-zero/include/*.h")
+set(ZE_HEADERS_STAMP_FILE ${CMAKE_CURRENT_BINARY_DIR}/ze_headers.stamp)
+add_custom_command(OUTPUT "${ZE_HEADERS_STAMP_FILE}"
+    DEPENDS "${COMPUTE_RUNTIME_HEADERS}" "${LEVEL_ZERO_HEADERS}"
     COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/level-zero/include" "${ZE_INCLUDE_DIR}/level_zero"
     COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/compute-runtime" "${ZE_INCLUDE_DIR}/level_zero"
-    DEPENDS "${COMPUTE_RUNTIME_HEADERS}" "${LEVEL_ZERO_HEADERS}"
+    COMMAND "${CMAKE_COMMAND}" -E touch "${ZE_HEADERS_STAMP_FILE}"
     COMMENT "Copying Level Zero and compute-runtime headers..."
 )
-add_custom_target(prepare_ze_headers ALL DEPENDS "${ZE_INCLUDE_DIR}")
+add_custom_target(prepare_ze_headers ALL DEPENDS "${ZE_HEADERS_STAMP_FILE}")
 add_dependencies(ze_loader prepare_ze_headers)
 
 # Allow include patterns with and without level-zero/ prefix
