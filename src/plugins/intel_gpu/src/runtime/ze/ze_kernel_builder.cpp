@@ -34,6 +34,9 @@ void ze_kernel_builder::init_ocl_builder() const {
 
 bool ze_kernel_builder::check_l0_build_support() const {
     static std::unordered_map<ze_device_handle_t, bool> cache;
+    static std::mutex m;
+    // Prevent multiple threads from checking support at the same time
+    std::lock_guard lock(m);
     const char src[] = R"(__kernel void k(){})";
     auto src_bytes = sizeof(src);
     auto dev_handle = m_device.get_device();
