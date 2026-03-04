@@ -852,7 +852,10 @@ ov::Any Properties::getProperty(const std::string& name) {
             }
         }
 
-        if (propertyIsCompilerConfig || !propertyIsRegistered || name == ov::supported_properties.name()) {
+        // Special case for Supported Properties and Caching Properties as they are compiler dependent. So we need to
+        // check compiler support for those properties on each getProperty call as well.
+        if (propertyIsCompilerConfig || !propertyIsRegistered || name == ov::supported_properties.name() ||
+            name == ov::internal::caching_properties.name()) {
             std::unique_ptr<ICompilerAdapter> compiler = nullptr;
             auto compilerType = _config.get<COMPILER_TYPE>();
             auto deviceId = _config.get<DEVICE_ID>();
