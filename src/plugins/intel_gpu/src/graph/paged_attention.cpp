@@ -8,9 +8,6 @@
 #include <string>
 #include <sstream>
 
-#define ENABLE_DEBUG 0
-
-
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(paged_attention)
 
@@ -52,13 +49,6 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
         else
             expected_block_size += 8;
     }
-
-    #if ENABLE_DEBUG
-        std::cout << "  >> key_cache_dt : " << key_cache_dt
-                    << " , key_cache_compressed : " << key_cache_compressed
-                    << " , expected_block_size : " << expected_block_size
-                    << " , block_size : " << paged_attention::block_size << std::endl;
-    #endif
 
     OPENVINO_ASSERT((key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) == desc->is_key_by_channel,
                      "[GPU] Paged Attention key cache quantization mode mismatch: prim.is_key_by_channel : ",
