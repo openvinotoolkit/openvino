@@ -19,6 +19,40 @@
 #include "pyramid_attention.hpp"
 #include "weights_bank.hpp"
 
+// ====================================================================================================
+// ISubrequestAccessor Interface Implementation
+// ====================================================================================================
+
+ov::SoPtr<ov::IAsyncInferRequest> ov::npuw::JustInferRequest::get_subrequest(size_t idx) {
+    return m_subrequests[idx];
+}
+
+const void* ov::npuw::JustInferRequest::get_submodel_desc(size_t idx) {
+    return &m_npuw_model->m_compiled_submodels[idx];
+}
+
+ov::npuw::TensorPtr ov::npuw::JustInferRequest::allocate_mem(const ov::element::Type& type,
+                                                             const ov::Shape& shape,
+                                                             const std::string& device) {
+    return allocMem(type, shape, device);
+}
+
+bool ov::npuw::JustInferRequest::is_gather_closure(size_t idx, size_t cidx) {
+    return m_npuw_model->is_gather_closure(idx, cidx);
+}
+
+bool ov::npuw::JustInferRequest::unpack_required(size_t idx, size_t cidx) {
+    return m_npuw_model->unpack_required(idx, cidx);
+}
+
+bool ov::npuw::JustInferRequest::needs_copy_closure(size_t idx, size_t cidx) {
+    return IBaseInferRequest::needs_copy(idx, cidx);
+}
+
+// ====================================================================================================
+// Memory Access Simulation & Function Memory Management
+// ====================================================================================================
+
 ov::npuw::MemAccessSim::MemAccessSim(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model) {
     LOG_VERB("Running memory access simulation...");
     LOG_BLOCK();
@@ -207,9 +241,11 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     bool has_dynamic = false;
     bool has_pyramid = false;
     bool has_hfa = false;
+    bool has_moe = false;
     std::size_t dynamic_sub_idx = -1;
     std::size_t pyramid_sub_idx = -1;
     std::size_t hfa_sub_idx = -1;
+    std::size_t moe_real_idx = -1;  // Track which real function has MoE
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_INFO("Creating infer request for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -289,6 +325,16 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                     proto_comp_model_desc.host_flash_attention.value()._compiled_final_tile_model->outputs().size();
                 m_hfa_io[i].outputs.resize(num_outputs);
             }  // if(hfa)
+
+            // Initialize the MoE IO placeholders, if required
+            if (proto_comp_model_desc.moe_experts) {
+                // Sanity check: ensure only one MoE function type exists
+                if (has_moe && moe_real_idx != real_idx) {
+                    OPENVINO_THROW("Only single MoE type is permitted for model");
+                }
+                has_moe = true;
+                moe_real_idx = real_idx;
+            }  // if(moe_experts)
 
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
                 const auto from = LinkFrom{i, out_idx};
@@ -459,6 +505,11 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             OPENVINO_THROW("HFA dynamic capability is enabled, but no run-time features were found.");
         }
         LOG_VERB("Done");
+    }
+
+    // Initialize MoE executor if MoE was detected
+    if (has_moe) {
+        initialize_moe_executor();
     }
 }
 
@@ -679,6 +730,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     const bool is_dynamic = func_desc.attention.has_value();
     const bool is_pyramid = func_desc.pyramid_attention.has_value();
     const bool is_hfa = func_desc.host_flash_attention.has_value();
+    const bool is_moe = func_desc.moe_experts.has_value() || func_desc.moe_experts_downstream.has_value();
 
     // Generalized: check if input is neither param nor mask
     auto is_non_param_mask = [](const auto& info, std::size_t in_idx) {
@@ -738,6 +790,11 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
             } else if (is_hfa) {
                 // Host Flash Attention case - defer, use dedicated HFA I/O structure
                 m_hfa_io[idx].inputs.at(i) = i_tensor;
+            } else if (is_moe) {
+                // MoE layer: delegate to executor for input binding
+                if (m_moe_executor->function_prologue_moe_input(idx, real_idx, i, i_tensor)) {
+                    continue;
+                }
             } else {
                 // Default case
                 m_subrequests[real_idx]->set_tensor(iport, i_tensor);
@@ -776,7 +833,10 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         LOG_DEBUG("Binding result[" << i << "]...");
         auto& oport = func_desc.compiled_model->outputs()[i];
         auto o_tensor = m_funcall_result.at({idx, i});
-        if (is_hfa) {
+        if (func_desc.moe_experts) {
+            // MoE case - delegate to executor for output binding
+            m_moe_executor->function_prologue_moe_output(idx, i, o_tensor);
+        } else if (is_hfa) {
             // HFA case - defer, store in dedicated HFA I/O structure
             m_hfa_io[idx].outputs.at(i) = o_tensor;
         } else if (!is_spatial) {
@@ -983,6 +1043,10 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
         if (proto_comp_model_desc.host_flash_attention) {
             setup_hfa_infer_requests(real_idx, is_piped, /* is_recreate */ true, /* enable_hfa_optimizations */ true);
         }
+        // Recreate MoE resources if this function has MoE
+        if (proto_comp_model_desc.moe_experts) {
+            recreate_moe_resources(idx, real_idx);
+        }
     }
 
     // After an infer request is recreated, the internal cross-request
@@ -992,6 +1056,47 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     // but it is a more complex thing and can be implemented separately
     connect_subrequests();
     m_subrequest_devices[idx] = *comp_model_desc.device_it;
+}
+
+void ov::npuw::JustInferRequest::initialize_moe_executor() {
+    LOG_INFO("Creating MoE executor...");
+
+    // Create MoE executor with dependency injection
+    m_moe_executor = std::make_unique<ov::npuw::moe::MoEExecutor>(
+        *this,  // ISubrequestAccessor
+        [this](const ov::element::Type& type, const ov::Shape& shape, const std::string& device) {
+            // Allocator callback
+            return allocMem(type, shape, device);
+        });
+
+    LOG_INFO("MoE executor created");
+
+    // Prepare MoE resources for each sublayer
+    size_t pool_size = m_npuw_model->m_cfg.get<::intel_npu::NPUW_MOE_POOL_SIZE>();
+    for (size_t i = 0; i < m_num_submodels; i++) {
+        auto& desc = m_npuw_model->m_compiled_submodels[i];
+
+        size_t real_idx = desc.replaced_by.value_or(i);
+        auto& real_desc = m_npuw_model->m_compiled_submodels[real_idx];
+
+        // Check if the real function body has MoE experts
+        if (real_desc.moe_experts.has_value()) {
+            m_moe_executor->prepare(i, real_idx, m_num_submodels, pool_size);
+        }
+    }
+
+    LOG_INFO("MoE executor initialized successfully");
+}
+
+void ov::npuw::JustInferRequest::recreate_moe_resources(std::size_t idx, std::size_t real_idx) {
+    LOG_INFO("Recreating MoE resources for submodel[" << idx << "] (real_idx=" << real_idx << ")...");
+    LOG_BLOCK();
+
+    // Re-prepare MoE resources for this specific submodel
+    size_t pool_size = m_npuw_model->m_cfg.get<::intel_npu::NPUW_MOE_POOL_SIZE>();
+    m_moe_executor->prepare(idx, real_idx, m_num_submodels, pool_size);
+
+    LOG_INFO("MoE resources recreated successfully");
 }
 
 void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate) {
@@ -1308,7 +1413,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
 void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t idx, const std::function<void()>& f) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
 
-    if (!comp_model_desc.spatial && !comp_model_desc.host_flash_attention.has_value()) {
+    if (!comp_model_desc.spatial && !comp_model_desc.host_flash_attention.has_value() && !comp_model_desc.moe_experts) {
         // Normal: trigger request asynchronously, run `f` in this context
         // FIXME: dynamic could hit here too, but it has special logic
         // around execution which makes it harder to run than a plain start_async()
@@ -1780,6 +1885,9 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
         unsafe_infer_spatial(real_idx, idx);
     } else if (comp_model_desc.host_flash_attention) {
         run_hfa_tiled_inference(real_idx, idx);
+    } else if (comp_model_desc.moe_experts.has_value()) {
+        // Use MoEExecutor
+        m_moe_executor->run(real_idx, idx);
     } else {
         r->infer();  // Run normally
     }

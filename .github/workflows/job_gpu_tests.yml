@@ -15,6 +15,10 @@ on:
         description: 'Runner labels by which the runner will be chosen. Example: [ "self-hosted", "igpu" ]'
         type: string
         required: true
+      runner-group:
+        description: 'Runner group from which the runner will be chosen'
+        type: string
+        required: true
       image:
         description: 'Docker image in which the tests would run'
         type: string
@@ -31,11 +35,13 @@ permissions: read-all
 jobs:
   GPU:
     timeout-minutes: 80
-    runs-on: ${{ fromJSON(inputs.runner) }}
+    runs-on:
+      group: ${{ inputs.runner-group }}
+      labels: ${{ fromJSON(inputs.runner) }}
     container:
       image: ${{ inputs.image }}
       volumes:
-        - /dev/dri:/dev/dri
+        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro # Needed to access CA certificates
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
       options: ${{ inputs.options }}
     defaults:
@@ -46,6 +52,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       GTEST_PARALLEL_SCRIPT: ${{ github.workspace }}/gtest_parallel.py
+      NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
     steps:
       - name: Download OpenVINO artifacts (package)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
@@ -61,6 +68,7 @@ jobs:
 
       - name: Extract OpenVINO packages
         run: |
+            apt-get update && apt-get install -y pigz
             pigz -dc openvino_package.tar.gz | tar -xf - -v
             pigz -dc openvino_tests.tar.gz | tar -xf - -v
         working-directory: ${{ env.INSTALL_DIR }}
@@ -72,6 +80,7 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
           TZ: "Europe/London" # to prevent tzdata from waiting user input
+
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -96,8 +105,12 @@ jobs:
         run: |
           apt-get update && apt-get install -y \
             libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
-            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libigdgmm11 libxatracker2 mesa-va-drivers \
+            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libxatracker2 mesa-va-drivers \
             mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
+            wget -qO - https://repositories.intel.com/gpu/intel-graphics.key |  gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
+            echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | tee /etc/apt/sources.list.d/intel-gpu-jammy.list
+            apt update
+            apt-get install -y libze-intel-gpu1 libze1 intel-opencl-icd libze-dev intel-ocloc intel-level-zero-gpu-raytracing
 
       - name: Verify devices
         run: clinfo
@@ -130,7 +143,7 @@ jobs:
 
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
         if: always()
         with:
           name: test-results-${{ inputs.test_type }}-${{ inputs.device }}

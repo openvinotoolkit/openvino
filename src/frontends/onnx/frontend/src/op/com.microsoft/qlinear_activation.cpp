@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
@@ -18,6 +19,7 @@
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 
@@ -37,10 +39,10 @@ ov::OutputVector qlinear_activation(const ov::frontend::onnx::Node& node, const 
     auto input_tensor = inputs[0];
     auto input_scale = inputs[1];
     auto input_zero_point =
-        (inputs[2].get_shape().empty()) ? v0::Constant::create(input_tensor.get_element_type(), {}, {0}) : inputs[2];
+        ov::op::util::is_null(inputs[2]) ? v0::Constant::create(input_tensor.get_element_type(), {}, {0}) : inputs[2];
     auto output_scale = inputs[3];
     auto output_zero_point =
-        (inputs.size() > 4) ? inputs[4] : v0::Constant::create(input_tensor.get_element_type(), {}, {0});
+        (common::is_input_valid(node, 4)) ? inputs[4] : v0::Constant::create(input_tensor.get_element_type(), {}, {0});
 
     CHECK_VALID_NODE(node,
                      (input_tensor.get_element_type() == element::i8 || input_tensor.get_element_type() == element::u8),
@@ -59,7 +61,7 @@ ov::OutputVector qlinear_activation(const ov::frontend::onnx::Node& node, const 
         std::make_shared<v1::Add>(std::make_shared<v0::Convert>(scaled_result_float, input_tensor.get_element_type()),
                                   output_zero_point);
 
-    return ov::OutputVector{quantized_result};
+    return ov::OutputVector{quantized_result->output(0)};
 }
 
 ov::OutputVector qlinear_sigmoid(const ov::frontend::onnx::Node& node) {
@@ -86,8 +88,9 @@ ov::OutputVector qlinear_avg_pool(const ov::frontend::onnx::Node& node) {
         const auto count_include_pad = node.get_attribute_value<int64_t>("count_include_pad", 0);
         const auto auto_pad = node.get_attribute_value<std::string>("auto_pad", "NOTSET");
 
-        const auto input_rank = input_dequantized->get_shape().size();
-        const size_t num_spatial_dims = input_rank - 2;
+        const auto input_rank = input_dequantized->get_output_partial_shape(0).rank();
+        CHECK_VALID_NODE(node, input_rank.is_static(), "Input rank must be static for QLinearAveragePool");
+        const size_t num_spatial_dims = input_rank.get_length() - 2;
 
         pads.resize(num_spatial_dims * 2, pads.size() == 1 ? pads[0] : 0);
         strides.resize(num_spatial_dims, strides.size() == 1 ? strides[0] : 1);

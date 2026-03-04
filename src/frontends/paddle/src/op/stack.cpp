@@ -11,10 +11,10 @@ namespace paddle {
 namespace op {
 using namespace default_opset;
 NamedOutputs stack(const NodeContext& node) {
-    auto datas = node.get_ng_inputs("X");
+    auto data_inputs = node.get_ng_inputs("X");
     auto axis = node.get_attribute<int32_t>("axis", 0);
-    auto data_shape = datas[0].get_partial_shape();
-    auto data_type = datas[0].get_element_type();
+    auto data_shape = data_inputs[0].get_partial_shape();
+    auto data_type = data_inputs[0].get_element_type();
     OutputVector node_datas_reshape;
 
     auto axis_const = std::make_shared<Constant>(element::i64, Shape{}, axis);
@@ -23,7 +23,7 @@ NamedOutputs stack(const NodeContext& node) {
                         (axis >= -(data_shape.rank().get_length() + 1)) && axis < (data_shape.rank().get_length() + 1),
                         "axis range is [-(R+1), R+1)!");
 
-    for (const auto& data : datas) {
+    for (const auto& data : data_inputs) {
         PADDLE_OP_CHECK(node,
                         data_type == data.get_element_type(),
                         "stack input tensor must have the same data types!");

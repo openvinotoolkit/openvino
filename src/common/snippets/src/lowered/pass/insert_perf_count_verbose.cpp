@@ -12,6 +12,8 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/util/common_util.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/op/brgemm.hpp"
@@ -69,51 +71,40 @@ std::string InsertPerfCountVerbose::collect_params(const ov::snippets::lowered::
                                                    const snippets::lowered::LinearIR& /*linear_ir*/) {
     const auto brgemm = ov::as_type_ptr<ov::snippets::op::Brgemm>(brgemm_expr->get_node());
     OPENVINO_ASSERT(brgemm, "Brgemm is nullptr!");
+
+    std::vector<ov::element::Type> input_types, output_types;
+    std::vector<std::string> input_shapes, output_shapes, input_layouts, output_layouts;
+    input_types.reserve(brgemm->inputs().size());
+    output_types.reserve(brgemm->outputs().size());
+    input_shapes.reserve(brgemm->inputs().size());
+    output_shapes.reserve(brgemm->outputs().size());
+    input_layouts.reserve(brgemm->inputs().size());
+    output_layouts.reserve(brgemm->outputs().size());
+
+    for (size_t i = 0; i < brgemm->inputs().size(); ++i) {
+        input_types.push_back(brgemm->get_input_element_type(i));
+        const auto& port_desc = brgemm_expr->get_input_port_descriptor(i);
+        const auto& shape = ov::snippets::utils::get_planar_vdims(port_desc->get_shape(), port_desc->get_layout());
+        input_shapes.push_back(utils::tensor2str(shape, " "));
+        input_layouts.push_back(utils::tensor2str(port_desc->get_layout(), " "));
+    }
+    for (size_t i = 0; i < brgemm->outputs().size(); ++i) {
+        output_types.push_back(brgemm->get_output_element_type(i));
+        const auto& port_desc = brgemm_expr->get_output_port_descriptor(i);
+        const auto& shape = ov::snippets::utils::get_preordered_vdims(port_desc->get_shape(), port_desc->get_layout());
+        output_shapes.push_back(utils::tensor2str(shape, " "));
+        output_layouts.push_back(utils::tensor2str(port_desc->get_layout(), " "));
+    }
+
     std::stringstream ss;
     ss << m_subgraph_name << ',';
     ss << brgemm_expr->get_node()->get_friendly_name() << ',';
-    for (size_t i = 0; i < brgemm->get_input_size(); ++i) {
-        ss << brgemm->get_input_element_type(i);
-        if (i != brgemm->get_input_size() - 1) {
-            ss << ';';
-        }
-    }
-    ss << ',';
-    for (size_t i = 0; i < brgemm->get_output_size(); ++i) {
-        ss << brgemm->get_output_element_type(i);
-        if (i != brgemm->get_output_size() - 1) {
-            ss << ';';
-        }
-    }
-    ss << ',';
-    for (size_t i = 0; i < brgemm->inputs().size(); ++i) {
-        const auto& port_desc = brgemm_expr->get_input_port_descriptor(i);
-        const auto& shape = ov::snippets::utils::get_planar_vdims(port_desc->get_shape(), port_desc->get_layout());
-        ss << utils::tensor2str(shape, " ");
-        ss << ';';
-    }
-    ss.seekp(-1, std::stringstream::cur);
-    ss << ',';
-    for (size_t i = 0; i < brgemm->outputs().size(); ++i) {
-        const auto& port_desc = brgemm_expr->get_output_port_descriptor(i);
-        const auto& shape = ov::snippets::utils::get_preordered_vdims(port_desc->get_shape(), port_desc->get_layout());
-        ss << utils::tensor2str(shape, " ");
-        ss << ';';
-    }
-    ss.seekp(-1, std::stringstream::cur);
-    ss << ',';
-    for (size_t i = 0; i < brgemm->inputs().size(); ++i) {
-        const auto& port_desc = brgemm_expr->get_input_port_descriptor(i);
-        ss << utils::tensor2str(port_desc->get_layout(), " ");
-        ss << ';';
-    }
-    ss << ',';
-    for (size_t i = 0; i < brgemm->outputs().size(); ++i) {
-        const auto& port_desc = brgemm_expr->get_output_port_descriptor(i);
-        ss << utils::tensor2str(port_desc->get_layout(), " ");
-        ss << ';';
-    }
-    ss << ',';
+    ss << ov::util::join(input_types, ";") << ',';
+    ss << ov::util::join(output_types, ";") << ',';
+    ss << ov::util::join(input_shapes, ";") << ',';
+    ss << ov::util::join(output_shapes, ";") << ',';
+    ss << ov::util::join(input_layouts, ";") << (input_layouts.empty() ? "" : ";") << ',';
+    ss << ov::util::join(output_layouts, ";") << (output_layouts.empty() ? "" : ";") << ',';
 
     const auto& in_0_desc = brgemm_expr->get_input_port_descriptor(0);
     const auto& in_1_desc = brgemm_expr->get_input_port_descriptor(1);

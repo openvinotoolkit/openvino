@@ -11,10 +11,10 @@
 #include "exceptions.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
+#include "utils/attention.hpp"
 #include "utils/common.hpp"
 #include "utils/split.hpp"
 
@@ -23,9 +23,7 @@ using namespace ov::op;
 namespace ov::frontend::onnx::com_microsoft {
 
 namespace detail {
-namespace {
-std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<v3::ShapeOf>& shape, const std::vector<int>& dims);
-}  // namespace
+using ov::frontend::onnx::attention::get_dimensions;
 }  // namespace detail
 
 namespace opset_1 {
@@ -106,15 +104,5 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
 ONNX_OP("GroupQueryAttention", OPSET_SINCE(1), com_microsoft::opset_1::group_query_attention, MICROSOFT_DOMAIN);
 
 }  // namespace opset_1
-
-namespace detail {
-namespace {
-std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<v3::ShapeOf>& shape, const std::vector<int>& dims) {
-    static const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
-    const auto dims_const = v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
-    return std::make_shared<v8::Gather>(shape, dims_const, zero);
-}
-}  // namespace
-}  // namespace detail
 
 }  // namespace ov::frontend::onnx::com_microsoft
