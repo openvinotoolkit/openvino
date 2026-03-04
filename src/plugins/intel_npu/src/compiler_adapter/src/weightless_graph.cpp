@@ -157,8 +157,7 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
                                  std::optional<std::vector<ov::Tensor>> initBlobs,
                                  std::shared_ptr<const ov::Model>&& model,
                                  const FilteredConfig& config,
-                                 const bool blobIsPersistent,
-                                 const ov::SoPtr<VCLCompilerImpl>& compiler)
+                                 const bool blobIsPersistent)
     : Graph(zeGraphExt,
             zeroInitStruct,
             mainGraphDesc,
@@ -166,7 +165,6 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
             std::move(mainBlob),
             config,
             blobIsPersistent,
-            compiler,
             true),
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
