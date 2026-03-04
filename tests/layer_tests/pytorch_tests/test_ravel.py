@@ -18,8 +18,7 @@ class TestRavel(PytorchLayerTest):
             def forward(self, x):
                 return torch.ravel(x)
 
-        ref_net = None
-        return aten_ravel(), ref_net, "aten::ravel"
+        return aten_ravel(), "aten::ravel"
 
     @pytest.mark.parametrize("shape", [
         [2, 3],
