@@ -85,8 +85,9 @@ inline std::string get_pa_build_options() {
 }
 
 #define FIND_DEBUG_ACC 0
-// BLOCK_SIZE can be 16/256 for legacy and xattn cases respectively
-#define PA_KV_CACHE_BLOCK_SIZE       16
+// The block size for KV cache is set to 256 for xattn to achieve better performance.
+// For non-xattn case, it can be set to 16 for compatibility to legacy implementations.
+#define PA_KV_CACHE_BLOCK_SIZE_LEGACY 16
 #define PA_KV_CACHE_BLOCK_SIZE_XATTN 256
 
 constexpr uint32_t SG_M = 4;
@@ -136,7 +137,6 @@ int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const PagedAtt
 PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_param);
 size_t get_max_context_len(const kernel_impl_params& params);
 size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx);
-size_t get_partition_size(const bool has_xattention);
 
 float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx = 0);
 bool bypass_xattn(const kernel_impl_params& impl_param);
@@ -161,7 +161,7 @@ public:
 class PagedAttentionGeneratorMultiToken : public PagedAttentionGeneratorBase {
 public:
     explicit PagedAttentionGeneratorMultiToken(size_t xattn_block_size = 1)
-        : PagedAttentionGeneratorBase("pa_multi_token"),
+                : PagedAttentionGeneratorBase("pa_multi_token", "_cm_bs" + std::to_string(xattn_block_size)),
           _xattn_block_size(xattn_block_size) {}
 
     static size_t get_q_step(const kernel_impl_params& params) {
@@ -191,6 +191,16 @@ public:
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+
+    static size_t get_partition_size(const bool has_xattention = false) {
+        // inheristic setting for single token to ensure the best performance, which is also verified by
+        // internal testing. We can consider to make it configurable if needed in the future.
+        if (!has_xattention && PA_KV_CACHE_BLOCK_SIZE_LEGACY < 128) {
+            return 128;
+        } else {
+            return PA_KV_CACHE_BLOCK_SIZE_XATTN;
+        }
+    }
 };
 
 class PagedAttentionGeneratorSingleTokenFinalization : public PagedAttentionGeneratorBase {

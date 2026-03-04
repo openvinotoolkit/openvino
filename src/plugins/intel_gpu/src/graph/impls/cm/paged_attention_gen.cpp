@@ -57,14 +57,6 @@ inline bool get_kv_compressed(const RuntimeParams& params) {
     }
 }
 
-size_t get_partition_size(const bool has_xattention) {
-    if (!has_xattention && PA_KV_CACHE_BLOCK_SIZE < 128) {
-        return 128;
-    } else {
-        return PA_KV_CACHE_BLOCK_SIZE_XATTN;
-    }
-}
-
 // max_context_len = max(past_lens + prompt_lens)
 size_t get_max_context_len(const kernel_impl_params& params) {
     const auto& input_mem = params.memory_deps;
@@ -163,7 +155,7 @@ JitConstants PagedAttentionGeneratorKVCacheUpdate::get_jit_constants(const kerne
     if (desc->has_xattention) {
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
     } else {
-        jit.make("PAGED_ATTENTION_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE);
+        jit.make("PAGED_ATTENTION_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
     }
 
     if (get_kv_compressed(params)) {
@@ -308,11 +300,15 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
     jit.add(make_jit_constant("CMFLA_SCALE_FACTOR", scale_factor));
     jit.make("CMFLA_IS_CAUSAL", 1);
     if (_xattn_block_size > 1) {
-        jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE_XATTN);
         jit.make("SPARSE_BLOCK_SIZE", _xattn_block_size);
     } else {
-        jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE);
         jit.make("SPARSE_BLOCK_SIZE", 1);
+    }
+
+    if (desc->has_xattention) {
+        jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE_XATTN);
+    } else {
+        jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
     }
 
     if (get_kv_compressed(params)) {
@@ -327,7 +323,8 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
 }
 
 DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() const {
-    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+    const size_t xattn_block_size = _xattn_block_size;
+    return DispatchDataFunc{[xattn_block_size](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         auto desc = params.typed_desc<paged_attention>();
@@ -353,7 +350,7 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
                       << ", wg_seq_len: " << wg_seq_len << ", wg_count: " << wg_count << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", "
                       << wgs.global[2] << "]" << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
-        auto num_scalers = desc->has_xattention ? 3 : 1;
+        auto num_scalers = xattn_block_size > 1 && desc->has_xattention ? 3 : 1;
         scalars.resize(num_scalers);
         scalars[0].t = ScalarDescriptor::Types::INT32;
         scalars[0].v.s32 = static_cast<int32_t>(q_len);
@@ -380,7 +377,7 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     if (desc->has_xattention) {
         jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
     } else {
-        jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE);
+        jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
     }
     jit.add(make_jit_constant("SCALE_FACTOR", scale_factor));
     jit.make("HEAD_SIZE", desc->k_head_size);

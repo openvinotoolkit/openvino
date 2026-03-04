@@ -131,7 +131,7 @@ public:
                                << std::endl;
 
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
-            auto partition_size = get_partition_size(desc->has_xattention);
+            auto partition_size = PagedAttentionGeneratorSingleToken::get_partition_size(desc->has_xattention);
             rt_params->num_of_partitions = ceil_div(max_context_len, partition_size);
             rt_params->q_chunking = get_single_token_q_chunking(params, *desc, partition_size);
             GPU_DEBUG_TRACE_DETAIL << "  partition_size: " << partition_size << "  num_of_partitions: " << rt_params->num_of_partitions << std::endl;
