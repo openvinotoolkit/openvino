@@ -86,8 +86,7 @@ build_softmax_routing_subgraph(const ov::Output<ov::Node>& routing_weights, size
         bcast,
         topk_idx,
         scatter_w,
-        v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1}),
-        v12::ScatterElementsUpdate::Reduction::SUM);
+        v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1}));
     auto transp = std::make_shared<v1::Transpose>(
         scatter,
         v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{1, 0}));
