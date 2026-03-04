@@ -84,7 +84,7 @@ public:
     /// Checks whether two memory objects represents the same physical memory
     virtual bool is_the_same_buffer(const memory& mem1, const memory& mem2) = 0;
 
-    bool check_allocatable(const layout& layout, allocation_type type);
+    virtual bool check_allocatable(const layout& layout, allocation_type type) final;
 
     /// Returns basic allocation type which will be used as a fallback when allocation type is not specified or device doesn't support some features.
     virtual allocation_type get_default_allocation_type() const = 0;
@@ -142,7 +142,7 @@ public:
     virtual stream_ptr create_stream(const ExecutionConfig& config, void *handle) const = 0;
 
     /// Returns service stream which can be used during program build and optimizations
-    stream& get_service_stream() const;
+    virtual stream& get_service_stream() const final;
 
     virtual std::shared_ptr<kernel_builder> create_kernel_builder() const = 0;
 
@@ -157,7 +157,7 @@ public:
     virtual void create_onednn_engine(const ExecutionConfig& config) = 0;
 
     /// Returns onednn engine object which shares device and context with current engine
-    dnnl::engine& get_onednn_engine() const;
+    virtual dnnl::engine& get_onednn_engine() const final;
 #endif
 
     /// Factory method which creates engine object with impl configured by @p engine_type
