@@ -887,7 +887,8 @@ public:
         }
 
         auto ppp_result = ppp.build();
-        // PrePostProcessor currently always modifies the model in-place and returns the same model pointer, but let's be defensive here and check it just in case
+        // PrePostProcessor currently always modifies the model in-place and returns the same model pointer, but let's
+        // be defensive here and check it just in case
         OPENVINO_ASSERT(ppp_result == model,
                         "PrePostProcessor should not create a new model, but returned a different one.");
 
