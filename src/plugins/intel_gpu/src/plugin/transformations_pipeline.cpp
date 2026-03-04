@@ -705,6 +705,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                             head_size += infer_precision.size() * 4 * group_num;
                         }
                     }
+                },
+                [&] (ov::element::Type& precision) {
+                    // Use u8/i8 for cache even if the inference precision is i4/u4,
+                    // to avoid issue that u4-type cache is called by ov::RemoteTensor in genai.
+                    if (precision == ov::element::i4 || precision == ov::element::u4) {
+                        precision = (config.get_kv_cache_precision() == ov::element::i4) ? ov::element::i8 : ov::element::u8;
+                    }
                 });
         }
 

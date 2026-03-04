@@ -22,9 +22,10 @@ namespace v0 = ov::op::v0;
 
 namespace ov::pass {
 
-ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, UpdateShapeFunc func)
+ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, UpdateShapeFunc func, UpdatePrecisionFunc update_precision_func)
     : m_config(config),
-      m_update_shape_func(std::move(func)) {
+      m_update_shape_func(std::move(func)),
+      m_update_precision_func(std::move(update_precision_func)) {
     MATCHER_SCOPE(ConvertPagedAttnInputs);
 
     auto Q = pattern::any_input(pattern::has_static_rank());
@@ -119,8 +120,10 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, Upda
         };
         auto key_cache_precision = format_cache_precision(m_config.keyCachePrecision, m_config.inferencePrecision);
         auto value_cache_precision = format_cache_precision(m_config.valueCachePrecision, m_config.inferencePrecision);
+
         key_cache->set_element_type(key_cache_precision);
         value_cache->set_element_type(value_cache_precision);
+
         bool status = false;
         if (pa_op->get_rt_info().count("num_k_heads") && pa_op->get_rt_info().count("k_head_size") &&
             pa_op->get_rt_info().count("num_v_heads") && pa_op->get_rt_info().count("v_head_size")) {
@@ -147,6 +150,13 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, Upda
                            pa_op->get_friendly_name(),
                            " doesn't have rtinfo for num_k_heads/k_head_size/num_v_heads/num_v_heads");
             status = false;
+        }
+
+        if (m_update_precision_func) {
+            m_update_precision_func(key_cache_precision);
+            m_update_precision_func(value_cache_precision);
+            key_cache->set_element_type(key_cache_precision);
+            value_cache->set_element_type(value_cache_precision);
         }
 
         key_cache->validate_and_infer_types();
