@@ -8,7 +8,6 @@
 #include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/sub_group_shuffle.cl"
 
-
 #define SUBGROUPS_PER_WG ((V_HEAD_SIZE / SUBGROUP_SIZE) * SG_SCALE_FACTOR)
 #define PAGED_ATTENTION_BLOCKS_PER_PARTITION (SEQ_LEN_PARTITION_SIZE / PAGED_ATTENTION_BLOCK_SIZE)
 
@@ -349,23 +348,10 @@ KERNEL(pa_sdpa_opt)(
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
                     k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, key_block_offset + qk_idx * hidden_stride * KEY_VEC_SIZE + i * hidden_stride);
                 #ifdef IS_KEY_BY_CHANNEL
-                    INPUT0_TYPE key_orig = k_vals[i];
-                    k_vals[i] = (k_vals[i] - _sub_group_shuffle(comp_zp, i)) * _sub_group_shuffle(comp_scale, i);
+                    k_vals[i] = ((INPUT0_TYPE)k_vals[i] - _sub_group_shuffle(comp_zp, i)) * _sub_group_shuffle(comp_scale, i);
                 #else
                     k_vals[i] = (k_vals[i] - comp_zp) * comp_scale;
                 #endif
-
-                    #ifdef IS_KEY_BY_CHANNEL
-                        float temp_scale = sub_group_shuffle(comp_scale, i);
-                        float prev_scale = sub_group_shuffle(comp_scale, i);
-                        char temp_zp = sub_group_shuffle(comp_zp, i);
-                        char prev_zp = sub_group_shuffle(comp_zp, i);
-                    #else
-                        float temp_scale = comp_scale;
-                        float prev_scale = comp_scale;
-                        char temp_zp = comp_zp;
-                        char prev_zp = comp_zp;
-                    #endif
                 }
 #else  //  !IS_KV_COMPRESSED
                 KEY_BLOCK k_vals = 0;
@@ -624,10 +610,9 @@ KERNEL(pa_sdpa_opt)(
 
         for (uint block_num = block_start_idx; block_num < block_end_idx; block_num++) {
             const uint head_idx = head_num_idx / KV_HEADS_GROUP_SIZE;
-            // const uint block_offset = block_indices[start_block_idx+block_num] * 32 * 84 * 16 + head_idx * 84 * 16;
             const uint block_offset = block_indices[start_block_idx + block_num] * KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + head_idx * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
 
-            const uint value_offset = block_offset + head_size_idx;  // head_size_idx = lid = (get_local_id(2) % 80)
+            const uint value_offset = block_offset + head_size_idx;
 
 #if IS_KV_COMPRESSED
             const uint packed_block_offset = block_indices[start_block_idx + block_num] * KV_HEADS_NUM * adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
@@ -731,7 +716,6 @@ KERNEL(pa_sdpa_opt)(
                 char packed_value = BLOCK_READN(INPUT2_TYPE, 1, value_cache, index);
                 MAKE_VECTOR_TYPE(char, PACK_SIZE) buff = unpack_to_char(*(uint4x2_t *)&packed_value);
 
-                // v_vals_packed[i]=as_char(_sub_group_block_read_uc((const __global uchar*)(value_cache)+(value_offset + i * 80)));
                 if (idx_packed == 0) {
                     value_packed = buff.s0;
                 } else {

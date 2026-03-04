@@ -7,9 +7,6 @@
 #include "include/batch_headers/int4_utils.cl"
 
 #define INT4_RANGE 15
-#define INT4_MAX 7
-#define INT4_MIN (-8)
-
 
 inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_data,
                                     const uint in_data_offset,
@@ -183,7 +180,6 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
     INPUT0_TYPE scale[PACK_SIZE];
     INPUT0_TYPE zp[PACK_SIZE];
     OUTPUT_TYPE buffer[ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE] = {0, };
-    OUTPUT_TYPE current[ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE] = {0, };
 
     MAKE_VECTOR_TYPE(INPUT0_TYPE, 16) cache_data_vec_decompressed[NUM_HEAD_SIZE_GROUPS] = {0, };
 
@@ -335,7 +331,7 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
         }
 
         #if IS_INT4_COMPRESSED
-            ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((INT4_MAX - INT4_MIN) / range);
+            ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((INT4_RANGE) / range);
             ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp);
         #else
             ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / range);

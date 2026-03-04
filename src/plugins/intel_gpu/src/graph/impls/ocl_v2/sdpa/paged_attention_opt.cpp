@@ -639,8 +639,6 @@ public:
             auto sg_scale = get_pa_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS, get_kv_compressed(params));
             wgs.global = {total_tokens, heads_num, head_size * rtp->num_of_partitions * sg_scale};
             wgs.local = {1, 1, head_size * sg_scale};
-            // [DEBUG]
-            // printf(">>>> [DEBUG] local(2):(%lu) head_size(%lu), sg_scale(%lu)\n", wgs.local[2], head_size, sg_scale);
         }};
     }
 };
@@ -1220,8 +1218,6 @@ public:
 
             wgs.global = {heads_num, ceil_div(rtp->paged_attention_aligned_seq_len, get_target_seq_len_block_size()), head_size * sg_num_scale};
             wgs.local = {1, 1, head_size * sg_num_scale};
-            // [DEBUG]
-            // printf(">>>> [DEBUG] local(2):(%lu) head_size(%lu), sg_num_scale(%lu)\n", wgs.local[2], head_size, sg_num_scale);
 
             scalars.resize(1);
             scalars[0].t = ScalarDescriptor::Types::UINT32;
@@ -1812,7 +1808,7 @@ public:
             }
 
             OPENVINO_ASSERT(intermediates_memories.size() > sequential_gws_subseq_mapping_idx,
-                            "[GPU] Unexpected number of intermediates buffers for Paged Attention for mixed stage. ");
+                            "[GPU] Unexpected number of intermediates buffers for Paged Attention for mixed stage");
 
             auto& sequential_gws_subseq_mapping_mem = intermediates_memories[sequential_gws_subseq_mapping_idx];
             sequential_gws_subseq_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(sequential_gws_subseq_mapping_mem, stream));
