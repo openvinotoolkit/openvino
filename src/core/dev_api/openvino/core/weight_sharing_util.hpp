@@ -31,17 +31,17 @@ inline constexpr DataID invalid_constant_id = invalid_source_id;
 
 /** @brief Metadata for a weight */
 struct WeightMetaData {
-    size_t m_offset;
-    size_t m_size;
-    ov::element::Type m_type;
+    size_t m_offset;           //!< weight data bytes offset in source buffer.
+    size_t m_size;             //!< weight data size in bytes
+    ov::element::Type m_type;  //!< weight data precisoin.
 };
 
-/** @brief Metadata for the origin of a weight */
+/** @brief Metadata for the origin properties of weight to restore it from the original source. */
 struct WeightOriginMetaData {
-    DataID m_id;
-    size_t m_offset;
-    size_t m_size;
-    ov::element::Type m_type;
+    DataID m_id;               //!< weight id to identify weight in source.
+    size_t m_offset;           //!< weight data bytes offset in source buffer.
+    size_t m_size;             //!< weight data size in bytes
+    ov::element::Type m_type;  //!< weight data precisoin.
 };
 
 /** @brief Type for weight buffer shared pointer*/
