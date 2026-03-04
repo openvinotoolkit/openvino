@@ -37,7 +37,9 @@ public:
     };
 
     OPENVINO_MATCHER_PASS_RTTI("ConvertPagedAttnInputs");
-    ConvertPagedAttnInputs(const KVCacheConfig& config, UpdateShapeFunc update_shape_func, UpdatePrecisionFunc update_precision_func = nullptr);
+    ConvertPagedAttnInputs(const KVCacheConfig& config,
+                           UpdateShapeFunc update_shape_func,
+                           UpdatePrecisionFunc update_precision_func = nullptr);
 
     void setKVCacheConfig(const KVCacheConfig& config);
 
