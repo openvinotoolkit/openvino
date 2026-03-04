@@ -1,5 +1,39 @@
 #include "LRUCache.hpp"
 
+#include <atomic>
+#include <cstdlib>
+#include <iostream>
+
+namespace {
+std::atomic<uint64_t> g_lru_accesses{0};
+std::atomic<uint64_t> g_lru_hits{0};
+std::atomic<uint64_t> g_lru_misses{0};
+
+bool lru_stats_enabled() {
+    const char* env = std::getenv("MOE_OTD_LRU_CACHE_STATS");
+    return env != nullptr && std::string(env) == "1";
+}
+
+struct LRUCacheStatsReporter {
+    ~LRUCacheStatsReporter() {
+        if (!lru_stats_enabled())
+            return;
+
+        const auto accesses = g_lru_accesses.load();
+        const auto hits = g_lru_hits.load();
+        const auto misses = g_lru_misses.load();
+        const double hit_rate = accesses ? (100.0 * static_cast<double>(hits) / static_cast<double>(accesses)) : 0.0;
+
+        std::cout << "[LRU_CACHE_STATS] accesses=" << accesses
+                  << ", hits=" << hits
+                  << ", misses=" << misses
+                  << ", hit_rate=" << hit_rate << "%" << std::endl;
+    }
+};
+
+LRUCacheStatsReporter g_lru_cache_stats_reporter;
+}  // namespace
+
 
 LRUCache::LRUCache(size_t max_total_experts, EvictCallback cb)
     : m_max_total_experts(max_total_experts),
@@ -30,8 +64,14 @@ void LRUCache::evict_one() {
 
 std::pair<size_t, bool> LRUCache::get_lru_item(size_t layer, size_t expert) {
    Key key{layer, expert};
+   if (lru_stats_enabled()) {
+       g_lru_accesses.fetch_add(1, std::memory_order_relaxed);
+   }
    auto it = m_map.find(key);
    if (it == m_map.end()) {
+       if (lru_stats_enabled()) {
+           g_lru_misses.fetch_add(1, std::memory_order_relaxed);
+       }
        size_t to_filled_no = 0; 
        if (m_total_experts >= m_max_total_experts) {
            evict_one();
@@ -46,6 +86,14 @@ std::pair<size_t, bool> LRUCache::get_lru_item(size_t layer, size_t expert) {
        return { to_filled_no, false };
    } else {
        move_to_end(it->second);
-       return { it->second->lru_expert_no, m_filled_list[it->second->lru_expert_no] };
+       const bool is_hit = m_filled_list[it->second->lru_expert_no];
+       if (lru_stats_enabled()) {
+           if (is_hit) {
+               g_lru_hits.fetch_add(1, std::memory_order_relaxed);
+           } else {
+               g_lru_misses.fetch_add(1, std::memory_order_relaxed);
+           }
+       }
+       return { it->second->lru_expert_no, is_hit };
    }
 }

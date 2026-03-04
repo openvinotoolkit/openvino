@@ -1149,7 +1149,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
     if (!encrypted) {
         CompiledContext ctx(false, nullptr, nullptr);
         auto compiled_model = ov::npuw::CompiledModel::deserialize(stream, plugin, properties, ctx);
-        NPUW_ASSERT(compiled_model && "Couldn't import NPUW xcompiled model!");
+        NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
         read_and_finalize_bank(stream, compiled_model);
         LOG_INFO("Done.");
         return compiled_model;
