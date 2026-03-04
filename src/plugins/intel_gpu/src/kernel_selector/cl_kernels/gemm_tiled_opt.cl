@@ -331,7 +331,7 @@ KERNEL(gemm_tiled_opt)(
         #if TILE_N_NOT_DIVISIBLE
             #if N_IS_ALIGNED_4BYTE
                 // Boundary check: use BLOCK_READ only when the full tile fits within N
-                if (tile_n_offset + SIMD_WIDTH <= N) {
+                if (tile_n_offset + SIMD_WIDTH * B_VEC_SIZE <= N) {
                     b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
                 } else {
                     b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
@@ -648,7 +648,7 @@ KERNEL(gemm_tiled_opt)(
         #if TILE_N_NOT_DIVISIBLE
             #if N_IS_ALIGNED_4BYTE
                 // Boundary check: use BLOCK_READ only when the full tile fits within N
-                if (tile_n_offset + SIMD_WIDTH <= N) {
+                if (tile_n_offset + SIMD_WIDTH * B_VEC_SIZE <= N) {
                     b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
                 } else {
                     b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
