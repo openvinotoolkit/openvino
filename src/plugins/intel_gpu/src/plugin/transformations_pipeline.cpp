@@ -93,7 +93,6 @@
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
-#include "plugin/transformations/merge_dynamic_quantize.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
@@ -465,9 +464,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                                            ov::element::u8,
                                                                                            ov::element::i4,
                                                                                            ov::element::u4,
-                                                                                           ov::element::f4e2m1,
                                                                                            ov::element::f8e4m3,
-                                                                                           ov::element::f8e5m2},
+                                                                                           ov::element::f8e5m2,
+                                                                                           ov::element::f4e2m1,
+                                                                                           ov::element::f8e8m0},
                                                             !device_info.supports_immad);
         if (does_model_contain_mxfp_patterns) {
             manager.register_pass<ov::pass::MarkDequantization>(
@@ -1573,7 +1573,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                                     precomputed_reduction,
                                                                                     use_gs128_for_int8_per_token,
                                                                                     dynamic_quantization_data_type);
-                manager.register_pass<ov::intel_gpu::MergeDynamicQuantize>();
             }
         }
 

@@ -91,21 +91,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     }
 
 #if IS_MXFP
-
- float out_dt_max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(_convert_float(OUTPUT_VAL_MAX)));
-    float max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(max_value));
-    float ideal_scale_old = out_dt_max_val_rounded_down / max_val_rounded_down;
-    SCALE_TYPE quan_scale2 = out_dt_max_val_rounded_down / max_val_rounded_down;
-    
-    float ideal_scale = 6.0f / max_value; 
-    float power_of_two_scale = exp2(floor(log2(ideal_scale)));
-    SCALE_TYPE quan_scale = (SCALE_TYPE)power_of_two_scale;
-
-    //float ideal_scale = max_value / 6.0f; 
-    //float power_of_two_scale = exp2(ceil(log2(ideal_scale)));
-    //SCALE_TYPE quan_scale = (SCALE_TYPE)(1.0f / power_of_two_scale);
-
-    printf("normal %f new %f ideal_scale_old %f ideal_scale_new %f \n", quan_scale2, quan_scale, ideal_scale_old, ideal_scale);
+    SCALE_TYPE quan_scale = (SCALE_TYPE)(exp2(floor(log2(_convert_float(OUTPUT_VAL_MAX) / _convert_float(max_value)))));
 #else
     SCALE_TYPE quan_scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_value;
     FOR_PRECOMPUTED_REDUCTION(int precomputed_reduction = 0);
