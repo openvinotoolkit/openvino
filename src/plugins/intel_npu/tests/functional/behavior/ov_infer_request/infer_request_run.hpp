@@ -188,11 +188,10 @@ protected:
         start_coordinate[0] = 1;
         stop_coordinate[0] = 2;
         ov::Allocator alignedAllocator{::intel_npu::utils::AlignedAllocator{::intel_npu::utils::STANDARD_PAGE_SIZE}};
-        // U8 tensors
         ov::Tensor importMemoryBatchedTensor(ov::element::boolean, model_shape, alignedAllocator);
         ov::Tensor importMemoryTensor_1(importMemoryBatchedTensor, ov::Coordinate{0, 0, 0, 0}, start_coordinate);
         ov::Tensor importMemoryTensor_2(importMemoryBatchedTensor, ov::Coordinate{1, 0, 0, 0}, stop_coordinate);
-        void* alignedAddr = ::operator new(ov::element::u8.size() * ov::shape_size(model_shape) + 1,
+        void* alignedAddr = ::operator new(ov::element::boolean.size() * ov::shape_size(model_shape) + 1,
                                            std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
         void* unalignedAddr = static_cast<uint8_t*>(alignedAddr) + 1;
         std::shared_ptr<void> deallocateAddressCallback(alignedAddr, [](void* ptr) {
@@ -313,20 +312,28 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
 TEST_P(BooleanPrecisionInferRequestRunTests, BooleanTensorDataTypesForBooleanModelsWork) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::CompiledModel compiled_model_boolean, compiled_model_boolean_imported;
+    ov::InferRequest infer_request_boolean, infer_request_boolean_imported;
+
+    bool isPVDriver = (core->get_property(target_device, ov::intel_npu::driver_version) == 1688);
+    bool isDriverCompiler =
+        (configuration.find(ov::intel_npu::compiler_type.name()) != configuration.end() &&
+         configuration.find(ov::intel_npu::compiler_type.name())->second.as<ov::intel_npu::CompilerType>() ==
+             ov::intel_npu::CompilerType::DRIVER);
+    if (isPVDriver && isDriverCompiler) {
+        GTEST_SKIP() << "CID from PV driver cannot compile models with boolean inputs!";
+    }
+
     OV_ASSERT_NO_THROW(compiled_model_boolean = core->compile_model(ov_model, target_device, configuration));
-
-    std::stringstream ss;
-    compiled_model_boolean.export_model(ss);
-
-    OV_ASSERT_NO_THROW(compiled_model_boolean_imported = core->import_model(ss, target_device, configuration));
-
     OPENVINO_ASSERT(compiled_model_boolean.input(0).get_element_type() == ov::element::boolean);
     OPENVINO_ASSERT(compiled_model_boolean.input(1).get_element_type() == ov::element::boolean);
-    OPENVINO_ASSERT(compiled_model_boolean_imported.input(0).get_element_type() == ov::element::u8);
-    OPENVINO_ASSERT(compiled_model_boolean_imported.input(1).get_element_type() == ov::element::u8);
 
-    auto infer_request_boolean = compiled_model_boolean.create_infer_request();
-    auto infer_request_boolean_imported = compiled_model_boolean_imported.create_infer_request();
+    if (!isPVDriver) {
+        std::stringstream ss;
+        compiled_model_boolean.export_model(ss);
+        OV_ASSERT_NO_THROW(compiled_model_boolean_imported = core->import_model(ss, target_device, configuration));
+        infer_request_boolean_imported = compiled_model_boolean_imported.create_infer_request();
+    }
+    infer_request_boolean = compiled_model_boolean.create_infer_request();
 
     bool isBatchModeSupported = false;
     try {
@@ -335,9 +342,13 @@ TEST_P(BooleanPrecisionInferRequestRunTests, BooleanTensorDataTypesForBooleanMod
     } catch (...) {
     }
 
-    for (ov::InferRequest& infer_request :
-         {std::ref(infer_request_boolean), std::ref(infer_request_boolean_imported)}) {
-        const auto& compiled_model = infer_request.get_compiled_model();
+    const auto infer_requests =
+        (isPVDriver ? std::initializer_list<std::reference_wrapper<ov::InferRequest>>{std::ref(infer_request_boolean)}
+                    : std::initializer_list<std::reference_wrapper<ov::InferRequest>>{
+                          std::ref(infer_request_boolean),
+                          std::ref(infer_request_boolean_imported)});
+
+    for (ov::InferRequest& infer_request : infer_requests) {
         for (const auto batchMode : {ov::intel_npu::BatchMode::PLUGIN, ov::intel_npu::BatchMode::COMPILER}) {
             if (isBatchModeSupported) {
                 configuration[ov::intel_npu::batch_mode.name()] = batchMode;
@@ -351,6 +362,7 @@ TEST_P(BooleanPrecisionInferRequestRunTests, BooleanTensorDataTypesForBooleanMod
                   unalignedBatchedTensor_2] = allocate_tensors();
 
             infer_request.infer();
+            const auto& compiled_model = infer_request.get_compiled_model();
 
             OV_ASSERT_NO_THROW(set_tensors_and_infer(infer_request,
                                                      compiled_model,
