@@ -136,9 +136,10 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     using namespace ov::pass;
     REGISTER_PASS(manager, InitNodeInfo)
     // Note: some Mixture of Experts patterns from frameworks may contain MatMuls with
-    // transpose_b=false + an explicit Transpose operation on weights.
+    // transpose_b=false + (optional Convert) + an explicit Transpose operation on weights.
     // These Transposes must be fused into MatMul (rather than constant folded) to match plugin expectations.
     // So TransposeMatMul must be registered before the first ConstantFolding.
+    REGISTER_PASS(manager, TransposeConvert)
     REGISTER_PASS(manager, TransposeMatMul)
     if (m_low_precision_enabled) {
         // Transformation call example, to check with the real model

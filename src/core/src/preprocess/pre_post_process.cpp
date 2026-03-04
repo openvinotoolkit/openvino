@@ -21,6 +21,7 @@
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/ric_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
+#include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -97,9 +98,10 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
         manager.set_per_pass_validation(false);
 
         // Note: some Mixture of Experts patterns from frameworks may contain MatMuls with
-        // transpose_b=false + an explicit Transpose operation on weights.
+        // transpose_b=false + (optional Convert) + an explicit Transpose operation on weights.
         // These Transposes must be fused into MatMul (rather than constant folded) to match plugin expectations.
         // So TransposeMatMul must be registered before the first ConstantFolding.
+        REGISTER_PASS(manager, TransposeConvert)
         REGISTER_PASS(manager, TransposeMatMul)
         // prerequisite: the model structure optimization before applying of the markup
         REGISTER_PASS(manager, SharedOpOptimization)
