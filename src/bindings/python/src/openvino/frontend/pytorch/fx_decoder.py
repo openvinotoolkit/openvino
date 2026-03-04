@@ -263,7 +263,10 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                     self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
 
     @classmethod
-    def from_exported_program(cls, exported_program: torch.export.ExportedProgram, dynamic_shapes=True) -> "TorchFXPythonDecoder":
+    @classmethod
+    def from_exported_program(
+        cls, exported_program: torch.export.ExportedProgram, dynamic_shapes=True
+    ) -> "TorchFXPythonDecoder":
         """Create a TorchFXPythonDecoder instance from an exported PyTorch program."""
         from packaging import version
         if version.parse(torch.__version__) >= version.parse("2.6"):
