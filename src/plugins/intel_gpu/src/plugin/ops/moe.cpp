@@ -18,10 +18,10 @@
 
 #include "openvino/core/model.hpp"
 #include "openvino/util/env_util.hpp"
+#include <array>
 #include <limits>
 
 namespace cldnn {
-    std::string file_path;
     size_t lru_expert_num;
 }
 
@@ -38,12 +38,41 @@ namespace ov::intel_gpu {
 using namespace cldnn;
 
 static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::MOE3GemmFusedCompressed>& op) {
+    using input_idx = cldnn::moe_3gemm_fused_compressed::input_index;
     auto inputs = p.GetInputInfo(op);
     const auto& config = op->get_config();
     const auto& model = p.get_model();
+    std::string weights_path;
     cldnn::lru_expert_num = ov::util::getenv_int("OTD", 0);
     if (cldnn::lru_expert_num) {
-        cldnn::file_path = model->get_rt_info()["__weights_path"].as<std::string>();
+        weights_path = model->get_rt_info()["__weights_path"].as<std::string>();
+    }
+
+    auto get_const_offset = [&](size_t index) -> size_t {
+        auto node = op->input_value(index).get_node_shared_ptr();
+        auto const_op = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+        OPENVINO_ASSERT(const_op != nullptr, "Expected constant input for MOE3GemmFusedCompressed");
+        const auto& rt_info = const_op->get_rt_info();
+        auto attr_it = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+        OPENVINO_ASSERT(attr_it != rt_info.end(), "Missing WeightlessCacheAttribute for MOE3GemmFusedCompressed constant input");
+        return attr_it->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+    };
+
+    const std::array<size_t, cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count> const_input_idx_by_offset = {
+        static_cast<size_t>(input_idx::weight_0),
+        static_cast<size_t>(input_idx::weight_1),
+        static_cast<size_t>(input_idx::weight_2),
+        static_cast<size_t>(input_idx::scale_0),
+        static_cast<size_t>(input_idx::scale_1),
+        static_cast<size_t>(input_idx::scale_2),
+        static_cast<size_t>(input_idx::zp_0),
+        static_cast<size_t>(input_idx::zp_1),
+        static_cast<size_t>(input_idx::zp_2)
+    };
+
+    std::vector<size_t> weight_bin_offsets(cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count, 0);
+    for (size_t i = 0; i < const_input_idx_by_offset.size(); i++) {
+        weight_bin_offsets[i] = get_const_offset(const_input_idx_by_offset[i]);
     }
     ///   0: hidden_states - input tensor with hidden representations
     ///   1: routing_weights - [num_seq, num_experts] routing weights for all experts
@@ -65,10 +94,10 @@ static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared
     ///                  shape [num_experts, hidden_size, group_num, 1]
     ///   10: w2_zp - expert zp for final projection for compressed experts,
     ///                  shape [num_experts, hidden_size, group_num, 1]
-    validate_inputs_count(op, {11});
+    validate_inputs_count(op, {cldnn::moe_3gemm_fused_compressed::input_count});
 
     const std::string layerName = layer_type_name_ID(op);
-    const cldnn::moe_3gemm_fused_compressed moe(layerName, inputs, config, op);
+    const cldnn::moe_3gemm_fused_compressed moe(layerName, inputs, config, weight_bin_offsets, weights_path);
 
     p.add_primitive(*op, moe);
 }

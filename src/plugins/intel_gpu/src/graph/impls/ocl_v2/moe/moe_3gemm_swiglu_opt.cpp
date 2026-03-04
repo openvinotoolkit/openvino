@@ -1223,12 +1223,12 @@ public:
         return layer;
     }
 
-    static std::shared_ptr<ov::MappedMemory> get_mapped_memory() {
+    static std::shared_ptr<ov::MappedMemory> get_mapped_memory(const std::string& weights_path) {
         static std::once_flag init_flag;
         static std::shared_ptr<ov::MappedMemory> mapped_memory;
 
-        std::call_once(init_flag, [] {
-            mapped_memory = ov::load_mmap_object(cldnn::file_path.c_str());
+        std::call_once(init_flag, [&] {
+            mapped_memory = ov::load_mmap_object(weights_path.c_str());
             if (!mapped_memory) {
                 throw std::runtime_error("Failed to mmap object");
             }
@@ -1236,9 +1236,17 @@ public:
         return mapped_memory;
     }
 
-    static void fill_weights_memory(cldnn::engine& engine, const std::shared_ptr<MOE3GemmFusedCompressed>& op, 
+    static void fill_weights_memory(cldnn::engine& engine,
+        const cldnn::moe_3gemm_fused_compressed& desc,
         cldnn::moe_weights& wei_mem, const std::vector<uint32_t>& experts_list, const std::vector<uint32_t>& lru_experts) {
-        auto num_expert = op->get_config().num_expert;
+        const auto num_expert = static_cast<size_t>(desc._config.num_expert);
+        const auto& weight_bin_offsets = desc._weight_bin_offsets;
+        const auto& weights_path = desc._weights_path;
+
+        OPENVINO_ASSERT(!weights_path.empty(), "weights path is empty for OTD weight loading");
+        OPENVINO_ASSERT(weight_bin_offsets.size() == cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count,
+                "Unexpected number of MOE weight offsets");
+
         const char* io_mode_env = std::getenv("OTD_WEIGHT_IO_MODE");
         const bool use_mmap = io_mode_env != nullptr && std::string(io_mode_env) == "mmap";
         std::shared_ptr<ov::MappedMemory> mapped_memory;
@@ -1246,10 +1254,10 @@ public:
         static std::unique_ptr<std::ifstream> weight_file;
         static std::mutex weight_file_mutex;
         if (use_mmap) {
-            mapped_memory = get_mapped_memory();
+            mapped_memory = get_mapped_memory(weights_path);
         } else {
-            std::call_once(file_open_flag, [] {
-                auto file = std::make_unique<std::ifstream>(cldnn::file_path.c_str(), std::ios::in | std::ios::binary);
+            std::call_once(file_open_flag, [&] {
+                auto file = std::make_unique<std::ifstream>(weights_path.c_str(), std::ios::in | std::ios::binary);
                 if (!file->is_open()) {
                     throw std::runtime_error("Failed to open weight file for OTD streaming read");
                 }
@@ -1257,41 +1265,20 @@ public:
             });
         }
 
-        auto get_constant_input = [&](size_t index) {
-            auto node = op->input_value(index).get_node_shared_ptr();
-            return std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
-        };
-
-        auto weight_0_const = get_constant_input((size_t)MOE3GemmInputIndex::WEIGHT_0);
-        auto weight_1_const = get_constant_input((size_t)MOE3GemmInputIndex::WEIGHT_1);
-        auto weight_2_const = get_constant_input((size_t)MOE3GemmInputIndex::WEIGHT_2);
-        auto scale_0_const = get_constant_input((size_t)MOE3GemmInputIndex::SCALE_0);
-        auto scale_1_const = get_constant_input((size_t)MOE3GemmInputIndex::SCALE_1);
-        auto scale_2_const = get_constant_input((size_t)MOE3GemmInputIndex::SCALE_2);
-        auto zp_0_const = get_constant_input((size_t)MOE3GemmInputIndex::ZP_0);
-        auto zp_1_const = get_constant_input((size_t)MOE3GemmInputIndex::ZP_1);
-        auto zp_2_const = get_constant_input((size_t)MOE3GemmInputIndex::ZP_2);
-
         std::vector<uint8_t> bounce;
 
-        auto fill_from_disk = [&] (const std::shared_ptr<ov::op::v0::Constant>& const_op,
+        auto fill_from_disk = [&] (size_t base_offset,
                                cldnn::memory_ptr mem,
                                size_t expert_no,
                                size_t lru_expert_no) {
-            if (!mem || !const_op)
+            if (!mem)
                 return;
 
-            ov::Shape shape = const_op->get_shape();
-            auto format = cldnn::format::get_default_format(shape.size());
-            auto dtype = cldnn::element_type_to_data_type(const_op->get_output_element_type(0));
-            cldnn::layout layout(shape, dtype, format);
+            const auto total_bytes = mem->get_layout().bytes_count();
+            OPENVINO_ASSERT(num_expert > 0, "Invalid expert count");
 
-            size_t total_bytes = layout.bytes_count();
-            size_t per_expert_size = total_bytes / num_expert;
-            // size_t base_offset = const_op->get_offset();
-            const auto& weightless_cache = const_op->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()]
-                                   .as<ov::WeightlessCacheAttribute>();
-            size_t base_offset = weightless_cache.bin_offset;
+            size_t per_expert_size = 0;
+            per_expert_size = total_bytes / num_expert;
             size_t src_offset = base_offset + expert_no * per_expert_size;
 
             // ---- 1. bounce buffer (GPU-safe host memory) ----
@@ -1328,34 +1315,23 @@ public:
                            true);
         };
 
-        size_t i = 0; 
+        const std::array<cldnn::memory_ptr, cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count> tensors_by_offset = {{
+            wei_mem.gate_w,
+            wei_mem.up_w,
+            wei_mem.down_w,
+            wei_mem.gate_s,
+            wei_mem.up_s,
+            wei_mem.down_s,
+            wei_mem.gate_z,
+            wei_mem.up_z,
+            wei_mem.down_z
+        }};
+
+        size_t i = 0;
         for (uint32_t expert: experts_list) {
-            fill_from_disk(weight_0_const,
-               wei_mem.gate_w, expert, lru_experts[i]);
-
-            fill_from_disk(weight_1_const,
-                           wei_mem.up_w, expert, lru_experts[i]);
-
-            fill_from_disk(weight_2_const,
-                           wei_mem.down_w, expert, lru_experts[i]);
-
-            fill_from_disk(scale_0_const,
-                           wei_mem.gate_s, expert, lru_experts[i]);
-
-            fill_from_disk(zp_0_const,
-                           wei_mem.gate_z, expert, lru_experts[i]);
-
-            fill_from_disk(scale_1_const,
-                           wei_mem.up_s, expert, lru_experts[i]);
-
-            fill_from_disk(zp_1_const,
-                           wei_mem.up_z, expert, lru_experts[i]);
-
-            fill_from_disk(scale_2_const,
-                           wei_mem.down_s, expert, lru_experts[i]);
-
-            fill_from_disk(zp_2_const,
-                           wei_mem.down_z, expert, lru_experts[i]);
+            for (size_t offset_pos = 0; offset_pos < tensors_by_offset.size(); offset_pos++) {
+                fill_from_disk(weight_bin_offsets[offset_pos], tensors_by_offset[offset_pos], expert, lru_experts[i]);
+            }
             i++;
         }
 
@@ -1364,7 +1340,6 @@ public:
     static uint32_t get_lru_expert_no(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, uint32_t expert, LRUCache& cache) {
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         auto& engine = instance.get_network().get_engine();
-        auto& op = cur_moe->_op;
         size_t layer = get_layer(instance);
         cldnn::moe_weights params;
         auto item = cache.get_lru_item(layer, expert);
@@ -1373,7 +1348,7 @@ public:
             experts_list_single.push_back(expert);
             std::vector<uint32_t> lru_experts_list_single;
             lru_experts_list_single.push_back(item.first);
-            fill_weights_memory(engine, op, instance._weights, experts_list_single, lru_experts_list_single);
+            fill_weights_memory(engine, *cur_moe, instance._weights, experts_list_single, lru_experts_list_single);
             cache.set_filled(item.first);
         }
         return item.first;
