@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import pytest
 
 from pytorch_layer_test_class import PytorchLayerTest
@@ -9,7 +8,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestRavel(PytorchLayerTest):
     def _prepare_input(self, shape, dtype="float32"):
-        return (np.random.randn(*shape).astype(dtype),)
+        return (self.random.randn(*shape).astype(dtype),)
 
     def create_model(self):
         import torch
