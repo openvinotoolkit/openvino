@@ -9,10 +9,11 @@
 #include <intel_gpu/primitives/swiglu.hpp>
 #include <limits>
 
+#include "ov_ops/moe_compressed.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
 #include "intel_gpu/op/moe_compressed.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "intel_gpu/primitives/moe_gemm.hpp"
 #include "intel_gpu/primitives/moe_mask_gen.hpp"
@@ -22,7 +23,6 @@ namespace ov {
 namespace op {
 namespace internal {
 using MOE3GemmFusedCompressed = ov::intel_gpu::op::MOE3GemmFusedCompressed;
-using MOECompressed = ov::intel_gpu::op::MOECompressed;
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
@@ -80,7 +80,7 @@ static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared
     ///   22: shared_gate_gate_weight - shared expert gate weight for gating,
     ///                   shape [hidden_size]
     const size_t expected_inputs = config.num_shared_expert > 0 ? 23
-                                 : config.routing_type == op::MOECompressed::RoutingType::SIGMOID_BIAS ? 13
+                                 : config.routing_type == ov::op::internal::MOECompressed::RoutingType::SIGMOID_BIAS ? 13
                                  : 11;
     validate_inputs_count(op, {expected_inputs});
 

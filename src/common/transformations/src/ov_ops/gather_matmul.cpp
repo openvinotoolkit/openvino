@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "batch_gather_matmul.hpp"
+#include "ov_ops/gather_matmul.hpp"
 
 #include <cstddef>
+#include <deque>
 #include <memory>
+#include <unordered_set>
 #include <vector>
 
 #include "matmul_shape_inference.hpp"
@@ -17,35 +19,60 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/op.hpp"
-#include "transformations/itt.hpp"
-#include "transformations/utils/utils.hpp"
 
-namespace ov::intel_cpu {
+namespace {
+// Inline equivalent of ov::op::util::is_on_path<ov::op::v0::Constant>()
+// to avoid dependency on openvino_transformations library.
+bool is_on_constant_path(const ov::Output<ov::Node>& output) {
+    auto* root_node = output.get_node();
+    if (!root_node || root_node->get_output_size() == 0) {
+        return false;
+    }
+    std::deque<ov::Node*> nodes_to_check = {root_node};
+    std::unordered_set<ov::Node*> visited;
+    while (!nodes_to_check.empty()) {
+        auto* current_node = nodes_to_check.front();
+        nodes_to_check.pop_front();
+        if (visited.count(current_node)) {
+            continue;
+        }
+        visited.insert(current_node);
+        if (current_node->get_input_size() == 0) {
+            if (!ov::is_type<ov::op::v0::Constant>(current_node)) {
+                return false;
+            }
+        } else {
+            for (const auto& input_value : current_node->input_values()) {
+                auto* input_node = input_value.get_node();
+                if (!visited.count(input_node)) {
+                    nodes_to_check.push_front(input_node);
+                }
+            }
+        }
+    }
+    return true;
+}
+}  // namespace
 
-BatchGatherMatmul::BatchGatherMatmul(const ov::Output<Node>& A,
-                                     const ov::Output<Node>& B,
-                                     const ov::Output<Node>& indices,
-                                     const ov::Output<Node>& bias)
+namespace ov::op::internal {
+
+GatherMatmul::GatherMatmul(const ov::Output<Node>& A,
+                           const ov::Output<Node>& B,
+                           const ov::Output<Node>& indices,
+                           const ov::Output<Node>& bias)
     : Op({A, B, indices, bias}) {
     validate_and_infer_types();
 }
 
-BatchGatherMatmul::BatchGatherMatmul(const ov::Output<Node>& A,
-                                     const ov::Output<Node>& B,
-                                     const ov::Output<Node>& indices)
-    : BatchGatherMatmul(A, B, indices, std::make_shared<ov::op::v0::Constant>(element::dynamic, Shape{0})) {}
+GatherMatmul::GatherMatmul(const ov::Output<Node>& A, const ov::Output<Node>& B, const ov::Output<Node>& indices)
+    : GatherMatmul(A, B, indices, std::make_shared<ov::op::v0::Constant>(element::dynamic, Shape{0})) {}
 
-std::shared_ptr<ov::Node> BatchGatherMatmul::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    INTERNAL_OP_SCOPE(GroupGatherMatmul_with_new_inputs);
+std::shared_ptr<ov::Node> GatherMatmul::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    return std::make_shared<ov::intel_cpu::BatchGatherMatmul>(new_args.at(0),
-                                                              new_args.at(1),
-                                                              new_args.at(2),
-                                                              new_args.at(3));
+    return std::make_shared<GatherMatmul>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
-void BatchGatherMatmul::validate_and_infer_types() {
-    INTERNAL_OP_SCOPE(GroupGatherMatmul_validate_and_infer_types);
+void GatherMatmul::validate_and_infer_types() {
     const auto input_size = get_input_size();
     NODE_VALIDATION_CHECK(this,
                           input_size >= 4,
@@ -54,9 +81,7 @@ void BatchGatherMatmul::validate_and_infer_types() {
                           ", expected at least 4.");
 
     // Check input B is on constant path
-    NODE_VALIDATION_CHECK(this,
-                          ov::op::util::is_on_path<ov::op::v0::Constant>(input_value(1)),
-                          "Input B must be on constant path.");
+    NODE_VALIDATION_CHECK(this, is_on_constant_path(input_value(1)), "Input B must be on constant path.");
 
     const auto& a_shape = get_input_partial_shape(0);
     const auto& b_shape = get_input_partial_shape(1);
@@ -74,7 +99,12 @@ void BatchGatherMatmul::validate_and_infer_types() {
     const size_t bias_rank = bias_shape.is_dynamic() ? 0 : bias_shape.size();
 
     NODE_VALIDATION_CHECK(this, a_rank == 3, "Input A rank must be exactly 3D. Got: ", a_rank, "D instead.");
-    NODE_VALIDATION_CHECK(this, b_rank == 3, "Input B rank must be exactly 3D. Got: ", b_rank, "D instead.");
+    // 3D: [n_experts, N, K], 4D: [n_experts, N, group_num, group_size] (group-compressed)
+    NODE_VALIDATION_CHECK(this,
+                          b_rank == 3 || b_rank == 4,
+                          "Input B rank must be 3D or 4D. Got: ",
+                          b_rank,
+                          "D instead.");
     NODE_VALIDATION_CHECK(this,
                           indices_rank == 2,
                           "Input indices rank must be exactly 2D. Got: ",
@@ -120,12 +150,15 @@ void BatchGatherMatmul::validate_and_infer_types() {
                               " instead.");
     }
 
+    // For 4D group-compressed weights [n_experts, N, group_num, group_size], compute effective K
+    const auto effective_k = (b_rank == 4) ? (b_shape[2] * b_shape[3]) : b_shape[2];
+
     ov::op::v0::MatMul op;
     op.set_transpose_a(transp_a);
     op.set_transpose_b(transp_b);
 
     ov::PartialShape matmul_shape_a = {a_shape[1], a_shape[2]};
-    ov::PartialShape matmul_shape_b = {b_shape[1], b_shape[2]};
+    ov::PartialShape matmul_shape_b = {b_shape[1], effective_k};
 
     auto out_matmul_shape =
         (ov::op::v0::shape_infer(&op, std::vector<ov::PartialShape>{matmul_shape_a, matmul_shape_b})).front();
@@ -135,4 +168,4 @@ void BatchGatherMatmul::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace ov::op::internal

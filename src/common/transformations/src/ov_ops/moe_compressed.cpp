@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/op/moe_compressed.hpp"
+#include "ov_ops/moe_compressed.hpp"
 
-namespace ov::intel_gpu::op {
+namespace ov::op::internal {
 
 MOECompressed::MOECompressed(const OutputVector& args, const Config& config) : MOE(args, config), m_config(config) {
     constructor_validate_and_infer_types();
@@ -38,6 +38,8 @@ bool MOECompressed::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("num_shared_expert", m_config.num_shared_expert);
     visitor.on_attribute("top_k", m_config.top_k);
     visitor.on_attribute("group_size", m_config.group_size);
+    visitor.on_attribute("has_batch_dim", m_config.has_batch_dim);
+    visitor.on_attribute("has_zp", m_config.has_zp);
     visitor.on_attribute("out_type", m_config.out_type);
     visitor.on_attribute("routing_type", m_config.routing_type);
     return true;
@@ -47,18 +49,17 @@ std::ostream& operator<<(std::ostream& s, const MOECompressed::RoutingType& type
     return s << as_string(type);
 }
 
-}  // namespace ov::intel_gpu::op
+}  // namespace ov::op::internal
 
 namespace ov {
-
+using RoutingType = ov::op::internal::MOECompressed::RoutingType;
 template <>
-EnumNames<ov::intel_gpu::op::MOECompressed::RoutingType>& EnumNames<ov::intel_gpu::op::MOECompressed::RoutingType>::get() {
-    static auto enum_names =
-        EnumNames<ov::intel_gpu::op::MOECompressed::RoutingType>("MOECompressed::RoutingType",
-                                                                 {
-                                                                     {"softmax", ov::intel_gpu::op::MOECompressed::RoutingType::SOFTMAX},
-                                                                     {"sigmoid_bias", ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS},
-                                                                 });
+EnumNames<RoutingType>& EnumNames<RoutingType>::get() {
+    static auto enum_names = EnumNames<RoutingType>("MOECompressed::RoutingType",
+                                                    {
+                                                        {"softmax", RoutingType::SOFTMAX},
+                                                        {"sigmoid_bias", RoutingType::SIGMOID_BIAS},
+                                                    });
     return enum_names;
 }
 

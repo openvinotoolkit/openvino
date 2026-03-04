@@ -39,6 +39,7 @@
 #include "low_precision/strided_slice.hpp"
 #include "low_precision/transpose.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -72,13 +73,14 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "openvino/pass/sdpa_to_vlsdpa.hpp"
+#include "ov_ops/gather_matmul_compressed.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
 #include "plugin/transformations/binary_conv_to_conv.hpp"
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
-#include "plugin/transformations/convert_moe_to_compressed.hpp"
+#include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
@@ -119,7 +121,7 @@
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
-#include "transformations/common_optimizations/matmul_experts_fusion.hpp"
+#include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/sdpa_scale_fusion.hpp"
@@ -472,33 +474,34 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::MarkDequantization>(
             std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 },
             !device_info.supports_immad);
-        const bool disable_moe_opt = GPU_DEBUG_VALUE_OR(config.get_disable_moe_opt(), false);
-        if (!disable_moe_opt) {
-            manager.register_pass<ov::pass::FuseVectorizedMOE2GEMM>();
-            pass_config->set_callback<ov::pass::FuseVectorizedMOE2GEMM>([&](const_node_ptr& root) -> bool {
-                // Currently moe op is only supported by >= xe2
-                auto& engine = m_context->get_engine();
-                const auto& info = engine.get_device_info();
-                return (info.arch != cldnn::gpu_arch::xe2) && (info.arch != cldnn::gpu_arch::xe3);
-            });
 
-            manager.register_pass<ov::pass::FuseVectorizedMOE3GEMM>();
-            pass_config->set_callback<ov::pass::FuseVectorizedMOE3GEMM>([&](const_node_ptr& root) -> bool {
-                // Currently moe gemm3 is only supported by systolic-array architectures
-                auto& engine = m_context->get_engine();
-                const auto& info = engine.get_device_info();
-                return (!info.supports_immad);
-            });
-
-            bool is_pa = false;
+        const bool is_pa = [&func]() {
             for (const auto& op : func->get_ops()) {
-                if (auto paged_attn_op = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
-                    is_pa = true;
-                    break;
+                if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
+                    return true;
                 }
             }
-            manager.register_pass<ov::intel_gpu::ConvertMOEToMOECompressed>(is_pa);
-            manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
+
+            return false;
+        }();
+
+        const bool disable_moe_opt = GPU_DEBUG_VALUE_OR(config.get_disable_moe_opt(), false);
+
+        // MOE block transformations: TiledMoeBlock -> MoeViaGatherMatmuls(compressed) -> MoeOp(compressed) -> MoeOpWithRouting(compressed)
+        if (device_info.supports_immad) {            // GatherMatmul is only implemented for systolic GPUs, so keep the whole MOE rewrite
+            // pipeline behind the same capability gate as the fused backend implementation.
+            manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>();
+
+            manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(
+                std::vector<ov::element::Type>{ov::element::f32, ov::element::f16, ov::element::i8, ov::element::u8},
+                std::vector<ov::element::Type>{ov::element::f16, ov::element::u4, ov::element::i4,
+                                               ov::element::i8, ov::element::u8});
+
+            if (!disable_moe_opt) {
+                const size_t has_batch_dim = is_pa ? 0 : 1;
+                manager.register_pass<ov::pass::MoeOpFusion>(has_batch_dim);
+                manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
+            }
         }
 
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -553,7 +556,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 if (is_type<ov::op::v0::Convert>(next_node)) {
                     next_node = next_node->get_output_target_inputs(0).begin()->get_node();
                 }
-                return !is_type<ov::op::v0::MatMul>(next_node) && !is_type<ov::op::internal::MOE>(next_node);
+                return !is_type_any_of<ov::op::v0::MatMul,
+                                       ov::op::internal::MOE,
+                                       ov::op::internal::GatherMatmulCompressed>(next_node);
             });
 
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
