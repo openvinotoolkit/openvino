@@ -55,7 +55,7 @@ protected:
     ConvertColorToNV12Base(const Output<Node>& arg, ColorConversion format, bool single_plane);
 
 public:
-    OPENVINO_OP("ConvertColorRGBBase", "util");
+    OPENVINO_OP("ConvertColorToRGBBase", "util");
 
     void validate_and_infer_types() override;
 
