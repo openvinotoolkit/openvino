@@ -126,9 +126,21 @@ ov::npuw::KokoroInferRequest::KokoroInferRequest(const std::shared_ptr<ov::npuw:
     const auto a_inputs = m_model_a_request->get_compiled_model()->inputs();
     std::vector<std::string> missing_ports;
     for (const auto& a_in : a_inputs) {
-        auto original_port = ov::npuw::util::find_port_by_names(original_inputs, a_in.get_names());
+        const auto& names = a_in.get_names();
+
+        // text_mask is generated internally — not exposed to the user
+        if (names.count("text_mask")) {
+            m_a_text_mask = a_in;
+            continue;
+        }
+
+        auto original_port = ov::npuw::util::find_port_by_names(original_inputs, names);
         if (original_port.has_value()) {
             m_model_a_in_map.push_back({a_in, original_port.value()});
+            // Remember the original input_ids port so we can derive text_mask
+            if (names.count("input_ids")) {
+                m_orig_input_ids = original_port.value();
+            }
         } else {
             missing_ports.push_back(safe_any_name(a_in));
         }
@@ -211,7 +223,10 @@ void ov::npuw::KokoroInferRequest::infer() {
     const auto original_inputs = m_kokoro_compiled_model->inputs();
     const auto original_outputs = m_kokoro_compiled_model->outputs();
 
-    // 1) Infer Model A
+    // 1) Auto-fill text_mask from input_ids and infer Model A
+    if (m_a_text_mask.get_node()) {
+        fill_text_mask();
+    }
     m_model_a_request->infer();
 
     const auto pred_dur_tensor = m_model_a_request->get_tensor(m_a_pred_dur);
@@ -219,25 +234,39 @@ void ov::npuw::KokoroInferRequest::infer() {
     const auto asr_left_tensor = m_model_a_request->get_tensor(m_a_asr_left);
     OPENVINO_ASSERT(pred_dur_tensor && en_left_tensor && asr_left_tensor);
 
-    auto orig_pred_dur = ov::npuw::util::find_port_by_name(original_outputs, "pred_dur");
-    set_tensor(orig_pred_dur.value(), pred_dur_tensor);
-
     // 2) Build repeat-interleave indices
+    //    Only use the first m_real_seq_len entries (real tokens before padding).
+    const std::size_t full_len = pred_dur_tensor->get_size();
+    const std::size_t l_max = (m_real_seq_len > 0 && m_real_seq_len <= full_len)
+                                  ? m_real_seq_len
+                                  : full_len;
 
     std::vector<int64_t> pred;
-    pred.resize(pred_dur_tensor->get_size());
+    pred.resize(l_max);
 
     const auto et = pred_dur_tensor->get_element_type();
     if (et == ov::element::i64) {
         const auto* p = pred_dur_tensor->data<const int64_t>();
-        std::copy_n(p, pred.size(), pred.data());
+        std::copy_n(p, l_max, pred.data());
     } else if (et == ov::element::i32) {
         const auto* p = pred_dur_tensor->data<const int32_t>();
-        std::copy_n(p, pred.size(), pred.data());
+        std::copy_n(p, l_max, pred.data());
     } else {
         OPENVINO_THROW("Unexpected element type from pred_dur data, expected i64 or i32, got: ", et.get_type_name());
     }
-    const std::size_t l_max = pred.size();
+
+    // Zero out padding positions in pred_dur so they don't contribute to audio.
+    // The output tensor keeps its original static shape since the model
+    // port shape is fixed, but positions [l_max, full_len) are set to 0.
+    if (et == ov::element::i64) {
+        auto* p = pred_dur_tensor->data<int64_t>();
+        std::fill(p + l_max, p + full_len, int64_t{0});
+    } else {
+        auto* p = pred_dur_tensor->data<int32_t>();
+        std::fill(p + l_max, p + full_len, int32_t{0});
+    }
+    auto orig_pred_dur = ov::npuw::util::find_port_by_name(original_outputs, "pred_dur");
+    set_tensor(orig_pred_dur.value(), pred_dur_tensor);
 
     std::size_t total_frames = 0;
     for (auto token_frames : pred) {
@@ -418,6 +447,54 @@ void ov::npuw::KokoroInferRequest::infer() {
 
 ov::SoPtr<ov::ITensor> ov::npuw::KokoroInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     return ov::ISyncInferRequest::get_tensor(port);
+}
+
+void ov::npuw::KokoroInferRequest::fill_text_mask() {
+    // Compute text_mask from input_ids: text_mask[i] = True for positions beyond the
+    // real sequence (padding).  The kokoro input format is [0, tok1, ..., tokN, 0, pad, ...].
+    // The first 0 is BOS, the second 0 is EOS, everything after is padding.
+    //
+    // text_mask semantics (matching PyTorch):
+    //   True = padded/invalid position, False = valid position
+
+    OPENVINO_ASSERT(m_orig_input_ids.get_node(), "input_ids port not initialized for text_mask");
+
+    auto input_ids_tensor = get_tensor(m_orig_input_ids);
+    OPENVINO_ASSERT(input_ids_tensor);
+
+    const auto& ids_shape = input_ids_tensor->get_shape();
+    OPENVINO_ASSERT(ids_shape.size() == 2u && ids_shape[0] == 1u);
+    const std::size_t seq_len = ids_shape[1];
+
+    // Find real sequence length by locating the EOS token (value 0) after position 0.
+    // The format is [BOS=0, phoneme1, ..., phonemeN, EOS=0, PAD, PAD, ...]
+    const auto* ids = input_ids_tensor->data<const int64_t>();
+    std::size_t real_len = seq_len;  // default: no padding detected
+    for (std::size_t i = 1; i < seq_len; ++i) {
+        if (ids[i] == 0) {
+            // Found EOS — real length includes this position (i+1 tokens: 0..i inclusive)
+            real_len = i + 1;
+            break;
+        }
+    }
+
+    // Create / get the text_mask tensor [1, seq_len] of BOOL
+    auto mask_tensor = m_model_a_request->get_tensor(m_a_text_mask);
+    if (!mask_tensor || mask_tensor->get_shape() != ov::Shape{1, seq_len}) {
+        mask_tensor = ov::make_tensor(ov::element::boolean, ov::Shape{1, seq_len});
+        m_model_a_request->set_tensor(m_a_text_mask, mask_tensor);
+    }
+
+    auto* mask_data = mask_tensor->data<bool>();
+    // text_mask: False for valid positions [0, real_len), True for padding [real_len, seq_len)
+    for (std::size_t i = 0; i < seq_len; ++i) {
+        mask_data[i] = (i >= real_len);
+    }
+
+    m_real_seq_len = real_len;
+
+    LOG_DEBUG("text_mask filled — real_len=" << real_len << ", seq_len=" << seq_len
+                                                      << ", padded=" << (seq_len - real_len));
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::KokoroInferRequest::query_state() const {

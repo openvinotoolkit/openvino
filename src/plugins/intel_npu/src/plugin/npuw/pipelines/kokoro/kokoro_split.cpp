@@ -19,6 +19,52 @@
 
 namespace ov::npuw {
 
+namespace {
+// Replace the text_mask generation subgraph (Range -> ... -> Greater) with a Parameter input.
+// When the model is reshaped to static input, the mask generation derives input_lengths from
+// ShapeOf(input_ids), which becomes a constant equal to the static size.  This means the mask
+// is always all-False ("attend everywhere") and padding tokens are never masked out.
+// By exposing text_mask as an explicit Parameter we allow the host to provide the correct mask
+// at runtime, so the BERT encoder (and downstream TextEncoder/DurationEncoder) properly ignore
+// padded positions.
+void replace_text_mask_with_parameter(std::shared_ptr<ov::Model>& model) {
+    // Find the Greater node that produces text_mask.  In the kokoro IR its output tensor
+    // carries the name "text_mask".
+    std::shared_ptr<ov::Node> text_mask_node;
+    for (const auto& op : model->get_ops()) {
+        for (size_t i = 0; i < op->get_output_size(); ++i) {
+            const auto& names = op->output(i).get_names();
+            if (names.count("text_mask")) {
+                text_mask_node = op;
+                break;
+            }
+        }
+        if (text_mask_node)
+            break;
+    }
+
+    if (!text_mask_node) {
+        LOG_WARN("text_mask node not found — skipping attention mask replacement");
+        return;
+    }
+
+    LOG_DEBUG("replacing text_mask generation with Parameter input");
+
+    // text_mask shape is [1, seq_len] with element type BOOL
+    auto text_mask_param = std::make_shared<ov::op::v0::Parameter>(
+        text_mask_node->get_output_element_type(0),
+        text_mask_node->get_output_partial_shape(0));
+    text_mask_param->set_friendly_name("text_mask");
+    text_mask_param->output(0).get_tensor().set_names({"text_mask"});
+
+    // Redirect all consumers of the old text_mask output to the new Parameter
+    text_mask_node->output(0).replace(text_mask_param->output(0));
+
+    model->add_parameters({text_mask_param});
+    model->validate_nodes_and_infer_types();
+}
+}  // namespace
+
 //  Main logic for kokoro model is splitting it into two parts,
 //  replacing repeat_interleave with custom processing which would be handled on host side during
 //  infer request execution. Part 1 will be named "model_a", part 2 - "model_b".
@@ -109,6 +155,10 @@ std::shared_ptr<ov::Model> KokoroSplit::create_model_a(const std::shared_ptr<ov:
     model_a->output(0).get_tensor().set_names({"pred_dur"});
     model_a->output(1).get_tensor().set_names({"en_left"});
     model_a->output(2).get_tensor().set_names({"asr_left"});
+
+    // Replace text_mask generation with an explicit Parameter input so that
+    // the host can provide the correct padding mask for static-shape models.
+    replace_text_mask_with_parameter(model_a);
 
     return model_a;
 }
