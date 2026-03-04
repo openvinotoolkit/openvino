@@ -108,3 +108,25 @@ TEST_F(ReferenceConvertColorToNV12LayerTest, CompareWithHardcodedRefs_red_f32_tw
 
     Exec();
 }
+
+TEST_F(ReferenceConvertColorToNV12LayerTest, CompareWithHardcodedRefs_red_f32_two_bgr) {
+    auto input = std::vector<float>{0, 0, 255.f, 0, 0, 255.f, 0, 0, 255.f, 0, 0, 255.f};
+    auto input_shape = Shape{1, 2, 2, 3};
+
+    auto exp_y = std::vector<float>{82.f, 82.f, 82.f, 82.f};
+    auto exp_y_shape = Shape{1, 2, 2, 1};
+
+    auto exp_uv = std::vector<float>{90.f, 240.f};
+    auto exp_uv_shape = Shape{1, 1, 1, 2};
+
+    reference_tests::Tensor inp_tensor(input_shape, element::f32, input);
+    inputData = {inp_tensor.data};
+
+    reference_tests::Tensor exp_y_tensor(exp_y_shape, element::f32, exp_y);
+    reference_tests::Tensor exp_uv_tensor(exp_uv_shape, element::f32, exp_uv);
+    refOutData = {exp_y_tensor.data, exp_uv_tensor.data};
+
+    function = CreateFunction2Plane<op::v16::BGRtoNV12>(inp_tensor);
+
+    Exec();
+}
