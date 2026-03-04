@@ -23,7 +23,7 @@ First, install the required dependencies for the model conversion:
          python3 -m venv npu-env
          source npu-env/bin/activate
          pip install nncf==2.18.0 onnx==1.18.0 optimum-intel==1.25.2 transformers==4.51.3
-         pip install openvino==2025.3 openvino-tokenizers==2025.3 openvino-genai==2025.3
+         pip install openvino==2026.0 openvino-tokenizers==2026.0 openvino-genai==2026.0
 
 
       For the pre-production version, use the following line, instead:
@@ -40,7 +40,7 @@ First, install the required dependencies for the model conversion:
          python -m venv npu-env
          npu-env\Scripts\activate
          pip install nncf==2.18.0 onnx==1.18.0 optimum-intel==1.25.2 transformers==4.51.3
-         pip install openvino==2025.3 openvino-tokenizers==2025.3 openvino-genai==2025.3
+         pip install openvino==2026.0 openvino-tokenizers==2026.0 openvino-genai==2026.0
 
 
       For the pre-production version, use the following line, instead:
@@ -51,7 +51,7 @@ First, install the required dependencies for the model conversion:
 
 .. note::
 
-    With OpenVINO 2025.3, it is highly recommended to use ``transformers==4.51.3`` to
+    With OpenVINO 2026.0, it is highly recommended to use ``transformers==4.51.3`` to
     generate models for Intel NPU. Newer Transformers versions will be supported in upcoming releases.
 
 .. note::
