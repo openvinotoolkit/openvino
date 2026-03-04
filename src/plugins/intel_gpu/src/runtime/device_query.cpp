@@ -15,11 +15,9 @@ engine_types device_query::get_default_engine_type() {
     auto engine_type = engine_types::ocl;
 #ifdef OV_GPU_WITH_ZE_RT
     engine_type = engine_types::ze;
-#endif
-#ifdef OV_GPU_WITH_OCL_RT
+#elif defined(OV_GPU_WITH_OCL_RT)
     engine_type = engine_types::ocl;
-#endif
-#ifdef OV_GPU_WITH_SYCL
+#elif defined(OV_GPU_WITH_SYCL)
     engine_type = engine_types::sycl;
 #endif
     return engine_type;
@@ -28,8 +26,7 @@ runtime_types device_query::get_default_runtime_type() {
     auto rt_type = runtime_types::ocl;
 #ifdef OV_GPU_WITH_ZE_RT
     rt_type = runtime_types::ze;
-#endif
-#ifdef OV_GPU_WITH_OCL_RT
+#elif defined(OV_GPU_WITH_OCL_RT)
     rt_type = runtime_types::ocl;
 #endif
     return rt_type;
