@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,12 +65,9 @@ GatedDeltaNet::GatedDeltaNet(const ov::OutputVector& args) : ov::op::Op(args) {
 }
 
 void GatedDeltaNet::validate_and_infer_types() {
-    OV_OP_SCOPE(LinearAttention_validate_and_infer_types);
+    OV_OP_SCOPE(GatedDeltaNet_validate_and_infer_types);
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 6,
-                          "GatedDeltaNet expects 6 inputs, but it has ",
-                          get_input_size());
+    NODE_VALIDATION_CHECK(this, get_input_size() == 6, "GatedDeltaNet expects 6 inputs, but it has ", get_input_size());
 
     // format: Node*, input_idx, name, {rank_list}, {type_list}
     input_check(this, 0, "query", {4}, {});
@@ -82,13 +79,15 @@ void GatedDeltaNet::validate_and_infer_types() {
 
     // value head_size may be not same with key
     auto out_ps = get_input_partial_shape(2);
-    const auto&  h_ps= get_input_partial_shape(3);
+    const auto& h_ps = get_input_partial_shape(3);
     set_output_type(0, get_input_element_type(0), out_ps);
     set_output_type(1, get_input_element_type(3), h_ps);
 }
 
 std::shared_ptr<ov::Node> GatedDeltaNet::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    return std::make_shared<GatedDeltaNet>(new_args);
+    auto cloned = std::make_shared<GatedDeltaNet>(new_args);
+    cloned->m_config = m_config;
+    return cloned;
 }
 
 void GatedDeltaNet::set_out_type(int index, const ov::element::Type& output_type) {

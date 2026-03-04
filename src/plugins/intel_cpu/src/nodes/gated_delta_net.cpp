@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
+#include "kernels/linear_attn/recurrent_linear_attn.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/common/blocked_desc_creator.h"
@@ -30,7 +31,6 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
-#include "kernels/linear_attn/recurrent_linear_attn.hpp"
 
 using namespace ov::Extensions::Cpu;
 using namespace dnnl::impl;
@@ -55,8 +55,7 @@ void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
     }
     std::vector<PortConfigurator> outPortConfigs = {
         PortConfigurator{LayoutType::ncsp, dataPrecision, getOutputShapeAtPort(0), false, -1},
-        PortConfigurator{LayoutType::ncsp, dataPrecision, getOutputShapeAtPort(1), false, -1}
-    };
+        PortConfigurator{LayoutType::ncsp, dataPrecision, getOutputShapeAtPort(1), false, -1}};
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
@@ -86,11 +85,27 @@ void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
     PlainTensor beta(inputs[5]);
     PlainTensor output_attn(outputs[0]);
     PlainTensor output_recurrent_state(outputs[1]);
-    recurrent_linear_attn(query, key, value, recurrent_state, gate, beta, output_attn, output_recurrent_state);
+    // q, k, h per (B, H, V)
+    const auto& q_dims = inputs[0]->getStaticDims();
+    const auto& v_dims = inputs[2]->getStaticDims();
+    const size_t B = q_dims[0];
+    const size_t H = q_dims[2];
+    const size_t K = q_dims[3];
+    const size_t V = v_dims[3];
+    temp_buffer.resize<float>({B * H * V * 3 * K});
+    recurrent_linear_attn(query,
+                          key,
+                          value,
+                          recurrent_state,
+                          gate,
+                          beta,
+                          output_attn,
+                          output_recurrent_state,
+                          temp_buffer);
 }
 
 bool GatedDeltaNet::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
-                                          std::string& errorMessage) noexcept {
+                                         std::string& errorMessage) noexcept {
     return true;
 }
 
