@@ -385,19 +385,19 @@ past_len_count += static_cast<int32_t>(L);
     }
 
 public:
-    // ---------- Execution ----------
-    std::vector<ov::Tensor> run_device(ov::Core& core,
-                                       const std::shared_ptr<ov::Model>& model,
-                                       const std::string& device,
-                                       ov::AnyMap cfg,
-                                       bool extendBlockIndices,
-                                       const std::vector<StepInputs>& steps) {
+    std::vector<std::vector<ov::Tensor>> run_device(ov::Core& core,
+                                                    const std::shared_ptr<ov::Model>& model,
+                                                    const std::string& device,
+                                                    ov::AnyMap cfg,
+                                                    bool extendBlockIndices,
+                                                    const std::vector<StepInputs>& steps) {
         std::cout << "[PA_DBG] run_device: device=" << device << std::endl;
         auto compiled = core.compile_model(model, device, cfg);
         std::cout << "[PA_DBG]   compile_model OK" << std::endl;
         auto req = compiled.create_infer_request();
+        const size_t num_outputs = compiled.outputs().size();
 
-        std::vector<ov::Tensor> outs;
+        std::vector<std::vector<ov::Tensor>> outs;
         outs.reserve(steps.size());
 
         for (size_t si = 0; si < steps.size(); ++si) {
@@ -416,15 +416,21 @@ public:
             req.infer();
             std::cout << " done" << std::endl;
 
-            auto out0 = req.get_output_tensor(0);
-            std::cout << "[PA_DBG]   output shape=[";
-            for (size_t d = 0; d < out0.get_shape().size(); ++d)
-                std::cout << (d?",":"")<< out0.get_shape()[d];
-            std::cout << "]" << std::endl;
-
-            ov::Tensor copy(out0.get_element_type(), out0.get_shape());
-            out0.copy_to(copy);
-            outs.push_back(std::move(copy));
+            std::vector<ov::Tensor> step_outs;
+            step_outs.reserve(num_outputs);
+            for (size_t oi = 0; oi < num_outputs; ++oi) {
+                auto t = req.get_output_tensor(oi);
+                if (oi == 0) {
+                    std::cout << "[PA_DBG]   output[0] shape=[";
+                    for (size_t d = 0; d < t.get_shape().size(); ++d)
+                        std::cout << (d?",":"")<< t.get_shape()[d];
+                    std::cout << "]" << std::endl;
+                }
+                ov::Tensor copy(t.get_element_type(), t.get_shape());
+                t.copy_to(copy);
+                step_outs.push_back(std::move(copy));
+            }
+            outs.push_back(std::move(step_outs));
         }
         return outs;
     }
