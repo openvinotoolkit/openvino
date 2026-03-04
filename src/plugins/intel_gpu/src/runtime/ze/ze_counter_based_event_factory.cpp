@@ -8,9 +8,12 @@
 
 #include "zex_event.h"
 
+#include <mutex>
+
 using namespace cldnn;
 using namespace ze;
 namespace {
+    std::once_flag counter_based_ev_init_flag;
     decltype(zexCounterBasedEventCreate2) *func_zexCounterBasedEventCreate2 = nullptr;
     void find_function_address(ze_driver_handle_t driver) {
         OV_ZE_EXPECT(zeDriverGetExtensionFunctionAddress(driver,
@@ -21,9 +24,7 @@ namespace {
 
 ze_counter_based_event_factory::ze_counter_based_event_factory(const ze_engine &engine, bool enable_profiling)
     : ze_base_event_factory(engine, enable_profiling) {
-    if (func_zexCounterBasedEventCreate2 == nullptr) {
-        find_function_address(engine.get_driver());
-    }
+    std::call_once(counter_based_ev_init_flag, find_function_address, engine.get_driver());
 }
 
 event::ptr ze_counter_based_event_factory::create_event(uint64_t queue_stamp) {
