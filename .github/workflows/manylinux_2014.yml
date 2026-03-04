@@ -189,6 +189,7 @@ jobs:
               cmake \
                 -DPython3_EXECUTABLE=/usr/local/bin/python3.12 \
                 -DENABLE_NCC_STYLE=OFF \
+                -DENABLE_CLANG_FORMAT=OFF \
                 -DENABLE_TESTS=ON \
                 -DENABLE_OV_JAX_FRONTEND=OFF \
                 -DENABLE_PYTHON=ON \

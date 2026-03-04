@@ -263,6 +263,7 @@ jobs:
           $python_exec -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           cmake -UPython* -U_Python* -UPYTHON* \
                 -UTBB* \
+                -DENABLE_CLANG_FORMAT=OFF \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_WHEEL=OFF \
@@ -279,6 +280,7 @@ jobs:
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
             -DOPENVINO_EXTRA_MODULES="${OPENVINO_CONTRIB_REPO}/modules/java_api;${OPENVINO_CONTRIB_REPO}/modules/custom_operations" \
             -DENABLE_WHEEL=OFF \
+            -DENABLE_CLANG_FORMAT=OFF \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
@@ -288,6 +290,7 @@ jobs:
         run: |
           cmake -UTBB* -S ${OPENVINO_REPO} -B ${BUILD_DIR} \
                 -DCPACK_GENERATOR=NPM \
+                -DENABLE_CLANG_FORMAT=OFF \
                 -DENABLE_SYSTEM_TBB=OFF \
                 -DENABLE_WHEEL=OFF
           cmake --build ${BUILD_DIR} --parallel $(nproc)
@@ -311,6 +314,7 @@ jobs:
         run: |
           cmake -UTBB* \
                 -DCPACK_GENERATOR=RPM \
+                -DENABLE_CLANG_FORMAT=OFF \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_WHEEL=OFF \

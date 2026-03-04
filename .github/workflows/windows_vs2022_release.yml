@@ -79,6 +79,7 @@ jobs:
             -DENABLE_TESTS=ON
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
+            -DENABLE_CLANG_FORMAT=OFF
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config"
 

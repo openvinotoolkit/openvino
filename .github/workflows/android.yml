@@ -235,6 +235,7 @@ jobs:
             -DCPACK_ARCHIVE_COMPONENT_INSTALL=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
+            -DENABLE_CLANG_FORMAT=OFF \
             -DENABLE_SYSTEM_TBB=OFF \
             -DTHREADING=TBB \
             -DTBB_DIR=${{ env.TBB_CMAKE_DIR }} \

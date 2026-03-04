@@ -149,6 +149,7 @@ jobs:
             -DPython3_INCLUDE_DIR=/opt/python3.11_arm/include/python3.11
             -DCMAKE_TOOLCHAIN_FILE=cmake/arm64.toolchain.cmake
             -DENABLE_NCC_STYLE=OFF
+            -DENABLE_CLANG_FORMAT=OFF
             -DENABLE_TESTS=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DENABLE_SYSTEM_OPENCL=ON

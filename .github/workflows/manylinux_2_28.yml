@@ -172,6 +172,7 @@ jobs:
           python3.12 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
           /usr/bin/cmake -DPython3_EXECUTABLE=/usr/local/bin/python3.12 \
                          -DENABLE_NCC_STYLE=OFF \
+                         -DENABLE_CLANG_FORMAT=OFF \
                          -DENABLE_TESTS=ON \
                          -DENABLE_OV_JAX_FRONTEND=OFF \
                          -DENABLE_PYTHON=ON \
@@ -203,9 +204,9 @@ jobs:
             ${python_path} -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
 
             if [[ $PY_VER == "3.14t" ]]; then
-              /usr/bin/cmake -DPython3_EXECUTABLE=${python_path} -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DENABLE_GIL_PYTHON_API=OFF -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${py_build_dir}
+              /usr/bin/cmake -DPython3_EXECUTABLE=${python_path} -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DENABLE_GIL_PYTHON_API=OFF -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DENABLE_CLANG_FORMAT=OFF -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${py_build_dir}
             else
-              /usr/bin/cmake -DPython3_EXECUTABLE=${python_path} -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${py_build_dir}
+              /usr/bin/cmake -DPython3_EXECUTABLE=${python_path} -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DENABLE_CLANG_FORMAT=OFF -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${py_build_dir}
             fi
 
             /usr/bin/cmake --build ${py_build_dir} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}

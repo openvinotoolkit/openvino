@@ -144,6 +144,7 @@ jobs:
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_NCC_STYLE=OFF \
+            -DENABLE_CLANG_FORMAT=OFF \
             -DENABLE_TESTS=ON \
             -DENABLE_SNIPPETS_LIBXSMM_TPP=ON \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
