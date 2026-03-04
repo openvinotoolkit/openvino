@@ -5,6 +5,7 @@
 #include "openvino/op/paged_attention.hpp"
 
 #include <cstring>
+#include <iostream>
 #include <numeric>
 
 #include "evaluate_node.hpp"
@@ -12,27 +13,39 @@
 #include "openvino/reference/paged_attention.hpp"
 #include "openvino/reference/utils/paged_cache_manager.hpp"
 #include "paged_attention_shape_inference.hpp"
+#include "tensor_data_accessor.hpp"
 
 namespace {
 
-// TEMPLATE allocates output tensors with shape {0} when the output partial
-// shape is dynamic.  PagedAttention has dynamic outputs so we must resize
-// them to the correct runtime shapes before the reference kernel writes to
-// them.  Uses the central helper in paged_attention_shape_inference.hpp.
-void resize_pa_outputs(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
-    const auto shapes = ov::op::pa_runtime_output_shapes(inputs[0].get_shape(),
-                                                         inputs[1].get_shape(),
-                                                         inputs[2].get_shape(),
-                                                         inputs[5].data<int32_t>(),
-                                                         inputs[5].get_shape()[0]);
-    OPENVINO_ASSERT(shapes.size() == 3 && outputs.size() == 3);
-    for (size_t i = 0; i < 3; ++i) {
-        outputs[i].set_shape(shapes[i]);
+// Resize output tensors calling shape_infer() with a runtime tensor accessor,
+// exactly like other TEMPLATE ops (e.g. multinomial, SDPA, STFT).
+// Unlike most ops, PA keeps some inputs dynamic even after
+// validate_nodes_and_infer_types(), so we build input_shapes from the actual
+// runtime tensors rather than from the node's (possibly dynamic) input shapes.
+void resize_pa_outputs(const ov::op::PagedAttentionExtension* op,
+                       ov::TensorVector& outputs,
+                       const ov::TensorVector& inputs) {
+    std::vector<ov::PartialShape> input_shapes;
+    input_shapes.reserve(inputs.size());
+    for (const auto& t : inputs) {
+        input_shapes.emplace_back(t.get_shape());
+    }
+    const auto out_shapes = ov::op::shape_infer(op, input_shapes, ov::make_tensor_accessor(inputs));
+    OPENVINO_ASSERT(out_shapes.size() == outputs.size());
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        if (out_shapes[i].is_static()) {
+            outputs[i].set_shape(out_shapes[i].to_shape());
+        } else {
+            // Diversity output (output 2) may stay dynamic when evictable_sizes
+            // is absent or empty — default to shape {0}.
+            outputs[i].set_shape(ov::Shape{0});
+        }
     }
 }
 
 template <ov::element::Type_t ET>
-bool evaluate(ov::TensorVector& outputs,
+bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
+              ov::TensorVector& outputs,
               const ov::TensorVector& inputs,
               std::uintptr_t node_key,
               ov::reference::paged_attention_cache::PagedCacheManager* cache_manager) {
@@ -41,14 +54,31 @@ bool evaluate(ov::TensorVector& outputs,
     OPENVINO_ASSERT(inputs.size() == 25, "PagedAttentionExtension: expected 25 inputs");
     OPENVINO_ASSERT(outputs.size() == 3, "PagedAttentionExtension: expected 3 outputs");
 
+    std::cerr << "[PA_KERNEL_DBG] TEMPLATE reference kernel entered, q_shape=["
+              << inputs[0].get_shape()[0] << "," << inputs[0].get_shape()[1]
+              << "], past_lens=[";
+    for (size_t i = 0; i < inputs[5].get_shape()[0]; ++i)
+        std::cerr << (i ? "," : "") << inputs[5].data<int32_t>()[i];
+    std::cerr << "]" << std::endl;
+
     // Ensure output tensors are large enough for the current inputs.
-    resize_pa_outputs(outputs, inputs);
+    resize_pa_outputs(pa_op, outputs, inputs);
 
     // Third output is currently shape-infer only
     // so I'm keeping it as 0 filled for determinism
     if (outputs[2].get_byte_size() > 0) {
         std::memset(outputs[2].data(), 0, outputs[2].get_byte_size());
     }
+
+    // For optional inputs with Shape{0} (disabled), pass nullptr so the reference
+    // can distinguish "absent" from "present but empty".
+    const void* xattn_thresh_ptr = inputs[17].get_shape().empty() || inputs[17].get_size() == 0
+                                       ? nullptr : inputs[17].data();
+    const auto  xattn_thresh_et  = (xattn_thresh_ptr != nullptr)
+                                       ? inputs[17].get_element_type() : ov::element::dynamic;
+    const void* sinks_ptr = inputs[20].get_shape().empty() || inputs[20].get_size() == 0
+                                ? nullptr : inputs[20].data();
+    const auto  sinks_et  = (sinks_ptr != nullptr) ? inputs[20].get_element_type() : ov::element::dynamic;
 
     ov::reference::paged_attention<T>(node_key,
                                       cache_manager,
@@ -81,12 +111,12 @@ bool evaluate(ov::TensorVector& outputs,
                                       inputs[16].data(),  // rotation_trig_lut
                                       inputs[16].get_element_type(),
                                       inputs[16].get_shape(),
-                                      inputs[17].data(),  // xattention_threshold
-                                      inputs[17].get_element_type(),
+                                      xattn_thresh_ptr,            // xattention_threshold
+                                      xattn_thresh_et,
                                       inputs[18].data<int32_t>(),  // xattention_block_size
                                       inputs[19].data<int32_t>(),  // xattention_stride
-                                      inputs[20].data(),           // sinks
-                                      inputs[20].get_element_type(),
+                                      sinks_ptr,                   // sinks
+                                      sinks_et,
                                       inputs[21].data<int32_t>(),  // adaptive_rkv_start_size
                                       inputs[22].data<int32_t>(),  // adaptive_rkv_evictable_sizes
                                       inputs[23].data<int32_t>(),  // adaptive_rkv_diversity_block_set_indices
@@ -117,13 +147,13 @@ bool evaluate_node<ov::op::PagedAttentionExtension>(std::shared_ptr<ov::Node> no
 
     switch (et) {
     case ov::element::bf16:
-        return evaluate<ov::element::bf16>(outputs, inputs, node_key, cache_manager);
+        return evaluate<ov::element::bf16>(pa.get(), outputs, inputs, node_key, cache_manager);
     case ov::element::f16:
-        return evaluate<ov::element::f16>(outputs, inputs, node_key, cache_manager);
+        return evaluate<ov::element::f16>(pa.get(), outputs, inputs, node_key, cache_manager);
     case ov::element::f32:
-        return evaluate<ov::element::f32>(outputs, inputs, node_key, cache_manager);
+        return evaluate<ov::element::f32>(pa.get(), outputs, inputs, node_key, cache_manager);
     case ov::element::f64:
-        return evaluate<ov::element::f64>(outputs, inputs, node_key, cache_manager);
+        return evaluate<ov::element::f64>(pa.get(), outputs, inputs, node_key, cache_manager);
     default:
         OPENVINO_THROW("PagedAttentionExtension: unsupported element type: ", et);
     }

@@ -13,14 +13,15 @@ namespace ov {
 namespace test {
 
 TEST_P(PagedAttentionLayerTest, Inference) {
-    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] = GetParam();
-    (void)inputShapes; (void)enableXattn; (void)sinkInput; (void)slidingWindow;
+    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, useAlibi, maxContextLen, additional_config] = GetParam();
+    (void)inputShapes; (void)enableXattn; (void)sinkInput; (void)slidingWindow; (void)useAlibi; (void)maxContextLen;
 
     // Single Core from the test framework (avoids re-registration errors).
     auto& core_ref = *core;
 
-    // CPU config
+    // CPU config — strip test-only keys that the CPU plugin doesn't understand
     ov::AnyMap cpu_cfg = additional_config;
+    cpu_cfg.erase("test_use_rotation");
     cpu_cfg[ov::hint::inference_precision.name()] = ov::element::f32;
 
     // TEMPLATE config
@@ -52,8 +53,25 @@ TEST_P(PagedAttentionLayerTest, Inference) {
     }
     auto tmpl_out = run_device(core_ref, pa_model_, ov::test::utils::DEVICE_TEMPLATE, tmpl_cfg, extendBlockIndices, steps_tmpl);
 
-    for (size_t i = 0; i < cpu_out.size(); ++i)
+    for (size_t i = 0; i < cpu_out.size(); ++i) {
+        std::cerr << "[PA_VERIFY] step " << i
+                  << " CPU  shape=[" << cpu_out[i].get_shape()[0] << "," << cpu_out[i].get_shape()[1] << "]"
+                  << " TMPL shape=[" << tmpl_out[i].get_shape()[0] << "," << tmpl_out[i].get_shape()[1] << "]\n";
+        const float* cpu_ptr  = cpu_out[i].data<float>();
+        const float* tmpl_ptr = tmpl_out[i].data<float>();
+        const size_t n = cpu_out[i].get_size();
+        const size_t dump = std::min<size_t>(n, 16u);
+        std::cerr << "[PA_VERIFY]   CPU  first " << dump << " vals:";
+        for (size_t j = 0; j < dump; ++j) std::cerr << " " << cpu_ptr[j];
+        std::cerr << "\n";
+        std::cerr << "[PA_VERIFY]   TMPL first " << dump << " vals:";
+        for (size_t j = 0; j < dump; ++j) std::cerr << " " << tmpl_ptr[j];
+        std::cerr << "\n";
+        float max_diff = 0;
+        for (size_t j = 0; j < n; ++j) max_diff = std::max(max_diff, std::abs(cpu_ptr[j] - tmpl_ptr[j]));
+        std::cerr << "[PA_VERIFY]   max_abs_diff=" << max_diff << "\n";
         ov::test::utils::compare(tmpl_out[i], cpu_out[i], /*abs*/1e-3f, /*rel*/1e-2f);
+    }
 }
 
 }  // namespace test

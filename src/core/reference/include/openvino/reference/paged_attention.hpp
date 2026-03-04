@@ -57,15 +57,24 @@ inline float read_at_as_f32(const void* base, const ov::element::Type& et, std::
     OPENVINO_THROW("PagedAttention reference: unsupported array type: ", et);
 }
 
-inline void softmax_inplace(std::vector<float>& scores) {
+/// Softmax with optional attention-sink support.
+/// When sink_val is not nullptr, the sink acts as a virtual extra attention score:
+/// it participates in the max and exp-sum but produces no output weight.
+inline void softmax_inplace(std::vector<float>& scores, const float* sink_val = nullptr) {
     if (scores.empty()) {
         return;
     }
-    const float m = *std::max_element(scores.begin(), scores.end());
+    float m = *std::max_element(scores.begin(), scores.end());
+    if (sink_val != nullptr) {
+        m = std::max(m, *sink_val);
+    }
     float sum = 0.f;
     for (float& s : scores) {
         s = std::exp(s - m);
         sum += s;
+    }
+    if (sink_val != nullptr) {
+        sum += std::exp(*sink_val - m);
     }
     const float inv = (sum > 0.f) ? (1.f / sum) : 0.f;
     for (float& s : scores) {
@@ -83,13 +92,15 @@ inline void apply_rotary_inplace(std::vector<float>& vec,
     }
     const std::size_t half = head_size / 2;
     const std::size_t row_base = trig_row * head_size;
-    for (std::size_t i = 0; i < half; ++i) {
-        const float x0 = vec[2 * i];
-        const float x1 = vec[2 * i + 1];
-        const float c = read_at_as_f32(trig_lut, trig_et, row_base + i);
-        const float s = read_at_as_f32(trig_lut, trig_et, row_base + half + i);
-        vec[2 * i] = x0 * c - x1 * s;
-        vec[2 * i + 1] = x0 * s + x1 * c;
+    // Split-half (LLaMA-style) pairing: first half [0..half) paired with second half [half..head_size)
+    // Trig LUT row: [cos_0..cos_{half-1}, sin_0..sin_{half-1}]
+    for (std::size_t d = 0; d < half; ++d) {
+        const float x0 = vec[d];
+        const float x1 = vec[d + half];
+        const float c = read_at_as_f32(trig_lut, trig_et, row_base + d);
+        const float s = read_at_as_f32(trig_lut, trig_et, row_base + half + d);
+        vec[d]        = x0 * c - x1 * s;
+        vec[d + half] = x0 * s + x1 * c;
     }
 }
 
@@ -139,10 +150,11 @@ inline std::vector<std::size_t> parse_subsequence_ranges(const int32_t* subseq_b
 // - It supports GQA (num_heads != num_kv_heads)
 // - It supports ALiBi (optional vector; broadcast if length == 1)
 // - It supports basic RoPE re-rotation of cached blocks (rotated_block_indices + rotation_deltas + trig LUT)
+//   using split-half (LLaMA-style) pairing to match the CPU kernel convention
+// - It supports attention sinks ([1,H,1,1] per-head logit added to softmax as virtual token)
+// - It supports xattention (dynamic sparse attention for prefill: strided Q×K → block aggregation → threshold)
 //
-// However, the implementation does not yet support advanced cache-eviction related inputs,
-// And those are currently ignored by the reference kernel
-// They remain in the function signature so the operator can be evaluated with the full input list
+// Adaptive RKV inputs are currently ignored (not implemented).
 template <typename T>
 void paged_attention(std::uintptr_t node_key,
                      ov::reference::paged_attention_cache::PagedCacheManager* cache_manager,
@@ -199,17 +211,23 @@ void paged_attention(std::uintptr_t node_key,
     // Currently ignored output (with shape_infer)
     (void)out_aux;
 
-    // Currently ignored inputs
-    (void)xattention_threshold;
-    (void)xattention_threshold_et;
-    (void)xattention_block_size;
-    (void)xattention_stride;
-    (void)sinks;
-    (void)sinks_et;
+    // Currently ignored inputs (adaptive RKV — not implemented)
     (void)adaptive_rkv_start_size;
     (void)adaptive_rkv_evictable_sizes;
     (void)adaptive_rkv_diversity_block_set_indices;
     (void)adaptive_rkv_diversity_block_set_indices_begins;
+
+    // --- Parse sinks: [1, H, 1, 1] per-head logit, or empty (disabled) ---
+    // When enabled, each head gets a scalar sink value that acts as a virtual
+    // extra attention score in the softmax (participates in max and exp-sum
+    // but produces no weighted output).
+    const bool has_sinks = (sinks != nullptr);
+    // We'll read per-head sink values after we know head count, below.
+
+    // --- Parse xattention parameters ---
+    // Xattention is a dynamic sparse attention mechanism for prefill:
+    // strided Q×K → block aggregation → threshold masking → skip masked blocks.
+    const bool has_xattn = (xattention_threshold != nullptr);
 
     OPENVINO_ASSERT(query_shape.size() == 2 && key_shape.size() == 2 && value_shape.size() == 2,
                     "PagedAttention reference: expected Q/K/V rank 2");
@@ -297,6 +315,23 @@ void paged_attention(std::uintptr_t node_key,
     std::vector<float> out_head;
     std::vector<float> key_buf;  // used for rotary
 
+    // --- Sink: read per-head values [1, H, 1, 1] ---
+    std::vector<float> sink_vals;
+    if (has_sinks) {
+        sink_vals.resize(q_heads, 0.f);
+        for (std::size_t h = 0; h < q_heads; ++h) {
+            sink_vals[h] = detail::read_at_as_f32(sinks, sinks_et, h);
+        }
+    }
+
+    // --- Xattention: build block-level sparse mask per head ---
+    // xattn_mask[h][q_block][k_block] = true means "keep this block pair"
+    // Only activated for multi-token (prefill), single sequence.
+    const int32_t xattn_block_sz = (xattention_block_size != nullptr) ? xattention_block_size[0] : 0;
+    const int32_t xattn_stride   = (xattention_stride != nullptr) ? xattention_stride[0] : 0;
+    // xattn_mask: [q_heads][num_q_blocks][num_k_blocks] — filled only when xattn is active
+    std::vector<std::vector<std::vector<bool>>> xattn_mask;
+
     // Prefix offsets for out_scores concatenation
     std::vector<std::size_t> score_prefix(seq_count + 1, 0);
     if (!scores_acc.empty()) {
@@ -318,6 +353,150 @@ void paged_attention(std::uintptr_t node_key,
         const std::int32_t past = past_lens ? past_lens[s] : 0;
         OPENVINO_ASSERT(past >= 0, "PagedAttention reference: negative past_lens");
         const std::size_t new_len = t_end - t_begin;
+
+        // --- Build xattention sparse mask for this sequence (prefill only) ---
+        // xattn_mask[h][q_blk][k_blk] = true => keep; false => skip
+        // Only activate when: xattn enabled, multi-token (new_len > 1), single sequence, past == 0
+        const bool do_xattn = has_xattn && new_len > 1 && seq_count == 1 && past == 0
+                              && xattn_block_sz > 0 && xattn_stride > 0;
+        xattn_mask.clear();
+        if (do_xattn) {
+            // Phase 1: strided Q×K dot products
+            const float threshold_f = detail::read_scalar_as_f32(xattention_threshold, xattention_threshold_et);
+            const std::size_t total_len = static_cast<std::size_t>(past) + new_len;
+            const std::size_t num_q_blocks = (total_len + static_cast<std::size_t>(xattn_block_sz) - 1) /
+                                             static_cast<std::size_t>(xattn_block_sz);
+            const std::size_t num_k_blocks = num_q_blocks;
+            const std::size_t q_strided = (total_len + static_cast<std::size_t>(xattn_stride) - 1) /
+                                          static_cast<std::size_t>(xattn_stride);
+            const std::size_t k_strided = q_strided;
+            const std::size_t num_per_block = static_cast<std::size_t>(xattn_block_sz) /
+                                              static_cast<std::size_t>(xattn_stride);
+
+            xattn_mask.resize(q_heads);
+            for (std::size_t h = 0; h < q_heads; ++h) {
+                const std::size_t kvh = h / group;
+
+                // Compute strided attention matrix [q_strided × k_strided]
+                // For each stride offset, average the Q·K scores
+                std::vector<float> attn_strided(q_strided * k_strided, 0.f);
+
+                for (int32_t off = 0; off < xattn_stride; ++off) {
+                    for (std::size_t qi = 0; qi < q_strided; ++qi) {
+                        // Query token index: we sample the (xattn_stride-1-off + qi*stride)-th Q
+                        const int64_t q_tok_idx = static_cast<int64_t>(xattn_stride) - 1 - off +
+                                                  static_cast<int64_t>(qi) * static_cast<int64_t>(xattn_stride);
+                        if (q_tok_idx < 0 || static_cast<std::size_t>(q_tok_idx) >= total_len) continue;
+                        const std::size_t q_abs = t_begin + static_cast<std::size_t>(q_tok_idx);
+                        const T* qptr = query + q_abs * query_features + h * head_size;
+
+                        // Causal: attend up to qi+1 strided positions
+                        const std::size_t k_causal = qi + 1;
+                        for (std::size_t ki = 0; ki < std::min(k_causal, k_strided); ++ki) {
+                            const int64_t k_tok_idx = static_cast<int64_t>(off) +
+                                                      static_cast<int64_t>(ki) * static_cast<int64_t>(xattn_stride);
+                            if (k_tok_idx < 0 || static_cast<std::size_t>(k_tok_idx) >= total_len) continue;
+
+                            // Read key from cache or from current input
+                            const std::size_t k_pos = static_cast<std::size_t>(k_tok_idx);
+                            // During prefill with past==0, all keys are in the current input
+                            const T* kptr_raw = key + (t_begin + k_pos) * key_features + kvh * head_size;
+                            float dot = 0.f;
+                            for (std::size_t d = 0; d < head_size; ++d) {
+                                dot += static_cast<float>(qptr[d]) * static_cast<float>(kptr_raw[d]);
+                            }
+                            attn_strided[qi * k_strided + ki] += dot;
+                        }
+                    }
+                }
+
+                // Scale and causal softmax on strided attention
+                const float xscale = scale_f / static_cast<float>(xattn_stride);
+                for (std::size_t qi = 0; qi < q_strided; ++qi) {
+                    const std::size_t k_causal = qi + 1;
+                    float* row = attn_strided.data() + qi * k_strided;
+                    // Apply scale
+                    for (std::size_t ki = 0; ki < k_strided; ++ki) {
+                        row[ki] *= xscale;
+                    }
+                    // Causal mask: set positions after causal boundary to -inf
+                    for (std::size_t ki = k_causal; ki < k_strided; ++ki) {
+                        row[ki] = -std::numeric_limits<float>::infinity();
+                    }
+                    // Softmax over this row
+                    float m = -std::numeric_limits<float>::infinity();
+                    for (std::size_t ki = 0; ki < k_strided; ++ki) m = std::max(m, row[ki]);
+                    float sm = 0.f;
+                    for (std::size_t ki = 0; ki < k_strided; ++ki) { row[ki] = std::exp(row[ki] - m); sm += row[ki]; }
+                    if (sm > 0.f) { float inv = 1.f / sm; for (std::size_t ki = 0; ki < k_strided; ++ki) row[ki] *= inv; }
+                }
+
+                // Phase 2: block aggregation — sum num_per_block × num_per_block windows
+                std::vector<float> block_sums(num_q_blocks * num_k_blocks, 0.f);
+                for (std::size_t qb = 0; qb < num_q_blocks; ++qb) {
+                    for (std::size_t kb = 0; kb < num_k_blocks; ++kb) {
+                        float bsum = 0.f;
+                        for (std::size_t dq = 0; dq < num_per_block; ++dq) {
+                            const std::size_t qi = qb * num_per_block + dq;
+                            if (qi >= q_strided) continue;
+                            for (std::size_t dk = 0; dk < num_per_block; ++dk) {
+                                const std::size_t ki = kb * num_per_block + dk;
+                                if (ki >= k_strided) continue;
+                                bsum += attn_strided[qi * k_strided + ki];
+                            }
+                        }
+                        block_sums[qb * num_k_blocks + kb] = bsum;
+                    }
+                }
+
+                // Phase 3: threshold masking — greedy top-block selection
+                xattn_mask[h].resize(num_q_blocks, std::vector<bool>(num_k_blocks, false));
+                for (std::size_t qb = 0; qb < num_q_blocks; ++qb) {
+                    const float* brow = block_sums.data() + qb * num_k_blocks;
+                    float total_sum = 0.f;
+                    for (std::size_t kb = 0; kb <= qb && kb < num_k_blocks; ++kb) {
+                        total_sum += brow[kb];
+                    }
+                    const float required = total_sum * threshold_f;
+
+                    // Build (value, index) pairs
+                    std::vector<std::pair<float, std::size_t>> vals;
+                    vals.reserve(num_k_blocks);
+                    for (std::size_t kb = 0; kb < num_k_blocks; ++kb) {
+                        vals.emplace_back(brow[kb], kb);
+                    }
+                    // Block 0 (first column) and diagonal (qb) always selected
+                    // Swap them to positions 0 and 1, then sort rest descending
+                    if (qb > 1 && qb < vals.size()) {
+                        std::swap(vals[1], vals[qb]);
+                    }
+                    if (vals.size() > 2) {
+                        std::sort(vals.begin() + 2, vals.end(),
+                                  [](const auto& a, const auto& b) { return a.first > b.first; });
+                    }
+
+                    // Cumulative sum selection
+                    float cumsum = 0.f;
+                    for (std::size_t i = 0; i < vals.size(); ++i) {
+                        bool keep = false;
+                        if (i == 0) {
+                            // First column always kept
+                            keep = true;
+                        } else if (i == 1 && qb >= 1) {
+                            // Diagonal always kept
+                            keep = true;
+                            cumsum = vals[0].first;
+                        } else {
+                            keep = (cumsum < required);
+                            cumsum += vals[i - 1].first;
+                        }
+                        // Causal: only keep blocks where k_block <= q_block
+                        if (vals[i].second > qb) keep = false;
+                        xattn_mask[h][qb][vals[i].second] = keep;
+                    }
+                }
+            }
+        }
 
         // Base offset for out_scores for this sequence (concatenation order is sequence order).
         const std::size_t score_base = score_prefix[s];
@@ -386,10 +565,14 @@ void paged_attention(std::uintptr_t node_key,
                         continue;
                     }
 
-                    // Optional rotary re-rotation for specific blocks
+                    // Optional rotary re-rotation for specific blocks.
+                    // Only apply to pre-existing cache positions (kpos < past).
+                    // The CPU kernel rotates blocks BEFORE writing new KV (concat_pastkv),
+                    // so new tokens overwrite their positions with unrotated values.
                     float dot = 0.f;
                     const auto it = rotated_map.find(addr.block);
-                    if (has_trig && rotation_deltas != nullptr && it != rotated_map.end()) {
+                    if (has_trig && rotation_deltas != nullptr && it != rotated_map.end()
+                        && kpos < past) {
                         const int32_t rot_idx = it->second;
                         std::size_t trig_row = 0;
                         if (deltas_is_2d) {
@@ -433,7 +616,26 @@ void paged_attention(std::uintptr_t node_key,
                     logits[t] = l;
                 }
 
-                detail::softmax_inplace(logits);
+                // Apply xattention sparse mask: set masked-out block positions to -inf
+                if (do_xattn && h < xattn_mask.size()) {
+                    for (std::size_t t = 0; t < ctx_len; ++t) {
+                        const std::int32_t kpos = start + static_cast<std::int32_t>(t);
+                        // Map query and key absolute positions to xattention block indices
+                        const std::size_t q_blk = static_cast<std::size_t>(qpos) /
+                                                  static_cast<std::size_t>(xattn_block_sz);
+                        const std::size_t k_blk = static_cast<std::size_t>(kpos) /
+                                                  static_cast<std::size_t>(xattn_block_sz);
+                        if (q_blk < xattn_mask[h].size() && k_blk < xattn_mask[h][q_blk].size()) {
+                            if (!xattn_mask[h][q_blk][k_blk]) {
+                                logits[t] = -std::numeric_limits<float>::infinity();
+                            }
+                        }
+                    }
+                }
+
+                // Softmax with optional attention sink
+                const float* sink_ptr = has_sinks ? &sink_vals[h] : nullptr;
+                detail::softmax_inplace(logits, sink_ptr);
 
                 for (std::size_t t = 0; t < ctx_len; ++t) {
                     const std::int32_t kpos = start + static_cast<std::int32_t>(t);

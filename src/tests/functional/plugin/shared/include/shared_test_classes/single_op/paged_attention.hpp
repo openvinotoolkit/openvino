@@ -22,7 +22,7 @@ namespace ov {
 namespace test {
 
 using InputShapes = std::vector<InputShape>;
-using PagedAttentionTestParams = std::tuple<ElementType, InputShapes, bool, bool, bool, int32_t, ov::AnyMap>;
+using PagedAttentionTestParams = std::tuple<ElementType, InputShapes, bool, bool, bool, int32_t, bool, int32_t, ov::AnyMap>;
 
 class PagedAttentionLayerTest
     : public testing::WithParamInterface<PagedAttentionTestParams>,
@@ -35,6 +35,8 @@ public:
                      enableXattn,
                      sinkInput,
                      slidingWindow,
+                     useAlibi,
+                     maxContextLen,
                      additional_config] = obj.param;
         std::ostringstream result;
         result << "IS=";
@@ -56,6 +58,8 @@ public:
         result << "EnableXattn=" << enableXattn << "_";
         result << "SinkInput=" << sinkInput << "_";
         result << "SlidingWindow=" << slidingWindow << "_";
+        result << "UseAlibi=" << useAlibi << "_";
+        result << "MaxContextLen=" << maxContextLen << "_";
         result << "config=(";
         for (const auto& configEntry : additional_config) {
             result << configEntry.first << ", " << configEntry.second.as<std::string>() << "_";
@@ -81,7 +85,10 @@ private:
                                                      int64_t head_size = 64,
                                                      int64_t head_num = 8,
                                                      bool use_sink_input = false,
-                                                     int32_t sliding_window = 0) {
+                                                     int32_t sliding_window = 0,
+                                                     bool use_alibi = false,
+                                                     int32_t max_ctx_len = 1024,
+                                                     bool use_rotation = false) {
         // PA expects q/k/v as [tokens, features]
         auto q = make_param({ov::Dimension::dynamic(), ov::Dimension::dynamic()}, data_type, "q");
         auto k = make_param({ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
@@ -106,13 +113,51 @@ private:
         const float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
         auto scale = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
         auto sliding_windows = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{sliding_window});
-        auto alibi_slopes = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0}, std::vector<float>{});
-        auto max_context_len = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{1024});
+        std::shared_ptr<ov::op::v0::Constant> alibi_slopes;
+        if (use_alibi) {
+            // Generate slopes: 1.0 / 2^i  for i = 0..head_num-1
+            std::vector<float> slopes(static_cast<size_t>(head_num));
+            for (int64_t i = 0; i < head_num; ++i) {
+                slopes[i] = 1.0f / static_cast<float>(1 << i);
+            }
+            alibi_slopes = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                ov::Shape{static_cast<size_t>(head_num)}, slopes);
+        } else {
+            alibi_slopes = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0}, std::vector<float>{});
+        }
+        auto max_context_len = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{max_ctx_len});
         auto score_aggregation_window = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{0});
 
-        auto rotated_block_indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{0});
-        auto rotation_deltas       = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{0});
-        auto rotation_trig_lut     = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0}, std::vector<float>{0});
+        std::shared_ptr<ov::op::v0::Constant> rotated_block_indices;
+        std::shared_ptr<ov::op::v0::Constant> rotation_deltas;
+        std::shared_ptr<ov::op::v0::Constant> rotation_trig_lut;
+        if (use_rotation) {
+            // Rotate block 0 with a simple RoPE-style trig LUT.
+            // We use per-block granularity: rotation_deltas shape [1, 1] (1 block, delta = 0 => LUT row 0).
+            rotated_block_indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{0});
+
+            // Per-block delta: single block, single delta pointing to LUT row 0
+            rotated_block_indices_ = std::vector<int32_t>{0};
+            rotation_deltas = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1, 1}, std::vector<int32_t>{0});
+
+            // Trig LUT: [1, head_size] with layout [cos_0..cos_{half-1}, sin_0..sin_{half-1}]
+            // Use a gentle rotation: cos ~= 0.9, sin ~= 0.1 (not unit-circle exact, but valid for testing)
+            const size_t hs = static_cast<size_t>(head_size);
+            const size_t half = hs / 2;
+            std::vector<float> lut(hs, 0.f);
+            for (size_t d = 0; d < half; ++d) {
+                // Use RoPE-like frequencies: theta_d = 1 / 10000^(2d/head_size)
+                // Apply a rotation of delta_position = 1
+                const float theta = 1.f / std::pow(10000.f, 2.f * static_cast<float>(d) / static_cast<float>(hs));
+                lut[d] = std::cos(theta);          // cos part
+                lut[half + d] = std::sin(theta);   // sin part
+            }
+            rotation_trig_lut = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1, hs}, lut);
+        } else {
+            rotated_block_indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{0});
+            rotation_deltas       = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{0});
+            rotation_trig_lut     = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0}, std::vector<float>{0});
+        }
 
         std::shared_ptr<ov::op::v0::Constant> xattention_threshold;
         if (enable_xattn) {
@@ -127,7 +172,13 @@ private:
         // Matching the pattern used by the CPU-specific test.
         std::shared_ptr<ov::op::v0::Constant> sinks;
         if (use_sink_input) {
-            sinks = std::make_shared<ov::op::v0::Constant>(data_type, ov::Shape{1, static_cast<size_t>(head_num), 1, 1}, std::vector<float>{0.0f});
+            // Use non-trivial per-head sink values: 0.1 * (h+1)
+            const size_t hn = static_cast<size_t>(head_num);
+            std::vector<float> sink_data(hn);
+            for (size_t h = 0; h < hn; ++h) {
+                sink_data[h] = 0.1f * static_cast<float>(h + 1);
+            }
+            sinks = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1, hn, 1, 1}, sink_data);
         } else {
             sinks = std::make_shared<ov::op::v0::Constant>(data_type, ov::Shape{0}, std::vector<float>{});
         }
@@ -347,13 +398,27 @@ public:
 
     void SetUp() override {
         is_report_stages = true;
-        const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] = GetParam();
-        (void)sinkInput;
+        const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, useAlibi, maxContextLen, additional_config] = GetParam();
 
         init_input_shapes(inputShapes);
 
+        // Derive H (num_heads) and S (head_size) from the first target shape [L,B,H,S]
+        OPENVINO_ASSERT(!targetStaticShapes.empty() && targetStaticShapes[0][0].size() == 4,
+                        "PagedAttention test expects [L,B,H,S] shapes");
+        const int64_t head_num  = static_cast<int64_t>(targetStaticShapes[0][0][2]);
+        const int64_t head_size = static_cast<int64_t>(targetStaticShapes[0][0][3]);
+
+        // Check if rotation is requested via the additional config map
+        use_rotation_ = false;
+        {
+            auto it = additional_config.find("test_use_rotation");
+            if (it != additional_config.end()) {
+                use_rotation_ = it->second.as<bool>();
+            }
+        }
+
         
-pa_model_ = make_paged_attn_model(inType, enableXattn, 64, 8, /*sink*/false, slidingWindow);
+pa_model_ = make_paged_attn_model(inType, enableXattn, head_size, head_num, sinkInput, slidingWindow, useAlibi, maxContextLen, use_rotation_);
 
 // Pre-generate the step inputs ONCE so CPU/TEMPLATE see identical tensors.
 // Allocate caches once here, and reuse for both runs by copying initial cache state.
@@ -443,11 +508,13 @@ protected:
     size_t block_size_ = 32;
     size_t max_blocks_per_seq_ = 1;
     size_t batch_size_ = 1;
+    bool use_rotation_ = false;
 
     std::shared_ptr<ov::Model> pa_model_;
     ov::Tensor key_cache_init_;
     ov::Tensor value_cache_init_;
     std::vector<StepInputs> steps_;
+    std::vector<int32_t> rotated_block_indices_;  // stored for debug prints
 };
 
 }  // namespace test

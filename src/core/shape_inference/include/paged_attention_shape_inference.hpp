@@ -101,37 +101,6 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
 
     return output_shapes;
 }
-/// Compute concrete output shapes at runtime from actual input shapes and data.
-/// This is the runtime counterpart of the compile-time shape_infer() above.
-/// It is used by reference (TEMPLATE) evaluation to resize dynamic output tensors
-/// before the reference kernel writes into them.
-inline std::vector<ov::Shape> pa_runtime_output_shapes(const ov::Shape& query_shape,  // [batch_tokens, q_features]
-                                                       const ov::Shape& key_shape,    // [batch_tokens, k_features]
-                                                       const ov::Shape& value_shape,  // [batch_tokens, v_features]
-                                                       const int32_t* past_lens,      // [seq_count]
-                                                       size_t seq_count) {
-    OPENVINO_ASSERT(query_shape.size() == 2 && key_shape.size() == 2 && value_shape.size() == 2,
-                    "pa_runtime_output_shapes: expected Q/K/V rank 2");
-
-    const size_t batch_tokens = query_shape[0];
-    const size_t q_feat = query_shape[1];
-    const size_t k_feat = key_shape[1];
-    const size_t v_feat = value_shape[1];
-    OPENVINO_ASSERT(k_feat > 0, "pa_runtime_output_shapes: k_features must be > 0");
-    const size_t out_feat = q_feat * v_feat / k_feat;
-
-    // Output 1 (scores): [batch_tokens + sum(past_lens)]
-    int64_t past_sum = 0;
-    for (size_t s = 0; s < seq_count; ++s) {
-        past_sum += std::max<int32_t>(0, past_lens[s]);
-    }
-
-    return {
-        {batch_tokens, out_feat},                        // output 0
-        {batch_tokens + static_cast<size_t>(past_sum)},  // output 1 (scores)
-        {0}                                              // output 2 (diversity / aux — unused)
-    };
-}
 
 }  // namespace op
 }  // namespace ov
