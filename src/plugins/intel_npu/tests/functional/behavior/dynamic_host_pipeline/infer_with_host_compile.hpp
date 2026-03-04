@@ -74,6 +74,25 @@ public:
         APIBaseTest::SetUp();
     }
 
+    bool isLLVMFormat(std::stringstream& modelStream) {
+        auto pos = modelStream.tellg();
+        if (pos == std::streampos(-1)) {
+            return false;
+        }
+
+        modelStream.seekg(0, std::ios::beg);
+
+        // Assume the first 20 char of LLVM blob shall have key word 'llvm'
+        std::string region(20, '\0');
+        modelStream.read(&region[0], 20);
+        region.resize(modelStream.gcount());
+
+        modelStream.clear();
+        modelStream.seekg(pos);
+
+        return region.find("llvm") != std::string::npos;
+    }
+
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
@@ -92,32 +111,12 @@ TEST_P(InferWithHostCompileTests, Compile) {
     OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
 
     // With HostCompile, the modelStream shall contain "llvm.func"
-    std::string line;
-    auto pos = modelStream.tellg();
-    modelStream.seekg(0, std::ios::beg);
-    bool isLLVMStream = false;
-    int searchRegion = 10;
-    while (std::getline(modelStream, line)) {
-        if (line.find("llvm.func") != std::string::npos) {
-            modelStream.clear();
-            modelStream.seekg(pos);
-            isLLVMStream = true;
-            break;
-        }
-        if (searchRegion-- < 0) {
-            break;
-        }
-    }
-    modelStream.clear();
-    modelStream.seekg(pos);
-    ASSERT_TRUE(isLLVMStream) << "CompiledStream from HostCompile mode shall has 'llvm.func' inside it";
+    ASSERT_TRUE(isLLVMFormat(modelStream)) << "CompiledStream from HostCompile mode shall has 'llvm.func' inside it";
 
     ov::InferRequest reqDynamic;
     // Add shape check once npu_mlir_runtime is inside test package
     EXPECT_THROW(reqDynamic = compiledModel.create_infer_request(), ov::Exception);
 }
-
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
 
 TEST_P(InferWithHostCompileTests, CompileAndImport) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
@@ -132,25 +131,7 @@ TEST_P(InferWithHostCompileTests, CompileAndImport) {
     OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
 
     // With HostCompile, the modelStream shall contain "llvm.func"
-    std::string line;
-    auto pos = modelStream.tellg();
-    modelStream.seekg(0, std::ios::beg);
-    bool isLLVMStream = false;
-    int searchRegion = 10;
-    while (std::getline(modelStream, line)) {
-        if (line.find("llvm.func") != std::string::npos) {
-            modelStream.clear();
-            modelStream.seekg(pos);
-            isLLVMStream = true;
-            break;
-        }
-        if (searchRegion-- < 0) {
-            break;
-        }
-    }
-    modelStream.clear();
-    modelStream.seekg(pos);
-    ASSERT_TRUE(isLLVMStream) << "CompiledStream from HostCompile mode shall has 'llvm.func' inside it";
+    ASSERT_TRUE(isLLVMFormat(modelStream)) << "CompiledStream from HostCompile mode shall has 'llvm.func' inside it";
 
     ov::CompiledModel importedModel;
     OV_ASSERT_NO_THROW(core->import_model(modelStream, target_device, configuration));
@@ -159,8 +140,6 @@ TEST_P(InferWithHostCompileTests, CompileAndImport) {
     // Add shape check once npu_mlir_runtime is inside test package
     EXPECT_THROW(reqDynamic = importedModel.create_infer_request(), ov::Exception);
 }
-
-#endif
 
 }  // namespace behavior
 }  // namespace test
