@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "compiler_impl.hpp"
 #include "graph.hpp"
 #include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "openvino/op/constant.hpp"
@@ -32,8 +31,7 @@ public:
                     std::optional<std::vector<ov::Tensor>> initBlobs,
                     std::shared_ptr<const ov::Model>&& model,
                     const FilteredConfig& config,
-                    const bool blobIsPersistent = false,
-                    const ov::SoPtr<VCLCompilerImpl>& compiler = {nullptr});
+                    const bool blobIsPersistent = false);
 
     /**
      * @brief The main schedule along with the weights initialization ones are exported.
