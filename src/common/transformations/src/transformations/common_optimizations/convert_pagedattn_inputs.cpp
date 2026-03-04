@@ -22,7 +22,9 @@ namespace v0 = ov::op::v0;
 
 namespace ov::pass {
 
-ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, UpdateShapeFunc func, UpdatePrecisionFunc update_precision_func)
+ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
+                                               UpdateShapeFunc func,
+                                               UpdatePrecisionFunc update_precision_func)
     : m_config(config),
       m_update_shape_func(std::move(func)),
       m_update_precision_func(std::move(update_precision_func)) {
