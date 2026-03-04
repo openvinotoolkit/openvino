@@ -34,8 +34,20 @@ def _run_test(
     failed: list[str],
 ) -> None:
     exe = ctx.paths.bin_dir / binary
-    if not exe.exists() or not os.access(exe, os.X_OK):
+    if not exe.exists():
         skipped.append(f"{name} (missing binary: {binary})")
+        return
+
+    if not os.access(exe, os.X_OK):
+        # GitHub artifact download may drop execute bits; try to recover in-place.
+        try:
+            mode = exe.stat().st_mode
+            exe.chmod(mode | 0o111)
+        except OSError:
+            pass
+
+    if not os.access(exe, os.X_OK):
+        skipped.append(f"{name} (binary not executable: {binary})")
         return
 
     executed.append(name)
@@ -91,6 +103,12 @@ def run(ctx: CoverageContext) -> None:
     total_skipped = len(skipped)
     total_passed = total_executed - total_failed
     total_planned = total_executed + total_skipped
+
+    if total_planned > 0 and total_executed == 0:
+        warn(
+            f"No C++ tests were executed (all skipped). "
+            f"Check restored binaries under: {ctx.paths.bin_dir}"
+        )
 
     ctx.io.export_env("CXX_TESTS_TOTAL", str(total_planned))
     ctx.io.export_env("CXX_TESTS_EXECUTED", str(total_executed))

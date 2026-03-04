@@ -170,15 +170,21 @@ def run(ctx: CoverageContext) -> None:
     if ctx.paths.build_js_dir.exists():
         _prefilter_incompatible_gcda(ctx.paths.build_js_dir, label="js build")
 
-    _run_lcov_capture(
-        directory=ctx.paths.build_dir,
-        build_directory=ctx.paths.build_dir,
-        base_directory=src_dir,
-        output_file=main_info,
-        label="C/C++ main capture",
-    )
+    has_main_gcda = _has_gcda(ctx.paths.build_dir)
+    has_js_gcda = _has_gcda(ctx.paths.build_js_dir)
 
-    if _has_gcda(ctx.paths.build_js_dir):
+    if has_main_gcda:
+        _run_lcov_capture(
+            directory=ctx.paths.build_dir,
+            build_directory=ctx.paths.build_dir,
+            base_directory=src_dir,
+            output_file=main_info,
+            label="C/C++ main capture",
+        )
+    else:
+        warn(f"No .gcda files found in {ctx.paths.build_dir}, skipping main native C++ capture")
+
+    if has_js_gcda:
         _run_lcov_capture(
             directory=ctx.paths.build_js_dir,
             build_directory=ctx.paths.build_js_dir,
@@ -186,10 +192,24 @@ def run(ctx: CoverageContext) -> None:
             output_file=js_info,
             label="C/C++ JS-side capture",
         )
+
+    if main_info.exists() and js_info.exists():
         run_cmd(["lcov", "-a", str(main_info), "-a", str(js_info), "-o", str(merged_info)])
-    else:
-        warn(f"No .gcda files found in {ctx.paths.build_js_dir}, skipping JS native C++ capture")
+    elif main_info.exists():
         merged_info.write_bytes(main_info.read_bytes())
+    elif js_info.exists():
+        merged_info.write_bytes(js_info.read_bytes())
+    else:
+        warn("No native C/C++ coverage tracefiles were produced; creating empty coverage.info")
+        merged_info.write_text("", encoding="utf-8")
+
+    if not merged_info.exists() or merged_info.stat().st_size == 0:
+        warn("coverage.info is empty; skipping lcov --remove and genhtml.")
+        if main_info.exists():
+            main_info.unlink()
+        if js_info.exists():
+            js_info.unlink()
+        return
 
     run_cmd(
         [
@@ -224,7 +244,7 @@ def run(ctx: CoverageContext) -> None:
     run_cmd(["grep", "-m", "5", f"^SF:{src_dir}/build_js/", str(merged_info)], check=False)
 
     report_dir.mkdir(parents=True, exist_ok=True)
-    run_cmd(
+    genhtml_rc = run_cmd(
         [
             "genhtml",
             str(merged_info),
@@ -233,5 +253,8 @@ def run(ctx: CoverageContext) -> None:
             "--prefix",
             str(src_dir),
             "--synthesize-missing",
-        ]
+        ],
+        check=False,
     )
+    if genhtml_rc != 0:
+        warn("genhtml failed; coverage.info is still available for Codecov upload.")

@@ -106,7 +106,6 @@ jobs:
 
   CoverageCpp:
     if: ${{ needs.BuildCoverageArtifacts.result == 'success' }}
-    continue-on-error: true
     needs: BuildCoverageArtifacts
     runs-on: ubuntu-latest-4-cores
     steps:
@@ -147,6 +146,16 @@ jobs:
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "Build artifact is missing required directories"
+          fi
+
+      - name: Restore executable bits for C++ test binaries
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          target="${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}"
+          if [[ -d "${target}" ]]; then
+            find "${target}" -type f -exec chmod u+x {} +
           fi
 
       - name: Install C++ coverage prerequisites
@@ -223,7 +232,6 @@ jobs:
 
       - name: Upload Codecov (C++ runtime, C++ suite)
         if: ${{ steps.verify_cpp_cov.outputs.exists == 'true' }}
-        continue-on-error: true
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: coverage.info
@@ -232,12 +240,11 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: false
+          fail_ci_if_error: true
           verbose: true
 
   CoveragePython:
     if: ${{ needs.BuildCoverageArtifacts.result == 'success' }}
-    continue-on-error: true
     needs: BuildCoverageArtifacts
     runs-on: ubuntu-latest-8-cores
     steps:
@@ -369,7 +376,6 @@ jobs:
 
       - name: Upload Codecov (Python API)
         if: ${{ steps.verify_py_cov.outputs.exists == 'true' }}
-        continue-on-error: true
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: python-coverage.xml
@@ -378,12 +384,11 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: false
+          fail_ci_if_error: true
           verbose: true
 
       - name: Upload Codecov (C++ runtime, Python suite)
         if: ${{ steps.verify_cpp_cov.outputs.exists == 'true' }}
-        continue-on-error: true
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: coverage.info
@@ -392,12 +397,11 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: false
+          fail_ci_if_error: true
           verbose: true
 
   CoverageJS:
     if: ${{ needs.BuildCoverageArtifacts.result == 'success' }}
-    continue-on-error: true
     needs: BuildCoverageArtifacts
     runs-on: ubuntu-latest-8-cores
     steps:
@@ -534,7 +538,6 @@ jobs:
 
       - name: Upload Codecov (Node.js bindings)
         if: ${{ steps.verify_js_cov.outputs.exists == 'true' }}
-        continue-on-error: true
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: js-lcov.info
@@ -543,12 +546,11 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: false
+          fail_ci_if_error: true
           verbose: true
 
       - name: Upload Codecov (C++ runtime, JS suite)
         if: ${{ steps.verify_cpp_cov.outputs.exists == 'true' }}
-        continue-on-error: true
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: coverage.info
@@ -557,7 +559,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: false
+          fail_ci_if_error: true
           verbose: true
 
   CoverageSummary:
