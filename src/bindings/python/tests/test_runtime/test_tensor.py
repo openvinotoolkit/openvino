@@ -768,3 +768,11 @@ def test_pack_unpack_u6_multidimensional():
     packed = pack_data(data, ov.Type.u6)
     unpacked = unpack_data(packed, ov.Type.u6, data.shape)
     assert np.array_equal(unpacked, data)
+
+
+def test_scalar_tensor():
+    exp_data = np.array(5)
+    tensor = ov.Tensor(exp_data)
+    assert np.array_equal(tensor.data, exp_data)
+    tensor = ov.Tensor(exp_data, ov.Shape(), ov.Type.i32)
+    assert np.array_equal(tensor.data, exp_data)
