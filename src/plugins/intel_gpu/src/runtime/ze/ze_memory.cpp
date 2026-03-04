@@ -8,6 +8,8 @@
 #include "ze_engine.hpp"
 #include "ze_stream.hpp"
 #include "ze_event.hpp"
+#include "runtime_common.hpp"
+
 #include <stdexcept>
 #include <vector>
 
@@ -170,6 +172,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* data_ptr, size_t src_o
     auto result_event = create_event(stream, size);
     if (size == 0)
         return result_event;
+    check_boundaries(SIZE_MAX, src_offset, _bytes_count, dst_offset, size, "gpu_usm::copy_from(void*)");
 
     auto _ze_stream = downcast<ze_stream>(&stream);
     auto _ze_event = downcast<ze_base_event>(result_event.get())->get_handle();
@@ -179,7 +182,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* data_ptr, size_t src_o
     OV_ZE_EXPECT(zeCommandListAppendMemoryCopy(_ze_stream->get_queue(),
                                            dst_ptr,
                                            src_ptr,
-                                           _bytes_count,
+                                           size,
                                            _ze_event,
                                            0,
                                            nullptr));
@@ -195,6 +198,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
     auto result_event = create_event(stream, size);
     if (size == 0)
         return result_event;
+    check_boundaries(src_mem.size(), src_offset, _bytes_count, dst_offset, size, "gpu_usm::copy_from(memory&)");
 
     auto _ze_stream = downcast<ze_stream>(&stream);
     auto _ze_event = downcast<ze_base_event>(result_event.get())->get_handle();
@@ -207,7 +211,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
     OV_ZE_EXPECT(zeCommandListAppendMemoryCopy(_ze_stream->get_queue(),
                                            dst_ptr,
                                            src_ptr,
-                                           _bytes_count,
+                                           size,
                                            _ze_event,
                                            0,
                                            nullptr));
@@ -222,6 +226,7 @@ event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, s
     auto result_event = create_event(stream, size);
     if (size == 0)
         return result_event;
+    check_boundaries(_bytes_count, src_offset, SIZE_MAX, dst_offset, size, "gpu_usm::copy_to(void*)");
 
     auto _ze_stream = downcast<ze_stream>(&stream);
     auto _ze_event = downcast<ze_base_event>(result_event.get())->get_handle();
@@ -231,7 +236,7 @@ event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, s
     OV_ZE_EXPECT(zeCommandListAppendMemoryCopy(_ze_stream->get_queue(),
                                            dst_ptr,
                                            src_ptr,
-                                           _bytes_count,
+                                           size,
                                            _ze_event,
                                            0,
                                            nullptr));

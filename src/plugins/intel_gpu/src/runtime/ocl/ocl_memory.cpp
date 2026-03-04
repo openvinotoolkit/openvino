@@ -6,6 +6,7 @@
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/utils.hpp"
+#include "runtime_common.hpp"
 #include "ocl_memory.hpp"
 #include "ocl_engine.hpp"
 #include "ocl_stream.hpp"
@@ -26,30 +27,6 @@
 
 namespace cldnn {
 namespace ocl {
-
-static inline void check_boundaries(size_t src_size,
-                                    size_t src_offset,
-                                    size_t dst_size,
-                                    size_t dst_offset,
-                                    size_t copy_size,
-                                    const std::string& func_str = "") {
-    OPENVINO_ASSERT(src_offset + copy_size <= src_size && dst_offset + copy_size <= dst_size,
-                    "[GPU] Incorrect buffer sizes for ",
-                    func_str,
-                    " call. ",
-                    "Parameters provided are",
-                    ": src_size=",
-                    src_size,
-                    ", src_offset=",
-                    src_offset,
-                    ", dst_size=",
-                    dst_size,
-                    ", dst_offset=",
-                    dst_offset,
-                    ", copy_size=",
-                    copy_size,
-                    ".");
-}
 
 static inline cldnn::event::ptr create_event(stream& stream, size_t bytes_count, bool need_user_event) {
     if (bytes_count == 0) {
