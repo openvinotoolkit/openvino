@@ -20,7 +20,6 @@ OutputVector translate_floor_divide(const NodeContext& context) {
     Output<Node> x;
     Output<Node> y;
     std::tie(x, y) = get_inputs_with_promoted_types(context, 0, 1);
-
     auto div = context.mark_node(std::make_shared<v1::Divide>(x, y, true));
     return {context.mark_node(std::make_shared<v0::Floor>(div))};
 };
