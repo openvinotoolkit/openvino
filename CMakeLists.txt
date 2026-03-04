@@ -54,7 +54,7 @@ ov_log_section("Getting pre-built dependencies")
 include(cmake/dependencies.cmake)
 
 if(ENABLE_COVERAGE)
-    ov_log_section("Tests coverage)
+    ov_log_section("Tests coverage")
     include(cmake/coverage.cmake)
 endif()
 
