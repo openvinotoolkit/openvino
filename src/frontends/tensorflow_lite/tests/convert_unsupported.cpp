@@ -60,3 +60,14 @@ INSTANTIATE_TEST_SUITE_P(OobIndices,
                                            "malformed_indices/oob_opcode_index.tflite",
                                            "malformed_indices/oob_graph_io_tensor_index.tflite",
                                            "malformed_indices/oob_buffer_index.tflite"));
+
+// quantized_dimension=-1: load() throws in get_quantization() (non-negative axis check)
+INSTANTIATE_TEST_SUITE_P(NegativeQuantDim,
+                         MalformedModelLoadTest,
+                         ::testing::Values("oob_quant_dim/negative_axis.tflite"));
+
+// quantized_dimension=100 on rank-2 tensor: load() succeeds, convert() throws
+// in get_quant_shape() (axis >= rank check)
+INSTANTIATE_TEST_SUITE_P(OobQuantDim,
+                         MalformedModelConvertTest,
+                         ::testing::Values("oob_quant_dim/axis_exceeds_rank.tflite"));

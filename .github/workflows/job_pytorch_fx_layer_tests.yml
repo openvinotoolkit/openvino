@@ -51,7 +51,7 @@ jobs:
       TRANSFORMERS_VERBOSITY: debug
     steps:
       - name: Fetch setup_python and install wheels actions
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: |
@@ -76,6 +76,10 @@ jobs:
         run: |
           Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
           Add-Content -Path $env:GITHUB_ENV -Value "HUGGINGFACE_HUB_CACHE=C:\\mount\\caches\\huggingface"
+
+      - name: Setup Variables
+        run: |
+          echo "PIP_INSTALL_COMMAND=python3 -m pip install" >> "$GITHUB_ENV" # Linux and MacOS only, and just for debug purposes, will be reverted, see PR #34185
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
@@ -108,7 +112,7 @@ jobs:
       - name: Install Pytorch FX Layer tests dependencies
         run: |
           # pytorch test requirements
-          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
+          ${{ env.PIP_INSTALL_COMMAND }} -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
 
       - name: PyTorch torch.compile TORCHFX Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287

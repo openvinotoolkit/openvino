@@ -51,4 +51,5 @@ class TestReplicationPad(PytorchLayerTest):
     def test_replication_pad(self, pad, n, ie_device, precision, ir_version):
         self._test(*self.create_model(pad, n),
                    ie_device, precision, ir_version,
+                   trace_model=True,
                    kwargs_to_prepare_input={"n": n})
