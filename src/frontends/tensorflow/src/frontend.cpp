@@ -102,7 +102,7 @@ ov::frontend::AdditionalErrorCallback make_tokenizer_callback() {
                                "provides conversion extension(s): "
                             << unsupported_ops_from_tokenizers
                             << ". Install OpenVINO Tokenizers, refer to the documentation: "
-                               "https://docs.openvino.ai/2025/openvino-workflow-generative/ov-tokenizers.html \n";
+                               "https://docs.openvino.ai/2026/openvino-workflow-generative/ov-tokenizers.html \n";
         }
         return additional_info.str();
     };

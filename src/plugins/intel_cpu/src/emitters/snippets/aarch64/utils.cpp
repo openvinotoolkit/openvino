@@ -77,7 +77,7 @@ Xbyak_aarch64::XReg init_memory_access_aux_gpr(const std::vector<size_t>& used_g
     return aux_reg;
 }
 
-void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
+void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                            int32_t stack_offset,
                                            const Xbyak_aarch64::XReg& ptr_reg,
                                            const std::vector<Xbyak_aarch64::XReg>& aux_regs,
@@ -110,7 +110,7 @@ void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generat
     h->str(aux_reg, Xbyak_aarch64::ptr(h->sp, stack_offset));
 }
 
-void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
+void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                           int32_t stack_offset,
                                           const Xbyak_aarch64::XReg& ptr_reg,
                                           const std::vector<Xbyak_aarch64::XReg>& aux_regs,
@@ -140,7 +140,7 @@ void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generato
     h->str(temp_reg, Xbyak_aarch64::ptr(h->sp, stack_offset));
 }
 
-void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator* h,
+void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                      const std::vector<Xbyak_aarch64::XReg>& mem_ptrs,
                                      const std::vector<size_t>& memory_offsets,
                                      const std::vector<size_t>& buffer_ids,
@@ -179,7 +179,7 @@ void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator* h,
     h->add(h->sp, h->sp, sp_size);
 }
 
-void push_ptrs_with_offsets_to_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
+void push_ptrs_with_offsets_to_stack(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                      const std::vector<Xbyak_aarch64::XReg>& mem_ptrs,
                                      const std::vector<size_t>& memory_offsets,
                                      const std::vector<size_t>& buffer_ids,

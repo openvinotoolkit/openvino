@@ -58,10 +58,7 @@ if(ENABLE_INTEL_CPU)
 endif()
 
 if(WIN32)
-    if(ENABLE_DX12)
-        target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DX12)
-        target_link_libraries(${TARGET_NAME} PRIVATE d3d12 dxcore)
-    endif()
+    target_link_libraries(${TARGET_NAME} PRIVATE d3d12)
 endif()
 
 set_target_properties(
