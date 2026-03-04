@@ -23,6 +23,8 @@ namespace ov {
 namespace test {
 
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+namespace {
+
 std::shared_ptr<ov::Node> addInt8MatMul(const std::shared_ptr<ov::Node>& pooling,
                                         const ov::element::Type& inPrc,
                                         const size_t channels) {
@@ -34,6 +36,8 @@ std::shared_ptr<ov::Node> addInt8MatMul(const std::shared_ptr<ov::Node>& pooling
     auto matmul = std::make_shared<ov::op::v0::MatMul>(pooling_nhwc, multiply_mm, false, false);
     return ov::test::utils::make_fake_quantize(matmul, inPrc, 256, {});
 }
+
+}  // namespace
 #endif
 
 std::string PoolingLayerCPUTest::getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj) {
