@@ -375,13 +375,13 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         std::filesystem::path model_fs_path = path.value();
         // Validating first path, it must contain a model
         std::string suffix = ".pdmodel";
-        if (model_fs_path.extension() != ".pdmodel") {
-            model_fs_path /= "__model__";
-        }
         FRONT_END_GENERAL_CHECK(util::file_exists(model_fs_path),
                                 "Could not open the file: \"",
                                 util::path_to_string(model_fs_path),
                                 '"');
+        if (model_fs_path.extension() != ".pdmodel") {
+            model_fs_path /= "__model__";
+        }
         std::ifstream model_str(model_fs_path, std::ios::in | std::ifstream::binary);
         // It is possible to validate here that protobuf can read model from the stream,
         // but it will complicate the check, while it should be as quick as possible
