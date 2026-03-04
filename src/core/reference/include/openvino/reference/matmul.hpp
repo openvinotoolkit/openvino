@@ -7,9 +7,9 @@
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <type_traits>
 #include <utility>
 #include <vector>
-#include <type_traits>
 
 #include "openvino/reference/broadcast.hpp"
 #include "openvino/reference/reshape.hpp"
