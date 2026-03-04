@@ -17,8 +17,8 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "compiler_adapter_factory.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
+#include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/npuw.hpp"
@@ -267,7 +267,7 @@ public:
             if (device) {
                 auto platformName = device->getName();
                 CompilerAdapterFactory compilerFactory;
-                auto compileType = compilerFactory.determinteAppropriateCompilerTypeBasedOnPlatform(platformName);
+                auto compileType = compilerFactory.determineAppropriateCompilerTypeBasedOnPlatform(platformName);
                 if (compileType == ov::intel_npu::CompilerType::DRIVER) {
                     npu_config.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType)}});
                 }
