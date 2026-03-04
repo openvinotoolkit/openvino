@@ -262,6 +262,9 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(IMPORT_RAW_BLOB);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     REGISTER_OPTION(TURBO);
+    REGISTER_OPTION(ENABLE_WEIGHTLESS);
+    // WEIGHTLESS_BLOB can be removed once
+    // NPU Compilers support ENABLE_WEIGHTLESS
     REGISTER_OPTION(WEIGHTLESS_BLOB);
     REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
@@ -646,7 +649,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::shared_ptr<intel_npu::IGraph> graph;
 
     auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
-        if (!localConfig.get<WEIGHTLESS_BLOB>()) {
+        if (!localConfig.get<WEIGHTLESS_BLOB>() && !localConfig.get<ENABLE_WEIGHTLESS>() ) {
             return compiler->compile(modelToCompile, config);
         } else {
             check_weightless_cache_attribute_occurrence(model);
