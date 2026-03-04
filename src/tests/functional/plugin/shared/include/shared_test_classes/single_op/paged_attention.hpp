@@ -85,9 +85,13 @@ private:
         auto k = make_param({ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
         auto v = make_param({ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
 
-        // [num_blocks, num_kv_heads, block_size, head_size]
-        auto key_cache   = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, ov::element::dynamic, "key_cache.0");
-        auto value_cache = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, ov::element::dynamic, "value_cache.0");
+        // Cache layout: [num_blocks, num_kv_heads, block_size, head_size]
+        // Use the concrete data_type rather than element::dynamic so that
+        // TEMPLATE (which does NOT run ConvertPagedAttnInputs) can allocate
+        // real tensors.  The CPU transformation unconditionally overwrites
+        // the cache element type, so the starting type is irrelevant for CPU.
+        auto key_cache   = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, data_type, "key_cache.0");
+        auto value_cache = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, data_type, "value_cache.0");
 
         auto past_lens = make_param({ov::Dimension::dynamic()}, ov::element::i32, "past_lens");
         auto subseq_begins = make_param({ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");
