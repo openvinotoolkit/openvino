@@ -355,7 +355,7 @@ void validate_axes(const std::vector<int64_t>& axes, const Rank& rank, const Nod
 
 void normalize_axes(std::vector<int64_t>& axes, const int64_t rank) {
     for (auto&& axis : axes) {
-        axis = normalize(axis, rank);
+        axis = rank > 0 ? normalize(axis, rank) : 0;
     }
 }
 
