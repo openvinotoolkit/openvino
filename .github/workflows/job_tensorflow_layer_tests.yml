@@ -33,7 +33,7 @@ jobs:
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
     timeout-minutes: 60
-    runs-on: aks-win-8-cores-16gb-test-st
+    runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
       volumes:
