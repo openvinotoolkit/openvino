@@ -79,11 +79,14 @@ jobs:
       - name: Determine if OneDNN is needed
         id: onednn_day
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          INPUT_USE_LATEST_ONEDNN: ${{ inputs.use_latest_onednn }}
         run: |
-          # to be changed later
-          if [[ "${{ github.event_name }}" == 'workflow_dispatch' ]]; then
-            echo "use_latest_onednn=${{ inputs.use_latest_onednn }}" >> "$GITHUB_OUTPUT"
-          elif [[ "${{ github.event.schedule }}" == '0 0 * * 3,6' ]]; then
+          if [[ "$EVENT_NAME" == 'workflow_dispatch' ]]; then
+            echo "use_latest_onednn=$INPUT_USE_LATEST_ONEDNN" >> "$GITHUB_OUTPUT"
+          elif [[ "$EVENT_SCHEDULE" == '0 0 * * 3,6' ]]; then
             echo "use_latest_onednn=true" >> "$GITHUB_OUTPUT"
           else
             echo "use_latest_onednn=false" >> "$GITHUB_OUTPUT"
