@@ -9,7 +9,7 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
 #include <intel_gpu/primitives/moe_gather.hpp>
-#include "intel_gpu/op/moe_compressed.hpp"
+#include "openvino/op/moe_compressed.hpp"
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
@@ -33,7 +33,7 @@ void test_moe_gather(bool is_caching_test, int k) {
     size_t hidden_size = k;
     int32_t num_experts_per_token = 2;
 
-    ov::intel_gpu::op::MOECompressed::Config moe_config;
+    ov::op::internal::MOECompressed::Config moe_config;
     moe_config.top_k = 2;
     moe_config.hidden_size = k;
     moe_config.num_expert = num_total_experts;

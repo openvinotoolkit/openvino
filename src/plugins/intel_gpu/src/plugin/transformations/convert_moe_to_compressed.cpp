@@ -7,7 +7,7 @@
 #include <limits>
 #include <memory>
 
-#include "intel_gpu/op/moe_compressed.hpp"
+#include "openvino/op/moe_compressed.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
@@ -223,7 +223,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
                 args[10] = pattern_map.at(gemm3_scale_m_down);
                 args[11] = pattern_map.at(gemm3_zp_m_down);
             }
-            ov::intel_gpu::op::MOECompressed::Config config(moe->get_config());
+            ov::op::internal::MOECompressed::Config config(moe->get_config());
             config.hidden_size = group_compressed ? weight_shape[2] * weight_shape[3] : weight_shape[2];
             config.inter_size = weight_shape[1];
             config.num_expert = weight_shape[0];
@@ -235,7 +235,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             config.top_k = topk_shape[1].get_length();
             config.out_type = ov::element::f16;
             config.has_batch_dim = is_pa ? 0 : 1;
-            auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
+            auto moe_compressed = std::make_shared<ov::op::internal::MOECompressed>(args, config);
 
             moe_compressed->set_friendly_name(moe->get_friendly_name());
             ov::copy_runtime_info(moe, moe_compressed);
@@ -257,7 +257,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             // Weight, scale, zp are assumed to be transposed
             // W     : [num_experts, N, K]
             // scale : [num_experts, N, K / group_size, 1]
-            ov::intel_gpu::op::MOECompressed::Config config(moe->get_config());
+            ov::op::internal::MOECompressed::Config config(moe->get_config());
             config.num_expert = weight_shape[0];
             config.hidden_size = weight_shape[2];
             if (weight_shape.size() == 4) config.hidden_size *= weight_shape[3];
@@ -291,7 +291,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
                 OPENVINO_THROW("gemm_down has no zp while gemm_up has zp!");
             }
             args.push_back(pattern_map.at(bias_down_gemm2_m));
-            auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
+            auto moe_compressed = std::make_shared<ov::op::internal::MOECompressed>(args, config);
             moe_compressed->set_friendly_name(moe->get_friendly_name());
             ov::copy_runtime_info(moe, moe_compressed);
             ov::replace_node(moe, moe_compressed);

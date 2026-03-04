@@ -20,6 +20,7 @@
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/sparse_fill_empty_rows.hpp"
 #include "openvino/op/stft.hpp"
+#include "openvino/op/linear_attn.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -69,6 +70,10 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     }
 
     if (ov::is_type<ov::op::v5::GRUSequence>(op) || ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op)) {
+        return true;
+    }
+
+    if (ov::is_type<ov::op::LinearAttention>(op)) {
         return true;
     }
 

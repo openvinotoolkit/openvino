@@ -6,10 +6,11 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/op/op.hpp"
+#include "intel_gpu_visibility.hpp"
 
 namespace ov::intel_gpu::op {
 
-class FullyConnected : public ov::op::Op {
+class INTEL_GPU_API FullyConnected : public ov::op::Op {
 public:
     OPENVINO_OP("FullyConnected", "gpu_opset");
 

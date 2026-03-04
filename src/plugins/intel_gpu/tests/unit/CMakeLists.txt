@@ -57,7 +57,7 @@ set(SOURCES_ALL
   )
 
 add_executable(${TARGET_NAME} ${SOURCES_ALL})
-target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER="")
+target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER="" IMPLEMENT_OPENVINO_GPU_API)
 
 ov_set_threading_interface_for(${TARGET_NAME})
 

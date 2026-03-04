@@ -10,6 +10,7 @@
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/loop.hpp"
+#include "openvino/op/placeholder_extension.hpp"
 #include "openvino/runtime/properties.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -254,7 +255,7 @@ std::vector<cldnn::input_info> ProgramBuilder::GetInputInfo(const std::shared_pt
             prevName += ".out" + std::to_string(op->get_input_source_output(i).get_index());
         }
 
-        if (ov::is_type<op::Placeholder>(prevOp)) {
+        if (ov::is_type<op::Placeholder>(prevOp) || ov::is_type<ov::op::internal::PlaceholderExtension>(prevOp)) {
             inputInfo.push_back(cldnn::input_info{});
             continue;
         }

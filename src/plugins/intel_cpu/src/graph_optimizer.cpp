@@ -3430,6 +3430,7 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
                        Type::Interpolate,
                        Type::PagedAttention,
                        Type::QKVProjection,
+                       Type::LinearAttention,
                        Type::LLMMLP,
                        Type::Pooling)) {
                 continue;

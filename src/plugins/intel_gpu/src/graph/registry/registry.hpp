@@ -138,6 +138,7 @@ REGISTER_IMPLS(detection_output);
 REGISTER_IMPLS(eltwise);
 REGISTER_IMPLS(fake_convert);
 REGISTER_IMPLS(fully_connected);
+REGISTER_IMPLS(fused_mlp);
 REGISTER_IMPLS(gather);
 REGISTER_IMPLS(gather_nd);
 REGISTER_IMPLS(gemm);
@@ -172,6 +173,7 @@ REGISTER_IMPLS(moe_mask_gen_reshape);
 REGISTER_IMPLS(moe_gemm);
 REGISTER_IMPLS(moe_scatter_reduction);
 REGISTER_IMPLS(moe_gather);
+REGISTER_IMPLS(linear_attention);
 
 REGISTER_DEFAULT_IMPLS(assign, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(read_value, CPU_S, CPU_D);

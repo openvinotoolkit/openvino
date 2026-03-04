@@ -5,10 +5,11 @@
 #pragma once
 
 #include "openvino/op/op.hpp"
+#include "intel_gpu_visibility.hpp"
 
 namespace ov::intel_gpu::op {
 
-class Placeholder : public ov::op::Op {
+class INTEL_GPU_API Placeholder : public ov::op::Op {
 public:
     OPENVINO_OP("Placeholder", "gpu_opset");
 

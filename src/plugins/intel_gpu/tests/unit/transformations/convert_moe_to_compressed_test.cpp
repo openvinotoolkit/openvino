@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "intel_gpu/op/moe_compressed.hpp"
+#include "openvino/op/moe_compressed.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -119,14 +119,14 @@ TEST_F(TransformationTestsF, ConvertMOEToMOE3GemmCompressedTest) {
         auto scale_reshape_down = std::make_shared<op::v1::Reshape>(scale_down, reshape_const_down, false);
         auto scale_transpose_down = std::make_shared<ov::op::v1::Transpose>(scale_reshape_down, transpose_const_down);
 
-        ov::intel_gpu::op::MOECompressed::Config config;
+        ov::op::internal::MOECompressed::Config config;
         config.hidden_size = 2048;
         config.inter_size = 768;
         config.num_expert = 128;
         config.top_k = 8;
         config.group_size = 128;
         config.out_type = ov::element::f16;
-        auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(
+        auto moe_compressed = std::make_shared<ov::op::internal::MOECompressed>(
             ov::OutputVector{hidden_states, routing_weights, routing_idx,
                 wei_gate, scale_transpose_gate, zp_transpose_gate,
                 wei_up, scale_transpose_up, zp_transpose_up,

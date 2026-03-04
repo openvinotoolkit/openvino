@@ -152,6 +152,7 @@ struct primitive_type_base : primitive_type {
         OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::has_impl_for: primitive type mismatch");
         const auto& all_impls = get_all_implementations();
         auto forced_impl_type = node.get_forced_impl_type();
+
         for (auto& impl : all_impls) {
             impl_types impl_type = impl->get_impl_type();
             if (requested_impl_type != impl_types::any && (requested_impl_type & impl_type) != impl_type)
@@ -170,6 +171,7 @@ struct primitive_type_base : primitive_type {
             } else {
                 if (impl_type == impl_types::onednn && !node.get_program().get_layout_optimizer().contains_onednn_impls_optimization_attribute(&node))
                     continue;
+                    
 
                 if (!impl->validate(node))
                     continue;
