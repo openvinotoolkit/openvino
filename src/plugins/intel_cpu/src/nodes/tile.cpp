@@ -23,6 +23,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/tile.hpp"
+#include "openvino/util/common_util.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/ngraph_utils.hpp"
 
@@ -67,14 +68,7 @@ Tile::Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 
 void Tile::getSupportedDescriptors() {
     const auto& vec_to_string = [](const std::vector<size_t>& vec) -> std::string {
-        std::string result = "[";
-        for (size_t i = 0; i < vec.size(); i++) {
-            if (i) {
-                result += ", ";
-            }
-            result += std::to_string(vec[i]);
-        }
-        return result;
+        return "[" + ov::util::join(vec);
     };
     if (getParentEdges().size() != 2) {
         CPU_NODE_THROW("has incorrect number of input edges. "
