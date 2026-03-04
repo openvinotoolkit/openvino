@@ -1223,51 +1223,6 @@ public:
         return layer;
     }
 
-    [[maybe_unused]] static void create_weights_memory(cldnn::engine& engine, cldnn::memory::ptr base, moe_weights& pw, 
-        const std::shared_ptr<ov::intel_gpu::op::MOE3GemmFusedCompressed>& op, size_t num_expert = 0, size_t weights_offset = 0) {
-        auto config = op->get_config(); 
-        auto alloc = [&] (ov::Shape shape, ov::element::Type type) {
-            auto format = cldnn::format::get_default_format(shape.size());
-            cldnn::data_types out_dtype = cldnn::element_type_to_data_type(type);
-            auto layout = cldnn::layout(shape, out_dtype, format);
-            auto mem = engine.create_subbuffer(*base, layout, weights_offset);
-            weights_offset += layout.bytes_count();
-            return mem;
-        };
-        const size_t group_num = (config.hidden_size / config.group_size > 0) ? (config.hidden_size / config.group_size) : 1;
-        const size_t group_num2 = (config.inter_size / config.group_size > 0) ? (config.inter_size / config.group_size) : 1;
-        if (num_expert == 0) {
-            num_expert = config.num_expert;
-        }
-        auto weight_type = op->get_input_element_type((size_t)MOE3GemmInputIndex::WEIGHT_0);
-        auto zp_type     = op->get_input_element_type((size_t)MOE3GemmInputIndex::ZP_0);
-        auto scale_type  = op->get_input_element_type((size_t)MOE3GemmInputIndex::SCALE_0);
-        pw.gate_w = alloc({num_expert, config.inter_size, config.hidden_size}, weight_type);
-        pw.gate_z = alloc({num_expert, config.inter_size, group_num}, zp_type);
-        pw.gate_s = alloc({num_expert, config.inter_size, group_num}, scale_type);
-
-        pw.up_w = alloc({num_expert, config.inter_size, config.hidden_size}, weight_type);
-        pw.up_z = alloc({num_expert, config.inter_size,  group_num}, zp_type);
-        pw.up_s = alloc({num_expert, config.inter_size, group_num}, scale_type);
-
-        pw.down_w = alloc({num_expert, config.hidden_size, config.inter_size}, weight_type);
-        pw.down_z = alloc({num_expert, config.hidden_size, group_num2}, zp_type);
-        pw.down_s = alloc({num_expert, config.hidden_size, group_num2}, scale_type);
-    }
-
-    static size_t get_weights_size(const std::shared_ptr<MOE3GemmFusedCompressed>& op) {
-        size_t weights_size = 0;
-        for (int idx = 2; idx <= 10; idx++) {
-            auto node = op->input_value(idx).get_node_shared_ptr();
-            auto const_node =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
-
-            // auto type  = op->input_value(idx).get_element_type();
-            weights_size += const_node->get_byte_size();      
-        }
-        return weights_size;
-    }
-
     static std::shared_ptr<ov::MappedMemory> get_mapped_memory() {
         static std::once_flag init_flag;
         static std::shared_ptr<ov::MappedMemory> mapped_memory;
@@ -1281,7 +1236,7 @@ public:
         return mapped_memory;
     }
 
-    static void fill_weights_memory_from_disk_v2(cldnn::engine& engine, const std::shared_ptr<MOE3GemmFusedCompressed>& op, 
+    static void fill_weights_memory(cldnn::engine& engine, const std::shared_ptr<MOE3GemmFusedCompressed>& op, 
         cldnn::moe_weights& wei_mem, const std::vector<uint32_t>& experts_list, const std::vector<uint32_t>& lru_experts) {
         auto num_expert = op->get_config().num_expert;
         const char* io_mode_env = std::getenv("OTD_WEIGHT_IO_MODE");
@@ -1418,7 +1373,7 @@ public:
             experts_list_single.push_back(expert);
             std::vector<uint32_t> lru_experts_list_single;
             lru_experts_list_single.push_back(item.first);
-            fill_weights_memory_from_disk_v2(engine, op, instance._weights, experts_list_single, lru_experts_list_single);
+            fill_weights_memory(engine, op, instance._weights, experts_list_single, lru_experts_list_single);
             cache.set_filled(item.first);
         }
         return item.first;

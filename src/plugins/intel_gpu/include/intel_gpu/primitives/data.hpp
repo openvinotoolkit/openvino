@@ -138,10 +138,6 @@ struct weightless_cache_manager {
             do_precision_conversion = true;
         }
     }
-
-    bool is_weightless() {
-        return do_weightless_caching;
-    }
     
     void apply_reorder(std::shared_ptr<layout> input_layout, std::shared_ptr<reorder> reorder) {
         reorder_rep = {input_layout, reorder};

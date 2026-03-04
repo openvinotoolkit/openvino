@@ -28,7 +28,6 @@ public:
 
     void set_filled(size_t lru_expert_no) {
         if (lru_expert_no >= m_filled_list.size()) {
-            std::cout << "lru_expert_no should be smaller than max_total_experts!" << std::endl;
             return;
         }
         m_filled_list[lru_expert_no] = true;

@@ -83,33 +83,7 @@ struct ConstProperties {
     bool needsBatchInterpretation;
 };
 
-static bool is_experimental_lazy_moe_enabled() {
-    static const bool enabled = []() {
-        auto is_env_enabled = [](const char* env) {
-            if (env == nullptr) {
-                return false;
-            }
-
-            char* end = nullptr;
-            long int_value = std::strtol(env, &end, 10);
-            if (end != env) {
-                return int_value != 0;
-            }
-
-            std::string value(env);
-            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
-                return static_cast<char>(std::tolower(c));
-            });
-            return value == "true" || value == "on" || value == "yes";
-        };
-
-        return is_env_enabled(std::getenv("OTD"));
-    }();
-
-    return enabled;
-}
-
-static size_t get_experimental_lazy_moe_expert_num() {
+static size_t get_lru_moe_expert_num() {
     const char* env = std::getenv("OTD");
     if (env == nullptr) {
         return static_cast<size_t>(0);
@@ -163,11 +137,10 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
-        const bool lazy_moe_enabled = is_experimental_lazy_moe_enabled() && is_moe_related_constant(op);
-        const size_t otd_expert_num = get_experimental_lazy_moe_expert_num();
-        const bool partial_moe_const_upload = lazy_moe_enabled && otd_expert_num > 0;
+        const size_t otd_expert_num = get_lru_moe_expert_num();
+        const bool partial_moe_const_upload = otd_expert_num > 0 && is_moe_related_constant(op);
+
         cldnn::memory::ptr mem = nullptr;
-        cldnn::memory::ptr upload_lock_mem = nullptr;
         size_t upload_bytes = constLayout.bytes_count();
         ov::Shape upload_shape = const_shape;
         const size_t total_experts = const_shape.empty() ? static_cast<size_t>(0) : const_shape[0];
@@ -179,7 +152,6 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             auto upload_mem = p.get_engine().allocate_memory(upload_layout, false);
             upload_experts = upload_shape[0];
             mem = p.get_engine().reinterpret_buffer(*upload_mem, constLayout);
-            upload_lock_mem = upload_mem;
             upload_bytes = upload_layout.bytes_count();
             std::cout << "[EXPERIMENTAL] OTD partial constant allocation at compile stage: "
                       << op->get_friendly_name() << ", experts=" << upload_shape[0]
@@ -187,20 +159,18 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
                       << ", target_bytes=" << constLayout.bytes_count() << std::endl;
         } else if (constLayout.bytes_count() > 0) {
             mem = p.get_engine().allocate_memory(constLayout, false);
-            upload_lock_mem = mem;
         } else { 
             // In the case of empty const data with {0} shape, it has zero byte.
             // To avoid zero byte memory allocation issue, reinterpret one dimension memory to zero dimension memory.
             auto one_dim_layout = cldnn::layout(ov::PartialShape({1}), constLayout.data_type, constLayout.format);
             auto one_dim_mem = p.get_engine().allocate_memory(one_dim_layout, false);
             mem = p.get_engine().reinterpret_buffer(*one_dim_mem, constLayout);
-            upload_lock_mem = one_dim_mem;
         }
 
         GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: "
                         << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)"<< std::endl;
         auto& stream = p.get_engine().get_service_stream();
-        cldnn::mem_lock<char> lock{upload_lock_mem, stream};
+        cldnn::mem_lock<char> lock{mem, stream};
         auto buf = lock.data();
         auto bufSize = upload_bytes;
         auto upload_count = ov::shape_size(upload_shape);

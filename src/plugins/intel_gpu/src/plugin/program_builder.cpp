@@ -15,7 +15,6 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/data.hpp"
-#include "intel_gpu/runtime/profiling.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
@@ -145,27 +144,12 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
     {
         GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
         for (const auto& op : ops) {
-            cldnn::instrumentation::mem_usage_logger per_op_mem_logger{layer_type_name_ID(op), false, false};
-            per_op_mem_logger.start_logging();
-
-            // std::cout << "[PB_MEM] begin op "
-            //           << op->get_type_info().version_id << "::" << op->get_type_name()
-            //           << " (friendly_name=" << op->get_friendly_name() << ")" << std::endl;
-
             GPU_DEBUG_LOG << "CreateSingleLayerPrimitive begin: "
                           << op->get_type_info().version_id << "::" << op->get_type_name()
                           << " (friendly_name=" << op->get_friendly_name() << ")" << std::endl;
 
             GPU_DEBUG_DEFINE_MEM_LOGGER(layer_type_name_ID(op));
             CreateSingleLayerPrimitive(op);
-
-            per_op_mem_logger.stop_logging();
-            const auto mem_usage = per_op_mem_logger.get_elapsed_mem_usage();
-            // std::cout << "[PB_MEM] end op "
-            //           << op->get_type_info().version_id << "::" << op->get_type_name()
-            //           << " (friendly_name=" << op->get_friendly_name() << ")"
-            //           << ", rss_delta_kb=" << mem_usage.rss
-            //           << ", peak_delta_kb=" << mem_usage.peak_rss << std::endl;
         }
     }
 
