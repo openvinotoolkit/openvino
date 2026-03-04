@@ -90,7 +90,7 @@ CM_INLINE void store_kvcache(const svmptr_t kv_cache [[type("svmptr_t")]], uint 
     }
 }
 
-#if KV_CACHE_COMPRESSION_PER_TOKEN == 1
+#if KV_CACHE_COMPRESSION_PER_TOKEN != 0
 template <int HEAD_SIZE>
 CM_INLINE void process_quantization_per_token(const half* in, uchar* out, uint in_offset, uint data_offset, uint scale_offset) {
     vector<half, HEAD_SIZE> in_data;
@@ -111,8 +111,9 @@ CM_INLINE void process_quantization_per_token(const half* in, uchar* out, uint i
     out_scale_zp[0] = 1.0 / scale_val;
     out_scale_zp[BLOCK_SIZE] = zp_val;
 }
+#endif
 
-#elif KV_CACHE_COMPRESSION_PER_TOKEN == 2
+#if KV_CACHE_COMPRESSION_PER_TOKEN == 2
 template <int HEAD_SIZE>
 CM_INLINE void process_quantization_per_channel(const half* in,
                                                 uchar* out,
@@ -189,8 +190,9 @@ CM_INLINE void process_quantization_per_channel(const half* in,
     store_kvcache<half, HEAD_SIZE>(reinterpret_cast<svmptr_t>(out + scale_offset), 0, scale_out);
     store_kvcache<half, HEAD_SIZE>(reinterpret_cast<svmptr_t>(out + zp_offset), 0, zp_out);
 }
+#endif
 
-#else
+#if KV_CACHE_COMPRESSION_PER_TOKEN == 0
 template <int HEAD_SIZE>
 CM_INLINE void process_no_quantization(const half* in, uchar* out, uint in_offset, uint out_offset) {
     vector<half, HEAD_SIZE> in_data;
@@ -300,10 +302,14 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const auto head_idx = cm_group_id(1);
     const auto wg_id = cm_group_id(2);
 
-    const uint global_token_idx = KV_CACHE_COMPRESSION_PER_TOKEN == 2 ? cm_global_id(2) * SUB_BLOCK_SIZE : cm_global_id(2);
+    uint global_token_idx = cm_global_id(2);
+    uint cur_sub_block_size = 1;
+#if KV_CACHE_COMPRESSION_PER_TOKEN == 2
+    global_token_idx *= SUB_BLOCK_SIZE;
+    cur_sub_block_size = SUB_BLOCK_SIZE;
+#endif
     uint token_idx = global_token_idx;
     uint dequant_size = 0;
-    uint cur_sub_block_size = KV_CACHE_COMPRESSION_PER_TOKEN == 2 ? SUB_BLOCK_SIZE : 1;
 
 #if KV_CACHE_COMPRESSION_PER_TOKEN == 2
     cm_assert(batch_size_in_sequences <= MAX_SEQS);
