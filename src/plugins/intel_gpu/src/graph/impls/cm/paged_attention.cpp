@@ -60,15 +60,19 @@ public:
         add_stage(pa_multi_token_1, params);
         if (desc->has_xattention) {
             add_stage(pa_multi_token_128, params);
-            add_stage(pa_multi_token_256, params);
+            if (params.get_device_info().arch >= gpu_arch::xe2) {
+                add_stage(pa_multi_token_256, params);
+            }
 
             add_stage(xattn_estimate_gemmqk, params);
             add_stage(xattn_estimate_find_block, params);
             add_stage(xattn_estimate_post_proc, params);
 
-            add_stage(xattn_estimate_gemmqk_256, params);
-            add_stage(xattn_estimate_find_block_256, params);
-            add_stage(xattn_estimate_post_proc_256, params);
+            if (params.get_device_info().arch >= gpu_arch::xe2) {
+                add_stage(xattn_estimate_gemmqk_256, params);
+                add_stage(xattn_estimate_find_block_256, params);
+                add_stage(xattn_estimate_post_proc_256, params);
+            }
         }
     }
 
