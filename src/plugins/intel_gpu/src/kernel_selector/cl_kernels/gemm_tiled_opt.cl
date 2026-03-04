@@ -236,10 +236,16 @@ KERNEL(gemm_tiled_opt)(
 #if TRANSPOSE_INPUT0 != TRANSPOSE_X_LAST
     MAKE_VECTOR_TYPE(INPUT0_TYPE, SIMD_WIDTH) a_tile;
 #endif // TRANSPOSE_INPUT0 != TRANSPOSE_X_LAST
-    B_FLOATN c_tile[TILE_M];
+    ACC_FLOATN c_tile[TILE_M];
 
     unroll_for (uint i = 0; i < TILE_M; i++) {
-        c_tile[i] = (B_FLOATN)(ACCUMULATOR_VAL_ZERO);
+        #if USE_FP16_ACC
+            // USE_FP16_ACC=1: ACC_FLOATN is float type,
+            //                 use 0.0f literal to avoid type conversion overhead from half to float
+            c_tile[i] = (ACC_FLOATN)0.0f;
+        #else
+            c_tile[i] = (ACC_FLOATN)(ACCUMULATOR_VAL_ZERO);
+        #endif
     }
 
     // Full tile calculation
@@ -416,17 +422,17 @@ KERNEL(gemm_tiled_opt)(
             unroll_for (uint subtile_k_id = 0; subtile_k_id < TILE_K / SIMD_WIDTH; subtile_k_id++) {
                 unroll_for (uint simd_local_id = 0; simd_local_id < SIMD_WIDTH; simd_local_id++) {
     #if TILE_K > SIMD_WIDTH
-                    c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_read[subtile_k_id], simd_local_id)),
-                                         b_tile[subtile_k_id * SIMD_WIDTH + simd_local_id], c_tile[dot_id]);
+                    c_tile[dot_id] = mad(ACC_CAST_A(sub_group_broadcast(a_read[subtile_k_id], simd_local_id)),
+                                         ACC_CAST_B(b_tile[subtile_k_id * SIMD_WIDTH + simd_local_id]), c_tile[dot_id]);
     #else // TILE_K > SIMD_WIDTH
                 #if B_VEC_SIZE > 1 && TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
                     MAKE_VECTOR_TYPE(INPUT1_TYPE, B_VEC_SIZE) b_tile_tmp;
                     unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
                         b_tile_tmp[b_elem] = b_tile[b_elem][simd_local_id];
                     }
-                    c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_read, simd_local_id)), b_tile_tmp, c_tile[dot_id]);
+                    c_tile[dot_id] = mad(ACC_CAST_A(sub_group_broadcast(a_read, simd_local_id)), ACC_CAST_B(b_tile_tmp), c_tile[dot_id]);
                 #else
-                    c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_read, simd_local_id)), b_tile[simd_local_id], c_tile[dot_id]);
+                    c_tile[dot_id] = mad(ACC_CAST_A(sub_group_broadcast(a_read, simd_local_id)), ACC_CAST_B(b_tile[simd_local_id]), c_tile[dot_id]);
                 #endif
     #endif // TILE_K > SIMD_WIDTH
                 }
@@ -468,9 +474,9 @@ KERNEL(gemm_tiled_opt)(
                 unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
                     b_tile_tmp[b_elem] = b_tile[b_elem][simd_local_id];
                 }
-                c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_tile[dot_id], simd_local_id)), b_tile_tmp, c_tile[dot_id]);
+                c_tile[dot_id] = mad(ACC_CAST_A(sub_group_broadcast(a_tile[dot_id], simd_local_id)), ACC_CAST_B(b_tile_tmp), c_tile[dot_id]);
             #else
-                c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_tile[dot_id], simd_local_id)), b_tile[simd_local_id], c_tile[dot_id]);
+                c_tile[dot_id] = mad(ACC_CAST_A(sub_group_broadcast(a_tile[dot_id], simd_local_id)), ACC_CAST_B(b_tile[simd_local_id]), c_tile[dot_id]);
             #endif
             }
         } // Tile C calculation for TN, TT cases end
@@ -595,12 +601,12 @@ KERNEL(gemm_tiled_opt)(
             #if B_VEC_SIZE > 1
                 #if TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
                 MAKE_VECTOR_TYPE(INPUT1_TYPE, B_VEC_SIZE) b_tile_tmp = {b_tile[0][simd_id], b_tile[1][simd_id]};
-                c_tile[dot_id] = mad((INPUT0_TYPE)sub_group_broadcast(a_read, simd_id), b_tile_tmp, c_tile[dot_id]);
+                    c_tile[dot_id] = mad(ACC_CAST_A(sub_group_broadcast(a_read, simd_id)), ACC_CAST_B(b_tile_tmp), c_tile[dot_id]);
                 #else
-                c_tile[dot_id] = mad((INPUT0_TYPE)sub_group_broadcast(a_read, simd_id), b_tile[simd_id], c_tile[dot_id]);
+                    c_tile[dot_id] = mad(ACC_CAST_A(sub_group_broadcast(a_read, simd_id)), ACC_CAST_B(b_tile[simd_id]), c_tile[dot_id]);
                 #endif
             #else
-                c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_read, simd_id)), b_tile[simd_id], c_tile[dot_id]);
+                c_tile[dot_id] = mad(ACC_CAST_A(sub_group_broadcast(a_read, simd_id)), ACC_CAST_B(b_tile[simd_id]), c_tile[dot_id]);
             #endif
             }
         } // Loading leftovers of the matrix A and tile C calculation end
@@ -688,7 +694,7 @@ KERNEL(gemm_tiled_opt)(
 #endif
 #endif // INDIRECT_INPUT0
         unroll_for (uint simd_id = 0; simd_id < TILE_K_LEFTOVER; simd_id++) {
-            c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_read, simd_id)), b_tile[simd_id], c_tile[dot_id]);
+            c_tile[dot_id] = mad(ACC_CAST_A(sub_group_broadcast(a_read, simd_id)), ACC_CAST_B(b_tile[simd_id]), c_tile[dot_id]);
         }
     } // Loading leftovers of the matrix A and tile C calculation end
 #endif // IS_DYNAMIC
@@ -741,9 +747,9 @@ KERNEL(gemm_tiled_opt)(
         __global OUTPUT_TYPE* d_ptr_tmp = d_ptr + sglid * x_pitch;
 
         #ifdef BIAS_TERM
-        ACCUMULATOR_TYPE_VEC dequantized = (ACCUMULATOR_TYPE_VEC)(ALPHA) * c_tile[write_id] + TO_ACCUMULATOR_TYPE(BETA) * c_ptr[sglid];
+        ACCUMULATOR_TYPE_VEC dequantized = (ACCUMULATOR_TYPE_VEC)(ALPHA) * TO_ACCUMULATOR_TYPE_VEC(c_tile[write_id]) + TO_ACCUMULATOR_TYPE(BETA) * c_ptr[sglid];
         #else // BIAS_TERM
-        ACCUMULATOR_TYPE_VEC dequantized = (ACCUMULATOR_TYPE_VEC)(ALPHA) * c_tile[write_id];
+        ACCUMULATOR_TYPE_VEC dequantized = (ACCUMULATOR_TYPE_VEC)(ALPHA) * TO_ACCUMULATOR_TYPE_VEC(c_tile[write_id]);
         #endif // BIAS_TERM
 
         #if HAS_FUSED_OPS
@@ -804,9 +810,9 @@ KERNEL(gemm_tiled_opt)(
     #else // TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
         #ifdef BIAS_TERM
         B_FLOATN c_val = BLOCK_READ_B(c_ptr, 0);
-        ACCUMULATOR_TYPE_VEC dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id] + TO_ACCUMULATOR_TYPE(BETA) * c_val;
+        ACCUMULATOR_TYPE_VEC dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * TO_ACCUMULATOR_TYPE_VEC(c_tile[write_id]) + TO_ACCUMULATOR_TYPE(BETA) * c_val;
         #else // BIAS_TERM
-        ACCUMULATOR_TYPE_VEC dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id];
+        ACCUMULATOR_TYPE_VEC dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * TO_ACCUMULATOR_TYPE_VEC(c_tile[write_id]);
         #endif // BIAS_TERM
 
         #if TRANSPOSE_OUTPUT == TRANSPOSE_X_LAST

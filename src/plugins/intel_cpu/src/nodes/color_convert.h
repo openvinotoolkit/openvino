@@ -78,7 +78,7 @@ public:
     [[nodiscard]] const void* input(size_t idx) const;
     [[nodiscard]] void* output(size_t idx) const;
     [[nodiscard]] const VectorDims& inputDims(size_t idx) const;
-    virtual void execute(const dnnl::stream& strm) = 0;
+    virtual void execute(const CpuParallelPtr& cpu_parallel, const dnnl::stream& strm) = 0;
 
 protected:
     Node* _node;

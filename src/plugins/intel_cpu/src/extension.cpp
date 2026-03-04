@@ -92,6 +92,7 @@
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/reduce.hpp"
 #include "snippets/op/reshape.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/op/subgraph.hpp"
@@ -290,6 +291,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<ov::OpExtension<ov::snippets::op::ReduceMax>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::ReduceSum>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::Reshape>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::Result>>(),
     // clang-format off
     OP_EXTENSION_SNIPPETS_DEBUG_CAPS(std::make_shared<ov::OpExtension<ov::snippets::op::PerfCountBegin>>())
     OP_EXTENSION_SNIPPETS_DEBUG_CAPS(std::make_shared<ov::OpExtension<ov::snippets::op::PerfCountEnd>>())

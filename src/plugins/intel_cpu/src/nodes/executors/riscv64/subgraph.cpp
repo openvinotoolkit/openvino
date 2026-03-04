@@ -55,7 +55,7 @@ SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snip
 void SubgraphExecutor::segfault_detector() const {
     static std::mutex err_print_lock;
     if (enabled_segfault_detector) {
-        __sighandler_t signal_handler =
+        auto signal_handler =
             []([[maybe_unused]] int signal) {
                 std::lock_guard<std::mutex> guard(err_print_lock);
                 if (auto* segfault_detector_emitter =

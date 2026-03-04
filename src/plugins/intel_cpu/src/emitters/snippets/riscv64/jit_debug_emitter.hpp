@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cstddef>
 #include <memory>
-#include <vector>
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    pragma once
@@ -12,58 +10,66 @@
 #    include <utility>
 
 #    include "emitters/plugin/riscv64/jit_emitter.hpp"
+#    include "emitters/snippets/common/jit_debug_emitter_base.hpp"
 
 namespace ov::intel_cpu::riscv64 {
 
-class jit_debug_emitter : public jit_emitter {
+template <typename JitEmitterT>
+class jit_debug_emitter_riscv_base : public ov::intel_cpu::jit_debug_emitter_base_common<JitEmitterT> {
 public:
-    enum class EmissionLocation : uint8_t { preamble, postamble, both };
-    jit_debug_emitter(const std::shared_ptr<jit_emitter>& target_emitter,
-                      std::shared_ptr<jit_emitter> decorator_emitter,
-                      const EmissionLocation& loc)
-        : jit_emitter(target_emitter->h,
-                      target_emitter->host_isa_,
-                      target_emitter->exec_prc_,
-                      target_emitter->in_out_type_),
-          m_target_emitter(target_emitter),
-          m_decorator_emitter(std::move(decorator_emitter)),
-          m_decorator_emit_loc(loc) {
-        prepare_table();
+    using base_t = ov::intel_cpu::jit_debug_emitter_base_common<JitEmitterT>;
+    using EmissionLocation = typename base_t::EmissionLocation;
+    using base_t::base_t;
+
+    [[nodiscard]] size_t get_inputs_num() const override {
+        return this->m_target_emitter->get_inputs_num();
     }
 
-    void emit_data() const override;
+    [[nodiscard]] size_t aux_vecs_count() const override {
+        return this->m_target_emitter->aux_vecs_count();
+    }
 
-    size_t get_inputs_num() const override;
-    size_t aux_vecs_count() const override;
-    size_t aux_fp_gprs_count() const override;
+    [[nodiscard]] size_t aux_fp_gprs_count() const override {
+        return this->m_target_emitter->aux_fp_gprs_count();
+    }
 
 protected:
-    size_t aux_gprs_count() const override;
-
-    void prepare_table() override;
-    void register_table_entries() override;
-
-    void emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const override;
-
-    void emit_code_impl(const std::vector<size_t>& in_idxs,
-                        const std::vector<size_t>& out_idxs,
-                        const std::vector<size_t>& pool_vec_idxs,
-                        const std::vector<size_t>& pool_gpr_idxs,
-                        const std::vector<size_t>& pool_fp_gpr_idxs) const override;
+    [[nodiscard]] size_t aux_gprs_count() const override {
+        return this->m_target_emitter->aux_gprs_count();
+    }
 
     void emitter_preamble(const std::vector<size_t>& in_idxs,
                           const std::vector<size_t>& out_idxs,
                           const std::vector<size_t>& pool_vec_idxs,
                           const std::vector<size_t>& pool_gpr_idxs,
-                          const std::vector<size_t>& pool_fp_gpr_idxs) const override;
-    void emitter_postamble() const override;
+                          const std::vector<size_t>& pool_fp_gpr_idxs) const override {
+        this->m_target_emitter->emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, pool_fp_gpr_idxs);
+    }
 
-private:
-    void validate_arguments(const std::vector<size_t>& arg0, const std::vector<size_t>& arg1) const override;
-    const std::shared_ptr<jit_emitter> m_target_emitter;
-    const std::shared_ptr<jit_emitter> m_decorator_emitter;
+    void emit_code_impl(const std::vector<size_t>& in_idxs,
+                        const std::vector<size_t>& out_idxs,
+                        const std::vector<size_t>& pool_vec_idxs,
+                        const std::vector<size_t>& pool_gpr_idxs,
+                        const std::vector<size_t>& pool_fp_gpr_idxs) const override {
+        this->emit_code_with_decorator(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, pool_fp_gpr_idxs);
+    }
+};
 
-    EmissionLocation m_decorator_emit_loc;
+class jit_debug_emitter : public jit_debug_emitter_riscv_base<jit_emitter> {
+public:
+    using base_t = jit_debug_emitter_riscv_base<jit_emitter>;
+    using EmissionLocation = typename base_t::EmissionLocation;
+
+    jit_debug_emitter(const std::shared_ptr<jit_emitter>& target_emitter,
+                      std::shared_ptr<jit_emitter> decorator_emitter,
+                      const EmissionLocation& loc)
+        : base_t(target_emitter->h,
+                 target_emitter->host_isa_,
+                 target_emitter->exec_prc_,
+                 target_emitter->in_out_type_,
+                 target_emitter,
+                 std::move(decorator_emitter),
+                 loc) {}
 };
 
 }  // namespace ov::intel_cpu::riscv64

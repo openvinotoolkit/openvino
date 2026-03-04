@@ -3,6 +3,7 @@
 
 import gc
 import os
+import platform
 import shutil
 
 import pytest
@@ -135,6 +136,15 @@ class TestTFReadModel(TestConvertModel):
     def test_read_model_precommit(self, model_name, model_link, mark, reason, ie_device):
         assert mark is None or mark == 'skip' or mark == 'xfail', \
             "Incorrect test case: {}, {}".format(model_name, model_link)
+
+        arm_platforms = {'arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'}
+        arm_failed_models = {
+            'movenet/singlepose/lightning',
+            'efficientdet/lite0/detection',
+        }
+        if platform.machine() in arm_platforms and model_name in arm_failed_models:
+            pytest.skip(f"Model {model_name} is not enabled on ARM platform")
+
         if mark == 'skip':
             pytest.skip(reason)
         elif mark == 'xfail':
