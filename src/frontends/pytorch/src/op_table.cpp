@@ -53,6 +53,7 @@ OP_CONVERTER(translate_avg_pool3d);
 OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
 OP_CONVERTER(translate_bernoulli);
+OP_CONVERTER(translate_bincount);
 OP_CONVERTER(translate_bitwise_and);
 OP_CONVERTER(translate_bitwise_left_shift);
 OP_CONVERTER(translate_bitwise_not);
@@ -446,6 +447,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::baddbmm", op::translate_addmm},
         {"aten::batch_norm", op::translate_batch_norm},
         {"aten::bernoulli", op::translate_bernoulli},
+        {"aten::bincount", op::translate_bincount},
         {"aten::bitwise_and", op::translate_bitwise_and},
         {"aten::bitwise_left_shift", op::translate_bitwise_left_shift},
         {"aten::bitwise_not", op::translate_bitwise_not},
