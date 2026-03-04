@@ -27,7 +27,7 @@ target_link_libraries(${TARGET_NAME}
         openvino_npu_common
         openvino::npu_al
         openvino::xml_util
-        openvino::npu_mlir_runtime_api
+        openvino::npu_vm_runtime_api
 )
 
 #
