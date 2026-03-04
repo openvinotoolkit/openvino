@@ -46,12 +46,15 @@ find_package(OpenVINODeveloperScripts REQUIRED
              NO_CMAKE_FIND_ROOT_PATH
              NO_DEFAULT_PATH)
 
+ov_log_section("Features and options")
 include(cmake/features.cmake)
 
+ov_log_section("Getting pre-built dependencies")
 # These options are shared with 3rdparty plugins by means of developer package
 include(cmake/dependencies.cmake)
 
 if(ENABLE_COVERAGE)
+    ov_log_section("Tests coverage)
     include(cmake/coverage.cmake)
 endif()
 
@@ -61,7 +64,7 @@ if(APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET AND
 endif()
 
 # resolving dependencies for the project
-ov_log_section("OpenVINO core configuration")
+ov_log_section("OpenVINO build configuration")
 message (STATUS "CMAKE_VERSION ......................... " ${CMAKE_VERSION})
 message (STATUS "CMAKE_CROSSCOMPILING .................. " ${CMAKE_CROSSCOMPILING})
 message (STATUS "OpenVINO_SOURCE_DIR ................... " ${OpenVINO_SOURCE_DIR})
@@ -191,6 +194,7 @@ include(thirdparty/dependencies.cmake)
 add_subdirectory(src)
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
+    ov_log_section("Samples")
     add_subdirectory(samples)
 endif()
 
@@ -207,6 +211,7 @@ add_subdirectory(licensing)
 
 if(ENABLE_TESTS)
     # layers and other more high-level / e2e tests
+    ov_log_section("High-level tests")
     add_subdirectory(tests)
 endif()
 
