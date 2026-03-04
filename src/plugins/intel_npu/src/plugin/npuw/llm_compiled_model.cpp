@@ -1628,6 +1628,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         if (npuw_llm_props.find("NPUW_LLM_GENERATE_HINT") == npuw_llm_props.end()) {
             m_cfg.update({{"NPUW_LLM_GENERATE_HINT", "BEST_PERF"}});
         }
+
+        // Enable DEVICE_ROUTED mode by default for MoE models on newer compiler versions, as it's more efficient than
+        // HOST_ROUTED
+        if (npuw_llm_props.find("NPUW_LLM_GENERATE_MOE_HINT") == npuw_llm_props.end() && npudesc->arch == "5010" &&
+            npudesc->compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
+            m_cfg.update({{"NPUW_LLM_GENERATE_MOE_HINT", "DEVICE_ROUTED"}});
+        }
     }
 
     // NB: PREFILL_HINT is now compatible with the PREFILL_CONFIG section, unlike for
