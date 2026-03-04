@@ -1357,6 +1357,20 @@ struct BATCH_COMPILER_MODE_SETTINGS final : OptionBase<BATCH_COMPILER_MODE_SETTI
     }
 };
 
+struct ENABLE_WEIGHTLESS final : OptionBase<ENABLE_WEIGHTLESS, bool> {
+    static std::string_view key() {
+        return ov::enable_weightless.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
 struct WEIGHTLESS_BLOB final : OptionBase<WEIGHTLESS_BLOB, bool> {
     static std::string_view key() {
         return ov::intel_npu::weightless_blob.name();
