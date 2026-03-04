@@ -105,7 +105,7 @@ gpu_usm::gpu_usm(ze_engine* engine, const layout& layout, allocation_type type)
     m_mem_tracker = std::make_shared<MemoryTracker>(engine, _buffer.get(), actual_bytes_count, type);
 }
 
-void* gpu_usm::lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) {
+void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         auto& _ze_stream = downcast<const ze_stream>(stream);
