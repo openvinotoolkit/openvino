@@ -15,16 +15,20 @@ void SnippetsTestsCommon::run() {
     // Ticket: 177544
 #if defined(OPENVINO_ARCH_ARM64)
     const auto mode_it = configuration.find("SNIPPETS_MODE");
-    if (mode_it != configuration.end()) {
-        if (mode_it->second.as<std::string>() != "DISABLE") {
-            GTEST_SKIP() << "Temporary skip tests with  enabled snippets on ARM64";
-        }
+    const bool snippets_enabled = mode_it == configuration.end() || mode_it->second.as<std::string>() != "DISABLE";
+    if (snippets_enabled) {
+        GTEST_SKIP() << "Temporary skip tests with enabled snippets on ARM64";
     }
 #endif
     SubgraphBaseTest::run();
 }
 
 void SnippetsTestsCommon::validateNumSubgraphs() {
+#if defined(OPENVINO_ARCH_ARM64)
+    if (IsSkipped()) {
+        return;
+    }
+#endif
     bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
     if (isCurrentTestDisabled)
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
@@ -53,6 +57,11 @@ void SnippetsTestsCommon::validateNumSubgraphs() {
 }
 
 void SnippetsTestsCommon::validateOriginalLayersNamesByType(const std::string& layerType, const std::string& originalLayersNames) {
+#if defined(OPENVINO_ARCH_ARM64)
+    if (IsSkipped()) {
+        return;
+    }
+#endif
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const auto& compiled_model = compiledModel.get_runtime_model();
     for (const auto& op : compiled_model->get_ops()) {
