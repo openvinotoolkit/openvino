@@ -48,9 +48,6 @@ public:
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
 
-        params.outputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
-        params.outputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
-
         if (!primitive->activations.empty()) {
             auto a_sz = primitive->activations.size();
             auto param_sz = primitive->activation_params.size();
