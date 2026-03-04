@@ -292,8 +292,7 @@ ov::Tensor unsqueeze_input(const ov::Tensor& input, std::vector<int64_t>& unsque
 
     reshape(static_cast<const char*>(input.data()),
             static_cast<char*>(output.data()),
-            input_shape,
-            element_type.size());
+            input.get_byte_size());
 
     return output;
 }
@@ -646,8 +645,7 @@ ov::Tensor reshape_input_for_matmul(const ov::Tensor& input,
 
     reshape(static_cast<const char*>(input.data()),
             static_cast<char*>(output.data()),
-            input_shape,
-            element_type.size());
+            input.get_byte_size());
     return output;
 }
 
@@ -969,8 +967,7 @@ void contract_two_inputs(ov::TensorVector& inputs,
     auto contract_output = ov::Tensor(matmul_output.get_element_type(), back_shape);
     reshape(static_cast<const char*>(matmul_output.data()),
             static_cast<char*>(contract_output.data()),
-            matmul_output.get_shape(),
-            matmul_output.get_element_type().size());
+            matmul_output.get_byte_size());
 
     update_operands(inputs, input_subscripts, input_ind1, input_ind2, contract_output, resultant_subscript);
 }
