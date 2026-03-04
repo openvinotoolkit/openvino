@@ -172,11 +172,12 @@ private:
         // Matching the pattern used by the CPU-specific test.
         std::shared_ptr<ov::op::v0::Constant> sinks;
         if (use_sink_input) {
-            // Use non-trivial per-head sink values: 0.1 * (h+1)
+            // Use per-head sink values comparable in magnitude to attention logits
+            // so the effect is clearly visible: 3.0 + 0.5 * h
             const size_t hn = static_cast<size_t>(head_num);
             std::vector<float> sink_data(hn);
             for (size_t h = 0; h < hn; ++h) {
-                sink_data[h] = 0.1f * static_cast<float>(h + 1);
+                sink_data[h] = 3.0f + 0.5f * static_cast<float>(h);
             }
             sinks = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1, hn, 1, 1}, sink_data);
         } else {

@@ -54,9 +54,8 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
     OPENVINO_ASSERT(inputs.size() == 25, "PagedAttentionExtension: expected 25 inputs");
     OPENVINO_ASSERT(outputs.size() == 3, "PagedAttentionExtension: expected 3 outputs");
 
-    std::cerr << "[PA_KERNEL_DBG] TEMPLATE reference kernel entered, q_shape=["
-              << inputs[0].get_shape()[0] << "," << inputs[0].get_shape()[1]
-              << "], past_lens=[";
+    std::cerr << "[PA_KERNEL_DBG] TEMPLATE reference kernel entered, q_shape=[" << inputs[0].get_shape()[0] << ","
+              << inputs[0].get_shape()[1] << "], past_lens=[";
     for (size_t i = 0; i < inputs[5].get_shape()[0]; ++i)
         std::cerr << (i ? "," : "") << inputs[5].data<int32_t>()[i];
     std::cerr << "]" << std::endl;
@@ -72,13 +71,11 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
 
     // For optional inputs with Shape{0} (disabled), pass nullptr so the reference
     // can distinguish "absent" from "present but empty".
-    const void* xattn_thresh_ptr = inputs[17].get_shape().empty() || inputs[17].get_size() == 0
-                                       ? nullptr : inputs[17].data();
-    const auto  xattn_thresh_et  = (xattn_thresh_ptr != nullptr)
-                                       ? inputs[17].get_element_type() : ov::element::dynamic;
-    const void* sinks_ptr = inputs[20].get_shape().empty() || inputs[20].get_size() == 0
-                                ? nullptr : inputs[20].data();
-    const auto  sinks_et  = (sinks_ptr != nullptr) ? inputs[20].get_element_type() : ov::element::dynamic;
+    const void* xattn_thresh_ptr =
+        inputs[17].get_shape().empty() || inputs[17].get_size() == 0 ? nullptr : inputs[17].data();
+    const auto xattn_thresh_et = (xattn_thresh_ptr != nullptr) ? inputs[17].get_element_type() : ov::element::dynamic;
+    const void* sinks_ptr = inputs[20].get_shape().empty() || inputs[20].get_size() == 0 ? nullptr : inputs[20].data();
+    const auto sinks_et = (sinks_ptr != nullptr) ? inputs[20].get_element_type() : ov::element::dynamic;
 
     ov::reference::paged_attention<T>(node_key,
                                       cache_manager,
@@ -111,7 +108,7 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
                                       inputs[16].data(),  // rotation_trig_lut
                                       inputs[16].get_element_type(),
                                       inputs[16].get_shape(),
-                                      xattn_thresh_ptr,            // xattention_threshold
+                                      xattn_thresh_ptr,  // xattention_threshold
                                       xattn_thresh_et,
                                       inputs[18].data<int32_t>(),  // xattention_block_size
                                       inputs[19].data<int32_t>(),  // xattention_stride

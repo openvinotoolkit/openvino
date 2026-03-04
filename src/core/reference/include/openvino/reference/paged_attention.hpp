@@ -99,7 +99,7 @@ inline void apply_rotary_inplace(std::vector<float>& vec,
         const float x1 = vec[d + half];
         const float c = read_at_as_f32(trig_lut, trig_et, row_base + d);
         const float s = read_at_as_f32(trig_lut, trig_et, row_base + half + d);
-        vec[d]        = x0 * c - x1 * s;
+        vec[d] = x0 * c - x1 * s;
         vec[d + half] = x0 * s + x1 * c;
     }
 }
@@ -328,7 +328,7 @@ void paged_attention(std::uintptr_t node_key,
     // xattn_mask[h][q_block][k_block] = true means "keep this block pair"
     // Only activated for multi-token (prefill), single sequence.
     const int32_t xattn_block_sz = (xattention_block_size != nullptr) ? xattention_block_size[0] : 0;
-    const int32_t xattn_stride   = (xattention_stride != nullptr) ? xattention_stride[0] : 0;
+    const int32_t xattn_stride = (xattention_stride != nullptr) ? xattention_stride[0] : 0;
     // xattn_mask: [q_heads][num_q_blocks][num_k_blocks] — filled only when xattn is active
     std::vector<std::vector<std::vector<bool>>> xattn_mask;
 
@@ -357,21 +357,21 @@ void paged_attention(std::uintptr_t node_key,
         // --- Build xattention sparse mask for this sequence (prefill only) ---
         // xattn_mask[h][q_blk][k_blk] = true => keep; false => skip
         // Only activate when: xattn enabled, multi-token (new_len > 1), single sequence, past == 0
-        const bool do_xattn = has_xattn && new_len > 1 && seq_count == 1 && past == 0
-                              && xattn_block_sz > 0 && xattn_stride > 0;
+        const bool do_xattn =
+            has_xattn && new_len > 1 && seq_count == 1 && past == 0 && xattn_block_sz > 0 && xattn_stride > 0;
         xattn_mask.clear();
         if (do_xattn) {
             // Phase 1: strided Q×K dot products
             const float threshold_f = detail::read_scalar_as_f32(xattention_threshold, xattention_threshold_et);
             const std::size_t total_len = static_cast<std::size_t>(past) + new_len;
-            const std::size_t num_q_blocks = (total_len + static_cast<std::size_t>(xattn_block_sz) - 1) /
-                                             static_cast<std::size_t>(xattn_block_sz);
+            const std::size_t num_q_blocks =
+                (total_len + static_cast<std::size_t>(xattn_block_sz) - 1) / static_cast<std::size_t>(xattn_block_sz);
             const std::size_t num_k_blocks = num_q_blocks;
-            const std::size_t q_strided = (total_len + static_cast<std::size_t>(xattn_stride) - 1) /
-                                          static_cast<std::size_t>(xattn_stride);
+            const std::size_t q_strided =
+                (total_len + static_cast<std::size_t>(xattn_stride) - 1) / static_cast<std::size_t>(xattn_stride);
             const std::size_t k_strided = q_strided;
-            const std::size_t num_per_block = static_cast<std::size_t>(xattn_block_sz) /
-                                              static_cast<std::size_t>(xattn_stride);
+            const std::size_t num_per_block =
+                static_cast<std::size_t>(xattn_block_sz) / static_cast<std::size_t>(xattn_stride);
 
             xattn_mask.resize(q_heads);
             for (std::size_t h = 0; h < q_heads; ++h) {
@@ -386,7 +386,8 @@ void paged_attention(std::uintptr_t node_key,
                         // Query token index: we sample the (xattn_stride-1-off + qi*stride)-th Q
                         const int64_t q_tok_idx = static_cast<int64_t>(xattn_stride) - 1 - off +
                                                   static_cast<int64_t>(qi) * static_cast<int64_t>(xattn_stride);
-                        if (q_tok_idx < 0 || static_cast<std::size_t>(q_tok_idx) >= total_len) continue;
+                        if (q_tok_idx < 0 || static_cast<std::size_t>(q_tok_idx) >= total_len)
+                            continue;
                         const std::size_t q_abs = t_begin + static_cast<std::size_t>(q_tok_idx);
                         const T* qptr = query + q_abs * query_features + h * head_size;
 
@@ -395,7 +396,8 @@ void paged_attention(std::uintptr_t node_key,
                         for (std::size_t ki = 0; ki < std::min(k_causal, k_strided); ++ki) {
                             const int64_t k_tok_idx = static_cast<int64_t>(off) +
                                                       static_cast<int64_t>(ki) * static_cast<int64_t>(xattn_stride);
-                            if (k_tok_idx < 0 || static_cast<std::size_t>(k_tok_idx) >= total_len) continue;
+                            if (k_tok_idx < 0 || static_cast<std::size_t>(k_tok_idx) >= total_len)
+                                continue;
 
                             // Read key from cache or from current input
                             const std::size_t k_pos = static_cast<std::size_t>(k_tok_idx);
@@ -425,10 +427,18 @@ void paged_attention(std::uintptr_t node_key,
                     }
                     // Softmax over this row
                     float m = -std::numeric_limits<float>::infinity();
-                    for (std::size_t ki = 0; ki < k_strided; ++ki) m = std::max(m, row[ki]);
+                    for (std::size_t ki = 0; ki < k_strided; ++ki)
+                        m = std::max(m, row[ki]);
                     float sm = 0.f;
-                    for (std::size_t ki = 0; ki < k_strided; ++ki) { row[ki] = std::exp(row[ki] - m); sm += row[ki]; }
-                    if (sm > 0.f) { float inv = 1.f / sm; for (std::size_t ki = 0; ki < k_strided; ++ki) row[ki] *= inv; }
+                    for (std::size_t ki = 0; ki < k_strided; ++ki) {
+                        row[ki] = std::exp(row[ki] - m);
+                        sm += row[ki];
+                    }
+                    if (sm > 0.f) {
+                        float inv = 1.f / sm;
+                        for (std::size_t ki = 0; ki < k_strided; ++ki)
+                            row[ki] *= inv;
+                    }
                 }
 
                 // Phase 2: block aggregation — sum num_per_block × num_per_block windows
@@ -438,10 +448,12 @@ void paged_attention(std::uintptr_t node_key,
                         float bsum = 0.f;
                         for (std::size_t dq = 0; dq < num_per_block; ++dq) {
                             const std::size_t qi = qb * num_per_block + dq;
-                            if (qi >= q_strided) continue;
+                            if (qi >= q_strided)
+                                continue;
                             for (std::size_t dk = 0; dk < num_per_block; ++dk) {
                                 const std::size_t ki = kb * num_per_block + dk;
-                                if (ki >= k_strided) continue;
+                                if (ki >= k_strided)
+                                    continue;
                                 bsum += attn_strided[qi * k_strided + ki];
                             }
                         }
@@ -471,8 +483,9 @@ void paged_attention(std::uintptr_t node_key,
                         std::swap(vals[1], vals[qb]);
                     }
                     if (vals.size() > 2) {
-                        std::sort(vals.begin() + 2, vals.end(),
-                                  [](const auto& a, const auto& b) { return a.first > b.first; });
+                        std::sort(vals.begin() + 2, vals.end(), [](const auto& a, const auto& b) {
+                            return a.first > b.first;
+                        });
                     }
 
                     // Cumulative sum selection
@@ -491,7 +504,8 @@ void paged_attention(std::uintptr_t node_key,
                             cumsum += vals[i - 1].first;
                         }
                         // Causal: only keep blocks where k_block <= q_block
-                        if (vals[i].second > qb) keep = false;
+                        if (vals[i].second > qb)
+                            keep = false;
                         xattn_mask[h][qb][vals[i].second] = keep;
                     }
                 }
@@ -571,8 +585,7 @@ void paged_attention(std::uintptr_t node_key,
                     // so new tokens overwrite their positions with unrotated values.
                     float dot = 0.f;
                     const auto it = rotated_map.find(addr.block);
-                    if (has_trig && rotation_deltas != nullptr && it != rotated_map.end()
-                        && kpos < past) {
+                    if (has_trig && rotation_deltas != nullptr && it != rotated_map.end() && kpos < past) {
                         const int32_t rot_idx = it->second;
                         std::size_t trig_row = 0;
                         if (deltas_is_2d) {
@@ -621,10 +634,10 @@ void paged_attention(std::uintptr_t node_key,
                     for (std::size_t t = 0; t < ctx_len; ++t) {
                         const std::int32_t kpos = start + static_cast<std::int32_t>(t);
                         // Map query and key absolute positions to xattention block indices
-                        const std::size_t q_blk = static_cast<std::size_t>(qpos) /
-                                                  static_cast<std::size_t>(xattn_block_sz);
-                        const std::size_t k_blk = static_cast<std::size_t>(kpos) /
-                                                  static_cast<std::size_t>(xattn_block_sz);
+                        const std::size_t q_blk =
+                            static_cast<std::size_t>(qpos) / static_cast<std::size_t>(xattn_block_sz);
+                        const std::size_t k_blk =
+                            static_cast<std::size_t>(kpos) / static_cast<std::size_t>(xattn_block_sz);
                         if (q_blk < xattn_mask[h].size() && k_blk < xattn_mask[h][q_blk].size()) {
                             if (!xattn_mask[h][q_blk][k_blk]) {
                                 logits[t] = -std::numeric_limits<float>::infinity();
