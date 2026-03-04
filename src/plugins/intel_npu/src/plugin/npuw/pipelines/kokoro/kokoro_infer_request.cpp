@@ -4,6 +4,8 @@
 
 #include "kokoro_infer_request.hpp"
 
+#include "kokoro_utils.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -256,14 +258,10 @@ void ov::npuw::KokoroInferRequest::infer() {
     }
 
     // Zero out padding positions in pred_dur so they don't contribute to audio.
-    // The output tensor keeps its original static shape since the model
-    // port shape is fixed, but positions [l_max, full_len) are set to 0.
     if (et == ov::element::i64) {
-        auto* p = pred_dur_tensor->data<int64_t>();
-        std::fill(p + l_max, p + full_len, int64_t{0});
+        ov::npuw::kokoro::zero_padding_durations(pred_dur_tensor->data<int64_t>(), full_len, l_max);
     } else {
-        auto* p = pred_dur_tensor->data<int32_t>();
-        std::fill(p + l_max, p + full_len, int32_t{0});
+        ov::npuw::kokoro::zero_padding_durations(pred_dur_tensor->data<int32_t>(), full_len, l_max);
     }
     auto orig_pred_dur = ov::npuw::util::find_port_by_name(original_outputs, "pred_dur");
     set_tensor(orig_pred_dur.value(), pred_dur_tensor);
@@ -466,17 +464,8 @@ void ov::npuw::KokoroInferRequest::fill_text_mask() {
     OPENVINO_ASSERT(ids_shape.size() == 2u && ids_shape[0] == 1u);
     const std::size_t seq_len = ids_shape[1];
 
-    // Find real sequence length by locating the EOS token (value 0) after position 0.
-    // The format is [BOS=0, phoneme1, ..., phonemeN, EOS=0, PAD, PAD, ...]
     const auto* ids = input_ids_tensor->data<const int64_t>();
-    std::size_t real_len = seq_len;  // default: no padding detected
-    for (std::size_t i = 1; i < seq_len; ++i) {
-        if (ids[i] == 0) {
-            // Found EOS — real length includes this position (i+1 tokens: 0..i inclusive)
-            real_len = i + 1;
-            break;
-        }
-    }
+    std::size_t real_len = ov::npuw::kokoro::find_real_sequence_length(ids, seq_len);
 
     // Create / get the text_mask tensor [1, seq_len] of BOOL
     auto mask_tensor = m_model_a_request->get_tensor(m_a_text_mask);
@@ -485,11 +474,7 @@ void ov::npuw::KokoroInferRequest::fill_text_mask() {
         m_model_a_request->set_tensor(m_a_text_mask, mask_tensor);
     }
 
-    auto* mask_data = mask_tensor->data<bool>();
-    // text_mask: False for valid positions [0, real_len), True for padding [real_len, seq_len)
-    for (std::size_t i = 0; i < seq_len; ++i) {
-        mask_data[i] = (i >= real_len);
-    }
+    ov::npuw::kokoro::fill_text_mask_from_lengths(mask_tensor->data<bool>(), seq_len, real_len);
 
     m_real_seq_len = real_len;
 
