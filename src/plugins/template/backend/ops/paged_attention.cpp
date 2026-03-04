@@ -55,7 +55,7 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
 
     for (size_t i = 0; i < inputs[5].get_shape()[0]; ++i)
 
-    resize_pa_outputs(pa_op, outputs, inputs);
+        resize_pa_outputs(pa_op, outputs, inputs);
 
     // shape_infer approximates output 2 as max(evictable_sizes); fix to the exact
     // flat size sum(evictable_sizes[i]^2 / block_size) before writing
