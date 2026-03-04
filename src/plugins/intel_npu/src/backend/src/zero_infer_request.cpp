@@ -71,7 +71,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
       _initStructs(initStructs),
       _graph(compiledModel->get_graph()),
       _config(config),
-      _logger("ZeroInferRequest", config.get<LOG_LEVEL>()),
+      _logger("ZeroInferRequest", _config.get<LOG_LEVEL>()),
       _levelZeroInputTensors(_metadata.inputs.size(), std::vector<std::shared_ptr<ZeroTensor>>(1, nullptr)),
       _levelZeroOutputTensors(_metadata.outputs.size(), nullptr) {
     _logger.debug("ZeroInferRequest::ZeroInferRequest - checking level zero attributes and allocating tensors");
@@ -681,6 +681,7 @@ void ZeroInferRequest::infer_async() {
     _logger.debug("InferRequest::infer_async started");
     OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
     prepare_inputs();
+    prepare_outputs();
 
     OV_ITT_TASK_NEXT(ZERO_INFER, "push");
     _pipeline->push();
@@ -778,20 +779,38 @@ void ZeroInferRequest::prepare_inputs() {
             continue;
         }
 
-        void* userBuffer = get_tensor_data_ptr(userTensor.at(SINGLE_TENSOR)._ptr);
-        void* levelZeroBuffer = get_level_zero_input(inputIndex)->data();
+        const auto& levelZeroTensor = get_level_zero_input(inputIndex);
+        OPENVINO_ASSERT(levelZeroTensor, "Input zero tensor is not allocated.");
 
-        if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
-            OPENVINO_THROW("Empty buffer");
+        void* userBuffer = get_tensor_data_ptr(userTensor.at(SINGLE_TENSOR)._ptr);
+        void* levelZeroBuffer = levelZeroTensor->data();
+
+        OPENVINO_ASSERT(userBuffer, "Empty user buffer.");
+
+        if (levelZeroBuffer == nullptr) {
+            levelZeroTensor->allocate_data();
+            levelZeroBuffer = levelZeroTensor->data();
         }
 
         if (userBuffer != levelZeroBuffer) {
             _logger.info("Tensor is not allocated in the current Level Zero context");
             OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
-            userTensor.at(SINGLE_TENSOR)->copy_to(get_level_zero_input(inputIndex));
+            userTensor.at(SINGLE_TENSOR)->copy_to(levelZeroTensor);
         }
 
         ++inputIndex;
+    }
+}
+
+void ZeroInferRequest::prepare_outputs() {
+    OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "prepare_outputs");
+    for (size_t outputIndex = 0; outputIndex < _userOutputTensors.size(); ++outputIndex) {
+        const auto& levelZeroTensor = _levelZeroOutputTensors.at(outputIndex);
+        OPENVINO_ASSERT(levelZeroTensor, "Output zero tensor is not allocated.");
+
+        if (levelZeroTensor->data() == nullptr) {
+            levelZeroTensor->allocate_data();
+        }
     }
 }
 
@@ -819,8 +838,9 @@ void ZeroInferRequest::get_result() {
             tensorToBeReshaped->set_shape(actualDims);
         }
 
+        const auto& levelZeroTensor = _levelZeroOutputTensors.at(outputIndex);
         void* userBuffer = get_tensor_data_ptr(userTensor._ptr);
-        void* levelZeroBuffer = _levelZeroOutputTensors.at(outputIndex)->data();
+        void* levelZeroBuffer = levelZeroTensor->data();
 
         if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
             OPENVINO_THROW("Empty buffer");
@@ -829,10 +849,18 @@ void ZeroInferRequest::get_result() {
         if (userBuffer != levelZeroBuffer) {
             _logger.info("Output tensor by index: %zu is not allocated in the current Level Zero context", outputIndex);
             OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
-            _levelZeroOutputTensors.at(outputIndex)->copy_to(userTensor._ptr);
+            levelZeroTensor->copy_to(userTensor._ptr);
         }
 
+        levelZeroTensor->detach_imported_allocation_for_custom_tensor();
+
         ++outputIndex;
+    }
+
+    for (size_t inputIndex = 0; inputIndex < _levelZeroInputTensors.size(); ++inputIndex) {
+        for (const auto& levelZeroTensor : get_level_zero_inputs(inputIndex)) {
+            levelZeroTensor->detach_imported_allocation_for_custom_tensor();
+        }
     }
 
     OV_ITT_TASK_NEXT(ZERO_RESULT, "reset");
