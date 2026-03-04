@@ -109,7 +109,7 @@ jobs:
   CoverageCpp:
     continue-on-error: true
     needs: BuildCoverageArtifacts
-    runs-on: ubuntu-latest-64-cores
+    runs-on: ubuntu-latest-4-cores
     steps:
       - name: Setup python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -239,7 +239,7 @@ jobs:
   CoveragePython:
     continue-on-error: true
     needs: BuildCoverageArtifacts
-    runs-on: ubuntu-latest-64-cores
+    runs-on: ubuntu-latest-8-cores
     steps:
       - name: Setup python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -398,7 +398,7 @@ jobs:
   CoverageJS:
     continue-on-error: true
     needs: BuildCoverageArtifacts
-    runs-on: ubuntu-latest-64-cores
+    runs-on: ubuntu-latest-8-cores
     steps:
       - name: Setup python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
