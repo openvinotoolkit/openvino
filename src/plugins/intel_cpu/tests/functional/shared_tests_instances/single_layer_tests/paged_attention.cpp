@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
-
 #include <vector>
 
 #include "common_test_utils/test_enums.hpp"
@@ -21,10 +19,9 @@ using ov::test::PagedAttentionLayerTest;
 using ElementType = ov::element::Type_t;
 using InputShapes = std::vector<ov::test::InputShape>;
 
-const std::vector<InputShapes> input_shapes_ref = {  // greedy search
+const std::vector<InputShapes> input_shapes_ref = {
 {
-    // L, B=1, H, S   (B must be 1: scalar metadata constants in the PA model
-    //                  are only valid for single-sequence operation)
+    // Shape per step: [L, B=1, H, S] (B must be 1; metadata constants are scalar)
     {{-1, 1, 8, 64}, {{10, 1, 8, 64}, {1, 1, 8, 64}}},
     {{-1, 1, 8, 64}, {{0, 1, 8, 64}, {10, 1, 8, 64}}},
 }};
@@ -65,9 +62,7 @@ const std::vector<ov::AnyMap> additional_configs_ref = {{
 
 #ifdef OPENVINO_ARCH_X86_64
 
-// ═══════════════════════════════════════════════════════════
-//  Smoke tests (original)
-// ═══════════════════════════════════════════════════════════
+// --- Smoke tests (original)
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionLayerTest,
                          PagedAttentionLayerTest,
@@ -82,9 +77,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionLayerTest,
                                             ::testing::ValuesIn(additional_configs_ref)),
                          PagedAttentionLayerTest::getTestCaseName);
 
-// ═══════════════════════════════════════════════════════════
-//  Tiny verification tests
-// ═══════════════════════════════════════════════════════════
+// --- Basic verification tests - first 11 inputs
 
 // 1) Tiny basic: H=2, S=4, no extras
 INSTANTIATE_TEST_SUITE_P(tiny_PagedAttentionLayerTest,
@@ -142,14 +135,9 @@ INSTANTIATE_TEST_SUITE_P(mediumAlibi_PagedAttentionLayerTest,
                                             ::testing::ValuesIn(additional_configs_ref)),
                          PagedAttentionLayerTest::getTestCaseName);
 
-// ═══════════════════════════════════════════════════════════
-//  Advanced tests — exercise previously-untested inputs
-// ═══════════════════════════════════════════════════════════
+// --- Advanced tests - all 25 inputs with various feature combinations
 
-// 5) 3-step with non-trivial past_lens: L=2/3/1
-//    Step 0: past=0, L=2  (prompt)
-//    Step 1: past=2, L=3  (past is between 0 and L!)
-//    Step 2: past=5, L=1  (decode)
+// 5) 3-step with non-trivial past_lens: prompt(L=2), prefill(L=3, past=2), decode(L=1)
 INSTANTIATE_TEST_SUITE_P(adv3Step_PagedAttentionLayerTest,
                          PagedAttentionLayerTest,
                          ::testing::Combine(::testing::Values(ElementType::f32),
@@ -163,9 +151,7 @@ INSTANTIATE_TEST_SUITE_P(adv3Step_PagedAttentionLayerTest,
                                             ::testing::ValuesIn(additional_configs_ref)),
                          PagedAttentionLayerTest::getTestCaseName);
 
-// 6) 3-step + ALiBi — non-trivial past_lens combined with alibi.
-//    Exercises the alibi bias computation when the context grows
-//    across three separate inference steps (past=0/2/5).
+// 6) 3-step + ALiBi: tests non-trivial past_lens combined with alibi bias
 INSTANTIATE_TEST_SUITE_P(adv3StepAlibi_PagedAttentionLayerTest,
                          PagedAttentionLayerTest,
                          ::testing::Combine(::testing::Values(ElementType::f32),
@@ -179,19 +165,15 @@ INSTANTIATE_TEST_SUITE_P(adv3StepAlibi_PagedAttentionLayerTest,
                                             ::testing::ValuesIn(additional_configs_ref)),
                          PagedAttentionLayerTest::getTestCaseName);
 
-// NOTE: max_context_len clipping (inputs 12) cannot be tested here because
-// the CPU kernel's exec_loop_mixed path declares max_context_len as
-// [[maybe_unused]] and ignores it during multi-token prefill, while the
-// TEMPLATE reference applies per-token clipping.  This is a known semantic
-// difference — testing would always diverge when clipping is triggered.
+// NOTE: We skip testing max_context_len clipping (input 12) because the CPU and TEMPLATE
+// handle it differently.  During multi-token prefill (when a batch of tokens is processed
+// at once, e.g. the initial prompt pass), the CPU kernel ignores max_context_len, but the
+// TEMPLATE reference always applies it.  Any test with active clipping would always
+// produce different results between the two, so there is no stable ground truth to compare
 
-// ═══════════════════════════════════════════════════════════
-//  Feature tests — sinks, rotation, xattention
-// ═══════════════════════════════════════════════════════════
+// --- Feature tests - sinks, rotation, xattention
 
-// 7) Tiny + attention sinks: [1,H,1,1] per-head logit adds virtual token
-//    to softmax denominator.  Verifies that both CPU and reference apply
-//    the same sink contribution.
+// 7) Tiny + attention sinks: per-head logit added as a virtual token in the softmax denominator
 INSTANTIATE_TEST_SUITE_P(advSinks_PagedAttentionLayerTest,
                          PagedAttentionLayerTest,
                          ::testing::Combine(::testing::Values(ElementType::f32),
@@ -205,7 +187,7 @@ INSTANTIATE_TEST_SUITE_P(advSinks_PagedAttentionLayerTest,
                                             ::testing::ValuesIn(additional_configs_ref)),
                          PagedAttentionLayerTest::getTestCaseName);
 
-// 8) Tiny + sinks + ALiBi: exercises sinks combined with alibi bias.
+// 8) Tiny + sinks + ALiBi
 INSTANTIATE_TEST_SUITE_P(advSinksAlibi_PagedAttentionLayerTest,
                          PagedAttentionLayerTest,
                          ::testing::Combine(::testing::Values(ElementType::f32),
@@ -219,9 +201,7 @@ INSTANTIATE_TEST_SUITE_P(advSinksAlibi_PagedAttentionLayerTest,
                                             ::testing::ValuesIn(additional_configs_ref)),
                          PagedAttentionLayerTest::getTestCaseName);
 
-// 9) Rotation test: 2-step tiny test (prefill+decode) with cache rotation
-//    enabled on block 0.  Step 0 populates cache; step 1 reads rotated cache.
-//    The rotation flag is passed via the config map.
+// 9) Rotation: 2-step (prefill+decode) with RoPE re-rotation enabled on block 0
 const std::vector<ov::AnyMap> additional_configs_rotation = {{
     {ov::intel_cpu::enable_sage_attn.name(), false},
     {ov::hint::kv_cache_precision.name(), ov::element::f32},
@@ -245,11 +225,8 @@ INSTANTIATE_TEST_SUITE_P(advRotation_PagedAttentionLayerTest,
                                             ::testing::ValuesIn(additional_configs_rotation)),
                          PagedAttentionLayerTest::getTestCaseName);
 
-// 10) Xattention smoke test: exercises the dynamic sparse attention code path.
-//     With tiny shapes (L=3, xattention_block_size=64), the mask is 1×1
-//     (trivially [[true]]), so no blocks are masked.  The test validates that
-//     both CPU and reference run the xattention path without errors and
-//     produce the same output.
+// 10) Xattention smoke: with tiny shapes (L=3, xattn_block_size=64) the mask is trivially
+//     1x1 [[true]], so no blocks are masked - validates the code path runs without error
 INSTANTIATE_TEST_SUITE_P(advXattn_PagedAttentionLayerTest,
                          PagedAttentionLayerTest,
                          ::testing::Combine(::testing::Values(ElementType::f32),
@@ -263,16 +240,10 @@ INSTANTIATE_TEST_SUITE_P(advXattn_PagedAttentionLayerTest,
                                             ::testing::ValuesIn(additional_configs_ref)),
                          PagedAttentionLayerTest::getTestCaseName);
 
-// ═══════════════════════════════════════════════════════════
-//  Adaptive RKV diversity test
-// ═══════════════════════════════════════════════════════════
+// --- Adaptive RKV diversity test
 
-// Shapes for adaptive RKV: need enough tokens for the eviction zone.
-// Must use default block_size=32 because the CPU plugin's ConvertPagedAttnInputs
-// transformation always forces block_size=32, so the model cache shapes must match.
-// L=64, block_size=32, eviction_size=32, start_size=0.
-// After step 0: 64 tokens (2 blocks); eviction zone = tokens 0..31 (block 0).
-// After step 1 (decode): 65 tokens (3 blocks); eviction zone unchanged.
+// Shapes for adaptive RKV: L=64 with block_size=32 (forced by CPU plugin's ConvertPagedAttnInputs)
+// and eviction_size=32 so the eviction zone spans exactly one block
 const std::vector<InputShapes> input_shapes_arkv = {
 {
     {{-1, 1, 2, 4}, {{64, 1, 2, 4}, {1, 1, 2, 4}}},
@@ -289,10 +260,8 @@ const std::vector<ov::AnyMap> additional_configs_arkv = {{
     {"test_adaptive_rkv_eviction_size", 32},
 }};
 
-// 11) Adaptive RKV diversity: verifies that the reference computes
-//     diversity scores via AdaptiveRKVDiversityCalculator when
-//     adaptive_rkv_evictable_sizes is provided.  Output 0 (attention)
-//     should match CPU exactly since adaptive RKV does not affect attention.
+// 11) Adaptive RKV diversity: verifies diversity scoring in the reference
+//     Output 0 (attention) is unaffected by adaptive RKV and must match CPU
 INSTANTIATE_TEST_SUITE_P(advAdaptiveRKV_PagedAttentionLayerTest,
                          PagedAttentionLayerTest,
                          ::testing::Combine(::testing::Values(ElementType::f32),
@@ -308,5 +277,3 @@ INSTANTIATE_TEST_SUITE_P(advAdaptiveRKV_PagedAttentionLayerTest,
 
 #endif  // OPENVINO_ARCH_X86_64
 }  // namespace
-
-

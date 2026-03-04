@@ -58,9 +58,9 @@ inline float read_at_as_f32(const void* base, const ov::element::Type& et, std::
     OPENVINO_THROW("PagedAttention reference: unsupported array type: ", et);
 }
 
-/// Softmax with optional attention-sink support.
+/// Softmax with optional attention-sink support
 /// When sink_val is not nullptr, the sink acts as a virtual extra attention score:
-/// it participates in the max and exp-sum but produces no output weight.
+/// it participates in the max and exp-sum but produces no output weight
 inline void softmax_inplace(std::vector<float>& scores, const float* sink_val = nullptr) {
     if (scores.empty()) {
         return;
@@ -130,7 +130,7 @@ inline std::vector<std::size_t> parse_subsequence_ranges(const int32_t* subseq_b
         begins[seq_count] = batch_tokens;
     }
 
-    // Clamp and monotonic fix.
+    // Clamp and monotonic fix
     begins[0] = std::min(begins[0], batch_tokens);
     for (std::size_t s = 1; s <= seq_count; ++s) {
         begins[s] = std::min(begins[s], batch_tokens);
@@ -144,18 +144,8 @@ inline std::vector<std::size_t> parse_subsequence_ranges(const int32_t* subseq_b
 }  // namespace detail
 
 // Reference implementation of ov::op::PagedAttentionExtension
-//
-// This implementation currently does the following:
-// - It stores KV into the provided PagedCacheManager (copied from init cache once per node)
-// - It computes causal attention for the newly provided tokens (query/key/value inputs)
-// - It supports GQA (num_heads != num_kv_heads)
-// - It supports ALiBi (optional vector; broadcast if length == 1)
-// - It supports basic RoPE re-rotation of cached blocks (rotated_block_indices + rotation_deltas + trig LUT)
-//   using split-half (LLaMA-style) pairing to match the CPU kernel convention
-// - It supports attention sinks ([1,H,1,1] per-head logit added to softmax as virtual token)
-// - It supports xattention (dynamic sparse attention for prefill: strided Q×K → block aggregation → threshold)
-// - It supports adaptive RKV diversity scoring (assembles key cache → calls AdaptiveRKVDiversityCalculator
-//   to fill out_diversity_scores with per-block cosine-similarity diversity values)
+// Supports: GQA, ALiBi, RoPE re-rotation (split-half / LLaMA-style), attention sinks,
+//           xattention sparse prefill, and adaptive RKV diversity scoring
 template <typename T>
 void paged_attention(std::uintptr_t node_key,
                      ov::reference::paged_attention_cache::PagedCacheManager* cache_manager,
@@ -209,22 +199,17 @@ void paged_attention(std::uintptr_t node_key,
     OPENVINO_ASSERT(query != nullptr && key != nullptr && value != nullptr, "PagedAttention reference: null Q/K/V");
     OPENVINO_ASSERT(out != nullptr, "PagedAttention reference: output is null");
 
-    // adaptive_rkv_diversity_block_set_indices / begins are used by the CPU/GPU
-    // to identify which physical blocks to read.  The reference assembles key data
-    // directly from the cache manager, so these are unused.
+    // These inputs tell CPU/GPU kernels where the physical memory blocks for adaptive RKV are
+    // The reference doesn't use them - it reads key data directly from the cache manager
     (void)adaptive_rkv_diversity_block_set_indices;
     (void)adaptive_rkv_diversity_block_set_indices_begins;
 
-    // --- Parse sinks: [1, H, 1, 1] per-head logit, or empty (disabled) ---
-    // When enabled, each head gets a scalar sink value that acts as a virtual
-    // extra attention score in the softmax (participates in max and exp-sum
-    // but produces no weighted output).
+    // Sinks: each head has a scalar value treated as a virtual extra token in the softmax
+    // (it shifts the max/denominator but does not contribute to the weighted output)
     const bool has_sinks = (sinks != nullptr);
-    // We'll read per-head sink values after we know head count, below.
 
-    // --- Parse xattention parameters ---
-    // Xattention is a dynamic sparse attention mechanism for prefill:
-    // strided Q×K → block aggregation → threshold masking → skip masked blocks.
+    // Xattention: dynamic sparse prefill via strided Q*K dot products, grouped into blocks, with low-importance blocks
+    // masked out
     const bool has_xattn = (xattention_threshold != nullptr);
 
     OPENVINO_ASSERT(query_shape.size() == 2 && key_shape.size() == 2 && value_shape.size() == 2,
@@ -240,7 +225,7 @@ void paged_attention(std::uintptr_t node_key,
     const std::size_t seq_count = static_cast<std::size_t>(past_lens_shape[0]);
     const std::size_t subseq_count = static_cast<std::size_t>(subseq_shape[0]);
 
-    // Register operator once per node and copy init cache.
+    // Register operator once per node and copy init cache
     cache_manager->ensure_operator(node_key,
                                    key_cache_init,
                                    value_cache_init,
@@ -277,13 +262,13 @@ void paged_attention(std::uintptr_t node_key,
     const int32_t score_window_i = score_aggregation_window ? score_aggregation_window[0] : 0;
     const std::size_t alibi_len = alibi_shape.empty() ? 0 : static_cast<std::size_t>(alibi_shape[0]);
 
-    // Initialize per-sequence view of current lengths.
+    // Initialize per-sequence view of current lengths
     cache_manager->begin_step(node_key, past_lens, seq_count);
 
-    // Parse token-to-sequence partition.
+    // Parse token-to-sequence partition
     const auto seq_begins = detail::parse_subsequence_ranges(subsequence_begins, subseq_count, seq_count, batch_tokens);
 
-    // Prepare mapping for rotated blocks (block_id -> rotated_index).
+    // Prepare mapping for rotated blocks (block_id -> rotated_index)
     std::unordered_map<int32_t, int32_t> rotated_map;
     rotated_map.reserve(rotated_block_count);
     for (std::size_t i = 0; i < rotated_block_count; ++i) {
@@ -297,7 +282,7 @@ void paged_attention(std::uintptr_t node_key,
     const bool deltas_is_2d = rotation_deltas_shape.size() == 2;
     const std::size_t deltas_stride = deltas_is_2d ? static_cast<std::size_t>(rotation_deltas_shape[1]) : 0;
 
-    // out_scores: concatenation of [past_len + new_len] for each sequence.
+    // out_scores: concatenation of [past_len + new_len] for each sequence
     std::vector<float> scores_acc;
     if (out_scores != nullptr) {
         std::size_t total = 0;
@@ -311,9 +296,9 @@ void paged_attention(std::uintptr_t node_key,
 
     std::vector<float> logits;
     std::vector<float> out_head;
-    std::vector<float> key_buf;  // used for rotary
+    std::vector<float> key_buf;  // re-used for rotary re-rotation
 
-    // --- Sink: read per-head values [1, H, 1, 1] ---
+    // Sink: read the per-head scalar values from the [1,H,1,1] input
     std::vector<float> sink_vals;
     if (has_sinks) {
         sink_vals.resize(q_heads, 0.f);
@@ -324,10 +309,10 @@ void paged_attention(std::uintptr_t node_key,
 
     // --- Xattention: build block-level sparse mask per head ---
     // xattn_mask[h][q_block][k_block] = true means "keep this block pair"
-    // Only activated for multi-token (prefill), single sequence.
+    // Only activated for multi-token (prefill), single sequence
     const int32_t xattn_block_sz = (xattention_block_size != nullptr) ? xattention_block_size[0] : 0;
     const int32_t xattn_stride = (xattention_stride != nullptr) ? xattention_stride[0] : 0;
-    // xattn_mask: [q_heads][num_q_blocks][num_k_blocks] — filled only when xattn is active
+    // xattn_mask: [q_heads][num_q_blocks][num_k_blocks]
     std::vector<std::vector<std::vector<bool>>> xattn_mask;
 
     // Prefix offsets for out_scores concatenation
@@ -359,7 +344,7 @@ void paged_attention(std::uintptr_t node_key,
             has_xattn && new_len > 1 && seq_count == 1 && past == 0 && xattn_block_sz > 0 && xattn_stride > 0;
         xattn_mask.clear();
         if (do_xattn) {
-            // Phase 1: strided Q×K dot products
+            // Phase 1: strided Q*K dot products
             const float threshold_f = detail::read_scalar_as_f32(xattention_threshold, xattention_threshold_et);
             const std::size_t total_len = static_cast<std::size_t>(past) + new_len;
             const std::size_t num_q_blocks =
@@ -375,7 +360,7 @@ void paged_attention(std::uintptr_t node_key,
             for (std::size_t h = 0; h < q_heads; ++h) {
                 const std::size_t kvh = h / group;
 
-                // Compute strided attention matrix [q_strided × k_strided]
+                // Compute strided attention matrix [q_strided * k_strided]
                 // For each stride offset, average the Q·K scores
                 std::vector<float> attn_strided(q_strided * k_strided, 0.f);
 
@@ -439,7 +424,7 @@ void paged_attention(std::uintptr_t node_key,
                     }
                 }
 
-                // Phase 2: block aggregation — sum num_per_block × num_per_block windows
+                // Phase 2: block aggregation - sum num_per_block * num_per_block windows
                 std::vector<float> block_sums(num_q_blocks * num_k_blocks, 0.f);
                 for (std::size_t qb = 0; qb < num_q_blocks; ++qb) {
                     for (std::size_t kb = 0; kb < num_k_blocks; ++kb) {
@@ -459,7 +444,7 @@ void paged_attention(std::uintptr_t node_key,
                     }
                 }
 
-                // Phase 3: threshold masking — greedy top-block selection
+                // Phase 3: threshold masking - greedy top-block selection
                 xattn_mask[h].resize(num_q_blocks, std::vector<bool>(num_k_blocks, false));
                 for (std::size_t qb = 0; qb < num_q_blocks; ++qb) {
                     const float* brow = block_sums.data() + qb * num_k_blocks;
@@ -510,19 +495,19 @@ void paged_attention(std::uintptr_t node_key,
             }
         }
 
-        // Base offset for out_scores for this sequence (concatenation order is sequence order).
+        // Base offset for out_scores for this sequence (concatenation order is sequence order)
         const std::size_t score_base = score_prefix[s];
 
         for (std::size_t i = 0; i < new_len; ++i) {
             const std::size_t token = t_begin + i;
             const std::int32_t qpos = past + static_cast<std::int32_t>(i);
 
-            // Append this token's KV into the cache.
+            // Append this token's KV into the cache
             const T* krow = key + token * key_features;
             const T* vrow = value + token * value_features;
             cache_manager->write_token_kv<T>(node_key, s, qpos, krow, vrow);
 
-            // Determine attention window.
+            // Determine attention window
             std::int32_t start = 0;
             if (max_context_i > 0) {
                 start = std::max(start, qpos + 1 - max_context_i);
@@ -577,10 +562,8 @@ void paged_attention(std::uintptr_t node_key,
                         continue;
                     }
 
-                    // Optional rotary re-rotation for specific blocks.
-                    // Only apply to pre-existing cache positions (kpos < past).
-                    // The CPU kernel rotates blocks BEFORE writing new KV (concat_pastkv),
-                    // so new tokens overwrite their positions with unrotated values.
+                    // Re-apply RoPE to pre-existing cached positions only; new tokens are
+                    // written with unrotated keys, consistent with the CPU kernel
                     float dot = 0.f;
                     const auto it = rotated_map.find(addr.block);
                     if (has_trig && rotation_deltas != nullptr && it != rotated_map.end() && kpos < past) {
@@ -621,17 +604,15 @@ void paged_attention(std::uintptr_t node_key,
 
                     float l = dot * scale_f;
                     if (alibi_slopes != nullptr) {
-                        // Typical ALiBi: bias proportional to distance (key_pos - query_pos)
                         l += slope * static_cast<float>(kpos - qpos);
                     }
                     logits[t] = l;
                 }
 
-                // Apply xattention sparse mask: set masked-out block positions to -inf
+                // Apply xattention sparse mask: set skipped block pairs to -inf
                 if (do_xattn && h < xattn_mask.size()) {
                     for (std::size_t t = 0; t < ctx_len; ++t) {
                         const std::int32_t kpos = start + static_cast<std::int32_t>(t);
-                        // Map query and key absolute positions to xattention block indices
                         const std::size_t q_blk =
                             static_cast<std::size_t>(qpos) / static_cast<std::size_t>(xattn_block_sz);
                         const std::size_t k_blk =
@@ -664,9 +645,7 @@ void paged_attention(std::uintptr_t node_key,
                     }
 
                     if (include_in_scores) {
-                        // Accumulate score per key position (sum over heads and query tokens in the window)
-                        // Index within this sequence's concatenated [past + new] timeline:
-                        // past occupies [0, past-1], new tokens occupy [past, past+new_len-1]
+                        // Accumulate attention weight at each key position in the [past..past+new) timeline
                         const std::size_t idx = score_base + static_cast<std::size_t>(kpos);
                         if (idx < scores_acc.size()) {
                             scores_acc[idx] += w;
@@ -690,9 +669,9 @@ void paged_attention(std::uintptr_t node_key,
 
     // --- Adaptive RKV diversity computation ---
     // After all attention is done, compute per-block diversity scores for the
-    // eviction zone of each sequence using AdaptiveRKVDiversityCalculator.
+    // eviction zone of each sequence using AdaptiveRKVDiversityCalculator
     // The diversity output is a flat buffer: for each sequence, the calculator
-    // returns [eviction_size / block_size, eviction_size] and we flatten it.
+    // returns [eviction_size / block_size, eviction_size] and we flatten it
     const bool has_adaptive_rkv = (adaptive_rkv_evictable_sizes != nullptr);
     if (has_adaptive_rkv && out_diversity_scores != nullptr) {
         const std::size_t cache_block_size = cache_manager->block_size(node_key);
@@ -713,7 +692,7 @@ void paged_attention(std::uintptr_t node_key,
             const std::size_t total_tokens = past + new_len;
 
             if (total_tokens < start_size + evict_size) {
-                // Not enough tokens for the eviction zone — skip
+                // Not enough tokens for the eviction zone - skip
                 continue;
             }
 

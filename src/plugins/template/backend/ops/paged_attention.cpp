@@ -18,10 +18,10 @@
 namespace {
 
 // Resize output tensors calling shape_infer() with a runtime tensor accessor,
-// exactly like other TEMPLATE ops (e.g. multinomial, SDPA, STFT).
+// exactly like other TEMPLATE ops (e.g. multinomial, SDPA, STFT)
 // Unlike most ops, PA keeps some inputs dynamic even after
 // validate_nodes_and_infer_types(), so we build input_shapes from the actual
-// runtime tensors rather than from the node's (possibly dynamic) input shapes.
+// runtime tensors rather than from the node's (possibly dynamic) input shapes
 void resize_pa_outputs(const ov::op::PagedAttentionExtension* op,
                        ov::TensorVector& outputs,
                        const ov::TensorVector& inputs) {
@@ -37,7 +37,7 @@ void resize_pa_outputs(const ov::op::PagedAttentionExtension* op,
             outputs[i].set_shape(out_shapes[i].to_shape());
         } else {
             // Diversity output (output 2) may stay dynamic when evictable_sizes
-            // is absent or empty — default to shape {0}.
+            // is absent or empty - default to shape {0}
             outputs[i].set_shape(ov::Shape{0});
         }
     }
@@ -60,11 +60,10 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
         std::cerr << (i ? "," : "") << inputs[5].data<int32_t>()[i];
     std::cerr << "]" << std::endl;
 
-    // Ensure output tensors are large enough for the current inputs.
     resize_pa_outputs(pa_op, outputs, inputs);
 
-    // Fix output 2 size for adaptive RKV diversity: shape_infer gives an
-    // approximation; the actual flat size is sum(evictable_sizes[i]^2 / block_size).
+    // shape_infer approximates output 2 as max(evictable_sizes); fix to the exact
+    // flat size sum(evictable_sizes[i]^2 / block_size) before writing
     if (inputs[22].get_size() > 0) {
         const size_t block_size = inputs[3].get_shape()[2];
         const auto* evict_ptr = inputs[22].data<int32_t>();
@@ -77,22 +76,20 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
             outputs[2].set_shape({total_elems});
         }
     }
-
-    // Zero-fill output 2 (diversity scores) for determinism;
-    // the reference will overwrite when adaptive RKV is active.
     if (outputs[2].get_byte_size() > 0) {
         std::memset(outputs[2].data(), 0, outputs[2].get_byte_size());
     }
 
-    // For optional inputs with Shape{0} (disabled), pass nullptr so the reference
-    // can distinguish "absent" from "present but empty".
-    const void* xattn_thresh_ptr =
-        inputs[17].get_shape().empty() || inputs[17].get_size() == 0 ? nullptr : inputs[17].data();
-    const auto xattn_thresh_et = (xattn_thresh_ptr != nullptr) ? inputs[17].get_element_type() : ov::element::dynamic;
-    const void* sinks_ptr = inputs[20].get_shape().empty() || inputs[20].get_size() == 0 ? nullptr : inputs[20].data();
-    const auto sinks_et = (sinks_ptr != nullptr) ? inputs[20].get_element_type() : ov::element::dynamic;
-
-    // For adaptive_rkv inputs, pass nullptr when disabled (Shape{0})
+    // Pass nullptr for disabled optional inputs so the reference can distinguish
+    // absent from present-but-empty; element type is set to dynamic when absent
+    const void* alibi_ptr = inputs[11].get_size() > 0 ? inputs[11].data() : nullptr;
+    const auto alibi_et = alibi_ptr ? inputs[11].get_element_type() : ov::element::dynamic;
+    const void* trig_lut_ptr = inputs[16].get_size() > 0 ? inputs[16].data() : nullptr;
+    const auto trig_lut_et = trig_lut_ptr ? inputs[16].get_element_type() : ov::element::dynamic;
+    const void* xattn_thresh_ptr = inputs[17].get_size() > 0 ? inputs[17].data() : nullptr;
+    const auto xattn_thresh_et = xattn_thresh_ptr ? inputs[17].get_element_type() : ov::element::dynamic;
+    const void* sinks_ptr = inputs[20].get_size() > 0 ? inputs[20].data() : nullptr;
+    const auto sinks_et = sinks_ptr ? inputs[20].get_element_type() : ov::element::dynamic;
     const int32_t* arkv_evict_ptr = inputs[22].get_size() > 0 ? inputs[22].data<int32_t>() : nullptr;
     const int32_t* arkv_indices_ptr = inputs[23].get_size() > 0 ? inputs[23].data<int32_t>() : nullptr;
     const int32_t* arkv_begins_ptr = inputs[24].get_size() > 0 ? inputs[24].data<int32_t>() : nullptr;
@@ -116,8 +113,8 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
                                       inputs[9].data(),  // scale
                                       inputs[9].get_element_type(),
                                       inputs[10].data<int32_t>(),  // sliding_window
-                                      inputs[11].data(),           // alibi_slopes
-                                      inputs[11].get_element_type(),
+                                      alibi_ptr,                   // alibi_slopes
+                                      alibi_et,
                                       inputs[11].get_shape(),
                                       inputs[12].data<int32_t>(),  // max_context_len
                                       inputs[13].data<int32_t>(),  // score_aggregation_window
@@ -125,8 +122,8 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
                                       inputs[14].get_size(),
                                       inputs[15].data<int32_t>(),  // rotation_deltas
                                       inputs[15].get_shape(),
-                                      inputs[16].data(),  // rotation_trig_lut
-                                      inputs[16].get_element_type(),
+                                      trig_lut_ptr,  // rotation_trig_lut
+                                      trig_lut_et,
                                       inputs[16].get_shape(),
                                       xattn_thresh_ptr,  // xattention_threshold
                                       xattn_thresh_et,

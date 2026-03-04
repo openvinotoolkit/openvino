@@ -30,24 +30,21 @@ bool ov::pass::AttachCacheManagerToPagedAttention::run_on_model(const std::share
             continue;
         }
 
-        // If this PA already has a CacheManager bound, skip it
         if (pa->get_cache_manager()) {
             continue;
         }
 
-        // Initialize the shared CacheManager from the first encountered PA
         if (!shared_cache_manager) {
             cache_manager_dtype = pa->get_input_element_type(0);
             shared_cache_manager = ov::op::make_paged_cache_handle(cache_manager_dtype);
         }
 
-        // Compatibility check: ensure every PAs dtype matches the dtype of cache
+        // All PA nodes in the same model must share the same compute dtype
         if (pa->get_input_element_type(0) != cache_manager_dtype) {
             OPENVINO_THROW("AttachCacheManagerToPagedAttention: multiple PagedAttention nodes with incompatible cache "
                            "data types were found, which is not supported");
         }
 
-        // Attach the shared CacheManager to this PagedAttention
         pa->set_cache_manager(shared_cache_manager);
         changed = true;
     }

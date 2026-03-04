@@ -17,7 +17,7 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 25, "Expected exactly 25 inputs but got ", input_shapes.size());
     auto output_shapes = std::vector<TRShape>(3);
 
-    // Output[0] feature dim is `num_heads * v_head_size`.
+    // Output[0] feature dim is `num_heads * v_head_size`
     auto out_ps = input_shapes[0];
     const auto& key_ps = input_shapes[1];
     const auto& value_ps = input_shapes[2];
@@ -28,14 +28,9 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
     if (out_ps.rank().is_static() && out_ps.rank().get_length() >= 2 && out_ps[1].is_static()) {
         if (key_ps.rank().is_static() && key_ps.rank().get_length() >= 2 && key_ps[1].is_static() &&
             value_ps.rank().is_static() && value_ps.rank().get_length() >= 2 && value_ps[1].is_static()) {
-            // The dim of out_ps[1] should be `num_heads * v_head_size`, it can be obtained from:
-            //   q: query_ps[1] = num_heads * head_size
-            //   k: key_ps[1] = num_kv_heads * head_size
-            //   v: value_ps[1] = num_kv_heads * v_head_size
-            // therefore:
-            //   q * v / k = (num_heads * head_size) * (num_kv_heads * v_head_size) /
-            //               (num_kv_heads * head_size) = num_heads * v_head_size
-            // q_features * v_features / k_features = (Hq*Dk) * (Hkv*Dv) / (Hkv*Dk) = Hq*Dv
+            // We need num_heads * v_head_size for the output but don't have it directly.
+            // Q has Hq*Dk features, K has Hkv*Dk, V has Hkv*Dv, so Q*V/K cancels
+            // the shared Hkv*Dk and gives Hq*Dv, which is exactly what the output needs
             const auto q = out_ps[1].get_length();
             const auto k = key_ps[1].get_length();
             const auto v = value_ps[1].get_length();
@@ -68,22 +63,9 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
     }
 
     auto& diversity_ps = output_shapes[2];
-    // COmpute for diversity shape
-    // Assumes 1D diversity [max_group_size]
+    // Output[2] is a flat 1D buffer; use max(evictable_sizes) as an upper-bound estimate
+    // The actual element count is computed at runtime in the evaluate function
     auto width_dim = Dimension::dynamic();
-
-    // Backup in case diversity is 2D [batch_sequences, max group size]
-    //
-    // Batch dimension for output[2] corresponds to the number of sequences.
-    // auto batch_dim = Dimension::dynamic();
-    // if (past_lens_ps.rank().is_static() && past_lens_ps.rank().get_length() == 1 && past_lens_ps[0].is_static()) {
-    //     batch_dim = past_lens_ps[0];
-    // } else if (evictable_sizes_ps.rank().is_static() && evictable_sizes_ps.rank().get_length() == 1 &&
-    //            evictable_sizes_ps[0].is_static()) {
-    //     // Fallback: infer from evictable_sizes length.
-    //     batch_dim = evictable_sizes_ps[0];
-    // }
-    // diversity_ps.push_back(batch_dim);
 
     // If evictable_sizes is constant, compute max for the padded width
     if (evictable_sizes_ps.rank().is_static() && evictable_sizes_ps.rank().get_length() == 1) {

@@ -144,15 +144,11 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, Upda
             OPENVINO_DEBUG("PagedAttn ",
                            pa_op->get_friendly_name(),
                            " doesn't have rtinfo for num_k_heads/k_head_size/num_v_heads/num_v_heads");
-            status = false;
         }
 
         key_cache->validate_and_infer_types();
         value_cache->validate_and_infer_types();
-        // Re-validate the PA op so that its output types/shapes reflect the
-        // updated cache parameter types.  Without this, consumers of the PA op
-        // may see stale element types (e.g. element::dynamic) inherited from
-        // the original model construction.
+        // Propagate updated cache types to PA outputs so consumers see the correct element type
         pa_op->validate_and_infer_types();
         return status;
     };

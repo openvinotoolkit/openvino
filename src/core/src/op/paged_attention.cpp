@@ -4,9 +4,6 @@
 
 #include "openvino/op/paged_attention.hpp"
 
-#include <iostream>
-#include <sstream>
-
 #include "dimension_util.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"

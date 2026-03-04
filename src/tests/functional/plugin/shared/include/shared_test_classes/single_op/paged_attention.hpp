@@ -97,10 +97,7 @@ private:
         auto v = make_param({ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
 
         // Cache layout: [num_blocks, num_kv_heads, block_size, head_size]
-        // Use the concrete data_type rather than element::dynamic so that
-        // TEMPLATE (which does NOT run ConvertPagedAttnInputs) can allocate
-        // real tensors.  The CPU transformation unconditionally overwrites
-        // the cache element type, so the starting type is irrelevant for CPU.
+        // Use data_type directly so TEMPLATE can allocate real tensors without running ConvertPagedAttnInputs
         auto key_cache   = make_param({ov::Dimension::dynamic(), head_num, block_size, head_size}, data_type, "key_cache.0");
         auto value_cache = make_param({ov::Dimension::dynamic(), head_num, block_size, head_size}, data_type, "value_cache.0");
 
@@ -109,9 +106,8 @@ private:
         auto block_indices = make_param({ov::Dimension::dynamic()}, ov::element::i32, "block_indices");
         auto block_indices_begins = make_param({ov::Dimension::dynamic()}, ov::element::i32, "block_indices_begins");
 
-        // Use explicit Constant constructors with properly-typed empty vectors for
-        // zero-element tensors (shape {0}).  This avoids ambiguities with
-        // Constant::create overload resolution and matches the working CPU test.
+        // Use typed empty vectors for zero-element constants to avoid
+        // ambiguity with Constant::create overload resolution
         const float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
         auto scale = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
         auto sliding_windows = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{sliding_window});
@@ -134,8 +130,8 @@ private:
         std::shared_ptr<ov::op::v0::Constant> rotation_deltas;
         std::shared_ptr<ov::op::v0::Constant> rotation_trig_lut;
         if (use_rotation) {
-            // Rotate block 0 with a simple RoPE-style trig LUT.
-            // We use per-block granularity: rotation_deltas shape [1, 1] (1 block, delta = 0 => LUT row 0).
+            // Rotate block 0 with a simple RoPE-style trig LUT
+            // We use per-block granularity: rotation_deltas shape [1, 1] (1 block, delta = 0 => LUT row 0)
             rotated_block_indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{0});
 
             // Per-block delta: single block, single delta pointing to LUT row 0
@@ -170,8 +166,8 @@ private:
         auto xattention_block_size = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{64});
         auto xattention_stride     = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{8});
 
-        // Sink input: [1, H, 1, 1] when enabled, empty [0] when disabled.
-        // Matching the pattern used by the CPU-specific test.
+        // Sink input: [1, H, 1, 1] when enabled, empty [0] when disabled
+        // Matching the pattern used by the CPU-specific test
         std::shared_ptr<ov::op::v0::Constant> sinks;
         if (use_sink_input) {
             // Use per-head sink values comparable in magnitude to attention logits
@@ -229,11 +225,11 @@ private:
 
         auto pa = std::make_shared<ov::op::PagedAttentionExtension>(pa_inputs);
         // Ensure a cache manager is always available for TEMPLATE (reference) evaluation
-        // and any plugin paths that rely on shared cache state.
+        // and any plugin paths that rely on shared cache state
         pa->set_cache_manager(ov::op::make_paged_cache_handle(data_type));
 
-        // Provide head metadata required by ConvertPagedAttnInputs transformation.
-        // These keys are the canonical ones read by the transformation callback.
+        // Provide head metadata required by ConvertPagedAttnInputs transformation
+        // These keys are the canonical ones read by the transformation callback
         auto& rt = pa->get_rt_info();
         rt["num_k_heads"] = static_cast<size_t>(head_num);
         rt["k_head_size"] = static_cast<size_t>(head_size);
@@ -241,8 +237,8 @@ private:
         rt["v_head_size"] = static_cast<size_t>(head_size);
 
         // When adaptive RKV is active, the CPU executor requires 3 outputs:
-        //   output 0 = attention,  output 1 = score aggregation,  output 2 = diversity scores.
-        // For non-adaptive-RKV tests, keep the single-output model unchanged.
+        //   output 0 = attention,  output 1 = score aggregation,  output 2 = diversity scores
+        // For non-adaptive-RKV tests, keep the single-output model unchanged
         ov::OutputVector model_outputs = {pa->output(0)};
         if (adaptive_rkv_eviction_size > 0) {
             model_outputs.push_back(pa->output(1));
@@ -473,8 +469,8 @@ public:
         
 pa_model_ = make_paged_attn_model(inType, enableXattn, head_size, head_num, sinkInput, slidingWindow, useAlibi, maxContextLen, use_rotation_, cfg_block_size, cfg_arkv_eviction_size);
 
-// Pre-generate the step inputs ONCE so CPU/TEMPLATE see identical tensors.
-// Allocate caches once here, and reuse for both runs by copying initial cache state.
+// Pre-generate the step inputs ONCE so CPU/TEMPLATE see identical tensors
+// Allocate caches once here, and reuse for both runs by copying initial cache state
 {
     const auto& kc_ps = pa_model_->get_parameters()[3]->get_partial_shape();
     OPENVINO_ASSERT(kc_ps.rank().is_static() && kc_ps.rank().get_length() == 4,
@@ -482,8 +478,8 @@ pa_model_ = make_paged_attn_model(inType, enableXattn, head_size, head_num, sink
     OPENVINO_ASSERT(kc_ps[2].is_static(), "PagedAttention test: expected static block_size dimension in cache");
     block_size_ = static_cast<size_t>(kc_ps[2].get_length());
 
-    // We treat each batch item as an independent sequence in metadata tensors.
-    // Ensure cache has enough blocks per sequence for the entire multi-step run.
+    // We treat each batch item as an independent sequence in metadata tensors
+    // Ensure cache has enough blocks per sequence for the entire multi-step run
     batch_size_ = targetStaticShapes.empty() ? 1 : targetStaticShapes[0][0][1];
     max_blocks_per_seq_ = 1;
     int32_t past_tmp = 0;
@@ -536,12 +532,11 @@ int32_t past = 0;
     void allocate_caches_for_model(const std::shared_ptr<ov::Model>& model,
                                    size_t block_nums,
                                    ov::element::Type inType) {
-        // Use model parameter shapes directly (not compiled model) for determinism.
+        // Use model parameter shapes directly (not compiled model) for determinism
         auto params = model->get_parameters();
         auto kc = params[3];
         auto vc = params[4];
 
-        // Expect rank-4 as constructed above
         auto ps_k = kc->get_partial_shape();
         auto ps_v = vc->get_partial_shape();
         OPENVINO_ASSERT(ps_k.rank().is_static() && ps_k.rank().get_length() == 4);
@@ -550,7 +545,7 @@ int32_t past = 0;
         ps_k[0] = static_cast<int64_t>(block_nums);
         ps_v[0] = static_cast<int64_t>(block_nums);
 
-        // Allocate caches using the same element type as PA expects.
+        // Allocate caches using the same element type as PA expects
         key_cache_init_ = ov::Tensor(inType, ps_k.get_shape());
         value_cache_init_ = ov::Tensor(inType, ps_v.get_shape());
         std::memset(key_cache_init_.data(), 0, key_cache_init_.get_byte_size());
