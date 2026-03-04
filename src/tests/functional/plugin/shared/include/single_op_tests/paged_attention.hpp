@@ -22,6 +22,8 @@ TEST_P(PagedAttentionLayerTest, Inference) {
     // CPU config — strip test-only keys that the CPU plugin doesn't understand
     ov::AnyMap cpu_cfg = additional_config;
     cpu_cfg.erase("test_use_rotation");
+    cpu_cfg.erase("test_block_size");
+    cpu_cfg.erase("test_adaptive_rkv_eviction_size");
     cpu_cfg[ov::hint::inference_precision.name()] = ov::element::f32;
 
     // TEMPLATE config

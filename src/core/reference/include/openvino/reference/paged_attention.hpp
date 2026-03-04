@@ -16,6 +16,7 @@
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/reference/adaptive_rkv_diversity.hpp"
 #include "openvino/reference/utils/paged_cache_manager.hpp"
 
 namespace ov {
@@ -153,14 +154,14 @@ inline std::vector<std::size_t> parse_subsequence_ranges(const int32_t* subseq_b
 //   using split-half (LLaMA-style) pairing to match the CPU kernel convention
 // - It supports attention sinks ([1,H,1,1] per-head logit added to softmax as virtual token)
 // - It supports xattention (dynamic sparse attention for prefill: strided Q×K → block aggregation → threshold)
-//
-// Adaptive RKV inputs are currently ignored (not implemented).
+// - It supports adaptive RKV diversity scoring (assembles key cache → calls AdaptiveRKVDiversityCalculator
+//   to fill out_diversity_scores with per-block cosine-similarity diversity values)
 template <typename T>
 void paged_attention(std::uintptr_t node_key,
                      ov::reference::paged_attention_cache::PagedCacheManager* cache_manager,
                      T* out,
                      T* out_scores,
-                     T* out_aux,
+                     T* out_diversity_scores,
                      const T* query,
                      const T* key,
                      const T* value,
@@ -208,12 +209,9 @@ void paged_attention(std::uintptr_t node_key,
     OPENVINO_ASSERT(query != nullptr && key != nullptr && value != nullptr, "PagedAttention reference: null Q/K/V");
     OPENVINO_ASSERT(out != nullptr, "PagedAttention reference: output is null");
 
-    // Currently ignored output (with shape_infer)
-    (void)out_aux;
-
-    // Currently ignored inputs (adaptive RKV — not implemented)
-    (void)adaptive_rkv_start_size;
-    (void)adaptive_rkv_evictable_sizes;
+    // adaptive_rkv_diversity_block_set_indices / begins are used by the CPU/GPU
+    // to identify which physical blocks to read.  The reference assembles key data
+    // directly from the cache manager, so these are unused.
     (void)adaptive_rkv_diversity_block_set_indices;
     (void)adaptive_rkv_diversity_block_set_indices_begins;
 
@@ -687,6 +685,63 @@ void paged_attention(std::uintptr_t node_key,
     if (out_scores != nullptr) {
         for (std::size_t i = 0; i < scores_acc.size(); ++i) {
             out_scores[i] = static_cast<T>(scores_acc[i]);
+        }
+    }
+
+    // --- Adaptive RKV diversity computation ---
+    // After all attention is done, compute per-block diversity scores for the
+    // eviction zone of each sequence using AdaptiveRKVDiversityCalculator.
+    // The diversity output is a flat buffer: for each sequence, the calculator
+    // returns [eviction_size / block_size, eviction_size] and we flatten it.
+    const bool has_adaptive_rkv = (adaptive_rkv_evictable_sizes != nullptr);
+    if (has_adaptive_rkv && out_diversity_scores != nullptr) {
+        const std::size_t cache_block_size = cache_manager->block_size(node_key);
+        const int32_t start_size_i = adaptive_rkv_start_size ? adaptive_rkv_start_size[0] : 0;
+        const std::size_t start_size = (start_size_i < 0) ? 0 : static_cast<std::size_t>(start_size_i);
+
+        std::size_t out_offset = 0;
+        for (std::size_t s = 0; s < seq_count; ++s) {
+            const int32_t evict_size_i = adaptive_rkv_evictable_sizes[s];
+            if (evict_size_i <= 0) {
+                continue;
+            }
+            const std::size_t evict_size = static_cast<std::size_t>(evict_size_i);
+
+            // Total tokens for this sequence (past + newly appended)
+            const std::size_t past = past_lens ? static_cast<std::size_t>(past_lens[s]) : 0;
+            const std::size_t new_len = seq_begins[s + 1] - seq_begins[s];
+            const std::size_t total_tokens = past + new_len;
+
+            if (total_tokens < start_size + evict_size) {
+                // Not enough tokens for the eviction zone — skip
+                continue;
+            }
+
+            // Assemble key data from cache: [kv_heads, total_tokens, head_size]
+            std::vector<T> key_data(kv_heads * total_tokens * head_size, T(0));
+            for (std::size_t kvh = 0; kvh < kv_heads; ++kvh) {
+                for (std::size_t pos = 0; pos < total_tokens; ++pos) {
+                    ov::reference::paged_attention_cache::PagedCacheManager::TokenAddress addr;
+                    if (cache_manager->resolve_token(node_key, s, static_cast<int32_t>(pos), addr)) {
+                        const T* kptr = cache_manager->key_ptr<T>(node_key, addr, kvh);
+                        if (kptr) {
+                            T* dst = key_data.data() + kvh * total_tokens * head_size + pos * head_size;
+                            std::copy(kptr, kptr + head_size, dst);
+                        }
+                    }
+                }
+            }
+
+            ov::Shape key_shape_3d = {kv_heads, total_tokens, head_size};
+            ov::reference::AdaptiveRKVDiversityCalculator<T> calc(start_size, evict_size, cache_block_size);
+            auto diversity = calc.calculate_block_diversity(key_data.data(), key_shape_3d);
+
+            // Flatten [evict_size/block_size][evict_size] into the output buffer
+            for (std::size_t b = 0; b < diversity.size(); ++b) {
+                for (std::size_t t = 0; t < diversity[b].size(); ++t) {
+                    out_diversity_scores[out_offset++] = diversity[b][t];
+                }
+            }
         }
     }
 }

@@ -63,8 +63,23 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
     // Ensure output tensors are large enough for the current inputs.
     resize_pa_outputs(pa_op, outputs, inputs);
 
-    // Third output is currently shape-infer only
-    // so I'm keeping it as 0 filled for determinism
+    // Fix output 2 size for adaptive RKV diversity: shape_infer gives an
+    // approximation; the actual flat size is sum(evictable_sizes[i]^2 / block_size).
+    if (inputs[22].get_size() > 0) {
+        const size_t block_size = inputs[3].get_shape()[2];
+        const auto* evict_ptr = inputs[22].data<int32_t>();
+        size_t total_elems = 0;
+        for (size_t i = 0; i < inputs[22].get_shape()[0]; ++i) {
+            const size_t es = static_cast<size_t>(evict_ptr[i]);
+            total_elems += (es * es) / block_size;
+        }
+        if (total_elems > 0) {
+            outputs[2].set_shape({total_elems});
+        }
+    }
+
+    // Zero-fill output 2 (diversity scores) for determinism;
+    // the reference will overwrite when adaptive RKV is active.
     if (outputs[2].get_byte_size() > 0) {
         std::memset(outputs[2].data(), 0, outputs[2].get_byte_size());
     }
@@ -76,6 +91,11 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
     const auto xattn_thresh_et = (xattn_thresh_ptr != nullptr) ? inputs[17].get_element_type() : ov::element::dynamic;
     const void* sinks_ptr = inputs[20].get_shape().empty() || inputs[20].get_size() == 0 ? nullptr : inputs[20].data();
     const auto sinks_et = (sinks_ptr != nullptr) ? inputs[20].get_element_type() : ov::element::dynamic;
+
+    // For adaptive_rkv inputs, pass nullptr when disabled (Shape{0})
+    const int32_t* arkv_evict_ptr = inputs[22].get_size() > 0 ? inputs[22].data<int32_t>() : nullptr;
+    const int32_t* arkv_indices_ptr = inputs[23].get_size() > 0 ? inputs[23].data<int32_t>() : nullptr;
+    const int32_t* arkv_begins_ptr = inputs[24].get_size() > 0 ? inputs[24].data<int32_t>() : nullptr;
 
     ov::reference::paged_attention<T>(node_key,
                                       cache_manager,
@@ -115,9 +135,9 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
                                       sinks_ptr,                   // sinks
                                       sinks_et,
                                       inputs[21].data<int32_t>(),  // adaptive_rkv_start_size
-                                      inputs[22].data<int32_t>(),  // adaptive_rkv_evictable_sizes
-                                      inputs[23].data<int32_t>(),  // adaptive_rkv_diversity_block_set_indices
-                                      inputs[24].data<int32_t>(),  // adaptive_rkv_diversity_block_set_indices_begins
+                                      arkv_evict_ptr,              // adaptive_rkv_evictable_sizes
+                                      arkv_indices_ptr,            // adaptive_rkv_diversity_block_set_indices
+                                      arkv_begins_ptr,             // adaptive_rkv_diversity_block_set_indices_begins
                                       inputs[0].get_shape(),
                                       inputs[1].get_shape(),
                                       inputs[2].get_shape(),

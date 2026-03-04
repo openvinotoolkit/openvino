@@ -263,6 +263,49 @@ INSTANTIATE_TEST_SUITE_P(advXattn_PagedAttentionLayerTest,
                                             ::testing::ValuesIn(additional_configs_ref)),
                          PagedAttentionLayerTest::getTestCaseName);
 
+// ═══════════════════════════════════════════════════════════
+//  Adaptive RKV diversity test
+// ═══════════════════════════════════════════════════════════
+
+// Shapes for adaptive RKV: need enough tokens for the eviction zone.
+// Must use default block_size=32 because the CPU plugin's ConvertPagedAttnInputs
+// transformation always forces block_size=32, so the model cache shapes must match.
+// L=64, block_size=32, eviction_size=32, start_size=0.
+// After step 0: 64 tokens (2 blocks); eviction zone = tokens 0..31 (block 0).
+// After step 1 (decode): 65 tokens (3 blocks); eviction zone unchanged.
+const std::vector<InputShapes> input_shapes_arkv = {
+{
+    {{-1, 1, 2, 4}, {{64, 1, 2, 4}, {1, 1, 2, 4}}},
+    {{-1, 1, 2, 4}, {{0, 1, 2, 4}, {64, 1, 2, 4}}},
+}};
+
+const std::vector<ov::AnyMap> additional_configs_arkv = {{
+    {ov::intel_cpu::enable_sage_attn.name(), false},
+    {ov::hint::kv_cache_precision.name(), ov::element::f32},
+    {ov::key_cache_precision.name(), ov::element::f32},
+    {ov::value_cache_precision.name(), ov::element::f32},
+    {ov::key_cache_group_size.name(), 0},
+    {ov::value_cache_group_size.name(), 0},
+    {"test_adaptive_rkv_eviction_size", 32},
+}};
+
+// 11) Adaptive RKV diversity: verifies that the reference computes
+//     diversity scores via AdaptiveRKVDiversityCalculator when
+//     adaptive_rkv_evictable_sizes is provided.  Output 0 (attention)
+//     should match CPU exactly since adaptive RKV does not affect attention.
+INSTANTIATE_TEST_SUITE_P(advAdaptiveRKV_PagedAttentionLayerTest,
+                         PagedAttentionLayerTest,
+                         ::testing::Combine(::testing::Values(ElementType::f32),
+                                            ::testing::ValuesIn(input_shapes_arkv),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0),
+                                            ::testing::Values(false),
+                                            ::testing::Values(1024),
+                                            ::testing::ValuesIn(additional_configs_arkv)),
+                         PagedAttentionLayerTest::getTestCaseName);
+
 #endif  // OPENVINO_ARCH_X86_64
 }  // namespace
 

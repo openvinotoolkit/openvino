@@ -88,7 +88,9 @@ private:
                                                      int32_t sliding_window = 0,
                                                      bool use_alibi = false,
                                                      int32_t max_ctx_len = 1024,
-                                                     bool use_rotation = false) {
+                                                     bool use_rotation = false,
+                                                     int64_t block_size = 32,
+                                                     int32_t adaptive_rkv_eviction_size = 0) {
         // PA expects q/k/v as [tokens, features]
         auto q = make_param({ov::Dimension::dynamic(), ov::Dimension::dynamic()}, data_type, "q");
         auto k = make_param({ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
@@ -99,8 +101,8 @@ private:
         // TEMPLATE (which does NOT run ConvertPagedAttnInputs) can allocate
         // real tensors.  The CPU transformation unconditionally overwrites
         // the cache element type, so the starting type is irrelevant for CPU.
-        auto key_cache   = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, data_type, "key_cache.0");
-        auto value_cache = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, data_type, "value_cache.0");
+        auto key_cache   = make_param({ov::Dimension::dynamic(), head_num, block_size, head_size}, data_type, "key_cache.0");
+        auto value_cache = make_param({ov::Dimension::dynamic(), head_num, block_size, head_size}, data_type, "value_cache.0");
 
         auto past_lens = make_param({ov::Dimension::dynamic()}, ov::element::i32, "past_lens");
         auto subseq_begins = make_param({ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");
@@ -184,11 +186,37 @@ private:
             sinks = std::make_shared<ov::op::v0::Constant>(data_type, ov::Shape{0}, std::vector<float>{});
         }
 
-        // adaptive_rkv inputs (unused — provide empty / zero placeholders)
-        auto adaptive_rkv_start_size = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{0});
-        auto adaptive_rkv_evictable_sizes = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{0});
-        auto adaptive_rkv_diversity_block_set_indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{0});
-        auto adaptive_rkv_diversity_block_set_indices_begins = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{0});
+        // adaptive_rkv inputs
+        std::shared_ptr<ov::op::v0::Constant> adaptive_rkv_start_size;
+        std::shared_ptr<ov::op::v0::Constant> adaptive_rkv_evictable_sizes;
+        std::shared_ptr<ov::op::v0::Constant> adaptive_rkv_diversity_block_set_indices;
+        std::shared_ptr<ov::op::v0::Constant> adaptive_rkv_diversity_block_set_indices_begins;
+        if (adaptive_rkv_eviction_size > 0) {
+            // start_size = 0 for simplicity
+            adaptive_rkv_start_size = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i32, ov::Shape{}, std::vector<int32_t>{0});
+            // Single sequence: evictable_sizes = [eviction_size]
+            adaptive_rkv_evictable_sizes = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i32, ov::Shape{1}, std::vector<int32_t>{adaptive_rkv_eviction_size});
+            // block_set_indices: list of block indices in the eviction zone (0..num_eviction_blocks-1)
+            const int32_t num_eviction_blocks = adaptive_rkv_eviction_size / static_cast<int32_t>(block_size);
+            std::vector<int32_t> block_set(static_cast<size_t>(num_eviction_blocks));
+            for (int32_t i = 0; i < num_eviction_blocks; ++i) block_set[i] = i;
+            adaptive_rkv_diversity_block_set_indices = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i32, ov::Shape{static_cast<size_t>(num_eviction_blocks)}, block_set);
+            // begins: [0, num_eviction_blocks] for single sequence
+            adaptive_rkv_diversity_block_set_indices_begins = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i32, ov::Shape{2}, std::vector<int32_t>{0, num_eviction_blocks});
+        } else {
+            adaptive_rkv_start_size = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i32, ov::Shape{}, std::vector<int32_t>{0});
+            adaptive_rkv_evictable_sizes = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i32, ov::Shape{0}, std::vector<int32_t>{0});
+            adaptive_rkv_diversity_block_set_indices = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i32, ov::Shape{0}, std::vector<int32_t>{0});
+            adaptive_rkv_diversity_block_set_indices_begins = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i32, ov::Shape{0}, std::vector<int32_t>{0});
+        }
 
         ov::ParameterVector params = {q,k,v,key_cache,value_cache,past_lens,subseq_begins,block_indices,block_indices_begins};
         ov::OutputVector pa_inputs = {q,k,v,key_cache,value_cache,past_lens,subseq_begins,block_indices,block_indices_begins,
@@ -212,7 +240,15 @@ private:
         rt["num_v_heads"] = static_cast<size_t>(head_num);
         rt["v_head_size"] = static_cast<size_t>(head_size);
 
-        auto model = std::make_shared<ov::Model>(ov::OutputVector{pa->output(0)}, params, "pa_vsref");
+        // When adaptive RKV is active, the CPU executor requires 3 outputs:
+        //   output 0 = attention,  output 1 = score aggregation,  output 2 = diversity scores.
+        // For non-adaptive-RKV tests, keep the single-output model unchanged.
+        ov::OutputVector model_outputs = {pa->output(0)};
+        if (adaptive_rkv_eviction_size > 0) {
+            model_outputs.push_back(pa->output(1));
+            model_outputs.push_back(pa->output(2));
+        }
+        auto model = std::make_shared<ov::Model>(model_outputs, params, "pa_vsref");
         std::cout << "[PA_DBG] Model created: " << model->get_parameters().size() << " params, "
                   << model->get_results().size() << " results" << std::endl;
         for (size_t i = 0; i < model->get_parameters().size(); ++i) {
@@ -418,8 +454,24 @@ public:
             }
         }
 
+        // Check for adaptive RKV parameters
+        int64_t cfg_block_size = 32;
+        int32_t cfg_arkv_eviction_size = 0;
+        {
+            auto it = additional_config.find("test_block_size");
+            if (it != additional_config.end()) {
+                cfg_block_size = static_cast<int64_t>(it->second.as<int>());
+            }
+        }
+        {
+            auto it = additional_config.find("test_adaptive_rkv_eviction_size");
+            if (it != additional_config.end()) {
+                cfg_arkv_eviction_size = static_cast<int32_t>(it->second.as<int>());
+            }
+        }
+
         
-pa_model_ = make_paged_attn_model(inType, enableXattn, head_size, head_num, sinkInput, slidingWindow, useAlibi, maxContextLen, use_rotation_);
+pa_model_ = make_paged_attn_model(inType, enableXattn, head_size, head_num, sinkInput, slidingWindow, useAlibi, maxContextLen, use_rotation_, cfg_block_size, cfg_arkv_eviction_size);
 
 // Pre-generate the step inputs ONCE so CPU/TEMPLATE see identical tensors.
 // Allocate caches once here, and reuse for both runs by copying initial cache state.
