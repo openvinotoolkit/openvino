@@ -8,6 +8,7 @@
 #include <cassert>
 #include <chrono>
 #include <list>
+#include <algorithm>
 
 using namespace cldnn;
 using namespace ze;
@@ -90,7 +91,7 @@ bool ze_events::get_profiling_info_impl(std::list<instrumentation::profiling_int
     };
 
     if (_events.empty())
-        return false;
+        return true;
 
     auto device_info = _engine.get_device_info();
 
@@ -109,13 +110,13 @@ bool ze_events::get_profiling_info_impl(std::list<instrumentation::profiling_int
     auto get_submission_time = [&device_info](const intervals_t& s_timestamps,
                                               const intervals_t& e_timestamps) {
         auto get_minmax = [](const intervals_t& timestamps) {
-            uint64_t min_val = std::min(timestamps.begin(), timestamps.end(),
-                [](const intervals_t::const_iterator& lhs, const intervals_t::const_iterator& rhs) {
-                    return lhs->kernelStart < rhs->kernelStart;
+            uint64_t min_val = std::min_element(timestamps.begin(), timestamps.end(),
+                [](const ze_kernel_timestamp_data_t& lhs, const ze_kernel_timestamp_data_t& rhs) {
+                    return bool(lhs.kernelStart < rhs.kernelStart);
             })->kernelStart;
-            uint64_t max_val = std::max(timestamps.begin(), timestamps.end(),
-                [](const intervals_t::const_iterator& lhs, const intervals_t::const_iterator& rhs) {
-                    return lhs->kernelEnd < rhs->kernelEnd;
+            uint64_t max_val = std::max_element(timestamps.begin(), timestamps.end(),
+                [](const ze_kernel_timestamp_data_t& lhs, const ze_kernel_timestamp_data_t& rhs) {
+                    return lhs.kernelEnd < rhs.kernelEnd;
             })->kernelEnd;
 
             return ze_kernel_timestamp_data_t{min_val, max_val};
@@ -141,7 +142,7 @@ bool ze_events::get_profiling_info_impl(std::list<instrumentation::profiling_int
         add_or_merge(all_global_timestamps, timestamp.global);
         add_or_merge(all_context_timestamps, timestamp.context);
     }
-
+    OPENVINO_ASSERT(!all_global_timestamps.empty() && !all_context_timestamps.empty(), "[GPU] Expected non-empty kernel timestamps");
     auto submit_time = get_submission_time(all_global_timestamps, all_context_timestamps);
     auto exec_time = get_total_exec_time(all_context_timestamps);
 
