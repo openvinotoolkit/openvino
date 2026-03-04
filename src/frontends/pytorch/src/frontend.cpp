@@ -12,6 +12,7 @@
 #include "openvino/util/log.hpp"
 #include "place.hpp"
 #include "pt_framework_node.hpp"
+#include "sequence_concat_replacer.hpp"
 #include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
@@ -21,7 +22,6 @@
 #include "transformations/op_conversions/convert_convertpromotetypes.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
-#include "transforms/aten_cat_replacer.hpp"
 #include "transforms/aten_getitem_replacer.hpp"
 #include "transforms/aten_index_put_replacer.hpp"
 #include "transforms/aten_index_replacer.hpp"
@@ -36,6 +36,7 @@
 #include "transforms/quantized_node_remover.hpp"
 #include "transforms/remove_packing_ops.hpp"
 #include "transforms/reverseprop_resolver.hpp"
+#include "transforms/sequence_mark_replacer.hpp"
 #include "transforms/softmax_reshape_elimination.hpp"
 #include "transforms/string_equality_replacer.hpp"
 #include "transforms/torchfx_gptq_pattern_replacer.hpp"
@@ -229,7 +230,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::pass::ConvertConvertPromoteTypes>();
         manager.register_pass<ov::pass::PushConstantToSubgraph>();
         manager.register_pass<ov::frontend::pytorch::pass::TupleUnpackInBodyReplacer>();
-        manager.register_pass<ov::frontend::pytorch::pass::AtenCatToConcat>();
+        manager.register_pass<ov::frontend::pass::SequenceConcatReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::AppendListUnpackReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::AtenEinsumListConstructReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer>();
@@ -262,6 +263,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexPutReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::SequenceMarkReplacer>();
 
     // Check if model is symmetrically quantized
     bool sym = false;
