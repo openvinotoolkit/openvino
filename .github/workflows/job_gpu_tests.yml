@@ -198,7 +198,7 @@ jobs:
         if: ${{ inputs.test_type == 'rope' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pip install optimum-intel transformers diffusers torch --upgrade --extra-index-url https://download.pytorch.org/whl/cpu
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_rope
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py \
             -m precommit \
             --html=${INSTALL_TEST_DIR}/TEST-gpu_rope_tests.html \

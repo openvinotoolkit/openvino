@@ -173,9 +173,8 @@ jobs:
               python3 -m pip install ${INSTALL_DIR}/${wheel}-*.whl
             fi
           done
-          # Install base requirements then upgrade to latest for RoPE regression testing
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_pytorch
-          python3 -m pip install optimum-intel transformers torch --upgrade --extra-index-url https://download.pytorch.org/whl/cpu
+          # Install pinned RoPE test dependencies (versions managed by dependabot)
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_rope
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_rope_tests.html --self-contained-html -v --tb=short -n 2
         env:
