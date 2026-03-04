@@ -6,6 +6,8 @@
 
 #include "layout_utils.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/util/convert_color_to_nv12_base.hpp"
 #include "openvino/util/common_util.hpp"
 
 namespace ov {
@@ -324,7 +326,7 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
     }
 }
 
-//----------- OutputInfoImpl ----------
+//----------- OutputInfoImpl -----------
 void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     auto node = m_output_node;
     const auto result = ov::as_type_ptr<op::v0::Result>(node.get_node_shared_ptr());
@@ -410,6 +412,34 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     // Update layout
     if (!context.layout().empty()) {
         result->set_layout(context.layout());
+    }
+
+    // Handle NV12_TWO_PLANES
+    auto convert_nv12 = ov::as_type_ptr<op::util::ConvertColorToNV12Base>(node.get_node_shared_ptr());
+    if (convert_nv12 && !convert_nv12->is_single_plane()) {
+        // Current result becomes Y plane (output 0 of the convert op)
+        // Create UV plane result from output 1
+        auto uv_output = convert_nv12->output(1);
+        auto uv_result = std::make_shared<op::v0::Result>(uv_output);
+
+        // Setting subnames for Y and UV planes
+        auto original_names = result->get_output_tensor(0).get_names();
+        std::unordered_set<std::string> y_names;
+        std::unordered_set<std::string> uv_names;
+        for (const auto& name : original_names) {
+            y_names.insert(name + "/Y");
+            uv_names.insert(name + "/UV");
+        }
+        result->get_output_tensor(0).set_names(y_names);
+        result->set_friendly_name(result->get_friendly_name() + "/Y");
+
+        uv_result->get_output_tensor(0).set_names(uv_names);
+        uv_result->set_friendly_name(result->get_friendly_name() + "/UV");
+
+        auto it = std::find(results.begin(), results.end(), result);
+        if (it != results.end()) {
+            results.insert(std::next(it), uv_result);
+        }
     }
 }
 

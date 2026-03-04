@@ -2118,12 +2118,38 @@ TEST(pre_post_process, postprocess_convert_color_format_RGB_NV12_single_plane) {
     EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{5, 45, 20, 1}));
 }
 
-TEST(pre_post_process, postprocess_convert_color_format_RGB_NV12_two_planes_unsupported) {
+TEST(pre_post_process, postprocess_convert_color_format_RGB_NV12_two_planes) {
     auto f = create_simple_function(element::f32, Shape{5, 30, 20, 3});
     auto p = PrePostProcessor(f);
     p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
     p.output().postprocess().convert_color(ColorFormat::NV12_TWO_PLANES);
-    EXPECT_THROW(f = p.build(), ov::AssertFailure);
+    f = p.build();
+
+    EXPECT_EQ(f->get_results().size(), 2);
+    EXPECT_EQ(f->get_results()[0]->get_output_partial_shape(0), (PartialShape{5, 30, 20, 1}));
+    EXPECT_EQ(f->get_results()[1]->get_output_partial_shape(0), (PartialShape{5, 15, 10, 2}));
+
+    auto y_names = f->output(0).get_tensor().get_names();
+    auto uv_names = f->output(1).get_tensor().get_names();
+    EXPECT_EQ(y_names.count("tensor_output1/Y"), 1);
+    EXPECT_EQ(uv_names.count("tensor_output1/UV"), 1);
+}
+
+TEST(pre_post_process, postprocess_convert_color_format_BGR_NV12_two_planes) {
+    auto f = create_simple_function(element::f32, Shape{5, 30, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::BGR);
+    p.output().postprocess().convert_color(ColorFormat::NV12_TWO_PLANES);
+    f = p.build();
+
+    EXPECT_EQ(f->get_results().size(), 2);
+    EXPECT_EQ(f->get_results()[0]->get_output_partial_shape(0), (PartialShape{5, 30, 20, 1}));
+    EXPECT_EQ(f->get_results()[1]->get_output_partial_shape(0), (PartialShape{5, 15, 10, 2}));
+
+    auto y_names = f->output(0).get_tensor().get_names();
+    auto uv_names = f->output(1).get_tensor().get_names();
+    EXPECT_EQ(y_names.count("tensor_output1/Y"), 1);
+    EXPECT_EQ(uv_names.count("tensor_output1/UV"), 1);
 }
 
 TEST(pre_post_process, postprocess_convert_color_format_BGR_NV12_single_plane) {

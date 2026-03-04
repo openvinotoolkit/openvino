@@ -820,9 +820,14 @@ void PostStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                 return std::make_tuple(Output<Node>(convert), true);
             } else if ((context.color_format() == ColorFormat::RGB || context.color_format() == ColorFormat::BGR) &&
                        dst_format == ColorFormat::NV12_TWO_PLANES) {
-                OPENVINO_ASSERT(
-                    false,
-                    "NV12_TWO_PLANES is not supported in postprocessing output. Please use NV12_SINGLE_PLANE.");
+                std::shared_ptr<ov::Node> convert;
+                if (context.color_format() == ColorFormat::RGB) {
+                    convert = std::make_shared<op::v16::RGBtoNV12>(node, false);
+                } else {
+                    convert = std::make_shared<op::v16::BGRtoNV12>(node, false);
+                }
+                context.color_format() = dst_format;
+                return std::make_tuple(Output<Node>(convert, 0), true);
             } else {
                 OPENVINO_THROW("Source color format '",
                                color_format_name(context.color_format()),
