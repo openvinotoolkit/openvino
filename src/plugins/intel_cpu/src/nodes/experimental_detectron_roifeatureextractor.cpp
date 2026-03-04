@@ -153,7 +153,7 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
     int n_rois = nthreads / channels / pooled_width / pooled_height;
     // (n, c, ph, pw) is an element in the pooled output
     cpu_parallel->parallel_for(n_rois, [&](size_t n) {
-        int index_n = n * channels * pooled_width * pooled_height;
+        int index_n = static_cast<int>(n * channels * pooled_width * pooled_height);
 
         // roi could have 4 or 5 columns
         const T* offset_bottom_rois = bottom_rois + n * roi_cols;
@@ -331,9 +331,9 @@ void ExperimentalDetectronROIFeatureExtractor::initSupportedPrimitiveDescriptors
 
 void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& cpu_parallel = context->getCpuParallel();
-    const int levels_num = inputShapes.size() - INPUT_FEATURES_START;
-    const int num_rois = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
-    const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];
+    const int levels_num = static_cast<int>(inputShapes.size()) - INPUT_FEATURES_START;
+    const int num_rois = static_cast<int>(getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0]);
+    const int channels_num = static_cast<int>(getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1]);
     const int feaxels_per_roi = pooled_height_ * pooled_width_ * channels_num;
 
     const auto* input_rois = getSrcDataAtPortAs<const float>(INPUT_ROIS);
@@ -359,8 +359,10 @@ void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dn
         const int level_rois_num = rois_per_level[i + 1] - level_rois_offset;
         if (level_rois_num > 0) {
             const auto* featuremap = getSrcDataAtPortAs<const float>(INPUT_FEATURES_START + i);
-            const int featuremap_height = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[2];
-            const int featuremap_width = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[3];
+            const int featuremap_height =
+                static_cast<int>(getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[2]);
+            const int featuremap_width =
+                static_cast<int>(getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[3]);
             ROIAlignForward_cpu_kernel<float>(feaxels_per_roi * level_rois_num,
                                               featuremap,
                                               1.0F / pyramid_scales_[i],

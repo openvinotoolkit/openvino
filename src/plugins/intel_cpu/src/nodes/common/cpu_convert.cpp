@@ -554,7 +554,14 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
             ov::intel_cpu::any_of_v<dst_t, ov::float8_e4m3, ov::float8_e5m2> ||
             (std::is_integral_v<src_t> && std::is_integral_v<dst_t> && ctx.dstPrc != ov::element::boolean)) {
             parallel_for(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<dst_t>(src[i]);
+                using direct_cast_input_t = std::conditional_t<ov::intel_cpu::any_of_v<dst_t,
+                                                                                        ov::float8_e4m3,
+                                                                                        ov::float8_e5m2,
+                                                                                        ov::float16,
+                                                                                        ov::intel_cpu::bfloat16_t>,
+                                                              float,
+                                                              src_t>;
+                dst[i] = static_cast<dst_t>(static_cast<direct_cast_input_t>(src[i]));
             });
             ctx.converted = true;
             return;
@@ -562,11 +569,21 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
 
         if (std::is_integral_v<src_t> || ctx.interimPrc.is_real() || std::is_integral_v<dst_t>) {
             parallel_for(ctx.size, [&, lbound = lbound, ubound = ubound](size_t i) {
-                dst[i] = static_cast<dst_t>(std::max(std::min(src[i], ubound), lbound));
+                using cast_input_t = std::conditional_t<ov::intel_cpu::any_of_v<dst_t,
+                                                                                 ov::float16,
+                                                                                 ov::intel_cpu::bfloat16_t>,
+                                                       float,
+                                                       src_t>;
+                dst[i] = static_cast<dst_t>(static_cast<cast_input_t>(std::max(std::min(src[i], ubound), lbound)));
             });
         } else {
             parallel_for(ctx.size, [&, lbound = lbound, ubound = ubound](size_t i) {
-                dst[i] = static_cast<dst_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
+                using trunc_result_t = std::conditional_t<ov::intel_cpu::any_of_v<dst_t,
+                                                                                   ov::float16,
+                                                                                   ov::intel_cpu::bfloat16_t>,
+                                                         float,
+                                                         double>;
+                dst[i] = static_cast<dst_t>(static_cast<trunc_result_t>(std::trunc(static_cast<double>(std::max(std::min(src[i], ubound), lbound)))));
             });
         }
 
@@ -839,7 +856,15 @@ struct ConvertFromBinPrecision<std::tuple<src_t, dst_t>> {
         parallel_for(nBytes, [&](size_t byteIndex) {
             auto currentBitNum = std::min(nBits, ctx.size - byteIndex * nBits);
             for (size_t bitIndex = 0; bitIndex < currentBitNum; ++bitIndex) {
-                dst[byteIndex * nBits + bitIndex] = static_cast<dst_t>((src[byteIndex] & (1 << bitIndex)) >> bitIndex);
+                using bin_cast_input_t = std::conditional_t<ov::intel_cpu::any_of_v<dst_t,
+                                                                                     ov::float8_e4m3,
+                                                                                     ov::float8_e5m2,
+                                                                                     ov::float16,
+                                                                                     ov::intel_cpu::bfloat16_t>,
+                                                           float,
+                                                           uint8_t>;
+                const uint8_t bit = static_cast<uint8_t>((src[byteIndex] >> bitIndex) & 1U);
+                dst[byteIndex * nBits + bitIndex] = static_cast<dst_t>(static_cast<bin_cast_input_t>(bit));
             }
         });
         ctx.converted = true;

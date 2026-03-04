@@ -65,10 +65,10 @@ static IEB_HEADER prepare_header(const MemoryDesc& desc) {
 
     OPENVINO_ASSERT(desc.getShape().getRank() <= 7, "Dumper support max 7D blobs");
 
-    header.ndims = desc.getShape().getRank();
+    header.ndims = static_cast<int>(desc.getShape().getRank());
     const auto& dims = desc.getShape().getStaticDims();
     for (int i = 0; i < header.ndims; i++) {
-        header.dims[i] = dims[i];
+        header.dims[i] = static_cast<int>(dims[i]);
     }
 
     header.scaling_axis = NO_SCALES;

@@ -34,7 +34,7 @@ public:
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
     [[nodiscard]] port_mask_t get_port_mask() const override {
-        return PortMask(0);
+        return static_cast<port_mask_t>(PortMask(0));
     }
 
 private:

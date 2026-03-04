@@ -335,7 +335,7 @@ public:
         return res;
     }
     const variable& operator+=(arithmetic_type rhs) const {
-        base::_kernel.add(base::reg(), rhs);
+        base::_kernel.add(base::reg(), static_cast<int>(rhs));
         return *this;
     }
     variable operator+(arithmetic_type rhs) const {

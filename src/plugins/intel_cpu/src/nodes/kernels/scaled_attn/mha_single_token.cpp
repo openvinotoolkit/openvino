@@ -1722,7 +1722,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         h_each_group_len = H / h_group_num;
     }
     if (d_scale == 0.0F) {
-        d_scale = 1.0F / sqrt(S);
+        d_scale = 1.0F / sqrtf(static_cast<float>(S));
     }
     auto nthr = parallel_get_max_threads();
     auto kv_len = present_key.size(2);

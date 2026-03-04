@@ -98,7 +98,7 @@ const BlockedDescCreator::CreatorsMap& BlockedDescCreator::getCommonCreators() {
 
 std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> BlockedDescCreator::makeFilteredRange(
     const CreatorsMap& map,
-    unsigned int rank) {
+    size_t rank) {
     auto rankFilter = [rank](const CreatorsMap::value_type& item) {
         return item.second->getMinimalRank() <= rank;
     };
@@ -110,7 +110,7 @@ std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> Blocke
 
 std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> BlockedDescCreator::makeFilteredRange(
     const CreatorsMap& map,
-    unsigned rank,
+    size_t rank,
     const std::vector<LayoutType>& supportedTypes) {
     unsigned bitMask = 0UL;
     for (const auto& item : supportedTypes) {

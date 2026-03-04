@@ -26,7 +26,7 @@ public:
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
     [[nodiscard]] port_mask_t get_port_mask() const override {
-        return PortMask(1);
+        return static_cast<port_mask_t>(PortMask(1));
     }
 
 private:
@@ -39,7 +39,7 @@ public:
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
     [[nodiscard]] port_mask_t get_port_mask() const override {
-        return PortMask(1);
+        return static_cast<port_mask_t>(PortMask(1));
     }
 };
 
@@ -49,7 +49,7 @@ public:
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
     [[nodiscard]] port_mask_t get_port_mask() const override {
-        return PortMask(1);
+        return static_cast<port_mask_t>(PortMask(1));
     }
 };
 

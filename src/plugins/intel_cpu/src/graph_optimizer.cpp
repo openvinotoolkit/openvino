@@ -332,7 +332,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         OPENVINO_ASSERT(scalesData, "scalesBlob has not allocated buffer");
         auto scalesDims = getNormalizedDimsBySize(scales->getOutputShapeAtPort(0).getDims(),
                                                   node->getOutputShapeAtPort(0).getDims().size());
-        auto scaleSize = std::accumulate(scalesDims.begin(), scalesDims.end(), 1, std::multiplies<>());
+        auto scaleSize = std::accumulate(scalesDims.begin(), scalesDims.end(), size_t{1}, std::multiplies<>());
         node->fuseDQScales(scalesData, scaleSize);
         return true;
     };

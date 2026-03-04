@@ -169,8 +169,8 @@ struct Xattn {
             auto scratch_a_size = _xattn_gemm.back()->get_scratch_a_size();
             auto wsp_size = _xattn_gemm.back()->get_wsp_size();
 
-            _scratch_a.assign(scratch_a_size * max_threads_num, 0.0f);
-            _wsp.assign(wsp_size * max_threads_num, 0.0f);
+            _scratch_a.assign(scratch_a_size * max_threads_num, uint8_t{0});
+            _wsp.assign(wsp_size * max_threads_num, uint8_t{0});
 
             _attn_sum_temp.resize({H, L, _q_num_strided, _k_num_strided}, sizeof(float), ov::element::Type_t::f32);
             _attn_sum.resize({H, L, _q_num_blocks, _k_num_blocks}, _attn_sum_temp.m_element_size, _attn_sum_temp.m_dt);
@@ -290,7 +290,7 @@ struct Xattn {
         parallel_for3d(_q_num_strided, H, L, [&](size_t b, size_t h, size_t l) {
             auto* data = _attn_sum_temp.ptr<float>(h, l, b, 0);
             auto ncausal = b + 1;
-            auto scale = 1.0 / sqrt(S) / stride;
+            auto scale = static_cast<float>(1.0f / sqrtf(static_cast<float>(S)) / stride);
             attn_softmax_kernel<float>(data,
                                        reinterpret_cast<float*>(data),
                                        scale,

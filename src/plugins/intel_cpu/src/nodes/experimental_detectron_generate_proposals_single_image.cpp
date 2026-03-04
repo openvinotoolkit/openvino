@@ -390,11 +390,11 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
         auto* p_roi_item = getDstDataAtPortAs<float>(OUTPUT_ROIS);
         auto* p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
 
-        const int anchors_num = scoreDims[0];
+        const int anchors_num = static_cast<int>(scoreDims[0]);
 
         // bottom shape: (num_anchors) x H x W
-        const int bottom_H = deltaDims[1];
-        const int bottom_W = deltaDims[2];
+        const int bottom_H = static_cast<int>(deltaDims[1]);
+        const int bottom_W = static_cast<int>(deltaDims[2]);
 
         // input image height & width
         const float img_H = p_img_info_cpu[0];

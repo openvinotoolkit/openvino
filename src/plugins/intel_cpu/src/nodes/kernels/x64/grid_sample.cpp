@@ -262,7 +262,7 @@ void GridSampleKernel<isa>::process() {
         if (jcp.dynamicShapes) {
             add(regSrc, ptr[regParams + GET_OFF(srcBatchStepB)]);
         } else {
-            add(regSrc, jcp.srcBatchStepB);
+            add(regSrc, static_cast<uint32_t>(jcp.srcBatchStepB));
         }
         add(regGrid, ptr[regParams + GET_OFF(gridBatchStepB)]);
         add(regDst, ptr[regParams + GET_OFF(dstBatchStepB)]);
@@ -284,15 +284,15 @@ void GridSampleKernel<isa>::spatialLoop() {
     Xbyak::Label lTail;
     L(lSpacialLoop);
     {
-        cmp(regWorkAmount, dataElPerVec);
+        cmp(regWorkAmount, static_cast<uint32_t>(dataElPerVec));
         jl(lTail, T_NEAR);
 
         getCoordinates(vHCoord, vWCoord);
         denormalizeRawCoordinates(vWCoord, vHCoord);
         interpolation(vWCoord, vHCoord);
 
-        sub(regWorkAmount, dataElPerVec);
-        add(regDst, vlen);
+        sub(regWorkAmount, static_cast<uint32_t>(dataElPerVec));
+        add(regDst, static_cast<uint32_t>(vlen));
 
         jmp(lSpacialLoop, T_NEAR);
     }
@@ -340,14 +340,14 @@ void GridSampleKernel<x64::avx512_core>::getCoordinates(const Vmm& vHCoord, cons
     vpermd(vWCoord, vGridPermMask, ptr[regGrid]);       // Permute to XXXX.XXXX.YYYY.YYYY
     vshuff64x2(vHCoord, vWCoord, vHCoord, 0B11101110);  // Extract Y component
 
-    add(regGrid, vlen);
+    add(regGrid, static_cast<uint32_t>(vlen));
 
     auto vAux = getVmm();
     vpermd(vAux, vGridPermMask, ptr[regGrid]);       // Permute to XXXX.XXXX.YYYY.YYYY
     vshuff64x2(vWCoord, vWCoord, vAux, 0B01000100);  // Extract X component
     vshuff64x2(vHCoord, vHCoord, vAux, 0B11100100);  // Extract Y component
 
-    add(regGrid, vlen);
+    add(regGrid, static_cast<uint32_t>(vlen));
 }
 
 template <>
@@ -370,13 +370,13 @@ void GridSampleKernel<x64::avx2>::getCoordinates(const Vmm& vHCoord, const Vmm& 
     vpermd(vWCoord, vPermMask, ptr[regGrid]);           // Permute to XXXX.YYYY
     vperm2f128(vHCoord, vHCoord, vWCoord, 0B00000011);  // Extract Y component
 
-    add(regGrid, vlen);
+    add(regGrid, static_cast<uint32_t>(vlen));
 
     vpermd(vAux, vPermMask, ptr[regGrid]);           // Permute to XXXX.YYYY
     vperm2f128(vWCoord, vWCoord, vAux, 0B00100000);  // Extract X component
     vperm2f128(vHCoord, vHCoord, vAux, 0B00110000);  // Extract Y component
 
-    add(regGrid, vlen);
+    add(regGrid, static_cast<uint32_t>(vlen));
 }
 
 template <x64::cpu_isa_t isa>  // Works for AVX, SSE41
@@ -385,7 +385,7 @@ void GridSampleKernel<isa>::getCoordinates(const Vmm& vHCoord, const Vmm& vWCoor
     Xbyak::Xmm xmmWCoord(vWCoord.getIdx());
     Xbyak::Xmm xmmHCoord(vHCoord.getIdx());
     Xbyak::Xmm xmmAux(vAux.getIdx());
-    const uint64_t xmmVlen = x64::cpu_isa_traits_t<x64::sse41>::vlen;
+    const uint32_t xmmVlen = static_cast<uint32_t>(x64::cpu_isa_traits_t<x64::sse41>::vlen);
 
     uni_vmovups(xmmWCoord, ptr[regGrid]);
     uni_vpshufd(xmmWCoord, xmmWCoord, 0xD8);
@@ -438,14 +438,14 @@ void GridSampleKernel<x64::avx512_core>::getTailCoordinates(const Vmm& vHCoord, 
 
     mov(rAux, regWorkAmount);
     sal(rAux, 0x1);  // Multiply by gridShape[3].
-    cmp(regWorkAmount, dataElPerVec / 2);
+    cmp(regWorkAmount, static_cast<uint32_t>(dataElPerVec / 2));
     jl(lRest, T_NEAR);
     {
         vpermd(vWCoord, vGridPermMask, ptr[regGrid]);
         vshuff64x2(vHCoord, vWCoord, vHCoord, 0B11101110);  // Extract Y component
 
-        add(regGrid, vlen);
-        sub(rAux, dataElPerVec);
+        add(regGrid, static_cast<uint32_t>(vlen));
+        sub(rAux, static_cast<uint32_t>(dataElPerVec));
         cmp(rAux, 0);
         jle(lEnd, T_NEAR);
 
@@ -499,14 +499,14 @@ void GridSampleKernel<x64::avx2>::getTailCoordinates(const Vmm& vHCoord, const V
 
     mov(rAux, regWorkAmount);
     sal(rAux, 0x1);  // multiply by gridShape[3] == 2
-    cmp(regWorkAmount, dataElPerVec / 2);
+    cmp(regWorkAmount, static_cast<uint32_t>(dataElPerVec / 2));
     jl(lRest, T_NEAR);
     {
         vpermd(vWCoord, vPermMask, ptr[regGrid]);           // Permute to XXXX.YYYY
         vperm2f128(vHCoord, vHCoord, vWCoord, 0B00000011);  // Extract Y component
 
-        add(regGrid, vlen);
-        sub(rAux, dataElPerVec);
+        add(regGrid, static_cast<uint32_t>(vlen));
+        sub(rAux, static_cast<uint32_t>(dataElPerVec));
         cmp(rAux, 0);
         jle(lEnd, T_NEAR);
 
@@ -556,7 +556,7 @@ void GridSampleKernel<x64::avx>::getTailCoordinates(const Vmm& vHCoord, const Vm
             pinsrw(i % 2 == 0 ? xmmWCoord : xmmHCoord, ptr[regGrid], i / 2);
         }
 
-        add(regGrid, gridTypeSize);
+        add(regGrid, static_cast<uint32_t>(gridTypeSize));
         dec(rGridRest);
     }
 
@@ -576,7 +576,7 @@ void GridSampleKernel<x64::avx>::getTailCoordinates(const Vmm& vHCoord, const Vm
             pinsrw(i % 2 == 0 ? xmmWCoord : xmmHCoord, ptr[regGrid], i / 2);
         }
 
-        add(regGrid, gridTypeSize);
+        add(regGrid, static_cast<uint32_t>(gridTypeSize));
         dec(rGridRest);
     }
 
@@ -597,7 +597,7 @@ void GridSampleKernel<x64::sse41>::getTailCoordinates(const Vmm& vHCoord, const 
 
     mov(rAux, regWorkAmount);
     sal(rAux, 0x1);  // Multiply by gridShape[3] == 2
-    cmp(regWorkAmount, dataElPerVec / 2);
+    cmp(regWorkAmount, static_cast<uint32_t>(dataElPerVec / 2));
     jl(lRest, T_NEAR);
     {
         // Here is movups + pshufd instead of pshufd due to
@@ -606,8 +606,8 @@ void GridSampleKernel<x64::sse41>::getTailCoordinates(const Vmm& vHCoord, const 
         pshufd(vWCoord, vWCoord, 0B11011000);
         shufpd(vHCoord, vWCoord, 0B00000010);
 
-        add(regGrid, vlen);
-        sub(rAux, dataElPerVec);
+        add(regGrid, static_cast<uint32_t>(vlen));
+        sub(rAux, static_cast<uint32_t>(dataElPerVec));
         cmp(rAux, 0);
         jle(lHShuf, T_NEAR);
 
@@ -2122,7 +2122,7 @@ void GridSampleKernel<isa>::dataTypeShiftPs2Dq(const Vmm& vDst, const Vmm& vSrc)
 
     if (isa == x64::avx) {  // vpslld works just with XMM for AVX, so use vmulps for YMM
         auto rAux = getReg64();
-        static const float val = dataTypeSize;
+        static const float val = static_cast<float>(dataTypeSize);
         static const float dataTypeSizeArr[8] = {val, val, val, val, val, val, val, val};
         mov(rAux, reinterpret_cast<uintptr_t>(dataTypeSizeArr));
         uni_vmulps(vDst, vSrc, ptr[rAux]);
@@ -2162,7 +2162,7 @@ void GridSampleKernel<isa>::hwShiftPs2dq(const Vmm& vDst, const Vmm& vHCoord, co
     if (isa == x64::avx) {  // vpslld works just with XMM for AVX, so use vmulps for YMM
         if (dataTypeSize > 1) {
             auto rAux = getReg64();
-            const float val = dataTypeSize;
+            const float val = static_cast<float>(dataTypeSize);
             static const float dataTypeSizeArr[8] = {val, val, val, val, val, val, val, val};
             mov(rAux, reinterpret_cast<uintptr_t>(dataTypeSizeArr));
             uni_vmulps(vDst, vDst, ptr[rAux]);

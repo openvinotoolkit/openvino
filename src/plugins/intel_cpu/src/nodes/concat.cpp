@@ -580,7 +580,7 @@ void Concat::execute(const dnnl::stream& strm) {
             if (srcMem.getShape().hasZeroDims()) {
                 continue;
             }
-            mem_ags[DNNL_ARG_MULTIPLE_SRC + nonZeroInShapes] = srcMem.getPrimitive();
+            mem_ags[DNNL_ARG_MULTIPLE_SRC + static_cast<int>(nonZeroInShapes)] = srcMem.getPrimitive();
             nonZeroInShapes++;
         }
         prim.execute(strm, mem_ags);
@@ -631,7 +631,7 @@ void Concat::execNspcSpecCase() {
         channels_size += num_channels * dataSize;
 
         if (firstNonZeroEdge == -1) {
-            firstNonZeroEdge = i;
+            firstNonZeroEdge = static_cast<int>(i);
         }
 
         nonZeroInShapes++;
@@ -639,7 +639,7 @@ void Concat::execNspcSpecCase() {
     const Shape& shape = getSrcMemoryAtPort(firstNonZeroEdge)->getShape();
     const size_t iter_count = shape.getElementsCount() / shape.getStaticDims()[channelAxis];
 
-    cpu_parallel->parallel_for(iter_count, [&](int i) {
+    cpu_parallel->parallel_for(static_cast<int>(iter_count), [&](int i) {
         const size_t dst_off = i * channels_size;
         for (size_t j = 0; j < nonZeroInShapes; j++) {
             cpu_memcpy(dst_ptrs[j] + dst_off, src_ptrs[j] + i * channelsDataSize[j], channelsDataSize[j]);
@@ -864,12 +864,12 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     CPU_NODE_ASSERT(selected_pd, "Preferable primitive descriptor is not set.");
     const auto& config = selected_pd->getConfig();
     size_t numberOfInputs = config.inConfs.size();
-    size_t inplaceOutIndx = selected_pd->getConfig().inConfs[0].inPlace();
+    size_t inplaceOutIndx = static_cast<size_t>(selected_pd->getConfig().inConfs[0].inPlace());
     auto baseDim = outputShapes.front().getDims()[axis];
     CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM,
                     "can't use inPlace memory with concatenation on dynamic dimension");
 
-    auto edges = getChildEdgesAtPort(inplaceOutIndx);
+    auto edges = getChildEdgesAtPort(static_cast<int>(inplaceOutIndx));
     auto itr = std::find_if(edges.begin(), edges.end(), [](const EdgePtr& edge) {
         return edge->getStatus() == Edge::Status::Allocated;
     });

@@ -1930,7 +1930,7 @@ TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
             CPU_NODE_ASSERT(topKConst, "gets non-constant second tensor in static shape mode!");
         }
 
-        axis = topKOp->get_axis();
+        axis = static_cast<int>(topKOp->get_axis());
         mode_max = topKOp->get_mode() == ov::op::TopKMode::MAX;
         sort_index = topKOp->get_sort_type() == ov::op::TopKSortType::SORT_INDICES;
 

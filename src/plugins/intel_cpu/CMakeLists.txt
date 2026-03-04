@@ -9,14 +9,8 @@ endif()
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # C4267, 4244 issues from oneDNN headers conversion from 'XXX' to 'YYY', possible loss of data
-    ov_add_compiler_flags(/wd4018)
-    ov_add_compiler_flags(/wd4267)
-    ov_add_compiler_flags(/wd4244)
-    # mkldnn headers: '<<': result of 32-bit shift implicitly converted to 64 bits
-    ov_add_compiler_flags(/wd4334)
-    # oneDNN arm64: unary minus operator applied to unsigned type, result still unsigned
-    ov_add_compiler_flags(/wd4146)
+    # disable warnings in external headers
+    ov_add_compiler_flags(/external:anglebrackets /external:W0)
 elseif (OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     ov_add_compiler_flags("/Wno-microsoft-include")
 endif()

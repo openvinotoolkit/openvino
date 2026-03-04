@@ -46,7 +46,7 @@ ShapeInferPtr OneHotShapeInferFactory::makeShapeInfer() const {
     OPENVINO_ASSERT(oneHot, "Unexpected op type in OneHot shape inference factory: ", m_op->get_type_name());
     auto axis = oneHot->get_axis();
     auto dstShape = oneHot->get_output_partial_shape(0);
-    int output_dims_size = dstShape.size();
+    int output_dims_size = static_cast<int>(dstShape.size());
     if (0 == output_dims_size) {
         output_dims_size = 1;
     }

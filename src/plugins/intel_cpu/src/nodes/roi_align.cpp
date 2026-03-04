@@ -1022,7 +1022,7 @@ void ROIAlign::executeSpecified() {
         auto samplingRatioY = samplingRatio == 0 ? static_cast<int>(ceil(binHeight)) : samplingRatio;
 
         uint64_t numSamplesInBin = static_cast<uint64_t>(samplingRatioX) * samplingRatioY;
-        numSamples[n] = numSamplesInBin;
+        numSamples[n] = static_cast<int>(numSamplesInBin);
 
         float sampleDistanceX = binWidth / static_cast<float>(samplingRatioX);
         float sampleDistanceY = binHeight / static_cast<float>(samplingRatioY);

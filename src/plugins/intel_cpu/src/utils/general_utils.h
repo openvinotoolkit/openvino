@@ -30,7 +30,7 @@ namespace ov::intel_cpu {
 template <typename T, typename U>
 inline T div_up(const T a, const U b) {
     assert(b);
-    return (a + b - 1) / b;
+    return static_cast<T>((a + b - 1) / b);
 }
 
 template <typename T, typename U>

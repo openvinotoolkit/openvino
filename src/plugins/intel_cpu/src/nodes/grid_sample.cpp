@@ -227,8 +227,8 @@ void GridSample::prepareParams() {
 
         p.batchNum = srcDataShape[0];
         p.channelsNum = srcDataShape[1];
-        p.srcHeightF[0] = srcDataShape[2];
-        p.srcWidthF[0] = srcDataShape[3];
+        p.srcHeightF[0] = static_cast<float>(srcDataShape[2]);
+        p.srcWidthF[0] = static_cast<float>(srcDataShape[3]);
 
         p.gridStartB = dstStart * 2 * gridTypeSize;
         p.dstStartB = dstStart * dataTypeSize;
@@ -240,7 +240,7 @@ void GridSample::prepareParams() {
 
         p.srcChannelStepB = srcDataShape[2] * srcDataShape[3] * dataTypeSize;
         p.dstChannelStepB = dstShape[2] * dstShape[3] * dataTypeSize;
-        p.dataTypeSize[0] = dataTypeSize;
+        p.dataTypeSize[0] = static_cast<int32_t>(dataTypeSize);
 
         p.srcHeightSub1F[0] = p.srcHeightF[0] - 1.F;
         p.srcWidthSub1F[0] = p.srcWidthF[0] - 1.F;
