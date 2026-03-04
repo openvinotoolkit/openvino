@@ -288,7 +288,6 @@ ov::Tensor unsqueeze_input(const ov::Tensor& input, std::vector<int64_t>& unsque
     }
 
     auto output = ov::Tensor(input.get_element_type(), output_shape);
-    const auto element_type = input.get_element_type();
 
     reshape(static_cast<const char*>(input.data()),
             static_cast<char*>(output.data()),
@@ -640,7 +639,6 @@ ov::Tensor reshape_input_for_matmul(const ov::Tensor& input,
     }
 
     const auto element_type = input.get_element_type();
-    const auto& input_shape = input.get_shape();
     auto output = ov::Tensor(element_type, new_shape);
 
     reshape(static_cast<const char*>(input.data()),
