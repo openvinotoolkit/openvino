@@ -7,10 +7,13 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <functional>
 #include <iterator>
 #include <numeric>
 #include <set>
+#include <tuple>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "openvino/core/except.hpp"
@@ -55,22 +58,26 @@ ov::snippets::VectorDims reshape_m_dim(ov::snippets::VectorDims shape,
                                        size_t m_index,
                                        size_t batch_m_dim,
                                        size_t new_m_dim) {
-    if (shape[m_index] == 1)
+    if (shape[m_index] == 1) {
         return unsqueeze_m_dim(std::move(shape), m_index);
+    }
     shape[m_index] = new_m_dim;
     shape.insert(shape.begin() + m_index, batch_m_dim);
     return shape;
 }
 
 bool is_prime_number(size_t value) {
-    if (value == 2lu || value == 3lu)
+    if (value == 2LU || value == 3LU) {
         return true;
-    if (value == 1 || value % 2 == 0 || value % 3 == 0)
+    }
+    if (value == 1 || value % 2 == 0 || value % 3 == 0) {
         return false;
+    }
     const auto root = std::sqrt(value) + 1;
     for (size_t divisor = 5; divisor < root; divisor += 6) {
-        if ((value % divisor == 0) || (value % (divisor + 2) == 0))
+        if ((value % divisor == 0) || (value % (divisor + 2) == 0)) {
             return false;
+        }
     }
     return true;
 }
@@ -143,9 +150,10 @@ bool MHAParallelWAOptimizer::run(const lowered::LinearIR& linear_ir) {
     }
 
     for (size_t i = 0; i < m_configurator->get_io_num(); ++i) {
-        config->io_shapes[i] = m_unsqueezed_params.count(i)
-                                   ? unsqueeze_m_dim(config->io_shapes[i], m_dim_M_idces[i])
-                                   : reshape_m_dim(config->io_shapes[i], m_dim_M_idces[i], new_batch_dim, new_kernel_dim);
+        config->io_shapes[i] =
+            m_unsqueezed_params.count(i)
+                ? unsqueeze_m_dim(config->io_shapes[i], m_dim_M_idces[i])
+                : reshape_m_dim(config->io_shapes[i], m_dim_M_idces[i], new_batch_dim, new_kernel_dim);
     }
     config->io_layouts = m_optimized_layouts;
     return true;
@@ -256,30 +264,36 @@ bool MHAParallelWAOptimizer::split(const ov::Shape& shape,
                                    size_t optimal_parallelism_work_amount,
                                    size_t& batch_m_dim,
                                    size_t& new_m_dim) {
-    const auto batch_dim = std::accumulate(shape.rbegin() + 2, shape.rend(), size_t(1), std::multiplies<size_t>());
+    const auto batch_dim =
+        std::accumulate(shape.rbegin() + 2, shape.rend(), static_cast<size_t>(1), std::multiplies<>());
     const auto m_dim = *(shape.rbegin() + 1);
-    if (is_prime_number(m_dim))
+    if (is_prime_number(m_dim)) {
         return false;
+    }
 
     // We skip optimization if the current batch is optimal for concurrency
-    if (batch_dim % optimal_parallelism_work_amount == 0)
+    if (batch_dim % optimal_parallelism_work_amount == 0) {
         return false;
+    }
 
     auto split_is_done = [&batch_m_dim]() {
         return batch_m_dim != 1;
     };
 
     std::tie(batch_m_dim, new_m_dim) = split_ideally(batch_dim, m_dim, optimal_parallelism_work_amount);
-    if (split_is_done())
+    if (split_is_done()) {
         return true;
+    }
 
     std::tie(batch_m_dim, new_m_dim) = split_minimize_kernel_wa(batch_dim, m_dim, optimal_parallelism_work_amount);
-    if (split_is_done())
+    if (split_is_done()) {
         return true;
+    }
     // If all the previous heuristics failed, fallback heuristic is used, which reflects the old splitting behavior
-    if (batch_dim < optimal_parallelism_work_amount)
+    if (batch_dim < optimal_parallelism_work_amount) {
         std::tie(batch_m_dim, new_m_dim) =
             split_fallback_increase_parallel_wa(batch_dim, m_dim, optimal_parallelism_work_amount);
+    }
     return split_is_done();
 }
 
@@ -289,15 +303,17 @@ std::pair<size_t, size_t> MHAParallelWAOptimizer::split_ideally(size_t batch_dim
     // Ideal case #1: M can be split on the parts one of which complements the batch dimension to the optimal parallel
     // work amount In this case, each thread will execute the Snippets kernel once
     const size_t lower_bound = optimal_parallelism_work_amount / batch_dim;
-    if (lower_bound * batch_dim == optimal_parallelism_work_amount && m_dim % lower_bound == 0)
+    if (lower_bound * batch_dim == optimal_parallelism_work_amount && m_dim % lower_bound == 0) {
         return std::make_pair(lower_bound, m_dim / lower_bound);
+    }
 
     // Ideal case #2: M is divisible by optimal parallel work amount, and the new_m_dim is big enough
     // In this case, each thread will execute the Snippets kernel 'batch_dim' times
     if (m_dim % optimal_parallelism_work_amount == 0) {
         const auto new_m_dim = m_dim / optimal_parallelism_work_amount;
-        if (new_m_dim >= m_min_kernel_m)
+        if (new_m_dim >= m_min_kernel_m) {
             return std::make_pair(optimal_parallelism_work_amount, new_m_dim);
+        }
     }
 
     return std::make_pair(1, m_dim);
@@ -311,9 +327,10 @@ std::pair<size_t, size_t> MHAParallelWAOptimizer::split_fallback_increase_parall
     const size_t upper_bound = utils::div_up(2 * optimal_parallelism_work_amount, batch_dim);
     for (size_t divisor_0 = upper_bound - 1; divisor_0 > 1; divisor_0--) {
         size_t divisor_1 = m_dim / divisor_0;
-        if (divisor_1 * divisor_0 == m_dim)
+        if (divisor_1 * divisor_0 == m_dim) {
             return divisor_0 * batch_dim >= optimal_parallelism_work_amount ? std::make_pair(divisor_0, divisor_1)
                                                                             : splited;
+        }
     }
     return splited;
 }
@@ -322,16 +339,18 @@ std::pair<size_t, size_t> MHAParallelWAOptimizer::split_minimize_kernel_wa(size_
                                                                            size_t m_dim,
                                                                            size_t optimal_parallelism_work_amount) {
     // This heuristic minimizes 'm_kernel' (=> maximizes 'm_batch') with a limitation that 'm_kernel >= min_kernel_m'.
-    // In other words, it tries to find 'm_kernel' bigger than 'm_min_kernel_m' and at the same time as close as possible
-    // to this value.
+    // In other words, it tries to find 'm_kernel' bigger than 'm_min_kernel_m' and at the same time as close as
+    // possible to this value.
     std::pair<size_t, size_t> best_result = {1, m_dim};
     for (size_t divisor = 2; divisor < std::sqrt(m_dim); ++divisor) {
-        if (m_dim % divisor != 0)
+        if (m_dim % divisor != 0) {
             continue;
+        }
         // If divisor is more than 'm_min_kernel_m', divisor becomes 'm_kernel',
         // guaranteeing the most optimal implementation from 'm_kernel' minimization perspective.
-        if (divisor >= m_min_kernel_m)
+        if (divisor >= m_min_kernel_m) {
             return std::make_pair(m_dim / divisor, divisor);
+        }
 
         // If divisor is less than 'm_min_kernel_m', divisor becomes m_batch.
         // However, it is not guaranteed that the current 'm_kernel = m_dim / divisor' is minimized, as one of the next
@@ -342,8 +361,9 @@ std::pair<size_t, size_t> MHAParallelWAOptimizer::split_minimize_kernel_wa(size_
             best_result.second = m_kernel;
         }
     }
-    if (best_result.first * batch_dim >= optimal_parallelism_work_amount)
+    if (best_result.first * batch_dim >= optimal_parallelism_work_amount) {
         return best_result;
+    }
     return std::make_pair(1, m_dim);
 }
 
