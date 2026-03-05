@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "intel_npu/npu_mlir_runtime.hpp"
+#include "intel_npu/runtime/npu_mlir_runtime.hpp"
 #include "openvino/core/except.hpp"
 
 namespace intel_npu {
