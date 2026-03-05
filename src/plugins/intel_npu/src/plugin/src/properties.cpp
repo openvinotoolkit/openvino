@@ -25,6 +25,11 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     return result;
 }
 
+inline bool isSpecialBothProperty(const std::string& key) {
+    return key == ov::hint::performance_mode.name() || key == ov::enable_profiling.name() ||
+           key == ov::log::level.name();
+}
+
 void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
                                        const intel_npu::ICompilerAdapter* compiler,
                                        const ov::SoPtr<intel_npu::IEngineBackend>& backend,
@@ -60,10 +65,8 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
         bool isEnabled = false;
         auto opt = config.getOpt(key);
         // Special case for some both configs. Don't need compiler for these Both properties.
-        const bool isNotSpecialBothProperty = key != ov::hint::performance_mode.name() &&
-                                              key != ov::enable_profiling.name() && key != ov::log::level.name();
         // Runtime (plugin-only) options are always enabled
-        if (opt.mode() != OptionMode::RunTime && isNotSpecialBothProperty) {
+        if (opt.mode() != OptionMode::RunTime && !isSpecialBothProperty(key)) {
             if (legacy) {
                 // Compiler or common option in Legacy mode? Checking its supported version
                 if (compilerVersion >= opt.compilerSupportVersion()) {
@@ -114,10 +117,8 @@ void disableCompilerProperties(intel_npu::FilteredConfig& config, const ov::SoPt
         auto opt = config.getOpt(key);
 
         // Special case for some both configs. Don't need compiler for these Both properties.
-        const bool isNotSpecialBothProperty = key != ov::hint::performance_mode.name() &&
-                                              key != ov::enable_profiling.name() && key != ov::log::level.name();
         // Runtime (plugin-only) options are always enabled
-        if (opt.mode() != OptionMode::RunTime && isNotSpecialBothProperty) {  // Compiler and common options
+        if (opt.mode() != OptionMode::RunTime && !isSpecialBothProperty(key)) {  // Compiler and common options
             // Disable all compiler options
             config.enable(key, false);
         }
@@ -520,6 +521,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::batch_compiler_mode_settings, BATCH_COMPILER_MODE_SETTINGS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::workload_type, WORKLOAD_TYPE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::enable_weightless, ENABLE_WEIGHTLESS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::weightless_blob, WEIGHTLESS_BLOB);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::use_base_model_serializer, USE_BASE_MODEL_SERIALIZER);
@@ -788,6 +790,7 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::batch_compiler_mode_settings,
                                               BATCH_COMPILER_MODE_SETTINGS);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::run_inferences_sequentially, RUN_INFERENCES_SEQUENTIALLY);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::enable_weightless, ENABLE_WEIGHTLESS);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::weightless_blob, WEIGHTLESS_BLOB);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::enable_strides_for, ENABLE_STRIDES_FOR);
@@ -843,9 +846,7 @@ ov::Any Properties::getProperty(const std::string& name) {
         } else {
             // Property is already registered but need to re-check if the CompilerTime config is still supported by the
             // current compiler.
-            const bool isNotSpecialBothProperty = name != ov::hint::performance_mode.name() &&
-                                                  name != ov::enable_profiling.name() && name != ov::log::level.name();
-            if (_config.hasOpt(name) && isNotSpecialBothProperty) {
+            if (_config.hasOpt(name) && !isSpecialBothProperty(name)) {
                 auto opt = _config.getOpt(name);
                 if (opt.mode() != OptionMode::RunTime) {
                     propertyIsCompilerConfig = true;
@@ -853,7 +854,10 @@ ov::Any Properties::getProperty(const std::string& name) {
             }
         }
 
-        if (propertyIsCompilerConfig || !propertyIsRegistered || name == ov::supported_properties.name()) {
+        // Special case for Supported Properties and Caching Properties as they are compiler dependent. So we need to
+        // check compiler support for those properties on each getProperty call as well.
+        if (propertyIsCompilerConfig || !propertyIsRegistered || name == ov::supported_properties.name() ||
+            name == ov::internal::caching_properties.name()) {
             std::unique_ptr<ICompilerAdapter> compiler = nullptr;
             auto compilerType = _config.get<COMPILER_TYPE>();
             auto deviceId = _config.get<DEVICE_ID>();
@@ -921,9 +925,7 @@ void Properties::setProperty(const ov::AnyMap& properties) {
                 break;
             }
             // Special case for some both configs. Don't need to check compiler support for these Both properties.
-            const bool isNotSpecialBothProperty = property.first != ov::hint::performance_mode.name() &&
-                                                  property.first != ov::enable_profiling.name() &&
-                                                  property.first != ov::log::level.name();
+            const bool isNotSpecialBothProperty = !isSpecialBothProperty(property.first);
             if (_config.hasOpt(property.first) && isNotSpecialBothProperty) {
                 auto opt = _config.getOpt(property.first);
                 if (opt.mode() != OptionMode::RunTime) {
@@ -991,6 +993,78 @@ void Properties::setProperty(const ov::AnyMap& properties) {
     if (!cfgs_to_set.empty()) {
         _config.update(cfgs_to_set);
     }
+}
+
+bool Properties::isPropertySupported(const std::string& name) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (_pType == PropertiesType::PLUGIN) {
+        const bool isRegistered = isPropertyRegistered(name);
+        const bool isConfigOption = _config.hasOpt(name);
+
+        if (!isRegistered && !isConfigOption) {
+            // Property is neither registered nor known by config
+            return false;
+        }
+
+        if (isRegistered) {
+            // Registered and not a config option: always supported. Or it is a special both property which is always
+            // supported.
+            if (!isConfigOption || isSpecialBothProperty(name)) {
+                return true;
+            }
+
+            // Registered as a config option: runtime mode is always supported.
+            auto opt = _config.getOpt(name);
+            if (opt.mode() == OptionMode::RunTime) {
+                return true;
+            }
+        }
+
+        // Property is compiler config, need to check compiler support
+        std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+        auto compilerType = _config.get<COMPILER_TYPE>();
+        auto deviceId = _config.get<DEVICE_ID>();
+        auto device = utils::getDeviceById(_backend, deviceId);
+
+        auto compilationPlatform = utils::getCompilationPlatform(
+            _config.get<PLATFORM>(),
+            device == nullptr ? deviceId : device->getName(),
+            _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+
+        // Create a compiler to get the type and fetch version and supported options if needed
+        CompilerAdapterFactory factory;
+        try {
+            compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+        } catch (const std::exception& ex) {
+            if (_config.hasOpt(name) && _config.getOpt(name).mode() == OptionMode::CompileTime) {
+                return false;
+            }
+
+            _logger.warning("Failed to create compiler to query property %s with error: %s. "
+                            "Registering only runtime properties and metrics that do not require compiler support.",
+                            name.c_str(),
+                            ex.what());
+        }
+
+        if (compiler != nullptr && !(_compilerConfigsFilteredByCompiler && compilerType == _currentlyUsedCompiler &&
+                                     compilationPlatform == _currentlyUsedPlatform)) {
+            // In case properties are not initialized or the compiler/platform was changed since last call -
+            // filter out options again
+            filterPropertiesByCompilerSupport(_config, compiler.get(), _backend, _logger);
+
+            // reset properties for the new options
+            registerProperties();
+            _compilerConfigsFilteredByCompiler = true;
+            _currentlyUsedCompiler = compilerType;
+            _currentlyUsedPlatform = compilationPlatform;
+        }
+    }
+
+    if (isPropertyRegistered(name)) {
+        return true;
+    }
+
+    return false;
 }
 
 bool Properties::isPropertyRegistered(const std::string& propertyName) const {
