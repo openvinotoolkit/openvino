@@ -1948,7 +1948,7 @@ void Partitioner::attention(const std::string& func_name) {
     if (attn_mode == "HFA") {
         LOG_DEBUG("Attempting HostFlashAttention based on config");
         f._host_flash_attention =
-            ov::npuw::function::HostFlashAttention::from(f._model, cfg.get<::intel_npu::NPUW_ATTN_COMPILER_FA_TILE>());
+            ov::npuw::function::HostFlashAttention::from(f._model, cfg.get<::intel_npu::NPUW_ATTN_HFA_FUSED>());
         if (f._host_flash_attention) {
             LOG_VERB("Done - HFA (Host Flash Attention)");
             return;

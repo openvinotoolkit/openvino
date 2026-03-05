@@ -108,7 +108,7 @@ private:
         ov::intel_npu::npuw::partitioning::online::keep_blocks.name(),
         ov::intel_npu::npuw::partitioning::online::keep_block_size.name(),
         ov::intel_npu::npuw::partitioning::attn.name(),
-        ov::intel_npu::npuw::partitioning::compiler_flash_attention_tile.name(),
+        ov::intel_npu::npuw::partitioning::attn_hfa_fused.name(),
         ov::intel_npu::npuw::partitioning::fold.name(),
         ov::intel_npu::npuw::partitioning::cwai.name(),
         ov::intel_npu::npuw::partitioning::dyn_quant.name(),

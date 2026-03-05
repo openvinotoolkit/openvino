@@ -450,8 +450,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::online::keep_block_size,
                                  NPUW_ONLINE_KEEP_BLOCK_SIZE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::attn, NPUW_ATTN);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::compiler_flash_attention_tile,
-                                 NPUW_ATTN_COMPILER_FA_TILE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::attn_hfa_fused, NPUW_ATTN_HFA_FUSED);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::fold, NPUW_FOLD);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::cwai, NPUW_CWAI);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::dyn_quant, NPUW_DQ);

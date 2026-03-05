@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #pragma once
 
@@ -165,7 +166,7 @@ struct HostFlashAttention {
 
     // Factory method
     static std::optional<HostFlashAttention> from(const std::shared_ptr<ov::Model>& model,
-                                                  bool compiler_flash_attention_tile = true);
+                                                  bool fused_flash_attention = true);
 };
 
 }  // namespace function
