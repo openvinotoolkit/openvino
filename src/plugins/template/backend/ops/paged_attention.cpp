@@ -53,10 +53,7 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
     OPENVINO_ASSERT(inputs.size() == 25, "PagedAttentionExtension: expected 25 inputs");
     OPENVINO_ASSERT(outputs.size() == 3, "PagedAttentionExtension: expected 3 outputs");
 
-    for (size_t i = 0; i < inputs[5].get_shape()[0]; ++i)
-
-        resize_pa_outputs(pa_op, outputs, inputs);
-
+    resize_pa_outputs(pa_op, outputs, inputs);
     // shape_infer approximates output 2 as max(evictable_sizes); fix to the exact
     // flat size sum(evictable_sizes[i]^2 / block_size) before writing
     if (inputs[22].get_size() > 0) {
