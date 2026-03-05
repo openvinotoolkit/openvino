@@ -122,7 +122,7 @@ public:
                 return false;
             }
         }
-        if (poolingAttrs.postOps.size() > 1U || 
+        if (poolingAttrs.postOps.size() > 1U ||
             (poolingAttrs.postOps.size() == 1U && !std::any_cast<FakeQuantizePostOp>(poolingAttrs.postOps.data()))) {
             DEBUG_LOG("AclPoolingExecutor supports only one post op of type FakeQuantize.");
             return false;
