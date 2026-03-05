@@ -196,8 +196,10 @@ request.infer(input_data)
 
 #! [set_rt_info]
 import openvino as ov
+from utils import get_path_to_model
 
 core = ov.Core()
+model_path = get_path_to_model()
 model = core.read_model(model=model_path)
 
 # Set runtime info on the Model using a string path

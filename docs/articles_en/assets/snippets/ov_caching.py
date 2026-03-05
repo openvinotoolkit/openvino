@@ -90,6 +90,12 @@ if any("GPU" in device for device in core.available_devices):
 
 # ! [ov:caching:part7]
 import numpy as np
+import openvino as ov
+from utils import get_path_to_model
+
+# For example: "CPU", "GPU", "NPU".
+device_name = 'CPU'
+model_path = get_path_to_model()
 
 core = ov.Core()
 model = core.read_model(model=model_path)

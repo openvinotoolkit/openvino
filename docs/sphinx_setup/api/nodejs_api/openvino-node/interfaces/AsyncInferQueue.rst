@@ -68,7 +68,7 @@ Callback function type for ``AsyncInferQueue`` operations.
   - error: ``null | Error`` — Error that occurred during inference, if any.
   - inferRequest: :doc:`InferRequest <InferRequest>` — The request from the
     pool, providing access to input and output tensors.
-  - userData: ``object`` — User data passed to ``startAsync``. If not
+  - userData: ``object | undefined`` — User data passed to ``startAsync``. If not
     provided, it will be ``undefined``.
 
 * **Defined in:**
