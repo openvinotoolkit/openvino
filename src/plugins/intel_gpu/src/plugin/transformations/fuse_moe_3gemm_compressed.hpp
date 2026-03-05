@@ -15,4 +15,11 @@ public:
     FuseMOE3GemmCompressed();
 };
 
+// Fuse subgraph between router (Sigmoid+bias routing) and MOECompressed into MOE3GemmFusedCompressed operation.
+class FuseMOE3GemmCompressedSigmoid: public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("FuseMOE3GemmCompressedSigmoid");
+    FuseMOE3GemmCompressedSigmoid();
+};
+
 }   // namespace ov::intel_gpu
