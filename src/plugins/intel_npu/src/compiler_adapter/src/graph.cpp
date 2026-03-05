@@ -6,6 +6,7 @@
 
 #include <iterator>
 
+#include "compiler_impl.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -18,9 +19,8 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              const GraphDescriptor& graphDesc,
              NetworkMetadata metadata,
              std::optional<ov::Tensor> blob,
-             const Config& config,
+             const FilteredConfig& config,
              const bool blobIsPersistent,
-             const ov::SoPtr<VCLCompilerImpl>& compiler,
              const bool calledFromWeightlessGraph)
     : IGraph(),
       _zeGraphExt(zeGraphExt),
@@ -29,7 +29,6 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _metadata(std::move(metadata)),
       _blob(std::move(blob)),
       _blobIsPersistent(blobIsPersistent),
-      _compiler(compiler),
       _logger("Graph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
         _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
@@ -138,16 +137,14 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
     return std::make_pair(size, std::nullopt);
 }
 
-std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData,
-                                                               const Config& config) const {
-    if (_compiler == nullptr) {
-        OPENVINO_THROW("Profiling post-processing is not supported.");
-    }
+std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData) const {
+    auto compiler = VCLCompilerImpl::getInstance();
+    OPENVINO_ASSERT(compiler != nullptr, "Profiling post-processing requires the NPU plugin compiler library");
 
     std::vector<uint8_t> blob(_blob->get_byte_size());
     blob.assign(reinterpret_cast<const uint8_t*>(_blob->data()),
                 reinterpret_cast<const uint8_t*>(_blob->data()) + _blob->get_byte_size());
-    return _compiler->process_profiling_output(profData, blob, config);
+    return compiler->process_profiling_output(profData, blob);
 }
 
 void Graph::set_argument_value(uint32_t id, const void* data) const {
@@ -164,7 +161,7 @@ void Graph::set_argument_value_with_strides(uint32_t id, const void* data, const
     _zeGraphExt->setGraphArgumentValueWithStrides(_graphDesc, id, data, strides);
 }
 
-void Graph::initialize(const Config& config) {
+void Graph::initialize(const FilteredConfig& config) {
     _logger.debug("Graph initialize start");
 
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
@@ -221,7 +218,7 @@ void Graph::initialize(const Config& config) {
     _init_completed = true;
 }
 
-bool Graph::release_blob(const Config& config) {
+bool Graph::release_blob(const FilteredConfig& config) {
     if ((_zeGraphExt != nullptr && _zeGraphExt->isBlobDataImported(_graphDesc)) || _blobIsPersistent ||
         _blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8) ||
         config.get<PERF_COUNT>()) {

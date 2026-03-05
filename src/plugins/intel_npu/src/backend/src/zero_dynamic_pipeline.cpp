@@ -366,7 +366,7 @@ std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
     }
 
     _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
-    return _graph->process_profiling_output(_profiling_query->getData<uint8_t>(), _config);
+    return _graph->process_profiling_output(_profiling_query->getData<uint8_t>());
 }
 
 }  // namespace intel_npu
