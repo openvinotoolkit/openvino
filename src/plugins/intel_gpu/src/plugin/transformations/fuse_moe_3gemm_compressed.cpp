@@ -43,7 +43,8 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     using namespace ov::pass;
 #define ANY any_input()
 
-    auto matmul = wrap_type<ov::op::v0::MatMul>(consumers_count(1));
+    auto hidden_state_m = ANY;
+    auto matmul = wrap_type<ov::op::v0::MatMul>({hidden_state_m, ANY}, consumers_count(1));
 
     // ── Softmax routing branch ──────────────────────────────────────────
     auto sm_softmax = wrap_type<ov::op::v8::Softmax>({matmul}, consumers_count(1));
@@ -85,7 +86,6 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     auto unsqueeze_moe = wrap_type<ov::op::v0::Unsqueeze>({reshape, ANY}, consumers_count(1));
 
     // ── Common: hidden state + compressed weights + MOECompressed ───────
-    auto hidden_state_m = ANY;
     auto gate_wei_m = wrap_const();
     auto gate_scale_m = ANY;
     auto gate_zp_m = ANY;

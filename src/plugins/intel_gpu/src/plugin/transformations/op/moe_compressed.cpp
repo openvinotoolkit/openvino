@@ -25,6 +25,15 @@ std::shared_ptr<ov::Node> MOECompressed::clone_with_new_inputs(const ov::OutputV
 }
 
 void MOECompressed::validate_and_infer_types() {
+    const size_t expected_inputs = m_config.routing_type == MOECompressed::RoutingType::SIGMOID_BIAS ? 11 : 10;
+    OPENVINO_ASSERT(get_input_size() == expected_inputs,
+                    "MOECompressed: expected ",
+                    expected_inputs,
+                    " inputs for routing type ",
+                    m_config.routing_type,
+                    ", got ",
+                    get_input_size());
+
     auto output_type = m_config.out_type == ov::element::dynamic ? get_input_element_type(0) : m_config.out_type;
 
     set_output_type(0, output_type, get_input_partial_shape(0));
@@ -38,7 +47,27 @@ bool MOECompressed::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("top_k", m_config.top_k);
     visitor.on_attribute("group_size", m_config.group_size);
     visitor.on_attribute("out_type", m_config.out_type);
+    visitor.on_attribute("routing_type", m_config.routing_type);
     return true;
 }
 
+std::ostream& operator<<(std::ostream& s, const MOECompressed::RoutingType& type) {
+    return s << as_string(type);
+}
+
 }  // namespace ov::intel_gpu::op
+
+namespace ov {
+
+template <>
+OPENVINO_API EnumNames<ov::intel_gpu::op::MOECompressed::RoutingType>& EnumNames<ov::intel_gpu::op::MOECompressed::RoutingType>::get() {
+    static auto enum_names =
+        EnumNames<ov::intel_gpu::op::MOECompressed::RoutingType>("MOECompressed::RoutingType",
+                                                                 {
+                                                                     {"softmax", ov::intel_gpu::op::MOECompressed::RoutingType::SOFTMAX},
+                                                                     {"sigmoid_bias", ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS},
+                                                                 });
+    return enum_names;
+}
+
+}  // namespace ov

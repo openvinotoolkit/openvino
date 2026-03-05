@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
+#include "openvino/core/attribute_adapter.hpp"
 #include "openvino/op/moe.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov::intel_gpu::op {
 
@@ -75,4 +76,17 @@ private:
     Config m_config;
 };
 
+std::ostream& operator<<(std::ostream& s, const MOECompressed::RoutingType& type);
+
 }  // namespace ov::intel_gpu::op
+
+namespace ov {
+template <>
+class AttributeAdapter<ov::intel_gpu::op::MOECompressed::RoutingType> : public EnumAttributeAdapterBase<ov::intel_gpu::op::MOECompressed::RoutingType> {
+public:
+    AttributeAdapter(ov::intel_gpu::op::MOECompressed::RoutingType& value) : EnumAttributeAdapterBase<ov::intel_gpu::op::MOECompressed::RoutingType>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<ov::intel_gpu::op::MOECompressed::RoutingType>");
+    ~AttributeAdapter() override = default;
+};
+}  // namespace ov

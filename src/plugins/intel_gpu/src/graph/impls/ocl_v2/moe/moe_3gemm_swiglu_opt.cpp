@@ -38,7 +38,6 @@ namespace ov::intel_gpu::ocl {
 namespace {
 
 using namespace ov::intel_gpu::ocl;
-using MOECompressed = ov::intel_gpu::op::MOECompressed;
 
 dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
     switch (dt) {
@@ -901,9 +900,9 @@ public:
 
         // Don't change the order of stages
         auto routing_type = node.as<moe_3gemm_fused_compressed>().get_primitive()->_config.routing_type;
-        if (routing_type == MOECompressed::RoutingType::SOFTMAX) {
+        if (routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SOFTMAX) {
             add_stage(softmax_topk, params);
-        } else if (routing_type == MOECompressed::RoutingType::SIGMOID_BIAS) {
+        } else if (routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS) {
             add_stage(sigmoid_bias_topk, params);
         } else {
             OPENVINO_THROW("Unsupported routing type for moe_3gemm_swiglu_opt_impl: ", static_cast<int>(routing_type));
@@ -1780,7 +1779,7 @@ public:
         // routing: softmax+topk or sigmoid+bias+topk
         auto lws_size = config.num_expert;
         cldnn::event::ptr topk_event;
-        if (config.routing_type == MOECompressed::RoutingType::SOFTMAX) {
+        if (config.routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SOFTMAX) {
             topk_event = execute_stage(events,
                                        instance,
                                        *softmax_topk,
@@ -1789,7 +1788,7 @@ public:
                                        {static_cast<size_t>(token_num), lws_size},
                                        {1, lws_size},
                                        instance.needs_completion_event());
-        } else if (config.routing_type == MOECompressed::RoutingType::SIGMOID_BIAS) {
+        } else if (config.routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS) {
             topk_event = execute_stage(events,
                                        instance,
                                        *sigmoid_bias_topk,
