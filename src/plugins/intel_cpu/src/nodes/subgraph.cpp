@@ -834,9 +834,7 @@ void Subgraph::optimizeIR() {
 }
 
 void Subgraph::prepareParams() {
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     const auto& cache = context->getSnippetsParamsCache();
-
 #if defined(OPENVINO_ARCH_X86_64)
     // Compute a bitmask of inputs pre-packed at compile time (constant weights via RepackMatMulWeights).
     // RepackMatMulWeights sets desc() on the repacker to signal pre-packing; a null desc() means the input
@@ -846,7 +844,7 @@ void Subgraph::prepareParams() {
         ov::as_type_ptr<CPURuntimeConfig>(subgraph_attrs->snippet->get_runtime_configurator()->get_config());
     uint32_t constant_repacked_mask = 0;
     for (const auto& [i, repacker] : preconfigured->input_repackers) {
-        if (repacker.desc()) {  // desc set => pre-packed at compile time; null desc => runtime repacking
+        if (repacker.already_repacked()) {
             OPENVINO_ASSERT(i < sizeof(constant_repacked_mask) * CHAR_BIT,
                             "Input index ",
                             i,
@@ -921,7 +919,6 @@ void Subgraph::prepareParams() {
 
     const auto result = cache->getOrCreate(SubgraphKey(subgraph_attrs, in_shapes, constant_repacked_mask), builder);
     execPtr = result.first;
-#endif
 
     CPU_NODE_ASSERT(execPtr, "Executor is not created for node ", getName(), ".");
 }
