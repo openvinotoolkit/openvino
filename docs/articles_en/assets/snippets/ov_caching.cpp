@@ -152,10 +152,11 @@ auto compiled = core.compile_model(modelPath,
 void part7() {
     std::string modelPath = "/tmp/myModel.xml";
     std::string device = "CPU";
-    ov::Core core;
-    auto model = core.read_model(modelPath);
-    auto compiled = core.compile_model(model, device);
 //! [ov:caching:part7]
+ov::Core core;
+auto model = core.read_model(modelPath);
+auto compiled = core.compile_model(model, device);
+
 // Export the compiled model to a stream
 std::stringstream model_stream;
 compiled.export_model(model_stream);

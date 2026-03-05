@@ -44,12 +44,13 @@ void part2() {
 // Thread-safe logging: collect messages into a string buffer
 std::mutex log_mutex;
 std::string log_buffer;
-
-ov::util::set_log_callback([&](std::string_view msg) {
+const std::function<void(std::string_view)> log_callback{[&](std::string_view msg) {
     std::lock_guard<std::mutex> lock(log_mutex);
     log_buffer.append(msg);
     log_buffer.push_back('\n');
-});
+}};
+
+ov::util::set_log_callback(log_callback);
 
 ov::Core core;
 // ... operations that produce log output ...
