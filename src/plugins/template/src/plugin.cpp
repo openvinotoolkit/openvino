@@ -17,6 +17,7 @@
 #include "openvino/util/file_util.hpp"
 #include "remote_context.hpp"
 #include "template/properties.hpp"
+#include "transformations/attach_cache_manager_to_paged_attention.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
@@ -145,6 +146,10 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
 
     // Disabled SDPA transformation, since there is ref SDPA op.
     pass_config->disable<ov::pass::ScaledDotProductAttentionDecomposition>();
+
+    // Attach the cache manager to every PagedAttention node so the plugin can
+    // allocate and manage the KV cache blocks at inference time.
+    passManager.register_pass<ov::pass::AttachCacheManagerToPagedAttention>();
 
     // After `run_passes`, we have the transformed function, where operations match device operations,
     // and we can create device backend-dependent graph

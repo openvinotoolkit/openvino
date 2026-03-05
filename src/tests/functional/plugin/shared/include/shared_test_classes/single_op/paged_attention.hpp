@@ -122,7 +122,7 @@ private:
             alibi_slopes = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0}, std::vector<float>{});
         }
         auto max_context_len = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{max_ctx_len});
-        auto score_aggregation_window = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{0});
+        auto score_aggregation_window = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{max_ctx_len});
 
         std::shared_ptr<ov::op::v0::Constant> rotated_block_indices;
         std::shared_ptr<ov::op::v0::Constant> rotation_deltas;
@@ -299,54 +299,54 @@ private:
         out.tensors[params[3]] = key_cache;
         out.tensors[params[4]] = value_cache;
 
-        
-// past_lens/subseq/block tables
-const size_t block_size = key_cache.get_shape().at(2);
-const size_t batch_seq = B;
 
-// number of blocks needed PER SEQUENCE (batch item)
-const int32_t used_blocks_per_seq = std::max<int32_t>(
-    1,
-    static_cast<int32_t>((static_cast<int64_t>(past_len_count) + static_cast<int64_t>(L) +
-                          static_cast<int64_t>(block_size) - 1) /
-                         static_cast<int64_t>(block_size)));
+        // past_lens/subseq/block tables
+        const size_t block_size = key_cache.get_shape().at(2);
+        const size_t batch_seq = B;
 
-OPENVINO_ASSERT(static_cast<size_t>(used_blocks_per_seq) <= max_blocks_per_seq_,
-                "PagedAttention test: cache plan too small for current step");
+        // number of blocks needed PER SEQUENCE (batch item)
+        const int32_t used_blocks_per_seq = std::max<int32_t>(
+            1,
+            static_cast<int32_t>((static_cast<int64_t>(past_len_count) + static_cast<int64_t>(L) +
+                                  static_cast<int64_t>(block_size) - 1) /
+                                 static_cast<int64_t>(block_size)));
 
-const int32_t bi_count_per_seq =
-    extendBlockIndices ? std::max<int32_t>(2, used_blocks_per_seq) : used_blocks_per_seq;
+        OPENVINO_ASSERT(static_cast<size_t>(used_blocks_per_seq) <= max_blocks_per_seq_,
+                        "PagedAttention test: cache plan too small for current step");
 
-ov::Tensor past_lens(ov::element::i32, {batch_seq});
-ov::Tensor subseq(ov::element::i32, {batch_seq + 1});
-ov::Tensor bi_begins(ov::element::i32, {batch_seq + 1});
-ov::Tensor bi(ov::element::i32, {batch_seq * static_cast<size_t>(bi_count_per_seq)});
+        const int32_t bi_count_per_seq =
+            extendBlockIndices ? std::max<int32_t>(2, used_blocks_per_seq) : used_blocks_per_seq;
 
-auto* pl = past_lens.data<int32_t>();
-auto* sb = subseq.data<int32_t>();
-auto* bb = bi_begins.data<int32_t>();
-auto* b  = bi.data<int32_t>();
+        ov::Tensor past_lens(ov::element::i32, {batch_seq});
+        ov::Tensor subseq(ov::element::i32, {batch_seq + 1});
+        ov::Tensor bi_begins(ov::element::i32, {batch_seq + 1});
+        ov::Tensor bi(ov::element::i32, {batch_seq * static_cast<size_t>(bi_count_per_seq)});
 
-for (size_t s = 0; s < batch_seq; ++s) {
-    pl[s] = (step_idx == 0) ? 0 : past_len_count;
-    sb[s] = static_cast<int32_t>(s * L);
-    bb[s] = static_cast<int32_t>(s * static_cast<size_t>(bi_count_per_seq));
+        auto* pl = past_lens.data<int32_t>();
+        auto* sb = subseq.data<int32_t>();
+        auto* bb = bi_begins.data<int32_t>();
+        auto* b  = bi.data<int32_t>();
 
-    const int32_t block_base = static_cast<int32_t>(s * max_blocks_per_seq_);
-    for (int32_t i = 0; i < bi_count_per_seq; ++i) {
-        b[bb[s] + i] = (i < used_blocks_per_seq) ? (block_base + i) : -1;
-    }
-}
+        for (size_t s = 0; s < batch_seq; ++s) {
+            pl[s] = (step_idx == 0) ? 0 : past_len_count;
+            sb[s] = static_cast<int32_t>(s * L);
+            bb[s] = static_cast<int32_t>(s * static_cast<size_t>(bi_count_per_seq));
 
-sb[batch_seq] = static_cast<int32_t>(tokens);
-bb[batch_seq] = static_cast<int32_t>(batch_seq * static_cast<size_t>(bi_count_per_seq));
+            const int32_t block_base = static_cast<int32_t>(s * max_blocks_per_seq_);
+            for (int32_t i = 0; i < bi_count_per_seq; ++i) {
+                b[bb[s] + i] = (i < used_blocks_per_seq) ? (block_base + i) : -1;
+            }
+        }
 
-out.tensors[params[5]] = past_lens;
-out.tensors[params[6]] = subseq;
-out.tensors[params[7]] = bi;
-out.tensors[params[8]] = bi_begins;
+        sb[batch_seq] = static_cast<int32_t>(tokens);
+        bb[batch_seq] = static_cast<int32_t>(batch_seq * static_cast<size_t>(bi_count_per_seq));
 
-past_len_count += static_cast<int32_t>(L);
+        out.tensors[params[5]] = past_lens;
+        out.tensors[params[6]] = subseq;
+        out.tensors[params[7]] = bi;
+        out.tensors[params[8]] = bi_begins;
+
+        past_len_count += static_cast<int32_t>(L);
 
         return out;
     }

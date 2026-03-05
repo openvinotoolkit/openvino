@@ -50,7 +50,7 @@ ov::OutputVector make_valid_pa_args(const element::Type& t = element::f32) {
     auto xbs = std::make_shared<Parameter>(element::i32, PartialShape{});
     auto xst = std::make_shared<Parameter>(element::i32, PartialShape{});
 
-    auto sinks = std::make_shared<Parameter>(t, PartialShape{1, 3, 4});
+    auto sinks = std::make_shared<Parameter>(t, PartialShape{1, 3, 1, 1});
 
     auto arkv_start = std::make_shared<Parameter>(element::i32, PartialShape{});
     auto arkv_evict = std::make_shared<Parameter>(element::i32, PartialShape{3});

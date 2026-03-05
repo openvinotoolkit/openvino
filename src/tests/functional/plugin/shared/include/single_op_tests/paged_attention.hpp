@@ -65,18 +65,12 @@ TEST_P(PagedAttentionLayerTest, Inference) {
             if (ct.get_size() == 0 || tt.get_size() == 0) {
                 continue;
             }
-            // Output 0 (attention): must match between CPU and TEMPLATE
-            // Output 1 (score aggregation): the CPU kernel accumulates attention
-            //   scores in a different order than the TEMPLATE scalar loop - block-tiled
-            //   parallel reduction vs left-to-right sequential sum. Floating-point
-            //   addition is non-associative, so the two orderings produce slightly
-            //   different values. Both are numerically correct; the difference is
-            //   inherent to parallel reduction and not a bug. Making TEMPLATE use the
-            //   same tiling path would defeat its purpose as an independent reference.
+            // Output 0 (attention): match between CPU and TEMPLATE
+            // Output 1 (score aggregation): match between CPU and TEMPLATE
             // Output 2 (diversity block indices): both implementations select valid blocks
-            //   to evict but run independent algorithms, so the chosen index sets need not
-            //   match - this is a selection result, not a deterministic numeric value
-            if (oi > 0) {
+            //   to evict but run independent non-deterministic algorithms, so the chosen index
+            //   sets might not match
+            if (oi > 1) {
                 continue;
             }
             ov::test::utils::compare(tt, ct, /*abs*/1e-3f, /*rel*/1e-2f);

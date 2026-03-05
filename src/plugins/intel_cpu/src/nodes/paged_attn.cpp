@@ -267,16 +267,15 @@ void PagedAttention::createPrimitive() {
 void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto orginInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
+    for (size_t i = 0; i < orginInputNumber; i++) {
+        inputs[i] = getSrcMemoryAtPort(i);
+    }
     size_t num_outputs = 1;
     if (m_hasScore) {
         num_outputs = m_has_adaptive_rkv_diversity_output ? 3 : 2;
     }
 
     std::vector<MemoryPtr> outputs(num_outputs);
-
-    for (size_t i = 0; i < orginInputNumber; i++) {
-        inputs[i] = getSrcMemoryAtPort(i);
-    }
 
     auto outDims = inputs[0]->getStaticDims();
     const auto& keyDims = inputs[1]->getStaticDims();
@@ -412,7 +411,6 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     } catch (...) {
         return false;
     }
-    return true;
 }
 
 ov::element::Type PagedAttention::getRuntimePrecision() const {
