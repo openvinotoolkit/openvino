@@ -40,6 +40,7 @@
 #include "transformations/op_conversions/fake_convert_decomposition.hpp"
 #include "util.hpp"
 #include "whisper_infer_request.hpp"
+#include "kv_cache_compressed.hpp"
 
 namespace opp = ov::pass::pattern;
 
@@ -834,6 +835,12 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
         }
     }
 
+    // assume for I8 we dont have support in model - TODO: add check based on presence of quantization ops like scale/subtrat/clamp
+    if (lptype == ov::element::i8) {
+        LOG_DEBUG("Running KV-cache compression passes, transforming  kv-cache precision: FP16->i8 on model[" << model->get_friendly_name() <<"]");
+        ov::npuw::run_kv_cache_dynamic_qantization_passes(model, lptype);
+    }
+
     return ppp.build();
 }
 
@@ -873,6 +880,8 @@ ov::element::Type optimize_kv_cache_storage(const std::shared_ptr<ov::Model>& mo
     }
     return kv_kache_storage_type;
 }
+
+
 
 std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager manager("redirect_new_kv_to_output");
@@ -1838,11 +1847,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (!m_is_embedding) {
         if (!m_use_chunk_prefill) {
             // TODO: sometimes it is ok if we cannot find any empty inputs or not?
-            NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
+            remove_empty_kv_inputs(prefill_model);
         } else {
             LOG_DEBUG("Don't remove input key/values from prefill model.");
             LOG_DEBUG("Ask prefill model to output key/values for prefill chunk size tokens.");
+            ov::save_model(prefill_model, "prefill_before_redirect.xml");
             prefill_model = redirect_new_kv_to_output(prefill_model);
+            ov::save_model(prefill_model, "prefill_after_redirect.xml");
         }
 
         LOG_DEBUG("Optimize generate model to output key/values for new token.");
@@ -1851,12 +1862,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
-    LOG_DEBUG("Converting KV-cache in generate model to FP16.");
     for (size_t i = 0; i < generate_model_variants.size(); ++i) {
+        LOG_DEBUG("Converting KV-cache in generate model[ "<< i << " ] to " << kv_kache_storage_type);
         generate_model_variants[i] = cvt_kvcache_to_low_precision(generate_model_variants[i], kv_kache_storage_type);
     }
-    LOG_DEBUG("Converting KV-cache in prefill model to FP16.");
+    LOG_DEBUG("Converting KV-cache in prefill model to " << kv_kache_storage_type);
     prefill_model = cvt_kvcache_to_low_precision(prefill_model, kv_kache_storage_type);
+
 
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
