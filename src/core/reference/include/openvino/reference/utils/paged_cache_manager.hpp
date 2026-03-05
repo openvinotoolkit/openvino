@@ -22,6 +22,15 @@ namespace ov {
 namespace reference {
 namespace paged_attention_cache {
 
+// Which eviction strategy to use when the block pool is full
+// Currently the model has no parameter to select this at compile time,
+// so the default is SCORE and the cache limit is 64 MB
+enum class EvictionPolicy {
+    FIFO,         // evict the oldest block of the longest sequence (original behavior)
+    SCORE,        // evict the block with the lowest accumulated attention score
+    ADAPTIVE_RKV  // evict the block with the lowest key-vector diversity score
+};
+
 // A single-threaded CacheManager used by the reference implementation of PagedAttentionExtension.
 class PagedCacheManager {
 public:
@@ -30,7 +39,11 @@ public:
         std::int32_t offset = 0;
     };
 
-    explicit PagedCacheManager(ov::element::Type elem_type);
+    // The model does not yet expose a parameter to select the eviction policy or
+    // the cache byte limit, so we default to SCORE with a 64 MB cap
+    explicit PagedCacheManager(ov::element::Type elem_type,
+                               EvictionPolicy policy = EvictionPolicy::SCORE,
+                               std::size_t max_cache_bytes = 64UL * 1024UL * 1024UL);
     PagedCacheManager(const PagedCacheManager&) = delete;
     PagedCacheManager& operator=(const PagedCacheManager&) = delete;
 
@@ -95,11 +108,41 @@ public:
         return m_elem_type;
     }
 
+    EvictionPolicy eviction_policy() const noexcept {
+        return m_policy;
+    }
+
+    // Feed accumulated attention scores from the PA kernel back into the manager
+    // so that SCORE eviction can pick the lowest-score block
+    // scores is a flat buffer [total_tokens] matching out_scores layout
+    void update_attention_scores(std::uintptr_t node_key,
+                                 const float* scores,
+                                 std::size_t scores_len,
+                                 const std::int32_t* past_lens,
+                                 std::size_t seq_count);
+
+    // Feed per-block diversity scores from the adaptive RKV calculator
+    // so that ADAPTIVE_RKV eviction can pick the least diverse block
+    // diversity_per_block is a flat [num_evictable_blocks] buffer, one value per block
+    void update_diversity_scores(std::uintptr_t node_key,
+                                 std::size_t seq_idx,
+                                 const float* diversity_per_block,
+                                 std::size_t num_blocks_in_zone,
+                                 std::size_t start_block_offset);
+
 private:
     struct SequenceState {
         std::int32_t logical_length = 0;  // expected by external past_lens
         std::int32_t trim_front = 0;      // number of tokens trimmed from front (multiple of block_size)
         std::deque<std::int32_t> blocks;  // physical block IDs for [trim_front, trim_front + blocks*block_size)
+
+        // per-block accumulated attention scores, same order as blocks deque
+        // used by SCORE eviction to find the least important block
+        std::deque<float> block_scores;
+
+        // per-block diversity scores from adaptive RKV
+        // used by ADAPTIVE_RKV eviction to find the least diverse block
+        std::deque<float> block_diversity;
     };
 
     struct OperatorState {
@@ -138,7 +181,10 @@ private:
                                           std::size_t past_lens_count);
 
     std::int32_t allocate_block(OperatorState& st, std::size_t requester_seq);
-    std::int32_t steal_block_from_victim(OperatorState& st, std::size_t requester_seq);
+    std::int32_t steal_block_fifo(OperatorState& st, std::size_t requester_seq);
+    std::int32_t steal_block_by_score(OperatorState& st, std::size_t requester_seq);
+    std::int32_t steal_block_by_diversity(OperatorState& st, std::size_t requester_seq);
+    std::int32_t steal_block(OperatorState& st, std::size_t requester_seq);
 
     static std::size_t elem_bytes_or_throw(ov::element::Type et);
 
@@ -189,6 +235,8 @@ private:
 
 private:
     ov::element::Type m_elem_type;
+    EvictionPolicy m_policy;
+    std::size_t m_max_cache_bytes;
     std::unordered_map<std::uintptr_t, OperatorState> m_ops;
 };
 

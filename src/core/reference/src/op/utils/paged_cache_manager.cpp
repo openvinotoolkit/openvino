@@ -26,7 +26,10 @@ inline std::size_t safe_mul(std::size_t a, std::size_t b) {
 }
 }  // namespace
 
-PagedCacheManager::PagedCacheManager(ov::element::Type elem_type) : m_elem_type(elem_type) {}
+PagedCacheManager::PagedCacheManager(ov::element::Type elem_type, EvictionPolicy policy, std::size_t max_cache_bytes)
+    : m_elem_type(elem_type),
+      m_policy(policy),
+      m_max_cache_bytes(max_cache_bytes) {}
 
 std::size_t PagedCacheManager::elem_bytes_or_throw(ov::element::Type et) {
     const auto sz = et.size();
@@ -145,8 +148,8 @@ void PagedCacheManager::init_sequences_from_block_tables(OperatorState& st,
     }
 }
 
-std::int32_t PagedCacheManager::steal_block_from_victim(OperatorState& st, std::size_t requester_seq) {
-    // Choose a victim sequence with the most retained blocks. Deterministic tie-breaking by index.
+std::int32_t PagedCacheManager::steal_block_fifo(OperatorState& st, std::size_t requester_seq) {
+    // Original behavior: take the oldest block from the sequence with the most blocks
     std::size_t best_seq = std::numeric_limits<std::size_t>::max();
     std::size_t best_blocks = 0;
 
@@ -167,7 +170,7 @@ std::int32_t PagedCacheManager::steal_block_from_victim(OperatorState& st, std::
     }
 
     if (best_seq == std::numeric_limits<std::size_t>::max()) {
-        // As a last resort, steal from the requester itself
+        // as a last resort, steal from the requester itself
         best_seq = requester_seq;
     }
 
@@ -178,8 +181,106 @@ std::int32_t PagedCacheManager::steal_block_from_victim(OperatorState& st, std::
 
     const std::int32_t bid = victim.blocks.front();
     victim.blocks.pop_front();
+    if (!victim.block_scores.empty()) {
+        victim.block_scores.pop_front();
+    }
+    if (!victim.block_diversity.empty()) {
+        victim.block_diversity.pop_front();
+    }
     victim.trim_front += static_cast<std::int32_t>(st.block_size);
     return bid;
+}
+
+std::int32_t PagedCacheManager::steal_block_by_score(OperatorState& st, std::size_t requester_seq) {
+    // Pick the sequence whose front block has the lowest accumulated attention score
+    // We only evict front blocks so that the deque-index-to-token-position mapping stays valid
+    // Falls back to FIFO if no scores have been recorded yet
+    std::size_t best_seq = std::numeric_limits<std::size_t>::max();
+    float best_score = std::numeric_limits<float>::max();
+    bool found_any = false;
+
+    for (std::size_t s = 0; s < st.sequences.size(); ++s) {
+        auto& seq = st.sequences[s];
+        if (seq.blocks.empty() || seq.block_scores.empty()) {
+            continue;
+        }
+        float penalty = (s == requester_seq) ? 1e12f : 0.f;
+        float score = seq.block_scores.front() + penalty;
+        if (score < best_score) {
+            best_score = score;
+            best_seq = s;
+            found_any = true;
+        }
+    }
+
+    if (!found_any) {
+        // no scores recorded yet, fall back to FIFO
+        return steal_block_fifo(st, requester_seq);
+    }
+
+    auto& victim = st.sequences[best_seq];
+    const std::int32_t bid = victim.blocks.front();
+    victim.blocks.pop_front();
+    if (!victim.block_scores.empty()) {
+        victim.block_scores.pop_front();
+    }
+    if (!victim.block_diversity.empty()) {
+        victim.block_diversity.pop_front();
+    }
+    victim.trim_front += static_cast<std::int32_t>(st.block_size);
+    return bid;
+}
+
+std::int32_t PagedCacheManager::steal_block_by_diversity(OperatorState& st, std::size_t requester_seq) {
+    // Pick the sequence whose front block has the lowest key-vector diversity score
+    // We only evict front blocks so that the deque-index-to-token-position mapping stays valid
+    // Falls back to score eviction if no diversity data was fed
+    std::size_t best_seq = std::numeric_limits<std::size_t>::max();
+    float best_div = std::numeric_limits<float>::max();
+    bool found_any = false;
+
+    for (std::size_t s = 0; s < st.sequences.size(); ++s) {
+        auto& seq = st.sequences[s];
+        if (seq.blocks.empty() || seq.block_diversity.empty()) {
+            continue;
+        }
+        float penalty = (s == requester_seq) ? 1e12f : 0.f;
+        float div_score = seq.block_diversity.front() + penalty;
+        if (div_score < best_div) {
+            best_div = div_score;
+            best_seq = s;
+            found_any = true;
+        }
+    }
+
+    if (!found_any) {
+        // no diversity data yet, fall back to score eviction
+        return steal_block_by_score(st, requester_seq);
+    }
+
+    auto& victim = st.sequences[best_seq];
+    const std::int32_t bid = victim.blocks.front();
+    victim.blocks.pop_front();
+    if (!victim.block_scores.empty()) {
+        victim.block_scores.pop_front();
+    }
+    if (!victim.block_diversity.empty()) {
+        victim.block_diversity.pop_front();
+    }
+    victim.trim_front += static_cast<std::int32_t>(st.block_size);
+    return bid;
+}
+
+std::int32_t PagedCacheManager::steal_block(OperatorState& st, std::size_t requester_seq) {
+    switch (m_policy) {
+    case EvictionPolicy::SCORE:
+        return steal_block_by_score(st, requester_seq);
+    case EvictionPolicy::ADAPTIVE_RKV:
+        return steal_block_by_diversity(st, requester_seq);
+    case EvictionPolicy::FIFO:
+    default:
+        return steal_block_fifo(st, requester_seq);
+    }
 }
 
 std::int32_t PagedCacheManager::allocate_block(OperatorState& st, std::size_t requester_seq) {
@@ -191,8 +292,8 @@ std::int32_t PagedCacheManager::allocate_block(OperatorState& st, std::size_t re
         }
         return bid;
     }
-    // No free blocks left: evict one block from a victim sequence.
-    return steal_block_from_victim(st, requester_seq);
+    // No free blocks left: evict one block from a victim sequence
+    return steal_block(st, requester_seq);
 }
 
 bool PagedCacheManager::ensure_operator(std::uintptr_t node_key,
@@ -281,6 +382,8 @@ void PagedCacheManager::begin_step(std::uintptr_t node_key, const std::int32_t* 
                 }
             }
             seq.blocks.clear();
+            seq.block_scores.clear();
+            seq.block_diversity.clear();
             seq.trim_front = 0;
             seq.logical_length = new_len;
             continue;
@@ -317,18 +420,29 @@ PagedCacheManager::TokenAddress PagedCacheManager::ensure_token(std::uintptr_t n
         return TokenAddress{-1, 0};
     }
 
-    const std::int32_t rel = token_pos - seq.trim_front;
     const std::int32_t bs = static_cast<std::int32_t>(st.block_size);
-    const std::int32_t block_index = (bs > 0) ? (rel / bs) : 0;
-    const std::int32_t off = (bs > 0) ? (rel % bs) : 0;
+    // Recompute relative position after any evictions that may have advanced trim_front
+    // This is needed because stealing from the requester's own front block shifts trim_front
+    auto recompute = [&]() -> std::pair<std::int32_t, std::int32_t> {
+        const std::int32_t r = token_pos - seq.trim_front;
+        const std::int32_t bi = (bs > 0) ? (r / bs) : 0;
+        return {bi, (bs > 0) ? (r % bs) : 0};
+    };
 
-    while (seq.blocks.size() <= static_cast<std::size_t>(block_index)) {
+    auto [block_index, off] = recompute();
+
+    // guard against infinite loops if the pool is too small for the requested position
+    std::size_t max_iters = st.num_blocks + 1;
+    while (seq.blocks.size() <= static_cast<std::size_t>(block_index) && max_iters-- > 0) {
         const std::int32_t bid = allocate_block(st, seq_idx);
         seq.blocks.push_back(bid);
+        // trim_front may have changed if we stole from ourselves
+        std::tie(block_index, off) = recompute();
     }
 
-    // If we exceeded the global capacity (all blocks used), allocate_block will have trimmed a victim
-    // Also ensure the requester sequence doesn't exceed its representable window
+    if (seq.blocks.size() <= static_cast<std::size_t>(block_index)) {
+        return TokenAddress{-1, 0};
+    }
 
     return TokenAddress{seq.blocks[static_cast<std::size_t>(block_index)], off};
 }
@@ -383,6 +497,72 @@ std::size_t PagedCacheManager::key_head_size(std::uintptr_t node_key) const {
 
 std::size_t PagedCacheManager::value_head_size(std::uintptr_t node_key) const {
     return get_state(node_key).value_head_size;
+}
+
+void PagedCacheManager::update_attention_scores(std::uintptr_t node_key,
+                                                const float* scores,
+                                                std::size_t scores_len,
+                                                const std::int32_t* past_lens,
+                                                std::size_t seq_count) {
+    auto& st = get_state(node_key);
+    if (seq_count > st.sequences.size()) {
+        seq_count = st.sequences.size();
+    }
+    const std::int32_t bs = static_cast<std::int32_t>(st.block_size);
+    if (bs <= 0 || scores == nullptr || scores_len == 0) {
+        return;
+    }
+
+    // scores layout: flat concatenation of [past_lens[s] + new_len_s] per sequence
+    // we accumulate per-block scores by summing the per-token values
+    std::size_t offset = 0;
+    for (std::size_t s = 0; s < seq_count; ++s) {
+        auto& seq = st.sequences[s];
+        const std::size_t total_len = (past_lens && s < seq_count) ? static_cast<std::size_t>(seq.logical_length) : 0;
+        if (total_len == 0 || seq.blocks.empty()) {
+            offset += total_len;
+            continue;
+        }
+
+        // make sure block_scores has the right size
+        seq.block_scores.resize(seq.blocks.size(), 0.f);
+
+        // accumulate per-token attention scores into per-block sums
+        for (std::size_t t = 0; t < total_len && (offset + t) < scores_len; ++t) {
+            const std::int32_t token_pos = static_cast<std::int32_t>(t);
+            if (token_pos < seq.trim_front) {
+                continue;
+            }
+            const std::int32_t rel = token_pos - seq.trim_front;
+            const std::size_t block_idx = static_cast<std::size_t>(rel / bs);
+            if (block_idx < seq.block_scores.size()) {
+                seq.block_scores[block_idx] += scores[offset + t];
+            }
+        }
+        offset += total_len;
+    }
+}
+
+void PagedCacheManager::update_diversity_scores(std::uintptr_t node_key,
+                                                std::size_t seq_idx,
+                                                const float* diversity_per_block,
+                                                std::size_t num_blocks_in_zone,
+                                                std::size_t start_block_offset) {
+    auto& st = get_state(node_key);
+    if (seq_idx >= st.sequences.size() || diversity_per_block == nullptr || num_blocks_in_zone == 0) {
+        return;
+    }
+
+    auto& seq = st.sequences[seq_idx];
+    seq.block_diversity.resize(seq.blocks.size(), 0.f);
+
+    // write diversity values into the corresponding block positions
+    for (std::size_t i = 0; i < num_blocks_in_zone; ++i) {
+        const std::size_t target = start_block_offset + i;
+        if (target < seq.block_diversity.size()) {
+            seq.block_diversity[target] = diversity_per_block[i];
+        }
+    }
 }
 
 }  // namespace paged_attention_cache

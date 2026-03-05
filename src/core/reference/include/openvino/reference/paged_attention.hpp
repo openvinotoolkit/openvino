@@ -670,6 +670,12 @@ void paged_attention(std::uintptr_t node_key,
         }
     }
 
+    // Feed accumulated scores back into the cache manager so that score-based
+    // eviction can use them on the next allocation that runs out of free blocks
+    if (!scores_acc.empty()) {
+        cache_manager->update_attention_scores(node_key, scores_acc.data(), scores_acc.size(), past_lens, seq_count);
+    }
+
     // --- Adaptive RKV diversity computation ---
     // After all attention is done, compute per-block diversity scores for the
     // eviction zone of each sequence using AdaptiveRKVDiversityCalculator
@@ -724,6 +730,22 @@ void paged_attention(std::uintptr_t node_key,
                     out_diversity_scores[out_offset++] = diversity[b][t];
                 }
             }
+
+            // Feed per-block diversity back into the cache manager so adaptive RKV
+            // eviction can pick the least diverse block when the pool runs out\n            // We reduce each
+            // [evict_size/block_size][evict_size] row to a single\n            // per-block mean diversity value
+            const std::size_t n_evict_blocks = diversity.size();
+            std::vector<float> per_block_div(n_evict_blocks, 0.f);
+            for (std::size_t b = 0; b < n_evict_blocks; ++b) {
+                float sum = 0.f;
+                for (std::size_t t = 0; t < diversity[b].size(); ++t) {
+                    sum += static_cast<float>(diversity[b][t]);
+                }
+                per_block_div[b] = diversity[b].empty() ? 0.f : sum / static_cast<float>(diversity[b].size());
+            }
+            // start_block_offset is the block index after the start area
+            const std::size_t start_blk_off = start_size / cache_block_size;
+            cache_manager->update_diversity_scores(node_key, s, per_block_div.data(), n_evict_blocks, start_blk_off);
         }
     }
 }
