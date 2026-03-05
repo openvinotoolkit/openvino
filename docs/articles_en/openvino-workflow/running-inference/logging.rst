@@ -94,4 +94,4 @@ See Also
 ########
 
 - :doc:`Hello Classification Sample <../../get-started/learn-openvino/openvino-samples/hello-classification>` — uses ``set_log_callback`` as a real-world example.
-- :doc:`Integrate OpenVINO™ with Your Application <running-inference>`
+- :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`
