@@ -89,58 +89,15 @@ function(download_and_extract url zip_file extracted_dir)
     endif()
 endfunction()
 
-function(print_thirdparty_info extracted_file)
+function(print_build_manifest extracted_file)
     if(NOT EXISTS "${extracted_file}")
-        message(WARNING "Build manifest file '${extracted_file}' not found. Skipping third-party information printing for plugin compiler.")
+        message(WARNING "Build manifest file '${extracted_file}' not found. Skipping build_manifest information printing for plugin compiler.")
         return()
     endif()
-    # read the build_manifest.json file content into a variable
-    file(READ "${extracted_file}" BUILD_MANIFEST_JSON)
-
-    # cmake version check
-    if(CMAKE_VERSION VERSION_LESS "3.19")
-        message(STATUS "CMake < 3.19, using regex to parse JSON")
-
-        # define a helper macro to avoid writing regex repeatedly
-        macro(json_get_value JSON_STR KEY OUT_VAR)
-            string(REGEX MATCH "\"${KEY}\"[ \t]*:[ \t]*\"([^\"]+)\"" _json_match "${JSON_STR}")
-            if(CMAKE_MATCH_1)
-                set(${OUT_VAR} "${CMAKE_MATCH_1}")
-            else()
-                set(${OUT_VAR} "NOT_FOUND")
-                message(WARNING "Key '${KEY}' not found in JSON")
-            endif()
-        endmacro()
-
-        # Parse each field
-        json_get_value("${BUILD_MANIFEST_JSON}" "openvino_sha"     OPENVINO_SHA)
-        json_get_value("${BUILD_MANIFEST_JSON}" "npu_compiler_sha" NPU_COMPILER_SHA)
-        json_get_value("${BUILD_MANIFEST_JSON}" "llvm_sha"         LLVM_SHA)
-        json_get_value("${BUILD_MANIFEST_JSON}" "tbb_version"      TBB_VERSION)
-        json_get_value("${BUILD_MANIFEST_JSON}" "opencv_sha"       OPENCV_SHA)
-        json_get_value("${BUILD_MANIFEST_JSON}" "omz_sha"          OMZ_SHA)
-
-    else()
-        message(STATUS "CMake >= 3.19, using string(JSON ...)")
-
-        # Parse each field
-        string(JSON OPENVINO_SHA     GET "${BUILD_MANIFEST_JSON}" openvino_sha)
-        string(JSON NPU_COMPILER_SHA GET "${BUILD_MANIFEST_JSON}" npu_compiler_sha)
-        string(JSON LLVM_SHA         GET "${BUILD_MANIFEST_JSON}" llvm_sha)
-        string(JSON TBB_VERSION      GET "${BUILD_MANIFEST_JSON}" tbb_version)
-        string(JSON OPENCV_SHA       GET "${BUILD_MANIFEST_JSON}" opencv_sha)
-        string(JSON OMZ_SHA          GET "${BUILD_MANIFEST_JSON}" omz_sha)
-    endif()
-
-    # print the build manifest information
-    message(STATUS "========== Build Manifest for plugin compiler==========")
-    message(STATUS "  openvino_sha:     ${OPENVINO_SHA}")
-    message(STATUS "  npu_compiler_sha: ${NPU_COMPILER_SHA}")
-    message(STATUS "  llvm_sha:         ${LLVM_SHA}")
-    message(STATUS "  tbb_version:      ${TBB_VERSION}")
-    message(STATUS "  opencv_sha:       ${OPENCV_SHA}")
-    message(STATUS "  omz_sha:          ${OMZ_SHA}")
-    message(STATUS "====================================")
+    # read the build_manifest.json file
+    file(READ "${extracted_file}" FILE_CONTENT)
+    string(REGEX REPLACE "[{}\"']" "" FILE_CONTENT "${FILE_CONTENT}")
+    message(STATUS "build_manifest.json for npu plugin compiler:\n${FILE_CONTENT}")
 endfunction()
 
 if(ENABLE_INTEL_NPU_COMPILER)
@@ -164,7 +121,7 @@ if(ENABLE_INTEL_NPU_COMPILER)
         set(PLUGIN_COMPILER_LIBS_DIR_UNZIPPED "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_windows_2022-${PLUGIN_COMPILER_VERSION}-${PLUGIN_COMPILER_COMMIT_SHA}")
 
         download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_ZIP}" "${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}")
-        print_thirdparty_info("${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}/build_manifest.json")
+        print_build_manifest("${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}/build_manifest.json")
 
         set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}/cid/lib")
         configure_file(
@@ -192,7 +149,7 @@ if(ENABLE_INTEL_NPU_COMPILER)
                     set(PLUGIN_COMPILER_LIBS_DIR_EXTRACTED "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_ubuntu_22_04-${PLUGIN_COMPILER_VERSION}-${PLUGIN_COMPILER_COMMIT_SHA}")
 
                     download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_TAR}" "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}")
-                    print_thirdparty_info("${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/build_manifest.json")
+                    print_build_manifest("${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/build_manifest.json")
 
                     set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/cid/lib/")
                     configure_file(
@@ -211,7 +168,7 @@ if(ENABLE_INTEL_NPU_COMPILER)
                     set(PLUGIN_COMPILER_LIBS_DIR_EXTRACTED "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_ubuntu_24_04-${PLUGIN_COMPILER_VERSION}-${PLUGIN_COMPILER_COMMIT_SHA}")
 
                     download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_TAR}" "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}")
-                    print_thirdparty_info("${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/build_manifest.json")
+                    print_build_manifest("${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/build_manifest.json")
                     
                     set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/cid/lib/")
                     configure_file(
