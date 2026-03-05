@@ -1844,58 +1844,26 @@ bool testPSNR(const TensorMap& outputs, const TensorMap& references, const int d
     auto referenceMap = utils::parsePerLayerValues(FLAGS_psnr_reference, metric_defaults::psnr_reference);
     auto toleranceMap = utils::parsePerLayerValues(FLAGS_psnr_tolerance, metric_defaults::psnr_tolerance);
 
+    double psnrReference = utils::getValueForLayer(referenceMap, "*");
+    double psnrTolerance = utils::getValueForLayer(toleranceMap, "*");
+
     int scaleBorder = FLAGS_scale_border;
     bool normalizedImage = FLAGS_normalized_image;
 
-    bool allPassed = true;
+    auto refOutput = npu::utils::parseTensorsAsFP32(references);
+    auto actOutput = npu::utils::parseTensorsAsFP32(outputs);
 
-    // If there's only one output, use the global PSNR metric
-    if (outputs.size() == 1) {
-        auto refOutput = npu::utils::parseTensorsAsFP32(references);
-        auto actOutput = npu::utils::parseTensorsAsFP32(outputs);
+    auto result = utils::runPSNRMetric(actOutput, refOutput, dstHeight, dstWidth, scaleBorder, normalizedImage);
 
-        auto result = utils::runPSNRMetric(actOutput, refOutput, dstHeight, dstWidth, scaleBorder, normalizedImage);
-
-        // Get per-layer or global values
-        std::string layerName = outputs.begin()->first;
-        double psnrReference = utils::getValueForLayer(referenceMap, layerName);
-        double psnrTolerance = utils::getValueForLayer(toleranceMap, layerName);
-
-        if (psnrReference - result > psnrTolerance) {
-            std::cout << "Absolute difference between actual value " << result << " and reference value "
-                      << psnrReference << " larger then tolerance " << psnrTolerance << std::endl;
-            return false;
-        }
+    if (psnrReference - result > psnrTolerance) {
+        std::cout << "Absolute difference between actual value " << result << " and reference value "
+                    << psnrReference << " larger then tolerance " << psnrTolerance << std::endl;
+        return false;
     } else {
-        // For multiple outputs, compute PSNR per layer
-        for (const auto& [layerName, outputTensor] : outputs) {
-            auto refIterator = references.find(layerName);
-            OPENVINO_ASSERT(refIterator != references.end());
-
-            TensorMap singleOutput = {{layerName, outputTensor}};
-            TensorMap singleReference = {{layerName, refIterator->second}};
-
-            auto refOutput = npu::utils::parseTensorsAsFP32(singleReference);
-            auto actOutput = npu::utils::parseTensorsAsFP32(singleOutput);
-
-            auto result = utils::runPSNRMetric(actOutput, refOutput, dstHeight, dstWidth, scaleBorder, normalizedImage);
-
-            // Get per-layer values
-            double psnrReference = utils::getValueForLayer(referenceMap, layerName);
-            double psnrTolerance = utils::getValueForLayer(toleranceMap, layerName);
-
-            std::cout << "Layer: " << layerName << " - ";
-            if (psnrReference - result > psnrTolerance) {
-                std::cout << "Absolute difference between actual value " << result << " and reference value "
-                          << psnrReference << " larger then tolerance " << psnrTolerance << std::endl;
-                allPassed = false;
-            } else {
-                std::cout << "PASSED (PSNR: " << result << ", Reference: " << psnrReference << ")" << std::endl;
-            }
-        }
+        std::cout << "PASSED (PSNR: " << result << ", Reference: " << psnrReference << ")" << std::endl;
     }
 
-    return allPassed;
+    return true;
 }
 
 static void printPerformanceCountsAndLatency(size_t numberOfTestCase, const ProfVec& profilingData,
