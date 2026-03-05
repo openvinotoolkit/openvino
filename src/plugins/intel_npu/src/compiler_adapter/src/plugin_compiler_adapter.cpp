@@ -71,8 +71,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     tensor = std::move(networkDesc.compiledNetworkTensor);
 
     if (config.get<COMPILATION_MODE>() == "HostCompile") {
-        // no _compiler::parse call is required. networkmetadata will be obtained in DynamicGraph constructor
-        _logger.debug("blob is not ELF format, create graph for LLVM IR!");
+        // metadata will be obtained in initialze() of DynamicGraph
+        _logger.debug("Use dynamicGraph to hold blob for HostCompile mode!");
         return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), true, config);
     }
 
