@@ -41,6 +41,8 @@ public:
     /// \param config Configuration for the MOE 3GEMM SWIGLU fused operation
     MOE3GemmFusedCompressed(const OutputVector& args, const MOECompressed::Config config);
 
+    void validate_and_infer_types() override;
+
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 

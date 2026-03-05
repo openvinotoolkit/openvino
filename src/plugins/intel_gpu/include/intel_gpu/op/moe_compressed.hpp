@@ -72,7 +72,7 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-private:
+protected:
     Config m_config;
 };
 

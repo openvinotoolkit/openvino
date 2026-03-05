@@ -32,7 +32,7 @@ enum class MoERoutingType {
 
 /// Softmax branch:
 ///   routing_weights -> Softmax -> TopK -> ReduceSum -> Divide (norm)
-///   -> ScatterElementsUpdate(SUM) -> Transpose -> Reshape -> Unsqueeze
+///   -> ScatterElementsUpdate -> Transpose -> Reshape -> Unsqueeze
 std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>>
 build_softmax_routing_subgraph(const ov::Output<ov::Node>& routing_weights, size_t number_of_experts, size_t topk);
 

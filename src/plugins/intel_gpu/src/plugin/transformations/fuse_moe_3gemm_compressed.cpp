@@ -44,7 +44,8 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
 #define ANY any_input()
 
     auto hidden_state_m = ANY;
-    auto matmul = wrap_type<ov::op::v0::MatMul>({hidden_state_m, ANY}, consumers_count(1));
+    auto opt_reshape = optional<ov::op::v1::Reshape>({hidden_state_m, ANY});
+    auto matmul = wrap_type<ov::op::v0::MatMul>({opt_reshape, ANY}, consumers_count(1));
 
     // ── Softmax routing branch ──────────────────────────────────────────
     auto sm_softmax = wrap_type<ov::op::v8::Softmax>({matmul}, consumers_count(1));

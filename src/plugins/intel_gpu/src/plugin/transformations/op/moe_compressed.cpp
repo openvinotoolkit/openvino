@@ -25,15 +25,6 @@ std::shared_ptr<ov::Node> MOECompressed::clone_with_new_inputs(const ov::OutputV
 }
 
 void MOECompressed::validate_and_infer_types() {
-    const size_t expected_inputs = m_config.routing_type == MOECompressed::RoutingType::SIGMOID_BIAS ? 11 : 10;
-    OPENVINO_ASSERT(get_input_size() == expected_inputs,
-                    "MOECompressed: expected ",
-                    expected_inputs,
-                    " inputs for routing type ",
-                    m_config.routing_type,
-                    ", got ",
-                    get_input_size());
-
     auto output_type = m_config.out_type == ov::element::dynamic ? get_input_element_type(0) : m_config.out_type;
 
     set_output_type(0, output_type, get_input_partial_shape(0));
