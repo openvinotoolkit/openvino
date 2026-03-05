@@ -357,6 +357,9 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
 
     __local half x2[HIDDEN_SIZE];
     __local float xg_sum[HIDDEN_SIZE / FAKE_GROUP_SIZE];
+#    if SHARED_EXPERT_ENABLE
+    __local float shared_gate_partial[SUBGROUP_NUM];  // one slot per subgroup for scalar gate reduction
+#    endif
 
 #    if WEIGHT_COMPRESSEION_DT == 0
     //# interleaving x into x2
@@ -405,24 +408,39 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     barrier(CLK_LOCAL_MEM_FENCE);
 
 #    if SHARED_EXPERT_ENABLE
-    // Calculate scalar gate for shared expert
-    // We only need one workgroup (or subset of threads) to do this.
-    // Do it if is_shared is true, and we are in the first block of N dimension.
-    // We just need one thread to write it.
-    if (is_shared && get_global_id(2) == 0 && id_sg == 0 && id_local == 0) {
-        // Dot product x * shared_gate_gate_weight
-        // This is a small [1, H] * [H, 1].
-        // Simple loop here for now. Optimized version could parallelize.
+    // Compute scalar gate for shared expert using all threads in the workgroup.
+    // Only the N-block-0 workgroup writes routing_weights[MAX_TOPK]; other N-block workgroups
+    // skip this entirely to avoid redundant work and races.
+    if (is_shared && get_group_id(2) == 0) {
+        // Step 1: every thread accumulates a partial dot product over its slice of HIDDEN_SIZE.
+        // With num_sg subgroups * SUBGROUP_SIZE threads, each thread handles ~14 elements
+        // (HIDDEN_SIZE=3584 / 256 threads) instead of one thread doing all 3584.
         float gate_val = 0.0f;
-        unroll_for(int i = 0; i < HIDDEN_SIZE; i++) {
+        int thread_id = id_sg * SUBGROUP_SIZE + id_local;
+        int total_threads = num_sg * SUBGROUP_SIZE;
+        for (int i = thread_id; i < HIDDEN_SIZE; i += total_threads) {
             gate_val += (float)x[i] * (float)shared_gate_gate_weight[i];
         }
-        // Sigmoid
-        float sigmoid_val = 1.0f / (1.0f + exp(-gate_val));
-        // Store to routing_weights at MAX_TOPK index
-        routing_weights[MAX_TOPK] = (MOE_DTYPE)sigmoid_val;
+
+        // Step 2: intra-subgroup reduction.
+        gate_val = sub_group_reduce_add(gate_val);
+
+        // Step 3: store per-subgroup partial to SLM.
+        if (id_local == 0) {
+            shared_gate_partial[id_sg] = gate_val;
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        // Step 4: subgroup 0 does final cross-subgroup reduction and writes sigmoid result.
+        if (id_sg == 0) {
+            float final_val = (id_local < num_sg) ? shared_gate_partial[id_local] : 0.0f;
+            final_val = sub_group_reduce_add(final_val);
+            if (id_local == 0) {
+                routing_weights[MAX_TOPK] = (MOE_DTYPE)(1.0f / (1.0f + exp(-final_val)));
+            }
+        }
     }
-    // We don't need barrier here because routing_weights is used in the NEXT kernel (mlp_down).
+    // routing_weights[MAX_TOPK] is consumed by the next kernel (mlp_down) — no barrier needed here.
 #    endif
 
 #    if WEIGHT_COMPRESSEION_DT == 0
