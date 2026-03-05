@@ -63,7 +63,6 @@ inline void FUNC(requantize_and_store_by_channel_block)(__global OUTPUT_TYPE* ke
 #endif
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
-__attribute__((reqd_work_group_size(1, 8, SUBGROUP_SIZE)))
 KERNEL(pa_kv_cache_reorder)(
     OPTIONAL_SHAPE_INFO_ARG
     __global const INPUT0_TYPE* block_indices,
