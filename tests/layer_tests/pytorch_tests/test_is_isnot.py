@@ -22,48 +22,50 @@ class TestIsIsNotNone(PytorchLayerTest):
         return (np.array([1.0, 2.0, 3.0], dtype=np.float32),)
 
     def create_model_is_with_none(self):
-        """Model where y is always None - tests 'y is None' -> True path"""
+        """Model where y is always None - tests 'y is None' -> True path.
+        TorchScript constant-folds the is-check so aten::__is__ won't appear
+        in the inlined graph; we pass kind=None to skip op-kind assertion."""
         class m(torch.nn.Module):
             def forward(self, x: torch.Tensor):
                 y: Optional[torch.Tensor] = None
                 if y is None:
                     return x + 1
-                return x * 2  # unreachable but needed for TorchScript
-
-        return m(), None, "aten::__is__"
-
-    def create_model_is_with_tensor(self):
-        """Model where y is not None - tests 'y is None' -> False path"""
-        class m(torch.nn.Module):
-            def forward(self, x: torch.Tensor):
-                y: Optional[torch.Tensor] = x  # not None
-                if y is None:
-                    return x + 1  # unreachable
                 return x * 2
 
-        return m(), None, "aten::__is__"
+        return m(), None, None
+
+    def create_model_is_with_tensor(self):
+        """Model where y is not None - tests 'y is None' -> False path."""
+        class m(torch.nn.Module):
+            def forward(self, x: torch.Tensor):
+                y: Optional[torch.Tensor] = x
+                if y is None:
+                    return x + 1
+                return x * 2
+
+        return m(), None, None
 
     def create_model_isnot_with_none(self):
-        """Model where y is always None - tests 'y is not None' -> False path"""
+        """Model where y is always None - tests 'y is not None' -> False path."""
         class m(torch.nn.Module):
             def forward(self, x: torch.Tensor):
                 y: Optional[torch.Tensor] = None
                 if y is not None:
-                    return x * 2  # unreachable
+                    return x * 2
                 return x - 1
 
-        return m(), None, "aten::__isnot__"
+        return m(), None, None
 
     def create_model_isnot_with_tensor(self):
-        """Model where y is not None - tests 'y is not None' -> True path"""
+        """Model where y is not None - tests 'y is not None' -> True path."""
         class m(torch.nn.Module):
             def forward(self, x: torch.Tensor):
                 y: Optional[torch.Tensor] = x
                 if y is not None:
                     return x * 2
-                return x - 1  # unreachable
+                return x - 1
 
-        return m(), None, "aten::__isnot__"
+        return m(), None, None
 
     @pytest.mark.nightly
     @pytest.mark.precommit

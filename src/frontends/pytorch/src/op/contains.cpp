@@ -25,9 +25,8 @@ OutputVector translate_contains(const NodeContext& context) {
     // PyTorch uses type promotion, but casting item to container dtype can change membership results
     auto container_et = container.get_element_type();
     auto item_et = item.get_element_type();
-    PYTORCH_OP_CONVERSION_CHECK(
-        container_et.is_dynamic() || item_et.is_dynamic() || container_et == item_et,
-        "aten::__contains__: container and item must have matching element types.");
+    PYTORCH_OP_CONVERSION_CHECK(container_et.is_dynamic() || item_et.is_dynamic() || container_et == item_et,
+                                "aten::__contains__: container and item must have matching element types.");
 
     // Compare item with all elements (broadcasts)
     auto equal_mask = context.mark_node(std::make_shared<v1::Equal>(container, item));

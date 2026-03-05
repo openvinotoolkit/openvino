@@ -30,8 +30,7 @@ OutputVector translate_is(const NodeContext& context) {
     }
 
     // Tensor identity is not representable in OpenVINO IR
-    PYTORCH_OP_CONVERSION_CHECK(false,
-        "aten::__is__ supports only identity checks with None (x is None).");
+    PYTORCH_OP_CONVERSION_CHECK(false, "aten::__is__ supports only identity checks with None (x is None).");
     return {};
 }
 
@@ -52,8 +51,7 @@ OutputVector translate_isnot(const NodeContext& context) {
     }
 
     // Tensor identity is not representable in OpenVINO IR
-    PYTORCH_OP_CONVERSION_CHECK(false,
-        "aten::__isnot__ supports only identity checks with None (x is not None).");
+    PYTORCH_OP_CONVERSION_CHECK(false, "aten::__isnot__ supports only identity checks with None (x is not None).");
     return {};
 }
 

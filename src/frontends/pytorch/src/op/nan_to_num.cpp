@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <limits>
+
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
@@ -12,8 +14,6 @@
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/select.hpp"
 #include "utils.hpp"
-
-#include <limits>
 
 namespace ov {
 namespace frontend {
