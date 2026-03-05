@@ -111,6 +111,7 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
                                       inputs[11].get_shape(),
                                       inputs[12].data<int32_t>(),  // max_context_len
                                       inputs[13].data<int32_t>(),  // score_aggregation_window
+                                      inputs[13].get_size(),       // score_aggregation_window_count
                                       inputs[14].data<int32_t>(),  // rotated_block_indices
                                       inputs[14].get_size(),
                                       inputs[15].data<int32_t>(),  // rotation_deltas

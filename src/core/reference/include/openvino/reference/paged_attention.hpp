@@ -146,6 +146,7 @@ inline std::vector<std::size_t> parse_subsequence_ranges(const int32_t* subseq_b
 // Reference implementation of ov::op::PagedAttentionExtension
 // Supports: GQA, ALiBi, RoPE re-rotation (split-half / LLaMA-style), attention sinks,
 //           xattention sparse prefill, and adaptive RKV diversity scoring
+
 template <typename T>
 void paged_attention(std::uintptr_t node_key,
                      ov::reference::paged_attention_cache::PagedCacheManager* cache_manager,
@@ -171,6 +172,7 @@ void paged_attention(std::uintptr_t node_key,
                      const ov::Shape& alibi_shape,
                      const int32_t* max_context_len,
                      const int32_t* score_aggregation_window,
+                     std::size_t score_aggregation_window_count,
                      const int32_t* rotated_block_indices,
                      std::size_t rotated_block_count,
                      const int32_t* rotation_deltas,
@@ -259,7 +261,6 @@ void paged_attention(std::uintptr_t node_key,
     const float scale_f = detail::read_scalar_as_f32(scale, scale_et);
     const int32_t sliding_window_i = sliding_window ? sliding_window[0] : 0;
     const int32_t max_context_i = max_context_len ? max_context_len[0] : 0;
-    const int32_t score_window_i = score_aggregation_window ? score_aggregation_window[0] : 0;
     const std::size_t alibi_len = alibi_shape.empty() ? 0 : static_cast<std::size_t>(alibi_shape[0]);
 
     // Initialize per-sequence view of current lengths
@@ -337,16 +338,23 @@ void paged_attention(std::uintptr_t node_key,
         OPENVINO_ASSERT(past >= 0, "PagedAttention reference: negative past_lens");
         const std::size_t new_len = t_end - t_begin;
 
+        // Per-sequence score aggregation window: shape [] broadcasts to all sequences; shape [B_seq]
+        // selects per-sequence value.  Negative → unbounded (all tokens), 0 → disabled.
+        const std::size_t saw_idx =
+            (score_aggregation_window_count > 1) ? std::min(s, score_aggregation_window_count - 1) : 0;
+        const int32_t score_window_i = score_aggregation_window ? score_aggregation_window[saw_idx] : 0;
+
         // --- Build xattention sparse mask for this sequence (prefill only) ---
         // xattn_mask[h][q_blk][k_blk] = true => keep; false => skip
-        // Only activate when: xattn enabled, multi-token (new_len > 1), single sequence, past == 0
-        const bool do_xattn =
-            has_xattn && new_len > 1 && seq_count == 1 && past == 0 && xattn_block_sz > 0 && xattn_stride > 0;
+        // Only activate when: xattn enabled, multi-token (new_len > 1), single sequence
+        // When past > 0, the mask covers new tokens only; cached tokens are always attended to
+        const bool do_xattn = has_xattn && new_len > 1 && seq_count == 1 && xattn_block_sz > 0 && xattn_stride > 0;
         xattn_mask.clear();
         if (do_xattn) {
-            // Phase 1: strided Q*K dot products
+            // Phase 1: strided Q*K dot products over the new tokens only
             const float threshold_f = detail::read_scalar_as_f32(xattention_threshold, xattention_threshold_et);
-            const std::size_t total_len = static_cast<std::size_t>(past) + new_len;
+            // mask covers only the new tokens; past cached tokens are always attended to
+            const std::size_t total_len = new_len;
             const std::size_t num_q_blocks =
                 (total_len + static_cast<std::size_t>(xattn_block_sz) - 1) / static_cast<std::size_t>(xattn_block_sz);
             const std::size_t num_k_blocks = num_q_blocks;
@@ -384,7 +392,7 @@ void paged_attention(std::uintptr_t node_key,
 
                             // Read key from cache or from current input
                             const std::size_t k_pos = static_cast<std::size_t>(k_tok_idx);
-                            // During prefill with past==0, all keys are in the current input
+                            // all keys for strided estimation come from the new input tokens
                             const T* kptr_raw = key + (t_begin + k_pos) * key_features + kvh * head_size;
                             float dot = 0.f;
                             for (std::size_t d = 0; d < head_size; ++d) {
@@ -613,13 +621,15 @@ void paged_attention(std::uintptr_t node_key,
                 }
 
                 // Apply xattention sparse mask: set skipped block pairs to -inf
+                // Mask covers new-to-new attention only; kpos < past means a cached key, always included
                 if (do_xattn && h < xattn_mask.size()) {
                     for (std::size_t t = 0; t < ctx_len; ++t) {
                         const std::int32_t kpos = start + static_cast<std::int32_t>(t);
-                        const std::size_t q_blk =
-                            static_cast<std::size_t>(qpos) / static_cast<std::size_t>(xattn_block_sz);
+                        if (kpos < past)
+                            continue;  // past cached tokens always included
+                        const std::size_t q_blk = i / static_cast<std::size_t>(xattn_block_sz);
                         const std::size_t k_blk =
-                            static_cast<std::size_t>(kpos) / static_cast<std::size_t>(xattn_block_sz);
+                            static_cast<std::size_t>(kpos - past) / static_cast<std::size_t>(xattn_block_sz);
                         if (q_blk < xattn_mask[h].size() && k_blk < xattn_mask[h][q_blk].size()) {
                             if (!xattn_mask[h][q_blk][k_blk]) {
                                 logits[t] = -std::numeric_limits<float>::infinity();
