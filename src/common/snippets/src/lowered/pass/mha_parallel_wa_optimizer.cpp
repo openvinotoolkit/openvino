@@ -28,6 +28,7 @@
 #include "snippets/lowered/pass/runtime_optimizer.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/runtime_configurator.hpp"
+#include "snippets/shape_types.hpp"
 #include "snippets/utils/loop_utils.hpp"
 #include "snippets/utils/utils.hpp"
 
