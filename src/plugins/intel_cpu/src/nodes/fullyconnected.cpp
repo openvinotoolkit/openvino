@@ -652,8 +652,8 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         }
         memory[ARG_BIAS] = tp_cfg.cached_splited_bias;
         // dst
-        memory[ARG_DST] = getDstMemoryAtPort(0);
         tp_cfg.cached_dst = split_horizontal(context->getEngine(), dst, -1, tp_cfg.w_rank, tp_cfg.w_size, false);
+        memory[ARG_DST] = tp_cfg.cached_dst;
 
         if (auto it = memory.find(ARG_DST | ARG_ATTR_SCALES); it != memory.end()) {
             it->second = split_horizontal(context->getEngine(), it->second, 0, tp_cfg.w_rank, tp_cfg.w_size);
