@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,14 +14,13 @@ public:
     ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
 };
 
-typedef std::tuple <
-    ov::element::Type,         // input precision
-    ov::PartialShape,          // input shape
-    size_t,                        // opset version
-    std::string,                   // device
-    ov::pass::low_precision::LayerTransformation::Params, // transformation params
-    AssignAndReadValueTransformationParam       // test params
-> AssignAndReadValueTransformationParams;
+typedef std::tuple<ov::element::Type,                     // input precision
+                   ov::PartialShape,                      // input shape
+                   size_t,                                // opset version
+                   std::string,                           // device
+                   AssignAndReadValueTransformationParam  // test params
+                   >
+    AssignAndReadValueTransformationParams;
 
 class AssignAndReadValueTransformation :
     public testing::WithParamInterface<AssignAndReadValueTransformationParams>,

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,20 +13,16 @@
 namespace LayerTestsDefinitions {
 
 std::string BatchToSpaceTransformation::getTestCaseName(const testing::TestParamInfo<BatchToSpaceTransformationParams>& obj) {
-    ov::element::Type input_type;
-    std::string target_device;
-    BatchToSpaceTransformationParam param;
-    std::tie(input_type, target_device, param) = obj.param;
+    auto [input_type, device, param] = obj.param;
 
     std::ostringstream result;
-    result << input_type << "_" << target_device << "_" << param.input_shape << "_" << param.fake_quantize;
+    result << input_type << "_" << device << "_" << param.input_shape << "_" << param.fake_quantize;
     return result.str();
 }
 
 void BatchToSpaceTransformation::SetUp() {
-    ov::element::Type input_type;
-    BatchToSpaceTransformationParam param;
-    std::tie(input_type, targetDevice, param) = this->GetParam();
+    auto [input_type, device, param] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(param.input_shape);
 

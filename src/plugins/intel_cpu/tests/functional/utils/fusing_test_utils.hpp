@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 #include "openvino/op/util/logical_reduction_keep_dims.hpp"
+#include "utils/quantization_utils.hpp"
 
 using namespace ov::test;
 
@@ -72,9 +73,21 @@ typedef std::tuple<
         std::vector<std::string> // list of node types that are to be fused
         > fusingSpecificParams;
 
+struct ExtraOperationsParams {
+    ExtraOperationsParams(fusingSpecificParams fusingParams)
+        : fusingParams(std::move(fusingParams)), qinfo({}) {}
+
+    ExtraOperationsParams(fusingSpecificParams fusingParams,
+                          QuantizationInfo qinfo)
+        : fusingParams(std::move(fusingParams)), qinfo(std::move(qinfo)) {}
+
+    fusingSpecificParams fusingParams;
+    QuantizationInfo qinfo;
+};
+
 class CpuTestWithFusing : public CPUTestsBase {
 public:
-    static std::string getTestCaseName(fusingSpecificParams params);
+    static std::string getTestCaseName(const fusingSpecificParams& params);
 
 protected:
     /**
@@ -514,5 +527,15 @@ const auto fusingBias = fusingSpecificParams{std::make_shared<postNodesMgr>(std:
             auto bias = ov::test::utils::make_constant(cfg.type, ov::Shape{last_dim});
             return std::make_shared<ov::op::v1::Add>(cfg.input, bias);
         }, "fusingBias"}}), {"Add"}};
+
+const auto fusingBiasGelu = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+        {[](postNodeConfig& cfg) {
+            size_t last_dim = cfg.input->get_output_partial_shape(0).rbegin()->get_length();
+            auto bias = ov::test::utils::make_constant(cfg.type, ov::Shape{last_dim});
+            return std::make_shared<ov::op::v1::Add>(cfg.input, bias);
+        }, "fusingBias"},
+        {[](postNodeConfig& cfg){
+            return utils::make_activation(cfg.input, cfg.type, utils::Gelu);
+        }, "Gelu"}}), {"Gelu"} };
 
 } // namespace CPUTestUtils

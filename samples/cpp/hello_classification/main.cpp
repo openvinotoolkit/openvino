@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,12 @@
  */
 int tmain(int argc, tchar* argv[]) {
     try {
+        // -------- Set OpenVINO log message capturing callback --------
+        const std::function<void(std::string_view)> log_callback{[](std::string_view msg) {
+            slog::info << msg;
+        }};
+        ov::util::set_log_callback(log_callback);
+
         // -------- Get OpenVINO runtime version --------
         slog::info << ov::get_openvino_version() << slog::endl;
 

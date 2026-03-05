@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2022 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,7 +116,7 @@ KernelsPriority GatherNonzeroKernelRef::GetKernelsPriority(const Params& /*param
 
 bool GatherNonzeroKernelRef::Validate(const Params& p) const {
     if (!KernelBaseOpenCL::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const auto& rp = static_cast<const gather_nonzero_params&>(p);
 

@@ -31,12 +31,14 @@ name: macOS (Python 3.11)
 ==> ./merge_queue_stub.yml <==
 ==> ./debian_10_arm.yml <==
 name: Debian 10 ARM
-==> ./android_arm64.yml <==
-name: Android ARM64 with vcpkg
+==> ./android.yml <==
+name: Android
 ==> ./code_style.yml <==
 name: Code Style
 ==> ./manylinux_2014.yml <==
 name: Manylinux 2014
+==> ./manylinux_2_28.yml <==
+name: Manylinux 2_28
 ==> ./linux_arm64.yml <==
 name: Linux ARM64 (Ubuntu 20.04, Python 3.11)
 ==> ./dev_cpu_linux_snippets_libxsmm.yml <==
@@ -48,19 +50,15 @@ name: macOS ARM64 (Python 3.11)
 ==> ./dependency_review.yml <==
 name: 'Dependency Review'
 ==> ./fedora_29.yml <==
-name: Fedora 29 (RHEL 8.4), Python 3.9
+name: Fedora 29 (RHEL 8.4), Python 3.10
 ==> ./code_snippets.yml <==
 name: Code snippets
-==> ./ubuntu_20.yml <==
-name: Linux (Ubuntu 20.04, Python 3.9)
 ==> ./linux_riscv.yml <==
 name: Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
-==> ./android_x64.yml <==
-name: Android x64
 ==> ./workflow_rerunner.yml <==
 name: Rerun Workflow with Known Errors
 ==> ./linux_sanitizers.yml <==
-name: Linux Sanitizers (Ubuntu 20.04, Python 3.9)
+name: Linux Sanitizers (Ubuntu 22.04, Python 3.11)
 ==> ./py_checks.yml <==
 name: Python API Checks
 ==> ./webassembly.yml <==

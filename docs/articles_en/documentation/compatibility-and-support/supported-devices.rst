@@ -42,9 +42,9 @@ Feature Support and API Coverage
  :doc:`Automatic batching <../../openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching>`                     No      Yes        No
  :doc:`Multi-stream execution <../../openvino-workflow/running-inference/optimize-inference/optimizing-throughput>`                       Yes     Yes        No
  :doc:`Model caching <../../openvino-workflow/running-inference/optimize-inference/optimizing-latency/model-caching-overview>`            Yes     Partial    Yes
- :doc:`Dynamic shapes <../../openvino-workflow/running-inference/dynamic-shapes>`                                                         Yes     Partial    No
+ :doc:`Dynamic shapes <../../openvino-workflow/running-inference/model-input-output/dynamic-shapes>`                                      Yes     Partial    No
  :doc:`Preprocessing acceleration <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing>`                  Yes     Yes        No
- :doc:`Stateful models <../../openvino-workflow/running-inference/stateful-models>`                                                       Yes     Yes        Yes
+ :doc:`Stateful models <../../openvino-workflow/running-inference/inference-request/stateful-models>`                                     Yes     Yes        Yes
  :doc:`Extensibility <../../documentation/openvino-extensibility>`                                                                        Yes     Yes        No
 ======================================================================================================================================== ======= ========== ===========
 
@@ -73,7 +73,7 @@ Feature Support and API Coverage
 +-------------------------+-----------+------------------+-------------------+
 
 For setting up a relevant configuration, refer to the
-:doc:`Integrate with Customer Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
+:doc:`Integrate with Customer Application <../../openvino-workflow/running-inference>`
 topic (step 3 "Configure input and output").
 
 .. dropdown:: Device support across OpenVINO 2024.6 distributions

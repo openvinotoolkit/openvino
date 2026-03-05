@@ -149,8 +149,6 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 
 ## Other options
 
-* `ENABLE_CPPLINT` enables code style check using [cpplint] static code checker:
-    * `ON` is default.
 * `ENABLE_CLANG_FORMAT` enables [Clang format] code style check:
     * `ON` is default.
 * `ENABLE_FASTER_BUILD` enables [precompiled headers] and [unity build] using CMake:
@@ -179,14 +177,13 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 [Intel TBB]:https://software.intel.com/content/www/us/en/develop/tools/threading-building-blocks.html
 [Python]:https://www.python.org/
 [Java]:https://www.java.com/ru/
-[cpplint]:https://github.com/cpplint/cpplint
 [Clang format]:http://clang.llvm.org/docs/ClangFormat.html
 [OpenVINO Contrib]:https://github.com/openvinotoolkit/openvino_contrib
 [OpenVINO thirdparty pugixml]:https://github.com/openvinotoolkit/openvino/tree/master/inference-engine/thirdparty/pugixml
 [pugixml]:https://pugixml.org/
 [ONNX]:https://onnx.ai/
 [protobuf]:https://github.com/protocolbuffers/protobuf
-[OpenVINO Runtime Introduction]:https://docs.openvino.ai/2025/openvino-workflow/running-inference/integrate-openvino-with-your-application.html
+[OpenVINO Runtime Introduction]:https://docs.openvino.ai/2026/openvino-workflow/running-inference.html
 [PDPD]:https://github.com/PaddlePaddle/Paddle
 [TensorFlow]:https://www.tensorflow.org/
 [TensorFlow Lite]:https://www.tensorflow.org/lite

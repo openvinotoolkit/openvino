@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace ov {
 namespace test {
 // Openvino extension operation that sleeps for X us in its evaluate method
 namespace {
-enum class TestSteps { INIT, ENTER_EVALUATE, RUN_EVALUATE };
+enum class TestSteps : uint8_t { INIT, ENTER_EVALUATE, RUN_EVALUATE };
 }  // namespace
 
 class SleepCustomOp : public ov::op::Op {

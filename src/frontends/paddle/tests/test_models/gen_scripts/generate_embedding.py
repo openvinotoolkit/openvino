@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -18,7 +18,7 @@ def ov_embedding(ids, vocab_embeddings, vocab_size, embedding_dim, padding_idx, 
     decomposing embedding with OpenVINO ops.
     """
     import openvino as ov
-    from openvino.runtime import opset8
+    from openvino import opset8
     from openvino import Core
 
     if vocab_embeddings is None:
@@ -50,7 +50,7 @@ def ov_embedding(ids, vocab_embeddings, vocab_size, embedding_dim, padding_idx, 
     parameters = [node_ids, node_w]
     inputs_dict = {'ids': ids, "w": vocab_embeddings}
 
-    # 
+    #
     ov_model = ov.Model(graph, parameters, "embedding")
     core = Core()
     compiled_model = core.compile_model(ov_model, 'CPU')
@@ -61,7 +61,7 @@ def ov_embedding(ids, vocab_embeddings, vocab_size, embedding_dim, padding_idx, 
 
 def embedding(name: str, ids, vocab_size, embedding_dim, padding_idx=None, sparse=False, vocab_embeddings=None, compare=False):
     """
-    padding_idx (int|long|None) 
+    padding_idx (int|long|None)
     """
     paddle.enable_static()
 
@@ -181,7 +181,7 @@ if __name__ == "__main__":
 
     if paddle.__version__ >= '2.0.0':
         outputs = embedding("embedding_tensorIds_paddings", ids, vocab_size, embedding_dim,
-                            padding_idx=np.compat.long(padding_idx), vocab_embeddings=table, compare=False)
+                            padding_idx=np.int64(padding_idx), vocab_embeddings=table, compare=False)
     else:
         import paddle.compat as cpt
         outputs = embedding("embedding_tensorIds_paddings", ids, vocab_size, embedding_dim,

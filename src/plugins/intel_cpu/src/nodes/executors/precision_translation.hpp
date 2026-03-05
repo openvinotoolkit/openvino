@@ -1,11 +1,14 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <cassert>
+#include <cstddef>
 #include <functional>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "nodes/executors/memory_arguments.hpp"
@@ -17,7 +20,7 @@ namespace ov::intel_cpu {
 
 template <size_t bypassId>
 struct use {
-    ov::element::Type operator()(const std::vector<ov::element::Type>& types, size_t idx) const {
+    ov::element::Type operator()(const std::vector<ov::element::Type>& types, [[maybe_unused]] size_t idx) const {
         assert(bypassId < types.size());
         return types[bypassId];
     }
@@ -31,20 +34,16 @@ struct bypass {
 
 template <ov::element::Type_t type>
 struct just {
-    ov::element::Type operator()(const std::vector<ov::element::Type>& types, size_t idx) const {
-        // ignore everything
-        (void)types;
-        (void)idx;
+    ov::element::Type operator()([[maybe_unused]] const std::vector<ov::element::Type>& types,
+                                 [[maybe_unused]] size_t idx) const {
         return type;
     }
 };
 
 template <>
 struct just<TypeMaskAlias::fxx> {
-    ov::element::Type operator()(const std::vector<ov::element::Type>& types, size_t idx) const {
-        // ignore everything
-        (void)types;
-        (void)idx;
+    ov::element::Type operator()([[maybe_unused]] const std::vector<ov::element::Type>& types,
+                                 [[maybe_unused]] size_t idx) const {
         return defaultFloatPrecision();
     }
 };
@@ -53,7 +52,7 @@ using policy = std::function<ov::element::Type(const std::vector<ov::element::Ty
 
 struct PortsTranslation {
     template <typename... Policies>
-    PortsTranslation(Policies... policies) : m_policies{policies...} {}
+    explicit PortsTranslation(Policies... policies) : m_policies{policies...} {}
 
     std::vector<ov::element::Type> operator()(const std::vector<ov::element::Type>& types) const {
         assert(types.size() == m_policies.size());
@@ -82,23 +81,20 @@ class TypeMappingEntry {
 public:
     using EnabledPredicate = std::function<bool(void)>;
 
-    TypeMappingEntry(InOutTypeMask mask, TypeTranslationFunction translation, EnabledPredicate enabled = {})
+    TypeMappingEntry(InOutTypeMask mask, std::vector<policy> policies, EnabledPredicate enabled = {})
         : m_mask(std::move(mask)),
-          m_translation(std::move(translation)),
+          m_policies(std::move(policies)),
           m_enabled(std::move(enabled)) {}
 
-    const InOutTypeMask& mask() const {
+    [[nodiscard]] const InOutTypeMask& mask() const {
         return m_mask;
     }
 
-    InOutTypes translate(const InOutTypes& types) const {
-        if (m_translation) {
-            return m_translation(types);
-        }
-        return {};
+    [[nodiscard]] ov::element::Type translate(const InOutTypes& types, size_t idx) const {
+        return m_policies[idx](types, idx);
     }
 
-    bool enabled() const {
+    [[nodiscard]] bool enabled() const {
         if (m_enabled) {
             return m_enabled();
         }
@@ -107,16 +103,17 @@ public:
 
 private:
     InOutTypeMask m_mask;
-    TypeTranslationFunction m_translation;
+    std::vector<policy> m_policies;
     EnabledPredicate m_enabled;
 };
 
 using TypeMapping = std::vector<TypeMappingEntry>;
-using MappingNotation = std::vector<int>;
+using MappingNotation = std::unordered_map<int, size_t>;
 using pt = PortsTranslation;
+using TypeOfArg = std::unordered_map<int, ov::element::Type>;
 
-InOutTypes getTypeConfiguration(const MemoryDescArgs& descriptors,
-                                const TypeMapping& mapping,
-                                const MappingNotation& notation);
+TypeOfArg getTypeConfiguration(const MemoryDescArgs& descriptors,
+                               const TypeMapping& mapping,
+                               const MappingNotation& notation);
 
 }  // namespace ov::intel_cpu

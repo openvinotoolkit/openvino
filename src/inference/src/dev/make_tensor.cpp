@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,8 @@
 #include <memory>
 #include <mutex>
 
-#include "openvino/core/type/element_iterator.hpp"
+#include "openvino/core/memory_util.hpp"
+#include "openvino/core/type/element_type_info.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -57,16 +58,42 @@ public:
         OPENVINO_ASSERT(m_element_type.is_static());
     }
 
-    void* data(const element::Type& element_type) const override {
-        if (element_type.is_static() && (element_type.bitwidth() != get_element_type().bitwidth() ||
-                                         element_type.is_real() != get_element_type().is_real() ||
-                                         (element_type == element::string && get_element_type() != element::string) ||
-                                         (element_type != element::string && get_element_type() == element::string))) {
-            OPENVINO_THROW("Tensor data with element type ",
-                           get_element_type(),
-                           ", is not representable as pointer to ",
-                           element_type);
-        }
+    void* data() override {
+        return m_ptr;
+    }
+
+    void* data(const element::Type& element_type) override {
+        OPENVINO_ASSERT(is_pointer_representable(element_type),
+                        "Tensor data with element type ",
+                        get_element_type(),
+                        ", is not representable as pointer to ",
+                        element_type);
+        return m_ptr;
+    }
+
+    const void* data() const override {
+        return m_ptr;
+    }
+
+    const void* data(const element::Type& element_type) const override {
+        OPENVINO_ASSERT(is_pointer_representable(element_type),
+                        "Tensor data with element type ",
+                        get_element_type(),
+                        ", is not representable as pointer to ",
+                        element_type);
+        return m_ptr;
+    }
+
+    void* data_rw() override {
+        return m_ptr;
+    }
+
+    void* data_rw(const element::Type& element_type) override {
+        OPENVINO_ASSERT(is_pointer_representable(element_type),
+                        "Tensor data with element type ",
+                        get_element_type(),
+                        ", is not representable as pointer to ",
+                        element_type);
         return m_ptr;
     }
 
@@ -94,6 +121,20 @@ public:
     }
 
 protected:
+    bool is_pointer_representable(const element::Type& element_type) const {
+        if (element_type.is_dynamic()) {
+            return true;
+        } else {
+            // gets type info to reduce validation to access speed, due to performance issues
+            const auto& other_type_info = element::get_type_info(element_type);
+            const auto& this_type_info = element::get_type_info(get_element_type());
+            return (get_element_type() != element::string && element_type != element::string &&
+                    other_type_info.m_bitwidth == this_type_info.m_bitwidth &&
+                    other_type_info.m_is_real == this_type_info.m_is_real) ||
+                   (element_type == element::string && element::string == get_element_type());
+        }
+    }
+
     void update_strides() const {
         if (m_element_type.bitwidth() < 8)
             return;
@@ -116,6 +157,26 @@ protected:
     mutable Strides m_strides;
     mutable std::once_flag m_strides_once;
     void* m_ptr;
+};
+
+/**
+ * @brief Read-only view tensor to external memory
+ * The tensor doesn't own the external memory
+ */
+class ReadOnlyViewTensor : public ViewTensor {
+public:
+    ReadOnlyViewTensor(const element::Type element_type, const Shape& shape, const void* ptr)
+        : ViewTensor{element_type, shape, const_cast<void*>(ptr)} {}
+
+    using ViewTensor::data;
+
+    [[noreturn]] void* data_rw() override {
+        OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data()'");
+    }
+
+    [[noreturn]] void* data_rw(const element::Type& element_type) override {
+        OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data(element_type)'");
+    }
 };
 
 /**
@@ -173,6 +234,25 @@ public:
     }
 };
 
+class ReadOnlyStridedViewTensor : public StridedViewTensor {
+public:
+    ReadOnlyStridedViewTensor(const element::Type element_type,
+                              const Shape& shape,
+                              const void* ptr,
+                              const Strides& strides)
+        : StridedViewTensor{element_type, shape, const_cast<void*>(ptr), strides} {}
+
+    using StridedViewTensor::data;
+
+    [[noreturn]] void* data_rw() override {
+        OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data()'");
+    }
+
+    [[noreturn]] void* data_rw(const element::Type& element_type) override {
+        OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data()'");
+    }
+};
+
 /**
  * @brief Creates view tensor on external memory
  *
@@ -192,6 +272,27 @@ std::shared_ptr<ITensor> make_tensor(const element::Type element_type,
 }
 
 /**
+ * @brief Creates read-only view tensor on external memory
+ *
+ * @param element_type Tensor element type
+ * @param shape Tensor shape
+ * @param ptr pointer to external memory
+ * @param byte_strides Tensor strides
+ *
+ * @return Shared pointer to tensor interface
+ */
+std::shared_ptr<ITensor> make_tensor(const element::Type element_type,
+                                     const Shape& shape,
+                                     const void* ptr,
+                                     const Strides& byte_strides) {
+    if (byte_strides.empty()) {
+        return std::make_shared<ReadOnlyViewTensor>(element_type, shape, ptr);
+    } else {
+        return std::make_shared<ReadOnlyStridedViewTensor>(element_type, shape, ptr, byte_strides);
+    }
+}
+
+/**
  * @brief Tensor with allocated memory
  * Tensor owns the memory
  */
@@ -202,10 +303,10 @@ public:
                      shape,
                      [&shape, &element_type, &allocator] {
                          OPENVINO_ASSERT(allocator, "Allocator was not initialized");
-                         const auto byte_size = element::get_memory_size(element_type, shape_size(shape));
-                         auto data = const_cast<Allocator&>(allocator).allocate(byte_size);
-                         OPENVINO_ASSERT(byte_size == 0 || data != nullptr, "Failed to allocate memory");
-
+                         const auto byte_size = util::get_memory_size_safe(element_type, shape);
+                         OPENVINO_ASSERT(byte_size, bad_alloc_error_msg(element_type, shape));
+                         auto data = const_cast<Allocator&>(allocator).allocate(*byte_size);
+                         OPENVINO_ASSERT(*byte_size == 0 || data != nullptr, "Failed to allocate memory");
                          initialize_elements(data, element_type, shape);
                          return data;
                      }()},
@@ -219,14 +320,15 @@ public:
         if (m_shape == new_shape)
             return;
 
+        const auto byte_size = util::get_memory_size_safe(m_element_type, new_shape);
+        OPENVINO_ASSERT(byte_size, bad_alloc_error_msg(m_element_type, new_shape));
         m_shape = std::move(new_shape);
 
-        if (get_size() > get_capacity()) {
+        if (*byte_size > get_bytes_capacity()) {
             destroy_memory();
-
             // allocate buffer and initialize objects from scratch
             m_capacity = m_shape;
-            m_ptr = m_allocator.allocate(get_bytes_capacity());
+            m_ptr = m_allocator.allocate(*byte_size);
             initialize_elements(m_ptr, m_element_type, m_shape);
         }
 
@@ -237,7 +339,7 @@ public:
 private:
     void destroy_elements(size_t begin_ind, size_t end_ind) {
         // it removes elements from tail
-        if (get_element_type() == element::Type_t::string) {
+        if (m_ptr != nullptr && get_element_type() == element::string) {
             auto strings = static_cast<std::string*>(m_ptr);
             for (size_t ind = begin_ind; ind < end_ind; ++ind) {
                 using std::string;
@@ -265,7 +367,11 @@ private:
     }
 
     size_t get_bytes_capacity() const {
-        return element::get_memory_size(get_element_type(), get_capacity());
+        return util::get_memory_size(get_element_type(), get_capacity());
+    }
+
+    static std::string bad_alloc_error_msg(const element::Type& element_type, const Shape& shape) {
+        return "Cannot allocate memory for type: " + element_type.to_string() + " and shape: " + shape.to_string();
     }
 
     Allocator m_allocator;
@@ -302,18 +408,33 @@ public:
     }
 
     void set_shape(ov::Shape new_shape) {
-        OPENVINO_ASSERT(new_shape.size() == m_shape.size());
-        for (auto new_dim = new_shape.cbegin(), max_dim = m_capacity.cbegin(); new_dim != new_shape.cend();
+        OPENVINO_ASSERT(new_shape.size() >= m_shape.size());
+        const auto last_new_dim = new_shape.crend();
+        auto new_dim = new_shape.crbegin();
+        for (auto max_dim = m_capacity.crbegin(); new_dim != last_new_dim && max_dim != m_capacity.crend();
              ++max_dim, ++new_dim) {
             OPENVINO_ASSERT(*new_dim <= *max_dim,
                             "Cannot set new shape: ",
                             new_shape,
-                            " for ROI tensor! Dimension: ",
-                            std::distance(new_shape.cbegin(), new_dim),
+                            " for ROI tensor! New dimension at index: ",
+                            std::distance(new_shape.cbegin(), new_dim.base()) - 1,
                             " is not compatible.");
         }
+        new_dim = std::find_if(new_dim, last_new_dim, [](auto&& dim) {
+            return dim != 1;
+        });
+        OPENVINO_ASSERT(
+            new_dim == last_new_dim,
+            "Cannot set new shape: ",
+            new_shape,
+            " for ROI tensor! The expanding rank dimension(s) of ROI must be ones, but it is not at index: ",
+            std::distance(new_shape.cbegin(), new_dim.base()) - 1);
 
         m_shape = std::move(new_shape);
+    }
+
+    size_t get_offset() const {
+        return m_offset;
     }
 
 protected:
@@ -348,9 +469,28 @@ public:
         BaseRoiTensor::set_shape(new_shape);
     }
 
-    void* data(const element::Type& element_type) const override {
-        auto owner_data = m_owner->data(element_type);
-        return static_cast<uint8_t*>(owner_data) + m_offset;
+    void* data() override {
+        return static_cast<uint8_t*>(m_owner->data()) + m_offset;
+    }
+
+    void* data(const element::Type& element_type) override {
+        return static_cast<uint8_t*>(m_owner->data()) + m_offset;
+    }
+
+    const void* data() const override {
+        return static_cast<uint8_t*>(m_owner->data()) + m_offset;
+    }
+
+    const void* data(const element::Type& element_type) const override {
+        return static_cast<uint8_t*>(m_owner->data()) + m_offset;
+    }
+
+    void* data_rw() override {
+        return static_cast<uint8_t*>(m_owner->data_rw()) + m_offset;
+    }
+
+    void* data_rw(const element::Type& element_type) override {
+        return static_cast<uint8_t*>(m_owner->data_rw(element_type)) + m_offset;
     }
 };
 
@@ -474,6 +614,13 @@ ov::SoPtr<ov::ITensor> get_tensor_impl(const ov::Tensor& tensor) {
     std::shared_ptr<void> so;
     util::get_tensor_impl(tensor, tensor_impl, so);
     return ov::SoPtr<ov::ITensor>(tensor_impl, so);
+}
+
+size_t get_tensor_data_offset(const ov::ITensor& tensor) {
+    if (auto tensor_impl = dynamic_cast<const BaseRoiTensor*>(&tensor)) {
+        return tensor_impl->get_offset();
+    }
+    return 0;
 }
 
 }  // namespace ov

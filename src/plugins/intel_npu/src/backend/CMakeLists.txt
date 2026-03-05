@@ -1,10 +1,11 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME "openvino_npu_level_zero_backend")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
+
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
@@ -23,10 +24,9 @@ target_include_directories(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
+        openvino_npu_common
         openvino::npu_al
-        openvino::npu_common
 )
-
 #
 # targets install
 #

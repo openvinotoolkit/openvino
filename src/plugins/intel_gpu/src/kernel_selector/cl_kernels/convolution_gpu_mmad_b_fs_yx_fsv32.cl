@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,9 @@
     #define ACTIVATION_TYPE_VEC float8
     #define TO_ACTIVATION_TYPE_VEC(x) convert_float8(x)
     #define MMAD MMAD_8x8
+#if SUB_GROUP_SIZE == 8
     #define BLOCK_WRITE(ptr, val) _sub_group_block_write8((__global uint*)(ptr), as_uint8(val));
+#endif
 #elif OUTPUT_X_BLOCK_SIZE == 4
     #define PACKED_TYPE_VEC MAKE_VECTOR_TYPE(PACKED_IN_TYPE, 4)
     #define ACCUMULATOR_TYPE_VEC int4
@@ -35,12 +37,25 @@
     #define ACTIVATION_TYPE_VEC float4
     #define TO_ACTIVATION_TYPE_VEC(x) convert_float4(x)
     #define MMAD MMAD_4x8
+#if SUB_GROUP_SIZE == 8
     #define BLOCK_WRITE(ptr, val) _sub_group_block_write4((__global uint*)(ptr), as_uint4(val));
+#endif
 #else
 #error "convolution_gpu_mmad_b_fs_yx_fsv32: Unsupported block size"
 #endif
 
-__attribute__((reqd_work_group_size(8, OW_GROUP, 1)))
+#ifdef FILTER_TYPE_UCHAR
+    #define PACKED_WEIGHTS_TYPE uint
+    #define AS_PACKED_WEIGHTS_TYPE_VEC8(x) as_uint8(x)
+#elif defined(FILTER_TYPE_CHAR)
+    #define PACKED_WEIGHTS_TYPE int
+    #define AS_PACKED_WEIGHTS_TYPE_VEC8(x) as_int8(x)
+#else
+    #error "convolution_gpu_mmad_b_fs_yx_fsv32: Unsupported FILTER_TYPE"
+#endif
+
+
+__attribute__((reqd_work_group_size(SUB_GROUP_SIZE, OW_GROUP, 1)))
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL(convolution_mmad_b_fs_yx_fsv32)(
     __global INPUT0_TYPE* input,
@@ -79,13 +94,16 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
     const int input_z = z * STRIDE_SIZE_Z - PADDING_SIZE_Z;
 
-    ACCUMULATOR_TYPE_VEC acc[4] = { 0 }; // 4*8 packed channels * OUTPUT_X_BLOCK_SIZE
+    ACCUMULATOR_TYPE_VEC acc[OF_TO_DO] = { 0 }; // OF_TO_DO*8 packed channels * OUTPUT_X_BLOCK_SIZE
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
     ACCUMULATOR_TYPE_VEC acc_assym_weights = 0;
 #endif
 
+#if INPUT0_DIMS == 5
+    const uint input_offset = INPUT0_GET_INDEX(b,0,0,0,0);
+#else //INPUT0_DIMS == 5
     const uint input_offset = INPUT0_GET_INDEX(b,0,0,0);
-
+#endif //INPUT0_DIMS == 5
     uint filter_idx = fg * FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z * ISV_SIZE * OSV_SIZE * IFM_BLOCKS;
 
     const int input_x_pitch = ISV_SIZE;
@@ -96,12 +114,13 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
 
     for (int icb = 0; icb < IFM_BLOCKS; ++icb) {
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
-        uchar4 m;
-        __attribute__((opencl_unroll_hint(4)))
-        for (int i = 0; i < 4; i++) {
-            m[i] = icb*32 + lid*4 + i < INPUT0_FEATURE_NUM;
+        uchar4 m = { 0, 0, 0, 0 };
+        __attribute__((opencl_unroll_hint(OF_TO_DO)))
+        for (int i = 0; i < OF_TO_DO; i++) {
+            m[i] = icb*32 + lid*OF_TO_DO + i < INPUT0_FEATURE_NUM;
         }
         int mm = as_int(m);
+#if SUB_GROUP_SIZE == 8
         int8 multiplier = (int8)(sub_group_broadcast(mm, 0),
                                  sub_group_broadcast(mm, 1),
                                  sub_group_broadcast(mm, 2),
@@ -110,6 +129,16 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
                                  sub_group_broadcast(mm, 5),
                                  sub_group_broadcast(mm, 6),
                                  sub_group_broadcast(mm, 7));
+#else //SUB_GROUP_SIZE == 8
+        int8 multiplier = (int8)(sub_group_broadcast(mm, 0) + (sub_group_broadcast(mm, 1) << 16),
+                                 sub_group_broadcast(mm, 2) + (sub_group_broadcast(mm, 3) << 16),
+                                 sub_group_broadcast(mm, 4) + (sub_group_broadcast(mm, 5) << 16),
+                                 sub_group_broadcast(mm, 6) + (sub_group_broadcast(mm, 7) << 16),
+                                 sub_group_broadcast(mm, 8) + (sub_group_broadcast(mm, 9) << 16),
+                                 sub_group_broadcast(mm, 10) + (sub_group_broadcast(mm, 11) << 16),
+                                 sub_group_broadcast(mm, 12) + (sub_group_broadcast(mm, 13) << 16),
+                                 sub_group_broadcast(mm, 14) + (sub_group_broadcast(mm, 15) << 16));
+#endif
 #endif
 
         __attribute__((opencl_unroll_hint(FILTER_SIZE_Z)))
@@ -132,23 +161,24 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
 
                     int xb = 0;
                     for (; xb < INPUT_LINE_SIZE; xb++) {
-
-                        bool x_cross_fm = input_x + xb < 0 || input_x + xb >= INPUT0_SIZE_X;
-                        if (y_cross_fm || x_cross_fm || z_cross_fm) {
+                        if (lid < 8){
+                            bool x_cross_fm = input_x + xb < 0 || input_x + xb >= INPUT0_SIZE_X;
+                            if (y_cross_fm || x_cross_fm || z_cross_fm) {
 #if ASYMMETRIC_DATA_QUANTIZATION
-                            const int azp_idx = (icb*ISV_SIZE + 4*lid) % ACTIVATIONS_ZERO_POINTS_FEATURE_NUM;
-                            line_cache[xb] = AS_TYPE(PACKED_IN_TYPE, ((const __global uint*)(activations_zp + azp_idx))[0]);
+                                const int azp_idx = (icb*ISV_SIZE + 4*lid) % ACTIVATIONS_ZERO_POINTS_FEATURE_NUM;
+                                line_cache[xb] = AS_TYPE(PACKED_IN_TYPE, ((const __global uint*)(activations_zp + azp_idx))[0]);
 #else
-                            line_cache[xb] = 0;
+                                line_cache[xb] = 0;
 #endif
-                        }
-                        else
-                        {
-                            line_cache[xb] = AS_TYPE(PACKED_IN_TYPE, _sub_group_block_read((const __global uint*)(input + in_addr +
-                                                                          icb * input_fs_pitch +
-                                                                          kd * DILATION_SIZE_Z * input_z_pitch +
-                                                                          kh * DILATION_SIZE_Y * input_y_pitch +
-                                                                          xb * input_x_pitch)));
+                            }
+                            else
+                            {
+                                line_cache[xb] = AS_TYPE(PACKED_IN_TYPE, _sub_group_block_read((const __global uint*)(input + in_addr +
+                                                                            icb * input_fs_pitch +
+                                                                            kd * DILATION_SIZE_Z * input_z_pitch +
+                                                                            kh * DILATION_SIZE_Y * input_y_pitch +
+                                                                            xb * input_x_pitch)));
+                            }
                         }
                     }
                 }
@@ -165,16 +195,23 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
                                      + kh * ISV_SIZE * OSV_SIZE * FILTER_SIZE_X
                                      + kw * ISV_SIZE * OSV_SIZE;
 
-                    int8 weights_data0 = as_int8(_sub_group_block_read8((const __global uint*)(weights + f_off + 0*8*ISV_SIZE)));
-                    int8 weights_data1 = as_int8(_sub_group_block_read8((const __global uint*)(weights + f_off + 1*8*ISV_SIZE)));
-                    int8 weights_data2 = as_int8(_sub_group_block_read8((const __global uint*)(weights + f_off + 2*8*ISV_SIZE)));
-                    int8 weights_data3 = as_int8(_sub_group_block_read8((const __global uint*)(weights + f_off + 3*8*ISV_SIZE)));
+
+#if SUB_GROUP_SIZE == 8
+                    MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data0 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 0*8*ISV_SIZE)));
+                    MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data1 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 1*8*ISV_SIZE)));
+                    MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data2 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 2*8*ISV_SIZE)));
+                    MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data3 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 3*8*ISV_SIZE)));
+#else //SUB_GROUP_SIZE == 8
+                    MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data0 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 0*16*ISV_SIZE)));
+                    MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data1 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 1*16*ISV_SIZE)));
+#endif
 
                     acc[0] = MMAD(src, weights_data0, acc[0]); // 8 elements in 4*lid+0 out channel
                     acc[1] = MMAD(src, weights_data1, acc[1]); // 8 elements in 4*lid+1 out channel
+#if SUB_GROUP_SIZE == 8
                     acc[2] = MMAD(src, weights_data2, acc[2]); // 8 elements in 4*lid+2 out channel
                     acc[3] = MMAD(src, weights_data3, acc[3]); // 8 elements in 4*lid+3 out channel
-
+#endif
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
                     acc_assym_weights = MMAD(src, multiplier, acc_assym_weights);
 #endif
@@ -188,62 +225,76 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
 #endif
 
 #if OUTPUT_IS_FP
-    MAKE_VECTOR_TYPE(OUTPUT_TYPE, OUTPUT_X_BLOCK_SIZE) dst[4];
+    MAKE_VECTOR_TYPE(OUTPUT_TYPE, OUTPUT_X_BLOCK_SIZE) dst[OF_TO_DO];
 
     for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
 #if BIAS_TERM
-        ACTIVATION_TYPE res0 = TO_ACTIVATION_TYPE(acc[0][i]) + (ACTIVATION_TYPE)(biases[bias_index + 4*lid+0]);
-        ACTIVATION_TYPE res1 = TO_ACTIVATION_TYPE(acc[1][i]) + (ACTIVATION_TYPE)(biases[bias_index + 4*lid+1]);
-        ACTIVATION_TYPE res2 = TO_ACTIVATION_TYPE(acc[2][i]) + (ACTIVATION_TYPE)(biases[bias_index + 4*lid+2]);
-        ACTIVATION_TYPE res3 = TO_ACTIVATION_TYPE(acc[3][i]) + (ACTIVATION_TYPE)(biases[bias_index + 4*lid+3]);
+        ACTIVATION_TYPE res0 = TO_ACTIVATION_TYPE(acc[0][i]) + (ACTIVATION_TYPE)(biases[bias_index + OF_TO_DO*lid+0]);
+        ACTIVATION_TYPE res1 = TO_ACTIVATION_TYPE(acc[1][i]) + (ACTIVATION_TYPE)(biases[bias_index + OF_TO_DO*lid+1]);
+#if SUB_GROUP_SIZE == 8
+        ACTIVATION_TYPE res2 = TO_ACTIVATION_TYPE(acc[2][i]) + (ACTIVATION_TYPE)(biases[bias_index + OF_TO_DO*lid+2]);
+        ACTIVATION_TYPE res3 = TO_ACTIVATION_TYPE(acc[3][i]) + (ACTIVATION_TYPE)(biases[bias_index + OF_TO_DO*lid+3]);
+#endif
 #else
         ACTIVATION_TYPE res0 = TO_ACTIVATION_TYPE(acc[0][i]);
         ACTIVATION_TYPE res1 = TO_ACTIVATION_TYPE(acc[1][i]);
+#if SUB_GROUP_SIZE == 8
         ACTIVATION_TYPE res2 = TO_ACTIVATION_TYPE(acc[2][i]);
         ACTIVATION_TYPE res3 = TO_ACTIVATION_TYPE(acc[3][i]);
 #endif
+#endif
 
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
-        const uint idx0 = fg*OSV_SIZE + 4*lid + 0;
-        const uint idx1 = fg*OSV_SIZE + 4*lid + 1;
-        const uint idx2 = fg*OSV_SIZE + 4*lid + 2;
-        const uint idx3 = fg*OSV_SIZE + 4*lid + 3;
 
+        const uint idx0 = fg*OSV_SIZE + OF_TO_DO*lid + 0;
+        const uint idx1 = fg*OSV_SIZE + OF_TO_DO*lid + 1;
+#if SUB_GROUP_SIZE == 8
+        const uint idx2 = fg*OSV_SIZE + OF_TO_DO*lid + 2;
+        const uint idx3 = fg*OSV_SIZE + OF_TO_DO*lid + 3;
+#endif
         res0 -= acc_assym_weights[i] * TO_ACCUMULATOR_TYPE(weights_zp[idx0]);
         res1 -= acc_assym_weights[i] * TO_ACCUMULATOR_TYPE(weights_zp[idx1]);
+#if SUB_GROUP_SIZE == 8
         res2 -= acc_assym_weights[i] * TO_ACCUMULATOR_TYPE(weights_zp[idx2]);
         res3 -= acc_assym_weights[i] * TO_ACCUMULATOR_TYPE(weights_zp[idx3]);
+#endif
 #endif  // ASYMMETRIC_WEIGHTS_QUANTIZATION
 
 #if ASYMMETRIC_DATA_QUANTIZATION
-        res0 += compensation[fg*OSV_SIZE + 4*lid + 0];
-        res1 += compensation[fg*OSV_SIZE + 4*lid + 1];
-        res2 += compensation[fg*OSV_SIZE + 4*lid + 2];
-        res3 += compensation[fg*OSV_SIZE + 4*lid + 3];
+        res0 += compensation[fg*OSV_SIZE + OF_TO_DO*lid + 0];
+        res1 += compensation[fg*OSV_SIZE + OF_TO_DO*lid + 1];
+#if SUB_GROUP_SIZE == 8
+        res2 += compensation[fg*OSV_SIZE + OF_TO_DO*lid + 2];
+        res3 += compensation[fg*OSV_SIZE + OF_TO_DO*lid + 3];
+#endif
 #endif  // ASYMMETRIC_DATA_QUANTIZATION
 
 #if HAS_FUSED_OPS
         { FUSED_OPS_0; dst[0][i] = FUSED_OPS_RESULT_0; };
         { FUSED_OPS_1; dst[1][i] = FUSED_OPS_RESULT_1; };
+#if SUB_GROUP_SIZE == 8
         { FUSED_OPS_2; dst[2][i] = FUSED_OPS_RESULT_2; };
         { FUSED_OPS_3; dst[3][i] = FUSED_OPS_RESULT_3; };
+#endif
 #else
         dst[0][i] = TO_OUTPUT_TYPE(res0);
         dst[1][i] = TO_OUTPUT_TYPE(res1);
+#if SUB_GROUP_SIZE == 8
         dst[2][i] = TO_OUTPUT_TYPE(res2);
         dst[3][i] = TO_OUTPUT_TYPE(res3);
+#endif
 #endif
     }
 
     for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
-        for (int ofm = 0; ofm < 4; ofm++) {
+        for (int ofm = 0; ofm < OF_TO_DO; ofm++) {
 #if OUTPUT_DIMS == 5
-            const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + ofm + 4*lid, z, y, x+i);
+            const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + ofm + OF_TO_DO*lid, z, y, x+i);
 #elif OUTPUT_DIMS <= 4
-            const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + ofm + 4*lid, y, x+i);
+            const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + ofm + OF_TO_DO*lid, y, x+i);
 #endif
             bool full_x = OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0 || x + i < OUTPUT_SIZE_X;
-            bool full_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || fg * OSV_SIZE + 4 * lid + ofm < OUTPUT_FEATURE_NUM;
+            bool full_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || fg * OSV_SIZE + OF_TO_DO * lid + ofm < OUTPUT_FEATURE_NUM;
             if (full_x && full_f) {
                 output[dst_index] = dst[ofm][i];
             }
@@ -254,92 +305,113 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
 
     for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
 #if BIAS_TERM
-        ACTIVATION_TYPE res0 = TO_ACTIVATION_TYPE(acc[0][i]) + (ACTIVATION_TYPE)(biases[bias_index + 4*lid+0]);
-        ACTIVATION_TYPE res1 = TO_ACTIVATION_TYPE(acc[1][i]) + (ACTIVATION_TYPE)(biases[bias_index + 4*lid+1]);
-        ACTIVATION_TYPE res2 = TO_ACTIVATION_TYPE(acc[2][i]) + (ACTIVATION_TYPE)(biases[bias_index + 4*lid+2]);
-        ACTIVATION_TYPE res3 = TO_ACTIVATION_TYPE(acc[3][i]) + (ACTIVATION_TYPE)(biases[bias_index + 4*lid+3]);
+        ACTIVATION_TYPE res0 = TO_ACTIVATION_TYPE(acc[0][i]) + (ACTIVATION_TYPE)(biases[bias_index + OF_TO_DO*lid+0]);
+        ACTIVATION_TYPE res1 = TO_ACTIVATION_TYPE(acc[1][i]) + (ACTIVATION_TYPE)(biases[bias_index + OF_TO_DO*lid+1]);
+#if SUB_GROUP_SIZE == 8
+        ACTIVATION_TYPE res2 = TO_ACTIVATION_TYPE(acc[2][i]) + (ACTIVATION_TYPE)(biases[bias_index + OF_TO_DO*lid+2]);
+        ACTIVATION_TYPE res3 = TO_ACTIVATION_TYPE(acc[3][i]) + (ACTIVATION_TYPE)(biases[bias_index + OF_TO_DO*lid+3]);
+#endif
 #else
         ACTIVATION_TYPE res0 = TO_ACTIVATION_TYPE(acc[0][i]);
         ACTIVATION_TYPE res1 = TO_ACTIVATION_TYPE(acc[1][i]);
+#if SUB_GROUP_SIZE == 8
         ACTIVATION_TYPE res2 = TO_ACTIVATION_TYPE(acc[2][i]);
         ACTIVATION_TYPE res3 = TO_ACTIVATION_TYPE(acc[3][i]);
 #endif
+#endif
 
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
-        const uint idx0 = fg*OSV_SIZE + 4*lid + 0;
-        const uint idx1 = fg*OSV_SIZE + 4*lid + 1;
-        const uint idx2 = fg*OSV_SIZE + 4*lid + 2;
-        const uint idx3 = fg*OSV_SIZE + 4*lid + 3;
-
+        const uint idx0 = fg*OSV_SIZE + OF_TO_DO*lid + 0;
+        const uint idx1 = fg*OSV_SIZE + OF_TO_DO*lid + 1;
+#if SUB_GROUP_SIZE == 8
+        const uint idx2 = fg*OSV_SIZE + OF_TO_DO*lid + 2;
+        const uint idx3 = fg*OSV_SIZE + OF_TO_DO*lid + 3;
+#endif
         res0 -= acc_assym_weights[i] * TO_ACCUMULATOR_TYPE(weights_zp[idx0]);
         res1 -= acc_assym_weights[i] * TO_ACCUMULATOR_TYPE(weights_zp[idx1]);
+#if SUB_GROUP_SIZE == 8
         res2 -= acc_assym_weights[i] * TO_ACCUMULATOR_TYPE(weights_zp[idx2]);
         res3 -= acc_assym_weights[i] * TO_ACCUMULATOR_TYPE(weights_zp[idx3]);
+#endif
 
 #endif  // ASYMMETRIC_WEIGHTS_QUANTIZATION
 
 #if ASYMMETRIC_DATA_QUANTIZATION
-        res0 += compensation[fg*OSV_SIZE + 4*lid + 0];
-        res1 += compensation[fg*OSV_SIZE + 4*lid + 1];
-        res2 += compensation[fg*OSV_SIZE + 4*lid + 2];
-        res3 += compensation[fg*OSV_SIZE + 4*lid + 3];
+        res0 += compensation[fg*OSV_SIZE + OF_TO_DO*lid + 0];
+        res1 += compensation[fg*OSV_SIZE + OF_TO_DO*lid + 1];
+#if SUB_GROUP_SIZE == 8
+        res2 += compensation[fg*OSV_SIZE + OF_TO_DO*lid + 2];
+        res3 += compensation[fg*OSV_SIZE + OF_TO_DO*lid + 3];
+#endif
 #endif  // ASYMMETRIC_DATA_QUANTIZATION
 
-        MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4) pack;
+        MAKE_VECTOR_TYPE(OUTPUT_TYPE, OF_TO_DO) pack;
 #if HAS_FUSED_OPS
         { FUSED_OPS_0; pack[0] = FUSED_OPS_RESULT_0; };
         { FUSED_OPS_1; pack[1] = FUSED_OPS_RESULT_1; };
+#if SUB_GROUP_SIZE == 8
         { FUSED_OPS_2; pack[2] = FUSED_OPS_RESULT_2; };
         { FUSED_OPS_3; pack[3] = FUSED_OPS_RESULT_3; };
+#endif
 #else
         pack[0] = TO_OUTPUT_TYPE(res0);
         pack[1] = TO_OUTPUT_TYPE(res1);
+#if SUB_GROUP_SIZE == 8
         pack[2] = TO_OUTPUT_TYPE(res2);
         pack[3] = TO_OUTPUT_TYPE(res3);
+#endif
 #endif
         dst[i] = AS_PACKED_OUT_TYPE(pack);
     }
 
     const bool full_x = OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0 || x + OUTPUT_X_BLOCK_SIZE <= OUTPUT_SIZE_X;
     const bool full_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || (fg + 1) * OSV_SIZE <= OUTPUT_FEATURE_NUM;
+#if SUB_GROUP_SIZE == 8
     if (full_x && full_f) {
 #if OUTPUT_DIMS == 5
-        const uint dst_index = (OUTPUT_GET_INDEX(b, fg*OSV_SIZE, z, y, x)) / 4;
+        const uint dst_index = (OUTPUT_GET_INDEX(b, fg*OSV_SIZE, z, y, x)) / OF_TO_DO;
 #elif OUTPUT_DIMS <= 4
-        const uint dst_index = (OUTPUT_GET_INDEX(b, fg*OSV_SIZE, y, x)) / 4;
+        const uint dst_index = (OUTPUT_GET_INDEX(b, fg*OSV_SIZE, y, x)) / OF_TO_DO;
 #endif
         BLOCK_WRITE(output + dst_index, dst);
     } else {
-#if OUTPUT_FEATURE_NUM % 4 == 0
+#endif //SUB_GROUP_SIZE == 8
+#if OUTPUT_FEATURE_NUM % OF_TO_DO == 0
         for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
             const bool full_it_x = OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0 || x + i < OUTPUT_SIZE_X;
-            const bool full_sgl_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || fg * OSV_SIZE + 4 * lid < OUTPUT_FEATURE_NUM;
+            const bool full_sgl_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || fg * OSV_SIZE + OF_TO_DO * lid < OUTPUT_FEATURE_NUM;
             if (full_it_x && full_sgl_f) {
 #   if OUTPUT_DIMS == 5
-                const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid, z, y, x+i);
+                const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + OF_TO_DO*lid, z, y, x+i);
 #   elif OUTPUT_DIMS <= 4
-                const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid, y, x+i);
+                const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + OF_TO_DO*lid, y, x+i);
 #   endif
-                output[dst_index/4] = dst[i];
+                output[dst_index/OF_TO_DO] = dst[i];
             }
         }
-#else  // OUTPUT_FEATURE_NUM % 4 == 0
+#else  // OUTPUT_FEATURE_NUM % OF_TO_DO == 0
         for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
-            for (int ofm = 0; ofm < 4; ++ofm) {
+            for (int ofm = 0; ofm < OF_TO_DO; ++ofm) {
                 const bool full_it_x = OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0 || x + i < OUTPUT_SIZE_X;
-                const bool full_sgl_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || fg * OSV_SIZE + 4 * lid + ofm < OUTPUT_FEATURE_NUM;
+                const bool full_sgl_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || fg * OSV_SIZE + OF_TO_DO * lid + ofm < OUTPUT_FEATURE_NUM;
                 if (full_it_x && full_sgl_f) {
 #   if OUTPUT_DIMS == 5
-                    const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid + ofm, z, y, x+i);
+                    const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + OF_TO_DO*lid + ofm, z, y, x+i);
 #   elif OUTPUT_DIMS <= 4
-                    const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid + ofm, y, x+i);
+                    const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + OF_TO_DO*lid + ofm, y, x+i);
 #   endif
+#if SUB_GROUP_SIZE == 8
                     ((__global uchar*)output)[dst_index] = as_uchar4(dst[i])[ofm];
+#else
+                    ((__global uchar*)output)[dst_index] = as_uchar2(dst[i])[ofm];
+#endif
                 }
             }
         }
 #endif  // OUTPUT_FEATURE_NUM % 4 == 0
+#if SUB_GROUP_SIZE == 8
     }
+#endif //SUB_GROUP_SIZE == 8
 #endif  // OUTPUT_IS_FP
 }
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
 import pytest
@@ -16,6 +16,7 @@ from openvino.passes import (
     type_matches,
     type_matches_any,
     shape_matches,
+    attrs_match,
 )
 from openvino.utils.types import get_element_type
 
@@ -278,6 +279,19 @@ def test_any_input_symbol_predicate():
     assert symbols["Six"] == 6, symbols
 
 
+def test_attrs_match():
+    param = ops.parameter([-1, -1])
+
+    def test_shape_of_attribute(et: str):
+        node = ops.shape_of(param, output_type=et)
+        attr = {"output_type": et}
+        matcher = Matcher(AnyInput(attrs_match(attr)), "Find shape_of with attribute")
+        assert matcher.match(node), f"Match failed for {node} with attribute"
+
+    test_shape_of_attribute("i64")
+    test_shape_of_attribute("i32")
+
+
 def test_optional_full_match():
     model_input = ops.parameter(PartialShape.dynamic())
     model_abs = ops.abs(model_input)
@@ -333,8 +347,12 @@ def test_optional_with_input_and_predicate():
 
     pattern_add = ops.add(AnyInput(), AnyInput())
 
-    assert Matcher(Optional(["opset13.Relu"], pattern_add.output(0), lambda x: True), "TestInputPredicate").match(model_relu)
-    assert not Matcher(Optional(["opset13.Relu"], pattern_add.output(0), lambda x: False), "TestInputPredicate").match(model_relu)
+    assert Matcher(
+        Optional(["opset13.Relu"], pattern_add.output(0), lambda x: True), "TestInputPredicate"
+    ).match(model_relu)
+    assert not Matcher(
+        Optional(["opset13.Relu"], pattern_add.output(0), lambda x: False), "TestInputPredicate"
+    ).match(model_relu)
 
 
 def test_optional_with_input_node():
@@ -351,8 +369,12 @@ def test_optional_with_input_node_and_predicate():
     model_add = ops.add(model_input, model_input)
     model_relu = ops.relu(model_add.output(0))
 
-    assert Matcher(Optional(["opset13.Relu"], model_add, lambda x: True), "TestInputNodePredicate").match(model_relu)
-    assert not Matcher(Optional(["opset13.Relu"], model_add, lambda x: False), "TestInputNodePredicate").match(model_relu)
+    assert Matcher(
+        Optional(["opset13.Relu"], model_add, lambda x: True), "TestInputNodePredicate"
+    ).match(model_relu)
+    assert not Matcher(
+        Optional(["opset13.Relu"], model_add, lambda x: False), "TestInputNodePredicate"
+    ).match(model_relu)
     assert not Matcher(Optional(["opset13.Cos"], model_add, lambda x: True), "TestInputNodePredicate").match(model_relu)
 
 
@@ -367,8 +389,12 @@ def test_optional_with_multi_input_node():
     assert not Matcher(Optional(["opset13.Add"], [model_relu, model_input_1]), "MultiInNode").match(model_input_1)
     assert not Matcher(Optional(["opset13.Add"], [model_relu, model_input_1]), "MultiInNode").match(model_input_0)
 
-    assert not Matcher(Optional(["opset13.Add"], [model_relu, model_input_1], lambda x: False), "MultiInNodePredicate").match(model_add)
-    assert Matcher(Optional(["opset13.Add"], [model_relu, model_input_1], lambda x: True), "MultiInNodePredicate").match(model_add)
+    assert not Matcher(
+        Optional(["opset13.Add"], [model_relu, model_input_1], lambda x: False), "MultiInNodePredicate"
+    ).match(model_add)
+    assert Matcher(
+        Optional(["opset13.Add"], [model_relu, model_input_1], lambda x: True), "MultiInNodePredicate"
+    ).match(model_add)
 
 
 def test_all_predicates():

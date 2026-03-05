@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,13 @@ public:
 
     ~USMHostTensor() override = default;
 
-    void* data(const element::Type& element_type) const override;
+    void* data() override;
+    void* data(const element::Type& element_type) override;
+    void* data_rw() override;
+    void* data_rw(const element::Type& element_type) override;
+    const void* data() const override;
+    const void* data(const element::Type& element_type) const override;
+
     const element::Type& get_element_type() const override;
 
     const Shape& get_shape() const override;

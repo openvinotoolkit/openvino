@@ -1,4 +1,4 @@
-// Copyright (C) 2022-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,10 +11,6 @@ using namespace LayerTestsDefinitions;
 
 const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f32
-};
-
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true)
 };
 
 namespace testValues1 {
@@ -91,7 +87,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, RecurrentCellTransformation,
         ::testing::ValuesIn(activations_shapes),
         ::testing::ValuesIn(weights_shapes),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn({ true, false }),
         ::testing::ValuesIn(params)),
     RecurrentCellTransformation::getTestCaseName);
@@ -171,7 +166,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, RecurrentCellTransformation,
         ::testing::ValuesIn(activations_shapes),
         ::testing::ValuesIn(weights_shapes),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn({ true, false }),
         ::testing::ValuesIn(params)),
     RecurrentCellTransformation::getTestCaseName);

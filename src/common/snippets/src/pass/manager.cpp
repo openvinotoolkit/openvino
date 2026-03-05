@@ -1,13 +1,21 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "snippets/pass/manager.hpp"
 
+#include <iterator>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
-namespace ov {
-namespace snippets {
-namespace pass {
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pass_config.hpp"
+#include "openvino/pass/validate.hpp"
+#include "snippets/pass/positioned_pass.hpp"
+
+namespace ov::snippets::pass {
 
 Manager::Manager(std::shared_ptr<ov::pass::PassConfig> pass_config, std::string name)
     : ov::pass::Manager(std::move(pass_config), std::move(name)) {}
@@ -19,8 +27,9 @@ std::shared_ptr<Manager::PassBase> Manager::register_pass_instance(const PassPos
 }
 
 void Manager::register_positioned_passes(const std::vector<PositionedPassBase>& pos_passes) {
-    for (const auto& pp : pos_passes)
+    for (const auto& pp : pos_passes) {
         register_pass_instance(pp.position, pp.pass);
+    }
 }
 
 std::shared_ptr<Manager::PassBase> Manager::insert_pass_instance(const PassPosition& position,
@@ -35,6 +44,4 @@ std::shared_ptr<Manager::PassBase> Manager::insert_pass_instance(const PassPosit
     return pass;
 }
 
-} // namespace pass
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::pass

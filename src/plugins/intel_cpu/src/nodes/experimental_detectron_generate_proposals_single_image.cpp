@@ -1,22 +1,35 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
+#include <exception>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <utility>
 #include <vector>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 #if defined(HAVE_AVX2)
 #    include <immintrin.h>
 #endif
 
-#include "common/cpu_memcpy.h"
+#include "cpu_parallel.hpp"
 #include "experimental_detectron_generate_proposals_single_image.h"
-#include "openvino/core/parallel.hpp"
 #include "openvino/op/experimental_detectron_generate_proposals.hpp"
 
 namespace ov::intel_cpu::node {
@@ -27,12 +40,7 @@ struct Indexer4d {
     int dim23_;
     int dim123_;
 
-    explicit Indexer4d(int dim0, int dim1, int dim2, int dim3)
-        : dim3_(dim3),
-          dim23_(dim2 * dim3),
-          dim123_(dim1 * dim2 * dim3) {
-        (void)dim0;
-    }
+    explicit Indexer4d(int dim1, int dim2, int dim3) : dim3_(dim3), dim23_(dim2 * dim3), dim123_(dim1 * dim2 * dim3) {}
 
     int operator()(int i, int j, int k, int n) const {
         return i * dim123_ + j * dim23_ + k * dim3_ + n;
@@ -51,13 +59,14 @@ void refine_anchors(const float* deltas,
                     const float min_box_H,
                     const float min_box_W,
                     const float max_delta_log_wh,
-                    float coordinates_offset) {
-    Indexer4d delta_idx(anchors_num, 4, bottom_H, bottom_W);
-    Indexer4d score_idx(anchors_num, 1, bottom_H, bottom_W);
-    Indexer4d proposal_idx(bottom_H, bottom_W, anchors_num, 5);
-    Indexer4d anchor_idx(bottom_H, bottom_W, anchors_num, 4);
+                    float coordinates_offset,
+                    const std::shared_ptr<CpuParallel>& cpuParallel) {
+    Indexer4d delta_idx(4, bottom_H, bottom_W);
+    Indexer4d score_idx(1, bottom_H, bottom_W);
+    Indexer4d proposal_idx(bottom_W, anchors_num, 5);
+    Indexer4d anchor_idx(bottom_W, anchors_num, 4);
 
-    parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
+    cpuParallel->parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
         for (int anchor = 0; anchor < anchors_num; ++anchor) {
             int a_idx = anchor_idx(h, w, anchor, 0);
             float x0 = anchors[a_idx + 0];
@@ -76,8 +85,8 @@ void refine_anchors(const float* deltas,
             const float ww = x1 - x0 + coordinates_offset;
             const float hh = y1 - y0 + coordinates_offset;
             // center location of box
-            const float ctr_x = x0 + 0.5f * ww;
-            const float ctr_y = y0 + 0.5f * hh;
+            const float ctr_x = x0 + 0.5F * ww;
+            const float ctr_y = y0 + 0.5F * hh;
 
             // new center location according to deltas (dx, dy)
             const float pred_ctr_x = dx * ww + ctr_x;
@@ -87,17 +96,17 @@ void refine_anchors(const float* deltas,
             const float pred_h = std::exp(std::min(d_log_h, max_delta_log_wh)) * hh;
 
             // update upper-left corner location
-            x0 = pred_ctr_x - 0.5f * pred_w;
-            y0 = pred_ctr_y - 0.5f * pred_h;
+            x0 = pred_ctr_x - 0.5F * pred_w;
+            y0 = pred_ctr_y - 0.5F * pred_h;
             // update lower-right corner location
-            x1 = pred_ctr_x + 0.5f * pred_w - coordinates_offset;
-            y1 = pred_ctr_y + 0.5f * pred_h - coordinates_offset;
+            x1 = pred_ctr_x + 0.5F * pred_w - coordinates_offset;
+            y1 = pred_ctr_y + 0.5F * pred_h - coordinates_offset;
 
             // adjust new corner locations to be within the image region,
-            x0 = std::max<float>(0.0f, std::min<float>(x0, img_W - coordinates_offset));
-            y0 = std::max<float>(0.0f, std::min<float>(y0, img_H - coordinates_offset));
-            x1 = std::max<float>(0.0f, std::min<float>(x1, img_W - coordinates_offset));
-            y1 = std::max<float>(0.0f, std::min<float>(y1, img_H - coordinates_offset));
+            x0 = std::max<float>(0.0F, std::min<float>(x0, img_W - coordinates_offset));
+            y0 = std::max<float>(0.0F, std::min<float>(y0, img_H - coordinates_offset));
+            x1 = std::max<float>(0.0F, std::min<float>(x1, img_W - coordinates_offset));
+            y1 = std::max<float>(0.0F, std::min<float>(y1, img_H - coordinates_offset));
 
             // recompute new width & height
             const float box_w = x1 - x0 + coordinates_offset;
@@ -108,13 +117,17 @@ void refine_anchors(const float* deltas,
             proposals[p_idx + 1] = y0;
             proposals[p_idx + 2] = x1;
             proposals[p_idx + 3] = y1;
-            proposals[p_idx + 4] = (min_box_W <= box_w) * (min_box_H <= box_h) * score;
+            proposals[p_idx + 4] =
+                static_cast<float>(min_box_W <= box_w) * static_cast<float>(min_box_H <= box_h) * score;
         }
     });
 }
 
-void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int pre_nms_topn) {
-    parallel_for(pre_nms_topn, [&](size_t i) {
+void unpack_boxes(const float* p_proposals,
+                  float* unpacked_boxes,
+                  int pre_nms_topn,
+                  const std::shared_ptr<CpuParallel>& cpuParallel) {
+    cpuParallel->parallel_for(pre_nms_topn, [&](size_t i) {
         unpacked_boxes[0 * pre_nms_topn + i] = p_proposals[5 * i + 0];
         unpacked_boxes[1 * pre_nms_topn + i] = p_proposals[5 * i + 1];
         unpacked_boxes[2 * pre_nms_topn + i] = p_proposals[5 * i + 2];
@@ -213,7 +226,7 @@ void nms_cpu(const int num_boxes,
 #endif
 
         for (; tail < num_boxes; ++tail) {
-            float res = 0.0f;
+            float res = 0.0F;
 
             const float x0i = x0[box];
             const float y0i = y0[box];
@@ -233,8 +246,8 @@ void nms_cpu(const int num_boxes,
                 const float y1 = std::min<float>(y1i, y1j);
 
                 // intersection area
-                const float width = std::max<float>(0.0f, x1 - x0 + coordinates_offset);
-                const float height = std::max<float>(0.0f, y1 - y0 + coordinates_offset);
+                const float width = std::max<float>(0.0F, x1 - x0 + coordinates_offset);
+                const float height = std::max<float>(0.0F, y1 - y0 + coordinates_offset);
                 const float area = width * height;
 
                 // area of A, B
@@ -260,14 +273,15 @@ void fill_output_blobs(const float* proposals,
                        float* scores,
                        const int num_proposals,
                        const int num_rois,
-                       const int post_nms_topn) {
+                       const int post_nms_topn,
+                       const std::shared_ptr<CpuParallel>& cpuParallel) {
     const float* src_x0 = proposals + 0 * num_proposals;
     const float* src_y0 = proposals + 1 * num_proposals;
     const float* src_x1 = proposals + 2 * num_proposals;
     const float* src_y1 = proposals + 3 * num_proposals;
     const float* src_score = proposals + 4 * num_proposals;
 
-    parallel_for(num_rois, [&](size_t i) {
+    cpuParallel->parallel_for(num_rois, [&](size_t i) {
         int index = roi_indices[i];
         rois[i * 4 + 0] = src_x0[index];
         rois[i * 4 + 1] = src_y0[index];
@@ -278,10 +292,10 @@ void fill_output_blobs(const float* proposals,
 
     if (num_rois < post_nms_topn) {
         for (int i = 4 * num_rois; i < 4 * post_nms_topn; i++) {
-            rois[i] = 0.f;
+            rois[i] = 0.F;
         }
         for (int i = num_rois; i < post_nms_topn; i++) {
-            scores[i] = 0.f;
+            scores[i] = 0.F;
         }
     }
 }
@@ -317,10 +331,10 @@ ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerate
 
     min_size_ = proposalAttrs.min_size;
     nms_thresh_ = proposalAttrs.nms_threshold;
-    pre_nms_topn_ = proposalAttrs.pre_nms_count;
-    post_nms_topn_ = proposalAttrs.post_nms_count;
+    pre_nms_topn_ = static_cast<int>(proposalAttrs.pre_nms_count);
+    post_nms_topn_ = static_cast<int>(proposalAttrs.post_nms_count);
 
-    coordinates_offset = 0.0f;
+    coordinates_offset = 0.0F;
 
     roi_indices_.resize(post_nms_topn_);
 }
@@ -338,10 +352,11 @@ void ExperimentalDetectronGenerateProposalsSingleImage::initSupportedPrimitiveDe
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stream& strm) {
+void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]] const dnnl::stream& strm) {
     try {
+        const auto& cpuParallel = context->getCpuParallel();
         if (inputShapes.size() != 4 || outputShapes.size() != 2) {
-            THROW_CPU_NODE_ERR("Incorrect number of input or output edges!");
+            CPU_NODE_THROW("Incorrect number of input or output edges!");
         }
 
         size_t anchor_dims_size = 1;
@@ -355,27 +370,25 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stre
         for (uint64_t deltaDim : deltaDims) {
             deltas_dims_size *= deltaDim;
         }
-        if (anchor_dims_size != deltas_dims_size) {
-            THROW_CPU_NODE_ERR("'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!");
-        }
+        CPU_NODE_ASSERT(anchor_dims_size == deltas_dims_size,
+                        "'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!");
 
         size_t score_dims_size = 1;
         const auto& scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
         for (uint64_t scoreDim : scoreDims) {
             score_dims_size *= scoreDim;
         }
-        if (deltas_dims_size != (4 * score_dims_size)) {
-            THROW_CPU_NODE_ERR("'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!");
-        }
+        CPU_NODE_ASSERT(deltas_dims_size == (4 * score_dims_size),
+                        "'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!");
 
         // Prepare memory
-        const float* p_deltas_item = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
-        const float* p_scores_item = getSrcDataAtPortAs<const float>(INPUT_SCORES);
-        const float* p_anchors_item = getSrcDataAtPortAs<const float>(INPUT_ANCHORS);
-        const float* p_img_info_cpu = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
+        const auto* p_deltas_item = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
+        const auto* p_scores_item = getSrcDataAtPortAs<const float>(INPUT_SCORES);
+        const auto* p_anchors_item = getSrcDataAtPortAs<const float>(INPUT_ANCHORS);
+        const auto* p_img_info_cpu = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
 
-        float* p_roi_item = getDstDataAtPortAs<float>(OUTPUT_ROIS);
-        float* p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
+        auto* p_roi_item = getDstDataAtPortAs<float>(OUTPUT_ROIS);
+        auto* p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
 
         const int anchors_num = scoreDims[0];
 
@@ -423,7 +436,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stre
             refine_anchors(p_deltas_item,
                            p_scores_item,
                            p_anchors_item,
-                           reinterpret_cast<float*>(&proposals_[0]),
+                           reinterpret_cast<float*>(proposals_.data()),
                            anchors_num,
                            bottom_H,
                            bottom_W,
@@ -432,7 +445,8 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stre
                            min_box_H,
                            min_box_W,
                            static_cast<const float>(std::log(1000. / 16.)),
-                           1.0f);
+                           1.0F,
+                           cpuParallel);
             std::partial_sort(proposals_.begin(),
                               proposals_.begin() + pre_nms_topn,
                               proposals_.end(),
@@ -440,26 +454,27 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stre
                                   return (struct1.score > struct2.score);
                               });
 
-            unpack_boxes(reinterpret_cast<float*>(&proposals_[0]), &unpacked_boxes[0], pre_nms_topn);
+            unpack_boxes(reinterpret_cast<float*>(proposals_.data()), unpacked_boxes.data(), pre_nms_topn, cpuParallel);
             nms_cpu(pre_nms_topn,
-                    &is_dead[0],
-                    &unpacked_boxes[0],
-                    &roi_indices_[0],
+                    is_dead.data(),
+                    unpacked_boxes.data(),
+                    roi_indices_.data(),
                     &num_rois,
                     0,
                     nms_thresh_,
                     post_nms_topn_,
                     coordinates_offset);
-            fill_output_blobs(&unpacked_boxes[0],
-                              &roi_indices_[0],
+            fill_output_blobs(unpacked_boxes.data(),
+                              roi_indices_.data(),
                               p_roi_item,
                               p_roi_score_item,
                               pre_nms_topn,
                               num_rois,
-                              post_nms_topn_);
+                              post_nms_topn_,
+                              cpuParallel);
         }
     } catch (const std::exception& e) {
-        THROW_CPU_NODE_ERR(e.what());
+        CPU_NODE_THROW(e.what());
     }
 }
 

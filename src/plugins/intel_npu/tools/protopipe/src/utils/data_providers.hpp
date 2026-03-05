@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,12 +29,13 @@ public:
 class UniformGenerator : public IRandomGenerator {
 public:
     using Ptr = std::shared_ptr<UniformGenerator>;
-    UniformGenerator(double low, double high);
+    UniformGenerator(double low, double high, int seed = 0xffffffff);
     void generate(cv::Mat& mat) override;
     virtual std::string str() const override;
 
 private:
     double m_low, m_high;
+    int m_seed;
 };
 
 class RandomProvider : public IDataProvider {

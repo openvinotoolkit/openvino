@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,40 +21,58 @@ using PagedAttentionExtension = ov::op::PagedAttentionExtension;
 namespace ov::intel_gpu {
 
 static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::PagedAttentionExtension>& op) {
-    validate_inputs_count(op, {13, 16});
+    validate_inputs_count(op, {25});
     auto inputs = p.GetInputInfo(op);
     auto prim = cldnn::paged_attention(layer_type_name_ID(op), inputs);
 
     const auto& rt_info = op->get_rt_info();
     const auto k_head_size_id = "k_head_size";
+    const auto v_head_size_id = "v_head_size";
     const auto num_k_heads_id = "num_k_heads";
     const auto has_rt_params = rt_info.find(k_head_size_id) != rt_info.end() &&
+                               rt_info.find(v_head_size_id) != rt_info.end() &&
                                rt_info.find(num_k_heads_id) != rt_info.end();
 
     auto query_ps = op->get_input_partial_shape(0);
     auto key_cache_ps = op->get_input_partial_shape(3);
-    auto head_size = has_rt_params ? rt_info.at(k_head_size_id).as<int64_t>() : key_cache_ps[2].get_length();
+    auto value_cache_ps = op->get_input_partial_shape(4);
+
+    // We may fallback to dense attention mode if xattn is not supported by either GPU archieture or compiler.
+    // So we check block_size from value cache shape, instead of checking op input type, to determine if xatnn is enabled.
+    if (value_cache_ps[2].get_length() == cldnn::paged_attention::block_size_xattn) {
+        prim.has_xattention = true;
+    }
+    const auto k_head_size_idx = prim.has_xattention ? 3 : 2;
+
+    auto k_head_size = has_rt_params ? rt_info.at(k_head_size_id).as<int64_t>() : key_cache_ps[k_head_size_idx].get_length();
+    auto v_head_size = has_rt_params ? rt_info.at(v_head_size_id).as<int64_t>() : value_cache_ps[3].get_length();
     auto kv_heads_num = has_rt_params ? rt_info.at(num_k_heads_id).as<int64_t>() : key_cache_ps[1].get_length();
+    if (prim.has_xattention) {
+        OPENVINO_ASSERT(k_head_size == v_head_size);
+    }
 
     // WA: in some cases, the query input may have a bounded dimension
     // Use input shape of the input node in such cases
     auto heads_num = 0;
     auto query_merged_dim = query_ps[1];
     if (query_merged_dim.is_static()) {
-        heads_num = query_merged_dim.get_length() / head_size;
+        heads_num = query_merged_dim.get_length() / k_head_size;
     } else {
         auto reshape_input = op->get_input_node_shared_ptr(0)->get_input_partial_shape(0);
         heads_num = reshape_input[2].get_length();
     }
 
-    prim.head_size = head_size;
+    prim.k_head_size = k_head_size;
+    prim.v_head_size = v_head_size;
     prim.kv_heads_num = kv_heads_num;
     prim.heads_num = heads_num;
 
-    const size_t scale_idx = 9;
-    const size_t alibi_idx = 11;
+    const size_t scale_idx = cldnn::paged_attention::PagedAttentionInputIdx::SCALE;
+    const size_t sliding_window_idx = cldnn::paged_attention::PagedAttentionInputIdx::SLIDING_WINDOW;
+    const size_t alibi_idx = cldnn::paged_attention::PagedAttentionInputIdx::ALIBI;
+    const size_t score_aggregation_idx = cldnn::paged_attention::PagedAttentionInputIdx::SCORE_AGGREGATION;
 
-    std::shared_ptr<ov::op::v0::Constant> scale_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(scale_idx));
+    auto scale_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(scale_idx));
     if (scale_const) {
         OPENVINO_ASSERT(ov::shape_size(scale_const->get_output_shape(0)) == 1);
         prim.scale_val = scale_const->cast_vector<float>()[0];
@@ -62,18 +80,58 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
         prim.scale_val = std::optional<float>();
     }
 
-    std::shared_ptr<ov::op::v0::Constant> alibi_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(alibi_idx));
+    auto sliding_windows_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(sliding_window_idx));
+    if (sliding_windows_const) {
+        OPENVINO_ASSERT(ov::shape_size(sliding_windows_const->get_output_shape(0)) == 1);
+        prim.sliding_window = sliding_windows_const->cast_vector<size_t>()[0];
+    }
+
+    auto alibi_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(alibi_idx));
     OPENVINO_ASSERT(alibi_const != nullptr);
     prim.has_alibi = ov::shape_size(alibi_const->get_output_shape(0)) > 0;
-    prim.has_rotated_blocks = op->get_input_size() == 16;
 
+    auto score_aggregation_input = ov::as_type_ptr<ov::op::v0::Parameter>(op->get_input_node_shared_ptr(score_aggregation_idx));
+    if (score_aggregation_input && score_aggregation_input->get_output_partial_shape(0).is_dynamic() && op->get_output_size() > 1) {
+        prim.has_score_aggregation = true;
+    }
+
+    const size_t rotated_block_indices_idx = cldnn::paged_attention::PagedAttentionInputIdx::ROTATED_BLOCK_INDICES;
+    auto rotated_block_indices_input = ov::as_type_ptr<ov::op::v0::Parameter>(op->get_input_node_shared_ptr(rotated_block_indices_idx));
+    if (rotated_block_indices_input && rotated_block_indices_input->get_output_partial_shape(0).is_dynamic()) {
+        prim.has_rotated_blocks = true;
+    }
+
+    const size_t xattention_threshold_idx = cldnn::paged_attention::PagedAttentionInputIdx::XATTENTION_THRESHOLD;
+    auto xattention_threshold_input = ov::as_type_ptr<ov::op::v0::Parameter>(op->get_input_node_shared_ptr(xattention_threshold_idx));
+    if (xattention_threshold_input && xattention_threshold_input->get_output_partial_shape(0).is_dynamic()) {
+        prim.has_xattention = true;
+    }
+
+    const size_t adaptive_rkv_evictable_sizes_idx = cldnn::paged_attention::PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES;
+    auto adaptive_rkv_evictable_sizes_input = ov::as_type_ptr<ov::op::v0::Parameter>(op->get_input_node_shared_ptr(adaptive_rkv_evictable_sizes_idx));
+    if (adaptive_rkv_evictable_sizes_input && adaptive_rkv_evictable_sizes_input->get_output_partial_shape(0).is_dynamic()) {
+        prim.has_adaptive_rkv = true;
+    }
+
+    const size_t sinks_idx = cldnn::paged_attention::PagedAttentionInputIdx::SINKS;
+    auto sinks_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(sinks_idx));
+    OPENVINO_ASSERT(sinks_const != nullptr);
+    prim.has_sink_input = ov::shape_size(sinks_const->get_output_shape(0)) > 0;
+
+    prim.is_key_by_channel = p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
     prim.num_outputs = 1;
 
     if (op->get_output_size() > 1) {
-        const auto scores_output_idx = 1;
-        const auto& users = op->get_output_target_inputs(scores_output_idx);
-        if (users.size() > 0) {
+        if (!op->get_output_target_inputs(1).empty()) {
             prim.num_outputs++; // Add scores output
+        } else {
+            prim.has_score_aggregation = false;
+        }
+
+        if (!op->get_output_target_inputs(2).empty()) {
+            prim.num_outputs++; // Add diversity outut
+        } else {
+            prim.has_adaptive_rkv = false;
         }
     }
 

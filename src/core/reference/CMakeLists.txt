@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -33,7 +33,7 @@ endif()
 
 ov_build_target_faster(${TARGET_NAME}
     UNITY
-    PCH PRIVATE "src/precomp.hpp")
+    PCH_HEADER "src/precomp.hpp")
 
 ov_set_threading_interface_for(${TARGET_NAME})
 

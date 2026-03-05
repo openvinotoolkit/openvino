@@ -1,4 +1,4 @@
-// Copyright (C) 2022-2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,15 +35,8 @@ class MatMulSparseCPUTest : public testing::WithParamInterface<MatMulSparseParam
                             virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MatMulSparseParamSet>& obj) {
-        ShapeRelatedParams shapeRelatedParams;
-        ElementType inType, weiType, outType;
-        fusingSpecificParams fusingParams;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-        float weiSparseRate;
-        std::tie(shapeRelatedParams, inType, weiType, outType, fusingParams, cpuParams, additionalConfig,
-            weiSparseRate) = obj.param;
-
+        const auto& [shapeRelatedParams, inType, weiType, outType, fusingParams, cpuParams, additionalConfig,
+                     weiSparseRate] = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : shapeRelatedParams.inputShapes) {
@@ -100,8 +93,6 @@ protected:
         std::mt19937 gen_f(123);
         std::uniform_real_distribution<float> dist_f(0.f, 1.f);
 
-        size_t countZero = 0;
-
         res[0] = startFrom;
         res[vec_len - 1] = upTo;
         for (size_t i = 1; i < vec_len - 1; i++) {
@@ -109,11 +100,8 @@ protected:
                 res[i] = static_cast<int8_t>(dist(gen));
             } else {
                 res[i] = 0;
-                countZero++;
             }
         }
-
-        std::cout << "Sparse rate = " << countZero * 100 / vec_len << "%" << std::endl;
 
         return res;
     }
@@ -141,16 +129,8 @@ protected:
 
     void SetUp() override {
         abs_threshold = 0.5f;
-
-        ShapeRelatedParams shapeRelatedParams;
-        ElementType inType, weiType, outType;
-        fusingSpecificParams fusingParams;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-        float weiSparseRate;
-
-        std::tie(shapeRelatedParams, inType, weiType, outType, fusingParams, cpuParams, additionalConfig,
-            weiSparseRate) = this->GetParam();
+        const auto& [shapeRelatedParams, inType, weiType, outType, fusingParams, cpuParams, additionalConfig,
+                     weiSparseRate] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
@@ -192,7 +172,7 @@ protected:
         auto weiData = generateSparseVector(ov::shape_size(inShapeB.get_shape()), weiSparseRate);
         auto matMul = makeMatMulRelaxed(params[0], inShapeB, weiType, transpA, transpB, weiData);
 
-        function = makeNgraphFunction(element::f32, params, matMul, cpuNodeType);
+        function = create_ov_model(element::f32, params, matMul, cpuNodeType);
 
         checkFusingPosition = false;
 

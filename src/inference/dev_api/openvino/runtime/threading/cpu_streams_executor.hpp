@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,7 @@ public:
 
     int get_stream_id() override;
 
-    int get_streams_num();
+    int get_streams_num() override;
 
     int get_numa_node_id() override;
 

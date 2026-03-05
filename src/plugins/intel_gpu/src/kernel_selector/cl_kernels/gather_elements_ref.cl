@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,6 +39,7 @@ KERNEL(gather_elements_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint b = dim2 / OUTPUT_FEATURE_NUM;
 
     const uint out_idx = GET_OUTPUT_INDEX(INPUT1, ORDER);
+    LOAD_AND_HANDLE_NEGATIVE_INDICES;
     const uint input_idx = GET_OUTPUT_INDEX(INPUT0, DATA_INDEX_ORDER);
 
     INPUT0_TYPE val = data[input_idx];

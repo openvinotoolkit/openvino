@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ OutputVector translate_variable_op(const NodeContext& node) {
         const_node = make_shared<v0::Constant>(ov_tensor);
     } else {
         // data of unknown type
-        auto const_node = make_shared<UnsupportedConstant>("Variable of unsupported type", node.get_decoder());
+        const_node = make_shared<UnsupportedConstant>("Variable of unsupported type", node.get_decoder());
     }
 
     set_node_name(variable_name, const_node);

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "multinomial_kernel_ref.h"
@@ -73,11 +73,11 @@ KernelsData MultinomialKernelRef::GetKernelsData(const Params &params) const {
 
 bool MultinomialKernelRef::Validate(const Params &p) const {
     if (p.GetType() != KernelType::MULTINOMIAL) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     const multinomial_params &params = dynamic_cast<const multinomial_params&>(p);
     if (params.inputs.empty())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     return true;
 }
 

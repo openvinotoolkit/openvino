@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -24,10 +24,6 @@ if (ENABLE_MLAS_FOR_CPU)
     set(MLAS_LIBRARY "mlas")
 endif()
 
-if (ENABLE_SHL_FOR_CPU)
-    set(SHL_LIBRARY "shl")
-endif()
-
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -48,12 +44,11 @@ ov_add_test_target(
             dnnl
             gmock
             openvino_runtime_s
+            openvino_xml_util
             unit_test_utils
             ov_snippets_models
             snippets_test_utils
             ${MLAS_LIBRARY}
-            ${SHL_LIBRARY}
-        ADD_CPPLINT
         LABELS
             OV UNIT CPU
 )
@@ -88,10 +83,15 @@ if (WIN32)
     target_compile_definitions(${TARGET_NAME} PRIVATE NOMINMAX)
 endif()
 
+# explicitly set include directories for gtest before the dnnl include directories as dnnl third_party dir also contains
+# gtest. This is necessary to ensure a proper order of include directories in the compilation command line
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+    $<TARGET_PROPERTY:gtest,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:gtest_main,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:gmock,INTERFACE_INCLUDE_DIRECTORIES>)
+
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/common
-    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/cpu
-    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/include)
+    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>)

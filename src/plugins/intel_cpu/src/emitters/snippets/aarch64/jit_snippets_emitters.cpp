@@ -1,22 +1,35 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_snippets_emitters.hpp"
 
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+
+#include <common/utils.hpp>
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
 #include "cpu/aarch64/jit_generator.hpp"
-#include "cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h"
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "utils/general_utils.h"
 
 using namespace Xbyak_aarch64;
 
 namespace ov::intel_cpu::aarch64 {
 
-using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
+using jit_generator = dnnl::impl::cpu::aarch64::jit_generator_t;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-jit_nop_emitter::jit_nop_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
+jit_nop_emitter::jit_nop_emitter(jit_generator* h, cpu_isa_t isa, [[maybe_unused]] const ExpressionPtr& expr)
     : aarch64::jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
@@ -29,7 +42,8 @@ jit_broadcast_move_emitter::jit_broadcast_move_emitter(jit_generator* h, cpu_isa
                               n->get_input_element_type(0),
                               " and ",
                               n->get_output_element_type(0));
-    OV_CPU_JIT_EMITTER_ASSERT(n->get_input_element_type(0) == ov::element::f32, "Only supports FP32 precision.");
+    const auto element_type = n->get_input_element_type(0);
+    OV_CPU_JIT_EMITTER_ASSERT(any_of(element_type.size(), 1U, 2U, 4U), "Unsupported element type: ", element_type);
 
     byte_size = n->get_input_element_type(0).size();
 }
@@ -45,10 +59,16 @@ void jit_broadcast_move_emitter::emit_impl(const std::vector<size_t>& in, const 
 template <cpu_isa_t isa>
 void jit_broadcast_move_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in[0]);
-    TReg dst = TReg(out[0]);
+    auto src = TReg(in[0]);
+    auto dst = TReg(out[0]);
 
     switch (byte_size) {
+    case 1:
+        h->dup(dst.b, src.b[0]);
+        break;
+    case 2:
+        h->dup(dst.h, src.h[0]);
+        break;
     case 4:
         h->dup(dst.s, src.s[0]);
         break;
@@ -87,9 +107,10 @@ void jit_scalar_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
 }
 
 template <cpu_isa_t isa>
-void jit_scalar_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_scalar_emitter::emit_isa([[maybe_unused]] const std::vector<size_t>& in,
+                                  const std::vector<size_t>& out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg dst = TReg(out[0]);
+    auto dst = TReg(out[0]);
     AdrImm src = table_val("scalar");
 
     h->uni_ld1rw(dst.s, src.getXn(), src.getImm());

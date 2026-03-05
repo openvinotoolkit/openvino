@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node/include/addon.hpp"
 
 #include <napi.h>
 
+#include "node/include/async_infer_queue.hpp"
 #include "node/include/compiled_model.hpp"
 #include "node/include/core_wrap.hpp"
 #include "node/include/element_type.hpp"
@@ -13,6 +14,7 @@
 #include "node/include/infer_request.hpp"
 #include "node/include/model_wrap.hpp"
 #include "node/include/node_output.hpp"
+#include "node/include/node_wrap.hpp"
 #include "node/include/partial_shape_wrap.hpp"
 #include "node/include/preprocess/preprocess.hpp"
 #include "node/include/tensor.hpp"
@@ -36,12 +38,12 @@ Napi::Value save_model_sync(const Napi::CallbackInfo& info) {
         if (ov::js::validate<ModelWrap, Napi::String>(info, allowed_signatures)) {
             const auto& model = info[0].ToObject();
             const auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
-            const auto path = js_to_cpp<std::string>(info, 1);
+            const auto path = js_to_cpp<std::filesystem::path>(info, 1);
             ov::save_model(m->get_model(), path);
         } else if (ov::js::validate<ModelWrap, Napi::String, Napi::Boolean>(info, allowed_signatures)) {
             const auto& model = info[0].ToObject();
             const auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
-            const auto path = js_to_cpp<std::string>(info, 1);
+            const auto path = js_to_cpp<std::filesystem::path>(info, 1);
             const auto compress_to_fp16 = info[2].ToBoolean();
             ov::save_model(m->get_model(), path, compress_to_fp16);
         } else {
@@ -67,6 +69,8 @@ Napi::Object init_module(Napi::Env env, Napi::Object exports) {
     init_class(env, exports, "Output", &Output<ov::Node>::get_class, addon_data->output);
     init_class(env, exports, "ConstOutput", &Output<const ov::Node>::get_class, addon_data->const_output);
     init_class(env, exports, "PartialShape", &PartialShapeWrap::get_class, addon_data->partial_shape);
+    init_class(env, exports, "AsyncInferQueue", &AsyncInferQueue::get_class, addon_data->async_infer_queue);
+    init_class(env, exports, "Node", &NodeWrap::get_class, addon_data->node);
 
     init_function(env, exports, "saveModelSync", save_model_sync);
 

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
-from typing import Callable, Iterable, List, Optional, Set, Union
+from typing import Optional, Union
 
 import numpy as np
 from functools import partial
@@ -30,7 +30,6 @@ from openvino.utils.types import (
     get_dtype,
     get_element_type,
     get_element_type_str,
-    make_constant_node,
 )
 
 _get_node_factory_opset2 = partial(_get_node_factory, "opset2")
@@ -114,7 +113,7 @@ def mvn(
 
 
 @nameable_op
-def reorg_yolo(input: Node, stride: List[int], name: Optional[str] = None) -> Node:
+def reorg_yolo(input: Node, stride: list[int], name: Optional[str] = None) -> Node:
     """Return a node which produces the ReorgYolo operation.
 
     :param input:   Input data.
@@ -154,7 +153,9 @@ def roi_pooling(
     if spatial_scale is None:
         raise AttributeError("The following arguments must be defined: `spatial_scale`!")
 
-    def _deprecated_output_size_arg(output_roi: Optional[TensorShape], output_size: Optional[TensorShape]) -> Optional[TensorShape]:
+    def _deprecated_output_size_arg(
+        output_roi: Optional[TensorShape], output_size: Optional[TensorShape]
+    ) -> Optional[TensorShape]:
         if output_size is not None:
             warnings.warn(
                 "`output_size` is deprecated and will be removed in future. "

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -132,7 +132,7 @@ void regclass_graph_Any(py::module m) {
             :type dtype: Union[bool, int, str, float]
 
             :return: A runtime attribute as a list.
-            :rtype: Union[List[float], List[int], List[str], List[bool]]
+            :rtype: Union[list[float], list[int], list[str], list[bool]]
     )");
     ov_any.def(
         "get",

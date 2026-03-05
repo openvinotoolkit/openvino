@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ namespace frontend {
 namespace onnx {
 namespace transform {
 namespace {
-TypeProto get_input_type(std::string const& name, GraphProto& graph) {
+TypeProto get_input_type(const std::string& name, GraphProto& graph) {
     for (const auto& input : graph.input()) {
         if (input.name() == name) {
             return input.type();
@@ -94,8 +94,7 @@ void ov::frontend::onnx::transform::expand_onnx_functions(ModelProto& model_prot
 
         // Retrieve the operation schema from ONNX library
         int opset_version = static_cast<int>(get_opset_version(model_proto, node.domain()));
-        const auto* schema_registry = OpSchemaRegistry::Instance();
-        const auto node_op_schema = schema_registry->GetSchema(node.op_type(), opset_version, node.domain());
+        const auto node_op_schema = OpSchemaRegistry::Schema(node.op_type(), opset_version, node.domain());
 
         // Check if operation schema found
         if (!node_op_schema) {

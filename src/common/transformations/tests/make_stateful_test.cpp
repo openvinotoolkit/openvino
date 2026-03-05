@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,9 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -21,6 +23,7 @@ using namespace ov;
 using namespace opset8;
 using namespace std;
 
+namespace op_util = ov::op::util;
 std::shared_ptr<ov::Model> get_test_model(bool insert_squeeze, bool use_friendly_names) {
     std::shared_ptr<ov::Model> model;
     auto X = make_shared<Parameter>(element::f32, Shape{32, 1, 10});
@@ -61,12 +64,12 @@ std::shared_ptr<ov::Model> get_ref_model(bool insert_squeeze, bool use_friendly_
     std::shared_ptr<ov::Model> model;
     // create ReadValue for X
     auto variable_x =
-        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{Shape{32, 1, 10}, element::f32, "xres0"});
+        std::make_shared<op_util::Variable>(op_util::VariableInfo{Shape{32, 1, 10}, element::f32, "xres0"});
     auto read_val_x = make_shared<ReadValue>(variable_x);
 
     // create ReadValue for Y
     auto variable_y =
-        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{Shape{32, 1, 10}, element::f32, "yres1"});
+        std::make_shared<op_util::Variable>(op_util::VariableInfo{Shape{32, 1, 10}, element::f32, "yres1"});
     auto read_val_y = make_shared<ReadValue>(variable_y);
 
     if (!use_friendly_names) {

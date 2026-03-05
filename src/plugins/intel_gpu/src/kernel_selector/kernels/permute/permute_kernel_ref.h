@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,7 @@ protected:
     CommonDispatchData SetDefault(const permute_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return {
+            FusedOpType::REORDER,
             FusedOpType::ACTIVATION,
             FusedOpType::QUANTIZE,
             FusedOpType::ELTWISE

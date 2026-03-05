@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node/include/model_wrap.hpp"
@@ -23,11 +23,13 @@ Napi::Function ModelWrap::get_class(Napi::Env env) {
                         InstanceMethod("input", &ModelWrap::get_input),
                         InstanceMethod("isDynamic", &ModelWrap::is_dynamic),
                         InstanceMethod("getOutputSize", &ModelWrap::get_output_size),
+                        InstanceMethod("getOps", &ModelWrap::get_ops),
                         InstanceMethod("setFriendlyName", &ModelWrap::set_friendly_name),
                         InstanceMethod("getFriendlyName", &ModelWrap::get_friendly_name),
                         InstanceMethod("getOutputShape", &ModelWrap::get_output_shape),
                         InstanceMethod("getOutputElementType", &ModelWrap::get_output_element_type),
                         InstanceMethod("clone", &ModelWrap::clone),
+                        InstanceMethod("reshape", &ModelWrap::reshape),
                         InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
                         InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
 }
@@ -37,10 +39,16 @@ void ModelWrap::set_model(const std::shared_ptr<ov::Model>& model) {
 }
 
 Napi::Value ModelWrap::get_name(const Napi::CallbackInfo& info) {
-    if (_model->get_name() != "")
+    std::vector<std::string> allowed_signatures;
+    try {
+        OPENVINO_ASSERT(ov::js::validate(info, allowed_signatures),
+                        "'getName'",
+                        ov::js::get_parameters_error_msg(info, allowed_signatures));
         return Napi::String::New(info.Env(), _model->get_name());
-    else
-        return Napi::String::New(info.Env(), "unknown");
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
 }
 
 std::shared_ptr<ov::Model> ModelWrap::get_model() const {
@@ -199,6 +207,94 @@ Napi::Value ModelWrap::clone(const Napi::CallbackInfo& info) {
         } else {
             OPENVINO_THROW("'clone'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
+}
+
+ov::Output<ov::Node> ModelWrap::input_from_handle(const Napi::Env& env, const Napi::Value& value) {
+    if (ov::js::validate_value<int>(env, value)) {
+        return _model->input(value.As<Napi::Number>().Int32Value());
+    } else if (ov::js::validate_value<Napi::String>(env, value)) {
+        return _model->input(value.As<Napi::String>().Utf8Value());
+    } else if (ov::js::validate_value<ov::js::OutputNode>(env, value)) {
+        const auto output_wrap = Napi::ObjectWrap<Output<ov::Node>>::Unwrap(value.ToObject());
+        return output_wrap->get_output();
+    } else {
+        OPENVINO_THROW("Incorrect key type to reshape a model, expected keys as openvino.Output, number, or string.");
+    }
+}
+
+std::map<ov::Output<ov::Node>, ov::PartialShape> ModelWrap::get_new_shapes(const Napi::Env& env,
+                                                                           const Napi::Value& value) {
+    std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
+
+    const auto map_prototype = env.Global().Get("Map").As<Napi::Function>();
+    if (value.IsObject() && value.ToObject().InstanceOf(map_prototype)) {
+        const auto map = value.As<Napi::Object>();
+        const uint32_t size = map.Get("size").As<Napi::Number>().Int32Value();
+
+        const auto entries = map.Get("entries").As<Napi::Function>();
+        const auto iterator = entries.Call(map, {}).As<Napi::Object>();
+        const auto next = iterator.Get("next").As<Napi::Function>();
+        for (uint32_t i = 0; i < size; ++i) {
+            auto item = next.Call(iterator, {}).As<Napi::Object>();
+            const auto v = item.Get("value").As<Napi::Array>();
+            const Napi::Value& key = v[static_cast<uint32_t>(0)];
+            const Napi::Value& value = v[static_cast<uint32_t>(1)];
+            new_shapes.emplace_hint(new_shapes.end(),
+                                    input_from_handle(env, key),
+                                    js_to_cpp<ov::PartialShape>(env, value));
+        }
+    }
+    return new_shapes;
+}
+
+Napi::Value ModelWrap::reshape(const Napi::CallbackInfo& info) {
+    std::vector<std::string> allowed_signatures;
+    try {
+        if (ov::js::validate<PartialShapeWrap>(info, allowed_signatures) ||
+            ov::js::validate<Napi::String>(info, allowed_signatures)) {
+            // Reshaping model with one input
+            _model->reshape(js_to_cpp<ov::PartialShape>(info.Env(), info[0]), {});
+        } else if (ov::js::validate<PartialShapeWrap, Napi::Object>(info, allowed_signatures) ||
+                   ov::js::validate<Napi::String, Napi::Object>(info, allowed_signatures)) {
+            // Reshaping model with one input and variable shapes
+            const auto variable_shapes =
+                js_to_cpp<std::unordered_map<std::string, ov::PartialShape>>(info.Env(), info[1]);
+            _model->reshape(js_to_cpp<ov::PartialShape>(info.Env(), info[0]), variable_shapes);
+        } else if (ov::js::validate<Napi::Object>(info, allowed_signatures)) {
+            // Reshaping model with multiple input
+            _model->reshape(get_new_shapes(info.Env(), info[0]), {});
+        } else if (ov::js::validate<Napi::Object, Napi::Object>(info, allowed_signatures)) {
+            // Reshaping model with multiple input and variable shapes
+            const auto variable_shapes =
+                js_to_cpp<std::unordered_map<std::string, ov::PartialShape>>(info.Env(), info[1]);
+            _model->reshape(get_new_shapes(info.Env(), info[0]), variable_shapes);
+        } else {
+            OPENVINO_THROW("'reshape'", ov::js::get_parameters_error_msg(info, allowed_signatures));
+        }
+        return info.This();
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
+}
+
+Napi::Value ModelWrap::get_ops(const Napi::CallbackInfo& info) {
+    std::vector<std::string> allowed_signatures;
+    try {
+        OPENVINO_ASSERT(ov::js::validate(info, allowed_signatures),
+                        "'getOps'",
+                        ov::js::get_parameters_error_msg(info, allowed_signatures));
+
+        const auto& model_ops = _model->get_ops();
+        Napi::Array outputs = Napi::Array::New(info.Env(), model_ops.size());
+        uint32_t index = 0;
+        for (const auto& op : model_ops)
+            outputs[index++] = cpp_to_js(info.Env(), op);
+        return outputs;
     } catch (const std::exception& e) {
         reportError(info.Env(), e.what());
         return info.Env().Undefined();

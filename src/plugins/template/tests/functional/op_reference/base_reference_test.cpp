@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "base_reference_test.hpp"
@@ -10,7 +10,6 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "transformations/utils/utils.hpp"
 

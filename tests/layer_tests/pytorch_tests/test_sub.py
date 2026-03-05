@@ -1,7 +1,6 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import pytest
 import torch
 
@@ -28,31 +27,30 @@ class TestSub(PytorchLayerTest):
             def _forward_inplace(self, x, y, alpha: float):
                 return x.sub_(y, alpha=alpha)
 
-        ref_net = None
 
         if inplace:
             op_name = "aten::sub_"
         else:
             op_name = "aten::sub"
 
-        return aten_sub(inplace), ref_net, op_name
+        return aten_sub(inplace), op_name
 
     @pytest.mark.parametrize('input_shapes',
-    [
-        [
-            [2, 3, 4], [2, 3, 4], [1]
-        ],
-        [
-            [4, 2, 3], [1, 2, 3], [1]
-        ]
-    ])
+                             [
+                                 [
+                                     [2, 3, 4], [2, 3, 4], [1]
+                                 ],
+                                 [
+                                     [4, 2, 3], [1, 2, 3], [1]
+                                 ]
+                             ])
     @pytest.mark.parametrize("inplace", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_sub(self, ie_device, precision, ir_version, input_shapes, inplace):
         self.input_data = []
         for input_shape in input_shapes:
-            self.input_data.append(np.random.randn(*input_shape).astype(np.float32))
+            self.input_data.append(self.random.randn(*input_shape))
         self._test(*self.create_model(inplace), ie_device, precision, ir_version, use_convert_model=True)
 
 
@@ -60,11 +58,11 @@ class TestSubTypes(PytorchLayerTest):
 
     def _prepare_input(self):
         if len(self.lhs_shape) == 0:
-            return (torch.randn(self.rhs_shape).to(self.rhs_type).numpy(),)
+            return (self.random.randn(*self.rhs_shape, dtype=self.rhs_type),)
         elif len(self.rhs_shape) == 0:
-            return (torch.randn(self.lhs_shape).to(self.lhs_type).numpy(),)
-        return (torch.randn(self.lhs_shape).to(self.lhs_type).numpy(),
-                torch.randn(self.rhs_shape).to(self.rhs_type).numpy())
+            return (self.random.randn(*self.lhs_shape, dtype=self.lhs_type),)
+        return (self.random.randn(*self.lhs_shape, dtype=self.lhs_type),
+                self.random.randn(*self.rhs_shape, dtype=self.rhs_type))
 
     def create_model(self, lhs_type, lhs_shape, rhs_type, rhs_shape):
 
@@ -89,9 +87,8 @@ class TestSubTypes(PytorchLayerTest):
             def forward3(self, lhs, rhs):
                 return torch.sub(lhs.to(self.lhs_type), rhs.to(self.rhs_type), alpha=2)
 
-        ref_net = None
 
-        return aten_sub(lhs_type, lhs_shape, rhs_type, rhs_shape), ref_net, "aten::sub"
+        return aten_sub(lhs_type, lhs_shape, rhs_type, rhs_shape), "aten::sub"
 
     @pytest.mark.parametrize(("lhs_type", "rhs_type"),
                              [[torch.int32, torch.int64],
@@ -118,3 +115,139 @@ class TestSubTypes(PytorchLayerTest):
         self.rhs_shape = rhs_shape
         self._test(*self.create_model(lhs_type, lhs_shape, rhs_type, rhs_shape),
                    ie_device, precision, ir_version)
+
+
+class TestSubWithLhsComplex(PytorchLayerTest):
+    def _prepare_input(self):
+        rhs_input_shape = [3, 4, 5]
+        lhs_input_shape = rhs_input_shape + [2]
+        return [self.random.randint(-10, 10, size=lhs_input_shape, dtype=self.lhs_type),
+            self.random.randint(-10, 10, size=rhs_input_shape, dtype=self.rhs_type)]
+
+    def create_model(self, alpha, op_type):
+        class aten_sub(torch.nn.Module):
+
+            def __init__(self, alpha, op) -> None:
+                super().__init__()
+                self.alpha = alpha
+                self.forward = self.forward1 if op == "sub" else self.forward2
+
+            def forward1(self, lhs, rhs):
+                lhs = torch.view_as_complex(lhs)
+                res = torch.sub(lhs, rhs, alpha=self.alpha)
+                return torch.view_as_real(res)
+
+            def forward2(self, lhs, rhs):
+                lhs = torch.view_as_complex(lhs)
+                res = lhs.sub_(rhs, alpha=self.alpha)
+                return torch.view_as_real(res + lhs)
+
+
+        return aten_sub(alpha, op_type), f"aten::{op_type}"
+
+    @pytest.mark.parametrize('alpha', (0, 0.5))
+    @pytest.mark.parametrize("lhs_type",
+                             [torch.float32,
+                              torch.float64])
+    @pytest.mark.parametrize("rhs_type",
+                             [torch.int8,
+                              torch.int32,
+                              torch.int64,
+                              torch.float32,
+                              torch.float64])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("op_type", ["sub", "sub_"])
+    def test_sub(self, ie_device, precision, ir_version, alpha, lhs_type, rhs_type, op_type):
+        self.lhs_type = lhs_type
+        self.rhs_type = rhs_type
+        self._test(*self.create_model(alpha, op_type), ie_device, precision, ir_version,
+                   use_convert_model=True)
+
+
+class TestSubWithRhsComplex(PytorchLayerTest):
+    def _prepare_input(self):
+        lhs_input_shape = [3, 4, 5]
+        rhs_input_shape = lhs_input_shape + [2]
+        return [self.random.randint(-10, 10, size=lhs_input_shape, dtype=self.lhs_type),
+            self.random.randint(-10, 10, size=rhs_input_shape, dtype=self.rhs_type)]
+
+    def create_model(self, alpha):
+        class aten_sub(torch.nn.Module):
+
+            def __init__(self, alpha) -> None:
+                super().__init__()
+                self.alpha = alpha
+
+            def forward(self, lhs, rhs):
+                rhs = torch.view_as_complex(rhs)
+                res = torch.sub(lhs, rhs, alpha=self.alpha)
+                return torch.view_as_real(res)
+
+
+        return aten_sub(alpha), f"aten::sub"
+
+    @pytest.mark.parametrize('alpha', (0, 0.5))
+    @pytest.mark.parametrize("rhs_type",
+                             [torch.float32,
+                              torch.float64])
+    @pytest.mark.parametrize("lhs_type",
+                             [torch.int8,
+                              torch.int32,
+                              torch.int64,
+                              torch.float32,
+                              torch.float64])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_sub(self, ie_device, precision, ir_version, alpha, lhs_type, rhs_type):
+        self.lhs_type = lhs_type
+        self.rhs_type = rhs_type
+        self._test(*self.create_model(alpha), ie_device, precision, ir_version,
+                   use_convert_model=True)
+
+
+class TestSubWithBothComplex(PytorchLayerTest):
+    def _prepare_input(self):
+        input_shape = [3, 4, 5]
+        input_shape = input_shape + [2]
+        return [self.random.randint(0, 10, size=input_shape, dtype=self.lhs_type),
+            self.random.randint(0, 10, size=input_shape, dtype=self.rhs_type)]
+
+    def create_model(self, alpha, op_type):
+        class aten_sub(torch.nn.Module):
+
+            def __init__(self, alpha, op) -> None:
+                super().__init__()
+                self.alpha = alpha
+                self.forward = self.forward1 if op == "sub" else self.forward2
+
+            def forward1(self, lhs, rhs):
+                lhs = torch.view_as_complex(lhs)
+                rhs = torch.view_as_complex(rhs)
+                res = torch.sub(lhs, rhs, alpha=self.alpha)
+                return torch.view_as_real(res)
+
+            def forward2(self, lhs, rhs):
+                lhs = torch.view_as_complex(lhs)
+                rhs = torch.view_as_complex(rhs)
+                res = lhs.sub_(rhs, alpha=self.alpha)
+                return torch.view_as_real(res + lhs)
+
+
+        return aten_sub(alpha, op_type), f"aten::{op_type}"
+
+    @pytest.mark.parametrize('alpha', (0, 0.5))
+    @pytest.mark.parametrize("lhs_type",
+                             [torch.float32,
+                              torch.float64])
+    @pytest.mark.parametrize("rhs_type",
+                             [torch.float32,
+                              torch.float64])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("op_type", ["sub", "sub_"])
+    def test_sub(self, ie_device, precision, ir_version, alpha, lhs_type, rhs_type, op_type):
+        self.lhs_type = lhs_type
+        self.rhs_type = rhs_type
+        self._test(*self.create_model(alpha, op_type), ie_device, precision, ir_version,
+                   use_convert_model=True)

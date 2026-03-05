@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,8 +48,8 @@ struct memory {
     virtual ~memory() = default;
     virtual void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) = 0;
     virtual void unlock(const stream& stream) = 0;
-    virtual event::ptr fill(stream& stream, unsigned char pattern, bool blocking = true) = 0;
-    virtual event::ptr fill(stream& stream, bool blocking = true) = 0;
+    virtual event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) = 0;
+    virtual event::ptr fill(stream& stream, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) = 0;
     // only supports gpu_usm
     virtual void* buffer_ptr() const { return nullptr; }
 
@@ -110,7 +110,7 @@ struct memory {
 
     virtual event::ptr copy_to(stream& stream, memory& other, bool blocking = true) const {
         const auto zero_offset = 0;
-        const auto data_size = other._bytes_count;
+        const auto data_size = _bytes_count;
         return copy_to(stream, other, zero_offset, zero_offset, data_size, blocking);
     }
 
@@ -127,7 +127,7 @@ struct memory {
 #endif
 
     std::shared_ptr<MemoryTracker> get_mem_tracker() const { return m_mem_tracker; }
-    GPU_DEBUG_CODE(bool from_memory_pool = false);
+    bool from_memory_pool = false;
 
 protected:
     engine* _engine;
@@ -147,8 +147,8 @@ struct simple_attached_memory : memory {
 
     void* lock(const stream& /* stream */, mem_lock_type /* type */) override { return _pointer; }
     void unlock(const stream& /* stream */) override {}
-    event::ptr fill(stream& /* stream */, unsigned char, bool) override { return nullptr; }
-    event::ptr fill(stream& /* stream */, bool) override { return nullptr; }
+    event::ptr fill(stream& /* stream */, unsigned char, const std::vector<event::ptr>&, bool) override { return nullptr; }
+    event::ptr fill(stream& /* stream */, const std::vector<event::ptr>&, bool) override { return nullptr; }
     shared_mem_params get_internal_params() const override { return { shared_mem_type::shared_mem_empty, nullptr, nullptr, nullptr,
 #ifdef _WIN32
         nullptr,
@@ -225,6 +225,7 @@ struct surfaces_lock {
     surfaces_lock& operator=(const surfaces_lock& other) = delete;
 
     static std::unique_ptr<surfaces_lock> create(engine_types engine_type, std::vector<memory::ptr> mem, const stream& stream);
+    static bool is_lock_needed(const shared_mem_type& mem_type);
 };
 
 template<typename T>

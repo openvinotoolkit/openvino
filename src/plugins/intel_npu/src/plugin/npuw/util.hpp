@@ -1,13 +1,17 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <future>
+#include <random>
 #include <string>
 
+#include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
@@ -23,6 +27,10 @@ bool is_set(const std::size_t sub_idx,
 // Every great project has its own string class...
 // NB: Newer C++ standards would allow to use string views or smt
 ov::Tensor tensor_from_const(const std::shared_ptr<ov::Node>& node);
+
+// In case of working with memory which will be detached later (Constant will be freed),
+// we need to explicitly create a tensor which owns the memory during the execution.
+ov::Tensor copy_tensor_from_const(const std::shared_ptr<ov::Node>& node);
 
 bool starts_with(const std::string& str, const std::string& prefix);
 
@@ -55,6 +63,9 @@ void unpack(const ov::SoPtr<ov::ITensor>& from,
             const UnpackOptions& unpack_options = UnpackOptions{true, 16, false});
 
 void gather(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& idx, const ov::SoPtr<ov::ITensor>& dst);
+void gather_cb4(const ov::SoPtr<ov::ITensor>& src,
+                const ov::SoPtr<ov::ITensor>& idx,
+                const ov::SoPtr<ov::ITensor>& dst);
 
 using View = std::vector<std::size_t>;
 ov::SoPtr<ov::ITensor> view(const ov::SoPtr<ov::ITensor>& src, const View& from, const View& to);
@@ -66,6 +77,8 @@ ov::Tensor to_f16(const ov::Tensor& t);
 ov::Tensor transpose(const ov::Tensor& t);
 ov::Tensor permute(const ov::Tensor& t, const std::vector<std::size_t>& axes);
 ov::Tensor concat(const std::vector<ov::Tensor>& tt, std::size_t axis);
+
+void permute_i4d(const ov::SoPtr<ov::ITensor>& src, ov::SoPtr<ov::ITensor>& dst, const std::array<int, 4> order);
 
 // Start is inclusive, end is exclusive
 using range_1d = std::pair<std::size_t, std::size_t>;
@@ -151,6 +164,88 @@ void non_parallel_for(std::size_t count, F&& f) {
         f(idx);
     }
 }
+
+template <class CountedType>
+struct Unique {
+    static std::string name() {
+        static std::size_t counter = 0u;
+        return std::string(CountedType::name) + "_" + std::to_string(counter++);
+    }
+};
+
+std::string generate_random_string(std::size_t size = 32);
+
+using TensorPtr = ov::SoPtr<ov::ITensor>;
+TensorPtr allocMem(const ov::element::Type type,
+                   const ov::Shape& shape,
+                   const std::string& device,
+                   const std::shared_ptr<const ov::IPlugin>& plugin);
+
+bool matchStringWithLoRAPattern(const std::string& input, const std::string& pattern_suffix);
+
+bool matchLoRAMatMulAString(const std::string& input);
+
+bool matchLoRAMatMulBString(const std::string& input);
+
+bool matchLoRAMatMulAlphaString(const std::string& input);
+
+template <typename T>
+void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
+    T* tensor_data = tensor->data<T>();
+    std::fill(tensor_data + offset, tensor_data + tensor->get_size(), fill_val);
+}
+
+void fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val);
+
+template <class T>
+typename std::underlying_type<T>::type _v(T&& t) {
+    return static_cast<typename std::underlying_type<T>::type>(t);
+}
+
+template <class T>
+class Delayed {
+public:
+    T& get() {
+        return const_cast<T&>(get_impl());
+    }
+    // FIXME: since main purpose of this is to guard closure,
+    // even const get should wait for the future to finish,
+    // otherwise it's not ready yet (e.g. .size() method).
+    const T& get() const {
+        return get_impl();
+    }
+    T& unsafe_get() {
+        return data;
+    }
+    void set_future(std::shared_future<void>& f) {
+        future = f;
+    }
+    void wait() const {
+        if (!done && future.valid()) {
+            future.wait();
+            done = true;
+        }
+    }
+
+private:
+    const T& get_impl() const {
+        if (done)
+            return data;
+        if (future.valid()) {
+            future.wait();
+            done = true;
+        }
+        return data;
+    }
+
+    T data;
+    std::shared_future<void> future;
+    mutable bool done = false;
+};
+
+bool isPastKeyValuesKey(const std::string& str);
+
+bool isPastKeyValuesValue(const std::string& str);
 
 }  // namespace util
 }  // namespace npuw

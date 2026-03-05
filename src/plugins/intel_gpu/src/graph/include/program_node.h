@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/graph/program.hpp"
@@ -12,6 +12,7 @@
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/read_value.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 
 #include <set>
@@ -207,9 +208,15 @@ public:
     size_t get_dependency_index(const program_node& node) const;
     size_t get_user_index(const program_node& node) const;
 
-    std::unordered_set<size_t> get_memory_dependencies() const;
-    void add_memory_dependency(size_t);
+    const std::unordered_set<uint32_t>& get_memory_dependencies() const;
+
     void add_memory_dependency(std::vector<size_t>);
+    void add_memory_dependency(const program_node& node);
+
+    // At least the following scenarios are not allocating from memory pool:
+    // 1. constant nodes
+    // 2. read_value nodes that are optimized out to reuse from Variables.
+    bool may_use_mempool() const { return !(is_constant() || (is_type<read_value>() && optimized)); }
 
     template <class PType>
     bool have_user_with_type() const {
@@ -313,6 +320,10 @@ public:
     // check/set if the node's buffer can be shared during the memory pool optimization
     bool can_share_buffer() const { return share_buffer; }
     void can_share_buffer(bool share) { share_buffer = share; }
+
+    // check/set if the node's internal buffer can be shared
+    bool can_share_internal_buffer() const { return share_internal_buffer; }
+    void can_share_internal_buffer(bool share) { share_internal_buffer = share; }
 
     // Sets padding support for all axis
     void support_padding_all(bool support);
@@ -497,7 +508,7 @@ protected:
     std::list<program_node*> users;
 
     // list of primitives that can reuse same memory buffers due to execution order conflicts
-    std::unordered_set<size_t> memory_dependencies;
+    std::unordered_set<uint32_t> memory_dependencies;
 
     impl_types impl_type = impl_types::any;
     impl_types forced_impl_type = impl_types::any;
@@ -512,6 +523,7 @@ protected:
     uint8_t user_mark = 0;
     bool optimized = false;
     bool share_buffer = true;
+    bool share_internal_buffer = true;
     std::array<bool, tensor_dim_max> _support_padding_in_axis;
 
     mutable bool has_reused_memory = false;

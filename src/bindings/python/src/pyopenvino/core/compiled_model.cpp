@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,12 +46,18 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "export_model",
         [](ov::CompiledModel& self) {
-            std::stringstream _stream;
-            {
-                py::gil_scoped_release release;
-                self.export_model(_stream);
-            }
-            return py::bytes(_stream.str());
+            py::object model_stream = py::module::import("io").attr("BytesIO")();
+
+            Common::utils::OutPyBuffer mb(model_stream);
+            std::ostream _stream(&mb);
+
+            self.export_model(_stream);
+
+            _stream.flush();
+            model_stream.attr("flush")();
+            model_stream.attr("seek")(0);  // Always rewind stream!
+
+            return model_stream;
         },
         R"(
             Exports the compiled model to bytes/output stream.
@@ -81,13 +87,14 @@ void regclass_CompiledModel(py::module m) {
                                      "`model_stream` must be an io.BytesIO object but " +
                                      (std::string)(py::repr(model_stream)) + "` provided");
             }
-            std::stringstream _stream;
-            {
-                py::gil_scoped_release release;
-                self.export_model(_stream);
-            }
+
+            Common::utils::OutPyBuffer mb(model_stream);
+            std::ostream _stream(&mb);
+
+            self.export_model(_stream);
+
+            _stream.flush();
             model_stream.attr("flush")();
-            model_stream.attr("write")(py::bytes(_stream.str()));
             model_stream.attr("seek")(0);  // Always rewind stream!
         },
         py::arg("model_stream"),
@@ -128,7 +135,7 @@ void regclass_CompiledModel(py::module m) {
         R"(
             Sets properties for current compiled model.
 
-            :param properties: Dict of pairs: (property name, property value)
+            :param properties: dict of pairs: (property name, property value)
             :type properties: dict
             :rtype: None
         )");
@@ -144,7 +151,7 @@ void regclass_CompiledModel(py::module m) {
         R"(
             Sets properties for current compiled model.
 
-            :param property: Tuple of (property name, matching property value).
+            :param property: tuple of (property name, matching property value).
             :type property: tuple
         )");
 
@@ -193,7 +200,7 @@ void regclass_CompiledModel(py::module m) {
                                 Gets all inputs of a compiled model.
 
                                 :return: Inputs of a compiled model.
-                                :rtype: List[openvino.ConstOutput]
+                                :rtype: list[openvino.ConstOutput]
                               )");
 
     cls.def("input",
@@ -239,11 +246,12 @@ void regclass_CompiledModel(py::module m) {
                                 Gets all outputs of a compiled model.
 
                                 :return: Outputs of a compiled model.
-                                :rtype: List[openvino.ConstOutput]
+                                :rtype: list[openvino.ConstOutput]
                               )");
 
     cls.def("output",
             (const ov::Output<const ov::Node>& (ov::CompiledModel::*)() const) & ov::CompiledModel::output,
+            py::return_value_policy::reference_internal,
             R"(
                 Gets a single output of a compiled model.
                 If the model has more than one output, this method throws an exception.
@@ -254,6 +262,7 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def("output",
             (const ov::Output<const ov::Node>& (ov::CompiledModel::*)(size_t) const) & ov::CompiledModel::output,
+            py::return_value_policy::reference_internal,
             py::arg("index"),
             R"(
                 Gets output of a compiled model identified by an index.
@@ -268,6 +277,7 @@ void regclass_CompiledModel(py::module m) {
     cls.def("output",
             (const ov::Output<const ov::Node>& (ov::CompiledModel::*)(const std::string&) const) &
                 ov::CompiledModel::output,
+            py::return_value_policy::reference_internal,
             py::arg("tensor_name"),
             R"(
                 Gets output of a compiled model identified by a tensor_name.

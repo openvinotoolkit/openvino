@@ -1,10 +1,17 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/rtti.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 
 namespace ov::intel_cpu {
 

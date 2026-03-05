@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,12 +13,6 @@ using namespace ov::pass::low_precision;
 namespace {
     const std::vector<ov::element::Type> precisions = {
             ov::element::f32
-    };
-
-    const std::vector<LayerTransformation::Params> trasformationParamValues = {
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(false),
-        // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(true),
     };
 
     const std::vector<LayerTestsDefinitions::SqueezeTransformationParam> params = {
@@ -48,7 +42,6 @@ namespace {
         ::testing::Combine(
             ::testing::ValuesIn(precisions),
             ::testing::Values(ov::test::utils::DEVICE_CPU),
-            ::testing::ValuesIn(trasformationParamValues),
             ::testing::ValuesIn(params)),
         SqueezeTransformation::getTestCaseName);
 }  // namespace

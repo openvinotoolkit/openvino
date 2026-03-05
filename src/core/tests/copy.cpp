@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -117,9 +117,8 @@ TEST(copy, broadcast) {
 
     ASSERT_NE(nullptr, new_node);
     ASSERT_EQ(new_args, new_node->input_values());
-    bool axes_determined;
-    AxisSet broadcast_axes;
-    std::tie(axes_determined, broadcast_axes) = node_cast->get_broadcast_axes();
+
+    const auto& [axes_determined, broadcast_axes] = node_cast->get_broadcast_axes();
     ASSERT_EQ(true, axes_determined);
     ASSERT_EQ(AxisSet{0}, broadcast_axes);
 }

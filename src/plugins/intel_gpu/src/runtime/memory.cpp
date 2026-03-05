@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ MemoryTracker::MemoryTracker(engine* engine, void* buffer_ptr, size_t buffer_siz
     , m_alloc_type(alloc_type) {
     if (m_engine) {
         m_engine->add_memory_used(m_buffer_size, m_alloc_type);
-        GPU_DEBUG_LOG << "Allocate " << m_buffer_size << " bytes of " << m_alloc_type << " allocation type ptr = " << m_buffer_ptr
+        GPU_DEBUG_TRACE_DETAIL << "Allocate " << m_buffer_size << " bytes of " << m_alloc_type << " allocation type ptr = " << m_buffer_ptr
                       << " (current=" << m_engine->get_used_device_memory(m_alloc_type) << ";"
                       << " max=" << m_engine->get_max_used_device_memory(m_alloc_type) << ")" << std::endl;
     }
@@ -35,7 +35,7 @@ MemoryTracker::~MemoryTracker() {
         try {
             m_engine->subtract_memory_used(m_buffer_size, m_alloc_type);
         } catch (...) {}
-        GPU_DEBUG_LOG << "Free " << m_buffer_size << " bytes of " << m_alloc_type << " allocation type ptr = " << m_buffer_ptr
+        GPU_DEBUG_TRACE_DETAIL << "Free " << m_buffer_size << " bytes of " << m_alloc_type << " allocation type ptr = " << m_buffer_ptr
                       << " (current=" << m_engine->get_used_device_memory(m_alloc_type) << ";"
                       << " max=" << m_engine->get_max_used_device_memory(m_alloc_type) << ")" << std::endl;
     }
@@ -52,6 +52,12 @@ std::unique_ptr<surfaces_lock> surfaces_lock::create(engine_types engine_type, s
         return std::unique_ptr<ocl::ocl_surfaces_lock>(new ocl::ocl_surfaces_lock(mem, stream));
     default: throw std::runtime_error("Unsupported engine type in surfaces_lock::create");
     }
+}
+
+bool surfaces_lock::is_lock_needed(const shared_mem_type& mem_type) {
+    return mem_type == shared_mem_type::shared_mem_vasurface ||
+           mem_type == shared_mem_type::shared_mem_dxbuffer ||
+           mem_type == shared_mem_type::shared_mem_image;
 }
 
 }  // namespace cldnn

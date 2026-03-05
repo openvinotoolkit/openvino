@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ static void init_device_and_engine(std::shared_ptr<ocl::ocl_device>& device,
                                    std::shared_ptr<ocl::ocl_engine>& engine,
                                    bool& supports_usm) {
     // Find device, which supports USMs.
-    device_query query(engine_types::ocl, runtime_types::ocl);
+    device_query query(engine_types::ocl, runtime_types::ocl, nullptr, nullptr, 0, -1, true);
     auto devices = query.get_available_devices();
     for (const auto& d : devices) {
         if (d.second->get_mem_caps().supports_usm()) {
@@ -387,11 +387,7 @@ public:
 };
 
 TEST_P(offset_copy, basic) {
-    allocation_type src_allocation_type;
-    allocation_type dst_allocation_type;
-    mem_test_params params;
-    bool use_copy_to;
-    std::tie(src_allocation_type, dst_allocation_type, params, use_copy_to) = GetParam();
+    const auto& [src_allocation_type, dst_allocation_type, params, use_copy_to] = GetParam();
 
     const auto copy_size = params.size;
     const auto src_size = params.src_offset + copy_size;
@@ -438,10 +434,7 @@ TEST_P(offset_copy, basic) {
 }
 
 TEST_P(offset_copy_host, basic) {
-    allocation_type allocation_type;
-    mem_test_params params;
-    bool use_copy_to;
-    std::tie(allocation_type, params, use_copy_to) = GetParam();
+    const auto& [allocation_type, params, use_copy_to] = GetParam();
 
     const auto copy_size = params.size;
     const auto src_size = params.src_offset + copy_size;
@@ -488,3 +481,15 @@ INSTANTIATE_TEST_SUITE_P(mem_test,
                                                               mem_test_params{0, 79, 381},
                                                               mem_test_params{100, 79, 381}),
                                             ::testing::Values(false, true)));
+
+TEST(mem_test, copy_small_buf_to_large_with_out_of_bound_access) {
+    auto& ocl_engine = dynamic_cast<ocl::ocl_engine&>(get_test_engine());
+    auto& stream = get_test_stream();
+    auto small_buffer_size = 2048;
+    auto large_buffer_size = 3072;
+
+    auto small_buffer = ocl_engine.allocate_memory({{small_buffer_size}, data_types::u8, format::bfyx}, allocation_type::cl_mem, false);
+    auto large_buffer = ocl_engine.allocate_memory({{large_buffer_size}, data_types::u8, format::bfyx}, allocation_type::cl_mem, false);
+
+    OV_ASSERT_NO_THROW(small_buffer->copy_to(stream, *large_buffer, true));
+}

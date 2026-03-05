@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -556,7 +556,7 @@ TEST(non_zero_gpu, empty_input) {
 
     // Put some value into out buffer to ensure that it's non empty
     // That is needed to ensure that implementation correctly handles the cases when input tensor is empty and set count non zero to 0
-    count_nonzero_inst->output_memory(0).fill(engine.get_service_stream(), 1, true);
+    count_nonzero_inst->output_memory(0).fill(engine.get_service_stream(), 1, {}, true);
     engine.get_service_stream().finish();
 
     auto count_nonzero_impl = count_nonzero_inst->get_impl();

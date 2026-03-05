@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,13 +18,11 @@ public:
     ov::builder::subgraph::FakeQuantizeOnData fqOnData2;
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    ov::PartialShape,
-    std::string, // target device: CPU, GPU
-    ConcatWithDifferentChildrenTransformationParam,
-    ov::pass::low_precision::LayerTransformation::Params // transformation parameters
-    > ConcatWithDifferentChildrenTransformationParams;
+typedef std::tuple<ov::element::Type,
+                   ov::PartialShape,
+                   std::string,  // target device: CPU, GPU
+                   ConcatWithDifferentChildrenTransformationParam>
+    ConcatWithDifferentChildrenTransformationParams;
 
 class ConcatWithDifferentChildrenTransformation :
     public testing::WithParamInterface<ConcatWithDifferentChildrenTransformationParams>,

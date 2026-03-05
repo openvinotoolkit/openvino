@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -188,6 +188,7 @@
 #include "openvino/op/softsign.hpp"
 #include "openvino/op/space_to_batch.hpp"
 #include "openvino/op/space_to_depth.hpp"
+#include "openvino/op/sparse_fill_empty_rows.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squared_difference.hpp"

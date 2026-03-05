@@ -1,8 +1,16 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "dft_uni_kernel.hpp"
+
+#include <xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+
+#include "utils/cpu_utils.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
@@ -15,12 +23,12 @@ namespace ov::intel_cpu {
 
 template <cpu::x64::cpu_isa_t isa>
 jit_uni_dft_kernel_f32<isa>::jit_uni_dft_kernel_f32() : jit_uni_dft_kernel(),
-                                                        jit_generator(jit_name()) {}
+                                                        jit_generator_t(jit_name()) {}
 
 template <cpu::x64::cpu_isa_t isa>
 void jit_uni_dft_kernel_f32<isa>::create_ker() {
-    jit_generator::create_kernel();
-    ker_ = (decltype(ker_))jit_ker();
+    jit_generator_t::create_kernel();
+    ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
 }
 
 template <cpu::x64::cpu_isa_t isa>
@@ -67,15 +75,15 @@ void jit_uni_dft_kernel_f32<isa>::generate() {
     L(main_loop_end_label);
 
     if (mayiuse(cpu::x64::avx512_core)) {
-        Xbyak::Zmm zmm_sum = Xbyak::Zmm(vmm_sum.getIdx());
-        Xbyak::Ymm ymm_sum = Xbyak::Ymm(vmm_sum.getIdx());
-        Xbyak::Ymm ymm_sum_2 = Xbyak::Ymm(vmm_sum_2.getIdx());
+        auto zmm_sum = Xbyak::Zmm(vmm_sum.getIdx());
+        auto ymm_sum = Xbyak::Ymm(vmm_sum.getIdx());
+        auto ymm_sum_2 = Xbyak::Ymm(vmm_sum_2.getIdx());
 
         vextractf64x4(ymm_sum_2, zmm_sum, 1);
         vaddps(ymm_sum, ymm_sum, ymm_sum_2);
     }
     if (mayiuse(cpu::x64::avx2)) {
-        Xbyak::Ymm ymm_sum = Xbyak::Ymm(vmm_sum.getIdx());
+        auto ymm_sum = Xbyak::Ymm(vmm_sum.getIdx());
 
         vextractf128(xmm_sum_2, ymm_sum, 1);
         vaddps(xmm_sum, xmm_sum, xmm_sum_2);
@@ -116,12 +124,12 @@ template struct jit_uni_dft_kernel_f32<cpu::x64::avx512_core>;
 
 template <cpu::x64::cpu_isa_t isa>
 jit_uni_fft_kernel_f32<isa>::jit_uni_fft_kernel_f32() : jit_uni_fft_kernel(),
-                                                        jit_generator(jit_name()) {}
+                                                        jit_generator_t(jit_name()) {}
 
 template <cpu::x64::cpu_isa_t isa>
 void jit_uni_fft_kernel_f32<isa>::create_ker() {
-    jit_generator::create_kernel();
-    ker_ = (decltype(ker_))jit_ker();
+    jit_generator_t::create_kernel();
+    ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
 }
 
 template <cpu::x64::cpu_isa_t isa>

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ class BitwiseShiftLayerCPUTest : public testing::WithParamInterface<BitshiftLaye
                                  virtual public SubgraphBaseTest,
                                  public CPUTestUtils::CpuTestWithFusing {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<BitshiftLayerCPUTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<BitshiftLayerCPUTestParamsSet>& obj);
 
     ov::Tensor generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape, size_t in_idx = 0);
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;

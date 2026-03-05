@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,8 @@ using ConfigParams = std::tuple<std::vector<std::string>>;
 
 class LoadNetworkWithCTPUTMockTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        std::vector<std::string> targetDevices;
-        std::tie(targetDevices) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
+        const auto& [targetDevices] = obj.param;
         std::ostringstream result;
         result << "ctput_loadnetwork_to_device_";
         for (auto& device : targetDevices) {
@@ -27,6 +26,9 @@ public:
     void SetUp() override {
         std::vector<std::string> availableDevs = {"CPU", "GPU"};
         ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
+        std::vector<std::string> deviceIDs = {};
+        ON_CALL(*core, get_property(StrEq("GPU"), StrEq(ov::available_devices.name()), _))
+            .WillByDefault(RETURN_MOCK_VALUE(deviceIDs));
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
@@ -41,8 +43,7 @@ public:
 };
 
 TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
-    std::vector<std::string> targetDevices;
-    std::tie(targetDevices) = this->GetParam();
+    const auto& [targetDevices] = this->GetParam();
 
     plugin->set_device_name("AUTO");
     config.insert(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
@@ -89,9 +90,8 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
 
 using LoadNetworkWithCTPUTMockTestExeDevice = LoadNetworkWithCTPUTMockTest;
 TEST_P(LoadNetworkWithCTPUTMockTestExeDevice, CTPUTSingleDevExecutionDevie) {
-    std::vector<std::string> targetDevices;
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
-    std::tie(targetDevices) = this->GetParam();
+    const auto& [targetDevices] = this->GetParam();
 
     plugin->set_device_name("AUTO");
     config.insert({ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
@@ -125,10 +125,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoCTPUTExecutionDevice,
 using ConfigParams_1 = std::tuple<bool, std::vector<std::string>>;
 class AutoCTPUTCallMulti : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams_1> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams_1> obj) {
-        std::vector<std::string> targetDevices;
-        bool AutoCallMulti;
-        std::tie(AutoCallMulti, targetDevices) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams_1>& obj) {
+        const auto& [AutoCallMulti, targetDevices] = obj.param;
         std::ostringstream result;
         if (AutoCallMulti) {
             result << "AutoCallMulti_";
@@ -148,6 +146,9 @@ public:
     void SetUp() override {
         std::vector<std::string> availableDevs = {"CPU", "GPU"};
         ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
+        std::vector<std::string> deviceIDs = {};
+        ON_CALL(*core, get_property(StrEq("GPU"), StrEq(ov::available_devices.name()), _))
+            .WillByDefault(RETURN_MOCK_VALUE(deviceIDs));
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
@@ -162,10 +163,9 @@ public:
 };
 
 TEST_P(AutoCTPUTCallMulti, CTPUTDeviceLoadFailedNoExceptionThrowTest) {
-    std::vector<std::string> targetDevices;
     std::string targetDev;
-    bool AutoCallMulti;
-    std::tie(AutoCallMulti, targetDevices) = this->GetParam();
+
+    const auto& [AutoCallMulti, targetDevices] = this->GetParam();
     std::string loadFailedDevice = targetDevices.size() > 0 ? targetDevices[0] : "";
     std::string secondDevice = targetDevices.size() > 1 ? targetDevices[1] : "";
     plugin->set_device_name("MULTI");

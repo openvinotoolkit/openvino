@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,11 +11,13 @@
 
 namespace LayerTestsDefinitions {
 
+typedef std::tuple<ov::element::Type, ov::Shape, std::string> LayerTransformationParams;
+
 class OutputLayers :
-    public testing::WithParamInterface<LayerTestsUtils::LayerTransformationParams>,
+    public testing::WithParamInterface<LayerTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<LayerTransformationParams>& obj);
 
 protected:
     void SetUp() override;

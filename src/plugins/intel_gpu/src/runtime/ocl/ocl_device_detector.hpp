@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,11 @@ class ocl_device_detector {
 public:
     ocl_device_detector() = default;
 
-    std::map<std::string, device::ptr> get_available_devices(void *user_context, void *user_device, int ctx_device_id = 0, int target_tile_id = -1) const;
+    std::map<std::string, device::ptr> get_available_devices(void* user_context,
+                                                             void* user_device,
+                                                             int ctx_device_id = 0,
+                                                             int target_tile_id = -1,
+                                                             bool initialize_devices = false) const;
 
     static std::vector<device::ptr> sort_devices(const std::vector<device::ptr>& devices_list);
 

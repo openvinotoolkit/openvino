@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,10 +70,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<GetDequantizationParams> obj) {
-        ov::element::Type precision;
-        ov::Shape shape;
-        GetDequantizationTestValues testValues;
-        std::tie(precision, shape, testValues) = obj.param;
+        const auto& [precision, shape, testValues] = obj.param;
 
         std::ostringstream result;
         result << precision << "_" << shape << "_" << testValues;

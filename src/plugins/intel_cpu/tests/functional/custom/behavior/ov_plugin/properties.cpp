@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "internal_properties.hpp"
 
 #include <algorithm>
 
@@ -24,6 +25,9 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
     };
     auto RW_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
+    };
+    auto WO_property = [](const std::string& propertyName) {
+        return ov::PropertyName(propertyName, ov::PropertyMutability::WO);
     };
 
     std::vector<ov::PropertyName> expectedSupportedProperties{
@@ -37,6 +41,8 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RO_property(ov::device::capabilities.name()),
         RO_property(ov::device::type.name()),
         RO_property(ov::device::architecture.name()),
+        // Write only
+        WO_property(ov::weights_path.name()),
         // read write
         RW_property(ov::num_streams.name()),
         RW_property(ov::inference_num_threads.name()),
@@ -54,12 +60,15 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RW_property(ov::intel_cpu::denormals_optimization.name()),
         RW_property(ov::log::level.name()),
         RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+        RW_property(ov::intel_cpu::enable_tensor_parallel.name()),
+        RW_property(ov::intel_cpu::tbb_partitioner.name()),
         RW_property(ov::hint::dynamic_quantization_group_size.name()),
         RW_property(ov::hint::kv_cache_precision.name()),
         RW_property(ov::key_cache_precision.name()),
         RW_property(ov::value_cache_precision.name()),
         RW_property(ov::key_cache_group_size.name()),
         RW_property(ov::value_cache_group_size.name()),
+        RW_property(ov::enable_weightless.name()),
     };
 
     ov::Core ie;

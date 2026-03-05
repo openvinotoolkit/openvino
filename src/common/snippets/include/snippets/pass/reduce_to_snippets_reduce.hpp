@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,7 @@
 
 #include "openvino/pass/matcher_pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface ReduceToSnippetsReduce
@@ -16,13 +14,10 @@ namespace pass {
  * Also checks that reduction operation is supported by snippets.
  * @ingroup snippets
  */
-class ReduceToSnippetsReduce: public ov::pass::MatcherPass {
+class ReduceToSnippetsReduce : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::ReduceToSnippetsReduce");
     ReduceToSnippetsReduce();
 };
 
-
-} // namespace pass
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::pass

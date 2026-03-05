@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -45,13 +45,9 @@ class TestSegmentSum(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
-    def test_segment_sum_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_legacy_frontend):
-        if use_legacy_frontend:
-            pytest.skip("SegmentSum operation is not supported via legacy frontend.")
+    def test_segment_sum_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_segment_sum_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data_different_types = [
         dict(data_shape=[2, 3], segment_ids_shape=[2], data_type=tf.int32, segment_ids_type=tf.int32),
@@ -62,13 +58,9 @@ class TestSegmentSum(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_different_types)
     @pytest.mark.nightly
-    def test_segment_sum_different_types(self, params, ie_device, precision, ir_version, temp_dir,
-                                         use_legacy_frontend):
-        if use_legacy_frontend:
-            pytest.skip("SegmentSum operation is not supported via legacy frontend.")
+    def test_segment_sum_different_types(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_segment_sum_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestSegmentSumComplex(CommonTFLayerTest):
@@ -102,7 +94,7 @@ class TestSegmentSumComplex(CommonTFLayerTest):
             tf.compat.v1.global_variables_initializer().run()
             tf_net = sess.graph_def
 
-        return tf_net, None 
+        return tf_net, None
 
     test_data_basic = [
         dict(data_shape=[2, 3], segment_ids_shape=[2]),
@@ -114,10 +106,6 @@ class TestSegmentSumComplex(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_complex_segment_sum(self, params, ie_device, precision, ir_version, temp_dir,
-                                         use_legacy_frontend):
-        if use_legacy_frontend:
-            pytest.skip("SegmentSum operation is not supported via legacy frontend.")
+    def test_complex_segment_sum(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_segment_sum_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

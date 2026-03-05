@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,14 +10,39 @@
 #include "select_inst.h"
 #include "strided_slice_inst.h"
 #include "gather_inst.h"
+#include "input_layout_inst.h"
+#include "paged_attention_inst.h"
 #include "pass_manager.h"
+#include "fully_connected_inst.h"
+#include "gemm_inst.h"
 
 #include "intel_gpu/graph/program.hpp"
 
 using namespace cldnn;
 
-void mark_shape_of_subgraphs::look_for_shape_of_subgraph(program_node& node) {
+static bool is_shape_of_subgraph_root(program_node& node) {
     if (node.is_type<shape_of>()) {
+        return true;
+    }
+
+    // Allow input_layout to be the root of the shape_of subgraph if it's 'max_context_len'
+    // input of PagedAttention, which can be used as a shape calculation flow source in some
+    // models like Qwen and Qwen2
+    if (node.is_type<input_layout>()) {
+        const auto& users = node.get_users();
+        for (const auto& user : users) {
+            const auto max_context_len_input_id = 12;
+            if (user->is_type<paged_attention>() && user->get_dependency_index(node) == max_context_len_input_id) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+void mark_shape_of_subgraphs::look_for_shape_of_subgraph(program_node& node) {
+    if (is_shape_of_subgraph_root(node)) {
         mark_node(node);
         return;
     }
@@ -48,8 +73,9 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
     if (node.has_fused_primitives())
         return false;
 
-    // read_value may have initializer which is shape_of sub-graph, but read_value itself is not a part of such sub-graph
-    if (node.is_type<read_value>())
+    // read_value, convolution, fully_connected, and gemm may have initializers that are part of a shape_of sub-graph,
+    // but these nodes themselves are not considered part of such sub-graph
+    if (node.is_type<read_value>() || node.is_type<convolution>() || node.is_type<fully_connected>() || node.is_type<gemm>())
         return false;
 
     // CPU implementation does not support float data types for mask and mixed types for data inputs, so check them
@@ -102,7 +128,7 @@ void mark_shape_of_subgraphs::mark_node(program_node& node) {
 
     // If current node has shape_of type add it to dependant shape_of nodes for
     // correct dependency propagation for users
-    if (node.is_type<shape_of>())
+    if (is_shape_of_subgraph_root(node))
         node.add_dependant_shape_of_node(&node);
 
     // Add parent shape_of nodes from other dependencies if there are any

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "singleton.hpp"
 #include "time_utils.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/core/log_util.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -127,7 +128,7 @@ inline void Log::set_log_level(ov::log::Level loglevel_) {
 }
 
 inline void Log::print(std::stringstream& stream) {
-    std::cout << stream.str() << std::endl << std::flush;
+    util::log_message(stream.str());
 }
 
 inline void Log::checkFormat(const char* fmt) {

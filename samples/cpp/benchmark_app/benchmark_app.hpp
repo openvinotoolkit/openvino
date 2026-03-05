@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ static const char input_message[] =
     "                              In case of dynamic shapes models with several inputs provide the same number"
     " of files for each input (except cases with single file for any input):"
     "\"input1:1.jpg input2:1.bin\", \"input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin \"."
-    " Also you can pass specific keys for inputs: \"random\" - for fillling input with random data,"
+    " Also you can pass specific keys for inputs: \"random\" - for filling input with random data,"
     " \"image_info\" - for filling input with image size.\n"
     "                              You should specify either one files set to be used for all inputs (without "
     "providing "
@@ -68,7 +68,7 @@ static const char load_from_file_message[] = "Optional. Loads model from file di
 /// @brief message for maximum inference rate
 static const char maximum_inference_rate_message[] =
     "Optional. Maximum inference rate by frame per second"
-    "If not specified, default value is 0, the inference will run at maximium rate depending on a device capabilities. "
+    "If not specified, default value is 0, the inference will run at maximum rate depending on a device capabilities. "
     "Tweaking this value allow better accuracy in power usage measurement by limiting the execution.";
 
 /// @brief message for execution time
@@ -249,6 +249,10 @@ static const char load_config_message[] =
     "                                               }\n"
     "                                       }";
 
+static const char no_warmup_message[] =
+    "Optional. Skip warmup inference. Useful for benchmarking purposes in simulated environments.\n"
+    "Otherwise, not recommended.";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -325,7 +329,7 @@ DEFINE_string(infer_precision, "", inference_precision_message);
 /// @brief Specify precision for all input layers of the network
 DEFINE_string(ip, "", inputs_precision_message);
 
-/// @brief Specify precision for all ouput layers of the network
+/// @brief Specify precision for all output layers of the network
 DEFINE_string(op, "", outputs_precision_message);
 
 /// @brief Specify precision for input and output layers by name.\n"
@@ -347,7 +351,7 @@ DEFINE_uint64(nthreads, 0, infer_num_threads_message);
 // @brief Enable plugin messages
 DEFINE_string(pin, "", infer_threads_pinning_message);
 
-/// @brief Define flag for switching beetwen host and device memory allocation for input and output buffers
+/// @brief Define flag for switching between host and device memory allocation for input and output buffers
 DEFINE_bool(use_device_mem, false, use_device_mem_message);
 
 /// @brief The percentile which will be reported in latency metric
@@ -379,6 +383,9 @@ DEFINE_string(load_config, "", load_config_message);
 
 /// @brief Define flag for dumping configuration file <br>
 DEFINE_string(dump_config, "", dump_config_message);
+
+/// @brief Skips warmup inference and measures only the first inference
+DEFINE_bool(no_warmup, false, no_warmup_message);
 
 /**
  * @brief This function show a help message
@@ -413,6 +420,7 @@ static void show_usage() {
     std::cout << "    -nstreams  <integer>          " << infer_num_streams_message << std::endl;
     std::cout << "    -inference_only         " << inference_only_message << std::endl;
     std::cout << "    -infer_precision        " << inference_precision_message << std::endl;
+    std::cout << "    -no_warmup                    " << no_warmup_message << std::endl;
     std::cout << std::endl;
     std::cout << "Preprocessing options:" << std::endl;
     std::cout << "    -ip   <value>           " << inputs_precision_message << std::endl;

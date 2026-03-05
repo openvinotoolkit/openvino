@@ -1,14 +1,15 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "program_dump_graph.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "to_string_utils.h"
-#include "data_inst.h"
+#include "json_object.h"
+
 #include "condition_inst.h"
 #include "data_inst.h"
-#include "json_object.h"
+#include "dynamic_quantize_inst.h"
 
 #include <algorithm>
 #include <vector>
@@ -214,6 +215,17 @@ void dump_graph_init(std::ofstream& graph,
 
         return out;
     };
+    const auto dump_prim_additional_info = [](const program_node* ptr) {
+        std::ostringstream oss;
+        if (ptr->is_type<dynamic_quantize>()) {
+            auto dyn_quan = ptr->as<dynamic_quantize>().get_primitive();
+            oss << "\n" << "group_sizes: " << ov::util::join(cldnn::convert_vector<int64_t>(dyn_quan->attrs.group_sizes));
+            if (dyn_quan->attrs.precomputed_reduction) {
+                oss << "\n" << "precomputed_reduction_dt: " << dyn_quan->attrs.precomputed_reduction_dt;
+            }
+        }
+        return oss.str();
+    };
 
     graph << "digraph cldnn_program {\n";
     for (auto& node : program.get_processing_order()) {
@@ -226,7 +238,7 @@ void dump_graph_init(std::ofstream& graph,
               << "\\ntype: " << node_type_name
               << "\\nprocessing number: " << program.get_processing_order().get_processing_number(node)
               << "\\n color:" << (node->is_reusing_memory() ? std::to_string(node->get_reused_memory_color()) : "none")
-              << (node->can_be_optimized() ? "\\n optimized out" : "");
+              << (((get_primitive_inst) ? get_primitive_inst(node->id())->can_be_optimized() : node->can_be_optimized()) ? "\\n optimized out" : "");
 
         if (!node->is_type<data>()) {
             graph << "\\n Selected kernel: "
@@ -244,6 +256,7 @@ void dump_graph_init(std::ofstream& graph,
         }
         graph << "\n" + dump_mem_info(node);
         graph << "\n" + dump_mem_preferred_info(node);
+        graph << "\n" + dump_prim_additional_info(node);
         graph << "\"";
 #ifdef __clang__
 #pragma clang diagnostic pop

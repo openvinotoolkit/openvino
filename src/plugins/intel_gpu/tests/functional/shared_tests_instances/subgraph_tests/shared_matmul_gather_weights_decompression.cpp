@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "common_test_utils/test_constants.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/convert.hpp"
 
 using namespace ov::test;
 

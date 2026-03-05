@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ KernelsPriority ExperimentalDetectronDetectionOutputKernelRef::GetKernelsPriorit
 
 bool ExperimentalDetectronDetectionOutputKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::EXPERIMENTAL_DETECTRON_DETECTION_OUTPUT) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     return true;
 }
@@ -103,7 +103,7 @@ void ExperimentalDetectronDetectionOutputKernelRef::PrepareKernelCommon(
     cldnn_jit.AddConstant(MakeJitConstant(stage_name, "true"));
 
     const auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
-    KernelBase::CheckDispatchData(kernelName, dispatch_data, params.engineInfo.maxWorkGroupSize);
+    KernelBase::CheckDispatchData(kernelName, dispatch_data, params.engineInfo);
     kernel.params.workGroups.global = dispatch_data.gws;
     kernel.params.workGroups.local = dispatch_data.lws;
     kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
@@ -178,12 +178,12 @@ KernelsData ExperimentalDetectronDetectionOutputKernelRef::GetKernelsData(const 
 
     kd.internalBufferDataType = Datatype::F32;
 
-    kd.internalBufferSizes.resize(kBufferCount);
-    kd.internalBufferSizes[kRefinedBoxesBufferIdx] = class_count * roi_count * 4 * sizeof(float);
-    kd.internalBufferSizes[kRefinedBoxAreasBufferIdx] = class_count * roi_count * sizeof(float);
-    kd.internalBufferSizes[kRefinedScoresBufferIdx] = class_count * roi_count * sizeof(float);
-    kd.internalBufferSizes[kScoreClassIndexBufferIdx] = class_count * roi_count * 12;  // sizeof ScoreClassIndex
-    kd.internalBufferSizes[kDetectionCountBufferIdx] = sizeof(uint32_t);
+    kd.internalBuffers.resize(kBufferCount);
+    kd.internalBuffers[kRefinedBoxesBufferIdx].byte_count = class_count * roi_count * 4 * sizeof(float);
+    kd.internalBuffers[kRefinedBoxAreasBufferIdx].byte_count = class_count * roi_count * sizeof(float);
+    kd.internalBuffers[kRefinedScoresBufferIdx].byte_count = class_count * roi_count * sizeof(float);
+    kd.internalBuffers[kScoreClassIndexBufferIdx].byte_count = class_count * roi_count * 12;  // sizeof ScoreClassIndex
+    kd.internalBuffers[kDetectionCountBufferIdx].byte_count = sizeof(uint32_t);
 
     PrepareRefineBoxesKernel(eddo_params, kd.kernels[0]);
     PrepareNmsClassWiseKernel(eddo_params, kd.kernels[1]);

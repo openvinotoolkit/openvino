@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -165,7 +165,7 @@ public:
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
      *        and removes OpenVINO Runtime magic and plugin name
-     * @param model Reference to model output stream
+     * @param model Reference to model input stream
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
@@ -175,13 +175,35 @@ public:
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
      *        and removes OpenVINO Runtime magic and plugin name
-     * @param model Reference to model output stream
+     * @param model Reference to model input stream
      * @param context A pointer to plugin context derived from RemoteContext class used to
      *        execute the network
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
     virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                             const ov::SoPtr<ov::IRemoteContext>& context,
+                                                             const ov::AnyMap& properties) const = 0;
+
+    /**
+     * @brief Creates an compiled model from an previously exported model using plugin implementation
+     *        and removes OpenVINO Runtime magic and plugin name
+     * @param model Reference to ov::Tensor with exported model
+     * @param properties A ov::AnyMap of properties
+     * @return An Compiled model
+     */
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model, const ov::AnyMap& properties) const = 0;
+
+    /**
+     * @brief Creates an compiled model from an previously exported model using plugin implementation
+     *        and removes OpenVINO Runtime magic and plugin name
+     * @param model Reference to ov::Tensor with exported model
+     * @param context A pointer to plugin context derived from RemoteContext class used to
+     *        execute the network
+     * @param properties A ov::AnyMap of properties
+     * @return An Compiled model
+     */
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const = 0;
 
@@ -212,7 +234,17 @@ public:
      */
     const std::shared_ptr<ov::threading::ExecutorManager>& get_executor_manager() const;
 
+
     virtual ~IPlugin() = default;
+
+    /**
+     * @brief Checks if a property is supported by the plugin.
+     *
+     * @param name Name of the property.
+     * @param arguments Optional map of arguments for the property.
+     * @return true if the property is supported, otherwise false.
+    */
+    virtual bool is_property_supported(const std::string& name, const ov::AnyMap& arguments = {}) const;
 
 protected:
     IPlugin();

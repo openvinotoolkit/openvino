@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <functional>
 #include <iterator>
 #include <map>
@@ -59,9 +60,9 @@ public:
 template <class T>
 class CaselessHash : public std::hash<T> {
 public:
-    size_t operator()(const T& __val) const noexcept {
+    size_t operator()(const T& _val) const noexcept {
         T lc;
-        std::transform(std::begin(__val), std::end(__val), std::back_inserter(lc), [](typename T::value_type ch) {
+        std::transform(std::begin(_val), std::end(_val), std::back_inserter(lc), [](typename T::value_type ch) {
             return std::tolower(ch);
         });
         return std::hash<T>()(lc);

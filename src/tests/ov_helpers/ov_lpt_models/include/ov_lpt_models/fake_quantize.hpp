@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@ namespace subgraph {
 class FakeQuantizeFunction {
 public:
     static std::shared_ptr<ov::Model> getOriginal(
-        const ov::pass::low_precision::LayerTransformation::Params& params,
         const ov::element::Type precision,
         const ov::PartialShape& inputShape,
         const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData,
@@ -30,7 +29,6 @@ public:
             const FakeQuantizeOnData& fakeQuantizeOnData);
 
     static std::shared_ptr<ov::Model> getReference(
-        const ov::pass::low_precision::LayerTransformation::Params& params,
         const ov::element::Type precision,
         const ov::PartialShape& inputShape,
         const bool updatePrecisions,

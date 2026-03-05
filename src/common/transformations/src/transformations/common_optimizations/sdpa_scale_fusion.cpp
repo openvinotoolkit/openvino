@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,42 +6,56 @@
 
 #include <memory>
 
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
-#include "transformations/utils/gen_pattern.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
-namespace ov {
-namespace pass {
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v13 = ov::op::v13;
 
-SDPAScaleFusion::SDPAScaleFusion() {
-    using namespace ov::pass::pattern;
-    using namespace ov::gen_pattern;
+namespace ov::pass {
 
-    auto q = makePattern(ov::Rank(4));
-    auto k = makePattern(ov::Rank(4));
-    auto v = makePattern(ov::Rank(4));
-    auto mask = makePattern();
-    auto sdpa_scale = makeConst({});
-    auto scale_q = makePattern("[]") | makePattern("[1]");
-    auto scale_k = makePattern("[]") | makePattern("[1]");
+bool SDPAScaleFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(SDPAScaleFusion);
 
-    auto scaled_q = optional<ov::op::v1::Multiply>({q, scale_q});
-    auto scaled_k = optional<ov::op::v1::Multiply>({k, scale_k});
-    auto sdpa_mask_scale =
-        makePattern<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask, sdpa_scale},
-                                                            {{"causal", false}});
+    SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
+    auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
+
+    symbolic_ctx_manager->register_pass<SDPAScaleFusionPass>();
+
+    return symbolic_optimizations.run_on_model(model);
+}
+
+SDPAScaleFusionPass::SDPAScaleFusionPass() {
+    auto q = pattern::any_input(pattern::rank_equals(4));
+    auto k = pattern::any_input(pattern::rank_equals(4));
+    auto v = pattern::any_input(pattern::rank_equals(4));
+    auto mask = pattern::any_input();
+    auto sdpa_scale = pattern::wrap_const();
+    auto scale_q = pattern::any_input(pattern::shape_matches("[]") || pattern::shape_matches("[1]"));
+    auto scale_k = pattern::any_input(pattern::shape_matches("[]") || pattern::shape_matches("[1]"));
+
+    auto scaled_q = pattern::optional<v1::Multiply>({q, scale_q});
+    auto scaled_k = pattern::optional<v1::Multiply>({k, scale_k});
+    auto sdpa_mask_scale = pattern::wrap_type<v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask, sdpa_scale},
+                                                                              {{"causal", false}});
     auto sdpa_mask =
-        makePattern<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask}, {{"causal", false}});
-    auto sdpa_simple =
-        makePattern<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v}, {{"causal", false}});
+        pattern::wrap_type<v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask}, {{"causal", false}});
+    auto sdpa_simple = pattern::wrap_type<v13::ScaledDotProductAttention>({scaled_q, scaled_k, v}, {{"causal", false}});
     auto sdpa = sdpa_simple | sdpa_mask | sdpa_mask_scale;
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         if (transformation_callback(m.get_match_root())) {
             return false;
@@ -49,8 +63,8 @@ SDPAScaleFusion::SDPAScaleFusion() {
 
         auto sdpa = m.get_match_root();
 
-        const bool has_q_scale = pattern_map.count(scaled_q);
-        const bool has_k_scale = pattern_map.count(scaled_k);
+        bool has_q_scale = pattern_map.count(scaled_q);
+        bool has_k_scale = pattern_map.count(scaled_k);
 
         // Nothing to do
         if (!has_q_scale && !has_k_scale)
@@ -68,8 +82,7 @@ SDPAScaleFusion::SDPAScaleFusion() {
         std::shared_ptr<ov::Node> scale_k_node = nullptr;
 
         if (pattern_map.find(sdpa_scale) != pattern_map.end()) {
-            auto prev_scale_node =
-                ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(sdpa_scale).get_node_shared_ptr());
+            auto prev_scale_node = ov::as_type_ptr<v0::Constant>(pattern_map.at(sdpa_scale).get_node_shared_ptr());
             prev_scale_value = prev_scale_node->cast_vector<float>()[0];
             scale_et = prev_scale_node->get_output_element_type(0);
         } else {
@@ -83,35 +96,45 @@ SDPAScaleFusion::SDPAScaleFusion() {
         // Extract scalar scale values for Q and K if those are constant and set new inputs for SDPA
         if (has_q_scale) {
             scale_q_node = pattern_map.at(scale_q).get_node_shared_ptr();
-            if (ov::is_type<ov::op::v0::Constant>(scale_q_node)) {
-                scale_q_value = ov::as_type_ptr<ov::op::v0::Constant>(scale_q_node)->cast_vector<float>()[0];
-                q_input = pattern_map.at(q);
+            if (pattern_map.at(q).get_element_type() == q_input.get_element_type()) {
+                if (ov::is_type<v0::Constant>(scale_q_node)) {
+                    scale_q_value = ov::as_type_ptr<v0::Constant>(scale_q_node)->cast_vector<float>()[0];
+                    q_input = pattern_map.at(q);
+                }
+            } else {
+                has_q_scale = false;
             }
         }
         if (has_k_scale) {
             scale_k_node = pattern_map.at(scale_k).get_node_shared_ptr();
-            if (ov::is_type<ov::op::v0::Constant>(scale_k_node)) {
-                scale_k_value = ov::as_type_ptr<ov::op::v0::Constant>(scale_k_node)->cast_vector<float>()[0];
-                k_input = pattern_map.at(k);
+            if (pattern_map.at(k).get_element_type() == k_input.get_element_type()) {
+                if (ov::is_type<v0::Constant>(scale_k_node)) {
+                    scale_k_value = ov::as_type_ptr<v0::Constant>(scale_k_node)->cast_vector<float>()[0];
+                    k_input = pattern_map.at(k);
+                }
+            } else {
+                has_k_scale = false;
             }
         }
 
+        if (!has_q_scale && !has_k_scale)
+            return false;
+
         Output<ov::Node> new_scale_node;
         auto new_scale_val = prev_scale_value * scale_q_value * scale_k_value;
-
         // If new scale is 1 and we have non-constant scale node for either Q or K, then we can make it a scale of SDPA
         if (new_scale_val == 1.0f) {
-            if (has_q_scale && !ov::is_type<ov::op::v0::Constant>(scale_q_node)) {
+            if (has_q_scale && !ov::is_type<v0::Constant>(scale_q_node)) {
                 new_scale_node = pattern_map.at(scale_q);
                 q_input = pattern_map.at(q);
-            } else if (has_k_scale && !ov::is_type<ov::op::v0::Constant>(scale_k_node)) {
+            } else if (has_k_scale && !ov::is_type<v0::Constant>(scale_k_node)) {
                 new_scale_node = pattern_map.at(scale_k);
                 k_input = pattern_map.at(k);
             } else {
-                new_scale_node = ov::op::v0::Constant::create(scale_et, ov::Shape{}, std::vector<float>{new_scale_val});
+                new_scale_node = v0::Constant::create(scale_et, ov::Shape{}, std::vector<float>{new_scale_val});
             }
         } else {
-            new_scale_node = ov::op::v0::Constant::create(scale_et, ov::Shape{}, std::vector<float>{new_scale_val});
+            new_scale_node = v0::Constant::create(scale_et, ov::Shape{}, std::vector<float>{new_scale_val});
         }
 
         OutputVector new_inputs = {q_input, k_input, pattern_map.at(v)};
@@ -119,7 +142,7 @@ SDPAScaleFusion::SDPAScaleFusion() {
             new_inputs.push_back(pattern_map.at(mask));
         } else {
             new_inputs.push_back(
-                ov::op::v0::Constant::create(new_scale_node.get_element_type(), ov::Shape{}, std::vector<float>{0.0f}));
+                v0::Constant::create(new_scale_node.get_element_type(), ov::Shape{}, std::vector<float>{0.0f}));
         }
 
         new_inputs.push_back(new_scale_node);
@@ -132,9 +155,8 @@ SDPAScaleFusion::SDPAScaleFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(sdpa, "SDPAScaleFusion");
+    auto m = std::make_shared<pattern::Matcher>(sdpa, "SDPAScaleFusionPass");
     this->register_matcher(m, callback);
 }
 
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass

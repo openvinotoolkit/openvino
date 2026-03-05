@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -147,5 +147,4 @@ class TestROIAlign(OnnxRuntimeLayerTest):
         if ie_device != "GPU":
             self._test(*self.create_net(**params, ir_version=ir_version, onnx_version=10), ie_device, precision,
                        ir_version,
-                       temp_dir=temp_dir,
-                       use_legacy_frontend=True)
+                       temp_dir=temp_dir)

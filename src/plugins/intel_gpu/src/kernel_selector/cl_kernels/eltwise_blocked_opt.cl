@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,8 +66,11 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
     }
 
     MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE) res;
-
-    DO_ELTWISE
+    if ((OUT_F_BLOCK * 2 > OUT_F_BLOCK_VEC_SIZE) && (OUT_F_BLOCK_VEC_SIZE == f_block)) {
+        res = TO_OUTPUT_TYPE(0);
+    } else {
+        DO_ELTWISE
+    }
 
 #if HAS_FUSED_OPS
     FUSED_OPS;

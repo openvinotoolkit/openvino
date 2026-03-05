@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -25,6 +25,8 @@ set(SRC identity.cpp ov_extension.cpp)
 add_library(${TARGET_NAME} MODULE ${SRC})
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
+
+ov_build_target_faster(${TARGET_NAME} PCH)
 
 # [cmake:extension]
 install(TARGETS ${TARGET_NAME}

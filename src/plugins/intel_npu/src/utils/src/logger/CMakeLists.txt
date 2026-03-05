@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -32,4 +32,4 @@ ov_install_static_lib(${TARGET_NAME} ${NPU_PLUGIN_COMPONENT})
 
 ov_developer_package_export_targets(TARGET openvino::npu_logger_utils
                                     INSTALL_INCLUDE_DIRECTORIES
-                                        $<BUILD_INTERFACE:${NPU_UTILS_SOURCE_DIR}/include>)
+                                        $<BUILD_INTERFACE:${NPU_UTILS_SOURCE_DIR}/include>/)

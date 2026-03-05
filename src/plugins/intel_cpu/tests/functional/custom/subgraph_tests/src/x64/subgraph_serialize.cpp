@@ -1,13 +1,16 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/core.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/graph_comparator.hpp"
@@ -31,9 +34,11 @@ TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraph) {
         auto ininput0 = std::make_shared<Parameter>(ov::element::f32, shape);
         auto ininput1 = std::make_shared<Parameter>(ov::element::f32, shape);
         auto add = std::make_shared<Add>(ininput0, ininput1);
-        auto subgraph_body = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{ininput0, ininput1});
-        auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{input0, input1}, subgraph_body.get()->clone());
-        return std::make_shared<ov::Model>(ov::NodeVector{subgraph}, ov::ParameterVector{input0, input1});
+        auto snippets_result = std::make_shared<ov::snippets::op::Result>(add);
+        auto subgraph_body =
+            std::make_shared<ov::Model>(ov::OutputVector{snippets_result}, ov::ParameterVector{ininput0, ininput1});
+        auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::OutputVector{input0, input1}, subgraph_body.get()->clone());
+        return std::make_shared<ov::Model>(ov::OutputVector{subgraph}, ov::ParameterVector{input0, input1});
     })();
     ov::Core core;
     ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
@@ -79,9 +84,11 @@ TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraphWithScalarConst)
         auto internal_constant = std::make_shared<Constant>(ov::element::f32, shape, 2);
         auto add = std::make_shared<Add>(input, constant);
         auto internal_add = std::make_shared<Add>(internal_input, internal_constant);
-        auto subgraph_body = std::make_shared<ov::Model>(ov::NodeVector{internal_add}, ov::ParameterVector{internal_input});
-        auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{add}, subgraph_body.get()->clone());
-        return std::make_shared<ov::Model>(ov::NodeVector{subgraph}, ov::ParameterVector{input});
+        auto snippets_result = std::make_shared<ov::snippets::op::Result>(internal_add);
+        auto subgraph_body =
+            std::make_shared<ov::Model>(ov::OutputVector{snippets_result}, ov::ParameterVector{internal_input});
+        auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::OutputVector{add}, subgraph_body.get()->clone());
+        return std::make_shared<ov::Model>(ov::OutputVector{subgraph}, ov::ParameterVector{input});
     })();
     ov::Core core;
     ov::CompiledModel compiled_model = core.compile_model(model, "CPU");

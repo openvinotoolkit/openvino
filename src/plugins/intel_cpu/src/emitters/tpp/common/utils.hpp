@@ -1,13 +1,13 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <string>
+#include <libxsmm_typedefs.h>
 
 #include "emitters/utils.hpp"
-#include "libxsmm.h"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::tpp::utils {
 

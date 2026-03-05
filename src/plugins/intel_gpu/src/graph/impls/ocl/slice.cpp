@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,7 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
     kernel_arguments_data get_arguments(const slice_inst& instance) const override {
         kernel_arguments_data args;
 
-        const SliceKernelRefNeededInputs inputs = SliceKernelRefNeededInputs::Create(*instance.node);
+        const SliceKernelRefNeededInputs inputs = SliceKernelRefNeededInputs::Create(instance.get_node());
 
         for (auto idx : inputs.GetNeededInputIndexes()) {
             args.inputs.push_back(instance.input_memory_ptr(idx));

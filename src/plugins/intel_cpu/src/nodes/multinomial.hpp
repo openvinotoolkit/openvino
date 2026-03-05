@@ -1,14 +1,20 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <random>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "node.h"
-#include "openvino/core/parallel.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -19,25 +25,25 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
 
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    bool needPrepareParams() const override;
+    [[nodiscard]] bool needPrepareParams() const override;
     void prepareParams() override;
 
     void createPrimitive() override;
 
-    bool neverExecute() const override;
-    bool isExecutable() const override;
+    [[nodiscard]] bool neverExecute() const override;
+    [[nodiscard]] bool isExecutable() const override;
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
-    bool canBeInPlace() const override {
+    [[nodiscard]] bool canBeInPlace() const override {
         return false;
     }
 
 protected:
-    bool needShapeInfer() const override;
+    [[nodiscard]] bool needShapeInfer() const override;
 
 private:
     /// Multinomial params
@@ -47,12 +53,12 @@ private:
     uint64_t m_op_seed = 0;
 
     /// Shape inference
-    static constexpr size_t PROBS_PORT = 0lu;
-    static constexpr size_t NUM_SAMPLES_PORT = 1lu;
-    static constexpr size_t OUTPUT_PORT = 0lu;
+    static constexpr size_t PROBS_PORT = 0LU;
+    static constexpr size_t NUM_SAMPLES_PORT = 1LU;
+    static constexpr size_t OUTPUT_PORT = 0LU;
     bool m_const_inputs[2] = {false, false};
     bool m_const_batch = false;
-    VectorDims m_output_shape = {};
+    VectorDims m_output_shape;
 
     /// General algorithm variables
     ov::element::Type m_probs_precision;

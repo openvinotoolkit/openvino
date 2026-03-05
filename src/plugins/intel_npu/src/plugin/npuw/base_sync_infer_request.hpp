@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,23 +11,27 @@
 #include <string>
 #include <vector>
 
+#include "attention.hpp"
+#include "host_flash_attention.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "perf.hpp"
+#include "pyramid_attention.hpp"
 #include "spatial.hpp"
+#include "util.hpp"
 
 namespace ov {
 namespace npuw {
 
-using TensorPtr = ov::SoPtr<ov::ITensor>;
+using namespace ov::npuw::util;
 
 class CompiledModel;
 
 using LinkFrom = std::pair<std::size_t /* Subrequest index */
                            ,
                            std::size_t /* Subrequest output index */
-                           >;          // FIXME: This is a third, if not fourth, definitiion of such structure
+                           >;          // FIXME: This is a third, if not fourth, definition of such structure
 
 // This interface is provided to npuw::AsyncInferRequest to manage the
 // individual subrequests' execution
@@ -48,6 +52,8 @@ public:
 
     void check_tensors() const override;
 
+    void handle_set_remote_input(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor);
+
     // Query APIs - some default implementations here
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
@@ -65,7 +71,17 @@ public:
     virtual std::size_t total_subrequests() const;
     virtual bool supports_async_pipeline() const = 0;
 
+    void update_history_size(int64_t history_size) {
+        m_history_size = history_size;
+    }
+
+    int64_t get_history_size() const {
+        return m_history_size;
+    }
+
 protected:
+    int64_t m_history_size = 0;
+
     using RqPtr = ov::SoPtr<ov::IAsyncInferRequest>;
     using RqPtrs = std::vector<RqPtr>;
 
@@ -87,12 +103,6 @@ protected:
     // so this cached information is used to detect these situations.
     std::vector<std::string> m_subrequest_devices;
 
-    // Permanent storage for input & output tensors
-    // FIXME: Currently is initialized in subclasses. Likely this
-    // initialization should be moved here, to the base class?
-    std::vector<ov::SoPtr<ov::ITensor>> m_input_tensors;
-    std::vector<ov::SoPtr<ov::ITensor>> m_output_tensors;
-
     struct TensorStorage {
         ov::SoPtr<ov::ITensor> tensor;
         bool persistent = false;       // true for the parent I/O tensors
@@ -101,7 +111,19 @@ protected:
                                        // reset to 0 before every new execution
     };
     // FROM(Every subrequests' output port) TO(Its output tensor)
-    std::map<ov::Output<const ov::Node>, TensorStorage> m_port_to_tensor;
+    // mutable due to lazy I/O allocation in get_tensor()
+    mutable std::map<ov::Output<const ov::Node>, TensorStorage> m_port_to_tensor;
+
+    // FIXME: need to lock internal storages (e.g. accessed within get_tensor())
+    mutable std::mutex m_io_storages_mutex;
+
+    // Check that m_port_to_tensor does have a tensor stored at the port
+    bool is_stored(const ov::Output<const ov::Node>& port) const;
+
+    struct QuantGatherTensors {
+        ov::Tensor w, z, s;
+    };
+    QuantGatherTensors m_quant_gather_tensors;
 
     // FIXME: Currently is initialized/managed by subclass as well.
     // Moved here dumping purposes only
@@ -119,10 +141,33 @@ protected:
     };
     std::vector<SpatialIO> m_spatial_io;
 
+    // FIXME: All comments for SpatialIO above apply here as well.
+    struct AttentionIO {
+        std::vector<ov::SoPtr<ov::ITensor>> inputs;  // # of elements - # of graph-side inputs
+    };
+    std::vector<AttentionIO> m_attention_io;
+
+    // Host Flash Attention I/O structure
+    // Stores input and output tensors for HFA tiled inference
+    struct HostFlashAttentionIO {
+        std::vector<ov::SoPtr<ov::ITensor>> inputs;   // # of elements - # of original SDPA model inputs
+        std::vector<ov::SoPtr<ov::ITensor>> outputs;  // # of elements - # of original SDPA model outputs
+    };
+    std::vector<HostFlashAttentionIO> m_hfa_io;
+
     // FIXME: Currently is initialized/managed by subclass as well.
     // Moved here dumping purposes only
     // Represents spatial run-time info
     runtime::spatial::Selector::Ptr m_spatial_selector;
+
+    // Same thing about this one
+    runtime::attention::Selector::Ptr m_attention_selector;
+
+    // Separate selector for pyramid attention
+    runtime::pyramid_attention::Selector::Ptr m_pyramid_selector;
+
+    // Host flash attention selector for dynamic execution
+    runtime::host_flash_attention::Selector::Ptr m_hfa_selector;
 
     // This structure tracks how every individual subrequest
     // access the model's top-level (global, public, etc) parameters
@@ -135,26 +180,41 @@ protected:
     std::vector<GlobalIO> m_subrequests_gio;
 
     // Tracks tensors we allocated on our own - to recognize and avoid copies
-    std::unordered_set<void*> m_input_allocated;
+    mutable std::unordered_set<void*> m_input_allocated;  // mutable due to lazy I/O allocation in get_tensor()
 
     // Common functionality - shared for subclasses
     const std::size_t m_num_submodels;
 
-    TensorPtr allocMem(const ov::element::Type type, const ov::Shape& shape, const std::string& device);
-    TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device);
-    virtual void alloc_io();
-    virtual TensorPtr alloc_global_out(std::size_t out_idx);
+    TensorPtr allocMem(const ov::element::Type type, const ov::Shape& shape, const std::string& device) const;
+    TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device) const;
+    virtual void alloc_quant_gather();
+    virtual TensorPtr alloc_global_out(std::size_t out_idx) const;
+
+    std::string global_input_mem_device(std::size_t idx) const;
+    std::string global_output_mem_device(std::size_t idx) const;
 
     virtual void init_gio();
     void unpack_closure(std::size_t idx, RqPtr request);
     virtual void bind_global_params(std::size_t idx, RqPtr request);
     virtual void bind_global_results(std::size_t idx, RqPtr request);
+    void alloc_quant_gather_tensors(std::size_t idx, RqPtr request);
+    void handle_quant_host_gather(std::size_t idx, RqPtr request);
+
+    void bind_attention_inputs(std::size_t idx, RqPtr request);
+    void bind_pyramid_attention_inputs(std::size_t idx, RqPtr request);
 
     void dump_input_tensors(std::size_t idx);
     void dump_output_tensors(std::size_t idx);
 
     // Quick-and-dirty profiling
-    ov::npuw::perf::metric<float, ov::npuw::perf::MSec> m_ms_unpack;
+    using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
+    using B = ov::npuw::perf::counter<ov::npuw::perf::Bytes>;
+
+    MS m_ms_unpack;
+    ov::npuw::perf::Profile<MS> m_profile;
+    mutable ov::npuw::perf::Profile<B> m_footprint;  // mutable due to lazy I/O allocation in get_tensor()
+
+    std::string profile_tag(std::size_t idx) const;
 
     // Various name/dump formatting methods
     // TODO: These methods should probably go to CompiledModel

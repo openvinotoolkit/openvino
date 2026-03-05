@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "helper_transforms/tensor_array_v3_replacer.hpp"
 
 #include "helper_ops/tensor_array.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"

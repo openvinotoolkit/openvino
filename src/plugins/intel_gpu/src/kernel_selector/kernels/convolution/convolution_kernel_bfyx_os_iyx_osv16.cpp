@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -205,7 +205,7 @@ KernelsPriority ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsPriority(const Pa
 
 bool ConvolutionKernel_bfyx_os_iyx_osv16::Validate(const Params& p) const {
     if (!ConvolutionKernelBase::Validate(p) || !ConvolutionCheckInput(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

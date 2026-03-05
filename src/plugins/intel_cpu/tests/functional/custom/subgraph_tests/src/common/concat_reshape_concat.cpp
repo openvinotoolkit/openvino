@@ -1,9 +1,12 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 /*This test runs the following subgraph:
 
@@ -30,9 +33,9 @@
                        Concat
                           |
                         Softmax
-                          
+
                         Result
-  
+
   The main purpose of this test is checking the code path when all the nodes except Softmax use "in-place" memory mode.
   Softmax is used as a model of an arbitrary subgraph preceding the pattern.
 */
@@ -45,8 +48,8 @@ using VectorShapes = std::vector<InputShape>;
 class ConcatReshapeConcatSubgraphTest : public testing::WithParamInterface<VectorShapes>,
                                         virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<VectorShapes> obj) {
-        VectorShapes& inputShapes = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<VectorShapes>& obj) {
+        const VectorShapes& inputShapes = obj.param;
 
         std::ostringstream result;
         result << "IS=";

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,4 +60,25 @@ TEST(type_prop, softmax_8_negative_axis) {
     auto softmax = make_shared<op::v8::Softmax>(arg, -1);
     ASSERT_EQ(softmax->get_element_type(), element::f32);
     ASSERT_EQ(softmax->get_shape(), (Shape{1, 10}));
+}
+
+TEST(type_prop, softmax_v1_scalar) {
+    auto arg = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+    auto softmax = make_shared<op::v1::Softmax>(arg, 0);
+    ASSERT_EQ(softmax->get_element_type(), element::f32);
+    ASSERT_EQ(softmax->get_output_partial_shape(0), (PartialShape{}));
+}
+
+TEST(type_prop, softmax_8_scalar) {
+    auto arg = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+    auto softmax = make_shared<op::v8::Softmax>(arg, 0);
+    ASSERT_EQ(softmax->get_element_type(), element::f32);
+    ASSERT_EQ(softmax->get_output_partial_shape(0), (PartialShape{}));
+}
+
+TEST(type_prop, softmax_8_scalar_neg_axis) {
+    auto arg = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+    auto softmax = make_shared<op::v8::Softmax>(arg, -1);
+    ASSERT_EQ(softmax->get_element_type(), element::f32);
+    ASSERT_EQ(softmax->get_output_partial_shape(0), (PartialShape{}));
 }

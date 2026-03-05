@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <dnnl.hpp>
+#include <oneapi/dnnl/dnnl.hpp>
 
 namespace dnnl {
 

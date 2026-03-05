@@ -1,9 +1,10 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_brgemm_emitter.hpp"
 
+#include "emitters/utils.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
 
@@ -72,11 +73,11 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     restore_context(exclude);
 }
 
-const uintptr_t jit_brgemm_emitter::get_compiled_kernel_ptr() const {
+uintptr_t jit_brgemm_emitter::get_compiled_kernel_ptr() const {
     return reinterpret_cast<const uintptr_t>(m_kernel_executor.get());
 }
 
-const uintptr_t jit_brgemm_emitter::get_execute_function_ptr() const {
+uintptr_t jit_brgemm_emitter::get_execute_function_ptr() {
     return reinterpret_cast<const uintptr_t>(BrgemmKernelExecutor::execute);
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -704,6 +704,35 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
     for (int i = 0; i < out_size; i++) {
         ASSERT_EQ(out_buffer[i], ref_vec[i]);
     }
+}
+
+TEST(arg_max_gpu_min_large_output_size, sort_by_indices) {
+    static const int32_t x_size = 1, y_size = 1, feature_num = 1, batch_num = 20000;
+    auto& engine = get_test_engine();
+    const int top_k = 6000;
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {batch_num, feature_num, x_size, y_size}});
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+
+    topology.add(arg_max_min("arg_max",
+                             { input_info("input") },
+                             ov::op::TopKMode::MAX,
+                             top_k,
+                             0,
+                             ov::op::TopKSortType::SORT_INDICES,
+                             false,
+                             false,
+                             data_types::f32));
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
+
+    // No data checking.  The test will fail to compile if kernel not switch to use global memory
 }
 
 template <typename T>

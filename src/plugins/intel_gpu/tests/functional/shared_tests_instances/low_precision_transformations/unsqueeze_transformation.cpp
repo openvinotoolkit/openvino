@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,12 +16,6 @@ namespace {
         ov::element::f16
     };
 
-
-    const std::vector<LayerTransformation::Params> trasformationParamValues = {
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(false),
-        // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(true),
-    };
 
     const std::vector<LayerTestsDefinitions::UnsqueezeTransformationParam> params = {
         {
@@ -55,7 +49,6 @@ namespace {
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(ov::test::utils::DEVICE_GPU),
-            ::testing::ValuesIn(trasformationParamValues),
             ::testing::ValuesIn(params)),
         UnsqueezeTransformation::getTestCaseName);
 }  // namespace

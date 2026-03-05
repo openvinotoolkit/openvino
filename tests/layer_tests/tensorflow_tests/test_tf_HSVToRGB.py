@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -41,10 +41,9 @@ class TestHSVToRGB(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_hsv_to_rgb_basic(self, input_shape, input_type, special_case,
-                              ie_device, precision, ir_version, temp_dir,
-                              use_legacy_frontend):
+                              ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip('158898: accuracy issue on GPU')
         self._test(*self.create_hsv_to_rgb_net(input_shape, input_type, special_case),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend, custom_eps=3 * 1e-3)
+                   custom_eps=3 * 1e-3)

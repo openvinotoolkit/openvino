@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,7 +91,6 @@ void ReadValue::validate_and_infer_types() {
                         variable_type,
                         " Initialization type: ",
                         initial_type);
-        // workaround:
         // dynamic rank/type can be derived from the IRs generated via the prev versions of OV,
         // but dynamic rank/type are not supported in plugins,
         // so we are trying to fix them here using the rank/type of ReadValue 1st input, if it exists
@@ -150,24 +149,19 @@ bool ReadValue::evaluate(TensorVector& outputs,
     const auto& var_value = variable_values.find(m_variable);
 
     const auto use_context = var_value != variable_values.end() && !var_value->second->get_reset();
-    auto& output = outputs[0];
-    Tensor input;
-    if (use_context) {
-        input = var_value->second->get_state();
+
+    if (auto& output = outputs[0]; use_context) {
+        output.set_shape(var_value->second->get_state().get_shape());
+        memcpy(output.data(), var_value->second->get_state().data(), output.get_byte_size());
+    } else if (!inputs.empty()) {
+        output.set_shape(inputs[0].get_shape());
+        memcpy(output.data(), inputs[0].data(), output.get_byte_size());
     } else {
-        if (!inputs.empty()) {
-            input = inputs[0];
-        } else {
-            auto var_info = m_variable->get_info();
-            OPENVINO_ASSERT(var_info.data_shape.is_static() && var_info.data_type.is_static());
-            const auto& shape = var_info.data_shape.get_shape();
-            const auto& type = var_info.data_type;
-            input = ov::Tensor(type, shape);
-            memset(input.data(), 0, input.get_byte_size());
-        }
+        const auto var_info = m_variable->get_info();
+        OPENVINO_ASSERT(var_info.data_shape.is_static() && var_info.data_type.is_static());
+        output.set_shape(var_info.data_shape.get_shape());
+        memset(output.data(), 0, output.get_byte_size());
     }
-    output.set_shape(input.get_shape());
-    std::memcpy(output.data(), input.data(), output.get_byte_size());
     return true;
 }
 

@@ -1,15 +1,18 @@
 //
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "parser/config.hpp"
+#include "scenario/criterion.hpp"
 
 #include "utils/error.hpp"
 #include "utils/logger.hpp"
 
+#include <cstdint>
 #include <filesystem>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -95,7 +98,7 @@ static int toDepth(const std::string& prec) {
         return CV_16F;
     if (prec == "U8")
         return CV_8U;
-    if (prec == "I32")
+    if (prec == "I32" || prec == "I64")
         return CV_32S;
     throw std::logic_error("Unsupported precision type: " + prec);
 }
@@ -197,7 +200,8 @@ struct convert<UniformGenerator::Ptr> {
         if (!node["high"]) {
             THROW_ERROR("Uniform distribution must have \"high\" attribute");
         }
-        generator = std::make_shared<UniformGenerator>(node["low"].as<double>(), node["high"].as<double>());
+        int seed = node["seed"] ? node["seed"].as<int>() : 0xffffffff;
+        generator = std::make_shared<UniformGenerator>(node["low"].as<double>(), node["high"].as<double>(), seed);
         return true;
     }
 };
@@ -369,6 +373,10 @@ struct convert<OpenVINOParams> {
         // NB: Note, it should be handled after "config" is set above
         if (node["priority"]) {
             params.config.emplace("MODEL_PRIORITY", toPriority(node["priority"].as<std::string>()));
+        }
+
+        if (node["clamp_outputs"]) {
+            params.clamp_outputs = node["clamp_outputs"].as<bool>();
         }
 
         if (node["nireq"]) {
@@ -644,6 +652,35 @@ static InferenceParams adjustParams(InferenceParams&& params, const GlobalOption
     return adjustParams(std::get<ONNXRTParams>(std::move(params)), opts);
 }
 
+static void parseWorkloadType(const YAML::Node& node, StreamDesc& stream) {
+    WorkloadTypeDesc workload_type;
+    if (node["initial_value"]) {
+        workload_type.initial_value = node["initial_value"].as<std::string>();
+    }
+    else {
+        THROW_ERROR("Missing workload type initial value");
+    }
+    if (node["change_interval"]) {
+        workload_type.change_interval = node["change_interval"].as<uint64_t>();
+    }
+    else {
+        THROW_ERROR("Missing workload type change interval");
+    }
+    if (node["change_to"]) {
+        workload_type.change_to = node["change_to"].as<std::vector<std::string>>();
+    }
+    else {
+        THROW_ERROR("Missing workload type change values");
+    }
+    if (node["repeat"]) {
+        workload_type.repeat = node["repeat"].as<bool>();
+    }
+    else {
+        workload_type.repeat = false;
+    }
+    stream.workload_type = std::make_optional(workload_type);
+}
+
 static StreamDesc parseStream(const YAML::Node& node, const GlobalOptions& opts, const std::string& default_name,
                               const ReplaceBy& replace_by) {
     StreamDesc stream;
@@ -675,6 +712,10 @@ static StreamDesc parseStream(const YAML::Node& node, const GlobalOptions& opts,
     if (node["iteration_count"]) {
         const auto iteration_count = node["iteration_count"].as<uint64_t>();
         stream.criterion = std::make_shared<Iterations>(iteration_count);
+    }
+    if (node["workload_type"])
+    {
+        parseWorkloadType(node["workload_type"], stream);
     }
 
     auto networks_list = parseNetworks(node["network"]);
@@ -802,7 +843,10 @@ static StreamDesc parseAdvancedStream(const YAML::Node& node, const GlobalOption
         const auto iteration_count = node["iteration_count"].as<uint64_t>();
         stream.criterion = std::make_shared<Iterations>(iteration_count);
     }
-
+    if (node["workload_type"])
+    {
+        parseWorkloadType(node["workload_type"], stream);
+    }
     auto op_descs = node["op_desc"].as<std::vector<OpDesc>>();
     std::vector<std::vector<std::string>> connections;
     if (node["connections"]) {
@@ -874,6 +918,7 @@ Config parseConfig(const YAML::Node& node, const ReplaceBy& replace_by) {
     Logger::global_lvl = toLogLevel(global_opts.log_level);
 
     Config config;
+    config.npu_compiler_type = global_opts.compiler_type;
     config.scenarios = parseScenarios(node["multi_inference"], global_opts, replace_by);
 
     ASSERT(!config.scenarios.empty());

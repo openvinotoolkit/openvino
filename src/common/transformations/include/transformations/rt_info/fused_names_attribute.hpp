@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,6 +60,8 @@ public:
      * @return vector if strings
      */
     std::vector<std::string> getVectorNames() const;
+
+    bool is_deterministic() const override;
 
     ov::Any merge(const ov::NodeVector& nodes) const override;
 

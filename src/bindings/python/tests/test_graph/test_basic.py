@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -517,6 +517,11 @@ def test_runtime_info():
     runtime_info_after = relu_node.get_rt_info()
     assert runtime_info_after["affinity"] == "test_affinity"
 
+    relu_node.set_rt_info("test_value", "test_key")
+    assert relu_node.get_rt_info()["test_key"] == "test_value"
+    relu_node.rt_info["new_key"] = "new_value"
+    assert relu_node.rt_info["new_key"] == "new_value"
+
 
 def test_multiple_outputs():
     input_shape = [4, 4]
@@ -560,7 +565,9 @@ def test_sink_model_ctors():
     sinks = model.get_sinks()
     assert ["Assign", "Assign"] == [sink.get_type_name() for sink in sinks]
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
-    assert op_types == ["Parameter", "Constant", "ReadValue", "Assign", "Constant", "ReadValue", "Add", "Assign", "Result"]
+    assert op_types == [
+        "Parameter", "Constant", "ReadValue", "Assign", "Constant", "ReadValue", "Add", "Assign", "Result"
+    ]
     assert len(model.get_ops()) == 9
     assert model.get_output_size() == 1
     assert model.get_output_op(0).get_type_name() == "Result"

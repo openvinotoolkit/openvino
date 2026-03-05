@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,8 @@ namespace kernel_selector {
 
 static const size_t sub_group_size = 16;
 static const size_t feature_block_size = 16;
+// Large conv threshold is heuristically set to 1B
+constexpr float large_conv_threshold = 1.0e9f;
 
 namespace {
 FusedOpsConfiguration GenerateFusedOpsConfiguration_f16(size_t conf_id, std::string input_name, Datatype dt,
@@ -114,6 +116,12 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
     const bool ver_16mb16c = !is_1stconv &&
         ((out.GetDType() == Datatype::F16 && b % 32 == 0) ||
         (out.GetDType() == Datatype::F32 && b % 16 == 0));
+    // Use 32 pixel per work item for large conv for performance in fp32 1d conv
+    float workload = static_cast<float>(f * std::sqrt(y) * std::pow(params.filterSize.y, 1.5));
+    const bool is_1d_large_conv = (out.GetDType() == Datatype::F32 && b % 32 == 0) &&
+                                  (x == 1 && z == 1) && // check 1d conv
+                                  (workload > large_conv_threshold) && // check large conv
+                                  params.engineInfo.arch == kernel_selector::gpu_arch::xe_hpg; // this case requires in xe microarchitecture only
 
     if (is_1stconv) {
         auto oh_block = 1;
@@ -151,7 +159,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
 
         dispatchData.gws[0] = f;
         dispatchData.gws[1] = x * y * z;
-        dispatchData.gws[2] = (out.GetDType() == Datatype::F16) ? b / 32 : b / 16;
+        dispatchData.gws[2] = (out.GetDType() == Datatype::F16 || is_1d_large_conv) ? b / 32 : b / 16;
 
         dispatchData.cldnnStyle.blockWidth = 1;
     } else {
@@ -196,7 +204,7 @@ KernelsPriority ConvolutionKernel_b_fs_zyx_fsv16::GetKernelsPriority(const Param
 
 bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p) const {
     if (!ConvolutionKernelBase::Validate(p) || !ConvolutionCheckInput(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto& params = static_cast<const convolution_params&>(p);
@@ -205,22 +213,22 @@ bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p) const {
     const auto& output = params.outputs[0];
 
     if (output.GetDType() != use_data_type)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (input.GetLayout() == DataLayout::bfzyx) {
         if (input.Feature().v != 3 || output.Feature().v % feature_block_size != 0)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         if (output.GetDType() == Datatype::F16 && (output.Feature().v % 32 != 0))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     } else {
         if ((params.groups > 1) && (input.Feature().v / params.groups) % feature_block_size != 0 &&
             (input.Feature().v / params.groups) != 8)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     // Check that padding before features doesn't miss-align the blocks
     if (input.Feature().pad.before % feature_block_size != 0 || output.Feature().pad.before % feature_block_size != 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     // Check if operation fusion is supported
@@ -230,7 +238,7 @@ bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p) const {
                                                 (output.GetDType() == Datatype::F32 && output.Batch().v % 16 == 0));
 
         if (!ver_16mb16c && is_1stconv && output.GetDType() == Datatype::F16) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 
@@ -246,9 +254,17 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
     const bool is_1stconv = input.Feature().v == 3 && input.GetLayout() == DataLayout::bfzyx;
     const bool ver_16mb16c = !is_1stconv && ((output.GetDType() == Datatype::F16 && output.Batch().v % 32 == 0) ||
                                              (output.GetDType() == Datatype::F32 && output.Batch().v % 16 == 0));
+    // Use 32 pixel per work item for large conv for performance in fp32 1d conv
+    float workload = static_cast<float>(output.Feature().v * std::sqrt(output.Y().v) * std::pow(params.filterSize.y, 1.5));
+    const bool is_1d_large_conv = (output.GetDType() == Datatype::F32 && output.Batch().v % 32 == 0) &&
+                                  (output.X().v == 1 && output.Z().v == 1) && // check 1d conv
+                                  (workload > large_conv_threshold) && // check large conv
+                                  params.engineInfo.arch == kernel_selector::gpu_arch::xe_hpg; // this case requires in xe microarchitecture only
 
     if (ver_16mb16c) {
         jit.AddConstant(MakeJitConstant("VER_16MB16C", 1));
+        if (is_1d_large_conv)
+            jit.AddConstant(MakeJitConstant("VER_32MB_LARGE_1D", 1));
     } else {
         jit.AddConstant(MakeJitConstant("VER_8OW16C", 1));
     }
@@ -289,6 +305,10 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
         else
             mb_block = (is_1stconv && output.Batch().v % 16 == 0) ? 16 : 1;
 
+        // If batch dim of output layout is not blocked format, mb_block should be set as 1.
+        if (mb_block == 16 && output.GetLayout() == DataLayout::b_fs_zyx_fsv16)
+            mb_block = 1;
+
         jit.AddConstant(MakeJitConstant("MB_BLOCK", mb_block));
     }
 
@@ -308,7 +328,16 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
             FusedOpsConfiguration conf_vec1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "blockC0", input_dt, dims_num, true);
             FusedOpsConfiguration conf_scalar0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "blockC0", input_dt, dims_num, false);
             FusedOpsConfiguration conf_scalar1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "blockC0", input_dt, dims_num, false);
-            jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_scalar0, conf_scalar1}));
+            if (!is_1d_large_conv) {
+                jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_scalar0, conf_scalar1}));
+            } else {
+                FusedOpsConfiguration conf_vec2 = GenerateFusedOpsConfiguration_bsv16_fsv16(2, "blockC0", input_dt, dims_num, true);
+                FusedOpsConfiguration conf_vec3 = GenerateFusedOpsConfiguration_bsv16_fsv16(3, "blockC0", input_dt, dims_num, true);
+                FusedOpsConfiguration conf_scalar2 = GenerateFusedOpsConfiguration_bsv16_fsv16(2, "blockC0", input_dt, dims_num, false);
+                FusedOpsConfiguration conf_scalar3 = GenerateFusedOpsConfiguration_bsv16_fsv16(3, "blockC0", input_dt, dims_num, false);
+                jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_vec2, conf_vec3,
+                                                        conf_scalar0, conf_scalar1, conf_scalar2, conf_scalar3}));
+            }
         } else {
             FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "C0", input_dt, dims_num, true);
             FusedOpsConfiguration conf_vec1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "C0", input_dt, dims_num, true);

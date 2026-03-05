@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,9 +10,12 @@
 #include "openvino/util/log.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/op/util/pad_base.hpp"
-#include "openvino/opsets/opset12.hpp"
+#include "openvino/opsets/opset12_decl.hpp"
 
 #include "low_precision/network_helper.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/pad.hpp"
 
 namespace ov {
 namespace pass {

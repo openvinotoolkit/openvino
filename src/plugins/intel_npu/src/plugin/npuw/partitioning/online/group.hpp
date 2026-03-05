@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,6 +49,8 @@ public:
     own::ade::NodeHandle getHandle() const;
     // Note: can only be used during initial group initialization
     std::shared_ptr<ov::Node> getInitialNode() const;
+    const std::unordered_set<std::shared_ptr<ov::Node>>& getInputs() const;
+    const std::unordered_set<std::shared_ptr<ov::Node>>& getOutputs() const;
     void addInput(const std::shared_ptr<ov::Node>& node);
     void addOutput(const std::shared_ptr<ov::Node>& node);
     void addContent(const std::shared_ptr<ov::Node>& node);
@@ -72,7 +74,7 @@ public:
     const detail::Reptrack& getReptrack(const detail::OVNodePtr& node_ptr) const;
     void setRepeated(const std::shared_ptr<Repeated>& rep);
     std::shared_ptr<Repeated> repeated() const;
-    std::unordered_set<MetaInterconnect> metaInterconnect(const Group::GPtr& gptr_prod) const;
+    detail::PairMICSetIO metaInterconnect(const Group::GPtr& gptr_prod) const;
     std::unordered_set<Interconnect> interconnect(const Group::GPtr& gptr_prod) const;
     // FIXME: unify avoid and isolate
     void avoid(const std::string& device);
@@ -83,6 +85,8 @@ public:
     std::string specialTags() const;
     void addWeightsPrecision(const std::vector<ov::element::Type>& prec);
     const std::vector<ov::element::Type>& getConstsPrecision() const;
+
+    void dump() const;
 
 private:
     void includeExtraLayers(detail::OVNodeSet& input_layers,

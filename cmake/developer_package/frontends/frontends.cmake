@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -171,6 +171,7 @@ macro(ov_add_frontend)
                 COMMAND_EXPAND_LISTS)
         list(APPEND PROTO_SRCS "${OUTPUT_PB_SRC}")
         list(APPEND PROTO_HDRS "${OUTPUT_PB_HEADER}")
+        set_source_files_properties(${OUTPUT_PB_SRC} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
     endforeach()
 
     file(GLOB flatbuffers_schema_files ${frontend_root_dir}/src/schema/*.fbs)
@@ -202,7 +203,7 @@ macro(ov_add_frontend)
 
     # Shutdown protobuf when unloading the frontend dynamic library
     if(OV_FRONTEND_PROTOBUF_REQUIRED AND BUILD_SHARED_LIBS)
-        target_link_libraries(${TARGET_NAME} PRIVATE openvino::protobuf_shutdown)
+        target_link_libraries(${TARGET_NAME} PRIVATE openvino::protobuf_shutdown openvino::shutdown)
     endif()
 
     if(NOT BUILD_SHARED_LIBS)
@@ -228,7 +229,8 @@ macro(ov_add_frontend)
     ov_add_vs_version_file(NAME ${TARGET_NAME}
                            FILEDESCRIPTION ${OV_FRONTEND_FILEDESCRIPTION})
 
-    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES} PUBLIC openvino::runtime)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES} openvino::frontend::common_translators
+                          PUBLIC openvino::runtime)
     ov_add_library_version(${TARGET_NAME})
 
     if(OV_FRONTEND_PROTOBUF_REQUIRED)
@@ -336,6 +338,8 @@ macro(ov_add_frontend)
                     ${archive_dest}
                     LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${lib_component} ${frontend_exclude_from_all}
                     ${namelink})
+
+            ov_install_pdb(${TARGET_NAME})
 
             # export to build tree
             # Note: we keep this even with passed DISABLE_CPP_INSTALL to ensure that Python API can be built

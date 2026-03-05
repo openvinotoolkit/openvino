@@ -1,20 +1,46 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "color_convert.h"
 
-#include <memory_desc/dnnl_blocked_memory_desc.h>
-
+#include <algorithm>
+#include <cmath>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/core/type.hpp>
 #include <openvino/op/i420_to_bgr.hpp>
 #include <openvino/op/i420_to_rgb.hpp>
 #include <openvino/op/nv12_to_bgr.hpp>
 #include <openvino/op/nv12_to_rgb.hpp>
+#include <string>
+#include <tuple>
+#include <type_traits>
+#include <vector>
 
-#include "kernels/x64/jit_kernel.hpp"
-#include "openvino/core/parallel.hpp"
+#include "cpu_parallel.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "shape_inference/custom/color_convert.hpp"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include <array>
+#    include <common/c_types_map.hpp>
+#    include <cpu/x64/jit_generator.hpp>
+
+#    include "kernels/x64/jit_kernel.hpp"
+#endif
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
@@ -44,9 +70,9 @@ class Converter : public ColorConvert::Converter {
     using Base = ColorConvert::Converter;
 
 public:
-    Converter(Node* node);
+    explicit Converter(Node* node);
 
-    bool singlePlane() const;
+    [[nodiscard]] bool singlePlane() const;
 
     template <typename T>
     std::tuple<T, T, T> yuv_to_rgb(float y, float u, float v);
@@ -65,18 +91,18 @@ bool Converter::singlePlane() const {
 
 template <typename T>
 std::tuple<T, T, T> Converter::yuv_to_rgb(float y, float u, float v) {
-    auto c = y - 16.f;
-    auto d = u - 128.f;
-    auto e = v - 128.f;
+    auto c = y - 16.F;
+    auto d = u - 128.F;
+    auto e = v - 128.F;
     auto clip = [](float a) -> T {
         if (std::is_integral<T>()) {
-            return static_cast<T>(std::min(std::max(std::round(a), 0.f), 255.f));
+            return static_cast<T>(std::min(std::max(std::round(a), 0.F), 255.F));
         }
-        return static_cast<T>(std::min(std::max(a, 0.f), 255.f));
+        return static_cast<T>(std::min(std::max(a, 0.F), 255.F));
     };
-    auto r = clip(1.164f * c + 1.596f * e);
-    auto g = clip(1.164f * c - 0.391f * d - 0.813f * e);
-    auto b = clip(1.164f * c + 2.018f * d);
+    auto r = clip(1.164F * c + 1.596F * e);
+    auto g = clip(1.164F * c - 0.391F * d - 0.813F * e);
+    auto b = clip(1.164F * c + 2.018F * d);
     return std::make_tuple(r, g, b);
 }
 
@@ -93,7 +119,7 @@ struct jit_uni_converter : public jit_kernel {
         uint8_t colorFormat;  // RGB: 0, BGR: !=0
     };
 
-    typedef void (*function_t)(const Params*);
+    using function_t = void (*)(const Params*);
 
     void init();
 
@@ -117,17 +143,15 @@ protected:
                     const variable<float[N]>& c,
                     const variable<size_t>& size);
 
-    function_t _fn;
+    function_t _fn = nullptr;
     variable<const float*> _consts;
 };
 
 jit_uni_converter::jit_uni_converter() : jit_kernel(jit_name()), _consts(*this) {}
 
 void jit_uni_converter::init() {
-    if (create_kernel() != status::success) {
-        OPENVINO_THROW("Can't generate jit color converter kernel");
-    }
-    _fn = (function_t)jit_ker();
+    OPENVINO_ASSERT(create_kernel() == status::success, "Can't generate jit color converter kernel");
+    _fn = reinterpret_cast<function_t>(const_cast<uint8_t*>(jit_ker()));
 }
 
 template <size_t N>
@@ -180,24 +204,24 @@ void jit_uni_converter::yuv_to_rgb(const variable<float[N]>& y,
 
         auto genPermutationMask = [&](int offset) {
             std::array<uint8_t, N> mask{};
-            for (uint8_t i = 0; i < mask.size(); ++i) {
+            for (size_t i = 0; i < mask.size(); ++i) {
                 mask[(i * 3 + offset) % mask.size()] = i;
             }
             return mask;
         };
 
-        r.permute(genPermutationMask(0));
-        g.permute(genPermutationMask(1));
-        b.permute(genPermutationMask(2));
+        r = r.permute(genPermutationMask(0));
+        g = g.permute(genPermutationMask(1));
+        b = b.permute(genPermutationMask(2));
 
         auto blendWithMask = [&](int offset, const variable<float[N]>& result) {
             static const uint32_t blendMasks[2] = {0x92492492, 0x24924924};
-            const uint16_t mask0 = static_cast<const uint16_t>(blendMasks[0] >> ((offset * N) % 3));
-            const uint16_t mask1 = static_cast<const uint16_t>(blendMasks[1] >> ((offset * N) % 3));
+            const auto mask0 = static_cast<const uint16_t>(blendMasks[0] >> ((offset * N) % 3));
+            const auto mask1 = static_cast<const uint16_t>(blendMasks[1] >> ((offset * N) % 3));
 
             result = r;
-            result.blend(g, mask0);
-            result.blend(b, mask1);
+            result = result.blend(g, mask0);
+            result = result.blend(b, mask1);
         };
 
         blendWithMask(0, r0);
@@ -213,7 +237,7 @@ void jit_uni_converter::yuv_to_rgb(const variable<float[N]>& y,
 
     uni_vbroadcastss(tmp, ptr[_consts + 0 * sizeof(float)]);  // tmp = [16.0f,16.0f,...]
     uni_vsubps(y, y, tmp);                                    // y = y - tmp
-    uni_vbroadcastss(tmp, ptr[_consts + 1 * sizeof(float)]);  // tmp = [128.f,128.f,...]
+    uni_vbroadcastss(tmp, ptr[_consts + 1 * sizeof(float)]);  // tmp = [128.F,128.F,...]
     uni_vsubps(u, u, tmp);                                    // u = u - tmp
     uni_vsubps(v, v, tmp);                                    // v = v - tmp
 
@@ -270,7 +294,7 @@ void jit_uni_converter::store_tail(const variable<T*>& dst,
     sptr += step;
     store(sptr, c);
 
-    auto copy_size = size * static_cast<size_t>(3u);
+    auto copy_size = size * static_cast<size_t>(3U);
 
     copy<T>(ptr[dst], s.pointer(), copy_size);
 }
@@ -301,7 +325,7 @@ class TwoPlaneConvert;
 
 class RefConverter : public Converter {
 public:
-    RefConverter(Node* node);
+    explicit RefConverter(Node* node);
 
 protected:
     template <typename T>
@@ -312,16 +336,14 @@ protected:
                  size_t height,
                  size_t width,
                  size_t stride_y,
-                 size_t stride_uv);
+                 size_t stride_uv,
+                 const CpuParallelPtr& cpu_parallel);
 };
 
 RefConverter::RefConverter(Node* node) : Converter(node) {
-    if (node->getOriginalInputsNumber() != (singlePlane() ? 1 : 2)) {
-        OPENVINO_THROW("NV12Converter node has incorrect number of inputs");
-    }
-    if (!node->getOriginalOutputsNumber()) {
-        OPENVINO_THROW("NV12Converter node has incorrect number of outputs");
-    }
+    OPENVINO_ASSERT(node->getOriginalInputsNumber() == (singlePlane() ? 1 : 2),
+                    "NV12Converter node has incorrect number of inputs");
+    OPENVINO_ASSERT(node->getOriginalOutputsNumber(), "NV12Converter node has incorrect number of outputs");
 }
 
 template <typename T>
@@ -332,8 +354,9 @@ void RefConverter::convert(const T* y,
                            size_t height,
                            size_t width,
                            size_t stride_y,
-                           size_t stride_uv) {
-    ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
+                           size_t stride_uv,
+                           const CpuParallelPtr& cpu_parallel) {
+    cpu_parallel->parallel_for2d(batch_size, height, [&](int batch, int h) {
         T* out = dst + batch * width * height * 3;
         auto y_ptr = y + batch * stride_y;
         auto uv_ptr = uv + batch * stride_uv;
@@ -344,8 +367,7 @@ void RefConverter::convert(const T* y,
             auto uv_index = (h / 2) * width + (w / 2) * 2;
             auto u_val = static_cast<float>(uv_ptr[uv_index]);
             auto v_val = static_cast<float>(uv_ptr[uv_index + 1]);
-            T r, g, b;
-            std::tie(r, g, b) = yuv_to_rgb<T>(y_val, u_val, v_val);
+            auto [r, g, b] = yuv_to_rgb<T>(y_val, u_val, v_val);
             out[y_index * 3 + _colorFormat[0]] = r;
             out[y_index * 3 + _colorFormat[1]] = g;
             out[y_index * 3 + _colorFormat[2]] = b;
@@ -358,7 +380,7 @@ class SinglePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const size_t batch_size = dims[N_DIM];
@@ -369,7 +391,7 @@ public:
         const T* uv = y + width * height;
         T* dst = static_cast<T*>(output(0));
 
-        convert<T>(y, uv, dst, batch_size, height, width, height * width * 3 / 2, height * width * 3 / 2);
+        convert<T>(y, uv, dst, batch_size, height, width, height * width * 3 / 2, height * width * 3 / 2, cpu_parallel);
     }
 };
 
@@ -378,7 +400,7 @@ class TwoPlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const T* y = static_cast<const T*>(input(0));
@@ -389,7 +411,7 @@ public:
         const size_t height = dims[H_DIM];
         const size_t width = dims[W_DIM];
 
-        convert<T>(y, uv, dst, batch_size, height, width, height * width, height * width / 2);
+        convert<T>(y, uv, dst, batch_size, height, width, height * width, height * width / 2, cpu_parallel);
     }
 };
 
@@ -417,15 +439,15 @@ void JitConverter<T[N]>::generate() {
     auto width = arg(&Params::width);
     auto colorFormat = arg(&Params::colorFormat);
 
-    static const float data[8] = {16.f, 128.f, 1.164f, 1.596f, 0.391f, 2.018f, 0.813f, 255.f};
+    static const float data[8] = {16.F, 128.F, 1.164F, 1.596F, 0.391F, 2.018F, 0.813F, 255.F};
     _consts = data;
 
-    const size_t reg_capacity_log = static_cast<size_t>(std::logb(N));
+    const auto reg_capacity_log = static_cast<size_t>(std::logb(N));
     const size_t step = N * sizeof(T);
 
     width >>= reg_capacity_log;
 
-    foreach (0, width, [&](const Reg64& idx) {
+    foreach (0, width, [&]([[maybe_unused]] const Reg64& idx) {
         auto yuv = load_yuv(src_y, src_uv);
 
         // Aliases
@@ -433,7 +455,7 @@ void JitConverter<T[N]>::generate() {
         const auto& u = std::get<1>(yuv);
         const auto& v = std::get<2>(yuv);
 
-        yuv_to_rgb(y, u, v, colorFormat, std::is_integral<T>::value);
+        yuv_to_rgb(y, u, v, colorFormat, std::is_integral_v<T>);
 
         store(dst, y);
         dst += step;
@@ -460,7 +482,7 @@ void JitConverter<T[N]>::generate() {
         const auto& u = std::get<0>(uv_pair);
         const auto& v = std::get<1>(uv_pair);
 
-        yuv_to_rgb(y, u, v, colorFormat, std::is_integral<T>::value);
+        yuv_to_rgb(y, u, v, colorFormat, std::is_integral_v<T>);
 
         store_tail(dst, y, u, v, width);
     });
@@ -537,11 +559,11 @@ const jit_uni_converter& jit_converter_get() {
 template <typename T>
 class SinglePlaneConvert<T, impl_desc_type::jit_uni> : public Converter {
 public:
-    SinglePlaneConvert(Node* node) : Converter(node) {
+    explicit SinglePlaneConvert(Node* node) : Converter(node) {
         jit_converter_create<T>();
     }
 
-    void execute(const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -556,13 +578,15 @@ public:
         const size_t stride_y = height * width * 3 / 2;
         const size_t stride_uv = height * width * 3 / 2;
 
-        ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args;
-            args.y = y + batch * stride_y + h * width;
-            args.u = args.v = uv + batch * stride_uv + (h / 2) * width;
-            args.dst = dst + (batch * width * height + h * width) * 3;
-            args.width = width;
-            args.colorFormat = _colorFormat[0];  // The first byte is enough to determine the RGB or BGR format.
+        cpu_parallel->parallel_for2d(batch_size, height, [&](int batch, int h) {
+            auto u_v = uv + batch * stride_uv + (h / 2) * width;
+            typename jit_uni_converter::Params args{
+                y + batch * stride_y + h * width,
+                u_v,
+                u_v,
+                dst + (batch * width * height + h * width) * 3,
+                width,
+                _colorFormat[0]};  // The first byte is enough to determine the RGB or BGR format.
             kernel(args);
         });
     }
@@ -571,11 +595,11 @@ public:
 template <typename T>
 class TwoPlaneConvert<T, impl_desc_type::jit_uni> : public Converter {
 public:
-    TwoPlaneConvert(Node* node) : Converter(node) {
+    explicit TwoPlaneConvert(Node* node) : Converter(node) {
         jit_converter_create<T>();
     }
 
-    void execute(const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -590,13 +614,16 @@ public:
         const size_t stride_y = height * width;
         const size_t stride_uv = height * width / 2;
 
-        ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args;
-            args.y = y + batch * stride_y + h * width;
-            args.u = args.v = uv + batch * stride_uv + (h / 2) * width;
-            args.dst = dst + (batch * width * height + h * width) * 3;
-            args.width = width;
-            args.colorFormat = _colorFormat[0];  // The first byte is enough to determine the RGB or BGR format.
+        cpu_parallel->parallel_for2d(batch_size, height, [&](int batch, int h) {
+            auto u_v = uv + batch * stride_uv + (h / 2) * width;
+            typename jit_uni_converter::Params args{
+                y + batch * stride_y + h * width,
+                u_v,
+                u_v,
+                dst + (batch * width * height + h * width) * 3,
+                width,
+                _colorFormat[0]  // The first byte is enough to determine the RGB or BGR format.
+            };
             kernel(args);
         });
     }
@@ -629,7 +656,7 @@ class ThreePlaneConvert;
 
 class RefConverter : public Converter {
 public:
-    RefConverter(Node* node);
+    explicit RefConverter(Node* node);
 
 protected:
     template <typename T>
@@ -641,16 +668,14 @@ protected:
                  size_t height,
                  size_t width,
                  size_t stride_y,
-                 size_t stride_uv);
+                 size_t stride_uv,
+                 const CpuParallelPtr& cpu_parallel);
 };
 
 RefConverter::RefConverter(Node* node) : Converter(node) {
-    if (node->getOriginalInputsNumber() != (singlePlane() ? 1 : 3)) {
-        OPENVINO_THROW("I420Converter node has incorrect number of inputs");
-    }
-    if (!node->getOriginalOutputsNumber()) {
-        OPENVINO_THROW("I420Converter node has incorrect number of outputs");
-    }
+    OPENVINO_ASSERT(node->getOriginalInputsNumber() == (singlePlane() ? 1 : 3),
+                    "I420Converter node has incorrect number of inputs");
+    OPENVINO_ASSERT(node->getOriginalOutputsNumber(), "I420Converter node has incorrect number of outputs");
 }
 
 template <typename T>
@@ -662,8 +687,9 @@ void RefConverter::convert(const T* y,
                            size_t height,
                            size_t width,
                            size_t stride_y,
-                           size_t stride_uv) {
-    ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
+                           size_t stride_uv,
+                           const CpuParallelPtr& cpu_parallel) {
+    cpu_parallel->parallel_for2d(batch_size, height, [&](int batch, int h) {
         T* out = dst + batch * width * height * 3;
         auto y_ptr = y + batch * stride_y;
         auto u_ptr = u + batch * stride_uv;
@@ -675,8 +701,7 @@ void RefConverter::convert(const T* y,
             auto uv_index = (h / 2) * (width / 2) + w / 2;
             auto u_val = static_cast<float>(u_ptr[uv_index]);
             auto v_val = static_cast<float>(v_ptr[uv_index]);
-            T r, g, b;
-            std::tie(r, g, b) = yuv_to_rgb<T>(y_val, u_val, v_val);
+            auto [r, g, b] = yuv_to_rgb<T>(y_val, u_val, v_val);
             out[y_index * 3 + _colorFormat[0]] = r;
             out[y_index * 3 + _colorFormat[1]] = g;
             out[y_index * 3 + _colorFormat[2]] = b;
@@ -689,7 +714,7 @@ class SinglePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const size_t batch_size = dims[N_DIM];
@@ -701,7 +726,8 @@ public:
         const T* v = y + 5 * width * height / 4;
         T* dst = static_cast<T*>(output(0));
 
-        convert<T>(y, u, v, dst, batch_size, height, width, height * width * 3 / 2, height * width * 3 / 2);
+        convert<
+            T>(y, u, v, dst, batch_size, height, width, height * width * 3 / 2, height * width * 3 / 2, cpu_parallel);
     }
 };
 
@@ -710,7 +736,7 @@ class ThreePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const T* y = static_cast<const T*>(input(0));
@@ -722,7 +748,7 @@ public:
         const size_t height = dims[H_DIM];
         const size_t width = dims[W_DIM];
 
-        convert<T>(y, u, v, dst, batch_size, height, width, height * width, height * width / 4);
+        convert<T>(y, u, v, dst, batch_size, height, width, height * width, height * width / 4, cpu_parallel);
     }
 };
 
@@ -752,15 +778,15 @@ void JitConverter<T[N]>::generate() {
     auto width = arg(&Params::width);
     auto colorFormat = arg(&Params::colorFormat);
 
-    static const float data[8] = {16.f, 128.f, 1.164f, 1.596f, 0.391f, 2.018f, 0.813f, 255.f};
+    static const float data[8] = {16.F, 128.F, 1.164F, 1.596F, 0.391F, 2.018F, 0.813F, 255.F};
     _consts = data;
 
-    const size_t reg_capacity_log = static_cast<size_t>(std::logb(N));
+    const auto reg_capacity_log = static_cast<size_t>(std::logb(N));
     const size_t step = N * sizeof(T);
 
     width >>= reg_capacity_log;
 
-    foreach (0, width, [&](const Reg64& idx) {
+    foreach (0, width, [&]([[maybe_unused]] const Reg64& idx) {
         auto yuv = load_yuv(src_y, src_u, src_v);
 
         // Aliases
@@ -768,7 +794,7 @@ void JitConverter<T[N]>::generate() {
         const auto& u = std::get<1>(yuv);
         const auto& v = std::get<2>(yuv);
 
-        yuv_to_rgb(y, u, v, colorFormat, std::is_integral<T>::value);
+        yuv_to_rgb(y, u, v, colorFormat, std::is_integral_v<T>);
 
         store(dst, y);
         dst += step;
@@ -795,7 +821,7 @@ void JitConverter<T[N]>::generate() {
 
         unpack_uv(u, v);
 
-        yuv_to_rgb(y, u, v, colorFormat, std::is_integral<T>::value);
+        yuv_to_rgb(y, u, v, colorFormat, std::is_integral_v<T>);
 
         store_tail(dst, y, u, v, width);
     });
@@ -828,8 +854,8 @@ JitConverter<T[N]>::load_yuv(const variable<const T*>& src_y,
 template <typename T, size_t N>
 void JitConverter<T[N]>::unpack_uv(const variable<float[N]>& u, const variable<float[N]>& v) {
     static const uint8_t order[] = {0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7};
-    u.permute(order);
-    v.permute(order);
+    u = u.permute(order);
+    v = v.permute(order);
 }
 
 template <typename T>
@@ -869,11 +895,11 @@ const jit_uni_converter& jit_converter_get() {
 template <typename T>
 class SinglePlaneConvert<T, impl_desc_type::jit_uni> : public Converter {
 public:
-    SinglePlaneConvert(Node* node) : Converter(node) {
+    explicit SinglePlaneConvert(Node* node) : Converter(node) {
         jit_converter_create<T>();
     }
 
-    void execute(const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -889,14 +915,15 @@ public:
         const size_t stride_y = height * width * 3 / 2;
         const size_t stride_uv = height * width * 3 / 2;
 
-        ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args;
-            args.y = y + batch * stride_y + h * width;
-            args.u = u + batch * stride_uv + (h / 2) * (width / 2);
-            args.v = v + batch * stride_uv + (h / 2) * (width / 2);
-            args.dst = dst + (batch * width * height + h * width) * 3;
-            args.width = width;
-            args.colorFormat = _colorFormat[0];  // The first byte is enough to determine the RGB or BGR format.
+        cpu_parallel->parallel_for2d(batch_size, height, [&](int batch, int h) {
+            typename jit_uni_converter::Params args{
+                y + batch * stride_y + h * width,                // y
+                u + batch * stride_uv + (h / 2) * (width / 2),   // u
+                v + batch * stride_uv + (h / 2) * (width / 2),   // v
+                dst + (batch * width * height + h * width) * 3,  // dst
+                width,                                           // width
+                _colorFormat[0]                                  // colorFormat - RGB or BGR format
+            };
             kernel(args);
         });
     }
@@ -905,11 +932,11 @@ public:
 template <typename T>
 class ThreePlaneConvert<T, impl_desc_type::jit_uni> : public Converter {
 public:
-    ThreePlaneConvert(Node* node) : Converter(node) {
+    explicit ThreePlaneConvert(Node* node) : Converter(node) {
         jit_converter_create<T>();
     }
 
-    void execute(const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -925,14 +952,15 @@ public:
         const size_t stride_y = height * width;
         const size_t stride_uv = height * width / 4;
 
-        ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args;
-            args.y = y + batch * stride_y + h * width;
-            args.u = u + batch * stride_uv + (h / 2) * (width / 2);
-            args.v = v + batch * stride_uv + (h / 2) * (width / 2);
-            args.dst = dst + (batch * width * height + h * width) * 3;
-            args.width = width;
-            args.colorFormat = _colorFormat[0];  // The first byte is enough to determine the RGB or BGR format.
+        cpu_parallel->parallel_for2d(batch_size, height, [&](int batch, int h) {
+            typename jit_uni_converter::Params args{
+                y + batch * stride_y + h * width,                // y
+                u + batch * stride_uv + (h / 2) * (width / 2),   // u
+                v + batch * stride_uv + (h / 2) * (width / 2),   // v
+                dst + (batch * width * height + h * width) * 3,  // dst
+                width,                                           // width
+                _colorFormat[0]                                  // colorFormat - RGB or BGR format
+            };
             kernel(args);
         });
     }
@@ -967,7 +995,7 @@ const VectorDims& ColorConvert::Converter::inputDims(size_t idx) const {
 }
 
 bool ColorConvert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
-    Algorithm alg;
+    Algorithm alg{};
     std::tie(alg, errorMessage) = getAlgorithmFor(op);
     return alg != Algorithm::Default;
 }
@@ -1074,9 +1102,7 @@ void ColorConvert::initSupportedI420Impls() {
 
 void ColorConvert::createPrimitive() {
     const NodeDesc* desc = getSelectedPrimitiveDescriptor();
-    if (!desc) {
-        THROW_CPU_NODE_ERR("has no optimal primitive descriptor selected");
-    }
+    CPU_NODE_ASSERT(desc, "has no optimal primitive descriptor selected");
 
     if (!_impl) {
         const auto& cfg = desc->getConfig();
@@ -1089,10 +1115,8 @@ void ColorConvert::createPrimitive() {
 }
 
 void ColorConvert::execute(const dnnl::stream& strm) {
-    if (!_impl) {
-        THROW_CPU_NODE_ERR("has no any implemented converter");
-    }
-    _impl->execute(strm);
+    CPU_NODE_ASSERT(_impl, "has no any implemented converter");
+    _impl->execute(context->getCpuParallel(), strm);
 }
 
 bool ColorConvert::created() const {

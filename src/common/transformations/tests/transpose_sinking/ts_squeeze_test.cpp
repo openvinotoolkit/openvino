@@ -1,11 +1,13 @@
-// Copyright (C) 2022-2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/transpose_sinking/ts_squeeze.hpp"
 
 #include "gtest/gtest.h"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ts_test_case.hpp"
 #include "ts_test_utils.hpp"

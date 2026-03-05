@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,10 @@
 
 namespace cldnn {
 namespace ocl {
+
+namespace utils {
+std::vector<cl::Event> get_cl_events(const std::vector<event::ptr>& events);
+}  // namespace utils
 
 struct ocl_event : public ocl_base_event {
 public:

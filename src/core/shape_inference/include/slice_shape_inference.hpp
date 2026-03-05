@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace op {
 
 namespace slice {
 
-constexpr std::array<char const*, 4> shape_names{"start", "stop", "step", "axes"};
+constexpr std::array<const char*, 4> shape_names{"start", "stop", "step", "axes"};
 
 struct AxesMap {
     bool is_valid{};               //!< Flag indicates current axes map has valid data (unique).

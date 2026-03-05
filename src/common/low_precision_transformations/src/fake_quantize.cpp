@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,13 +6,16 @@
 
 #include <cmath>
 #include <memory>
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace ov {
 namespace pass {
@@ -66,16 +69,21 @@ std::shared_ptr<Node> updateShape(std::shared_ptr<Node> constantOp, const Partia
     return constantOp;
 }
 
-std::shared_ptr<Node> getDataNode(const std::shared_ptr<Node>& eltwise) {
+ov::Output<ov::Node> getDataInput(const std::shared_ptr<Node>& eltwise) {
     if (!ov::is_type<opset1::Constant>(eltwise->get_input_node_shared_ptr(0))) {
-        return eltwise->get_input_node_shared_ptr(0);
+        return eltwise->get_input_source_output(0);
     }
 
     if (!ov::is_type<opset1::Constant>(eltwise->get_input_node_shared_ptr(1))) {
-        return eltwise->get_input_node_shared_ptr(1);
+        return eltwise->get_input_source_output(1);
     }
 
-    return nullptr;
+    return ov::Output<ov::Node>();
+}
+
+std::shared_ptr<Node> getDataNode(const std::shared_ptr<Node>& eltwise) {
+    return getDataInput(eltwise).get_node_shared_ptr();
+
 }
 
 std::shared_ptr<opset1::Constant> getConstant(const std::shared_ptr<Node>& eltwise) {
@@ -130,6 +138,10 @@ bool all_precisions_equal(const std::shared_ptr<Node>& node) {
 }  // namespace fq
 
 bool FakeQuantizeTransformation::checkElementwise(const std::shared_ptr<Node>& eltwise) {
+    if (eltwise->get_input_size() > 0 && fq::getDataInput(eltwise).get_node() != nullptr &&  fq::getDataInput(eltwise).get_partial_shape() != eltwise->get_output_partial_shape(0)) {
+        return false;
+    }
+
     const std::shared_ptr<opset1::Constant> constant = fq::getConstant(eltwise);
     if (constant == nullptr) {
         return false;
@@ -216,13 +228,13 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
     const auto data = eltwise->get_input_size() == 1ul ? eltwise->get_input_node_shared_ptr(0) : fq::getDataNode(eltwise);
     const size_t outputIdx = NetworkHelper::getParentOutputIndex(data, eltwise);
 
-    const auto newFakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(fakeQuantize->clone_with_new_inputs({
-        data->output(outputIdx),
-        inputLowConst_f32,
-        inputHighConst_f32,
-        foldConvert(fakeQuantize->input_value(3), element::f32),
-        foldConvert(fakeQuantize->input_value(4), element::f32) }));
-
+    const auto newFakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(
+        fakeQuantize->clone_with_new_inputs({data->output(outputIdx),
+                                             inputLowConst_f32,
+                                             inputHighConst_f32,
+                                             foldConvert(fakeQuantize->input_value(3), element::f32),
+                                             foldConvert(fakeQuantize->input_value(4), element::f32)}));
+    OPENVINO_ASSERT(newFakeQuantize != nullptr, "Failed to clone FakeQuantize node");
     matcherPass->register_new_node(newFakeQuantize);
 
     replace_node(fakeQuantize, newFakeQuantize);

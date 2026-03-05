@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,8 +37,8 @@ void regclass_frontend_FrontEndManager(py::module m) {
             R"(
                 Gets list of registered frontends.
 
-                :return: List of available frontend names.
-                :rtype: List[str]
+                :return: list of available frontend names.
+                :rtype: list[str]
              )");
 
     fem.def(

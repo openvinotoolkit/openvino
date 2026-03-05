@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,11 +6,14 @@
 
 #include <node.h>
 
-#include <memory>
+#include <cstddef>
 #include <vector>
 
-namespace ov {
-namespace intel_cpu {
+#include "cpu_memory.h"
+#include "cpu_parallel.hpp"
+#include "cpu_types.h"
+
+namespace ov::intel_cpu {
 
 class TileBroadcastCommon {
 protected:
@@ -18,7 +21,7 @@ protected:
     std::vector<NodeDesc> getSupportedConfigs(const Node* node, size_t outSize);
     bool prepareOptimizedParams(const Node* node, VectorDims& srcBlockedDims, VectorDims& dstBlockedDims);
 
-    void optimizedExecute(const MemoryPtr& srcMemory, const MemoryPtr& dstMemory);
+    void optimizedExecute(const MemoryPtr& srcMemory, const MemoryPtr& dstMemory, const CpuParallelPtr& cpuParallel);
 
     VectorDims repeats;
     bool optimizedCase = false;
@@ -32,16 +35,15 @@ private:
                                                VectorDims& optimizedSrcStrides);
     static void broadcastScalar(const char* srcData, char* dstData, size_t elt_cnt, size_t data_size);
 
-    static bool canBeExecutedInBlockedLayout(VectorDims srcDims, VectorDims repeats, const size_t elemsInBlock);
-    static bool canBeExecutedInNSPCLayout(VectorDims srcDims, VectorDims repeats);
+    static bool canBeExecutedInBlockedLayout(VectorDims srcBlockedDims, VectorDims repeats, size_t elemsInBlock);
+    static bool canBeExecutedInNSPCLayout(VectorDims srcBlockedDims, VectorDims repeats);
 
     struct {
         VectorDims dims;
         VectorDims srcStrides;
         VectorDims dstStrides;
-        size_t copySize;
+        size_t copySize = 0UL;
     } optimizedParams;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

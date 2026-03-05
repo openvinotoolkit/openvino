@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,10 @@
 
 #include <memory>
 #include <vector>
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets_helpers.hpp"
+#include "openvino/op/add.hpp"
 
 namespace ov {
 namespace test {

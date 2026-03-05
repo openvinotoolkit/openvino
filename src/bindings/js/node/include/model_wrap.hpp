@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -108,7 +108,7 @@ public:
      * @return Napi::Array containing a shape of requested output.
      */
     Napi::Value get_output_shape(const Napi::CallbackInfo& info);
-    
+
     /**
      * @brief Helper function to access model output elements types.
      * @return Napi::String representing the element type of the requested output.
@@ -123,7 +123,15 @@ public:
      */
     Napi::Value clone(const Napi::CallbackInfo& info);
 
+    /** @brief Reshapes model input.*/
+    Napi::Value reshape(const Napi::CallbackInfo& info);
+
+    /** @brief Returns vector of ops(NodeWrap objects) as a Napi value for model */
+    Napi::Value get_ops(const Napi::CallbackInfo& info);
+
 private:
+    ov::Output<ov::Node> input_from_handle(const Napi::Env& env, const Napi::Value& value);
+    std::map<ov::Output<ov::Node>, ov::PartialShape> get_new_shapes(const Napi::Env& env, const Napi::Value& value);
     std::shared_ptr<ov::Model> _model;
     ov::Core _core;
     ov::CompiledModel _compiled_model;

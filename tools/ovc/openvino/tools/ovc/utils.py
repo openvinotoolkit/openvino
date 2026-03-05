@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import importlib.util
@@ -7,7 +7,8 @@ import numpy as np
 import os
 import sys
 from openvino.tools.ovc.error import Error
-from typing import Iterable, Union
+from collections.abc import Iterable
+from typing import Union
 
 try:
     import openvino_telemetry as tm

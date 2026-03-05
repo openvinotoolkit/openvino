@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,7 +80,7 @@ bool ExtractImagePatchesKernelBase::Validate(const Params& p) const {
     const extract_image_patches_params& params = static_cast<const extract_image_patches_params&>(p);
 
     if (params.GetType() != KernelType::EXTRACT_IMAGE_PATCHES) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

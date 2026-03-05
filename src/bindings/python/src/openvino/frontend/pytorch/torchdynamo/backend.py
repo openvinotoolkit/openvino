@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -105,8 +105,9 @@ def fx_openvino(subgraph, example_inputs, options=None):
             from torch._subclasses.fake_tensor import FakeTensorMode
 
             decompositions = _get_decompositions(options) + get_inf_decomposition_list()
-            with FakeTensorMode(allow_non_fake_inputs=True):
-                model = make_fx(subgraph, decomposition_table=get_decompositions(decompositions))(*example_inputs)
+            with FakeTensorMode(allow_non_fake_inputs=True) as fakemode:
+                fake_inputs = [fakemode.from_tensor(x) for x in example_inputs]
+                model = make_fx(subgraph, decomposition_table=get_decompositions(decompositions))(*fake_inputs)
 
             with torch.no_grad():
                 model.eval()

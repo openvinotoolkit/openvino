@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,7 @@
 using namespace ov;
 using namespace testing;
 
+namespace v0 = ov::op::v0;
 TEST(TransformationTests, TestDepthToSpaceTransformBlockFirst) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 12, 1080, 1616});
     std::shared_ptr<ov::Model> f(nullptr);
@@ -29,7 +30,7 @@ TEST(TransformationTests, TestDepthToSpaceTransformBlockFirst) {
     {
         auto depth_to_space =
             std::make_shared<op::v0::DepthToSpace>(input, op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
-        f = std::make_shared<ov::Model>(ov::NodeVector{depth_to_space}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::OutputVector{depth_to_space}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertDepthToSpace>();
@@ -41,8 +42,7 @@ TEST(TransformationTests, TestDepthToSpaceTransformBlockFirst) {
     ASSERT_EQ(consumers.size(), 1);
 
     auto reshape_begin = consumers.begin()->get_node();
-    auto shape_begin =
-        ov::as_type_ptr<ov::op::v0::Constant>(reshape_begin->input(1).get_source_output().get_node_shared_ptr());
+    auto shape_begin = ov::as_type_ptr<v0::Constant>(reshape_begin->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> shape_begin_value = shape_begin->get_vector<int64_t>();
     std::vector<int64_t> shape_begin_value_ref{1, 2, 2, 3, 1080, 1616};
     ASSERT_EQ(shape_begin_value, shape_begin_value_ref);
@@ -51,15 +51,14 @@ TEST(TransformationTests, TestDepthToSpaceTransformBlockFirst) {
     ASSERT_EQ(consumers.size(), 1);
 
     auto transpose = consumers.begin()->get_node();
-    auto order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->input(1).get_source_output().get_node_shared_ptr());
+    auto order = ov::as_type_ptr<v0::Constant>(transpose->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> order_value = order->get_vector<int64_t>();
     std::vector<int64_t> order_value_ref{0, 3, 4, 1, 5, 2};
     ASSERT_EQ(order_value, order_value_ref);
 
     consumers = transpose->output(0).get_target_inputs();
     auto reshape_end = consumers.begin()->get_node();
-    auto shape_end =
-        ov::as_type_ptr<ov::op::v0::Constant>(reshape_end->input(1).get_source_output().get_node_shared_ptr());
+    auto shape_end = ov::as_type_ptr<v0::Constant>(reshape_end->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> shape_end_value = shape_end->get_vector<int64_t>();
     std::vector<int64_t> shape_end_value_ref{1, 3, 2 * 1080, 2 * 1616};
     ASSERT_EQ(shape_end_value, shape_end_value_ref);
@@ -72,7 +71,7 @@ TEST(TransformationTests, TestDepthToSpaceTransformDepthFirst) {
     {
         auto depth_to_space =
             std::make_shared<op::v0::DepthToSpace>(input, op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
-        f = std::make_shared<ov::Model>(ov::NodeVector{depth_to_space}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::OutputVector{depth_to_space}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertDepthToSpace>();
@@ -84,8 +83,7 @@ TEST(TransformationTests, TestDepthToSpaceTransformDepthFirst) {
     ASSERT_EQ(consumers.size(), 1);
 
     auto reshape_begin = consumers.begin()->get_node();
-    auto shape_begin =
-        ov::as_type_ptr<ov::op::v0::Constant>(reshape_begin->input(1).get_source_output().get_node_shared_ptr());
+    auto shape_begin = ov::as_type_ptr<v0::Constant>(reshape_begin->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> shape_begin_value = shape_begin->get_vector<int64_t>();
     std::vector<int64_t> shape_begin_value_ref{1, 3, 2, 2, 1080, 1616};
     ASSERT_EQ(shape_begin_value, shape_begin_value_ref);
@@ -94,15 +92,14 @@ TEST(TransformationTests, TestDepthToSpaceTransformDepthFirst) {
     ASSERT_EQ(consumers.size(), 1);
 
     auto transpose = consumers.begin()->get_node();
-    auto order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->input(1).get_source_output().get_node_shared_ptr());
+    auto order = ov::as_type_ptr<v0::Constant>(transpose->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> order_value = order->get_vector<int64_t>();
     std::vector<int64_t> order_value_ref{0, 1, 4, 2, 5, 3};
     ASSERT_EQ(order_value, order_value_ref);
 
     consumers = transpose->output(0).get_target_inputs();
     auto reshape_end = consumers.begin()->get_node();
-    auto shape_end =
-        ov::as_type_ptr<ov::op::v0::Constant>(reshape_end->input(1).get_source_output().get_node_shared_ptr());
+    auto shape_end = ov::as_type_ptr<v0::Constant>(reshape_end->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> shape_end_value = shape_end->get_vector<int64_t>();
     std::vector<int64_t> shape_end_value_ref{1, 3, 2 * 1080, 2 * 1616};
     ASSERT_EQ(shape_end_value, shape_end_value_ref);
@@ -115,7 +112,7 @@ TEST(TransformationTests, TestSpaceToDepthTransformBlockFirst) {
     {
         auto space_to_depth =
             std::make_shared<op::v0::SpaceToDepth>(input, op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, 2);
-        f = std::make_shared<ov::Model>(ov::NodeVector{space_to_depth}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::OutputVector{space_to_depth}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertSpaceToDepth>();
@@ -127,8 +124,7 @@ TEST(TransformationTests, TestSpaceToDepthTransformBlockFirst) {
     ASSERT_EQ(consumers.size(), 1);
 
     auto reshape_begin = consumers.begin()->get_node();
-    auto shape_begin =
-        ov::as_type_ptr<ov::op::v0::Constant>(reshape_begin->input(1).get_source_output().get_node_shared_ptr());
+    auto shape_begin = ov::as_type_ptr<v0::Constant>(reshape_begin->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> shape_begin_value = shape_begin->get_vector<int64_t>();
     std::vector<int64_t> shape_begin_value_ref{1, 12, 1080 / 2, 2, 1616 / 2, 2};
     ASSERT_EQ(shape_begin_value, shape_begin_value_ref);
@@ -137,15 +133,14 @@ TEST(TransformationTests, TestSpaceToDepthTransformBlockFirst) {
     ASSERT_EQ(consumers.size(), 1);
 
     auto transpose = consumers.begin()->get_node();
-    auto order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->input(1).get_source_output().get_node_shared_ptr());
+    auto order = ov::as_type_ptr<v0::Constant>(transpose->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> order_value = order->get_vector<int64_t>();
     std::vector<int64_t> order_value_ref{0, 3, 5, 1, 2, 4};
     ASSERT_EQ(order_value, order_value_ref);
 
     consumers = transpose->output(0).get_target_inputs();
     auto reshape_end = consumers.begin()->get_node();
-    auto shape_end =
-        ov::as_type_ptr<ov::op::v0::Constant>(reshape_end->input(1).get_source_output().get_node_shared_ptr());
+    auto shape_end = ov::as_type_ptr<v0::Constant>(reshape_end->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> shape_end_value = shape_end->get_vector<int64_t>();
     std::vector<int64_t> shape_end_value_ref{1, 12 * 4, 1080 / 2, 1616 / 2};
     ASSERT_EQ(shape_end_value, shape_end_value_ref);
@@ -158,7 +153,7 @@ TEST(TransformationTests, TestSpaceToDepthTransformDepthFirst) {
     {
         auto space_to_depth =
             std::make_shared<op::v0::SpaceToDepth>(input, op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST, 2);
-        f = std::make_shared<ov::Model>(ov::NodeVector{space_to_depth}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::OutputVector{space_to_depth}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertSpaceToDepth>();
@@ -170,8 +165,7 @@ TEST(TransformationTests, TestSpaceToDepthTransformDepthFirst) {
     ASSERT_EQ(consumers.size(), 1);
 
     auto reshape_begin = consumers.begin()->get_node();
-    auto shape_begin =
-        ov::as_type_ptr<ov::op::v0::Constant>(reshape_begin->input(1).get_source_output().get_node_shared_ptr());
+    auto shape_begin = ov::as_type_ptr<v0::Constant>(reshape_begin->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> shape_begin_value = shape_begin->get_vector<int64_t>();
     std::vector<int64_t> shape_begin_value_ref{1, 12, 1080 / 2, 2, 1616 / 2, 2};
     ASSERT_EQ(shape_begin_value, shape_begin_value_ref);
@@ -180,15 +174,14 @@ TEST(TransformationTests, TestSpaceToDepthTransformDepthFirst) {
     ASSERT_EQ(consumers.size(), 1);
 
     auto transpose = consumers.begin()->get_node();
-    auto order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->input(1).get_source_output().get_node_shared_ptr());
+    auto order = ov::as_type_ptr<v0::Constant>(transpose->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> order_value = order->get_vector<int64_t>();
     std::vector<int64_t> order_value_ref{0, 1, 3, 5, 2, 4};
     ASSERT_EQ(order_value, order_value_ref);
 
     consumers = transpose->output(0).get_target_inputs();
     auto reshape_end = consumers.begin()->get_node();
-    auto shape_end =
-        ov::as_type_ptr<ov::op::v0::Constant>(reshape_end->input(1).get_source_output().get_node_shared_ptr());
+    auto shape_end = ov::as_type_ptr<v0::Constant>(reshape_end->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> shape_end_value = shape_end->get_vector<int64_t>();
     std::vector<int64_t> shape_end_value_ref{1, 12 * 4, 1080 / 2, 1616 / 2};
     ASSERT_EQ(shape_end_value, shape_end_value_ref);
@@ -201,7 +194,7 @@ TEST(TransformationTests, TestSpaceToDepthDynamic) {
     {
         auto space_to_depth =
             std::make_shared<op::v0::SpaceToDepth>(input, op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST, 2);
-        f = std::make_shared<ov::Model>(ov::NodeVector{space_to_depth}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::OutputVector{space_to_depth}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::ConvertSpaceToDepth>();
         OV_ASSERT_NO_THROW(m.run_passes(f));
@@ -215,7 +208,7 @@ TEST(TransformationTests, TestDepthToSpaceDynamic) {
     {
         auto depth_to_space =
             std::make_shared<op::v0::DepthToSpace>(input, op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
-        f = std::make_shared<ov::Model>(ov::NodeVector{depth_to_space}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::OutputVector{depth_to_space}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::ConvertDepthToSpace>();
         OV_ASSERT_NO_THROW(m.run_passes(f));

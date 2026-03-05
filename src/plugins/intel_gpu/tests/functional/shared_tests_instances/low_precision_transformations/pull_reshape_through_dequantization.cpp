@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,11 +13,6 @@ namespace {
 const std::vector<ov::element::Type> netPrecisions = {
     ov::element::f32,
     // ov::element::f16 // TODO: enable f16 test inference (change ngraph function + fp32 to fp16 replacements)
-};
-
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
-    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
 };
 
 const std::vector<PullReshapeThroughDequantizationTestValues> params = {
@@ -38,7 +33,7 @@ const std::vector<PullReshapeThroughDequantizationTestValues> params = {
         ov::element::f32,
         {},
         "output_original",
-        "U8"
+        "u8"
     },
     {
         ov::element::f32,
@@ -57,7 +52,7 @@ const std::vector<PullReshapeThroughDequantizationTestValues> params = {
         ov::element::f32,
         {},
         "output_original",
-        "FP32"
+        "f32"
     }
 };
 
@@ -75,7 +70,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, PullReshapeThroughDequantizationTransformati
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(dequantizationOnWeightElementwiseConstantShapes),
         ::testing::ValuesIn(params)),
     PullReshapeThroughDequantizationTransformation::getTestCaseName);

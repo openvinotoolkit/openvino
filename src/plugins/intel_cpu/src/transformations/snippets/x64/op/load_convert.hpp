@@ -1,9 +1,18 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
 #include "snippets/op/load.hpp"
 
 namespace ov::intel_cpu {
@@ -20,8 +29,8 @@ public:
 
     LoadConvertSaturation(const Output<Node>& x,
                           const ov::element::Type& destination_type,
-                          const size_t count = 1lu,
-                          const size_t offset = 0lu);
+                          size_t count = 1LU,
+                          size_t offset = 0LU);
     LoadConvertSaturation() = default;
 
     ov::element::Type get_destination_type() const {
@@ -54,8 +63,8 @@ public:
 
     LoadConvertTruncation(const Output<Node>& x,
                           const ov::element::Type& destination_type,
-                          const size_t count = 1lu,
-                          const size_t offset = 0lu);
+                          size_t count = 1LU,
+                          size_t offset = 0LU);
     LoadConvertTruncation() = default;
 
     ov::element::Type get_destination_type() const {

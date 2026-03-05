@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -409,11 +409,15 @@ TEST(depth_concatenate_f32_gpu, test06_padded_input) {
     //
     // *Convolution has input offset so it should be propagated, both back to reorders and to second concatenation.
     // As a result both concatenations should be optimized out and convolution should use optimized implementation.
+
     const int32_t input_f = 32;
     const int32_t output_f = 3 * input_f;
 
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
+    if (engine.get_device_info().supports_immad) {
+        return;
+    }
     auto input1 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
     auto input2 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
 
@@ -1049,10 +1053,10 @@ TEST(NegativeDepthConcatenateTest, DISABLED_TestAll) {
 
     auto f = format::bfyx;
 
-    std::vector<int> t{1, 2, 3, 4};
-    std::vector<int> t0{7, 2, 3, 4};
-    std::vector<int> t1{1, 2, 7, 4};
-    std::vector<int> t2{1, 2, 3, 7};
+    std::vector<ov::Dimension::value_type> t{1, 2, 3, 4};
+    std::vector<ov::Dimension::value_type> t0{7, 2, 3, 4};
+    std::vector<ov::Dimension::value_type> t1{1, 2, 7, 4};
+    std::vector<ov::Dimension::value_type> t2{1, 2, 3, 7};
 
     //TODO: should be ASSERT_THROW(statement, exception_type) - but what exception type?
     ASSERT_ANY_THROW(setup_depth_concatatenate_network({}, {}, {}));
@@ -1186,7 +1190,7 @@ public:
     }
 
     cldnn::tensor get_expected_output_tensor() override {
-        cldnn::tensor::value_type features = 0;
+        ov::Dimension::value_type features = 0;
         for (const auto& t : generic_params->input_layouts) {
             features += t.feature();
         }

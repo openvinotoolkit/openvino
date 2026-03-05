@@ -1,0 +1,3 @@
+#pragma once
+
+#define APP_VERSION   "v1.2.2-@GIT_SHA@"

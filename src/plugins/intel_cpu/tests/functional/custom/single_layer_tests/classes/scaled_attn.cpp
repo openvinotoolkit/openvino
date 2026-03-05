@@ -1,11 +1,11 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "scaled_attn.hpp"
 
 #include "gtest/gtest.h"
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "openvino/pass/manager.hpp"
@@ -16,15 +16,7 @@ namespace ov {
 namespace test {
 
 std::string ScaledAttnLayerCPUTest::getTestCaseName(const testing::TestParamInfo<ScaledAttnCPUTestParams>& obj) {
-    CPUSpecificParams cpuParams;
-    ElementType inType;
-    std::vector<InputShape> inputShapes;
-    bool is_causal;
-    bool has_attn;
-    bool has_scale;
-    std::string targetDevice;
-    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, targetDevice, cpuParams) = obj.param;
-
+    const auto& [inType, inputShapes, is_causal, has_attn, has_scale, targetDevice, cpuParams] = obj.param;
     std::ostringstream result;
     result << "netPRC=" << inType << "_";
     result << "IS=";
@@ -48,18 +40,23 @@ std::string ScaledAttnLayerCPUTest::getTestCaseName(const testing::TestParamInfo
 }
 
 void ScaledAttnLayerCPUTest::SetUp() {
-    ElementType inType;
-    CPUSpecificParams cpuParams;
-    std::vector<InputShape> inputShapes;
-    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, targetDevice, cpuParams) = this->GetParam();
-
+    const auto& [inType, inputShapes, _is_causal, _has_attn, _has_scale, _targetDevice, cpuParams] = this->GetParam();
+    is_causal = _is_causal;
+    has_attn = _has_attn;
+    has_scale = _has_scale;
+    targetDevice = _targetDevice;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     if (selectedType.empty()) {
         selectedType = getPrimitiveType();
     }
 
     if (inType == ElementType::bf16) {
-        rel_threshold = 2e-2f;
+        // Issue: 163144
+        if (with_cpu_x86_avx2_vnni_2()) {
+            rel_threshold = 0.2f;
+        } else {
+            rel_threshold = 2e-2f;
+        }
     }
     selectedType = makeSelectedTypeStr(selectedType, inType);
     init_input_shapes(inputShapes);
@@ -96,13 +93,7 @@ void ScaledAttnLayerCPUTest::SetUp() {
     }
     auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputs, is_causal);
     sdp->set_friendly_name("mha");
-    function = makeNgraphFunction(inType, inputParams, sdp, "SDP");
-
-    functionRefs = function->clone();
-    ov::pass::Manager manager;
-    // decompose ScaledDotProductAttention
-    manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
-    manager.run_passes(functionRefs);
+    function = create_ov_model(inType, inputParams, sdp, "SDP");
 }
 
 void ScaledAttnLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -125,15 +116,8 @@ void ScaledAttnLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
 }
 
 TEST_P(ScaledAttnLayerCPUTest, CompareWithRefs) {
-    CPUSpecificParams cpuParams;
-    ElementType inType;
-    std::vector<InputShape> inputShapes;
-    bool is_causal;
-    bool has_attn;
-    bool has_scale;
-    std::string targetDevice;
-    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, targetDevice, cpuParams) = this->GetParam();
-    if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+    const auto& [inType, inputShapes, is_causal, has_attn, has_scale, targetDevice, cpuParams] = this->GetParam();
+    if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16() && !with_cpu_x86_avx2_vnni_2())
         GTEST_SKIP();
     run();
     CheckPluginRelatedResults(compiledModel, "ScaledAttn");

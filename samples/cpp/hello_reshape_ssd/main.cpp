@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -121,7 +121,7 @@ int main(int argc, char* argv[]) {
         // 6) declare output element type as FP32
         output_info.tensor().set_element_type(ov::element::f32);
 
-        // 7) Apply preprocessing modifing the original 'model'
+        // 7) Apply preprocessing modifying the original 'model'
         model = ppp.build();
         // clang-format on
         // -------------------------------------------------------------------

@@ -1,10 +1,10 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 #include <gtest/gtest.h>
-#include "nodes/eltwise.h"
+#include "kernels/jit_eltwise_common.hpp"
 
 using namespace ov::intel_cpu;
 

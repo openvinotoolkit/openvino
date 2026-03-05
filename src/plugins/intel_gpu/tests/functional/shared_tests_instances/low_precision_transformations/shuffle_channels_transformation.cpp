@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,10 +17,6 @@ const std::vector<ov::element::Type> netPrecisions = {
 
 const std::vector<ov::PartialShape> inputShapes = {
     { 1, 3, 16, 16 }
-};
-
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
 };
 
 const std::vector<LayerTestsDefinitions::ShuffleChannelsTransformationParam> params = {
@@ -82,7 +78,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ShuffleChannelsTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ShuffleChannelsTransformation::getTestCaseName);
 }  // namespace

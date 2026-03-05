@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,6 +112,11 @@ void ISTFT::set_center(const bool center) {
 bool ISTFT::get_normalized() const {
     OV_OP_SCOPE(v16_ISTFT_get_normalized);
     return m_normalized;
+}
+
+void ISTFT::set_normalized(const bool normalized) {
+    OV_OP_SCOPE(v16_ISTFT_set_normalized);
+    m_normalized = normalized;
 }
 
 }  // namespace ov::op::v16

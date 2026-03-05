@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -630,6 +630,8 @@ const std::string& AttributeAdapter<ov::Layout>::get() {
 void AttributeAdapter<ov::Layout>::set(const std::string& value) {
     m_ref = Layout(value);
 }
+
+AttributeAdapter<Layout>::~AttributeAdapter() = default;
 
 bool LayoutAttribute::visit_attributes(AttributeVisitor& visitor) {
     std::string layout_str = value.to_string();

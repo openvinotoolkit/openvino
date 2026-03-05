@@ -3,9 +3,17 @@
 //
 
 #pragma once
+#include <cstddef>
+#include <cstdint>
+#include <iostream>
+#include <memory>
+#include <ostream>
 #include <utility>
+#include <vector>
 
+#include "emitters/utils.hpp"
 #include "jit_tpp_emitter.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu {
 
@@ -17,7 +25,8 @@ namespace ov::intel_cpu {
 class DebugTppEmitter : public TppEmitter {
 public:
     DebugTppEmitter(ov::snippets::lowered::ExpressionPtr expr, const std::shared_ptr<TppEmitter>& original)
-        : TppEmitter(*original),
+        : jit_emitter(h, original->host_isa_),
+          TppEmitter(*original),
           m_original(original),
           m_compiled_kernel(m_original->get_compiled_kernel_ptr()),
           m_execute_function(m_original->get_execute_function_ptr()),

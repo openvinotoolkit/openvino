@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/reference/slice.hpp"
 #include "slice_shape_inference.hpp"
@@ -112,12 +113,19 @@ bool Slice::has_evaluate() const {
         }
     };
 
-    return valid_integral_type(get_input_element_type(1)) &&
+    return element::is_byte_type(get_input_element_type(0)) && valid_integral_type(get_input_element_type(1)) &&
            (slice_no_axes(this) || valid_integral_type(get_input_element_type(4)));
+}
+
+bool Slice::can_constant_fold(const OutputVector& inputs) const {
+    return element::is_byte_type(inputs.at(0).get_element_type()) && Op::can_constant_fold(inputs);
 }
 
 bool Slice::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v8_Slice_evaluate);
+
+    if (!element::is_byte_type(inputs[0].get_element_type()))
+        return false;
 
     const auto output_shapes =
         shape_infer(this, ov::util::get_tensors_partial_shapes(inputs), make_tensor_accessor(inputs));

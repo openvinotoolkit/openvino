@@ -1,8 +1,13 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "partitioned_mem_blk.h"
+
+#include <cstddef>
+#include <cstdint>
+
+#include "cpu_memory.h"
 
 using namespace ov::intel_cpu;
 

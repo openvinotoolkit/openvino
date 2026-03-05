@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -152,7 +152,7 @@ void ApiSummary::saveReport() {
     filename += ov::test::utils::REPORT_EXTENSION;
 
     if (!ov::util::directory_exists(outputFolder)) {
-        ov::util::create_directory_recursive(outputFolder);
+        ov::util::create_directory_recursive(std::filesystem::path{outputFolder});
     }
 
     std::string outputFilePath = outputFolder + std::string(ov::test::utils::FileSeparator) + filename;
@@ -169,8 +169,7 @@ void ApiSummary::saveReport() {
     char timeNow[80];
 
     time(&rawtime);
-    // cpplint require to use localtime_r instead which is not available in C++11
-    timeinfo = localtime(&rawtime);  // NOLINT
+    timeinfo = localtime(&rawtime);
 
     strftime(timeNow, sizeof(timeNow), "%d-%m-%Y %H:%M:%S", timeinfo);
 

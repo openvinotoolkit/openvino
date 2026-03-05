@@ -1,15 +1,14 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "openvino/core/rtti.hpp"
 #include "pass.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface ValidateShapes
@@ -20,10 +19,9 @@ class ValidateShapes : public RangedPass {
 public:
     OPENVINO_RTTI("ValidateShapes", "", RangedPass)
     ValidateShapes() = default;
-    bool run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
+    bool run(lowered::LinearIR& linear_ir,
+             lowered::LinearIR::constExprIt begin,
+             lowered::LinearIR::constExprIt end) override;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

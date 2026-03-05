@@ -1,22 +1,34 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "config.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <map>
+#include <memory>
+#include <set>
 #include <string>
+#include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "openvino/core/parallel.hpp"
-#include "openvino/core/type/element_type_traits.hpp"
+#include "internal_properties.hpp"
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "utils/cpu_utils.hpp"
+#include "openvino/runtime/weightless_properties_utils.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 #include "utils/precision_support.h"
+
+#if defined(OPENVINO_ARCH_ARM64)
+#    include <limits>
+#endif
 
 namespace ov::intel_cpu {
 
@@ -37,7 +49,7 @@ Config::Config() {
  */
 void Config::applyDebugCapsProperties() {
     // always enable perf counters for verbose, performance summary and average counters
-    if (!debugCaps.verbose.empty() || !debugCaps.summaryPerf.empty() || !debugCaps.averageCountersPath.empty()) {
+    if (!debugCaps.verbose.empty() || debugCaps.summaryPerf || !debugCaps.averageCountersPath.empty()) {
         collectPerfCounters = true;
     }
 }
@@ -93,16 +105,14 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             try {
                 ov::Any value = val.as<std::string>();
                 int val_i = value.as<int>();
-                if (val_i < 0) {
-                    OPENVINO_THROW("invalid value.");
-                }
+                OPENVINO_ASSERT(val_i >= 0, "invalid value.");
                 hintNumRequests = static_cast<uint32_t>(val_i);
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                "for property key ",
                                ov::hint::num_requests.name(),
-                               ". Expected only > 0.");
+                               ". Expected only >= 0.");
             }
         } else if (key == ov::hint::enable_cpu_pinning.name()) {
             try {
@@ -117,7 +127,11 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::enable_cpu_reservation.name()) {
             try {
+#if defined(__APPLE__)
+                enableCpuReservation = false;
+#else
                 enableCpuReservation = val.as<bool>();
+#endif
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
@@ -145,7 +159,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             };
 
             try {
-                for (auto& row : val.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
+                for (const auto& row : val.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
                     if ((row != ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL)) {
                         error_info();
                     }
@@ -166,7 +180,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ". Expected only true/false.");
             }
         } else if (key == ov::intel_cpu::sparse_weights_decompression_rate.name()) {
-            float val_f = 0.0f;
+            float val_f = 0.0F;
             try {
                 val_f = val.as<float>();
             } catch (const ov::Exception&) {
@@ -174,12 +188,20 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::intel_cpu::sparse_weights_decompression_rate.name(),
                                ". Expected only float numbers");
             }
-            if (val_f < 0.f || val_f > 1.f) {
-                OPENVINO_THROW("Wrong value for property key ",
-                               ov::intel_cpu::sparse_weights_decompression_rate.name(),
-                               ". Sparse rate must be in range [0.0f,1.0f]");
-            } else {
-                fcSparseWeiDecompressionRate = val_f;
+            OPENVINO_ASSERT(val_f >= 0.F && val_f <= 1.F,
+                            "Wrong value for property key ",
+                            ov::intel_cpu::sparse_weights_decompression_rate.name(),
+                            ". Sparse rate must be in range [0.0f,1.0f]");
+            fcSparseWeiDecompressionRate = val_f;
+        } else if (key == ov::intel_cpu::tbb_partitioner.name()) {
+            try {
+                tbbPartitioner = val.as<ov::intel_cpu::TbbPartitioner>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::intel_cpu::tbb_partitioner.name(),
+                               ". Expected only ov::intel_cpu::TbbPartitioner::STATIC/AUTO");
             }
         } else if (key == ov::hint::dynamic_quantization_group_size.name()) {
             try {
@@ -188,7 +210,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ",
                                ov::hint::dynamic_quantization_group_size.name(),
-                               ". Expected only unsinged integer numbers");
+                               ". Expected only unsigned integer numbers");
             }
         } else if (key == ov::enable_profiling.name()) {
             try {
@@ -222,12 +244,10 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::device::id.name()) {
             device_id = val.as<std::string>();
-            if (!device_id.empty()) {
-                OPENVINO_THROW("CPU plugin supports only '' as device id");
-            }
+            OPENVINO_ASSERT(device_id.empty(), "CPU plugin supports only '' as device id");
         } else if (key == ov::hint::inference_precision.name()) {
             try {
-                auto const prec = val.as<ov::element::Type>();
+                const auto prec = val.as<ov::element::Type>();
                 inferencePrecisionSetExplicitly = true;
                 if (prec == ov::element::bf16) {
                     if (hasHardwareSupport(ov::element::bf16)) {
@@ -237,7 +257,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                     if (hasHardwareSupport(ov::element::f16)) {
                         inferencePrecision = ov::element::f16;
                     }
-                } else if (one_of(prec, element::f32, element::dynamic)) {
+                } else if (any_of(prec, element::f32, element::dynamic)) {
                     inferencePrecision = prec;
                 } else {
                     OPENVINO_THROW("invalid value");
@@ -264,6 +284,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             // any negative value will be treated
             // as zero that means disabling the cache
             rtCacheCapacity = std::max(val_i, 0);
+            snippetsCacheCapacity = std::max(val_i, 0);
         } else if (ov::intel_cpu::denormals_optimization.name() == key) {
             try {
                 denormalsOptMode = val.as<bool>() ? DenormalsOptMode::DO_On : DenormalsOptMode::DO_Off;
@@ -277,7 +298,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::intel_cpu::snippets_mode.name()) {
             try {
-                auto const mode = val.as<ov::intel_cpu::SnippetsMode>();
+                const auto mode = val.as<ov::intel_cpu::SnippetsMode>();
                 if (mode == ov::intel_cpu::SnippetsMode::ENABLE) {
                     snippetsMode = SnippetsMode::Enable;
                 } else if (mode == ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK) {
@@ -307,8 +328,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else if (key == ov::hint::kv_cache_precision.name()) {
             try {
                 kvCachePrecisionSetExplicitly = true;
-                auto const prec = val.as<ov::element::Type>();
-                if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
+                const auto prec = val.as<ov::element::Type>();
+                if (any_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
                     kvCachePrecision = prec;
                 } else {
                     OPENVINO_THROW("invalid value");
@@ -323,8 +344,14 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else if (key == ov::key_cache_precision.name()) {
             try {
                 keyCachePrecisionSetExplicitly = true;
-                auto const prec = val.as<ov::element::Type>();
-                if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
+                const auto prec = val.as<ov::element::Type>();
+                if (any_of(prec,
+                           ov::element::f32,
+                           ov::element::f16,
+                           ov::element::bf16,
+                           ov::element::i8,
+                           ov::element::u8,
+                           ov::element::u4)) {
                     keyCachePrecision = prec;
                 } else {
                     OPENVINO_THROW("keyCachePrecision doesn't support value ", prec);
@@ -339,8 +366,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else if (key == ov::value_cache_precision.name()) {
             try {
                 valueCachePrecisionSetExplicitly = true;
-                auto const prec = val.as<ov::element::Type>();
-                if (one_of(prec,
+                const auto prec = val.as<ov::element::Type>();
+                if (any_of(prec,
                            ov::element::f32,
                            ov::element::f16,
                            ov::element::bf16,
@@ -359,7 +386,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::key_cache_group_size.name() || key == ov::value_cache_group_size.name()) {
             try {
-                auto const groupSize = val.as<uint64_t>();
+                const auto groupSize = val.as<uint64_t>();
                 if (key == ov::key_cache_group_size.name()) {
                     keyCacheGroupSizeSetExplicitly = true;
                     keyCacheGroupSize = groupSize;
@@ -372,7 +399,55 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                " for property key ",
                                key,
-                               ". Expected only unsinged integer numbers");
+                               ". Expected only unsigned integer numbers");
+            }
+        } else if (key == ov::internal::key_cache_quant_mode.name()) {
+            try {
+                const auto mode = val.as<ov::internal::CacheQuantMode>();
+                if (mode == ov::internal::CacheQuantMode::AUTO) {
+                    keyCacheQuantMode = CacheQuantMode::AUTO;
+                } else if (mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
+                    keyCacheQuantMode = CacheQuantMode::BY_CHANNEL;
+                } else if (mode == ov::internal::CacheQuantMode::BY_TOKEN) {
+                    keyCacheQuantMode = CacheQuantMode::BY_TOKEN;
+                } else {
+                    OPENVINO_THROW("invalid value");
+                }
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               " for property key ",
+                               ov::internal::key_cache_quant_mode.name(),
+                               ". Expected AUTO/BY_CHANNEL/BY_TOKEN");
+            }
+        } else if (key == ov::internal::value_cache_quant_mode.name()) {
+            try {
+                const auto mode = val.as<ov::internal::CacheQuantMode>();
+                if (mode == ov::internal::CacheQuantMode::AUTO) {
+                    valueCacheQuantMode = CacheQuantMode::AUTO;
+                } else if (mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
+                    valueCacheQuantMode = CacheQuantMode::BY_CHANNEL;
+                } else if (mode == ov::internal::CacheQuantMode::BY_TOKEN) {
+                    valueCacheQuantMode = CacheQuantMode::BY_TOKEN;
+                } else {
+                    OPENVINO_THROW("invalid value");
+                }
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               " for property key ",
+                               ov::internal::value_cache_quant_mode.name(),
+                               ". Expected AUTO/BY_CHANNEL/BY_TOKEN");
+            }
+        } else if (key == ov::intel_cpu::enable_tensor_parallel.name()) {
+            try {
+                enableTensorParallel = val.as<bool>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::intel_cpu::enable_tensor_parallel.name(),
+                               ". Expected only true/false.");
             }
         } else if (key == ov::cache_encryption_callbacks.name()) {
             try {
@@ -382,7 +457,30 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ", ov::cache_encryption_callbacks.name());
             }
-        } else if (key == ov::internal::caching_with_mmap.name()) {
+        } else if (key == ov::cache_mode.name()) {
+            try {
+                m_cache_mode = val.as<ov::CacheMode>();
+                if (const auto enable_weightless = ov::util::is_weightless_enabled(prop); enable_weightless) {
+                    enableWeightless = *enable_weightless;
+                }
+            } catch (...) {
+                OPENVINO_THROW("Wrong value for property key ", ov::cache_mode.name());
+            }
+        } else if (key == ov::hint::model.name() || key == ov::internal::caching_with_mmap.name() ||
+                   key == ov::weights_path.name()) {
+            // do nothing
+        } else if (key == ov::intel_cpu::enable_sage_attn.name()) {
+            try {
+                enableSageAttn = val.as<bool>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value for property key ", ov::intel_cpu::enable_sage_attn.name());
+            }
+        } else if (key == ov::enable_weightless.name()) {
+            try {
+                enableWeightless = val.as<bool>();
+            } catch (...) {
+                OPENVINO_THROW("Wrong value for property key ", ov::enable_weightless.name());
+            }
         } else {
             OPENVINO_THROW("NotFound: Unsupported property ", key, " by CPU plugin.");
         }
@@ -396,6 +494,14 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             if (hasHardwareSupport(ov::element::f16)) {
                 inferencePrecision = ov::element::f16;
             }
+#    if defined(OPENVINO_ARCH_ARM64)
+            // enforce fp32 inference precision for dynamic quantization
+            // to preserve fp32 matmul output precision
+            if (fcDynamicQuantizationGroupSizeSetExplicitly &&
+                fcDynamicQuantizationGroupSize == std::numeric_limits<uint64_t>::max()) {
+                inferencePrecision = ov::element::f32;
+            }
+#    endif
 #endif
             if (mayiuse(avx512_core_bf16)) {
                 inferencePrecision = ov::element::bf16;
@@ -404,6 +510,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             inferencePrecision = ov::element::dynamic;
         }
     }
+
     // enable ACL fast math in PERFORMANCE mode
 #if defined(OV_CPU_WITH_ACL)
     if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
@@ -416,6 +523,12 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
     }
     if (!valueCachePrecisionSetExplicitly && kvCachePrecisionSetExplicitly) {
         valueCachePrecision = kvCachePrecision;
+    }
+    if (enableSageAttn) {
+        keyCachePrecision = ov::element::i8;
+        keyCacheQuantMode = CacheQuantMode::BY_TOKEN;
+        valueCachePrecision = ov::element::u8;
+        valueCacheQuantMode = CacheQuantMode::BY_TOKEN;
     }
     // disable dynamic quantization and kv quantization for best accuracy
     if (executionMode == ov::hint::ExecutionMode::ACCURACY) {
@@ -442,13 +555,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         streamsChanged = true;
     }
 
-#if defined(OV_CPU_WITH_SHL)
-    // TODO: multi-stream execution is unsafe when SHL is used:
-    //       The library uses global static variables as flags and counters.
-    streams = 1;
-    streamsChanged = true;
-#endif
-
     this->modelType = modelType;
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
@@ -460,12 +566,12 @@ void Config::updateProperties() {
         return;
     }
 
-    if (collectPerfCounters == true) {
+    if (collectPerfCounters) {
         _config.insert({ov::enable_profiling.name(), "YES"});
     } else {
         _config.insert({ov::enable_profiling.name(), "NO"});
     }
-    if (exclusiveAsyncRequests == true) {
+    if (exclusiveAsyncRequests) {
         _config.insert({ov::internal::exclusive_async_requests.name(), "YES"});
     } else {
         _config.insert({ov::internal::exclusive_async_requests.name(), "NO"});

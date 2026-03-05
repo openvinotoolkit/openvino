@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2025 Intel Corporation
+ Copyright (C) 2018-2026 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -26,7 +26,7 @@ import zipfile
 import logging as log
 from common.common_utils import shell
 from shutil import which
-import openvino.runtime as ov
+import openvino as ov
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
@@ -58,11 +58,11 @@ def download(test_data_dir, file_path):
             with lock_path.open('bx'):
                 if not file_path.exists():
                     if test_data_dir / 'bvlcalexnet-12.onnx' == file_path:
-                        response = requests.get("https://github.com/onnx/models/raw/main/validated/vision/classification/alexnet/model/bvlcalexnet-12.onnx?download=")
+                        response = requests.get("https://media.githubusercontent.com/media/onnx/models/4c46cd00fbdb7cd30b6c1c17ab54f2e1f4f7b177/validated/vision/classification/alexnet/model/bvlcalexnet-12.onnx?download=true")
                         with file_path.open('wb') as nfnet:
                             nfnet.write(response.content)
                     elif test_data_dir / 'efficientnet-lite4-11-qdq.onnx' == file_path:
-                        response = requests.get("https://github.com/onnx/models/raw/main/validated/vision/classification/efficientnet-lite4/model/efficientnet-lite4-11-qdq.onnx?download=")
+                        response = requests.get("https://media.githubusercontent.com/media/onnx/models/4c46cd00fbdb7cd30b6c1c17ab54f2e1f4f7b177/validated/vision/classification/efficientnet-lite4/model/efficientnet-lite4-11-qdq.onnx?download=true")
                         with file_path.open('wb') as nfnet:
                             nfnet.write(response.content)
                     else:
@@ -79,7 +79,7 @@ def download(test_data_dir, file_path):
 def prepend(cache, inp='', model='', tmp_path=None):
     test_data_dir = cache.mkdir('test_data')
     if model:
-        if type(model) is ov.ie_api.Model:
+        if type(model) is ov.Model:
             model_sv_path = tmp_path / "model_with_4bit_input.xml"
             ov.save_model(model, model_sv_path)
             model = '-m', model_sv_path
@@ -167,7 +167,7 @@ class SamplesCommonTestClass():
         is_windows = sys.platform.startswith('win')
         if 'python' in sample_type.lower():
             executable_path += '.py'
-            if is_windows: 
+            if is_windows:
                 executable_path = 'python ' + executable_path
             else:
                 executable_path = 'python3 ' + executable_path
@@ -302,5 +302,5 @@ class SamplesCommonTestClass():
         # Check return code
         if (retcode != 0):
             log.error(stderr)
-        assert retcode == 0, "Sample execution failed"     
+        assert retcode == 0, "Sample execution failed"
         return stdout

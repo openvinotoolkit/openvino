@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -15,3 +15,5 @@ if(ENABLE_SSE42)
     COMPILE_FLAGS "${sse4_2_flags}"
     COMPILE_DEFINITIONS "HAVE_SSE")
 endif()
+
+ov_build_target_faster(${TARGET_NAME} PCH PCH_EXCLUDE detection_output.cpp)

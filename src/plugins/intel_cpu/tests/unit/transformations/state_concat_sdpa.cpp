@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,7 @@
 
 #include <string>
 #include <memory>
-
-#include <openvino/opsets/opset13.hpp>
+#include "openvino/opsets/opset13_decl.hpp"
 #include <transformations/cpu_opset/common/op/sdpa.hpp>
 #include <transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp>
 #include <transformations/init_node_info.hpp>
@@ -18,6 +17,15 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/utils/print_model.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -25,7 +33,7 @@ using namespace ov::intel_cpu;
 using namespace ov::gen_pattern;
 
 namespace {
-    enum InsertPoint {
+    enum InsertPoint : uint8_t {
         At_None,
         At_Convert,
         At_Gather,
@@ -133,6 +141,9 @@ static std::shared_ptr<ov::Model> makeSDPA(const ov::PartialShape& inputShape, b
 }
 
 TEST(TransformationTests, StateConcatSDPA) {
+#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    GTEST_SKIP() << "Skipping StateConcatSDPA test on Android X64";
+#endif
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         using namespace ov;
@@ -154,6 +165,9 @@ TEST(TransformationTests, StateConcatSDPA) {
 }
 
 TEST(TransformationTests, StateConcatSDPAWithConvert) {
+#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    GTEST_SKIP() << "Skipping StateConcatSDPAWithConvert test on Android X64";
+#endif
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         using namespace ov;
@@ -175,6 +189,9 @@ TEST(TransformationTests, StateConcatSDPAWithConvert) {
 }
 
 TEST(TransformationTests, StateConcatSDPAMixtral) {
+#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    GTEST_SKIP() << "Skipping StateConcatSDPAMixtral test on Android X64";
+#endif
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         using namespace ov;
@@ -196,6 +213,9 @@ TEST(TransformationTests, StateConcatSDPAMixtral) {
 }
 
 TEST(TransformationTests, StateConcatSDPAWithExtraNode) {
+#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    GTEST_SKIP() << "Skipping StateConcatSDPAWithExtraNode test on Android X64";
+#endif
     // when some unexpected extra nodes exist in SDPA, the fusion should fail
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {

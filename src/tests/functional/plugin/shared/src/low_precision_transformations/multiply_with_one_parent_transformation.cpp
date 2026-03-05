@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,12 +15,7 @@
 namespace LayerTestsDefinitions {
 
 std::string MultiplyWithOneParentTransformation::getTestCaseName(const testing::TestParamInfo<MultiplyWithOneParentTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    std::string targetDevice;
-    MultiplyWithOneParentTransformationValues values;
-
-    std::tie(netPrecision, inputShape, targetDevice, values) = obj.param;
+    const auto& [netPrecision, inputShape, targetDevice, values] = obj.param;
 
     std::ostringstream result;
     result << netPrecision << "_" << inputShape;
@@ -28,11 +23,8 @@ std::string MultiplyWithOneParentTransformation::getTestCaseName(const testing::
 }
 
 void MultiplyWithOneParentTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    MultiplyWithOneParentTransformationValues values;
-    std::tie(netPrecision, inputShape, targetDevice, values) = this->GetParam();
+    const auto& [netPrecision, inputShape, _targetDevice, values] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(inputShape);
 

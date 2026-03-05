@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,21 +9,25 @@
 
 #pragma once
 
-#include <openvino/cc/factory.h>
-#include <openvino/cc/selective_build.h>
+#if defined(SELECTIVE_BUILD_ANALYZER)
+#    include "openvino/cc/selective_build.h"
+#elif defined(SELECTIVE_BUILD)
+#    include "openvino/util/pp.hpp"
+#endif
 
 #include <openvino/itt.hpp>
+#include <string>
 
-namespace ov {
-namespace intel_cpu {
-namespace itt {
-namespace domains {
-OV_ITT_DOMAIN(intel_cpu);
-OV_ITT_DOMAIN(intel_cpu_LT);
-}  // namespace domains
-}  // namespace itt
-}  // namespace intel_cpu
-}  // namespace ov
+#include "../../core/src/itt.hpp"
+
+namespace ov::intel_cpu::itt::domains {
+OV_ITT_DOMAIN(ov_intel_cpu, "ov::intel_cpu");
+OV_ITT_DOMAIN(ov_intel_cpu_LT, "ov::intel_cpu::lt");
+// Domain namespace to define CPU Inference phase tasks
+OV_ITT_DOMAIN(ov_cpu_inference, "ov::phases::cpu::inference");
+OV_ITT_DOMAIN(ov_op_cpu_exec, "ov::op::cpu::exec");
+OV_ITT_DOMAIN(ov_op_cpu_details, "ov::op::cpu::details");
+}  // namespace ov::intel_cpu::itt::domains
 
 #if defined(SELECTIVE_BUILD_ANALYZER)
 #    define CPU_LPT_SCOPE(region)             OV_SCOPE(intel_cpu, region)
@@ -31,11 +35,11 @@ OV_ITT_DOMAIN(intel_cpu_LT);
 #elif defined(SELECTIVE_BUILD)
 #    define CPU_LPT_SCOPE(region)                                          \
         if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(intel_cpu, _, region)) == 0) \
-        OPENVINO_THROW(std::string(OV_PP_TOSTRING(OV_PP_CAT3(ov_op, _, region))), " is disabled!")
+        OPENVINO_THROW(std::string(OV_PP_TOSTRING(OV_PP_CAT3(intel_cpu, _, region))), " is disabled!")
 #    define CPU_GRAPH_OPTIMIZER_SCOPE(region)                              \
         if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(intel_cpu, _, region)) == 0) \
         OPENVINO_THROW(std::string(OV_PP_TOSTRING(OV_PP_CAT3(intel_cpu, _, region))), " is disabled!")
 #else
-#    define CPU_LPT_SCOPE(region) OV_ITT_SCOPED_TASK(ov::intel_cpu::itt::domains::intel_cpu, OV_PP_TOSTRING(region))
+#    define CPU_LPT_SCOPE(region) OV_ITT_SCOPED_TASK(ov::intel_cpu::itt::domains::ov_intel_cpu, OV_PP_TOSTRING(region))
 #    define CPU_GRAPH_OPTIMIZER_SCOPE(region)
 #endif

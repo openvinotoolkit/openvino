@@ -1,14 +1,16 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "grid_sample_kernel_selector.hpp"
 
+#include "grid_sample_kernel_opt_bilinear_zeros.hpp"
 #include "grid_sample_kernel_ref.hpp"
 
 namespace kernel_selector {
 
 grid_sample_kernel_selector::grid_sample_kernel_selector() {
+    Attach<GridSampleKernelOpt_BilinearZeros>();
     Attach<GridSampleKernelRef>();
 }
 

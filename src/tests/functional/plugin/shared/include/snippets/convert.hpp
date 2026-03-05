@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ using parameters = std::vector<std::tuple<int32_t, int32_t, int32_t>>;
 class Convert : public testing::WithParamInterface<ov::test::snippets::ConvertParams>,
                 virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::ConvertParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::ConvertParams>& obj);
 
 protected:
     void SetUp() override;

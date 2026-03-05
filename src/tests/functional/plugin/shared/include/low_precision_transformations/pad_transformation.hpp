@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,6 @@ typedef std::tuple<
     ov::PartialShape,
     ov::op::PadMode,
     std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
     PadTransformationParam
 > PadTransformationParams;
 

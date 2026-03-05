@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -162,6 +162,7 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
     }
+    m_config.set_user_property({ov::hint::model(std::shared_ptr<const ov::Model>(nullptr))});
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
@@ -178,23 +179,14 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 //     [ ov::Node::Input/ ov::Node::Output ]
 //     [ ov::intel_gpu::Graph ]
 void CompiledModel::export_model(std::ostream& model) const {
-    // If ov::CacheMode::OPTIMIZE_SIZE is set, do the export iff it's possible to do weightless caching
-    // which requires the weights_path.
-    ov::CacheMode cache_mode = m_config.get_cache_mode();
-    std::string weights_path = m_config.get_weights_path();
-    if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE &&
-        !ov::util::validate_weights_path(weights_path))
-        return;
-
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::export_model");
     OPENVINO_ASSERT(!m_graphs.empty(), "[GPU] Model not loaded");
 
     const ov::EncryptionCallbacks encryption_callbacks = m_config.get_cache_encryption_callbacks();
 
-    // Do not allow encryption for CacheMode::OPTIMIZE_SPEED - the cache size may cause severe memory penalty.
-    const bool encryption_enabled = encryption_callbacks.encrypt && cache_mode == ov::CacheMode::OPTIMIZE_SIZE;
+    const ov::CacheMode cache_mode = m_config.get_cache_mode();
     std::unique_ptr<cldnn::BinaryOutputBuffer> ob_ptr =
-        encryption_enabled
+        encryption_callbacks.encrypt
             ? std::make_unique<cldnn::EncryptedBinaryOutputBuffer>(model, encryption_callbacks.encrypt)
             : std::make_unique<cldnn::BinaryOutputBuffer>(model);
     auto& ob = *ob_ptr;
@@ -257,7 +249,7 @@ std::shared_ptr<Graph> CompiledModel::get_graph(size_t n) const {
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::supported_properties) {
-        return decltype(ov::supported_properties)::value_type {
+        return decltype(ov::supported_properties)::value_type{
             // Metrics
             ov::PropertyName{ov::supported_properties.name(), PropertyMutability::RO},
             ov::PropertyName{ov::model_name.name(), PropertyMutability::RO},
@@ -270,6 +262,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::hint::model_priority.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::hint::enable_large_allocations.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RO},

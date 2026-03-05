@@ -1,17 +1,30 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_fill_emitter.hpp"
 
-#include "cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h"
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <vector>
+
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/fill.hpp"
 
 using namespace Xbyak_aarch64;
 
 namespace ov::intel_cpu::aarch64 {
 
-using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
+using jit_generator = dnnl::impl::cpu::aarch64::jit_generator_t;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
@@ -50,6 +63,12 @@ void jit_fill_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
 
 template <cpu_isa_t isa>
 void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+    const size_t supported_et_size = dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::vlen / exec_prc_.size();
+    OPENVINO_ASSERT(offset < supported_et_size,
+                    "Fill emitter offset ",
+                    offset,
+                    " exceeds register capacity ",
+                    supported_et_size);
     if (is_full_reg()) {
         fill_full<isa>(out);
     } else {
@@ -60,7 +79,7 @@ void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector
 template <cpu_isa_t isa>
 void jit_fill_emitter::fill_full(const std::vector<size_t>& out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg dst = TReg(out[0]);
+    auto dst = TReg(out[0]);
 
     // Optimized impl for zero
     if (is_optimized()) {
@@ -74,19 +93,24 @@ void jit_fill_emitter::fill_full(const std::vector<size_t>& out) const {
 
 template <cpu_isa_t isa>
 void jit_fill_emitter::fill_tail(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg dst = TReg(out[0]);
+    static_assert(isa == dnnl::impl::cpu::aarch64::asimd, "Fill emitter tail supports only asimd");
 
+    if (in[0] != out[0]) {
+        h->mov(Xbyak_aarch64::VReg16B(out[0]), Xbyak_aarch64::VReg16B(in[0]));
+    }
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    auto dst = TReg(out[0]);
     switch (offset) {
     case 1:
-        h->ld1(dst.s[1], table_val2("value", sizeof(float)));
-        h->ld1(dst.d[1], table_val2("value", 2 * sizeof(float)));
+        h->ld1(dst.s[1], table_val2("value", 0));
+        h->ld1(dst.d[1], table_val2("value", 0));
         break;
     case 2:
-        h->ld1(dst.d[1], table_val2("value", 2 * sizeof(float)));
+        h->ld1(dst.d[1], table_val2("value", 0));
         break;
     case 3:
-        h->ld1(dst.s[3], table_val2("value", 3 * sizeof(float)));
+        h->ld1(dst.s[3], table_val2("value", 0));
         break;
     case 4:
         break;

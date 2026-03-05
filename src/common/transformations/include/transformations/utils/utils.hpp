@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,13 +9,17 @@
 #include <functional>
 #include <limits>
 #include <memory>
+#include <tuple>
+#include <variant>
 #include <vector>
 
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/random_uniform.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/op/op.hpp"
 #include "openvino/util/pp.hpp"
 #include "transformations/rt_info/attributes.hpp"
 #include "transformations_visibility.hpp"
@@ -60,37 +64,6 @@ inline bool has_decompression_converts(const std::shared_ptr<const ov::Model>& f
         }
     }
     return false;
-}
-
-OPENVINO_DEPRECATED("Plugins should use ov::ISyncInferRequest::find_port")
-inline std::string create_ie_output_name(const Output<const Node>& output) {
-    const auto& prev_layer = output.get_node_shared_ptr();
-    auto out_name = prev_layer->get_friendly_name();
-    if (prev_layer->get_output_size() != 1) {
-        out_name += "." + std::to_string(output.get_index());
-    }
-    return out_name;
-}
-
-OPENVINO_DEPRECATED("Plugins should use ov::ISyncInferRequest::find_port")
-inline std::string create_ie_output_name(const Output<Node>& output) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return create_ie_output_name(ov::Output<const Node>(output.get_node(), output.get_index()));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
-OPENVINO_DEPRECATED("Plugins should use ov::ISyncInferRequest::find_port")
-inline std::string get_ie_output_name(const Output<const Node>& output) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return create_ie_output_name(output);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
-OPENVINO_DEPRECATED("Plugins should use ov::ISyncInferRequest::find_port")
-inline std::string get_ie_output_name(const Output<Node>& output) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return get_ie_output_name(ov::Output<const Node>(output.get_node(), output.get_index()));
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 /**
@@ -193,7 +166,11 @@ TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<ov::op::v0::Con
 
 TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ov::Model>& function);
 
-TRANSFORMATIONS_API bool is_large_language_model(const ov::Model& model);
+TRANSFORMATIONS_API bool is_large_language_model(
+    const ov::Model& model,
+    std::function<bool(std::shared_ptr<ov::Node>)> func = [](std::shared_ptr<ov::Node>) {
+        return false;
+    });
 
 /**
  * \brief Check if 'other_shape' can be broadcasted to 'ref_shape'
@@ -229,6 +206,19 @@ TRANSFORMATIONS_API void visit_path(ov::Node* node,
                                     std::function<bool(ov::Node*)> skip_node_predicate);
 
 /**
+ * \brief Traverses path forward (following consumers) starting from `node`, and calls "func" for each ov::Node.
+ *
+ * \param start_node  The node from which forward path is started.
+ * \param visited  Set of nodes which were visited.
+ * \param func  The function which is called for each visited node.
+ * \param skip_node_predicate  predicate to skip nodes.
+ */
+TRANSFORMATIONS_API void visit_path_forward(ov::Node* start_node,
+                                            std::unordered_set<ov::Node*>& visited,
+                                            std::function<void(ov::Node*)> func,
+                                            std::function<bool(ov::Node*)> skip_node_predicate);
+
+/**
  * \brief Traverses a shapeOf subgraph starting from the node and not including the ShapeOf nodes,
  * and calls "func" for each ov::Node.
  *
@@ -258,15 +248,6 @@ std::shared_ptr<Node> make_try_fold(Args&&... args) {
     return try_fold_unary_output(unary_output_node);
 }
 
-template <class T>
-Output<Node> eltwise_fold(const Output<Node>& input0, const Output<Node>& input1) {
-    auto eltwise = std::make_shared<T>(input0, input1);
-    OutputVector output(eltwise->get_output_size());
-    OPENVINO_ASSERT(eltwise->constant_fold(output, {input0, input1}), "Can not constant fold eltwise node");
-    OPENVINO_ASSERT(output.size() == 1, "Eltwise constant fold has unexpected number of outputs: ", output.size());
-    return output[0];
-}
-
 TRANSFORMATIONS_API std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& node);
 
 TRANSFORMATIONS_API std::shared_ptr<Node> node_to_get_shape_value_of_indices_from_shape_node(
@@ -289,13 +270,67 @@ TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>&
 
 TRANSFORMATIONS_API bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int64_t& v);
 
-TRANSFORMATIONS_API bool is_on_constant_path(const ov::Output<ov::Node>& output);
+template <typename... AllowedTypes>
+bool is_on_path(const ov::Output<ov::Node>& output) {
+    auto status = true;
+
+    auto root_node = output.get_node();
+    if (!root_node || root_node->get_output_size() == 0) {
+        return false;
+    }
+    std::deque<ov::Node*> nodes_to_calculate = {root_node};
+
+    std::unordered_set<ov::Node*> visited;
+    while (status && !nodes_to_calculate.empty()) {
+        auto current_node = nodes_to_calculate.front();
+        nodes_to_calculate.pop_front();
+        if (visited.count(current_node)) {
+            continue;
+        }
+        visited.insert(current_node);
+        // RandomUniform output changes during runtime, so we should not consider it as a constant
+        if (current_node->get_type_info() == ov::op::v8::RandomUniform::get_type_info_static()) {
+            return false;
+        }
+
+        if (current_node->get_input_size() == 0 && !(ov::is_type_any_of<AllowedTypes...>(current_node))) {
+            status = false;
+        } else {
+            // not a leaf - continue to search
+            for (const auto& input_value : current_node->input_values()) {
+                const auto& input_node = input_value.get_node();
+                if (!visited.count(input_node)) {
+                    nodes_to_calculate.push_front(input_node);
+                }
+            }
+        }
+    }
+    return status;
+}
 
 TRANSFORMATIONS_API bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node);
 
+/// \brief Disconnect output from consumer's target inputs (internal utility for transformations)
+/// \param output_to_disconnect The output that should be disconnected
+/// \param consumer_output The output whose targets should be cleaned
+///
+/// Removes connections from output_to_disconnect that appear in consumer_output's target inputs.
+/// This is useful after replace() to clean up incorrect cyclic connections.
+/// Should be at most one such connection in normal cases.
+TRANSFORMATIONS_API void disconnect_output_from_consumers(const Output<Node>& output_to_disconnect,
+                                                          const Output<Node>& consumer_output);
+
+TRANSFORMATIONS_API std::tuple<std::shared_ptr<ov::Node>,  // result
+                               std::shared_ptr<ov::Node>,  // reshape_kv
+                               std::shared_ptr<ov::Node>,  // unsqueeze_kv
+                               std::shared_ptr<ov::Node>,  // computed_bcst
+                               std::shared_ptr<ov::Node>,  // multiply_kv
+                               std::shared_ptr<ov::Node>>  // computed_bcst3
+match_multi_query_bcst(const std::shared_ptr<ov::Node>& kv);
+
 template <typename T>
-ov::pass::pattern::op::ValuePredicate constant_predicate(std::function<bool(const std::vector<T>&)> predicate) {
-    return pass::pattern::op::as_value_predicate([=](std::shared_ptr<Node> n) -> bool {
+ov::pass::pattern::op::Predicate constant_predicate(std::function<bool(const std::vector<T>&)> predicate) {
+    return ov::pass::pattern::op::Predicate([=](std::shared_ptr<Node> n) -> bool {
         if (auto constant = as_type_ptr<v0::Constant>(n)) {
             auto values = constant->cast_vector<T>();
             return predicate(values);
@@ -303,6 +338,21 @@ ov::pass::pattern::op::ValuePredicate constant_predicate(std::function<bool(cons
         return false;
     });
 }
+
+TRANSFORMATIONS_API std::shared_ptr<ov::Node> NewGenStridedSlice(const std::shared_ptr<ov::Node>& data,
+                                                                 const ov::pass::pattern::PatternOp& start,
+                                                                 const ov::pass::pattern::PatternOp& stop,
+                                                                 const ov::pass::pattern::PatternOp& step,
+                                                                 size_t axis);
+
+using symbol_variant = std::variant<float, int32_t, int64_t, std::string>;
+
+TRANSFORMATIONS_API std::shared_ptr<ov::Node> NewGenSlice(const std::shared_ptr<ov::Node>& data,
+                                                          symbol_variant start,
+                                                          symbol_variant stop,
+                                                          symbol_variant step,
+                                                          size_t axis);
+
 }  // namespace util
 }  // namespace op
 }  // namespace ov

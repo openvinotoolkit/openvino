@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-enum class MatMulNodeType {
+enum class MatMulNodeType : uint8_t {
     MatMul,
     FullyConnected
 };

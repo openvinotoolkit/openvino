@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,12 +22,8 @@ typedef std::tuple<std::vector<int>,                // Axis to reduce order
 class reduceTransformationCPUTest: public testing::WithParamInterface<reduceConvertCPUTestParamsSet>,
                                             virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<reduceConvertCPUTestParamsSet> obj) {
-        std::vector<InputShape> inputShapes;
-        std::vector<int> axes;
-        utils::ReductionType reductionType;
-        std::tie(axes, reductionType, inputShapes) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<reduceConvertCPUTestParamsSet>& obj) {
+        const auto& [axes, reductionType, inputShapes] = obj.param;
         std::ostringstream result;
         result << "type=" << reductionType << "_";
         result << "IS=(";
@@ -42,10 +38,9 @@ protected:
     int numberOfExpectedReduce;
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        std::vector<int> axes;
         bool keepDims = true;
-        std::vector<InputShape> inputShapes;
-        std::tie(axes, reductionType, inputShapes) = this->GetParam();
+        const auto& [axes, _reductionType, inputShapes] = this->GetParam();
+        reductionType = _reductionType;
         numberOfExpectedReduce = axes.size();
 
         init_input_shapes(inputShapes);
@@ -60,7 +55,7 @@ protected:
             std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape(shapeAxes), axes));
 
         const auto reduce = utils::make_reduce(params[0], reductionAxesNode, keepDims, reductionType);
-        function = makeNgraphFunction(ElementType::f32, params, reduce, "Reduce");
+        function = create_ov_model(ElementType::f32, params, reduce, "Reduce");
     }
 private:
     utils::ReductionType reductionType;

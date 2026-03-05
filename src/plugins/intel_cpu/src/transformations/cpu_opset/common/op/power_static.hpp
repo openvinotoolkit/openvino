@@ -1,9 +1,16 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov::intel_cpu {
@@ -18,7 +25,7 @@ public:
                     const float& power,
                     const float& scale,
                     const float& shift,
-                    const ov::element::Type output_type = ov::element::dynamic);
+                    ov::element::Type output_type = ov::element::dynamic);
 
     void validate_and_infer_types() override;
 
@@ -37,7 +44,7 @@ public:
     }
 
 private:
-    float scale, power, shift;
+    float scale = 0.0F, power = 0.0F, shift = 0.0F;
     ov::element::Type m_output_type;
 };
 

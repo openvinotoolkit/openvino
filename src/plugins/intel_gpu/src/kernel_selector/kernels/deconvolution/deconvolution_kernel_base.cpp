@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ std::string deconvolution_params::to_string() const {
 
 bool DeconvolutionKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::DECONVOLUTION) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const deconvolution_params& params = static_cast<const deconvolution_params&>(p);
@@ -40,12 +40,12 @@ bool DeconvolutionKernelBase::Validate(const Params& p) const {
     const bool bWeightsOK = bSupportedWeightsLayout || params.allowStaticInputReordering;
 
     if (!bWeightsOK) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

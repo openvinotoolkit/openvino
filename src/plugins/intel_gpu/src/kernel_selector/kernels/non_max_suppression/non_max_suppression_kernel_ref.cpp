@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -167,14 +167,14 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
 
 bool NonMaxSuppressionKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::NON_MAX_SUPPRESSION) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const non_max_suppression_params& params = static_cast<const non_max_suppression_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -253,9 +253,9 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params) con
     size_t buffer_size = batch_num * class_num * buffer_stride;
     size_t sel_num_buffer_size = batch_num * class_num * sizeof(int);
 
-    kd.internalBufferSizes.push_back(buffer_size);
-    kd.internalBufferSizes.push_back(buffer_size);
-    kd.internalBufferSizes.push_back(sel_num_buffer_size);
+    kd.internalBuffers.push_back(buffer_size);
+    kd.internalBuffers.push_back(buffer_size);
+    kd.internalBuffers.push_back(sel_num_buffer_size);
     kd.internalBufferDataType = Datatype::F32;
 
     // Build clKernelData.
@@ -284,7 +284,7 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params) con
 
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[i];
-        KernelBase::CheckDispatchData(kernelName, dispatchData, params.engineInfo.maxWorkGroupSize);
+        KernelBase::CheckDispatchData(kernelName, dispatchData, params.engineInfo);
         kernel.params.workGroups.global = dispatchData.gws;
         kernel.params.workGroups.local  = dispatchData.lws;
         kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);

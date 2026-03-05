@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,8 @@ using LSTMCellFusionParam = std::tuple<bool,  // true if second input to matmul 
                                        int,   // rank of bias (B)
                                        int>;  // split axis
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 class LSTMCellFusionTestSuite : public testing::WithParamInterface<LSTMCellFusionParam>, public TransformationTestsF {};
 
 TEST_P(LSTMCellFusionTestSuite, SubgraphFusedToLSTMCell) {
@@ -68,7 +70,7 @@ TEST_P(LSTMCellFusionTestSuite, SubgraphFusedToLSTMCell) {
         auto Ht = std::make_shared<op::v1::Multiply>(std::make_shared<op::v0::Tanh>(Ct), ot);
         auto C_abs = std::make_shared<op::v0::Abs>(Ct);
         auto H_abs = std::make_shared<op::v0::Abs>(Ht);
-        model = std::make_shared<Model>(NodeVector{H_abs, C_abs}, ParameterVector{X, H, C});
+        model = std::make_shared<Model>(OutputVector{H_abs, C_abs}, ParameterVector{X, H, C});
         manager.register_pass<ov::pass::LSTMCellFusion>();
     }
 
@@ -102,7 +104,7 @@ TEST_P(LSTMCellFusionTestSuite, SubgraphFusedToLSTMCell) {
                                                             std::vector<std::string>{"sigmoid", "tanh", "tanh"});
         auto C_abs = std::make_shared<op::v0::Abs>(lstm_cell->output(1));
         auto H_abs = std::make_shared<op::v0::Abs>(lstm_cell->output(0));
-        model_ref = std::make_shared<Model>(NodeVector{H_abs, C_abs}, ParameterVector{X, H, C});
+        model_ref = std::make_shared<Model>(OutputVector{H_abs, C_abs}, ParameterVector{X, H, C});
         manager.register_pass<ov::pass::LSTMCellFusion>();
     }
 
@@ -191,18 +193,18 @@ ov::Output<ov::Node> prepare_weight_fico(const std::vector<float>& f_val,
                                          const std::vector<float>& c_val,
                                          const std::vector<float>& o_val,
                                          Shape w_shape) {
-    auto f = std::make_shared<ov::op::v0::Constant>(element::f32, w_shape, f_val);
-    auto i = std::make_shared<ov::op::v0::Constant>(element::f32, w_shape, i_val);
-    auto c = std::make_shared<ov::op::v0::Constant>(element::f32, w_shape, c_val);
-    auto o = std::make_shared<ov::op::v0::Constant>(element::f32, w_shape, o_val);
+    auto f = std::make_shared<v0::Constant>(element::f32, w_shape, f_val);
+    auto i = std::make_shared<v0::Constant>(element::f32, w_shape, i_val);
+    auto c = std::make_shared<v0::Constant>(element::f32, w_shape, c_val);
+    auto o = std::make_shared<v0::Constant>(element::f32, w_shape, o_val);
 
-    auto tr_order = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{2}, std::vector<int32_t>{1, 0});
-    auto f_tr = std::make_shared<ov::op::v1::Transpose>(f, tr_order);
-    auto i_tr = std::make_shared<ov::op::v1::Transpose>(i, tr_order);
-    auto c_tr = std::make_shared<ov::op::v1::Transpose>(c, tr_order);
-    auto o_tr = std::make_shared<ov::op::v1::Transpose>(o, tr_order);
+    auto tr_order = std::make_shared<v0::Constant>(element::i32, ov::Shape{2}, std::vector<int32_t>{1, 0});
+    auto f_tr = std::make_shared<v1::Transpose>(f, tr_order);
+    auto i_tr = std::make_shared<v1::Transpose>(i, tr_order);
+    auto c_tr = std::make_shared<v1::Transpose>(c, tr_order);
+    auto o_tr = std::make_shared<v1::Transpose>(o, tr_order);
 
-    ov::Output<ov::Node> w = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{f_tr, i_tr, c_tr, o_tr}, 0);
+    ov::Output<ov::Node> w = std::make_shared<v0::Concat>(ov::OutputVector{f_tr, i_tr, c_tr, o_tr}, 0);
     if (const auto& constant = ov::util::constantfold_subgraph(w)) {
         w = constant;
     }
@@ -247,7 +249,7 @@ TEST_P(LSTMCellFusionWithSplitWeights, SubgraphFusedToLSTMCell) {
         auto c_neg = std::make_shared<op::v0::Negative>(ct);
         auto h_abs = std::make_shared<op::v0::Abs>(ht);
 
-        model = std::make_shared<Model>(NodeVector{h_abs, c_neg}, ParameterVector{x, h, c});
+        model = std::make_shared<Model>(OutputVector{h_abs, c_neg}, ParameterVector{x, h, c});
         manager.register_pass<ov::pass::LSTMCellFusion>();
     }
 
@@ -279,7 +281,7 @@ TEST_P(LSTMCellFusionWithSplitWeights, SubgraphFusedToLSTMCell) {
         auto c_neg = std::make_shared<op::v0::Negative>(lstm_cell->output(1));
         auto h_abs = std::make_shared<op::v0::Abs>(lstm_cell->output(0));
 
-        model_ref = std::make_shared<Model>(NodeVector{h_abs, c_neg}, ParameterVector{x, h, c});
+        model_ref = std::make_shared<Model>(OutputVector{h_abs, c_neg}, ParameterVector{x, h, c});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);

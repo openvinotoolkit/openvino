@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,8 +41,8 @@
 // clang-format on
 
 // Copied from linux libc sys/stat.h:
-#    define S_ISREG(m) (((m)&S_IFMT) == S_IFREG)
-#    define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
+#    define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#    define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 
 /// @brief structure to store directory names
 struct dirent {

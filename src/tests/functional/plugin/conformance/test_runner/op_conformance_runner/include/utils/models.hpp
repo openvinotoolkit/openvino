@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ inline std::string get_ref_path(const std::string& model_path) {
         return "";
     }
     if (!ov::util::directory_exists(conformance::refCachePath)) {
-        ov::util::create_directory_recursive(conformance::refCachePath);
+        ov::util::create_directory_recursive(std::filesystem::path{conformance::refCachePath});
     }
     std::string path_to_cache = conformance::refCachePath + std::string(ov::test::utils::FileSeparator);
     std::string ref_name = model_path.substr(model_path.rfind(ov::test::utils::FileSeparator) + 1);

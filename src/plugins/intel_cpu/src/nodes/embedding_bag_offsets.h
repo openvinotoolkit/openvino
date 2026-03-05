@@ -1,21 +1,26 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "embedding_bag.h"
-#include "node.h"
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "embedding_bag.h"
+#include "graph_context.h"
+#include "node.h"
+#include "openvino/core/node.hpp"
+
+namespace ov::intel_cpu::node {
 
 class EmbeddingBagOffset : public Node, public EmbeddingBag {
 public:
     EmbeddingBagOffset(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
     bool created() const override;
@@ -32,7 +37,7 @@ private:
     void initFromInputs() override;
     void getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) override;
 
-    const size_t OFFSETS_IDX = 2lu;
+    const size_t OFFSETS_IDX = 2LU;
 
     const int* indicesData_ = nullptr;
     const int* offsetsData_ = nullptr;
@@ -42,6 +47,4 @@ private:
     size_t _offsetsLen = 0;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

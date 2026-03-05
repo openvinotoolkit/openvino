@@ -1,9 +1,12 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/split.hpp"
 
 using namespace CPUTestUtils;
 
@@ -16,7 +19,7 @@ class MatmulStridedInputsOutputsTest : public testing::WithParamInterface<Matmul
                                        public CPUTestsBase,
                                        virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MatmulStridedInputsOutputsTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<MatmulStridedInputsOutputsTestParams>& obj) {
         ov::element::Type netPrecision;
         netPrecision = obj.param;
 
@@ -57,7 +60,7 @@ protected:
         const auto concatMatMuls = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{matMul1, matMul2}, 2 /* 3rd axis */);
 
         ov::ParameterVector inputParams = {splitInputParams[0], concatInputParams[0], concatInputParams[1], matmulInputParams[0]};
-        function = makeNgraphFunction(ngPrec, inputParams, concatMatMuls, "MatmulStridedInputsOutputs");
+        function = create_ov_model(ngPrec, inputParams, concatMatMuls, "MatmulStridedInputsOutputs");
     }
 };
 

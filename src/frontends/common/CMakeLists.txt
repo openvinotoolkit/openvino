@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -74,6 +74,8 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
                     SOURCE_DIRECTORIES "${FRONTEND_INCLUDE_DIR}"
                     ADDITIONAL_INCLUDE_DIRECTORIES
                         $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>)
+
+ov_build_target_faster(${TARGET_NAME}_obj PCH)
 
 # Installation rules header files
 

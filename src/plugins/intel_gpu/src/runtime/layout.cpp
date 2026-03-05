@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,6 +37,14 @@ std::vector<int32_t> convert_dimensions(const std::vector<int32_t>& sizes, const
 }
 
 }  // namespace
+
+const format& layout::get_format() const {
+    return format;
+}
+
+const padding& layout::get_padding() const {
+    return data_padding;
+}
 
 size_t layout::get_rank() const {
     return format.dimension();
@@ -345,7 +353,11 @@ size_t layout::get_linear_offset(tensor element) const {
     const auto& l_padd = tensor(default_fmt, lower_sizes, 0);
     const auto& u_padd = tensor(default_fmt, upper_sizes, 0);
 
-    const auto& t = get_tensor();
+    auto t = get_tensor();
+    for (auto& d : t.raw) {
+        if (d == 0)
+            d = 1;
+    }
 
     if ((element.batch[0] < 0 && -element.batch[0] > l_padd.batch[0]) ||
         (element.feature[0] < 0 && -element.feature[0] > l_padd.feature[0]) ||
@@ -474,6 +486,11 @@ bool layout::compatible(const layout& other) const {
     if (blocks1 != blocks2 ||
         (!blocks1.empty() && l1.format.dims_order() != l2.format.dims_order()))
         return false;
+
+    // Since it is not possible to properly check compatibility for custom formats, return false
+    if (l1.format == cldnn::format::custom || l2.format == cldnn::format::custom) {
+        return false;
+    }
 
     if (check_format(format::b_fs_yx_fsv2) ||
         check_format(format::b_fs_yx_fsv4) ||

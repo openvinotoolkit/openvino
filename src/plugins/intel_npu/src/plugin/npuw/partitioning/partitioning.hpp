@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,14 @@
 #include <variant>
 #include <vector>
 
+#include "../attention.hpp"
+#include "../host_flash_attention.hpp"
 #include "../lazy_tensor.hpp"
+#include "../moe_transformations/moe_transformation.hpp"
+#include "../pyramid_attention.hpp"
 #include "../spatial.hpp"
 #include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "openvino/openvino.hpp"
 
 namespace ov {
@@ -32,7 +37,6 @@ struct Subgraph {
     bool _optimized_out = false;
 
     std::string _avoid_list;
-    std::string _tag;
 
     // Function calls only (note: all the above fields are not used)
     //
@@ -59,7 +63,29 @@ struct Subgraph {
     };
     Gather _host_gather;
 
+    struct QuantUnpackGather {
+        int64_t dst_idx = -1;
+
+        int64_t src_w_idx = -1;
+        int64_t src_z_idx = -1;
+        int64_t src_s_idx = -1;
+
+        int64_t idx_idx = -1;
+    };
+    QuantUnpackGather _quant_unpack_gather;
+
     using Ref = std::reference_wrapper<Subgraph>;
+
+    void settag(const std::string& t) {
+        LOG_DEBUG("Subgraph set-tag=" << t);
+        _tag = t;
+    }
+    std::string gettag() const {
+        return _tag;
+    }
+
+private:
+    std::string _tag;
 };
 
 struct Function {
@@ -67,16 +93,34 @@ struct Function {
     std::size_t _param_offset;
     std::size_t _num_params_total;
 
-    std::string _tag;  // derived from the partitioning
-
     // Mapping: from a prototype {Layer/input_idx} to {param_idx}
     // NOTE: it seems it is required only for `matchRepeatedSubgraphs()'
     std::map<std::pair<std::string, std::size_t>, std::size_t> _param_mapping;
 
     std::optional<ov::npuw::function::Spatial> _spatial;
-
+    // Single attention graph with dynamic shapes
+    std::optional<ov::npuw::function::Attention> _attention;
+    // Multiple attention graphs with different shapes
+    std::optional<ov::npuw::function::PyramidAttention> _pyramid_attention;
+    // Host Flash Attention
+    std::optional<ov::npuw::function::HostFlashAttention> _host_flash_attention;
+    // MoE expert information - single expert model
+    std::optional<ov::npuw::function::MoEExperts> _moe_experts;
+    std::optional<ov::npuw::function::MoEDownstream> _moe_experts_downstream;
+    // FIXME: They should exclude each other (introduce a hierarchy, finally?)
     // FIXME: shouldn't be here. Needed to not unpack some lazy closures in DCOFF
     std::set<std::size_t> _idx_lazy_unpack;
+
+    void settag(const std::string& t) {
+        LOG_DEBUG("Function set-tag=" << t);
+        _tag = t;
+    }
+    std::string gettag() const {
+        return _tag;
+    }
+
+private:
+    std::string _tag;  // derived from the partitioning
 };
 
 struct Group {
@@ -88,7 +132,6 @@ struct Group {
     float gflops;
 
     std::string avoid_list;
-    std::string tag;
 
     // Set to true if the Group was forcibly turned to functon. Such
     // function has just a single associated funcall and are subjects
@@ -96,6 +139,17 @@ struct Group {
     bool forced_to_fcall = false;
 
     ov::npuw::Subgraph sg;
+
+    void settag(const std::string& t) {
+        LOG_DEBUG("group set-tag=" << t);
+        _tag = t;
+    }
+    std::string gettag() const {
+        return _tag;
+    }
+
+private:
+    std::string _tag;
 };
 
 struct RepeatedBlock {
@@ -108,6 +162,7 @@ struct RepeatedBlock {
 
 struct Ensemble {
     float gflops;
+    bool irregular_io;
     std::vector<Group> groups;
 
     // Just a map as I don't expect 100s of _different_
@@ -136,7 +191,17 @@ struct Partitioning {
     float total_gflops = 0.f;
 };
 
-Partitioning getPartitioning(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& config);
+struct PartitioningContext {
+    bool use_host_gather_quant = false;
+
+    // Router model for MoE (shared during partitioning process)
+    // Will be populated during first pass and used in second pass
+    mutable std::shared_ptr<ov::Model> router_model;
+};
+
+Partitioning getPartitioning(const std::shared_ptr<ov::Model>& model,
+                             ::intel_npu::Config& config,
+                             const PartitioningContext& ctx = {});
 
 }  // namespace npuw
 }  // namespace ov

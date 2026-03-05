@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ void tensor_iterator(uint64_t num_iterations,
                 pointers_to_data[slice_desc->m_stride > 0 ? j : (pointers_to_data.size() - j - 1)] =
                     static_cast<char*>(sliced_values[slice_in_idx][j].data());
             }
-            reference::split(static_cast<char*>(args[slice_desc->m_input_index].data()),
+            reference::split(static_cast<const char*>(args[slice_desc->m_input_index].data()),
                              args[slice_desc->m_input_index].get_shape(),
                              el_size,
                              slice_desc->m_axis,

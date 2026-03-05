@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -10,7 +10,10 @@ from openvino import Type
 
 
 @pytest.mark.parametrize(
-    ("lhs", "rhs", "promote_unsafe", "pytorch_scalar_promotion", "u64_integer_promotion_target", "expected_output_type"),
+    (
+        "lhs", "rhs", "promote_unsafe", "pytorch_scalar_promotion",
+        "u64_integer_promotion_target", "expected_output_type"
+    ),
     [
         (([], np.float32), ([2], np.float16), False, False, "f32", Type.f32),
         (([], np.float32), ([2], np.float16), True, True, Type.f32, Type.f16),
@@ -18,11 +21,15 @@ from openvino import Type
         (([], np.uint64), ([2], np.int8), True, False, "f64", Type.f64),
     ],
 )
-def test_convert_promote_types_param_inputs(lhs, rhs, promote_unsafe, pytorch_scalar_promotion, u64_integer_promotion_target, expected_output_type):
+def test_convert_promote_types_param_inputs(
+    lhs, rhs, promote_unsafe, pytorch_scalar_promotion, u64_integer_promotion_target, expected_output_type
+):
     lhs_param = ops.parameter(*lhs)
     rhs_param = ops.parameter(*rhs)
 
-    op = ops.convert_promote_types(lhs_param, rhs_param, promote_unsafe, pytorch_scalar_promotion, u64_integer_promotion_target)
+    op = ops.convert_promote_types(
+        lhs_param, rhs_param, promote_unsafe, pytorch_scalar_promotion, u64_integer_promotion_target
+    )
     attrs = op.get_attributes()
     assert attrs.get("promote_unsafe") == promote_unsafe
     assert attrs.get("pytorch_scalar_promotion") == pytorch_scalar_promotion
@@ -38,7 +45,10 @@ def test_convert_promote_types_param_inputs(lhs, rhs, promote_unsafe, pytorch_sc
 
 
 @pytest.mark.parametrize(
-    ("lhs", "rhs", "promote_unsafe", "pytorch_scalar_promotion", "u64_integer_promotion_target", "expected_output_type"),
+    (
+        "lhs", "rhs", "promote_unsafe", "pytorch_scalar_promotion",
+        "u64_integer_promotion_target", "expected_output_type"
+    ),
     [
         ((1, np.float32), ([2], np.float16), False, False, "f32", Type.f32),
         ((1, np.float32), ([2], np.float16), True, True, "f32", Type.f16),
@@ -46,11 +56,15 @@ def test_convert_promote_types_param_inputs(lhs, rhs, promote_unsafe, pytorch_sc
         ((1, np.uint64), ([2], np.int8), True, False, Type.f64, Type.f64),
     ],
 )
-def test_convert_promote_types_const_inputs(lhs, rhs, promote_unsafe, pytorch_scalar_promotion, u64_integer_promotion_target, expected_output_type):
+def test_convert_promote_types_const_inputs(
+    lhs, rhs, promote_unsafe, pytorch_scalar_promotion, u64_integer_promotion_target, expected_output_type
+):
     lhs_param = ops.constant(*lhs)
     rhs_param = ops.constant(*rhs)
 
-    op = ops.convert_promote_types(lhs_param, rhs_param, promote_unsafe, pytorch_scalar_promotion, u64_integer_promotion_target)
+    op = ops.convert_promote_types(
+        lhs_param, rhs_param, promote_unsafe, pytorch_scalar_promotion, u64_integer_promotion_target
+    )
     attrs = op.get_attributes()
     assert attrs.get("promote_unsafe") == promote_unsafe
     assert attrs.get("pytorch_scalar_promotion") == pytorch_scalar_promotion

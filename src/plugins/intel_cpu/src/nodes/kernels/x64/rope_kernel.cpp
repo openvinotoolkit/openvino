@@ -1,8 +1,18 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "rope_kernel.hpp"
+
+#include <xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl::cpu::x64;
 
@@ -79,10 +89,16 @@ void jit_rotary_kernel<isa>::rotary_half(size_t step) {
     vfmsub231ps(vmm_dst0, vmm_cos, vmm_src0);
     store(reg_dst, vmm_dst0, m_jcp.dst_prc, step);
 
-    // cos[i + halfRotaryNdims]
-    load(vmm_cos, reg_cos, ov::element::f32, step, false, half_rotary_ndims * sizeof(float));
-    // sin[i + halfRotaryNdims]
-    load(vmm_sin, reg_sin, ov::element::f32, step, false, half_rotary_ndims * sizeof(float));
+    // cos[i + sin_cos_offset]
+    // if con/sin table is not same size with input, it is reused for both halves.
+    const bool shift_cos_sin = m_jcp.cos_sin_ndims != half_rotary_ndims;
+    if (shift_cos_sin) {
+        load(vmm_cos, reg_cos, ov::element::f32, step, false, half_rotary_ndims * sizeof(float));
+    }
+    // sin[i + sin_cos_offset]
+    if (shift_cos_sin) {
+        load(vmm_sin, reg_sin, ov::element::f32, step, false, half_rotary_ndims * sizeof(float));
+    }
     // cos[i + half_rotary_dims] * src1
     uni_vmulps(vmm_dst0, vmm_cos, vmm_src1);
     // cos[i + half_rotary_dims] * src1 + sin[i + half_rotary_dims] * src0
@@ -191,8 +207,14 @@ void jit_rotary_kernel<isa>::load(const Vmm& vmm_dst,
                                   size_t offset) {
     const auto seed = load_emitter_params(src_prc, ov::element::f32, elt_num, fill, "float_min").hash();
     if (!emitters[seed]) {
-        emitters[seed].reset(
-            new jit_load_emitter(this, isa, src_prc, ov::element::f32, elt_num, ov::element::f32, fill, "float_min"));
+        emitters[seed] = std::make_unique<jit_load_emitter>(this,
+                                                            isa,
+                                                            src_prc,
+                                                            ov::element::f32,
+                                                            elt_num,
+                                                            ov::element::f32,
+                                                            fill,
+                                                            "float_min");
     }
     emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), offset},
                               {static_cast<size_t>(vmm_dst.getIdx())},
@@ -208,7 +230,7 @@ void jit_rotary_kernel<isa>::store(const Xbyak::Reg64& reg_dst,
                                    size_t offset) {
     const auto seed = store_emitter_params(ov::element::f32, dst_prc, elt_num).hash();
     if (!emitters[seed]) {
-        emitters[seed].reset(new jit_store_emitter(this, isa, ov::element::f32, dst_prc, elt_num));
+        emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, ov::element::f32, dst_prc, elt_num);
     }
     emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())},
                               {static_cast<size_t>(reg_dst.getIdx()), offset},

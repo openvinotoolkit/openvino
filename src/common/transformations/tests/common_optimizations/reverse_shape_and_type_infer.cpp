@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,26 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset10.hpp"
-#include "openvino/opsets/opset12.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/deformable_convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/opsets/opset12_decl.hpp"
 
 using namespace testing;
 using namespace ov;
 
+namespace v12 = ov::op::v12;
 TEST_F(TransformationTestsF, ConvolutionReverseInfer) {
     {
         auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
@@ -231,7 +245,7 @@ TEST_F(TransformationTestsF, NegativePad12ReverseInfer) {
         auto pads_begin = opset10::Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
         auto pads_end = opset10::Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
         auto value = opset10::Constant::create(element::f32, Shape{}, {0});
-        auto pad = std::make_shared<ov::op::v12::Pad>(data, pads_begin, pads_end, value, op::PadMode::CONSTANT);
+        auto pad = std::make_shared<v12::Pad>(data, pads_begin, pads_end, value, op::PadMode::CONSTANT);
         auto result = std::make_shared<opset10::Result>(pad);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -241,7 +255,7 @@ TEST_F(TransformationTestsF, NegativePad12ReverseInfer) {
         auto pads_begin = opset10::Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
         auto pads_end = opset10::Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
         auto value = opset10::Constant::create(element::f32, Shape{}, {0});
-        auto pad = std::make_shared<ov::op::v12::Pad>(data, pads_begin, pads_end, value, op::PadMode::CONSTANT);
+        auto pad = std::make_shared<v12::Pad>(data, pads_begin, pads_end, value, op::PadMode::CONSTANT);
         auto result = std::make_shared<opset10::Result>(pad);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
     }

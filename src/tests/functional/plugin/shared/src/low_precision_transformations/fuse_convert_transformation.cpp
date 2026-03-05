@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,26 +17,16 @@
 namespace LayerTestsDefinitions {
 
 std::string FuseConvertTransformation::getTestCaseName(const testing::TestParamInfo<FuseConvertTransformationParams>& obj) {
-    std::string targetDevice;
-    ov::PartialShape shape;
-    ov::element::Type precision;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    ov::builder::subgraph::DequantizationOperations deqOperations;
-    bool constInput;
-    std::tie(precision, shape, targetDevice, deqOperations, constInput) = obj.param;
-
+    auto [precision, shape, device, deqOperations, constInput] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(precision, shape, targetDevice, params) <<
+    result << get_test_case_name_by_params(precision, shape, device) <<
            "_" << deqOperations << "_" << constInput;
     return result.str();
 }
 
 void FuseConvertTransformation::SetUp() {
-    ov::PartialShape shape;
-    ov::element::Type precision;
-    ov::builder::subgraph::DequantizationOperations deqOperations;
-    bool constInput;
-    std::tie(precision, shape, targetDevice, deqOperations, constInput) = this->GetParam();
+    auto [precision, shape, device, deqOperations, constInput] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(constInput ? std::vector<ov::PartialShape>{ shape } : std::vector<ov::PartialShape>{ shape, shape });
 

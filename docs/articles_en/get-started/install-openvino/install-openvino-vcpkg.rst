@@ -11,12 +11,19 @@ Install OpenVINO™ Runtime via vcpkg
    Note that the vcpkg distribution:
 
    * offers C/C++ API only
-   * does not offer support for NPU inference
    * is dedicated to users of all major OSes: Windows, Linux, and macOS
      (all x86_64 / arm64 architectures)
 
    Before installing OpenVINO, see the
    :doc:`System Requirements page <../../../about-openvino/release-notes-openvino/system-requirements>`.
+
+.. note::
+    This community-maintained distribution channel is provided to help users explore and evaluate OpenVINO.
+    
+    Please note that accuracy, performance, and behavior may differ from officially supported OpenVINO distributions, and are not guaranteed by the OpenVINO team in this channel. Due to the community-driven nature of this distribution channel, the OpenVINO team does not guarantee timely updates aligned with official releases, nor update availability for all OpenVINO versions.
+    
+    For production deployments and product integration, we recommend using officially supported distribution channels (for example, official S3 archives or PyPI packages), which provide validated builds and defined guarantees.
+
 
 Installing OpenVINO Runtime
 ###########################
@@ -71,7 +78,7 @@ To uninstall OpenVINO via vcpkg, use the following command:
 
 .. code-block:: sh
 
-   vcpkg uninstall openvino
+   vcpkg remove openvino
 
 
 What's Next?

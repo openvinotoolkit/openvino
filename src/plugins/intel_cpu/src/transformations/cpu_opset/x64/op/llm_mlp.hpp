@@ -1,10 +1,17 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <memory>
+#include <ostream>
+
+#include "openvino/core/attribute_adapter.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/rtti.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov {
@@ -16,7 +23,13 @@ public:
 
     LLMMLPNode() = default;
 
-    enum class ACT_FN { SILU = 0, GELU = 1 };
+    enum class ACT_FN : uint8_t { SILU = 0, GELU = 1 };
+
+    enum class GATE_UP_TYPE : uint8_t {
+        SEPARATE = 0,          // separate gate and up projections
+        COMBINED_GATE_UP = 1,  // combined weights, gate first (normal)
+        COMBINED_UP_GATE = 2   // combined weights, up first (swapped)
+    };
 
     struct Config {
         ACT_FN act;
@@ -24,7 +37,7 @@ public:
         bool down_quantized;
         int hidden_size;
         int up_size;
-        bool gate_up_combined;
+        GATE_UP_TYPE gate_up_type;
     };
 
     // args:
@@ -47,7 +60,7 @@ public:
     }
 
 private:
-    Config m_config;
+    Config m_config{};
 };
 
 }  // namespace intel_cpu
@@ -56,12 +69,23 @@ template <>
 class AttributeAdapter<ov::intel_cpu::LLMMLPNode::ACT_FN>
     : public EnumAttributeAdapterBase<ov::intel_cpu::LLMMLPNode::ACT_FN> {
 public:
-    AttributeAdapter(ov::intel_cpu::LLMMLPNode::ACT_FN& value)
+    explicit AttributeAdapter(ov::intel_cpu::LLMMLPNode::ACT_FN& value)
         : EnumAttributeAdapterBase<ov::intel_cpu::LLMMLPNode::ACT_FN>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::intel_cpu::LLMMLPNode::ACT_FN>");
 };
 
+template <>
+class AttributeAdapter<ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE>
+    : public EnumAttributeAdapterBase<ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE> {
+public:
+    explicit AttributeAdapter(ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE& value)
+        : EnumAttributeAdapterBase<ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE>");
+};
+
 std::ostream& operator<<(std::ostream& s, const ov::intel_cpu::LLMMLPNode::ACT_FN& type);
+std::ostream& operator<<(std::ostream& s, const ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE& type);
 
 }  // namespace ov

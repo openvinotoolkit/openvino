@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "index_loop_getitem_replacer.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
@@ -76,7 +77,7 @@ IndexLoopGetitemReplacer::IndexLoopGetitemReplacer() {
 
         auto param_targets = chunk_param->get_output_target_inputs(0);
         if (param_targets.size() != 1) {
-            add_exception_to_fw_node(chunk_op, "aten::chunk: targets more then one.");
+            add_exception_to_fw_node(chunk_op, "aten::chunk: targets more than one.");
             return false;
         }
 

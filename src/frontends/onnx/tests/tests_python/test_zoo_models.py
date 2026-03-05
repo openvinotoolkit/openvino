@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import tests
@@ -6,7 +6,8 @@ import logging
 import pprint
 from operator import itemgetter
 from pathlib import Path
-from typing import Sequence, Any
+from typing import Any
+from collections.abc import Sequence
 import numpy as np
 
 from tests.tests_python.utils import OpenVinoOnnxBackend
@@ -131,7 +132,7 @@ def tolerance_map_key_in_model_path(path):
     return None
 
 zoo_models = []
-# rglob doesn't work for symlinks, so models have to be physically somwhere inside "MODELS_ROOT_DIR"
+# rglob doesn't work for symlinks, so models have to be physically somewhere inside "MODELS_ROOT_DIR"
 for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
     mdir = path.parent
     file_name = path.name

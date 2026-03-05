@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/util/file_util.hpp"
 
-using namespace ov::util;
+namespace ov::test {
 
 TEST(CoreTests, Throw_on_register_plugin_twice) {
     ov::Core core;
@@ -29,8 +29,8 @@ TEST(CoreTests, Throw_on_register_plugin_twice) {
 TEST(CoreTests, Throw_on_register_plugins_twice) {
     ov::Core core;
 
-    auto get_plugin_xml = [&]() -> std::string {
-        std::string plugins_xml = "test_plugins.xml";
+    auto get_plugin_xml = [] {
+        std::filesystem::path plugins_xml = "test_plugins.xml";
         std::ofstream file(plugins_xml);
         file << "<ie><plugins><plugin location=\"libtest_plugin.so\" name=\"TEST_DEVICE\"></plugin></plugins></ie>";
         file.flush();
@@ -38,67 +38,71 @@ TEST(CoreTests, Throw_on_register_plugins_twice) {
         return plugins_xml;
     };
 
-    core.register_plugins(get_plugin_xml());
+    const auto plugins_xml_path = get_plugin_xml();
+    core.register_plugins(plugins_xml_path);
     OV_EXPECT_THROW(core.register_plugins(get_plugin_xml()),
                     ov::Exception,
                     ::testing::HasSubstr("Device with \"TEST_DEVICE\"  is already registered in the OpenVINO Runtime"));
+
+    if (ov::util::file_exists(plugins_xml_path)) {
+        std::ignore = std::filesystem::remove(plugins_xml_path);
+    }
 }
 
 TEST(CoreTests_get_plugin_path_from_xml, Use_abs_path_as_is) {
-    auto xml_path = "path_to_plugins.xml";
-    auto lib_path = ov::util::get_absolute_file_path("test_name.ext");  // CWD/test_name.ext
-    for (auto as_abs_only : std::vector<bool>{true, false}) {
-        auto abs_path = from_file_path(get_plugin_path(lib_path, xml_path, as_abs_only));
-        EXPECT_TRUE(is_absolute_file_path(abs_path));
-        EXPECT_STREQ(abs_path.c_str(), lib_path.c_str());
+    auto xml_path = std::filesystem::path("path_to_plugins.xml");
+    auto lib_path = std::filesystem::absolute("test_name.ext");  // CWD/test_name.ext
+    for (auto&& as_abs_only : {true, false}) {
+        const auto abs_path = ov::util::get_plugin_path(lib_path, xml_path, as_abs_only);
+        EXPECT_TRUE(abs_path.is_absolute());
+        EXPECT_EQ(abs_path, lib_path);
     }
 }
 
 TEST(CoreTests_get_plugin_path_from_xml, Convert_relative_path_as_relative_to_xmldir) {
-    auto xml_path = "path_to_plugins.xml";
-    auto lib_path = ov::util::make_path(std::string("."), std::string("test_name.ext"));  // ./test_name.ext
-    for (auto as_abs_only : std::vector<bool>{true, false}) {
-        auto abs_path = from_file_path(get_plugin_path(lib_path, xml_path, as_abs_only));  // XMLDIR/test_name.ext
-        EXPECT_TRUE(is_absolute_file_path(abs_path));
+    auto xml_path = std::filesystem::path("path_to_plugins.xml");
+    auto lib_path = std::filesystem::path(".") / "test_name.ext";  // ./test_name.ext
+    for (auto&& as_abs_only : {true, false}) {
+        const auto abs_path = ov::util::get_plugin_path(lib_path, xml_path, as_abs_only);
+        EXPECT_TRUE(abs_path.is_absolute());
 
-        auto ref_path = ov::util::get_absolute_file_path(lib_path);
-        EXPECT_STREQ(abs_path.c_str(), ref_path.c_str());  // XMLDIR/test_name.ext == CWD/test_name.ext
+        const auto ref_path = std::filesystem::absolute(std::filesystem::weakly_canonical(lib_path));
+        EXPECT_EQ(abs_path, ref_path);  // XMLDIR/test_name.ext == CWD/test_name.ext
     }
 }
 
 TEST(CoreTests_get_plugin_path_from_xml, Convert_filename_to_abs_path_if_as_abs_only) {
-    auto xml_path = "path_to_plugins.xml";
-    auto name = "test_name.ext";                                            // test_name.ext
-    auto abs_path = from_file_path(get_plugin_path(name, xml_path, true));  // XMLDIR/libtest_name.ext.so
-    EXPECT_TRUE(is_absolute_file_path(abs_path));
+    auto xml_path = std::filesystem::path("path_to_plugins.xml");
+    auto name = std::filesystem::path("test_name.ext");               // test_name.ext
+    auto abs_path = ov::util::get_plugin_path(name, xml_path, true);  // XMLDIR/libtest_name.ext.so
+    EXPECT_TRUE(abs_path.is_absolute());
 
-    auto lib_name = ov::util::make_plugin_library_name({}, std::string(name));
-    auto ref_path = ov::util::get_absolute_file_path(lib_name);
-    EXPECT_STREQ(abs_path.c_str(), ref_path.c_str());  // XMLDIR/libtest_name.ext.so == CWD/libtest_name.ext.so
+    auto lib_name = ov::util::make_plugin_library_name(name);
+    auto ref_path = std::filesystem::absolute(std::filesystem::weakly_canonical(lib_name));
+    EXPECT_EQ(abs_path, ref_path);  // XMLDIR/libtest_name.ext.so == CWD/libtest_name.ext.so
 }
 
 TEST(CoreTests_get_plugin_path_from_xml, Use_filename_if_not_as_abs_only) {
-    auto xml_path = "path_to_plugins.xml";
-    auto name = "test_name.ext";                                      // test_name.ext
-    auto lib_name = from_file_path(get_plugin_path(name, xml_path));  // libtest_name.ext.so
-    auto ref_name = ov::util::make_plugin_library_name({}, std::string(name));
-    EXPECT_STREQ(lib_name.c_str(), ref_name.c_str());
+    auto xml_path = std::filesystem::path("path_to_plugins.xml");
+    auto name = std::filesystem::path("test_name.ext");         // test_name.ext
+    auto lib_name = ov::util::get_plugin_path(name, xml_path);  // libtest_name.ext.so
+    auto ref_name = ov::util::make_plugin_library_name(name);
+    EXPECT_EQ(lib_name, ref_name);
 }
 
 TEST(CoreTests_get_plugin_path, Use_abs_path_as_is) {
-    auto lib_name = ov::util::make_plugin_library_name({}, std::string("test_name"));  // libtest_name.so
-    auto lib_path = ov::util::get_absolute_file_path(lib_name);
-    auto abs_path = from_file_path(get_plugin_path(lib_path));
-    EXPECT_TRUE(is_absolute_file_path(abs_path));
-    EXPECT_STREQ(abs_path.c_str(), lib_path.c_str());
+    auto lib_name = ov::util::make_plugin_library_name("test_name");  // libtest_name.so
+    auto lib_path = std::filesystem::absolute(std::filesystem::weakly_canonical("." / lib_name));
+    auto abs_path = ov::util::get_plugin_path(lib_path);
+    EXPECT_TRUE(abs_path.is_absolute());
+    EXPECT_EQ(abs_path, lib_path);
 }
 
 TEST(CoreTests_get_plugin_path, Relative_path_is_from_workdir) {
-    auto lib_name =
-        ov::util::make_plugin_library_name(std::string("."), std::string("test_name"));  // ./libtest_name.so
-    auto abs_path = from_file_path(get_plugin_path(lib_name));
-    EXPECT_TRUE(is_absolute_file_path(abs_path));
-    EXPECT_STREQ(abs_path.c_str(), get_absolute_file_path(lib_name).c_str());
+    auto lib_name = ov::util::make_plugin_library_name(".", "test_name");  // ./libtest_name.so
+    auto abs_path = ov::util::get_plugin_path(lib_name);
+    EXPECT_TRUE(abs_path.is_absolute());
+    EXPECT_EQ(abs_path, std::filesystem::absolute(std::filesystem::weakly_canonical(lib_name)));
 }
 
 class CoreTests_get_plugin_path_Class : public ::testing::Test {
@@ -111,26 +115,29 @@ public:
     }
 
     void TearDown() override {
-        std::remove(lib_path.c_str());
+        if (ov::util::file_exists(lib_path)) {
+            std::ignore = std::filesystem::remove(lib_path);
+        }
     }
 
-    std::string lib_name = ov::util::make_plugin_library_name({}, std::string("test_name"));  // libtest_name.so
-    std::string lib_path = ov::util::get_absolute_file_path(lib_name);                        // CWD/libtest_name.so
+    std::filesystem::path lib_name = ov::util::make_plugin_library_name("test_name");  // libtest_name.so
+    std::filesystem::path lib_path =
+        std::filesystem::absolute(std::filesystem::weakly_canonical(lib_name));  // /CWD/libtest_name.so
 };
 
 TEST_F(CoreTests_get_plugin_path_Class, Filename_is_from_workdir_if_exists) {
-    auto abs_path = from_file_path(get_plugin_path(lib_name));  // libtest_name.so -> CWD/libtest_name.so
-    EXPECT_TRUE(is_absolute_file_path(abs_path));
-    EXPECT_STREQ(abs_path.c_str(), get_absolute_file_path(lib_name).c_str());
+    auto abs_path = ov::util::get_plugin_path(lib_name);  // libtest_name.so -> CWD/libtest_name.so
+    EXPECT_TRUE(abs_path.is_absolute());
+    EXPECT_EQ(abs_path, std::filesystem::absolute(std::filesystem::weakly_canonical(lib_name)));
 }
 
 TEST(CoreTests_get_plugin_path, Use_filename_as_is_if_not_exist_in_workdir) {
     auto lib_name = "test_name.ext";
-    auto abs_path = from_file_path(get_plugin_path(lib_name));  // libtest_name.ext.so -> libtest_name.ext.so
-    EXPECT_FALSE(is_absolute_file_path(abs_path));
+    auto abs_path = ov::util::get_plugin_path(lib_name);  // test_name.ext -> libtest_name.ext.so
+    EXPECT_FALSE(abs_path.is_absolute());
 
-    auto ref_path = ov::util::make_plugin_library_name({}, std::string(lib_name));
-    EXPECT_STREQ(abs_path.c_str(), ref_path.c_str());
+    auto ref_path = ov::util::make_plugin_library_name(lib_name);
+    EXPECT_EQ(abs_path, ref_path);
 }
 
 TEST(CoreTests_check_device_name, is_config_applicable) {
@@ -247,9 +254,9 @@ TEST(CoreTests_parse_device_config, get_device_config) {
                                    const ov::AnyMap& config,
                                    const std::string& expected_device,
                                    const ov::AnyMap& expected_config) {
-        auto parsed = ov::parseDeviceNameIntoConfig(device, config);
-        ASSERT_EQ(parsed._deviceName, expected_device);
-        ASSERT_EQ(ov::Any(parsed._config).as<std::string>(), ov::Any(expected_config).as<std::string>());
+        auto parsed = ov::parse_device_name_into_config(device, config);
+        ASSERT_EQ(parsed.m_device_name, expected_device);
+        ASSERT_EQ(ov::Any(parsed.m_config).as<std::string>(), ov::Any(expected_config).as<std::string>());
     };
     // Single device
     check_parsed_config("DEVICE.0", ov::AnyMap{}, "DEVICE", ov::AnyMap{ov::device::id("0")});
@@ -306,7 +313,7 @@ TEST(CoreTests_parse_device_config, get_device_config) {
                         ov::AnyMap{ov::device::id("0.1"), ov::log::level(ov::log::Level::INFO)});
 
     // device ID mismatch
-    EXPECT_THROW(ov::parseDeviceNameIntoConfig("DEVICE.X", ov::AnyMap{ov::device::id("Y")}), ov::Exception);
+    EXPECT_THROW(ov::parse_device_name_into_config("DEVICE.X", ov::AnyMap{ov::device::id("Y")}), ov::Exception);
 
     // HETERO
     check_parsed_config("HETERO:DEVICE", ov::AnyMap{}, "HETERO", ov::AnyMap{ov::device::priorities("DEVICE")});
@@ -342,8 +349,9 @@ TEST(CoreTests_parse_device_config, get_device_config) {
         ov::AnyMap{ov::device::priorities("DEVICE"),
                    ov::device::properties(ov::AnyMap{{"DEVICE", ov::AnyMap{ov::log::level(ov::log::Level::ERR)}}})});
     // device priorities mismatch
-    EXPECT_THROW(ov::parseDeviceNameIntoConfig("HETERO:DEVICE", ov::AnyMap{ov::device::priorities("ANOTHER_DEVICE")}),
-                 ov::Exception);
+    EXPECT_THROW(
+        ov::parse_device_name_into_config("HETERO:DEVICE", ov::AnyMap{ov::device::priorities("ANOTHER_DEVICE")}),
+        ov::Exception);
 
     // MULTI
     check_parsed_config("MULTI:DEVICE", ov::AnyMap{}, "MULTI", ov::AnyMap{ov::device::priorities("DEVICE")});
@@ -427,9 +435,9 @@ TEST(CoreTests_parse_device_config, get_device_config) {
                    ov::device::properties(ov::AnyMap{{"MULTI", ov::AnyMap{ov::device::priorities("DEVICE")}}})});
 
     // invalid device name with characters after parenthesis except comma
-    EXPECT_THROW(ov::parseDeviceNameIntoConfig("DEVICE(0)ov", ov::AnyMap{}), ov::Exception);
-    EXPECT_THROW(ov::parseDeviceNameIntoConfig("MULTI:DEVICE(0)ov,DEVICE(1)", ov::AnyMap{}), ov::Exception);
-    EXPECT_THROW(ov::parseDeviceNameIntoConfig("MULTI:DEVICE(0),DEVICE(1),", ov::AnyMap{}), ov::Exception);
+    EXPECT_THROW(ov::parse_device_name_into_config("DEVICE(0)ov", ov::AnyMap{}), ov::Exception);
+    EXPECT_THROW(ov::parse_device_name_into_config("MULTI:DEVICE(0)ov,DEVICE(1)", ov::AnyMap{}), ov::Exception);
+    EXPECT_THROW(ov::parse_device_name_into_config("MULTI:DEVICE(0),DEVICE(1),", ov::AnyMap{}), ov::Exception);
 }
 
 TEST(CoreTests_parse_device_config, get_batch_device_name) {
@@ -485,3 +493,4 @@ TEST_F(ApplyAutoBatchThreading, ApplyAutoBatch) {
         core.apply_auto_batching(model, device, config);
     });
 }
+}  // namespace ov::test

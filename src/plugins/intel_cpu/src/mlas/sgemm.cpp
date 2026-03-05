@@ -1,13 +1,12 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "sgemm.hpp"
 
-#include <string>
-#include <vector>
+#include <cstddef>
+#include <cstdint>
 
 #include "mlas.h"
-#include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "thread_pool.hpp"
 

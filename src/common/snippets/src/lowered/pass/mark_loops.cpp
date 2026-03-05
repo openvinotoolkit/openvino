@@ -1,18 +1,27 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "snippets/lowered/pass/mark_loops.hpp"
 
+#include <cstddef>
+#include <iterator>
+#include <memory>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/snippets_isa.hpp"
-#include "snippets/itt.hpp"
+#include "snippets/lowered/pass/pass.hpp"
+#include "snippets/op/rank_normalization.hpp"
+#include "snippets/op/reshape.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 MarkLoops::MarkLoops(size_t vector_size) : RangedPass(), m_vector_size(vector_size) {}
 
@@ -24,11 +33,11 @@ bool MarkLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
 
     // Parameters, Results or Constants are ignored. They can't be in Loops
     auto is_loop_outside_op = [](const std::shared_ptr<ov::Node>& node) {
-        return ov::is_type<ov::op::v0::Result>(node) ||
-               ov::is_type<ov::op::v0::Constant>(node) ||
-               ov::is_type<ov::op::v0::Parameter>(node) ||
-               ov::is_type<op::RankNormalization>(node) ||
-               ov::is_type<op::Reshape>(node);
+        return ov::is_type_any_of<ov::op::v0::Result,
+                                  ov::op::v0::Constant,
+                                  ov::op::v0::Parameter,
+                                  op::RankNormalization,
+                                  op::Reshape>(node);
     };
 
     auto are_conflicted = [](const ExpressionPort& lhs, const ExpressionPort& rhs) {
@@ -41,24 +50,27 @@ bool MarkLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto expr = *expr_it;
         const auto& node = expr->get_node();
-        if (is_loop_outside_op(node))
+        if (is_loop_outside_op(node)) {
             continue;
+        }
 
         auto loop_begin_pos = expr_it;
         auto loop_end_pos = loop_begin_pos;
 
         bool collapse = true;
-        do {
+        while (collapse) {
             const auto& prev_expr = *loop_end_pos;
             loop_end_pos++;
             // If iterator is the last, we should finish Loop
-            if (loop_end_pos == end)
+            if (loop_end_pos == end) {
                 break;
+            }
 
             // If iterator is the last, we should finish Loop
             const auto& current_expr = *loop_end_pos;
-            if (is_loop_outside_op(current_expr->get_node()))
+            if (is_loop_outside_op(current_expr->get_node())) {
                 break;
+            }
 
             // We finish Loop if
             //  - the next expr isn't real consumer
@@ -77,7 +89,7 @@ bool MarkLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                 }
             }
             collapse = is_connected && !is_conflicted;
-        } while (collapse);
+        }
 
         loop_manager->mark_loop(loop_begin_pos, loop_end_pos, loop_depth, m_vector_size);
         expr_it = std::prev(loop_end_pos);
@@ -86,7 +98,4 @@ bool MarkLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
     return true;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

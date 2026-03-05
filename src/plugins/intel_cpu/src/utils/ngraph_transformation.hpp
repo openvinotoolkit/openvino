@@ -1,7 +1,17 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+#include <bitset>
+#include <filesystem>
+#include <functional>
+#include <memory>
+#include <string>
+#include <type_traits>
+#include <unordered_map>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
 #ifdef CPU_DEBUG_CAPS
 
 #    include <openvino/pass/manager.hpp>
@@ -10,9 +20,9 @@
 
 #    include "debug_caps_config.h"
 #    include "openvino/util/file_util.hpp"
+#    include "utils/platform.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class TransformationDumper {
 public:
@@ -24,12 +34,15 @@ public:
           type(type) {
         for (auto prev = infoMap.at(type).prev; prev != TransformationType::NumOfTypes; prev = infoMap.at(prev).prev) {
             // no need to serialize input graph if there was no transformations from previous dump
-            if (config.disable.transformations.filter[prev])
+            if (config.disable.transformations.filter[prev]) {
                 continue;
-            if (!config.dumpIR.transformations.filter[prev])
+            }
+            if (!config.dumpIR.transformations.filter[prev]) {
                 break;
-            if (wasDumped()[prev])
+            }
+            if (wasDumped()[prev]) {
                 return;
+            }
         }
         dump("_in");
     }
@@ -48,45 +61,48 @@ private:
         std::string name;
         TransformationType prev;
     };
-    // std::hash<std::underlying_type<FILTER>::type> is necessary for Ubuntu-16.04 (gcc-5.4 and defect in C++11
-    // standart)
-    const std::
-        unordered_map<TransformationType, TransformationInfo, std::hash<std::underlying_type<TransformationType>::type>>
-            infoMap = {{TransformationType::PreLpt, {"preLpt", TransformationType::NumOfTypes}},
-                       {TransformationType::Lpt, {"lpt", TransformationType::PreLpt}},
-                       {TransformationType::PostLpt, {"postLpt", TransformationType::Lpt}},
-                       {TransformationType::Snippets, {"snippets", TransformationType::PostLpt}},
-                       {TransformationType::Specific, {"cpuSpecific", TransformationType::Snippets}}};
-    std::bitset<TransformationType::NumOfTypes>& wasDumped(void) {
+    const std::unordered_map<TransformationType, TransformationInfo> infoMap = {
+        {TransformationType::PreLpt, {"preLpt", TransformationType::NumOfTypes}},
+        {TransformationType::Lpt, {"lpt", TransformationType::PreLpt}},
+        {TransformationType::PostLpt, {"postLpt", TransformationType::Lpt}},
+        {TransformationType::Snippets, {"snippets", TransformationType::PostLpt}},
+        {TransformationType::Specific, {"cpuSpecific", TransformationType::Snippets}}};
+    static std::bitset<TransformationType::NumOfTypes>& wasDumped() {
         static std::bitset<TransformationType::NumOfTypes> wasDumped;
         return wasDumped;
     }
     void dump(const std::string&& postfix) {
         static int num = 0;  // just to keep dumped IRs ordered in filesystem
-        const auto pathAndName =
-            config.dumpIR.dir + "/ir_" + std::to_string(num) + '_' + infoMap.at(type).name + postfix;
+        const std::filesystem::path dumpDir{config.dumpIR.dir};
+        const auto pathAndName = dumpDir / ("ir_" + std::to_string(num) + '_' + infoMap.at(type).name + postfix);
 
-        ov::util::create_directory_recursive(config.dumpIR.dir);
+        ov::util::create_directory_recursive(dumpDir);
 
         ov::pass::Manager serializer;
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::XmlBin]) {
-            serializer.register_pass<ov::pass::Serialize>(pathAndName + ".xml", "");
+            auto xmlPath = pathAndName;
+            xmlPath.replace_extension(".xml");
+            serializer.register_pass<ov::pass::Serialize>(xmlPath, std::filesystem::path{});
         }
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::Xml]) {
-            std::string xmlFile(pathAndName + ".xml");
-            std::string binFile("/dev/null");  // @todo make it crossplatform using dummy implementation of std::ostream
+            auto xmlFile = pathAndName;
+            xmlFile.replace_extension(".xml");
 
-            serializer.register_pass<ov::pass::Serialize>(xmlFile, binFile);
+            serializer.register_pass<ov::pass::Serialize>(xmlFile, std::filesystem::path{NULL_STREAM});
         }
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::Svg]) {
-            serializer.register_pass<ov::pass::VisualizeTree>(pathAndName + ".svg");
+            auto svgFile = pathAndName;
+            svgFile.replace_extension(".svg");
+            serializer.register_pass<ov::pass::VisualizeTree>(svgFile);
         }
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::Dot]) {
-            serializer.register_pass<ov::pass::VisualizeTree>(pathAndName + ".dot");
+            auto dotFile = pathAndName;
+            dotFile.replace_extension(".dot");
+            serializer.register_pass<ov::pass::VisualizeTree>(dotFile);
         }
 
         serializer.run_passes(model);
@@ -94,8 +110,7 @@ private:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 // 'EXPAND' wrapper is necessary to ensure __VA_ARGS__ behaves the same on all the platforms
 #    define CPU_DEBUG_CAP_EXPAND(x) x
@@ -103,18 +118,18 @@ private:
         _config.disable.transformations.filter[DebugCapsConfig::TransformationFilter::Type::_type]
 #    define CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(...) \
         CPU_DEBUG_CAP_EXPAND(!CPU_DEBUG_CAP_IS_TRANSFORMATION_DISABLED(__VA_ARGS__))
-#    define CPU_DEBUG_CAP_TRANSFORMATION_DUMP(_this, _type)                                                           \
-        OPENVINO_ASSERT(CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(_this->config.debugCaps, _type));                     \
-        auto dumperPtr =                                                                                              \
-            _this->config.debugCaps.dumpIR.transformations.filter[DebugCapsConfig::TransformationFilter::Type::_type] \
-                ? std::unique_ptr<TransformationDumper>(                                                              \
-                      new TransformationDumper(_this->config.debugCaps,                                               \
-                                               DebugCapsConfig::TransformationFilter::Type::_type,                    \
-                                               _this->model))                                                         \
-                : nullptr
-#    define CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(_this, _type)                          \
-        if (CPU_DEBUG_CAP_IS_TRANSFORMATION_DISABLED(_this->config.debugCaps, _type)) \
-            return;                                                                   \
+#    define CPU_DEBUG_CAP_TRANSFORMATION_DUMP(_this, _type)                                                     \
+        OPENVINO_ASSERT(CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED((_this)->config.debugCaps, _type));             \
+        auto dumperPtr = (_this)->config.debugCaps.dumpIR.transformations                                       \
+                                 .filter[DebugCapsConfig::TransformationFilter::Type::_type]                    \
+                             ? std::unique_ptr<TransformationDumper>(                                           \
+                                   new TransformationDumper((_this)->config.debugCaps,                          \
+                                                            DebugCapsConfig::TransformationFilter::Type::_type, \
+                                                            (_this)->model))                                    \
+                             : nullptr
+#    define CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(_this, _type)                            \
+        if (CPU_DEBUG_CAP_IS_TRANSFORMATION_DISABLED((_this)->config.debugCaps, _type)) \
+            return;                                                                     \
         CPU_DEBUG_CAP_TRANSFORMATION_DUMP(_this, _type)
 #else
 #    define CPU_DEBUG_CAP_IS_TRANSFORMATION_DISABLED(_config, _type) false

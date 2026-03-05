@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,4 +80,10 @@ bool FusedNames::visit_attributes(AttributeVisitor& visitor) {
 
 std::string FusedNames::to_string() const {
     return getNames();
+}
+
+bool FusedNames::is_deterministic() const {
+    // the names stored by this attribute can be auto generated which are not deterministic
+    // and should not impact on cache hash
+    return false;
 }

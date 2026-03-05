@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,10 +85,6 @@ void Any::Base::read_to(Base& other) const {
     }
 }
 
-bool Any::Base::is_base_type_info(const std::type_info& user_type) const {
-    return contains_type_index(base_type_info(), user_type);
-}
-
 bool Any::Base::is_signed_integral() const {
     return std::is_signed<char>::value ? contains_type_index(std::initializer_list<std::type_index>{typeid(char),
                                                                                                     typeid(signed char),
@@ -157,6 +153,8 @@ void Any::impl_check() const {
 
 const std::type_info& Any::type_info() const {
     impl_check();
+    // `impl_check' asserts valid deference
+    // coverity[dereference:FALSE]
     return _impl->type_info();
 }
 

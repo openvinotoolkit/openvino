@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,19 +33,19 @@ DeviceFeaturesKey ConcatenationKernel_fs_b_yx_fsv32::get_required_device_feature
 
 bool ConcatenationKernel_fs_b_yx_fsv32::Validate(const Params& p) const {
     if (!ConcatenationKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const concatenation_params& params = static_cast<const concatenation_params&>(p);
 
     if (params.axis != ConcatAxis::FEATURE)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // all inputs have to have same layout
     auto same_layout = params.inputs[0].GetLayout();
     for (const auto& lt : params.inputs) {
         if (lt.GetLayout() != same_layout) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 

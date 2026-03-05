@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #ifndef OV_OP
-#warning "OV_OP not defined"
-#define OV_OP(x, y)
+#    warning "OV_OP not defined"
+#    define OV_OP(x, y)
 #endif
 
 // SnippetS dialect
@@ -18,6 +18,7 @@ OV_OP(Brgemm, ov::snippets::op)
 OV_OP(BroadcastLoad, ov::snippets::op)
 OV_OP(Reshape, ov::snippets::op)
 OV_OP(Reorder, ov::snippets::op)
+OV_OP(Result, ov::snippets::op)
 
 OV_OP(Store, ov::snippets::op)
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,10 +15,7 @@
 namespace LayerTestsDefinitions {
 
 std::string TransposeTransformation::getTestCaseName(const testing::TestParamInfo<TransposeTransformationParams>& obj) {
-    ov::element::Type precision;
-    std::string targetDevice;
-    TransposeTransformationTestValues testValues;
-    std::tie(precision, targetDevice, testValues) = obj.param;
+    const auto& [precision, targetDevice, testValues] = obj.param;
 
     std::ostringstream result;
     result <<
@@ -30,9 +27,8 @@ std::string TransposeTransformation::getTestCaseName(const testing::TestParamInf
 }
 
 void TransposeTransformation::SetUp() {
-    ov::element::Type precision;
-    TransposeTransformationTestValues testValues;
-    std::tie(precision, targetDevice, testValues) = this->GetParam();
+    const auto& [precision, _targetDevice, testValues] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(testValues.inputShape);
 

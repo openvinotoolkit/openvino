@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
@@ -28,7 +30,7 @@ const std::string& get_pytorch_prefix();
 /// \param COND Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
-///            i.e., only if the `cond` evalutes to `false`.
+///            i.e., only if the `cond` evaluates to `false`.
 /// \throws ::ov::frontend::OpConversionFailure if `cond` is false.
 #ifndef PYTORCH_OP_CONVERSION_CHECK
 #    define PYTORCH_OP_CONVERSION_CHECK(COND, ...) \
@@ -64,6 +66,7 @@ std::shared_ptr<Node> numel(const NodeContext& context,
                             element::Type output_type = element::i32);
 
 element::Type convert_dtype(int64_t dtype_value);
+bool is_complex_dtype(int64_t pt_type);
 
 Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor);
 
@@ -82,8 +85,12 @@ OutputVector make_framework_node(const NodeContext& context, const std::string& 
 std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
 std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node,
                                                       std::initializer_list<std::string> types);
+std::function<bool(const ov::Output<ov::Node>&)> fw_node_predicate(const std::initializer_list<std::string>& types);
 
-std::shared_ptr<Node> make_list_construct(const ov::OutputVector& inputs);
+/// \brief Creates a SequenceMark representing a list/tuple construct.
+/// \param inputs Collection of inputs for the sequence.
+/// \return SequenceMark node representing the sequence.
+std::shared_ptr<SequenceMark> make_list_construct(const ov::OutputVector& inputs);
 
 bool is_none_node(const Output<Node>& node);
 
@@ -138,6 +145,31 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
 
 Output<Node> get_complex_shape(const NodeContext& context, const Output<Node>& complex_input);
 
+/// \brief Unwraps ComplexTypeMark node if present.
+/// \param input Input node to check.
+/// \return Pair of {underlying_data, complex_node_or_nullptr}.
+/// If input is ComplexTypeMark, returns its underlying data and the ComplexTypeMark node.
+/// Otherwise returns input as-is and nullptr.
+std::pair<Output<Node>, std::shared_ptr<ComplexTypeMark>> unwrap_complex(const Output<Node>& input);
+
+/// \brief Wraps result in ComplexTypeMark if complex is not nullptr.
+/// \param context Node context for marking nodes.
+/// \param result Result to wrap.
+/// \param complex ComplexTypeMark node to get type from, or nullptr to skip wrapping.
+/// \return Wrapped result if complex is not nullptr, otherwise result as-is.
+Output<Node> wrap_complex(const NodeContext& context,
+                          const Output<Node>& result,
+                          const std::shared_ptr<ComplexTypeMark>& complex);
+
+/// \brief Wraps multiple results in ComplexTypeMark if complex is not nullptr.
+/// \param context Node context for marking nodes.
+/// \param results Results to wrap.
+/// \param complex ComplexTypeMark node to get type from, or nullptr to skip wrapping.
+/// \return Wrapped results if complex is not nullptr, otherwise results as-is.
+OutputVector wrap_complex(const NodeContext& context,
+                          const OutputVector& results,
+                          const std::shared_ptr<ComplexTypeMark>& complex);
+
 namespace op {
 template <OutputVector (*T)(const NodeContext&), size_t idx = 0>
 OutputVector inplace_op(const NodeContext& context) {
@@ -161,7 +193,7 @@ OutputVector optional_out(const NodeContext& context) {
 
 template <typename T>
 OutputVector translate_1to1_match_1_inputs(const NodeContext& context) {
-    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
+    num_inputs_check(context, 1, context.get_input_size());
     auto res = context.mark_node(std::make_shared<T>(context.get_input(0)));
     auto out_type = context.get_output_type(0);
     if (out_type.is<element::Type>()) {
@@ -175,7 +207,7 @@ OutputVector translate_1to1_match_1_inputs(const NodeContext& context) {
 
 template <typename T>
 OutputVector translate_1to1_match_1_inputs_with_fp32_type_alignment(const NodeContext& context) {
-    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
+    num_inputs_check(context, 1, context.get_input_size());
     auto x = get_input_with_floating_type(context, 0);
     return {context.mark_node(std::make_shared<T>(x))};
 }
@@ -324,6 +356,12 @@ public:
     }
     virtual std::unordered_map<std::string, ov::Any> get_rt_info() const override {
         FRONT_END_NOT_IMPLEMENTED(get_rt_info);
+    }
+    virtual bool has_converter() const override {
+        FRONT_END_NOT_IMPLEMENTED(has_converter);
+    }
+    virtual OutputVector convert(const ov::frontend::NodeContext* context) const override {
+        FRONT_END_NOT_IMPLEMENTED(convert);
     }
 
 private:

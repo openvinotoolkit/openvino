@@ -1,10 +1,13 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cstdint>
+#include <memory>
 #include <optional>
+#include <vector>
 
 #include "openvino/core/core.hpp"
 #include "openvino/core/node.hpp"

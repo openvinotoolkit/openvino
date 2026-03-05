@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_test_utils/common_utils.hpp"
 
+#include <thread>
+
 #include "gtest/gtest.h"
 #include "openvino/core/except.hpp"
-#include "precomp.hpp"
 
 #ifdef _WIN32
 #    ifndef NOMINMAX

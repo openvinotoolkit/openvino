@@ -1,23 +1,24 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
 #include "openvino/opsets/opset10.hpp"
-#include "snippets/snippets_isa.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"
+#include "snippets/lowered/pass/insert_buffers.hpp"
 #include "snippets/lowered/pass/insert_load_store.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
-#include "snippets/lowered/pass/split_loops.hpp"
-#include "snippets/lowered/pass/insert_buffers.hpp"
-#include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
-#include "snippets/lowered/pass/validate_unified_loops.hpp"
-#include "snippets/lowered/pass/validate_expanded_loops.hpp"
 #include "snippets/lowered/pass/normalize_loop_ids.hpp"
+#include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
+#include "snippets/lowered/pass/split_loops.hpp"
+#include "snippets/lowered/pass/validate_expanded_loops.hpp"
+#include "snippets/lowered/pass/validate_unified_loops.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
 using Snippets_TailProcessingTransformation = ::testing::Test;
@@ -39,21 +40,21 @@ static void init_linear_ir(const std::vector<ov::Shape>& in_shapes, LinearIR& li
     const auto param2 = linear_ir.push_node<ov::opset10::Parameter>(input_precision, in_shapes[2]);
     const auto matmul = linear_ir.push_node<ov::snippets::op::Brgemm>(param0.second, param1.second);
     const auto add = linear_ir.push_node<ov::opset10::Add>(matmul.second, param2.second);
-    const auto result = linear_ir.push_node<ov::opset10::Result>(add.second);
+    const auto result = linear_ir.push_node<ov::snippets::op::Result>(add.second);
 
     const auto loop_manager = linear_ir.get_loop_manager();
     linear_ir.get_loop_manager()->mark_loop(matmul.first, add.first, in_shapes[0].front(), block_size,
                                             std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*matmul.first)->get_input_port(0), 1),
                                                                   LoopPort::create<PortType::NotProcessed>((*matmul.first)->get_input_port(1))},
                                             std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*matmul.first)->get_output_port(0), 1)});
-    linear_ir.get_loop_manager()->mark_loop(add.first, result.first, in_shapes[2].back(), vector_size, 0,
-                                            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0)),
-                                                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1))},
-                                            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0))});
-    linear_ir.get_loop_manager()->mark_loop(add.first, result.first, in_shapes[2].front(), 1, 1,
-                                            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0)),
-                                                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1))},
-                                            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0))});
+    linear_ir.get_loop_manager()->mark_loop(add.first, result.first, in_shapes[2].back(), vector_size,
+                                            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 0),
+                                                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 0)},
+                                            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 0)});
+    linear_ir.get_loop_manager()->mark_loop(add.first, result.first, in_shapes[2].front(), 1,
+                                            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 1),
+                                                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 1)},
+                                            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 1)});
 }
 
 static void apply_transformations(LinearIR& linear_ir, const std::shared_ptr<ov::snippets::lowered::pass::PassConfig>& config) {
@@ -155,8 +156,12 @@ TEST(Snippets_TailProcessingTransformation, BlockedTail_OriginalPtrShifts) {
     reference[2] = { std::vector<int64_t>(3, 20), std::vector<int64_t>(3, -80)}; // Inner Vector Blocked
     reference[3] = { {16, 0, 20, 20}, std::vector<int64_t>(4, 0)}; // Outer Vector Blocked
 
-    reference[4] = { std::vector<int64_t>(3, 20), std::vector<int64_t>(3, -40)}; // Inner Tail Blocked
-    reference[5] = { std::vector<int64_t>(4, 0), {-192, 0, -240, -240}}; // Outer Tail Blocked
+    // Inner cloned in outer blocked loop
+    reference[4] = reference[0];
+    reference[5] = reference[1];
+
+    reference[6] = { std::vector<int64_t>(3, 20), std::vector<int64_t>(3, -40)}; // Inner Tail Blocked
+    reference[7] = { std::vector<int64_t>(4, 0), {-192, 0, -240, -240}}; // Outer Tail Blocked
 
     validate(linear_ir, reference);
 }
@@ -178,8 +183,12 @@ TEST(Snippets_TailProcessingTransformation, BlockedTail_CleanUpPtrShifts) {
     reference[2] = { std::vector<int64_t>(3, 0), {0, -80, 0}}; // Inner Vector Blocked (-80 - finalization offset for Buffer ptr)
     reference[3] = { {16, 0, 0, 0}, std::vector<int64_t>(4, 0)}; // Outer Vector Blocked
 
-    reference[4] = { std::vector<int64_t>(3, 0), {0, -40, 0}}; // Inner Tail Blocked (-40 - finalization offset for Buffer ptr)
-    reference[5] = { std::vector<int64_t>(4, 0), {32, 0, 0, 0}}; // Outer Tail Blocked
+    // Inner cloned in outer blocked loop
+    reference[4] = reference[0];
+    reference[5] = reference[1];
+
+    reference[6] = { std::vector<int64_t>(3, 0), {0, -40, 0}}; // Inner Tail Blocked (-40 - finalization offset for Buffer ptr)
+    reference[7] = { std::vector<int64_t>(4, 0), {32, 0, 0, 0}}; // Outer Tail Blocked
 
     validate(linear_ir, reference);
 }

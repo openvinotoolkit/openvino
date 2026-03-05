@@ -1,7 +1,9 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "cpu_types.h"
+#include "node.h"
 #include "nodes/adaptive_pooling.h"
 #include "nodes/batch_to_space.h"
 #include "nodes/bin_conv.h"
@@ -34,21 +36,20 @@
 #include "nodes/experimental_detectron_topkrois.h"
 #include "nodes/extract_image_patches.h"
 #include "nodes/eye.h"
-#include "nodes/fake_quantize.h"
 #include "nodes/fullyconnected.h"
 #include "nodes/gather.h"
 #include "nodes/gather_elements.h"
 #include "nodes/gather_nd.h"
 #include "nodes/gather_tree.h"
+#include "nodes/gathermatmul.h"
 #include "nodes/generate_proposals.h"
-#include "nodes/grid_sample.hpp"
 #include "nodes/grn.h"
+#include "nodes/identity.hpp"
 #include "nodes/if.h"
 #include "nodes/input.h"
-#include "nodes/interaction.h"
 #include "nodes/interpolate.h"
 #include "nodes/inverse.hpp"
-#include "nodes/llm_mlp.h"
+#include "nodes/istft.h"
 #include "nodes/log_softmax.h"
 #include "nodes/lora.h"
 #include "nodes/lrn.h"
@@ -56,7 +57,6 @@
 #include "nodes/matmul.h"
 #include "nodes/matrix_nms.h"
 #include "nodes/memory.hpp"
-#include "nodes/mha.h"
 #include "nodes/multiclass_nms.hpp"
 #include "nodes/multinomial.hpp"
 #include "nodes/mvn.h"
@@ -66,24 +66,20 @@
 #include "nodes/normalize.h"
 #include "nodes/one_hot.h"
 #include "nodes/pad.h"
-#include "nodes/paged_attn.h"
 #include "nodes/pooling.h"
 #include "nodes/priorbox.h"
 #include "nodes/priorbox_clustered.h"
 #include "nodes/proposal.h"
 #include "nodes/psroi_pooling.h"
-#include "nodes/qkv_proj.h"
 #include "nodes/random_uniform.hpp"
 #include "nodes/range.h"
 #include "nodes/rdft.h"
 #include "nodes/reduce.h"
-#include "nodes/reference.h"
 #include "nodes/region_yolo.h"
 #include "nodes/reorder.h"
 #include "nodes/reorg_yolo.h"
 #include "nodes/reshape.h"
 #include "nodes/reverse_sequence.h"
-#include "nodes/rms_norm.h"
 #include "nodes/rnn.h"
 #include "nodes/roi_align.h"
 #include "nodes/roi_align_rotated.h"
@@ -93,11 +89,13 @@
 #include "nodes/scaled_attn.h"
 #include "nodes/scatter_update.h"
 #include "nodes/search_sorted.h"
+#include "nodes/segment_max.h"
 #include "nodes/shapeof.h"
 #include "nodes/shuffle_channels.h"
 #include "nodes/softmax.h"
 #include "nodes/space_to_batch.h"
 #include "nodes/space_to_depth.h"
+#include "nodes/sparse_fill_empty_rows.h"
 #include "nodes/split.h"
 #include "nodes/stft.h"
 #include "nodes/strided_slice.h"
@@ -109,6 +107,23 @@
 #include "nodes/topk.h"
 #include "nodes/transpose.h"
 #include "nodes/unique.hpp"
+#include "openvino/cc/factory.h"
+#include "selective_build.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "nodes/fake_quantize.h"
+#    include "nodes/grid_sample.hpp"
+#    include "nodes/interaction.h"
+#    include "nodes/llm_mlp.h"
+#    include "nodes/paged_attn.h"
+#    include "nodes/qkv_proj.h"
+#    include "nodes/rms_norm.h"
+#endif
+
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "nodes/fake_quantize.h"
+#    include "nodes/paged_attn.h"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -124,6 +139,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(BatchToSpace, Type::BatchToSpace);
     INTEL_CPU_NODE(DepthToSpace, Type::DepthToSpace);
     INTEL_CPU_NODE(SpaceToDepth, Type::SpaceToDepth);
+    INTEL_CPU_NODE(SparseFillEmptyRows, Type::SparseFillEmptyRows);
     INTEL_CPU_NODE(If, Type::If);
     INTEL_CPU_NODE(Broadcast, Type::Broadcast);
     INTEL_CPU_NODE(ExperimentalDetectronTopKROIs, Type::ExperimentalDetectronTopKROIs);
@@ -201,6 +217,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Ngram, Type::Ngram);
     INTEL_CPU_NODE(RoPE, Type::RoPE);
     INTEL_CPU_NODE(CausalMaskPreprocess, Type::CausalMaskPreprocess);
+    INTEL_CPU_NODE(Identity, Type::Identity);
     INTEL_CPU_NODE(Interpolate, Type::Interpolate);
     INTEL_CPU_NODE(Inverse, Type::Inverse);
     INTEL_CPU_NODE(RandomUniform, Type::RandomUniform);
@@ -216,22 +233,25 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(DFT, Type::DFT);
     INTEL_CPU_NODE(RDFT, Type::RDFT);
     INTEL_CPU_NODE(STFT, Type::STFT);
+    INTEL_CPU_NODE(ISTFT, Type::ISTFT);
     INTEL_CPU_NODE(ExtractImagePatches, Type::ExtractImagePatches);
     INTEL_CPU_NODE(Subgraph, Type::Subgraph);
     INTEL_CPU_NODE(Composite, Type::SubModel);
     INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
     INTEL_CPU_NODE(SearchSorted, Type::SearchSorted);
+    INTEL_CPU_NODE(SegmentMax, Type::SegmentMax);
     INTEL_CPU_NODE(LoRA, Type::LoRA);
+    INTEL_CPU_NODE(GatherMatmul, Type::GatherMatmul);
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(GridSample, Type::GridSample);
     INTEL_CPU_NODE(Interaction, Type::Interaction);
     INTEL_CPU_NODE(LLMMLP, Type::LLMMLP);
     INTEL_CPU_NODE(QKVProjection, Type::QKVProjection);
-    INTEL_CPU_NODE(MHA, Type::MHA);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
     INTEL_CPU_NODE(RMSNorm, Type::RMS);
 #elif defined(OPENVINO_ARCH_ARM64)
+    INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
 #endif
 }

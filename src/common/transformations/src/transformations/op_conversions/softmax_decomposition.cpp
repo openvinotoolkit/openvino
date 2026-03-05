@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -20,10 +21,15 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v8 = ov::op::v8;
 ov::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
     MATCHER_SCOPE(SoftmaxDecomposition);
-    auto softmax = pattern::wrap_type<ov::op::v1::Softmax, ov::op::v8::Softmax>();
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    auto softmax = ov::pass::pattern::wrap_type<v1::Softmax, v8::Softmax>();
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto m_softmax = m.get_match_root();
         Output<Node> input;
         int64_t softmax_axis;
@@ -32,22 +38,32 @@ ov::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
             return false;
         }
 
-        if (auto m_softmax_v1 = ov::as_type_ptr<ov::op::v1::Softmax>(m_softmax)) {
+        // Handle scalar (rank-0) input: softmax of a single value is always 1.
+        const auto& input_pshape = m_softmax->get_input_partial_shape(0);
+        if (input_pshape.rank().is_static() && input_pshape.rank().get_length() == 0) {
+            auto one_const = v0::Constant::create(m_softmax->get_output_element_type(0), ov::Shape{}, {1});
+            one_const->set_friendly_name(m_softmax->get_friendly_name());
+            ov::copy_runtime_info(m_softmax, one_const);
+            ov::replace_node(m_softmax, one_const);
+            return true;
+        }
+
+        if (auto m_softmax_v1 = ov::as_type_ptr<v1::Softmax>(m_softmax)) {
             input = m_softmax_v1->input_value(0);
             softmax_axis = static_cast<int64_t>(m_softmax_v1->get_axis());
-        } else if (auto m_softmax_v8 = ov::as_type_ptr<ov::op::v8::Softmax>(m_softmax)) {
+        } else if (auto m_softmax_v8 = ov::as_type_ptr<v8::Softmax>(m_softmax)) {
             input = m_softmax_v8->input_value(0);
             softmax_axis = m_softmax_v8->get_axis();
         } else {
             return false;
         }
 
-        auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {softmax_axis});
-        auto reduce_max = std::make_shared<ov::op::v1::ReduceMax>(input, axis, true);
-        auto sub = std::make_shared<ov::op::v1::Subtract>(input, reduce_max);
-        auto exp = std::make_shared<ov::op::v0::Exp>(sub);
-        auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(exp, axis, true);
-        auto div = std::make_shared<ov::op::v1::Divide>(exp, reduce_sum);
+        auto axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {softmax_axis});
+        auto reduce_max = std::make_shared<v1::ReduceMax>(input, axis, true);
+        auto sub = std::make_shared<v1::Subtract>(input, reduce_max);
+        auto exp = std::make_shared<v0::Exp>(sub);
+        auto reduce_sum = std::make_shared<v1::ReduceSum>(exp, axis, true);
+        auto div = std::make_shared<v1::Divide>(exp, reduce_sum);
 
         replace_node(m_softmax, div);
         copy_runtime_info(m_softmax, {reduce_max, reduce_sum, sub, exp, div});
@@ -55,6 +71,6 @@ ov::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(softmax, matcher_name);
+    auto m = std::make_shared<Matcher>(softmax, matcher_name);
     register_matcher(m, callback);
 }

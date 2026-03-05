@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,17 +17,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd4334)
     # oneDNN arm64: unary minus operator applied to unsigned type, result still unsigned
     ov_add_compiler_flags(/wd4146)
-elseif(OV_COMPILER_IS_CLANG)
-    # -Wno-delete-non-abstract-non-virtual-dtor is support > clang 9.0
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
-        ov_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
-    else()
-        ov_add_compiler_flags(-Wno-delete-non-virtual-dtor)
-    endif()
-elseif(CMAKE_COMPILER_IS_GNUCXX)
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
-        ov_add_compiler_flags(-Wno-array-bounds)
-    endif()
 elseif (OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     ov_add_compiler_flags("/Wno-microsoft-include")
 endif()
@@ -37,11 +26,9 @@ if(NOT BUILD_SHARED_LIBS)
         "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.hpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.hpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.hpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.hpp")
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.h")
 
     # parse API symbols
     foreach(onednn_file IN LISTS onednn_files)
@@ -139,13 +126,6 @@ else()
 endif()
 ov_option(ENABLE_MLAS_FOR_CPU "Enable MLAS for OpenVINO CPU Plugin" ${ENABLE_MLAS_FOR_CPU_DEFAULT})
 
-if(RISCV64_XUANTIE)
-    set(ENABLE_SHL_FOR_CPU_DEFAULT ON)
-else()
-    set(ENABLE_SHL_FOR_CPU_DEFAULT OFF)
-endif()
-ov_dependent_option(ENABLE_SHL_FOR_CPU "Enable SHL for OpenVINO CPU Plugin" ${ENABLE_SHL_FOR_CPU_DEFAULT} "RISCV64" OFF)
-
 if(AARCH64)
     set(ENABLE_KLEIDIAI_FOR_CPU_DEFAULT ON)
 else()
@@ -183,11 +163,6 @@ if(ENABLE_KLEIDIAI_FOR_CPU)
     set(OV_CPU_WITH_KLEIDIAI ON)
 endif()
 
-if (ENABLE_SHL_FOR_CPU)
-    add_definitions(-DOV_CPU_WITH_SHL)
-    set(OV_CPU_WITH_SHL ON)
-endif()
-
 file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
                           ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
@@ -197,25 +172,15 @@ if(NOT OV_CPU_WITH_ACL)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/acl/*)
 endif()
 
-if(NOT OV_CPU_WITH_SHL)
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/shl/*)
-endif()
-
 if(NOT X86_64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/x64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/x64/*)
-endif()
-
-if (AARCH64)
-    # this directory is reused on RISCV64
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*)
-else()
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/kleidiai/*)
 endif()
 
 if(NOT (AARCH64 OR ARM))
@@ -229,7 +194,15 @@ endif()
 
 if(NOT AARCH64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/aarch64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/*)
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/kleidiai/*)
+endif()
+
+if (NOT RISCV64)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/riscv64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/riscv64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/riscv64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/riscv64/*)
 endif()
 
 if (NOT ENABLE_MLAS_FOR_CPU)
@@ -267,7 +240,8 @@ ov_mark_target_as_cc(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE dnnl
                                              openvino::shape_inference
-                                             openvino::snippets)
+                                             openvino::snippets
+                                             openvino_xml_util)
 
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 if (ENABLE_MLAS_FOR_CPU)
@@ -280,12 +254,26 @@ if (ENABLE_SNIPPETS_LIBXSMM_TPP)
     target_link_libraries(${TARGET_NAME} PRIVATE xsmm)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:xsmm,INCLUDE_DIRECTORIES>)
 endif ()
-if(ENABLE_SHL_FOR_CPU)
-    target_link_libraries(${TARGET_NAME} PRIVATE shl)
-endif()
 if(ENABLE_KLEIDIAI_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE kleidiai)
+    set_source_files_properties(
+        src/emitters/snippets/aarch64/jit_gemm_emitter.cpp
+        src/emitters/snippets/aarch64/jit_gemm_copy_b_emitter.cpp
+        PROPERTIES
+            COMPILE_OPTIONS -march=armv8.2-a+fp16
+            SKIP_PRECOMPILE_HEADERS ON)
 endif()
+
+if(RISCV64)
+    # Set `XBYAK_RISCV_V=1` to compile Xbyak-code for RVV-related instructions
+    target_compile_definitions(xbyak_riscv INTERFACE XBYAK_RISCV_V=1)
+    target_link_libraries(${TARGET_NAME} PRIVATE xbyak_riscv)
+    target_include_directories(${TARGET_NAME} SYSTEM INTERFACE $<TARGET_PROPERTY:xbyak_riscv::xbyak_riscv,INTERFACE_INCLUDE_DIRECTORIES>)
+endif()
+
+# TODO: XBYAK64 should be used only for x64. Have to enable it for all the architectures for now
+# since many files include x64 related headers unconditionally.
+add_definitions(-DXBYAK64)
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
@@ -331,10 +319,10 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 SVE ANY
+        ARCH AVX512F AVX2 SVE NEON_FP16 ANY
                     src/nodes/kernels/scaled_attn/attn_quant.cpp
         API         src/nodes/kernels/scaled_attn/attn_quant.hpp
-        NAME        attn_quantkv paged_attn_quantkv attn_quant_u8 attn_dequant_u8
+        NAME        attn_quantkv paged_attn_quantkv attn_quant_u8 attn_dequant_u8 attn_quant_by_channel_u8 attn_dequant_by_channel_u8
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 
@@ -356,23 +344,43 @@ ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
+set(PCH_EXCLUDE_FILES
+    src/emitters/plugin/x64/debug_capabilities.cpp
+    src/emitters/plugin/aarch64/debug_capabilities.cpp
+    src/nodes/executors/printers.cpp
+    src/emitters/snippets/x64/jit_perf_count_rdtsc_emitters.cpp
+    src/emitters/snippets/x64/jit_segfault_detector_emitter.cpp
+    src/emitters/snippets/x64/verbose.cpp
+    src/emitters/snippets/aarch64/jit_segfault_detector_emitter.cpp
+    src/emitters/snippets/aarch64/verbose.cpp
+    src/transformations/snippets/x64/op/perf_count_rdtsc.cpp)
+
+ov_build_target_faster(${TARGET_NAME} PCH PCH_EXCLUDE ${PCH_EXCLUDE_FILES})
+
 #
 # add test object library
 #
 
 if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
-    ov_link_system_libraries(${TARGET_NAME}_obj PUBLIC dnnl openvino::pugixml)
+    target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+
+    set(CPU_OBJ_LINK_SYSTEM LIBRARIES dnnl openvino::pugixml)
+    if(RISCV64)
+        list(APPEND CPU_OBJ_LINK_SYSTEM xbyak_riscv::xbyak_riscv)
+    endif()
+
+    ov_link_system_libraries(${TARGET_NAME}_obj PUBLIC ${CPU_OBJ_LINK_SYSTEM})
 
     ov_add_version_defines(src/plugin.cpp ${TARGET_NAME}_obj)
 
     target_include_directories(${TARGET_NAME}_obj
         PRIVATE
-            $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::shape_inference,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::snippets,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::reference,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::xml_util,INTERFACE_INCLUDE_DIRECTORIES>
         PUBLIC
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -382,16 +390,16 @@ if(BUILD_SHARED_LIBS)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:xsmm,INCLUDE_DIRECTORIES>)
     endif()
 
+    target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
     if(ENABLE_MLAS_FOR_CPU)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:mlas,INCLUDE_DIRECTORIES>)
     endif()
 
-    if(ENABLE_SHL_FOR_CPU)
-        target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:shl,INTERFACE_INCLUDE_DIRECTORIES>)
-    endif()
-
     if(ENABLE_KLEIDIAI_FOR_CPU)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:kleidiai,INTERFACE_INCLUDE_DIRECTORIES>)
+    endif()
+    if(RISCV64)
+        target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:xbyak_riscv::xbyak_riscv,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()
 
     ov_set_threading_interface_for(${TARGET_NAME}_obj)
@@ -402,6 +410,18 @@ if(BUILD_SHARED_LIBS)
 
     # LTO
     set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+    ov_build_target_faster(${TARGET_NAME}_obj PCH PCH_EXCLUDE ${PCH_EXCLUDE_FILES})
+endif()
+
+if(OV_CPU_WITH_ACL)
+    target_include_directories(${TARGET_NAME} PRIVATE
+        ${OpenVINO_SOURCE_DIR}/src/inference/include)
+
+    if(BUILD_SHARED_LIBS)
+        target_include_directories(${TARGET_NAME}_obj PRIVATE
+            ${OpenVINO_SOURCE_DIR}/src/inference/include)
+    endif()
 endif()
 
 if(ENABLE_TESTS)

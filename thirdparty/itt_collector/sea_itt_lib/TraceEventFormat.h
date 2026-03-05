@@ -102,18 +102,21 @@ public:
     }
 
     static SRegularFields GetRegularFields() {
-        return SRegularFields {
+        return SRegularFields{
 #if defined(_WIN32)
-            g_PID, (int64_t)GetCurrentThreadId(),
+            g_PID,
+            (int64_t)GetCurrentThreadId(),
 #elif defined(__linux__)
-            g_PID, (int64_t)syscall(SYS_gettid),
+            g_PID,
+            (int64_t)syscall(SYS_gettid),
 #elif defined(__APPLE__)
-            g_PID, GetTidFromPThread(),
+            g_PID,
+            GetTidFromPThread(),
 #else
-            g_PID, (int64_t)syscall(SYS_thread_selfid),
+            g_PID,
+            (int64_t)syscall(SYS_thread_selfid),
 #endif
-                GetTimeNS()
-        };
+            GetTimeNS()};
     }
 
     class CArgs {

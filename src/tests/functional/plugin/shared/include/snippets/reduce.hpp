@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ typedef std::tuple<InputShape,                      // Input shape
 class Reduce : public testing::WithParamInterface<ov::test::snippets::ReduceParams>,
                virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::ReduceParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::ReduceParams>& obj);
 
 protected:
     void SetUp() override;

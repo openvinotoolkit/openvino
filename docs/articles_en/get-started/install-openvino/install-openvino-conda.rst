@@ -12,12 +12,20 @@ Install OpenVINO™ Runtime from Conda Forge
    Note that the Conda Forge distribution:
 
    * offers both C/C++ and Python APIs
-   * does not offer support for NPU inference
+   * supports NPU inference on Linux only
    * is dedicated to users of all major OSes: Windows, Linux, and macOS
      (all x86_64 / arm64 architectures)
 
    Before installing OpenVINO, see the
    :doc:`System Requirements page <../../../about-openvino/release-notes-openvino/system-requirements>`.
+
+.. note::
+    This community-maintained distribution channel is provided to help users explore and evaluate OpenVINO.
+    
+    Please note that accuracy, performance, and behavior may differ from officially supported OpenVINO distributions, and are not guaranteed by the OpenVINO team in this channel. Due to the community-driven nature of this distribution channel, the OpenVINO team does not guarantee timely updates aligned with official releases, nor update availability for all OpenVINO versions.
+    
+    For production deployments and product integration, we recommend using officially supported distribution channels (for example, official S3 archives or PyPI packages), which provide validated builds and defined guarantees.
+
 
 Installing OpenVINO Runtime with Anaconda Package Manager
 ############################################################
@@ -42,7 +50,7 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
    .. code-block:: sh
 
-      conda install -c conda-forge openvino=2025.0.0
+      conda install -c conda-forge openvino=2026.0.0
 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still
 need to install additional components. Check the description below, as well as the
@@ -132,7 +140,7 @@ with the proper OpenVINO version number:
 
 .. code-block:: sh
 
-   conda remove openvino=2025.0.0
+   conda remove openvino=2026.0.0
 
 If you have installed specific components of OpenVINO, you can remove them, using:
 

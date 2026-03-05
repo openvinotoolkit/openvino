@@ -1,14 +1,13 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "proposal_imp.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
-#include <string>
-#include <utility>
 #include <vector>
 #if defined(HAVE_AVX2)
 #    include <immintrin.h>
@@ -34,7 +33,8 @@ static void enumerate_proposals_cpu(const float* bottom4d,
                                     float coordinates_offset,
                                     bool initial_clip,
                                     bool swap_xy,
-                                    bool clip_before_nms) {
+                                    bool clip_before_nms,
+                                    const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     const int bottom_area = bottom_H * bottom_W;
 
     const float* p_anchors_wm = anchors + 0 * num_anchors;
@@ -42,9 +42,9 @@ static void enumerate_proposals_cpu(const float* bottom4d,
     const float* p_anchors_wp = anchors + 2 * num_anchors;
     const float* p_anchors_hp = anchors + 3 * num_anchors;
 
-    parallel_for2d(bottom_H, bottom_W, [&](size_t h, size_t w) {
-        const float x = static_cast<float>((swap_xy ? h : w) * feat_stride);
-        const float y = static_cast<float>((swap_xy ? w : h) * feat_stride);
+    cpu_parallel->parallel_for2d(bottom_H, bottom_W, [&](size_t h, size_t w) {
+        const auto x = static_cast<float>((swap_xy ? h : w) * feat_stride);
+        const auto y = static_cast<float>((swap_xy ? w : h) * feat_stride);
 
         const float* p_box = d_anchor4d + h * bottom_W + w;
         const float* p_score = bottom4d + h * bottom_W + w;
@@ -67,18 +67,18 @@ static void enumerate_proposals_cpu(const float* bottom4d,
 
             if (initial_clip) {
                 // adjust new corner locations to be within the image region
-                x0 = std::max<float>(0.0f, std::min<float>(x0, img_W));
-                y0 = std::max<float>(0.0f, std::min<float>(y0, img_H));
-                x1 = std::max<float>(0.0f, std::min<float>(x1, img_W));
-                y1 = std::max<float>(0.0f, std::min<float>(y1, img_H));
+                x0 = std::max<float>(0.0F, std::min<float>(x0, img_W));
+                y0 = std::max<float>(0.0F, std::min<float>(y0, img_H));
+                x1 = std::max<float>(0.0F, std::min<float>(x1, img_W));
+                y1 = std::max<float>(0.0F, std::min<float>(y1, img_H));
             }
 
             // width & height of box
             const float ww = x1 - x0 + coordinates_offset;
             const float hh = y1 - y0 + coordinates_offset;
             // center location of box
-            const float ctr_x = x0 + 0.5f * ww;
-            const float ctr_y = y0 + 0.5f * hh;
+            const float ctr_x = x0 + 0.5F * ww;
+            const float ctr_y = y0 + 0.5F * hh;
 
             // new center location according to gradient (dx, dy)
             const float pred_ctr_x = dx * ww + ctr_x;
@@ -88,18 +88,18 @@ static void enumerate_proposals_cpu(const float* bottom4d,
             const float pred_h = std::exp(d_log_h) * hh;
 
             // update upper-left corner location
-            x0 = pred_ctr_x - 0.5f * pred_w;
-            y0 = pred_ctr_y - 0.5f * pred_h;
+            x0 = pred_ctr_x - 0.5F * pred_w;
+            y0 = pred_ctr_y - 0.5F * pred_h;
             // update lower-right corner location
-            x1 = pred_ctr_x + 0.5f * pred_w;
-            y1 = pred_ctr_y + 0.5f * pred_h;
+            x1 = pred_ctr_x + 0.5F * pred_w;
+            y1 = pred_ctr_y + 0.5F * pred_h;
 
             // adjust new corner locations to be within the image region,
             if (clip_before_nms) {
-                x0 = std::max<float>(0.0f, std::min<float>(x0, img_W - coordinates_offset));
-                y0 = std::max<float>(0.0f, std::min<float>(y0, img_H - coordinates_offset));
-                x1 = std::max<float>(0.0f, std::min<float>(x1, img_W - coordinates_offset));
-                y1 = std::max<float>(0.0f, std::min<float>(y1, img_H - coordinates_offset));
+                x0 = std::max<float>(0.0F, std::min<float>(x0, img_W - coordinates_offset));
+                y0 = std::max<float>(0.0F, std::min<float>(y0, img_H - coordinates_offset));
+                x1 = std::max<float>(0.0F, std::min<float>(x1, img_W - coordinates_offset));
+                y1 = std::max<float>(0.0F, std::min<float>(y1, img_H - coordinates_offset));
             }
 
             // recompute new width & height
@@ -110,14 +110,19 @@ static void enumerate_proposals_cpu(const float* bottom4d,
             p_proposal[5 * anchor + 1] = y0;
             p_proposal[5 * anchor + 2] = x1;
             p_proposal[5 * anchor + 3] = y1;
-            p_proposal[5 * anchor + 4] = (min_box_W <= box_w) * (min_box_H <= box_h) * score;
+            p_proposal[5 * anchor + 4] =
+                static_cast<int>(min_box_W <= box_w) * static_cast<int>(min_box_H <= box_h) * score;
         }
     });
 }
 
-static void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int pre_nms_topn, bool store_prob) {
+static void unpack_boxes(const float* p_proposals,
+                         float* unpacked_boxes,
+                         int pre_nms_topn,
+                         bool store_prob,
+                         const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     if (store_prob) {
-        parallel_for(pre_nms_topn, [&](size_t i) {
+        cpu_parallel->parallel_for(pre_nms_topn, [&](size_t i) {
             unpacked_boxes[0 * pre_nms_topn + i] = p_proposals[5 * i + 0];
             unpacked_boxes[1 * pre_nms_topn + i] = p_proposals[5 * i + 1];
             unpacked_boxes[2 * pre_nms_topn + i] = p_proposals[5 * i + 2];
@@ -125,7 +130,7 @@ static void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int pr
             unpacked_boxes[4 * pre_nms_topn + i] = p_proposals[5 * i + 4];
         });
     } else {
-        parallel_for(pre_nms_topn, [&](size_t i) {
+        cpu_parallel->parallel_for(pre_nms_topn, [&](size_t i) {
             unpacked_boxes[0 * pre_nms_topn + i] = p_proposals[5 * i + 0];
             unpacked_boxes[1 * pre_nms_topn + i] = p_proposals[5 * i + 1];
             unpacked_boxes[2 * pre_nms_topn + i] = p_proposals[5 * i + 2];
@@ -224,7 +229,7 @@ static void nms_cpu(const int num_boxes,
 #endif
 
         for (; tail < num_boxes; ++tail) {
-            float res = 0.0f;
+            float res = 0.0F;
 
             const float x0i = x0[box];
             const float y0i = y0[box];
@@ -244,8 +249,8 @@ static void nms_cpu(const int num_boxes,
                 const float y1 = std::min<float>(y1i, y1j);
 
                 // intersection area
-                const float width = std::max<float>(0.0f, x1 - x0 + coordinates_offset);
-                const float height = std::max<float>(0.0f, y1 - y0 + coordinates_offset);
+                const float width = std::max<float>(0.0F, x1 - x0 + coordinates_offset);
+                const float height = std::max<float>(0.0F, y1 - y0 + coordinates_offset);
                 const float area = width * height;
 
                 // area of A, B
@@ -276,14 +281,15 @@ static void retrieve_rois_cpu(const int num_rois,
                               float img_h,
                               float img_w,
                               bool clip_after_nms,
-                              float* probs) {
+                              float* probs,
+                              const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     const float* src_x0 = proposals + 0 * num_proposals;
     const float* src_y0 = proposals + 1 * num_proposals;
     const float* src_x1 = proposals + 2 * num_proposals;
     const float* src_y1 = proposals + 3 * num_proposals;
     const float* src_probs = proposals + 4 * num_proposals;
 
-    parallel_for(num_rois, [&](size_t roi) {
+    cpu_parallel->parallel_for(num_rois, [&](size_t roi) {
         int index = roi_indices[roi];
 
         float x0 = src_x0[index];
@@ -292,10 +298,10 @@ static void retrieve_rois_cpu(const int num_rois,
         float y1 = src_y1[index];
 
         if (clip_after_nms) {
-            x0 = std::max<float>(0.0f, std::min<float>(x0, img_w));
-            y0 = std::max<float>(0.0f, std::min<float>(y0, img_h));
-            x1 = std::max<float>(0.0f, std::min<float>(x1, img_w));
-            y1 = std::max<float>(0.0f, std::min<float>(y1, img_h));
+            x0 = std::max<float>(0.0F, std::min<float>(x0, img_w));
+            y0 = std::max<float>(0.0F, std::min<float>(y0, img_h));
+            x1 = std::max<float>(0.0F, std::min<float>(x1, img_w));
+            y1 = std::max<float>(0.0F, std::min<float>(y1, img_h));
         }
 
         if (normalize) {
@@ -318,7 +324,7 @@ static void retrieve_rois_cpu(const int num_rois,
 
     if (num_rois < post_nms_topn_) {
         for (int i = 5 * num_rois; i < 5 * post_nms_topn_; i++) {
-            rois[i] = 0.f;
+            rois[i] = 0.F;
         }
 
         // marker at end of boxes list
@@ -334,7 +340,8 @@ void proposal_exec(const float* input0,
                    int* roi_indices,
                    float* output0,
                    float* output1,
-                   proposal_conf& conf) {
+                   proposal_conf& conf,
+                   const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     // Prepare memory
     const float* p_bottom_item = input0;
     const float* p_d_anchor_item = input1;
@@ -390,7 +397,7 @@ void proposal_exec(const float* input0,
         enumerate_proposals_cpu(p_bottom_item + num_proposals + n * num_proposals * 2,
                                 p_d_anchor_item + n * num_proposals * 4,
                                 anchors,
-                                reinterpret_cast<float*>(&proposals_[0]),
+                                reinterpret_cast<float*>(proposals_.data()),
                                 conf.anchors_shape_0,
                                 bottom_H,
                                 bottom_W,
@@ -404,7 +411,8 @@ void proposal_exec(const float* input0,
                                 conf.coordinates_offset,
                                 conf.initial_clip,
                                 conf.swap_xy,
-                                conf.clip_before_nms);
+                                conf.clip_before_nms,
+                                cpu_parallel);
         std::partial_sort(proposals_.begin(),
                           proposals_.begin() + pre_nms_topn,
                           proposals_.end(),
@@ -412,10 +420,14 @@ void proposal_exec(const float* input0,
                               return (struct1.score > struct2.score);
                           });
 
-        unpack_boxes(reinterpret_cast<float*>(&proposals_[0]), &unpacked_boxes[0], pre_nms_topn, store_prob);
+        unpack_boxes(reinterpret_cast<float*>(proposals_.data()),
+                     unpacked_boxes.data(),
+                     pre_nms_topn,
+                     store_prob,
+                     cpu_parallel);
         nms_cpu(pre_nms_topn,
-                &is_dead[0],
-                &unpacked_boxes[0],
+                is_dead.data(),
+                unpacked_boxes.data(),
                 roi_indices,
                 &num_rois,
                 0,
@@ -427,7 +439,7 @@ void proposal_exec(const float* input0,
         retrieve_rois_cpu(num_rois,
                           n,
                           pre_nms_topn,
-                          &unpacked_boxes[0],
+                          unpacked_boxes.data(),
                           roi_indices,
                           p_roi_item + n * conf.post_nms_topn_ * 5,
                           conf.post_nms_topn_,
@@ -435,7 +447,8 @@ void proposal_exec(const float* input0,
                           img_H,
                           img_W,
                           conf.clip_after_nms,
-                          p_probs);
+                          p_probs,
+                          cpu_parallel);
     }
 }
 

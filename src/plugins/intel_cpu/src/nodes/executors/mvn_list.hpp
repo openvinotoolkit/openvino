@@ -1,17 +1,20 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
 #include "executor.hpp"
+#include "memory_desc/cpu_memory_desc.h"
 #include "mvn.hpp"
+#include "openvino/core/except.hpp"
 #if defined(OV_CPU_WITH_ACL)
 #    include "acl/acl_mvn.hpp"
 #endif
-
-#include "common/primitive_cache.hpp"
-#include "onednn/iml_type_mapper.h"
 
 namespace ov::intel_cpu {
 
@@ -29,14 +32,14 @@ public:
                        const std::vector<MemoryDescPtr>& dstDescs,
                        const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
-        for (auto& desc : getMVNExecutorsList()) {
+        for (const auto& desc : getMVNExecutorsList()) {
             if (desc.builder->isSupported(mvnAttrs, srcDescs, dstDescs)) {
                 supportedDescs.push_back(desc);
             }
         }
     }
 
-    ~MVNExecutorFactory() = default;
+    ~MVNExecutorFactory() override = default;
     virtual MVNExecutorPtr makeExecutor(const MVNAttrs& mvnAttrs,
                                         const std::vector<MemoryDescPtr>& srcDescs,
                                         const std::vector<MemoryDescPtr>& dstDescs,

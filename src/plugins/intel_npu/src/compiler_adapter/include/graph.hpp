@@ -1,0 +1,99 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// Compiler Interface
+
+#pragma once
+
+#include <ze_graph_ext.h>
+
+#include "intel_npu/common/igraph.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
+#include "openvino/runtime/so_ptr.hpp"
+#include "ze_graph_ext_wrappers.hpp"
+
+namespace intel_npu {
+
+class Graph : public IGraph {
+public:
+    Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
+          const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+          const GraphDescriptor& graphDesc,
+          NetworkMetadata metadata,
+          std::optional<ov::Tensor> blob,
+          const FilteredConfig& config,
+          const bool blobIsPersistent = false,
+          const bool calledFromWeightlessGraph = false);
+
+    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
+
+    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const override;
+
+    void set_argument_value(uint32_t id, const void* data) const override;
+    void set_argument_value_with_strides(uint32_t id,
+                                         const void* data,
+                                         const std::vector<size_t>& strides) const override;
+
+    void initialize(const FilteredConfig& config) override;
+
+    const NetworkMetadata& get_metadata() const override;
+    ze_graph_handle_t get_handle() const override;
+
+    void update_network_name(std::string_view name) override;
+
+    const std::shared_ptr<CommandQueue>& get_command_queue() const override;
+    uint32_t get_command_queue_group_ordinal() const override;
+
+    void set_workload_type(const ov::WorkloadType workloadType) const override;
+
+    void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) override;
+    const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const override;
+    void resize_last_submitted_event(size_t batch) override;
+    void set_batch_size(std::size_t batch) override;
+
+    const std::optional<std::size_t> get_batch_size() const override;
+
+    uint32_t get_unique_id() override;
+    void set_last_submitted_id(uint32_t id_index) override;
+    uint32_t get_last_submitted_id() const override;
+
+    std::optional<bool> is_profiling_blob() const override;
+
+    ~Graph() override;
+
+protected:
+    bool release_blob(const FilteredConfig& config);
+    std::optional<size_t> determine_batch_size();
+
+    std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
+
+    std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
+
+    GraphDescriptor _graphDesc;
+    NetworkMetadata _metadata;
+
+    std::shared_ptr<CommandQueue> _commandQueue;
+    uint32_t _commandQueueGroupOrdinal = 0;
+    std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
+
+    std::optional<ov::Tensor> _blob;
+
+    // In the case of the import path, the blob is released after graph initialization so it can not be any longer
+    // exported
+    bool _blobIsReleased = false;
+    bool _blobIsPersistent = false;
+
+    uint32_t _uniqueId = 0;
+    uint32_t _lastSubmittedId = 0;
+
+    /**
+     * @brief The batch size used by the corresponding model.
+     * @details The attribute contains a value only if the plugin performs the batches splitting operation.
+     */
+    std::optional<std::size_t> _batchSize = std::nullopt;
+
+    Logger _logger;
+};
+
+}  // namespace intel_npu

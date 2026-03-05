@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -13,7 +13,7 @@ class TestMatrixInverse(CommonTFLayerTest):
         inputs_data['input:0'] = self._generate_invertible_matrices(self.input_shape)
 
         return inputs_data
-    
+
     def _generate_invertible_matrices(self, input_shape):
         if input_shape == [2, 2]:
             return np.array([[1, 2],
@@ -40,7 +40,7 @@ class TestMatrixInverse(CommonTFLayerTest):
                               [9, 10, 6, 12],
                               [13, 14, 15, 10]]
                             ], dtype=np.float32)
-                             
+
     def create_matrix_inverse_net(self, input_shape, adjoint):
         self.input_shape = input_shape
         tf.compat.v1.reset_default_graph()
@@ -56,9 +56,8 @@ class TestMatrixInverse(CommonTFLayerTest):
     @pytest.mark.parametrize("adjoint", [None, False, True])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_matrix_inverse_basic(self, input_shape, adjoint, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_matrix_inverse_basic(self, input_shape, adjoint, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("GPU does not support Inverse operation")
         self._test(*self.create_matrix_inverse_net(input_shape=input_shape, adjoint=adjoint),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

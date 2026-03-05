@@ -11,6 +11,7 @@ for more information.
 * [Python Setup](#python-setup)
 * [System Info Print](#system-info-print)
 * Smart CI (see details: [feature documentation](./smart_ci.md))
+* OpenVINO Provider (see details: [documentation](./openvino_provider.md))
 
 ## Python Setup
 

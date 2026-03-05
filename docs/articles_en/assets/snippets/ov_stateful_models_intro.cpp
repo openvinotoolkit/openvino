@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <openvino/pass/manager.hpp>
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/pass/make_stateful.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace ov;
 

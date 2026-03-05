@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -44,13 +44,9 @@ class TestSelectV2(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_select_v2_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                             use_legacy_frontend):
-        if use_legacy_frontend:
-            pytest.skip("Select tests are not passing for the legacy frontend.")
+    def test_select_v2_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_select_v2_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestComplexSelectV2(CommonTFLayerTest):
@@ -67,7 +63,7 @@ class TestComplexSelectV2(CommonTFLayerTest):
         for part in ['x_real:0', 'x_imag:0', 'y_real:0', 'y_imag:0']:
             inputs_data[part] = 4 * rng.random(inputs_info[part]).astype(np.float32) - 2
         return inputs_data
-    
+
     def create_complex_select_v2_net(self, cond_shape, x_shape, y_shape):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
@@ -85,7 +81,7 @@ class TestComplexSelectV2(CommonTFLayerTest):
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
         return tf_net, None
-    
+
     test_data_basic = [
         dict(cond_shape=[3, 1], x_shape=[3, 1], y_shape=[3, 1]),
         dict(cond_shape=[], x_shape=[2], y_shape=[3, 2]),
@@ -95,8 +91,6 @@ class TestComplexSelectV2(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_complex_select_v2(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_legacy_frontend):
+    def test_complex_select_v2(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_complex_select_v2_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

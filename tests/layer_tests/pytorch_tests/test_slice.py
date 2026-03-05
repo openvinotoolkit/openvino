@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -16,9 +16,8 @@ class TestSlice1D(PytorchLayerTest):
             def forward(self, x, params):
                 return x[params[0] : params[1] : params[2]]
 
-        ref_net = None
 
-        return aten_slice(), ref_net, "aten::slice"
+        return aten_slice(), "aten::slice"
 
     @pytest.mark.parametrize(
         "params",
@@ -49,9 +48,8 @@ class TestSlice2D(PytorchLayerTest):
             def forward(self, x, params_0a, params_1a):
                 return x[params_0a[0] : params_0a[1] : params_0a[2], params_1a[0] : params_1a[1] : params_1a[2]]
 
-        ref_net = None
 
-        return aten_slice(), ref_net, "aten::slice"
+        return aten_slice(), "aten::slice"
 
     @pytest.mark.parametrize(
         "params_0a",
@@ -74,24 +72,49 @@ class TestSlice2D(PytorchLayerTest):
         )
 
 
-class TestSliceAndSqueeze(PytorchLayerTest):
-    def _prepare_input(self):
-        return (np.random.randn(1, 1, 32).astype(np.float32),)
+class TestSliceComplex(PytorchLayerTest):
+    def _prepare_input(self, params):
+        return (np.array(range(32), np.float32).reshape(16, 2),
+                np.array(params, dtype=np.int32))
 
     def create_model(self):
         class aten_slice(torch.nn.Module):
-            def __init__(self) -> None:
-                super().__init__()
+            def forward(self, x, params):
+                x = torch.view_as_complex(x)
+                x = x[params[0]: params[1]: params[2]]
+                return torch.view_as_real(x)
 
+        return aten_slice(), "aten::slice"
+
+    @pytest.mark.parametrize("params", [[0, -1, 1],
+                                        [0, -1, 3],
+                                        [0, 5, 3],
+                                        [2, 7, 3],
+                                        [-7, -15, 2],
+                                        [-1, -7, 2],
+                                        [5, 2, 1]])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_slice_complex(self, ie_device, precision, ir_version, params):
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"params": params})
+
+
+class TestSliceAndSqueeze(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(1, 1, 32),)
+
+    def create_model(self):
+        class aten_slice(torch.nn.Module):
             def forward(self, x):
                 a = torch.squeeze(x, 1)
                 return a[:, None, :]
 
-        ref_net = None
-
-        return aten_slice(), ref_net, "aten::slice"
+        return aten_slice(), "aten::slice"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_slice_and_squeeze(self, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version, dynamic_shapes=False)
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   dynamic_shapes=False, fx_kind="aten.unsqueeze.default")

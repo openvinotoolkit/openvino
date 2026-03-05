@@ -326,6 +326,83 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
          `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/whisper_speech_recognition/>`__.
 
 
+.. dropdown:: Text-to-Speech Generation
+
+   OpenVINO GenAI provides the `openvino_genai.Text2SpeechPipeline` API for performing inference with text-to-speech models,
+   such as the SpeechT5 TTS model. A speaker embedding vector can be specified to control the characteristics of the synthesized voice.
+   If no embedding is provided, the model defaults to a built-in speaker. Speaker embeddings can be generated using the following script:
+   `create_speaker_embedding.py <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/speech_generation/create_speaker_embedding.py>`__.
+   The example below demonstrates how to use the `Text2SpeechPipeline` API.
+
+   .. tab-set::
+
+      .. tab-item:: Python
+         :sync: cpp
+
+         .. code-block:: python
+
+            import numpy as np
+            import openvino as ov
+            import openvino_genai
+            import soundfile as sf
+
+            device = "CPU"
+            speaker_embedding = np.fromfile("speaker_embedding.bin", dtype=np.float32).reshape(1, 512)
+            speaker_embedding = ov.Tensor(speaker_embedding)
+
+            pipe = openvino_genai.Text2SpeechPipeline(model_dir, device)
+
+            result = pipe.generate(args.text, speaker_embedding)
+
+            speech = result.speeches[0]
+            sf.write("output_audio.wav", speech.data[0], samplerate=16000)
+
+
+         For more information, refer to the
+         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/speech_generation/>`__.
+
+      .. tab-item:: C++
+         :sync: cpp
+
+         .. code-block:: cpp
+
+            #include "audio_utils.hpp"
+            #include "openvino/genai/whisper_pipeline.hpp"
+
+            int main(int argc, char* argv[]) try {
+                OPENVINO_ASSERT(argc == 3 || argc == 4,
+                                "Usage: ",
+                                argv[0],
+                                " <MODEL_DIR> \"<PROMPT>\" [<SPEAKER_EMBEDDING_BIN_FILE>]");
+
+                const std::string models_path = argv[1], prompt = argv[2];
+                const std::string device = "CPU";
+
+                ov::genai::Text2SpeechPipeline pipe(models_path, device);
+
+                ov::genai::Text2SpeechDecodedResults gen_speech;
+                if (argc == 4) {
+                    const std::string speaker_embedding_path = argv[3];
+                    auto speaker_embedding = utils::audio::read_speaker_embedding(speaker_embedding_path);
+                    gen_speech = pipe.generate(prompt, speaker_embedding);
+                } else {
+                    gen_speech = pipe.generate(prompt);
+                }
+
+                std::string output_file_name = "output_audio.wav";
+                auto waveform_size = gen_speech.speeches[0].get_size();
+                auto waveform_ptr = gen_speech.speeches[0].data<const float>();
+                auto bits_per_sample = gen_speech.speeches[0].get_element_type().bitwidth();
+                utils::audio::save_to_wav(waveform_ptr, waveform_size, output_file_name, bits_per_sample);
+
+                return EXIT_SUCCESS;
+            }
+
+
+         For more information, refer to the
+         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/speech_generation/>`__.
+
+
 .. dropdown:: Using GenAI in Chat Scenario
 
    For chat scenarios where inputs and outputs represent a conversation, maintaining KVCache
@@ -416,6 +493,47 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
 
          For more information, refer to the
          `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/text_generation/chat_sample/>`__
+
+      .. tab-item:: JavaScript/TypeScript
+         :sync: js
+
+         .. code-block:: typescript
+
+            import { LLMPipeline } from "openvino-genai-node";
+            import readline from 'readline';
+
+            const pipe = await LLMPipeline(model_path, 'CPU');
+
+            const config = { 
+                max_new_tokens: 100, 
+                num_beam_groups: 3, 
+                num_beams: 15, 
+                diversity_penalty: 1.5 
+            };
+
+            await pipe.startChat();
+            
+            const rl = readline.createInterface({
+                input: process.stdin,
+                output: process.stdout,
+            });
+
+            console.log('question:');
+            rl.on('line', async (prompt) => {
+                console.log('answer:');
+                const answer = await pipe.generate(prompt, config);
+                console.log(answer);
+                console.log('\n----------\nquestion:');
+            });
+
+            rl.on('close', async () => {
+                // highlight-next-line
+                await pipe.finishChat();
+                process.exit(0);
+            });
+
+         For more information, refer to the
+         `JavaScript sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/js/text_generation/chat_sample/>`__.
 
 
 .. dropdown:: Using GenAI with Vision Language Models
@@ -625,6 +743,29 @@ parameters.
             std::cout << pipe.generate("The Sun is yellow because", ov::genai::max_new_tokens(100));
          }
 
+   .. tab-item:: JavaScript/TypeScript
+      :sync: js
+
+      .. code-block:: console
+
+         optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format int4 --trust-remote-code "TinyLlama-1.1B-Chat-v1.0"
+
+      .. code-block:: typescript
+
+         import { LLMPipeline, GenerationConfig } from 'openvino-genai-node';
+
+         async function main() {
+           const modelPath = process.argv[2];
+           const pipe = await LLMPipeline.LLMPipeline(modelPath, 'CPU');
+
+           const config: GenerationConfig = { maxNewTokens: 100 };
+           const result = await pipe.generate('The Sun is yellow because', config);
+           
+           console.log(result.texts[0]);
+         }
+
+         main();
+
 
 
 Streaming the Output
@@ -666,6 +807,25 @@ lambda function outputs words to the console immediately upon generation:
             pipe.generate("The Sun is yellow because", ov::genai::streamer(streamer), ov::genai::max_new_tokens(100));
          }
 
+   .. tab-item:: JavaScript/TypeScript
+      :sync: js
+
+      .. code-block:: typescript
+
+         import { LLMPipeline, GenerationConfig } from 'openvino-genai-node';
+
+         async function main() {
+           const modelPath = process.argv[2];
+           const pipe = await LLMPipeline.LLMPipeline(modelPath, 'CPU');
+
+           const config: GenerationConfig = { maxNewTokens: 100 };
+           for await (const chunk of pipe.stream('The Sun is yellow because', config)) {
+             process.stdout.write(chunk);
+           }
+         }
+
+         main();
+
 You can also create your custom streamer for more sophisticated processing:
 
 .. tab-set::
@@ -700,7 +860,7 @@ You can also create your custom streamer for more sophisticated processing:
 
          #include <streamer_base.hpp>
 
-         class CustomStreamer: publict StreamerBase {
+         class CustomStreamer: public StreamerBase {
          public:
             bool put(int64_t token) {
                bool stop_flag = false;
@@ -766,6 +926,30 @@ For better text generation quality and more efficient batch processing, specify
 
             cout << pipe.generate("The Sun is yellow because", config);
          }
+
+   .. tab-item:: JavaScript/TypeScript
+      :sync: js
+
+      .. code-block:: typescript
+
+         import { LLMPipeline, GenerationConfig } from 'openvino-genai-node';
+
+         async function main() {
+           const modelPath = process.argv[2];
+           const pipe = await LLMPipeline(modelPath, 'CPU');
+
+           const config : GenerationConfig = {
+               maxNewTokens: 256,
+               numBeamGroups: 3,
+               numBeams: 15,
+               diversityPenalty: 1.0
+           };
+
+           const result = await pipe.generate('The Sun is yellow because', config);
+           console.log(result.toString());
+         }
+
+         main();
 
 
 Efficient Text Generation via Speculative Decoding
@@ -880,6 +1064,101 @@ runs prediction of the next K tokens, thus repeating the cycle.
 
 
 
+Inference of GGUF (GGML Unified Format) models
+###############################################################################################
+
+Some language models on Hugging Face are distributed in the GGUF (GGML Unified Format) and can
+be downloaded. You can browse all available
+`GGUF models on Hugging Face <https://huggingface.co/models?library=gguf>`__.
+A GGUF model is encapsulated in a single binary file that contains all necessary components, including metadata and model weights, to represent the entire LLM pipeline.
+Once downloaded, these GGUF models can be used directly with OpenVINO GenAI (for supported architectures) without additional conversion steps.
+
+Unlike standard Hugging Face models, GGUF models do not require conversion to OpenVINO Intermediate Representation (IR) using the `optimum-intel` tool.
+The `LLMPipeline` object can be instantiated directly from a GGUF file, enabling seamless inference without intermediate steps.
+
+This capability is currently available in preview mode and supports a limited set of topologies, including SmolLM, Qwen2.5.
+For other models and architectures, we still recommend converting the model to the IR format,
+using the `optimum-intel` tool.
+See :doc:`Generative Model Preparation Using Optimum-intel <./genai-model-preparation>` for more details.
+
+To perform inference with a GGUF model using OpenVINO GenAI, simply provide the path to the `.gguf` file when constructing the LLMPipeline object, as shown below:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+
+         import openvino_genai
+
+         pipe = openvino_genai.LLMPipeline("SmolLM2-135M.F16.gguf", "CPU")
+
+         config = openvino_genai.GenerationConfig()
+         config.max_new_tokens = 100
+
+         pipe.generate("The Sun is yellow because", config)
+
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. code-block:: cpp
+
+         #include <openvino/openvino.hpp>
+         #include "openvino/genai/llm_pipeline.hpp"
+
+         int main(int argc, char* argv[]) try {
+             ov::genai::GenerationConfig config;
+             config.max_new_tokens = 100;
+
+             std::string model_path = "SmolLM2-135M.F16.gguf";
+             std::string prompt = "The Sun is yellow because";
+
+             ov::genai::LLMPipeline pipe(model_path, "CPU");
+
+             auto result = pipe.generate("The Sun is yellow because", config);
+             std::cout << "result = " << result << std::endl;
+         } catch (const std::exception& error) {
+             try {
+                 std::cerr << error.what() << '\n';
+             } catch (const std::ios_base::failure&) {}
+             return EXIT_FAILURE;
+         } catch (...) {
+             try {
+                 std::cerr << "Non-exception object thrown\n";
+             } catch (const std::ios_base::failure&) {}
+             return EXIT_FAILURE;
+         }
+
+   .. tab-item:: JavaScript/TypeScript
+      :sync: js
+
+      .. code-block:: typescript
+
+         import { LLMPipeline, GenerationConfig } from 'openvino-genai-node';
+
+         async function main() {
+           const config: GenerationConfig = {
+             maxNewTokens: 100
+           };
+
+           const modelPath = 'SmolLM2-135M.F16.gguf';
+           const prompt = 'The Sun is yellow because';
+
+           const pipe = await LLMPipeline(modelPath, 'CPU');
+
+           const result = await pipe.generate(prompt, config);
+           console.log('result =', result.toString());
+         }
+
+         main();
+
+
+
+
+
+
 Comparing with Hugging Face Results
 #######################################
 
@@ -931,12 +1210,13 @@ The use case described here regards the following OpenVINO GenAI API classes:
 * streamer_base - an abstract base class for creating streamers.
 * tokenizer - the tokenizer class for text encoding and decoding.
 
-Learn more from the `GenAI API reference <https://docs.openvino.ai/2025/api/genai_api/api.html>`__.
+Learn more from the `GenAI API reference <https://docs.openvino.ai/2026/api/genai_api/api.html>`__.
 
 Additional Resources
 ####################
 
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
+* `OpenVINO GenAI Documentation <https://openvinotoolkit.github.io/openvino.genai/>`__
 * `OpenVINO GenAI Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples>`__
 * A Jupyter notebook demonstrating
   `Visual-language assistant with MiniCPM-V2 and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/minicpm-v-multimodal-chatbot>`__

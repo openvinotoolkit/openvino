@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@
 using namespace std;
 
 TEST(conditional_compilation, disabled_op_scope) {
-#define ov_op_Scope0 1
+#define ov_op_exec_Scope0 1
     int n = 0;
 
     // Simple Scope0 is enabled
@@ -34,7 +34,7 @@ TEST(conditional_compilation, disabled_op_scope) {
 
     // Simple Scope1 is disabled and throws exception
     ASSERT_THROW(OV_OP_SCOPE(Scope1), ov::Exception);
-#undef ov_op_Scope0
+#undef ov_op_exec_Scope0
 }
 
 TEST(conditional_compilation, disabled_Constant_in_opset) {

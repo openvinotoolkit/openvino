@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -145,7 +145,7 @@ KernelsData DeformableConvolutionKernel_bfyx_opt::GetKernelsData(const Params& p
         return {};
     }
 
-    kd.internalBufferSizes.push_back(conv_params.intermediate_tensor.PhysicalSizeInBytes());
+    kd.internalBuffers.push_back(conv_params.intermediate_tensor.PhysicalSizeInBytes());
     kd.internalBufferDataType = conv_params.intermediate_tensor.GetDType();
 
     for (size_t i = 0; i < kKernelsNum; i++) {
@@ -156,7 +156,7 @@ KernelsData DeformableConvolutionKernel_bfyx_opt::GetKernelsData(const Params& p
 
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[i];
-        KernelBase::CheckDispatchData(kernelName, dispatchData, params.engineInfo.maxWorkGroupSize);
+        KernelBase::CheckDispatchData(kernelName, dispatchData, params.engineInfo);
         kernel.params.workGroups.global = dispatchData.gws;
         kernel.params.workGroups.local  = dispatchData.lws;
         kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);

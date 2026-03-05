@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -52,7 +52,10 @@ def test_compact_api_wrong_path():
             return "test class"
     with pytest.raises(RuntimeError) as e:
         compile_model(TestClass())
-    assert "Path: 'test class' does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path" in str(e.value)
+    assert (
+        "Path: 'test class' does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path"
+        in str(e.value)
+    )
 
 
 def test_core_class(device):
@@ -174,7 +177,7 @@ def test_read_model_from_tensor(request, tmp_path):
 
 def test_read_model_with_wrong_input():
     core = Core()
-    with pytest.raises(RuntimeError) as e:
+    with pytest.raises(TypeError) as e:
         core.read_model(model=3, weights=3)
     assert "Provided python object type <class 'int'> isn't supported as 'model' argument." in str(e.value)
 
@@ -206,7 +209,7 @@ def test_read_model_as_path_with_user_config(request, tmp_path):
     core_cache_dir = core.get_property("CACHE_DIR")
     cache_path = tmp_path / Path("cache_as_path")
 
-    model = core.read_model(Path(xml_path), Path(bin_path), config={"CACHE_DIR": f"{cache_path}"})
+    model = core.read_model(Path(xml_path), Path(bin_path), config={"CACHE_DIR": cache_path})
 
     assert isinstance(model, Model)
     assert core_cache_dir == core.get_property("CACHE_DIR")
@@ -224,6 +227,22 @@ def test_read_model_from_buffer(request, tmp_path):
         weights = f.read()
     with open(xml_path, "rb") as f:
         xml = f.read()
+    model = core.read_model(model=xml, weights=weights)
+    assert isinstance(model, Model)
+
+
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_read_model_from_bytesio(request, tmp_path):
+    from io import BytesIO
+
+    core = Core()
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
+    relu_model = get_relu_model()
+    serialize(relu_model, xml_path, bin_path)
+    with open(bin_path, "rb") as f:
+        weights = BytesIO(f.read())
+    with open(xml_path, "rb") as f:
+        xml = BytesIO(f.read())
     model = core.read_model(model=xml, weights=weights)
     assert isinstance(model, Model)
 
@@ -355,7 +374,7 @@ def test_register_plugin():
     core.register_plugin(lib_name, device)
     with pytest.raises(RuntimeError) as e:
         core.get_versions(device)
-    assert f"Cannot load library '{full_lib_name}'" in str(e.value)
+    assert f'Cannot load library "{full_lib_name}"' in str(e.value)
 
 
 @pytest.mark.dynamic_library
@@ -371,7 +390,22 @@ def test_register_plugins():
 
     with pytest.raises(RuntimeError) as e:
         core.get_versions(device)
-    assert f"Cannot load library '{full_lib_name}'" in str(e.value)
+    assert f'Cannot load library "{full_lib_name}"' in str(e.value)
+
+
+@pytest.mark.dynamic_library
+def test_core_register_plugins():
+    device = "TEST_DEVICE"
+    lib_name = "test_plugin"
+    full_lib_name = lib_name + ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
+    plugins_xml = plugins_path(device, full_lib_name)
+
+    core = Core(plugins_xml)
+    os.remove(plugins_xml)
+
+    with pytest.raises(RuntimeError) as e:
+        core.get_versions(device)
+    assert f'Cannot load library "{full_lib_name}"' in str(e.value)
 
 
 def test_unload_plugin(device):

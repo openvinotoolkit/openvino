@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
+#include "openvino/op/convert.hpp"
 
 
 using namespace CPUTestUtils;
@@ -49,15 +50,9 @@ static void modify_value(ov::Tensor& tensor, const ov::test::SpecialValue& speci
     }
 }
 
-std::string ConvertCPULayerTest::getTestCaseName(testing::TestParamInfo<convertLayerTestParamsSet> obj) {
-    InputShape inputShape;
-    ov::element::Type inPrc, outPrc;
-    ov::test::SpecialValue special_value;
-    CPUSpecificParams cpuParams;
-    std::tie(inputShape, inPrc, outPrc, special_value, cpuParams) = obj.param;
-
+std::string ConvertCPULayerTest::getTestCaseName(const testing::TestParamInfo<convertLayerTestParamsSet>& obj) {
+    const auto& [inputShape, inPrc, outPrc, special_value, cpuParams] = obj.param;
     std::ostringstream result;
-
     result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
     result << "TS=";
     for (const auto& shape : inputShape.second) {
@@ -92,17 +87,17 @@ bool ConvertCPULayerTest::isInOutPrecisionSupported(ov::element::Type inPrc, ov:
 
 void ConvertCPULayerTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-
-    InputShape shapes;
-    CPUSpecificParams cpuParams;
-    std::tie(shapes, inPrc, outPrc, special_value, cpuParams) = GetParam();
-
+    const auto& [shapes, _inPrc, _outPrc, _special_value, cpuParams] = GetParam();
+    inPrc = _inPrc;
+    outPrc = _outPrc;
+    special_value = _special_value;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     auto primitive = selectedType;
     if (primitive.empty())
         primitive = getPrimitiveType();
 #if defined(OPENVINO_ARCH_ARM64)
-    if (inPrc == ov::element::u4 || inPrc == ov::element::i4 ||
+    if (inPrc == ov::element::u2 || inPrc == ov::element::u4 || inPrc == ov::element::i4 ||
+        inPrc == ov::element::f4e2m1 || inPrc == ov::element::f8e8m0 ||
         inPrc == ov::element::f8e4m3 || inPrc == ov::element::f8e5m2 ||
         outPrc == ov::element::f8e4m3 || outPrc == ov::element::f8e5m2 ||
         outPrc == ov::element::nf4) {
@@ -144,7 +139,13 @@ void ConvertCPULayerTest::SetUp() {
     }
     auto conversion = std::make_shared<ov::op::v0::Convert>(params.front(), outPrc);
 
-    function = makeNgraphFunction(inPrc, params, conversion, "ConversionCPU");
+    function = create_ov_model(inPrc, params, conversion, "ConversionCPU");
+
+    // issue 161636
+    if (special_value == ov::test::SpecialValue::none && outPrc == ov::element::f8e4m3) {
+        abs_threshold = 0.0078125f;
+        rel_threshold = 1e-2f;
+    }
 }
 
 void ConvertCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {

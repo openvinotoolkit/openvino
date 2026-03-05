@@ -1,25 +1,41 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "if.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <deque>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "allocation_context.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/if.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
-If::PortMapHelper::PortMapHelper(MemoryPtr from, std::deque<MemoryPtr> to, const dnnl::engine& eng)
+If::PortMapHelper::PortMapHelper(MemoryPtr from, std::deque<MemoryPtr> to, [[maybe_unused]] const dnnl::engine& eng)
     : srcMemPtr(std::move(from)),
-      dstMemPtrs(std::move(to)),
-      size(0) {
+      dstMemPtrs(std::move(to)) {
     if (srcMemPtr->getDesc().isDefined()) {
         size = srcMemPtr->getShape().getElementsCount();
     }
@@ -30,7 +46,7 @@ If::PortMapHelper::PortMapHelper(MemoryPtr from, std::deque<MemoryPtr> to, const
     }
 }
 
-void If::PortMapHelper::execute(const dnnl::stream& strm) {
+void If::PortMapHelper::execute([[maybe_unused]] const dnnl::stream& strm) {
     // if output shapes are changed,
     // after subgraph inference we should redefine out memory of 'If'
     redefineTo();
@@ -58,7 +74,7 @@ void If::PortMapHelper::redefineTo() {
 
 bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(), ov::op::v8::If::get_type_info_static())) {
+        if (none_of(op->get_type_info(), ov::op::v8::If::get_type_info_static())) {
             errorMessage = "Not supported If operation version " + std::string(op->get_type_info().version_id) +
                            " with name '" + op->get_friendly_name() + "'. Node If supports only opset8 version.";
             return false;
@@ -125,7 +141,7 @@ void If::createPrimitive() {
         if (auto inNode = m_thenGraph.getInputNodeByIndex(m_op->get_then_body()->get_parameter_index(param))) {
             inputMemThen.push_back(getToMemories(inNode.get(), 0));
         } else {
-            THROW_CPU_NODE_ERR("Then body of node does not have input with name: ", param->get_friendly_name());
+            CPU_NODE_THROW("Then body of node does not have input with name: ", param->get_friendly_name());
         }
     }
 
@@ -133,7 +149,7 @@ void If::createPrimitive() {
         if (auto inNode = m_elseGraph.getInputNodeByIndex(m_op->get_else_body()->get_parameter_index(param))) {
             inputMemElse.push_back(getToMemories(inNode.get(), 0));
         } else {
-            THROW_CPU_NODE_ERR("Else body of node does not have input with name: ", param->get_friendly_name());
+            CPU_NODE_THROW("Else body of node does not have input with name: ", param->get_friendly_name());
         }
     }
 
@@ -142,7 +158,7 @@ void If::createPrimitive() {
             auto outMem = outNode->getSrcMemoryAtPort(0);
             outputMemThen.push_back(outMem);
         } else {
-            THROW_CPU_NODE_ERR("Then body of node does not have output with name: ", out->get_friendly_name());
+            CPU_NODE_THROW("Then body of node does not have output with name: ", out->get_friendly_name());
         }
     }
 
@@ -151,7 +167,7 @@ void If::createPrimitive() {
             auto outMem = outNode->getSrcMemoryAtPort(0);
             outputMemElse.push_back(outMem);
         } else {
-            THROW_CPU_NODE_ERR("Else body of node does not have output with name: ", out->get_friendly_name());
+            CPU_NODE_THROW("Else body of node does not have output with name: ", out->get_friendly_name());
         }
     }
 
@@ -231,7 +247,7 @@ void If::prepareAfterMappers(const bool isThen, const dnnl::engine& eng) {
     }
 }
 
-std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) const {
+std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) {
     std::deque<MemoryPtr> memories;
     for (const auto& edge : node->getChildEdgesAtPort(port)) {
         memories.push_back(edge->getMemoryPtr());
@@ -240,7 +256,7 @@ std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) con
 }
 
 void If::execute(const dnnl::stream& strm) {
-    const bool condition = static_cast<const bool>((getSrcDataAtPortAs<const uint8_t>(0))[0]);
+    const auto condition = static_cast<const bool>((getSrcDataAtPortAs<const uint8_t>(0))[0]);
 
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
     auto& afterMappers = condition ? afterThenMappers : afterElseMappers;

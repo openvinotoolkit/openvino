@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -133,7 +133,7 @@ private:
                     for (int j = 0; j < 4; ++j) {
                         var[j] = (priorVar[start_idx + j]);
                     }
-                    currPrVar.push_back(var);
+                    currPrVar.push_back(std::move(var));
                 }
             }
             priorData += off;
@@ -538,9 +538,9 @@ public:
                     int idx = scoreIndexPairs[j].second.second;
                     newIndices[label].push_back(idx);
                 }
-                allIndices.push_back(newIndices);
+                allIndices.push_back(std::move(newIndices));
             } else {
-                allIndices.push_back(indices);
+                allIndices.push_back(std::move(indices));
             }
         }
 

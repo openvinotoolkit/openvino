@@ -1,17 +1,19 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <map>
+#include <set>
+
+#include "openvino/core/rtti.hpp"
 #include "pass.hpp"
-#include "snippets/generator.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/reg_manager.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface AssignRegisters
@@ -27,12 +29,9 @@ public:
 
 private:
     using RegMap = std::map<Reg, Reg>;
-    RegMap assign_regs_manually(const LinearIR& linear_ir, std::set<Reg>& gpr_pool, std::set<Reg>& vec_pool);
+    static RegMap assign_regs_manually(const LinearIR& linear_ir, std::set<Reg>& gpr_pool, std::set<Reg>& vec_pool);
 
     RegManager& m_reg_manager;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

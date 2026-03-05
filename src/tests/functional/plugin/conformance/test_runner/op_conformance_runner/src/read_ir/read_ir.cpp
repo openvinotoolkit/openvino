@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,11 +30,10 @@ namespace op_conformance {
 
 std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj) {
     using namespace ov::test::utils;
+    const auto& [path_to_model, path_to_ref_tensor] = obj.param;
     std::pair<std::string, std::string> model_pair;
-    std::string path_to_model, path_to_ref_tensor, deviceName = ov::test::utils::target_device;
     ov::AnyMap config = ov::test::utils::global_plugin_config;
-    std::tie(path_to_model, path_to_ref_tensor) = obj.param;
-
+    const std::string deviceName = ov::test::utils::target_device;
     std::ostringstream result;
 
     enum class IR_TYPE {
@@ -135,7 +134,7 @@ void ReadIRTest::SetUp() {
         auto input_info = meta_info.get_input_info();
         rel_influence_coef = meta_info.get_graph_priority();
 
-        auto inputMap = utils::getInputMap();
+        const auto& inputMap = utils::getInputMap();
         std::vector<std::shared_ptr<ov::op::v0::Parameter>> parameter_to_remove;
         for (const auto& param : function->get_parameters()) {
             auto in_info = input_info.find(param->get_friendly_name())->second;

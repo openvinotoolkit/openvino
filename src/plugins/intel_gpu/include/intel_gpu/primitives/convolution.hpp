@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,6 +35,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
     /// @param grouped_weights_shape True if weights shape is [G, O, I, ...], and false if it's [O, I, ...] or [G*O, I, ...]
     /// @param audo_pad The pad type for automatically computing padding sizes
+    /// @param filter_rank Filter rank from op
     convolution(const primitive_id& id,
                 const input_info& input,
                 const primitive_id& weights,
@@ -49,7 +50,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff padding_end,
                 bool grouped_weights_shape,
                 data_types output_data_type,
-                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT)
+                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT,
+                size_t filter_rank = 4)
             : primitive_base(id, {input}, 1, {optional_data_type{output_data_type}}),
               groups(groups),
               stride(stride),
@@ -58,6 +60,7 @@ struct convolution : public primitive_base<convolution> {
               padding_end(padding_end),
               auto_pad(auto_pad),
               grouped_weights_shape(grouped_weights_shape),
+              filter_rank(filter_rank),
               weights(weights),
               bias(bias),
               weights_zero_points(w_zero_point),
@@ -81,6 +84,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
     /// @param grouped_weights_shape True if weights shape is [G, O, I, ...], and false if it's [O, I, ...] or [G*O, I, ...]
     /// @param audo_pad The pad type for automatically computing padding sizes
+    /// @param filter_rank Filter rank from op
     convolution(const primitive_id& id,
                 const input_info& input,
                 const primitive_id& weights,
@@ -91,7 +95,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff padding_begin,
                 ov::CoordinateDiff padding_end,
                 bool grouped_weights_shape,
-                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT)
+                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT,
+                size_t filter_rank = 4)
         : primitive_base(id, {input}),
           groups(groups),
           stride(stride),
@@ -100,6 +105,7 @@ struct convolution : public primitive_base<convolution> {
           padding_end(padding_end),
           auto_pad(auto_pad),
           grouped_weights_shape(grouped_weights_shape),
+          filter_rank(filter_rank),
           weights(weights),
           bias(bias),
           weights_zero_points(""),
@@ -126,6 +132,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
     /// @param bilinear_interpolation_pad If bilinear_interpolation_pad is true and the sampling location is within
     /// one pixel outside of the feature map boundary, then bilinear interpolation is performed on the zero padded feature map.
+    /// @param filter_rank Filter rank from op
     convolution(const primitive_id& id,
                 const std::vector<input_info>& inputs,
                 const primitive_id& weights,
@@ -137,7 +144,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::Strides dilation,
                 ov::CoordinateDiff padding_begin,
                 ov::CoordinateDiff padding_end,
-                bool bilinear_interpolation_pad = false)
+                bool bilinear_interpolation_pad = false,
+                size_t filter_rank = 4)
     : primitive_base(id, inputs),
       groups(groups),
       stride(stride),
@@ -149,6 +157,7 @@ struct convolution : public primitive_base<convolution> {
       deformable_groups(deformable_groups),
       bilinear_interpolation_pad(bilinear_interpolation_pad),
       grouped_weights_shape(false),
+      filter_rank(filter_rank),
       weights(weights),
       bias(bias),
       weights_zero_points(""),
@@ -186,16 +195,18 @@ struct convolution : public primitive_base<convolution> {
 
     /// @param grouped_weights_shape Defines if weights tensor has explicit group dimension.
     bool grouped_weights_shape {false};
+    /// @param filter_rank Filter rank from op
+    size_t filter_rank = 4;
     /// @brief Primitive id containing weights data.
-    const primitive_id weights;
+    input_info weights;
     /// @brief Primitive id containing bias data.
-    const primitive_id bias;
+    input_info bias;
     /// @brief Primitive id containing weights zero points.
-    const primitive_id weights_zero_points;
+    input_info weights_zero_points;
     /// @brief Primitive id containing activations zero points.
-    const primitive_id activations_zero_points;
+    input_info activations_zero_points;
     /// @brief Primitive id containing compensation.
-    const primitive_id compensation;
+    input_info compensation;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -210,11 +221,12 @@ struct convolution : public primitive_base<convolution> {
         seed = hash_combine(seed, bilinear_interpolation_pad);
         seed = hash_combine(seed, transposed);
         seed = hash_combine(seed, grouped_weights_shape);
-        seed = hash_combine(seed, !weights.empty());
-        seed = hash_combine(seed, !bias.empty());
-        seed = hash_combine(seed, !weights_zero_points.empty());
-        seed = hash_combine(seed, !activations_zero_points.empty());
-        seed = hash_combine(seed, !compensation.empty());
+        seed = hash_combine(seed, filter_rank);
+        seed = hash_combine(seed, !weights.is_valid());
+        seed = hash_combine(seed, !bias.is_valid());
+        seed = hash_combine(seed, !weights_zero_points.is_valid());
+        seed = hash_combine(seed, !activations_zero_points.is_valid());
+        seed = hash_combine(seed, !compensation.is_valid());
         return seed;
     }
 
@@ -236,11 +248,12 @@ struct convolution : public primitive_base<convolution> {
                cmp_fields(bilinear_interpolation_pad) &&
                cmp_fields(transposed) &&
                cmp_fields(grouped_weights_shape) &&
-               cmp_fields(weights.empty()) &&
-               cmp_fields(bias.empty()) &&
-               cmp_fields(weights_zero_points.empty()) &&
-               cmp_fields(activations_zero_points.empty()) &&
-               cmp_fields(compensation.empty());
+               cmp_fields(filter_rank) &&
+               cmp_fields(weights.is_valid()) &&
+               cmp_fields(bias.is_valid()) &&
+               cmp_fields(weights_zero_points.is_valid()) &&
+               cmp_fields(activations_zero_points.is_valid()) &&
+               cmp_fields(compensation.is_valid());
         #undef cmp_fields
     }
 
@@ -257,6 +270,7 @@ struct convolution : public primitive_base<convolution> {
         ob << bilinear_interpolation_pad;
         ob << transposed;
         ob << grouped_weights_shape;
+        ob << filter_rank;
         ob << weights;
         ob << bias;
         ob << weights_zero_points;
@@ -277,27 +291,33 @@ struct convolution : public primitive_base<convolution> {
         ib >> bilinear_interpolation_pad;
         ib >> transposed;
         ib >> grouped_weights_shape;
-        ib >> *const_cast<primitive_id*>(&weights);
-        ib >> *const_cast<primitive_id*>(&bias);
-        ib >> *const_cast<primitive_id*>(&weights_zero_points);
-        ib >> *const_cast<primitive_id*>(&activations_zero_points);
-        ib >> *const_cast<primitive_id*>(&compensation);
+        ib >> filter_rank;
+        ib >> weights;
+        ib >> bias;
+        ib >> weights_zero_points;
+        ib >> activations_zero_points;
+        ib >> compensation;
     }
 
-    std::vector<input_info> get_dependencies() const override {
-        std::vector<input_info> ret = {weights};
-        if (!bias.empty()) {
-            ret.push_back(bias);
-        }
-        if (!weights_zero_points.empty()) {
-            ret.push_back(weights_zero_points);
-        }
-        if (!activations_zero_points.empty()) {
-            ret.push_back(activations_zero_points);
-        }
-        if (!compensation.empty()) {
-            ret.push_back(compensation);
-        }
+protected:
+    std::map<size_t, const input_info*> get_dependencies_map() const override {
+        auto ret = std::map<size_t, const input_info*>{};
+        auto idx = input.size();
+
+        OPENVINO_ASSERT(weights.is_valid());
+        ret[idx++] = &weights;
+
+        if (bias.is_valid())
+            ret[idx++] = &bias;
+
+        if (weights_zero_points.is_valid())
+            ret[idx++] = &weights_zero_points;
+
+        if (activations_zero_points.is_valid())
+            ret[idx++] = &activations_zero_points;
+
+        if (compensation.is_valid())
+            ret[idx++] = &compensation;
 
         return ret;
     }

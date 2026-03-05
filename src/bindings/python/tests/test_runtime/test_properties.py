@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
 import numpy as np
 import os
+from pathlib import Path
 
 import openvino as ov
 import openvino.properties as props
@@ -117,6 +118,13 @@ def test_properties_rw_base():
             ),
         ),
         (
+            intel_cpu.TbbPartitioner,
+            (
+                (intel_cpu.TbbPartitioner.STATIC, "TbbPartitioner.STATIC", 1),
+                (intel_cpu.TbbPartitioner.AUTO, "TbbPartitioner.AUTO", 2),
+            ),
+        ),
+        (
             intel_auto.SchedulePolicy,
             (
                 (intel_auto.SchedulePolicy.ROUND_ROBIN, "SchedulePolicy.ROUND_ROBIN", 0),
@@ -188,6 +196,7 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (device.luid, "DEVICE_LUID"),
         (device.capabilities, "OPTIMIZATION_CAPABILITIES"),
         (intel_gpu.device_total_mem_size, "GPU_DEVICE_TOTAL_MEM_SIZE"),
+        (intel_gpu.device_max_alloc_mem_size, "GPU_DEVICE_MAX_ALLOC_MEM_SIZE"),
         (intel_gpu.uarch_version, "GPU_UARCH_VERSION"),
         (intel_gpu.execution_units_count, "GPU_EXECUTION_UNITS_COUNT"),
         (intel_gpu.memory_statistics, "GPU_MEMORY_STATISTICS"),
@@ -296,6 +305,16 @@ def test_properties_ro(ov_property_ro, expected_value):
             ),
         ),
         (
+            hints.enable_cpu_reservation,
+            "ENABLE_CPU_RESERVATION",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
+        ),
+        (
             hints.scheduling_core_type,
             "SCHEDULING_CORE_TYPE",
             ((hints.SchedulingCoreType.PCORE_ONLY, hints.SchedulingCoreType.PCORE_ONLY),),
@@ -303,9 +322,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             hints.model_distribution_policy,
             "MODEL_DISTRIBUTION_POLICY",
-            (
-                ({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),
-            ),
+            (({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),),
         ),
         (
             hints.enable_hyper_threading,
@@ -354,6 +371,14 @@ def test_properties_ro(ov_property_ro, expected_value):
             (
                 (0.1, np.float32(0.1)),
                 (2.0, 2.0),
+            ),
+        ),
+        (
+            intel_cpu.tbb_partitioner,
+            "TBB_PARTITIONER",
+            (
+                (intel_cpu.TbbPartitioner.STATIC, intel_cpu.TbbPartitioner.STATIC),
+                (intel_cpu.TbbPartitioner.AUTO, intel_cpu.TbbPartitioner.AUTO),
             ),
         ),
         (
@@ -423,6 +448,16 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((128, 128),),
         ),
         (
+            intel_gpu_hint.enable_lora_operation,
+            "GPU_ENABLE_LORA_OPERATION",
+            ((False, False),),
+        ),
+        (
+            intel_gpu_hint.enable_large_allocations,
+            "GPU_ENABLE_LARGE_ALLOCATIONS",
+            ((True, True),),
+        ),
+        (
             intel_npu.compilation_mode_params,
             "NPU_COMPILATION_MODE_PARAMS",
             (("dummy-op-replacement=true", "dummy-op-replacement=true"),),
@@ -431,6 +466,13 @@ def test_properties_ro(ov_property_ro, expected_value):
             intel_npu.turbo,
             "NPU_TURBO",
             ((True, True),),
+        ),
+        (
+            intel_npu.platform,
+            "NPU_PLATFORM",
+            (("3720", "3720"),
+             ("4000", "4000"),
+             ("5010", "5010"),),
         ),
         (
             intel_npu.tiles,
@@ -457,6 +499,34 @@ def test_properties_ro(ov_property_ro, expected_value):
             "NPU_COMPILER_DYNAMIC_QUANTIZATION",
             ((True, True),),
         ),
+        (
+            intel_npu.run_inferences_sequentially,
+            "NPU_RUN_INFERENCES_SEQUENTIALLY",
+            ((True, True),),
+        ),
+        (
+            intel_npu.qdq_optimization_aggressive,
+            "NPU_QDQ_OPTIMIZATION_AGGRESSIVE",
+            ((True, True),),
+        ),
+        (
+            intel_npu.disable_idle_memory_prunning,
+            "NPU_DISABLE_IDLE_MEMORY_PRUNING",
+            ((True, True),),
+        ),
+        (
+            intel_npu.enable_strides_for,
+            "NPU_ENABLE_STRIDES_FOR",
+            (("inputs,outputs", "inputs,outputs"),),
+        ),
+        (
+            intel_npu.compiler_type,
+            "NPU_COMPILER_TYPE",
+            ((intel_npu.CompilerType.DRIVER, intel_npu.CompilerType.DRIVER),
+             (intel_npu.CompilerType.PLUGIN, intel_npu.CompilerType.PLUGIN),
+             (intel_npu.CompilerType.PREFER_PLUGIN, intel_npu.CompilerType.PREFER_PLUGIN),),
+        ),
+        (props.enable_weightless, "ENABLE_WEIGHTLESS", ((True, True), (False, False))),
     ],
 )
 def test_properties_rw(ov_property_rw, expected_value, test_values):
@@ -474,6 +544,15 @@ def test_properties_rw(ov_property_rw, expected_value, test_values):
 ###
 # Special cases
 ###
+def test_compiled_blob_property():
+    assert hints.compiled_blob == "COMPILED_BLOB"
+    compiled_blob = hints.compiled_blob(ov.Tensor(Type.u8, [2, 5]))
+
+    assert compiled_blob[0] == "COMPILED_BLOB"
+    assert compiled_blob[1].value.element_type == Type.u8
+    assert compiled_blob[1].value.shape == [2, 5]
+
+
 def test_properties_device_priorities():
     assert device.priorities == "MULTI_DEVICE_PRIORITIES"
     assert device.priorities("CPU,GPU") == ("MULTI_DEVICE_PRIORITIES", OVAny("CPU,GPU,"))
@@ -543,6 +622,7 @@ def test_properties_memory_type_gpu():
 
 def test_properties_capability_gpu():
     assert intel_gpu.CapabilityGPU.HW_MATMUL == "GPU_HW_MATMUL"
+    assert intel_gpu.CapabilityGPU.USM_MEMORY == "GPU_USM_MEMORY"
 
 
 def test_properties_hint_model():
@@ -567,7 +647,17 @@ def test_single_property_setting(device):
     assert isinstance(core.get_property(device, streams.num()), int)
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
+def test_property_pathlib_path(device):
+    core = Core()
+
+    core.set_property(device, {"CACHE_DIR": Path("./test_cache")})
+    assert core.get_property(device, props.cache_dir) == str(Path("./test_cache"))
+
+
+@pytest.mark.skipif(
+    os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test"
+)
 @pytest.mark.parametrize(
     "properties_to_set",
     [

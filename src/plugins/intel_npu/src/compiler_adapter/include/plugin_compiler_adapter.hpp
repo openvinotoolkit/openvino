@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include "compiler_impl.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
-#include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -19,11 +19,17 @@ class PluginCompilerAdapter final : public ICompilerAdapter {
 public:
     PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct);
 
-    std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
+    std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
+                                    const FilteredConfig& config) const override;
 
-    std::shared_ptr<IGraph> parse(std::unique_ptr<BlobContainer> blobPtr, const Config& config) const override;
+    std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model, const FilteredConfig& config) const override;
 
-    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
+                              const FilteredConfig& config) const override;
+
+    std::optional<std::vector<std::string>> get_supported_options() const override;
+
+    bool is_option_supported(std::string optName, std::optional<std::string> optValue = std::nullopt) const override;
 
     uint32_t get_version() const override;
 
@@ -31,7 +37,7 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
-    ov::SoPtr<ICompiler> _compiler;
+    ov::SoPtr<VCLCompilerImpl> _compiler;
 
     Logger _logger;
 };

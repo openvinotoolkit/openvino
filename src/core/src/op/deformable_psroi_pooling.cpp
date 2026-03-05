@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ op::v1::DeformablePSROIPooling::DeformablePSROIPooling(const Output<Node>& input
       m_output_dim(output_dim),
       m_spatial_scale(spatial_scale),
       m_group_size(group_size),
-      m_mode(mode),
+      m_mode(std::move(mode)),
       m_spatial_bins_x(spatial_bins_x),
       m_spatial_bins_y(spatial_bins_y),
       m_trans_std(trans_std),
@@ -46,7 +46,7 @@ op::v1::DeformablePSROIPooling::DeformablePSROIPooling(const Output<Node>& input
       m_output_dim(output_dim),
       m_spatial_scale(spatial_scale),
       m_group_size(group_size),
-      m_mode(mode),
+      m_mode(std::move(mode)),
       m_spatial_bins_x(spatial_bins_x),
       m_spatial_bins_y(spatial_bins_y),
       m_trans_std(trans_std),

@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node.h>
-
+#include <memory>
 #include <utility>
 
+#include "openvino/core/node.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -14,8 +14,8 @@ namespace ov::intel_cpu::node {
 
 class SDPAShapeInferFactory : public ShapeInferFactory {
 public:
-    SDPAShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
-    ShapeInferPtr makeShapeInfer() const override;
+    explicit SDPAShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override;
 
 private:
     std::shared_ptr<ov::Node> m_op;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,15 +22,19 @@
 #include "transformations/symbolic_transformations/utils.hpp"
 
 using namespace ov;
-using namespace ov::op;
 using namespace std;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
+namespace v4 = ov::op::v4;
+namespace v8 = ov::op::v8;
 TEST(TransformationTests, ApplySymbolEquivalence_Concat) {
     auto input_1 = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
     auto input_2 = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
     auto concat = make_shared<v0::Concat>(OutputVector{input_1, input_2}, -1);
     // shape inference notes that all the non-axis dimensions are equal to each other
-    auto model = make_shared<Model>(NodeVector{concat}, ParameterVector{input_2, input_1});
+    auto model = make_shared<Model>(OutputVector{concat}, ParameterVector{input_2, input_1});
 
     pass::Manager manager;
     manager.set_per_pass_validation(false);
@@ -68,7 +72,7 @@ TEST_F(TransformationTestsF, ApplySymbolEquivalence_Concat_Values) {
             make_shared<v0::Concat>(OutputVector{gather, v0::Constant::create(element::i64, {1}, {-1})}, 0),
             false);
 
-        model = make_shared<Model>(NodeVector{reshape}, ParameterVector{input_2, input_1});
+        model = make_shared<Model>(OutputVector{reshape}, ParameterVector{input_2, input_1});
 
         manager.set_per_pass_validation(false);
         manager.register_pass<pass::SymbolicPropagation>();
@@ -96,7 +100,7 @@ TEST_F(TransformationTestsF, ApplySymbolEquivalence_Concat_Values) {
             concat,
             make_shared<v0::Concat>(OutputVector{sum, v0::Constant::create(element::i64, {1}, {-1})}, 0),
             false);
-        model_ref = make_shared<Model>(NodeVector{reshape}, ParameterVector{input_2, input_1});
+        model_ref = make_shared<Model>(OutputVector{reshape}, ParameterVector{input_2, input_1});
     }
 }
 
@@ -139,7 +143,7 @@ TEST_F(TransformationTestsF, ValueOptimizationSingleValue) {
                                             v0::Constant::create(element::i32, {}, {1}),
                                             element::i32);
 
-        model = make_shared<Model>(NodeVector{reshape_0, reshape_1, range}, ParameterVector{input});
+        model = make_shared<Model>(OutputVector{reshape_0, reshape_1, range}, ParameterVector{input});
 
         manager.set_per_pass_validation(false);
         manager.register_pass<pass::SymbolicPropagation>();
@@ -164,7 +168,7 @@ TEST_F(TransformationTestsF, ValueOptimizationSingleValue) {
                                             v0::Constant::create(element::i32, {}, {1}),
                                             element::i32);
 
-        model_ref = make_shared<Model>(NodeVector{reshape_0, reshape_1, range}, ParameterVector{input});
+        model_ref = make_shared<Model>(OutputVector{reshape_0, reshape_1, range}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -185,7 +189,7 @@ TEST_F(TransformationTestsF, ValueOptimizationDoubleValue) {
             make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {0}), dim_1}, 0),
             false);
 
-        model = make_shared<Model>(NodeVector{reshape_0, reshape_1}, ParameterVector{input});
+        model = make_shared<Model>(OutputVector{reshape_0, reshape_1}, ParameterVector{input});
 
         manager.set_per_pass_validation(false);
         manager.register_pass<pass::SymbolicPropagation>();
@@ -206,7 +210,7 @@ TEST_F(TransformationTestsF, ValueOptimizationDoubleValue) {
             make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {0}), dim_0}, 0),
             false);
 
-        model_ref = make_shared<Model>(NodeVector{reshape_0, reshape_1}, ParameterVector{input});
+        model_ref = make_shared<Model>(OutputVector{reshape_0, reshape_1}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -227,7 +231,7 @@ TEST_F(TransformationTestsF, ValueOptimizationSymbolAndValue) {
             make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {-1}), dim_1}, 0),
             false);
 
-        model = make_shared<Model>(NodeVector{reshape_0, reshape_1}, ParameterVector{input});
+        model = make_shared<Model>(OutputVector{reshape_0, reshape_1}, ParameterVector{input});
 
         manager.set_per_pass_validation(false);
         manager.register_pass<pass::SymbolicPropagation>();
@@ -244,7 +248,7 @@ TEST_F(TransformationTestsF, ValueOptimizationSymbolAndValue) {
         auto reshape_0 = make_shared<v1::Reshape>(input, dim_1, false);
         auto reshape_1 = make_shared<v1::Reshape>(input, dim_0, false);
 
-        model_ref = make_shared<Model>(NodeVector{reshape_0, reshape_1}, ParameterVector{input});
+        model_ref = make_shared<Model>(OutputVector{reshape_0, reshape_1}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }

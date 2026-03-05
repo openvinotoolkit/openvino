@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@ namespace Platform {
 constexpr std::string_view AUTO_DETECT = "AUTO_DETECT";  // Auto detection
 constexpr std::string_view NPU3720 = "3720";             // NPU3720
 constexpr std::string_view NPU4000 = "4000";             // NPU4000
+constexpr std::string_view NPU5010 = "5010";             // NPU5010
 
 /**
  * @brief Converts the given platform value to the standard one.
@@ -85,36 +86,6 @@ inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
 
 /**
  * @brief [Only for NPU Plugin]
- * Type: string, default is MLIR.
- * Type of NPU compiler to be used for compilation of a network
- * @note Configuration API v 2.0
- */
-enum class CompilerType { MLIR, DRIVER };
-
-/**
- * @brief Prints a string representation of ov::intel_npu::CompilerType to a stream
- * @param out An output stream to send to
- * @param fmt A compiler type value to print to a stream
- * @return A reference to the `out` stream
- * @note Configuration API v 2.0
- */
-inline std::ostream& operator<<(std::ostream& out, const CompilerType& fmt) {
-    switch (fmt) {
-    case CompilerType::MLIR: {
-        out << "MLIR";
-    } break;
-    case CompilerType::DRIVER: {
-        out << "DRIVER";
-    } break;
-    default:
-        out << static_cast<uint32_t>(fmt);
-        break;
-    }
-    return out;
-}
-
-/**
- * @brief [Only for NPU Plugin]
  * Type: String. Default is "AUTO".
  * This option is added for enabling batching on plugin.
  * Possible values: "AUTO", "COMPILER", "PLUGIN".
@@ -148,6 +119,88 @@ inline std::ostream& operator<<(std::ostream& out, const BatchMode& fmt) {
         break;
     }
     return out;
+}
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Default is "ITERATIVE".
+ * Switches between different implementations of the "weights separation" feature.
+ */
+enum class WSVersion {
+    ONE_SHOT = 0,
+    ITERATIVE = 1,
+};
+
+inline std::ostream& operator<<(std::ostream& out, const WSVersion& wsVersion) {
+    switch (wsVersion) {
+    case WSVersion::ONE_SHOT: {
+        out << "ONE_SHOT";
+    } break;
+    case WSVersion::ITERATIVE: {
+        out << "ITERATIVE";
+    } break;
+    default: {
+        OPENVINO_THROW("Unsupported value for the weights separation version:", wsVersion);
+    }
+    }
+    return out;
+}
+
+inline std::istream& operator>>(std::istream& is, WSVersion& wsVersion) {
+    std::string str;
+    is >> str;
+    if (str == "ONE_SHOT") {
+        wsVersion = WSVersion::ONE_SHOT;
+    } else if (str == "ITERATIVE") {
+        wsVersion = WSVersion::ITERATIVE;
+    } else {
+        OPENVINO_THROW("Unsupported value for the weights separation version:", str);
+    }
+    return is;
+}
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Default is "AUTO".
+ * Switches between different implementations of the VCL serializer.
+ */
+enum class ModelSerializerVersion {
+    AUTO = 0,
+    ALL_WEIGHTS_COPY = 1,
+    NO_WEIGHTS_COPY = 2,
+};
+
+inline std::ostream& operator<<(std::ostream& out, const ModelSerializerVersion& modelSerializerVersion) {
+    switch (modelSerializerVersion) {
+    case ModelSerializerVersion::AUTO: {
+        out << "AUTO";
+    } break;
+    case ModelSerializerVersion::ALL_WEIGHTS_COPY: {
+        out << "ALL_WEIGHTS_COPY";
+    } break;
+    case ModelSerializerVersion::NO_WEIGHTS_COPY: {
+        out << "NO_WEIGHTS_COPY";
+    } break;
+    default: {
+        OPENVINO_THROW("Unsupported value for the model serializer version:", modelSerializerVersion);
+    }
+    }
+    return out;
+}
+
+inline std::istream& operator>>(std::istream& is, ModelSerializerVersion& modelSerializerVersion) {
+    std::string str;
+    is >> str;
+    if (str == "AUTO") {
+        modelSerializerVersion = ModelSerializerVersion::AUTO;
+    } else if (str == "ALL_WEIGHTS_COPY") {
+        modelSerializerVersion = ModelSerializerVersion::ALL_WEIGHTS_COPY;
+    } else if (str == "NO_WEIGHTS_COPY") {
+        modelSerializerVersion = ModelSerializerVersion::NO_WEIGHTS_COPY;
+    } else {
+        OPENVINO_THROW("Unsupported value for the model serializer version:", str);
+    }
+    return is;
 }
 
 /**
@@ -227,15 +280,6 @@ inline std::istream& operator>>(std::istream& is, LegacyPriority& priority) {
 static constexpr ov::Property<LegacyPriority, ov::PropertyMutability::RO> legacy_model_priority{"MODEL_PRIORITY"};
 
 /**
- * @brief [Only for NPU Plugin]
- * Type: Arbitrary string.
- * This option allows to specify device.
- * The plugin accepts any value given through this option. If the device is not available, either the driver or the
- * compiler will throw an exception depending on the flow running at the time.
- */
-static constexpr ov::Property<std::string> platform{"NPU_PLATFORM"};
-
-/**
  * @brief
  * Type: integer, default is -1
  * Device stepping ID. If unset, it will be automatically obtained from driver
@@ -243,25 +287,10 @@ static constexpr ov::Property<std::string> platform{"NPU_PLATFORM"};
 static constexpr ov::Property<int64_t> stepping{"NPU_STEPPING"};
 
 /**
- * @brief [Only for NPU Plugin]
- * Type: string, default is DRIVER.
- * Selects the type of NPU compiler to be used for compilation of a network.
- * 'DRIVER' is the default value.
- */
-static constexpr ov::Property<CompilerType> compiler_type{"NPU_COMPILER_TYPE"};
-
-/**
  * @brief
  * Selects different compilation pipelines.
  */
 static constexpr ov::Property<std::string> compilation_mode{"NPU_COMPILATION_MODE"};
-
-/**
- * @brief [Only for NPU Plugin]
- * Type: integer, default is None
- * Number of DPU groups
- */
-static constexpr ov::Property<int64_t> dpu_groups{"NPU_DPU_GROUPS"};
 
 /**
  * @brief [Only for NPU Plugin]
@@ -299,6 +328,98 @@ static constexpr ov::Property<ProfilingType> profiling_type{"NPU_PROFILING_TYPE"
 static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
 
 /**
+ * @brief [Experimental, only for NPU Plugin]
+ * Type: enum. Default is "ITERATIVE". If the compiler-in-plugin is used (intel_npu::compiler_type =
+ * intel_npu::CompilerType::PLUGIN), then the default becomes "ONE_SHOT".
+ *
+ * The value stored in this entry indicates which implementation of the "weights separation" feature will be used.
+ * Note: NPU_COMPILER_TYPE = DRIVER & NPU_SEPARATE_WEIGHTS_VERSION = ONE_SHOT are not compatible.
+ */
+static constexpr ov::Property<WSVersion> separate_weights_version{"NPU_SEPARATE_WEIGHTS_VERSION"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: bool. Default is "false".
+ *
+ * This option enables/disables the "weights separation" feature. If enabled, the result of compilation will be a binary
+ * object stripped of a significant amount of weights. Before running the model, these weights need to be provided by
+ * external means.
+ */
+static constexpr ov::Property<bool> weightless_blob{"NPU_WEIGHTLESS_BLOB"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: bool. Default is "true".
+ *
+ * This config option concerns the algorithm used for serializing the "ov::Model" at compilation time in order to be
+ * passed through the driver.
+ *
+ * The base serializer is the OV implementation of the "XmlSerializer" without any extensions. All weights are copied in
+ * a separate buffer. By turning this off, the NPU extension of the serializer is enabled. This allows optimizing the
+ * process by storing metadata (memory location & bytes size) instead of weights values. However, this solution may be
+ * less reliable.
+ */
+static constexpr ov::Property<bool> use_base_model_serializer{"NPU_USE_BASE_MODEL_SERIALIZER"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: enum. Default is "AUTO".
+ *
+ * This config option concerns the algorithm used for serializing the "ov::Model" at compilation time in order to be
+ * passed through the driver.
+ *
+ * The value chosen for this option will impact memory usage, since some versions clone the values of the weights in a
+ * separate buffer. If this option is set to "AUTO", the plugin will use the latest version that is compatible with the
+ * current compiler.
+ *
+ * @note This feature is a work-in-progress and may not yet work as intended.
+ */
+static constexpr ov::Property<ModelSerializerVersion> model_serializer_version{"NPU_MODEL_SERIALIZER_VERSION"};
+
+/**
+ * @brief [Experimental, only for NPU Plugin]
+ * Type: integer.
+ *
+ * Used for communicating a state to the compiler when compiling a model using the compiler-in-driver interfaces. This
+ * takes effect only when weights separation is enabled and "NPU_SEPARATE_WEIGHTS_VERSION" is set to "ITERATIVE".
+ */
+static constexpr ov::Property<uint32_t> ws_compile_call_number{"WS_COMPILE_CALL_NUMBER"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: String. Default is "".
+ * This option is added for providing a fine-grained batched model compilation control, otherwise batching compilation
+ * params will be determined automatically. Should be specified only when a model compilation is failed due to incorrect
+ * detection of batch dimension presence including false-positive and false-negative cases. NPU compiler supports two
+ * batch compile options by now: "unroll" and "debatch" - either can be activated using by setting
+ * "batch-compile-method" into the desired value. Leveragind the compile method "debatch" allows the additional param
+ * "debatcher-settings" being configured, which introduces the declared fine-grained compilation control suboptions. The
+ * suboption "debatcher-input-coefficients-partitions" determines how to split or debatch input tensors of an original
+ * model.
+ *
+ * Let's look at the following example:
+ * "batch-compile-method=debatch debatcher-settings={debatcher-input-coefficients-partitions=[0-1],[13-4],[1-1]}".
+ *
+ * These mean that we want to "debatch" inputs of a batched network providing that:
+ * - a batch dimension N of a first intput is on the 0-position (of its layout abbreviation);
+ * - the N dimension of a second input is on 13th-position of its layout;
+ * - and the N dimension of a third input is on 1-position of its layout accordingly.
+ * Thus the first digit of a pair of values enclosed by symbols'[' and ']' determines N dimension position in a layout
+ * of a corresponding input. A second value of the pair represents a "native" value of N-dimension of a tensor in
+ * assumption that having this value, the tensor becomes "non-batched" or a plain tensor. In the example above:
+ * - the non-batched tensor of the first input is assumed to have 1 in N-dimension (on the 0 position);
+ * - the second tensor assumed non-batched when it got 4 as a valua of N-dimension on the 13th-position
+ * - the third tensor is a plain tensor when it has 1 in N-dimension on the 1-position of its layout
+ *
+ * The given "debatcher-input-coefficients-partitions" provides the NPU compiler with sufficient information in order to
+ * compile a complicatied batched model, which might not be auto recognized by intrinsic heuristics
+ *
+ * Possible values: "", "batch-compile-method=unroll batch-unroll-settings={skip-unroll-batch=false}",
+ * "batch-compile-method=debatch debatcher-settings={debatcher-input-coefficients-partitions=[0-1],[0-1],[0-1]}".
+ */
+static constexpr ov::Property<std::string> batch_compiler_mode_settings{"NPU_BATCH_COMPILER_MODE_SETTINGS"};
+
+/**
  * @brief [Only for NPU Plugin]
  * Type: integer, default is 1
  * This option allows to omit creating an executor and therefore to omit running an inference when its value is 0
@@ -323,11 +444,26 @@ static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKE
 /**
  * @brief [Only for NPU Plugin]
  * Type: boolean, default is false.
- * This option allows to run inferences sequentially, in the order in which they were created
- * @note Experimental property, for now it only works in very specific scenarios. We need driver updates before we can
- * implement a robust solution for in-order execution
+ * This option allows to skip the blob version check
+ * Will be dropped when blob compatibility with OV 25.4 will no longer be required
+ * Usage will exclusively be covered by NPU_IMPORT_RAW_BLOB property
  */
-static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFERENCES_SEQUENTIALLY"};
+static constexpr ov::Property<bool> disable_version_check{"NPU_DISABLE_VERSION_CHECK"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
+ * This option allows to skip reading plugin metadata from the imported compiled model
+ * Mirrors usage of NPU_DISABLE_VERSION_CHECK
+ */
+static constexpr ov::Property<bool> import_raw_blob{"NPU_IMPORT_RAW_BLOB"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
+ * This option allows to skip writing plugin metadata to compiled model when exporting it
+ */
+static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
 
 }  // namespace intel_npu
 }  // namespace ov

@@ -1,10 +1,25 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_dnnl_emitters.hpp"
 
-#include <nodes/eltwise.h>
+#include <oneapi/dnnl/dnnl_types.h>
+#include <xbyak/xbyak.h>
+
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl;
@@ -13,22 +28,21 @@ using namespace Xbyak;
 
 namespace ov::intel_cpu {
 
-std::set<std::vector<element::Type>> jit_dnnl_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_dnnl_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
-jit_dnnl_emitter::jit_dnnl_emitter(jit_generator* host,
+jit_dnnl_emitter::jit_dnnl_emitter(jit_generator_t* host,
                                    cpu_isa_t host_isa,
-                                   const std::shared_ptr<ov::Node>& node,
+                                   [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                                    ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc),
-      kind(dnnl_eltwise_tanh),
-      alpha(0.f),
-      beta(0.f) {
+      kind(dnnl_eltwise_tanh) {
     set_injector();
 }
 
-jit_dnnl_emitter::jit_dnnl_emitter(jit_generator* host,
+jit_dnnl_emitter::jit_dnnl_emitter(jit_generator_t* host,
                                    cpu_isa_t host_isa,
                                    dnnl_alg_kind_t algKind,
                                    float alpha,
@@ -44,18 +58,18 @@ jit_dnnl_emitter::jit_dnnl_emitter(jit_generator* host,
 void jit_dnnl_emitter::set_injector() {
     if (host_isa_ == cpu::x64::sse41) {
         eltwise_injector_sse42 =
-            std::make_shared<jit_uni_eltwise_injector<cpu::x64::sse41>>(h, kind, alpha, beta, 1.f, data_type::f32);
+            std::make_shared<jit_uni_eltwise_injector_t<cpu::x64::sse41>>(h, kind, alpha, beta, 1.F, data_type::f32);
     } else if (host_isa_ == cpu::x64::avx2) {
         eltwise_injector_avx2 =
-            std::make_shared<jit_uni_eltwise_injector<cpu::x64::avx2>>(h, kind, alpha, beta, 1.f, data_type::f32);
+            std::make_shared<jit_uni_eltwise_injector_t<cpu::x64::avx2>>(h, kind, alpha, beta, 1.F, data_type::f32);
     } else if (host_isa_ == cpu::x64::avx512_core) {
         eltwise_injector_avx512_core =
-            std::make_shared<jit_uni_eltwise_injector<cpu::x64::avx512_core>>(h,
-                                                                              kind,
-                                                                              alpha,
-                                                                              beta,
-                                                                              1.f,
-                                                                              data_type::f32);
+            std::make_shared<jit_uni_eltwise_injector_t<cpu::x64::avx512_core>>(h,
+                                                                                kind,
+                                                                                alpha,
+                                                                                beta,
+                                                                                1.F,
+                                                                                data_type::f32);
     } else {
         OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
@@ -67,8 +81,8 @@ size_t jit_dnnl_emitter::get_inputs_num() const {
 
 void jit_dnnl_emitter::emit_code_impl(const std::vector<size_t>& in_vec_idxs,
                                       const std::vector<size_t>& out_vec_idxs,
-                                      const std::vector<size_t>& pool_vec_idxs,
-                                      const std::vector<size_t>& pool_gpr_idxs) const {
+                                      [[maybe_unused]] const std::vector<size_t>& pool_vec_idxs,
+                                      [[maybe_unused]] const std::vector<size_t>& pool_gpr_idxs) const {
     if (host_isa_ == cpu::x64::sse41) {
         if (out_vec_idxs[0] != in_vec_idxs[0]) {
             h->uni_vmovups(Xmm(out_vec_idxs[0]), Xmm(in_vec_idxs[0]));
@@ -101,7 +115,7 @@ void jit_dnnl_emitter::emit_data() const {
     }
 }
 
-jit_dnnl_aux_emitter::jit_dnnl_aux_emitter(jit_generator* host,
+jit_dnnl_aux_emitter::jit_dnnl_aux_emitter(jit_generator_t* host,
                                            cpu_isa_t host_isa,
                                            dnnl_alg_kind_t algKind,
                                            float inpAlpha,

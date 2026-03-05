@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -15,6 +15,8 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
     ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/set_device_name.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/cpu_test_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/fusing_test_utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/transformations/insert_fake_quantize.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/transformations/insert_requantize.cpp
   )
 
 if(X86_64)
@@ -45,7 +47,6 @@ endif()
       DEFINES ${DEFINES}
       DEPENDENCIES ${DEPENDENCIES}
       LINK_LIBRARIES ${LINK_LIBRARIES}
-      ADD_CPPLINT
       LABELS OV CPU
     )
 
@@ -67,6 +68,8 @@ endif()
         file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES ${TEST_DIR}/instances/x64/${TEST_CLASS_FILE_NAME})
     elseif(ARM OR AARCH64)
         file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES ${TEST_DIR}/instances/arm/${TEST_CLASS_FILE_NAME})
+    elseif(RISCV64)
+        file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES ${TEST_DIR}/instances/riscv64/${TEST_CLASS_FILE_NAME})
     endif()
     file(GLOB_RECURSE LIST_OF_TEST_COMMON_INSTANCES ${TEST_DIR}/instances/common/${TEST_CLASS_FILE_NAME})
     set(LIST_OF_TEST_INSTANCES ${LIST_OF_TEST_COMMON_INSTANCES} ${LIST_OF_TEST_ARCH_INSTANCES})
@@ -96,7 +99,8 @@ endif()
 endfunction()
 
 if(ENABLE_CPU_SPECIFIC_TARGET_PER_TEST)
-  create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/common ov_cpu_func_subgraph)
+  create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src ov_cpu_func_subgraph)
+  create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/common ov_cpu_func_subgraph_common)
   create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests ov_cpu_func_slt)
 endif()
 

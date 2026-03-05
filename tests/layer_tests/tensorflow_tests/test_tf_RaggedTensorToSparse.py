@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2024 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -54,11 +54,10 @@ class TestRaggedTensorToSparse(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_ragged_tensor_to_sparse(self, rt_dense_values_shape, rt_dense_values_type, rt_nested_splits,
-                                     ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+                                     ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU' or run_in_jenkins():
             pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_ragged_tensor_to_sparse_net(rt_dense_values_shape=rt_dense_values_shape,
                                                             rt_dense_values_type=rt_dense_values_type,
                                                             rt_nested_splits=rt_nested_splits),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

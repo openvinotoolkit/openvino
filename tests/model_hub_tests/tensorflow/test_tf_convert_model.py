@@ -1,28 +1,42 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
 import os
+import platform
+import pytest
 import shutil
 import subprocess
 import tempfile
-
-import pytest
 import tensorflow as tf
 import tensorflow.compat.v1 as tf_v1
 import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
-import tensorflow_text  # do not delete, needed for text models
+#import tensorflow_text  # do not delete, needed for text models. Commended due to ticket 179327
+from huggingface_hub import snapshot_download
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
 from openvino import Core
 
 from utils import load_graph, get_input_signature, get_output_signature, unpack_tf_result, \
-    repack_ov_result_to_tf_format, get_output_signature_from_keras_layer, retrieve_inputs_info_for_signature
+    repack_ov_result_to_tf_format, get_output_signature_from_keras_layer, retrieve_inputs_info_for_signature, \
+    retrieve_inputs_info_from_input_spec
 
 
 def is_hf_link(link: str):
     return link.startswith("hf_")
+
+
+def is_tf_keras_application(link: str):
+    return link.startswith("tf_keras_applications")
+
+
+def get_keras_application_model_by_name(model_name):
+    try:
+        model_class = getattr(tf.keras.applications, model_name)
+        return model_class
+    except AttributeError:
+        raise ValueError(f"Model '{model_name}' not found in tf.keras.applications")
 
 
 class TestTFHubConvertModel(TestConvertModel):
@@ -31,14 +45,15 @@ class TestTFHubConvertModel(TestConvertModel):
 
     def load_model(self, model_name, model_link: str):
         if is_hf_link(model_link):
+            model_cached = snapshot_download(model_name)  # required to avoid HF rate limits
             library_type = model_link[3:]
             if library_type == "transformers":
                 from transformers import TFAutoModel
-                return TFAutoModel.from_pretrained(model_name)
+                return TFAutoModel.from_pretrained(model_cached)
             elif library_type == "sentence-transformers":
                 from tf_sentence_transformers import SentenceTransformer
-                return SentenceTransformer.from_pretrained(model_name)
-        if 'storage.openvinotoolkit.org' in model_link:
+                return SentenceTransformer.from_pretrained(model_cached)
+        elif 'storage.openvinotoolkit.org' in model_link:
             # this models is from public OpenVINO storage
             subprocess.check_call(["wget", "-nv", model_link], cwd=self.model_dir.name)
             model_file_name = os.path.basename(model_link)
@@ -51,6 +66,8 @@ class TestTFHubConvertModel(TestConvertModel):
             if model_file_name.endswith('.pb'):
                 graph = load_graph(model_file_name)
                 return graph
+        elif is_tf_keras_application(model_link):
+            return get_keras_application_model_by_name(model_name)()
 
         load = hub.load(model_link)
         if 'serving_default' in list(load.signatures.keys()):
@@ -69,6 +86,11 @@ class TestTFHubConvertModel(TestConvertModel):
             input_signature = get_input_signature(model_obj)
         elif hasattr(model_obj, "input_signature") and model_obj.input_signature is not None:
             input_signature = model_obj.input_signature
+        elif hasattr(model_obj, "input_spec") and hasattr(model_obj, "inputs"):
+            # some Keras models have input_spec and inputs attributes instead of input_signature
+            inputs_info = retrieve_inputs_info_from_input_spec(model_obj.input_spec, model_obj.inputs)
+            self.output_signature = get_output_signature_from_keras_layer(model_obj)
+            return inputs_info
         else:
             assert len(model_obj.structured_input_signature) > 1, "incorrect model or test issue"
             input_signature = model_obj.structured_input_signature[1].items()
@@ -108,7 +130,8 @@ class TestTFHubConvertModel(TestConvertModel):
             for ind, output_name in enumerate(output_names):
                 output_dict[output_name] = tf_output[ind]
             return output_dict
-
+        elif isinstance(model_obj, tf.keras.models.Model) and len(inputs) == 1:
+            return unpack_tf_result(model_obj(list(inputs.values())[0]))
         # repack input dictionary to tensorflow constants
         tf_inputs = {}
         for input_name, input_value in inputs.items():
@@ -138,6 +161,27 @@ class TestTFHubConvertModel(TestConvertModel):
     def test_convert_model_precommit(self, model_name, model_link, mark, reason, ie_device):
         assert mark is None or mark == 'skip' or mark == 'xfail', \
             "Incorrect test case: {}, {}".format(model_name, model_link)
+        
+        arm_platforms = {'arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'}
+        arm_failed_models = {
+            'movenet/singlepose/lightning',
+            'imagenet/mobilenet_v2_100_224/feature_vector',
+            'movenet/multipose/lightning',
+            'imagenet/mobilenet_v1_100_224/classification',
+            'magenta/arbitrary-image-stylization-v1-256',
+            'small_bert/bert_en_uncased_L-4_H-256_A-4',
+            'movinet/a5/base/kinetics-600/classification',
+            'efficientdet/lite0/detection',
+            'film',
+            'i3d-rgb',
+            'microsoft/deberta-v3-small',
+            'facebook/convnext-tiny-224',
+            'google/vit-base-patch16-224',
+            'facebook/sam-vit-base',
+        }
+        if platform.machine() in arm_platforms and model_name in arm_failed_models:
+            pytest.skip(f"Model {model_name} is not enabled on ARM platform")
+        
         if mark == 'skip':
             pytest.skip(reason)
         elif mark == 'xfail':

@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,13 +28,8 @@ using RollGPUTestParams = typename std::tuple<
 class RollLayerGPUTest : public testing::WithParamInterface<RollGPUTestParams>,
                          virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<RollGPUTestParams> obj) {
-        InputShape inputShape;
-        ov::element::Type inputPrecision;
-        std::vector<int64_t> shift;
-        std::vector<int64_t> axes;
-        std::string targetDevice;
-        std::tie(inputShape, inputPrecision, shift, axes, targetDevice) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<RollGPUTestParams>& obj) {
+        const auto& [inputShape, inputPrecision, shift, axes, targetDevice] = obj.param;
 
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
@@ -52,12 +47,8 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape inputShape;
-        ov::element::Type inputPrecision;
-        std::vector<int64_t> shift;
-        std::vector<int64_t> axes;
-
-        std::tie(inputShape, inputPrecision, shift, axes, targetDevice) = GetParam();
+        const auto& [inputShape, inputPrecision, shift, axes, _targetDevice] = GetParam();
+        targetDevice = _targetDevice;
 
         init_input_shapes({inputShape});
 
@@ -131,6 +122,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_RollGPU_3D, RollLayerGPUTest,
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::Values(std::vector<int64_t>{160, 150}), // Shift
                             ::testing::Values(std::vector<int64_t>{1, 2}),     // Axes
+                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                        RollLayerGPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_RollGPU_3DNegativeShiftAxes, RollLayerGPUTest,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(data3DShapes),
+                            ::testing::ValuesIn(inputPrecisions),
+                            ::testing::Values(std::vector<int64_t>{-1, -2,  5,  2, 4}),    // Shift
+                            ::testing::Values(std::vector<int64_t>{-1, -2, -1, -3, 2}),    // Axes
                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         RollLayerGPUTest::getTestCaseName);
 

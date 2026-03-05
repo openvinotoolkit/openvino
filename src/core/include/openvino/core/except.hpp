@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <filesystem>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -12,6 +13,40 @@
 #include "openvino/core/deprecated.hpp"
 
 namespace ov {
+
+template <class T>
+auto stringify(T&& arg) -> std::conditional_t<std::is_same_v<std::decay_t<T>, std::string>, T&, std::string> {
+    if constexpr (std::is_same_v<std::decay_t<T>, std::string>) {
+        return arg;
+    } else {
+        std::stringstream stream;
+        stream << arg;
+        return stream.str();
+    }
+}
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+OPENVINO_API std::string stringify(const std::filesystem::path& arg);
+#endif
+
+template <typename... TS>
+std::ostream& write_all_to_stream(std::ostream& str, TS&&... args) {
+    if constexpr (std::is_same_v<typename std::filesystem::path::string_type, std::wstring>) {
+        constexpr auto fwd_or_str =
+            [](auto&& arg) -> std::conditional_t<std::is_same_v<std::filesystem::path, std::decay_t<decltype(arg)>>,
+                                                 decltype(stringify(arg)),
+                                                 decltype(arg)&> {
+            if constexpr (std::is_same_v<std::filesystem::path, std::decay_t<decltype(arg)>>) {
+                return stringify(arg);
+            } else {
+                return arg;
+            }
+        };
+        return (str << ... << (fwd_or_str(std::forward<TS>(args))));
+    } else {
+        return (str << ... << args);
+    }
+}
 
 /// Base error for ov runtime errors.
 class OPENVINO_API Exception : public std::runtime_error {
@@ -30,29 +65,6 @@ protected:
                                  const std::string& context_info,
                                  const std::string& explanation);
 };
-
-static inline std::ostream& write_all_to_stream(std::ostream& str) {
-    return str;
-}
-
-template <typename T, typename... TS>
-std::ostream& write_all_to_stream(std::ostream& str, T&& arg, TS&&... args) {
-    return write_all_to_stream(str << arg, std::forward<TS>(args)...);
-}
-
-template <class T,
-          typename std::enable_if<!std::is_same<typename std::decay<T>::type, std::string>::value>::type* = nullptr>
-std::string stringify(T&& arg) {
-    std::stringstream stream;
-    stream << arg;
-    return stream.str();
-}
-
-template <class T,
-          typename std::enable_if<std::is_same<typename std::decay<T>::type, std::string>::value>::type* = nullptr>
-T& stringify(T&& arg) {
-    return arg;
-}
 
 /// Base class for check failure exceptions.
 class OPENVINO_API AssertFailure : public Exception {
@@ -145,7 +157,7 @@ protected:
 //
 #define OPENVINO_ASSERT_HELPER2(exc_class, ctx, check, ...)                      \
     do {                                                                         \
-        if (!(check)) {                                                          \
+        if (!static_cast<bool>(check)) {                                         \
             ::std::ostringstream ss___;                                          \
             ::ov::write_all_to_stream(ss___, __VA_ARGS__);                       \
             exc_class::create(__FILE__, __LINE__, (#check), (ctx), ss___.str()); \
@@ -154,7 +166,7 @@ protected:
 
 #define OPENVINO_ASSERT_HELPER1(exc_class, ctx, check)                                      \
     do {                                                                                    \
-        if (!(check)) {                                                                     \
+        if (!static_cast<bool>(check)) {                                                    \
             exc_class::create(__FILE__, __LINE__, (#check), (ctx), exc_class::default_msg); \
         }                                                                                   \
     } while (0)
@@ -184,6 +196,20 @@ protected:
 ///            i.e., only if the `cond` evaluates to `false`.
 /// \throws ::ov::AssertFailure if `cond` is false.
 #define OPENVINO_ASSERT(...) OPENVINO_ASSERT_HELPER(::ov::AssertFailure, ::ov::AssertFailure::default_msg, __VA_ARGS__)
+
+/// \brief Debug version of OPENVINO_ASSERT that is only active when NDEBUG is not defined
+///        i.e. Release / production builds.
+//         Can be used as a more convenient replacement for `assert()` in performance critical parts of code
+/// \param ... Error message info to be added to the error message via the `<<`
+///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
+///            i.e., only if the `cond` evaluates to `false`.
+/// \throws ::ov::AssertFailure if `cond` is false and NDEBUG is not defined.
+#ifndef NDEBUG
+#    define OPENVINO_DEBUG_ASSERT(...) \
+        OPENVINO_ASSERT_HELPER(::ov::AssertFailure, ::ov::AssertFailure::default_msg, __VA_ARGS__)
+#else
+#    define OPENVINO_DEBUG_ASSERT(...)
+#endif
 
 /// \brief Macro to signal a code path that is unreachable in a successful execution. It's
 /// implemented with OPENVINO_ASSERT macro.

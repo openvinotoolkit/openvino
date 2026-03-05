@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
+#include <pybind11/typing.h>
 
 #include "openvino/runtime/tensor.hpp"
 #include "pyopenvino/core/common.hpp"
@@ -117,8 +118,8 @@ void regclass_Tensor(py::module m) {
                 Creates a Tensor from a given Python list.
                 Warning: It is always a copy of list's data!
 
-                :param array: List to create the tensor from.
-                :type array: List[int, float, str]
+                :param array: list to create the tensor from.
+                :type array: list[int, float, str]
             )");
 
     cls.def(py::init<const ov::element::Type, const ov::Shape>(), py::arg("type"), py::arg("shape"));
@@ -216,7 +217,8 @@ void regclass_Tensor(py::module m) {
 
     cls.def(py::init([](py::object& image) {
                 if (!py::isinstance(image, py::module::import("PIL.Image").attr("Image"))) {
-                    throw py::type_error("Input must be a PIL.Image.Image object");
+                    throw py::type_error(
+                        "Input argument must be a PIL.Image.Image/numpy.array/list[int, float, str] object");
                 }
                 auto numpy = py::module::import("numpy");
                 py::array np_array = numpy.attr("array")(image);
@@ -225,19 +227,19 @@ void regclass_Tensor(py::module m) {
             }),
             py::arg("image"),
             R"(
-                Constructs Tensor from a Pillow Image.
+            Constructs Tensor from a Pillow Image.
 
-                :param image: Pillow Image to create the tensor from.
-                :type image: PIL.Image.Image
-                :Example:
-                .. code-block:: python
+            :param image: Pillow Image to create the tensor from.
+            :type image: PIL.Image.Image
+            :Example:
+            .. code-block:: python
 
-                    from PIL import Image
-                    import openvino as ov
+                from PIL import Image
+                import openvino as ov
 
-                    img = Image.open("example.jpg")
-                    tensor = ov.Tensor(img)
-            )");
+                img = Image.open("example.jpg")
+                tensor = ov.Tensor(img)
+        )");
 
     cls.def("get_element_type",
             &ov::Tensor::get_element_type,
@@ -313,7 +315,7 @@ void regclass_Tensor(py::module m) {
 
             Returns numpy array with corresponding shape and dtype.
 
-            For tensors with OpenVINO specific element type, such as u1, u4 or i4
+            For tensors with OpenVINO specific element type, such as u1, u2, u3, u4, u6 or i4
             it returns linear array, with uint8 / int8 numpy dtype.
 
             For tensors with string element type, returns a numpy array of bytes

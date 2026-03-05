@@ -1,7 +1,6 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
@@ -44,7 +43,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
         ConcatSDPTest,
         ::testing::Combine(::testing::Values(ElementType::f16),
                            ::testing::ValuesIn(inputShapes),
-                           ::testing::Values(false),
+                           ::testing::Values(true, false),
                            ::testing::Values(true, false),
                            ::testing::Values(true, false)),
         ConcatSDPTest::getTestCaseName);

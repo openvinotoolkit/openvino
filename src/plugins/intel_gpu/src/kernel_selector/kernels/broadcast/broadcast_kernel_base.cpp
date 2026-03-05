@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,24 @@ JitConstants BroadcastKernelBase::GetJitConstants(const broadcast_params& params
     jit.AddConstants({MakeJitConstant("VEC_SIZE", VEC_SIZE)});
     jit.AddConstants({MakeJitConstant("Y_BLOCKS", Y_BLOCKS)});
     jit.AddConstants({MakeJitConstant("SAME_RANK_PLAIN_FORMAT", is_same_planar_format(in_layout, out_layout))});
+
+    // Fused post_ops
+    if (!params.fused_ops.empty()) {
+        kernel_selector::Datatype input_dt = params.outputs[0].GetDType();
+        std::vector<std::string> idx_order;
+        if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
+            idx_order = {"out_b", "out_f", "out_y + i", "out_x + offset"};
+        } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
+            idx_order = {"out_b", "out_f", "out_z", "out_y + i", "out_x + offset"};
+        } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 6) {
+            idx_order = {"out_b", "out_f", "out_w", "out_z", "out_y + i", "out_x + offset"};
+        }
+
+        FusedOpsConfiguration conf = {"", idx_order, "res", input_dt, 1};
+
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
+
     return jit;
 }
 
@@ -148,7 +166,7 @@ KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params) cons
                      false,
                      false,
                      1,
-                     0,
+                     GetFusedPrimitiveInputsCount(params),
                      1,
                      prim_params.is_shape_agnostic);
 

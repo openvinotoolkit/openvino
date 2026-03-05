@@ -43,7 +43,7 @@ API Development
 
 Get started with OpenVINO Node.js API development :doc:`here <./addon>`.
 
-OpenVINO 2024.4 has introduced the following methods:
+With OpenVINO 2024.4, the following methods have been introduced:
 
 - :ref:`Model.clone() <clone>`
 - :ref:`Model.getOutputElementType() <getOutputElementType>`

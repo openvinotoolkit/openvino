@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,6 @@ namespace {
 const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues = {
     {
         {1, 3, 16, 16},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { 10.f }, { 255.f } },
             { {}, {}, {} },
@@ -21,7 +20,6 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
     },
     {
         {1, 3, 16, 16},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             { 256ul, {}, { -1.28f }, { 1.27f }, { 0.f }, { 255.f } },
             { {}, {}, {} },

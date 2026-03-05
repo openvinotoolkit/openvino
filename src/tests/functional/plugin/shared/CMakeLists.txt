@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -54,19 +54,20 @@ ov_add_target(
         ROOT ${PUBLIC_HEADERS_DIR}
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ADD_CPPLINT
         EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS}
         DEFINES ${DEFINES}
         INCLUDES
             PUBLIC
                 "$<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>"
+            PRIVATE
+                "${OpenVINO_SOURCE_DIR}/src/plugins/template/include"
         LINK_LIBRARIES
             PUBLIC
                 openvino::pugixml
                 common_test_utils
                 func_test_utils
                 ov_lpt_models
-                sharedTestClasses
+                base_func_tests
             PRIVATE
                 ${LINK_LIBRARIES_PRIVATE}
         DEPENDENCIES
@@ -74,9 +75,8 @@ ov_add_target(
 )
 
 ov_build_target_faster(${TARGET_NAME}
-    PCH PRIVATE "src/precomp.hpp"
+    PCH_HEADER "src/precomp.hpp"
 )
-
 # install & export
 
 ov_developer_package_export_targets(TARGET ${TARGET_NAME}

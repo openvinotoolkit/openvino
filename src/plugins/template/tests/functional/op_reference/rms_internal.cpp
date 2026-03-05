@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,11 +77,11 @@ private:
         if (!scale.data) {
             const auto scale_const = std::make_shared<op::v0::Constant>(input.type, input.shape, 1.0);
             const auto rms_norm = std::make_shared<op::internal::RMS>(in, scale_const, eps, output_type);
-            return std::make_shared<ov::Model>(NodeVector{rms_norm}, ParameterVector{in});
+            return std::make_shared<ov::Model>(OutputVector{rms_norm}, ParameterVector{in});
         }
         const auto scale_param = std::make_shared<op::v0::Parameter>(scale.type, scale.shape);
         const auto rms_norm = std::make_shared<op::internal::RMS>(in, scale_param, eps, output_type);
-        return std::make_shared<ov::Model>(NodeVector{rms_norm}, ParameterVector{in, scale_param});
+        return std::make_shared<ov::Model>(OutputVector{rms_norm}, ParameterVector{in, scale_param});
     }
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,16 +10,25 @@
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/common/sync_infer_request.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "zero_pipeline.hpp"
-#include "zero_profiling.hpp"
-#include "zero_remote_tensor.hpp"
 #include "zero_tensor.hpp"
 
 namespace intel_npu {
 
-class ZeroInferRequest final : public SyncInferRequest {
+constexpr std::size_t SINGLE_TENSOR = 0;
+constexpr bool INPUT = true;
+constexpr bool OUTPUT = false;
+
+std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
+                                                   const ov::PartialShape& ioShape,
+                                                   const std::shared_ptr<ov::ITensor>& tensor,
+                                                   const std::optional<size_t> batchSize);
+
+void* get_tensor_data_ptr(const std::shared_ptr<ov::ITensor>& tensor);
+
+class ZeroInferRequest : public SyncInferRequest {
 public:
     explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                               const std::shared_ptr<const ICompiledModel>& compiledModel,
@@ -35,66 +44,56 @@ public:
 
     void get_result() override;
 
-private:
+protected:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
-    std::vector<uint8_t> get_raw_profiling_data() const;
-
-    /**
-     * @brief Check the received tensor and set the Level Zero tensor accordingly
-     * @param tensor Reference to a tensor.
-     * @param index The index corresponding to the position of the tensor inside the I/O structures.
-     * @param isInput Used for identifying the structures to which the tensor belongs.
-     */
-    void set_tensor_data(const std::shared_ptr<ov::ITensor>& tensor, const size_t index, const bool isInput);
-
-    /**
-     * @brief Check the received remote tensor and copy it to the Level Zero tensor
-     * @param tensor Reference to a tensor.
-     * @param index The index corresponding to the position of the tensor inside the I/O structures.
-     * @param isInput Used for identifying the structures to which the tensor belongs.
-     */
-    void set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTensor>& tensor,
-                                const size_t index,
-                                const bool isInput);
 
     void check_network_precision(const ov::element::Type_t precision) const override;
     void create_pipeline();
+    virtual void construct_pipeline();
 
-    std::shared_ptr<ov::ITensor>& get_level_zero_input(size_t index, size_t tensorNo = 0) const;
-    std::vector<std::shared_ptr<ov::ITensor>>& get_level_zero_inputs(size_t index) const;
+    std::shared_ptr<ZeroTensor>& get_level_zero_input(size_t index, size_t tensorNo = 0) const;
+    std::vector<std::shared_ptr<ZeroTensor>>& get_level_zero_inputs(size_t index) const;
 
-    std::shared_ptr<ov::ITensor> create_tensor(ov::element::Type type,
-                                               const ov::Shape& shape,
-                                               const ov::Allocator& allocator = {}) const override;
+    /**
+     * @brief Allocates a tensor on host and stores the reference inside multiple attributes.
+     * @param index The index which the allocated tensor shall use.
+     * @param isInput Determines the containers in which the newly allocated tensors will be stored.
+     * @param allocator If provided, the tensor uses the custom allocator instead of using the default one.
+     * @param batchSize If provided, the value of the shape on the 0th axis is overriden with this value.
+     * @return Pointer towards the allocated tensor
+     */
+    std::shared_ptr<ZeroTensor> allocate_tensor(const size_t index,
+                                                const bool isInput,
+                                                const std::optional<std::size_t> batchSize = std::nullopt) const;
 
-    void add_state(const IODescriptor& descriptor, size_t tensorIndex) const override;
+    void add_state(const IODescriptor& descriptor, size_t tensorIndex) const;
 
     void update_pipeline_if_memory_changed();
     void update_states_if_memory_changed();
+
+    virtual void update_command_list_for_tensor(SyncInferRequest::FoundPort& foundPort,
+                                                const ov::SoPtr<ov::ITensor>& tensor);
+
+    virtual void update_command_list_for_tensors(SyncInferRequest::FoundPort& foundPort,
+                                                 const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
+                                                 std::optional<size_t> batchSizeCandidate = std::nullopt);
+
+    virtual void prepare_inputs();
 
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<IGraph> _graph;
     const Config _config;
     Logger _logger;
 
-    const std::vector<ArgumentDescriptor>& _graphInputDescriptors;
-    const std::vector<ArgumentDescriptor>& _graphOutputDescriptors;
-
     // A copy of each tensor is needed to maintain the original L0 memory allocation in case the user provides another
     // memory area for the tensor.
-    mutable std::vector<std::vector<std::shared_ptr<ov::ITensor>>> _levelZeroInputTensors;
-    mutable std::vector<std::shared_ptr<ov::ITensor>> _levelZeroOutputTensors;
+    mutable std::vector<std::vector<std::shared_ptr<ZeroTensor>>> _levelZeroInputTensors;
+    mutable std::vector<std::shared_ptr<ZeroTensor>> _levelZeroOutputTensors;
 
-    ze_device_properties_t _properties = {};
-    std::shared_ptr<const zeroMemory::HostMemAllocator> _inputAllocator;
-    std::shared_ptr<const zeroMemory::HostMemAllocator> _outputAllocator;
-
-    zeroProfiling::ProfilingPool _profilingPool;
-    zeroProfiling::ProfilingQuery _profilingQuery;
-    std::shared_ptr<zeroProfiling::NpuInferProfiling> _npuProfiling;
     std::unique_ptr<Pipeline> _pipeline;
 
     bool _pipelineIsCreated = false;
+    bool _dynamicBatchValueChanged = false;
 };
 
 }  //  namespace intel_npu

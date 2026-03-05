@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
@@ -14,7 +17,7 @@ from json import JSONDecodeError
 from sphinx.ext.autodoc import ClassDocumenter
 
 project = 'OpenVINO™'
-copyright = '2024, Intel®'
+copyright = '2026, Intel®'
 author = 'Intel®'
 
 language = 'en'
@@ -66,7 +69,7 @@ source_suffix = {
 }
 
 
-# html_baseurl = 'https://docs.openvino.ai/2025/'
+# html_baseurl = 'https://docs.openvino.ai/2026/'
 
 
 # -- Sitemap configuration ---------------------------------------------------
@@ -203,7 +206,6 @@ html_js_files = [
     'js/graphs.js',
     'js/gsearch.js',
     'js/hide_banner.js',
-    'js/newsletter.js',
     'js/open_sidebar.js',
     'js/papaparse.min.js',
     'js/viewer.min.js',

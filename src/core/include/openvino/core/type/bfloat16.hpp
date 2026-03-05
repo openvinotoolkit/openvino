@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -19,24 +20,23 @@ namespace ov {
 class OPENVINO_API bfloat16 {
 public:
     bfloat16() = default;
-    bfloat16(float value) : m_value {
+    bfloat16(float value)
+        : m_value{
 #if defined ROUND_MODE_TO_NEAREST
-        round_to_nearest(value)
+              round_to_nearest(value)
 #elif defined ROUND_MODE_TO_NEAREST_EVEN
-        round_to_nearest_even(value)
+              round_to_nearest_even(value)
 #elif defined ROUND_MODE_TRUNCATE
-        truncate(value)
+              truncate(value)
 #else
 #    error "ROUNDING_MODE must be one of ROUND_MODE_TO_NEAREST, ROUND_MODE_TO_NEAREST_EVEN, or ROUND_MODE_TRUNCATE"
 #endif
+          } {
     }
-    {}
 
     template <typename I>
     explicit bfloat16(I value) : m_value{bfloat16{static_cast<float>(value)}.m_value} {}
 
-    std::string to_string() const;
-    size_t size() const;
     template <typename T>
     bool operator==(const T& other) const;
     template <typename T>
@@ -234,7 +234,7 @@ public:
         return ov::bfloat16::from_bits(0);
     }
     static constexpr bool is_iec559 = false;
-    static constexpr bool is_bounded = false;
+    static constexpr bool is_bounded = true;
     static constexpr bool is_modulo = false;
     static constexpr bool traps = false;
     static constexpr bool tinyness_before = false;

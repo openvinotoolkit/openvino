@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -10,7 +10,8 @@ import traceback
 from logging.handlers import QueueHandler
 from multiprocessing import Process, Queue, TimeoutError, ProcessError
 from queue import Empty as QueueEmpty
-from typing import Callable, Union
+from typing import Union
+from collections.abc import Callable
 
 if platform.system() == "Darwin":
     # Fix for MacOS

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -68,10 +68,6 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
-ov_build_target_faster(${TARGET_NAME}_obj
-    UNITY PCH PRIVATE "src/precomp.hpp"
-)
-
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE
     IMPLEMENT_OPENVINO_RUNTIME_API
     $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:PROXY_PLUGIN_ENABLED>)
@@ -128,10 +124,6 @@ endif()
 target_include_directories(${TARGET_NAME}_s PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
 
-if(WIN32)
-    set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
-endif()
-
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS}
     openvino::runtime::dev openvino::pugixml)
 
@@ -142,6 +134,12 @@ if(ENABLE_DEBUG_CAPS)
 endif()
 
 set_target_properties(${TARGET_NAME}_s PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+ov_build_target_faster(${TARGET_NAME}_obj
+    UNITY
+    PCH_HEADER "src/precomp.hpp"
+    PCH_EXCLUDE
+        "src/dev/make_tensor.cpp")
 
 # LTO
 

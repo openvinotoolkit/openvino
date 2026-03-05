@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,8 @@
 #include <cstdlib>
 #include <stdexcept>
 
-#include "intel_npu/config/common.hpp"
 #include "intel_npu/config/config.hpp"
+#include "intel_npu/config/options.hpp"
 
 namespace ov::test::utils {
 
@@ -134,6 +134,14 @@ NpuTestEnvConfig::NpuTestEnvConfig() {
     if (auto var = std::getenv("IE_NPU_TESTS_PLATFORM")) {
         IE_NPU_TESTS_PLATFORM = var;
     }
+
+    if (auto var = std::getenv("OV_NPU_TESTS_SKIP_CONFIG_FILE")) {
+        OV_NPU_TESTS_SKIP_CONFIG_FILE = var;
+    }
+
+    if (auto var = std::getenv("OV_NPU_TESTS_BLOBS_PATH")) {
+        OV_NPU_TESTS_BLOBS_PATH = var;
+    }
 }
 
 const NpuTestEnvConfig& NpuTestEnvConfig::getInstance() {
@@ -167,10 +175,14 @@ std::string getDeviceNameID(const std::string& str) {
     return parser.get_device_id();
 }
 
+std::string getTestPlatform() {
+    return ov::intel_npu::Platform::standardize(NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM);
+}
+
 }  // namespace ov::test::utils
 
 namespace InferRequestParamsAnyMapTestName {
-std::string getTestCaseName(testing::TestParamInfo<ov::test::behavior::InferRequestParams> obj) {
+std::string getTestCaseName(const testing::TestParamInfo<ov::test::behavior::InferRequestParams>& obj) {
     std::string targetDevice;
     ov::AnyMap configuration;
     std::tie(targetDevice, configuration) = obj.param;
@@ -191,7 +203,7 @@ std::string getTestCaseName(testing::TestParamInfo<ov::test::behavior::InferRequ
 
 namespace InferRequestParamsMapTestName {
 
-std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
+std::string getTestCaseName(const testing::TestParamInfo<InferRequestParams>& obj) {
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
     std::tie(targetDevice, configuration) = obj.param;

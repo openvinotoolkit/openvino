@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,6 +54,7 @@ public:
     void set_center(const bool center);
 
     bool get_normalized() const;
+    void set_normalized(const bool normalized);
 
 private:
     bool m_center = false;

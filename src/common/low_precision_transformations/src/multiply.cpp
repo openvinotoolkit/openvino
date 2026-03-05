@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2023 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "transformations/utils/utils.hpp"
 
 #include <memory>
+#include "openvino/core/graph_util.hpp"
 
 using namespace ov::pass::pattern;
 using ov::pass::pattern::op::Or;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -298,6 +298,10 @@ cldnn::ExecutionConfig get_test_default_config(const cldnn::engine& engine,
         config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     }
 
+    if (engine.get_enable_large_allocations()) {
+        config.set_property(ov::intel_gpu::hint::enable_large_allocations(true));
+    }
+
     return config;
 }
 
@@ -313,7 +317,7 @@ std::shared_ptr<cldnn::engine> create_test_engine() {
 std::shared_ptr<cldnn::engine> create_test_engine(cldnn::engine_types engine_type,
                                                   cldnn::runtime_types runtime_type,
                                                   bool allow_usm_mem) {
-    device_query query(engine_type, runtime_type);
+    device_query query(engine_type, runtime_type, nullptr, nullptr, 0, -1, true);
     auto devices = query.get_available_devices();
 
     OPENVINO_ASSERT(!devices.empty(), "[GPU] Can't create ", engine_type, " engine for ", runtime_type, " runtime as no suitable devices are found\n"

@@ -1,16 +1,16 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <string>
+
+#include "openvino/core/rtti.hpp"
 #include "serialize_base.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface SerializeDataFlow
@@ -21,12 +21,9 @@ namespace pass {
  */
 class SerializeDataFlow : public SerializeBase {
 public:
-    OPENVINO_RTTI("SerializeDataFlow",  "", SerializeBase)
-    SerializeDataFlow(const std::string& xml_path) : SerializeBase(xml_path) {}
+    OPENVINO_RTTI("SerializeDataFlow", "", SerializeBase)
+    explicit SerializeDataFlow(const std::string& xml_path) : SerializeBase(xml_path) {}
     bool run(const LinearIR& linear_ir) override;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

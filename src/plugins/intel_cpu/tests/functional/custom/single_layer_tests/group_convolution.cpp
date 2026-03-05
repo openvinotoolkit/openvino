@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,25 +33,10 @@ class GroupConvolutionLayerCPUTest : public testing::WithParamInterface<groupCon
                                      virtual public SubgraphBaseTest,
                                      public CpuTestWithFusing {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<groupConvLayerCPUTestParamsSet> obj) {
-        groupConvLayerTestsParamsSet basicParamsSet;
-        CPUSpecificParams cpuParams;
-        fusingSpecificParams fusingParams;
-        ov::AnyMap additionalConfig;
-        std::tie(basicParamsSet, cpuParams, fusingParams, additionalConfig) = obj.param;
-
-        groupConvSpecificParams groupConvParams;
-        ElementType netType;
-        ElementType inType, outType;
-        InputShape inputShape;
-        std::string targetDevice;
-        std::tie(groupConvParams, netType, inType, outType, inputShape, targetDevice) = basicParamsSet;
-        ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
-        size_t convOutChannels, numGroups;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<groupConvLayerCPUTestParamsSet>& obj) {
+        const auto& [basicParamsSet, cpuParams, fusingParams, additionalConfig] = obj.param;
+        const auto& [groupConvParams, netType, inType, outType, inputShape, targetDevice] = basicParamsSet;
+        const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType] = groupConvParams;
         std::ostringstream result;
         result << "IS=";
         result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
@@ -131,7 +116,7 @@ protected:
                         ov::OutputVector inputsForShapeInfer;
                         for (size_t j = 0; j < lastNode->get_input_size(); j++) {
                             if (ov::is_type<ov::op::v0::Constant>(lastNode->get_input_node_ptr(j))) {
-                                inputsForShapeInfer.push_back(lastNode->get_input_node_shared_ptr(j));
+                                inputsForShapeInfer.push_back(lastNode->input_value(j));
                             } else {
                                 inputsForShapeInfer.push_back(
                                     std::make_shared<ov::op::v0::Parameter>(lastNode->get_input_element_type(j),
@@ -156,13 +141,7 @@ protected:
 
     void SetUp() override {
         rel_threshold = 1e-4f;
-
-        groupConvLayerTestsParamsSet basicParamsSet;
-        CPUSpecificParams cpuParams;
-        fusingSpecificParams fusingParams;
-        ov::AnyMap additionalConfig;
-        std::tie(basicParamsSet, cpuParams, fusingParams, additionalConfig) = this->GetParam();
-
+        const auto& [basicParamsSet, cpuParams, fusingParams, additionalConfig] = this->GetParam();
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
@@ -170,12 +149,10 @@ protected:
 
         if (postOpMgrPtr)
             isBias = postOpMgrPtr->getFusedOpsNames() == "Add(PerChannel)";
-
-        groupConvSpecificParams groupConvParams;
-        InputShape inputShape;
-        auto netType = ElementType::dynamic;
-        std::tie(groupConvParams, netType, inType, outType, inputShape, targetDevice) = basicParamsSet;
-
+        const auto& [groupConvParams, netType, _inType, _outType, inputShape, _targetDevice] = basicParamsSet;
+        inType = _inType;
+        outType = _outType;
+        targetDevice = _targetDevice;
         init_input_shapes({inputShape});
         const auto& it = configuration.find(ov::hint::inference_precision.name());
         if (it != configuration.end()) {
@@ -192,13 +169,7 @@ protected:
         if (fusedOps.size() == 3 && fusedOps[1] == std::string("Elu") && fusedOps[2] == std::string("FakeQuantize")) {
             abs_threshold = 5e-3f;
         }
-
-        ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
-        size_t convOutChannels, numGroups;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
-
+        const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType] = groupConvParams;
         ov::ParameterVector params;
         for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
@@ -213,7 +184,7 @@ protected:
                                                                  padType,
                                                                  convOutChannels,
                                                                  numGroups);
-        function = makeNgraphFunction(netType, params, groupConv, "groupConvolution");
+        function = create_ov_model(netType, params, groupConv, "groupConvolution");
     }
 };
 
@@ -324,21 +295,19 @@ const std::vector<fusingSpecificParams> fusingParamsSet_Brdgmm{emptyFusingSpec,
                                                                fusingReluScaleShift,
                                                                // fake quantize
                                                                fusingFakeQuantizePerTensorRelu,
-                                                               fusingFakeQuantizePerChannelRelu
+                                                               fusingFakeQuantizePerChannelRelu,
                                                                // sum
-                                                               // comment out sum due to MFDNN-12841
-                                                               //fusingSumEluFQ,
-                                                               //fusingSum
+                                                               fusingSumEluFQ,
+                                                               fusingSum
                                                               };
 
 const std::vector<fusingSpecificParams> fusingParamsSetBF16_Brdgmm{emptyFusingSpec,
                                                                    // eltwise
                                                                    fusingRelu,
                                                                    // depthwise
-                                                                   fusingReluScaleShift
+                                                                   fusingReluScaleShift,
                                                                    // sum
-                                                                   // comment out sum due to MFDNN-12841
-                                                                   //fusingSum
+                                                                   fusingSum
                                                                   };
 
 const std::vector<fusingSpecificParams> fusingParamsSetFP16_Brdgmm = fusingParamsSetBF16_Brdgmm;
@@ -1403,7 +1372,8 @@ const auto groupConvParams_ExplicitPadding_DW_3D = ::testing::Combine(::testing:
                                                                       ::testing::ValuesIn(dilations3d),
                                                                       ::testing::ValuesIn(numOutChannels_DW),
                                                                       ::testing::ValuesIn(numGroups_DW),
-                                                                      ::testing::Values(ov::op::PadType::EXPLICIT));
+                                                                      ::testing::Values(ov::op::PadType::EXPLICIT,
+                                                                                        ov::op::PadType::AUTO));
 
 const std::vector<CPUSpecificParams> CPUParams_DW_3D = {conv_avx2_dw_3D,
                                                         conv_avx512_dw_3D,
@@ -1489,10 +1459,7 @@ std::vector<groupConvLayerCPUTestParamsSet> makeSingleGroupConvCPUTestCases(
     std::vector<groupConvLayerCPUTestParamsSet> retVector;
 
     for (auto& configRelatedParams : vecConfigRelatedParams) {
-        VecFusingParams fusingParams;
-        ov::AnyMap config;
-        std::tie(config, fusingParams) = configRelatedParams;
-
+        const auto& [config, fusingParams] = configRelatedParams;
         groupConvLayerTestsParamsSet basicParamsSet(specificParams,
                                                     ElementType::f32,
                                                     ElementType::dynamic,

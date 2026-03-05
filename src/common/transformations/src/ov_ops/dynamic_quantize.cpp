@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,10 @@ DynamicQuantize::DynamicQuantize(const Output<Node>& data, const Attributes& att
     size_t outputs_number = 2;
     if (m_attrs.quantization_type == QuantizationType::Asymmetric &&
         m_attrs.output_storage_type == OutputStorageType::Planar)
-        outputs_number = 3;
+        outputs_number++;
+    if (m_attrs.precomputed_reduction) {
+        outputs_number++;
+    }
 
     OPENVINO_ASSERT(
         (m_attrs.output_storage_type == OutputStorageType::Planar) ||
@@ -46,12 +49,21 @@ void DynamicQuantize::validate_and_infer_types() {
     std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0)};
 
     auto out_shapes = shape_infer(this, input_shapes);
-    set_output_type(0, m_attrs.quantization_dt, out_shapes[0]);
-    set_output_type(1, m_attrs.scale_dt, out_shapes[1]);
+    int output_idx = 0;
+    set_output_type(output_idx, m_attrs.quantization_dt, out_shapes[output_idx]);
+    output_idx++;
+    set_output_type(output_idx, m_attrs.scale_dt, out_shapes[output_idx]);
 
     if (m_attrs.quantization_type == QuantizationType::Asymmetric &&
-        m_attrs.output_storage_type == OutputStorageType::Planar)
-        set_output_type(2, m_attrs.zp_dt, out_shapes[2]);
+        m_attrs.output_storage_type == OutputStorageType::Planar) {
+        output_idx++;
+        set_output_type(output_idx, m_attrs.zp_dt, out_shapes[output_idx]);
+    }
+
+    if (m_attrs.precomputed_reduction) {
+        output_idx++;
+        set_output_type(output_idx, m_attrs.precomputed_reduction_dt, out_shapes[output_idx]);
+    }
 }
 
 std::shared_ptr<Node> DynamicQuantize::clone_with_new_inputs(const ov::OutputVector& new_args) const {
@@ -87,6 +99,11 @@ std::vector<ov::PartialShape> DynamicQuantize::shape_infer(const DynamicQuantize
     if (op->m_attrs.quantization_type == QuantizationType::Asymmetric &&
         op->m_attrs.output_storage_type == OutputStorageType::Planar)
         out_shapes.push_back(scale_shape);
+
+    if (op->m_attrs.precomputed_reduction) {
+        // precomputed_reduction shape is identical to scale_shape
+        out_shapes.push_back(scale_shape);
+    }
 
     auto transpose_shape = [](const ov::PartialShape& shape, const std::vector<uint64_t>& scales_zp_output_order) {
         auto transposed_shape = shape;

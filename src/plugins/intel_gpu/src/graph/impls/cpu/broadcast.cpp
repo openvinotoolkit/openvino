@@ -1,11 +1,11 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "broadcast_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/broadcast.hpp"
 

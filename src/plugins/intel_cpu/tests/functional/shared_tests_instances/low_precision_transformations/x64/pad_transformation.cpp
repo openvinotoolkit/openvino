@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,10 +19,6 @@ const std::vector<ov::element::Type> netPrecisions = {
 const std::vector<ov::PartialShape> inputShapes = {
     { 1, 3, 16, 16},
     { 4, 3, 16, 16}
-};
-
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
 namespace commonTestCases {
@@ -82,7 +78,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, PadTransformation,
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(padModes),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     PadTransformation::getTestCaseName);
 } // namespace commonTestCases
@@ -234,7 +229,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, PadTransformation,
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(ov::op::PadMode::CONSTANT),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     PadTransformation::getTestCaseName);
 } // namespace testCasesForConstantMode
@@ -278,7 +272,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, PadTransformation,
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(modesWithoutConstant),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     PadTransformation::getTestCaseName);
 } // namespace testCasesForOtherModes

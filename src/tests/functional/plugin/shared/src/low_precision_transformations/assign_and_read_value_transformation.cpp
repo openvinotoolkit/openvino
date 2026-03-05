@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,27 +12,16 @@
 namespace LayerTestsDefinitions {
 
 std::string AssignAndReadValueTransformation::getTestCaseName(const testing::TestParamInfo<AssignAndReadValueTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    size_t opset;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    AssignAndReadValueTransformationParam param;;
-    std::tie(netPrecision, inputShape, opset, targetDevice, params, param) = obj.param;
-
+    auto [netPrecision, inputShape, opset, device, param] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, device) << "_" <<
            param.fakeQuantize << "_" << opset;
     return result.str();
 }
 
 void AssignAndReadValueTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    size_t opset;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    AssignAndReadValueTransformationParam param;
-    std::tie(netPrecision, inputShape, opset, targetDevice, params, param) = this->GetParam();
+    auto [netPrecision, inputShape, opset, device, param] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 

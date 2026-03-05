@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@
 #include "ov_lpt_models/reduce.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/constant.hpp"
+#include "openvino/op/reduce_sum.hpp"
 
 namespace {
 using namespace testing;
@@ -386,6 +387,29 @@ namespace testValues3 {
                     {},
                     {{160.f, 320.f, 480.f}, ov::element::f32, {1, 3, 1, 1}},
                     {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}
+                }
+            }
+        },
+        {
+            LayerTransformation::createParamsU8I8(),
+            {0},
+            true,
+            {
+                ov::element::i8,
+                {
+                    {ov::element::f16},
+                    {{40.f}, ov::element::f16, {}, false, {}, ov::element::f16, true},
+                    {{0.1f}, ov::element::f16, {}}
+                }
+            },
+            {
+                ov::element::i8,
+                {},
+                ov::element::f16,
+                {
+                    {},
+                    {{160.f}, ov::element::f16, {}},
+                    {{0.1f}, ov::element::f16, {}}
                 }
             }
         }

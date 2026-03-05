@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <string>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/read_value.hpp"
@@ -145,8 +146,8 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
 
         model->remove_sink(assign);  // Don't do replace_node(assign, result)! It will lead to silently incorrect model.
         model->remove_variable(model->get_variable_by_id(variable_id.variable_name));
-        new_parameters.push_back(parameter);
-        new_results.push_back(result);
+        new_parameters.push_back(std::move(parameter));
+        new_results.push_back(std::move(result));
     }
 
     model->add_parameters(new_parameters);

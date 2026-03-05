@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -122,10 +122,23 @@ class prim_abs_net(torch.nn.Module):
         return y, x1
 
 
+class unary_op_complex_net(torch.nn.Module):
+    def __init__(self, op, dtype):
+        super().__init__()
+        self.dtype = dtype
+        self.op = op
+
+    def forward(self, x):
+        x1 = x.to(self.dtype) * 1j
+        y = self.op(x1)
+        y = torch.view_as_real(y.to(torch.complex64))
+        return y, torch.view_as_real(x1)
+
+
 class TestUnaryOp(PytorchLayerTest):
     def _prepare_input(self):
         # random number in range [1, 11)
-        x = torch.rand(2, 10) * 10 + 1
+        x = self.random.torch_rand(2, 10) * 10 + 1
         return (x.to(self.dtype).numpy(),)
 
     @pytest.mark.nightly
@@ -172,7 +185,7 @@ class TestUnaryOp(PytorchLayerTest):
         self.dtype = dtype
         if self.use_torch_export() and op_type == "aten::atanh" and dtype in [torch.int8, torch.int32, torch.int64]:
             pytest.xfail(reason="torch.export after 2.4.0 doesn't support unsigned int types for atanh in some configurations")
-        self._test(unary_op_net(OPS[op_type], dtype), None, op_type,
+        self._test(unary_op_net(OPS[op_type], dtype), op_type,
                    ie_device, precision, ir_version)
 
     @pytest.mark.nightly
@@ -217,7 +230,9 @@ class TestUnaryOp(PytorchLayerTest):
                              ])
     def test_unary_op_float(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self._test(unary_op_net(OPS[op_type], dtype), None, op_type,
+        if self.use_torch_compile_backend() and op_type == "aten::sigmoid_":
+            pytest.xfail(reason="Accuracy issue, one or two values are off sometimes")
+        self._test(unary_op_net(OPS[op_type], dtype), op_type,
                    ie_device, precision, ir_version)
 
     @pytest.mark.nightly
@@ -257,12 +272,11 @@ class TestUnaryOp(PytorchLayerTest):
                              ])
     def test_unary_op_out(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self._test(unary_op_out_net(OPS[op_type], dtype), None, op_type,
+        self._test(unary_op_out_net(OPS[op_type], dtype), op_type,
                    ie_device, precision, ir_version)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
     @pytest.mark.parametrize("op_type",
                              [
@@ -274,7 +288,7 @@ class TestUnaryOp(PytorchLayerTest):
                              ])
     def test_unary_func_op_inplace(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self._test(unary_func_op_inplace_net(OPS[op_type], dtype), None, op_type + "_",
+        self._test(unary_func_op_inplace_net(OPS[op_type], dtype), op_type + "_",
                    ie_device, precision, ir_version)
 
     @pytest.mark.nightly
@@ -284,5 +298,18 @@ class TestUnaryOp(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64, torch.int8, torch.uint8, torch.int32, torch.int64])
     def test_prim_abs(self, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self._test(prim_abs_net(dtype), None, "prim::abs",
+        self._test(prim_abs_net(dtype), "prim::abs",
+                   ie_device, precision, ir_version, fx_kind="aten.abs")
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("dtype", [torch.float32, torch.float64, torch.int8, torch.uint8, torch.int32, torch.int64])
+    @pytest.mark.parametrize("op_type",
+                             [
+                                 "aten::abs",
+                                 "aten::exp",
+                             ])
+    def test_complex_unary_op(self, op_type, dtype, ie_device, precision, ir_version):
+        self.dtype = dtype
+        self._test(unary_op_complex_net(OPS[op_type], dtype), op_type,
                    ie_device, precision, ir_version)

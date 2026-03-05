@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -31,11 +32,15 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -232,7 +237,7 @@ TEST(pattern, graph_rewrite) {
         auto graph_a = make_shared<op::v1::Add>(a, iconst0);
         auto graph_b = make_shared<op::v1::Add>(b, iconst0);
 
-        auto f = std::make_shared<Model>(ov::NodeVector{a, b, graph_a, c, graph_b}, ParameterVector{a, b, c});
+        auto f = std::make_shared<Model>(ov::OutputVector{a, b, graph_a, c, graph_b}, ParameterVector{a, b, c});
         pass_manager.run_passes(f);
 
         ASSERT_TRUE(graph_a->get_output_target_inputs(0).empty());
@@ -464,7 +469,7 @@ TEST(pattern, optional_match_node_with_single_input) {
     TestMatcher matcher;
     // is_on_const_path
     auto param_predicate = [](const Output<Node>& output) {
-        return !ov::op::util::is_on_constant_path(output);
+        return !ov::op::util::is_on_path<ov::op::v0::Constant>(output);
     };
 
     auto pattern_in_0 = ov::pass::pattern::any_input();
@@ -537,7 +542,7 @@ TEST(pattern, or_pattern_points_the_selected_branch) {
     // Pattern:
     auto option_1 = wrap_type<v0::Parameter>();
     auto option_2 = wrap_type<v0::Sigmoid>();
-    auto or_pattern = std::make_shared<pattern::op::Or>(ov::OutputVector{option_1, option_2});
+    auto or_pattern = option_1 | option_2;
 
     // Test:
     TestMatcher matcher;
@@ -1454,7 +1459,7 @@ TEST(pattern, pattern_symbol_predicate_and_operators) {
     auto reshape = std::make_shared<ov::op::v1::Reshape>(input,
                                                          ov::op::v0::Constant::create(element::i64, {4}, {0, 0, 0, 20}),
                                                          true);
-    pattern::PatternSymbolMap m;
+    ov::pass::pattern::Matcher m;
     for (size_t i = 0; i < 10; ++i) {
         predicate_and = predicate_and && pattern::consumers_count(i);
         predicate_or = predicate_and || pattern::consumers_count(i);
@@ -1463,6 +1468,227 @@ TEST(pattern, pattern_symbol_predicate_and_operators) {
         else
             predicate_mixed = predicate_mixed || pattern::consumers_count(i);
 
-        ASSERT_NO_THROW(predicate_and(m, input));
+        ASSERT_NO_THROW(predicate_and(&m, input));
     }
+}
+
+TEST(pattern, predicate_attr_match) {
+    TestMatcher tm;
+    auto input = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto constant = op::v0::Constant::create(element::i64, {4}, {0, 0, 0, 20});
+
+    // boolean attr check
+    auto pattern_true = pattern::any_input(pattern::attrs_match({{"special_zero", true}}));
+    auto pattern_false = pattern::any_input(pattern::attrs_match({{"special_zero", false}}));
+
+    auto reshape_true = std::make_shared<op::v1::Reshape>(input, constant, true);
+    auto reshape_false = std::make_shared<op::v1::Reshape>(input, constant, false);
+
+    ASSERT_TRUE(tm.match(pattern_true, reshape_true));
+    ASSERT_FALSE(tm.match(pattern_true, reshape_false));
+    ASSERT_TRUE(tm.match(pattern_false, reshape_false));
+    ASSERT_FALSE(tm.match(pattern_false, reshape_true));
+
+    // element type check
+    auto pattern_i64 =
+        pattern::wrap_type<op::v0::ShapeOf, op::v3::ShapeOf>(pattern::attrs_match({{"output_type", "i64"}}));
+    auto pattern_i32 = pattern::wrap_type<op::v0::ShapeOf, op::v3::ShapeOf>({{"output_type", "i32"}});
+
+    auto shape_of_i64 = std::make_shared<op::v3::ShapeOf>(input, element::i64);
+    auto shape_of_i32 = std::make_shared<op::v3::ShapeOf>(input, element::i32);
+
+    ASSERT_TRUE(tm.match(pattern_i64, shape_of_i64));
+    ASSERT_FALSE(tm.match(pattern_i64, shape_of_i32));
+    ASSERT_FALSE(tm.match(pattern_i32, shape_of_i64));
+    ASSERT_TRUE(tm.match(pattern_i32, shape_of_i32));
+
+    // broadcasting check
+    auto pattern_numpy = pattern::any_input({{"auto_broadcast", "numpy"}});
+    auto pattern_pdpd = pattern::optional<op::v1::Multiply>({{"auto_broadcast", "pdpd"}});
+    auto pattern_numpy_or_pdpd = pattern::any_input(pattern::attrs_match({{"auto_broadcast", "numpy"}}) ||
+                                                    pattern::attrs_match({{"auto_broadcast", "pdpd"}}));
+
+    auto mul_numpy = std::make_shared<op::v1::Multiply>(input, input, op::AutoBroadcastType::NUMPY);
+    auto mul_pdpd = std::make_shared<op::v1::Multiply>(input, input, op::AutoBroadcastType::PDPD);
+    auto mul_none = std::make_shared<op::v1::Multiply>(input, input, op::AutoBroadcastType::NONE);
+
+    ASSERT_TRUE(tm.match(pattern_numpy, mul_numpy));
+    ASSERT_FALSE(tm.match(pattern_numpy, mul_pdpd));
+    ASSERT_FALSE(tm.match(pattern_pdpd, mul_numpy));
+    ASSERT_TRUE(tm.match(pattern_pdpd, mul_pdpd));
+
+    ASSERT_TRUE(tm.match(pattern_numpy_or_pdpd, mul_numpy));
+    ASSERT_TRUE(tm.match(pattern_numpy_or_pdpd, mul_pdpd));
+    ASSERT_FALSE(tm.match(pattern_numpy_or_pdpd, mul_none));
+
+    auto num_splits_pattern = pattern::any_input({{"num_splits", 3}});
+    auto split = std::make_shared<op::v1::Split>(input, op::v0::Constant::create(element::i64, {}, {0}), 3);
+    ASSERT_TRUE(tm.match(num_splits_pattern, split));
+
+    auto ss = std::make_shared<op::v1::StridedSlice>(input,
+                                                     op::v0::Constant::create(element::i64, {1}, {0}),
+                                                     op::v0::Constant::create(element::i64, {1}, {-1}),
+                                                     op::v0::Constant::create(element::i64, {1}, {1}),
+                                                     std::vector<int64_t>{0, 1},
+                                                     std::vector<int64_t>{1, 0});
+
+    auto ss_pattern = pattern::any_input({{"begin_mask", std::vector<int64_t>{0, 1}}});
+    // TODO: to allow initializer list as attribute value -- need to update ov::Attribute value type -- wrap ov::Any and
+    //  allow implicit conversion from initializer lists of different types.
+    //  For now it seems excessive as it impacts quality of life of limited number of developers.
+    ASSERT_TRUE(tm.match(ss_pattern, ss));
+}
+
+TEST(pattern, predicate_value_match) {
+    TestMatcher tm;
+    auto constant_i = op::v0::Constant::create(element::i64, {4}, vector<int8_t>{-1, 0, 1, 2});
+    auto constant_d = op::v0::Constant::create(element::f64, {4}, vector<float>{-1.5f, 0.f, 1.3f, 2.75f});
+
+    // actual value check
+    auto pattern_i = pattern::any_input(pattern::value_matches("[-1, 0, 1, 2]"));
+    auto pattern_d = pattern::any_input(pattern::value_matches("[-1.5, 0, 1.3, 2.75]"));
+
+    ASSERT_TRUE(tm.match(pattern_i, constant_i));
+    ASSERT_FALSE(tm.match(pattern_i, constant_d));
+    ASSERT_TRUE(tm.match(pattern_d, constant_d));
+    ASSERT_FALSE(tm.match(pattern_d, constant_i));
+
+    auto pattern_neg_i = pattern::any_input(pattern::value_matches("[-1, ..., 1, 3]"));
+    ASSERT_FALSE(tm.match(pattern_neg_i, constant_i));
+
+    auto pattern_neg_d = pattern::any_input(pattern::value_matches("[-1.5, -0.1, 1.25, 2.65]"));
+    ASSERT_FALSE(tm.match(pattern_neg_d, constant_d));
+}
+
+TEST(pattern, predicate_syntactic_sugar) {
+    TestMatcher tm;
+    auto pattern_with_constant_inputs =
+        pattern::wrap_type<op::v1::VariadicSplit>({pattern::any_input(), 3, {"count", "-1"}});
+
+    auto vsplit = std::make_shared<op::v1::VariadicSplit>(
+        std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape{1, -1, -1, 10}),
+        op::v0::Constant::create(element::i64, {}, vector<int8_t>{3}),
+        op::v0::Constant::create(element::i64, {2}, vector<int8_t>{4, -1}));
+    vsplit->set_output_size(2);
+    ASSERT_TRUE(tm.match_value(pattern_with_constant_inputs, vsplit->output(0)));
+    const auto& symbols = tm.get_symbols();
+    ASSERT_TRUE(symbols.count("count") && symbols.at("count").i() == 4);
+
+    // different ways to pass single input to the pattern op
+    ASSERT_NO_THROW(pattern::wrap_type<op::v0::Relu>(pattern::any_input()));
+    ASSERT_NO_THROW(pattern::wrap_type<op::v0::Relu>(pattern::wrap_type<op::v0::Relu>()));
+    ASSERT_NO_THROW(pattern::wrap_type<op::v0::Relu>("[-1,0,1]"));
+}
+
+TEST(pattern, output_index_matches_predicate) {
+    TestMatcher tm;
+
+    // Create a VariadicSplit with 3 outputs
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 20, 30});
+    auto axis = op::v0::Constant::create(element::i64, {}, {-1});
+    auto split_lengths = op::v0::Constant::create(element::i64, {3}, {5, 10, 15});
+    auto variadic_split = std::make_shared<op::v1::VariadicSplit>(input, axis, split_lengths);
+    // Set output size to match the number of split lengths.
+    variadic_split->set_output_size(3);
+
+    // Test basic output_index_matches predicate functionality
+    auto pred_0 = pattern::output_index_matches(0);
+    auto pred_1 = pattern::output_index_matches(1);
+    auto pred_2 = pattern::output_index_matches(2);
+
+    // Test predicates directly
+    ASSERT_TRUE(pred_0(variadic_split->output(0)));
+    ASSERT_FALSE(pred_0(variadic_split->output(1)));
+    ASSERT_FALSE(pred_0(variadic_split->output(2)));
+
+    ASSERT_FALSE(pred_1(variadic_split->output(0)));
+    ASSERT_TRUE(pred_1(variadic_split->output(1)));
+    ASSERT_FALSE(pred_1(variadic_split->output(2)));
+
+    ASSERT_FALSE(pred_2(variadic_split->output(0)));
+    ASSERT_FALSE(pred_2(variadic_split->output(1)));
+    ASSERT_TRUE(pred_2(variadic_split->output(2)));
+
+    // Test vector version
+    auto pred_multi = pattern::output_index_matches({0, 2});
+    ASSERT_TRUE(pred_multi(variadic_split->output(0)));
+    ASSERT_FALSE(pred_multi(variadic_split->output(1)));
+    ASSERT_TRUE(pred_multi(variadic_split->output(2)));
+
+    // Test pattern matching specific output index
+    auto pattern_out0 = pattern::any_input(pattern::output_index_matches(0));
+    auto pattern_out1 = pattern::any_input(pattern::output_index_matches(1));
+    auto pattern_out2 = pattern::any_input(pattern::output_index_matches(2));
+    auto pattern_out3 = pattern::any_input(pattern::output_index_matches(3));  // non-existent output
+
+    // Test matching different outputs using match_value
+    ASSERT_TRUE(tm.match_value(pattern_out0, variadic_split->output(0)));
+    ASSERT_FALSE(tm.match_value(pattern_out0, variadic_split->output(1)));
+    ASSERT_FALSE(tm.match_value(pattern_out0, variadic_split->output(2)));
+
+    ASSERT_FALSE(tm.match_value(pattern_out1, variadic_split->output(0)));
+    ASSERT_TRUE(tm.match_value(pattern_out1, variadic_split->output(1)));
+    ASSERT_FALSE(tm.match_value(pattern_out1, variadic_split->output(2)));
+
+    ASSERT_FALSE(tm.match_value(pattern_out2, variadic_split->output(0)));
+    ASSERT_FALSE(tm.match_value(pattern_out2, variadic_split->output(1)));
+    ASSERT_TRUE(tm.match_value(pattern_out2, variadic_split->output(2)));
+
+    ASSERT_FALSE(tm.match_value(pattern_out3, variadic_split->output(0)));
+    ASSERT_FALSE(tm.match_value(pattern_out3, variadic_split->output(1)));
+    ASSERT_FALSE(tm.match_value(pattern_out3, variadic_split->output(2)));
+
+    // Test pattern matching multiple output indices - simplified test
+    auto pattern_multi = pattern::any_input(pattern::output_index_matches({0, 2}));
+
+    // Test with regular Matcher instead of TestMatcher
+    ov::pass::pattern::Matcher m1(pattern_multi);
+    ASSERT_TRUE(m1.match(variadic_split->output(0)));
+
+    ov::pass::pattern::Matcher m2(pattern_multi);
+    ASSERT_FALSE(m2.match(variadic_split->output(1)));
+
+    ov::pass::pattern::Matcher m3(pattern_multi);
+    ASSERT_TRUE(m3.match(variadic_split->output(2)));
+}
+
+TEST(pattern, wrap_type_with_output_index_constraint) {
+    TestMatcher tm;
+
+    // Create a VariadicSplit with 3 outputs
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 20, 30});
+    auto axis = op::v0::Constant::create(element::i64, {}, {-1});
+    auto split_lengths = op::v0::Constant::create(element::i64, {3}, {5, 10, 15});
+    auto variadic_split = std::make_shared<op::v1::VariadicSplit>(input, axis, split_lengths);
+    // Explicitly set output size to 3 to ensure the VariadicSplit node produces the expected number of outputs.
+    // Although split_lengths has 3 elements, set_output_size(3) may be required for correct behavior in some cases.
+    variadic_split->set_output_size(3);
+
+    // Create reshapes that use different outputs
+    auto reshape_shape = op::v0::Constant::create(element::i64, {2}, {-1, 5});
+    auto reshape0 = std::make_shared<op::v1::Reshape>(variadic_split->output(0), reshape_shape, false);
+    auto reshape1 = std::make_shared<op::v1::Reshape>(variadic_split->output(1), reshape_shape, false);
+    auto reshape2 = std::make_shared<op::v1::Reshape>(variadic_split->output(2), reshape_shape, false);
+
+    // Create patterns that match Reshape with specific VariadicSplit output
+    auto vsplit_out0 = pattern::wrap_type<op::v1::VariadicSplit>(pattern::output_index_matches(0));
+    auto vsplit_out1 = pattern::wrap_type<op::v1::VariadicSplit>(pattern::output_index_matches(1));
+    auto vsplit_out2 = pattern::wrap_type<op::v1::VariadicSplit>(pattern::output_index_matches(2));
+
+    auto pattern_reshape_out0 = pattern::wrap_type<op::v1::Reshape>({vsplit_out0, pattern::any_input()});
+    auto pattern_reshape_out1 = pattern::wrap_type<op::v1::Reshape>({vsplit_out1, pattern::any_input()});
+    auto pattern_reshape_out2 = pattern::wrap_type<op::v1::Reshape>({vsplit_out2, pattern::any_input()});
+
+    // Test that patterns match only corresponding reshapes
+    ASSERT_TRUE(tm.match(pattern_reshape_out0, reshape0));
+    ASSERT_FALSE(tm.match(pattern_reshape_out0, reshape1));
+    ASSERT_FALSE(tm.match(pattern_reshape_out0, reshape2));
+
+    ASSERT_FALSE(tm.match(pattern_reshape_out1, reshape0));
+    ASSERT_TRUE(tm.match(pattern_reshape_out1, reshape1));
+    ASSERT_FALSE(tm.match(pattern_reshape_out1, reshape2));
+
+    ASSERT_FALSE(tm.match(pattern_reshape_out2, reshape0));
+    ASSERT_FALSE(tm.match(pattern_reshape_out2, reshape1));
+    ASSERT_TRUE(tm.match(pattern_reshape_out2, reshape2));
 }

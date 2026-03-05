@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,10 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
+#include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
 
 namespace {
 typedef std::tuple<
@@ -33,10 +37,7 @@ protected:
 };
 
 std::string InferRequestIOPrecision::getTestCaseName(const testing::TestParamInfo<newtworkParams> &obj) {
-    ov::element::Type model_type;
-    ov::Shape shape;
-    std::string targetDevice;
-    std::tie(model_type, shape, targetDevice) = obj.param;
+    const auto& [model_type, shape, targetDevice] = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
@@ -46,9 +47,8 @@ std::string InferRequestIOPrecision::getTestCaseName(const testing::TestParamInf
 }
 
 void InferRequestIOPrecision::SetUp() {
-    ov::element::Type model_type;
-    ov::Shape shape;
-    std::tie(model_type, shape, targetDevice) = GetParam();
+    const auto& [model_type, shape, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     float clamp_min = model_type.is_signed() ? -5.f : 0.0f;
     float clamp_max = 5.0f;
@@ -62,7 +62,7 @@ void InferRequestIOPrecision::SetUp() {
                                                        {},
                                                        {clamp_min, clamp_max});
 
-    function = std::make_shared<ov::Model>(ov::NodeVector{activation}, params);
+    function = std::make_shared<ov::Model>(ov::OutputVector{activation}, params);
 }
 
 TEST_P(InferRequestIOPrecision, Inference) {
@@ -340,7 +340,12 @@ TEST(VariablesTest, smoke_padded_tensor_set_get_state_with_convert) {
     }
 }
 
+#if defined(_WIN32)
+// Issue: 126388
+TEST(TensorTest, DISABLED_outputTensorShapesForDynamicInput) {
+#else
 TEST(TensorTest, smoke_outputTensorShapesForDynamicInput) {
+#endif
     auto core = ov::Core();
     using namespace ov::preprocess;
     auto p = PrePostProcessor(ov::test::utils::make_split_multi_conv_concat());
@@ -395,4 +400,15 @@ TEST(TensorTest, smoke_canShareTensorIfModelsFromDifferentCores) {
     OV_ASSERT_NO_THROW(request1.infer());
     OV_ASSERT_NO_THROW(request2.infer());
 }
+
+TEST(CoreTest, smoke_singletonOclContext) {
+    auto core1 = ov::Core();
+    auto ctx1 = core1.get_default_context("GPU");
+    auto& oclContext1 = static_cast<ov::intel_gpu::ocl::ClContext&>(ctx1);
+    auto core2 = ov::Core();
+    auto ctx2 = core2.get_default_context("GPU");
+    auto& oclContext2 = static_cast<ov::intel_gpu::ocl::ClContext&>(ctx2);
+    ASSERT_EQ(oclContext1.get(), oclContext2.get());
+}
+
 } // namespace

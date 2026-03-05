@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,26 +16,17 @@ namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTestCaseName(
     const testing::TestParamInfo<FakeQuantizeAndTwoOutputBranchesWithConvolutionParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    FakeQuantizeAndTwoOutputBranchesWithConvolution testValues;
-    std::tie(netPrecision, inputShape, targetDevice, params, testValues) = obj.param;
-
+    auto [netPrecision, inputShape, device, testValues] = obj.param;
     std::ostringstream result;
     result << netPrecision << "_" << inputShape << "_"
-           << targetDevice << "_" << testValues.fqOnData << "_"
+           << device << "_" << testValues.fqOnData << "_"
            << testValues.fqOnWeights1 << "_" << testValues.fqOnWeights2;
     return result.str();
 }
 
 void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    FakeQuantizeAndTwoOutputBranchesWithConvolution testValues;
-    std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
+    auto [netPrecision, inputShape, device, testValues] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 

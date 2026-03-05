@@ -1,9 +1,17 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "llm_mlp.hpp"
 
+#include <cstddef>
+#include <memory>
+#include <ostream>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "transformations/itt.hpp"
 namespace ov {
 
@@ -15,7 +23,21 @@ EnumNames<ov::intel_cpu::LLMMLPNode::ACT_FN>& EnumNames<ov::intel_cpu::LLMMLPNod
     return enum_names;
 }
 
+template <>
+EnumNames<ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE>& EnumNames<ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE>::get() {
+    static auto enum_names = EnumNames<ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE>(
+        "op::intel_cpu::LLMMLPNode::GATE_UP_TYPE",
+        {{"SEPARATE", ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE::SEPARATE},
+         {"COMBINED_GATE_UP", ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE::COMBINED_GATE_UP},
+         {"COMBINED_UP_GATE", ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE::COMBINED_UP_GATE}});
+    return enum_names;
+}
+
 std::ostream& operator<<(std::ostream& os, const ov::intel_cpu::LLMMLPNode::ACT_FN& type) {
+    return os << as_string(type);
+}
+
+std::ostream& operator<<(std::ostream& os, const ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE& type) {
     return os << as_string(type);
 }
 
@@ -29,7 +51,7 @@ bool LLMMLPNode::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("down_quantized", m_config.down_quantized);
     visitor.on_attribute("hidden_size", m_config.hidden_size);
     visitor.on_attribute("up_size", m_config.up_size);
-    visitor.on_attribute("gate_up_combined", m_config.gate_up_combined);
+    visitor.on_attribute("gate_up_type", m_config.gate_up_type);
     visitor.finish_structure();
     return true;
 }

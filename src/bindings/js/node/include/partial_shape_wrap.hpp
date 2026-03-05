@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -33,6 +33,7 @@ public:
     Napi::Value is_dynamic(const Napi::CallbackInfo& info);
     Napi::Value to_string(const Napi::CallbackInfo& info);
     Napi::Value get_dimensions(const Napi::CallbackInfo& info);
+    ov::PartialShape& get_value();
 
 private:
     ov::PartialShape _partial_shape;

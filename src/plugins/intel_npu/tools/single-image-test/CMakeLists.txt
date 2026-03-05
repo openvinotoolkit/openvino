@@ -1,12 +1,16 @@
 #
-# Copyright (C) 2022-2024 Intel Corporation.
+# Copyright (C) 2018-2026 Intel Corporation.
 # SPDX-License-Identifier: Apache 2.0
 #
 
 set(TARGET_NAME single-image-test)
 
 if (NOT DEFINED PROJECT_NAME)
-    cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+    if(WIN32)
+        cmake_minimum_required(VERSION 3.16)
+    else()
+        cmake_minimum_required(VERSION 3.13)
+    endif()
     project(single-image-test_standalone)
     include("cmake/standalone.cmake")
     return()
@@ -34,8 +38,7 @@ endif()
 # Define the target
 #
 
-ov_add_target(ADD_CPPLINT
-              TYPE EXECUTABLE
+ov_add_target(TYPE EXECUTABLE
               NAME ${TARGET_NAME}
               ROOT ${CMAKE_CURRENT_SOURCE_DIR}
               LINK_LIBRARIES

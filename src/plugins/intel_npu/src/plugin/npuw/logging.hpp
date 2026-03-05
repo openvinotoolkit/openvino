@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <fstream>
 
+#include "openvino/core/log_util.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -15,8 +16,11 @@ namespace ov {
 namespace npuw {
 
 enum class LogLevel { None = 0, Error = 1, Warning = 2, Info = 3, Verbose = 4, Debug = 5 };
-
 LogLevel get_log_level();
+
+bool debug_groups();
+
+bool profiling_enabled();
 
 class __logging_indent__ {
     static thread_local int this_indent;
@@ -29,22 +33,24 @@ public:
 
 void dump_tensor(const ov::SoPtr<ov::ITensor>& tensor, const std::string& base_path);
 
-void dump_input_list(const std::string base_name, const std::vector<std::string>& base_input_names);
+void dump_input_list(const std::string& base_name, const std::vector<std::string>& base_input_names);
 
-void dump_output_list(const std::string base_name, const std::vector<std::string>& base_output_names);
+void dump_output_list(const std::string& base_name, const std::vector<std::string>& base_output_names);
 
 void dump_failure(const std::shared_ptr<ov::Model>& model, const std::string& device, const char* extra);
 }  // namespace npuw
 }  // namespace ov
 
-#define LOG_IMPL(str, level, levelstr)                                        \
+#define LOG_IMPL(msg, level, levelstr)                                        \
     do {                                                                      \
         if (ov::npuw::get_log_level() >= ov::npuw::LogLevel::level) {         \
-            std::cout << "[ NPUW:" levelstr " ] ";                            \
+            std::stringstream log_stream;                                     \
+            log_stream << "[ NPUW:" levelstr " ] ";                           \
             const int this_level = ov::npuw::__logging_indent__::__level__(); \
             for (int i = 0; i < this_level; i++)                              \
-                std::cout << "    ";                                          \
-            std::cout << str << std::endl;                                    \
+                log_stream << "    ";                                         \
+            log_stream << msg;                                                \
+            ov::util::log_message(log_stream.str());                          \
         }                                                                     \
     } while (0)
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/frontend/decoder.hpp"
+#include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/pytorch/visibility.hpp"
 
 namespace ov {
@@ -42,23 +43,23 @@ public:
     // Return signature name of the input tensor
     virtual const std::string& get_input_signature_name(size_t index) const = 0;
 
-    // Return shape if inputs has torch::Tensor type in the original model, otherwise returns the shape [] of a scalar
+    // Return shape if input has torch::Tensor type in the original model, otherwise returns the shape [] of a scalar
     virtual PartialShape get_input_shape(size_t index) const = 0;
 
-    // Return strides if inputs has torch::Tensor type in original model, otherwise return [].
+    // Return strides if input has torch::Tensor type in original model, otherwise return [].
     virtual const std::vector<size_t>& get_input_strides(size_t index) const = 0;
 
-    // Return element::Type when it the original type can be represented, otherwise returns PT-specific data type object
+    // Return element::Type when the original type can be represented, otherwise returns PT-specific data type object
     // (see custom_type.hpp)
     virtual Any get_input_type(size_t index) const = 0;
 
-    // Return debug name of the input tensor
+    // Return debug name of the output tensor
     virtual const std::string& get_output_debug_name(size_t index) const = 0;
 
-    // Return shape if inputs has torch::Tensor type in the original model, otherwise returns the shape [] of a scalar
+    // Return shape if output has torch::Tensor type in the original model, otherwise returns the shape [] of a scalar
     virtual PartialShape get_output_shape(size_t index) const = 0;
 
-    // Return element::Type when it the original type can be represented, otherwise returns PT-specific data type object
+    // Return element::Type when the original type can be represented, otherwise returns PT-specific data type object
     // (see custom_type.hpp)
     virtual Any get_output_type(size_t index) const = 0;
     // ------------------------------
@@ -68,12 +69,12 @@ public:
 
     virtual OutputVector try_decode_get_attr() const = 0;
 
-    // Work for natural constant nodes, e.g. for prim::Constant; don't know other nodes kinds that fit
+    // Works for natural constant nodes, e.g. for prim::Constant; don't know other nodes kinds that fit
     // TODO: why OutputVector instead of just single output?
     virtual OutputVector as_constant() const = 0;
 
-    // Get string from constant. Work for natural constant nodes, e.g. for prim::Constant; don't know other nodes kinds
-    // that fit
+    // Get string from constant. Works for natural constant nodes, e.g. for prim::Constant; don't know other nodes
+    // kinds that fit
     virtual const std::string& as_string() const = 0;
 
     // Returns PT node kind as a string mnemonics for native type uint32_t Symbol in Torch
@@ -134,6 +135,15 @@ public:
 
     /// \brief Returns the rt_info for the element
     virtual DecoderRTInfo get_rt_info() const = 0;
+
+    /// \brief Returns if node has a custom converter that should be used instead (if any) of the default converter
+    /// registered in front-end If this method returns true, `convert` method should be used as a conversion extension
+    /// for this node instead of (any) default converter Such node may not have implemented other methods, like
+    /// `get_op_type` that usually are implemented for "normal" nodes.
+    virtual bool has_converter() const = 0;
+
+    /// \brief Converts the node if `has_converter` returns true
+    virtual OutputVector convert(const ov::frontend::NodeContext* context) const = 0;
 };
 
 }  // namespace pytorch

@@ -1,14 +1,15 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/core/descriptor/tensor.hpp"
 
 #include "atomic_guard.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/util/common_util.hpp"
 
@@ -60,8 +61,7 @@ public:
           m_shape_info{shape},
           m_names{names},
           m_name_it{find_new_any_name(m_names)},
-          m_rt_map{},
-          m_legacy_name{} {}
+          m_rt_map{} {}
 
     virtual const element::Type& get_element_type() const override {
         return m_element_type;
@@ -121,7 +121,6 @@ private:
     std::unordered_set<std::string> m_names;
     std::unordered_set<std::string>::const_iterator m_name_it;
     RTMap m_rt_map;
-    std::string m_legacy_name;
 
     static decltype(m_name_it) find_new_any_name(const decltype(m_names)& names) {
         return std::min_element(names.begin(), names.end());
@@ -151,11 +150,9 @@ Tensor::Tensor(const element::Type& element_type,
                const std::unordered_set<std::string>& names)
     : m_impl(std::make_shared<BasicTensor>(element_type, pshape, names)) {}
 
-Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, ov::Node* node, size_t)
-    : m_impl(std::make_shared<BasicTensor>(element_type, pshape, std::unordered_set<std::string>{})) {}
-
 void Tensor::invalidate_values() {
-    if (ov::skip_invalidation(*this))
+    if (const auto ignore_skip = get_rt_info().extract(util::ForceInvalidation::get_type_info_static());
+        !ignore_skip && ov::skip_invalidation(*this))
         return;
     m_upper_value = {};
     m_lower_value = {};
@@ -215,7 +212,7 @@ const Shape& Tensor::get_shape() const {
 }
 
 size_t Tensor::size() const {
-    return element::get_memory_size(get_element_type(), shape_size(get_shape()));
+    return ov::util::get_memory_size(get_element_type(), shape_size(get_shape()));
 }
 
 const std::unordered_set<std::string>& Tensor::get_names() const {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,17 +97,17 @@ KernelsPriority EltwiseKernel_blocked_opt::GetKernelsPriority(const Params& /*pa
 // Protected
 bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
     if (!EltwiseKernelBase::Validate(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     const auto& ewParams = static_cast<const eltwise_params&>(params);
     if (IsUnsupportedModeForVecCode(ewParams))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
         if ((SelectVecSizeFromFormat(ewParams.inputs[i]) == 1) &&
             !IsBroadcastingPossibleInput(ewParams.inputs[i], ewParams.outputs[0])) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
     }
 
@@ -116,7 +116,7 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
     const auto& output = ewParams.outputs[0];
     // Check that padding before features doesn't mis-align the blocks
     if (input0.Feature().pad.before % vec_size != 0 || output.Feature().pad.before % vec_size != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     auto compareTensors = [](const DataTensor& input0, const DataTensor& input1) -> bool {
         // Check all parameters except DataType
@@ -139,9 +139,9 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
     for (size_t i = 1; i < ewParams.inputs.size(); i++) {
         const auto& input = ewParams.inputs[i];
         if (input.LogicalSize() == input0.LogicalSize() && !(compareTensors(input, input0)))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         if (input.Feature().pad.before % vec_size != 0) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
         if (input.GetLayout() == DataLayout::bfyx) {
             bool is_valid = input.LogicalSize() == 1;           // Scalar value broadcast
@@ -150,7 +150,7 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
                         input.LogicalSize() == output.Feature().v &&
                         GetInnerBatchBlockSize(input) == 1;
             if (!is_valid) {
-                return false;
+                DO_NOT_USE_THIS_KERNEL(params.layerID);
             }
         }
     }
@@ -303,6 +303,7 @@ JitConstants EltwiseKernel_blocked_opt::GetJitConstants(const eltwise_params& pa
     jit.AddConstant(MakeJitConstant("OUTPUT_SIZE_XY", params.outputs[0].X().v * params.outputs[0].Y().v));
     // To calculate batch, define outer block size of feature axis (divided by the inner feature-block size)
     jit.AddConstant(MakeJitConstant("OUT_F_BLOCK", CeilDiv(params.outputs[0].Feature().v, inner_feature_blk_size)));
+    jit.AddConstant(MakeJitConstant("OUT_F_BLOCK_VEC_SIZE", CeilDiv(params.outputs[0].Feature().v, vec_size)));
 
     bool use_vload = false;
     jit.Merge(MakeInputDeclsJitConstants(params, use_vload));

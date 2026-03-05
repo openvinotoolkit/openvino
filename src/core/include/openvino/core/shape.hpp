@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -145,5 +145,6 @@ public:
     OPENVINO_RTTI("AttributeAdapter<Shape>");
 
     AttributeAdapter(ov::Shape& value) : IndirectVectorValueAccessor<ov::Shape, std::vector<int64_t>>(value) {}
+    ~AttributeAdapter() override;
 };
 }  // namespace ov

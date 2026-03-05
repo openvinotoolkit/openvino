@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -175,7 +175,7 @@ class TFGraphNodeDecoder(DecoderBase):
         if name == "value":
             if self.m_data_type == 'string':
                 return OVAny(Tensor(self.m_parsed_content))
-            if self.m_parsed_content.size == 1:
+            if self.m_parsed_content.size == 1:  # type: ignore
                 if isinstance(self.m_parsed_content, np.ndarray):
                     return OVAny(Tensor(self.m_parsed_content))
                 self.m_parsed_content = np.array(self.m_parsed_content)

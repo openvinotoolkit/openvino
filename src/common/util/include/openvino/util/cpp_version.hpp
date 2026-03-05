@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,9 @@
 #                define OPENVINO_CPP_VER_AT_LEAST_17
 #                if __cplusplus >= 202002L
 #                    define OPENVINO_CPP_VER_AT_LEAST_20
+#                    if __cplusplus >= 202302L
+#                        define OPENVINO_CPP_VER_AT_LEAST_23
+#                    endif
 #                endif
 #            endif
 #        endif
@@ -28,6 +31,9 @@
 #                define OPENVINO_CPP_VER_AT_LEAST_17
 #                if _MSVC_LANG >= 202002L
 #                    define OPENVINO_CPP_VER_AT_LEAST_20
+#                    if _MSVC_LANG >= 202302L
+#                        define OPENVINO_CPP_VER_AT_LEAST_23
+#                    endif
 #                endif
 #            endif
 #        endif

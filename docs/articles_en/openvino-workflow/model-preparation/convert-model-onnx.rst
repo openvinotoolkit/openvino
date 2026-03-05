@@ -17,9 +17,19 @@ that enables AI developers to easily transfer models between different framework
    An ONNX model file can be loaded by ``openvino.Core.read_model`` or
    ``openvino.Core.compile_model`` methods by OpenVINO runtime API without the need to
    prepare an OpenVINO IR first. Refer to the
-   :doc:`inference example <../running-inference/integrate-openvino-with-your-application>`
+   :doc:`inference example <../running-inference>`
    for more details. Using ``openvino.convert_model`` is still recommended if the model
    load latency is important for the inference application.
+
+.. note::
+
+   Starting with the 2026.0 release, the ONNX Frontend uses the
+   ``GraphIterator`` interface by default for all ONNX Frontend
+   entry points, including both the CLI ``ovc`` tool and the Python
+   ``openvino.convert_model`` function. No user-visible changes are
+   expected. If you encounter issues, set the environment variable
+   ``ONNX_ITERATOR=0`` to fall back to the legacy path. The legacy
+   path is planned for removal in future releases.
 
 Converting an ONNX Model
 ########################

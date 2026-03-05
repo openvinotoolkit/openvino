@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,12 +14,9 @@ protected:
     void SetUp() override {
         InterpolateLayerTest::SetUp();
         ov::test::InterpolateLayerTestParams params = GetParam();
-        ov::test::InterpolateSpecificParams interpolate_params;
-        ov::element::Type model_type;
-        std::vector<ov::test::InputShape> shapes;
-        ov::Shape target_shape;
-        std::map<std::string, std::string> additional_config;
-        std::tie(interpolate_params, model_type, shapes, target_shape, targetDevice, additional_config) = this->GetParam();
+
+        const auto& [interpolate_params, model_type, shapes, target_shape, _targetDevice, additional_config] = this->GetParam();
+        targetDevice = _targetDevice;
         // Some rounding float to integer types on GPU may differ from CPU, and as result,
         // the actual values may differ from reference ones on 1 when the float is very close to an integer,
         // e.g 6,0000023 calculated on CPU may be cast to 5 by OpenCL convert_uchar function.
@@ -202,6 +199,10 @@ const auto interpolate5dCasesNearestMode = ::testing::Combine(
         ::testing::ValuesIn(default5dAxes),
         ::testing::ValuesIn(default5dScales));
 
+TEST_P(GPUInterpolateLayerTest, Inference) {
+    run();
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesWithoutNearest,
         ::testing::ValuesIn(netPrecisions),
@@ -341,6 +342,26 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Vertical_BF, Interpolate11L
         ::testing::Values(ov::element::f32),
         ::testing::Values(ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{23, 23, 2, 2}})),
         ::testing::Values(ov::Shape{52, 26, 2, 2}),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
+        ::testing::Values(additional_config)),
+    Interpolate11LayerTest::getTestCaseName);
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Same, Interpolate11LayerTest, ::testing::Combine(
+    ::testing::Combine(
+            ::testing::ValuesIn(modesPillow),
+            ::testing::Values(ov::op::util::InterpolateBase::ShapeCalcMode::SIZES),
+            ::testing::Values(ov::op::util::InterpolateBase::CoordinateTransformMode::PYTORCH_HALF_PIXEL),
+            ::testing::Values(ov::op::util::InterpolateBase::NearestMode::FLOOR),
+            ::testing::Values(false),
+            ::testing::Values(std::vector<size_t>{0, 0, 0, 0}),
+            ::testing::Values(std::vector<size_t>{0, 0, 0, 0}),
+            ::testing::ValuesIn(cubeCoefs),
+            ::testing::Values(std::vector<int64_t>{0, 1}),
+            ::testing::Values(std::vector<float>{1.f, 1.f})),
+        ::testing::Values(ov::element::f32),
+        ::testing::Values(ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{1, 32, 32, 16}})),
+        ::testing::Values(ov::Shape{1, 32, 32, 16}),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
     Interpolate11LayerTest::getTestCaseName);

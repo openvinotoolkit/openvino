@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -44,7 +44,6 @@ class TestDivNoNan(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_div_no_nan_basic(self, x_shape, y_shape, input_type,
                               ie_device, precision, ir_version,
-                              temp_dir, use_legacy_frontend):
+                              temp_dir):
         self._test(*self.create_div_no_nan_net(x_shape, y_shape, input_type),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

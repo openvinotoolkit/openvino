@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,7 +59,7 @@ ParamsKey ConcatenationKernel_simple_Ref::GetSupportedKey() const {
 
 bool ConcatenationKernel_simple_Ref::Validate(const Params& p) const {
     if (!ConcatenationKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const concatenation_params& params = static_cast<const concatenation_params&>(p);
@@ -73,7 +73,7 @@ bool ConcatenationKernel_simple_Ref::Validate(const Params& p) const {
             || same_layout == DataLayout::bs_fs_yx_bsv32_fsv32)) {
             continue;
         } else if (cur_layout != same_layout) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 

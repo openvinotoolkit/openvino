@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,9 +47,8 @@ inline std::ostream& operator<<(std::ostream& out, const ConvolutionQDqTransform
 
 typedef std::tuple<
     ov::element::Type,
-    ov::PartialShape,
+    ov::test::InputShape,
     std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
     ConvolutionQDqTransformationParam
 > ConvolutionQDqTransformationParams;
 

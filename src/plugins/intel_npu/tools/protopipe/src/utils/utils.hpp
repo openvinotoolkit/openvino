@@ -1,17 +1,17 @@
 //
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <chrono>
 #include <map>
 #include <numeric>
-#include <thread>
-#include <vector>
-
 #include <opencv2/core.hpp>
 #include <opencv2/gapi/own/assert.hpp>
+#include <thread>
+#include <vector>
 
 namespace utils {
 

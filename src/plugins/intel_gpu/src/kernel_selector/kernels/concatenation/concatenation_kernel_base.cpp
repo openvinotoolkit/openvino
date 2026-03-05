@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,18 +34,18 @@ int32_t ConcatenationKernelBase::GetConcatChannelIndex(const concatenation_param
 
 bool ConcatenationKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::CONCATENATION) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const concatenation_params& params = static_cast<const concatenation_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (GetConcatChannelIndex(params) == -1) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -182,8 +182,9 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params) 
         s.v.u32 = lastOffset;
         kernel.params.scalars.push_back(s);
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
-        size_t concatChannelIndex = (size_t)DataTensor::Channelndex(orgParams.inputs[i].GetLayout(), GetConcatChannel(orgParams));
-        lastOffset += (uint32_t)input.GetDims()[concatChannelIndex].v;
+        auto concatChannelIndex = DataTensor::Channelndex(orgParams.inputs[i].GetLayout(), GetConcatChannel(orgParams));
+        OPENVINO_ASSERT(concatChannelIndex > -1, "[GPU] Invalid concatenation channel index found.");
+        lastOffset += (uint32_t)input.GetDims()[static_cast<size_t>(concatChannelIndex)].v;
     }
 
     return {kd};

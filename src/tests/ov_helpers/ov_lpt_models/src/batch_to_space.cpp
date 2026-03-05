@@ -1,11 +1,12 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ov_lpt_models/batch_to_space.hpp"
 
-#include "openvino/opsets/opset2.hpp"
+#include "openvino/opsets/opset2_decl.hpp"
 #include "ov_lpt_models/common/builders.hpp"
+#include "openvino/op/batch_to_space.hpp"
 
 namespace ov {
 namespace builder {

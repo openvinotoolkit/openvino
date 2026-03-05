@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -50,7 +50,6 @@ ov_add_test_target(
             ${LIBRARIES}
         DEFINES
             ${COMPILE_DEFINITIONS}
-        ADD_CPPLINT
 )
 
 # add subgraphs_dumpers lib to get API
@@ -72,7 +71,6 @@ ov_add_target(
             ${LIBRARIES}
         DEFINES
             ${COMPILE_DEFINITIONS}
-        ADD_CPPLINT
 )
 
 ov_build_target_faster(${TARGET_NAME} UNITY)

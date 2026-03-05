@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,6 +88,8 @@ SubgraphsMappingInfo mask_model_subgraphs_by_ops(std::shared_ptr<ov::Model>& mod
                                                  ov::SupportedOpsMap& supported_ops,
                                                  const bool dump_dot_files = false,
                                                  const std::string default_device = "");
+
+void fix_submodel_with_paged_attention(std::shared_ptr<ov::Model>& model);
 
 }  // namespace hetero
 }  // namespace ov

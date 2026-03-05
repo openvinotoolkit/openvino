@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,30 +41,10 @@ bool common_node_for_all_outputs(const ov::OutputVector& outputs) {
     return ret;
 };
 
-OperatorsBridge register_extensions(OperatorsBridge& bridge,
-                                    const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
-    for (const auto& extension : conversions) {
-        if (const auto common_conv_ext = ov::as_type_ptr<ov::frontend::ConversionExtension>(extension)) {
-            bridge.overwrite_operator(
-                common_conv_ext->get_op_type(),
-                "",
-                [common_conv_ext](const ov::frontend::onnx::Node& node) -> ov::OutputVector {
-                    return common_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
-                });
-        } else if (const auto onnx_conv_ext = ov::as_type_ptr<ov::frontend::onnx::ConversionExtension>(extension)) {
-            bridge.overwrite_operator(onnx_conv_ext->get_op_type(),
-                                      onnx_conv_ext->get_domain(),
-                                      [onnx_conv_ext](const ov::frontend::onnx::Node& node) -> ov::OutputVector {
-                                          return onnx_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
-                                      });
-        }
-    }
-    return bridge;
-}
-
 OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
     OperatorsBridge bridge;
-    return register_extensions(bridge, conversions);
+    bridge.register_extensions(conversions);
+    return bridge;
 }
 
 Model::ModelOpSet build_model_opset(const ModelProto& model_proto, const OperatorsBridge& ops_bridge) {
@@ -366,9 +346,9 @@ ov::OutputVector Graph::make_ov_nodes(const Node& onnx_node) {
         }
     }
     if (ov_subgraph_outputs.empty()) {  // translation not possible (not supported op or exception during processing)
+        std::string onnx_domain = onnx_node.domain();
+        int64_t opset_version = m_model->get_opset_version(onnx_domain);
         if (m_extensions.telemetry && !error_message.empty()) {
-            std::string onnx_domain = onnx_node.domain();
-            int64_t opset_version = m_model->get_opset_version(onnx_domain);
             error_message = onnx_prefix + "Conversion failed for " +
                             (onnx_domain != "" ? "***." + onnx_node.op_type() + "-X"
                                                : onnx_node.op_type() + "-" + std::to_string(opset_version)) +
@@ -377,8 +357,9 @@ ov::OutputVector Graph::make_ov_nodes(const Node& onnx_node) {
         const auto not_supported_node =
             std::make_shared<ov::frontend::onnx::NotSupportedONNXNode>(onnx_node.get_ov_inputs(),
                                                                        onnx_node.get_outputs_size(),
-                                                                       onnx_node.domain(),
+                                                                       onnx_domain,
                                                                        onnx_node.op_type(),
+                                                                       opset_version,
                                                                        error_message);
         ov_subgraph_outputs = not_supported_node->outputs();
     }
@@ -477,6 +458,9 @@ Output<ov::Node> Subgraph::get_ov_node_from_cache(const std::string& name) {
         return from_parent_node;
     auto new_param = std::make_shared<ov::op::v0::Parameter>(from_parent_node.get_element_type(),
                                                              from_parent_node.get_partial_shape());
+    // Set the original tensor name on the parameter output so that partition_body_parameters
+    // in Loop conversion can look it up via translate_session->lookup_tensor().
+    new_param->output(0).set_names({name});
     m_parameter_to_parent_node_map.insert({new_param, name});
     m_cache->emplace_node(name, new_param);
     m_parameters.push_back(new_param);

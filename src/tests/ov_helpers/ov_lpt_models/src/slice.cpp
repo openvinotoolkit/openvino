@@ -1,9 +1,11 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ov_lpt_models/slice.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 using namespace ov::pass::low_precision;
 

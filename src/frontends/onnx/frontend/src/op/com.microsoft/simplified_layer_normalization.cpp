@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ using ::ONNX_NAMESPACE::TensorProto_DataType;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace com_microsoft {
+namespace ai_onnx {
 namespace opset_1 {
 
 ov::OutputVector simplified_layer_normalization(const ov::frontend::onnx::Node& node) {
@@ -37,7 +37,7 @@ ov::OutputVector simplified_layer_normalization(const ov::frontend::onnx::Node& 
                      X.get_element_type(),
                      scale.get_element_type());
 
-    float epsilon = node.get_attribute_value<float>("epsilon", 1e-5f);
+    float epsilon = node.get_attribute_value<float>("epsilon", 1e-12f);
     int64_t axis = node.get_attribute_value<int64_t>("axis", -1);
     int64_t default_stash_type = static_cast<int64_t>(TensorProto_DataType::TensorProto_DataType_FLOAT);
     int64_t stash_type_i = node.get_attribute_value<int64_t>("stash_type", default_stash_type);
@@ -59,19 +59,42 @@ ov::OutputVector simplified_layer_normalization(const ov::frontend::onnx::Node& 
     auto rms_value =
         std::make_shared<v0::Sqrt>(std::make_shared<v1::Add>(mean, v0::Constant::create(stash_type, {}, {epsilon})));
     auto inv_std_var = std::make_shared<v1::Divide>(v0::Constant::create(stash_type, {}, {1.0}), rms_value);
-    auto normalized = std::make_shared<v1::Multiply>(X, inv_std_var);  // X / RMS(X)
+    ov::Output<ov::Node> normalized = std::make_shared<v1::Multiply>(X, inv_std_var);  // X / RMS(X)
+    if (needs_type_casting) {
+        normalized = std::make_shared<v0::Convert>(normalized, scale.get_element_type());
+    }
 
     auto scaled = std::make_shared<v1::Multiply>(normalized, scale);  // (X / RMS(X)) * scale
 
     return ov::OutputVector{scaled, inv_std_var};
 }
 
+/* This operator isn't clearly defined in ONNX documentation:
+    - https://github.com/onnx/onnx/blob/main/docs/Operators.md
+    - https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md
+   Strange, but a SkipSimplifiedLayerNormalization is a part of com.microsoft domain:
+    -
+   https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#com.microsoft.SkipSimplifiedLayerNormalization
+   Same time SimplifiedLayerNormalization is described here and in some models it is found as a part of ai.onnx domain:
+    - https://github.com/microsoft/onnxruntime/blob/main/js/web/docs/webgpu-operators.md
+   To align with actual behavior and some documentation - decided to register it as a ai.onnx, but leave
+   in a folder with com.microsoft operations, because it isn't defined as a part of ONNX.
+*/
+ONNX_OP("SimplifiedLayerNormalization", OPSET_SINCE(1), ai_onnx::opset_1::simplified_layer_normalization);
+}  // namespace opset_1
+}  // namespace ai_onnx
+
+namespace com_microsoft {
+namespace opset_1 {
+OPENVINO_DEPRECATED("'SimplifiedLayerNormalization' in the 'com_microsoft' domain is deprecated. Please use the "
+                    "'ai_onnx' domain instead, which is adopted by ONNX Runtime Web.")
 ONNX_OP("SimplifiedLayerNormalization",
         OPSET_SINCE(1),
-        com_microsoft::opset_1::simplified_layer_normalization,
+        ai_onnx::opset_1::simplified_layer_normalization,
         MICROSOFT_DOMAIN);
 }  // namespace opset_1
 }  // namespace com_microsoft
+
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

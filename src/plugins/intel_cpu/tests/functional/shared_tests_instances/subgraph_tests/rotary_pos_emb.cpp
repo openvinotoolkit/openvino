@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,6 +69,29 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM,
                             ::testing::Values(ov::element::f32),
                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          RoPETestChatGLM2DRoPEStridedSlice::getTestCaseName);
+
+const std::vector<std::string> vit_param = {"VariadicSplit", "Slice", "StridedSlice"};
+INSTANTIATE_TEST_SUITE_P(smoke_RoPETestQwenVL,
+                         RoPETestQwenVL,
+                         ::testing::Combine(
+                            ::testing::Values(ov::element::f32),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                            ::testing::ValuesIn(vit_param)),
+                         RoPETestQwenVL::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM,
+                         RoPETestChatGLMHF,
+                         ::testing::Combine(::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(true, false)),
+                         RoPETestChatGLMHF::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_RoPETestGPTOSS,
+                         RoPETestGPTOSS,
+                         ::testing::Combine(
+                            ::testing::Values(ov::element::f32),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         RoPETestGPTOSS::getTestCaseName);
 
 }  // namespace test
 }  // namespace ov

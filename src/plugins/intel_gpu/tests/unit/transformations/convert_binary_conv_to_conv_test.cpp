@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ TEST_F(TransformationTestsF, ConvertBinaryConvolutionToConvolutionTest1) {
                                                                            ov::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
                                                                            -1.0f);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ binary_conv }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{binary_conv}, ov::ParameterVector{input});
         manager.register_pass<ConvertBinaryConvolutionToConvolution>();
     }
     {
@@ -68,6 +68,6 @@ TEST_F(TransformationTestsF, ConvertBinaryConvolutionToConvolutionTest1) {
                                                               ov::CoordinateDiff{0, 0},
                                                               ov::Strides{1, 1});
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 }

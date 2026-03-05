@@ -1,8 +1,14 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#include <xbyak/xbyak.h>
+
+#include <cassert>
+#include <common/utils.hpp>
+#include <cstddef>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
@@ -29,35 +35,35 @@ struct jit_args_fft {
 };
 
 struct jit_uni_dft_kernel {
-    void (*ker_)(const jit_args_dft*);
+    void (*ker_)(const jit_args_dft*) = nullptr;
 
-    void operator()(const jit_args_dft* args) {
+    void operator()(const jit_args_dft* args) const {
         assert(ker_);
         ker_(args);
     }
 
-    jit_uni_dft_kernel() : ker_(nullptr) {}
-    virtual ~jit_uni_dft_kernel() {}
+    jit_uni_dft_kernel() = default;
+    virtual ~jit_uni_dft_kernel() = default;
 
     virtual void create_ker() = 0;
 };
 
 struct jit_uni_fft_kernel {
-    void (*ker_)(const jit_args_fft*);
+    void (*ker_)(const jit_args_fft*) = nullptr;
 
-    void operator()(const jit_args_fft* args) {
+    void operator()(const jit_args_fft* args) const {
         assert(ker_);
         ker_(args);
     }
 
-    jit_uni_fft_kernel() : ker_(nullptr) {}
-    virtual ~jit_uni_fft_kernel() {}
+    jit_uni_fft_kernel() = default;
+    virtual ~jit_uni_fft_kernel() = default;
 
     virtual void create_ker() = 0;
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-struct jit_uni_dft_kernel_f32 : public jit_uni_dft_kernel, public dnnl::impl::cpu::x64::jit_generator {
+struct jit_uni_dft_kernel_f32 : public jit_uni_dft_kernel, public dnnl::impl::cpu::x64::jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_dft_kernel_f32)
 
     jit_uni_dft_kernel_f32();
@@ -71,7 +77,7 @@ private:
                                                          isa == dnnl::impl::cpu::x64::avx2,
                                                          Xbyak::Ymm,
                                                          Xbyak::Zmm>::type;
-    size_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen;
+    size_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 reg_dst = r9;
@@ -94,7 +100,7 @@ private:
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-struct jit_uni_fft_kernel_f32 : public jit_uni_fft_kernel, public dnnl::impl::cpu::x64::jit_generator {
+struct jit_uni_fft_kernel_f32 : public jit_uni_fft_kernel, public dnnl::impl::cpu::x64::jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_fft_kernel_f32)
 
     jit_uni_fft_kernel_f32();
@@ -108,7 +114,7 @@ private:
                                                          isa == dnnl::impl::cpu::x64::avx2,
                                                          Xbyak::Ymm,
                                                          Xbyak::Zmm>::type;
-    const size_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen;
+    const size_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Reg64 reg_even_in_diff = rax;
     Xbyak::Reg64 reg_even_out_diff = rbx;

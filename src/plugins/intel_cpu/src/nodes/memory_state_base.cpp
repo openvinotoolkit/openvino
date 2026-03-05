@@ -1,12 +1,14 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "memory_state_base.h"
 
-#include <openvino/core/type.hpp>
-#include <openvino/op/util/assign_base.hpp>
-#include <openvino/op/util/read_value_base.hpp>
+#include <memory>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/util/variable_extension.hpp"
 
 using namespace ov::intel_cpu::node;
 

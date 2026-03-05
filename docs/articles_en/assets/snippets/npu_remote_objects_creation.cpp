@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <openvino/runtime/core.hpp>
 #include <openvino/runtime/intel_npu/level_zero/level_zero.hpp>
 #include <openvino/runtime/intel_npu/properties.hpp>
+#include <openvino/runtime/intel_npu/remote_properties.hpp>
 
 int main() {
     ov::Core core;
@@ -34,16 +35,40 @@ int main() {
     }
 
     {
+        //! [file_mapping]
+        ov::intel_npu::FileDescriptor file_descriptor{"file_name"};
+        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, file_descriptor);
+        //! [file_mapping]
+    }
+
+    {
         //! [wrap_nt_handle]
-        void* shared_buffer = nullptr;  // create the NT handle
-        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, shared_buffer);
+        void* shared_buffer = nullptr;
+        ov::intel_npu::MemType memory_type = ov::intel_npu::MemType::SHARED_BUF;
+        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, shared_buffer, memory_type);
         //! [wrap_nt_handle]
+    }
+
+    {
+        //! [import_cpu_va]
+        void* standard_allocation = nullptr;
+        ov::intel_npu::MemType memory_type = ov::intel_npu::MemType::CPU_VA;
+        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, standard_allocation, memory_type);
+        //! [import_cpu_va]
     }
 
     {
         //! [wrap_dmabuf_fd]
         int32_t fd_heap = 0;  // create the DMA-BUF System Heap file descriptor
-        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, fd_heap);
+        ov::intel_npu::MemType memory_type = ov::intel_npu::MemType::SHARED_BUF;
+        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, fd_heap, memory_type);
+        //! [wrap_dmabuf_fd]
+    }
+
+    {
+        //! [wrap_dmabuf_fd]
+        ov::intel_npu::FileDescriptor file_descriptor{"file_path.bin", 0};  // create the FileDescriptor
+        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, file_descriptor);
         //! [wrap_dmabuf_fd]
     }
 

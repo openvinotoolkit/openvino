@@ -55,6 +55,6 @@ If you have any questions, feature requests or want us to review your PRs, send 
 
 * [OpenVINO™ README](../../../README.md)
 * [OpenVINO™ Core Components](../../README.md)
-* [OpenVINO™ Python API Reference](https://docs.openvino.ai/2025/api/ie_python_api/api.html)
-* [OpenVINO™ Python API Advanced Inference](https://docs.openvino.ai/2025/openvino-workflow/running-inference/integrate-openvino-with-your-application/python-api-advanced-inference.html)
-* [OpenVINO™ Python API Exclusives](https://docs.openvino.ai/2025/openvino-workflow/running-inference/integrate-openvino-with-your-application/python-api-exclusives.html)
+* [OpenVINO™ Python API Reference](https://docs.openvino.ai/2026/api/ie_python_api/api.html)
+* [OpenVINO™ Python API Advanced Inference](https://docs.openvino.ai/2026/openvino-workflow/running-inference/python-api-advanced-inference.html)
+* [OpenVINO™ Python API Exclusives](https://docs.openvino.ai/2026/openvino-workflow/running-inference/python-api-exclusives.html)

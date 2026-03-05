@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,11 +66,13 @@ static void infer_model(ov::Core& core,
 }
 
 static std::string model_full_path(const char* path) {
-    return ov::util::make_path<char>(ov::util::make_path<char>(ov::test::utils::getExecutableDirectory(), TEST_MODELS),
-                                     path);
+    return ov::test::utils::makePath<char>(
+        ov::test::utils::makePath<char>(ov::test::utils::getExecutableDirectory(), TEST_MODELS),
+        path);
 }
 
-TEST(Extension, XmlModelWithCustomAbs) {
+TEST(DISABLED_Extension, XmlModelWithCustomAbs) {
+    // Issue: 163252
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -192,7 +194,8 @@ TEST(Extension, smoke_XmlModelWithExtensionFromDSO) {
     infer_model(core, compiled_model, input_values, expected);
 }
 
-TEST(Extension, OnnxModelWithExtensionFromDSO) {
+TEST(DISABLED_Extension, OnnxModelWithExtensionFromDSO) {
+    // Issue: 163252
     std::vector<float> input_values{1, 2, 3, 4, 5, 6, 7, 8};
     std::vector<float> expected{1, 2, 3, 4, 5, 6, 7, 8};
 

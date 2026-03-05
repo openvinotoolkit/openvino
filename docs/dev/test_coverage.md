@@ -7,17 +7,16 @@ The generated reports are in HTML form and located in `<openvino_build>/coverage
 1. `core` - Core component is a part of OpenVINO Runtime library.
 1. `low_precision_transformations` - Low Precision transformations is a part of OpenVINO Runtime library.
 1. `openvino_transformations` - Common transformations is a part of OpenVINO Runtime library.
-1. `inference_engine_legacy` - legacy OpenVINO library
-1. `preprocessing` - OpenVINO G-API based preprocessing plugin.
 1. `snippets` - OpenVINO snippets.
-1. OpenVINO open-sources plugins:
+1. OpenVINO open-source plugins:
     - `hetero_plugin` - Heterogeneous plugin.
-    - `multi_plugin` - Multi plugin.
     - `auto_plugin` - Auto plugin.
+    - `proxy_plugin` - Proxy plugin.
+    - `auto_batch_plugin` - Auto-batching plugin.
     - `template_plugin` - Template plugin.
     - `intel_gpu_plugin` - GPU plugin.
     - `intel_cpu_plugin` - CPU plugin.
-    - `intel_gna_plugin` - GNA plugin.
+    - `intel_npu_plugin` - Intel® NPU plugin.
 
 ## Build with profiling data support
 
@@ -47,7 +46,11 @@ OpenVINO components define several common groups which allow to run tests for se
  - TFL_FE - TensorFlow Lite frontend tests
  - CPU - CPU plugin tests
  - GPU - GPU plugin tests
- - GNA - GNA plugin tests
+ - AUTO - Auto plugin tests
+ - MULTI - Multi-device tests covered by the Auto plugin
+ - AUTO_BATCH - Auto-batching plugin tests
+ - PROXY - Proxy plugin tests
+ - NPUW - Intel® NPU unit tests
 
 
 After sufficient number of tests are executed, the coverage numbers can be calculated. In order to do this, run:
@@ -60,6 +63,8 @@ The following tree of reports are generated:
 
 ```bash
 $ find coverage -maxdepth 2 -name index.html
+coverage/auto_batch_plugin/index.html
+coverage/auto_plugin/index.html
 coverage/core/index.html
 coverage/transformations/index.html
 coverage/paddle_frontend/index.html
@@ -68,9 +73,14 @@ coverage/openvino/index.html
 coverage/onnx_frontend/index.html
 coverage/ir_frontend/index.html
 coverage/low_precision_transformations/index.html
+coverage/proxy_plugin/index.html
 coverage/template_plugin/index.html
 coverage/inference/index.html
 coverage/frontend_common/index.html
+coverage/hetero_plugin/index.html
+coverage/intel_cpu_plugin/index.html
+coverage/intel_gpu_plugin/index.html
+coverage/intel_npu_plugin/index.html
 ```
 
 ## See also

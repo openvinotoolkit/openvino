@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,11 +24,7 @@ class MemoryDynamicBatch : public ::testing::Test,
                            public ::testing::WithParamInterface<MemoryDynamicBatchParams> {
 public:
     static std::string get_test_case_name(::testing::TestParamInfo<MemoryDynamicBatchParams> obj) {
-        ov::PartialShape input_phape;
-        ov::Shape input_shape;
-        int iterations_num;
-        std::string target_device;
-        std::tie(input_phape, input_shape, iterations_num, target_device) = obj.param;
+        const auto& [input_phape, input_shape, iterations_num, target_device] = obj.param;
 
         std::ostringstream result;
         result << "IS=";
@@ -42,9 +38,9 @@ public:
     }
 
     void SetUp() override {
-        ov::PartialShape input_pshape;
-        std::string device_name;
-        std::tie(input_pshape, input_shape, iterations_num, device_name) = GetParam();
+        const auto& [input_pshape, _input_shape, _iterations_num, device_name] = GetParam();
+        input_shape = _input_shape;
+        iterations_num = _iterations_num;
         std::shared_ptr<ov::Model> model = build_model(element_type, input_pshape);
         std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
 

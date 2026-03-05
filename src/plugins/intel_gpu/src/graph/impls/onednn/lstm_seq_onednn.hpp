@@ -1,11 +1,11 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "lstm_seq_inst.h"
 #include "reshape_inst.h"
 #include "intel_gpu/runtime/utils.hpp"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "transformations/utils/utils.hpp"
 #include "impls/onednn/utils.hpp"
 
@@ -77,7 +77,8 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
             auto target_format = format::get_default_format(out_rank);
             if (idx == 0)
                 in_fmts[idx] = format::fbyx;
-            in_fmts[idx] = target_format;
+            else
+                in_fmts[idx] = target_format;
         }
         out_fmts[0] = format::ybfx;
 

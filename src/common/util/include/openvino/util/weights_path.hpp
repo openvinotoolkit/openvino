@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 namespace ov {
 namespace util {
 
-bool validate_weights_path(std::string& weights_path);
+bool validate_weights_path(const std::string& weights_path);
 
 }  // namespace util
 }  // namespace ov

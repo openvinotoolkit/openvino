@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace ai_onnx {
 namespace opset_1 {
 ov::OutputVector unsqueeze(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
-    auto axes_node = node.get_attribute_as_constant<std::vector<std::int64_t>>("axes", {});
+    auto axes_node = node.get_attribute_as_constant<std::vector<std::int64_t>>("axes");
     return {std::make_shared<v0::Unsqueeze>(data, axes_node)};
 }
 

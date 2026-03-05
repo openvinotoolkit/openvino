@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,13 +9,10 @@
 
 #include "async_infer_request.hpp"
 #include "intel_npu/common/itt.hpp"
-#include "intel_npu/config/common.hpp"
-#include "intel_npu/config/compiler.hpp"
 #include "intel_npu/config/config.hpp"
-#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/config/options.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
-#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
@@ -29,16 +26,18 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<IDevice>& device,
                              const std::shared_ptr<IGraph>& graph,
-                             const Config& config)
+                             const FilteredConfig& config,
+                             const std::optional<int64_t>& batchSize)
     : ICompiledModel(model, plugin),
-      _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
-      _graph(graph) {
+      _graph(graph),
+      _batchSize(batchSize) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    initialize_properties();
+    _propertiesManager = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, config);
+
     configure_stream_executors();
 
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
@@ -52,12 +51,26 @@ CompiledModel::~CompiledModel() {
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
 
-    if (!_config.get<CREATE_EXECUTOR>() || _config.get<DEFER_WEIGHTS_LOAD>()) {
-        _graph->initialize(_config);
+    // sanity check
+    if (_device == nullptr) {
+        OPENVINO_THROW("No available devices. Failed to create infer request!");
+    }
+
+    if (!_propertiesManager->getConfig().get<CREATE_EXECUTOR>() ||
+        _propertiesManager->getConfig().get<DEFER_WEIGHTS_LOAD>()) {
+        if (_graph == nullptr) {
+            OPENVINO_THROW("Invalid graph handle! Failed to create infer request!");
+        }
+        _graph->initialize(_propertiesManager->getConfig());
+    }
+
+    if (!_graph->init_completed()) {
+        OPENVINO_THROW(
+            "The driver is not applicable. The driver doesn't exist or is too old to run inference for this blob.");
     }
 
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =
-        _device->createInferRequest(shared_from_this(), _config);
+        _device->createInferRequest(shared_from_this(), _propertiesManager->getConfig());
     syncInferRequest->initialize_states();
 
     return std::make_shared<AsyncInferRequest>(syncInferRequest,
@@ -74,53 +87,107 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
-    size_t blobSizeBeforeVersioning = _graph->export_blob(stream);
 
-    auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizeBeforeVersioning, ov::get_openvino_version().buildNumber);
-    meta.write(stream);
+    auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
+
+    if (!_propertiesManager->getConfig().get<EXPORT_RAW_BLOB>()) {
+        std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
+        std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
+
+        for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
+            inputLayouts->push_back(
+                std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
+        }
+        for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
+            outputLayouts->push_back(
+                std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+        }
+
+        Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
+                                           CURRENT_OPENVINO_VERSION,
+                                           std::move(initBlobSizes),
+                                           _batchSize,
+                                           std::move(inputLayouts),
+                                           std::move(outputLayouts))
+            .write(stream);
+    }
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
-    OPENVINO_NOT_IMPLEMENTED;
+    ov::ParameterVector parameters;
+    ov::ResultVector results;
+    std::shared_ptr<const ov::Model> dummyModel;
+
+    try {
+        for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
+            std::shared_ptr<ov::Node> clonedParameter =
+                std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())
+                    ->clone_with_new_inputs({});
+            parameters.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(clonedParameter));
+        }
+
+        for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
+            const auto resultOriginal =
+                std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr());
+
+            // A dummy node is required for constructing and populating the Result node. A Constant one is perhaps the
+            // most fitting choice here.
+            std::shared_ptr<ov::Node> constantDummy =
+                std::make_shared<ov::op::v0::Constant>(nodeOutput.get_element_type(),
+                                                       nodeOutput.get_partial_shape().get_max_shape());
+            // Attached to the Result node as output tensor in order to provide the correct tensor names. Additionally,
+            // the dummy Constant node could use only static shapes. If the shape is dynamic, this construct can provide
+            // the correct shape to the Result node.
+            const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy =
+                std::make_shared<ov::descriptor::Tensor>(nodeOutput.get_element_type(),
+                                                         nodeOutput.get_partial_shape(),
+                                                         nodeOutput.get_names());
+
+            auto& resultCopy = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
+            resultCopy->output(0).set_tensor_ptr(tensorDummy);
+            resultCopy->set_friendly_name(resultOriginal->get_friendly_name());
+
+            dummyModel = std::make_shared<ov::Model>(results, parameters);
+        }
+    } catch (const std::exception& e) {
+        OPENVINO_THROW("Failed to construct a dummy ov::Model object as runtime model. ", e.what());
+    }
+
+    _logger.warning("Returning a dummy ov::Model object that contains only the given parameter and result nodes");
+
+    return dummyModel;
 }
 
 void CompiledModel::set_property(const ov::AnyMap& properties) {
-    std::map<std::string, std::string> config;
-    for (auto&& value : properties) {
-        config.emplace(value.first, value.second.as<std::string>());
-    }
-    for (const auto& configEntry : config) {
-        if (_properties.find(configEntry.first) == _properties.end()) {
-            OPENVINO_THROW("Unsupported configuration key: ", configEntry.first);
-        } else {
-            if (std::get<1>(_properties[configEntry.first]) == ov::PropertyMutability::RO) {
-                OPENVINO_THROW("READ-ONLY configuration key: ", configEntry.first);
-            }
-        }
-    }
+    // 1. Set the property via Properties interface
+    _propertiesManager->setProperty(properties);
 
-    _config.update(config);
-    if (config.find(ov::workload_type.name()) != config.end()) {
-        const auto workloadType = properties.at(ov::workload_type.name()).as<ov::WorkloadType>();
-        _graph->set_workload_type(workloadType);
+    // 2. Extra hooks
+    if (properties.count(std::string(WORKLOAD_TYPE::key())) != 0) {
+        if (_graph != nullptr) {
+            const auto workloadType = properties.at(ov::workload_type.name()).as<ov::WorkloadType>();
+            _graph->set_workload_type(workloadType);
+        }
     }
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
-    auto configIterator = _properties.find(name);
-    if (configIterator != _properties.cend()) {
-        return std::get<2>(configIterator->second)(_config);
+    // special cases
+    if (name == ov::model_name.name()) {
+        OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
+        return _graph->get_metadata().name;
+    } else {
+        // default behaviour
+        return _propertiesManager->getProperty(name);
     }
-
-    OPENVINO_THROW("Unsupported property ", name);
 }
 
 const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {
     return _graph;
 }
 
-const Config& CompiledModel::get_config() const {
-    return _config;
+const FilteredConfig& CompiledModel::get_config() const {
+    return _propertiesManager->getConfig();
 }
 
 void CompiledModel::configure_stream_executors() {
@@ -143,197 +210,6 @@ void CompiledModel::configure_stream_executors() {
     set_task_executor(std::move(task_executor));
     const auto executorId = _graph->get_metadata().name + "_NPUResultExecutor";
     _resultExecutor = ov::threading::executor_manager()->get_executor(executorId);
-}
-
-void CompiledModel::initialize_properties() {
-    const auto pluginSupportedProperties =
-        get_plugin()->get_property(ov::supported_properties.name(), {}).as<std::vector<ov::PropertyName>>();
-    const auto isPropertySupported = [&pluginSupportedProperties](const std::string& name) {
-        return std::any_of(pluginSupportedProperties.begin(),
-                           pluginSupportedProperties.end(),
-                           [&name](const ov::PropertyName& property) {
-                               return property == name;
-                           });
-    };
-    _properties = {
-        // OV Public
-        // =========
-        {ov::supported_properties.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              return _supportedProperties;
-          }}},
-        {ov::device::id.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<DEVICE_ID>();
-          }}},
-        {ov::enable_profiling.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<PERF_COUNT>();
-          }}},
-        {ov::model_name.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
-              return _graph->get_metadata().name;
-          }}},
-        {ov::optimal_number_of_infer_requests.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              // value is allowed to be queried prior the network is compiled
-              return static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(config));
-          }}},
-        {ov::execution_devices.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              return std::string("NPU");
-          }}},
-        {ov::loaded_from_cache.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<LOADED_FROM_CACHE>();
-          }}},
-        {ov::workload_type.name(),
-         {isPropertySupported(ov::workload_type.name()),
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<WORKLOAD_TYPE>();
-          }}},
-        // OV Public Hints
-        // =========
-        {ov::hint::performance_mode.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<PERFORMANCE_HINT>();
-          }}},
-        {ov::hint::execution_mode.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<EXECUTION_MODE_HINT>();
-          }}},
-        {ov::hint::num_requests.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<PERFORMANCE_HINT_NUM_REQUESTS>();
-          }}},
-        {ov::hint::inference_precision.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<INFERENCE_PRECISION_HINT>();
-          }}},
-        {ov::hint::enable_cpu_pinning.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<ENABLE_CPU_PINNING>();
-          }}},
-        {ov::hint::model_priority.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<MODEL_PRIORITY>();
-          }}},
-        // OV Internals
-        // =========
-        {ov::internal::supported_properties.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              static const std::vector<ov::PropertyName> supportedProperty{
-                  ov::PropertyName(ov::internal::caching_properties.name(), ov::PropertyMutability::RO),
-              };
-              return supportedProperty;
-          }}},
-        // NPU Public
-        // =========
-        {ov::intel_npu::compilation_mode_params.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<COMPILATION_MODE_PARAMS>();
-          }}},
-        {ov::intel_npu::compiler_dynamic_quantization.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<COMPILER_DYNAMIC_QUANTIZATION>();
-          }}},
-        {ov::intel_npu::turbo.name(),
-         {isPropertySupported(ov::intel_npu::turbo.name()),
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<TURBO>();
-          }}},
-        // NPU Private
-        // =========
-        {ov::intel_npu::tiles.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<TILES>();
-          }}},
-        {ov::intel_npu::profiling_type.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.getString<PROFILING_TYPE>();
-          }}},
-        {ov::intel_npu::platform.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<PLATFORM>();
-          }}},
-        {ov::intel_npu::dynamic_shape_to_static.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.getString<DYNAMIC_SHAPE_TO_STATIC>();
-          }}},
-        {ov::intel_npu::create_executor.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<CREATE_EXECUTOR>();
-          }}},
-        {ov::intel_npu::defer_weights_load.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<DEFER_WEIGHTS_LOAD>();
-          }}},
-        {ov::intel_npu::batch_mode.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.getString<BATCH_MODE>();
-          }}},
-        {ov::intel_npu::run_inferences_sequentially.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<RUN_INFERENCES_SEQUENTIALLY>();
-          }}},
-    };
-
-    for (auto& property : _properties) {
-        if (std::get<0>(property.second)) {
-            _supportedProperties.emplace_back(property.first, std::get<1>(property.second));
-        }
-    }
 }
 
 }  // namespace intel_npu

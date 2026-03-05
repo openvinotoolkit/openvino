@@ -1,9 +1,9 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "assign_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 
 namespace cldnn {
@@ -54,7 +54,7 @@ struct assign_impl : public typed_primitive_impl<assign> {
 
         stream.wait_for_events(events);
 
-        const auto ev_set_memory = variable.get_memory()->copy_from(stream, instance.input_memory());
+        const auto ev_set_memory = variable.get_memory()->copy_from(stream, instance.input_memory(), 0, 0, variable.get_layout().bytes_count(), true);
         variable.set();
 
         return ev_set_memory;

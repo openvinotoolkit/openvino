@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,13 +68,13 @@ JitConstants ActivationKernelBase::GetJitConstants(const activation_params& para
 
 bool ActivationKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::ACTIVATION) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     const activation_params& orgParams = static_cast<const activation_params&>(p);
 
     for (auto& fused_op : orgParams.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

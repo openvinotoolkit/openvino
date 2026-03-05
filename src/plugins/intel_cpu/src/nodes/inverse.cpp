@@ -1,15 +1,32 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "inverse.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdlib>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
 #include "nodes/common/cpu_memcpy.h"
-#include "openvino/core/parallel.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/inverse.hpp"
-#include "utils/bfloat16.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -41,12 +58,8 @@ bool Inverse::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
 }
 
 void Inverse::getSupportedDescriptors() {
-    if (getParentEdges().size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges.");
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges.");
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == 1, "has incorrect number of input edges.");
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges.");
 }
 
 void Inverse::initSupportedPrimitiveDescriptors() {
@@ -63,11 +76,10 @@ void Inverse::initSupportedPrimitiveDescriptors() {
 void Inverse::prepareParams() {
     const auto& input_shape = getParentEdgeAt(INPUT_PORT)->getMemory().getStaticDims();
 
-    if (input_shape.size() < 2) {
-        THROW_CPU_NODE_ERR("has incompatible 'data' shape ",
-                           PartialShape(input_shape),
-                           ". Only tensors of rank at least 2 are allowed.");
-    }
+    CPU_NODE_ASSERT(input_shape.size() >= 2,
+                    "has incompatible 'data' shape ",
+                    PartialShape(input_shape),
+                    ". Only tensors of rank at least 2 are allowed.");
 
     m_side = input_shape.back();
     m_side_squared = m_side * m_side;
@@ -82,7 +94,7 @@ bool Inverse::created() const {
     return getType() == Type::Inverse;
 }
 
-void Inverse::execute(const dnnl::stream& strm) {
+void Inverse::execute([[maybe_unused]] const dnnl::stream& strm) {
     inverse();
 }
 
@@ -108,21 +120,22 @@ void Inverse::lu_decomposition(const float* data,
                                std::vector<float>& L,
                                std::vector<float>& U,
                                std::vector<size_t>& P,
-                               size_t b) {
+                               size_t b) const {
     // Make L identity, U a copy of data and P a range(0, side)
     const auto batch_idx = b * m_side_squared;
+    const auto& cpu_parallel = context->getCpuParallel();
 
-    std::fill(L.begin(), L.end(), 0.0f);
+    std::fill(L.begin(), L.end(), 0.0F);
     if (!m_adjoint) {
-        cpu_parallel_memcpy(&U[0], &data[batch_idx], sizeof(float) * m_side_squared);
+        cpu_parallel_memcpy(U.data(), &data[batch_idx], sizeof(float) * m_side_squared);
     } else {
-        parallel_for2d(m_side, m_side, [&](size_t i, size_t j) {
+        cpu_parallel->parallel_for2d(m_side, m_side, [&](size_t i, size_t j) {
             U[j * m_side + i] = data[batch_idx + i * m_side + j];
         });
     }
 
-    parallel_for(m_side, [&](size_t i) {
-        L[i * m_side + i] = 1.0f;
+    cpu_parallel->parallel_for(m_side, [&](size_t i) {
+        L[i * m_side + i] = 1.0F;
         P[i] = i;
     });
 
@@ -143,7 +156,7 @@ void Inverse::lu_decomposition(const float* data,
         if (pivot_row != k) {
             // Swap rows in L, U and P
             std::swap(P[k], P[pivot_row]);
-            parallel_for(m_side, [&](size_t i) {
+            cpu_parallel->parallel_for(m_side, [&](size_t i) {
                 std::swap(L[k_idx + i], L[pivot_idx + i]);
                 std::swap(U[k_idx + i], U[pivot_idx + i]);
             });
@@ -152,12 +165,12 @@ void Inverse::lu_decomposition(const float* data,
         const auto remaining_columns = m_side - k;
         const auto remaining_rows = remaining_columns - 1;
 
-        parallel_for(remaining_rows, [&](size_t i) {
+        cpu_parallel->parallel_for(remaining_rows, [&](size_t i) {
             const auto i_idx = (i + k + 1) * m_side;
             L[i_idx + k] = U[i_idx + k] / U[k_idx + k];
         });
 
-        parallel_for(remaining_rows * remaining_columns, [&](size_t i) {
+        cpu_parallel->parallel_for(remaining_rows * remaining_columns, [&](size_t i) {
             const auto i_idx = (i / remaining_columns + k + 1) * m_side;
             const auto j_idx = i % remaining_columns + k;
             U[i_idx + j_idx] = U[i_idx + j_idx] - L[i_idx + k] * U[k_idx + j_idx];
@@ -165,15 +178,20 @@ void Inverse::lu_decomposition(const float* data,
     }
 }
 
-void Inverse::lu_solve(float* output, std::vector<float>& L, std::vector<float>& U, std::vector<size_t>& P, size_t b) {
-    parallel_for(m_side, [&](size_t column) {
-        std::vector<float> X(m_side, 0.0f);
-        std::vector<float> Y(m_side, 0.0f);
+void Inverse::lu_solve(float* output,
+                       std::vector<float>& L,
+                       std::vector<float>& U,
+                       std::vector<size_t>& P,
+                       size_t b) const {
+    const auto& cpu_parallel = context->getCpuParallel();
+    cpu_parallel->parallel_for(m_side, [&](size_t column) {
+        std::vector<float> X(m_side, 0.0F);
+        std::vector<float> Y(m_side, 0.0F);
 
         // Forward substitution: Ly = Pb
         for (size_t i = 0; i < m_side; ++i) {
             if (P[i] == column) {
-                Y[i] = 1.0f;
+                Y[i] = 1.0F;
             }
             const auto i_idx = i * m_side;
             for (size_t j = 0; j < i; ++j) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "openvino/core/rt_info.hpp"
 #include <memory>
 #include <vector>
+#include "openvino/core/graph_util.hpp"
 
 ov::intel_gpu::ConvertShapeOf1To3::ConvertShapeOf1To3() {
     auto shapeof1 = ov::pass::pattern::wrap_type<ov::op::v0::ShapeOf>();

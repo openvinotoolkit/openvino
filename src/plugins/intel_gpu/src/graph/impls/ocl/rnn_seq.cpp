@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 #include "lstm/lstm_cell_and_seq_kernel_selector.h"
 #include "lstm/lstm_kernel_base.h"
 #include "openvino/op/lstm_sequence.hpp"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 
 namespace cldnn {
 namespace ocl {

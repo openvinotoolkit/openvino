@@ -1,12 +1,14 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/max_pool.hpp"
 
 namespace ov {
 namespace builder {
@@ -133,7 +135,7 @@ std::shared_ptr<ov::Model> FakeQuantizeAndConvolutionFunction::get(
 
     std::shared_ptr<Node> parentOnWeights;
     {
-        const bool isDynamicChannel = inputShape.is_dynamic() || inputShape[1].is_dynamic();
+        const bool isDynamicChannel = inputShape.rank().is_dynamic() || inputShape[1].is_dynamic();
         size_t numGroups = !isDynamicChannel ? inputShape[1].get_length() : 3ul;
         size_t inputChannelsCount = !isDynamicChannel ? inputShape[1].get_length() : 3ul;
         size_t outputChannelsCount = inputChannelsCount * 2;

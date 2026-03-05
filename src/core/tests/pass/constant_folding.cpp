@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,10 @@
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov;
-using namespace std;
+namespace ov::test {
+
+using std::make_shared;
+using std::vector;
 
 namespace {
 
@@ -441,39 +443,39 @@ TEST(constant_folding, constant_unary_binary) {
     auto neg_sqrt = make_shared<op::v0::Sqrt>(c);
     neg_sqrt->set_friendly_name("neg_sqrt");
 
-    auto func = make_shared<Model>(NodeVector{add,
-                                              sub,
-                                              mul,
-                                              divn,
-                                              pow,
-                                              min,
-                                              max,
-                                              absn,
-                                              neg,
-                                              sqrt,
-                                              add_autob_numpy,
-                                              sub_autob_numpy,
-                                              mul_autob_numpy,
-                                              div_autob_numpy,
-                                              pow_autob_numpy,
-                                              min_autob_numpy,
-                                              max_autob_numpy,
-                                              equal_autob_numpy,
-                                              not_equal_autob_numpy,
-                                              greater_autob_numpy,
-                                              greater_eq_autob_numpy,
-                                              less_autob_numpy,
-                                              less_eq_autob_numpy,
-                                              logical_or_autob_numpy,
-                                              logical_xor_autob_numpy,
-                                              doubles_sqrt,
-                                              sub_int8,
-                                              sub_uint8,
-                                              equal_doubles,
-                                              equal_shorts,
-                                              equal_unsigned_shorts},
+    auto func = make_shared<Model>(OutputVector{add,
+                                                sub,
+                                                mul,
+                                                divn,
+                                                pow,
+                                                min,
+                                                max,
+                                                absn,
+                                                neg,
+                                                sqrt,
+                                                add_autob_numpy,
+                                                sub_autob_numpy,
+                                                mul_autob_numpy,
+                                                div_autob_numpy,
+                                                pow_autob_numpy,
+                                                min_autob_numpy,
+                                                max_autob_numpy,
+                                                equal_autob_numpy,
+                                                not_equal_autob_numpy,
+                                                greater_autob_numpy,
+                                                greater_eq_autob_numpy,
+                                                less_autob_numpy,
+                                                less_eq_autob_numpy,
+                                                logical_or_autob_numpy,
+                                                logical_xor_autob_numpy,
+                                                doubles_sqrt,
+                                                sub_int8,
+                                                sub_uint8,
+                                                equal_doubles,
+                                                equal_shorts,
+                                                equal_unsigned_shorts},
                                    ParameterVector{});
-    auto func_error = make_shared<Model>(NodeVector{neg_sqrt}, ParameterVector{});
+    auto func_error = make_shared<Model>(OutputVector{neg_sqrt}, ParameterVector{});
 
     run_constant_folding(func);
 
@@ -2194,6 +2196,52 @@ TEST(constant_folding, const_gather_v7_subgraph_skip_if_not_single_input) {
     ASSERT_EQ(count_ops_of_type<op::v7::Gather>(f), 1);
 }
 
+TEST(constant_folding, const_slice_numeric_data) {
+    const auto make_model = [](const element::Type& et) {
+        const auto data_i8 = op::v0::Constant::create(element::i8, Shape{5}, {1, 2, 3, 4, 5});
+        const auto data_et = std::make_shared<op::v0::Convert>(data_i8, et);
+
+        const auto starts = op::v0::Constant::create(element::i64, Shape{1}, std::vector<long>{1});
+        const auto ends = op::v0::Constant::create(element::i64, Shape{1}, std::vector<long>{3});
+        const auto step = op::v0::Constant::create(element::i64, Shape{1}, std::vector<long>{1});
+        const auto slice = std::make_shared<op::v8::Slice>(data_et, starts, ends, step);
+
+        const auto input = std::make_shared<op::v0::Parameter>(et, Shape{1});
+        const auto add = std::make_shared<op::v1::Add>(input, slice);
+        return std::make_shared<Model>(OutputVector{add}, ParameterVector{input});
+    };
+    for (const auto& et : {element::i32, element::f32, element::u8}) {
+        auto model = make_model(et);
+        run_constant_folding(model);
+        EXPECT_EQ(count_ops_of_type<op::v8::Slice>(model), 0);
+        EXPECT_EQ(count_ops_of_type<op::v0::Constant>(model), 1);
+    }
+    for (const auto& et : {element::i4, element::f4e2m1, element::u4}) {
+        auto model = make_model(et);
+        run_constant_folding(model);
+        EXPECT_EQ(count_ops_of_type<op::v8::Slice>(model), 1);
+        EXPECT_EQ(count_ops_of_type<op::v0::Constant>(model), 5);
+    }
+}
+
+TEST(constant_folding, const_slice_string_data) {
+    const auto data =
+        op::v0::Constant::create(element::string, Shape{5}, std::vector<std::string>{"a", "b", "c", "d", "e"});
+
+    const auto starts = op::v0::Constant::create(element::i64, Shape{1}, std::vector<long>{0});
+    const auto ends = op::v0::Constant::create(element::i64, Shape{1}, std::vector<long>{4});
+    const auto step = op::v0::Constant::create(element::i64, Shape{1}, std::vector<long>{2});
+    const auto slice = std::make_shared<op::v8::Slice>(data, starts, ends, step);
+
+    const auto input = std::make_shared<op::v0::Parameter>(element::string, Shape{1});
+    const auto cc = std::make_shared<op::v0::Concat>(OutputVector{input, slice}, 0);
+    auto model = std::make_shared<Model>(OutputVector{cc}, ParameterVector{input});
+
+    run_constant_folding(model);
+    EXPECT_EQ(count_ops_of_type<op::v8::Slice>(model), 1);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(model), 5);
+}
+
 TEST(constant_folding, const_strided_slice) {
     Shape shape_in{16};
 
@@ -2580,7 +2628,7 @@ TEST(constant_folding, const_reshape_no_data_copy) {
     auto consumer1 = std::make_shared<ov::op::v0::Relu>(reshape);
     auto consumer2 = std::make_shared<ov::op::v0::Relu>(reshape);
 
-    auto f = std::make_shared<Model>(NodeVector{consumer1, consumer2}, ParameterVector{});
+    auto f = std::make_shared<Model>(OutputVector{consumer1, consumer2}, ParameterVector{});
 
     run_constant_folding(f);
 
@@ -2600,7 +2648,7 @@ TEST(constant_folding, const_squeeze_no_data_copy) {
     auto consumer1 = std::make_shared<ov::op::v0::Relu>(reshape);
     auto consumer2 = std::make_shared<ov::op::v0::Relu>(reshape);
 
-    auto f = std::make_shared<Model>(NodeVector{consumer1, consumer2}, ParameterVector{});
+    auto f = std::make_shared<Model>(OutputVector{consumer1, consumer2}, ParameterVector{});
 
     run_constant_folding(f);
 
@@ -2620,7 +2668,7 @@ TEST(constant_folding, const_unsqueeze_no_data_copy) {
     auto consumer1 = std::make_shared<ov::op::v0::Relu>(reshape);
     auto consumer2 = std::make_shared<ov::op::v0::Relu>(reshape);
 
-    auto f = std::make_shared<Model>(NodeVector{consumer1, consumer2}, ParameterVector{});
+    auto f = std::make_shared<Model>(OutputVector{consumer1, consumer2}, ParameterVector{});
 
     run_constant_folding(f);
 
@@ -2952,7 +3000,8 @@ TEST(constant_folding, constant_v1_variadic_split_axis_1_3_splits_neg_length) {
               res3_values);
 }
 
-TEST(constant_folding, constant_v1_one_hot) {
+template <typename TOpFunc>
+void OneHotConstantFoldingGenericTest(const TOpFunc& op_func) {
     const vector<int64_t> indices{0, 1, 2};
     const float on_value = 1.123f;
     const float off_value = 0.321f;
@@ -2963,21 +3012,46 @@ TEST(constant_folding, constant_v1_one_hot) {
     const auto off_const = ov::op::v0::Constant::create(element::f32, Shape{}, {off_value});
     int64_t axis = 1;
 
-    auto one_hot_v1 = make_shared<op::v1::OneHot>(indices_const, depth_const, on_const, off_const, axis);
-    auto f = make_shared<Model>(one_hot_v1, ParameterVector{});
+    auto one_hot = op_func(indices_const, depth_const, on_const, off_const, axis);
+    auto f = make_shared<Model>(one_hot, ParameterVector{});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::v1::OneHot>(f), 0);
+    ASSERT_EQ(count_ops_of_type<typename decltype(one_hot)::element_type>(f), 0);
     ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
-    auto res = get_result_constant(f);
+    std::shared_ptr<ov::op::v0::Constant> res = get_result_constant(f);
     ASSERT_TRUE(res);
 
     ASSERT_EQ((Shape{3, 3}), res->get_output_shape(0));
     ASSERT_EQ(
         vector<float>({on_value, off_value, off_value, off_value, on_value, off_value, off_value, off_value, on_value}),
         res->get_vector<float>());
+}
+
+TEST(constant_folding, constant_v1_one_hot) {
+    OneHotConstantFoldingGenericTest([](const Output<Node>& indices,
+                                        const Output<Node>& depth,
+                                        const Output<Node>& on_value,
+                                        const Output<Node>& off_value,
+                                        int64_t axis) {
+        return make_shared<op::v1::OneHot>(indices, depth, on_value, off_value, axis);
+    });
+}
+
+TEST(constant_folding, constant_v16_one_hot) {
+    OneHotConstantFoldingGenericTest([](const Output<Node>& indices,
+                                        const Output<Node>& depth,
+                                        const Output<Node>& on_value,
+                                        const Output<Node>& off_value,
+                                        int64_t axis) {
+        return make_shared<op::v16::OneHot>(indices,
+                                            depth,
+                                            on_value,
+                                            off_value,
+                                            axis,
+                                            op::v16::OneHot::NegativeIndicesMode::NORMALIZE);
+    });
 }
 
 TEST(constant_folding, constant_v1_one_hot_negative_axes) {
@@ -3637,7 +3711,7 @@ TEST(constant_folding, disable_constant_folding) {
     interp_attr.pads_end = {0, 0, 0, 0};
 
     auto interpolate = std::make_shared<op::v0::Interpolate>(data, convert_after, interp_attr);
-    auto f = std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{data});
+    auto f = std::make_shared<Model>(OutputVector{interpolate}, ParameterVector{data});
 
     ov::disable_constant_folding(convert);
 
@@ -3666,7 +3740,7 @@ TEST(constant_folding, disable_constant_folding_simple) {
                                                      ov::op::v0::Constant::create(element::i64, Shape{3}, {3, 1, 1}),
                                                      true);
     auto divide = std::make_shared<op::v1::Divide>(data, reshape);
-    auto f = std::make_shared<Model>(NodeVector{divide}, ParameterVector{data});
+    auto f = std::make_shared<Model>(OutputVector{divide}, ParameterVector{data});
 
     ov::disable_constant_folding(reshape);
 
@@ -3694,7 +3768,7 @@ TEST(constant_folding, disable_constant_folding_check) {
     auto reshape1 = std::make_shared<op::v1::Reshape>(data, shapeof1, true);
     auto shapeof2 = std::make_shared<op::v0::ShapeOf>(reshape1);
     auto reshape2 = std::make_shared<op::v1::Reshape>(reshape1, shapeof2, true);
-    auto f = std::make_shared<Model>(NodeVector{reshape2}, ParameterVector{data});
+    auto f = std::make_shared<Model>(OutputVector{reshape2}, ParameterVector{data});
 
     ov::disable_constant_folding(shapeof1);
 
@@ -3770,7 +3844,7 @@ TEST(constant_folding, disable_constant_folding_for_shapeof) {
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 22, 22});
     auto shapeof = std::make_shared<op::v3::ShapeOf>(data);
     auto reshape = std::make_shared<op::v1::Reshape>(data, shapeof, true);
-    auto model = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{data});
+    auto model = std::make_shared<ov::Model>(OutputVector{reshape}, ParameterVector{data});
 
     ov::disable_constant_folding(shapeof);
 
@@ -3787,7 +3861,7 @@ TEST(constant_folding, disable_constant_folding_for_squeeze_unsqueeze) {
     auto consumer1 = std::make_shared<ov::op::v0::Relu>(squeeze);
     auto consumer2 = std::make_shared<ov::op::v0::Relu>(unsqueeze);
 
-    auto model = std::make_shared<ov::Model>(NodeVector{consumer1, consumer2}, ParameterVector{});
+    auto model = std::make_shared<ov::Model>(OutputVector{consumer1, consumer2}, ParameterVector{});
 
     ov::disable_constant_folding(squeeze);
     ov::disable_constant_folding(unsqueeze);
@@ -3804,7 +3878,7 @@ TEST(constant_folding, disable_constant_folding_for_convert_like) {
     auto convert_like = std::make_shared<op::v1::ConvertLike>(data, like);
     auto consumer1 = std::make_shared<ov::op::v0::Relu>(convert_like);
 
-    auto model = std::make_shared<ov::Model>(NodeVector{consumer1}, ParameterVector{});
+    auto model = std::make_shared<ov::Model>(OutputVector{consumer1}, ParameterVector{});
 
     ov::disable_constant_folding(convert_like);
 
@@ -3819,7 +3893,7 @@ TEST(constant_folding, fold_convert_like_node) {
     auto convert_like = std::make_shared<op::v1::ConvertLike>(data, like);
     auto consumer1 = std::make_shared<ov::op::v0::Relu>(convert_like);
 
-    auto model = std::make_shared<ov::Model>(NodeVector{consumer1}, ParameterVector{});
+    auto model = std::make_shared<ov::Model>(OutputVector{consumer1}, ParameterVector{});
 
     run_constant_folding(model);
 
@@ -3832,7 +3906,7 @@ TEST(constant_folding, fold_convert_like_but_node_is_not_foldable) {
     auto convert_like = std::make_shared<op::v1::ConvertLike>(data, like);
     auto consumer1 = std::make_shared<ov::op::v0::Relu>(convert_like);
 
-    auto model = std::make_shared<ov::Model>(NodeVector{consumer1}, ParameterVector{data});
+    auto model = std::make_shared<ov::Model>(OutputVector{consumer1}, ParameterVector{data});
 
     run_constant_folding(model);
 
@@ -3866,7 +3940,7 @@ TEST(constant_folding, evaluate_on_tensor_vector) {
     auto mock = std::make_shared<::testing::StrictMock<MockAddOp>>(a, b);
     EXPECT_CALL(*mock, evaluate).Times(1);
 
-    auto model = std::make_shared<ov::Model>(NodeVector{mock}, ParameterVector{});
+    auto model = std::make_shared<ov::Model>(OutputVector{mock}, ParameterVector{});
 
     run_constant_folding(model);
 
@@ -4050,3 +4124,4 @@ INSTANTIATE_TEST_SUITE_P(constant_folding,
                          UnsupportedTypesTest,
                          testing::ValuesIn(ov::util::unsupported_types()),
                          unsupported_types_test_case_name);
+}  // namespace ov::test

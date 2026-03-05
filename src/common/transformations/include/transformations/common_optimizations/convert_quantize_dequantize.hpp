@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
@@ -32,5 +33,10 @@ class TRANSFORMATIONS_API ConvertQuantizeDequantize;
 class ov::pass::ConvertQuantizeDequantize : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertQuantizeDequantize");
-    ConvertQuantizeDequantize();
+    ConvertQuantizeDequantize(const ov::element::TypeVector& supported_low_precisions = {ov::element::i8,
+                                                                                         ov::element::u8,
+                                                                                         ov::element::i16,
+                                                                                         ov::element::u16},
+                              const ov::element::TypeVector& supported_original_precisions = {ov::element::f32},
+                              const bool ignore_consumers_count_check = false);
 };

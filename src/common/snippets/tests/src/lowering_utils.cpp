@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,24 @@
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/gn_tokenization.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "snippets/op/powerstatic.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
+#include "snippets/op/load.hpp"
+#include "snippets/op/broadcastload.hpp"
+#include "snippets/op/store.hpp"
+#include "snippets/op/scalar.hpp"
+#include "snippets/op/broadcastmove.hpp"
+#include "snippets/op/kernel.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/op/vector_buffer.hpp"
+#include "snippets/op/fill.hpp"
+#include "snippets/op/reduce.hpp"
+#include "snippets/op/reshape.hpp"
+#include "snippets/op/result.hpp"
+#include "snippets/target_machine.hpp"
 
 
 namespace ov {
@@ -24,7 +42,6 @@ DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&
 
     jitters[op::v0::Parameter::get_type_info_static()] = dummy_functor;
     jitters[op::v0::Constant::get_type_info_static()] = dummy_functor;
-    jitters[op::v0::Result::get_type_info_static()] = dummy_functor;
     jitters[op::v1::Add::get_type_info_static()] = dummy_functor;
     jitters[op::v1::Subtract::get_type_info_static()] = dummy_functor;
     jitters[op::v1::Multiply::get_type_info_static()] = dummy_functor;
@@ -57,6 +74,7 @@ DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&
     jitters[ov::snippets::op::ReduceMax::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::ReduceSum::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::Reshape::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::Result::get_type_info_static()] = dummy_functor;
 
     for (const auto& elem : custom_opset) {
         jitters[elem] = dummy_functor;
@@ -158,7 +176,7 @@ std::shared_ptr<ov::snippets::op::Subgraph>
 std::shared_ptr<ov::snippets::op::Subgraph> LoweringTests::getTokenizedSubgraph(const std::shared_ptr<Model> &f) {
     // Perform tokenization
     ov::pass::Manager m;
-    ov::snippets::pass::SnippetsTokenization::Config config = get_default_tokenization_config();
+    ov::snippets::pass::TokenizationConfig config = get_default_tokenization_config();
     m.register_pass<ov::snippets::pass::EnumerateNodes>();
     m.register_pass<ov::snippets::pass::TokenizeGNSnippets>();
     m.register_pass<ov::snippets::pass::TokenizeSnippets>(config);

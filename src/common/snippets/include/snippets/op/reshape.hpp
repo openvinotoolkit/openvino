@@ -1,15 +1,24 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/op/op.hpp"
 #include "shape_infer_op.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface Reshape
@@ -19,7 +28,8 @@ namespace op {
 class Reshape : public ShapeInferOp {
 public:
     OPENVINO_OP("Reshape", "SnippetsOpset", ShapeInferOp);
-    Reshape(const Output<Node>& x, ov::PartialShape target_shape);
+    Reshape(const Output<Node>& arg, ov::PartialShape target_shape);
+    Reshape(const OutputVector& arg, ov::PartialShape target_shape);
     Reshape() = default;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -32,15 +42,14 @@ public:
     class ShapeInfer : public IShapeInferSnippets {
         VectorDims target_shape;
         size_t target_shape_volume = 0;
+
     public:
         explicit ShapeInfer(const std::shared_ptr<Node>& n);
         Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
     };
 
 private:
-    ov::PartialShape m_target_shape = {};
+    ov::PartialShape m_target_shape;
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::op

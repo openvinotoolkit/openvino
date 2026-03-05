@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,19 +35,19 @@ KernelsPriority AdaptivePoolingRef::GetKernelsPriority(const Params&) const {
 
 bool AdaptivePoolingRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::ADAPTIVE_POOLING) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto& params = dynamic_cast<const adaptive_pooling_params&>(p);
     const auto& inputs = params.inputs;
 
     if (params.mode == PoolType::MAX && params.outputs_num != 2) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto input_dims = inputs[0].Dimentions();
     if (input_dims < 2 || input_dims > 5) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -91,7 +91,7 @@ KernelsData AdaptivePoolingRef::GetKernelsData(const Params& params) const {
     const auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    KernelBase::CheckDispatchData(kernelName, dispatchData, params.engineInfo.maxWorkGroupSize);
+    KernelBase::CheckDispatchData(kernelName, dispatchData, params.engineInfo);
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local  = dispatchData.lws;
     kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 
 #include "reorder_inst.h"
 #include "fully_connected_inst.h"
-#include "impls/registry/registry.hpp"
+#include "registry/registry.hpp"
 #include "graph/impls/ocl/register.hpp"
 
 #include <memory>

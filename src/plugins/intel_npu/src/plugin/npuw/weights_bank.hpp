@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,12 +25,7 @@ namespace weights {
 
 class Bank {
 public:
-    explicit Bank(const std::shared_ptr<const ov::ICore>& core,
-                  const std::string& alloc_device,
-                  const std::string& bank_name)
-        : m_core(core),
-          m_alloc_device(alloc_device),
-          m_bank_name(bank_name) {}
+    Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name);
 
     // Register LazyTensor in a bank if it's not there. Returns LazyTensor's unique id
     int64_t registerLT(const LazyTensor& tensor, const std::string& device);
@@ -57,9 +52,13 @@ private:
     struct DeviceBank {
         std::unordered_map<int64_t, StoredTensor> storage;
         std::unordered_map<LazyTensor, int64_t, LazyTensor::Hash> registered_tensors;
-        mutable std::mutex mutex;
     };
     std::unordered_map<std::string, DeviceBank> m_device_banks;
+
+    void evaluate_cpu(DeviceBank& device_bank, const std::vector<LazyTensor>& to_process);
+    void evaluate_and_allocate_on_device(DeviceBank& device_bank,
+                                         const std::vector<LazyTensor>& to_process,
+                                         const std::string& device);
 
     void serialize(std::ostream& stream) const;
     static std::shared_ptr<Bank> deserialize(std::istream& stream,

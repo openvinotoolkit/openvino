@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,13 +7,9 @@
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "primitive_inst.h"
 
-#include "sdpa/pa_sdpa_kernel_opt.h"
-
 namespace cldnn {
 
-using PagedAttentionStage = kernel_selector::PagedAttentionStage;
-
-PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_param);
+using PagedAttentionInputIdx = cldnn::paged_attention::PagedAttentionInputIdx;
 
 template <>
 struct typed_program_node<paged_attention> : public typed_program_node_base<paged_attention> {
@@ -21,14 +17,31 @@ private:
     using parent = typed_program_node_base<paged_attention>;
 
 public:
-    using parent::parent;
+    typed_program_node(const std::shared_ptr<paged_attention> prim, program& prog);
 
     std::set<size_t> get_lockable_input_ids() const override {
-        return { 5 /* past_lens */, 6 /* subsequence_begins */, 12 /* max_context_len */ };
+        std::set<size_t> input_ports = { PagedAttentionInputIdx::PAST_LENS,
+                                         PagedAttentionInputIdx::SUBSEQUENCE_BEGINS,
+                                         PagedAttentionInputIdx::XATTENTION_THRESHOLD,
+                                         PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE,
+                                         PagedAttentionInputIdx::MAX_CONTEXT_LEN };
+
+        if (typed_desc()->has_score_aggregation)
+            input_ports.insert(PagedAttentionInputIdx::SCORE_AGGREGATION);
+
+        if (typed_desc()->has_adaptive_rkv) {
+            input_ports.insert(PagedAttentionInputIdx::ADAPTIVE_RKV_START_SIZE);
+            input_ports.insert(PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES);
+        }
+
+        return input_ports;
     }
 
     std::vector<size_t> get_shape_infer_dependencies() const override {
-        return { 5 /* past_lens */, 6 /* subsequence_begins */, 12 /* max_context_len */ };
+        const auto lockable_input_ids = get_lockable_input_ids();
+        std::vector<size_t> input_ports(lockable_input_ids.begin(), lockable_input_ids.end());
+
+        return input_ports;
     }
 };
 
@@ -48,24 +61,28 @@ public:
     typed_primitive_inst(network& network, const paged_attention_node& desc);
     typed_primitive_inst(network& network) : parent(network) {}
 
-    memory::ptr query_memory_ptr() const { return input_memory_ptr(0); }
-    memory::ptr key_memory_ptr() const { return input_memory_ptr(1); }
-    memory::ptr value_memory_ptr() const { return input_memory_ptr(2); }
-    memory::ptr key_cache_memory_ptr() const { return input_memory_ptr(3); }
-    memory::ptr value_cache_memory_ptr() const { return input_memory_ptr(4); }
-    memory::ptr past_lens_memory_ptr() const { return input_memory_ptr(5); }
-    memory::ptr subsequence_begins_memory_ptr() const { return input_memory_ptr(6); }
-    memory::ptr block_indices_memory_ptr() const { return input_memory_ptr(7); }
-    memory::ptr block_indices_begins_memory_ptr() const { return input_memory_ptr(8); }
-    memory::ptr alibi_memory_ptr() const { return input_memory_ptr(11); }
-    memory::ptr rotated_block_indices_memory_ptr() const { return input_memory_ptr(13); }
-    memory::ptr rotation_deltas_memory_ptr() const { return input_memory_ptr(14); }
-    memory::ptr rotation_trig_lut_memory_ptr() const { return input_memory_ptr(15); }
-
-    std::shared_ptr<network> prefill_network;
-
-protected:
-    void on_execute() override;
+    memory::ptr query_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::QUERY); }
+    memory::ptr key_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::KEY); }
+    memory::ptr value_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::VALUE); }
+    memory::ptr key_cache_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::KEY_CACHE); }
+    memory::ptr value_cache_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::VALUE_CACHE); }
+    memory::ptr past_lens_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::PAST_LENS); }
+    memory::ptr subsequence_begins_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS); }
+    memory::ptr block_indices_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::BLOCK_INDICES); }
+    memory::ptr block_indices_begins_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::BLOCK_INDICES_BEGINS); }
+    memory::ptr alibi_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ALIBI); }
+    memory::ptr score_aggregation_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::SCORE_AGGREGATION); }
+    memory::ptr rotated_block_indices_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ROTATED_BLOCK_INDICES); }
+    memory::ptr rotation_deltas_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ROTATION_DELTAS); }
+    memory::ptr rotation_trig_lut_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ROTATION_TRIG_LUT); }
+    memory::ptr xattention_threshold_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::XATTENTION_THRESHOLD); }
+    memory::ptr xattention_block_size_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE); }
+    memory::ptr xattention_stride_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::XATTENTION_STRIDE); }
+    memory::ptr sinks_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::SINKS); }
+    memory::ptr adaptive_rkv_start_size_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ADAPTIVE_RKV_START_SIZE); }
+    memory::ptr adaptive_rkv_evictable_sizes_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES); }
+    memory::ptr adaptive_rkv_diversity_block_set_indices_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES); }
+    memory::ptr adaptive_rkv_diversity_block_set_indices_begins_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS); }
 };
 
 using paged_attention_inst = typed_primitive_inst<paged_attention>;

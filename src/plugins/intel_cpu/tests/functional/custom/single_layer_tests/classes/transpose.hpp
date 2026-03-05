@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ typedef std::tuple<InputShape,           // Input shapes
 class TransposeLayerCPUTest : public testing::WithParamInterface<TransposeLayerCPUTestParamSet>,
                               public ov::test::SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TransposeLayerCPUTestParamSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<TransposeLayerCPUTestParamSet>& obj);
 protected:
     void SetUp() override;
 };

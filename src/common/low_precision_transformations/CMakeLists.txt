@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -16,23 +16,17 @@ source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create library
-if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
-    set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
-endif()
-
 add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
-ov_build_target_faster(${TARGET_NAME}_obj UNITY)
+ov_build_target_faster(${TARGET_NAME}_obj UNITY PCH)
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::core::dev)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
-
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 ov_mark_target_as_cc(${TARGET_NAME}_obj)
 

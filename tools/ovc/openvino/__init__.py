@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)
@@ -15,7 +15,6 @@ except ImportError:
 # #
 # # OpenVINO API
 # # This __init__.py forces checking of runtime modules to propagate errors.
-# # It is not compared with init files from openvino-dev package.
 # #
 
 # Openvino pybind bindings
@@ -40,6 +39,7 @@ from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import Shape
 from openvino._pyopenvino import Layout
 from openvino._pyopenvino import Tensor
+from openvino._pyopenvino import TensorVector
 from openvino._pyopenvino import Type
 from openvino._pyopenvino import OVAny
 from openvino._pyopenvino import get_batch
@@ -52,16 +52,14 @@ from openvino._pyopenvino import RemoteContext
 from openvino._pyopenvino import RemoteTensor
 
 # Import public classes from _ov_api
+from openvino._op_base import Op
 from openvino._ov_api import Model
 from openvino._ov_api import Core
 from openvino._ov_api import CompiledModel
 from openvino._ov_api import InferRequest
 from openvino._ov_api import AsyncInferQueue
-from openvino._ov_api import Op
 
 # Import all public modules
-from openvino.package_utils import LazyLoader
-runtime = LazyLoader("openvino.runtime")
 from openvino import frontend as frontend
 from openvino import helpers as helpers
 from openvino import experimental as experimental

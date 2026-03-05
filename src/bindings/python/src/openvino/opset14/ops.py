@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for ops added to openvino opset14."""
 from functools import partial
 
-from typing import Union, Optional, List
+from typing import Union, Optional
 
 from openvino import Node, Type
 from openvino.utils.node_factory import _get_node_factory
@@ -31,9 +31,12 @@ def convert_promote_types(
 
     :param left_node: input node with type to be promoted to common one.
     :param right_node: input node with type to be promoted to common one.
-    :param promote_unsafe: Bool attribute whether to allow promotions that might result in bit-widening, precision loss and undefined behaviors.
-    :param pytorch_scalar_promotion: Bool attribute whether to promote scalar input to type provided by non-scalar input when number format is matching.
-    :param u64_integer_promotion_target: Element type attribute to select promotion result when inputs are u64 and signed integer.
+    :param promote_unsafe: Bool attribute whether to allow promotions that might result
+                           in bit-widening, precision loss and undefined behaviors.
+    :param pytorch_scalar_promotion: Bool attribute whether to promote scalar input to type
+                                     provided by non-scalar input when number format is matching.
+    :param u64_integer_promotion_target: Element type attribute to select promotion result
+                                         when inputs are u64 and signed integer.
     :param name: Optional name for the new output node.
 
     :return: The new node performing ConvertPromoteTypes operation.
@@ -74,10 +77,10 @@ def inverse(
 @nameable_op
 def max_pool(
     data: NodeInput,
-    strides: List[int],
-    dilations: List[int],
-    pads_begin: List[int],
-    pads_end: List[int],
+    strides: list[int],
+    dilations: list[int],
+    pads_begin: list[int],
+    pads_end: list[int],
     kernel_shape: TensorShape,
     rounding_type: str = "floor",
     auto_pad: Optional[str] = None,
@@ -129,7 +132,7 @@ def max_pool(
 @nameable_op
 def avg_pool(
     data_batch: NodeInput,
-    strides: List[int],
+    strides: list[int],
     pads_begin: TensorShape,
     pads_end: TensorShape,
     kernel_shape: TensorShape,

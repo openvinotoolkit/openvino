@@ -1,15 +1,14 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ze_api.h>
-#include <ze_command_queue_npu_ext.h>
-#include <ze_graph_ext.h>
 #include <ze_intel_npu_uuid.h>
 
 #include <memory>
+#include <mutex>
+#include <optional>
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -30,73 +29,92 @@ public:
     ~ZeroInitStructsHolder();
 
     inline ze_driver_handle_t getDriver() const {
-        return driver_handle;
+        return _driver_handle;
     }
     inline ze_device_handle_t getDevice() const {
-        return device_handle;
+        return _device_handle;
     }
     inline ze_context_handle_t getContext() const {
-        return context;
+        return _context;
     }
     inline ze_graph_dditable_ext_curr_t& getGraphDdiTable() const {
-        return *graph_dditable_ext_decorator;
+        return *_graph_dditable_ext_decorator;
     }
     inline ze_command_queue_npu_dditable_ext_curr_t& getCommandQueueDdiTable() const {
-        return *command_queue_npu_dditable_ext_decorator;
+        return *_command_queue_npu_dditable_ext_decorator;
     }
     inline ze_graph_profiling_dditable_ext_curr_t& getProfilingDdiTable() const {
-        return *graph_profiling_npu_dditable_ext_decorator;
+        return *_graph_profiling_npu_dditable_ext_decorator;
     }
     inline uint32_t getDriverVersion() const {
-        return driver_properties.driverVersion;
-    }
-    inline uint32_t getCompilerVersion() const {
-        return ZE_MAKE_VERSION(compiler_properties.compilerVersion.major, compiler_properties.compilerVersion.minor);
-    }
-    inline ze_device_graph_properties_t getCompilerProperties() const {
-        return compiler_properties;
+        return _driver_properties.driverVersion;
     }
     inline uint32_t getMutableCommandListExtVersion() const {
-        return mutable_command_list_ext_version;
+        return _mutable_command_list_ext_version;
     }
     inline ze_api_version_t getZeDrvApiVersion() const {
-        return ze_drv_api_version;
+        return _ze_drv_api_version;
     }
     // Helper function to check if extension with <ext_name> exists and its newer than <version>
     inline bool isExtensionSupported(std::string ext_name, uint32_t version) const {
-        auto iter = driver_extension_properties.find(ext_name);
-        if (iter == driver_extension_properties.end()) {
+        auto iter = _driver_extension_properties.find(ext_name);
+        if (iter == _driver_extension_properties.end()) {
             return false;
         } else if (iter->second >= version) {
             return true;
         }
         return false;
     }
+    inline bool isExternalMemoryStandardAllocationSupported() const {
+        return _external_memory_standard_allocation_supported;
+    }
+    inline bool isExternalMemoryFdWin32Supported() const {
+        return _external_memory_fd_win32_supported;
+    }
+
+    void setContextOptions(const uint32_t options);
+    void clearContextOptions(const uint32_t options);
+
+    static const std::shared_ptr<ZeroInitStructsHolder> getInstance();
+
+    ze_device_graph_properties_t getCompilerProperties();
+
+    uint32_t getCompilerVersion();
 
 private:
     void initNpuDriver();
+    void getExtensionFunctionAddress(const std::string& name, const uint32_t version, void** function_address);
+    void setContextProperties();
 
     // keep zero_api alive until context is destroyed
-    std::shared_ptr<ZeroApi> zero_api;
+    std::shared_ptr<ZeroApi> _zero_api;
 
-    static const ze_driver_uuid_t uuid;
-    Logger log;
+    Logger _log;
 
-    ze_context_handle_t context = nullptr;
-    ze_driver_handle_t driver_handle = nullptr;
-    ze_device_handle_t device_handle = nullptr;
+    ze_context_handle_t _context = nullptr;
+    ze_driver_handle_t _driver_handle = nullptr;
+    ze_device_handle_t _device_handle = nullptr;
 
-    std::map<std::string, uint32_t> driver_extension_properties;
-    std::unique_ptr<ze_graph_dditable_ext_decorator> graph_dditable_ext_decorator;
-    std::unique_ptr<ze_command_queue_npu_dditable_ext_decorator> command_queue_npu_dditable_ext_decorator;
-    std::unique_ptr<ze_graph_profiling_ddi_table_ext_decorator> graph_profiling_npu_dditable_ext_decorator;
+    std::map<std::string, uint32_t> _driver_extension_properties;
+    std::unique_ptr<ze_graph_dditable_ext_decorator> _graph_dditable_ext_decorator;
+    std::unique_ptr<ze_command_queue_npu_dditable_ext_decorator> _command_queue_npu_dditable_ext_decorator;
+    std::unique_ptr<ze_graph_profiling_dditable_ext_decorator> _graph_profiling_npu_dditable_ext_decorator;
+    std::unique_ptr<ze_driver_npu_dditable_ext_decorator> _driver_npu_dditable_ext_decorator;
+    std::unique_ptr<ze_context_npu_dditable_ext_decorator> _context_npu_dditable_ext_decorator;
 
-    ze_driver_properties_t driver_properties = {};
-    uint32_t mutable_command_list_ext_version = 0;
+    ze_driver_properties_t _driver_properties = {};
+    uint32_t _mutable_command_list_ext_version = 0;
 
-    ze_api_version_t ze_drv_api_version = {};
+    ze_api_version_t _ze_drv_api_version = {};
 
-    ze_device_graph_properties_t compiler_properties = {};
+    std::optional<ze_device_graph_properties_t> _compiler_properties = std::nullopt;
+
+    bool _external_memory_standard_allocation_supported = false;
+    bool _external_memory_fd_win32_supported = false;
+
+    uint32_t _context_options = 0;
+
+    std::mutex _mutex;
 };
 
 }  // namespace intel_npu

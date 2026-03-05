@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,13 +6,13 @@
 
 #include <openvino/op/op.hpp>
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu_non_zero.hpp"
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -56,7 +56,7 @@ std::shared_ptr<ov::Model> createModelWithUnknownNode() {
     auto constant = ov::test::utils::make_constant(precision, ov::Shape{4096, 1024});
     auto custom_op = std::make_shared<UnsupportedTestOp>(constant);
 
-    ov::NodeVector results{custom_op};
+    ov::OutputVector results{custom_op};
     return std::make_shared<ov::Model>(results, ov::ParameterVector{params}, "CustomOpModel");
 }
 
@@ -75,7 +75,7 @@ public:
         OVPluginTestBase::SetUp();
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;

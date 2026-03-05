@@ -1,23 +1,25 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "snippets/lowered/pass/move_result_out_of_loop.hpp"
 
+#include <algorithm>
+#include <iterator>
+
+#include "openvino/core/type.hpp"
+#include "openvino/op/result.hpp"
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/snippets_isa.hpp"
-#include "snippets/itt.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 bool MoveResultOutOfLoop::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::MoveResultOutOfLoop")
-    if (linear_ir.empty())
+    if (linear_ir.empty()) {
         return false;
+    }
 
     bool modified = false;
     const auto loop_manager = linear_ir.get_loop_manager();
@@ -31,8 +33,7 @@ bool MoveResultOutOfLoop::run(LinearIR& linear_ir) {
             continue;
         }
 
-        const auto& input_connector = expr->get_input_port_connector(0);
-        const auto& parent_expr = input_connector->get_source().get_expr();
+        const auto& parent_expr = expr->get_input_expr_ptr(0);
         const auto& parent_loop_ids = parent_expr->get_loop_ids();
 
         // Parent is out of Loop: just verify that Result is after Parent
@@ -66,7 +67,4 @@ bool MoveResultOutOfLoop::run(LinearIR& linear_ir) {
     return modified;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

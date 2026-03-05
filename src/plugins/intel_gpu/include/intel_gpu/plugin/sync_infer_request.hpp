@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,11 +113,13 @@ private:
     void allocate_states();
     void allocate_input(const ov::Output<const ov::Node>& port, size_t input_idx);
     void allocate_output(const ov::Output<const ov::Node>& port, size_t output_idx);
-    cldnn::event::ptr copy_output_data(cldnn::memory::ptr src, const ov::ITensor& dst) const;
+    cldnn::event::ptr copy_output_data(cldnn::memory::ptr src, ov::ITensor& dst) const;
 
     void init_mappings();
     bool is_batched_input(const ov::Output<const ov::Node>& port) const;
     uint64_t total_output_bytes = 0;
-};
+    // Variable to hold the inference request string with compiled model name
+    // to prevent this string being constructed for each inference call
+    std::string m_itt_infer_request_str;};
 
 }  // namespace ov::intel_gpu

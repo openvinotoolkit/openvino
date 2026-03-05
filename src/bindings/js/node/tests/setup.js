@@ -1,4 +1,4 @@
-const { testModels, downloadTestModel } = require('./utils.js');
+const { testModels, downloadTestModel } = require("./utils.js");
 
 if (require.main === module) {
   main();
@@ -6,4 +6,5 @@ if (require.main === module) {
 
 async function main() {
   await downloadTestModel(testModels.testModelFP32);
+  await downloadTestModel(testModels.modelV3Small);
 }

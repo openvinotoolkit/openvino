@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import logging as log
 import sys
-import typing
 from functools import reduce
 
 import numpy as np
@@ -17,7 +16,7 @@ from data import digits
 def create_model(model_path: str) -> ov.Model:
     """Create a model on the fly from the source code using openvino."""
 
-    def shape_and_length(shape: list) -> typing.Tuple[list, int]:
+    def shape_and_length(shape: list) -> tuple[list, int]:
         length = reduce(lambda x, y: x * y, shape)
         return shape, length
 
@@ -155,7 +154,7 @@ def main():
     # - precision of tensor is supposed to be 'f32'
     ppp.output().tensor().set_element_type(ov.Type.f32)
 
-    # 4) Apply preprocessing modifing the original 'model'
+    # 4) Apply preprocessing modifying the original 'model'
     model = ppp.build()
 
     # Set a batch size equal to number of input images

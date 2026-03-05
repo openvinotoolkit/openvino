@@ -1,9 +1,10 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "openvino/runtime/file_handle.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace ov {
@@ -52,6 +53,19 @@ static constexpr ov::Property<std::string> weights_bank{"NPUW_WEIGHTS_BANK"};
  * Default value: "".
  */
 static constexpr ov::Property<std::string> weights_bank_alloc{"NPUW_WEIGHTS_BANK_ALLOC"};
+
+/**
+ * @brief
+ * Type: ov::FileHandleProvider.
+ * Callback function to get file handle for weights (cross-platform).
+ * The callback takes no arguments and returns a platform-specific file handle.
+ * On Linux/Unix: returns int (file descriptor)
+ * On Windows: returns void* (HANDLE)
+ * This is useful for scenarios where file access needs to be controlled externally,
+ * such as Android content providers or restricted file access scenarios.
+ * Default value: nullptr.
+ */
+static constexpr ov::Property<ov::FileHandleProvider> weights_handle_provider{"NPUW_WEIGHTS_HANDLE_PROVIDER"};
 
 /**
  * @brief
@@ -236,6 +250,72 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
 
 /**
  * @brief
+ * Type: uint64_t.
+ * MoE expert model compilation strategy for prefill stage token chunking.
+ *
+ * When set to 0 (default): Compiles multiple expert models with different chunk sizes
+ * {16, 32, 64, 128, 256} for dynamic chunk selection at runtime. This provides optimal
+ * performance by selecting the best chunk size based on remaining tokens.
+ *
+ * When set to a specific value (e.g., 128, 256): Compiles only a single expert model
+ * with the specified fixed chunk size. This reduces compilation time and memory usage but
+ * may not be optimal for all token counts.
+ *
+ * The chunk size should be a power of two for best hardware utilization.
+ * Note: This only affects prefill stage (multi-token inference). Decoding stage (single token)
+ * always uses a dedicated model regardless of this setting.
+ *
+ * Default value: 0 (dynamic multi-model compilation).
+ */
+static constexpr ov::Property<uint64_t> moe_token_chunk_size{"NPUW_MOE_TOKEN_CHUNK_SIZE"};
+
+/**
+ * @brief Configure MoE request pool size per layer for caching expert configurations.
+ *
+ * Controls the number of pre-allocated inference requests per MoE layer to cache
+ * different expert combinations. Using LRU eviction when pool is full.
+ * Setting to 0 disables the MoE request cache entirely.
+ *
+ * Type: std::size_t.
+ * Default value: 8 (cache up to 8 expert configurations per layer).
+ */
+static constexpr ov::Property<std::size_t> moe_pool_size{"NPUW_MOE_POOL_SIZE"};
+
+/**
+ * @brief
+ * Type: std::string.
+ * Select attention optimization mode when attention block detected.
+ * Possible values: "DYNAMIC", "STATIC", "PYRAMID", "HFA"
+ * Default value: "STATIC"
+ */
+static constexpr ov::Property<std::string> attn{"NPUW_ATTN"};
+
+/**
+ * @brief
+ * Type: boolean.
+ * Enable dynamic dispatch for the attention block, if detected
+ * Default value: true
+ */
+static constexpr ov::Property<bool> attn_dyn{"NPUW_ATTN_DYN"};
+
+/**
+ * @brief
+ * Type: boolean.
+ * Force no-copy mode for the attention block, if detected
+ * Default value: false
+ */
+static constexpr ov::Property<bool> attn_no_copy{"NPUW_ATTN_NO_COPY"};
+
+/**
+ * @brief
+ * Type: boolean
+ * Force subgraph interconnect tensors to f16 precision if those are in f32
+ * Default value: false
+ */
+static constexpr ov::Property<bool> f16_interconnect{"NPUW_F16IC"};
+
+/**
+ * @brief
  * Type: boolean
  * When applicable, do embedding gather on host.
  * Default value: true.
@@ -295,6 +375,14 @@ static constexpr ov::Property<bool> funcall_async{"NPUW_FUNCALL_ASYNC"};
  */
 static constexpr ov::Property<bool> unfold_ireqs{"NPUW_UNFOLD_IREQS"};
 
+/**
+ * @brief
+ * Type: boolean
+ * Fallback in case of runtime failure
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> fallback_exec{"NPUW_FALLBACK_EXEC"};
+
 namespace accuracy {
 /**
  * @brief
@@ -346,6 +434,16 @@ static constexpr ov::Property<bool> full{"NPUW_DUMP_FULL"};
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> subgraphs{"NPUW_DUMP_SUBS"};
+
+/**
+ * @brief
+ * Type: std::string.
+ * Directory path for dumping subgraph models (.xml).
+ * Default behavior: when this property is not set or set to an empty string,
+ * the current working directory is used. Any non-empty value is interpreted
+ * as a directory path.
+ */
+static constexpr ov::Property<std::string> subgraphs_dir{"NPUW_DUMP_SUBS_DIR"};
 
 /**
  * @brief
@@ -416,12 +514,28 @@ static constexpr ov::Property<uint32_t> seq_len_dim{"NPUW_LLM_SEQ_LEN_DIM"};
 static constexpr ov::Property<uint32_t> max_prompt_len{"NPUW_LLM_MAX_PROMPT_LEN"};
 
 /**
++ * @brief
++ * Type: uint32_t.
++ * Desirable max input token length for generation.
++ * Default value: 1.
++ */
+static constexpr ov::Property<uint32_t> max_generation_token_len{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN"};
+
+/**
  * @brief
  * Type: uint32_t.
  * Desirable min response length.
  * Default value: 128.
  */
 static constexpr ov::Property<uint32_t> min_response_len{"NPUW_LLM_MIN_RESPONSE_LEN"};
+
+/**
+ * @brief
+ * Type: uint32_t.
+ * Desirable max LoRA rank.
+ * Default value: 32.
+ */
+static constexpr ov::Property<uint32_t> max_lora_rank{"NPUW_LLM_MAX_LORA_RANK"};
 
 /**
  * @brief
@@ -434,17 +548,133 @@ static constexpr ov::Property<bool> optimize_v_tensors{"NPUW_LLM_OPTIMIZE_V_TENS
 
 /**
  * @brief
+ * Type: bool.
+ * Tell NPUW to apply fp8 static quantisation pass from openvino low_precision library
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> optimize_fp8{"NPUW_LLM_OPTIMIZE_FP8"};
+
+/**
+ * @brief
+ * Type: boolean
+ * Substitute part of the RoPE with compile-time precalculation in higher precision
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> cache_rope{"NPUW_LLM_CACHE_ROPE"};
+
+/**
+ * @brief
+ * Type: ::intel_npu::npuw::llm::MoEHint
+ * Specify MoE (Mixture of Experts) implementation strategy for prefill stage
+ * Possible values: DENSE, HOST_ROUTED, DEVICE_ROUTED
+ * Default value: HOST_ROUTED (recommended for prefill to avoid NPU-unfriendly operations)
+ */
+static constexpr ov::Property<std::string> prefill_moe_hint{"NPUW_LLM_PREFILL_MOE_HINT"};
+
+/**
+ * @brief
+ * Type: ::intel_npu::npuw::llm::MoEHint
+ * Specify MoE (Mixture of Experts) implementation strategy for generate/decoding stage
+ * Possible values: DENSE, HOST_ROUTED, DEVICE_ROUTED
+ * Default value: HOST_ROUTED (DEVICE_ROUTED recommended for better decoding performance)
+ */
+static constexpr ov::Property<std::string> generate_moe_hint{"NPUW_LLM_GENERATE_MOE_HINT"};
+
+/**
+ * @brief
+ * Type: boolean
+ * Enable multiple generate model variants with different static shapes (1K, 2K, 4K, 8K stepping).
+ * When enabled, multiple generate models will be compiled and the appropriate one will be
+ * selected at runtime based on the required KV cache size.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> generate_pyramid{"NPUW_LLM_GENERATE_PYRAMID"};
+
+/**
+ * @brief
+ * Type: uint64_t.
+ * Prompt chunk size for chunk prefill.
+ * The chunk size should be a power of two.
+ * Chunk prefill feature is disabled in case the value is 0.
+ * Default value: 1024.
+ */
+static constexpr ov::Property<uint64_t> prefill_chunk_size{"NPUW_LLM_PREFILL_CHUNK_SIZE"};
+
+/**
+ * @brief
+ * Type: bool.
+ * This toggle enables the prefix caching feature.
+ * When activated, it stores the prefilled key-value pairs (KV) for current prompts in the cache during each
+ * conversation round.
+ * In subsequent rounds, if the prompt's KV is found in the cache, it allows skipping the prefill for certain tokens,
+ * thereby enhancing the latency of the first token.
+ * Default value: false.
+ */
+static constexpr ov::Property<uint64_t> enable_prefix_caching{"NPUW_LLM_ENABLE_PREFIX_CACHING"};
+
+/**
+ * @brief
+ * Type: uint64_t.
+ * Prefilled KV tensors are cached in blocks when prefix caching is enabled.
+ * This value describes the number of tokens in each block.
+ * This value should be not greater than prefill_chunk_size.
+ * Default value: 256.
+ */
+static constexpr ov::Property<uint64_t> prefix_caching_block_size{"NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE"};
+
+/**
+ * @brief
+ * Type: uint64_t.
+ * Prefilled KV tensors are cached in blocks when prefix caching is enabled.
+ * This value describes the maximum number of blocks in cache.
+ * Default value: 128.
+ */
+static constexpr ov::Property<uint64_t> prefix_caching_max_num_blocks{"NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS"};
+
+/**
+ * @brief
+ * Type: std::string.
+ * Hint for prefill stage. NPUW will use optimal configuration based on the passed preference via hint.
+ * Passing this hint with "NPUW_LLM_PREFILL_CONFIG" will generate a error.
+ * Possible values: "DYNAMIC", "STATIC".
+ * Default value: "DYNAMIC".
+ */
+static constexpr ov::Property<std::string> prefill_hint{"NPUW_LLM_PREFILL_HINT"};
+
+/**
+ * @brief
  * Type: ov::AnyMap.
- * Configuration for compilation of prefill model.
+ * Configuration for compilation/execution of prefill model. If specified, it will override default
+ * config, prepared by NPUW specifically for this model.
+ *
  * NOTE: !! Write-only !!
  */
 static constexpr ov::Property<ov::AnyMap> prefill_config{"NPUW_LLM_PREFILL_CONFIG"};
 
 /**
  * @brief
+ * Type: ov::AnyMap.
+ * Additional configuration for compilation/execution of prefill model. If specified, it
+ * will be appended to the default configuration, prepared by NPUW.
+ * For duplicated options, preference will be given to values from given map.
+ *
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> additional_prefill_config{"++NPUW_LLM_PREFILL_CONFIG"};
+
+/**
+ * @brief
+ * Type: std::string.
+ * Hint for the attention handling in prefill stage. NPUW will use optimal configuration based on the passed preference
+ * via hint. Possible values: "DYNAMIC", "STATIC". Default value: "STATIC".
+ */
+static constexpr ov::Property<std::string> prefill_attn_hint{"NPUW_LLM_PREFILL_ATTENTION_HINT"};
+
+/**
+ * @brief
  * Type: std::string.
  * Hint for generation stage. NPUW will use optimal configuration based on the passed preference via hint.
- * Hint is ignored if used with "NPUW_LLM_GENERATE_CONFIG".
+ * Passing this hint with "NPUW_LLM_GENERATE_CONFIG" will generate a error.
  * Possible values: "FAST_COMPILE", "BEST_PERF".
  * Default value: "FAST_COMPILE".
  */
@@ -453,11 +683,119 @@ static constexpr ov::Property<std::string> generate_hint{"NPUW_LLM_GENERATE_HINT
 /**
  * @brief
  * Type: ov::AnyMap.
- * Configuration for compilation of generate model.
+ * Configuration for compilation/execution of generate model. If specified, it will override default
+ * config, prepared by NPUW specifically for this model.
+ *
  * NOTE: !! Write-only !!
  */
 static constexpr ov::Property<ov::AnyMap> generate_config{"NPUW_LLM_GENERATE_CONFIG"};
+
+/**
+ * @brief
+ * Type: ov::AnyMap.
+ * Configuration for compilation/execution of generate model. If specified, it
+ * will be appended to the default configuration, prepared by NPUW.
+ * For duplicated options, preference will be given to values from given map.
+ *
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> additional_generate_config{"++NPUW_LLM_GENERATE_CONFIG"};
+
+/**
+ * @brief
+ * Type: std::string.
+ * Hint for the attention handling in generate stage. NPUW will use optimal configuration based on the passed preference
+ * via hint. Possible values: "DYNAMIC", "STATIC". Default value: "STATIC".
+ */
+static constexpr ov::Property<std::string> generate_attn_hint{"NPUW_LLM_GENERATE_ATTENTION_HINT"};
+
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW to separate LM head into the 3rd model, that will be shared between
+ * prefill and generate.
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> shared_lm_head{"NPUW_LLM_SHARED_HEAD"};
+
+/**
+ * @brief
+ * Type: ov::AnyMap.
+ * Configuration for compilation/execution of shared LM head model. If specified, it will override
+ * default config, prepared by NPUW specifically for this model.
+ *
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> shared_lm_head_config{"NPUW_LLM_SHARED_HEAD_CONFIG"};
+
+/**
+ * @brief
+ * Type: ov::AnyMap.
+ * Configuration for compilation/execution of shared LM head model. If specified, it
+ * will be appended to the default configuration, prepared by NPUW.
+ * For duplicated options, preference will be given to values from given map.
+ *
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> additional_shared_lm_head_config{"++NPUW_LLM_SHARED_HEAD_CONFIG"};
 }  // namespace llm
+
+namespace whisper {
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW that you want to pass Whisper model.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_WHISPER"};
+}  // namespace whisper
+
+namespace eagle {
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW that you want to pass Eagle3 model for speculative decoding.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_EAGLE"};
+}  // namespace eagle
+
+namespace text_embed {
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW that you want to pass text-embedding model.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_TEXT_EMBED"};
+
+}  // namespace text_embed
+
+namespace kokoro {
+/**
+ * @brief
+ * Type: bool
+ * Set this option to true to utilize Kokoro pipeline
+ * Default value: false
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_KOKORO"};
+
+/**
+ * @brief
+ * Type: size_t (uint64_t)
+ * Set the block size for Kokoro pipeline
+ * Default value: 200
+ */
+static constexpr ov::Property<uint64_t> block_size{"NPUW_KOKORO_BLOCK_SIZE"};
+
+/**
+ * @brief
+ * Type: size_t (uint64_t)
+ * Set the overlap size for Kokoro pipeline
+ * Default value: 20
+ */
+static constexpr ov::Property<uint64_t> overlap_size{"NPUW_KOKORO_OVERLAP_SIZE"};
+}  // namespace kokoro
 
 }  // namespace npuw
 }  // namespace intel_npu

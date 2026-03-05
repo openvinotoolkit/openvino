@@ -1,15 +1,24 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <unordered_map>
+
+#include "cache/multi_cache.h"
+#include "cpu_types.h"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_copy_b.hpp"
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/runtime_optimizer.hpp"
-#include "snippets/runtime_configurator.hpp"
 
-namespace ov::intel_cpu {
+namespace ov::intel_cpu::pass {
 
 /**
  * @class BrgemmExternalRepackingAdjuster
@@ -25,23 +34,36 @@ public:
 
     bool run(const snippets::lowered::LinearIR& linear_ir) override;
     bool applicable() const override {
-        return !m_executors.empty();
+        return !m_repacked_inputs.empty();
     }
 
 private:
     using RepackExecutorPtr = std::shared_ptr<BrgemmCopyBKernelExecutor>;
-    static VectorDims get_blk_order(size_t shape_rank);
-    static VectorDims get_blk_shape(const VectorDims& planar_shape, ov::element::Type prc);
+    struct RepackedInputConfig {
+        BrgemmCopyBKernelConfig kernel_config;
+        RepackExecutorPtr executor = nullptr;
+        bool needs_runtime_repacking = false;
+    };
 
-    void update_kernel(const RepackExecutorPtr& executor,
-                       const VectorDims& shape,
-                       const VectorDims& layout,
-                       size_t N,
-                       size_t K,
-                       ov::element::Type prc);
+    static CpuBlockedMemoryDescPtr get_desc(const ov::snippets::VectorDims& planar_shape,
+                                            const ov::element::Type& prc,
+                                            size_t wei_k_blk,
+                                            size_t wei_n_blk,
+                                            bool are_wei_blocked,
+                                            bool is_transposed);
+
+    static void update_kernel(const RepackExecutorPtr& executor,
+                              const VectorDims& shape,
+                              const VectorDims& layout,
+                              size_t N,
+                              size_t K);
+
+    static BrgemmCopyBKernelConfig get_kernel_config(const ov::snippets::lowered::ExpressionPtr& param);
+    static RepackExecutorPtr create_executor(const BrgemmCopyBKernelConfig& kernel_config,
+                                             const ov::intel_cpu::MultiCacheWeakPtr& cache);
 
     static const size_t brgemm_kernel_rank;
-    std::unordered_map<size_t, RepackExecutorPtr> m_executors;
+    std::unordered_map<size_t, RepackedInputConfig> m_repacked_inputs;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace ov::intel_cpu::pass

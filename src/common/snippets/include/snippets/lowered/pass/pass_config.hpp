@@ -1,18 +1,14 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "snippets/lowered/linear_ir.hpp"
+#include <unordered_set>
 
-#include "openvino/core/rtti.hpp"
 #include "openvino/core/type.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface PassConfig
@@ -56,7 +52,4 @@ private:
     std::unordered_set<DiscreteTypeInfo> m_enabled;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

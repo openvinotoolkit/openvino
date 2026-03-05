@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,8 +58,7 @@ public:
         result << "_reductionAxes="
                << ov::test::utils::vec2str(op::v0::Constant(param.reductionAxes.data).cast_vector<int64_t>());
         if (param.scale.data) {
-            result << "_Scaled="
-                   << "True";
+            result << "_Scaled=True";
         }
         result << "_eps=" << param.eps;
         return result.str();
@@ -75,11 +74,11 @@ private:
 
         if (!scale.data) {
             const auto rms_norm = std::make_shared<op::internal::RMSNorm>(in, axes, eps);
-            return std::make_shared<ov::Model>(NodeVector{rms_norm}, ParameterVector{in, axes});
+            return std::make_shared<ov::Model>(OutputVector{rms_norm}, ParameterVector{in, axes});
         }
         const auto scale_param = std::make_shared<op::v0::Parameter>(scale.type, scale.shape);
         const auto rms_norm = std::make_shared<op::internal::RMSNorm>(in, axes, scale_param, eps);
-        return std::make_shared<ov::Model>(NodeVector{rms_norm}, ParameterVector{in, axes, scale_param});
+        return std::make_shared<ov::Model>(OutputVector{rms_norm}, ParameterVector{in, axes, scale_param});
     }
 };
 

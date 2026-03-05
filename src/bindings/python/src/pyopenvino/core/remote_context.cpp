@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -159,7 +159,7 @@ void regclass_VAContext(py::module m) {
             :param nv12_surface: NV12 `VASurfaceID` to create NV12 from.
             :type nv12_surface: int
             :return: A pair of remote tensors for each plane.
-            :rtype: Tuple[openvino.VASurfaceTensor, openvino.VASurfaceTensor]
+            :rtype: tuple[openvino.VASurfaceTensor, openvino.VASurfaceTensor]
         )");
 
     cls.def(

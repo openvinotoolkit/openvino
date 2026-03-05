@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,12 +29,15 @@ struct infer_result* tensor_to_infer_result(ov_tensor_t* tensor, size_t* result_
     *result_size = output_shape.dims[1];
 
     struct infer_result* results = (struct infer_result*)malloc(sizeof(struct infer_result) * (*result_size));
-    if (!results)
+    if (!results) {
+        ov_shape_free(&output_shape);
         return NULL;
+    }
 
     void* data = NULL;
     status = ov_tensor_data(tensor, &data);
     if (status != OK) {
+        ov_shape_free(&output_shape);
         free(results);
         return NULL;
     }

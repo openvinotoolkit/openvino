@@ -1,10 +1,25 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_conversion_emitters.hpp"
 
-#include "utils/bfloat16.hpp"
+#include <xbyak/xbyak.h>
+
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl;
@@ -13,15 +28,23 @@ using namespace Xbyak;
 
 namespace ov::intel_cpu {
 
-jit_convert_emitter::jit_convert_emitter(jit_generator* host,
+jit_convert_emitter::jit_convert_emitter(jit_generator_t* host,
                                          cpu_isa_t host_isa,
                                          const std::shared_ptr<ov::Node>& node,
                                          ov::element::Type exec_prc)
+    : jit_convert_emitter(host, host_isa, node->get_input_element_type(0), node->get_output_element_type(0), exec_prc) {
+}
+
+jit_convert_emitter::jit_convert_emitter(jit_generator_t* host,
+                                         cpu_isa_t host_isa,
+                                         const ov::element::Type& in_prec,
+                                         const ov::element::Type& out_prec,
+                                         ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc),
-      input_type(node->get_input_element_type(0)),
-      output_type(node->get_output_element_type(0)) {
+      input_type(in_prec),
+      output_type(out_prec) {
     if (output_type == ov::element::bf16) {
-        uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(host, host_isa));
+        uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(host, host_isa);
     }
 }
 
@@ -55,8 +78,8 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_convert_emitter::float2bfloat(const std::vector<size_t>& in_vec_idxs,
                                        const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
-    Vmm vmm_src = Vmm(in_vec_idxs[0]);
-    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src = Vmm(in_vec_idxs[0]);
+    auto vmm_dst = Vmm(out_vec_idxs[0]);
     if (!uni_vcvtneps2bf16) {
         OV_CPU_JIT_EMITTER_THROW("Converter from float to bf16 isn't initialized!");
     }
@@ -64,7 +87,7 @@ void jit_convert_emitter::float2bfloat(const std::vector<size_t>& in_vec_idxs,
     uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
 }
 
-jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator* host,
+jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator_t* host,
                                                                cpu_isa_t host_isa,
                                                                const std::shared_ptr<ov::Node>& node,
                                                                ov::element::Type exec_prc)
@@ -72,9 +95,18 @@ jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator* ho
     prepare_table();
 }
 
+jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator_t* host,
+                                                               cpu_isa_t host_isa,
+                                                               const ov::element::Type& in_prec,
+                                                               const ov::element::Type& out_prec,
+                                                               ov::element::Type exec_prc)
+    : jit_convert_emitter(host, host_isa, in_prec, out_prec, exec_prc) {
+    prepare_table();
+}
+
 bool jit_convert_truncation_emitter::is_i8_and_u8_case() const {
-    return one_of(input_type, ov::element::i8, ov::element::u8) &&
-           one_of(output_type, ov::element::i8, ov::element::u8);
+    return any_of(input_type, ov::element::i8, ov::element::u8) &&
+           any_of(output_type, ov::element::i8, ov::element::u8);
 }
 
 void jit_convert_truncation_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -95,11 +127,11 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                               const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
-    Vmm vmm_src = Vmm(in_vec_idxs[0]);
-    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src = Vmm(in_vec_idxs[0]);
+    auto vmm_dst = Vmm(out_vec_idxs[0]);
 
-    Xmm xmm_dst = Xmm(out_vec_idxs[0]);
-    Ymm ymm_dst = Ymm(out_vec_idxs[0]);
+    auto xmm_dst = Xmm(out_vec_idxs[0]);
+    auto ymm_dst = Ymm(out_vec_idxs[0]);
 
     // For Truncation behavior we can just move data from src to dst if we want convert i8 -> u8 or u8 -> i8
     if ((input_type == output_type) || is_i8_and_u8_case()) {
@@ -111,19 +143,19 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
 
     switch (input_type) {
     case ov::element::f32:
-        if (one_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8)) {
+        if (any_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8)) {
             h->uni_vcvttps2dq(vmm_dst, vmm_src);
         }
         break;
     case ov::element::i32:
-        if (one_of(output_type, ov::element::f32, ov::element::bf16, ov::element::f16)) {
+        if (any_of(output_type, ov::element::f32, ov::element::bf16, ov::element::f16)) {
             h->uni_vcvtdq2ps(vmm_dst, vmm_src);
         }
         break;
     case ov::element::bf16:
         h->vpmovzxwd(vmm_dst, vmm_src);
         h->uni_vpslld(vmm_dst, vmm_dst, 16);
-        if (one_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8)) {
+        if (any_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8)) {
             h->uni_vcvttps2dq(vmm_dst, vmm_dst);
         }
         break;
@@ -134,7 +166,7 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
             h->vcvtph2ps(vmm_dst,
                          Xmm(vmm_src.getIdx()));  // for avx2_vnni_2?
         }
-        if (one_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8)) {
+        if (any_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8)) {
             h->uni_vcvttps2dq(vmm_dst, vmm_dst);
         }
         break;
@@ -150,7 +182,7 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
 
     switch (output_type) {
     case ov::element::f32:
-        if (!one_of(input_type, ov::element::i32, ov::element::bf16, ov::element::f16)) {
+        if (none_of(input_type, ov::element::i32, ov::element::bf16, ov::element::f16)) {
             h->uni_vcvtdq2ps(vmm_dst, vmm_dst);
         }
         break;
@@ -160,7 +192,7 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
         if (input_type == ov::element::f32) {
             float2bfloat<isa>({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
         } else {
-            if (one_of(input_type, ov::element::i8, ov::element::u8)) {
+            if (any_of(input_type, ov::element::i8, ov::element::u8)) {
                 h->uni_vcvtdq2ps(vmm_dst, vmm_dst);
             }
             float2bfloat<isa>({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
@@ -174,7 +206,7 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
                 h->vcvtps2ph(xmm_dst, vmm_src, 0x4);
             }
         } else {
-            if (one_of(input_type, ov::element::i8, ov::element::u8)) {
+            if (any_of(input_type, ov::element::i8, ov::element::u8)) {
                 h->uni_vcvtdq2ps(vmm_dst, vmm_dst);
             }
             if (isa == dnnl::impl::cpu::x64::avx512_core) {
@@ -198,7 +230,7 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
 }
 
 void jit_convert_truncation_emitter::register_table_entries() {
-    if (host_isa_ == dnnl::impl::cpu::x64::avx2 && one_of(output_type, ov::element::i8, ov::element::u8) &&
+    if (host_isa_ == dnnl::impl::cpu::x64::avx2 && any_of(output_type, ov::element::i8, ov::element::u8) &&
         !is_i8_and_u8_case()) {
         push_arg_entry_of("mask_byte", 0x000000ff, true);
     }
@@ -208,11 +240,11 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_convert_truncation_emitter::dword2int8(const std::vector<size_t>& in_vec_idxs,
                                                 const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
-    Vmm vmm_src = Vmm(in_vec_idxs[0]);
+    auto vmm_src = Vmm(in_vec_idxs[0]);
 
-    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
-    Xmm xmm_dst = Xmm(out_vec_idxs[0]);
-    Ymm ymm_dst = Ymm(out_vec_idxs[0]);
+    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto xmm_dst = Xmm(out_vec_idxs[0]);
+    auto ymm_dst = Ymm(out_vec_idxs[0]);
 
     if (isa == dnnl::impl::cpu::x64::avx512_core) {
         h->vpmovdb(xmm_dst, vmm_src);
@@ -226,11 +258,18 @@ void jit_convert_truncation_emitter::dword2int8(const std::vector<size_t>& in_ve
     }
 }
 
-jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator* host,
+jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator_t* host,
                                                                cpu_isa_t host_isa,
                                                                const std::shared_ptr<ov::Node>& node,
                                                                ov::element::Type exec_prc)
     : jit_convert_emitter(host, host_isa, node, exec_prc) {}
+
+jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator_t* host,
+                                                               cpu_isa_t host_isa,
+                                                               const ov::element::Type& in_prec,
+                                                               const ov::element::Type& out_prec,
+                                                               ov::element::Type exec_prc)
+    : jit_convert_emitter(host, host_isa, in_prec, out_prec, exec_prc) {}
 
 void jit_convert_saturation_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
                                                const std::vector<size_t>& out_vec_idxs) const {
@@ -250,11 +289,11 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                               const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
-    Vmm vmm_src = Vmm(in_vec_idxs[0]);
-    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src = Vmm(in_vec_idxs[0]);
+    auto vmm_dst = Vmm(out_vec_idxs[0]);
 
-    Xmm xmm_dst = Xmm(out_vec_idxs[0]);
-    Ymm ymm_dst = Ymm(out_vec_idxs[0]);
+    auto xmm_dst = Xmm(out_vec_idxs[0]);
+    auto ymm_dst = Ymm(out_vec_idxs[0]);
 
     if (input_type == output_type) {
         h->uni_vmovups(vmm_dst, vmm_src);
@@ -263,19 +302,19 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_vec_
 
     switch (input_type) {
     case ov::element::f32:
-        if (one_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8)) {
+        if (any_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8)) {
             h->uni_vcvtps2dq(vmm_dst, vmm_src);
         }
         break;
     case ov::element::i32:
-        if (one_of(output_type, ov::element::f32, ov::element::bf16, ov::element::f16)) {
+        if (any_of(output_type, ov::element::f32, ov::element::bf16, ov::element::f16)) {
             h->uni_vcvtdq2ps(vmm_dst, vmm_src);
         }
         break;
     case ov::element::bf16:
         h->vpmovzxwd(vmm_dst, vmm_src);
         h->uni_vpslld(vmm_dst, vmm_dst, 16);
-        if (one_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8)) {
+        if (any_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8)) {
             h->uni_vcvttps2dq(vmm_dst, vmm_dst);
         }
         break;
@@ -286,7 +325,7 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_vec_
             h->vcvtph2ps(vmm_dst,
                          Xmm(vmm_src.getIdx()));  // for avx2_vnni_2?
         }
-        if (one_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8)) {
+        if (any_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8)) {
             h->uni_vcvttps2dq(vmm_dst, vmm_dst);
         }
         break;
@@ -302,7 +341,7 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_vec_
 
     switch (output_type) {
     case ov::element::f32:
-        if (!one_of(input_type, ov::element::i32, ov::element::bf16, ov::element::f16)) {
+        if (none_of(input_type, ov::element::i32, ov::element::bf16, ov::element::f16)) {
             h->uni_vcvtdq2ps(vmm_dst, vmm_dst);
         }
         break;
@@ -312,7 +351,7 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_vec_
         if (input_type == ov::element::f32) {
             float2bfloat<isa>({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
         } else {
-            if (one_of(input_type, ov::element::i8, ov::element::u8)) {
+            if (any_of(input_type, ov::element::i8, ov::element::u8)) {
                 h->uni_vcvtdq2ps(vmm_dst, vmm_dst);
             }
             float2bfloat<isa>({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
@@ -326,7 +365,7 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_vec_
                 h->vcvtps2ph(xmm_dst, vmm_src, 0x4);
             }
         } else {
-            if (one_of(input_type, ov::element::i8, ov::element::u8)) {
+            if (any_of(input_type, ov::element::i8, ov::element::u8)) {
                 h->uni_vcvtdq2ps(vmm_dst, vmm_dst);
             }
             if (isa == dnnl::impl::cpu::x64::avx512_core) {
@@ -358,17 +397,17 @@ void jit_convert_saturation_emitter::dword2int8(const std::vector<size_t>& in_ve
                                                 const std::vector<size_t>& out_vec_idxs,
                                                 bool is_signed) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
-    Vmm vmm_src = Vmm(in_vec_idxs[0]);
+    auto vmm_src = Vmm(in_vec_idxs[0]);
 
-    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
-    Xmm xmm_dst = Xmm(out_vec_idxs[0]);
-    Ymm ymm_dst = Ymm(out_vec_idxs[0]);
+    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto xmm_dst = Xmm(out_vec_idxs[0]);
+    auto ymm_dst = Ymm(out_vec_idxs[0]);
 
     if (isa == dnnl::impl::cpu::x64::avx512_core) {
         if (is_signed) {
             h->vpmovsdb(xmm_dst, vmm_src);
         } else {
-            Vmm vmm_zero = Vmm(aux_vec_idxs[0]);
+            auto vmm_zero = Vmm(aux_vec_idxs[0]);
             h->vpxord(vmm_zero, vmm_zero, vmm_zero);
             h->vpmaxsd(vmm_dst, vmm_src, vmm_zero);
             h->vpmovusdb(xmm_dst, vmm_dst);

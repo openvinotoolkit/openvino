@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,12 +10,14 @@
 
 #include "utils/cpu_test_utils.hpp"
 #include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
+#include "openvino/op/roi_pooling.hpp"
 
 using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-enum ProposalGenerationMode { RANDOM, ULTIMATE_RIGHT_BORDER };
+enum ProposalGenerationMode : uint8_t { RANDOM, ULTIMATE_RIGHT_BORDER };
 
 using roiPoolingShapes = std::vector<InputShape>;
 
@@ -35,22 +37,9 @@ class ROIPoolingCPULayerTest : public testing::WithParamInterface<ROIPoolingCPUT
                                public ov::test::SubgraphBaseTest,
                                public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ROIPoolingCPUTestParamsSet> obj) {
-        roiPoolingParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        ProposalGenerationMode propMode;
-        ov::AnyMap additionalConfig;
-
-        std::tie(basicParamsSet, cpuParams, propMode, additionalConfig) = obj.param;
-
-        roiPoolingShapes inputShapes;
-        std::vector<size_t> poolShape;
-        float spatial_scale;
-       utils::ROIPoolingTypes pool_method;
-        ov::element::Type netPrecision;
-        std::string targetDevice;
-        std::tie(inputShapes, poolShape, spatial_scale, pool_method, netPrecision, targetDevice) = basicParamsSet;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<ROIPoolingCPUTestParamsSet>& obj) {
+        const auto& [basicParamsSet, cpuParams, propMode, additionalConfig] = obj.param;
+        const auto& [inputShapes, poolShape, spatial_scale, pool_method, netPrecision, targetDevice] = basicParamsSet;
         std::ostringstream result;
         result << "netPRC=" << netPrecision.to_string() << "_";
         for (const auto& shape : inputShapes) {
@@ -173,28 +162,25 @@ protected:
     }
 
     void SetUp() override {
-        roiPoolingParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        ProposalGenerationMode propMode;
-        ov::AnyMap additionalConfig;
-
-        std::tie(basicParamsSet, cpuParams, propMode, additionalConfig) = this->GetParam();
-        roiPoolingShapes inputShapes;
-        std::vector<size_t> poolShape;
-        float spatial_scale;
-       utils::ROIPoolingTypes pool_method;
-        ov::element::Type netPrecision;
-        std::tie(inputShapes, poolShape, spatial_scale, pool_method, netPrecision, targetDevice) = basicParamsSet;
-
-        auto it = additionalConfig.find(ov::hint::inference_precision.name());
-        if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16)
+        const auto& [basicParamsSet, cpuParams, propMode, additionalConfig] = this->GetParam();
+        const auto& [inputShapes, poolShape, spatial_scale, pool_method, _netPrecision, _targetDevice] = basicParamsSet;
+        targetDevice = _targetDevice;
+        auto netPrecision = _netPrecision;
+        if (intel_cpu::contains_key_value(additionalConfig, {ov::hint::inference_precision.name(), ov::element::bf16})) {
             netPrecision = ov::element::bf16;
+        }
+
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
         }
         selectedType.push_back('_');
-        selectedType += netPrecision.to_string();
+
+        if (!with_cpu_x86_avx512_core() && netPrecision == ElementType::bf16) {
+            selectedType += ov::element::f32.to_string();
+        } else {
+            selectedType += netPrecision.to_string();
+        }
 
         if (netPrecision == ov::element::bf16) {
             rel_threshold = 1e-2;
@@ -214,7 +200,7 @@ protected:
         }
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(roi_pooling)};
 
-        function = makeNgraphFunction(netPrecision, params, roi_pooling, "ROIPooling");
+        function = create_ov_model(netPrecision, params, roi_pooling, "ROIPooling");
         functionRefs = function->clone();
     }
 };

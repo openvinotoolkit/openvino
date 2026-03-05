@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_affine) {
     // input/output shape (1, 3)
     auto input = ov::test::NDArray<float, 2>{{{0.f, 1.f, 2.f}}}.get_vector();
     auto expected_output = ov::test::NDArray<float, 2>{{{50.f, 50.5f, 51.f}}}.get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input(Shape{1, 3}, input);
+    test_case.add_expected_output(Shape{1, 3}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_affine_beta0) {
+    auto model = convert_model("affine_beta0.onnx");
+
+    // input/output shape (1, 3)
+    auto input = ov::test::NDArray<float, 2>{{{0.f, 1.f, 2.f}}}.get_vector();
+    auto expected_output = ov::test::NDArray<float, 2>{{{0.f, 0.5f, 1.f}}}.get_vector();
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input(Shape{1, 3}, input);

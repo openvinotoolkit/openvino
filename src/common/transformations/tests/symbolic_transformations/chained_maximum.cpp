@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,11 @@
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 using namespace ov;
-using namespace ov::op;
 using namespace std;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
 TEST_F(TransformationTestsF, ChainedMaximumAC) {
     // A == C
     // Maximum(Maximum(A, B), C) -> Maximum(B, C)
@@ -34,7 +36,7 @@ TEST_F(TransformationTestsF, ChainedMaximumAC) {
         auto data = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
         auto broadcast = make_shared<v1::Broadcast>(data, maximum_1);
 
-        model = make_shared<Model>(NodeVector{broadcast}, ParameterVector{input, data});
+        model = make_shared<Model>(OutputVector{broadcast}, ParameterVector{input, data});
         manager.set_per_pass_validation(false);
         manager.register_pass<pass::SymbolicPropagation>();
         manager.register_pass<pass::ChainedMaximumOptimization>();
@@ -50,7 +52,7 @@ TEST_F(TransformationTestsF, ChainedMaximumAC) {
         auto data = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
         auto broadcast = make_shared<v1::Broadcast>(data, maximum);
 
-        model_ref = make_shared<Model>(NodeVector{broadcast}, ParameterVector{input, data});
+        model_ref = make_shared<Model>(OutputVector{broadcast}, ParameterVector{input, data});
     }
 }
 
@@ -69,7 +71,7 @@ TEST_F(TransformationTestsF, ChainedMaximumBC) {
         auto data = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
         auto broadcast = make_shared<v1::Broadcast>(data, maximum_1);
 
-        model = make_shared<Model>(NodeVector{broadcast}, ParameterVector{input, data});
+        model = make_shared<Model>(OutputVector{broadcast}, ParameterVector{input, data});
         manager.set_per_pass_validation(false);
         manager.register_pass<pass::SymbolicPropagation>();
         manager.register_pass<pass::ChainedMaximumOptimization>();
@@ -85,7 +87,7 @@ TEST_F(TransformationTestsF, ChainedMaximumBC) {
         auto data = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
         auto broadcast = make_shared<v1::Broadcast>(data, maximum);
 
-        model_ref = make_shared<Model>(NodeVector{broadcast}, ParameterVector{input, data});
+        model_ref = make_shared<Model>(OutputVector{broadcast}, ParameterVector{input, data});
     }
 }
 
@@ -104,7 +106,7 @@ TEST_F(TransformationTestsF, ChainedMaximumNegativeNoLabels) {
         auto data = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
         auto broadcast = make_shared<v1::Broadcast>(data, maximum_1);
 
-        model = make_shared<Model>(NodeVector{broadcast}, ParameterVector{input, data});
+        model = make_shared<Model>(OutputVector{broadcast}, ParameterVector{input, data});
         manager.register_pass<pass::ChainedMaximumOptimization>();
     }
 }
@@ -124,7 +126,7 @@ TEST_F(TransformationTestsF, ChainedMaximumNegativeDifferentLabels) {
         auto data = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
         auto broadcast = make_shared<v1::Broadcast>(data, maximum_1);
 
-        model = make_shared<Model>(NodeVector{broadcast}, ParameterVector{input_0, input_1, data});
+        model = make_shared<Model>(OutputVector{broadcast}, ParameterVector{input_0, input_1, data});
         manager.set_per_pass_validation(false);
         manager.register_pass<pass::SymbolicPropagation>();
         manager.register_pass<pass::ChainedMaximumOptimization>();

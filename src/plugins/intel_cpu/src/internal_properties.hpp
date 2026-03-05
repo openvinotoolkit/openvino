@@ -1,10 +1,15 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/runtime/intel_cpu/properties.hpp"
+#include <cstdint>
+#include <istream>
+#include <ostream>
+#include <string>
+
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov::intel_cpu {
@@ -18,7 +23,7 @@ static constexpr Property<int32_t, PropertyMutability::RW> cpu_runtime_cache_cap
 /**
  * @brief Enum to define possible snippets mode hints.
  */
-enum class SnippetsMode {
+enum class SnippetsMode : uint8_t {
     ENABLE = 0,           //!<  Enable
     IGNORE_CALLBACK = 1,  //!<  Ignore callback
     DISABLE = 2,          //!<  Disable
@@ -61,5 +66,18 @@ inline std::istream& operator>>(std::istream& is, SnippetsMode& mode) {
  * @param DISABLE - turn off the Snippets
  */
 static constexpr Property<SnippetsMode, PropertyMutability::RW> snippets_mode{"SNIPPETS_MODE"};
+
+/**
+ * @brief This property used to test accurcay of setting model_distribution_policy to TENSOR_PARALLEL in functional
+ * tests.
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_tensor_parallel{"ENABLE_TENSOR_PARALLEL"};
+
+/**
+ * @brief Define whether to enable sage_attn
+ * @param true - enable
+ * @param false - disable
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_sage_attn{"ENABLE_SAGE_ATTN"};
 
 }  // namespace ov::intel_cpu

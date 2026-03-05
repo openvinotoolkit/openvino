@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,11 +26,11 @@ ov::OutputVector translate_size_op(const NodeContext& node) {
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
 
-    // retrive attribute of the output type
+    // retrieve attribute of the output type
     auto out_type = node.get_attribute<element::Type>("out_type", element::i32);
 
     if (complex_type_mark) {
-        input = complex_type_mark->input_value(0);
+        input = complex_type_mark->get_data();
 
         // compute the input tensor size
         auto shape_of = make_shared<v3::ShapeOf>(input, out_type);

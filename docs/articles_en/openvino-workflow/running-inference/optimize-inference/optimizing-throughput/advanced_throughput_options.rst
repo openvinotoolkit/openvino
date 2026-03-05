@@ -18,7 +18,7 @@ This configurable method of this device-side parallelism is commonly referred as
 
 .. note::
 
-   Be aware that streams are **really executing the requests in parallel, but not in the lock step** (as the batching does), which makes the streams fully compatible with :doc:`dynamically-shaped inputs <../../dynamic-shapes>`, while individual requests can have different shapes.
+   Be aware that streams are **really executing the requests in parallel, but not in the lock step** (as the batching does), which makes the streams fully compatible with :doc:`dynamically-shaped inputs <../../model-input-output/dynamic-shapes>`, while individual requests can have different shapes.
 
 .. note::
 
@@ -74,7 +74,7 @@ One possible throughput optimization strategy is to **set an upper bound for lat
 
 .. note::
 
-   When playing with :doc:`dynamically-shaped inputs <../../dynamic-shapes>`, use only the streams (no batching), as they tolerate individual requests having different shapes.
+   When playing with :doc:`dynamically-shaped inputs <../../model-input-output/dynamic-shapes>`, use only the streams (no batching), as they tolerate individual requests having different shapes.
 
 .. note::
 
@@ -116,9 +116,3 @@ A Few Device-specific Details
   * A batch size can be calculated as "a number of inference requests executed in parallel" divided by the "number of requests that the streams consume":
 
     * For example, if you process 16 cameras (by 16 requests inferenced *simultaneously*) by 2 GPU streams (each can process two requests), the batch size per request is 16/(2*2)=4.
-
-* For the **CPU, always use the streams first!**:
-
-  * On high-end CPUs, using moderate (2-8) batch size *in addition* to the maximum number of streams may further improve the performance.
-
-

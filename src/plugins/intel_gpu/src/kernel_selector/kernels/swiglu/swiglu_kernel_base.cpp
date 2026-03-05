@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ JitConstants SwiGLUKernelBase::GetJitConstants(const swiglu_params& params, cons
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstants({MakeJitConstant("AXIS", params.axis)});
-    jit.AddConstants({MakeJitConstant("SPLIT_LENGTH", params.split_length)});
+    jit.AddConstants({MakeJitConstant("GLU_STRIDE", params.glu_stride)});
     jit.AddConstants({MakeJitConstant("GLU_TYPE", params.glu_type)});
     jit.AddConstants({MakeJitConstant("LWS0", dispatchData.lws[0])});
     jit.AddConstants({MakeJitConstant("LWS1", dispatchData.lws[1])});
@@ -33,9 +33,17 @@ JitConstants SwiGLUKernelBase::GetJitConstants(const swiglu_params& params, cons
         jit.AddConstants({MakeJitConstant("GEGLU_MULT", "0.044715" + type_suffix)});
         jit.AddConstants({MakeJitConstant("GEGLU_SQUARE_2_OVER_PI", "0.79788458347320556640625" + type_suffix)});
     }
-    jit.AddConstants({MakeJitConstant("SPLIT_TO_GLU_IDX", params.split_to_glu_idx)});
+    jit.AddConstants({MakeJitConstant("GATE_IDX", params.gate_idx)});
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
+
+    if ((params.clamp_min > std::numeric_limits<float>::lowest() || params.clamp_max < std::numeric_limits<float>::max()) &&
+        (params.glu_type == ov::op::internal::GLU::GluType::Swish)) {
+        jit.AddConstants({MakeJitConstant("CLAMP_MAX", static_cast<float>(params.clamp_max))});
+        jit.AddConstants({MakeJitConstant("CLAMP_MIN", static_cast<float>(params.clamp_min))});
+    }
+    jit.AddConstants({MakeJitConstant("SWISH_BETA", static_cast<float>(params.swish_beta))});
+    jit.AddConstants({MakeJitConstant("UP_ADD_VAL", static_cast<float>(params.up_add_val))});
 
     return jit;
 }
@@ -78,7 +86,7 @@ KernelsData SwiGLUKernelBase::GetKernelsData(const Params& params) const {
 
 bool SwiGLUKernelBase::Validate(const Params& params) const {
     if (!KernelBaseOpenCL::Validate(params))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
 }

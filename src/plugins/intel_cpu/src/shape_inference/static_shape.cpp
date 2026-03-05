@@ -1,9 +1,24 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "static_shape.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/rank.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "shape_infer_type_utils.hpp"
+#include "shape_inference/static_dimension.hpp"
 #include "shape_validation.hpp"
 
 namespace ov {
@@ -27,11 +42,11 @@ bool merge_into(StaticShape& dst, const T& src) {
 }
 
 //-- Shape as container
-StaticShape::StaticShapeAdapter() : m_dims{} {}
+StaticShape::StaticShapeAdapter() = default;
 StaticShape::StaticShapeAdapter(const TDims& dims) : m_dims{dims} {}
 StaticShape::StaticShapeAdapter(TDims&& dims) noexcept : m_dims{std::move(dims)} {}
 StaticShape::StaticShapeAdapter(const StaticShape& other) : StaticShapeAdapter(*other) {}
-StaticShape::StaticShapeAdapter(const ov::PartialShape&) : m_dims{} {
+StaticShape::StaticShapeAdapter([[maybe_unused]] const ov::PartialShape& shape) {
     partial_shape_convert_throw();
 }
 
@@ -61,7 +76,7 @@ ov::PartialShape StaticShape::to_partial_shape() const {
     return shape;
 }
 
-bool StaticShape::merge_rank(const ov::Rank& r) {
+bool StaticShape::merge_rank(const ov::Rank& r) const {
     return r.is_dynamic() || (size() == static_cast<size_t>(r.get_length()));
 }
 
@@ -128,7 +143,7 @@ bool StaticShape::broadcast_merge_into(StaticShape& dst,
 
 //-- Shape as reference
 StaticShapeRef::StaticShapeAdapter(const StaticShape& shape) : m_dims{&(*shape)} {}
-StaticShapeRef::StaticShapeAdapter(const ov::PartialShape&) : m_dims{} {
+StaticShapeRef::StaticShapeAdapter([[maybe_unused]] const ov::PartialShape& shape) {
     partial_shape_convert_throw();
 }
 
@@ -136,7 +151,7 @@ ov::Rank StaticShapeRef::rank() const {
     return {static_cast<typename ov::Rank::value_type>(size())};
 }
 
-bool StaticShapeRef::merge_rank(const ov::Rank& r) {
+bool StaticShapeRef::merge_rank(const ov::Rank& r) const {
     return r.is_dynamic() || (size() == static_cast<size_t>(r.get_length()));
 }
 
@@ -168,11 +183,13 @@ void NodeValidationFailure::create(const char* file,
                                    const char* check_string,
                                    std::pair<const Node*, const std::vector<intel_cpu::StaticShape>*>&& ctx,
                                    const std::string& explanation) {
-    throw ov::NodeValidationFailure(make_what(file,
-                                              line,
-                                              check_string,
-                                              node_validation_failure_loc_string(ctx.first),
-                                              ov::op::validate::shape_infer_explanation_str(*ctx.second, explanation)));
+    auto context = std::move(ctx);
+    throw ov::NodeValidationFailure(
+        make_what(file,
+                  line,
+                  check_string,
+                  node_validation_failure_loc_string(context.first),
+                  ov::op::validate::shape_infer_explanation_str(*context.second, explanation)));
 }
 
 template <>
@@ -181,10 +198,12 @@ void NodeValidationFailure::create(const char* file,
                                    const char* check_string,
                                    std::pair<const Node*, const std::vector<intel_cpu::StaticShapeRef>*>&& ctx,
                                    const std::string& explanation) {
-    throw ov::NodeValidationFailure(make_what(file,
-                                              line,
-                                              check_string,
-                                              node_validation_failure_loc_string(ctx.first),
-                                              ov::op::validate::shape_infer_explanation_str(*ctx.second, explanation)));
+    auto context = std::move(ctx);
+    throw ov::NodeValidationFailure(
+        make_what(file,
+                  line,
+                  check_string,
+                  node_validation_failure_loc_string(context.first),
+                  ov::op::validate::shape_infer_explanation_str(*context.second, explanation)));
 }
 }  // namespace ov

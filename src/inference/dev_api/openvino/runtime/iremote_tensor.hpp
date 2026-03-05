@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,26 @@ namespace ov {
 
 class OPENVINO_RUNTIME_API IRemoteTensor : public ITensor {
 public:
-    void* data(const element::Type& type = {}) const override final {
+    void* data() override final {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    void* data(const element::Type&) override final {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+    const void* data() const override final {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    const void* data(const element::Type&) const override final {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    void* data_rw() override final {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    void* data_rw(const element::Type&) override final {
         OPENVINO_NOT_IMPLEMENTED;
     }
 

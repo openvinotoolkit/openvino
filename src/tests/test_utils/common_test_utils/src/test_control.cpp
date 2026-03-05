@@ -1,11 +1,14 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_test_utils/test_control.hpp"
 
+#include <fstream>
+#include <unordered_map>
+#include <unordered_set>
+
 #include "openvino/util/common_util.hpp"
-#include "precomp.hpp"
 
 using namespace std;
 

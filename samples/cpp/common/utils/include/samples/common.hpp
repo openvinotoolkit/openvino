@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -563,8 +563,7 @@ static UNUSED void printPerformanceCountsSort(std::vector<ov::ProfilingInfo> per
                 stream << "layerType: ";
                 if (it.node_type.length() >= maxPrintLength) {
                     stream << std::setw(maxPrintLength) << std::left
-                           << it.node_type.substr(0, maxPrintLength - 3) + "..."
-                           << " ";
+                           << it.node_type.substr(0, maxPrintLength - 3) + "..." << " ";
                 } else {
                     stream << std::setw(maxPrintLength) << std::left << it.node_type << " ";
                 }

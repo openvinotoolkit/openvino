@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # mypy: disable-error-code="no-redef"
@@ -8,12 +8,10 @@ import numbers
 import logging
 import copy
 import numpy as np
-from typing import List, Dict
 from abc import ABCMeta, abstractmethod
 from functools import singledispatch
-from typing import Callable, Any, Union, Tuple
-from typing import Sequence as SequenceType
-from collections.abc import Sequence
+from typing import Any, Union
+from collections.abc import Callable, Sequence
 from PIL import Image
 
 import torch
@@ -22,7 +20,7 @@ from torchvision.transforms import InterpolationMode
 
 import openvino as ov
 import openvino.opset11 as ops
-from openvino import Layout, Type
+from openvino import Layout, Type, Output, Model
 from openvino.utils.decorators import custom_preprocess_function
 from openvino.preprocess import PrePostProcessor, ResizeAlgorithm, ColorFormat
 
@@ -48,17 +46,17 @@ TORCHTYPE_TO_OVTYPE = {
 
 
 @singledispatch
-def _setup_size(size: Any, error_msg: str) -> SequenceType[int]:
+def _setup_size(size: Any, error_msg: str) -> Sequence[int]:
     raise ValueError(error_msg)
 
 
 @_setup_size.register
-def _setup_size_number(size: numbers.Number, error_msg: str) -> SequenceType[int]:
+def _setup_size_number(size: numbers.Number, error_msg: str) -> Sequence[int]:
     return int(size), int(size)  # type: ignore
 
 
 @_setup_size.register
-def _setup_size_sequence(size: Sequence, error_msg: str) -> SequenceType[int]:
+def _setup_size_sequence(size: Sequence, error_msg: str) -> Sequence[int]:
     if len(size) == 1:
         return size[0], size[0]
     elif len(size) == 2:
@@ -66,7 +64,7 @@ def _setup_size_sequence(size: Sequence, error_msg: str) -> SequenceType[int]:
     raise ValueError(error_msg)
 
 
-def _NHWC_to_NCHW(input_shape: List) -> List:  # noqa N802
+def _NHWC_to_NCHW(input_shape: list) -> list:  # noqa N802
     new_shape = copy.deepcopy(input_shape)
     new_shape[1] = input_shape[3]
     new_shape[2] = input_shape[1]
@@ -75,21 +73,21 @@ def _NHWC_to_NCHW(input_shape: List) -> List:  # noqa N802
 
 
 @singledispatch
-def _to_list(transform: Callable) -> List:
+def _to_list(transform: Callable) -> list:
     raise TypeError(f"Unsupported transform type: {type(transform)}")
 
 
 @_to_list.register
-def _to_list_torch_sequential(transform: torch.nn.Sequential) -> List:
+def _to_list_torch_sequential(transform: torch.nn.Sequential) -> list:
     return list(transform)
 
 
 @_to_list.register
-def _to_list_transforms_compose(transform: transforms.Compose) -> List:
+def _to_list_transforms_compose(transform: transforms.Compose) -> list:
     return transform.transforms
 
 
-def _get_shape_layout_from_data(input_example: Union[torch.Tensor, np.ndarray, Image.Image]) -> Tuple[List, Layout]:
+def _get_shape_layout_from_data(input_example: Union[torch.Tensor, np.ndarray, Image.Image]) -> tuple[list, Layout]:
     if isinstance(input_example, (torch.Tensor, np.ndarray, Image.Image)):  # PyTorch, OpenCV, numpy, PILLOW
         shape = list(np.array(input_example, copy=False).shape)
         layout = Layout("NCHW") if isinstance(input_example, torch.Tensor) else Layout("NHWC")
@@ -110,13 +108,13 @@ class TransformConverterBase(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: dict) -> None:
         pass
 
 
 class TransformConverterFactory:
 
-    registry: Dict[str, Callable] = {}
+    registry: dict[str, Callable] = {}
 
     @classmethod
     def register(cls: Callable, target_type: Union[Callable, None] = None) -> Callable:
@@ -141,7 +139,7 @@ class TransformConverterFactory:
 
 @TransformConverterFactory.register(transforms.Normalize)
 class _(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: dict) -> None:
         if transform.inplace:
             raise ValueError("Inplace Normaliziation is not supported.")
         ppp.input(input_idx).preprocess().mean(transform.mean).scale(transform.std)
@@ -149,13 +147,13 @@ class _(TransformConverterBase):
 
 @TransformConverterFactory.register(transforms.ConvertImageDtype)
 class _(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: dict) -> None:
         ppp.input(input_idx).preprocess().convert_element_type(TORCHTYPE_TO_OVTYPE[transform.dtype])
 
 
 @TransformConverterFactory.register(transforms.Grayscale)
 class _(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: dict) -> None:
         input_shape = meta["input_shape"]
         layout = meta["layout"]
 
@@ -166,8 +164,8 @@ class _(TransformConverterBase):
             input_shape[layout.get_index_by_name("C")] = transform.num_output_channels
 
             @custom_preprocess_function
-            def broadcast_node(output: ov.Output) -> Callable:
-                return ops.broadcast(
+            def broadcast_node(output: Output) -> Callable:  # type: ignore[name-defined]
+                return ops.broadcast(  # type: ignore
                     data=output,
                     target_shape=input_shape,
                 )
@@ -178,7 +176,7 @@ class _(TransformConverterBase):
 
 @TransformConverterFactory.register(transforms.Pad)
 class _(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: dict) -> None:
         image_dimensions = list(meta["image_dimensions"])
         layout = meta["layout"]
         torch_padding = transform.padding
@@ -222,8 +220,8 @@ class _(TransformConverterBase):
             pads_end[layout.get_index_by_name("W")] = torch_padding[2]
 
         @custom_preprocess_function
-        def pad_node(output: ov.Output) -> Callable:
-            return ops.pad(
+        def pad_node(output: Output) -> Callable:
+            return ops.pad(  # type: ignore
                 output,
                 pad_mode=pad_mode,
                 pads_begin=pads_begin,
@@ -237,7 +235,7 @@ class _(TransformConverterBase):
 
 @TransformConverterFactory.register(transforms.ToTensor)
 class _(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: dict) -> None:
         input_shape = meta["input_shape"]
         layout = meta["layout"]
 
@@ -256,7 +254,7 @@ class _(TransformConverterBase):
 
 @TransformConverterFactory.register(transforms.CenterCrop)
 class _(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: dict) -> None:
         input_shape = meta["input_shape"]
         source_size = meta["image_dimensions"]
         target_size = _setup_size(transform.size, "Incorrect size type for CenterCrop operation")
@@ -272,8 +270,16 @@ class _(TransformConverterBase):
         top_right.append(min(bottom_left[0] + target_size[0], source_size[0] - 1))
         top_right.append(min(bottom_left[1] + target_size[1], source_size[1] - 1))
 
-        bottom_left = [0] * len(input_shape[:-2]) + bottom_left if meta["layout"] == Layout("NCHW") else [0] + bottom_left + [0]  # noqa ECE001
-        top_right = input_shape[:-2] + top_right if meta["layout"] == Layout("NCHW") else input_shape[:1] + top_right + input_shape[-1:]
+        is_nchw = meta["layout"] == Layout("NCHW")
+        if is_nchw:
+            bottom_left = [0] * len(input_shape[:-2]) + bottom_left
+        else:
+            bottom_left = [0] + bottom_left + [0]
+
+        if is_nchw:
+            top_right = input_shape[:-2] + top_right
+        else:
+            top_right = input_shape[:1] + top_right + input_shape[-1:]
 
         ppp.input(input_idx).preprocess().crop(bottom_left, top_right)
         meta["image_dimensions"] = (target_size[-2], target_size[-1])
@@ -281,7 +287,7 @@ class _(TransformConverterBase):
 
 @TransformConverterFactory.register(transforms.Resize)
 class _(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: dict) -> None:
         resize_mode_map = {
             InterpolationMode.NEAREST: ResizeAlgorithm.RESIZE_NEAREST,
             InterpolationMode.BILINEAR: ResizeAlgorithm.RESIZE_BILINEAR_PILLOW,
@@ -315,15 +321,22 @@ class _(TransformConverterBase):
         meta["image_dimensions"] = (target_h, target_w)
 
 
-def _from_torchvision(model: ov.Model, transform: Callable, input_example: Any, input_name: Union[str, None] = None) -> ov.Model:
+def _from_torchvision(
+    model: Model, transform: Callable, input_example: Any, input_name: Union[str, None] = None
+) -> Model:
 
     if input_name is not None:
-        input_idx = next((i for i, p in enumerate(model.get_parameters()) if p.get_friendly_name() == input_name), None)
+        input_idx = next(
+            (i for i, p in enumerate(model.get_parameters()) if p.get_friendly_name() == input_name), None
+        )
     else:
         if len(model.get_parameters()) == 1:
             input_idx = 0
         else:
-            raise ValueError("Model contains multiple inputs. Please specify the name of the input to which prepocessing is added.")
+            raise ValueError(
+                "Model contains multiple inputs. Please specify the name of the input "
+                "to which prepocessing is added."
+            )
 
     if input_idx is None:
         raise ValueError(f"Input with name {input_name} is not found")

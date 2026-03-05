@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -158,7 +158,7 @@ protected:
             instance.get_input_layout(1).count() == 0) {
             stream& stream = instance.get_network().get_stream();
             stream.enqueue_barrier();
-            return instance.output_memory_ptr()->fill(stream, false);
+            return instance.output_memory_ptr()->fill(stream, {}, false);
         }
 
         if (need_indirect_load(instance))
@@ -275,7 +275,8 @@ public:
         const auto& primitive = impl_params.typed_desc<gemm>();
         auto updated_impl_params = canonicalize_fused_shapes(impl_params);
 
-        updated_impl_params.input_layouts = gemm_inst::transform_input_layouts(primitive, impl_params.input_layouts);
+        updated_impl_params.input_layouts = gemm_inst::transform_input_layouts(primitive, impl_params.input_layouts,
+                                                                               impl_params.get_program().is_new_shape_infer());
         updated_impl_params.output_layouts[0] = gemm_inst::transform_output_layout(primitive, updated_impl_params.input_layouts, impl_params.output_layouts[0]);
 
         for (auto& input_layout : updated_impl_params.input_layouts) {

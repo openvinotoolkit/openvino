@@ -1,18 +1,33 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
+#include <functional>
 #include <numeric>
+#include <type_traits>
 #include <vector>
 
+#include "cpu_types.h"
 #include "general_utils.h"
 #include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "precision_support.h"
+#include "utils/cpp/bit_cast.hpp"
 
 namespace ov::intel_cpu {
+
+// Helper function to safely cast JIT kernel bytecode to function pointers
+// Note: const_cast is unavoidable here because JIT compilers typically return const void*
+// to compiled bytecode, but function pointers cannot be const-qualified. This is a common
+// pattern in JIT compilation where the bytecode is immutable but needs to be executed.
+template <typename FuncPtr>
+FuncPtr jit_kernel_cast(const void* ptr) {
+    return reinterpret_cast<FuncPtr>(const_cast<void*>(ptr));  // NOLINT(bugprone-casting-through-void)
+}
 
 // helper struct to tell wheter type T is any of given types U...
 // termination case when U... is empty -> return std::false_type
@@ -24,7 +39,7 @@ struct is_any_of : public std::false_type {};
 // otherwise call is_any_of<T, Rest...> recurrently
 template <class T, class U, class... Rest>
 struct is_any_of<T, U, Rest...>
-    : public std::conditional<std::is_same<T, U>::value, std::true_type, is_any_of<T, Rest...>>::type {};
+    : public std::conditional_t<std::is_same_v<T, U>, std::true_type, is_any_of<T, Rest...>> {};
 
 /**
  * @brief Returns normalized by size dims where missing dimensions are filled with units from the beginning
@@ -66,10 +81,8 @@ inline bool isPerTensorOrPerChannelBroadcastable(const VectorDims& firstInputDim
     if (secondInputDims.size() > firstInputDims.size()) {
         return false;
     }
-    if (std::accumulate(secondInputDims.begin(),
-                        secondInputDims.end(),
-                        static_cast<size_t>(1),
-                        std::multiplies<size_t>()) == 1) {
+    if (std::accumulate(secondInputDims.begin(), secondInputDims.end(), static_cast<size_t>(1), std::multiplies<>()) ==
+        1) {
         return true;
     }
 
@@ -83,8 +96,8 @@ inline bool isPerTensorOrPerChannelBroadcastable(const VectorDims& firstInputDim
             }
         }
     } else {
-        for (size_t i = 0; i < normalizedSecondInputDims.size(); i++) {
-            if (normalizedSecondInputDims[i] != 1) {
+        for (uint64_t normalizedSecondInputDim : normalizedSecondInputDims) {
+            if (normalizedSecondInputDim != 1) {
                 return false;
             }
         }
@@ -149,9 +162,7 @@ inline ov::element::Type normalizeToSupportedPrecision(ov::element::Type precisi
  * @return aligned buffer
  */
 inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector<float>& buffer, int align = -1) {
-    if (buffer.empty()) {
-        OPENVINO_THROW("Can't align buffer, becuase buffer is empty");
-    }
+    OPENVINO_ASSERT(!buffer.empty(), "Can't align buffer, because buffer is empty");
 
     auto alignedBuffer = buffer;
     if (align == -1) {
@@ -182,7 +193,7 @@ std::vector<T> reshapeDownToRank(const std::vector<T>& dims, size_t rank) {
     }
 
     const auto accEnd = dims.begin() + (dims.size() - rank + 1);
-    const auto acc = std::accumulate(dims.begin(), accEnd, (T)1, std::multiplies<T>());
+    const auto acc = std::accumulate(dims.begin(), accEnd, static_cast<T>(1), std::multiplies<>());
 
     std::vector<T> result{acc};
     result.insert(result.end(), accEnd, dims.end());

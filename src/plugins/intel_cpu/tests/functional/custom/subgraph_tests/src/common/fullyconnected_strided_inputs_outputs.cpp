@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,9 @@
 #include "openvino/core/partial_shape.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/split.hpp"
 
 using namespace CPUTestUtils;
 
@@ -20,11 +23,8 @@ class FullyConnectedStridedInputsOutputsTest
       public CPUTestsBase,
       virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FullyConnectedStridedInputsOutputsTestParams> obj) {
-        ov::element::Type netPrecision;
-        size_t rank;
-        std::tie(netPrecision, rank) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<FullyConnectedStridedInputsOutputsTestParams>& obj) {
+        const auto& [netPrecision, rank] = obj.param;
         std::ostringstream result;
         result << "netPRC=" << netPrecision.get_type_name() << "_";
         result << "rank=" << rank;
@@ -35,10 +35,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        ov::element::Type netPrecision;
-        size_t rank;
-        std::tie(netPrecision, rank) = this->GetParam();
-
+        const auto& [netPrecision, rank] = this->GetParam();
         auto bcastTo3D = [](ov::Shape& shape) {
             shape.insert(shape.begin(), 1);
         };
@@ -70,7 +67,7 @@ protected:
         const auto fcConcatAxis = rank == 3 ? 1 : 0;
         const auto concatMatMuls = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{fc1, fc2}, fcConcatAxis);
 
-        function = makeNgraphFunction(netPrecision, params, concatMatMuls, "FullyConnectedStridedInputsOutputs");
+        function = create_ov_model(netPrecision, params, concatMatMuls, "FullyConnectedStridedInputsOutputs");
     }
 };
 

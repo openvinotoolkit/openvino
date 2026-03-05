@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,14 +56,14 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
 
         convert_new_activation_func(*primitive, params.activations);
 
-        bool is_parameterized = !primitive->additional_params_input.empty();
+        bool is_parameterized = primitive->additional_params_input.is_valid();
         if (is_parameterized) {
             const auto& slope_layout = impl_param.input_layouts[1];
             const auto& output_layout = impl_param.get_output_layout();
 
             if (!impl_param.is_dynamic()) {
                 const auto params_num = kernel_selector::GetActivationAdditionalParamsNumber(params.activations[0].function);
-                OPENVINO_ASSERT(slope_layout.count() >= static_cast<size_t>(output_layout.feature() * params_num),
+                OPENVINO_ASSERT(slope_layout.count() == 1 || slope_layout.count() >= static_cast<size_t>(output_layout.feature() * params_num),
                                 "[GPU] Invalid slope size in ", primitive->id);
             }
             params.inputActivationParams.push_back(convert_data_tensor(slope_layout));

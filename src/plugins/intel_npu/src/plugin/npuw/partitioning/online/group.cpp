@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporationov::npuw::
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,11 @@
 using ov::npuw::online::Group;
 using ov::npuw::online::Interconnect;
 using ov::npuw::online::MetaInterconnect;
+using ov::npuw::online::MetaInterconnectIO;
 using ov::npuw::online::Repeated;
 using ov::npuw::online::detail::isOp;
+using ov::npuw::online::detail::MICSet;
+using ov::npuw::online::detail::PairMICSetIO;
 
 Group::Group(const std::shared_ptr<ov::Node>& node,
              size_t gid,
@@ -107,7 +110,7 @@ ov::npuw::Group Group::toGroup() const {
     g.gflops = 0.0001f;  // FIXME: calculate proper flops
 
     if (m_repeated && !isNoFold()) {
-        g.repeated_id = ov::npuw::online::util::repeated_id(m_repeated);
+        g.repeated_id = m_repeated->id();
     }
 
     if (!m_avoided_devices.empty()) {
@@ -118,7 +121,7 @@ ov::npuw::Group Group::toGroup() const {
         }
     }
 
-    g.tag = m_isol_tag;
+    g.settag(m_isol_tag);
 
     return g;
 }
@@ -130,6 +133,14 @@ std::shared_ptr<ov::Node> Group::getInitialNode() const {
     }
 
     return *(m_content.begin());
+}
+
+const std::unordered_set<std::shared_ptr<ov::Node>>& Group::getInputs() const {
+    return m_input_layers;
+}
+
+const std::unordered_set<std::shared_ptr<ov::Node>>& Group::getOutputs() const {
+    return m_output_layers;
 }
 
 void Group::addInput(const std::shared_ptr<ov::Node>& node) {
@@ -244,7 +255,19 @@ void Group::fuse(const Group::GPtr& gptr_prod) {
 
 // This group absorbs the consumer
 void Group::fuseWith(const Group::GPtr& gptr_cons) {
-    // Update ov::node to own::ade::NodeHandle map
+    if (ov::npuw::debug_groups()) {
+        LOG_DEBUG("Fusing...");
+        LOG_BLOCK();
+        {
+            LOG_DEBUG("Merger: " << this->specialTags());
+            dump();
+        }
+        {
+            LOG_DEBUG("Mergee: " << gptr_cons->specialTags());
+            gptr_cons->dump();
+        }
+    }
+
     auto locked_snapshot = m_snapshot.lock();
     auto node_to_gr = locked_snapshot->getNodeToGroupMap();
     for (const auto& layer : gptr_cons->m_content) {
@@ -389,8 +412,8 @@ void Group::setRepeated(const std::shared_ptr<Repeated>& rep) {
     }
 }
 
-std::unordered_set<MetaInterconnect> Group::metaInterconnect(const Group::GPtr& gptr_prod) const {
-    std::unordered_set<MetaInterconnect> mics;
+PairMICSetIO Group::metaInterconnect(const Group::GPtr& gptr_prod) const {
+    MICSet mics;
 
     auto ics = interconnect(gptr_prod);
     for (const auto& ic : ics) {
@@ -402,7 +425,16 @@ std::unordered_set<MetaInterconnect> Group::metaInterconnect(const Group::GPtr& 
                      ic.output_port});
     }
 
-    return mics;
+    MetaInterconnectIO mic_io;
+    auto locked_snapshot = m_snapshot.lock();
+    for (const auto& oi : m_input_layers) {
+        mic_io.output_imeta.insert(ov::npuw::online::util::getMetaDesc(oi));
+    }
+    for (const auto& oo : m_output_layers) {
+        mic_io.output_ometa.insert(ov::npuw::online::util::getMetaDesc(oo));
+    }
+
+    return {mics, mic_io};
 }
 
 std::unordered_set<Interconnect> Group::interconnect(const Group::GPtr& gptr_prod) const {
@@ -463,4 +495,11 @@ void Group::dontIsolate() {
 
 const std::string& Group::isolatedTag() const {
     return m_isol_tag;
+}
+
+void Group::dump() const {
+    LOG_BLOCK();
+    for (auto&& layer : m_content) {
+        LOG_DEBUG(layer);
+    }
 }

@@ -1,14 +1,22 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "submodel.hpp"
 
+#include <cstddef>
 #include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
 
 namespace ov::intel_cpu {
 
-SubModel::SubModel(const std::shared_ptr<ov::Model>& body) : SubGraphOp() {
+SubModel::SubModel(const std::shared_ptr<ov::Model>& body) {
     SubGraphOp::set_function(body);
 }
 

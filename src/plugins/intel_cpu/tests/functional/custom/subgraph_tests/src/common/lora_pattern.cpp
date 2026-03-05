@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,11 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace ov {
 namespace test {
@@ -17,7 +22,7 @@ constexpr auto t5_name = "lora/MatMul.alpha";
 constexpr auto t6_name = "lora/MatMul.A";
 constexpr auto netType = ov::element::f32;
 
-enum class StatesPolicy {
+enum class StatesPolicy : uint8_t {
     EMPTY_TENSORS,
     RANDOM_TENSORS,
     UNDEFINED
@@ -42,14 +47,11 @@ using LoraPatternParams = std::tuple<ov::element::Type,  // states precision
 
 class LoraPatternBaseCPUTest : public SubgraphBaseTest, public testing::WithParamInterface<LoraPatternParams> {
 public:
-static std::string getTestCaseName(testing::TestParamInfo<LoraPatternParams> obj) {
-        ov::element::Type states_precision;
-        StatesPolicy states_policy;
-        std::tie(states_precision, states_policy) = obj.param;
-
-        std::ostringstream result;
-        result << "states_precision=" << states_precision << "_states_policy=" << states_policy;
-        return result.str();
+static std::string getTestCaseName(const testing::TestParamInfo<LoraPatternParams>& obj) {
+    const auto& [states_precision, states_policy] = obj.param;
+    std::ostringstream result;
+    result << "states_precision=" << states_precision << "_states_policy=" << states_policy;
+    return result.str();
     }
 
     void SetUp() override {
@@ -124,9 +126,10 @@ protected:
         ASSERT_TRUE(inferRequestRef);
 
         generate_inputs(targetStaticShapes.front());
-        for (const auto& input : inputs) {
-            inferRequest.set_tensor(input.first, input.second);
-            inferRequestRef.set_tensor(input.first, input.second);
+        for (const auto& [port, tensor] : inputs) {
+            // Use read-only tensors as inputs, created from `const void*`
+            inferRequest.set_tensor(port, {tensor.get_element_type(), tensor.get_shape(), tensor.data()});
+            inferRequestRef.set_tensor(port, {tensor.get_element_type(), tensor.get_shape(), tensor.data()});
         }
 
         constexpr size_t lora_order = 25lu;
@@ -281,6 +284,7 @@ protected:
 };
 
 TEST_P(LoraPatternMatmulCPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     targetStaticShapes = {{{{1, 20, K}}, {{N, K}}}};
     run_test();
     CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "LoRA", 1);
@@ -288,6 +292,7 @@ TEST_P(LoraPatternMatmulCPUTest, CompareWithRefs) {
 }
 
 TEST_P(LoraPatternConvolutionCPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     targetStaticShapes = {{{1, num_channels, 10, 15}}};
     run_test();
     CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "LoRA", 1);

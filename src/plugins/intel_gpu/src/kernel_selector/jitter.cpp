@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -132,8 +132,10 @@ std::string toCLType(WeightsType wType) {
 
 std::string toCLType(Datatype dType) {
     switch (dType) {
+        case Datatype::INT4:
         case Datatype::INT8:
             return GetTypeName<int8_t>();
+        case Datatype::UINT4:
         case Datatype::UINT8:
             return GetTypeName<uint8_t>();
         case Datatype::INT16:
@@ -257,7 +259,6 @@ public:
     JitDefinitions GetDefinitions(const Tensor::TensorBaseT<DType, Layout>& t) const {
         JitDefinitions definitions{
             {_name + "_VIEW_OFFSET", toCodeString(t.GetViewOffset())},
-            {_name + "_LENGTH", toCodeString(t.LogicalSize())},
             {_name + "_DIMS", toCodeString(t.GetDims().size())},
             {_name + "_SIMPLE", toCodeString(t.SimpleLayout())},
             {_name + "_GROUPED", toCodeString(t.GroupedLayout())},
@@ -361,6 +362,9 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         {_name + "_PAD_AFTER_BATCH_NUM", dims_padded.b_pad().second},
     };
     if (_tensor.is_dynamic()) {
+        const std::string total_data_size = toVectorMulString({dims.x(), dims.y(), dims.z(), dims.w(), dims.f(), dims.b()});
+        definitions.push_back({_name + "_LENGTH", toCodeString(total_data_size)});
+
         if (_tensor.GetLayout() == DataLayout::bf || _tensor.GetLayout() == DataLayout::bfyx ||
             _tensor.GetLayout() == DataLayout::bfzyx || _tensor.GetLayout() == DataLayout::bfwzyx ||
             _tensor.GetLayout() == DataLayout::bfuwzyx || _tensor.GetLayout() == DataLayout::bfvuwzyx ||
@@ -392,6 +396,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
             OPENVINO_ASSERT(false, "[GPU] Jitter couldn't generate dynamic pitches for given layout");
         }
     } else {
+        definitions.push_back({_name + "_LENGTH", toCodeString(_tensor.LogicalSize())});
+
         // static dim
         definitions.push_back({_name + "_X_PITCH", toCodeString(_tensor.X().pitch)});
         definitions.push_back({_name + "_Y_PITCH", toCodeString(_tensor.Y().pitch)});
@@ -756,7 +762,18 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
             } else if (l == WeightsLayout::os_is_yx_osv16_isv16 || l == WeightsLayout::os_is_zyx_osv32_isv16 ||
                        l == WeightsLayout::os_is_zyx_osv64_isv16) {
                 args macroNameArgs = {"prefix", "o", "i", "z", "y", "x"};
-                args funcArgs = {"o", "i", "z", "y", "x", "x_size", "y_size", "z_size", "i_size", "o_size", "osv_size", "isv_size"};
+                args funcArgs = {"int o",
+                                 "int i",
+                                 "int z",
+                                 "int y",
+                                 "int x",
+                                 "int x_size",
+                                 "int y_size",
+                                 "int z_size",
+                                 "int i_size",
+                                 "int o_size",
+                                 "int osv_size",
+                                 "int isv_size"};
                 const auto body = R"V0G0N( \
     const uint isv = i % isv_size; \
     const uint osv = o % osv_size; \
@@ -791,7 +808,20 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
             } else if (l == WeightsLayout::g_os_zyx_is_osv16_isv16 || l == WeightsLayout::g_os_zyx_is_osv16_isv32 ||
                        l == WeightsLayout::g_os_zyx_is_osv32_isv16 || l == WeightsLayout::g_os_zyx_is_osv32_isv32) {
                 args macroNameArgs = {"prefix", "g", "o", "i", "z", "y", "x"};
-                args funcArgs = {"g", "o", "i", "z", "y", "x", "g_size", "o_size", "i_size", "z_size", "y_size", "x_size", "osv", "isv"};
+                args funcArgs = {"int g",
+                                 "int o",
+                                 "int i",
+                                 "int z",
+                                 "int y",
+                                 "int x",
+                                 "int g_size",
+                                 "int o_size",
+                                 "int i_size",
+                                 "int z_size",
+                                 "int y_size",
+                                 "int x_size",
+                                 "int osv",
+                                 "int isv"};
                 const auto body = R"V0G0N( \
     uint is_size = (i_size + isv - 1) / isv; \
     uint os_size = (o_size + osv - 1) / osv; \
@@ -834,7 +864,8 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
                                                          Cat("_SIZE_Y"), Cat("_SIZE_X"), osv, isv});
             } else if (l == WeightsLayout::os_is_yx_osv16_isv4 || l == WeightsLayout::os_is_yx_osv32_isv4) {
                 args macroNameArgs = {"prefix", "o", "i", "y", "x"};
-                args funcArgs = {"o", "i", "y", "x", "i_size", "o_size", "x_size", "otd"};
+                args funcArgs =
+                    {"int o", "int i", "int y", "int x", "int i_size", "int o_size", "int x_size", "int otd"};
                 const auto body = R"V0G0N( \
     uint out_depth_tile = o / otd; \
     uint od             = o - out_depth_tile * otd; \
@@ -911,6 +942,7 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
         {_name + "_IFM_PITCH", toCodeString(_tensor.IFM().pitch)},
         {_name + "_OFM_PITCH", toCodeString(_tensor.OFM().pitch)},
         {_name + "_GROUPS_PITCH", toCodeString(_tensor.G().pitch)},
+        {_name + "_LENGTH", toCodeString(_tensor.LogicalSize())},
     };
 
     definitions.insert(definitions.end(), baseDefinitions.begin(), baseDefinitions.end());
@@ -1265,9 +1297,10 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         }
         case ActivationFunction::SOFTPLUS: {
-            jitConstants.AddConstant(MakeJitConstant(
-                    macro_def,
-                    log(exp(input) + one).str()));
+            const JitTerm input_f = out_dt == Datatype::F16 ? JitTerm{"convert_float(input)"} : input;
+            const JitTerm output =
+                out_dt == Datatype::F16 ? JitTerm{"convert_half(" + (log(exp(input_f) + one)).str() + ")"} : JitTerm{(log(exp(input_f) + one)).str()};
+            jitConstants.AddConstant(MakeJitConstant(macro_def, output.str()));
             break;
         }
         case ActivationFunction::SOFTSIGN: {
@@ -1483,11 +1516,15 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             break;
         case Datatype::INT4:
             type = "char";
+            to_type = "convert_char(v)";
+            to_type_sat = "convert_char_sat(v)";
             type_size = "0.5f";
             is_fp = false;
             break;
         case Datatype::UINT4:
             type = "uchar";
+            to_type = "convert_uchar(v)";
+            to_type_sat = "convert_uchar_sat(v)";
             type_size = "0.5f";
             is_fp = false;
             break;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,7 +114,7 @@ KernelsPriority GemmKernelRef::GetKernelsPriority(const Params& /*params*/) cons
 
 bool GemmKernelRef::Validate(const Params& params) const {
     if (!Parent::Validate(params))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     // int8 validation
     const auto& gmm_params = static_cast<const gemm_params&>(params);
@@ -140,7 +140,7 @@ bool GemmKernelRef::Validate(const Params& params) const {
         (output_type == Datatype::INT8 || output_type == Datatype::UINT8);
 
     if (!is_quantization && !has_fused_op)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
 }

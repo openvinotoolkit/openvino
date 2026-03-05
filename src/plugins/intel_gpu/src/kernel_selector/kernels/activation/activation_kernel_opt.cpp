@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,7 +68,7 @@ KernelsPriority ActivationKernelOpt::GetKernelsPriority(const Params& /*params*/
 
 bool ActivationKernelOpt::Validate(const Params& p) const {
     if (p.GetType() != KernelType::ACTIVATION) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const activation_params& params = static_cast<const activation_params&>(p);
@@ -77,18 +77,30 @@ bool ActivationKernelOpt::Validate(const Params& p) const {
     if ((totalSize % NUM_COLS_WI) != 0 ||
         (params.inputs[0].GetFirstElementOffset() % NUM_COLS_WI) != 0 ||
         (params.outputs[0].GetFirstElementOffset() % NUM_COLS_WI) != 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (params.outputs[0].GetDims().size() > 5)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.outputs[0].GetLayout() != params.inputs[0].GetLayout())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (!params.fused_ops.empty() &&
         (params.outputs[0].GetLayout() != DataLayout::bfyx && params.outputs[0].GetLayout() != DataLayout::bfzyx))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+
+    auto input_dt = params.inputs[0].GetDType();
+    if (input_dt == Datatype::INT8 || input_dt == Datatype::INT32) {
+        for (auto act : params.activations) {
+            if (act.function == ActivationFunction::ABS)
+                DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
+    }
+
+    if (params.activations[0].function == ActivationFunction::SOFTPLUS && input_dt == Datatype::F16) {
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     return true;
 }

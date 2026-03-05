@@ -1,19 +1,24 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <vector>
+
 #include "cache/multi_cache.h"
 #include "config.h"
+#include "cpu_parallel.hpp"
 #include "dnnl_scratch_pad.h"
 #include "memory_control.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
 #include "sub_memory_manager.hpp"
 #include "weights_cache.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace node {
 class MemoryStatesRegister;
@@ -24,62 +29,71 @@ class NetworkMemoryControl;
 
 class GraphContext {
 public:
-    typedef std::shared_ptr<GraphContext> Ptr;
-    typedef std::shared_ptr<const GraphContext> CPtr;
+    using Ptr = std::shared_ptr<GraphContext>;
+    using CPtr = std::shared_ptr<const GraphContext>;
 
     GraphContext(Config config,
                  WeightsSharing::Ptr w_cache,
                  bool isGraphQuantized,
                  ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr,
+                 std::shared_ptr<CpuParallel> cpuParallel = nullptr,
                  std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
 
-    const Config& getConfig() const {
+    [[nodiscard]] const Config& getConfig() const {
         return m_config;
     }
 
-    WeightsSharing::Ptr getWeightsCache() const {
+    [[nodiscard]] WeightsSharing::Ptr getWeightsCache() const {
         return m_weightsCache;
     }
 
-    MultiCachePtr getParamsCache() const {
+    [[nodiscard]] MultiCachePtr getParamsCache() const {
         return m_rtParamsCache;
     }
 
-    DnnlScratchPadPtr getScratchPad() const {
+    [[nodiscard]] MultiCachePtr getSnippetsParamsCache() const {
+        return m_snippetsParamsCache;
+    }
+
+    [[nodiscard]] DnnlScratchPadPtr getScratchPad() const {
         return m_rtScratchPads[m_numaNodeId];
     }
 
-    const std::vector<DnnlScratchPadPtr>& getScratchPads() const {
+    [[nodiscard]] const std::vector<DnnlScratchPadPtr>& getScratchPads() const {
         return m_rtScratchPads;
     }
 
     static const dnnl::engine& getEngine();
 
-    bool isGraphQuantized() const {
+    [[nodiscard]] bool isGraphQuantized() const {
         return m_isGraphQuantizedFlag;
     }
 
-    ov::threading::CPUStreamsExecutor::Ptr getCPUStreamExecutor() const {
+    [[nodiscard]] ov::threading::CPUStreamsExecutor::Ptr getCPUStreamExecutor() const {
         return m_cpuStreamExecutor;
     }
 
-    std::shared_ptr<SubMemoryManager> getSubMemory() const {
+    [[nodiscard]] std::shared_ptr<CpuParallel> getCpuParallel() const {
+        return m_cpuParallel;
+    }
+
+    [[nodiscard]] std::shared_ptr<SubMemoryManager> getSubMemory() const {
         return m_subMemoryManager;
     }
 
-    int getNumNumaNodes() const {
+    [[nodiscard]] int getNumNumaNodes() const {
         return m_numNumaNodes;
     }
 
-    const std::shared_ptr<node::MemoryStatesRegister>& getMemoryStatesRegister() const {
+    [[nodiscard]] const std::shared_ptr<node::MemoryStatesRegister>& getMemoryStatesRegister() const {
         return m_memoryStatesRegister;
     }
 
-    const std::shared_ptr<MemoryControl>& getMemoryControl() const {
+    [[nodiscard]] const std::shared_ptr<MemoryControl>& getMemoryControl() const {
         return m_memoryControl;
     }
 
-    const std::shared_ptr<NetworkMemoryControl>& getAuxiliaryNetworkMemoryControl() const {
+    [[nodiscard]] const std::shared_ptr<NetworkMemoryControl>& getAuxiliaryNetworkMemoryControl() const {
         return m_auxiliaryNetworkMemoryControl;
     }
 
@@ -102,6 +116,7 @@ private:
     WeightsSharing::Ptr m_weightsCache;
     // primitive cache
     MultiCachePtr m_rtParamsCache;
+    MultiCachePtr m_snippetsParamsCache;
     // global scratch pad
     DnnlScratchPadPtr m_rtScratchPad;
 
@@ -112,6 +127,7 @@ private:
     ov::threading::IStreamsExecutor::Ptr m_streamExecutor;
     // cpu stream executor for current graph
     ov::threading::CPUStreamsExecutor::Ptr m_cpuStreamExecutor;
+    std::shared_ptr<CpuParallel> m_cpuParallel = nullptr;
     // numa submemory manager
     std::shared_ptr<SubMemoryManager> m_subMemoryManager;
 
@@ -126,5 +142,4 @@ private:
     MemoryControl::Ptr m_memoryControl;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

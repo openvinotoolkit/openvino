@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,15 @@ void basic_memory_dependencies::run(program& p) {
         for (const auto& it : node->get_dependencies()) {
             add_memory_dependency(node, it.first);
             add_memory_dependency(it.first, node);
+        }
+
+        // LoRA can reuse the memory of the previous node, but not be optimized
+        // So memory dependencies need to be expanded with LoRA dependencies
+        if (node->have_user_with_type<lora>()) {
+            for (const auto& it : node->get_users().front()->get_dependencies()) {
+                add_memory_dependency(node, it.first);
+                add_memory_dependency(it.first, node);
+            }
         }
 
         if (node->get_preferred_impl_type() == impl_types::onednn) {

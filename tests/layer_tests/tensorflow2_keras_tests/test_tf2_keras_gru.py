@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2024 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -6,14 +6,13 @@ import pytest
 import tensorflow as tf
 from common.tf2_layer_test_class import CommonTF2LayerTest
 
-rng = np.random.default_rng(233534)
-
 
 class TestKerasGru(CommonTF2LayerTest):
     def _prepare_input(self, inputs_info):
         assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
         x_shape = inputs_info['x']
         inputs_data = {}
+        rng = np.random.default_rng(233534)
         inputs_data['x'] = rng.uniform(-2.0, 2.0, x_shape).astype(self.input_type)
         return inputs_data
 
@@ -50,12 +49,11 @@ class TestKerasGru(CommonTF2LayerTest):
     def test_keras_gru(self, input_shapes, input_type, units,
                        activation, recurrent_activation,
                        dropouts, use_bias, flag1, flag2,
-                       ie_device, precision, temp_dir, ir_version,
-                       use_legacy_frontend):
+                       ie_device, precision, temp_dir, ir_version):
         params = {}
         params['input_shapes'] = input_shapes
         self._test(*self.create_keras_gru_net(input_shapes, input_type, units,
                                               activation, recurrent_activation,
                                               dropouts, use_bias, flag1, flag2),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)

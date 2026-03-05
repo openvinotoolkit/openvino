@@ -1,14 +1,18 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface HorizonSum
@@ -19,14 +23,12 @@ class HorizonSum : public ov::op::Op {
 public:
     OPENVINO_OP("HorizonSum", "SnippetsOpset");
 
-    HorizonSum(const Output<Node>& x);
+    explicit HorizonSum(const Output<Node>& x);
+    explicit HorizonSum(const OutputVector& x);
     HorizonSum() = default;
 
-    bool visit_attributes(AttributeVisitor& visitor) override { return true;}
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::op

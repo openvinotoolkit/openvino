@@ -1,13 +1,15 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "impls/registry/implementation_manager.hpp"
+#include "intel_gpu/graph/fused_primitive_desc.hpp"
+#include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/weights_path.hpp"
+#include "openvino/util/file_util.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -34,6 +36,8 @@
 #include "custom_gpu_primitive_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
+#include "ctc_loss_inst.hpp"
+#include "group_normalization_inst.h"
 #include "quantize_inst.h"
 #include "activation_inst.h"
 #include "depth_to_space_inst.h"
@@ -55,6 +59,7 @@
 #include "border_inst.h"
 #include "primitive_inst.h"
 #include "prior_box_inst.h"
+#include "scatter_nd_update_inst.h"
 #include "scatter_elements_update_inst.h"
 #include "proposal_inst.h"
 #include "reorder_inst.h"
@@ -68,6 +73,8 @@
 #include "reverse_inst.h"
 #include "unique_inst.hpp"
 #include "condition_inst.h"
+#include "gru_seq_inst.h"
+#include "scaled_dot_product_attention_inst.h"
 #include "to_string_utils.h"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
 
@@ -155,6 +162,7 @@ program::program(engine& engine_ref,
       _compilation_context(compilation_context) {
     init_primitives();
     _config.finalize(_engine);
+    _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
     GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
     init_program();
     prepare_nodes(topology);
@@ -197,6 +205,7 @@ program::program(engine& engine_ref,
       processing_order(),
       is_internal(is_internal) {
     _config.finalize(_engine);
+    _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
     init_primitives();
     init_program();
     prepare_nodes(nodes);
@@ -210,6 +219,7 @@ program::program(engine& engine, const ExecutionConfig& config)
       processing_order() {
     init_primitives();
     _config.finalize(_engine);
+    _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
     new_shape_infer = _config.get_allow_new_shape_infer();
     _layout_optimizer = std::make_unique<layout_optimizer>();
 }
@@ -226,8 +236,7 @@ void program::init_program() {
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_headers(),
-                                                                      kernel_selector::KernelBase::get_db().get_cm_batch_headers()));
+                                                                      kernel_selector::KernelBase::get_db().get_batch_headers()));
 
     _kernels_cache->set_kernels_reuse(_config.get_enable_kernels_reuse());
 
@@ -483,6 +492,7 @@ void program::set_options() {
 void program::build_program(bool is_internal) {
     init_graph();
     _config.finalize(_engine);
+    _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
     { pre_optimize_graph(is_internal); }
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
@@ -512,6 +522,7 @@ void program::init_graph() {
         if (!node->is_type<data>())
             node->get_output_layouts();
     }
+
     // Perform initial shape_of subgraphs markup
     apply_opt_pass<mark_shape_of_subgraphs>();
 }
@@ -656,11 +667,57 @@ void program::mark_if_data_flow(program_node& node) {
     }
 }
 
+// Rank promotion for data_flow in static shape models:
+// - In static-shape models, patterns like Constant -> Convert -> Gemm can
+//   leave the Convert node non-data_flow even when its output rank (e.g. bfyx)
+//   is lower than the rank required by the Gemm inputs/outputs (e.g. bfzyx).
+// - In such cases input_reorder may skip inserting a reorder after Convert,
+//   which later leads to input dimension mismatch in gemm::calc_output_layout.
+// - To avoid this, if any Gemm user has an output rank greater than the current
+//   node rank, we promote this node to data_flow so that required reorders are
+//   inserted on the legacy path.
+void program::mark_if_gemm_data_flow() {
+    if (is_new_shape_infer())
+        return;
+
+    for (const auto& node : get_processing_order()) {
+        if (!node->data_flow) {
+            const size_t current_rank = node->get_output_layout().get_rank();
+            for (auto* user : node->get_users()) {
+                if (!user->is_type<gemm>())
+                    continue;
+                int port = user->get_port_from_deps(node->id());
+                if (port < 0 || port >= 2)
+                    continue;
+
+                size_t user_rank = user->get_output_layout().get_rank();
+                if (user_rank > current_rank) {
+                    node->data_flow = true;
+                    break;
+                }
+            }
+        }
+    }
+}
+
 void program::transfer_memory_to_device() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("transfer_memory_to_device");
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "Program::transfer_memory_to_device");
     if (!get_engine().supports_allocation(allocation_type::usm_device))
         return;
+
+    auto allocate_and_transfer = [this](typed_program_node<data>& data_node,
+                                        const layout& target_layout,
+                                        const memory& mem,
+                                        allocation_type target_alloc_type) {
+        // Allocate and transfer memory
+        auto device_mem = mem.get_engine()->allocate_memory(target_layout, target_alloc_type, false);
+        device_mem->copy_from(get_stream(), mem);
+        data_node.attach_memory(device_mem);
+        const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
+        // TODO: Do we need finish call here? Maybe call it in network::execute() ?
+        get_stream().finish();
+    };
 
     for (auto& node : processing_order) {
         if (node->is_shape_infer_dep()) {
@@ -676,21 +733,32 @@ void program::transfer_memory_to_device() {
             if (mem_layout.count() == 0)
                 continue;
 
+            allocation_type target_alloc_type = alloc_type;
+            // usm_device memory does not provide performance benefits on the LNL platform
+            if ((alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) &&
+                !(get_engine().get_device_info().arch >= gpu_arch::xe2 &&
+                  get_engine().get_device_info().dev_type == device_type::integrated_gpu)) {
+                // Convert to usm_device for performance optimization
+                target_alloc_type = allocation_type::usm_device;
+            }
+
             if (!mem_layout.compatible(data_node_layout)) {
+                if (data_node_layout.data_type == mem_layout.data_type &&
+                    data_node_layout.format == mem_layout.format &&
+                    data_node_layout.get_shape() == mem_layout.get_shape()) {
+                    GPU_DEBUG_LOG << "[" << data_node.id() << ": padding fix]" << std::endl;
+                    allocate_and_transfer(data_node, data_node_layout, mem, target_alloc_type);
+                    GPU_DEBUG_LOG << "[" << data_node.id() << ": padding fix completed]" << std::endl;
+                    continue;
+                }
                 std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
                 throw std::invalid_argument(err_str);
             }
 
-            if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
+            if (target_alloc_type != alloc_type) {
                 GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
-                // Allocate and transfer memory
-                auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
-                device_mem->copy_from(get_stream(), mem);
-                data_node.attach_memory(device_mem);
+                allocate_and_transfer(data_node, data_node_layout, mem, target_alloc_type);
                 GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
-                const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
-                // TODO: Do we need finish call here? Maybe call it in network::execute() ?
-                get_stream().finish();
             }
         }
     }
@@ -731,6 +799,10 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
                     if (lhs_layout.is_dynamic())
                         return false;
 
+                    if (lhs_layout.bytes_count() == rhs_layout.bytes_count()) {
+                        return lhs->get_unique_id() < rhs->get_unique_id();
+                    }
+
                     return (lhs_layout.bytes_count() > rhs_layout.bytes_count());
             });
 
@@ -745,7 +817,7 @@ void program::prepare_memory_dependencies() {
     if (!_config.get_enable_memory_pool())
         return;
     for (auto& node : get_processing_order()) {
-        node->add_memory_dependency(node->get_unique_id());
+        node->add_memory_dependency(*node);
     }
     apply_opt_pass<basic_memory_dependencies>();
     apply_opt_pass<skipped_branch_memory_dependencies>();
@@ -763,7 +835,7 @@ std::string program::get_memory_dependencies_string() const {
                          .append("(unique_id:")
                          .append(std::to_string(node->get_unique_id()))
                          .append(") restricted list: ");
-        for (auto it : node->get_memory_dependencies())
+        for (const auto& it : node->get_memory_dependencies())
             mem_dep = mem_dep.append(std::to_string(it)).append(",");
         mem_dep = mem_dep.append("\n");
     }
@@ -821,6 +893,8 @@ bool program::contains_state(const std::string& variable_id) {
 }
 
 program_node& program::get_or_create(std::shared_ptr<primitive> prim) {
+    OPENVINO_ASSERT(prim != nullptr, "Null ptr primitive is added");
+
     auto itr = nodes_map.lower_bound(prim->id);
     if (itr != nodes_map.end() && itr->first == prim->id)
         return *itr->second;
@@ -943,16 +1017,12 @@ void program::rename(program_node& node, primitive_id const& new_id) {
     nodes_map.emplace(new_id, node_ptr);
     nodes_map.erase(node.id());
 
-    const_cast<primitive_id&>(node.desc->id) = new_id;
+    node.desc->id = new_id;
 }
 
 void program::swap_names(program_node& node1, program_node& node2) {
-    const auto _extract_id = [](program_node& node) -> primitive_id& {
-        return const_cast<primitive_id&>(node.desc->id);
-    };
-
     nodes_map.at(node1.id()).swap(nodes_map.at(node2.id()));
-    std::swap(_extract_id(node1), _extract_id(node2));
+    std::swap(node1.desc->id, node2.desc->id);
 }
 
 void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling) {
@@ -1020,8 +1090,8 @@ void program::replace(program_node& old_node, program_node& new_node) {
     new_node.constant = old_node.constant;
     new_node.data_flow = old_node.data_flow;
     new_node.user_mark = old_node.user_mark;
-    const_cast<std::string&>(new_node.desc->origin_op_name) = old_node.desc->origin_op_name;
-    const_cast<std::string&>(new_node.desc->origin_op_type_name) = old_node.desc->origin_op_type_name;
+    new_node.desc->origin_op_name = old_node.desc->origin_op_name;
+    new_node.desc->origin_op_type_name = old_node.desc->origin_op_type_name;
 
     processing_order.insert(&old_node, &new_node);
     if (processing_order.get_processing_iterator(old_node) != processing_order.end())
@@ -1142,9 +1212,10 @@ void program::fuse_nodes(program_node &fused_node,
     }
 
     int32_t orig_fused_node_num_deps = static_cast<int32_t>(fused_node.get_dependencies().size());
-    auto fusedPadding = fused_node.get_output_layout().data_padding;
+    auto fused_layout = fused_node.get_output_layout();
+    auto fused_padding = fused_layout.data_padding;
     cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
-                                                 fusedPadding);
+                                                 fused_padding);
 
     auto history_iter = fusing_history->find(peer_node.id());
     if (history_iter != fusing_history->end()) {
@@ -1155,8 +1226,13 @@ void program::fuse_nodes(program_node &fused_node,
     // Add new dependencies to the fused_node
     size_t deps_idx = 0;
     for (size_t i = 0; i < peer_node.get_dependencies().size(); i++) {
-        auto& dep = peer_node.get_dependency(i);
-        if (dep.id() == fused_node.id()) {
+        auto [dep, port] = peer_node.get_dependency_with_port(i);
+        if (dep->id() == fused_node.id()) {
+            if (fused_node.has_fused_primitives()) {
+                local_desc.inputs.emplace_back(FusedInputType::INTERNAL, fused_node.get_fused_primitives().size() - 1, fused_layout.data_type);
+            } else {
+                local_desc.inputs.emplace_back(FusedInputType::ORIGINAL, 0, fused_layout.data_type);
+            }
             deps_idx++;
             continue;
         }
@@ -1185,10 +1261,10 @@ void program::fuse_nodes(program_node &fused_node,
             }
         }
 
-        auto port_idx = fused_node.get_port_from_deps(dep.id());
-        fused_node.dependencies.push_back({&dep, port_idx});
-        local_desc.deps.emplace_back(dep.id(), deps_idx++);
-        dep.users.push_back(&fused_node);
+        fused_node.dependencies.push_back({dep, port});
+        local_desc.inputs.emplace_back(FusedInputType::EXTERNAL, fused_node.dependencies.size() - 1, dep->get_output_layout(port).data_type);
+        local_desc.deps.emplace_back(dep->id(), deps_idx++);
+        dep->users.push_back(&fused_node);
     }
     if (local_desc.deps.size()) {
         local_desc.outer_dep_start_idx = orig_fused_node_num_deps;
@@ -1415,16 +1491,40 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t opt_deconv_layers_b_fs_zyx_fsv16 = 0;
     size_t opt_deconv_layers_b_fs_yx_fsv16 = 0;
     size_t total_crop_layers = 0;
+    size_t total_deconv_layers = 0;
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    bool is_dynamic_batch_onednn_conv = false;
+    size_t total_non_byxf_onednn_conv_whitelist_layers = 0;
+
+    // OneDNN previously selects formats like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on batch size.
+    // For dynamic batches, this approach is inefficient.
+    // We plan to switch to byxf for better flexibility across varying batch sizes.
+    // The whitelist below defines the initial target scope (CVS-176149).
+    const std::unordered_set<primitive_type_id> byxf_onednn_conv_whitelist = {cldnn::input_layout::type_id(),
+                                                                              cldnn::permute::type_id(),
+                                                                              cldnn::convolution::type_id(),
+                                                                              cldnn::fully_connected::type_id(),
+                                                                              cldnn::activation::type_id(),
+                                                                              cldnn::softmax::type_id(),
+                                                                              cldnn::reduce::type_id(),
+                                                                              cldnn::reorder::type_id(),
+                                                                              cldnn::eltwise::type_id()};
+#endif
     for (auto& node : get_processing_order()) {
         auto &prim = *node;
         if (prim.type() == cldnn::convolution::type_id()) {
             auto &conv = prim.as<convolution>();
             if (conv.get_primitive()->groups > 1)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::group_convolution, 1);
-
-            if (!conv.is_dynamic()) {
-                // In dynamic shape, conv is fixed as a predefined format b_fs_yx_fsv16
+#ifdef ENABLE_ONEDNN_FOR_GPU
+            if (conv.is_dynamic()) {
+                bool is_dynamic_batch = !node->get_output_layout().get_partial_shape()[0].is_static();
+                bool is_fp32_conv = (node->get_input_layout().data_type == data_types::f32) &&
+                                    (node->get_output_layout().data_type == data_types::f32);
+                is_dynamic_batch_onednn_conv = is_dynamic_batch && !is_fp32_conv;
+            } else {
+#endif
                 auto input_size = node->get_input_layout(0).get_tensor();
                 auto ifm = static_cast<uint32_t>(input_size.feature[0]);
                 if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
@@ -1437,7 +1537,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
                 if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
                     total_1x1_fm_conv_layers++;
+#ifdef ENABLE_ONEDNN_FOR_GPU
             }
+#endif
             lo.update_formats_map(conv);
 
             if (conv.weights_zero_points_term() || conv.activations_zero_points_term())
@@ -1448,6 +1550,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 opt_deconv_layers_b_fs_zyx_fsv16 += 1;
             else if (lo.is_format_supported(prim.as<deconvolution>(), format::b_fs_yx_fsv16))
                 opt_deconv_layers_b_fs_yx_fsv16 += 1;
+
+            total_deconv_layers++;
         }
 
         // list of layers that do not support yxfb or perform worse than bfyx
@@ -1520,6 +1624,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::unique_count::type_id() &&
             prim.type() != cldnn::unique_gather::type_id() &&
             prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id() &&
+            prim.type() != cldnn::rms::type_id() &&
             prim.type() != cldnn::scaled_dot_product_attention::type_id()) {
             can_use_fsv16 = false;
         }
@@ -1579,6 +1684,11 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        if (prim.is_in_data_flow() && (byxf_onednn_conv_whitelist.count(prim.type()) == 0)) {
+            total_non_byxf_onednn_conv_whitelist_layers++;
+        }
+#endif
     }
 
     size_t total_conv_layers = lo.get_total_conv_count();
@@ -1594,9 +1704,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
     bool should_use_b_fs_yx_fsv16_conv = is_quantized_int8_model ||
                                          (can_use_fsv16 &&
-                                          total_conv_layers > 11 &&
+                                          total_conv_layers + total_deconv_layers > 9 &&
                                           (num_of_conv_b_fs_yx_fsv16 * cond_denom > 0.5f || opt_deconv_layers_b_fs_yx_fsv16 >= 1) &&
-                                          num_of_conv_b_fs_yx_fsv16 * 2 > total_crop_layers);
+                                          (num_of_conv_b_fs_yx_fsv16 + opt_deconv_layers_b_fs_yx_fsv16) * 2 > total_crop_layers);
 
     bool should_use_fs_b_yx_fsv32_conv = total_conv_layers > 11 &&
                                          total_grouped_conv_layers == 0 &&
@@ -1632,14 +1742,18 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     if (engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
         get_config().get_queue_type() == QueueTypes::in_order &&
         enable_onednn_for_tests) {
-            if (engine.get_device_info().supports_immad) {
-                lo.add_all_onednn_impls_optimization_attribute();
-            } else {
-                if (get_config().get_use_onednn()) {
-                    lo.enable_onednn_for<lstm_seq>();
-                }
+        if (engine.get_device_info().supports_immad) {
+            lo.add_all_onednn_impls_optimization_attribute();
+        } else {
+            if (get_config().get_use_onednn()) {
+                lo.enable_onednn_for<lstm_seq>();
+                lo.enable_onednn_for<gru_seq>();
             }
         }
+    }
+    bool should_use_byxf_onednn_conv = is_dynamic_batch_onednn_conv && (total_non_byxf_onednn_conv_whitelist_layers == 0);
+    if (should_use_byxf_onednn_conv)
+        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::byxf_onednn_convolution, 1);
 #endif
 }
 
@@ -1671,7 +1785,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
     std::unordered_set<memory::ptr> allocated_mem_ptrs;
     for (const auto& node : nodes_to_allocate) {
         auto out_size = node->get_output_layout().bytes_count();
-        if (out_size > max_alloc_size) {
+        if (out_size > max_alloc_size && !get_config().get_enable_large_allocations()) {
             // to consider: if the base batch size is > 1, should we allow this single output allocation to host?
             host_alloc += out_size;
             continue;
@@ -1705,7 +1819,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
                                                                       pool,
                                                                       *node,
                                                                       *node->get_kernel_impl_params(),
-                                                                      node->get_memory_dependencies(),
+                                                                      memory_restricter<uint32_t>(&node->get_memory_dependencies()),
                                                                       0,
                                                                       false,
                                                                       0,
@@ -1783,12 +1897,8 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
     ob << _is_body_program;
     ob << _can_be_optimized;
-    auto onednn_impls_size = get_layout_optimizer().get_all_onednn_impls_optimization_attribute().size();
-    ob << onednn_impls_size;
-    for (const auto& onednn_impl : get_layout_optimizer().get_all_onednn_impls_optimization_attribute()) {
-        ob << prim_map_storage::instance().get_type_string(onednn_impl.first);
-        ob << onednn_impl.second;
-    }
+
+    _layout_optimizer->save(ob);
 
     processing_order.save(ob);
 
@@ -1845,14 +1955,26 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     }
 }
 
-void program::load(cldnn::BinaryInputBuffer& ib) {
+void program::load(cldnn::BinaryInputBuffer& ib,
+                   std::shared_ptr<const ov::Model> model_ptr,
+                   std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map) {
     init_program();
 
-    std::shared_ptr<ov::MappedMemory> mapped_memory = nullptr;
+    std::shared_ptr<WeightsMemory> weights_memory = nullptr;
     std::string weights_path = _config.get_weights_path();
-    if (_config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE &&
-        ov::util::validate_weights_path(weights_path)) {
-        mapped_memory = ov::load_mmap_object(weights_path);
+    if (_config.get_enable_weightless()) {
+        if (model_ptr) {
+            if (cache_attr_map) {
+                weights_memory = std::make_shared<WeightsMemory>(model_ptr, cache_attr_map);
+            } else {
+                weights_memory = std::make_shared<WeightsMemory>(model_ptr);
+            }
+        } else if (!weights_path.empty()) {
+            ov::util::validate_weights_path(weights_path);
+            weights_memory = std::make_shared<WeightsMemory>(ov::load_mmap_object(ov::util::make_path(weights_path)));
+        } else {
+            OPENVINO_THROW("Weights path or model is required for cache mode OPTIMIZE_SIZE");
+        }
     }
 
     size_t num_nodes;
@@ -1866,7 +1988,7 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
         std::shared_ptr<cldnn::primitive> prim;
         ib >> prim;
         if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
-            data_prim->load_weights(ib, mapped_memory);
+            data_prim->load_weights(ib, weights_memory);
         }
         get_or_create(prim);
     }
@@ -1920,21 +2042,12 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
     ib >> _is_body_program;
     ib >> _can_be_optimized;
 
-    size_t num_of_onednn_impls;
-    ib >> num_of_onednn_impls;
-    for (size_t num = 0; num < num_of_onednn_impls; num++) {
-        primitive_id p_id{};
-        bool enabled;
-        ib >> p_id;
-        ib >> enabled;
-        auto ptype_id = prim_map_storage::instance().get_type_id(p_id);
-        get_layout_optimizer().set_value_onednn(ptype_id, enabled);
-    }
+    _layout_optimizer->load(ib);
+    _layout_optimizer->set_implementation_forcing(_config.get_force_implementations());
 
     _loaded_from_cache = true;
 
     processing_order.load(ib, *this);
-    set_layout_optimizer_attributes(*_layout_optimizer);
 
     {
         auto& kernels_cache = get_kernels_cache();

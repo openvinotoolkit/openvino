@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,8 +31,8 @@ struct reshape_test_params {
 };
 
 inline padding get_pad(format fmt, std::vector<int64_t> axes, bool is_dynamic) {
-    std::vector<int32_t> lower(fmt.dimension(), 0);
-    std::vector<int32_t> upper(fmt.dimension(), 0);
+    std::vector<ov::Dimension::value_type> lower(fmt.dimension(), 0);
+    std::vector<ov::Dimension::value_type> upper(fmt.dimension(), 0);
     padding::DynamicDimsMask mask; // empty mask resetted
 
     auto start_pad_val = 13;

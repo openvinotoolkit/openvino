@@ -1,24 +1,40 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "bucketize.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <shape_inference/shape_inference_pass_through.hpp>
 #include <string>
 #include <vector>
 
-#include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/bucketize.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
 bool Bucketize::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto bucketsize = ov::as_type_ptr<const ov::opset3::Bucketize>(op);
+        const auto bucketsize = ov::as_type_ptr<const ov::op::v3::Bucketize>(op);
         if (!bucketsize) {
-            errorMessage = "Only opset3 Bucketize operation is supported";
+            errorMessage = "Only v3 Bucketize operation is supported";
             return false;
         }
     } catch (...) {
@@ -34,14 +50,11 @@ Bucketize::Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto bucketsize = ov::as_type_ptr<const ov::opset3::Bucketize>(op);
-    if (bucketsize == nullptr) {
-        THROW_CPU_NODE_ERR("is not an instance of Bucketize from opset3.");
-    }
+    const auto bucketsize = ov::as_type_ptr<const ov::op::v3::Bucketize>(op);
+    CPU_NODE_ASSERT(bucketsize, "is not an instance of v3 Bucketize.");
 
-    if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
-    }
+    CPU_NODE_ASSERT(getOriginalInputsNumber() == 2 && getOriginalOutputsNumber() == 1,
+                    "has incorrect number of input/output edges!");
 
     // check one attribute
     with_right = bucketsize->get_with_right_bound();
@@ -54,17 +67,15 @@ void Bucketize::initSupportedPrimitiveDescriptors() {
 
     // check precisions for input and output tensors
     input_precision = getOriginalInputPrecisionAtPort(INPUT_TENSOR_PORT);
-    if (input_precision != ov::element::f32 && input_precision != ov::element::i32 &&
-        input_precision != ov::element::i64) {
+    if (none_of(input_precision, ov::element::f32, ov::element::i32, ov::element::i64)) {
         input_precision = ov::element::f32;
     }
     boundaries_precision = getOriginalInputPrecisionAtPort(INPUT_BINS_PORT);
-    if (boundaries_precision != ov::element::f32 && boundaries_precision != ov::element::i32 &&
-        boundaries_precision != ov::element::i64) {
+    if (none_of(boundaries_precision, ov::element::f32, ov::element::i32, ov::element::i64)) {
         boundaries_precision = ov::element::f32;
     }
     output_precision = getOriginalOutputPrecisionAtPort(OUTPUT_TENSOR_PORT);
-    if (output_precision != ov::element::i32 && output_precision != ov::element::i64) {
+    if (none_of(output_precision, ov::element::i32, ov::element::i64)) {
         output_precision = ov::element::i32;
     }
 
@@ -73,17 +84,17 @@ void Bucketize::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-inline constexpr uint32_t getElementsMask(ov::element::Type precision1,
-                                          ov::element::Type precision2,
-                                          ov::element::Type precision3 = ov::element::dynamic,
-                                          ov::element::Type precision4 = ov::element::dynamic) {
+constexpr uint32_t getElementsMask(ov::element::Type precision1,
+                                   ov::element::Type precision2,
+                                   ov::element::Type precision3 = ov::element::dynamic,
+                                   ov::element::Type precision4 = ov::element::dynamic) {
     return static_cast<uint32_t>(ov::element::Type_t(precision1)) |
            (static_cast<uint32_t>(ov::element::Type_t(precision2)) << 8) |
            (static_cast<uint32_t>(ov::element::Type_t(precision3)) << 16) |
            (static_cast<uint32_t>(ov::element::Type_t(precision4)) << 24);
 }
 
-void Bucketize::execute(const dnnl::stream& strm) {
+void Bucketize::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto precision_mask = getElementsMask(input_precision, boundaries_precision, output_precision);
 
     switch (precision_mask) {
@@ -178,7 +189,7 @@ void Bucketize::execute(const dnnl::stream& strm) {
                   element_type_traits<ov::element::i64>::value_type>();
         break;
     default:
-        THROW_CPU_NODE_ERR("has unsupported precision: ", precision_mask);
+        CPU_NODE_THROW("has unsupported precision: ", precision_mask);
     }
 }
 
@@ -186,28 +197,16 @@ void Bucketize::prepareParams() {
     auto inputTensorMemPtr = getSrcMemoryAtPort(INPUT_TENSOR_PORT);
     auto inputBinsMemPtr = getSrcMemoryAtPort(INPUT_BINS_PORT);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has destination memory undefined.");
-    }
-    if (!inputTensorMemPtr || !inputTensorMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has input tensor undefined.");
-    }
-    if (!inputBinsMemPtr || !inputBinsMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has input bins undefined.");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("has preferable primitive descriptors unset.");
-    }
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has destination memory undefined.");
+    CPU_NODE_ASSERT(inputTensorMemPtr && inputTensorMemPtr->isDefined(), "has input tensor undefined.");
+    CPU_NODE_ASSERT(inputBinsMemPtr && inputBinsMemPtr->isDefined(), "has input bins undefined.");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "has preferable primitive descriptors unset.");
 
     // update with_bins/num_values/num_bin_values
     auto input_tensor_dims = inputTensorMemPtr->getStaticDims();
-    if (input_tensor_dims.size() < 1) {
-        THROW_CPU_NODE_ERR("has incorrect dimensions of the input.");
-    }
+    CPU_NODE_ASSERT(!input_tensor_dims.empty(), "has incorrect dimensions of the input.");
     auto input_bin_dims = inputBinsMemPtr->getStaticDims();
-    if (input_bin_dims.size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect dimensions of the boundaries tensor.");
-    }
+    CPU_NODE_ASSERT(input_bin_dims.size() == 1, "has incorrect dimensions of the boundaries tensor.");
     if (input_bin_dims[0] != 0) {
         with_bins = true;
     }
@@ -216,7 +215,7 @@ void Bucketize::prepareParams() {
     num_values = std::accumulate(input_tensor_dims.begin(),
                                  input_tensor_dims.end(),
                                  static_cast<size_t>(1),
-                                 std::multiplies<size_t>());
+                                 std::multiplies<>());
 }
 
 bool Bucketize::neverExecute() const {
@@ -232,6 +231,7 @@ void Bucketize::bucketize() {
     const auto* input_data = getSrcDataAtPortAs<const T>(0);
     const auto* boundaries_data = getSrcDataAtPortAs<const T_BOUNDARIES>(1);
     auto* output_data = getDstDataAtPortAs<T_IND>(0);
+    const auto& cpu_parallel = context->getCpuParallel();
 
     if (!with_bins) {
         memset(output_data, 0, num_values * sizeof(T_IND));
@@ -239,13 +239,13 @@ void Bucketize::bucketize() {
     }
 
     // boundaries are assumed to be sorted and to have unique elements
-    parallel_for(num_values, [&](size_t ind) {
+    cpu_parallel->parallel_for(num_values, [&](size_t ind) {
         T value = input_data[ind];
         if (with_right) {
-            auto low = std::lower_bound(boundaries_data, boundaries_data + num_bin_values, value);
+            const auto* low = std::lower_bound(boundaries_data, boundaries_data + num_bin_values, value);
             output_data[ind] = static_cast<T_IND>(low - boundaries_data);
         } else {
-            auto up = std::upper_bound(boundaries_data, boundaries_data + num_bin_values, value);
+            const auto* up = std::upper_bound(boundaries_data, boundaries_data + num_bin_values, value);
             output_data[ind] = static_cast<T_IND>(up - boundaries_data);
         }
     });

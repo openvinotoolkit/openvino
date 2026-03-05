@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,7 +110,7 @@ private:
                                                                      params.mask,
                                                                      params.axis,
                                                                      params.end_axis);
-        return std::make_shared<ov::Model>(NodeVector{RegionYolo}, ParameterVector{p});
+        return std::make_shared<ov::Model>(OutputVector{RegionYolo}, ParameterVector{p});
     }
 };
 

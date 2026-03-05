@@ -1,9 +1,10 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include <vector>
+#include "intel_gpu/graph/program.hpp"
 
 namespace cldnn {
 
@@ -61,5 +62,10 @@ bool kernel_impl_params::operator==(const kernel_impl_params& rhs) const {
 
     return true;
 }
+
+const device_info& kernel_impl_params::get_device_info() const {
+    return get_program().get_engine().get_device_info();
+}
+
 
 }  // namespace cldnn

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,9 @@ extern bool register_translator(const std::string name,
                                 const std::string domain = "");
 
 #define OPSET_RANGE(_in, _until) \
-    VersionRange { _in, _until }
+    VersionRange {               \
+        _in, _until              \
+    }
 #define OPSET_SINCE(_since)         VersionRange::since(_since)
 #define OPSET_IN(_in)               VersionRange::in(_in)
 #define ONNX_OP_M(name, range, ...) register_translator(name, range, __VA_ARGS__)

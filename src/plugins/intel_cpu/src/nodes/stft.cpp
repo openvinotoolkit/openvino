@@ -1,17 +1,37 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "stft.h"
 
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/jit_generator.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_parallel.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
 #include "nodes/common/cpu_memcpy.h"
-#include "openvino/core/parallel.hpp"
+#include "nodes/rdft.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/stft.hpp"
-#include "openvino/reference/stft.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -42,12 +62,8 @@ STFT::STFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 }
 
 void STFT::getSupportedDescriptors() {
-    if (getParentEdges().size() != 4) {
-        THROW_CPU_NODE_ERR("STFT has incorrect number of input edges.");
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("STFT has incorrect number of output edges.");
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == 4, "STFT has incorrect number of input edges.");
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "STFT has incorrect number of output edges.");
 }
 
 void STFT::initSupportedPrimitiveDescriptors() {
@@ -56,7 +72,7 @@ void STFT::initSupportedPrimitiveDescriptors() {
     }
 
     auto dataPrecision = getOriginalInputPrecisionAtPort(DATA_IDX);
-    if (!one_of(dataPrecision, ov::element::f32)) {
+    if (none_of(dataPrecision, ov::element::f32)) {
         dataPrecision = ov::element::f32;
     }
 
@@ -77,32 +93,34 @@ bool STFT::created() const {
 }
 
 namespace {
-static void transpose_out4d(const uint8_t* in,
-                            uint8_t* out,
-                            const VectorDims& in_shape,
-                            const VectorDims& out_shape,
-                            size_t elem_size) {
+void transpose_out4d(const uint8_t* in,
+                     uint8_t* out,
+                     const VectorDims& in_shape,
+                     const VectorDims& out_shape,
+                     size_t elem_size,
+                     const std::shared_ptr<CpuParallel>& cpu_parallel) {
     const std::vector<size_t> axes_order{0, 2, 1, 3};
-    parallel_for3d(out_shape[0],
-                   out_shape[1],
-                   out_shape[2],
-                   [in, out, axes_order, &in_shape, &out_shape, elem_size](size_t i, size_t j, size_t k) {
-                       size_t in_indexes[3];
-                       in_indexes[axes_order[0]] = i;
-                       in_indexes[axes_order[1]] = j;
-                       in_indexes[axes_order[2]] = k;
-                       size_t in_off =
-                           ((in_indexes[0] * in_shape[1] + in_indexes[1]) * in_shape[2] + in_indexes[2]) * in_shape[3];
-                       size_t out_off = ((i * out_shape[1] + j) * out_shape[2] + k) * out_shape[3];
-                       cpu_memcpy(out + out_off * elem_size, in + in_off * elem_size, out_shape[3] * elem_size);
-                   });
+    cpu_parallel->parallel_for3d(
+        out_shape[0],
+        out_shape[1],
+        out_shape[2],
+        [in, out, axes_order, &in_shape, &out_shape, elem_size](size_t i, size_t j, size_t k) {
+            size_t in_indexes[3];
+            in_indexes[axes_order[0]] = i;
+            in_indexes[axes_order[1]] = j;
+            in_indexes[axes_order[2]] = k;
+            size_t in_off = ((in_indexes[0] * in_shape[1] + in_indexes[1]) * in_shape[2] + in_indexes[2]) * in_shape[3];
+            size_t out_off = ((i * out_shape[1] + j) * out_shape[2] + k) * out_shape[3];
+            cpu_memcpy(out + out_off * elem_size, in + in_off * elem_size, out_shape[3] * elem_size);
+        });
 }
 }  // namespace
 
-void STFT::execute(const dnnl::stream& strm) {
-    const float* signal = getSrcDataAtPortAs<const float>(DATA_IDX);
-    const float* window = getSrcDataAtPortAs<const float>(WINDOW_IDX);
-    float* rdft_result = getDstDataAtPortAs<float>(0);
+void STFT::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto& cpu_parallel = context->getCpuParallel();
+    const auto* signal = getSrcDataAtPortAs<const float>(DATA_IDX);
+    const auto* window = getSrcDataAtPortAs<const float>(WINDOW_IDX);
+    auto* rdft_result = getDstDataAtPortAs<float>(0);
     const VectorDims& signal_shape = getSrcMemoryAtPort(DATA_IDX)->getStaticDims();
     const VectorDims& window_shape = getSrcMemoryAtPort(WINDOW_IDX)->getStaticDims();
     const int64_t frame_size = (getSrcDataAtPortAs<const int32_t>(FRAME_SIZE_IDX))[0];
@@ -131,7 +149,7 @@ void STFT::execute(const dnnl::stream& strm) {
         dst = dst_mem->getDataAs<float>();
     }
 
-    parallel_for2d(batch_size, num_frames, [&](size_t batch, size_t frame_idx) {
+    cpu_parallel->parallel_for2d(batch_size, num_frames, [&](size_t batch, size_t frame_idx) {
         size_t batch_in_start = batch * signal_length;
         size_t batch_frames_out = batch * num_frames;
 
@@ -142,10 +160,11 @@ void STFT::execute(const dnnl::stream& strm) {
                        signal_slice.end(),
                        pad_window.begin(),
                        signal_slice.begin(),
-                       std::multiplies<float>());
+                       std::multiplies<>());
 
         const auto result_idx = (batch_frames_out + frame_idx) * fft_out_shape_size;
-        auto twiddles = rdft_executor->generateTwiddles({static_cast<int>(signal_slice.size())}, fft_out_shape, {0});
+        auto twiddles =
+            rdft_executor->generateTwiddles({static_cast<int>(signal_slice.size())}, fft_out_shape, {0}, cpu_parallel);
         rdft_executor->execute(signal_slice.data(),
                                dst + result_idx,
                                twiddles,
@@ -155,7 +174,8 @@ void STFT::execute(const dnnl::stream& strm) {
                                {frame_size_dim},
                                fft_out_shape,
                                {1},
-                               {2, 1});
+                               {2, 1},
+                               cpu_parallel);
     });
     if (m_transpose_frames) {
         const auto stft_transp_out_shape = VectorDims{batch_size, fft_out_shape[0], num_frames, fft_out_shape[1]};
@@ -163,7 +183,8 @@ void STFT::execute(const dnnl::stream& strm) {
                         reinterpret_cast<uint8_t*>(rdft_result),
                         stft_shape,
                         stft_transp_out_shape,
-                        sizeof(float));
+                        sizeof(float),
+                        cpu_parallel);
     }
 }
 
@@ -172,7 +193,8 @@ void STFT::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 bool STFT::needShapeInfer() const {
-    return !(m_is_frame_size_const && m_is_frame_step_const) || Node::needShapeInfer();
+    const bool both_const = m_is_frame_size_const && m_is_frame_step_const;
+    return !both_const || Node::needShapeInfer();
 }
 
 void STFT::createPrimitive() {

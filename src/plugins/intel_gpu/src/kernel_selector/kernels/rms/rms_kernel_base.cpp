@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,12 @@
 namespace kernel_selector {
 bool RMSKernelBase::Validate(const Params& p) const {
     if (!KernelBaseOpenCL::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const rms_params& params = static_cast<const rms_params&>(p);
     auto supported_dyn_layouts = { DataLayout::bfyx, DataLayout::bfzyx };
     if (params.has_dynamic_tensors() && (!layout_is_one_of(params.inputs, supported_dyn_layouts) || !layout_is_one_of(params.outputs, supported_dyn_layouts)))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }
@@ -22,6 +22,7 @@ JitConstants RMSKernelBase::GetJitConstants(const rms_params& params, RMSKernelB
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstant(MakeJitConstant("EPSILON", params.epsilon));
+    jit.AddConstant(MakeJitConstant("ELEMENTWISE_AFFINE", params.elementwise_affine));
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
     return jit;
@@ -66,6 +67,7 @@ KernelsData RMSKernelBase::GetCommonKernelsData(const Params& params) const {
     GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
+    auto inputs_count = orgParams.elementwise_affine ? 2 : 1;
     FillCLKernelData(kernel,
                      dispatchData,
                      params.engineInfo,
@@ -75,7 +77,7 @@ KernelsData RMSKernelBase::GetCommonKernelsData(const Params& params) const {
                      EXE_MODE_DEFAULT,
                      false,
                      false,
-                     2,
+                     inputs_count,
                      GetFusedPrimitiveInputsCount(params),
                      1,
                      orgParams.is_shape_agnostic);

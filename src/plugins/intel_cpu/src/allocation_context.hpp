@@ -1,11 +1,13 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cstddef>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace ov::intel_cpu {

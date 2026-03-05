@@ -1,16 +1,39 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "grid_sample.hpp"
 
-#include "openvino/core/parallel.hpp"
+#include <memory>
+#include <string>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/grid_sample.hpp"
 
 using namespace ov::intel_cpu;
 using namespace ov::intel_cpu::node;
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <algorithm>
+#    include <cpu/x64/cpu_isa_traits.hpp>
+#    include <cstddef>
+#    include <cstdint>
+#    include <functional>
+#    include <numeric>
+#    include <oneapi/dnnl/dnnl_common.hpp>
+
+#    include "cpu_types.h"
+#    include "graph_context.h"
+#    include "memory_desc/cpu_memory_desc.h"
+#    include "node.h"
+#    include "nodes/kernels/x64/grid_sample.hpp"
+#    include "onednn/iml_type_mapper.h"
+#    include "openvino/core/except.hpp"
+#    include "openvino/core/parallel.hpp"
+#    include "openvino/core/type/element_type.hpp"
+#    include "shape_inference/shape_inference_cpu.hpp"
+
 using namespace dnnl::impl::cpu;
 #endif  // OPENVINO_ARCH_X86_64
 
@@ -44,22 +67,16 @@ GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (op->get_input_size() != 2 || op->get_output_size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output ports.");
-    }
+    CPU_NODE_ASSERT(op->get_input_size() == 2 && op->get_output_size() == 1,
+                    "has incorrect number of input/output ports.");
 
     const auto& dataShape = getInputShapeAtPort(IN_DATA);
-    if (dataShape.getRank() != 4) {
-        THROW_CPU_NODE_ERR("has incorrect rank of the Data input.");
-    }
+    CPU_NODE_ASSERT(dataShape.getRank() == 4, "has incorrect rank of the Data input.");
 
     const auto& gridShape = getInputShapeAtPort(IN_GRID);
-    if (gridShape.getRank() != 4) {
-        THROW_CPU_NODE_ERR("has incorrect rank of the Grid input.");
-    }
-    if (gridShape.isStatic() && gridShape.getDims()[3] != 2) {
-        THROW_CPU_NODE_ERR("has incorrect shape of the Grid input. The 4th dimension should be equal to 2.");
-    }
+    CPU_NODE_ASSERT(gridShape.getRank() == 4, "has incorrect rank of the Grid input.");
+    CPU_NODE_ASSERT(!gridShape.isStatic() || gridShape.getDims()[3] == 2,
+                    "has incorrect shape of the Grid input. The 4th dimension should be equal to 2.");
 
     const auto& attributes = ov::as_type_ptr<ov::op::v9::GridSample>(op)->get_attributes();
     alignCorners = attributes.align_corners;
@@ -74,7 +91,7 @@ GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::
         interpolationMode = GridSampleInterpolationMode::NEAREST;
         break;
     default:
-        THROW_CPU_NODE_ERR("supports only BILINEAR, BICUBIC, NEAREST interpolation modes.");
+        CPU_NODE_THROW("supports only BILINEAR, BICUBIC, NEAREST interpolation modes.");
     }
     switch (attributes.padding_mode) {
     case op::v9::GridSample::PaddingMode::ZEROS:
@@ -87,7 +104,7 @@ GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::
         paddingMode = GridSamplePaddingMode::REFLECTION;
         break;
     default:
-        THROW_CPU_NODE_ERR("supports only BORDER, REFLECTION, ZEROS paddings modes.");
+        CPU_NODE_THROW("supports only BORDER, REFLECTION, ZEROS paddings modes.");
     }
 }
 
@@ -133,31 +150,29 @@ void GridSample::createPrimitive() {
         jcp.dynamicBatch = false;
         jcp.dynamicChannel = false;
         jcp.srcBatchStepB =
-            std::accumulate(srcDataDims.begin() + 1, srcDataDims.end(), dataTypeSize, std::multiplies<Dim>());
+            std::accumulate(srcDataDims.begin() + 1, srcDataDims.end(), dataTypeSize, std::multiplies<>());
     } else {
         jcp.dynamicBatch = srcDataDims[0] == Shape::UNDEFINED_DIM;
-        jcp.batchNum = jcp.dynamicBatch ? 1lu : srcDataDims[0];
+        jcp.batchNum = jcp.dynamicBatch ? 1LU : srcDataDims[0];
         jcp.dynamicChannel = srcDataDims[1] == Shape::UNDEFINED_DIM;
-        jcp.cannelNum = jcp.dynamicChannel ? 1lu : srcDataDims[1];
+        jcp.cannelNum = jcp.dynamicChannel ? 1LU : srcDataDims[1];
     }
 
     if (x64::mayiuse(x64::avx512_core)) {
-        jitKernel.reset(new kernel::GridSampleKernel<x64::avx512_core>(jcp));
+        jitKernel = std::make_shared<kernel::GridSampleKernel<x64::avx512_core>>(jcp);
     } else if (x64::mayiuse(x64::avx2)) {
-        jitKernel.reset(new kernel::GridSampleKernel<x64::avx2>(jcp));
+        jitKernel = std::make_shared<kernel::GridSampleKernel<x64::avx2>>(jcp);
     } else if (x64::mayiuse(x64::sse41)) {
-        jitKernel.reset(new kernel::GridSampleKernel<x64::sse41>(jcp));
+        jitKernel = std::make_shared<kernel::GridSampleKernel<x64::sse41>>(jcp);
     }
-    if (!jitKernel) {
-        THROW_CPU_NODE_ERR("could not create JIT kernel.");
-    }
+    CPU_NODE_ASSERT(jitKernel, "could not create JIT kernel.");
     jitKernel->create_ker();
 
     m_threads_num = parallel_get_max_threads();
     execParamsPerThread.resize(m_threads_num);
     if (!x64::mayiuse(x64::avx512_core)) {
         const auto dataElPerVec = jitKernel->getDataElPerVec();
-        parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
+        parallel_nt(m_threads_num, [&](const int ithr, [[maybe_unused]] const int nthr) {
             auto& p = execParamsPerThread[ithr];
 
             p.srcHeightF.resize(dataElPerVec);
@@ -186,20 +201,12 @@ void GridSample::createPrimitive() {
 
 void GridSample::prepareParams() {
     auto dataMemPtr = getSrcMemoryAtPort(IN_DATA);
-    if (!dataMemPtr || !dataMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input data memory.");
-    }
+    CPU_NODE_ASSERT(dataMemPtr && dataMemPtr->isDefined(), "has undefined input data memory.");
     auto gridMemPtr = getSrcMemoryAtPort(IN_GRID);
-    if (!gridMemPtr || !gridMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input grid memory.");
-    }
+    CPU_NODE_ASSERT(gridMemPtr && gridMemPtr->isDefined(), "has undefined input grid memory.");
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined output memory.");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor.");
-    }
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined output memory.");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor() != nullptr, "has unidentified preferable primitive descriptor.");
 
     const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
     const auto& srcDataShape = dataMemPtr->getStaticDims();
@@ -207,14 +214,14 @@ void GridSample::prepareParams() {
     const uint64_t totalWork = dstShape[2] * dstShape[3];
     const uint64_t wpt = ((totalWork / dataElPerVec) / m_threads_num + 1) * dataElPerVec;
 
-    parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
+    parallel_nt(m_threads_num, [&](const int ithr, [[maybe_unused]] const int nthr) {
         const uint64_t dstStart = std::min(wpt * ithr, totalWork);
         const uint64_t dstEnd = std::min(wpt * (ithr + 1), totalWork);
 
         auto& p = execParamsPerThread[ithr];
 
         p.workAmount = dstEnd - dstStart;
-        if (p.workAmount == 0lu) {
+        if (p.workAmount == 0LU) {
             return;
         }
 
@@ -227,7 +234,7 @@ void GridSample::prepareParams() {
         p.dstStartB = dstStart * dataTypeSize;
 
         p.srcBatchStepB =
-            std::accumulate(srcDataShape.begin() + 1, srcDataShape.end(), dataTypeSize, std::multiplies<Dim>());
+            std::accumulate(srcDataShape.begin() + 1, srcDataShape.end(), dataTypeSize, std::multiplies<>());
         p.gridBatchStepB = (dstShape[2] * dstShape[3] - p.workAmount) * 2 * gridTypeSize;
         p.dstBatchStepB = (dstShape[1] * dstShape[2] * dstShape[3] - p.workAmount) * dataTypeSize;
 
@@ -235,23 +242,23 @@ void GridSample::prepareParams() {
         p.dstChannelStepB = dstShape[2] * dstShape[3] * dataTypeSize;
         p.dataTypeSize[0] = dataTypeSize;
 
-        p.srcHeightSub1F[0] = p.srcHeightF[0] - 1.f;
-        p.srcWidthSub1F[0] = p.srcWidthF[0] - 1.f;
-        p.srcHeightMul2F[0] = p.srcHeightF[0] * 2.f;
-        p.srcWidthMul2F[0] = p.srcWidthF[0] * 2.f;
+        p.srcHeightSub1F[0] = p.srcHeightF[0] - 1.F;
+        p.srcWidthSub1F[0] = p.srcWidthF[0] - 1.F;
+        p.srcHeightMul2F[0] = p.srcHeightF[0] * 2.F;
+        p.srcWidthMul2F[0] = p.srcWidthF[0] * 2.F;
         if (interpolationMode == GridSampleInterpolationMode::BICUBIC && srcDataShape[3] >= 4) {
             p.srcWidthB[0] = (srcDataShape[3] - 3) * dataTypeSize;
         } else {
             p.srcWidthB[0] = srcDataShape[3] * dataTypeSize;
         }
         if (alignCorners) {
-            p.srcHeightMul2Sub1F[0] = p.srcHeightF[0] == 1.f ? 1.f : p.srcHeightSub1F[0] * 2.f;
-            p.srcWidthMul2Sub1F[0] = p.srcWidthF[0] == 1.f ? 1.f : p.srcWidthSub1F[0] * 2.f;
-            p.wDenormCoefF[0] = (p.srcWidthF[0] - 1.f) / 2.f;
-            p.hDenormCoefF[0] = (p.srcHeightF[0] - 1.f) / 2.f;
+            p.srcHeightMul2Sub1F[0] = p.srcHeightF[0] == 1.F ? 1.F : p.srcHeightSub1F[0] * 2.F;
+            p.srcWidthMul2Sub1F[0] = p.srcWidthF[0] == 1.F ? 1.F : p.srcWidthSub1F[0] * 2.F;
+            p.wDenormCoefF[0] = (p.srcWidthF[0] - 1.F) / 2.F;
+            p.hDenormCoefF[0] = (p.srcHeightF[0] - 1.F) / 2.F;
         } else {
-            p.srcHeightMul2Sub1F[0] = p.srcHeightMul2F[0] - 1.f;
-            p.srcWidthMul2Sub1F[0] = p.srcWidthMul2F[0] - 1.f;
+            p.srcHeightMul2Sub1F[0] = p.srcHeightMul2F[0] - 1.F;
+            p.srcWidthMul2Sub1F[0] = p.srcWidthMul2F[0] - 1.F;
         }
         if (!x64::mayiuse(x64::avx512_core)) {
             std::fill(p.srcHeightF.begin(), p.srcHeightF.end(), p.srcHeightF[0]);
@@ -272,15 +279,15 @@ void GridSample::prepareParams() {
     });
 }
 
-void GridSample::execute(const dnnl::stream& strm) {
+void GridSample::execute([[maybe_unused]] const dnnl::stream& strm) {
     const void* srcData = getSrcDataAtPort(IN_DATA);
     const uint8_t* gridData = getSrcDataAtPortAs<uint8_t>(IN_GRID);
-    uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
+    auto* dstData = getDstDataAtPortAs<uint8_t>(0);
 
-    auto threadBody = [&](const int ithr, const int nthr) {
+    auto threadBody = [&](const int ithr, [[maybe_unused]] const int nthr) {
         const auto& p = execParamsPerThread[ithr];
         auto arg = kernel::GridSamplesKernelExecArgs();
-        if (p.workAmount == 0lu) {
+        if (p.workAmount == 0LU) {
             return;
         }
 

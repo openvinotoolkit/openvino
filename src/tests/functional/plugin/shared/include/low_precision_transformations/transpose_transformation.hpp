@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@ class TransposeTransformationTestValues {
 public:
     ov::PartialShape inputShape;
     std::vector<int> transposeConstValues;
-    ov::pass::low_precision::LayerTransformation::Params params;
     ov::element::Type precisionBeforeFq;
     ov::builder::subgraph::FakeQuantizeOnData fqOnData;
 };

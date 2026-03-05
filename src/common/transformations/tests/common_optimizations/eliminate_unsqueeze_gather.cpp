@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,10 @@
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 
 using namespace ov;
-using namespace ov::op;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v8 = ov::op::v8;
 namespace {
 
 using TensorType = ov::element::Type_t;
@@ -48,13 +50,13 @@ protected:
                                                          v0::Constant::create(element::i64, Shape{1}, {0}),
                                                          v0::Constant::create(element::i64, Shape{1}, {axis}));
         const auto relu = std::make_shared<v0::Relu>(gather);
-        return std::make_shared<Model>(NodeVector{relu}, ParameterVector{parameter}, "Actual");
+        return std::make_shared<Model>(OutputVector{relu}, ParameterVector{parameter}, "Actual");
     }
 
     static std::shared_ptr<Model> reference(const TensorShape& inShape, const TensorType& inType) {
         const auto parameter = std::make_shared<v0::Parameter>(inType, inShape);
         const auto relu = std::make_shared<v0::Relu>(parameter);
-        return std::make_shared<Model>(NodeVector{relu}, ParameterVector{parameter}, "Reference");
+        return std::make_shared<Model>(OutputVector{relu}, ParameterVector{parameter}, "Reference");
     }
 };
 

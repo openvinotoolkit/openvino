@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -191,6 +191,7 @@ class OPENVINO_API AttributeAdapter<Layout> : public ValueAccessor<std::string> 
 public:
     OPENVINO_RTTI("AttributeAdapter<Layout>");
     explicit AttributeAdapter(Layout& value) : m_ref(value) {}
+    ~AttributeAdapter() override;
 
     const std::string& get() override;
     void set(const std::string& value) override;

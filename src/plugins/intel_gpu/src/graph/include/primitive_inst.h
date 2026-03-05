@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/runtime/utils.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "program_node.h"
 #include "primitive_type.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
@@ -41,7 +42,18 @@ class primitive_inst;
 template <class PType>
 class typed_primitive_inst;
 
+class PrimitiveInstTestHelper;
 struct ImplementationManager;
+
+struct BufferDescriptor {
+    explicit BufferDescriptor(const layout& l, bool lockable = false) : m_lockable(lockable), m_layout(l) {}
+    BufferDescriptor(const ov::PartialShape& shape, ov::element::Type type, bool lockable = false)
+        : BufferDescriptor(layout(shape, type, format::bfyx), lockable) {}
+    BufferDescriptor(size_t elements_count, ov::element::Type type, bool lockable = false)
+        : BufferDescriptor(layout({static_cast<int64_t>(elements_count)}, type, format::bfyx), lockable) {}
+    bool m_lockable = false;
+    layout m_layout;
+};
 
 /*
     Base class for all implementations.
@@ -55,8 +67,7 @@ struct primitive_impl {
         primitive_impl(nullptr, std::move(kernel_name), is_dynamic) {}
     virtual ~primitive_impl() = default;
 
-    virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
-    virtual std::set<size_t> get_lockable_internal_buffers() const { return {}; }
+    virtual std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& impl_params) const = 0;
     virtual void set_node_params(const program_node&) {}
     virtual const std::string& get_type_info() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
@@ -80,8 +91,17 @@ struct primitive_impl {
         ob << _is_dynamic;
         if (_weights_reorder_params == nullptr) {
             ob << false;
+            ob << false;
         } else {
             ob << true;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+            if (std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(_weights_reorder_params)) {
+                ob << true;
+            } else
+#endif
+            {
+                ob << false;
+            }
             _weights_reorder_params->save(ob);
         }
     }
@@ -92,8 +112,19 @@ struct primitive_impl {
         bool has_weights_reorder_params;
         ib >> has_weights_reorder_params;
         if (has_weights_reorder_params) {
-            _weights_reorder_params = std::make_shared<WeightsReorderParams>();
+            bool has_onednn_weights_reorder = false;
+            ib >> has_onednn_weights_reorder;
+            if (has_onednn_weights_reorder) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+                _weights_reorder_params = std::make_shared<onednn::WeightsReorderParamsOneDNN>();
+#endif
+            } else {
+                _weights_reorder_params = std::make_shared<WeightsReorderParams>();
+            }
             _weights_reorder_params->load(ib);
+        } else {
+            bool dummy;
+            ib >> dummy;
         }
     }
     // returns a pair of batch program hash and kernel entry of each ocl impl. Returns "" for other impl types.
@@ -122,7 +153,6 @@ struct primitive_impl {
     }
 
     virtual void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) {}
-    virtual std::vector<kernel::ptr> get_kernels() { return {}; }
 
     bool need_weights_reorder() const { return _weights_reorder_params != nullptr; }
     std::shared_ptr<WeightsReorderParams> get_weights_reorder_params() const { return _weights_reorder_params; }
@@ -158,6 +188,7 @@ struct ImplementationsFactory {
 class primitive_inst {
     template <class PType>
     friend class typed_primitive_inst;
+    friend class PrimitiveInstTestHelper;
 
 public:
     primitive_inst(network& network);
@@ -196,24 +227,36 @@ public:
          this->_can_be_optimized = optimized;
     }
     std::shared_ptr<const primitive> desc() const { return _impl_params->desc; }
-    program_node const& get_node() const { return *_node; }
+    program_node const& get_node() const {
+        OPENVINO_ASSERT(_node != nullptr, "_node should not be nullptr for build_deps.");
+        return *_node;
+    }
     network& get_network() const { return _network; }
     uint32_t get_network_id() const;
     const ExecutionConfig& get_config() const { return get_network().get_config(); }
 
     virtual event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
-    void check_memory_to_set(const memory& mem, const layout& layout) const;
-    const std::list<const cldnn::program_node *>& get_users() const { return _node->get_users(); }
+    /**
+    * Validates whether the provided memory object can be set for a primitive.
+    * This function checks that:
+    * - The memory layout matches the layout.
+    * - The memory is allocated by the same engine as the network.
+    * - Shared memory types (e.g., image, buffer, DX buffer, USM) are correctly matched with layout formats
+    *
+    * Throws an assertion or exception if any of these conditions are not met.
+    */
+    void check_memory_compatibility(const memory& mem, const layout& layout) const;
+    const std::list<const cldnn::program_node *>& get_users() const { return get_node().get_users(); }
     const std::vector<primitive_inst*>& get_user_insts() const { return _users; }
     void init_users() {
         std::vector<primitive_id> users;
         for (auto u : get_users()) {
             users.push_back(u->id());
         }
-        _users = _network.get_primitives(users);
+        _users = get_network().get_primitives(users);
     }
 
-    const std::unordered_set<size_t>& get_runtime_memory_dependencies() const { return _runtime_memory_dependencies; }
+    const memory_restricter<uint32_t>& get_runtime_memory_dependencies() const { return _runtime_memory_dependencies; }
 
     const kernel_impl_params* get_impl_params() const { return _impl_params.get(); }
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
@@ -234,7 +277,7 @@ public:
     }
 
     memory::ptr shape_info_memory_ptr() const { return _shape_info_memory; }
-    void set_shape_info_memory_subbuffer(memory::ptr addr);
+    void set_shape_info_memory(memory::ptr addr);
 
     void add_dep_events(const std::vector<event::ptr>& events);
     void add_dep_event(event::ptr ev);
@@ -261,16 +304,6 @@ public:
 
     void build_deps();
 
-    void update_paddings();
-    void do_runtime_skip_reorder();
-    void do_runtime_skip_gather();
-    void do_runtime_skip_permute();
-    void do_runtime_skip_strided_slice();
-    void do_runtime_skip_broadcast();
-    void do_runtime_in_place_concat();
-    void do_runtime_in_place_kv_cache();
-    void do_runtime_in_place_crop();
-    void do_runtime_skip_scatter_update();
     void configure_shape_of_dependencies();
 
     memory::ptr fused_memory(size_t dep_id) const {
@@ -287,6 +320,7 @@ public:
     bool mem_allocated() const { return _mem_allocated; }
     bool is_dynamic() const { return _is_dynamic; }
     bool can_share_buffer() const { return _can_share_buffer; }
+    bool can_share_internal_buffer() const { return _can_share_internal_buffer; }
     bool is_constant() const { return _is_constant; }
     bool needs_completion_event() const { return _needs_completion_event; }
     bool has_unfused_subgraph() const { return (_unfused_subgraph != nullptr); }
@@ -296,9 +330,9 @@ public:
 
     static memory::ptr allocate_output(engine& engine,
                                        memory_pool& pool,
-                                       const program_node& _node,
+                                       const program_node& node,
                                        const kernel_impl_params& impl_params,
-                                       const std::unordered_set<size_t>& memory_dependencies,
+                                       const memory_restricter<uint32_t>& memory_dependencies,
                                        uint32_t net_id,
                                        bool is_internal,
                                        size_t idx = 0,
@@ -307,7 +341,8 @@ public:
                                        memory* curr_memory = nullptr,
                                        bool runtime_alloc = false);
 
-    std::vector<memory::ptr> get_intermediates_memories() const { return _intermediates_memory; }
+    const std::vector<memory::ptr>& get_intermediates_memories() const { return _intermediates_memory; }
+    size_t get_max_output_layout_count(size_t idx = 0) const { return _max_output_layout_count[idx]; }
 
     std::string get_implementation_name() const;
 
@@ -315,8 +350,8 @@ public:
     const std::unordered_map<size_t, std::tuple<int64_t, size_t>>& get_profiling_data() const { return _profiling_data; }
     const std::unordered_map<size_t, instrumentation::perf_counter_key>& get_profiling_info() const { return _profiling_info; }
 
-    layout get_input_layout(size_t idx = 0) const { return _impl_params->get_input_layout(idx); }
-    layout get_output_layout(size_t idx = 0) const { return _impl_params->get_output_layout(idx); }
+    const layout& get_input_layout(size_t idx = 0) const { return _impl_params->get_input_layout(idx); }
+    const layout& get_output_layout(size_t idx = 0) const { return _impl_params->get_output_layout(idx); }
     layout get_node_output_layout() const { return _node_output_layout; }
     void set_output_layout(const layout& new_out_lay, size_t idx = 0) {
         _impl_params->output_layouts[idx] = new_out_lay;
@@ -334,7 +369,7 @@ public:
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
     virtual void update_shape_info_tensor(const kernel_impl_params& params);
-    kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
+    kernel_impl_params get_fake_aligned_params_if_possible(program_node const& node, kernel_impl_params const& orig_impl_param);
     bool all_dependencies_cpu_impl() const;
 
 protected:
@@ -344,8 +379,8 @@ protected:
     program_node const* _node;
     layout _node_output_layout;
 
-    bool update_shape_done_by_other = false;
-    bool allocation_done_by_other = false;
+    bool _update_shape_done_by_other = false;
+    bool _allocation_done_by_other = false;
     bool _use_shared_kernels = false;
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::shared_ptr<primitive_impl> _impl;
@@ -355,8 +390,8 @@ protected:
     // it should be added to this set
     std::vector<std::pair<primitive_inst*, int32_t>> _deps;
 
-    // List of depandant shape_of primitives for shape_of subgraphs
-    std::vector<primitive_inst*> dependant_shape_of_insts;
+    // List of dependant shape_of primitives for shape_of subgraphs
+    std::vector<primitive_inst*> _dependant_shape_of_insts;
 
     std::vector<primitive_inst*> _users;
     // this is a set of dependencies in terms of execution
@@ -369,7 +404,7 @@ protected:
     std::vector<primitive_inst*> _exec_deps;
 
     // List of primitive ids that this primitive can't share memory buffers with
-    std::unordered_set<size_t> _runtime_memory_dependencies;
+    memory_restricter<uint32_t> _runtime_memory_dependencies;
 
     // This is sub-network generated on demand to execute unfused primitives sequence instead of single fused primitive
     // Needed for dynamic path only, as fusion in some cases may be illegal, but it can't be checked on program build phase,
@@ -388,8 +423,7 @@ protected:
     // Buffer to store actual shapes of dynamic tensor which is automatically asigned as 1st argument to shape agnostic kernels
     memory::ptr _shape_info_memory = nullptr;
 
-    bool _has_valid_input =
-        true;  // by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
+    bool _has_valid_input = true;  // by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
     bool _has_mutable_input = false;
     bool _mem_allocated = false;
     bool _is_dynamic = false;
@@ -404,16 +438,17 @@ protected:
     size_t _fused_mem_offset = 0;
     bool _can_be_optimized = false;
     bool _can_share_buffer = true;
+    bool _can_share_internal_buffer = true;
     bool _is_constant = false;
     bool _needs_completion_event = false;
 
     std::vector<size_t> _max_output_layout_count;
-    std::vector<size_t> max_intermediates_memory_sizes;
+    std::vector<size_t> _max_intermediates_memory_sizes;
 
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr,
                                               bool reset_mem = true,
                                               bool runtime_alloc = false);
-    memory::ptr allocate_internal_buffer(size_t idx, bool reset = true);
+    memory::ptr allocate_internal_buffer(const layout& layout, size_t idx, bool reset = true, bool lockable = false);
     void allocate_shape_info_memory();
     static std::vector<primitive_inst*> build_exec_deps(
         std::vector<std::pair<primitive_inst*, int32_t>> const& mem_deps);
@@ -431,6 +466,8 @@ protected:
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     void update_impl(bool use_async_compilation);
     void realloc_if_needed(bool prev_execution_skipped = false);
+    void realloc_outputs(bool prev_execution_skipped = false);
+    void realloc_intermediates();
 
     cldnn::network::ptr get_unfused_subgraph();
 
@@ -468,21 +505,7 @@ protected:
         return false;
     }
 
-    virtual bool need_reset_output_memory() const {
-        for (const auto& user_inst : get_user_insts()) {
-            // Check users of optimized_out inst, as the optimized out inst will not be able to
-            // reset it's memory
-            if (user_inst->can_be_optimized()) {
-                if (user_inst->need_reset_output_memory())
-                    return true;
-                continue;
-            }
-
-            if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(*_node)))
-                return true;
-        }
-        return false;
-    }
+    virtual bool need_reset_output_memory() const;
 
     void clear_output_memory();
 
@@ -491,6 +514,20 @@ protected:
     // and store mapping onto original perf_clounter_key for further data analysis and dumps
     std::unordered_map<size_t, std::tuple<int64_t, size_t>> _profiling_data;
     std::unordered_map<size_t, instrumentation::perf_counter_key> _profiling_info;
+
+private:
+    void update_paddings();
+    void do_runtime_skip_reorder();
+    void do_runtime_skip_gather();
+    void do_runtime_skip_permute();
+    void do_runtime_skip_strided_slice();
+    void do_runtime_skip_broadcast();
+    void do_runtime_in_place_concat();
+    void do_runtime_in_place_kv_cache();
+    void do_runtime_in_place_crop();
+    void do_runtime_skip_scatter_update();
+    void do_runtime_skip_lora();
+    void do_runtime_skip_resample();
 };
 
 /*
@@ -505,7 +542,6 @@ struct typed_primitive_impl : public primitive_impl {
 
     using primitive_impl::primitive_impl;
 
-private:
     event::ptr execute(const std::vector<event::ptr>& event, primitive_inst& instance) override {
         if (instance.type() != PType::type_id())
             throw std::invalid_argument("Implementation type does not match primitive type");
@@ -516,11 +552,7 @@ private:
         return execute_impl(event, reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
-    std::vector<layout> get_internal_buffer_layouts() const override {
-        return get_internal_buffer_layouts_impl();
-    }
-
-    virtual std::vector<layout> get_internal_buffer_layouts_impl() const {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& impl_params) const override {
         return {};
     }
 
@@ -555,7 +587,6 @@ public:
     using typed_node = typed_program_node<PType>;
     using typed_impl = typed_primitive_impl<PType>;
 
-    const typed_node* node;
     std::shared_ptr<const PType> argument;
 
     template<typename T>
@@ -569,11 +600,11 @@ public:
         : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
 
     typed_primitive_inst_base(network& network)
-        : primitive_inst(network), node(nullptr), argument(nullptr) {}
+        : primitive_inst(network), argument(nullptr) {}
 
 protected:
     typed_primitive_inst_base(network& network, typed_node const& node, bool allocate_memory)
-        : primitive_inst(network, node, allocate_memory), node(&node), argument(node.get_primitive()) {}
+        : primitive_inst(network, node, allocate_memory), argument(node.get_primitive()) {}
 
     typed_primitive_inst_base(network& network, typed_node const& node, memory::ptr buffer)
         : typed_primitive_inst_base(network, node, false) {

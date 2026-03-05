@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "utils/generate_static_shapes.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "openvino/op/ops.hpp"
+
 
 namespace ov {
 namespace test {

@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,9 @@ const auto combine = [](const std::vector<std::vector<ov::Shape>>& inputShapes,
                             testing::ValuesIn(axes),
                             testing::ValuesIn(signalSizes),
                             testing::ValuesIn(opTypes),
-                            testing::Values(ov::test::utils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU),
+                            testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                            testing::Values(ov::test::utils::InputLayerType::CONSTANT));
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_2d,

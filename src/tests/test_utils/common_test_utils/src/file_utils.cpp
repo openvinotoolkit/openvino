@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_test_utils/file_utils.hpp"
-
-#include "precomp.hpp"
 
 #ifdef __APPLE__
 #    include <mach-o/dyld.h>
@@ -23,16 +21,14 @@
 #    include <unistd.h>
 #endif
 
-namespace ov {
-namespace test {
-namespace utils {
-
+#include "openvino/util/variant_visitor.hpp"
+namespace ov::test::utils {
 namespace {
 
 template <typename C,
           typename = typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type>
 std::basic_string<C> get_path_name(const std::basic_string<C>& s) {
-    size_t i = s.rfind(ov::util::FileTraits<C>::file_separator, s.length());
+    size_t i = s.rfind(FileTraits<C>::file_separator, s.length());
     if (i != std::string::npos) {
         return (s.substr(0, i));
     }
@@ -61,7 +57,7 @@ std::string getOpenvinoLibDirectoryA() {
 #elif defined(__APPLE__) || defined(__linux__) || defined(__EMSCRIPTEN__)
     Dl_info info;
     dladdr(reinterpret_cast<void*>(ov::get_openvino_version), &info);
-    return get_path_name(ov::util::get_absolute_file_path(info.dli_fname)).c_str();
+    return ov::util::path_to_string(ov::util::get_absolute_file_path(info.dli_fname).parent_path());
 #else
 #    error "Unsupported OS"
 #endif  // _WIN32
@@ -105,7 +101,7 @@ std::string getOpenvinoLibDirectory() {
 #endif
 }
 
-std::string getExecutableDirectory() {
+std::string getExecutableDirectoryA() {
     std::string path;
 #ifdef _WIN32
     char buffer[MAX_PATH];
@@ -124,6 +120,30 @@ std::string getExecutableDirectory() {
     }
     path = std::string(buffer, len);
     return ov::util::get_directory(path).string();
+}
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+std::wstring getExecutableDirectoryW() {
+#    ifdef _WIN32
+    WCHAR ov_ext_path[MAX_PATH];
+    HMODULE hm = NULL;
+    GetModuleFileNameW(hm, (LPWSTR)ov_ext_path, sizeof(ov_ext_path) / sizeof(ov_ext_path[0]));
+    auto path = std::wstring(ov_ext_path);
+    return ov::util::get_directory(path).wstring();
+#    elif defined(__linux__) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
+    return ov::util::string_to_wstring(getExecutableDirectoryA());
+#    else
+#        error "Unsupported OS"
+#    endif
+}
+#endif
+
+std::string getExecutableDirectory() {
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    return ov::util::wstring_to_string(getExecutableDirectoryW());
+#else
+    return getExecutableDirectoryA();
+#endif
 }
 
 std::string getCurrentWorkingDir() {
@@ -155,7 +175,7 @@ std::string getModelFromTestModelZoo(const std::string& relModelPath) {
 
 std::string getRelativePath(const std::string& from, const std::string& to) {
     auto split_path = [](const std::string& path) -> std::vector<std::string> {
-        std::string sep{ov::util::FileTraits<char>::file_separator};
+        std::string sep{FileTraits<char>::file_separator};
         std::vector<std::string> retvalue;
         size_t start = 0;
         size_t end = 0;
@@ -182,7 +202,7 @@ std::string getRelativePath(const std::string& from, const std::string& to) {
         return {};
     }
 
-    std::string separator(1, ov::util::FileTraits<char>::file_separator);
+    std::string separator(1, FileTraits<char>::file_separator);
     std::string output;
     //  generates path to the top common directory from the start directory
     if (mismatch_it.first != from_vec.end()) {
@@ -209,6 +229,22 @@ std::string getRelativePath(const std::string& from, const std::string& to) {
     return output;
 }
 
-}  // namespace utils
-}  // namespace test
-}  // namespace ov
+std::filesystem::path to_fs_path(const StringPathVariant& param) {
+    return std::visit(ov::util::VariantVisitor{
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+                          [](const std::string& p) {
+                              if (std::any_of(p.begin(), p.end(), [](unsigned char c) {
+                                      return c > 127;
+                                  })) {
+                                  return std::filesystem::path(ov::util::string_to_wstring(p));
+                              } else {
+                                  return std::filesystem::path(p);
+                              }
+                          },
+#endif
+                          [](const auto& p) {
+                              return std::filesystem::path(p);
+                          }},
+                      param);
+}
+}  // namespace ov::test::utils

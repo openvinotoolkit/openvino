@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ KernelsPriority MulticlassNmsKernelRef::GetKernelsPriority(const Params&) const 
 
 bool MulticlassNmsKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::MULTICLASS_NMS) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -138,11 +138,11 @@ KernelsData MulticlassNmsKernelRef::GetKernelsData(const Params& params) const {
 
     // buffer for BoxInfos
     kd.internalBufferDataType = Datatype::F32;
-    kd.internalBufferSizes.resize(1);
+    kd.internalBuffers.resize(1);
     // double: 4 coordinates + 1 score; long: 1 class_idx + 1 batch_idx + 1 index
     const auto box_size = (4 + 1) * sizeof(double) + 3 * sizeof(long);
     const auto total_boxes = num_batches * num_classes * num_boxes;
-    kd.internalBufferSizes[0] = box_size * total_boxes;
+    kd.internalBuffers[0] = box_size * total_boxes;
     const auto common_jit_constants = GetJitConstants(op_params);
 
     for (size_t i = 0; i < kKernelsNum; ++i) {
@@ -152,7 +152,7 @@ KernelsData MulticlassNmsKernelRef::GetKernelsData(const Params& params) const {
         cldnn_jit.AddConstant(MakeJitConstant("MULTICLASSNMS_STAGE_" + std::to_string(i), "true"));
 
         const auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
-        KernelBase::CheckDispatchData(kernelName, dispatch_data, params.engineInfo.maxWorkGroupSize);
+        KernelBase::CheckDispatchData(kernelName, dispatch_data, params.engineInfo);
         auto& kernel = kd.kernels[i];
 
         kernel.params.workGroups.global = dispatch_data.gws;

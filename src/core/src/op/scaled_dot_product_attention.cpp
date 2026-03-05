@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,15 @@ op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const Output<Node>
                                                               const Output<Node>& scale,
                                                               bool causal)
     : ScaledDotProductAttention({query, key, value, attn_mask, scale}, causal) {}
+
+op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const Output<Node>& query,
+                                                              const Output<Node>& key,
+                                                              const Output<Node>& value,
+                                                              const Output<Node>& attn_mask,
+                                                              const Output<Node>& scale,
+                                                              const Output<Node>& sink,
+                                                              bool causal)
+    : ScaledDotProductAttention({query, key, value, attn_mask, scale, sink}, causal) {}
 
 op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const Output<Node>& query,
                                                               const Output<Node>& key,

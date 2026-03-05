@@ -1,15 +1,34 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "embedding_bag_packed.h"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <set>
 #include <string>
 #include <vector>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/embedding_bag.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/embeddingbag_packed.hpp"
 #include "openvino/op/embeddingbag_packedsum.hpp"
+#include "openvino/op/util/embeddingbag_packed_base.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -31,7 +50,7 @@ bool EmbeddingBagPacked::isSupportedOperation(const std::shared_ptr<const ov::No
 
 EmbeddingBagPacked::EmbeddingBagPacked(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)),
-      EmbeddingBag(op, 2lu, 1lu, 2lu, 3lu) {
+      EmbeddingBag(op, 2LU, 1LU, 2LU, 3LU) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -47,13 +66,11 @@ EmbeddingBagPacked::EmbeddingBagPacked(const std::shared_ptr<ov::Node>& op, cons
             _reduction = Reduction::MEAN;
             break;
         default:
-            THROW_CPU_NODE_ERR("EmbeddingBagPacked does not support reduction mode: ",
-                               ov::as_string(packed_op->get_reduction()));
+            CPU_NODE_THROW("EmbeddingBagPacked does not support reduction mode: ",
+                           ov::as_string(packed_op->get_reduction()));
         }
     }
-    if (getInputShapeAtPort(INDICES_IDX).getRank() != 2ul) {
-        THROW_CPU_NODE_ERR("has indices data with invalid rank.");
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(INDICES_IDX).getRank() == 2UL, "has indices data with invalid rank.");
 }
 
 void EmbeddingBagPacked::initSupportedPrimitiveDescriptors() {
@@ -67,27 +84,27 @@ void EmbeddingBagPacked::initSupportedPrimitiveDescriptors() {
                                                                     ov::element::i32};
 
     auto inDataPrecision = getOriginalInputPrecisionAtPort(EMB_TABLE_IDX);
-    if (one_of(inDataPrecision, ov::element::bf16, ov::element::f16)) {
+    if (any_of(inDataPrecision, ov::element::bf16, ov::element::f16)) {
         inDataPrecision = ov::element::f32;
     }
     if (!supportedPrecisions.empty()) {
-        if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end()) {
-            THROW_CPU_NODE_ERR("has unsupported precision: ", inDataPrecision.get_type_name());
-        }
+        CPU_NODE_ASSERT(supportedPrecisions.find(inDataPrecision) != supportedPrecisions.end(),
+                        "has unsupported precision: ",
+                        inDataPrecision.get_type_name());
     } else {
         static const std::set<ov::element::Type> defaultSupportedPrecisions = {ov::element::f32,
                                                                                ov::element::i8,
                                                                                ov::element::u8,
                                                                                ov::element::i32};
-        if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end()) {
-            THROW_CPU_NODE_ERR("has unsupported precision: ", inDataPrecision.get_type_name());
-        }
+        CPU_NODE_ASSERT(defaultSupportedPrecisions.find(inDataPrecision) != defaultSupportedPrecisions.end(),
+                        "has unsupported precision: ",
+                        inDataPrecision.get_type_name());
     }
 
     std::vector<PortConfigurator> inDataConfigurators(
         {{LayoutType::ncsp, inDataPrecision}, {LayoutType::ncsp, ov::element::i32}});
     if (inputShapes.size() > PER_SAMPLE_WEIGHTS_IDX) {
-        inDataConfigurators.push_back({LayoutType::ncsp, inDataPrecision});
+        inDataConfigurators.emplace_back(LayoutType::ncsp, inDataPrecision);
     }
 
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
@@ -108,9 +125,7 @@ void EmbeddingBagPacked::getIndices(size_t embIndex,
                                     size_t& size,
                                     int& weightsIdx,
                                     bool& withWeight) {
-    if (static_cast<size_t>(embIndex) >= _batch * _indicesPerBag) {
-        THROW_CPU_NODE_ERR("Invalid embedding bag index.");
-    }
+    CPU_NODE_ASSERT(embIndex < _batch * _indicesPerBag, "Invalid embedding bag index.");
 
     withWeight = true;
 
@@ -132,7 +147,7 @@ bool EmbeddingBagPacked::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void EmbeddingBagPacked::execute(const dnnl::stream& strm) {
+void EmbeddingBagPacked::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
     const uint8_t* weightsData = nullptr;
     if (_withWeights) {

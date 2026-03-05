@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ struct ExecutionConfig : public ov::PluginConfig {
 protected:
     void finalize_impl(const IRemoteContext* context) override;
     void apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) override;
-    void apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_llm);
+    void apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_llm, bool is_paged_attention_model);
 
     void apply_user_properties(const cldnn::device_info& info);
     void apply_hints(const cldnn::device_info& info);

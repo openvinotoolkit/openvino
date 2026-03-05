@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporationov::npuw::
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,193 +21,15 @@ namespace online {
 
 namespace detail {
 
-namespace {
-static const std::map<std::string, std::string> ISOL_PRESETS = {{"COMPUTE",
-                                                                 "P:DQMatMulGQu4/compute,P:DQMatMulCWu4/compute,"
-                                                                 "P:DQMatMulGQi4/compute,P:DQMatMulCWi4/compute,"
-                                                                 "P:DQMatMulConv/compute,"
-                                                                 "P:VocabMatMul/compute,"
-                                                                 "P:RMSNorm/compute,P:RMSNorm2/compute,"
-                                                                 "P:VariadicSplit/compute"}};
-}
-
-// For missing declaration warning
-// FIXME: Instead, one should use namespace{}
-size_t getMinGraphSize(::intel_npu::Config& cfg);
-size_t getMinRepBlocks(::intel_npu::Config& cfg);
-size_t getMinRepBlockSize(::intel_npu::Config& cfg);
-std::vector<Avoid> getAvoids(::intel_npu::Config& cfg);
-std::vector<Isolate> getIsolates(::intel_npu::Config& cfg);
-std::vector<Isolate> getIsolates(const std::string& isolates_unparsed);
-std::vector<std::string> getNoFolds(::intel_npu::Config& cfg);
-std::vector<std::string> getNoFolds(const std::string& nofolds_unparsed);
 // Set default predefined values for COMPUTE pipeline
 void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to);
-
-size_t getMinGraphSize(::intel_npu::Config& cfg) {
-    std::size_t min_size = cfg.get<::intel_npu::NPUW_ONLINE_MIN_SIZE>();
-
-    // Sanity check
-    if (min_size < 10) {
-        LOG_WARN("Minimum possible partitioning size is too small: " << min_size << ", using a default value of 10.");
-        min_size = 10;
-    }
-
-    LOG_INFO("Online partitioning will continue until there are " << min_size << " or less subgraphs.");
-
-    return min_size;
-}
-
-size_t getMinRepBlocks(::intel_npu::Config& cfg) {
-    std::size_t min_size = cfg.get<::intel_npu::NPUW_ONLINE_KEEP_BLOCKS>();
-
-    return min_size;
-}
-
-size_t getMinRepBlockSize(::intel_npu::Config& cfg) {
-    std::size_t min_size = cfg.get<::intel_npu::NPUW_ONLINE_KEEP_BLOCK_SIZE>();
-
-    return min_size;
-}
-
-std::vector<Avoid> getAvoids(::intel_npu::Config& cfg) {
-    std::vector<Avoid> avoids;
-
-    std::string avoids_opt = cfg.getString<::intel_npu::NPUW_ONLINE_AVOID>();
-    if (avoids_opt.empty()) {
-        return {};
-    }
-
-    std::string s = std::move(avoids_opt);
-
-    size_t pos = 0;
-    size_t start = 0;
-    std::string token;
-
-    while ((pos = s.find(',', start)) != std::string::npos) {
-        token = s.substr(start, pos - start);
-        auto avoid_opt = util::parseAvoid(token);
-        // Check that parsing was a success
-        if (avoid_opt) {
-            avoids.push_back(*avoid_opt);
-        }
-        start = pos + 1;
-    }
-
-    // Parse the tail
-    auto avoid_opt = util::parseAvoid(s.substr(start, s.size() - start));
-    // Check that parsing was a success
-    if (avoid_opt) {
-        avoids.push_back(*avoid_opt);
-    }
-
-    if (!avoids.empty()) {
-        LOG_INFO("Online partitioning will avoid running subgraphs containing specified patterns on their respective "
-                 "devices.");
-    } else {
-        LOG_WARN("Incorect pattern in OPENVINO_NPUW_AVOID!"
-                 << " Please, follow the example: Op:Select/NPU,P:RMSNorm/NPU."
-                 << " No avoid rules will be taken into account during execution!");
-    }
-
-    return avoids;
-}
-
-std::vector<Isolate> getIsolates(::intel_npu::Config& cfg) {
-    return getIsolates(cfg.getString<::intel_npu::NPUW_ONLINE_ISOLATE>());
-}
-
-std::vector<Isolate> getIsolates(const std::string& isolates_unparsed) {
-    if (isolates_unparsed.empty()) {
-        return {};
-    }
-
-    std::vector<Isolate> isolates;
-    std::string s = isolates_unparsed;
-
-    auto preset_iter = ISOL_PRESETS.find(s);
-    if (preset_iter != ISOL_PRESETS.end()) {
-        s = preset_iter->second;
-    }
-
-    size_t pos = 0;
-    size_t start = 0;
-    std::string token;
-
-    while ((pos = s.find(',', start)) != std::string::npos) {
-        token = s.substr(start, pos - start);
-        auto isolate_opt = util::parseIsolate(token);
-        // Check that parsing was a success
-        if (isolate_opt) {
-            isolates.push_back(*isolate_opt);
-        }
-        start = pos + 1;
-    }
-
-    // Parse the tail
-    auto isolate_opt = util::parseIsolate(s.substr(start, s.size() - start));
-    // Check that parsing was a success
-    if (isolate_opt) {
-        isolates.push_back(*isolate_opt);
-    }
-
-    if (!isolates.empty()) {
-        LOG_INFO("Online partitioning will isolate subgraphs containing specified patterns.");
-    } else {
-        LOG_WARN("Incorect pattern in NPUW_ONLINE_ISOLATE! No isolate rules will be taken into account during "
-                 "partitioning!");
-    }
-
-    return isolates;
-}
-
-std::vector<std::string> getNoFolds(::intel_npu::Config& cfg) {
-    return getNoFolds(cfg.getString<::intel_npu::NPUW_ONLINE_NO_FOLD>());
-}
-
-std::vector<std::string> getNoFolds(const std::string& nofolds_unparsed) {
-    if (nofolds_unparsed.empty()) {
-        return {};
-    }
-
-    std::vector<std::string> nofolds;
-    std::string s = std::move(nofolds_unparsed);
-
-    size_t pos = 0;
-    size_t start = 0;
-    std::string token;
-
-    while ((pos = s.find(',', start)) != std::string::npos) {
-        token = s.substr(start, pos - start);
-        if (!token.empty()) {
-            nofolds.push_back(token);
-        }
-        start = pos + 1;
-    }
-
-    // Parse the tail
-    std::string tail = s.substr(start, s.size() - start);
-    if (!tail.empty()) {
-        nofolds.push_back(tail);
-    }
-
-    if (!nofolds.empty()) {
-        LOG_INFO("Online partitioning will mark specified tags as non-foldable.");
-    } else {
-        LOG_WARN("Incorect pattern in NPUW_ONLINE_NO_FOLD!"
-                 << " Please, follow the example: "
-                 << "compute,compute2. "
-                 << "No non-fold rules will be taken into account during partitioning!");
-    }
-
-    return nofolds;
-}
 
 void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to) {
     pugi::xml_document doc;
 
     pugi::xml_node node = doc.append_child("ensemble");
     node.append_attribute("gflops") = std::to_string(ens.gflops).data();
+    node.append_attribute("irregular_io") = std::to_string(ens.irregular_io).data();
 
     pugi::xml_node part = node.append_child("partitioning");
     pugi::xml_node rep;
@@ -226,8 +48,8 @@ void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to) {
         if (!group.avoid_list.empty()) {
             gr.append_attribute("avoid") = group.avoid_list.data();
         }
-        if (!group.tag.empty()) {
-            gr.append_attribute("tag") = group.tag.data();
+        if (!group.gettag().empty()) {
+            gr.append_attribute("tag") = group.gettag().data();
         }
 
         // Note: Ensemble also add "id" attribute but it's not used by the plugin
@@ -262,6 +84,7 @@ void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to) {
 
     doc.save_file(to.data());
 }
+
 }  // namespace detail
 
 // Interface to get online partitioning from the model
@@ -273,7 +96,7 @@ class Compiler {
         REP,      // Repeated blocks pipeline - combination of repeatedBlocks and Remnants
         REG,      // Regularized repeated blocks pipeline - same as REP, but with some strong hints first
         COMPUTE,  // Separates non-foldable compute subgraphs from the model based on predefined rules + REP
-        SPATIAL   // Similar to COMPUTE but allows folding
+        SPATIAL   // Similar to COMPUTE but allows folding & dynamic chunk submission for FFN/QKV (LLM)
     };
 
     template <class C>
@@ -308,12 +131,38 @@ class Compiler {
         }
     }
 
+    std::vector<Isolate> getComputeIsolates() {
+        // NB: Think twice before adding any new patterns here!
+        // In the most cases, you don't - this is a very specific
+        // type of patterns to isolate compute-intense parts ONLY!
+        namespace ou = ov::npuw::online::util;
+        auto isolates = ou::getIsolates(ou::ISOL_PRESETS.at("COMPUTE"));
+        for (const auto& isol : ou::getIsolates(ou::ISOL_PRESETS.at("FAKE"))) {
+            isolates.push_back(isol);
+        }
+        return isolates;
+    }
+
     // Compiler pipelines
-    void none() {
+    void none_fast() {
         LOG_INFO("Online partitioning: compiling single group pipeline...");
         LOG_BLOCK();
 
         m_snapshot->singleGroup();
+
+        LOG_INFO("Done");
+    }
+
+    void none() {
+        LOG_INFO("Online partitioning: compiling single group with avoids pipeline...");
+        LOG_BLOCK();
+
+        // Note: Assuming the context was set with minimum graph size = 1
+        // Note: If there are avoids present there will be multiple groups formed instead of 1
+        m_snapshot->earlyAvoids();
+        m_snapshot->repeat([&] {
+            m_snapshot->fuseRemnantsExtended();
+        });
 
         LOG_INFO("Done");
     }
@@ -363,6 +212,7 @@ class Compiler {
         m_snapshot->earlyRegroup();
         m_snapshot->repeatedBlocks([&]() {
             // This callback is called when repeatingBlocks algorithm thinks it is done
+            // NB: the "fake" tag is stripped elsewhere, that's how it works
             m_snapshot->stripTag("compute");
         });
         m_snapshot->repeat([&] {
@@ -377,8 +227,10 @@ public:
         : m_model(model),
           m_snapshot(std::make_shared<Snapshot>(model)),
           m_cfg(cfg) {
-        if (currentPipeline() == Pipeline::NONE) {
-            none();
+        PassContext ctx(m_cfg);
+
+        if (currentPipeline() == Pipeline::NONE && ctx.avoids.empty()) {
+            none_fast();
             return;
         }
 
@@ -388,19 +240,15 @@ public:
         LOG_INFO("Online partitioning: building initial graph...");
         m_snapshot->buildGraph();
 
-        PassContext ctx;
-        ctx.min_graph_size = detail::getMinGraphSize(m_cfg);
-        ctx.keep_blocks = detail::getMinRepBlocks(m_cfg);
-        ctx.keep_block_size = detail::getMinRepBlockSize(m_cfg);
-        ctx.avoids = detail::getAvoids(m_cfg);
-        ctx.isolates = detail::getIsolates(m_cfg);
-        ctx.nofolds = detail::getNoFolds(m_cfg);
-
         m_snapshot->setCtx(ctx);
 
         switch (currentPipeline()) {
         case Pipeline::NONE:
-            break;  // unreachable
+            // Allow partitioning to merge everything into a single group
+            ctx.min_graph_size = 1;
+            m_snapshot->setCtx(ctx);
+            none();
+            break;
         case Pipeline::INIT:
             init();
             break;
@@ -416,18 +264,19 @@ public:
             // Only get isolates here.
             // NB: We ignore NO_FOLD everywhere except pipeline COMPUTE - this needs
             // to be aligned in the future
-            ctx.isolates = detail::getIsolates(detail::ISOL_PRESETS.at("COMPUTE"));
+            ctx.isolates = getComputeIsolates();
             m_snapshot->setCtx(ctx);
             reg();
             break;
         case Pipeline::COMPUTE:
+            // FIXME: It is probably the time to retire this pipeline
             warn_unused<::intel_npu::NPUW_ONLINE_ISOLATE>();
             warn_unused<::intel_npu::NPUW_ONLINE_NO_FOLD>();
 
             // Manually set predefined isolates and nofolds then do rep() pipeline
             // FIXME: initialize via a dedicated function instead of parsing
-            ctx.isolates = detail::getIsolates(detail::ISOL_PRESETS.at("COMPUTE"));
-            ctx.nofolds = detail::getNoFolds("compute");
+            ctx.isolates = getComputeIsolates();
+            ctx.nofolds = ov::npuw::online::util::getNoFolds("compute");
             m_snapshot->setCtx(ctx);
             rep();
             break;
@@ -437,18 +286,19 @@ public:
 
             // Manually set predefined isolates and nofolds then do rep() pipeline
             // FIXME: initialize via a dedicated function instead of parsing
-            ctx.isolates = detail::getIsolates(detail::ISOL_PRESETS.at("COMPUTE"));
+            ctx.isolates = getComputeIsolates();
             m_snapshot->setCtx(ctx);
             rep();
             break;
         }
 
-        LOG_DEBUG("Online partitioning: group sizes after compilation:");
+        LOG_VERB("Online partitioning: group sizes after compilation (in topological order):");
         auto graph = m_snapshot->getGraph();
         for (const auto& nh : graph->sorted()) {
             LOG_BLOCK();
             Group::GPtr group = graph->meta(nh).get<Group::GPtr>();
-            LOG_DEBUG("Group " << group->getId() << ", size " << group->size());
+            LOG_VERB("Group " << group->getId() << ", size " << group->size() << ", tag " << group->specialTags()
+                              << ", rep " << group->repeated());
         }
 
         LOG_INFO("Done");
@@ -460,6 +310,7 @@ public:
 
         ov::npuw::Ensemble ens;
         ens.gflops = 1.;  // FIXME: calculate proper flops
+        ens.irregular_io = !m_snapshot->isRegularIOCase();
 
         auto graph = m_snapshot->getGraph();
         // Iterate in topological order

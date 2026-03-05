@@ -1,11 +1,14 @@
 
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 
 #include "snippets/fake_quantize_decomposition_test.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/swish.hpp"
 
 using namespace ov::test::snippets;
 

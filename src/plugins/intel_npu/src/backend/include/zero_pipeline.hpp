@@ -1,13 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "intel_npu/common/igraph.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
-#include "zero_memory.hpp"
 #include "zero_profiling.hpp"
 #include "zero_tensor.hpp"
 
@@ -18,31 +16,44 @@ public:
     Pipeline(const Config& config,
              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
              const std::shared_ptr<IGraph>& graph,
-             zeroProfiling::ProfilingPool& profiling_pool,
-             zeroProfiling::ProfilingQuery& profiling_query,
-             const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
-             const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
-             const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors,
-             uint32_t group_ordinal);
+             const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
+             const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
+             size_t batch_size = 1);
+
+    Pipeline(const Config& config,
+             const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+             const std::shared_ptr<IGraph>& graph,
+             const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
+             const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
+             const char* logName,
+             size_t batch_size = 1);
 
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
     virtual ~Pipeline() = default;
 
-    void push();
-    void pull();
-    void reset() const;
+    virtual void push();
+    virtual void pull();
+    virtual void reset() const;
 
-    void updateCommandList(uint32_t arg_index, const void* arg_data, size_t byte_size);
-    void updateCommandListIndex(uint32_t arg_index, const void* arg_data, size_t command_list_index);
+    virtual void update_graph_arguments(uint32_t index,
+                                        const std::shared_ptr<ZeroTensor>& tensor,
+                                        [[maybe_unused]] std::shared_ptr<ov::ITensor> userTensor = nullptr);
+    virtual void update_graph_arguments(uint32_t index,
+                                        const std::shared_ptr<ZeroTensor>& tensor,
+                                        size_t batch_index,
+                                        [[maybe_unused]] std::shared_ptr<ov::ITensor> userTensor = nullptr);
 
-    void closeCommandList();
-    void closeCommandListIndex(size_t command_list_index);
+    virtual std::vector<ov::ProfilingInfo> get_profiling_info() const;
 
 protected:
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     std::shared_ptr<IGraph> _graph;
     const Config _config;
     const uint32_t _id;
+
+    std::unique_ptr<zeroProfiling::ProfilingQuery> _profiling_query;
+    std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
 
     /**
      * @brief Indicates how many command lists will be used inside the pipeline.
@@ -60,8 +71,11 @@ protected:
     std::shared_ptr<EventPool> _event_pool;
     std::vector<std::shared_ptr<Event>> _events;
     bool _sync_output_with_fences = true;
-    std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
+    uint32_t _extension_version;
     Logger _logger;
+
+private:
+    void enable_profiling();
 };
 
 }  // namespace intel_npu

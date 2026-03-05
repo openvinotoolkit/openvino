@@ -1,8 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+#include <string>
+
+#include "openvino/core/attribute_visitor.hpp"
 #include "snippets/op/memory_access.hpp"
 
 namespace ov::intel_cpu::tpp::modifier {

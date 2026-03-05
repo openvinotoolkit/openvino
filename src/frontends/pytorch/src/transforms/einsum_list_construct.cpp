@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "einsum_list_construct.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/einsum.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -22,12 +24,9 @@ using namespace ov::pass;
 using namespace ov::op;
 
 AtenEinsumListConstructReplacer::AtenEinsumListConstructReplacer() {
-    auto einsum_op = pattern::wrap_type<ov::op::util::FrameworkNode>();
+    auto einsum_op = pattern::wrap_type<ov::op::util::FrameworkNode>(fw_node_predicate({"aten::einsum"}));
     ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto einsum_op = cast_fw_node(m.get_match_root(), "aten::einsum");
-        if (!einsum_op) {
-            return false;
-        }
+        auto einsum_op = m.get_match_root();
         const auto& equation_input = einsum_op->input_value(0).get_node_shared_ptr();
         const auto& tensor_list = einsum_op->input_value(1).get_node_shared_ptr();
         std::string equation;
@@ -40,15 +39,10 @@ AtenEinsumListConstructReplacer::AtenEinsumListConstructReplacer() {
             add_exception_to_fw_node(einsum_op, "aten::einsum: equation should be string constant.");
             return false;
         }
-        // Check if ListConstruct is an input
-        if (auto list_construct_node = cast_fw_node(tensor_list, "prim::ListConstruct")) {
-            const auto& list_inputs = list_construct_node->input_values();
-            OutputVector node_vector;
-            // Iterate over values in ListConstruct
-            for (const auto& list_input : list_inputs) {
-                node_vector.push_back(list_input);
-            }
-
+        // Check if SequenceMark is an input
+        if (auto seq_mark = ov::as_type_ptr<SequenceMark>(tensor_list)) {
+            const auto& list_inputs = seq_mark->input_values();
+            OutputVector node_vector(list_inputs.begin(), list_inputs.end());
             auto einsum = std::make_shared<v7::Einsum>(node_vector, equation);
             copy_runtime_info_and_name(einsum_op, {einsum}, {equation_input, tensor_list});
             replace_node(einsum_op, einsum);

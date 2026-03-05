@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "conv_maxpool_activ.hpp"
+#include "openvino/op/max_pool.hpp"
 
 namespace ov {
 namespace test {
-std::string ConvPoolActivTest::getTestCaseName(testing::TestParamInfo<fusingSpecificParams> obj) {
+std::string ConvPoolActivTest::getTestCaseName(const testing::TestParamInfo<fusingSpecificParams>& obj) {
     fusingSpecificParams fusingParams = obj.param;
 
     std::ostringstream result;
@@ -67,7 +68,7 @@ void ConvPoolActivTest::SetUp() {
 #else
     selectedType = makeSelectedTypeStr(getPrimitiveType(), element::f32);
 #endif
-    function = makeNgraphFunction(element::f32, inputParams, pooling, "ConvPoolActiv");
+    function = create_ov_model(element::f32, inputParams, pooling, "ConvPoolActiv");
 }
 
 bool ConvPoolActivTest::primTypeCheck(std::string primType) const {

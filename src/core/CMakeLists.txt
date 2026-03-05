@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,6 +17,7 @@ file(GLOB_RECURSE DEV_HEADERS ${OV_CORE_DEV_API_PATH}/*.hpp)
 
 add_subdirectory(reference)
 add_subdirectory(shape_inference)
+add_subdirectory(xml_util)
 
 set(MIXED_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
@@ -64,14 +65,6 @@ ov_developer_package_export_targets(TARGET openvino::core::dev
 # Install interface libraries for case BUILD_SHARED_LIBS=OFF
 ov_install_static_lib(openvino_core_dev ${OV_CPACK_COMP_CORE})
 
-# Fix error LNK1248: image size (...) exceeds maximum allowable size (FFFFFFFF)
-# the symbolic debugging information will be stored in a separate .pdb file.
-if(WIN32)
-    string(REPLACE "/Z7" "/Zi" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
-    string(REPLACE "/Z7" "/Zi" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
-    string(REPLACE "/Z7" "/Zi" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-    string(REPLACE "/Z7" "/Zi" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
-endif()
 #
 # Create static or shared library depending on BUILD_SHARED_LIBS
 #
@@ -85,10 +78,6 @@ if(ENABLE_SYSTEM_PUGIXML)
 endif()
 
 target_compile_definitions(openvino_core_obj PRIVATE IMPLEMENT_OPENVINO_API XBYAK_NO_OP_NAMES XBYAK64)
-
-ov_build_target_faster(openvino_core_obj
-    UNITY
-    PCH PRIVATE "src/precomp.hpp")
 
 ov_add_version_defines(src/version.cpp openvino_core_obj)
 
@@ -133,9 +122,7 @@ endif()
 # some sources are located in openvino_core, while headers are in openvino_transformations
 file(GLOB_RECURSE smart_reshape_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/smart_reshape/*.cpp)
 file(GLOB_RECURSE rt_info_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/rt_info/*.cpp)
-set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precision.cpp"
-                            "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_fp32_to_fp16.cpp"
-                            "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/init_node_info.cpp"
+set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_fp32_to_fp16.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/serialize.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/preprocess_steps_impl.cpp"
@@ -147,9 +134,15 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
 target_include_directories(openvino_core_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
                                              PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-#-----------------------------------------------------------------------------------------------
+ov_build_target_faster(openvino_core_obj
+    UNITY
+    PCH_HEADER "src/precomp.hpp"
+    PCH_EXCLUDE
+        "src/op/util/attr_types.cpp"
+        "src/runtime/tensor.cpp")
+# -----------------------------------------------------------------------------------------------
 # Installation logic...
-#-----------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
         DESTINATION ${OV_CPACK_INCLUDEDIR}

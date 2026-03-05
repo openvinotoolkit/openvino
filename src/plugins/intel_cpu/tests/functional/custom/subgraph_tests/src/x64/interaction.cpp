@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,16 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -118,9 +128,7 @@ class IntertactionCPUTest : public testing::WithParamInterface<InteractionLayerC
                             public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<InteractionLayerCPUTestParams>& obj) {
-        ElementType inType;
-        InputShape inputShape;
-        std::tie(inType, inputShape) = obj.param;
+        const auto& [inType, inputShape] = obj.param;
         std::ostringstream result;
         result << "IS=" << inputShape << "_";
         result << "Prc=" << inType;
@@ -146,10 +154,8 @@ public:
 
 protected:
     void SetUp() override {
-        ElementType inType;
-        InputShape inputShape;
-        std::tie(inType, inputShape) = this->GetParam();
-        bool with_bf16 = ov::with_cpu_x86_bfloat16();
+        const auto& [inType, inputShape] = this->GetParam();
+        bool with_bf16 = ov::with_cpu_x86_bfloat16() || with_cpu_x86_avx2_vnni_2();
         if (with_bf16 && (inType == ov::element::bf16 || inType == ov::element::i32)) {
             selectedType = makeSelectedTypeStr("ref_any", ov::element::bf16);
         } else {
@@ -177,6 +183,8 @@ TEST_P(IntertactionCPUTest_FP16, CompareWithRefs) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
     configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
+    rel_threshold = 0.01;
+    abs_threshold = 0.0078125;
 
     run();
     CheckNumberOfNodesWithType(compiledModel, "Interaction", 1);

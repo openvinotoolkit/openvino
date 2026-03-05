@@ -1,110 +1,90 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mlas_transpose.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_shape.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "mlas.h"
-#include "nodes/common/cpu_memcpy.h"
-#include "openvino/core/parallel.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/transpose.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
 template <typename T>
-struct has_mlas_transpose : std::false_type {};
-
-template <>
-struct has_mlas_transpose<uint8_t> : std::true_type {};
-
-template <>
-struct has_mlas_transpose<uint16_t> : std::true_type {};
-
-template <>
-struct has_mlas_transpose<uint32_t> : std::true_type {};
+inline constexpr bool has_mlas_transpose = any_of_v<T, uint8_t, uint16_t, uint32_t>;
 
 template <typename T>
-typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisOutwards(
-    const T* input_data,
-    T* output_data,
-    int64_t num_loops,
-    int64_t num_writers,
-    int64_t writes_per_loop,
-    int64_t writes_per_writer_per_loop) {
-    const T* end;
+void SimpleTransposeSingleAxisOutwards(const T* input_data,
+                                       T* output_data,
+                                       int64_t num_loops,
+                                       int64_t num_writers,
+                                       int64_t writes_per_loop,
+                                       int64_t writes_per_writer_per_loop) {
     for (int64_t l = 0; l < num_loops; ++l) {
-        T* output_for_first_writer = output_data;
-        for (auto wwpl = 0; wwpl < writes_per_writer_per_loop; ++wwpl) {
-            T* output_for_current_writer = output_for_first_writer;
-            end = input_data + num_writers;
-            for (; input_data != end;) {
-                *output_for_current_writer = *input_data++;
-                // skip to output position for next writer
-                output_for_current_writer += writes_per_writer_per_loop;
+        if constexpr (has_mlas_transpose<T>) {
+            MlasTranspose(input_data,
+                          output_data,
+                          static_cast<size_t>(writes_per_writer_per_loop),
+                          static_cast<size_t>(num_writers));
+            input_data += writes_per_loop;
+        } else {
+            T* output_for_first_writer = output_data;
+            for (auto wwpl = 0; wwpl < writes_per_writer_per_loop; ++wwpl) {
+                T* output_for_current_writer = output_for_first_writer;
+                const T* end = input_data + num_writers;
+                for (; input_data != end;) {
+                    *output_for_current_writer = *input_data++;
+                    // skip to output position for next writer
+                    output_for_current_writer += writes_per_writer_per_loop;
+                }
+                ++output_for_first_writer;
             }
-            ++output_for_first_writer;
         }
         output_data += writes_per_loop;
     }
 }
 
 template <typename T>
-typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisOutwards(
-    const T* input_data,
-    T* output_data,
-    int64_t num_loops,
-    int64_t num_writers,
-    int64_t writes_per_loop,
-    int64_t writes_per_writer_per_loop) {
+void SimpleTransposeSingleAxisInwards(const T* input_data,
+                                      T* output_data,
+                                      int64_t num_loops,
+                                      int64_t num_readers,
+                                      int64_t reads_per_loop,
+                                      int64_t reads_per_reader_per_loop) {
     for (int64_t l = 0; l < num_loops; ++l) {
-        MlasTranspose(input_data,
-                      output_data,
-                      static_cast<size_t>(writes_per_writer_per_loop),
-                      static_cast<size_t>(num_writers));
-        input_data += writes_per_loop;
-        output_data += writes_per_loop;
-    }
-}
-
-template <typename T>
-typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisInwards(
-    const T* input_data,
-    T* output_data,
-    int64_t num_loops,
-    int64_t num_readers,
-    int64_t reads_per_loop,
-    int64_t reads_per_reader_per_loop) {
-    T* end;
-    for (int64_t l = 0; l < num_loops; ++l) {
-        const T* input_for_first_reader = input_data;
-        for (auto rrpl = 0; rrpl < reads_per_reader_per_loop; ++rrpl) {
-            const T* input_for_current_reader = input_for_first_reader;
-            end = output_data + num_readers;
-            for (; output_data != end;) {
-                *output_data++ = *input_for_current_reader;
-                // skip to input position for next reader
-                input_for_current_reader += reads_per_reader_per_loop;
+        if constexpr (has_mlas_transpose<T>) {
+            MlasTranspose(input_data,
+                          output_data,
+                          static_cast<size_t>(num_readers),
+                          static_cast<size_t>(reads_per_reader_per_loop));
+            output_data += reads_per_loop;
+        } else {
+            const T* input_for_first_reader = input_data;
+            for (auto rrpl = 0; rrpl < reads_per_reader_per_loop; ++rrpl) {
+                const T* input_for_current_reader = input_for_first_reader;
+                const T* end = output_data + num_readers;
+                for (; output_data != end;) {
+                    *output_data++ = *input_for_current_reader;
+                    // skip to input position for next reader
+                    input_for_current_reader += reads_per_reader_per_loop;
+                }
+                ++input_for_first_reader;
             }
-            ++input_for_first_reader;
         }
         input_data += reads_per_loop;
-    }
-}
-
-template <typename T>
-typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisInwards(
-    const T* input_data,
-    T* output_data,
-    int64_t num_loops,
-    int64_t num_readers,
-    int64_t reads_per_loop,
-    int64_t reads_per_reader_per_loop) {
-    for (int64_t l = 0; l < num_loops; ++l) {
-        MlasTranspose(input_data,
-                      output_data,
-                      static_cast<size_t>(num_readers),
-                      static_cast<size_t>(reads_per_reader_per_loop));
-        input_data += reads_per_loop;
-        output_data += reads_per_loop;
     }
 }
 
@@ -337,9 +317,9 @@ void MlasTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::
 }
 
 bool MlasTransposeExecutor::init(const TransposeParams& transposeParams,
-                                 const std::vector<MemoryDescPtr>& srcDescs,
-                                 const std::vector<MemoryDescPtr>& dstDescs,
-                                 const dnnl::primitive_attr& attr) {
+                                 [[maybe_unused]] const std::vector<MemoryDescPtr>& srcDescs,
+                                 [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs,
+                                 [[maybe_unused]] const dnnl::primitive_attr& attr) {
     if (!IsTransposeMovingSingleAxis(transposeParams.permuteParams.order, from, to)) {
         DEBUG_LOG("MLAS Transpose executor supports moving single axis only");
         return false;
@@ -347,14 +327,14 @@ bool MlasTransposeExecutor::init(const TransposeParams& transposeParams,
     return true;
 }
 
-bool MlasTransposeExecutorBuilder::isSupported(const TransposeParams& transposeParams,
+bool MlasTransposeExecutorBuilder::isSupported([[maybe_unused]] const TransposeParams& transposeParams,
                                                const std::vector<MemoryDescPtr>& srcDescs,
                                                const std::vector<MemoryDescPtr>& dstDescs) const {
     if (!srcDescs[0]->hasLayoutType(LayoutType::ncsp) || !dstDescs[0]->hasLayoutType(LayoutType::ncsp)) {
         DEBUG_LOG("MLAS Transpose executor supports NCHW layout only");
         return false;
     }
-    if (!one_of(srcDescs[0]->getPrecision().size(), 1u, 2u, 4u, 8u)) {
+    if (none_of(srcDescs[0]->getPrecision().size(), 1U, 2U, 4U, 8U)) {
         DEBUG_LOG("MLAS Transpose executor supports 1, 2, 4, 8 byte precision sizes");
         return false;
     }

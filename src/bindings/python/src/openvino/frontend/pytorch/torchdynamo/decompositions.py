@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
 # mypy: ignore-errors
 
 import torch
@@ -30,12 +29,24 @@ def convolution_backward(
 
     # Compute the gradient of the input tensor
     grad_input = torch.nn.functional.conv_transpose2d(
-        grad_output, weight, stride=stride, padding=padding, dilation=dilation, groups=groups, output_padding=output_padding
+        grad_output,
+        weight,
+        stride=stride,
+        padding=padding,
+        dilation=dilation,
+        groups=groups,
+        output_padding=output_padding,
     )
 
     # Compute the gradient of the weight tensor
     grad_weight = torch.nn.functional.conv_transpose2d(
-        inp, weight.transpose(0, 1), stride=stride, padding=padding, dilation=dilation, groups=groups, output_padding=output_padding
+        inp,
+        weight.transpose(0, 1),
+        stride=stride,
+        padding=padding,
+        dilation=dilation,
+        groups=groups,
+        output_padding=output_padding,
     )
 
     # Compute the gradient of the bias tensor
@@ -122,7 +133,7 @@ def get_inf_decomposition_list():
 
 
 def get_export_decomposition_list():
-    # List of decompositions from torch._decomp.core_aten_decompositions
+    # list of decompositions from torch._decomp.core_aten_decompositions
     # removed _backward ops and ops supported without decomposition
     decomp = [
         torch.ops.aten.addcdiv,
@@ -297,3 +308,23 @@ def get_export_decomposition_list():
     except ImportError:
         pass
     return decomp
+
+
+def ops_to_not_decompose():
+    # list of operations that shouldn't be decomposed
+    return [
+        torch.ops.aten.col2im.default,
+        torch.ops.aten.linear.default,
+        torch.ops.aten.rms_norm.default,
+        torch.ops.aten.upsample_nearest1d.default,
+        torch.ops.aten.upsample_nearest1d.vec,
+        torch.ops.aten.upsample_nearest2d.default,
+        torch.ops.aten.upsample_nearest2d.vec,
+        torch.ops.aten.upsample_nearest3d.default,
+        torch.ops.aten.upsample_nearest3d.vec,
+        torch.ops.aten.upsample_linear1d.vec,
+        torch.ops.aten.upsample_bilinear2d.vec,
+        torch.ops.aten.upsample_trilinear3d.vec,
+        torch.ops.aten.upsample_bicubic2d.vec,
+        torch.ops.aten.scaled_dot_product_attention.default,
+    ]

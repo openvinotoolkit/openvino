@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,12 +44,12 @@ KernelsPriority DeformableConvolutionKernel_bfyx_Ref::GetKernelsPriority(const P
 
 bool DeformableConvolutionKernel_bfyx_Ref::Validate(const Params& params) const {
     if (!ConvolutionKernelBase::Validate(params))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     const auto& conv_params = static_cast<const convolution_params&>(params);
 
     if (!conv_params.deformable_mode)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 using namespace cldnn;
 
 void prepare_primitive_fusing_through::run(program& p) {
-    GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions())
+    GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0)
         return;
 
     auto try_fuse_through = [&](program_node& node) -> std::vector<program_node*> {
@@ -48,8 +48,8 @@ void prepare_primitive_fusing_through::run(program& p) {
             if (node->is_type<reshape>() && node->get_dependencies().front().first->is_type<reduce>())
                 return false;
 
-            // Not to raise up target node through reshape where the size of dimension is changed (e.g. Unsqueeze)
-            if (node->is_type<reshape>() &&
+            // Not to raise up target node through reshape or reorder where the size of dimension is changed (e.g. Unsqueeze or Squeeze)
+            if ((node->is_type<reshape>() || node->is_type<reorder>()) &&
                 node->get_output_pshape().size() != node->get_input_pshape(0).size())
                 return false;
 
@@ -105,7 +105,8 @@ void prepare_primitive_fusing_through::run(program& p) {
             bool has_constant_input = false;
             for (size_t i = 0; i < node->get_dependencies().size(); i++) {
                 auto& dep = node->get_dependency(i);
-                if (dep.is_constant() && dep.get_output_layout().get_tensor() == cldnn::tensor(1)) {
+                auto dep_layout = dep.get_output_layout();
+                if (dep.is_constant() && dep_layout.is_static() && dep_layout.get_tensor() == cldnn::tensor(1)) {
                     second_input_idx = i ^ 1;
                     has_constant_input = true;
                     break;

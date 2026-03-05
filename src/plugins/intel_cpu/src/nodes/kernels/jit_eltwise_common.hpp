@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,12 @@
 
 #include <cassert>
 #include <cstddef>
+#include <set>
+#include <utility>
+#include <vector>
 
 #include "cpu_types.h"
-#include "nodes/executors/eltwise.hpp"
+#include "nodes/executors/eltwise_config.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
@@ -53,15 +56,12 @@ struct jit_eltwise_call_args_indexes {
 };
 
 struct jit_uni_eltwise_kernel {
-    void (*ker_)(const jit_eltwise_call_args_ptrs*, const jit_eltwise_call_args_indexes*);
+    void (*ker_)(const jit_eltwise_call_args_ptrs*, const jit_eltwise_call_args_indexes*) = nullptr;
 
-    void operator()(const jit_eltwise_call_args_ptrs* const_args, const jit_eltwise_call_args_indexes* indexes) {
-        assert(ker_);
-        ker_(const_args, indexes);
-    }
+    void operator()(const jit_eltwise_call_args_ptrs* const_args, const jit_eltwise_call_args_indexes* indexes) const;
 
-    explicit jit_uni_eltwise_kernel(jit_eltwise_params jep) : ker_(nullptr), jep_(std::move(jep)) {}
-    virtual ~jit_uni_eltwise_kernel() {}
+    explicit jit_uni_eltwise_kernel(jit_eltwise_params jep) : jep_(std::move(jep)) {}
+    virtual ~jit_uni_eltwise_kernel() = default;
 
     virtual void create_ker() = 0;
 
@@ -70,7 +70,7 @@ struct jit_uni_eltwise_kernel {
 
 class eltwise_precision_helper {
 public:
-    static ov::element::Type get_precision(const size_t inputs_number,
+    static ov::element::Type get_precision(size_t inputs_number,
                                            const ov::element::Type (&src_prc)[MAX_ELTWISE_INPUTS],
                                            const std::vector<EltwiseData>& eltwise_data,
                                            const std::vector<element::Type>& exec_precisions_priority);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node/include/infer_request.hpp"
@@ -41,7 +41,6 @@ void InferRequestWrap::set_infer_request(const ov::InferRequest& infer_request) 
 }
 
 Napi::Object InferRequestWrap::wrap(Napi::Env env, ov::InferRequest infer_request) {
-    Napi::HandleScope scope(env);
     const auto& prototype = env.GetInstanceData<AddonData>()->infer_request;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to InferRequest prototype.");

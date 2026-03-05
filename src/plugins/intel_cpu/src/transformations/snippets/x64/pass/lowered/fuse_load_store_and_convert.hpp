@@ -1,9 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "openvino/core/rtti.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 
 namespace ov::intel_cpu::pass {
@@ -25,10 +27,10 @@ public:
              snippets::lowered::LinearIR::constExprIt end) override;
 
 private:
-    bool fuse_load_convert(snippets::lowered::LinearIR& linear_ir,
-                           snippets::lowered::LinearIR::constExprIt& convert_it);
-    bool fuse_store_convert(snippets::lowered::LinearIR& linear_ir,
-                            snippets::lowered::LinearIR::constExprIt& convert_it);
+    static bool fuse_load_convert(snippets::lowered::LinearIR& linear_ir,
+                                  snippets::lowered::LinearIR::constExprIt& convert_it);
+    static bool fuse_store_convert(snippets::lowered::LinearIR& linear_ir,
+                                   snippets::lowered::LinearIR::constExprIt& convert_it);
 };
 
 }  // namespace ov::intel_cpu::pass

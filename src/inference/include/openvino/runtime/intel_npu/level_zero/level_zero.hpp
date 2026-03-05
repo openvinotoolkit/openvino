@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,11 +44,13 @@ public:
      * @param tensor a tensor to check
      */
     static void type_check(const Tensor& tensor) {
-        RemoteTensor::type_check(
-            tensor,
-            {{std::string(mem_handle.name()), {}},
-             {std::string(mem_type.name()),
-              {ov::Any(MemType::L0_INTERNAL_BUF).as<std::string>(), ov::Any(MemType::SHARED_BUF).as<std::string>()}}});
+        RemoteTensor::type_check(tensor,
+                                 {{std::string(ov::intel_npu::mem_handle.name()), {}},
+                                  {std::string(ov::intel_npu::mem_type.name()),
+                                   {ov::Any(ov::intel_npu::MemType::L0_INTERNAL_BUF).as<std::string>(),
+                                    ov::Any(ov::intel_npu::MemType::SHARED_BUF).as<std::string>(),
+                                    ov::Any(ov::intel_npu::MemType::MMAPED_FILE).as<std::string>(),
+                                    ov::Any(ov::intel_npu::MemType::CPU_VA).as<std::string>()}}});
     }
 
     /**
@@ -56,7 +58,7 @@ public:
      * @return underlying void* memory object handle
      */
     void* get() {
-        return get_params().at(mem_handle.name()).as<void*>();
+        return get_params().at(ov::intel_npu::mem_handle.name()).as<void*>();
     }
 };
 
@@ -100,14 +102,25 @@ public:
     }
 
     /**
-     * @brief This function is used to obtain remote tensor object from user-supplied NT handle object
+     * @brief This function is used to obtain remote tensor object from user-supplied NT handle object or raw pointer
      * @param type Tensor element type
      * @param shape Tensor shape
      * @param buffer A void* object that should be wrapped by a remote tensor
+     * @param memory_type Memory type to use (default: SHARED_BUF)
+     * @param tensor_type Type of the tensor to be shared, input, output or binded (default: BINDED)
      * @return A remote tensor instance
      */
-    ZeroBufferTensor create_tensor(const element::Type type, const Shape& shape, void* buffer) {
-        AnyMap params = {{mem_type.name(), MemType::SHARED_BUF}, {mem_handle.name(), buffer}};
+    ZeroBufferTensor create_tensor(const element::Type type,
+                                   const Shape& shape,
+                                   void* buffer,
+                                   const MemType memory_type = MemType::SHARED_BUF,
+                                   const TensorType tensor_type = TensorType::BINDED) {
+        OPENVINO_ASSERT(memory_type == MemType::SHARED_BUF || memory_type == MemType::CPU_VA,
+                        "Only SHARED_BUF and CPU_VA memory types are supported for raw buffer pointer or NT handle");
+
+        AnyMap params = {{mem_type.name(), memory_type},
+                         {mem_handle.name(), buffer},
+                         {ov::intel_npu::tensor_type.name(), tensor_type}};
         return create_tensor(type, shape, params).as<ZeroBufferTensor>();
     }
 
@@ -116,11 +129,40 @@ public:
      * @param type Tensor element type
      * @param shape Tensor shape
      * @param fd A int object that should be wrapped by a remote tensor
+     * @param memory_type Memory type to use (default: SHARED_BUF)
+     * @param tensor_type Type of the tensor to be shared, input, output or binded (default: BINDED)
      * @return A remote tensor instance
      */
-    ZeroBufferTensor create_tensor(const element::Type type, const Shape& shape, int fd) {
-        AnyMap params = {{mem_type.name(), MemType::SHARED_BUF},
-                         {mem_handle.name(), reinterpret_cast<void*>(static_cast<intptr_t>(fd))}};
+    ZeroBufferTensor create_tensor(const element::Type type,
+                                   const Shape& shape,
+                                   int fd,
+                                   const MemType memory_type = MemType::SHARED_BUF,
+                                   const TensorType tensor_type = TensorType::BINDED) {
+        OPENVINO_ASSERT(memory_type == MemType::SHARED_BUF,
+                        "Only SHARED_BUF memory type is supported for DMA-BUF file descriptor");
+
+        AnyMap params = {{mem_type.name(), memory_type},
+                         {mem_handle.name(), reinterpret_cast<void*>(static_cast<intptr_t>(fd))},
+                         {ov::intel_npu::tensor_type.name(), tensor_type}};
+        return create_tensor(type, shape, params).as<ZeroBufferTensor>();
+    }
+
+    /**
+     * @brief This function is used to obtain remote tensor object from a file
+     * @param type Tensor element type
+     * @param shape Tensor shape
+     * @param file_name A string object that should be wrapped by a remote tensor
+     * @param offset_in_bytes Offset in bytes from the beginning of the file
+     * @param tensor_type Type of the tensor to be shared, input, output or binded
+     * @return A remote tensor instance
+     */
+    ZeroBufferTensor create_tensor(const element::Type type,
+                                   const Shape& shape,
+                                   const FileDescriptor& file_descriptor,
+                                   const TensorType tensor_type = TensorType::INPUT) {
+        AnyMap params = {{ov::intel_npu::mem_type.name(), MemType::MMAPED_FILE},
+                         {ov::intel_npu::file_descriptor.name(), file_descriptor},
+                         {ov::intel_npu::tensor_type.name(), tensor_type}};
         return create_tensor(type, shape, params).as<ZeroBufferTensor>();
     }
 

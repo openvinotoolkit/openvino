@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -48,8 +48,6 @@ target_compile_options(${TARGET_NAME} PRIVATE
     >
   >)
 
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
-
 if(OV_COMPILER_IS_INTEL_LLVM)
     add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES ${SYCL_SOURCES})
     target_compile_definitions(${TARGET_NAME} PUBLIC OV_GPU_WITH_SYCL)
@@ -74,5 +72,7 @@ if(WIN32)
 elseif((NOT ANDROID) AND (UNIX))
   target_link_libraries(${TARGET_NAME} PRIVATE pthread)
 endif()
+
+ov_build_target_faster(${TARGET_NAME} PCH)
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

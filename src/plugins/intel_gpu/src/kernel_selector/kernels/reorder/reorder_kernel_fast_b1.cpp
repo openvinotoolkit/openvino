@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,16 +44,16 @@ ParamsKey ReorderKernelFastBatch1::GetSupportedKey() const {
 
 bool ReorderKernelFastBatch1::Validate(const Params& p) const {
     if (!ReorderKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const reorder_params& params = static_cast<const reorder_params&>(p);
 
     if (params.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

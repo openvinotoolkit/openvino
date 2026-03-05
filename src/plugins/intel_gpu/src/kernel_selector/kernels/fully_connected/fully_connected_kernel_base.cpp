@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -181,12 +181,12 @@ bool FullyConnectedKernelBase::Validate(const Params& p) const {
     const fully_connected_params& params = static_cast<const fully_connected_params&>(p);
 
     if (params.GetType() != KernelType::FULLY_CONNECTED) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

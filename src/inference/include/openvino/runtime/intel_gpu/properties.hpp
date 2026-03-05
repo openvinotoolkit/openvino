@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,12 @@ namespace intel_gpu {
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
 static constexpr Property<uint64_t, PropertyMutability::RO> device_total_mem_size{"GPU_DEVICE_TOTAL_MEM_SIZE"};
+
+/**
+ * @brief Read-only property which defines max size of memory object allocation in bytes
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<uint64_t, PropertyMutability::RO> device_max_alloc_mem_size{"GPU_DEVICE_MAX_ALLOC_MEM_SIZE"};
 
 /**
  * @brief Read-only property to get microarchitecture identifier in major.minor.revision format
@@ -125,6 +131,15 @@ static constexpr Property<int64_t> available_device_mem{"AVAILABLE_DEVICE_MEM_SI
 static constexpr Property<bool> enable_sdpa_optimization{"GPU_ENABLE_SDPA_OPTIMIZATION"};
 
 /**
+ * @brief Turning on this key enables LoRA operation,
+ * otherwise the graph will remain in its original form with the decomposed LoRA subgraph.
+ * Enabling LoRA operation may provide performance improvements, but has stricter restrictions:
+ * LoRA rank must be less than or equal to 256 and divisible by 16.
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<bool> enable_lora_operation{"GPU_ENABLE_LORA_OPERATION"};
+
+/**
  * @brief Turning on this property enables kernels reuse between implementations, resulting in a lower memory footprint.
  * However, as a drawback, OpenCL set_arguments() call will be made more often, resulting in higher host pressure
  * and slower execution in some host-bottleneck cases.
@@ -132,6 +147,26 @@ static constexpr Property<bool> enable_sdpa_optimization{"GPU_ENABLE_SDPA_OPTIMI
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
 static constexpr Property<bool> enable_kernels_reuse{"GPU_ENABLE_KERNELS_REUSE"};
+
+/**
+ * @brief This property defines maximum group size for dynamic quantization optimization
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * If dynamic_quantization_group_size is larger than this max value, dynamic quantization will be disabled.
+ * This property is intended to be set from model rt-info to limit dynamic quantization group size for certain models.
+ */
+static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size_max{
+    "GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX"};
+
+/**
+ * @brief Turning on this key switches addressing mode to allow allocations larger than 4GB
+ * as described here:
+ * https://github.com/intel/compute-runtime/blob/master/programmers-guide/ALLOCATIONS_GREATER_THAN_4GB.md#creating-allocations-greater-than-4GB
+ * Note: Performance may be lower with this option enabled.
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<bool> enable_large_allocations{"GPU_ENABLE_LARGE_ALLOCATIONS"};
+
 }  // namespace hint
 
 /**
@@ -163,6 +198,12 @@ namespace capability {
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
 constexpr static const auto HW_MATMUL = "GPU_HW_MATMUL";
+
+/**
+ * @brief Device supports unified shared memory
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+constexpr static const auto USM_MEMORY = "GPU_USM_MEMORY";
 
 }  // namespace capability
 }  // namespace intel_gpu

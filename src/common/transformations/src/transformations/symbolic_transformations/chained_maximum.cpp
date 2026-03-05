@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,13 +6,16 @@
 
 #include "itt.hpp"
 #include "openvino/core/dimension.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
 
 using namespace ov::symbol::util;
 
-ov::pass::ChainedMaximumOptimization::ChainedMaximumOptimization() {
+namespace ov::pass {
+
+ChainedMaximumOptimization::ChainedMaximumOptimization() {
     MATCHER_SCOPE(ChainedMaximumOptimization);
     auto A_input = pattern::any_input();
     auto B_input = pattern::any_input();
@@ -47,3 +50,5 @@ ov::pass::ChainedMaximumOptimization::ChainedMaximumOptimization() {
     auto m = std::make_shared<pattern::Matcher>(maximum, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
+
+}  // namespace ov::pass

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -155,19 +155,6 @@ static inline std::vector<std::string> GetOrder(size_t size) {
     return idx_order;
 }
 
-static inline std::vector<std::string> GetFinalIndexOrder(size_t size) {
-    std::vector<std::string> idx_order;
-
-    OPENVINO_ASSERT(size > 4, "[GPU] Only support 5 or 6 dimensions");
-
-    if (size == 5) {
-        idx_order = {"b", "f", "0", "z", "0"};
-    } else if (size == 6) {
-        idx_order = {"b", "f", "0", "w", "z", "0"};
-    }
-    return idx_order;
-}
-
 static std::string GetDictionaryIndexOrder(const gather_params& params, size_t axis) {
     auto idx_order = GetOrder(params.outputs[0].GetDims().size());
     auto input_axis_index_macro = "INPUT_AXIS_INDEX";
@@ -196,27 +183,39 @@ static std::string GetDictionaryIndexOrder(const gather_params& params, size_t a
 static std::string GetIndicesIdxOrder(const gather_params& params, size_t axis, int64_t batch_dim) {
     std::vector<std::string> idx_order;
 
-    if ((axis == (size_t)batch_dim) && (axis > 1) && (params.inputs[1].GetDims().size() > 4)) {
-        idx_order = GetFinalIndexOrder(params.outputs[0].GetDims().size());
-    } else {
-        idx_order = GetOrder(params.outputs[0].GetDims().size());
-        auto zero_val = "0";
+    const size_t output_rank = params.outputs[0].GetDims().size();
+    const size_t indices_rank = params.inputs[1].GetDims().size();
+    const size_t indices_dims_num = GetNonEmptyDimsNumber(params.inputs[1]);
 
-        size_t indices_dims_num = GetNonEmptyDimsNumber(params.inputs[1]);
+    idx_order = GetOrder(output_rank);
+    const auto zero_val = "0";
 
-        // Shift indices of Gather indices input related to output dims
-        for (size_t i = batch_dim; i < indices_dims_num; i++)
-            idx_order[i] = idx_order[axis + i - batch_dim];
-
-        for (size_t i = indices_dims_num; i < idx_order.size(); i++)
+     // Shift indices of Gather indices input related to output dims
+    for (size_t i = static_cast<size_t>(batch_dim); i < indices_dims_num; i++) {
+        size_t output_idx = axis + i - static_cast<size_t>(batch_dim);
+        if (output_idx < idx_order.size()) {
+            idx_order[i] = idx_order[output_idx];
+        } else {
             idx_order[i] = zero_val;
+        }
+    }
 
-        // Fix size to inputs[1] dims size
-        for (size_t i = 0; i < params.outputs[0].GetDims().size() - params.inputs[1].GetDims().size(); i++)
-            idx_order.pop_back();
+    for (size_t i = indices_dims_num; i < idx_order.size(); ++i) {
+        idx_order[i] = zero_val;
+    }
+
+    // Fix size to inputs[1] dims size
+    while (idx_order.size() > indices_rank) {
+        idx_order.pop_back();
     }
 
     return GetOrderString(idx_order);
+}
+
+static bool OutputBiasPositionCompatible(const gather_params& params) {
+    auto out = params.outputs[0];
+    auto bias = params.fused_ops[0].output_tensor;
+    return out.SameDims(bias);
 }
 
 CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params) const {
@@ -276,7 +275,16 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
         jit.AddConstant(MakeJitConstant("GATHER_AXIS_SHAPE_INFO_INDEX", GetGatherAxisIndexInShapeInfo(params)));
 
     if (!params.fused_ops.empty()) {
-        std::vector<std::string> idx_order = GetOrder(params.inputs[0].GetDims().size());
+        std::vector<std::string> idx_order;
+        if (params.inputs[0].GetDims().size() == 4 && GetGatherIndexDim(params).v == 0 && !params.inputs[1].is_dynamic() &&
+            params.inputs[1].LogicalSize() == 1) {
+            idx_order = {"(f)", "(y)", "(x)", "(1)"};
+        } else if (params.inputs[0].GetDims().size() == 4 && GetGatherChannelIndex(params) == 1 && !params.inputs[1].is_dynamic() &&
+                   params.inputs[1].LogicalSize() == 1 && !OutputBiasPositionCompatible(params)) {
+            idx_order = {"(b)", "(y)", "(x)", "(1)"};
+        } else {
+            idx_order = GetOrder(params.inputs[0].GetDims().size());
+        }
 
         FusedOpsConfiguration conf = { "", idx_order, "val", params.inputs[0].GetDType() };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
@@ -323,14 +331,14 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
 
 bool GatherKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::GATHER) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const gather_params& params = static_cast<const gather_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (params.outputs[0].is_dynamic()) {
@@ -346,11 +354,11 @@ bool GatherKernelRef::Validate(const Params& p) const {
 
         for (auto& in : params.inputs) {
             if (!supported_tensor_layout(in))
-                return false;
+                DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
         for (auto& out : params.outputs) {
             if (!supported_tensor_layout(out))
-                return false;
+                DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 

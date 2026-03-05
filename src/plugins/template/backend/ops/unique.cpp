@@ -1,10 +1,13 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/reference/unique.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/unique.hpp"
+#include "openvino/op/util/op_types.hpp"
 
 template <typename Data_t, typename Index_t, typename Count_t>
 void execute_unique(ov::TensorVector& outputs,

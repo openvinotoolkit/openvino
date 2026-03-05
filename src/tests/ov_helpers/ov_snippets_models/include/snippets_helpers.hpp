@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -78,6 +78,13 @@ protected:
     std::vector<size_t> custom_ops_num_inputs;
     void ResetCustomOpsInputs();
 };
+
+template <typename TestType>
+inline void execute_and_validate_function(TestType& test, const SnippetsFunctionBase& f) {
+    test.model = f.getOriginal();
+    test.model_ref = f.getReference();
+    test.run();
+}
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

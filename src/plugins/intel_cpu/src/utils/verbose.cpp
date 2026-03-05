@@ -1,6 +1,15 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <algorithm>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <utility>
+
+#include "dnnl_extension_utils.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "onednn/iml_type_mapper.h"
 #include "utils/general_utils.h"
 #ifdef CPU_DEBUG_CAPS
 
@@ -10,13 +19,13 @@
 #    include <iostream>
 #    include <sstream>
 #    include <string>
+#    include <vector>
 
-#    include "../src/common/c_types_map.hpp"
-#    include "../src/common/verbose.hpp"
+#    include "common/c_types_map.hpp"
+#    include "common/verbose.hpp"
 #    include "cpu_types.h"
-#    include "dnnl_debug.h"
-#    include "dnnl_types.h"
 #    include "memory_desc/cpu_memory_desc_utils.h"
+#    include "openvino/util/common_util.hpp"
 #    include "verbose.h"
 
 namespace ov::intel_cpu {
@@ -26,15 +35,14 @@ bool Verbose::shouldBePrinted() const {
         return false;
     }
 
-    if (lvl < 2 && one_of(node->getType(), Type::Input, Type::Output)) {
+    if (lvl < 2 && any_of(node->getType(), Type::Input, Type::Output)) {
         return false;
     }
 
-    if (lvl < 3 && node->isConstant()) {
-        return false;
-    }
-
-    return true;
+    const bool low_level = lvl < 3;
+    const bool is_constant = node->isConstant();
+    const bool skip_node = low_level && is_constant;
+    return !skip_node;
 }
 
 /**
@@ -116,10 +124,11 @@ void Verbose::printInfo() {
         }
         auto fmt_str = desc->getPrecision().to_string();
         if (const auto& dims = desc->getShape().getDims(); !dims.empty()) {
-            auto dim_str = dim2str(dims.front());
-            std::for_each(++(dims.begin()), dims.end(), [&dim_str](size_t dim) {
-                dim_str.append("x" + dim2str(dim));
+            std::vector<std::string> dimStrings(dims.size());
+            std::transform(dims.begin(), dims.end(), dimStrings.begin(), [](size_t dim) {
+                return dim2str(dim);
             });
+            auto dim_str = ov::util::join(dimStrings, "x");
             return {fmt_str, dim_str};
         }
         return {fmt_str, {}};
@@ -154,16 +163,14 @@ void Verbose::printInfo() {
 
     std::string post_ops;
     if (!node->getFusedWith().empty()) {
-        post_ops += "post_ops:'";
+        std::vector<std::string> fusedOps;
+        fusedOps.reserve(node->getFusedWith().size());
         for (const auto& fusedNode : node->getFusedWith()) {
-            post_ops.append(colorize(GREEN, fusedNode->getName()))
-                .append(":")
-                .append(colorize(CYAN, NameFromType(fusedNode->getType())))
-                .append(":")
-                .append(algToString(fusedNode->getAlgorithm()))
-                .append(";");
+            fusedOps.emplace_back(colorize(GREEN, fusedNode->getName()) + ":" +
+                                  colorize(CYAN, NameFromType(fusedNode->getType())) + ":" +
+                                  algToString(fusedNode->getAlgorithm()));
         }
-        post_ops += "'";
+        post_ops = "post_ops:'" + ov::util::join(fusedOps, ";") + ";'";
     }
 
     std::string nodeImplementer = "cpu";

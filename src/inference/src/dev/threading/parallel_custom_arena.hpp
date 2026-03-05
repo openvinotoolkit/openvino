@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,9 @@
 #pragma once
 
 #include "openvino/core/parallel.hpp"
+#include "openvino/runtime/common.hpp"
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if OV_THREAD_USE_TBB
 
 #    include <cstddef>
 #    include <memory>
@@ -27,11 +28,12 @@
 // On Ubuntu22.04, system tbb is 2021.5 oneTBB and tbbbind dynamic library doesn't exist.
 // In this case, tbbbind static library is needed.
 #    define USE_TBBBIND_2_5 TBBBIND_2_5_AVAILABLE
-#    if USE_TBBBIND_2_5
-#        pragma message("USE_TBBBIND_2_5 is enabled")
-#    else
-#        pragma message("USE_TBBBIND_2_5 is disabled")
-#    endif
+
+constexpr int MIN_CORE_TYPES_FOR_PTL = 3;
+constexpr int TBB_VERSION_MAJOR_CORE_TYPES_WINDOWS = 1202;
+constexpr int TBB_VERSION_PATCH_CORE_TYPES_WINDOWS = 6;
+constexpr int TBB_VERSION_MAJOR_CORE_TYPES_LINUX = 1213;
+constexpr int TBB_VERSION_PATCH_CORE_TYPES_LINUX = 1;
 
 namespace custom {
 
@@ -58,6 +60,23 @@ struct constraints {
         core_type = id;
         return *this;
     }
+    constraints& set_core_types(const std::vector<core_type_id>& ids) {
+        if (ids.empty()) {
+            core_type = -1;
+        } else if (ids.size() == 1) {
+            core_type = ids[0];
+        } else {
+            // Set a marker bit to indicate multiple core type format
+            core_type = (1 << core_type_id_bits);
+
+            for (core_type_id id : ids) {
+                OPENVINO_ASSERT((0 <= id) && (id < static_cast<core_type_id>(core_type_id_bits)), "Wrong core type id");
+                core_type |= (1 << id);
+            }
+        }
+
+        return *this;
+    }
     constraints& set_max_threads_per_core(int threads_number) {
         max_threads_per_core = threads_number;
         return *this;
@@ -66,6 +85,8 @@ struct constraints {
     numa_node_id numa_id = tbb::task_arena::automatic;
     int max_concurrency = tbb::task_arena::automatic;
     core_type_id core_type = tbb::task_arena::automatic;
+    // Upper 4 bits reserved for format marker (single vs multiple core types)
+    static constexpr size_t core_type_id_bits = sizeof(core_type_id) * CHAR_BIT - 4;
     int max_threads_per_core = tbb::task_arena::automatic;
 };
 
@@ -152,5 +173,4 @@ int default_concurrency(numa_node_id id = task_arena::automatic);
 int default_concurrency(task_arena::constraints c);
 }  // namespace info
 }  // namespace custom
-#endif /*(OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)*/
-
+#endif /*(OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)*/

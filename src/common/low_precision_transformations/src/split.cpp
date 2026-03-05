@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,8 @@
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/split.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/split.hpp"
 
 namespace ov {
 namespace pass {
@@ -96,8 +98,7 @@ bool SplitTransformation::transform(ov::pass::pattern::Matcher& m) {
             parent = subtract;
         }
 
-        const auto multiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(parent, splitedMul[i]);
-        NetworkHelper::setOutDataPrecisionForTypeRelaxed(multiply, dequantization.multiply->get_output_element_type(0));
+        const auto multiply = dequantization.multiply->clone_with_new_inputs({ parent, splitedMul[i] });
         copy_runtime_info({ newSplit, multiply }, multiply);
 
         lastNodes.push_back(multiply);

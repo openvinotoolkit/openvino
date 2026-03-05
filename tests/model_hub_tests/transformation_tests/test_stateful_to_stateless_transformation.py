@@ -1,13 +1,15 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import openvino as ov
+from huggingface_hub import snapshot_download
 from openvino._offline_transformations import stateful_to_stateless_transformation
 from optimum.intel import OVModelForCausalLM
 from models_hub_common.utils import retry
 import models_hub_common.utils as utils
 import pytest
 import os
+import platform
 import re
 
 def get_read_value_ops(model: ov.Model):
@@ -51,7 +53,8 @@ def check_result_desc_tensors(expected_tensors, tensors):
 
 @retry(3, exceptions=(OSError,), delay=1)
 def run_stateful_to_stateless_in_runtime(tmp_path, model_id, model_link):
-    model = OVModelForCausalLM.from_pretrained(model_id, export=True, stateful=True, compile=False)
+    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+    model = OVModelForCausalLM.from_pretrained(model_cached, export=True, stateful=True, compile=False)
     assert len(model.model.get_sinks()), f"Input model is not in the expected stateful form because it doesn't have any sinks."
     assert len(get_read_value_ops(model.model)), f"Input model is not in the expected stateful form because it doesn't have any ReadValue operations."
 
@@ -62,7 +65,7 @@ def run_stateful_to_stateless_in_runtime(tmp_path, model_id, model_link):
     assert len(sink_ops) == 0, f"Expected stateless model, but there are sinks found: {sink_ops}"
     assert len(read_value_ops) == 0, f"Expected stateless model, but there are ReadValue operations found: {read_value_ops}"
 
-    stateless_model = OVModelForCausalLM.from_pretrained(model_id, export=True, stateful=False, compile=False)
+    stateless_model = OVModelForCausalLM.from_pretrained(model_cached, export=True, stateful=False, compile=False)
 
     print(model.model)
     print(stateless_model.model)
@@ -78,6 +81,17 @@ def run_stateful_to_stateless_in_runtime(tmp_path, model_id, model_link):
 def test_stateful_to_stateless_precommit(tmp_path, model_name, model_link, mark, reason, ie_device):
     assert mark is None or mark == 'skip' or mark == 'xfail', \
         "Incorrect test case: {}, {}".format(model_name, model_link)
+    arm_machine_names = {'arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'}
+    arm_dtype_mismatch_models = {
+        "hf-internal-testing/tiny-random-LlamaForCausalLM",
+        "hf-internal-testing/tiny-random-StableLmForCausalLM",
+        "hf-internal-testing/tiny-random-PhiForCausalLM",
+        "hf-internal-testing/tiny-random-CodeGenForCausalLM",
+        "hf-internal-testing/tiny-random-Starcoder2ForCausalLM",
+        "hf-internal-testing/tiny-random-OPTForCausalLM",
+    }
+    if platform.machine() in arm_machine_names and model_name in arm_dtype_mismatch_models:
+        pytest.skip("stateful_to_stateless dtype mismatch on ARM")
     if mark == 'skip':
         pytest.skip(reason)
     elif mark == 'xfail':

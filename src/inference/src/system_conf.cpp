@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,8 @@
 #    include <sys/auxv.h>
 #    define ARM_COMPUTE_CPU_FEATURE_HWCAP_FPHP    (1 << 9)
 #    define ARM_COMPUTE_CPU_FEATURE_HWCAP_ASIMDHP (1 << 10)
-#    define ARM_COMPUTE_CPU_FEATURE_HWCAP_SVE     (1 << 24)
+#    define ARM_COMPUTE_CPU_FEATURE_HWCAP2_I8MM   (1 << 13)
+#    define ARM_COMPUTE_CPU_FEATURE_HWCAP_SVE     (1 << 22)
 #elif defined(__APPLE__) && defined(__aarch64__)
 #    include <sys/sysctl.h>
 #    include <sys/types.h>
@@ -119,6 +120,14 @@ bool with_cpu_sve() {
     return false;
 }
 
+bool with_cpu_arm_dotprod() {
+    return false;
+}
+
+bool with_cpu_arm_i8mm() {
+    return false;
+}
+
 #else  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 bool with_cpu_x86_sse42() {
@@ -192,6 +201,45 @@ bool with_cpu_sve() {
     return false;
 #    endif
 }
+
+bool with_cpu_arm_dotprod() {
+#    if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+        !defined(__arm__) && defined(__aarch64__)
+    const uint32_t hwcaps = getauxval(AT_HWCAP);
+    return hwcaps & HWCAP_ASIMDDP;
+#    elif !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+        !defined(__aarch64__) && defined(__arm__)
+    return false;
+#    elif defined(__aarch64__) && defined(__APPLE__)
+    int64_t result(0);
+    size_t size = sizeof(result);
+    const std::string& cap = "hw.optional.arm.FEAT_DotProd";
+    sysctlbyname(cap.c_str(), &result, &size, NULL, 0);
+    return result > 0;
+#    else
+    return false;
+#    endif
+}
+
+bool with_cpu_arm_i8mm() {
+#    if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+        !defined(__arm__) && defined(__aarch64__)
+    const uint32_t hwcaps2 = getauxval(AT_HWCAP2);
+    return hwcaps2 & ARM_COMPUTE_CPU_FEATURE_HWCAP2_I8MM;
+#    elif !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+        !defined(__aarch64__) && defined(__arm__)
+    return false;
+#    elif defined(__aarch64__) && defined(__APPLE__)
+    int64_t result(0);
+    size_t size = sizeof(result);
+    const std::string& cap = "hw.optional.arm.FEAT_I8MM";
+    sysctlbyname(cap.c_str(), &result, &size, NULL, 0);
+    return result > 0;
+#    else
+    return false;
+#    endif
+}
+
 #endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 bool check_open_mp_env_vars(bool include_omp_num_threads) {
@@ -244,7 +292,7 @@ CPU& cpu_info() {
 int get_number_of_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
-#    if !((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
+#    if !((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO) || (OV_THREAD == OV_THREAD_TBB_ADAPTIVE))
 std::vector<int> get_available_numa_nodes() {
     return {-1};
 }
@@ -271,13 +319,13 @@ std::vector<std::vector<int>> get_proc_type_table() {
 std::vector<std::vector<int>> get_org_proc_type_table() {
     return {{-1}};
 }
-bool is_cpu_map_available() {
-    return false;
-}
 int get_num_numa_nodes() {
     return -1;
 }
 int get_num_sockets() {
+    return -1;
+}
+int get_numa_node_id(int cpu_id) {
     return -1;
 }
 void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
@@ -299,7 +347,7 @@ int get_org_numa_id(int numa_node_id) {
 int get_number_of_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
-#    if !((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
+#    if !((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO) || (OV_THREAD == OV_THREAD_TBB_ADAPTIVE))
 std::vector<int> get_available_numa_nodes() {
     return {-1};
 }
@@ -311,11 +359,6 @@ int get_number_of_logical_cpu_cores(bool) {
 int get_number_of_blocked_cores() {
     CPU& cpu = cpu_info();
     return cpu._blocked_cores;
-}
-
-bool is_cpu_map_available() {
-    CPU& cpu = cpu_info();
-    return cpu._proc_type_table.size() > 0;
 }
 
 int get_current_socket_id() {
@@ -342,6 +385,9 @@ int get_num_numa_nodes() {
 }
 int get_num_sockets() {
     return cpu_info()._sockets;
+}
+int get_numa_node_id(int cpu_id) {
+    return -1;
 }
 void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
                             std::vector<std::vector<int>>& stream_processors,
@@ -375,7 +421,7 @@ int get_number_of_cpu_cores(bool bigCoresOnly) {
     OPENVINO_ASSERT(totalNumberOfCpuCores != 0, "Total number of cpu cores can not be 0.");
 
     int phys_cores = totalNumberOfCpuCores;
-#        if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#        if OV_THREAD_USE_TBB
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         phys_cores = custom::info::default_concurrency(
@@ -385,7 +431,7 @@ int get_number_of_cpu_cores(bool bigCoresOnly) {
     return phys_cores;
 }
 
-#        if !((OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO))
+#        if !((OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO) || (OV_THREAD == OV_THREAD_TBB_ADAPTIVE))
 std::vector<int> get_available_numa_nodes() {
     CPU& cpu = cpu_info();
     std::vector<int> nodes((0 == cpu._numa_nodes) ? 1 : cpu._numa_nodes);
@@ -393,6 +439,7 @@ std::vector<int> get_available_numa_nodes() {
     return nodes;
 }
 #        endif
+
 int get_current_socket_id() {
     CPU& cpu = cpu_info();
     int cur_processor_id = sched_getcpu();
@@ -419,6 +466,7 @@ int get_current_numa_node_id() {
     return 0;
 }
 #    else
+
 int get_current_socket_id() {
     CPU& cpu = cpu_info();
     int cur_processor_id = GetCurrentProcessorNumber();
@@ -457,17 +505,17 @@ std::vector<std::vector<int>> get_org_proc_type_table() {
     return cpu._org_proc_type_table;
 }
 
-bool is_cpu_map_available() {
-    CPU& cpu = cpu_info();
-    return cpu._cpu_mapping_table.size() > 0;
-}
-
 int get_num_numa_nodes() {
     return cpu_info()._numa_nodes;
 }
 
 int get_num_sockets() {
     return cpu_info()._sockets;
+}
+
+int get_numa_node_id(int cpu_id) {
+    CPU& cpu = cpu_info();
+    return cpu._cpu_mapping_table[cpu_id][CPU_MAP_NUMA_NODE_ID];
 }
 
 void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
@@ -499,9 +547,10 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
     std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     const auto cpu_size = static_cast<int>(cpu_ids.size());
     if (cpu_size > 0) {
-        for (int i = 0; i < cpu_size; i++) {
-            if (cpu_ids[i] < cpu._processors) {
-                cpu._cpu_mapping_table[cpu_ids[i]][CPU_MAP_USED_FLAG] = used;
+        for (auto& row : cpu._cpu_mapping_table) {
+            auto it = std::find(cpu_ids.begin(), cpu_ids.end(), row[CPU_MAP_PROCESSOR_ID]);
+            if (it != cpu_ids.end()) {
+                row[CPU_MAP_USED_FLAG] = used;
             }
         }
         ov::threading::update_proc_type_table(cpu._cpu_mapping_table, cpu._numa_nodes, cpu._proc_type_table);
@@ -510,7 +559,7 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
 
 int get_number_of_logical_cpu_cores(bool bigCoresOnly) {
     int logical_cores = parallel_get_max_threads();
-#    if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#    if OV_THREAD_USE_TBB
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         logical_cores = custom::info::default_concurrency(
@@ -540,11 +589,11 @@ int get_org_numa_id(int numa_node_id) {
     if (iter != cpu._numaid_mapping_table.end()) {
         return iter->second;
     }
-    return -1;
+    return numa_node_id;
 }
 #endif
 
-#if ((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
+#if ((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO) || (OV_THREAD == OV_THREAD_TBB_ADAPTIVE))
 std::vector<int> get_available_numa_nodes() {
     return custom::info::numa_nodes();
 }

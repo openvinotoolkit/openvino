@@ -1,10 +1,14 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mvn.hpp"
 
 #include <utility>
+
+#include "cpu_types.h"
+#include "nodes/executors/executor.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu {
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,6 @@
 
 #include "transformations/utils/utils.hpp"
 #include "transformations/init_node_info.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "low_precision/network_helper.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -232,6 +231,48 @@ const std::vector<NormalizeDequantizationTestValues> testValues = {
                 Subtract({7.f}, ov::element::f32, { 1, 3, 16, 16 }).setConstantPrecision(ov::element::f16).setAddConvert(true),
                 Multiply({10.f}, ov::element::f32, { 1, 3, 16, 16 })
             },
+        },
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 1, 3, 16, 16 },
+        true,
+        {
+            ov::element::f32,
+            {
+                {ov::element::f16},
+                {},
+                { {10.f}, ov::element::f16, { 1, 3, 1, 1 }, false, 0 }
+            },
+        },
+        {
+            ov::element::f32,
+            {
+                {ov::element::f16},
+                {},
+                { {10.f}, ov::element::f16, { 1, 3, 1, 1 }, false, 1 }
+            }
+        },
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 1, 3, 16, 16 },
+        true,
+        {
+            ov::element::f32,
+            {
+                {ov::element::f16},
+                { {128.f}, ov::element::f16, { 1, 3, 1, 1 }, false, 0 },
+                {}
+            },
+        },
+        {
+            ov::element::f32,
+            {
+                {ov::element::f16},
+                { {128.f}, ov::element::f16, { 1, 3, 1, 1 }, false, 1 },
+                {}
+            }
         },
     },
 };

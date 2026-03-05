@@ -1,10 +1,21 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <node.h>
+
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -13,18 +24,18 @@ public:
     Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override {
+    [[nodiscard]] bool created() const override {
         return getType() == Type::Unique;
     }
 
 protected:
     void executeDynamicImpl(const dnnl::stream& strm) override;
     void prepareParams() override;
-    bool needShapeInfer() const override {
+    [[nodiscard]] bool needShapeInfer() const override {
         return false;
     }
 
@@ -48,8 +59,8 @@ private:
     int axis = 0;
     bool definedOutputs[4] = {false, false, false, false};
     ov::element::Type dataPrecision;
-    int64_t dataTypeSize = 1l;
-    size_t uniqueLen = 1lu;
+    int64_t dataTypeSize = 1L;
+    size_t uniqueLen = 1LU;
 
     static constexpr size_t IN_DATA = 0;
     static constexpr size_t AXIS = 1;

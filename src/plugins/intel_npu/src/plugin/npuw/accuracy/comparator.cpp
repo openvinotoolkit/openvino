@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ bool ov::npuw::metrics::NRMSE::operator()(const ov::SoPtr<ov::ITensor>& actual,
     } else {
         ov::Tensor dst(ov::element::Type_t::f32, reference->get_shape());
         ov::npuw::util::to_f32(ov::make_tensor(reference), dst);
-        reference_f32 = dst;
+        reference_f32 = std::move(dst);
     }
 
     float* actual_data = actual_f32.data<float>();

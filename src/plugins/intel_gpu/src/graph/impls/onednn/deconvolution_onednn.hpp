@@ -1,11 +1,11 @@
-// Copyright (C) 2022-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "deconvolution_inst.h"
 #include "impls/onednn/utils.hpp"
 #include "intel_gpu/runtime/utils.hpp"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 
 #include <memory>
 
@@ -30,6 +30,7 @@ struct DeconvolutionImplementationManager : public ImplementationManager {
             format::bfyx,
             format::bfzyx,
             format::byxf,
+            format::bzyxf,
             format::b_fs_yx_fsv8,
             format::b_fs_zyx_fsv8,
             format::b_fs_yx_fsv16,

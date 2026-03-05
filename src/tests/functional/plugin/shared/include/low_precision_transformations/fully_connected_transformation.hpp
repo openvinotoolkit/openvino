@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,6 @@ typedef std::tuple<
     ov::element::Type,
     FullyConnectedShapes,
     std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
     ov::element::Type,
     FullyConnectedParams,
     std::string> FullyConnectedTransformationParams;

@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "remove_packing_ops.hpp"
 
 #include "helper_ops/packed_sequence.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/lstm_sequence.hpp"

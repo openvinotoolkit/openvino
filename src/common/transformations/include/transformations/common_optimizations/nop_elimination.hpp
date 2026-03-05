@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,9 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API EliminateConcat;
+class TRANSFORMATIONS_API EliminateConcatStridedSlice;
 class TRANSFORMATIONS_API EliminateConvert;
+class TRANSFORMATIONS_API EliminateIdentityConvert;
 class TRANSFORMATIONS_API EliminateConvertNonZero;
 class TRANSFORMATIONS_API EliminateEltwise;
 class TRANSFORMATIONS_API EliminateScatterUpdate;
@@ -27,6 +29,7 @@ class TRANSFORMATIONS_API EliminateSliceBeforeGatherElements;
 class TRANSFORMATIONS_API EliminateStridedSlice;
 class TRANSFORMATIONS_API EliminateSlice;
 class TRANSFORMATIONS_API EliminateStridedSliceByShape;
+class TRANSFORMATIONS_API EliminateIdentity;
 class TRANSFORMATIONS_API NopElimination;
 class TRANSFORMATIONS_API PrepareShapeOpsForEliminationAroundBE;
 
@@ -65,6 +68,17 @@ public:
 
 /**
  * @ingroup ov_transformation_common_api
+ * @brief EliminateIdentityConvert eliminates convert that before and after Identity
+ * have the same input and output types
+ */
+class ov::pass::EliminateIdentityConvert : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("EliminateIdentityConvert");
+    EliminateIdentityConvert();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
  * @brief EliminateConvertNonZero eliminates convert before NonZero
  */
 class ov::pass::EliminateConvertNonZero : public ov::pass::MatcherPass {
@@ -81,6 +95,46 @@ class ov::pass::EliminateConcat : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("EliminateConcat");
     EliminateConcat();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief EliminateConcatStridedSlice eliminates StrideSlice & Concat,
+ * if the StridedSlices split the tensor into the parts and these parts be equal to the original parts before Concat.
+// Before:
+          ┌─────────┐             ┌─────────┐             ┌─────────┐
+          │ Input A │             │ Input B │             │ Input C │
+          └────┬────┘             └────┬────┘             └────┬────┘
+               │                       │                       │
+               │                  ┌────▼──────┐                │
+               └──────────────────►  Concat   ◄────────────────┘
+                                  └─────┬─────┘
+                                        │
+                            ┌────────────────────────────┐
+                            |                            |
+                            ▼                            ▼
+                       ┌────────────┐             ┌────────────┐
+                       │StridedSlice│             │StridedSlice│
+                       └─────┬──────┘             └──────┬─────┘
+                             |   (A)                     | (B + C)
+                             ▼                           ▼
+                      ┌─────────────┐                ┌─────────┐
+                      │Any OtherNode│                │  Concat │◄────── ...
+                      └─────────────┘                └─────────┘
+// After:
+          ┌─────────┐             ┌─────────┐             ┌─────────┐
+          │ Input A │             │ Input B │             │ Input C │
+          └────┬────┘             └────┬────┘             └────┬────┘
+               │                       │            ┌──────────│
+               ▼                       |            |
+         ┌─────────────┐               |      ┌─────▼───┐
+         │Any OtherNode│               └────► │  Concat │◄────── ...
+         └─────────────┘                      └─────────┘
+ */
+class ov::pass::EliminateConcatStridedSlice : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("EliminateConcatStridedSlice");
+    EliminateConcatStridedSlice();
 };
 
 /**
@@ -224,4 +278,14 @@ class ov::pass::PrepareShapeOpsForEliminationAroundBE : public ov::pass::Matcher
 public:
     OPENVINO_MATCHER_PASS_RTTI("PrepareShapeOpsForEliminationAroundBE");
     PrepareShapeOpsForEliminationAroundBE();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief EliminateIdentity eliminates identity that does nothing
+ */
+class ov::pass::EliminateIdentity : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("EliminateIdentity");
+    EliminateIdentity();
 };

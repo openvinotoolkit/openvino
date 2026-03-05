@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,15 @@ struct MemBandwidthPressure {
     float ratio_mem_limited_convs = 0;
     float ratio_mem_limited_deconvs = 0;
     float ratio_mem_limited_gemms = 0;
+    float ratio_mem_limited_adds = 0;
     float ratio_compute_deconvs = 0;
+    int total_gemms = 0;
+    int total_convs = 0;
+    int total_adds = 0;
+    int total_light_gemms = 0;
+    int total_light_convs = 0;
+    int total_heavy_convs = 0;
+    int total_nodes = 0;
 
     static constexpr float UNKNOWN = FLT_MAX;
     static constexpr float ALL = 1.0f;
@@ -31,9 +39,10 @@ struct MemBandwidthPressure {
     static constexpr float LIMITED = 0.5f;  // conservatively assume 1/2 utilization of the cache
 };
 
-OPENVINO_RUNTIME_API MemBandwidthPressure mem_bandwidth_pressure_tolerance(
-    const std::shared_ptr<ov::Model> model,
-    const float cache_size,
-    const float memThresholdAssumeLimited = MemBandwidthPressure::LIMITED);
+OPENVINO_RUNTIME_API MemBandwidthPressure
+mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::Model> model,
+                                 const float cache_size,
+                                 const float mem_threshold_assume_limited = MemBandwidthPressure::LIMITED,
+                                 const ov::element::Type& target_type = ov::element::f32);
 
 }  // namespace ov

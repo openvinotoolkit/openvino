@@ -25,9 +25,16 @@ RUN apt-get update && \
         # parallel gzip
         pigz \
         # Pythons
-        python3.9-dev \
-        python3.9-venv \
-        python3.9-distutils \
+        python3.10-dev \
+        python3.10-venv \
+        python3.10-distutils \
+        python3.11-dev \
+        python3.11-venv \
+        python3.11-distutils \
+        python3.12-dev \
+        python3.12-venv \
+        python3.13-dev \
+        python3.13-venv \
         # For Java API
         default-jdk \
         && \
@@ -36,7 +43,7 @@ RUN apt-get update && \
 # Install build dependencies
 ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && \
-    /install_build_dependencies.sh && \
+    bash -e /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Install sscache
@@ -54,13 +61,17 @@ ENV PATH="$SCCACHE_HOME:$PATH"
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
-    python3.9 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    curl https://bootstrap.pypa.io/pip/3.8/get-pip.py -o get-pip-3.8.py && \
+    python3 get-pip-3.8.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.10 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.12 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
-# Use Python 3.9 as default instead of Python 3.8
+# Use Python 3.10 as default instead of Python 3.8
 # Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
-RUN python3.9 -m venv venv
+RUN python3.10 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}

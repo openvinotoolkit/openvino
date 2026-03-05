@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,17 +8,18 @@
 
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "utils.hpp"
 
 using namespace ov::frontend;
 
 std::string FrontEndFuzzyOpTest::getTestCaseName(const testing::TestParamInfo<FuzzyOpTestParam>& obj) {
-    std::string fe, path, fileName;
-    std::tie(fe, path, fileName) = obj.param;
+    const auto& [fe, path, fileName] = obj.param;
     return fe + "_" + FrontEndTestUtils::fileToTestName(fileName);
 }
 
 void FrontEndFuzzyOpTest::SetUp() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     m_fem = FrontEndManager();  // re-initialize after setting up environment
     initParamTest();
 }
@@ -42,7 +43,7 @@ inline void addInputOutput(const cnpy::NpyArray& npy_array, ov::test::TestCase& 
         test_case.add_expected_output(npy_array.shape, data);
 }
 
-static bool ends_with(std::string const& value, std::string const& ending) {
+static bool ends_with(const std::string& value, const std::string& ending) {
     if (ending.size() > value.size())
         return false;
     return std::equal(ending.rbegin(), ending.rend(), value.rbegin());

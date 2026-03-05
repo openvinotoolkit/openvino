@@ -1,18 +1,18 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <base/ov_behavior_test_utils.hpp>
 #include <string>
 #include <vector>
 
-#include "common/functions.h"
+#include "common/functions.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using CompileWithDummy_NPU3720 = ov::test::behavior::OVInferRequestTests;
 

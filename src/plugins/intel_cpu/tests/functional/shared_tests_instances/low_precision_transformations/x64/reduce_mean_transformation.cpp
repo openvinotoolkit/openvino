@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,10 +14,6 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f32
-};
-
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
 const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params = {
@@ -150,7 +146,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReduceMeanTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::PartialShape({ 1, 3, 10, 10 })),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ReduceMeanTransformation::getTestCaseName);
 }  // namespace

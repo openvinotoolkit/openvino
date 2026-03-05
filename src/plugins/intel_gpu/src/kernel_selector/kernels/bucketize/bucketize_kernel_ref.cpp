@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -84,12 +84,12 @@ ParamsKey BucketizeKernelRef::GetSupportedKey() const {
 
 bool BucketizeKernelRef::Validate(const Params& params) const {
     if (params.GetType() != KernelType::BUCKETIZE) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     const auto& kernel_params = dynamic_cast<const bucketize_params&>(params);
     if (kernel_params.inputs.size() != 2) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

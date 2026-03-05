@@ -1,31 +1,44 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "blocked_desc_creator.h"
 
+#include <algorithm>
+#include <cstddef>
 #include <numeric>
+#include <utility>
+#include <vector>
+
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 namespace {
 
-constexpr size_t channelsPos = 1lu;
+constexpr size_t channelsPos = 1LU;
 
 class PlainFormatCreator : public BlockedDescCreator {
 public:
-    CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision, const Shape& srcShape) const override {
+    [[nodiscard]] CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision,
+                                                  const Shape& srcShape) const override {
         VectorDims order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
-        return CpuBlockedMemoryDesc(precision, srcShape, srcShape.getDims(), order);
+        return {precision, srcShape, srcShape.getDims(), order};
     }
-    size_t getMinimalRank() const override {
-        return 0lu;
+    [[nodiscard]] size_t getMinimalRank() const override {
+        return 0LU;
     }
 };
 
 class PerChannelCreator : public BlockedDescCreator {
 public:
-    CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision, const Shape& srcShape) const override {
+    [[nodiscard]] CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision,
+                                                  const Shape& srcShape) const override {
         VectorDims order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
         VectorDims blkDims = srcShape.getDims();
@@ -39,20 +52,19 @@ public:
             moveElementBack(blkDims, channelsPos);
         }
 
-        return CpuBlockedMemoryDesc(precision, srcShape, blkDims, order);
+        return {precision, srcShape, blkDims, order};
     }
-    size_t getMinimalRank() const override {
-        return 3lu;
+    [[nodiscard]] size_t getMinimalRank() const override {
+        return 3LU;
     }
 };
 
 class ChannelBlockedCreator : public BlockedDescCreator {
 public:
-    ChannelBlockedCreator(size_t blockSize) : _blockSize(blockSize) {}
-    CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision, const Shape& srcShape) const override {
-        if (srcShape.getRank() < 2) {
-            OPENVINO_THROW("Can't create blocked tensor descriptor!");
-        }
+    explicit ChannelBlockedCreator(size_t blockSize) : _blockSize(blockSize) {}
+    [[nodiscard]] CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision,
+                                                  const Shape& srcShape) const override {
+        OPENVINO_ASSERT(srcShape.getRank() >= 2, "Can't create blocked tensor descriptor!");
 
         VectorDims order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
@@ -64,10 +76,10 @@ public:
         }
         blkDims.push_back(_blockSize);
 
-        return CpuBlockedMemoryDesc(precision, srcShape, blkDims, order);
+        return {precision, srcShape, blkDims, order};
     }
-    size_t getMinimalRank() const override {
-        return 3lu;
+    [[nodiscard]] size_t getMinimalRank() const override {
+        return 3LU;
     }
 
 private:
@@ -88,10 +100,7 @@ std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> Blocke
     const CreatorsMap& map,
     unsigned int rank) {
     auto rankFilter = [rank](const CreatorsMap::value_type& item) {
-        if (item.second->getMinimalRank() > rank) {
-            return false;
-        }
-        return true;
+        return item.second->getMinimalRank() <= rank;
     };
 
     auto first = CreatorsMapFilterConstIterator(std::move(rankFilter), map.begin(), map.end());
@@ -103,8 +112,8 @@ std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> Blocke
     const CreatorsMap& map,
     unsigned rank,
     const std::vector<LayoutType>& supportedTypes) {
-    unsigned bitMask = 0ul;
-    for (auto& item : supportedTypes) {
+    unsigned bitMask = 0UL;
+    for (const auto& item : supportedTypes) {
         bitMask |= 1 << static_cast<unsigned>(item);
     }
 
@@ -112,10 +121,7 @@ std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> Blocke
         if (!(bitMask & (1 << static_cast<unsigned>(item.first)))) {
             return false;
         }
-        if (item.second->getMinimalRank() > rank) {
-            return false;
-        }
-        return true;
+        return item.second->getMinimalRank() <= rank;
     };
 
     auto first = CreatorsMapFilterConstIterator(std::move(rankTypesFilter), map.begin(), map.end());

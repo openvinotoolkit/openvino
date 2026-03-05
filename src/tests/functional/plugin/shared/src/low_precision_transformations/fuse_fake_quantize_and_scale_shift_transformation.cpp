@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,24 +14,15 @@
 namespace LayerTestsDefinitions {
 
 std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(const testing::TestParamInfo<FuseFakeQuantizeAndScaleShiftTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = obj.param;
-
+    auto [netPrecision, inputShape, device, fakeQuantizeOnData] = obj.param;
     std::ostringstream result;
-    result << netPrecision << "_" << targetDevice << "_" << fakeQuantizeOnData;
+    result << netPrecision << "_" << device << "_" << fakeQuantizeOnData;
     return result.str();
 }
 
 void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = this->GetParam();
+    auto [netPrecision, inputShape, device, fakeQuantizeOnData] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 

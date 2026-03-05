@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
 import tensorflow as tf
@@ -7,7 +7,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestApproximateEqual(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(43)
         assert 'tensor1:0' in inputs_info
         assert 'tensor2:0' in inputs_info
         tensor1_shape = inputs_info['tensor1:0']
@@ -38,10 +38,8 @@ class TestApproximateEqual(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_approximate_equal_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                     use_legacy_frontend):
+    def test_approximate_equal_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU' and precision == 'FP16':
             pytest.skip("Accuracy mismatch on GPU")
         self._test(*self.create_approximate_equal_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

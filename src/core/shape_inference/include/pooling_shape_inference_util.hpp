@@ -1,10 +1,14 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "dimension_util.hpp"
+#include "openvino/op/adaptive_avg_pool.hpp"
+#include "openvino/op/adaptive_max_pool.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/max_pool.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -28,7 +32,7 @@ void padding(const TOp* op, const TContainer& pads_begin, const TContainer& pads
 
 template <class TOp>
 constexpr bool has_torch_ceil_mode() {
-    return std::is_same<TOp, v14::AvgPool>::value || std::is_same<TOp, v14::MaxPool>::value;
+    return std::is_same_v<TOp, v14::AvgPool> || std::is_same_v<TOp, v16::AvgPool> || std::is_same_v<TOp, v14::MaxPool>;
 }
 
 template <class TOp, class TShape>

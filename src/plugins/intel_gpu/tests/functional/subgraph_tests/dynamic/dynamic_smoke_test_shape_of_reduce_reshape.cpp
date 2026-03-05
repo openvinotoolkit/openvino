@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -11,6 +11,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/concat.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -34,11 +35,8 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<shapeOfReshapeReduceDynamicGPUTestParamsSet>& obj) {
         shapeOfReshapeReduceDynamicGPUTestParamsSet basicParamsSet = obj.param;
         std::ostringstream result;
-        std::vector<InputShape> inputShapes;
-        ov::element::Type model_type;
-        std::string targetDevice;
 
-        std::tie(inputShapes, model_type, targetDevice) = basicParamsSet;
+        const auto& [inputShapes, model_type, targetDevice] = basicParamsSet;
         result << "IS=";
         for (const auto& shape : inputShapes) {
             result << ov::test::utils::partialShape2str({shape.first}) << "_";
@@ -69,9 +67,9 @@ protected:
 
     void SetUp() override {
         shapeOfReshapeReduceDynamicGPUTestParamsSet basicParamsSet = this->GetParam();
-        std::vector<InputShape> inputShapes;
-        ov::element::Type model_type;
-        std::tie(inputShapes, model_type, targetDevice) = basicParamsSet;
+
+        const auto& [inputShapes, model_type, _targetDevice] = basicParamsSet;
+        targetDevice = _targetDevice;
 
         init_input_shapes(inputShapes);
         const auto inShapeShapeOf = inputDynamicShapes[0];

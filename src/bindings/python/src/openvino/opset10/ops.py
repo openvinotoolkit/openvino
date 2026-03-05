@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
 from functools import partial
-from typing import List, Optional
+from typing import Optional
 
 from openvino import Node
 from openvino.utils.node_factory import _get_node_factory
@@ -13,7 +13,6 @@ from openvino.utils.types import (
     NodeInput,
     as_nodes,
     as_node,
-    make_constant_node,
 )
 
 _get_node_factory_opset4 = partial(_get_node_factory, "opset4")
@@ -29,8 +28,8 @@ def interpolate(
     scales: NodeInput,
     mode: str,
     shape_calculation_mode: str,
-    pads_begin: Optional[List[int]] = None,
-    pads_end: Optional[List[int]] = None,
+    pads_begin: Optional[list[int]] = None,
+    pads_end: Optional[list[int]] = None,
     coordinate_transformation_mode: str = "half_pixel",
     nearest_mode: str = "round_prefer_floor",
     antialias: bool = False,
@@ -76,7 +75,11 @@ def interpolate(
     attrs["pads_begin"] = [] if pads_begin is None else pads_begin
     attrs["pads_end"] = [] if pads_end is None else pads_end
 
-    inputs = as_nodes(image, output_shape, scales, name=name) if axes is None else as_nodes(image, output_shape, scales, axes, name=name)
+    inputs = (
+        as_nodes(image, output_shape, scales, name=name)
+        if axes is None
+        else as_nodes(image, output_shape, scales, axes, name=name)
+    )
 
     # This is an update of the operator version, so even though this is opset 10,
     # the operator is taken from opset 4.

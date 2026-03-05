@@ -1,19 +1,41 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_kernel_emitter.hpp"
 
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+
+#include <algorithm>
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <memory>
+#include <set>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/utils.hpp"
 #include "jit_snippets_emitters.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/kernel.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/op/reg_spill.hpp"
 #include "snippets/utils/reg_utils.hpp"
-#include "snippets/utils/utils.hpp"
 
 using namespace Xbyak_aarch64;
 
 namespace ov::intel_cpu::aarch64 {
 
-using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
+using jit_generator = dnnl::impl::cpu::aarch64::jit_generator_t;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
@@ -101,6 +123,24 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h,
     data_ptr_regs_idx = snippets::utils::transform_snippets_regs_to_idxs(data_ptr_regs, snippets::RegType::gpr);
 }
 
+void jit_kernel_emitter::load_data_pointers(const Xbyak_aarch64::XReg& reg_runtime_params,
+                                            const std::vector<Xbyak_aarch64::XReg>& data_ptr_regs,
+                                            size_t start_idx,
+                                            size_t end_idx,
+                                            int32_t base_offset) const {
+    size_t i = start_idx;
+    // Load pairs of pointers using ldp when possible
+    for (; i + 1 < end_idx; i += 2) {
+        const auto ptr_offset = static_cast<int32_t>(base_offset + (i - start_idx) * sizeof(void*));
+        h->ldp(data_ptr_regs[i], data_ptr_regs[i + 1], ptr(reg_runtime_params, ptr_offset));
+    }
+    // Load single remaining pointer using ldr if needed
+    if (i < end_idx) {
+        const auto ptr_offset = static_cast<int32_t>(base_offset + (i - start_idx) * sizeof(void*));
+        h->ldr(data_ptr_regs[i], ptr(reg_runtime_params, ptr_offset));
+    }
+}
+
 void jit_kernel_emitter::emit_code_impl(const std::vector<size_t>& in,
                                         const std::vector<size_t>& out,
                                         const std::vector<size_t>& pool_vec_idxs,
@@ -123,7 +163,8 @@ void jit_kernel_emitter::validate_arguments(const std::vector<size_t>& in, const
                               data_ptr_regs_idx.size());
 }
 
-void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in,
+                                   [[maybe_unused]] const std::vector<size_t>& out) const {
     h->preamble();
 
     std::set<snippets::Reg> available_gpr;
@@ -203,7 +244,7 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     h->postamble();
 }
 
-jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                                      dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                                                      const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_kernel_emitter(h, isa, expr) {
@@ -222,8 +263,8 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<XReg>& arg_
     XReg reg_runtime_params = arg_regs[0];
     XReg reg_indexes = arg_regs[1];
 
-    XReg reg_tmp = XReg(h->X_TMP_0);
-    XReg reg_aux = XReg(h->X_TMP_1);
+    auto reg_tmp = XReg(h->X_TMP_0);
+    auto reg_aux = XReg(h->X_TMP_1);
 
     const auto num_params = num_inputs + num_outputs;
     // Note that we don't need offset for the last dim, since it's handled directly by Tile emitter
@@ -235,8 +276,7 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<XReg>& arg_
             if (master_shape[j] != 1 && offsets[j] != 0) {
                 h->mov(reg_tmp, offsets[j]);
                 h->ldr(reg_aux, ptr(reg_indexes, static_cast<int32_t>(j * sizeof(size_t))));
-                h->mul(reg_tmp, reg_tmp, reg_aux);
-                h->add(pointer, pointer, reg_tmp);
+                h->madd(pointer, reg_aux, reg_tmp, pointer);
             }
         }
     };
@@ -249,19 +289,19 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<XReg>& arg_
         h->ldr(data_ptr_regs[num_params + i],
                ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(buffer_scratchpad_ptr))));
     }
-    for (size_t i = 0; i < num_params; i++) {
-        if (i < num_inputs) {
-            h->ldr(data_ptr_regs[i],
-                   ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(src_ptrs) + i * sizeof(void*))));
-        } else {
-            h->ldr(data_ptr_regs[i],
-                   ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*))));
-        }
+
+    load_data_pointers(reg_runtime_params, data_ptr_regs, 0, num_inputs, GET_OFF(src_ptrs));
+    for (size_t i = 0; i < num_inputs; i++) {
+        init_ptr_with_offset(data_ptr_regs[i], data_offsets[i]);
+    }
+
+    load_data_pointers(reg_runtime_params, data_ptr_regs, num_inputs, num_params, GET_OFF(dst_ptrs));
+    for (size_t i = num_inputs; i < num_params; i++) {
         init_ptr_with_offset(data_ptr_regs[i], data_offsets[i]);
     }
 }
 
-jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                                        dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                                                        const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_kernel_emitter(h, isa, expr) {
@@ -279,15 +319,9 @@ void jit_kernel_dynamic_emitter::init_data_pointers(const std::vector<XReg>& arg
         h->ldr(data_ptr_regs[num_params + i],
                ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(buffer_scratchpad_ptr))));
     }
-    for (size_t i = 0; i < num_params; i++) {
-        if (i < num_inputs) {
-            h->ldr(data_ptr_regs[i],
-                   ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(src_ptrs) + i * sizeof(void*))));
-        } else {
-            h->ldr(data_ptr_regs[i],
-                   ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*))));
-        }
-    }
+
+    load_data_pointers(reg_runtime_params, data_ptr_regs, 0, num_inputs, GET_OFF(src_ptrs));
+    load_data_pointers(reg_runtime_params, data_ptr_regs, num_inputs, num_params, GET_OFF(dst_ptrs));
 }
 
 }  // namespace ov::intel_cpu::aarch64

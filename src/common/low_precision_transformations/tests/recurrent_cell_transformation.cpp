@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,6 @@
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/recurrent_cell.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "openvino/opsets/opset5.hpp"
 
 using namespace testing;
 using namespace ov;

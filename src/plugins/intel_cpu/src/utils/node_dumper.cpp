@@ -1,9 +1,15 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#ifdef CPU_DEBUG_CAPS
+#include <algorithm>
+#include <cstddef>
+#include <filesystem>
+#include <iostream>
 
-#    include "node_dumper.h"
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#ifdef CPU_DEBUG_CAPS
 
 #    include <regex>
 #    include <sstream>
@@ -11,6 +17,7 @@
 
 #    include "memory_desc/cpu_memory_desc_utils.h"
 #    include "node.h"
+#    include "node_dumper.h"
 #    include "utils/blob_dump.h"
 #    include "utils/debug_caps_config.h"
 
@@ -30,16 +37,17 @@ static bool shouldBeDumped(const NodePtr& node, const DebugCapsConfig& config, c
         return false;
     }
 
-    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_PORTS)) {  // filter by ports configured
-        if (dumpFilters.at(DebugCapsConfig::FILTER::BY_PORTS) != "ALL" &&
-            portsKind != dumpFilters.at(DebugCapsConfig::FILTER::BY_PORTS)) {
+    if (auto it = dumpFilters.find(DebugCapsConfig::FILTER::BY_PORTS);
+        it != dumpFilters.end()) {  // filter by ports configured
+        if (it->second != "ALL" && portsKind != it->second) {
             return false;
         }
     }
 
-    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_EXEC_ID)) {  // filter by exec id configured
-        std::stringstream ss(dumpFilters.at(DebugCapsConfig::FILTER::BY_EXEC_ID));
-        int id;
+    if (auto it = dumpFilters.find(DebugCapsConfig::FILTER::BY_EXEC_ID);
+        it != dumpFilters.end()) {  // filter by exec id configured
+        std::stringstream ss(it->second);
+        int id = 0;
         bool matched = false;
 
         while (ss >> id) {
@@ -54,13 +62,14 @@ static bool shouldBeDumped(const NodePtr& node, const DebugCapsConfig& config, c
         }
     }
 
-    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_TYPE)) {  // filter by type configured
-        std::stringstream ss(dumpFilters.at(DebugCapsConfig::FILTER::BY_TYPE));
+    if (auto it = dumpFilters.find(DebugCapsConfig::FILTER::BY_TYPE);
+        it != dumpFilters.end()) {  // filter by type configured
+        std::stringstream ss(it->second);
         std::string type;
         bool matched = false;
 
         while (ss >> type) {
-            if (NameFromType(node->getType()) == type) {  // type does not match
+            if (NameFromType(node->getType()) == type) {  // type matches
                 matched = true;
                 break;
             }
@@ -71,11 +80,10 @@ static bool shouldBeDumped(const NodePtr& node, const DebugCapsConfig& config, c
         }
     }
 
-    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_NAME)) {  // filter by name configured
-        if (dumpFilters.at(DebugCapsConfig::FILTER::BY_NAME) !=
-                "*" &&  // to have 'single char' option for matching all the names
-            !std::regex_match(node->getName(),
-                              std::regex(dumpFilters.at(DebugCapsConfig::FILTER::BY_NAME)))) {  // name does not match
+    if (auto it = dumpFilters.find(DebugCapsConfig::FILTER::BY_NAME);
+        it != dumpFilters.end()) {  // filter by name configured
+        if (it->second != "*" &&    // to have 'single char' option for matching all the names
+            !std::regex_match(node->getName(), std::regex(it->second))) {  // name does not match
             return false;
         }
     }
@@ -83,7 +91,7 @@ static bool shouldBeDumped(const NodePtr& node, const DebugCapsConfig& config, c
     return true;
 }
 
-static void dump(const BlobDumper& bd, const std::string& file, const DebugCapsConfig& config) {
+static void dump(const BlobDumper& bd, const std::filesystem::path& file, const DebugCapsConfig& config) {
     switch (config.blobDumpFormat) {
     case DebugCapsConfig::FORMAT::BIN: {
         bd.dump(file);
@@ -99,6 +107,7 @@ static void dump(const BlobDumper& bd, const std::string& file, const DebugCapsC
 }
 
 static void dumpInternalBlobs(const NodePtr& node, const DebugCapsConfig& config) {
+    const std::filesystem::path blobDumpDir{config.blobDumpDir};
     std::string nodeName = node->getName();
     formatNodeName(nodeName);
 
@@ -107,7 +116,7 @@ static void dumpInternalBlobs(const NodePtr& node, const DebugCapsConfig& config
     for (size_t i = 0; i < internalBlobs.size(); i++) {
         const auto& blb = internalBlobs[i];
         std::string file_name = NameFromType(node->getType()) + "_" + nodeName + "_blb" + std::to_string(i) + ".ieb";
-        auto dump_file = config.blobDumpDir + "/#" + std::to_string(node->getExecIndex()) + "_" + file_name;
+        auto dump_file = blobDumpDir / ("#" + std::to_string(node->getExecIndex()) + "_" + file_name);
 
         if (blb->getDesc().getPrecision() == ov::element::u1) {
             continue;
@@ -118,14 +127,10 @@ static void dumpInternalBlobs(const NodePtr& node, const DebugCapsConfig& config
     }
 }
 
-static std::string createDumpFilePath(const std::string& blobDumpDir, const std::string& fileName, int execIndex) {
-    auto execIndexStr = std::to_string(execIndex);
-    std::string dump_file;
-    dump_file.reserve(blobDumpDir.size() + execIndexStr.size() + fileName.size() + 4);
-
-    dump_file.append(blobDumpDir).append("/#").append(execIndexStr).append("_").append(fileName);
-
-    return dump_file;
+static std::filesystem::path createDumpFilePath(const std::filesystem::path& blobDumpDir,
+                                                const std::string& fileName,
+                                                int execIndex) {
+    return blobDumpDir / ("#" + std::to_string(execIndex) + "_" + fileName);
 }
 
 void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int count) {
@@ -133,6 +138,7 @@ void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int coun
         return;
     }
 
+    const std::filesystem::path blobDumpDir{config.blobDumpDir};
     std::string nodeName = node->getName();
     formatNodeName(nodeName);
 
@@ -150,11 +156,11 @@ void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int coun
             file_name = file_name.substr(file_name.size() - 240);
         }
 
-        std::string dump_file = createDumpFilePath(config.blobDumpDir, file_name, node->getExecIndex());
+        auto dump_file = createDumpFilePath(blobDumpDir, file_name, node->getExecIndex());
 
         std::cout << "Dump inputs: " << dump_file << '\n';
 
-        auto& desc = prEdge->getMemory().getDesc();
+        const auto& desc = prEdge->getMemory().getDesc();
         if (desc.getPrecision() == ov::element::u1) {
             continue;
         }
@@ -171,6 +177,7 @@ void dumpOutputBlobs(const NodePtr& node, const DebugCapsConfig& config, int cou
         return;
     }
 
+    const std::filesystem::path blobDumpDir{config.blobDumpDir};
     std::string nodeName = node->getName();
     formatNodeName(nodeName);
 
@@ -187,11 +194,11 @@ void dumpOutputBlobs(const NodePtr& node, const DebugCapsConfig& config, int cou
             file_name = file_name.substr(file_name.size() - 240);
         }
 
-        std::string dump_file = createDumpFilePath(config.blobDumpDir, file_name, node->getExecIndex());
+        auto dump_file = createDumpFilePath(blobDumpDir, file_name, node->getExecIndex());
 
         std::cout << "Dump outputs:  " << dump_file << '\n';
 
-        auto& desc = childEdge->getMemory().getDesc();
+        const auto& desc = childEdge->getMemory().getDesc();
         if (desc.getPrecision() == ov::element::u1) {
             continue;
         }

@@ -1,17 +1,31 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "causal_mask_preprocess.h"
 
-#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
-#include "common/bfloat16.hpp"
-#include "common/cpu_memcpy.h"
-#include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_parallel.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "transformations/cpu_opset/common/op/causal_mask_preprocess.hpp"
+#include "utils/debug_capabilities.h"
 #include "utils/plain_tensor.hpp"
 
 namespace ov::intel_cpu::node {
@@ -45,9 +59,10 @@ The functionality is equivalent to following python code:
 */
 template <typename T>
 struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPreprocess::Executor {
-    void execute(const dnnl::stream& strm,
+    void execute([[maybe_unused]] const dnnl::stream& strm,
                  intel_cpu::Node* pnode,
-                 const intel_cpu::CausalMaskPreprocessNode::Config& config) override {
+                 const CpuParallelPtr& cpu_parallel,
+                 [[maybe_unused]] const intel_cpu::CausalMaskPreprocessNode::Config& config) override {
         ov::intel_cpu::PlainTensor t_attention_mask(pnode->getSrcMemoryAtPort(0));
         ov::intel_cpu::PlainTensor t_batch_size(pnode->getSrcMemoryAtPort(1));
         ov::intel_cpu::PlainTensor t_cache_positions(pnode->getSrcMemoryAtPort(2));
@@ -77,7 +92,7 @@ struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPre
         auto* prow = t_cache_positions.ptr<int32_t>(0);
         T min_dtype = std::numeric_limits<T>::lowest();
 
-        parallel_for2d(batch_size, qLen, [&](size_t n, size_t i) {
+        cpu_parallel->parallel_for2d(batch_size, qLen, [&](size_t n, size_t i) {
             auto* pamask = t_attention_mask.ptr<int32_t>(n, 0);
             auto* pdst = t_dst.ptr<T>(n, 0, i);
             auto row = static_cast<size_t>(prow[i]);
@@ -86,7 +101,8 @@ struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPre
                 bool cmask_eq0 = (j <= row);
                 bool amask_eq0 = (pamask[j] == 0);
                 bool padding_mask = (cmask_eq0 && amask_eq0);
-                pdst[j] = (padding_mask | (!cmask_eq0)) ? min_dtype : static_cast<T>(0);
+                pdst[j] =
+                    (static_cast<int>(padding_mask) | static_cast<int>(!cmask_eq0)) ? min_dtype : static_cast<T>(0);
             }
             for (; j < kvLen; j++) {
                 bool cmask_eq0 = (j <= row);
@@ -144,7 +160,7 @@ void CausalMaskPreprocess::initSupportedPrimitiveDescriptors() {
             prec = ov::element::i32;
         }
     } else {
-        THROW_CPU_NODE_ERR("type not supported : " + m_config.type);
+        CPU_NODE_THROW("type not supported : " + m_config.type);
     }
 
     std::vector<PortConfigurator> inPortConfigs;
@@ -161,7 +177,7 @@ void CausalMaskPreprocess::initSupportedPrimitiveDescriptors() {
 }
 
 void CausalMaskPreprocess::execute(const dnnl::stream& strm) {
-    m_executor->execute(strm, this, m_config);
+    m_executor->execute(strm, this, context->getCpuParallel(), m_config);
 }
 
 }  // namespace ov::intel_cpu::node

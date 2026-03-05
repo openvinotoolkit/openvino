@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,14 @@
 #include <array>
 
 #include "dimension_util.hpp"
+#include "openvino/op/prior_box.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
 #include "utils.hpp"
 
 namespace ov {
 namespace op {
 namespace prior_box {
-constexpr std::array<char const*, 2> input_names{"output size", "image"};
+constexpr std::array<const char*, 2> input_names{"output size", "image"};
 
 namespace validate {
 inline std::vector<PartialShape> inputs_et(const Node* const op) {

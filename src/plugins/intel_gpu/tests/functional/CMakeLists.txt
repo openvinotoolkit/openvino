@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -34,7 +34,6 @@ ov_add_test_target(
             funcSharedTests
             OpenCL::NewHeaders # should come before OpenCL::OpenCL
             OpenCL::OpenCL
-        ADD_CPPLINT
         LABELS
             OV GPU
 )
@@ -58,3 +57,5 @@ if(WIN32)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DX11)
     target_link_libraries(${TARGET_NAME} PRIVATE d3d11 dxgi)
 endif()
+
+ov_build_target_faster(${TARGET_NAME} PCH)

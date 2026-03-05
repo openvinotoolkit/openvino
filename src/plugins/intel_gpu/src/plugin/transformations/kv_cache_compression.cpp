@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,7 @@
 #include "transformations/utils/utils.hpp"
 
 #include <memory>
+#include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_gpu {
 
@@ -77,10 +78,10 @@ std::shared_ptr<ov::intel_gpu::op::ReadValues>
     if (past_rv_node->get_input_size() == 0) {
         new_past_rv_node = std::make_shared<ov::intel_gpu::op::ReadValues>(past_rv_node->get_variable(), variable_infos);
     } else {
-        auto initializer_dq = std::make_shared<ov::op::internal::DynamicQuantize>(past_rv_node->get_input_node_shared_ptr(0),
+        auto initializer_dq = std::make_shared<ov::op::internal::DynamicQuantize>(past_rv_node->input_value(0),
                                                                                   quantization_attrs);
-        initializer_dq->set_friendly_name(past_rv_node->get_input_node_shared_ptr(0)->get_friendly_name() + "_dyn_quan");
-        ov::copy_runtime_info(past_rv_node->get_input_node_shared_ptr(0), initializer_dq);
+        initializer_dq->set_friendly_name(past_rv_node->input_value(0).get_node_shared_ptr()->get_friendly_name() + "_dyn_quan");
+        ov::copy_runtime_info(past_rv_node->input_value(0).get_node_shared_ptr(), initializer_dq);
 
         OutputVector initializer_outputs = { initializer_dq->output(0), initializer_dq->output(1) };
 
@@ -102,9 +103,12 @@ std::shared_ptr<ov::intel_gpu::op::KVCacheCompressed>
                     std::shared_ptr<ov::intel_gpu::op::KVCache> kv_cache_node,
                     const ov::op::internal::DynamicQuantize::Attributes& quantization_attrs) {
     OutputVector kv_cache_inputs = { past_rv_node->output(0),
-                                     kv_cache_node->get_input_node_shared_ptr(1),
-                                     kv_cache_node->get_input_node_shared_ptr(2),
-                                     past_rv_node->output(1) };
+                                     kv_cache_node->input_value(1),
+                                     kv_cache_node->input_value(2) };
+    if (kv_cache_node->get_trim()) {
+        kv_cache_inputs.push_back(kv_cache_node->input_value(3));
+    }
+    kv_cache_inputs.push_back(past_rv_node->output(1));
 
     if (quantization_attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
         quantization_attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar)
@@ -112,6 +116,7 @@ std::shared_ptr<ov::intel_gpu::op::KVCacheCompressed>
 
     auto new_kv_cache = std::make_shared<op::KVCacheCompressed>(kv_cache_inputs,
                                                                 kv_cache_node->get_variable(),
+                                                                kv_cache_node->get_trim(),
                                                                 kv_cache_node->get_concat_axis(),
                                                                 kv_cache_node->get_gather_axis(),
                                                                 quantization_attrs);
@@ -146,16 +151,21 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
                   << "single_buffer_for_scales_and_zp=" << combine_scales_and_zp << "\n";
 
     auto query = any_input();
+    auto past_seq_len = any_input();
 
     auto key_past = wrap_type<ov::intel_gpu::op::ReadValue>();
     auto key_new_token = any_input();
     auto key_beam_idx = any_input();
-    auto key_cache = wrap_type<ov::intel_gpu::op::KVCache>({key_past, key_new_token, key_beam_idx});
+    auto key_cache_notrim = wrap_type<ov::intel_gpu::op::KVCache>({key_past, key_new_token, key_beam_idx});
+    auto key_cache_trim = wrap_type<ov::intel_gpu::op::KVCache>({key_past, key_new_token, key_beam_idx, past_seq_len});
+    auto key_cache = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{key_cache_notrim, key_cache_trim});
 
     auto value_past = wrap_type<ov::intel_gpu::op::ReadValue>();
     auto value_new_token = any_input();
     auto value_beam_idx = any_input();
-    auto value_cache = wrap_type<ov::intel_gpu::op::KVCache>({value_past, value_new_token, value_beam_idx});
+    auto value_cache_notrim = wrap_type<ov::intel_gpu::op::KVCache>({value_past, value_new_token, value_beam_idx});
+    auto value_cache_trim = wrap_type<ov::intel_gpu::op::KVCache>({value_past, value_new_token, value_beam_idx, past_seq_len});
+    auto value_cache = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{value_cache_notrim, value_cache_trim});
 
     auto input_attn_mask = any_input();
     auto input_scale = any_input();
@@ -180,6 +190,9 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
         auto key_new_token_node = pattern_map.at(key_new_token).get_node_shared_ptr();
         auto key_cache_node = ov::as_type_ptr<ov::intel_gpu::op::KVCache>(pattern_map.at(key_cache).get_node_shared_ptr());
         auto value_cache_node = ov::as_type_ptr<ov::intel_gpu::op::KVCache>(pattern_map.at(value_cache).get_node_shared_ptr());
+        if (!key_cache_node->get_indirect() || !value_cache_node->get_indirect()) {
+            return false;
+        }
         auto sdpa_node = ov::as_type_ptr<ov::intel_gpu::op::IndirectSDPA>(m.get_match_root());
 
         auto key_past_rv_node = ov::as_type_ptr<ov::intel_gpu::op::ReadValue>(pattern_map.at(key_past).get_node_shared_ptr());
@@ -230,7 +243,7 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
         OutputVector sdpa_inputs;
         // Add Query, Key, Value, attention_mask, scale inputs
         for (size_t i = 0; i < sdpa_node->get_input_size() - 1; i++)
-            sdpa_inputs.push_back(sdpa_node->get_input_node_shared_ptr(i));
+            sdpa_inputs.push_back(sdpa_node->input_value(i));
 
         // Replace Key and Value inputs with compressed ones
         sdpa_inputs[1] = new_key_cache->output(0);

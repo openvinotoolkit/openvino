@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ protected:
     JitConstants GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const override;
     CommonDispatchData SetDefault(const permute_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return {FusedOpType::ACTIVATION, FusedOpType::QUANTIZE, FusedOpType::ELTWISE};
+        return {FusedOpType::REORDER, FusedOpType::ACTIVATION, FusedOpType::QUANTIZE, FusedOpType::ELTWISE};
     }
 };
 }  // namespace kernel_selector

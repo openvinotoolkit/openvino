@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
-#include "precomp.hpp"
 
 #ifdef ENABLE_CONFORMANCE_PGQL
 #    include "common_test_utils/postgres_link.hpp"

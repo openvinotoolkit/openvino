@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,6 +40,10 @@ bool RuntimeAttribute::is_copyable(const std::shared_ptr<Node>& to) const {
 
 std::ostream& operator<<(std::ostream& os, const RuntimeAttribute& attrubute) {
     return os << attrubute.to_string();
+}
+
+bool RuntimeAttribute::is_deterministic() const {
+    return true;
 }
 
 }  // namespace ov

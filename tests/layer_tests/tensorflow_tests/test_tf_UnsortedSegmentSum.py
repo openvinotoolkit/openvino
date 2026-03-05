@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -55,10 +55,8 @@ class TestUnsortedSegmentSum(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_unsorted_segment_sum_basic(self, params, data_type, segment_ids_type, num_segments_type, ie_device,
-                                        precision, ir_version, temp_dir,
-                                        use_legacy_frontend):
+                                        precision, ir_version, temp_dir):
         self._test(*self.create_unsorted_segment_sum_net(**params,
                                                          data_type=data_type, segment_ids_type=segment_ids_type,
                                                          num_segments_type=num_segments_type),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

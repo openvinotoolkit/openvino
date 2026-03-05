@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,8 +58,8 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     SEARCH_WORD(sparse);
     SEARCH_WORD(acl);
     SEARCH_WORD(kleidiai);
-    SEARCH_WORD(shl);
     SEARCH_WORD(asimd);
+    SEARCH_WORD(gv);
     if ((res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
         (res & impl_desc_type::avx512) != impl_desc_type::avx512) {
         SEARCH_WORD(avx);
@@ -84,10 +84,10 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
 }
 
 const char* impl_type_to_string(impl_desc_type type) {
-#define CASE(_type)        \
-    do {                   \
-        if (type == _type) \
-            return #_type; \
+#define CASE(_type)          \
+    do {                     \
+        if (type == (_type)) \
+            return #_type;   \
     } while (0)
     CASE(unknown);
     CASE(undef);
@@ -120,6 +120,7 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(jit_avx512_amx);
     CASE(jit_avx512_amx_1x1);
     CASE(jit_avx512_amx_dw);
+    CASE(jit_avx2_1x1_dw);
     CASE(brgconv_avx512);
     CASE(brgconv_avx2);
     CASE(brgconv_avx);
@@ -151,8 +152,8 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(jit_sve256);
     CASE(jit_sve384);
     CASE(jit_sve512);
-    CASE(shl);
-    CASE(gemm_shl);
+    CASE(gv);
+    CASE(jit_gv);
     CASE(kleidiai);
     CASE(gemm_kleidiai);
 

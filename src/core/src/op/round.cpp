@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,6 +58,7 @@ bool Round::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     auto& arg0 = inputs.front();
     auto& out = outputs.front();
 
+    out.set_shape(arg0.get_shape());
     using namespace ov::element;
     return IF_TYPE_OF_CONVERT_TENSORS(v5_Round_evaluate,
                                       this,
@@ -93,4 +94,6 @@ OPENVINO_API EnumNames<op::v5::Round::RoundMode>& EnumNames<op::v5::Round::Round
                                              {"half_away_from_zero", op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO}});
     return enum_names;
 }
+
+AttributeAdapter<op::v5::Round::RoundMode>::~AttributeAdapter() = default;
 }  // namespace ov

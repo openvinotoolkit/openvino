@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,14 +41,12 @@ public:
         layerName(std::move(layerName)), expectedKernelType(std::move(expectedKernelType)) {}
 };
 
-typedef std::tuple<
-    ov::element::Type, // netPrecision
-    std::pair<ov::PartialShape, bool>, // input shape and shape support flag
-    ov::Shape,         // outputShape
-    std::string,           // targetDevice
-    ov::pass::low_precision::LayerTransformation::Params,
-    ConvolutionBackpropDataTransformationParam
-> ConvolutionBackpropDataTransformationParams;
+typedef std::tuple<ov::element::Type,                  // netPrecision
+                   std::pair<ov::PartialShape, bool>,  // input shape and shape support flag
+                   ov::Shape,                          // outputShape
+                   std::string,                        // targetDevice
+                   ConvolutionBackpropDataTransformationParam>
+    ConvolutionBackpropDataTransformationParams;
 
 class ConvolutionBackpropDataTransformation :
     public testing::WithParamInterface<ConvolutionBackpropDataTransformationParams>,

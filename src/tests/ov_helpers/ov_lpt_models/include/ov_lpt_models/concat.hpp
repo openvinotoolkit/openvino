@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,12 @@
 
 #include <algorithm>
 #include <memory>
-#include "low_precision/layer_transformation.hpp"
-#include "common/fake_quantize_on_data.hpp"
+
 #include "common/dequantization_operations.hpp"
+#include "common/fake_quantize_on_data.hpp"
+#include "low_precision/layer_transformation.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace builder {

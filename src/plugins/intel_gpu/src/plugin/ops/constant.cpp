@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gather_nd.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/roi_align.hpp"
@@ -23,6 +24,7 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/bucketize.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/util/binary_elementwise_bitwise.hpp"
 
 #include "intel_gpu/primitives/data.hpp"
@@ -31,7 +33,7 @@
 namespace ov::intel_gpu {
 
 static cldnn::tensor getConstTensor(const ov::Shape constDims) {
-    std::vector<cldnn::tensor::value_type> shuffled_dims(constDims.size());
+    std::vector<ov::Dimension::value_type> shuffled_dims(constDims.size());
 
     // cldnn tensor c-tor expects constants be in a reversed order (x, y, z, w, u, v)
     for (size_t i = 0; i < constDims.size(); i++) {
@@ -76,7 +78,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     auto constFormat = cldnn::format::get_default_format(const_shape.size());
 
     if (props.needsBatchInterpretation) {
-        constTensor.batch[0] = static_cast<cldnn::tensor::value_type>(constTensor.count());
+        constTensor.batch[0] = static_cast<ov::Dimension::value_type>(constTensor.count());
         constTensor.feature[0] = 1;
     }
 
@@ -115,7 +117,34 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         auto buf = lock.data();
         auto bufSize = constLayout.bytes_count();
 
-        std::memcpy(&buf[0], &data[0], bufSize);
+        // If a constant has element type f64 but contains no elements (empty tensor),
+        // convert it to f32 because the GPU plugin only supports the f32 data type internally.
+        if (ov::shape_size(const_shape) == 1 &&
+            out_dtype == cldnn::data_types::f32 &&
+            op->get_output_element_type(0) == ov::element::f64) {
+            const auto* f64data = op->get_data_ptr<double>();
+            auto f32buf = reinterpret_cast<float*>(buf);
+            f32buf[0] = static_cast<float>(f64data[0]);
+        } else if (out_dtype == cldnn::data_types::f32 &&
+                   (op->get_output_element_type(0) == ov::element::u16 ||
+                    op->get_output_element_type(0) == ov::element::i16)) {
+            size_t count = ov::shape_size(const_shape);
+            auto f32buf = reinterpret_cast<float*>(buf);
+
+            if (op->get_output_element_type(0) == ov::element::u16) {
+                const auto* u16data = op->get_data_ptr<uint16_t>();
+                for (size_t i = 0; i < count; i++) {
+                    f32buf[i] = static_cast<float>(u16data[i]);
+                }
+            } else {
+                const auto* i16data = op->get_data_ptr<int16_t>();
+                for (size_t i = 0; i < count; i++) {
+                    f32buf[i] = static_cast<float>(i16data[i]);
+                }
+            }
+        } else {
+            std::memcpy(&buf[0], &data[0], bufSize);
+        }
         p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
         p.blobMemCache[cache_key] = initialconstPrimID;
         constPrimID = initialconstPrimID;
@@ -184,6 +213,19 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
     // Also check if constant users is a backprop convolution - in that case O and I need to be swapped.
     for (auto& node : constUsers) {
         auto outOp = node.get_node();
+        size_t user_index = node.get_index();
+        auto is_convert_matmul_pattern = [&](ov::Node* convert_node, size_t& matmul_input_index_ref) -> bool {
+            if (ov::is_type<ov::op::v0::Convert>(convert_node) && !p.use_new_shape_infer()) {
+                auto convert_consumers = convert_node->get_output_target_inputs(0);
+                for (auto& consumer_input : convert_consumers) {
+                    if (ov::is_type<ov::op::v0::MatMul>(consumer_input.get_node()) && consumer_input.get_index() < 2) {
+                        matmul_input_index_ref = consumer_input.get_index();
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
         if (auto castedOp = ov::as_type<ov::op::v0::Concat>(outOp)) {
             if (castedOp->get_axis() == 0) {
                 consts[op].needsBatchInterpretation = constDims.size() == 1;
@@ -194,6 +236,8 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
         } else if (ov::is_type<ov::op::v1::Gather>(outOp) ||
                    ov::is_type<ov::op::v7::Gather>(outOp) ||
                    ov::is_type<ov::op::v8::Gather>(outOp) ||
+                   ov::is_type<ov::op::v5::GatherND>(outOp) ||
+                   ov::is_type<ov::op::v8::GatherND>(outOp) ||
                    ov::is_type<ov::op::v1::Split>(outOp) ||
                    ov::is_type<ov::op::v1::VariadicSplit>(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;
@@ -210,7 +254,8 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
             //       [N, M, 1] --> [1, N, M, 1]
             auto input_shape = outOp->get_input_partial_shape(0);
             if ((constDims.size() != 1 && constDims.size() < input_shape.size()) ||
-                (constDims.size() == 1 && input_shape.is_static() && static_cast<int64_t>(constDims[0]) != input_shape[1].get_length())) {
+                (constDims.size() == 1 && input_shape.is_static() && input_shape.size() > 1 &&
+                static_cast<int64_t>(constDims[0]) != input_shape[1].get_length())) {
                 // Reshape 'constDims' according to the numpy broadcasting rule.
                 ov::Shape slope_shape(input_shape.size(), 1);
                 for (size_t j = 1; j <= constDims.size(); j++)
@@ -238,6 +283,32 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
             // And each layout will be like Parameter->Result [N, 1, 1, 1], Constant->Result [1, N, 1, 1], that produces layout mismatch error.
             // For that case, Constant->Result needs to be [N, 1, 1, 1]
             consts[op].needsBatchInterpretation = constDims.size() == 1;
+        } else if (is_convert_matmul_pattern(outOp, user_index)) {
+            const size_t const_static_max_dims = 4;
+            // MatMul constant reshape WA (legacy shape infer path):
+            // - Only reshape when constant is consumed as activation(0) or weight(1)
+            //   to mirror gemm_inst::update_input_shape 1D asymmetry.
+            // - Bias (index 2) is intentionally left untouched; other users rely on
+            //   getConstTensor() default mapping.
+            // 1D cases:
+            //   index 0 (activation): [d] -> [1,1,1,d]
+            //   index 1 (weight):     [d] -> [1,1,d,1]
+            // Rank <4 non-1D: right-align into 4D: e.g. [M,K] -> [1,1,M,K], [B,M,K]->[1,B,M,K]
+            if (constDims.size() == 1) {
+                ov::Shape reshaped_const_dims(const_static_max_dims, 1);
+                const size_t const_idx = (user_index == 0)?
+                    (const_static_max_dims - 1)
+                    : (const_static_max_dims - 2);
+                reshaped_const_dims[const_idx] = constDims[0];
+                constDims = std::move(reshaped_const_dims);
+            } else if (constDims.size() < const_static_max_dims) {
+                ov::Shape reshaped_const_dims(const_static_max_dims, 1);
+                const auto offset = const_static_max_dims - constDims.size();
+                for (size_t i = 0; i < constDims.size(); ++i) {
+                    reshaped_const_dims[offset + i] = constDims[i];
+                }
+                constDims = std::move(reshaped_const_dims);
+            }
         }
     }
 

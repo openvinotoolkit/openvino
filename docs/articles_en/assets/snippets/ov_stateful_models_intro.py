@@ -1,14 +1,14 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 import numpy as np
 
 import openvino  as ov
-from openvino.runtime import opset13 as ops
-from openvino.runtime.op.util import VariableInfo, Variable
-from openvino.runtime.passes import LowLatency2, MakeStateful, Manager
-from openvino.runtime.utils import replace_node
+from openvino import opset13 as ops
+from openvino.op.util import VariableInfo, Variable
+from openvino.passes import LowLatency2, MakeStateful, Manager
+from openvino.utils import replace_node
 
 
 def state_model_example():
@@ -118,7 +118,7 @@ def apply_make_stateful_ov_nodes():
     #! [ov:make_stateful_ov_nodes]
     core = ov.Core()
     ov_model = core.read_model("path_to_the_model")
-    # Parameter_1, Result_1, Parameter_3, Result_3 are 
+    # Parameter_1, Result_1, Parameter_3, Result_3 are
     # ops.parameter/ops.result in the ov_model
     pairs = ["""(Parameter_1, Result_1), (Parameter_3, Result_3)"""]
     manager = Manager()
@@ -148,7 +148,7 @@ def main():
 
     # 5. Reset memory states before starting
     states = infer_request.query_state()
-        
+
     if len(states) != 1:
         log.error(f"Invalid queried state number. Expected 1, but got {str(states.size())}")
         return -1
@@ -173,7 +173,7 @@ def main():
     # Expected output for the third utterance:
     # sum of the previously processed elements + 5 [ 14, 24, 35, 47]
     target_state = states[0]
-    
+
     # Part 1
     log.info("Infer the first utterance")
     for next_input in range(len(input_data)/3):

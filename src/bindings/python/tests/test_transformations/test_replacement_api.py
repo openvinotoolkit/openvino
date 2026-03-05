@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino import Model, PartialShape
@@ -52,6 +52,8 @@ def test_replace_node():
 
 
 def test_replace_output_update_name():
+    # Before replacement: param -> relu -> exp -> result
+    # After replacement: param -> relu -> result
     param = ops.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
     relu = ops.relu(param.output(0))
     exp = ops.exp(relu.output(0))
@@ -59,4 +61,5 @@ def test_replace_output_update_name():
 
     replace_output_update_name(exp.output(0), exp.input_value(0))
 
-    assert res.input_value(0).get_node() == exp
+    assert res.input_value(0).get_node().get_instance_id() == relu.get_instance_id()
+    assert res.input_value(0).get_node().get_friendly_name() == exp.get_friendly_name()

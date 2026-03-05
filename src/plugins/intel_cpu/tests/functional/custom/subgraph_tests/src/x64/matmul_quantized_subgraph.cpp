@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,14 +31,8 @@ using MatmulBrgemmInt8TestParams = std::tuple<ov::Shape,         // input shape
 class MatmulBrgemmInt8Test : public testing::WithParamInterface<MatmulBrgemmInt8TestParams>, public CpuTestWithFusing,
                       virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MatmulBrgemmInt8TestParams> obj) {
-        ov::Shape supportedInputShapes;
-        bool isFC;
-        ElementType inType;
-        ElementType outType;
-        CPUSpecificParams cpuParams;
-        std::tie(supportedInputShapes, isFC, inType, outType, cpuParams) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<MatmulBrgemmInt8TestParams>& obj) {
+        const auto& [supportedInputShapes, isFC, inType, outType, cpuParams] = obj.param;
         std::ostringstream result;
         result << "IS=" << supportedInputShapes.to_string() << "_";
         result << (isFC ? "FullyConnected" : "MatMul") << "_";
@@ -56,9 +50,10 @@ protected:
     ElementType outType;
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        ov::Shape inShapes;
-        CPUSpecificParams cpuParams;
-        std::tie(inShapes, isFC, inType, outType, cpuParams) = this->GetParam();
+        const auto& [inShapes, _isFC, _inType, _outType, cpuParams] = this->GetParam();
+        isFC = _isFC;
+        inType = _inType;
+        outType = _outType;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         const auto ngPrec = ov::element::f32;
         ov::ParameterVector inputParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(inShapes))};
@@ -102,7 +97,7 @@ protected:
         // only matmul avx2 support s8*s8 input
         auto matMul2 = std::make_shared<ov::op::v0::MatMul>(nodeBeforeConv, fq3, false, false);
 
-        function = makeNgraphFunction(ngPrec, inputParams, matMul2, "MatmulBrgemmInt8");
+        function = create_ov_model(ngPrec, inputParams, matMul2, "MatmulBrgemmInt8");
     }
 
     void check_node(std::shared_ptr<const ov::Model> function, const std::string& nodeName) {
@@ -145,7 +140,6 @@ const std::vector<ov::Shape> supportedInputShapes = {
 
 const std::vector<CPUSpecificParams>matmulSpecificFilterParams = {
     {{}, {}, {"brgemm_avx2"}, "brgemm_avx2"},
-    {{}, {}, {"jit_gemm"}, "jit_gemm"}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_matmulBrgemmInt8,

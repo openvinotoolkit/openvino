@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@
 
 class MockInternalPlugin : public ov::IPlugin {
     ov::IPlugin* m_plugin = nullptr;
-    ov::AnyMap config;
+    ov::AnyMap config{};
 
 public:
     explicit MockInternalPlugin(ov::IPlugin* target) : m_plugin(target) {}
@@ -57,7 +57,7 @@ public:
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
         if (m_plugin)
             return m_plugin->get_property(name, arguments);
-        OPENVINO_NOT_IMPLEMENTED;
+        return "";
     }
 
     ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
@@ -79,6 +79,21 @@ public:
     }
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override {
+        if (m_plugin)
+            return m_plugin->import_model(model, context, properties);
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
+                                                     const ov::AnyMap& properties) const override {
+        if (m_plugin)
+            return m_plugin->import_model(model, properties);
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override {
         if (m_plugin)
@@ -160,6 +175,18 @@ std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(std::istream& model
     return m_plugin->import_model(model, properties);
 }
 std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(std::istream& model,
+                                                             const ov::SoPtr<ov::IRemoteContext>& context,
+                                                             const ov::AnyMap& properties) const {
+    set_parameters_if_need();
+    return m_plugin->import_model(model, context, properties);
+}
+
+std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(const ov::Tensor& model,
+                                                             const ov::AnyMap& properties) const {
+    set_parameters_if_need();
+    return m_plugin->import_model(model, properties);
+}
+std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(const ov::Tensor& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const {
     set_parameters_if_need();

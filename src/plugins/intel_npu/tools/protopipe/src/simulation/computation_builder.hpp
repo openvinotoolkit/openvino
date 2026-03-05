@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,13 @@ struct GData {};
 struct GOperation {
     using F = std::function<cv::GProtoArgs(const cv::GProtoArgs&)>;
     F on;
+};
+
+struct InferOutput {};
+
+struct DualDeviceDump {
+    std::filesystem::path reference_path;
+    std::filesystem::path target_path;
 };
 
 struct Dump {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@
 #include "permute_inst.h"
 #include "concatenation_inst.h"
 #include "fully_connected_inst.h"
+#include "mvn_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -161,6 +162,38 @@ TEST(reorder_inputs, mixed_ranks_gather) {
 
     ASSERT_EQ(gather2_node.get_input_layouts()[0].format, format::bfzyx);
     ASSERT_EQ(gather2_node.get_output_layout().format, format::bfwzyx);
+}
+
+TEST(reorder_inputs, mixed_ranks_reshape) {
+    // Topology:
+    // transpose -> (5d) -> reshape -> (3d)
+    // Expected: (bfzyx:5d) -> reorder -> (bfyx:4d) -> reshape -> (bfyx:3d)
+
+    auto& engine = get_test_engine();
+    auto shape = engine.allocate_memory(layout{ { 3 }, data_types::i64, format::bfyx });
+    set_values<int64_t>(shape, { 0, -1, 2 });
+
+    topology topology;
+    topology.add(input_layout("input", layout{ { 1, 2, 32, 128, 128 }, data_types::f16, format::bzyxf }));
+    topology.add(input_layout("eltw_input", layout{ { 1, 524288, 2 }, data_types::f16, format::bfyx }));
+    topology.add(data("shape", shape));
+    topology.add(permute("permute", input_info("input"), { 0, 2, 3, 4, 1 }));
+    topology.add(reshape("reshape", input_info("permute"), input_info("shape"), true, ov::PartialShape{ 1, 524288, 2 }));
+    topology.add(eltwise("eltwise", input_info("reshape"), input_info("eltw_input"), eltwise_mode::sum));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    program::ptr prog = nullptr;
+    OV_ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
+    ASSERT_NE(prog, nullptr);
+
+    auto prog_impl = prog.get();
+
+    auto& reshape_node = prog_impl->get_node("reshape");
+
+    ov::PartialShape expected_reorder_shape{ 1, 32, 128, 128, 2 };
+    ASSERT_EQ(reshape_node.get_input_layouts()[0].get_partial_shape(), expected_reorder_shape);
 }
 
 TEST(reorder_inputs, impl_forcing_basic_format) {
@@ -452,6 +485,31 @@ TEST(reorder_inputs, add_reorder_between_single_output_type_node_and_multiple_us
     ASSERT_TRUE(fc2.get_dependency(0).is_type<reorder>());
 }
 
+TEST(reorder_inputs, mvn_expected_plain_format) {
+    // Topology: fsv16 -> permute -> mvn -> permute
+    // Given input shape is not supported by mvn fsv16 kernel, so expected format of mvn should be plain (bfyx) with proper reorders
+    auto& engine = get_test_engine();
+
+    topology topology;
+    topology.add(input_layout("input", layout{ { 1, 256, 60, 60 }, data_types::i8, format::b_fs_yx_fsv16 }));
+    topology.add(permute("permute1", input_info("input"), { 0, 2, 3, 1 }));
+    topology.add(mvn("mvn", input_info("permute1"), true, 1e-10f, true, {3}));
+    topology.add(permute("permute2", input_info("mvn"), { 0, 2, 3, 1 }));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    program::ptr prog = nullptr;
+    OV_ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
+    ASSERT_NE(prog, nullptr);
+
+    auto prog_impl = prog.get();
+
+    auto& mvn_node = prog_impl->get_node("mvn");
+
+    ASSERT_EQ(mvn_node.get_input_layouts()[0].format, format::bfyx);
+    ASSERT_EQ(mvn_node.get_output_layout().format, format::bfyx);
+}
 // TODO Not yet implemented
 //TEST(reorder_inputs, impl_forcing_conv_format_kernel) {
 //    auto& engine = get_test_engine();
@@ -579,5 +637,42 @@ TEST(reorder_inputs, has_reshape_user) {
     for (size_t x = 0; x < out_l.count(); ++x) {
         ASSERT_EQ(static_cast<float>(ref_output[x]), output_ptr[x]);
     }
+}
+
+TEST(reorder_inputs, two_connections_with_different_format) {
+    // Topology:
+    // convolution(fsv16) ___ convolution
+    //                    \__ deformable_conv
+    //                     \_ reshape
+    // Purpose:
+    // When convolution has reshape as a user, its layout may be chosen in a confusing way from get_preferred_format.
+    // This test mimics the behavior.
+    //
+    // Expectation:
+    // Reorder should be added only to deformable_conv as deformable_conv supports bfyx only.
+
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 32, 128, 128 } });
+    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 32, 32, 1, 1 } });
+    auto trans = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 2, 128, 128 } });
+
+    topology topology;
+    topology.add(data("weights", weights));
+    topology.add(data("trans", trans));
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(convolution("conv1", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(convolution("conv2", input_info("conv1"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(convolution("deform_conv", {input_info("conv1"), input_info("trans")}, "weights", "", true, 1, 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}));
+    topology.add(reshape("reshape", input_info("conv1"), tensor(2, 16, 128, 128), cldnn::reshape::reshape_mode::base));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config);
+
+    auto& node = prog->get_node("deform_conv");
+    ASSERT_NE(node.get_selected_impl(), nullptr);
+    auto kernel_name = node.get_selected_impl()->get_kernel_name();
+    ASSERT_EQ(kernel_name, "deformable_convolution_gpu_bfyx_opt");
 }
 #endif

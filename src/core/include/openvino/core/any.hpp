@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,8 +38,8 @@ struct Read;
 template <class T>
 struct Readable {
     template <class U>
-    static auto test(U*)
-        -> decltype(std::declval<Read<U>>()(std::declval<std::istream&>(), std::declval<U&>()), std::true_type()) {
+    static auto test(U*) -> decltype(std::declval<Read<U>>()(std::declval<std::istream&>(), std::declval<U&>()),
+                                     std::true_type()) {
         return {};
     }
     template <typename>
@@ -468,24 +468,13 @@ class OPENVINO_API Any {
         constexpr static const auto value = std::is_same<std::true_type, decltype(test<T>(nullptr))>::value;
     };
 
-    template <typename>
-    struct TupleToTypeIndex;
-
-    template <typename... Args>
-    struct TupleToTypeIndex<std::tuple<Args...>> {
-        static std::vector<std::type_index> get() {
-            return {typeid(Args)...};
-        }
-    };
-
     class OPENVINO_API Base : public std::enable_shared_from_this<Base> {
     public:
         void type_check(const std::type_info&) const;
 
         using Ptr = std::shared_ptr<Base>;
         virtual const std::type_info& type_info() const = 0;
-        virtual std::vector<std::type_index> base_type_info() const = 0;
-        bool is_base_type_info(const std::type_info& type_info) const;
+        virtual bool is_base_type_info(const std::type_info& type_info) const = 0;
         virtual const void* addressof() const = 0;
         void* addressof() {
             return const_cast<void*>(const_cast<const Base*>(this)->addressof());
@@ -573,8 +562,8 @@ class OPENVINO_API Any {
             return typeid(T);
         }
 
-        std::vector<std::type_index> base_type_info() const override {
-            return {typeid(std::shared_ptr<RuntimeAttribute>)};
+        bool is_base_type_info(const std::type_info& user_type) const override {
+            return util::equal(typeid(std::shared_ptr<RuntimeAttribute>), user_type);
         }
 
         const void* addressof() const override {
@@ -623,19 +612,22 @@ class OPENVINO_API Any {
             return std::make_shared<Impl<T>>(this->value);
         }
 
-        template <class U>
-        static std::vector<std::type_index> base_type_info_impl(
-            typename std::enable_if<HasBaseMemberType<U>::value, std::true_type>::type = {}) {
-            return TupleToTypeIndex<typename T::Base>::get();
-        }
-        template <class U>
-        static std::vector<std::type_index> base_type_info_impl(
-            typename std::enable_if<!HasBaseMemberType<U>::value, std::false_type>::type = {}) {
-            return {typeid(T)};
+        template <typename... Args>
+        static bool is_base_type_info_tuple(const std::type_info& user_type, std::tuple<Args...>*) {
+            return (util::equal(typeid(Args), user_type) || ...);
         }
 
-        std::vector<std::type_index> base_type_info() const override {
-            return base_type_info_impl<T>();
+        template <class U>
+        static bool is_base_type_info_impl(const std::type_info& user_type) {
+            if constexpr (HasBaseMemberType<U>::value) {
+                return is_base_type_info_tuple(user_type, static_cast<typename T::Base*>(nullptr));
+            } else {
+                return util::equal(typeid(T), user_type);
+            }
+        }
+
+        bool is_base_type_info(const std::type_info& user_type) const override {
+            return is_base_type_info_impl<T>(user_type);
         }
 
         bool equal(const Base& rhs) const override {

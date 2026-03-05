@@ -1,20 +1,17 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <float.h>
-
+#include <cfloat>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
-#include <iostream>
-#include <limits>
-#include <type_traits>
+
+#include "openvino/core/type/element_type.hpp"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
 #endif
 
-#include "common.hpp"
-#include "openvino/core/type/bfloat16.hpp"
 #include "softmax.hpp"
 #include "softmax_kernel.hpp"
 
@@ -29,9 +26,10 @@ void attn_softmax(void* a,
                   bool select_nfltmax_at_0,
                   size_t len,
                   size_t total_size,
-                  ov::element::Type precision,
+                  [[maybe_unused]] ov::element::Type precision,
                   ov::element::Type attn_mask_prec,
-                  ov::element::Type dst_precision) {
+                  ov::element::Type dst_precision,
+                  const float* sink) {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
     if (precision == ov::element::f16) {
         auto _a = reinterpret_cast<ov::float16*>(a);
@@ -46,12 +44,13 @@ void attn_softmax(void* a,
                                          len,
                                          total_size,
                                          attn_mask_prec,
-                                         dst_precision);
+                                         dst_precision,
+                                         sink);
         return;
     }
 #endif
-    auto _a = reinterpret_cast<float*>(a);
-    auto _alibi = reinterpret_cast<float*>(alibi);
+    auto* _a = reinterpret_cast<float*>(a);
+    auto* _alibi = reinterpret_cast<float*>(alibi);
     attn_softmax_kernel<float>(_a,
                                a_dst,
                                scale,
@@ -62,7 +61,8 @@ void attn_softmax(void* a,
                                len,
                                total_size,
                                attn_mask_prec,
-                               dst_precision);
+                               dst_precision,
+                               sink);
 }
 
 }  // namespace ov::Extensions::Cpu::XARCH

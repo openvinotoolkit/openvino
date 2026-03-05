@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -243,8 +243,8 @@ TEST_P(UnsqueezeTest, symbols_propagation) {
     if (p_shape.rank().is_dynamic()) {
         GTEST_SKIP() << "No dimension to set symbol";
     }
-    ov::TensorSymbol in_symbols, exp_symbols;
-    std::tie(in_symbols, exp_symbols) = make_in_exp_symbols();
+
+    const auto& [in_symbols, exp_symbols] = make_in_exp_symbols();
 
     set_shape_symbols(p_shape, in_symbols);
     param = make_shared<ov::op::v0::Parameter>(element::f32, p_shape);

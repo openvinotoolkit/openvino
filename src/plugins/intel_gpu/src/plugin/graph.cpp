@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,9 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/simple_math.hpp"
+
+#include "intel_gpu/primitives/dynamic_quantize.hpp"
+#include "dynamic_quantize_inst.h"
 
 #include <list>
 #include <set>
@@ -92,10 +95,12 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
     IstreamAttributeVisitor<cldnn::BinaryInputBuffer> visitor(ib);
     m_config.visit_attributes(visitor);
     m_config.set_user_property(config.get_user_properties()); // Copy user properties if those were modified on import call
+    m_config.set_user_property({ov::hint::model(std::shared_ptr<const ov::Model>(nullptr))});
     m_config.finalize(context.get(), nullptr);
 
     auto imported_prog = std::make_shared<cldnn::program>(get_engine(), m_config);
-    imported_prog->load(ib);
+    // Not passing MODEL_PTR through m_config because values in m_config are immutable after config finalization.
+    imported_prog->load(ib, config.get_model(), config.get_weightless_attr());
     build(imported_prog);
 }
 
@@ -233,6 +238,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "concatenation", "Concat" },
                 { "convolution", "Convolution" },
                 { "deformable_convolution", "DeformableConvolution" },
+                { "dynamic_quantize", "DynamicQuantize" },
                 { "crop", "Crop" },
                 { "custom_gpu_primitive", "CustomGPUPrimitive" },
                 { "data", "Const" },
@@ -243,6 +249,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "fully_connected", "FullyConnected" },
                 { "gather", "Gather" },
                 { "gemm", "Gemm" },
+                { "gru_seq", "GRU_Seq" },
                 { "input_layout", "Input" },
                 { "lrn", "LRN" },
                 { "lstm_cell", "LSTM_Cell" },
@@ -415,6 +422,15 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
             }
         }
         info[ov::exec_model_info::PERF_COUNTER] = exec_time;
+
+        if (prim_info.type_id == "dynamic_quantize") {
+            auto& node = get_network()->get_primitive(prim_info.original_id)->get_node();
+            auto dyn_quan = node.as<cldnn::dynamic_quantize>().get_primitive();
+            info["group_sizes"] = ov::util::join(cldnn::convert_vector<int64_t>(dyn_quan->attrs.group_sizes));
+            if (dyn_quan->attrs.precomputed_reduction) {
+                info["precomputed_reduction_dt"] = dyn_quan->attrs.precomputed_reduction_dt.c_type_string();
+            }
+        }
 
         for (auto&& kvp : info) {
             return_node->get_rt_info()[kvp.first] = kvp.second;

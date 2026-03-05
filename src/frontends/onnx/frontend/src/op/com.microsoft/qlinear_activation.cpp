@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
@@ -12,9 +13,15 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "utils/common.hpp"
+#include "utils/reshape.hpp"
 
 using namespace ov::op;
 
@@ -32,10 +39,10 @@ ov::OutputVector qlinear_activation(const ov::frontend::onnx::Node& node, const 
     auto input_tensor = inputs[0];
     auto input_scale = inputs[1];
     auto input_zero_point =
-        (inputs[2].get_shape().empty()) ? v0::Constant::create(input_tensor.get_element_type(), {}, {0}) : inputs[2];
+        ov::op::util::is_null(inputs[2]) ? v0::Constant::create(input_tensor.get_element_type(), {}, {0}) : inputs[2];
     auto output_scale = inputs[3];
     auto output_zero_point =
-        (inputs.size() > 4) ? inputs[4] : v0::Constant::create(input_tensor.get_element_type(), {}, {0});
+        (common::is_input_valid(node, 4)) ? inputs[4] : v0::Constant::create(input_tensor.get_element_type(), {}, {0});
 
     CHECK_VALID_NODE(node,
                      (input_tensor.get_element_type() == element::i8 || input_tensor.get_element_type() == element::u8),
@@ -54,7 +61,7 @@ ov::OutputVector qlinear_activation(const ov::frontend::onnx::Node& node, const 
         std::make_shared<v1::Add>(std::make_shared<v0::Convert>(scaled_result_float, input_tensor.get_element_type()),
                                   output_zero_point);
 
-    return ov::OutputVector{quantized_result};
+    return ov::OutputVector{quantized_result->output(0)};
 }
 
 ov::OutputVector qlinear_sigmoid(const ov::frontend::onnx::Node& node) {
@@ -81,8 +88,9 @@ ov::OutputVector qlinear_avg_pool(const ov::frontend::onnx::Node& node) {
         const auto count_include_pad = node.get_attribute_value<int64_t>("count_include_pad", 0);
         const auto auto_pad = node.get_attribute_value<std::string>("auto_pad", "NOTSET");
 
-        const auto input_rank = input_dequantized->get_shape().size();
-        const size_t num_spatial_dims = input_rank - 2;
+        const auto input_rank = input_dequantized->get_output_partial_shape(0).rank();
+        CHECK_VALID_NODE(node, input_rank.is_static(), "Input rank must be static for QLinearAveragePool");
+        const size_t num_spatial_dims = input_rank.get_length() - 2;
 
         pads.resize(num_spatial_dims * 2, pads.size() == 1 ? pads[0] : 0);
         strides.resize(num_spatial_dims, strides.size() == 1 ? strides[0] : 1);
@@ -102,10 +110,43 @@ ov::OutputVector qlinear_avg_pool(const ov::frontend::onnx::Node& node) {
     });
 }
 
+ov::OutputVector qlinear_reduce_mean(const ov::frontend::onnx::Node& node) {
+    return qlinear_activation(node, [&](const std::shared_ptr<ov::Node>& input_dequantized) {
+        auto axes = node.get_attribute_value<std::vector<int64_t>>("axes");
+        auto keepdims = node.get_attribute_value<int64_t>("keepdims");
+        return std::make_shared<v1::ReduceMean>(input_dequantized,
+                                                v0::Constant::create(element::i64, {axes.size()}, axes),
+                                                keepdims);
+    });
+}
+
+ov::OutputVector qlinear_softmax(const ov::frontend::onnx::Node& node) {
+    return qlinear_activation(node, [&](const std::shared_ptr<ov::Node>& input_dequantized) {
+        auto axis = node.get_attribute_value<int64_t>("axis", -1);
+        auto opset = node.get_attribute_value<int64_t>("opset");
+
+        auto shape = std::make_shared<v3::ShapeOf>(input_dequantized);
+
+        std::shared_ptr<ov::Node> softmax_result;
+        if (opset <= 12) {
+            const auto coerced_data = ov::op::util::flatten(input_dequantized, static_cast<int>(axis));
+            softmax_result = std::make_shared<v8::Softmax>(coerced_data, 1);
+            softmax_result = std::make_shared<v1::Reshape>(softmax_result, shape, false);
+        } else {
+            softmax_result = std::make_shared<v8::Softmax>(input_dequantized, axis);
+        }
+
+        return softmax_result;
+    });
+}
+
 bool register_multiple_operators(void) {
     ONNX_OP_M("QLinearSigmoid", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_sigmoid, MICROSOFT_DOMAIN);
     ONNX_OP_M("QLinearLeakyRelu", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_leaky_relu, MICROSOFT_DOMAIN);
     ONNX_OP_M("QLinearAveragePool", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_avg_pool, MICROSOFT_DOMAIN);
+    ONNX_OP_M("QLinearReduceMean", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_reduce_mean, MICROSOFT_DOMAIN);
+    ONNX_OP_M("QLinearSoftmax", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_softmax, MICROSOFT_DOMAIN);
+
     return true;
 }
 

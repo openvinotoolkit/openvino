@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -8,8 +8,7 @@
 
 #    include "utils/debug_caps_config.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int count = -1);
 void dumpOutputBlobs(const NodePtr& node, const DebugCapsConfig& config, int count = -1);
@@ -33,8 +32,8 @@ public:
 };
 
 #    define DUMP(...) DumpHelper __helper##__node(__VA_ARGS__);
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
+
 #else  // CPU_DEBUG_CAPS
 #    define DUMP(...)
 #endif  // CPU_DEBUG_CAPS

@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_params.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
 
@@ -45,8 +46,8 @@ typedef std::tuple<MatMulDecompressionShapeParams,
                    ov::test::ElementType,      // decompression precision
                    ov::test::ElementType,      // scale precision
                    bool,                       // transpose on weights
-                   DecompressionType,          // decompression multiply type
-                   DecompressionType,          // decompression subtract type
+                   ov::test::utils::DecompressionType,          // decompression multiply type
+                   ov::test::utils::DecompressionType,          // decompression subtract type
                    bool,                       // reshape on decompression constants
                    ov::AnyMap,                 // additional config
                    fusingSpecificParams,
@@ -57,7 +58,7 @@ class MatmulWeightsDecompression : public testing::WithParamInterface<MatmulWeig
                                    virtual public SubgraphBaseTest,
                                    public CpuTestWithFusing {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MatmulWeightsDecompressionParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MatmulWeightsDecompressionParams>& obj);
 
 protected:
     std::shared_ptr<ov::Model> initSubgraph(const ov::PartialShape& data_shape,
@@ -68,8 +69,8 @@ protected:
                                             const ov::element::Type decompression_precision,
                                             const ov::element::Type scale_precision,
                                             const bool transpose_weights,
-                                            const DecompressionType decompression_multiply_type,
-                                            const DecompressionType decompression_subtract_type,
+                                            const ov::test::utils::DecompressionType decompression_multiply_type,
+                                            const ov::test::utils::DecompressionType decompression_subtract_type,
                                             const bool reshape_on_decompression);
 
     void SetUp() override;

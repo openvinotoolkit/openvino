@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/fusing_test_utils.hpp"
+#include "openvino/op/select.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -19,13 +20,8 @@ class SelectLayerCPUTest : public testing::WithParamInterface<selectParams>,
                            virtual public SubgraphBaseTest,
                            public CpuTestWithFusing {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<selectParams> obj) {
-        std::vector<InputShape> shapes;
-        ElementType precision;
-        ov::op::AutoBroadcastSpec broadcast;
-        fusingSpecificParams fusingParams;
-        std::tie(shapes, precision, broadcast, fusingParams) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<selectParams>& obj) {
+        const auto& [shapes, precision, broadcast, fusingParams] = obj.param;
         std::ostringstream result;
         result << "Condition_prc_" << ElementType::boolean << "_Then_Else_prc_" << precision << "_";
         result << "IS=(";
@@ -48,11 +44,7 @@ protected:
     void SetUp() override {
         abs_threshold = 0;
         targetDevice = ov::test::utils::DEVICE_CPU;
-        std::vector<InputShape> shapes;
-        ElementType precision;
-        ov::op::AutoBroadcastSpec broadcast;
-        fusingSpecificParams fusingParams;
-        std::tie(shapes, precision, broadcast, fusingParams) = this->GetParam();
+        const auto& [shapes, precision, broadcast, fusingParams] = this->GetParam();
         init_input_shapes(shapes);
         std::tie(inFmts, outFmts, priority, selectedType) = emptyCPUSpec;
         selectedType = makeSelectedTypeStr(getPrimitiveType(), ov::element::i8);
@@ -65,7 +57,7 @@ protected:
         }
         auto select = std::make_shared<ov::op::v1::Select>(parameters[0], parameters[1], parameters[2], broadcast);
 
-        function = makeNgraphFunction(precision, parameters, select, "Eltwise");
+        function = create_ov_model(precision, parameters, select, "Eltwise");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {

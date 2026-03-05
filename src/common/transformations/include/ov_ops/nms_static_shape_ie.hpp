@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,18 +9,9 @@
 #include <string>
 #include <vector>
 
+#include "openvino/op/matrix_nms.hpp"
 #include "openvino/op/op.hpp"
 #include "transformations_visibility.hpp"
-
-namespace ov {
-namespace op {
-namespace v8 {
-
-class MatrixNms;
-
-}  // namespace v8
-}  // namespace op
-}  // namespace ov
 
 namespace ov {
 namespace op {

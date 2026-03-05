@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,7 +112,7 @@ public:
 
     void reset_execution(bool wait = true);
     event::ptr set_input_data(const primitive_id& id, memory::ptr data, bool need_to_check_memory_to_set = true);
-    std::vector<event::ptr> set_output_memory(const primitive_id& id, memory::ptr mem);
+    std::vector<event::ptr> set_output_memory(const primitive_id& id, memory::ptr mem, bool is_remote = false);
 
     std::vector<std::shared_ptr<primitive_inst>> const& get_outputs() { return _outputs; }
 
@@ -183,6 +183,9 @@ public:
     bool is_dynamic() const { return _is_dynamic; }
     size_t get_weights_cache_capacity() const { return _weights_cache_capacity; }
     bool contains_state(const std::string& variable_id);
+    memory& get_output_remote_memory(const primitive_id& id) const;
+    bool has_output_remote_memory_ptr(const primitive_id& id) const;
+    void reset_output_remote_memory_ptrs();
 
     memory_pool& get_memory_pool() const {
         return *_memory_pool;
@@ -203,7 +206,9 @@ public:
     void set_shape_predictor(std::shared_ptr<ShapePredictor> shape_predictor) { _shape_predictor = shape_predictor; }
 
 #ifdef GPU_DEBUG_CONFIG
-    int64_t get_current_iteration_num() { return iteration; }
+    int64_t get_current_iteration_num() const { return iteration; }
+#else
+    int64_t get_current_iteration_num() const { const int64_t NOT_AVAILABLE=-112233; return NOT_AVAILABLE; }
 #endif
 
 private:
@@ -222,6 +227,8 @@ private:
 
     /* Common memory pointer for shape_info */
     memory::ptr _shape_info_ptr;
+
+    std::unordered_map<primitive_id, memory::ptr> _output_remote_mem_ptrs;
 
     std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
     std::vector<shared_mem_type> _in_out_shared_mem_types;
@@ -250,7 +257,12 @@ private:
     void add_default_output_chains();
     void calculate_weights_cache_capacity();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
-    void set_variables_state_info(const std::string& variable_id, const layout& variable_layout, ov::element::Type user_specified_type, const primitive* p);
+    void set_variables_state_info(const std::string& variable_id,
+                                  const layout& variable_layout,
+                                  ov::element::Type user_specified_type,
+                                  const primitive* p,
+                                  const std::shared_ptr<memory_state::releasable_variable>& releasable_var,
+                                  bool transpose_required);
     void dump_memory_pool(std::string dump_path, int64_t curr_iter);
 
 #ifdef GPU_DEBUG_CONFIG

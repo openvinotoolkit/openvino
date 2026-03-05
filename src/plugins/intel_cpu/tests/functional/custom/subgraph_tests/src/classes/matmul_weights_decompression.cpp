@@ -1,8 +1,9 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "matmul_weights_decompression.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 
 using namespace CPUTestUtils;
@@ -10,31 +11,10 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-std::string MatmulWeightsDecompression::getTestCaseName(testing::TestParamInfo<MatmulWeightsDecompressionParams> obj) {
-    MatMulDecompressionShapeParams shape_params;
-    ov::test::ElementType weights_precision;
-    ov::test::ElementType decompression_precision;
-    ov::test::ElementType scale_precision;
-    bool transpose;
-    DecompressionType decompression_multiply_type;
-    DecompressionType decompression_subtract_type;
-    bool reshape_on_decompression;
-    ov::AnyMap additional_config;
-    fusingSpecificParams fusing_params;
-    bool should_fuse;
-
-    std::tie(shape_params,
-             weights_precision,
-             decompression_precision,
-             scale_precision,
-             transpose,
-             decompression_multiply_type,
-             decompression_subtract_type,
-             reshape_on_decompression,
-             additional_config,
-             fusing_params,
-             should_fuse) = obj.param;
-
+std::string MatmulWeightsDecompression::getTestCaseName(const testing::TestParamInfo<MatmulWeightsDecompressionParams>& obj) {
+    const auto& [shape_params, weights_precision, decompression_precision, scale_precision, transpose,
+                 decompression_multiply_type, decompression_subtract_type, reshape_on_decompression, additional_config,
+                 fusing_params, should_fuse] = obj.param;
     std::ostringstream result;
     result << shape_params << "_";
     result << "weights_precision=" << weights_precision << "_";
@@ -50,7 +30,8 @@ std::string MatmulWeightsDecompression::getTestCaseName(testing::TestParamInfo<M
         result << configEntry.first << ", " << configEntry.second.as<std::string>() << "_";
     }
     result << ")";
-    result << CpuTestWithFusing::getTestCaseName(fusing_params);
+    result << CpuTestWithFusing::getTestCaseName(fusing_params) << "_";
+    result << "should_fuse=" << should_fuse;
 
     return result.str();
 }
@@ -63,8 +44,8 @@ std::shared_ptr<ov::Model> MatmulWeightsDecompression::initSubgraph(const ov::Pa
                                                                     const ov::element::Type decompression_precision,
                                                                     const ov::element::Type scale_precision,
                                                                     const bool transpose_weights,
-                                                                    const DecompressionType decompression_multiply_type,
-                                                                    const DecompressionType decompression_subtract_type,
+                                                                    const ov::test::utils::DecompressionType decompression_multiply_type,
+                                                                    const ov::test::utils::DecompressionType decompression_subtract_type,
                                                                     const bool reshape_on_decompression) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(data_precision, data_shape)};
     const auto weights_subgraph = initMatMulDecompressionSubgraph(weights_shape,
@@ -78,36 +59,14 @@ std::shared_ptr<ov::Model> MatmulWeightsDecompression::initSubgraph(const ov::Pa
                                                                     decompression_subtract_type,
                                                                     reshape_on_decompression);
     auto matMul = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
-    return makeNgraphFunction(data_precision, params, matMul, "MatmulWeightsDecompression");
+    return create_ov_model(data_precision, params, matMul, "MatmulWeightsDecompression");
 }
 
 void MatmulWeightsDecompression::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-
-    MatMulDecompressionShapeParams shape_params;
-    ov::test::ElementType weights_precision;
-    ov::test::ElementType decompression_precision;
-    ov::test::ElementType scale_precision;
-    bool transpose_weights;
-    DecompressionType decompression_multiply_type;
-    DecompressionType decompression_subtract_type;
-    bool reshape_on_decompression;
-    ov::AnyMap additional_config;
-    fusingSpecificParams fusing_params;
-    bool should_fuse;
-
-    std::tie(shape_params,
-                weights_precision,
-                decompression_precision,
-                scale_precision,
-                transpose_weights,
-                decompression_multiply_type,
-                decompression_subtract_type,
-                reshape_on_decompression,
-                additional_config,
-                fusing_params,
-                should_fuse) = GetParam();
-
+    const auto& [shape_params, weights_precision, decompression_precision, scale_precision, transpose_weights,
+                 decompression_multiply_type, decompression_subtract_type, reshape_on_decompression, additional_config,
+                 fusing_params, should_fuse] = GetParam();
     configuration.insert(additional_config.begin(), additional_config.end());
     std::tie(postOpMgrPtr, fusedOps) = fusing_params;
     init_input_shapes({shape_params.data_shape});

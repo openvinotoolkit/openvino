@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 # type: ignore
 # flake8: noqa
@@ -14,6 +14,7 @@ from openvino._pyopenvino.passes import (
     type_matches,
     type_matches_any,
     shape_matches,
+    attrs_match,
 )
 from openvino._pyopenvino.passes import Serialize, ConstantFolding, VisualizeTree, MakeStateful, LowLatency2, ConvertFP32ToFP16, Version
 from openvino.passes.manager import Manager

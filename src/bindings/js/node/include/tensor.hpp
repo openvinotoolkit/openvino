@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -12,6 +12,10 @@ public:
     /**
      * @brief Constructs TensorWrap class from the Napi::CallbackInfo.
      * @param info contains passed arguments. Can be empty or contain more arguments.
+     * One argument is passed:
+     * @param info[0] Can be:
+     *        - Napi::External<ov::Tensor> - pointer to existing ov::Tensor object (for cross-addon interop)
+     *        - Napi::Array - JavaScript array of strings (creates string tensor)
      * Two arguments are passed:
      * @param info[0] ov::element::Type as string or exposed to JS enumElementType.
      * @param info[1] ov::Shape as JS Array, Int32Array or Uint32Array
@@ -62,8 +66,25 @@ public:
     /**
      * @brief Getter to check if tensor is continuous
      * @return Napi::Boolean
-    */
+     */
     Napi::Value is_continuous(const Napi::CallbackInfo& info);
+    /**
+     * @brief Binds the C++ ov::Tensor::set_shape() method to JavaScript as Tensor.setShape().
+     * @param info Callback info containing a single argument: an array of numbers
+     *             representing the new tensor dimensions.
+     * @return JavaScript undefined on success, or throws a JS exception on error.
+     */
+    Napi::Value set_shape(const Napi::CallbackInfo& info);
+    void copy_to(const Napi::CallbackInfo& info);
+
+    /**
+     * @brief Returns a pointer to the underlying ov::Tensor object for cross-addon interoperability.
+     * @param info Callback info (no arguments expected).
+     * @return Napi::External<ov::Tensor> wrapping a pointer to an ov::Tensor copy.
+     *         The External manages the lifetime of the ov::Tensor copy, while the actual
+     *         tensor data is managed by ov::Tensor's internal shared_ptr.
+     */
+    Napi::Value get_external_tensor(const Napi::CallbackInfo& info);
 
 private:
     ov::Tensor _tensor;

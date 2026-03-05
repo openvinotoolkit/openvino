@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,12 +14,12 @@ bool ReduceKernelBase::Validate(const Params& p) const {
     auto& params = dynamic_cast<const reduce_params&>(p);
 
     if (params.GetType() != KernelType::REDUCE) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -27,22 +27,6 @@ bool ReduceKernelBase::Validate(const Params& p) const {
 
 JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-
-    const auto& output = params.outputs[0];
-    if (output.is_dynamic()) {
-        DimensionAccessHelperJit dims(output);
-        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", toVectorMulString({dims.x(),
-                                                                                              dims.y(),
-                                                                                              dims.z(),
-                                                                                              dims.w(),
-                                                                                              dims.u(),
-                                                                                              dims.v(),
-                                                                                              dims.f(),
-                                                                                              dims.b()})));
-    } else {
-        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", params.outputs[0].LogicalSize()));
-    }
-
     jit.AddConstant(MakeJitConstant("REDUCE_" + toString(params.reduceMode) + "_MODE", 1));
     jit.AddConstant(MakeJitConstant("KEEP_DIMS", params.keepDims));
 

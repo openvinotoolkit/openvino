@@ -1,11 +1,11 @@
-# -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# -*- coding: utf-8 -*-  # noqa: A005
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Functions related to converting between Python and numpy types and openvino types."""
 
 import logging
-from typing import List, Union, Optional
+from typing import Union, Optional
 
 import numpy as np
 
@@ -15,7 +15,7 @@ from openvino.op import Constant
 
 log = logging.getLogger(__name__)
 
-TensorShape = List[int]
+TensorShape = list[int]
 NumericData = Union[int, float, np.ndarray]
 NumericType = Union[type, np.dtype]
 ScalarData = Union[int, float]
@@ -145,7 +145,9 @@ def get_shape(data: NumericData) -> TensorShape:
     return []
 
 
-def make_constant_node(value: NumericData, dtype: Union[NumericType, Type] = None, *, name: Optional[str] = None) -> Constant:
+def make_constant_node(
+    value: NumericData, dtype: Union[NumericType, Type] = None, *, name: Optional[str] = None
+) -> Constant:
     """Return an openvino Constant node with the specified value."""
     ndarray = get_ndarray(value)
     if dtype is not None:
@@ -161,7 +163,7 @@ def make_constant_node(value: NumericData, dtype: Union[NumericType, Type] = Non
     return const
 
 
-def as_node(input_value: NodeInput, name: Optional[str] = None) -> Node:
+def as_node(input_value: NodeInput, name: Optional[str] = None) -> Union[Node, Output]:
     """Return input values as nodes. Scalars will be converted to Constant nodes."""
     if issubclass(type(input_value), Node):
         return input_value
@@ -170,6 +172,6 @@ def as_node(input_value: NodeInput, name: Optional[str] = None) -> Node:
     return make_constant_node(input_value, name=name)
 
 
-def as_nodes(*input_values: NodeInput, name: Optional[str] = None) -> List[Node]:
+def as_nodes(*input_values: NodeInput, name: Optional[str] = None) -> list[Node]:
     """Return input values as nodes. Scalars will be converted to Constant nodes."""
     return [as_node(input_value, name=name) for input_value in input_values]

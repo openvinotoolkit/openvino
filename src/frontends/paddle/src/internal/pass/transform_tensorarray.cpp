@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "default_opset.hpp"
 #include "internal/op/tensorarray_write.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
@@ -33,7 +34,7 @@ ov::frontend::paddle::pass::TransformTensorArray::TransformTensorArray(std::vect
         const auto& list = shape_node->get_input_node_shared_ptr(0);
         const auto& new_item_unsqueeze = std::make_shared<Unsqueeze>(
             new_item->output(0),
-            Constant::create(element::i32, {1}, {0}));  // unsqueeze in order to handyfully slice a tensorarray
+            Constant::create(element::i32, {1}, {0}));  // unsqueeze in order to slice a tensorarray easily
         // remove TensorArrayLength->TensorArrayWrite
         const auto concat = std::make_shared<Concat>(OutputVector{list->output(0), new_item_unsqueeze->output(0)}, 1);
         // prevent to remove concating zero-tensor

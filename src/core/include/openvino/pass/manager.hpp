@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,10 @@ public:
     //// \brief Construct Manager with shared PassConfig instance
     explicit Manager(std::shared_ptr<PassConfig> pass_config, std::string name = "UnnamedManager");
 
+    //// \brief Construct Manager with a copied PassConfig instance; it will not share PassConfig as in the constructor
+    /// above
+    explicit Manager(const PassConfig& pass_config, std::string name = "UnnamedManager");
+
     /// \brief Register given transformation class type to execution list
     /// Example below show the basic usage of pass::Manager
     ///
@@ -45,8 +49,8 @@ public:
     std::shared_ptr<T> register_pass(Args&&... args) {
         auto rc = push_pass<T>(std::forward<Args>(args)...);
         rc->set_pass_config(m_pass_config);
-        if (m_per_pass_validation) {
-            push_pass<Validate>();
+        if (m_per_pass_validation && T::get_type_info_static() != Validate::get_type_info_static()) {
+            push_validate_pass();
         }
         if (!Enable && !m_pass_config->is_enabled<T>()) {
             m_pass_config->disable<T>();
@@ -57,8 +61,8 @@ public:
     std::shared_ptr<PassBase> register_pass_instance(std::shared_ptr<PassBase> pass) {
         pass->set_pass_config(m_pass_config);
         m_pass_list.push_back(pass);
-        if (m_per_pass_validation) {
-            push_pass<Validate>();
+        if (m_per_pass_validation && !ov::as_type_ptr<Validate>(pass)) {
+            push_validate_pass();
         }
         return pass;
     }
@@ -90,9 +94,12 @@ protected:
     std::shared_ptr<T> push_pass(Args&&... args) {
         static_assert(std::is_base_of<pass::PassBase, T>::value, "pass not derived from pass base");
         auto pass = std::make_shared<T>(std::forward<Args>(args)...);
-        auto pass_base = std::static_pointer_cast<PassBase>(pass);
-        m_pass_list.push_back(pass_base);
+        m_pass_list.push_back(pass);
         return pass;
+    }
+
+    virtual void push_validate_pass() {
+        push_pass<Validate>();
     }
 
     std::shared_ptr<PassConfig> m_pass_config;
@@ -101,7 +108,7 @@ protected:
     std::string m_name = "UnnamedManager";
 
 private:
-    bool run_pass(const std::shared_ptr<PassBase>& pass, const std::shared_ptr<Model>& model, bool needs_validate);
+    bool run_pass(const std::shared_ptr<PassBase>& pass, const std::shared_ptr<Model>& model);
 };
 }  // namespace pass
 }  // namespace ov

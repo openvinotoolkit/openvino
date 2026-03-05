@@ -1,12 +1,28 @@
 #
-# Copyright (C) 2023-2024 Intel Corporation.
+# Copyright (C) 2018-2026 Intel Corporation.
 # SPDX-License-Identifier: Apache 2.0
 #
 
 set(TARGET_NAME protopipe)
 
+execute_process(
+  COMMAND git rev-parse --short HEAD
+  OUTPUT_VARIABLE GIT_SHA
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/version.hpp.in
+  ${CMAKE_CURRENT_BINARY_DIR}/version/version.hpp
+  @ONLY
+)
+
 if (NOT DEFINED PROJECT_NAME)
-    cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+    if(WIN32)
+        cmake_minimum_required(VERSION 3.16)
+    else()
+        cmake_minimum_required(VERSION 3.13)
+    endif()
     project(protopipe_standalone)
     include("cmake/standalone.cmake")
     return()
@@ -43,17 +59,20 @@ endif()
 
 set(PROTOPIPE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-ov_add_target(ADD_CPPLINT
-              TYPE EXECUTABLE
+ov_add_target(TYPE EXECUTABLE
               NAME ${TARGET_NAME}
               ROOT ${CMAKE_CURRENT_SOURCE_DIR}
               ADDITIONAL_SOURCE_DIRS ${PROTOPIPE_SOURCE_DIR}
-              INCLUDES ${PROTOPIPE_SOURCE_DIR}
+              INCLUDES ${PROTOPIPE_SOURCE_DIR} "${CMAKE_CURRENT_BINARY_DIR}/version"
               LINK_LIBRARIES PRIVATE ${DEPENDENCIES})
 
 set_target_properties(${TARGET_NAME} PROPERTIES
                           FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
                           CXX_STANDARD 17)
+
+if (WIN32)
+    target_link_options(${TARGET_NAME} PRIVATE "/MANIFESTINPUT:${CMAKE_SOURCE_DIR}/protopipe.exe.manifest")
+endif()
 
 #
 # Install

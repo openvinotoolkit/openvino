@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@
 #ifdef OV_CORE_USE_XBYAK_JIT
 #    include "openvino/core/parallel.hpp"
 #    include "openvino/reference/utils/registers_pool.hpp"
-#    include "openvino/util/common_util.hpp"
+#    include "openvino/util/os.hpp"
 #endif  // OV_CORE_USE_XBYAK_JIT
 
 namespace ov {
@@ -111,9 +111,9 @@ class HashBase : public Generator {
 protected:
     void (*ker_fn)(const ComputeHashCallArgs*);
 
-public:
-    HashBase(cpu_isa_t isa) : Generator(isa) {}
+    HashBase(cpu_isa_t isa) : Generator(isa), ker_fn{} {}
 
+public:
     virtual void generate() = 0;
 
     void operator()(const ComputeHashCallArgs* args) {

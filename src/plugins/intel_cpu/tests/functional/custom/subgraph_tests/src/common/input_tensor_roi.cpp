@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ struct InputTensorROIParamType {
 
 class InputTensorROI : public ::testing::TestWithParam<InputTensorROIParamType> {
 public:
-    static std::string getTestCaseName(::testing::TestParamInfo<InputTensorROIParamType> obj) {
+    static std::string getTestCaseName(const ::testing::TestParamInfo<InputTensorROIParamType>& obj) {
         std::ostringstream result;
         result << "type=" << obj.param.type << "_";
         result << "shape=" << obj.param.shape << "_";

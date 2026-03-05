@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,12 +54,12 @@ ParamsKey EyeKernelRef::GetSupportedKey() const {
 
 bool EyeKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::EYE) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const eye_params& params = dynamic_cast<const eye_params&>(p);
     if (params.inputs.empty())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

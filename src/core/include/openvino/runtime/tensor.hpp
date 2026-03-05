@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,13 +9,16 @@
  */
 #pragma once
 
+#include <filesystem>
 #include <type_traits>
 
 #include "openvino/core/coordinate.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/allocator.hpp"
+#include "openvino/runtime/file_handle.hpp"
 
 namespace ov {
 
@@ -120,6 +123,17 @@ public:
     Tensor(const element::Type& type, const Shape& shape, void* host_ptr, const Strides& strides = {});
 
     /**
+     * @brief Constructs Tensor using element type and shape. Wraps allocated host memory as read only.
+     * @note Does not perform memory allocation internally
+     * @param type Tensor element type
+     * @param shape Tensor shape
+     * @param host_ptr Pointer to pre-allocated host memory with initialized objects
+     * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
+     * on shape and element size
+     */
+    Tensor(const element::Type& type, const Shape& shape, const void* host_ptr, const Strides& strides = {});
+
+    /**
      * @brief Constructs Tensor using port from node. Allocate internal host storage using default allocator
      * @param port port from node
      * @param allocator allocates memory for internal tensor storage
@@ -135,6 +149,16 @@ public:
      * on shape and element size
      */
     Tensor(const ov::Output<const ov::Node>& port, void* host_ptr, const Strides& strides = {});
+
+    /**
+     * @brief Constructs Tensor using port from node. Wraps allocated host memory as read only.
+     * @note Does not perform memory allocation internally
+     * @param port port from node
+     * @param host_ptr Pointer to pre-allocated host memory with initialized objects
+     * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
+     * on shape and element size
+     */
+    Tensor(const ov::Output<const ov::Node>& port, const void* host_ptr, const Strides& strides = {});
 
     /**
      * @brief Constructs region of interest (ROI) tensor form another tensor.
@@ -195,23 +219,49 @@ public:
     Strides get_strides() const;
 
     /**
-     * @brief Provides an access to the underlaying host memory
-     * @param type Optional type parameter.
-     * @note If type parameter is specified, the method throws an exception
-     * if specified type's fundamental type does not match with tensor element type's fundamental type
+     * @brief Provides an access to the underlying host memory
+     * @note The method throws an exception:
+     * - if tensor implementation does not allow non-const access to memory.
      * @return A host pointer to tensor memory
+     * @{
      */
-    void* data(const element::Type& type = {}) const;
+    const void* data() const;
+    void* data();
+    /// @}
 
     /**
-     * @brief Provides an access to the underlaying host memory casted to type `T`
+     * @brief Provides an access to the underlying host memory
+     * @param type Optional type parameter.
+     * @note The method throws an exception:
+     * - if specified type's fundamental type does not match with tensor element type's fundamental type
+     * - if tensor implementation does not allow non-const access to memory.
+     * @return A host pointer to tensor memory
+     * @{
+     */
+    const void* data(const element::Type& type) const;
+    void* data(const element::Type& type);
+    /// @}
+
+    /**
+     * @brief Provides an access to the underlying host memory casted to type `T`
      * @return A host pointer to tensor memory casted to specified type `T`.
      * @note Throws exception if specified type does not match with tensor element type
+     * @{
      */
-    template <typename T, typename datatype = typename std::decay<T>::type>
-    T* data() const {
-        return static_cast<T*>(data(element::from<datatype>()));
+    template <typename T, typename datatype = std::decay_t<T>>
+    const T* data() const {
+        return static_cast<const T*>(data(element::from<datatype>()));
     }
+
+    template <typename T, typename datatype = std::decay_t<T>>
+    T* data() {
+        if constexpr (std::is_const_v<T>) {
+            return std::as_const(*this).data<T>();
+        } else {
+            return static_cast<T*>(data(element::from<datatype>()));
+        }
+    }
+    /// @}
 
     /**
      * @brief Checks if current Tensor object is not initialized
@@ -232,7 +282,7 @@ public:
      * @return true if this object can be dynamically cast to the type const T*. Otherwise, false
      */
     template <typename T>
-    typename std::enable_if<std::is_base_of<Tensor, T>::value, bool>::type is() const noexcept {
+    std::enable_if_t<std::is_base_of_v<Tensor, T>, bool> is() const noexcept {
         try {
             T::type_check(*this);
         } catch (...) {
@@ -248,7 +298,7 @@ public:
      * @return T object
      */
     template <typename T>
-    const typename std::enable_if<std::is_base_of<Tensor, T>::value, T>::type as() const {
+    const std::enable_if_t<std::is_base_of_v<Tensor, T>, T> as() const {
         T::type_check(*this);
         return *static_cast<const T*>(this);
     }
@@ -259,4 +309,35 @@ public:
  */
 using TensorVector = std::vector<Tensor>;
 
+/// \brief Read a tensor content from a file. Only raw data is loaded.
+/// \param file_name Path to file to read.
+/// \param element_type Element type, when not specified the it is assumed as element::u8.
+/// \param shape Shape for resulting tensor. If provided shape is static, specified number of elements is read only.
+///              File should contain enough bytes, an exception is raised otherwise.
+///              One of the dimensions can be dynamic. In this case it will be determined automatically based on the
+///              length of the file content and `offset`. Default value is [?].
+/// \param offset_in_bytes Read file starting from specified offset. Default is 0. The remining size of the file should
+/// be compatible with shape.
+/// \param mmap Use mmap that postpones real read from file until data is accessed. If mmap is used, the file
+///             should not be modified until returned tensor is destroyed.
+OPENVINO_API
+Tensor read_tensor_data(const std::filesystem::path& file_name,
+                        const element::Type& element_type = element::u8,
+                        const PartialShape& shape = PartialShape::dynamic(1),
+                        std::size_t offset_in_bytes = 0,
+                        bool mmap = true);
+
+/// \brief Read a tensor content from an externally provided file handle. Only raw data is loaded.
+/// \param file_handle File handle to read. File handle should be opened by the caller OpenVINO takes ownership of the
+/// file
+///                    handle and is responsible for closing it. File should be opened with GENERIC_READ,
+///                    FILE_SHARE_READ flags on Windows and O_RDONLY on Linux.
+/// \param element_type Element type, when not specified the it is assumed as element::u8.
+/// \param shape Shape for resulting tensor.
+/// \param offset_in_bytes Read file starting from specified offset.
+OPENVINO_API
+Tensor read_tensor_data(ov::FileHandle file_handle,
+                        const element::Type& element_type = element::u8,
+                        const PartialShape& shape = PartialShape::dynamic(1),
+                        std::size_t offset_in_bytes = 0);
 }  // namespace ov

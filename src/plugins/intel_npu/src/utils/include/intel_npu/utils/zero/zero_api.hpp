@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,6 @@ namespace intel_npu {
     symbol_statement(zeFenceHostSynchronize)                  \
     symbol_statement(zeFenceReset)                            \
     symbol_statement(zeInit)                                  \
-    symbol_statement(zeMemAllocDevice)                        \
     symbol_statement(zeMemAllocHost)                          \
     symbol_statement(zeMemFree)                               \
     symbol_statement(zeMemGetAllocProperties)                 \
@@ -65,7 +64,8 @@ namespace intel_npu {
 #define weak_symbols_list()                                   \
     symbol_statement(zeCommandListGetNextCommandIdExp)        \
     symbol_statement(zeCommandListUpdateMutableCommandsExp)   \
-    symbol_statement(zeInitDrivers)
+    symbol_statement(zeInitDrivers)                           \
+    symbol_statement(zelGetLoaderVersion)
 // clang-format on
 
 class ZeroApi {
@@ -76,7 +76,9 @@ public:
     void operator=(const ZeroApi&) = delete;
     void operator=(ZeroApi&&) = delete;
 
-    static const std::shared_ptr<ZeroApi>& getInstance();
+    ~ZeroApi() = default;
+
+    static const std::shared_ptr<ZeroApi> getInstance();
 
 #define symbol_statement(symbol) decltype(&::symbol) symbol;
     symbols_list();

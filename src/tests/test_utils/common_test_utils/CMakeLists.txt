@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -57,7 +57,7 @@ function(add_common_utils ADD_TARGET_NAME)
 
     ov_build_target_faster(${ADD_TARGET_NAME}
         UNITY
-        PCH PRIVATE "src/precomp.hpp"
+        PCH_HEADER "src/precomp.hpp"
     )
 
     target_include_directories(${ADD_TARGET_NAME}

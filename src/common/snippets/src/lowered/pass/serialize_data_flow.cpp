@@ -1,24 +1,34 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "snippets/lowered/pass/serialize_data_flow.hpp"
 
+#include <cstddef>
+#include <map>
+#include <memory>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/op/serialization_node.hpp"
-#include "snippets/snippets_isa.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 bool SerializeDataFlow::run(const LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SerializeDataFlow")
-    if (linear_ir.empty())
+    if (linear_ir.empty()) {
         return false;
+    }
 
     ov::ResultVector results;
     ov::ParameterVector parameters;
@@ -28,7 +38,7 @@ bool SerializeDataFlow::run(const LinearIR& linear_ir) {
         const auto node = expr->get_node();
         ov::OutputVector inputs(expr->get_input_count());
         for (size_t i = 0; i < expr->get_input_count(); ++i) {
-            const auto& input_expr = expr->get_input_port_connector(i)->get_source().get_expr();
+            const auto& input_expr = expr->get_input_expr_ptr(i);
             OPENVINO_ASSERT(ops_map.count(input_expr), "input node wasn't found during serialization");
             inputs[i] = ops_map[input_expr]->output(expr->get_input_port_connector(i)->get_source().get_index());
         }
@@ -50,7 +60,4 @@ bool SerializeDataFlow::run(const LinearIR& linear_ir) {
     return ov::pass::Serialize(m_xml_path, m_bin_path).run_on_model(model);
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

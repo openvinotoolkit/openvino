@@ -27,11 +27,11 @@ the table for more information.
    * - bert-base-cased
      - SST-2_bert_cased_padded
      - spearman@cosine
-     - 2.41%
-     - 2.78%
-     - 2.61%
-     - 2.84%
-   * - mask_rcnn_resnet50_atrous_coco
+     - 2.57%
+     - 2.65%
+     - 2.95%
+     - 2.63%
+   * - Detectron-V2
      - COCO2017_detection_91cl_bkgr
      - coco_orig_precision
      - 
@@ -41,32 +41,31 @@ the table for more information.
    * - mobilenet-v2
      - ImageNet2012
      - accuracy @ top1
+     - -0.91%
+     - -0.93%
+     - -0.91%
      - -1.03%
-     - -1.00%
-     - -1.03%
-     - -1.01%
    * - resnet-50
      - ImageNet2012
      - accuracy @ top1
-     - -0.17%
-     - -0.17%
-     - -0.18%
-     - -0.17%
+     - -0.12%
+     - -0.12%
+     - -0.15%
+     - -0.15%
    * - ssd-resnet34-1200
      - COCO2017_detection_80cl_bkgr
      - map
-     - -0.01%
-     - -0.01%
-     - -0.04%
-     - -0.04%
-   * - yolo_v8n
+     - 0.00%
+     - 0.00%
+     - 0.03%
+     - 0.07%
+   * - yolo_v11
      - COCO2017_detection_80cl
-     - map
-     - -0.09%
-     - -0.09%
-     - -0.02%
-     - -0.04%
-
+     - AP@0.5:0.05:0.95
+     - 
+     - 
+     - 
+     - 
 .. list-table:: Model Accuracy for BF16, FP32 and FP16 (FP16: Arc only. BF16: Xeon® 6972P only)
    :header-rows: 1
 
@@ -76,7 +75,6 @@ the table for more information.
      - A, FP32
      - B, FP32
      - C, FP32
-     - C, BF16
      - D, FP16
    * - bert-base-cased
      - SST-2_bert_cased_padded
@@ -84,12 +82,10 @@ the table for more information.
      - 0.00%
      - 0.00%
      - 0.00%
-     - -0.01%
-     - 0.02%
-   * - mask_rcnn_resnet50_atrous_coco
+     - 0.00%
+   * - Detectron-V2
      - COCO2017_detection_91cl_bkgr
      - coco_orig_precision
-     - 
      - 
      - 
      - 
@@ -99,34 +95,29 @@ the table for more information.
      - accuracy @ top1
      - 0.00%
      - 0.00%
-     - 0.00%
-     - -0.23%
-     - -0.03%
+     - 0.02%
+     - 0.02%
    * - resnet-50
      - ImageNet2012
      - accuracy @ top1
      - 0.00%
      - 0.00%
      - 0.00%
-     - 0.06%
-     - 0.01%
+     - -0.01%
    * - ssd-resnet34-1200
      - COCO2017_detection_80cl_bkgr
      - map
      - 0.02%
      - 0.02%
-     - 0.01%
      - 0.02%
-     - 0.06%
-   * - yolo_v8n
+     - -0.23%
+   * - yolo_v11
      - COCO2017_detection_80cl
-     - map
-     - 0.01%
-     - 0.01%
-     - 0.01%
-     - 
-     - -0.03%
-
+     - AP@0.5:0.05:0.95
+     - 0.03%
+     - -2.21%
+     - -2.21%
+     - -2.21%
 .. list-table:: Model Accuracy for AMX-FP16, AMX-INT4, Arc-FP16 and Arc-INT4 (Arc™ B-series)
    :header-rows: 1
    
@@ -137,83 +128,83 @@ the table for more information.
      - B, AMX-INT4
      - C, Arc-FP16
      - D, Arc-INT4
-   * - GLM4-9B-Chat
+   * - DeepSeek-R1-Distill-Llama-8B
      - Data Default WWB
      - Similarity
-     - 6.9%
-     - 3.8%
-     - 6.3%
-     - 15.1%
-   * - Qwen-2.5-7B-instruct
+     - 98.1%
+     - 94.4%
+     - 99.5%
+     - 94.0%
+   * - DeepSeek-R1-Distill-Qwen-1.5B
      - Data Default WWB
      - Similarity
-     - 7.97%
-     - 25.12%
-     - 0.09%
-     - 23.87%
-   * - Gemma-2-9B
+     - 96.5%
+     - 92.4%
+     - 99.7%
+     - 92.3%
+   * - Gemma-3-4B-it
      - Data Default WWB
      - Similarity
-     - 4.81%
-     - 10.25%
-     - 1.73%
-     - 10.24%
-   * - Llama-2-7b-chat
+     - 92.0%
+     - 83.9%
+     - 
+     - 84.9%
+   * - Llama-2-7B-chat
      - Data Default WWB
      - Similarity
-     - 1.80%
-     - 22.31%
-     - 0.13%
-     - 21.54%
-   * - Llama-3-8b
+     - 99.3%
+     - 93.4%
+     - 99.8%
+     - 93.4%
+   * - Llama-3-8B
      - Data Default WWB
      - Similarity
-     - 2.26%
-     - 23.00%
-     - 0.12%
-     - 23.59%
+     - 98.8%
+     - 94.3%
+     - 99.7%
+     - 94.5%
    * - Llama-3.2-3b-instruct
      - Data Default WWB
      - Similarity
-     - 2.40%
-     - 11.25%
-     - 0.00%
-     - 12.32%
-   * - Mistral-7b-instruct-V0.2
+     - 97.9%
+     - 94.2%
+     - 99.7%
+     - 94.1%
+   * - Phi4-mini-instruct
      - Data Default WWB
      - Similarity
-     - 2.94%
-     - 9.08%
-     - 0.37%
-     - 9.53%
-   * - Phi3-mini-4k-instruct
+     - 89.1%
+     - 92.1%
+     - 99.5%
+     - 92.4%
+   * - Qwen2-VL-7B
      - Data Default WWB
      - Similarity
-     - 8.08%
-     - 7.93%
-     - 0.00%
-     - 8.30%
-   * - Qwen-2-7B
+     - 97.5%
+     - 88.1%
+     - 99.8%
+     - 91.4%
+   * - Qwen3-8B
      - Data Default WWB
      - Similarity
-     - 4.97%
-     - 18.97%
-     - 0.00%
-     - 22.38%
+     - 97.8%
+     - 92.3%
+     - 
+     - 93.0%
    * - Flux.1-schnell
      - Data Default WWB
      - Similarity
-     - 4.60%
-     - 4.20%
-     - 5.00%
-     - 3.30%
+     - 95.4%
+     - 96.1%
+     - 
+     - 92.1%
    * - Stable-Diffusion-V1-5
      - Data Default WWB
      - Similarity
-     - 2.50%
-     - 1.90%
-     - 2.10%
-     - 0.10%
+     - 96.3%
+     - 93.3%
+     - 99.5%
+     - 93.7%
 
 Notes: For all accuracy metrics a "-", (minus sign), indicates an accuracy drop.
 The Similarity metric is the distance from "perfect" and as such always positive. 

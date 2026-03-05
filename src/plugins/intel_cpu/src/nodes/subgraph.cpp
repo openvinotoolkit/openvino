@@ -1,54 +1,109 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "subgraph.h"
 
+#include <climits>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <set>
+
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "onednn/dnnl.h"
+#include "edge.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "node.h"
+#include "nodes/executors/subgraph.hpp"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "shape_inference/custom/subgraph.hpp"
-#include "snippets/lowered/pass/init_loops.hpp"
-#include "snippets/lowered/pass/insert_buffers.hpp"
-#include "snippets/lowered/pass/insert_loops.hpp"
-#include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
-#include "snippets/lowered/pass/mark_loops.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "snippets/lowered/pass/pass_config.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/analyze_broadcastable_inputs.hpp"
 #include "snippets/pass/canonicalization.hpp"
 #include "snippets/pass/hash.hpp"
-#include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/positioned_pass.hpp"
-#include "snippets/pass/propagate_precision.hpp"
-#include "snippets/utils/utils.hpp"
+#include "snippets/shape_types.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
-#include "transformations/defs.hpp"
 #include "transformations/snippets/common/pass/mul_add_to_fma.hpp"
+#include "transformations/snippets/common/shape_inference.hpp"
+#include "utils/general_utils.h"
 
-#if defined(OPENVINO_ARCH_ARM64)
-#    include "emitters/snippets/aarch64/cpu_generator.hpp"
-#    include "executors/aarch64/subgraph.hpp"
-#    include "transformations/snippets/aarch64/shape_inference.hpp"
-#else
+#if defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/cpu_isa_traits.hpp>
+
 #    include "emitters/snippets/x64/cpu_generator.hpp"
 #    include "executors/x64/subgraph.hpp"
+#    include "snippets/lowered/port_descriptor.hpp"
+#    include "snippets/op/brgemm.hpp"
+#    include "snippets/utils/utils.hpp"
+#    include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#elif defined(OPENVINO_ARCH_ARM64)
+#    include <cpu/aarch64/cpu_isa_traits.hpp>
+
+#    include "cache/cache_entry.h"
+#    include "emitters/snippets/aarch64/cpu_generator.hpp"
+#    include "executors/aarch64/subgraph.hpp"
+#    include "snippets/lowered/pass/init_loops.hpp"
+#    include "snippets/lowered/pass/insert_buffers.hpp"
+#    include "snippets/lowered/pass/insert_reg_spills.hpp"
+#    include "transformations/snippets/aarch64/pass/brgemm_to_gemm_cpu.hpp"
+#    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
+#    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
+#    include "transformations/snippets/aarch64/pass/lowered/insert_gemm_copy_buffers.hpp"
+#elif defined(OPENVINO_ARCH_RISCV64)
+#    include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
+
+#    include "emitters/snippets/riscv64/cpu_generator.hpp"
+#    include "executors/riscv64/subgraph.hpp"
+#else
+#    include "emitters/snippets/cpu_runtime_configurator.hpp"
+#    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
+#    include "snippets/lowered/pass/mark_loops.hpp"
+#    include "snippets/pass/propagate_precision.hpp"
+#endif
+
+#include "emitters/snippets/cpu_runtime_configurator.hpp"
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
+#    include "snippets/lowered/pass/mark_loops.hpp"
+#    include "snippets/pass/propagate_precision.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "cache/cache_entry.h"
+#    include "snippets/lowered/pass/init_loops.hpp"
+#    include "snippets/lowered/pass/insert_buffers.hpp"
+#    include "snippets/lowered/pass/insert_loops.hpp"
+#    include "snippets/pass/fuse_transpose_brgemm.hpp"
+#    include "transformations/snippets/common/pass/enforce_precision.hpp"
 #    include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #    include "transformations/snippets/x64/pass/eliminate_brgemm_copy_b.hpp"
-#    include "transformations/snippets/x64/pass/enforce_precision.hpp"
+#    include "transformations/snippets/x64/pass/fuse_brgemm_cpu_postops.hpp"
 #    include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 #    include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
 #    include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp"
+#    include "transformations/snippets/x64/pass/lowered/parallelize_gated_mlp_n_loops.hpp"
 #    include "transformations/snippets/x64/pass/remove_converts.hpp"
-#    include "transformations/snippets/x64/shape_inference.hpp"
+#    include "transformations/snippets/x64/pass/repack_matmul_weights.hpp"
 #endif
 
-#include <algorithm>
-#include <array>
 #include <utility>
 #include <vector>
 
-#include "utils/cpu_utils.hpp"
 #include "utils/ngraph_utils.hpp"
 
 #ifdef SNIPPETS_LIBXSMM_TPP
@@ -56,17 +111,15 @@
 #    include "transformations/tpp/common/pass/brgemm_to_brgemm_tpp.hpp"
 #    include "transformations/tpp/common/pass/lowered/brgemm_tpp_blocking.hpp"
 #    include "transformations/tpp/common/pass/lowered/set_tpp_leading_dim.hpp"
-#    if defined(OPENVINO_ARCH_X86_64)
-#        include "transformations/tpp/x64/pass/eltwise_to_eltwise_tpp.hpp"
-#        include "transformations/tpp/x64/pass/fuse_tpp_to_equations.hpp"
-#        include "transformations/tpp/x64/pass/scalar_to_scalar_tpp.hpp"
+#    if defined(OPENVINO_ARCH_ARM64)
+#        include "snippets/lowered/pass/insert_loops.hpp"
 #    endif
 #endif
 
 namespace ov::intel_cpu::node {
 namespace {
 
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
 struct SubgraphKey {
     SubgraphKey() = default;
     SubgraphKey(std::shared_ptr<SubgraphAttrs> attrs_, std::vector<VectorDims> in_shapes_)
@@ -74,7 +127,7 @@ struct SubgraphKey {
           in_shapes(std::move(in_shapes_)) {}
     virtual ~SubgraphKey() = default;
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
 
@@ -90,7 +143,7 @@ struct SubgraphKey {
     }
 
     std::shared_ptr<SubgraphAttrs> attrs = nullptr;
-    std::vector<VectorDims> in_shapes = {};
+    std::vector<VectorDims> in_shapes;
 };
 
 struct SubgraphCodeGeneratorKey {
@@ -98,7 +151,7 @@ struct SubgraphCodeGeneratorKey {
         : attrs(std::move(attrs_)),
           broadcasting_mask(mask_) {}
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
 
@@ -119,7 +172,7 @@ struct SubgraphShapeInferResultKey {
         : in_shapes(std::move(in_shapes_)),
           body_hash(body_hash_) {}
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
 
@@ -134,12 +187,12 @@ struct SubgraphShapeInferResultKey {
         return body_hash == rhs.body_hash && in_shapes == rhs.in_shapes;
     }
 
-    std::vector<VectorDims> in_shapes = {};
+    std::vector<VectorDims> in_shapes;
     uint64_t body_hash = 0;
 };
 
 struct SubgraphShapeInferResult {
-    SubgraphShapeInferResult(IShapeInfer::Result res) : result(std::move(res)) {}
+    explicit SubgraphShapeInferResult(IShapeInfer::Result res) : result(std::move(res)) {}
 
     IShapeInfer::Result result;
 };
@@ -147,11 +200,15 @@ struct SubgraphShapeInferResult {
 }  // namespace
 
 static _ov_dnnl_cpu_isa getHostIsa() {
-#if defined(OPENVINO_ARCH_ARM64)
-    return dnnl::impl::cpu::aarch64::asimd;
-#else
+#if defined(OPENVINO_ARCH_X86_64)
     return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? dnnl::impl::cpu::x64::avx512_core
                                                                             : dnnl::impl::cpu::x64::avx2;
+#elif defined(OPENVINO_ARCH_ARM64)
+    return dnnl::impl::cpu::aarch64::asimd;
+#elif defined(OPENVINO_ARCH_RISCV64)
+    return static_cast<_ov_dnnl_cpu_isa>(ov::intel_cpu::riscv64::gv);
+#else
+    OPENVINO_THROW("Subgraphs code-generator is not supported on this platform");
 #endif
 }
 
@@ -160,17 +217,21 @@ Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
       host_isa(getHostIsa()),
       subgraph_attrs(std::make_shared<SubgraphAttrs>()) {
     const auto& tmp_snippet = ov::as_type_ptr<snippets::op::Subgraph>(op);
-    OPENVINO_ASSERT(tmp_snippet, "Attempt to create Subgraph node from an invalid op type");
+    CPU_NODE_ASSERT(tmp_snippet, "Attempt to create Subgraph node from an invalid op type");
     subgraph_attrs->snippet = tmp_snippet->clone();
     subgraph_attrs->bodyHash = getBodyHash(tmp_snippet);
 
 #if defined(OPENVINO_ARCH_ARM64)
     subgraph_attrs->snippet->set_generator(
-        std::make_shared<aarch64::CPUGenerator>(host_isa, context->getParamsCache()));
+        std::make_shared<aarch64::CPUGenerator>(host_isa, context->getSnippetsParamsCache()));
 #elif defined(OPENVINO_ARCH_X86_64)
-    subgraph_attrs->snippet->set_generator(std::make_shared<CPUGenerator>(host_isa, context->getParamsCache()));
+    subgraph_attrs->snippet->set_generator(std::make_shared<CPUGenerator>(host_isa, context->getSnippetsParamsCache()));
+#elif defined(OPENVINO_ARCH_RISCV64)
+    subgraph_attrs->snippet->set_generator(
+        std::make_shared<riscv64::CPUGenerator>(static_cast<ov::intel_cpu::riscv64::cpu_isa_t>(host_isa),
+                                                context->getSnippetsParamsCache()));
 #else
-    THROW_CPU_NODE_ERR("Subgraphs code-generator is not supported on non-x64 platforms");
+    OPENVINO_THROW("Subgraphs code-generator is not supported on this platform");
 #endif
 
     // Note: we have to update shapeInfer, so it uses the per-thread op::Subgraph copy
@@ -204,17 +265,16 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
 
     const size_t ndims = outputShapes[0].getRank();
     // Domain sensitive operations and dynamic Subgraphs support only Planar layout
-    const bool isOnlyPlanarApplicable = subgraph_attrs->snippet->has_domain_sensitive_ops();
-    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1u, 2u, 3u, 4u, 5u) && dimRanksAreEqual &&
-                                           !isOnlyPlanarApplicable && !isDynamic;
+    const bool isOnlyPlanarApplicable = has_domain_sensitive_ops();
+    const bool isChannelsFirstApplicable =
+        any_of(ndims, 1U, 2U, 3U, 4U, 5U) && dimRanksAreEqual && !isOnlyPlanarApplicable && !isDynamic;
     // Todo: Subgraphs currently don't support per-channel broadcasting of Blocked descriptors because
     //  canonicalization can't distinguish between <N, C, H, W, c> and <N, C, D, H, W> cases.
     //  See snippets::op::Subgraph::canonicalize for details.
 #if defined(OPENVINO_ARCH_ARM64)
     bool isBlockedApplicable = false;
 #else
-    bool isBlockedApplicable =
-        dnnl::impl::utils::one_of(ndims, 3u, 4u, 5u) && dimRanksAreEqual && !isOnlyPlanarApplicable && !isDynamic;
+    bool isBlockedApplicable = any_of(ndims, 3U, 4U, 5U) && dimRanksAreEqual && !isOnlyPlanarApplicable && !isDynamic;
 
     for (const auto& inShape : inputShapes) {
         if (isDynamic && inShape.getRank() != 1) {
@@ -274,16 +334,13 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         NodeConfig config;
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
-            const auto originalInputPrecision = getOriginalInputPrecisionAtPort(i);
-            const auto precision =
-                ((originalInputPrecision == ov::element::f32) &&
-                 one_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) &&
-                 subgraph_attrs->snippet->has_domain_sensitive_ops())
-                    ? context->getConfig().inferencePrecision
-                    : originalInputPrecision;
-            if (supportedPrecisions.count(precision) == 0) {
-                THROW_CPU_NODE_ERR("doesn't support ", precision, " precision.");
-            }
+            const auto precision = getOriginalInputPrecisionAtPort(i);
+            CPU_NODE_ASSERT(supportedPrecisions.count(precision) != 0,
+                            "Subgraph doesn't support ",
+                            precision,
+                            " precision at input port ",
+                            i,
+                            ".");
 
             const auto equalPrecisions =
                 getOriginalOutputPrecisions().size() == 1 && precision == getOriginalOutputPrecisionAtPort(0);
@@ -300,10 +357,13 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         }
         config.outConfs.resize(outputShapes.size());
         for (size_t i = 0; i < outputShapes.size(); i++) {
-            auto precision = getOriginalOutputPrecisionAtPort(i);
-            if (supportedPrecisions.count(precision) == 0) {
-                THROW_CPU_NODE_ERR("doesn't support ", precision, " precision.");
-            }
+            const auto precision = getOriginalOutputPrecisionAtPort(i);
+            CPU_NODE_ASSERT(supportedPrecisions.count(precision) != 0,
+                            "Subgraph doesn't support ",
+                            precision,
+                            " precision at input port ",
+                            i,
+                            ".");
 
             BlockedMemoryDesc::CmpMask outputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
@@ -367,8 +427,9 @@ void Subgraph::createPrimitive() {
         initMemoryPtrs();
         initPluginBlockedShapes();
         initAttributes();
-        initStartOffsets();
         optimizeIR();
+        // Init starts offsets should be after `prepareWeights`
+        initStartOffsets();
     }
 
     Node::createPrimitive();
@@ -491,41 +552,78 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                            ov::snippets::pass::AnalyzeBroadcastableInputs,
                                            broadcastable_inputs);
 
-    if (one_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) &&
-        subgraph_attrs->snippet->has_domain_sensitive_ops()) {
-        // enforce BF16 precisions to supported operations
-        // MatMul has to be decomposed to Brgemm operations before enforcement
-        // Note, MatMul decomposition will be run later again for case if BF16 enforcement is not happened
-        SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineStart, ov::snippets::pass::MatMulToBrgemm);
+    if (any_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) &&
+        has_domain_sensitive_ops()) {
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(
+            Place::After,
+            ov::snippets::pass::FuseTransposeBrgemm,
+            pass::EnforcePrecision,
+            element::f32,
+            context->getConfig().inferencePrecision,
+            [](const std::shared_ptr<ov::Node>& op) {
+                std::set<std::vector<ov::element::Type>> types;
+                if (ov::is_type<ov::snippets::op::Brgemm>(op)) {
+                    const auto& a_port =
+                        ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(op->input(0));
+                    // WA: We can't perform precision enforcement in case of strided access to A matrix:
+                    // snippets eltwise loops for precision conversion are generated by last 2 dims,
+                    // which are not [M, K] in case of strided access in brgemm A
+                    // There are no limitations for B matrix, since precision conversion is fused in BrgemmCopyB
+                    // Ticket: 177121
+                    if (ov::snippets::utils::is_planar_layout(a_port->get_layout())) {
+                        if (ov::intel_cpu::brgemm_utils::is_fp16_supported()) {
+                            types.insert({ov::element::f16, ov::element::f16});
+                        }
+                        if (ov::intel_cpu::brgemm_utils::is_bf16_supported()) {
+                            types.insert({ov::element::bf16, ov::element::bf16});
+                        }
+                    }
+                }
+                return types;
+            });
+        // Note: EnforcePrecision might also eliminate Convert pairs (e.g. bf16->f32->bf16),
+        // so FuseTransposeBrgemm has to be run after it as well
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
-                                               ov::snippets::pass::MatMulToBrgemm,
                                                pass::EnforcePrecision,
-                                               element::f32,
-                                               context->getConfig().inferencePrecision);
+                                               ov::snippets::pass::FuseTransposeBrgemm);
     }
+
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::snippets::pass::PropagatePrecision,
-                                           ov::intel_cpu::pass::BrgemmToBrgemmCPU);
-    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU,
-                                           ov::intel_cpu::pass::EliminateBrgemmCopyB);
+                                           getConstantInputIndexes());
+    if (has_domain_sensitive_ops()) {
+#if defined(OPENVINO_ARCH_X86_64)
+        const auto cpu_config =
+            ov::as_type_ptr<CPURuntimeConfig>(subgraph_attrs->snippet->get_runtime_configurator()->get_config());
+#endif
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                               ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                               ov::intel_cpu::pass::FuseBrgemmCPUPostops,
+                                               external_ptrs_idces);
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                               ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                               ov::intel_cpu::pass::EliminateBrgemmCopyB,
+                                               cpu_config->input_repackers);
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                               ov::intel_cpu::pass::EliminateBrgemmCopyB,
+                                               ov::intel_cpu::pass::RepackMatMulWeights,
+                                               context,
+                                               cpu_config->input_repackers,
+                                               srcMemPtrs);
+    }
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
+                                          ov::snippets::pass::PropagatePrecision,
+                                          ov::intel_cpu::pass::BrgemmToGemmCPU);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU,
                                            ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP);
-    // Note: There could be several ConvertConstantsToScalars instances in the pipeline
-    SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::tpp::pass::ScalarToScalarTPP);
-    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
-                                           ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP,
-                                           ov::intel_cpu::tpp::pass::EltwiseToEltwiseTPP);
-    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
-                                           ov::intel_cpu::tpp::pass::EltwiseToEltwiseTPP,
-                                           ov::intel_cpu::tpp::pass::FuseTPPToEquations);
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
-                                          ov::snippets::pass::PropagatePrecision,
+                                          ov::intel_cpu::pass::BrgemmToGemmCPU,
                                           ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP);
 #endif
 
@@ -538,19 +636,21 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     return backend_passes;
 }
 
-Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
+Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
     ControlFlowPasses backend_passes;
-#if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64) && defined(SNIPPETS_LIBXSMM_TPP))
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     using PassPosition = ov::snippets::pass::PassPosition;
     using Place = PassPosition::Place;
 #endif
-
 #if defined(OPENVINO_ARCH_X86_64)
 #    define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...)             \
         backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), \
                                     std::make_shared<PASS>(__VA_ARGS__))
+#    define SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(PASS_PLACE, PASS, ...) \
+        backend_passes.emplace_back(PassPosition(PASS_PLACE), std::make_shared<PASS>(__VA_ARGS__))
 #else
 #    define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...)
+#    define SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(PASS_PLACE, PASS, ...)
 #endif  // OPENVINO_ARCH_X86_64
 
 #if defined(OPENVINO_ARCH_ARM64)
@@ -564,6 +664,12 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                            ov::snippets::lowered::pass::MarkLoops,
                                            ov::intel_cpu::pass::BrgemmCPUBlocking);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
+                                          ov::snippets::lowered::pass::MarkLoops,
+                                          ov::intel_cpu::pass::GemmCPUBlocking);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                           ov::intel_cpu::pass::BrgemmCPUBlocking,
+                                           ov::intel_cpu::pass::ParallelizeGatedMlpNLoops);
 #ifdef SNIPPETS_DEBUG_CAPS
     const auto& debug_config = subgraph_attrs->snippet->get_debug_config();
     if (debug_config.perf_count_mode != snippets::DebugCapsConfig::PerfCountMode::Disabled) {
@@ -571,6 +677,10 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
                                                ov::intel_cpu::pass::BrgemmCPUBlocking,
                                                ov::snippets::lowered::pass::InsertPerfCountVerbose,
                                                getName());
+        SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
+                                              ov::intel_cpu::pass::GemmCPUBlocking,
+                                              ov::snippets::lowered::pass::InsertPerfCountVerbose,
+                                              getName());
     }
 #endif  // SNIPPETS_DEBUG_CAPS
 
@@ -584,6 +694,12 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::snippets::lowered::pass::InsertBuffers,
                                            ov::intel_cpu::pass::InsertBrgemmCopyBuffers);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
+                                          ov::snippets::lowered::pass::InitLoops,
+                                          ov::intel_cpu::pass::aarch64::AdjustGemmCopyBLoopPorts);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
+                                          ov::snippets::lowered::pass::InsertBuffers,
+                                          ov::intel_cpu::pass::aarch64::InsertGemmCopyBuffers);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
@@ -607,7 +723,7 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
 
 uint32_t Subgraph::getBroadcastingMask(const std::vector<VectorDims>& input_shapes) {
     uint32_t mask = 0;
-    OPENVINO_ASSERT(broadcastable_inputs.size() <= sizeof(mask) * CHAR_BIT,
+    CPU_NODE_ASSERT(broadcastable_inputs.size() < sizeof(mask) * CHAR_BIT,
                     "Incorrect size of broadcastable inputs of Subgraph");
     for (const auto& broadcastable_input : broadcastable_inputs) {
         const auto& shape = input_shapes[broadcastable_input.first];
@@ -619,6 +735,20 @@ uint32_t Subgraph::getBroadcastingMask(const std::vector<VectorDims>& input_shap
     return mask;
 }
 
+std::set<size_t> Subgraph::getConstantInputIndexes() const {
+    // TODO [153480]: Some constant inputs can have additional operations
+    //                between Constant and target node input: Convert, Transpose etc.
+    //                Need to support such constant paths on inputs
+    std::set<size_t> constant_inputs_idxs;
+    for (size_t i = 0; i < getParentEdges().size(); ++i) {
+        if (getParentEdgeAt(i)->getParent()->isConstant() &&
+            getParentEdgeAt(i)->getParent()->getType() == Type::Input) {
+            constant_inputs_idxs.insert(i);
+        }
+    }
+    return constant_inputs_idxs;
+}
+
 void Subgraph::optimizeIR() {
     const auto& subgraph = subgraph_attrs->snippet;
 
@@ -628,11 +758,11 @@ void Subgraph::optimizeIR() {
 
     // DataFlow transformations includes AnalyzeBroadcastableInputs pass:
     // we should verify that the received map is aligned with our blocked input shapes
-    OPENVINO_ASSERT((broadcastable_inputs.size() < in_shapes.size()) ||
+    CPU_NODE_ASSERT((broadcastable_inputs.size() < in_shapes.size()) ||
                         (!broadcastable_inputs.empty() && broadcastable_inputs.rbegin()->first < in_shapes.size()),
                     "Incorrect indexes of broadcastable inputs of Subgraph");
     for (const auto broadcastable_input : broadcastable_inputs) {
-        OPENVINO_ASSERT(broadcastable_input.second < in_shapes[broadcastable_input.first].size(),
+        CPU_NODE_ASSERT(broadcastable_input.second < in_shapes[broadcastable_input.first].size(),
                         "Incorrect processing dimension index of broadcastable index");
     }
 
@@ -646,17 +776,21 @@ void Subgraph::optimizeIR() {
 
     const auto control_flow_config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
     const auto control_flow_passes = getControlFlowPasses();
+#if defined(OPENVINO_ARCH_ARM64)
+    // enable it after emitters for RegSpillBegin and RegSpillEnd are implemented on ARM in CVS-162498
+    control_flow_config->disable<ov::snippets::lowered::pass::InsertRegSpills>();
+#endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     // Note: temporary disabled. Re-enable after ticket 132833 is resolved
     control_flow_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
 
-    subgraph->set_tile_rank(std::min(2ul, subgraph->infer_master_shape().size()));
+    subgraph->set_tile_rank(std::min(2UL, subgraph->infer_master_shape().size()));
 #endif
 
-    // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
-    // needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts in domain
-    // optimization.
+    // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work
+    // amount) needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts
+    // in domain optimization.
     subgraph->control_flow_transformations(static_cast<size_t>(parallel_get_max_threads()),
                                            256,
                                            std::make_shared<snippets::CPUShapeInferSnippetsFactory>(),
@@ -665,8 +799,8 @@ void Subgraph::optimizeIR() {
 }
 
 void Subgraph::prepareParams() {
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
-    const auto& cache = context->getParamsCache();
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
+    const auto& cache = context->getSnippetsParamsCache();
 
     auto builder = [this, &cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphBaseExecutor> {
         const auto& snippet = subgraph_attrs->snippet;
@@ -679,12 +813,15 @@ void Subgraph::prepareParams() {
             // Dynamic case:
             // 1. Generate JIT code if needed
             // 2. Update runtime config with dynamic values
-            //    If JIT code has been taken from cache, need to set cached kernel executor table for the configuration
+            //    If JIT code has been taken from cache, need to set cached kernel executor table for the
+            //    configuration
             // 3. Create SubgraphDynamicSpecializedExecutor
             const auto code_gen_result = cache->getOrCreate(
                 SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
-                [](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
-                    return std::make_shared<SubgraphCodeGenerator>(key.attrs, std::make_shared<CPURuntimeConfig>());
+                [this](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
+                    return std::make_shared<SubgraphCodeGenerator>(key.attrs,
+                                                                   std::make_shared<CPURuntimeConfig>(),
+                                                                   external_ptrs_idces);
                 });
             const auto& code_gen = code_gen_result.first;
             // [148644] : Update Kernel table from SubgraphCodeGenerator when JIT code was already generated with
@@ -695,6 +832,8 @@ void Subgraph::prepareParams() {
             }
             const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
             return std::make_shared<SubgraphDynamicSpecializedExecutor>(snippet_config,
+                                                                        external_ptrs_idces,
+                                                                        input_num,
                                                                         key.attrs,
                                                                         code_gen,
                                                                         start_offset_in,
@@ -709,10 +848,12 @@ void Subgraph::prepareParams() {
         const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
         const auto code_gen_result = cache->getOrCreate(
             SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
-            [&snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
-                return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config);
+            [this, &snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
+                return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config, external_ptrs_idces);
             });
         return std::make_shared<SubgraphStaticExecutor>(snippet_config,
+                                                        external_ptrs_idces,
+                                                        input_num,
                                                         key.attrs,
                                                         code_gen_result.first,
                                                         start_offset_in,
@@ -725,7 +866,7 @@ void Subgraph::prepareParams() {
     execPtr = result.first;
 #endif
 
-    OPENVINO_ASSERT(execPtr != nullptr, "Executor is not created for node ", getName(), ".");
+    CPU_NODE_ASSERT(execPtr, "Executor is not created for node ", getName(), ".");
 }
 
 IShapeInfer::Result Subgraph::shapeInfer() const {
@@ -733,11 +874,12 @@ IShapeInfer::Result Subgraph::shapeInfer() const {
         in_shapes[i] = srcMemPtrs[i]->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
     }
 
-    auto builder = [this](const SubgraphShapeInferResultKey& key) -> std::shared_ptr<SubgraphShapeInferResult> {
+    auto builder =
+        [this]([[maybe_unused]] const SubgraphShapeInferResultKey& key) -> std::shared_ptr<SubgraphShapeInferResult> {
         return std::make_shared<SubgraphShapeInferResult>(Node::shapeInfer());
     };
 
-    const auto cache = context->getParamsCache();
+    const auto cache = context->getSnippetsParamsCache();
     const auto result = cache->getOrCreate(SubgraphShapeInferResultKey(in_shapes, subgraph_attrs->bodyHash), builder);
     return result.first->result;
 }
@@ -750,7 +892,7 @@ bool Subgraph::canBeInPlace() const {
         return false;
     }
 
-    for (auto& parentEdge : getParentEdges()) {
+    for (const auto& parentEdge : getParentEdges()) {
         auto parent = parentEdge.lock()->getParent();
         if (parent->getChildEdges().size() != 1) {
             return false;
@@ -758,7 +900,7 @@ bool Subgraph::canBeInPlace() const {
 
         // WA to prevent memory corruption caused by inplace feature
         if (parent->getType() == Type::Concatenation) {
-            for (auto& parentParentEdge : parent->getParentEdges()) {
+            for (const auto& parentParentEdge : parent->getParentEdges()) {
                 auto parentParent = parentParentEdge.lock()->getParent();
                 if (parentParent->getChildEdges().size() != 1) {
                     return false;
@@ -774,12 +916,16 @@ bool Subgraph::created() const {
 }
 
 void Subgraph::execute(const dnnl::stream& strm) {
-    OPENVINO_ASSERT(execPtr, "Can't execute Subgraph node. Primitive didn't created");
+    CPU_NODE_ASSERT(execPtr, "Can't execute Subgraph node. Primitive didn't created");
     execPtr->execute(strm, srcMemPtrs, dstMemPtrs);
 }
 
 void Subgraph::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
+}
+
+bool Subgraph::has_domain_sensitive_ops() const {
+    return subgraph_attrs->snippet->has_domain_sensitive_ops();
 }
 
 }  // namespace ov::intel_cpu::node

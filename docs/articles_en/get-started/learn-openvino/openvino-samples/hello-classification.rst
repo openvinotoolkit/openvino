@@ -18,8 +18,8 @@ Synchronous Inference Request API. Before using the sample, refer to the followi
 How It Works
 ####################
 
-At startup, the sample application reads command-line parameters, prepares input data,
-loads a specified model and image to the OpenVINO™ Runtime plugin, performs synchronous
+At startup, the sample application sets log message capturing callback and reads command-line parameters.
+Then it prepares input data, loads a specified model and image to the OpenVINO™ Runtime plugin, performs synchronous
 inference, and processes output data, logging each step in a standard output stream.
 
 .. tab-set::
@@ -50,7 +50,7 @@ inference, and processes output data, logging each step in a standard output str
 
 
 You can see the explicit description of each sample step at
-:doc:`Integration Steps <../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
+:doc:`Integration Steps <../../../openvino-workflow/running-inference>`
 section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 Running
@@ -254,11 +254,11 @@ Sample Output
 Additional Resources
 ####################
 
-- :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
+- :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../../openvino-workflow/running-inference>`
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
 - :doc:`Convert a Model <../../../openvino-workflow/model-preparation/convert-model-to-ir>`
-- `OpenVINO Runtime C API <https://docs.openvino.ai/2025/api/c_cpp_api/group__ov__c__api.html>`__
+- `OpenVINO Runtime C API <https://docs.openvino.ai/2026/api/c_cpp_api/group__ov__c__api.html>`__
 - `Hello Classification Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_classification/README.md>`__
 - `Hello Classification C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/hello_classification/README.md>`__
 - `Hello Classification C Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/c/hello_classification/README.md>`__

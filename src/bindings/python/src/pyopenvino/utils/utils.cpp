@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "utils.hpp"
 
 #include <pybind11/stl.h>
+#include <pybind11/stl/filesystem.h>
 
 #include <map>
 #include <set>
@@ -17,6 +18,8 @@
 #include "openvino/core/meta_data.hpp"
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 
 using Version = ov::pass::Serialize::Version;
@@ -24,7 +27,8 @@ using Version = ov::pass::Serialize::Version;
 namespace Common {
 namespace utils {
 
-PY_TYPE check_list_element_type(const py::list& list) {
+template <typename T>
+PY_TYPE check_container_element_type(const T& container) {
     PY_TYPE detected_type = PY_TYPE::UNKNOWN;
 
     auto check_type = [&](PY_TYPE type) {
@@ -32,11 +36,11 @@ PY_TYPE check_list_element_type(const py::list& list) {
             detected_type = type;
             return;
         }
-        OPENVINO_THROW("Incorrect attribute. Mixed types in the list are not allowed.");
+        OPENVINO_THROW("Incorrect attribute. Mixed types in the container are not allowed.");
     };
 
-    for (const auto& it : list) {
-        // Check the type of elements in the list
+    for (const auto& it : container) {
+        // Check the type of elements in the container
         if (py::isinstance<py::str>(it)) {
             check_type(PY_TYPE::STR);
         } else if (py::isinstance<py::int_>(it)) {
@@ -47,6 +51,8 @@ PY_TYPE check_list_element_type(const py::list& list) {
             check_type(PY_TYPE::BOOL);
         } else if (py::isinstance<ov::PartialShape>(it)) {
             check_type(PY_TYPE::PARTIAL_SHAPE);
+        } else if (py::isinstance<ov::hint::ModelDistributionPolicy>(it)) {
+            check_type(PY_TYPE::MODEL_DISTRIBUTION_POLICY);
         }
     }
 
@@ -101,8 +107,8 @@ py::object from_ov_any_map(const ov::AnyMap& map) {
 
 py::object from_ov_any(const ov::Any& any) {
     // Check for py::object
-    if (any.is<py::object>()) {
-        return any.as<py::object>();
+    if (any.is<std::shared_ptr<py::object>>()) {
+        return *any.as<std::shared_ptr<py::object>>();
     }  // Check for std::string
     else if (any.is<std::string>()) {
         return py::cast(any.as<std::string>().c_str());
@@ -234,10 +240,15 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::hint::SchedulingCoreType>());
     } else if (any.is<std::set<ov::hint::ModelDistributionPolicy>>()) {
         return py::cast(any.as<std::set<ov::hint::ModelDistributionPolicy>>());
+    } else if (any.is<std::shared_ptr<const ov::Model>>()) {
+        auto model = std::const_pointer_cast<ov::Model>(any.as<std::shared_ptr<const ov::Model>>());
+        return py::cast(model);
     } else if (any.is<ov::hint::ExecutionMode>()) {
         return py::cast(any.as<ov::hint::ExecutionMode>());
     } else if (any.is<ov::log::Level>()) {
         return py::cast(any.as<ov::log::Level>());
+    } else if (any.is<ov::intel_cpu::TbbPartitioner>()) {
+        return py::cast(any.as<ov::intel_cpu::TbbPartitioner>());
     } else if (any.is<ov::device::Type>()) {
         return py::cast(any.as<ov::device::Type>());
     } else if (any.is<ov::streams::Num>()) {
@@ -256,17 +267,23 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(luid_stream.str());
     } else if (any.is<ov::device::PCIInfo>()) {
         return py::cast(any.as<ov::device::PCIInfo>());
+    } else if (any.is<ov::intel_npu::CompilerType>()) {
+        return py::cast(any.as<ov::intel_npu::CompilerType>());
         // Custom FrontEnd Types
     } else if (any.is<ov::frontend::type::List>()) {
         return py::cast(any.as<ov::frontend::type::List>());
     } else if (any.is<ov::frontend::type::Tensor>()) {
         return py::cast(any.as<ov::frontend::type::Tensor>());
+    } else if (any.is<ov::frontend::type::Complex>()) {
+        return py::cast(any.as<ov::frontend::type::Complex>());
     } else if (any.is<ov::frontend::type::Str>()) {
         return py::cast(any.as<ov::frontend::type::Str>());
     } else if (any.is<ov::frontend::type::PyNone>()) {
         return py::cast(any.as<ov::frontend::type::PyNone>());
     } else if (any.is<ov::frontend::type::PyScalar>()) {
         return py::cast(any.as<ov::frontend::type::PyScalar>());
+    } else if (any.is<ov::Tensor>()) {
+        return py::cast(any.as<ov::Tensor>());
     } else {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
         return py::cast<py::object>((PyObject*)NULL);
@@ -309,6 +326,9 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
             };
             ov::EncryptionCallbacks encryption_callbacks{encrypt_func, decrypt_func};
             properties_to_cpp[property.first] = encryption_callbacks;
+        } else if (property.first == ov::hint::model.name()) {
+            auto model = Common::utils::convert_to_model(property.second);
+            properties_to_cpp[property.first] = std::static_pointer_cast<const ov::Model>(model);
         } else {
             properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
         }
@@ -374,8 +394,7 @@ void deprecation_warning(const std::string& function_name,
 }
 
 void raise_not_implemented() {
-    auto error_message = py::detail::c_str(std::string("This function is not implemented."));
-    PyErr_SetString(PyExc_NotImplementedError, error_message);
+    PyErr_SetString(PyExc_NotImplementedError, "This function is not implemented.");
     throw py::error_already_set();
 }
 
@@ -404,11 +423,39 @@ ov::AnyMap py_object_to_any_map(const py::object& py_obj) {
     return return_value;
 }
 
+std::unordered_map<std::string, ov::Any> py_object_to_unordered_any_map(const py::object& py_obj) {
+    OPENVINO_ASSERT(py_object_is_any_map(py_obj), "Unsupported attribute type.");
+    std::unordered_map<std::string, ov::Any> return_value = {};
+    for (auto& item : py::cast<py::dict>(py_obj)) {
+        std::string key = py::cast<std::string>(item.first);
+        py::object value = py::cast<py::object>(item.second);
+        if (py_object_is_any_map(value)) {
+            return_value[key] = Common::utils::py_object_to_any_map(value);
+        } else {
+            return_value[key] = Common::utils::py_object_to_any(value);
+        }
+    }
+    return return_value;
+}
+
+template <typename... Args, std::size_t... I>
+std::tuple<Args...> tuple_from_py_tuple_impl(const py::tuple& py_tuple, std::index_sequence<I...>) {
+    return std::make_tuple(py_tuple[I].cast<Args>()...);
+}
+
+template <typename... Args>
+std::tuple<Args...> tuple_from_py_tuple(const py::tuple& py_tuple) {
+    OPENVINO_ASSERT(py_tuple.size() == sizeof...(Args), "Size of py::tuple does not match size of std::tuple");
+
+    return tuple_from_py_tuple_impl<Args...>(py_tuple, std::index_sequence_for<Args...>{});
+}
+
 ov::Any py_object_to_any(const py::object& py_obj) {
     // Python types
     py::object float_32_type = py::module_::import("numpy").attr("float32");
-    if (py::isinstance<py::str>(py_obj)) {
-        return py_obj.cast<std::string>();
+    py::object Path = py::module_::import("pathlib").attr("Path");
+    if (py::isinstance<py::str>(py_obj) || py::isinstance(py_obj, Path)) {
+        return py::str(py_obj).cast<std::string>();
     } else if (py::isinstance<py::bool_>(py_obj)) {
         return py_obj.cast<bool>();
     } else if (py::isinstance<py::bytes>(py_obj)) {
@@ -421,10 +468,19 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py_obj.cast<int64_t>();
     } else if (py::isinstance<py::none>(py_obj)) {
         return {};
+    } else if (py::isinstance(py_obj, py::module_::import("enum").attr("Enum"))) {
+        const auto value = py::cast<py::object>(py_obj).attr("value");
+        if (py::isinstance<py::int_>(value)) {
+            return value.cast<int64_t>();
+        } else if (py::isinstance<py::str>(value)) {
+            return value.cast<std::string>();
+        } else {
+            OPENVINO_THROW("Unsupported enum type.");
+        }
     } else if (py::isinstance<py::list>(py_obj)) {
         auto _list = py_obj.cast<py::list>();
 
-        PY_TYPE detected_type = check_list_element_type(_list);
+        PY_TYPE detected_type = check_container_element_type<py::list>(_list);
 
         if (_list.empty())
             return ov::Any(EmptyList());
@@ -443,6 +499,15 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         default:
             OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
+    } else if (py::isinstance<py::tuple>(py_obj)) {
+        const auto _tuple = py::cast<py::tuple>(py_obj);
+        if (_tuple.size() == 2) {
+            return tuple_from_py_tuple<unsigned int, unsigned int>(_tuple);
+        } else if (_tuple.size() == 3) {
+            return tuple_from_py_tuple<unsigned int, unsigned int, unsigned int>(_tuple);
+        } else {
+            OPENVINO_THROW("Unsupported tuple size");
+        }
         // OV types
     } else if (py_object_is_any_map(py_obj)) {
         return py_object_to_any_map(py_obj);
@@ -460,18 +525,42 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::intel_auto::SchedulePolicy>(py_obj);
     } else if (py::isinstance<ov::hint::SchedulingCoreType>(py_obj)) {
         return py::cast<ov::hint::SchedulingCoreType>(py_obj);
-    } else if (py::isinstance<std::set<ov::hint::ModelDistributionPolicy>>(py_obj)) {
-        return py::cast<std::set<ov::hint::ModelDistributionPolicy>>(py_obj);
+    } else if (py::isinstance<py::set>(py_obj)) {
+        auto _set = py_obj.cast<py::set>();
+
+        PY_TYPE detected_type = check_container_element_type<py::set>(_set);
+
+        if (_set.empty())
+            return ov::Any(EmptyList());
+
+        switch (detected_type) {
+        case PY_TYPE::MODEL_DISTRIBUTION_POLICY:
+            return _set.cast<std::set<ov::hint::ModelDistributionPolicy>>();
+        case PY_TYPE::STR:
+            return _set.cast<std::set<std::string>>();
+        case PY_TYPE::FLOAT:
+            return _set.cast<std::set<double>>();
+        case PY_TYPE::INT:
+            return _set.cast<std::set<int64_t>>();
+        case PY_TYPE::BOOL:
+            return _set.cast<std::set<bool>>();
+        default:
+            OPENVINO_ASSERT(false, "Unsupported attribute type.");
+        }
     } else if (py::isinstance<ov::hint::ExecutionMode>(py_obj)) {
         return py::cast<ov::hint::ExecutionMode>(py_obj);
     } else if (py::isinstance<ov::log::Level>(py_obj)) {
         return py::cast<ov::log::Level>(py_obj);
+    } else if (py::isinstance<ov::intel_cpu::TbbPartitioner>(py_obj)) {
+        return py::cast<ov::intel_cpu::TbbPartitioner>(py_obj);
     } else if (py::isinstance<ov::device::Type>(py_obj)) {
         return py::cast<ov::device::Type>(py_obj);
     } else if (py::isinstance<ov::streams::Num>(py_obj)) {
         return py::cast<ov::streams::Num>(py_obj);
     } else if (py::isinstance<ov::WorkloadType>(py_obj)) {
         return py::cast<ov::WorkloadType>(py_obj);
+    } else if (py::isinstance<ov::intel_npu::CompilerType>(py_obj)) {
+        return py::cast<ov::intel_npu::CompilerType>(py_obj);
     } else if (py::isinstance<ov::Tensor>(py_obj)) {
         return py::cast<ov::Tensor>(py_obj);
     } else if (py::isinstance<ov::Output<ov::Node>>(py_obj)) {
@@ -485,6 +574,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         // Custom FrontEnd Types
     } else if (py::isinstance<ov::frontend::type::Tensor>(py_obj)) {
         return py::cast<ov::frontend::type::Tensor>(py_obj);
+    } else if (py::isinstance<ov::frontend::type::Complex>(py_obj)) {
+        return py::cast<ov::frontend::type::Complex>(py_obj);
     } else if (py::isinstance<ov::frontend::type::List>(py_obj)) {
         return py::cast<ov::frontend::type::List>(py_obj);
     } else if (py::isinstance<ov::frontend::type::Str>(py_obj)) {
@@ -495,16 +586,42 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::frontend::type::PyScalar>(py_obj);
         // If there is no match fallback to py::object
     } else if (py::isinstance<py::object>(py_obj)) {
-        return py_obj;
+        return std::shared_ptr<py::object>(new py::object(py_obj), [](py::object* py_obj_reference) {
+            py::gil_scoped_acquire acquire;
+            delete py_obj_reference;
+        });
     }
     OPENVINO_ASSERT(false, "Unsupported attribute type.");
 }
 std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback) {
     auto callback_sp = std::shared_ptr<py::function>(new py::function(std::move(f_callback)), [](py::function* c) {
+        // For free-threaded Python, gil_scoped_acquire still ensures thread is attached
         py::gil_scoped_acquire acquire;
         delete c;
     });
     return callback_sp;
+}
+
+std::shared_ptr<py::object> wrap_pyobject_to_sp(py::object obj) {
+    return std::shared_ptr<py::object>(new py::object(std::move(obj)), [](py::object* o) {
+        py::gil_scoped_acquire acquire;
+        delete o;
+    });
+}
+
+std::filesystem::path to_fs_path(const py::object& path) {
+    // import pathlib.Path
+    py::object Path = py::module_::import("pathlib").attr("Path");
+
+    if (py::isinstance(path, Path) || py::isinstance<py::str>(path) || py::isinstance<py::bytes>(path)) {
+        return path.cast<std::filesystem::path>();
+    }
+
+    std::stringstream str;
+    str << "Path: '" << path << "'"
+        << " does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path. "
+           "Examples:\n(1) '/home/user/models/model.onnx'\n(2) Path('/home/user/models/model/model.onnx')";
+    OPENVINO_THROW(str.str());
 }
 };  // namespace utils
 };  // namespace Common

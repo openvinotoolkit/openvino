@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,12 +9,15 @@
  */
 #pragma once
 
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <memory>
 #include <string>
+#include <variant>
 
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
@@ -67,9 +70,14 @@ public:
     virtual void write_cache_entry(const std::string& id, StreamWriter writer) = 0;
 
     /**
+     * @brief Variant type for compiled blob representation
+     */
+    using CompiledBlobVariant = std::variant<const ov::Tensor, std::reference_wrapper<std::istream>>;
+
+    /**
      * @brief Function passing created input stream
      */
-    using StreamReader = std::function<void(std::istream&, std::shared_ptr<ov::AlignedBuffer>)>;
+    using StreamReader = std::function<void(CompiledBlobVariant&)>;
 
     /**
      * @brief Callback when OpenVINO intends to read model from cache
@@ -100,23 +108,18 @@ public:
  *
  */
 class FileStorageCacheManager final : public ICacheManager {
-    std::string m_cachePath;
-#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-    std::wstring getBlobFile(const std::string& blobHash) const {
-        return ov::util::string_to_wstring(ov::util::make_path(m_cachePath, blobHash + ".blob"));
+    std::filesystem::path m_cache_path;
+
+    std::filesystem::path get_blob_file(const std::string& blob_hash) const {
+        return m_cache_path / (blob_hash + ".blob");
     }
-#else
-    std::string getBlobFile(const std::string& blobHash) const {
-        return ov::util::make_path(m_cachePath, blobHash + ".blob");
-    }
-#endif
 
 public:
     /**
      * @brief Constructor
      *
      */
-    FileStorageCacheManager(std::string cachePath) : m_cachePath(std::move(cachePath)) {}
+    FileStorageCacheManager(std::filesystem::path cache_path) : m_cache_path(std::move(cache_path)) {}
 
     /**
      * @brief Destructor
@@ -128,38 +131,35 @@ private:
     void write_cache_entry(const std::string& id, StreamWriter writer) override {
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         ScopedLocale plocal_C(LC_ALL, "C");
-        std::ofstream stream(getBlobFile(id), std::ios_base::binary | std::ofstream::out);
+        const auto blob_path = get_blob_file(id);
+        std::ofstream stream(blob_path, std::ios_base::binary);
         writer(stream);
+        stream.close();
+        std::filesystem::permissions(blob_path,
+                                     std::filesystem::perms::owner_read | std::filesystem::perms::group_read);
     }
 
     void read_cache_entry(const std::string& id, bool enable_mmap, StreamReader reader) override {
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         ScopedLocale plocal_C(LC_ALL, "C");
-        auto blob_file_name = getBlobFile(id);
-        if (ov::util::file_exists(blob_file_name)) {
+        const auto blob_path = get_blob_file(id);
+        if (std::filesystem::exists(blob_path)) {
             if (enable_mmap) {
-                auto mmap = ov::load_mmap_object(blob_file_name);
-                auto shared_buffer =
-                    std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mmap->data(), mmap->size(), mmap);
-                OwningSharedStreamBuffer buf(shared_buffer);
-                std::istream stream(&buf);
-                reader(stream, shared_buffer);
+                CompiledBlobVariant compiled_blob{std::in_place_index<0>, ov::read_tensor_data(blob_path)};
+                reader(compiled_blob);
             } else {
-                std::ifstream stream(blob_file_name, std::ios_base::binary);
-                reader(stream, nullptr);
+                std::ifstream stream(blob_path, std::ios_base::binary);
+                CompiledBlobVariant compiled_blob{std::in_place_index<1>, std::ref(stream)};
+                reader(compiled_blob);
             }
         }
     }
 
     void remove_cache_entry(const std::string& id) override {
-        auto blobFileName = getBlobFile(id);
+        const auto blob_path = get_blob_file(id);
 
-        if (ov::util::file_exists(blobFileName)) {
-#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-            _wremove(blobFileName.c_str());
-#else
-            std::remove(blobFileName.c_str());
-#endif
+        if (std::filesystem::exists(blob_path)) {
+            std::ignore = std::filesystem::remove(blob_path);
         }
     }
 };

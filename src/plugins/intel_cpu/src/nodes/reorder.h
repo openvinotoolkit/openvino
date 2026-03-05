@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,11 +6,29 @@
 
 #include <node.h>
 
-#include "nodes/executors/transpose.hpp"
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "cache/multi_cache.h"
+#include "cpu_memory.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "memory_desc/dnnl_memory_desc.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/node.hpp"
+#include "thread_pool_imp.hpp"
+
+#if defined(OPENVINO_ARCH_ARM)
+#    include "nodes/executors/transpose.hpp"
+#endif
+#if defined(OV_CPU_WITH_ACL)
+#    include <arm_compute/runtime/NEON/functions/NECopy.h>
+#    include <arm_compute/runtime/Tensor.h>
+#endif
+namespace ov::intel_cpu::node {
 
 class Reorder : public Node {
 public:
@@ -60,7 +78,10 @@ public:
 
     static std::string getReorderArgs(const MemoryDesc& parentDesc, const MemoryDesc& childDesc);
 
-    static void reorderData(const IMemory& input, const IMemory& output, const MultiCachePtr& cache = nullptr);
+    static void reorderData(const IMemory& input,
+                            const IMemory& output,
+                            const MultiCachePtr& cache = nullptr,
+                            const std::shared_ptr<ThreadPool>& threadPool = nullptr);
 
 private:
     dnnl::reorder::primitive prim;
@@ -80,10 +101,18 @@ private:
     void optimizedNcsp2Nspc();
     void createReorderPrimitive(const DnnlMemoryDescPtr& srcDesc, const DnnlMemoryDescPtr& dstDesc);
 
+#if defined(OPENVINO_ARCH_ARM)
     void prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc);
     TransposeExecutorPtr transposeExecutor;
+#endif
+
+#if defined(OV_CPU_WITH_ACL)
+    bool prepareAclCopy(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc);
+    std::unique_ptr<arm_compute::NECopy> aclCopy;
+    arm_compute::Tensor aclSrcTensor;
+    arm_compute::Tensor aclDstTensor;
+    bool useAclCopy = false;
+#endif
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

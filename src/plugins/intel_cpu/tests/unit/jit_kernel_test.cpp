@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -175,8 +175,8 @@ private:
             load(a, a_ptr);
             load(b, b_ptr);
 
-            a.blend(b, 0xAAAA);
-            a.permute(order);
+            std::ignore = a.blend(b, 0xAAAA);
+            std::ignore = a.permute(order);
 
             store(result, a);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,19 +6,23 @@
 
 #include <memory>
 
-#include "openvino/op/constant.hpp"
-#include "ov_ops/type_relaxed.hpp"
-
+#include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
-#include "low_precision/network_helper.hpp"
-
+#include "openvino/op/constant.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "ov_lpt_models/common/add.hpp"
 #include "ov_lpt_models/common/convolution.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/reshape.hpp"
 #include "ov_lpt_models/common/transpose.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace ov {
 namespace builder {
@@ -45,7 +49,7 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ov::Node> data, cons
 
     std::shared_ptr<Operation> operation;
     OPENVINO_SUPPRESS_DEPRECATED_START
-    if ((description.outPrecision == ov::element::undefined) || (description.outPrecision == ov::element::dynamic) ||
+    if ((description.outPrecision == ov::element::dynamic) ||
         (description.outPrecision == data->get_output_element_type(0))) {
         OPENVINO_SUPPRESS_DEPRECATED_END
         operation = std::make_shared<Operation>(data, operationConst);

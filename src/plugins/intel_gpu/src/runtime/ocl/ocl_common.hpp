@@ -20,7 +20,8 @@ public:
     explicit ocl_error(cl::Error const& err);
 };
 
-#define OCL_ERR_MSG_FMT(error) ("[GPU] " + std::string(error.what()) + std::string(", error code: ") + std::to_string(error.err()))
+#define OCL_ERR_MSG_FMT(error) ("[GPU] " + std::string(error.what()) + std::string(", error code: ") + \
+                                std::to_string(error.err()) + " " + std::string(cldnn::ocl::convert_cl_err_to_str(error.err())))
 
 inline bool is_device_available(const device_info& info) {
     ocl_device_detector detector;
@@ -47,16 +48,24 @@ inline void rethrow(std::string message, cl_int error, const device_info& info) 
            << "\tDue to a driver bug, any subsequent OpenCL API call may cause the application to hang, "
            << "so the GPU plugin may be unable to finish correctly.\n"
            << "\tThe CL_OUT_OF_RESOURCES error typically occurs in two cases:\n"
-           << "\t1. An actual lack of memory for the current inference.\n"
+           << "\t1. Insufficient memory for the current inference.\n"
            << "\t2. An out-of-bounds access to GPU memory from a kernel.\n"
-           << "\tFor case 1, you may try adjusting some model parameters (e.g., using a smaller batch size, lower inference precision, fewer streams, etc.)"
-           << " to reduce the required memory size. For case 2, please submit a bug report to the OpenVINO team.\n"
+           << "\tFor case 1 (Insufficient Memory)"
+           << "\t  - Try adjusting some model parameters (e.g., using a smaller batch size, lower inference precision, fewer streams, etc.) to \n"
+           << "\t    reduce the required memory size.\n"
+           << "\t  - Alternatively, for Intel integrated Arc GPUs on Microsoft Windows 10 or 11 host systems with more than 10 GB of system memory, the \n"
+           << "\t    shared memory allocation can be increased via the Intel Graphics Software tool: 'Graphics > General > Shared GPU Memory Override', \n"
+           << "\t    as long as it is not already at its software-defined upper limit.\n"
+           << "\tFor case 2 (Out-of-Bounds Access):\n"
+           << "\t  - Please submit a bug report to the OpenVINO team.\n"
            << "\tAdditionally, please try updating the driver to the latest version.\n";
         OPENVINO_THROW(ss.str());
     } else {
         OPENVINO_THROW(message);
     }
 }
+
+const char *convert_cl_err_to_str(cl_int cl_status);
 
 inline void rethrow(const cl::Error& error, const device_info& info) {
     rethrow(OCL_ERR_MSG_FMT(error), error.err(), info);

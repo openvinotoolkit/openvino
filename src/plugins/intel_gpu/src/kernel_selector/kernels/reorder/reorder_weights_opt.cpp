@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -206,11 +206,11 @@ bool ReorderWeightsOpt::Validate(const Params& params) const {
     const auto& output = p.output;
 
     if (input.GroupedLayout() != output.GroupedLayout()) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     if (input.GetDims().size() != output.GetDims().size()) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

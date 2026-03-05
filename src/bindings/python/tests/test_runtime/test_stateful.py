@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -93,4 +93,6 @@ def test_query_state_write_buffer(device, base_class, input_shape, data_type, mo
             res = caller.call({0: np.full(input_shape, 1, dtype=data_type)})
             expected_res = np.full(input_shape, i, dtype=data_type)
 
-        assert np.allclose(res[list(res)[0]], expected_res, atol=1e-6), f"Expected values: {expected_res} \n Actual values: {res} \n"
+        assert np.allclose(
+            res[list(res)[0]], expected_res, atol=1e-6
+        ), f"Expected values: {expected_res} \n Actual values: {res} \n"

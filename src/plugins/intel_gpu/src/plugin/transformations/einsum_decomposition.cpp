@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@
 #include "openvino/op/matmul.hpp"
 
 #include <unordered_map>
+#include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_gpu {
 

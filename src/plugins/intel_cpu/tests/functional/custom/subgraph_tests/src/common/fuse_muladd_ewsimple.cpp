@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,12 +14,9 @@ using ov::test::utils::EltwiseTypes;
 namespace ov {
 namespace test {
 
-std::string FuseMulAddAndEwSimpleTest::getTestCaseName(testing::TestParamInfo<FuseMulAddAndEwSimpleParams> obj) {
+std::string FuseMulAddAndEwSimpleTest::getTestCaseName(const testing::TestParamInfo<FuseMulAddAndEwSimpleParams>& obj) {
     std::ostringstream result;
-    ov::Shape inputShape;
-    ov::element::Type inPrec;
-    std::tie(inputShape, inPrec) = obj.param;
-
+    const auto& [inputShape, inPrec] = obj.param;
     result << "IS=" << inputShape << "_";
     result << "Precision=" << inPrec.get_type_name();
 

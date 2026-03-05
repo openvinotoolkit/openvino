@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,6 +39,11 @@ public:
     MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
                 import_model,
                 (std::istream&, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&),
+                (const));
+    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>, import_model, (const ov::Tensor&, const ov::AnyMap&), (const));
+    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
+                import_model,
+                (const ov::Tensor&, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&),
                 (const));
     MOCK_METHOD(ov::SupportedOpsMap,
                 query_model,

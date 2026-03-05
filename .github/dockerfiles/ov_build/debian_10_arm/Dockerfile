@@ -4,15 +4,21 @@ FROM ${REGISTRY}/library/debian:10.13
 USER root
 
 # APT configuration
+# WARNING: Debian 10 "Buster" is no longer officially supported,
+# so repositories were moved to "archive.debian.org"
+# See: https://www.debian.org/releases/
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
     echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf && \
     echo 'APT::Get::Fix-Broken "true";' >> /etc/apt/apt.conf && \
-    echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf
+    echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf && \
+    sed -i 's/deb.debian.org/archive.debian.org/g' /etc/apt/sources.list && \
+    sed -i 's/security.debian.org/archive.debian.org/g' /etc/apt/sources.list && \
+    sed -i '/stretch-updates/d' /etc/apt/sources.list
 
 ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"
 
-RUN apt-get update && \
+RUN dpkg --add-architecture armhf && apt-get update && \
     apt-get install \
         software-properties-common \
         curl \
@@ -21,7 +27,7 @@ RUN apt-get update && \
         tzdata \
         # parallel gzip
         pigz \
-        # Pythons \
+        # Python
         python3 \
         python3-pip \
         python3-dev \
@@ -30,10 +36,10 @@ RUN apt-get update && \
         libhdf5-dev \
         # For building Python from source
         build-essential \
-        libffi-dev \
         libgdbm-dev \
         libc6-dev \
         libssl-dev \
+        libffi-dev \
         zlib1g-dev \
         libbz2-dev \
         libreadline-dev \
@@ -46,6 +52,22 @@ RUN apt-get update && \
         libxmlsec1-dev \
         liblzma-dev \
         wget \
+        libavcodec58:armhf \
+        libusb-1.0-0-dev:armhf \
+        libboost-regex-dev:armhf \
+        crossbuild-essential-armhf \
+        libgtk-3-dev:armhf \
+        libavcodec-dev:armhf \
+        libavformat-dev:armhf \
+        libswscale-dev:armhf \
+        libgstreamer1.0-dev:armhf \
+        libpython-dev:armhf \
+        libgstreamer-plugins-base1.0-dev:armhf \
+        zlib1g-dev:armhf \
+        nlohmann-json-dev \
+        libgflags-dev:armhf \
+        libtbb-dev:armhf \
+        libffi-dev:armhf \
         # Compilers
         gcc-arm-linux-gnueabihf \
         g++-arm-linux-gnueabihf \
@@ -55,7 +77,7 @@ RUN apt-get update && \
 # Install build dependencies
 ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && \
-    /install_build_dependencies.sh && \
+    bash -e /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Install sscache
@@ -70,19 +92,158 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 
 ENV PATH="$SCCACHE_HOME:$PATH"
 
-# Setup Python
+# Build Pythons
+# Python 3.10
+# To cross-compile Python 3.10 we need to first compile it for the host
+RUN wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz
+
+RUN tar -xf Python-3.10.16.tar.xz && \
+    cd Python-3.10.16 && \
+    ./configure --enable-optimizations && \
+    make -j $(nproc) && \
+    make altinstall
+
+# Compile Python 3.10 for ARM
+RUN cd Python-3.10.16 && make distclean && \
+    ./configure \
+        --host=arm-linux-gnueabihf \
+        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+        --disable-ipv6 \
+        --enable-shared \
+        --prefix=/opt/python3.10_arm \
+        ac_cv_file__dev_ptmx=no \
+        ac_cv_file__dev_ptc=no && \
+    make -j $(nproc) && make altinstall
+
+# Upgrade openssl to 3.3.1 for Python3.11 - 3.13 ssl module
+RUN wget https://www.openssl.org/source/openssl-3.3.1.tar.gz && \
+    tar -zxf openssl-3.3.1.tar.gz && \
+    cd openssl-3.3.1 && \
+    ./config && \
+    make install && \
+    ln -sf /usr/local/bin/openssl /usr/bin/openssl && \
+    echo /usr/local/lib64 | tee /etc/ld.so.conf.d/custom.conf && \
+    ldconfig && \
+    openssl version
+
+# Python 3.11
+# To cross-compile Python 3.11 we need to first compile it for the host
 RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
 
 RUN tar -xf Python-3.11.9.tar.xz && \
     cd Python-3.11.9 && \
-    ./configure --enable-optimizations && \
-    make -j 8 && \
+    LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
+    make -j $(nproc) && \
     make altinstall
+
+# Compile Python 3.11 for ARM
+RUN cd Python-3.11.9 && make distclean && \
+    ./configure \
+        --host=arm-linux-gnueabihf \
+        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+        --disable-ipv6 \
+        --enable-shared \
+        --with-build-python \
+        --prefix=/opt/python3.11_arm \
+        ac_cv_file__dev_ptmx=no \
+        ac_cv_file__dev_ptc=no && \
+    make -j $(nproc) && make altinstall
+
+# Python 3.12
+# To cross-compile Python 3.12 we need to first compile it for the host
+RUN wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz
+
+RUN tar -xf Python-3.12.9.tar.xz && \
+    cd Python-3.12.9 && \
+    LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
+    make -j $(nproc) && \
+    make altinstall
+
+# Compile Python 3.12 for ARM
+RUN cd Python-3.12.9 && make distclean && \
+    ./configure \
+        --host=arm-linux-gnueabihf \
+        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+        --disable-ipv6 \
+        --enable-shared \
+        --with-build-python \
+        --prefix=/opt/python3.12_arm \
+        ac_cv_file__dev_ptmx=no \
+        ac_cv_file__dev_ptc=no && \
+    make -j $(nproc) && make altinstall
+
+# Python 3.13
+# To cross-compile Python 3.13 we need to first compile it for the host
+RUN wget https://www.python.org/ftp/python/3.13.2/Python-3.13.2.tar.xz
+
+RUN tar -xf Python-3.13.2.tar.xz && \
+    cd Python-3.13.2 && \
+    LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
+    make -j $(nproc) && \
+    make altinstall
+
+# Compile Python 3.13 for ARM
+RUN cd Python-3.13.2 && make distclean && \
+    ./configure \
+        --host=arm-linux-gnueabihf \
+        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+        --disable-ipv6 \
+        --enable-shared \
+        --with-build-python \
+        --prefix=/opt/python3.13_arm \
+        ac_cv_file__dev_ptmx=no \
+        ac_cv_file__dev_ptc=no && \
+    make -j $(nproc) && make altinstall
+
+# Cross-compile Python3.14 for ARM
+RUN curl -O https://www.python.org/ftp/python/3.14.0/Python-3.14.0.tgz && \
+    tar -xf Python-3.14.0.tgz && \
+    cd Python-3.14.0 && \
+    LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
+    make -j $(nproc) && make altinstall
+
+# Cross-compile Python3.14 for ARM
+RUN cd Python-3.14.0 && make distclean && \
+    ./configure \
+        --host=arm-linux-gnueabihf \
+        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+        --disable-ipv6 \
+        --enable-shared \
+        --prefix=/opt/python3.14_arm \
+        --with-build-python \
+        ac_cv_file__dev_ptmx=no \
+        ac_cv_file__dev_ptc=no && \
+    make -j4 && make altinstall
+
+# Cross-compile Python3.14t for ARM (with --disable-gil)
+RUN cp -r Python-3.14.0 Python-3.14t && \
+    cd Python-3.14t && make distclean && \
+    LDFLAGS="-L/usr/local/lib64" ./configure --disable-gil --with-openssl=/usr/local  --with-openssl-rpath=auto --prefix=/usr/local/bin/python3.14t && \
+    make -j4 && make altinstall && \
+    ln -s /usr/local/bin/python3.14t/bin/python3.14 /usr/bin/python3.14t
+
+# Cross-compile Python3.14t for ARM
+RUN cd Python-3.14t && make distclean && \
+    ./configure \
+        --host=arm-linux-gnueabihf \
+        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+        --disable-ipv6 \
+        --enable-shared \
+        --prefix=/opt/python3.14t_arm \
+        --with-build-python \
+        ac_cv_file__dev_ptmx=no \
+        ac_cv_file__dev_ptc=no && \
+    make -j4 && make altinstall
 
 # Setup pip
 ENV PIP_VERSION="24.0"
-RUN python3 -m pip install --upgrade pip==24.0
-RUN python3.11 -m pip install --upgrade pip==24.0
+RUN python3 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.13 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.14 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.14t -m pip install --upgrade pip==${PIP_VERSION}
 
 # Use Python 3.11 as default
 # Using venv here because other methods to switch the default Python break both system and wheels build

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -153,8 +153,8 @@ std::pair<testing::AssertionResult, size_t> TestCase::compare_results(size_t tol
             break;
         case element::Type_t::string: {
             res = ::testing::AssertionSuccess();
-            std::string* exp_strings = exp_result.data<std::string>();
-            std::string* res_strings = result_tensor.data<std::string>();
+            const std::string* exp_strings = exp_result.data<std::string>();
+            const std::string* res_strings = result_tensor.data<std::string>();
             for (size_t i = 0; i < exp_result.get_size(); ++i) {
                 if (exp_strings[i] != res_strings[i]) {
                     res = ::testing::AssertionFailure() << "Wrong string value at index " << i << ", expected \""
@@ -219,7 +219,8 @@ TestCase::TestCase(const std::shared_ptr<ov::Model>& function, const std::string
             "TEMPLATE");
     } catch (...) {
     }
-    m_request = m_core.compile_model(function, dev).create_infer_request();
+    AnyMap config = {{ov::hint::inference_precision.name(), ov::element::f32}};
+    m_request = m_core.compile_model(function, dev, config).create_infer_request();
 }
 
 void TestCase::run(const size_t tolerance_bits) {

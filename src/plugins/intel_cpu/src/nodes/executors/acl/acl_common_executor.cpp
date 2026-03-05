@@ -1,10 +1,20 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "acl_common_executor.hpp"
 
+#include <arm_compute/core/CoreTypes.h>
+#include <arm_compute/core/TensorInfo.h>
+#include <arm_compute/core/TensorShape.h>
+#include <arm_compute/runtime/Tensor.h>
+
+#include <array>
+#include <memory>
+#include <unordered_map>
+
 #include "acl_utils.hpp"
+#include "cpu_memory.h"
 #include "nodes/executors/memory_arguments.hpp"
 #include "utils/debug_capabilities.h"
 
@@ -16,7 +26,9 @@ static const std::unordered_map<int, ACLArgs> argConvert = {{ARG_SRC_0, ACL_SRC_
                                                             {ARG_BIAS, ACL_BIAS},
                                                             {ARG_WEI, ACL_WEI},
                                                             {ARG_DST, ACL_DST},
-                                                            {ARG_DST_DEQ_SCALE, ACL_DST_DEQ_SCALE}};
+                                                            {ARG_DST_DEQ_SCALE, ACL_DST_DEQ_SCALE},
+                                                            {ARG_ATTR_ZERO_POINTS | ARG_SRC_0, ACL_SRC_0_ZERO_POINTS},
+                                                            {ARG_ATTR_ZERO_POINTS | ARG_DST, ACL_DST_ZERO_POINTS}};
 
 using ACLTypes = std::array<arm_compute::DataType, ACLArgs::COUNT_OF_ARGS>;
 using ACLLayouts = std::array<arm_compute::DataLayout, ACLArgs::COUNT_OF_ARGS>;
@@ -67,7 +79,7 @@ bool ACLCommonExecutor::update(const MemoryArgs& memory) {
     ACLShapes aclMemoryShapes;
     ACLTypes aclDataType{};
     ACLLayouts aclDataLayout{};
-    for (auto& cpu_mem_ptr : memory) {
+    for (const auto& cpu_mem_ptr : memory) {
         if (cpu_mem_ptr.second->getSize() == 0) {
             continue;
         }
@@ -112,7 +124,7 @@ bool ACLCommonExecutor::update(const MemoryArgs& memory) {
 
 void ACLCommonExecutor::execute(const MemoryArgs& memory) {
     // TODO: Move import_memory() to update() function - CVS-145871
-    for (auto& cpu_mem_ptr : memory) {
+    for (const auto& cpu_mem_ptr : memory) {
         const ACLArgs index = argConvert.at(cpu_mem_ptr.first);
         if (aclTensorAttrs.memoryUsageIndicator[index]) {
             aclMemoryTensors[index]->allocator()->import_memory(memory.at(cpu_mem_ptr.first)->getData());

@@ -1,3 +1,0 @@
-[tool.black]
-line-length = 160
-include = '\.pyi?$'

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 Intel Corporation.
+# Copyright (C) 2018-2026 Intel Corporation.
 # SPDX-License-Identifier: Apache 2.0
 #
 
@@ -57,7 +57,11 @@ list(APPEND SOURCES main.cpp)
 
 add_executable(${TARGET_NAME} ${SOURCES})
 target_link_libraries(${TARGET_NAME} PRIVATE ${DEPENDENCIES})
-target_include_directories(${TARGET_NAME} PUBLIC "${PROJECT_SOURCE_DIR}/src/")
+target_include_directories(${TARGET_NAME} PUBLIC "${PROJECT_SOURCE_DIR}/src/"
+                                          PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/version")
+if (WIN32)
+    target_link_options(${TARGET_NAME} PRIVATE "/MANIFESTINPUT:${CMAKE_SOURCE_DIR}/protopipe.exe.manifest")
+endif()
 
 install(TARGETS ${TARGET_NAME}
         DESTINATION "tools/${TARGET_NAME}"

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,7 +72,7 @@ std::string random_uniform_inst::to_string(random_uniform_node const &node) {
     json_composite random_uniform_info;
     random_uniform_info.add("input id", node.input().id());
     random_uniform_info.add("min_value id", node.input(1).id());
-    random_uniform_info.add("max_value  id", node.input(2).id());
+    random_uniform_info.add("max_value id", node.input(2).id());
     random_uniform_info.add("global_seed", node.get_primitive()->global_seed);
     random_uniform_info.add("op_seed", node.get_primitive()->op_seed);
     node_info->add("random uniform info", random_uniform_info);

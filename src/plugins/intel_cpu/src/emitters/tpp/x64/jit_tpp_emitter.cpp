@@ -4,10 +4,26 @@
 
 #include "jit_tpp_emitter.hpp"
 
+#include <xbyak/xbyak.h>
+
+#include <algorithm>
+#include <array>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "cpu_types.h"
+#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/utils.hpp"
+#include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
 #include "emitters/tpp/common/utils.hpp"
+#include "emitters/utils.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
-#include "transformations/tpp/x64/op/eltwise.hpp"
+#include "snippets/utils/utils.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -34,7 +50,7 @@ VectorDims TppEmitter::get_projected_subtensor(const snippets::lowered::PortDesc
     return subtensor;
 }
 
-TppEmitter::TppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+TppEmitter::TppEmitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                        dnnl::impl::cpu::x64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
@@ -94,10 +110,12 @@ void TppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size
     spill.preamble(get_regs_to_spill());
 
     int aux_xmm_count = 0;
-    for (auto reg_idx : in)
+    for (auto reg_idx : in) {
         h->uni_vmovq(Xmm(aux_xmm_count++), Reg64(static_cast<int>(reg_idx)));
-    for (auto reg_idx : out)
+    }
+    for (auto reg_idx : out) {
         h->uni_vmovq(Xmm(aux_xmm_count++), Reg64(static_cast<int>(reg_idx)));
+    }
 
     OV_CPU_JIT_EMITTER_ASSERT(aux_xmm_count == num_kernel_args, "offsets for some inputs/outputs were not set");
     OV_CPU_JIT_EMITTER_ASSERT(aux_xmm_count < static_cast<int>(abi_params.size()),
@@ -113,8 +131,9 @@ void TppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size
     OV_CPU_JIT_EMITTER_ASSERT(compiled_kernel, "Failed to compile libxsmm_kernel");
 
     h->mov(abi_params[0], compiled_kernel);
-    for (int i = 0; i < num_kernel_args; i++)
+    for (int i = 0; i < num_kernel_args; i++) {
         data_ptr_reg(Xmm(i), abi_params[i + 1], io_offsets[i]);
+    }
     // save function address in gpr to pass in call instruction
     h->mov(aux_reg, get_execute_function_ptr());
 

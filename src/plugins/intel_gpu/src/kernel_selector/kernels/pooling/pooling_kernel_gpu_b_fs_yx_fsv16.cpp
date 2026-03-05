@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -144,7 +144,7 @@ JitConstants PoolingKernel_b_fs_yx_fsv16::GetJitConstants(const pooling_params& 
 
 bool PoolingKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
     if (!PoolingKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto& params = static_cast<const pooling_params&>(p);
@@ -152,7 +152,7 @@ bool PoolingKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
 
     // Check that padding features doesn't miss-align the blocks
     if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.outputs[0].Feature().pad.before % feature_block_size != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

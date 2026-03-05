@@ -9,7 +9,7 @@ Instructions can be found in ["Building the OpenVINO™ Python API"](./build.md)
 General guide:
 * Snake case (also known as the *lower_case_with_underscores* style) is used across the codebase. That includes modules (`runtime`, `offline_transformations`), function names, and arguments/variables (`async_infer`, `wait`, `path_to_xml`).
 * Naming of classes is an exception to the above rule. The *CamelCase* style is used in this case, for example: `Core`, `InferRequest` or `AsyncInferQueue`.
-* If bindings (explained later in the [Pure pybind11 solution](#pure-pybind11-solution) section) are created to expose existing C++ code, make them similar to their C++ counterparts, regarding both names and placement, for example, C++'s `ov::InferRequest` and Python's `openvino.runtime.InferRequest`. If alignment is not possible, try to describe your class/function/module as well as possible, such as the pair of `openvino.runtime.ConstOutput/openvino.runtime.Output` which relates to `ov::Output<const ov::Node>/ov::Output<ov::Node>`. This naming points out the functional difference between both classes - one is an immutable and the other a mutable version.
+* If bindings (explained later in the [Pure pybind11 solution](#pure-pybind11-solution) section) are created to expose existing C++ code, make them similar to their C++ counterparts, regarding both names and placement, for example, C++'s `ov::InferRequest` and Python's `openvino.InferRequest`. If alignment is not possible, try to describe your class/function/module as well as possible, such as the pair of `openvino.ConstOutput/openvino.Output` which relates to `ov::Output<const ov::Node>/ov::Output<ov::Node>`. This naming points out the functional difference between both classes - one is an immutable and the other a mutable version.
 
 <!-- Pure Python solution describes Python based approach -->
 ## Pure Python solution
@@ -117,7 +117,7 @@ Navigate to the main project file responsible for creation of the whole package 
 
 Add a new submodule by writing:
 ```cpp
-py::module mymodule = m.def_submodule("mymodule", "My first feature - openvino.runtime.mymodule");
+py::module mymodule = m.def_submodule("mymodule", "My first feature - openvino.mymodule");
 ```
 This is a shorthand way of adding new submodules which can later be used to extend the package. The mysterious `m` is actaully the main OpenVINO™ module called `pyopenvino` -- it is registered with `PYBIND11_MODULE(pyopenvino, m)` at the top of the "registering-point" file. Later imports from it are done by calling upon the `openvino._pyopenvino` package.
 
@@ -168,7 +168,7 @@ cls.def(py::init<ov::Tensor&>(),
             MyTensor's constructor.
 
             :param tensor: `Tensor` to create new `MyTensor` from.
-            :type tensor: openvino.runtime.Tensor
+            :type tensor: openvino.Tensor
         )");
 
 // This initialize use custom constructor, implemented via lambda 
@@ -181,7 +181,7 @@ cls.def(py::init([](std::vector<float>& list) {
         R"(
             MyTensor's constructor.
 
-            :param list: List to create new `MyTensor` from.
+            :param list: list to create new `MyTensor` from.
             :type list: list
         )");
 
@@ -213,7 +213,7 @@ mymodule.def("get_smile", []() {
 **Don't forget to rebuild the project** and test it out:
 ```python
 import openvino._pyopenvino.mymodule as mymodule
-from openvino.runtime import Tensor, Type
+from openvino import Tensor, Type
 
 a = mymodule.MyTensor([1,2,3])
 a.get_size()
@@ -303,14 +303,14 @@ Notice that only functions with correct arguments are **not** throwing exception
 Although *pybind11* is a powerful tool, it is sometimes required (or simply easier and more efficent) to combine both approaches and utilize both languages to achive best results.
 
 ### Making pybind11-based module/class visible in OpenVINO™ package
-Let's move a new class from `openvino._pyopenvino.mymodule` to the actual package. Simply introduce a new import statement in the desired file. Let it be [`openvino/runtime/__init__.py`](./../src/openvino/runtime/__init__.py): 
+Let's move a new class from `openvino._pyopenvino.mymodule` to the actual package. Simply introduce a new import statement in the desired file. Let it be [`openvino/__init__.py`](./../src/openvino/__init__.py): 
 ```python
 from openvino._pyopenvino.mymodule import MyTensor
 ```
 
-Now, while importing `openvino`, a new class is accessible from the `runtime` level:
+Now, while importing `openvino`, a new class is accessible:
 ```python
-import openvino.runtime as ov
+import openvino as ov
 ov.MyTensor
 >>> <class 'openvino._pyopenvino.mymodule.MyTensor'>
 ```
@@ -320,7 +320,7 @@ Same rule applies to whole modules and free functions. **This is a required step
 ### Yet another Python layer
 As mentioned earlier, it may be helpful to utilize Python in-between to achieve hard C++ feats in a more efficient way. Let's extend the previously created `say_hello` function a little bit.
 
-First, create a new file in the [runtime directory](./../src/openvino/runtime/) and call it `mymodule_ext.py`. There are no strict rules for naming, just make sure the names are in good taste. Import the class here:
+First, create a new file in the [openvino directory](./../src/openvino/) and call it `mymodule_ext.py`. There are no strict rules for naming, just make sure the names are in good taste. Import the class here:
 ```python
 from openvino._pyopenvino.mymodule import MyTensor as MyTensorBase
 ```
@@ -359,12 +359,12 @@ class MyTensor(MyTensorBase):
 
 Finally, import it in the same place as in the previous section, but this time use the improved version:
 ```python
-from openvino.runtime.mymodule_ext import MyTensor
+from openvino.mymodule_ext import MyTensor
 ```
 
 **Don't forget to rebuild the project** and test it out:
 ```python
-import openvino.runtime as ov
+import openvino as ov
 
 a = ov.MyTensor([1,2,3])             # Notice that initializers are preserved from pybind class
 a.say_hello()

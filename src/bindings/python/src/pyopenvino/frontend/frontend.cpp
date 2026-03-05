@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/manager.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "pyopenvino/graph/model.hpp"
 #include "pyopenvino/utils/utils.hpp"
@@ -50,8 +51,8 @@ void regclass_frontend_FrontEnd(py::module m) {
             } else if (py::isinstance(py_obj, pybind11::module::import("io").attr("BytesIO"))) {
                 // support of BytesIO
                 py::buffer_info info = py::buffer(py_obj.attr("getbuffer")()).request();
-                Common::utils::MemoryBuffer mb(reinterpret_cast<char*>(info.ptr), info.size);
-                std::istream _istream(&mb);
+                ov::SharedStreamBuffer mb{info.ptr, static_cast<size_t>(info.size)};
+                std::istream _istream{&mb};
                 return self.load(&_istream, enable_mmap);
             } else {
                 // Extended for one argument only for this time
@@ -197,7 +198,7 @@ void regclass_frontend_FrontEnd(py::module m) {
                 used in order to extend capabilities of Frontend.
 
                 :param extension: Provided extension objects.
-                :type extension: List[Extension]
+                :type extension: list[Extension]
             )");
 
     fem.def(

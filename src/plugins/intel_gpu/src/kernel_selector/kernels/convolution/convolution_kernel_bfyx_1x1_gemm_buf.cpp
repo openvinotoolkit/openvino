@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,7 +54,7 @@ KernelsPriority ConvolutionKernel_bfyx_1x1_gemm_buf::GetKernelsPriority(const Pa
 
 bool ConvolutionKernel_bfyx_1x1_gemm_buf::Validate(const Params& p) const {
     if (!ConvolutionKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto& params = static_cast<const convolution_params&>(p);
@@ -67,11 +67,11 @@ bool ConvolutionKernel_bfyx_1x1_gemm_buf::Validate(const Params& p) const {
     const bool bIFMSize = input.Feature().v % 32 != 0;
 
     if (bPad || bFilterSize || bStride || bIFMSize) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (!params.engineInfo.supports_image)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

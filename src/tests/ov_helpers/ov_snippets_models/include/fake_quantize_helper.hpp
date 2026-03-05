@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,13 @@ public:
         const element::Type inputType,
         const std::vector<ov::Shape>& fakeQuantizeShapes,
         const float zeroPoint);
+
+    static std::shared_ptr<ov::Node> getDecomposedFakeQuantizeOps(
+        const ov::Output<ov::Node>& input,
+        const ov::element::Type outType,
+        float il, float ih, float scale,
+        bool doRounding = false,
+        bool doDequantize = false);
 };
 
 }  // namespace snippets

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,12 +18,8 @@ using ConfigParams = std::tuple<std::string,                     // Priority dev
                                 >;
 class ParseMetaDeviceTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        std::string priorityDevices;
-        std::vector<DeviceInformation> metaDevices;
-        bool throwException;
-        int expectedTimes;
-        std::tie(priorityDevices, metaDevices, throwException, expectedTimes) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
+        const auto& [priorityDevices, metaDevices, throwException, expectedTimes] = obj.param;
         std::ostringstream result;
         result << "priorityDevices_" << priorityDevices;
         if (throwException) {
@@ -78,7 +74,7 @@ using ParseMetaDeviceNoIDTest = ParseMetaDeviceTest;
 TEST_P(ParseMetaDeviceTest, ParseMetaDevicesWithPriority) {
     EXPECT_CALL(*plugin, parse_meta_devices(_, _)).Times(1);
     EXPECT_CALL(*core, get_property(_, _, _)).Times(AnyNumber());
-    EXPECT_CALL(*core, get_available_devices()).Times(1);
+    EXPECT_CALL(*core, get_available_devices()).Times(0);
     EXPECT_CALL(*core, get_supported_property(_, _, _)).Times(expectedTimes);
     if (throwException) {
         ASSERT_ANY_THROW(plugin->parse_meta_devices(priorityDevices, {}));
@@ -92,7 +88,7 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDevicesWithPriority) {
 TEST_P(ParseMetaDeviceTest, ParseMetaDevicesNotWithPriority) {
     EXPECT_CALL(*plugin, parse_meta_devices(_, _)).Times(1 + !throwException);
     EXPECT_CALL(*core, get_property(_, _, _)).Times(AnyNumber());
-    EXPECT_CALL(*core, get_available_devices()).Times(1 + !throwException);
+    EXPECT_CALL(*core, get_available_devices()).Times(0);
     if (throwException) {
         ASSERT_ANY_THROW(plugin->parse_meta_devices(priorityDevices, {}));
     } else {
@@ -111,9 +107,12 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDevicesNotWithPriority) {
 
 TEST_P(ParseMetaDeviceNoIDTest, ParseMetaDevices) {
     ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevsNoID));
+    std::vector<std::string> deviceIDs = {};
+    ON_CALL(*core, get_property(StrEq("GPU"), StrEq(ov::available_devices.name()), _))
+        .WillByDefault(RETURN_MOCK_VALUE(deviceIDs));
     EXPECT_CALL(*plugin, parse_meta_devices(_, _)).Times(1);
     EXPECT_CALL(*core, get_property(_, _, _)).Times(AnyNumber());
-    EXPECT_CALL(*core, get_available_devices()).Times(1);
+    EXPECT_CALL(*core, get_available_devices()).Times(0);
     EXPECT_CALL(*core, get_supported_property(_, _, _)).Times(expectedTimes);
     if (throwException) {
         ASSERT_ANY_THROW(plugin->parse_meta_devices(priorityDevices, {}));
@@ -160,6 +159,14 @@ const std::vector<ConfigParams> testConfigs = {
     ConfigParams{"CPU(-1),GPU,OTHER", {}, true, 0},
     ConfigParams{"CPU(NA),GPU,OTHER", {}, true, 0},
     ConfigParams{"INVALID_DEVICE", {}, false, 0},
+    // GPU will be expanded to GPU.0 and GPU.1 with same device priority(0).
+    ConfigParams{"GPU",
+                 {
+                     {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 0},
+                     {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 0},
+                 },
+                 false,
+                 2},
     ConfigParams{"INVALID_DEVICE,CPU", {{"CPU", {}, -1, "", "CPU_", 1}}, false, 2},
 
     ConfigParams{"CPU(3),GPU.1,OTHER",

@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/shape_of.hpp"
 
 using namespace CPUTestUtils;
 
@@ -23,14 +24,9 @@ class ShapeOfLayerCPUTest : public testing::WithParamInterface<ShapeOfLayerCPUTe
                             virtual public ov::test::SubgraphBaseTest,
                             public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ShapeOfLayerCPUTestParamsSet> obj) {
-        ShapeOfLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
-        ElementType netPr;
-        InputShape inputShape;
-
-        std::tie(inputShape, netPr) = basicParamsSet;
+    static std::string getTestCaseName(const testing::TestParamInfo<ShapeOfLayerCPUTestParamsSet>& obj) {
+        const auto& [basicParamsSet, cpuParams] = obj.param;
+        const auto& [inputShape, netPr] = basicParamsSet;
         std::ostringstream result;
         result << "ShapeOfTest_";
         result << std::to_string(obj.index) << "_";
@@ -49,15 +45,9 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        ShapeOfLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
+        const auto& [basicParamsSet, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-        auto netPrecision = ElementType::dynamic;
-        InputShape inputShape;
-        std::tie(inputShape, netPrecision) = basicParamsSet;
+        const auto& [inputShape, netPrecision] = basicParamsSet;
         init_input_shapes({inputShape});
 
         inType = ov::element::Type(netPrecision);
@@ -70,7 +60,7 @@ protected:
 
         auto shapeOf = std::make_shared<ov::op::v3::ShapeOf>(params.front(), ov::element::i32);
 
-        function = makeNgraphFunction(netPrecision, params, shapeOf, "ShapeOf");
+        function = create_ov_model(netPrecision, params, shapeOf, "ShapeOf");
     }
 };
 

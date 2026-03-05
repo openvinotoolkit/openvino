@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -244,7 +244,7 @@ template <class TDim,
           typename std::enable_if<std::is_same<typename std::decay<TDim>::type, Dimension>::value>::type* = nullptr>
 void deduce_symbol_relations(const Product<TDim>& product) {
     auto dyn_in = product.get_dynamic_in();
-    auto dyn_out = product.get_dynamic_out();
+    const auto& dyn_out = product.get_dynamic_out();
     dyn_in.merge(dyn_in, dyn_in, dyn_out);
 }
 

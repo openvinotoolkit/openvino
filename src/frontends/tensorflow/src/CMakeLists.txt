@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -12,3 +12,5 @@ if(ENABLE_SNAPPY_COMPRESSION)
     target_link_libraries(openvino_tensorflow_frontend PRIVATE openvino::snappy)
     target_compile_definitions(openvino_tensorflow_frontend PRIVATE ENABLE_SNAPPY_COMPRESSION)
 endif()
+
+ov_build_target_faster(openvino_tensorflow_frontend PCH)

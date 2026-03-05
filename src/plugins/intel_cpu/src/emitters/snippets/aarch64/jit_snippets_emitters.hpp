@@ -1,16 +1,23 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
 class jit_nop_emitter : public jit_emitter {
 public:
-    jit_nop_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_nop_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                     dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                     const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -24,7 +31,7 @@ private:
 
 class jit_broadcast_move_emitter : public jit_emitter {
 public:
-    jit_broadcast_move_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_broadcast_move_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                                const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -38,13 +45,12 @@ private:
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
 
-private:
-    size_t byte_size = 0lu;
+    size_t byte_size = 0LU;
 };
 
 class jit_scalar_emitter : public jit_emitter {
 public:
-    jit_scalar_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_scalar_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                        dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -63,7 +69,6 @@ private:
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
 
-private:
     int32_t value;
 };
 

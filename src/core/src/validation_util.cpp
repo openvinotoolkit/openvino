@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,15 +6,19 @@
 
 #include <algorithm>
 #include <numeric>
+#include <stack>
 
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/negative.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/util/framework_node.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/util/common_util.hpp"
 #include "sequence_generator.hpp"
@@ -26,7 +30,7 @@ std::string normalize_axis_error_msg(const int64_t axis, const int64_t rank) {
     return std::string("Axis ")
         .append(std::to_string(axis))
         .append(" out of the tensor rank range [")
-        .append(std::to_string(-rank))
+        .append(std::to_string(rank == 0 ? -1 : -rank))
         .append(", ")
         .append(std::to_string(rank == 0 ? 0 : rank - 1))
         .append("].");
@@ -40,11 +44,10 @@ ov::OutputVector get_inputs_from_map(const std::shared_ptr<ov::Node>& node,
     inputs.reserve(num_inputs);
 
     for (size_t i = 0; i < num_inputs; i++) {
-        auto input = node->input_value(i);
-        if (node_map.count(input) > 0) {
+        if (auto input = node->input_value(i); node_map.count(input) > 0) {
             inputs.push_back(node_map.at(input));
         } else {
-            inputs.push_back(input);
+            inputs.push_back(std::move(input));
         }
     }
 
@@ -321,7 +324,7 @@ bool has_no_symbols(const ov::TensorSymbol& symbols) {
 }
 
 bool is_axis_valid(int64_t axis, int64_t rank) {
-    return (axis == 0) || (-rank <= axis && axis < rank);
+    return (axis == 0) || (axis == -1) || (-rank <= axis && axis < rank);
 }
 
 void validate_axis(const int64_t axis, const Rank& rank, const Node& node) {
@@ -330,7 +333,7 @@ void validate_axis(const int64_t axis, const Rank& rank, const Node& node) {
 }
 
 size_t normalize_axis(const int64_t axis, const int64_t rank) {
-    return static_cast<size_t>(normalize(axis, rank));
+    return rank > 0 ? static_cast<size_t>(normalize(axis, rank)) : 0U;
 }
 
 size_t try_normalize_axis(const int64_t axis, const Rank& rank) {
@@ -352,7 +355,7 @@ void validate_axes(const std::vector<int64_t>& axes, const Rank& rank, const Nod
 
 void normalize_axes(std::vector<int64_t>& axes, const int64_t rank) {
     for (auto&& axis : axes) {
-        axis = normalize(axis, rank);
+        axis = rank > 0 ? normalize(axis, rank) : 0;
     }
 }
 

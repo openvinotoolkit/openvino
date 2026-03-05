@@ -1,9 +1,17 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "cpu_shape.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <string>
+#include <vector>
+
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
+#include "openvino/util/common_util.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
@@ -14,7 +22,7 @@ bool Shape::isCompatible(const VectorDims& vecDims) const {
     }
 
     auto comparator = [](Dim lhs, Dim rhs) {
-        return (lhs == rhs) || (lhs == Shape::UNDEFINED_DIM);
+        return any_of(lhs, rhs, Shape::UNDEFINED_DIM);
     };
 
     if (!std::equal(getDims().begin(), getDims().end(), vecDims.begin(), comparator)) {
@@ -27,29 +35,22 @@ bool Shape::isCompatible(const VectorDims& vecDims) const {
         return false;
     }
 
-    if (!std::equal(getMinDims().begin(), getMinDims().end(), vecDims.begin(), [](Dim lhs, Dim rhs) {
-            return lhs <= rhs;
-        })) {
-        return false;
-    }
-    return true;
+    return std::equal(getMinDims().begin(), getMinDims().end(), vecDims.begin(), [](Dim lhs, Dim rhs) {
+        return lhs <= rhs;
+    });
 }
 
 std::string Shape::toString() const {
-    std::stringstream output;
-    output << "{";
-
-    size_t i = 0;
-    do {
+    std::vector<std::string> dimStrings;
+    dimStrings.reserve(dims.size());
+    for (size_t i = 0; i < dims.size(); ++i) {
         if (dims[i] == Shape::UNDEFINED_DIM) {
-            output << dim2str(minDims[i]) << " - " << dim2str(maxDims[i]);
+            dimStrings.emplace_back(dim2str(minDims[i]) + " - " + dim2str(maxDims[i]));
         } else {
-            output << dims[i];
+            dimStrings.emplace_back(std::to_string(dims[i]));
         }
-    } while (++i < dims.size() && output << ", ");
-
-    output << "}";
-    return output.str();
+    }
+    return "{" + ov::util::join(dimStrings) + "}";
 }
 
 Shape mergeShapes(const Shape& lhs, const Shape& rhs) {

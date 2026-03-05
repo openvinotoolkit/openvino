@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "openvino/opsets/opset1.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/pass/propagate_precision.hpp"
 #include "snippets/op/convert_saturation.hpp"
@@ -41,9 +42,7 @@ public:
 } // namespace
 
 std::string PrecisionPropagationTest::getTestCaseName(testing::TestParamInfo<PrecisionPropagationParams> obj) {
-    std::pair<PartialShape, PartialShape> shapes;
-    PrecisionPropagationParamsValues test_values;
-    std::tie(shapes, test_values) = obj.param;
+    const auto& [shapes, test_values] = obj.param;
 
     auto to_string = [](const std::set<std::vector<element::Type>>& precisions_pack) noexcept {
         std::ostringstream result;

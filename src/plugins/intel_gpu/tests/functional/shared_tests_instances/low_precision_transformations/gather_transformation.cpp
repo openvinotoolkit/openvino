@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,6 @@ const std::vector<GatherTransformationTestValues> testValues = {
         {0},
         {0},
         std::int64_t{0},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         ov::element::f32,
         {256, {}, {0.f}, {25.5f}, {12.5f}, {25.5f + 12.5f}}
     },
@@ -38,7 +37,6 @@ const std::vector<GatherTransformationTestValues> testValues = {
         {0},
         {0},
         std::int64_t{0},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         ov::element::f32,
         {
             256,
@@ -56,7 +54,6 @@ const std::vector<GatherTransformationTestValues> testValues = {
         {1, 2},
         {0},
         std::int64_t{0},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         ov::element::f32,
         {256, {}, {0.f}, {25.5f}, {12.5f}, {25.5f + 12.5f}}
     },

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,9 +16,11 @@
 #include "openvino/op/shape_of.hpp"
 
 using namespace ov;
-using namespace ov::op;
 using namespace std;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
 TEST_F(TransformationTestsF, NopBroadcastOpset1) {
     auto shape = PartialShape::dynamic(4);
     set_shape_symbols(shape);  // we set unique symbols to the shape: A, B, C, D
@@ -28,13 +30,13 @@ TEST_F(TransformationTestsF, NopBroadcastOpset1) {
 
         auto symbol_input = make_shared<v0::Parameter>(element::f32, shape);
         auto shape_of = make_shared<v3::ShapeOf>(symbol_input);
-        auto ones = ov::op::v0::Constant::create(element::i64, {}, {1});
+        auto ones = v0::Constant::create(element::i64, {}, {1});
         auto maximum = make_shared<v1::Maximum>(shape_of, ones);
 
         auto broadcast = make_shared<v1::Broadcast>(data, maximum);
         auto relu = make_shared<v0::Relu>(broadcast);
 
-        model = make_shared<Model>(NodeVector{relu}, ParameterVector{data, symbol_input});
+        model = make_shared<Model>(OutputVector{relu}, ParameterVector{data, symbol_input});
         manager.register_pass<pass::NopBroadcast>();
     }
     {
@@ -43,7 +45,7 @@ TEST_F(TransformationTestsF, NopBroadcastOpset1) {
 
         auto symbol_input = make_shared<v0::Parameter>(element::f32, shape);
 
-        model_ref = make_shared<Model>(NodeVector{relu}, ParameterVector{data, symbol_input});
+        model_ref = make_shared<Model>(OutputVector{relu}, ParameterVector{data, symbol_input});
     }
 }
 
@@ -56,13 +58,13 @@ TEST_F(TransformationTestsF, NopBroadcastOpset3) {
 
         auto symbol_input = make_shared<v0::Parameter>(element::f32, shape);
         auto shape_of = make_shared<v3::ShapeOf>(symbol_input);
-        auto ones = ov::op::v0::Constant::create(element::i64, {4}, {1, 1, 1, 1});
+        auto ones = v0::Constant::create(element::i64, {4}, {1, 1, 1, 1});
         auto maximum = make_shared<v1::Maximum>(shape_of, ones);
 
         auto broadcast = make_shared<v3::Broadcast>(data, maximum);
         auto relu = make_shared<v0::Relu>(broadcast);
 
-        model = make_shared<Model>(NodeVector{relu}, ParameterVector{data, symbol_input});
+        model = make_shared<Model>(OutputVector{relu}, ParameterVector{data, symbol_input});
         manager.register_pass<pass::NopBroadcast>();
     }
     {
@@ -71,7 +73,7 @@ TEST_F(TransformationTestsF, NopBroadcastOpset3) {
 
         auto symbol_input = make_shared<v0::Parameter>(element::f32, shape);
 
-        model_ref = make_shared<Model>(NodeVector{relu}, ParameterVector{data, symbol_input});
+        model_ref = make_shared<Model>(OutputVector{relu}, ParameterVector{data, symbol_input});
     }
 }
 
@@ -84,13 +86,13 @@ TEST_F(TransformationTestsF, NopBroadcastNegative) {
 
         auto symbol_input = make_shared<v0::Parameter>(element::f32, shape);
         auto shape_of = make_shared<v3::ShapeOf>(symbol_input);
-        auto ones = ov::op::v0::Constant::create(element::i64, {2}, {1, 1});
+        auto ones = v0::Constant::create(element::i64, {2}, {1, 1});
         auto maximum = make_shared<v1::Maximum>(shape_of, ones);
 
         auto broadcast = make_shared<v1::Broadcast>(data, maximum);
         auto relu = make_shared<v0::Relu>(broadcast);
 
-        model = make_shared<Model>(NodeVector{relu}, ParameterVector{data, symbol_input});
+        model = make_shared<Model>(OutputVector{relu}, ParameterVector{data, symbol_input});
         manager.register_pass<pass::NopBroadcast>();
     }
 }

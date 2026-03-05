@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,12 +25,6 @@
 #include "openvino/util/shared_object.hpp"
 
 namespace {
-
-std::string get_mock_engine_path() {
-    std::string mockEngineName("mock_engine");
-    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                              mockEngineName + OV_BUILD_POSTFIX);
-}
 
 template <class T>
 std::function<T> make_std_function(const std::shared_ptr<void> so, const std::string& functionName) {
@@ -60,6 +54,8 @@ void ov::auto_plugin::tests::AutoFuncTests::SetUp() {
     if (m_mock_plugins.empty()) {
         register_plugin_mock_cpu(core, "MOCK_CPU", {});
         register_plugin_mock_gpu(core, "MOCK_GPU", {});
+        core.get_property("MOCK_CPU", ov::device::capabilities.name(), {});
+        core.get_property("MOCK_GPU", ov::device::capabilities.name(), {});
     }
     model_can_batch = create_model_with_batch_possible();
     model_cannot_batch = create_model_with_reshape();
@@ -474,6 +470,17 @@ public:
         return compile_model(ov_model, properties, context);
     }
 
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
+                                                     const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override {
         OPENVINO_NOT_IMPLEMENTED;
@@ -537,6 +544,7 @@ public:
                                                          RO_property(ov::device::type.name()),
                                                          RO_property(ov::device::uuid.name()),
                                                          RO_property(ov::device::id.name()),
+                                                         RO_property(ov::available_devices.name()),
                                                          RO_property(ov::intel_gpu::memory_statistics.name())};
         // the whole config is RW before network is loaded.
         const std::vector<ov::PropertyName> rwProperties{RW_property(ov::num_streams.name()),
@@ -581,6 +589,9 @@ public:
             return decltype(ov::device::uuid)::value_type{uuid};
         } else if (name == ov::device::id) {
             return decltype(ov::device::id)::value_type{m_id};
+        } else if (name == ov::available_devices.name()) {
+            std::vector<std::string> available_devices = {};
+            return decltype(ov::available_devices)::value_type(available_devices);
         } else if (name == ov::loaded_from_cache.name()) {
             return m_loaded_from_cache;
         } else if (name == ov::intel_gpu::memory_statistics) {
@@ -602,9 +613,10 @@ void ov::auto_plugin::tests::AutoFuncTests::reg_plugin(ov::Core& core,
                                                        std::shared_ptr<ov::IPlugin>& plugin,
                                                        const std::string& device_name,
                                                        const ov::AnyMap& properties) {
-    std::string libraryPath = get_mock_engine_path();
-    if (!m_so)
-        m_so = ov::util::load_shared_object(libraryPath.c_str());
+    if (!m_so) {
+        const auto libraryPath = ov::test::utils::get_mock_engine_path();
+        m_so = ov::util::load_shared_object(libraryPath);
+    }
     plugin->set_device_name(device_name);
     std::function<void(ov::IPlugin*)> injectProxyEngine = make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
 
@@ -648,7 +660,7 @@ public:
             else if (it.first == ov::enable_profiling.name())
                 m_profiling = it.second.as<bool>();
             else if (it.first == ov::device::id.name())
-                continue;
+                m_id = it.second.as<std::string>();
             else if (it.first == ov::cache_dir.name())
                 continue;
             else
@@ -659,6 +671,8 @@ public:
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
         const std::vector<ov::PropertyName> roProperties{RO_property(ov::supported_properties.name()),
                                                          RO_property(ov::device::uuid.name()),
+                                                         RO_property(ov::device::id.name()),
+                                                         RO_property(ov::available_devices.name()),
                                                          RO_property(ov::device::capabilities.name())};
         // the whole config is RW before network is loaded.
         const std::vector<ov::PropertyName> rwProperties{RW_property(ov::num_streams.name()),
@@ -685,11 +699,16 @@ public:
             capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
             return decltype(ov::device::capabilities)::value_type(capabilities);
         } else if (ov::internal::caching_properties == name) {
-            std::vector<ov::PropertyName> caching_properties = {ov::device::uuid};
+            std::vector<ov::PropertyName> caching_properties = {ov::device::uuid, ov::device::id};
             return decltype(ov::internal::caching_properties)::value_type(caching_properties);
         } else if (name == ov::device::uuid) {
             ov::device::UUID uuid = {};
             return decltype(ov::device::uuid)::value_type{uuid};
+        } else if (name == ov::device::id) {
+            return decltype(ov::device::id)::value_type{m_id};
+        } else if (name == ov::available_devices.name()) {
+            std::vector<std::string> available_devices = {};
+            return decltype(ov::available_devices)::value_type(available_devices);
         } else if (name == ov::loaded_from_cache.name()) {
             return m_loaded_from_cache;
         }
@@ -700,6 +719,7 @@ private:
     int32_t num_streams{0};
     bool m_profiling = false;
     bool m_loaded_from_cache{false};
+    std::string m_id;
 };
 
 void ov::auto_plugin::tests::AutoFuncTests::register_plugin_mock_cpu(ov::Core& core,

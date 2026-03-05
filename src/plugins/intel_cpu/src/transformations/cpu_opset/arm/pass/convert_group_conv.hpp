@@ -1,10 +1,9 @@
-// Copyright (C) 2020-2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 
 /*
  * Description:

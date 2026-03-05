@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -10,7 +10,7 @@ import numpy as np
 import sys
 from openvino import PartialShape, Dimension, Type
 from packaging.version import parse, Version
-from typing import List, Dict, Union
+from typing import Union
 
 
 # TODO: reuse this method in ovc and remove duplication
@@ -170,9 +170,26 @@ def get_concrete_func(tf_function, example_input, input_needs_packing, error_mes
 
 
 def get_signature_from_input(keras_model):
+    import tensorflow as tf
     if not hasattr(keras_model, 'input') or getattr(keras_model, 'input') is None:
         return None
-    return getattr(keras_model, 'input')
+    keras_input_signature = getattr(keras_model, 'input')
+    # align input names for the signature
+    if hasattr(keras_model, 'input_spec') and getattr(keras_model, 'input_spec') is not None:
+        input_spec = getattr(keras_model, 'input_spec')
+        input_names = [spec.name for spec in input_spec]
+        if not isinstance(keras_input_signature, (dict, list)):
+            # scalar case
+            keras_input_signature = [keras_input_signature]
+        if len(keras_input_signature) == len(input_names) and isinstance(keras_input_signature, list):
+            new_keras_input_signature = []
+            for idx, elem in enumerate(keras_input_signature):
+                new_keras_input_signature.append(tf.TensorSpec(
+                    shape=elem.shape,
+                    dtype=elem.dtype,
+                    name=input_names[idx]))
+            return new_keras_input_signature
+    return keras_input_signature
 
 
 def get_signature_from_input_signature(keras_model):
@@ -275,7 +292,7 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
 
         input_needs_packing = True
 
-    def are_shapes_defined(shape: Union[List, Dict]):
+    def are_shapes_defined(shape: Union[list, dict]):
         if shape is None:
             return False
         assert hasattr(shape, '__len__')

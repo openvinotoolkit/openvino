@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,6 @@
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/loop.hpp"
-#include "openvino/op/search_sorted.hpp"
-#include "openvino/op/stft.hpp"
 #include "openvino/runtime/properties.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -246,6 +244,12 @@ std::vector<cldnn::input_info> ProgramBuilder::GetInputInfo(const std::shared_pt
                                           || ov::is_type<ov::op::v1::Split>(prevOp)
                                           || ov::is_type<ov::op::v1::VariadicSplit>(prevOp)
                                           || ov::is_type<ov::op::v4::LSTMCell>(prevOp);
+
+        // Custom op need to maintain output port index for multiple outputs.
+        if (m_custom_layers.find(prevOp->get_type_name()) != m_custom_layers.end()) {
+            is_legacy_multiple_outputs = false;
+        }
+
         if (prevOp->get_output_size() > 1 && is_legacy_multiple_outputs) {
             prevName += ".out" + std::to_string(op->get_input_source_output(i).get_index());
         }
@@ -283,7 +287,7 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     prim->origin_op_name = op.get_friendly_name();
     prim->origin_op_type_name = op.get_type_name();
 
-    if (this->m_config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE) {
+    if (this->m_config.get_enable_weightless()) {
         if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
             auto rt_info = op.get_rt_info();
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,8 @@
 
 using namespace ov::pass;
 using namespace ov::symbol::util;
+
+namespace ov::pass {
 
 namespace {
 void symbolic_set_up_for_shape(ov::PartialShape& shape) {
@@ -92,7 +94,7 @@ void special_case_range_symbol_propagation(const std::shared_ptr<ov::Node>& node
 }
 }  // namespace
 
-bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model>& m) {
+bool SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(SymbolicPropagation);
 
     for (const auto& op : m->get_ordered_ops()) {
@@ -117,14 +119,14 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
     return true;
 }
 
-ov::pass::LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
+LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
     MATCHER_SCOPE(LabelResolvingThroughSelect);
     auto add = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>();
     auto input_reshape = pattern::wrap_type<op::v1::Reshape>({add, pattern::any_input()});
 
     auto select_then = pattern::wrap_type<op::v1::Select>({pattern::any_input(), input_reshape, pattern::any_input()});
     auto select_else = pattern::wrap_type<op::v1::Select>({pattern::any_input(), pattern::any_input(), input_reshape});
-    auto select = std::make_shared<pass::pattern::op::Or>(OutputVector{select_then, select_else});
+    auto select = std::make_shared<pattern::op::Or>(OutputVector{select_then, select_else});
 
     auto softmax = pattern::wrap_type<op::v1::Softmax>({select});
     auto reshape = pattern::wrap_type<op::v1::Reshape>({softmax, pattern::any_input()});
@@ -171,8 +173,12 @@ ov::pass::LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
     register_matcher(m, matcher_pass_callback);
 }
 
-ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run) {
-    m_manager = std::make_shared<pass::Manager>("Symbolic");
+SymbolicOptimizations::SymbolicOptimizations(bool full_run, std::shared_ptr<PassConfig> pass_config) {
+    if (pass_config)
+        m_manager = std::make_shared<pass::Manager>(*pass_config, "Symbolic");
+    else
+        m_manager = std::make_shared<pass::Manager>("Symbolic");
+
     m_manager->set_per_pass_validation(false);
 
 #define REGISTER_SYMBOLIC(region, ...) m_manager->register_pass<region>(__VA_ARGS__);
@@ -198,17 +204,21 @@ ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run) {
     }
 }
 
-bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
+bool SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SymbolicOptimizations);
 
     // Eliminate Squeeze/Unsqueeze might convert Squeeze/Unsqueeze ops to Reshape
     // it may break NNCF patterns and lead to unexpected FakeQuantize ops in the model.
     // So we decided to disable these passes in SymbolicOptimizations.
     const auto& pass_config = m_manager->get_pass_config();
+
     pass_config->disable<EliminateSqueeze>();
     pass_config->disable<EliminateUnsqueeze>();
 
     m_manager->run_passes(m);
+
     ov::remove_skip_invalidation_rti(m);
     return true;
 }
+
+}  // namespace ov::pass

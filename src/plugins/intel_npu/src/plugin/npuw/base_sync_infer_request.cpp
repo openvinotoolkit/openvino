@@ -1,11 +1,15 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "base_sync_infer_request.hpp"
 
 #include "compiled_model.hpp"
+#include "infer_request_utils.hpp"  // to utilize copy_tensor_by_dim
 #include "intel_npu/config/npuw.hpp"
+#include "intel_npu/utils/zero/zero_host_tensor.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "util.hpp"
@@ -20,6 +24,13 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
     if (m_npuw_model->m_acc_check) {
         m_ref_subrequests.resize(m_num_submodels);
     }
+
+    // Initialize profiling
+    m_profile.report_on_die = ov::npuw::profiling_enabled();
+    m_profile.area = m_npuw_model->m_name + "/performance";
+
+    m_footprint.report_on_die = ov::npuw::profiling_enabled();
+    m_footprint.area = m_npuw_model->m_name + "/memory";
 }
 
 ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,
@@ -87,8 +98,7 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
         } else {
             LOG_INFO("Skip creation of reference subrequest for submodule["
                      << id << "] on reference device: " << m_npuw_model->m_ref_device << ", as actual subrequest ["
-                     << id << "] has been already created on "
-                     << "it .");
+                     << id << "] has been already created on " << "it .");
         }
     }
 
@@ -148,15 +158,51 @@ void ov::npuw::IBaseInferRequest::ensure_subrequest_is_accurate(std::size_t idx,
 }
 
 ov::SoPtr<ov::ITensor> ov::npuw::IBaseInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
-    // assert(persistent)
-    return m_port_to_tensor.at(port).tensor;
+    std::unique_lock lock(m_io_storages_mutex);
+
+    if (is_stored(port)) {
+        return m_port_to_tensor.at(port).tensor;
+    }
+
+    // I/O: allocate here on demand (to reduce memory consumption in case some I/O were shared)
+    // Input
+    for (std::size_t i = 0; i < m_npuw_model->inputs().size(); ++i) {
+        if (m_npuw_model->inputs()[i] == port) {
+            ov::SoPtr<ov::ITensor> allocated = allocOut(port, global_input_mem_device(i));
+            m_input_allocated.insert(allocated->data());
+            m_port_to_tensor[port] = TensorStorage{allocated, true};
+            return m_port_to_tensor.at(port).tensor;
+        }
+    }
+
+    // Output
+    for (size_t i = 0; i < m_npuw_model->outputs().size(); i++) {
+        if (m_npuw_model->outputs()[i] == port) {
+            auto tensor = alloc_global_out(i);
+            m_port_to_tensor[port] = TensorStorage{tensor, true};
+            return m_port_to_tensor.at(port).tensor;
+        }
+    }
+
+    NPUW_ASSERT(false);
+    return {};
 }
 
 void ov::npuw::IBaseInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                              const ov::SoPtr<ov::ITensor>& tensor) {
-    // Assigning via .at() to ensure it is a known port
-    // assert(persistent)
-    m_port_to_tensor.at(port).tensor = tensor;
+    std::unique_lock lock(m_io_storages_mutex);
+
+    if (!is_stored(port)) {
+        // TODO: might be useful to check if the tensor is allocated on the device
+        m_port_to_tensor[port] = TensorStorage{tensor, true};
+    } else {
+        m_port_to_tensor.at(port).tensor = tensor;
+    }
+
+    // Check if setting input tensor
+    if (m_port_to_tensor.at(port).persistent) {
+        handle_set_remote_input(port, tensor);
+    }
 }
 
 std::vector<ov::SoPtr<ov::ITensor>> ov::npuw::IBaseInferRequest::get_tensors(
@@ -173,6 +219,42 @@ void ov::npuw::IBaseInferRequest::check_tensors() const {
     // Ignore `check_tensor` of inputs and outputs of Hetero Compiled Model because
     // `m_tensors` are not allocated
     return;
+}
+
+bool ov::npuw::IBaseInferRequest::is_stored(const ov::Output<const ov::Node>& port) const {
+    return m_port_to_tensor.find(port) != m_port_to_tensor.end();
+}
+
+void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const ov::Node>& port,
+                                                          const ov::SoPtr<ov::ITensor>& tensor) {
+    for (std::size_t i = 0; i < m_npuw_model->inputs().size(); ++i) {
+        if (m_npuw_model->inputs()[i] == port) {
+            // This is a tricky case:
+            // 1) We already stored an input tensor ptr in m_input_allocated via FMM
+            // 2) We got an input tensor from outside
+            // Later in runtime we rely on m_input_allocated to check if the memory is
+            // allocated internally to prevent the copy. Here we need to check if the memory
+            // is properly allocated externally, to prevent runtime copy as well.
+            // Also we can get a strided remote tensor. In this case the copy cannot be avoided for now.
+            if (m_npuw_model->global_mem_device() == "NPU") {
+                auto remote_ctx =
+                    m_npuw_model->get_plugin()->get_core()->get_default_context(m_npuw_model->global_mem_device())._ptr;
+                auto zrh = remote_ctx->get_property().at(ov::intel_npu::l0_context.name());
+                if (::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(
+                        static_cast<ze_context_handle_t>(zrh.as<void*>()),
+                        tensor->data()) > 0) {
+                    if (tensor->is_continuous()) {
+                        // Note: no need for locking as it's internal method that should
+                        // only be called from set_tensor()
+                        m_input_allocated.insert(tensor->data());
+                    } else {
+                        LOG_WARN("Strided remote tensor is not supported on the device! Expect worse performance due "
+                                 "to CPU runtime copy.");
+                    }
+                }
+            }
+        }
+    }
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::IBaseInferRequest::query_state() const {
@@ -202,6 +284,12 @@ std::vector<ov::ProfilingInfo> ov::npuw::IBaseInferRequest::get_profiling_info()
     return info;
 }
 
+std::string ov::npuw::IBaseInferRequest::profile_tag(std::size_t idx) const {
+    // So far accumulate over devices involved
+    const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(idx)];
+    return *proto_comp_model_desc.device_it;
+}
+
 void ov::npuw::IBaseInferRequest::infer() {
     m_now_idx.reset();
     prepare_for_infer();
@@ -213,7 +301,9 @@ void ov::npuw::IBaseInferRequest::infer() {
         }
         subscribe_subrequest(idx, [](std::exception_ptr) {});
         bool failover = false;
-        run_subrequest_for_success(idx, failover);
+        m_profile[profile_tag(idx)].record([&]() {
+            run_subrequest_for_success(idx, failover);
+        });
         failover_happened |= failover;
         complete_subrequest(idx);
         if (m_npuw_model->m_acc_check) {
@@ -239,52 +329,56 @@ std::size_t ov::npuw::IBaseInferRequest::total_subrequests() const {
 
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocMem(const ov::element::Type type,
                                                           const ov::Shape& shape,
-                                                          const std::string& device) {
-    if (device == "CPU" || ov::shape_size(shape) == 0) {
-        return ov::get_tensor_impl(ov::Tensor(type, shape));
-    }
-
-    auto remote_ctx = m_npuw_model->get_plugin()->get_core()->get_default_context(device)._ptr;
-    auto remote_tensor = remote_ctx->create_host_tensor(type, shape);
-    return ov::get_tensor_impl(ov::make_tensor(remote_tensor));
+                                                          const std::string& device) const {
+    auto ptr = ov::npuw::util::allocMem(type, shape, device, m_npuw_model->get_plugin());
+    m_footprint[device] += ptr->get_byte_size();
+    return ptr;
 }
 
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocOut(const ov::Output<const ov::Node>& node,
-                                                          const std::string& device) {
+                                                          const std::string& device) const {
     return allocMem(node.get_element_type(), node.get_shape(), device);
 }
 
-void ov::npuw::IBaseInferRequest::alloc_io() {
-    // Preallocate input tensors
-    LOG_INFO("Preallocating input tensors...");
-    for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
-        const auto& port = m_npuw_model->inputs()[i];
-        ov::SoPtr<ov::ITensor> allocated = allocOut(port, m_npuw_model->global_mem_device());
-        m_input_tensors.push_back(allocated);
-        m_input_allocated.insert(allocated->data());
-        m_port_to_tensor[port] = TensorStorage{m_input_tensors.back(), true};
-    }  // for(inputs)
+std::string ov::npuw::IBaseInferRequest::global_input_mem_device(std::size_t idx) const {
+    // Use the consumer subgraph device if it is alone;
+    // resort to global if there's many
+    if (!m_npuw_model->m_param_subscribers[idx].empty()) {
+        // There's subscribers, so resort to global
+        return m_npuw_model->global_mem_device();
+    }
 
-    // Preallocate output tensors
-    LOG_INFO("Preallocating output tensors...");
-    for (size_t i = 0; i < m_npuw_model->outputs().size(); i++) {
-        LOG_BLOCK();
-        const auto& port = m_npuw_model->outputs()[i];
-        LOG_INFO("Output " << i << " of " << m_npuw_model->outputs().size() << ": " << port);
+    const auto& to_submodel = m_npuw_model->m_inputs_to_submodels_inputs.at(idx);
+    if (to_submodel != CompiledModel::NO_LINK) {
+        const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(to_submodel.first)];
+        return *proto_comp_model_desc.device_it;
+    }
 
-        // FIXME: Yes, the CompiledModel::ToSubmodel == JustInferRequest::LinkFrom
-        const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(i);
-        LOG_INFO("Produced by Subgraph[" << from_submodel.first << "] / " << from_submodel.second);
+    // Resort to global again
+    return m_npuw_model->global_mem_device();
+}
 
-        auto tensor = alloc_global_out(i);
-        m_output_tensors.push_back(tensor);
-        m_port_to_tensor[port] = TensorStorage{tensor, true};
+std::string ov::npuw::IBaseInferRequest::global_output_mem_device(std::size_t idx) const {
+    // Pick the affinitiy based on the producer subgraph
+    const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(idx);
+    const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(from_submodel.first)];
+    return *proto_comp_model_desc.device_it;
+}
+
+void ov::npuw::IBaseInferRequest::alloc_quant_gather() {
+    // Try to allocate intermediate tensors to gather into, when host quant gather is enabled
+    for (size_t i = 0; i < m_num_submodels; i++) {
+        auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
+        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+            continue;  // Optimized out
+        }
+        alloc_quant_gather_tensors(i, m_subrequests[i]);
     }
 }
 
-ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::alloc_global_out(std::size_t out_idx) {
+ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::alloc_global_out(std::size_t out_idx) const {
     const auto& port = m_npuw_model->outputs().at(out_idx);
-    return allocOut(port, m_npuw_model->global_mem_device());
+    return allocOut(port, global_output_mem_device(out_idx));
 }
 
 void ov::npuw::IBaseInferRequest::init_gio() {
@@ -326,13 +420,21 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
     const auto real_idx = comp_model_desc.replaced_by.value();
     auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
 
+    // Skip MoE expert submodels - MoE experts require special unpacking logic according to the
+    // expert selection, which is handled later in the inference flow.
+    if (func_desc.moe_experts.has_value()) {
+        return;
+    }
+
     // Bind extra parameters from the function's closure
     // First, do easy things & delay heavy stuff
     std::vector<std::size_t> closure_unpack_required;
     std::vector<std::size_t> closure_copy_required;
 
-    for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
-        auto& closure = comp_model_desc.closure[cidx];
+    auto& desc_closure = comp_model_desc.closure.get().closure;
+
+    for (std::size_t cidx = 0u; cidx < desc_closure.size(); cidx++) {
+        auto& closure = desc_closure[cidx];
         const auto closure_param_id = comp_model_desc.param_base + cidx;
 
         if (m_npuw_model->is_gather_closure(idx, cidx)) {
@@ -360,7 +462,7 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
     // m_ms_unpack += ov::npuw::perf::ms_to_run([&](){
     ov::parallel_for(closure_copy_required.size(), [&](std::size_t j) {
         auto cidx = closure_copy_required[j];
-        auto& closure = comp_model_desc.closure[cidx];
+        auto& closure = desc_closure[cidx];
         const auto closure_param_id = comp_model_desc.param_base + cidx;
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
         auto clparam = request->get_tensor(iport);
@@ -375,7 +477,7 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
         auto cidx = closure_unpack_required[j];
 
         // FIXME: zerops are stored with absolute indexing, this needs to be aligned
-        auto& closure = comp_model_desc.closure[cidx];
+        auto& closure = desc_closure[cidx];
 
         const auto closure_param_id = comp_model_desc.param_base + cidx;
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
@@ -410,7 +512,16 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     const auto& iodesc = m_subrequests_gio.at(idx);
 
     const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+
+    if (proto_comp_model_desc.moe_experts.has_value()) {
+        // Expert submodel does not have global parameters to bind
+        return;
+    }
+
     const bool is_spatial = proto_comp_model_desc.spatial.has_value();
+    const bool is_attention = proto_comp_model_desc.attention.has_value();
+    const bool is_pyramid_attention = proto_comp_model_desc.pyramid_attention.has_value();
+    const bool is_hfa_attention = proto_comp_model_desc.host_flash_attention.has_value();
 
     // a list of ports to copy tensors, if needed: FROM -> TO
     std::vector<std::pair<ov::SoPtr<ov::ITensor>, ov::Output<const ov::Node>>> copy_list;
@@ -426,17 +537,71 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         });
     };
 
+    // Check if the given subgraph's input is dynamic
+    auto is_attn_param = [&](std::size_t sub_in_idx) -> bool {
+        if (!is_attention) {
+            return false;  // Early return
+        }
+        auto& attn = proto_comp_model_desc.attention.value();
+        return std::any_of(attn.params.begin(), attn.params.end(), [&](const auto& p) -> bool {
+            return p.idx == sub_in_idx;
+        });
+    };
+
+    auto is_pyramid_attn_param = [&](std::size_t sub_in_idx) -> bool {
+        if (!is_pyramid_attention) {
+            return false;  // Early return
+        }
+
+        auto pyramid_id = m_pyramid_selector->pyramid_id();
+        auto& pyramid_attn = proto_comp_model_desc.pyramid_attention.value()._attention_infos[pyramid_id];
+        return std::any_of(pyramid_attn.params.begin(), pyramid_attn.params.end(), [&](const auto& p) -> bool {
+            return p.idx == sub_in_idx;
+        });
+    };
+
+    auto is_hfa_attn_param = [&](std::size_t sub_in_idx) -> bool {
+        if (!is_hfa_attention) {
+            return false;  // Early return
+        }
+        // Check if sub_in_idx matches any SDPA parameter index
+        auto& hfa_attn = proto_comp_model_desc.host_flash_attention.value()._sdpa_attention_info;
+        const auto& sdpa_in = hfa_attn._sdpa_indices;
+        return sub_in_idx == sdpa_in.query || sub_in_idx == sdpa_in.past_key || sub_in_idx == sdpa_in.past_value ||
+               sub_in_idx == sdpa_in.present_key || sub_in_idx == sdpa_in.present_value ||
+               sub_in_idx == sdpa_in.attention_mask;
+    };
+
     for (auto&& it : iodesc.global_params) {
         std::size_t param_idx{}, sub_in_idx{};
         std::tie(param_idx, sub_in_idx) = it;
         LOG_DEBUG("Processing " << param_idx << " -> " << sub_in_idx << std::endl);
 
         const auto& g_port = m_npuw_model->inputs()[param_idx];
-        const auto& g_tnsr = m_port_to_tensor.at(g_port).tensor;
+        const auto& g_tnsr = get_tensor(g_port);
         const auto& s_port = request->get_inputs()[sub_in_idx];
         LOG_DEBUG("Processing " << g_port << " -> " << s_port << "...");
         LOG_BLOCK();
-        if (!is_spatial_param(sub_in_idx)) {
+
+        if (is_spatial_param(sub_in_idx)) {
+            // Register for future use
+            // FIXME: Not sure why this code is here. There should be no
+            // spatial global parameters, as this execution mode iterates over
+            // the iterations only.
+            // Also, it pretty much looks like _io[] should be taken at
+            // idx but not real_idx, as referring to real_idx breaks the
+            // function pipelining
+            NPUW_ASSERT(false && "Global parameter can't be spatial");
+            m_spatial_io[real_idx].inputs.at(sub_in_idx) = g_tnsr;
+        } else if (is_attn_param(sub_in_idx) || is_pyramid_attn_param(sub_in_idx)) {
+            // Register for future use
+            m_attention_io[idx].inputs.at(sub_in_idx) = g_tnsr;
+        } else if (is_hfa_attn_param(sub_in_idx)) {
+            // Register for future use
+            m_hfa_io[idx].inputs.at(sub_in_idx) = g_tnsr;
+        } else {
+            // Lock mutex just in case. m_input_allocated might be altered in parallel in get_tensor()
+            std::unique_lock lock(m_io_storages_mutex);
             // Input parameter is non-spatial, do normal handling
             if (m_input_allocated.count(g_tnsr->data()) == 0 && do_copy) {
                 LOG_DEBUG("Will be copied");
@@ -445,11 +610,8 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
                 LOG_DEBUG("Will be set");
                 request->set_tensor(s_port, g_tnsr);
             }
-        } else {
-            // Register for future use
-            m_spatial_io[real_idx].inputs.at(sub_in_idx) = g_tnsr;
         }
-    }
+    }  // for(global_params)
 
     LOG_DEBUG("Running copy...");
     ov::parallel_for(copy_list.size(), [&](std::size_t idx) {
@@ -463,10 +625,287 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         const auto& gport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.dst_idx];
         const auto gather = request->get_tensor(gport);
 
-        const auto& vocab = comp_model_desc.closure[comp_model_desc.host_gather.src_idx - comp_model_desc.param_base];
+        const auto& vocab =
+            comp_model_desc.closure.get().closure[comp_model_desc.host_gather.src_idx - comp_model_desc.param_base];
         const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.idx_idx];
         const auto lookup = request->get_tensor(lport);
+
         ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, gather);
+    }
+
+    // Run host-side quantized gather, if required
+    handle_quant_host_gather(idx, request);
+
+    // Handle attention inputs, if required
+    m_profile["attn(io)"].record([&]() {
+        bind_attention_inputs(idx, request);
+    });
+
+    // Handle pyramid attention inputs, if required
+    m_profile["attn(io)"].record([&]() {
+        bind_pyramid_attention_inputs(idx, request);
+    });
+
+    LOG_DEBUG("Done");
+}
+
+void ov::npuw::IBaseInferRequest::alloc_quant_gather_tensors(std::size_t idx, RqPtr request) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+    auto& quant_unpack_gather = comp_model_desc.quant_unpack_gather;
+
+    if (quant_unpack_gather.dst_idx != -1) {
+        NPUW_ASSERT(quant_unpack_gather.idx_idx != -1 && quant_unpack_gather.src_w_idx != -1);
+
+        const auto& lport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.idx_idx];
+        const auto& lookup = request->get_tensor(lport);
+
+        const auto& wport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_w_idx];
+        const auto& vocabw = request->get_tensor(wport);
+
+        auto ids_shape = lookup->get_shape();
+
+        auto get_gathered_shape = [&ids_shape](const ov::Shape& shape) {
+            return ov::Shape{1, ids_shape[1], shape.size() == 3 ? shape[1] * shape[2] : shape[1]};
+        };
+
+        m_quant_gather_tensors.w = ov::Tensor(vocabw->get_element_type(), get_gathered_shape(vocabw->get_shape()));
+
+        if (quant_unpack_gather.src_z_idx != -1 && quant_unpack_gather.src_s_idx != -1) {
+            const auto& zport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_z_idx];
+            const auto& vocabz = request->get_tensor(zport);
+
+            const auto& sport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_s_idx];
+            const auto& vocabs = request->get_tensor(sport);
+
+            m_quant_gather_tensors.z = ov::Tensor(vocabz->get_element_type(), get_gathered_shape(vocabz->get_shape()));
+            m_quant_gather_tensors.s = ov::Tensor(vocabs->get_element_type(), get_gathered_shape(vocabs->get_shape()));
+        } else if (quant_unpack_gather.src_s_idx != -1) {
+            const auto& sport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_s_idx];
+            const auto& vocabs = request->get_tensor(sport);
+
+            m_quant_gather_tensors.s = ov::Tensor(vocabs->get_element_type(), get_gathered_shape(vocabs->get_shape()));
+        }
+    }
+}
+
+void ov::npuw::IBaseInferRequest::handle_quant_host_gather(std::size_t idx, RqPtr request) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+    auto& quant_unpack_gather = comp_model_desc.quant_unpack_gather;
+
+    if (quant_unpack_gather.dst_idx != -1) {
+        NPUW_ASSERT(quant_unpack_gather.idx_idx != -1 && quant_unpack_gather.src_w_idx != -1);
+
+        const auto& lport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.idx_idx];
+        const auto& lookup = request->get_tensor(lport);
+
+        const auto& gport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.dst_idx];
+        const auto& gather = request->get_tensor(gport);
+
+        const auto& wport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_w_idx];
+        const auto& vocabw = request->get_tensor(wport);
+
+        // Gather weight
+        ov::npuw::util::gather(vocabw, lookup, ov::get_tensor_impl(m_quant_gather_tensors.w));
+
+        if (quant_unpack_gather.src_z_idx != -1 && quant_unpack_gather.src_s_idx != -1) {
+            const auto& zport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_z_idx];
+            const auto& vocabz = request->get_tensor(zport);
+
+            const auto& sport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_s_idx];
+            const auto& vocabs = request->get_tensor(sport);
+
+            // Gather first
+            ov::npuw::util::gather(vocabz, lookup, ov::get_tensor_impl(m_quant_gather_tensors.z));
+            ov::npuw::util::gather(vocabs, lookup, ov::get_tensor_impl(m_quant_gather_tensors.s));
+
+            // Then unpack
+            ov::npuw::util::unpack(ov::get_tensor_impl(m_quant_gather_tensors.w),
+                                   ov::get_tensor_impl(m_quant_gather_tensors.z),
+                                   ov::get_tensor_impl(m_quant_gather_tensors.s),
+                                   gather);
+        } else if (quant_unpack_gather.src_s_idx != -1) {
+            const auto& sport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_s_idx];
+            const auto& vocabs = request->get_tensor(sport);
+
+            // Gather first
+            ov::npuw::util::gather(vocabs, lookup, ov::get_tensor_impl(m_quant_gather_tensors.s));
+
+            // Then unpack
+            ov::npuw::util::unpack(ov::get_tensor_impl(m_quant_gather_tensors.w),
+                                   ov::get_tensor_impl(m_quant_gather_tensors.s),
+                                   gather);
+        } else {
+            NPUW_ASSERT(false && "Not supported");
+        }
+    }
+}
+
+void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr request) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real(idx)];
+    if (!comp_model_desc.attention) {
+        return;
+    }
+
+    LOG_DEBUG("Binding Attention inputs...");
+    LOG_BLOCK();
+
+    const auto& dynamic = comp_model_desc.attention.value();
+    auto& r = request;
+
+    const auto pos_id = m_attention_selector->length();
+    if (pos_id == -1) {
+        // Dynamic range couldn't be identified - fallback to the default
+        // (worst case) behavior
+        for (auto&& param : dynamic.params) {
+            const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+            const auto& input = m_attention_io[idx].inputs.at(param.idx);
+            r->set_tensor(iport, input);
+        }
+    } else {
+        const auto past_len = m_attention_selector->past_length();
+        const auto do_copy = needs_copy(idx) && !m_npuw_model->m_cfg.get<::intel_npu::NPUW_ATTN_NO_COPY>();
+
+        // Set the past k/v values first
+        for (auto&& param : dynamic.params) {
+            const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+            const auto& input = m_attention_io[idx].inputs.at(param.idx);
+            const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
+            const auto shape = view->get_shape();
+
+            LOG_DEBUG(iport);
+            LOG_BLOCK();
+            if (do_copy && ov::shape_size(shape) > 0) {
+                // FIXME: Same devices that don't tolerate set_, also don't tolerate strided inputs
+                const auto& dst = r->get_tensor(iport);
+                const auto old_ptr = dst->data();
+                dst->set_shape(shape);
+                const auto new_ptr = dst->data();
+                if (old_ptr != new_ptr) {
+                    m_footprint[*comp_model_desc.device_it] += dst->get_byte_size();
+                }
+                LOG_DEBUG("Do copy: " << shape << "...");
+                view->copy_to(dst._ptr);
+            } else if (do_copy && ov::shape_size(shape) == 0) {
+                // Special case for 0ths chunk.
+                // Zero the tensor shape but not set to view
+                // (a view tensor can't be extended)
+                r->get_tensor(iport)->set_shape(shape);
+            } else {
+                r->set_tensor(iport, view);
+            }
+        }  // for(params)
+    }
+
+    LOG_DEBUG("Done");
+}
+
+void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx, RqPtr request) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real(idx)];
+    if (!comp_model_desc.pyramid_attention) {
+        return;
+    }
+
+    LOG_DEBUG("Binding Pyramid Attention inputs...");
+    LOG_BLOCK();
+
+    const auto pyramid_id = m_pyramid_selector->pyramid_id();
+    const auto& pyramid_attention = comp_model_desc.pyramid_attention.value();
+    const auto& attention_info = pyramid_attention._attention_infos[pyramid_id];
+    const auto& pyramid_model = pyramid_attention._compiled_models[pyramid_id];
+
+    const auto pos_id = m_pyramid_selector->length();
+    if (pos_id == -1) {
+        // Pyramid dynamic range couldn't be identified - fallback to the default
+        // (worst case) behavior
+        for (auto&& param : attention_info.params) {
+            const auto& iport = pyramid_model->inputs()[param.idx];
+            const auto& input = m_attention_io[idx].inputs.at(param.idx);
+            request->set_tensor(iport, input);
+        }
+
+        return;
+    }
+
+    // Pyramid dynamic range identified
+    const auto past_len = m_pyramid_selector->past_length();
+    const auto infer_case = m_pyramid_selector->this_case();
+
+    using namespace ov::npuw::runtime;
+
+    // Process each KV parameter based on inference case
+    if (infer_case == pyramid_attention::Selector::Case::PREFILL) {
+        // PREFILL: Set or copy past KV to destination tensors
+        for (auto&& param : attention_info.params) {
+            const auto& iport = pyramid_model->inputs()[param.idx];
+            const auto& input = m_attention_io[idx].inputs.at(param.idx);
+            const auto& input_shape = input->get_shape();
+
+            LOG_DEBUG(iport);
+            LOG_BLOCK();
+
+            // Optimization for the last chunk: Direct tensor reuse when shapes match
+            if (static_cast<int64_t>(input_shape[param.dim]) == past_len) {
+                request->set_tensor(iport, input);
+                continue;
+            }
+
+            // Create view of past KV data
+            const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
+            const auto& shape = view->get_shape();
+
+            // Handle empty shape case (first chunk)
+            if (ov::shape_size(shape) == 0) {
+                request->get_tensor(iport)->set_shape(shape);
+                continue;
+            }
+
+            // Copy past KV to full destination tensor
+            LOG_DEBUG("Do copy: " << shape << "...");
+            const auto& dst = request->get_tensor(iport);
+            ov::npuw::util::copy_tensor_by_dim(view,
+                                               dst,
+                                               static_cast<uint32_t>(param.dim),
+                                               static_cast<uint32_t>(param.dim));
+        }
+    } else if (infer_case == pyramid_attention::Selector::Case::GENERATE) {
+        // GENERATE: Set or copy past KV, preserving existing data
+        for (auto&& param : attention_info.params) {
+            const auto& iport = pyramid_model->inputs()[param.idx];
+            const auto& input = m_attention_io[idx].inputs.at(param.idx);
+            const auto& input_shape = input->get_shape();
+
+            LOG_DEBUG(iport);
+            LOG_BLOCK();
+
+            // Validation: ensure space for new tokens
+            if (static_cast<int64_t>(input_shape[param.dim]) == past_len) {
+                NPUW_ASSERT(false && "Past KV is full, no space for generation");
+            }
+
+            const auto& dst = request->get_tensor(iport);
+            const auto& dst_shape = dst->get_shape();
+
+            // Optimization: Direct tensor reuse when destination matches input
+            if (dst_shape == input_shape) {
+                request->set_tensor(iport, input);
+                continue;
+            }
+
+            // FIXME: No need to copy whole past KV, just the new part
+
+            // Create view of past KV data
+            const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
+
+            // Copy past KV to sliced destination (preserve space for new tokens)
+            LOG_DEBUG("Do copy: " << view->get_shape() << "...");
+            const auto& dst_slice = ov::npuw::util::view(dst, param.dim, 0, past_len);
+            ov::npuw::util::copy_tensor_by_dim(view,
+                                               dst_slice,
+                                               static_cast<uint32_t>(param.dim),
+                                               static_cast<uint32_t>(param.dim));
+        }
+    } else {
+        NPUW_ASSERT(false && "Unsupported pyramid attention case");
     }
 
     LOG_DEBUG("Done");
@@ -482,7 +921,7 @@ void ov::npuw::IBaseInferRequest::bind_global_results(std::size_t idx, RqPtr req
         std::tie(result_idx, sub_out_idx) = it;
         const auto& g_port = m_npuw_model->outputs()[result_idx];
         const auto& s_port = request->get_outputs()[sub_out_idx];
-        request->set_tensor(s_port, m_port_to_tensor.at(g_port).tensor);
+        request->set_tensor(s_port, get_tensor(g_port));
     }
 
     LOG_DEBUG("Done");
@@ -665,7 +1104,7 @@ bool ov::npuw::IBaseInferRequest::needs_copy(std::size_t idx, std::size_t cidx) 
         return false;
     }
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    if (comp_model_desc.is_remote[cidx]) {
+    if (comp_model_desc.closure.get().is_remote[cidx]) {
         // FIXME: Test if the tensor device and the request device are
         // the same or compatible!
         return false;

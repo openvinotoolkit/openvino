@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/remote_tensor_tests/dma_buf_remote_run.hpp"
+#include "dma_buf_remote_run.hpp"
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 
 #ifdef __linux__
 #    include <linux/version.h>

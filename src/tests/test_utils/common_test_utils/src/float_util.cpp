@@ -1,11 +1,13 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_test_utils/float_util.hpp"
 
+#include <algorithm>
+#include <bitset>
+
 #include "openvino/runtime/exception.hpp"
-#include "precomp.hpp"
 
 namespace ov {
 namespace test {

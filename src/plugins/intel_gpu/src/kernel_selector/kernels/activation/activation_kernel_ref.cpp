@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,10 +59,10 @@ KernelsPriority ActivationKernelRef::GetKernelsPriority(const Params& /*params*/
 }
 
 bool ActivationKernelRef::Validate(const Params& p) const {
-    if (!Parent::Validate(p)) return false;
+    if (!Parent::Validate(p)) DO_NOT_USE_THIS_KERNEL(p.layerID);
     const auto& params = static_cast<const activation_params&>(p);
     if (params.inputs[0].GetDims().size() != params.outputs[0].GetDims().size())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

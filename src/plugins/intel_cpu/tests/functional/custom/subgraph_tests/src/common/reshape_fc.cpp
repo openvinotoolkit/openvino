@@ -1,4 +1,4 @@
-// Copyright (C) 2021-2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/fusing_test_utils.hpp"
+#include "openvino/op/reshape.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -21,18 +22,9 @@ class ReshapeFcCPUTest : public testing::WithParamInterface<ReshapeFcParams>,
                          virtual public SubgraphBaseTest,
                          public CpuTestWithFusing {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ReshapeFcParams> obj) {
-        std::vector<InputShape> shapes;
-        std::vector<int> data;
-        ElementType prc;
-
-        ReshapeFcSpecParams specParams;
-        fusingSpecificParams fusingParams;
-        CPUSpecificParams cpuParams;
-
-        std::tie(specParams, fusingParams, cpuParams) = obj.param;
-        std::tie(shapes, data, prc) = specParams;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<ReshapeFcParams>& obj) {
+        const auto& [specParams, fusingParams, cpuParams] = obj.param;
+        const auto& [shapes, data, prc] = specParams;
         std::ostringstream result;
 
         result << "IS=";
@@ -63,17 +55,8 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        std::vector<InputShape> shapes;
-        std::vector<int> data;
-        ElementType prc;
-
-        ReshapeFcSpecParams specParams;
-        fusingSpecificParams fusingParams;
-        CPUSpecificParams cpuParams;
-
-        std::tie(specParams, fusingParams, cpuParams) = this->GetParam();
-        std::tie(shapes, data, prc) = specParams;
+        const auto& [specParams, fusingParams, cpuParams] = this->GetParam();
+        const auto& [shapes, data, prc] = specParams;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
@@ -89,7 +72,7 @@ protected:
         auto weight = std::make_shared<ov::op::v0::Constant>(tensor);
         auto matMul = std::make_shared<ov::op::v0::MatMul>(reshape, weight, false, false);
 
-        function = makeNgraphFunction(prc, params, matMul, "ReshapeFcModel");
+        function = create_ov_model(prc, params, matMul, "ReshapeFcModel");
     }
 };
 
@@ -115,7 +98,7 @@ std::vector<fusingSpecificParams> fusingParamsSet{emptyFusingSpec, fusingBias, f
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 const auto gemmParam = CPUSpecificParams{{}, {}, {"acl"}, "acl"};
-#elif OV_CPU_WITH_MLAS
+#elif defined(OV_CPU_WITH_MLAS)
 const auto gemmParam = CPUSpecificParams{{}, {}, {"gemm_mlas"}, "gemm_mlas"};
 #else
 const auto gemmParam = CPUSpecificParams{{}, {}, {"jit_gemm"}, "jit_gemm"};

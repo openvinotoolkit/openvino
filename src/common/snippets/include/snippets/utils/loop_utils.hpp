@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,25 +8,28 @@
  */
 #pragma once
 
-#include "snippets/lowered/loop_info.hpp"
+#include <cstddef>
 
-namespace ov {
-namespace snippets {
-namespace utils {
+#include "snippets/lowered/expression_port.hpp"
+#include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_manager.hpp"
+
+namespace ov::snippets::utils {
 /**
  * @brief Updates ptr_increments and finalization offsets of the provided "loop_info" based on current work amount
  */
-void update_data_pointer_shifts(const ov::snippets::lowered::UnifiedLoopInfoPtr& loop_info);
+void update_data_pointer_shifts(const ov::snippets::lowered::LoopManagerPtr& loop_manager,
+                                const ov::snippets::lowered::UnifiedLoopInfoPtr& loop_info);
 /**
  * @brief Updates work amount and updates data pointer shifts of the provided "loop_info"
  */
-void update_runtime_parameters(const ov::snippets::lowered::UnifiedLoopInfoPtr& loop_info);
+void update_runtime_parameters(const ov::snippets::lowered::LoopManagerPtr& loop_manager,
+                               const ov::snippets::lowered::UnifiedLoopInfoPtr& loop_info);
 /**
  * @brief Check if the passed expression port should be port of the Loop with ID `loop_id`:
- *        the target expression port should be connected to an expression from another Loop (missed in the loop with ID `loop_id`),
+ *        the target expression port should be connected to an expression from another Loop (missed in the loop with ID
+ *        `loop_id`),
  */
 bool should_be_loop_port(const ov::snippets::lowered::ExpressionPort& port, size_t loop_id);
 
-} // namespace utils
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::utils

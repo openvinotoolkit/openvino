@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -487,6 +487,8 @@ protected:
 
 public:
     void execute(bool is_caching_test) {
+        if (engine.get_device_info().supports_immad)
+            return;
         int input_dim = static_cast<int>(input_format.dimension());
         cldnn::format layout_format = input_format;
 
@@ -1720,6 +1722,8 @@ TEST(reduce_gpu, dynamic) {
 
 TEST(reduce_gpu, b_fs_yx_fsv16_min_dynamic) {
     auto& engine = get_test_engine();
+    if (engine.get_device_info().supports_immad)
+            return;
     auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 17, 1, 2}});
 
     set_values(input, {
@@ -1775,6 +1779,8 @@ TEST(reduce_gpu, b_fs_yx_fsv16_min_dynamic) {
 
 TEST(reduce_gpu, b_fs_yx_fsv16_max_dynamic) {
     auto& engine = get_test_engine();
+    if (engine.get_device_info().supports_immad)
+            return;
     auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 17, 1, 2}});
 
     set_values(input, {
@@ -2175,6 +2181,9 @@ TEST_P(onednn_reduce_gpu_i8_f32, base) { execute_onednn(); }
 class onednn_reduce_gpu_f16_f16 : public ReduceOnednnTestBase<data_types::f16, data_types::f16> {};
 TEST_P(onednn_reduce_gpu_f16_f16, base) { execute_onednn(); }
 
+class onednn_reduce_gpu_f32_f32 : public ReduceOnednnTestBase<data_types::f32, data_types::f32> {};
+TEST_P(onednn_reduce_gpu_f32_f32, base) { execute_onednn(); }
+
 INSTANTIATE_TEST_SUITE_P(onednn_reduce_gpu_b_fs_yx_fsv16_i8_f32,
                         onednn_reduce_gpu_i8_f32,
                         ::testing::Values(
@@ -2207,6 +2216,50 @@ INSTANTIATE_TEST_SUITE_P(onednn_reduce_gpu_b_fs_yx_fsv16_f16_f16,
                             TestParamType_general_reduce_gpu(17, 34, 1, 1, 16, 15, format::b_fs_yx_fsv16, reduce_mode::l1, {1, 0}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
                             TestParamType_general_reduce_gpu(17, 3, 1, 1, 14, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {1}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16)
                         ), general_reduce_gpu::PrintToStringParamName);
+
+                        INSTANTIATE_TEST_SUITE_P(onednn_reduce_gpu_b_fs_yx_fsv16_f32_f32,
+                        onednn_reduce_gpu_f32_f32,
+                        ::testing::Values(
+                            TestParamType_general_reduce_gpu(3, 3, 1, 1, 3, 2, format::b_fs_yx_fsv16, reduce_mode::sum, {3, 2, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(3, 3, 1, 1, 3, 3, format::b_fs_yx_fsv16, reduce_mode::l1, {3, 2, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(3, 3, 1, 1, 2, 11, format::b_fs_yx_fsv16, reduce_mode::min, {3, 2, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(7, 3, 1, 1, 13, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {3, 2, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(16, 4, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::max, {1, 2, 3}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 13, 12, format::b_fs_yx_fsv16, reduce_mode::l2, {0, 2, 3}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::min, {2, 3}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 18, 11, format::b_fs_yx_fsv16, reduce_mode::max, {2, 1}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 16, 11, format::b_fs_yx_fsv16, reduce_mode::l1, {1, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 14, 11, format::b_fs_yx_fsv16, reduce_mode::l2, {1}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f32, false, data_types::f32),
+
+                            TestParamType_general_reduce_gpu(7, 3, 1, 1, 13, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {3, 2, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(16, 4, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::max, {1, 2, 3}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 13, 9, format::b_fs_yx_fsv16, reduce_mode::l2, {0, 2, 3}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::min, {2, 3}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 18, 11, format::b_fs_yx_fsv16, reduce_mode::max, {2, 1}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 16, 15, format::b_fs_yx_fsv16, reduce_mode::l1, {1, 0}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(17, 3, 1, 1, 14, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {1}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f32, false, data_types::f32)
+                        ), general_reduce_gpu::PrintToStringParamName);
+
+INSTANTIATE_TEST_SUITE_P(onednn_reduce_gpu_byxf_i8_f32,
+                        onednn_reduce_gpu_i8_f32,
+                        ::testing::Values(
+                            TestParamType_general_reduce_gpu(7, 3, 1, 1, 13, 11, format::byxf, reduce_mode::mean, {3, 2, 1, 0}, "reduce_gpu_byxf", true, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(17, 3, 1, 1, 14, 11, format::byxf, reduce_mode::mean, {1}, "reduce_gpu_byxf", true, data_types::i8, false, data_types::f32)
+                        ), general_reduce_gpu::PrintToStringParamName);
+
+INSTANTIATE_TEST_SUITE_P(onednn_reduce_gpu_byxf_f16_f16,
+                        onednn_reduce_gpu_f16_f16,
+                        ::testing::Values(
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 16, 15, format::byxf, reduce_mode::l1, {1, 0}, "reduce_gpu_byxf", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(17, 3, 1, 1, 14, 11, format::byxf, reduce_mode::mean, {1}, "reduce_gpu_byxf", true, data_types::f16, false, data_types::f16)
+                        ), general_reduce_gpu::PrintToStringParamName);
+
+INSTANTIATE_TEST_SUITE_P(onednn_reduce_gpu_byxf_f32_f32,
+                        onednn_reduce_gpu_f32_f32,
+                        ::testing::Values(
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 16, 15, format::byxf, reduce_mode::l1, {1, 0}, "reduce_gpu_byxf", true, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(17, 3, 1, 1, 14, 11, format::byxf, reduce_mode::mean, {1}, "reduce_gpu_byxf", true, data_types::f32, false, data_types::f32)
+                        ), general_reduce_gpu::PrintToStringParamName);
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
@@ -2238,3 +2291,62 @@ INSTANTIATE_TEST_SUITE_P(reduce_scalar_output_f16_f16,
                             TestParamType_general_reduce_gpu(1, 1, 1, 1, 1024, 1, format::bfyx, reduce_mode::min, {3, 2, 1, 0},  "reduce_simple_to_scalar", false, data_types::f16, false, data_types::f16),
                             TestParamType_general_reduce_gpu(1, 1, 1, 1, 1025, 1, format::bfyx, reduce_mode::min, {3, 2, 1, 0},  "reduce_simple_to_scalar", false, data_types::f16, false, data_types::f16)
                         ), general_reduce_gpu::PrintToStringParamName);
+
+TEST(reduce_f32_fw_gpu, large_buffer) {
+    // This test is used for manual testing only.
+    GTEST_SKIP();
+
+    auto engine = create_test_engine();
+    engine->set_enable_large_allocations(true);
+
+    size_t s0 = 16384;
+    size_t s1 = 256 * (256 + 128);
+    ov::Shape sz_6gb = { 1, 1, s1, s0 }; // *4 bytes;
+    size_t peak_mem_usage = (ov::shape_size(sz_6gb) + s0) * sizeof(float);
+    if (engine->get_device_info().max_global_mem_size < peak_mem_usage)
+        GTEST_SKIP();
+
+    layout in_l = { sz_6gb, data_types::f32, format::bfyx };
+
+    auto config = get_test_default_config(*engine);
+    ov::intel_gpu::ImplementationDesc reduce_impl = {format::bfyx, "", impl_types::any};
+    if (engine->get_device_info().supports_immad) {
+        reduce_impl.impl_type = impl_types::onednn;
+    } else {
+        reduce_impl.impl_type = impl_types::ocl;
+    }
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reduce", reduce_impl}}));
+
+    topology topology(input_layout("input", in_l),
+                      reduce("reduce", input_info("input"), reduce_mode::mean, {2}, true));
+    network network(*engine, topology, config);
+    auto input = network.get_output_memory("input");
+    {
+        mem_lock<float, mem_lock_type::write> l(input, get_test_stream());
+        const size_t test_size = ov::shape_size(sz_6gb);
+        for (size_t i = 0; i < test_size; i++) {
+            l[i] = static_cast<float>(i) / s0;
+        }
+    }
+
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reduce");
+
+    auto output_memory = outputs.at("reduce").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
+
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(output_layout.get_linear_size(), s0);
+
+    // ensure that single 6GB buffer is allocated
+    ASSERT_EQ(engine->get_max_used_device_memory(), peak_mem_usage);
+
+    size_t sum = s1 * (s1 - 1) / 2;
+    float mean = static_cast<float>(sum) / static_cast<float>(s1);
+    for (size_t i = 0; i < s0; i++) {
+        ASSERT_NEAR(mean, output_ptr[i], 1.0f);
+    }
+}

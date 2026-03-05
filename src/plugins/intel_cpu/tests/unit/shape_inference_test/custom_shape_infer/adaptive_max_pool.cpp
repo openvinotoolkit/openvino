@@ -1,11 +1,13 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/adaptive_max_pool.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -24,10 +26,7 @@ class AdaptiveMaxPoolV8CpuShapeInferenceTest  : public unit_test::OpCpuShapeInfe
                                                 public WithParamInterface<AdaptiveMaxPoolV8TestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<AdaptiveMaxPoolV8TestParams>& obj) {
-        unit_test::ShapeVector tmp_input_shapes;
-        std::vector<int32_t> tmp_axes;
-        StaticShape tmp_exp_shape;
-        std::tie(tmp_input_shapes, tmp_axes, tmp_exp_shape) = obj.param;
+        const auto& [tmp_input_shapes, tmp_axes, tmp_exp_shape] = obj.param;
         std::ostringstream result;
         result << "IS" << ov::test::utils::vec2str(tmp_input_shapes) << "_";
         result << "sd" << ov::test::utils::vec2str(tmp_axes) << "_";

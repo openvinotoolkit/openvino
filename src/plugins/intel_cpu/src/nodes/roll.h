@@ -1,14 +1,22 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "node.h"
+#include <array>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "node.h"
+#include "openvino/core/node.hpp"
+
+namespace ov::intel_cpu::node {
 
 class Roll : public Node {
 public:
@@ -17,7 +25,7 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
     void prepareParams() override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
@@ -36,7 +44,8 @@ private:
         void exec(const MemoryPtr& dataMemPtr,
                   const MemoryPtr& shiftMemPtr,
                   const MemoryPtr& axesMemPtr,
-                  const MemoryPtr& dstMemPtr);
+                  const MemoryPtr& dstMemPtr,
+                  const CpuParallelPtr& cpuParallel);
 
     private:
         const size_t numOfDims;
@@ -49,11 +58,9 @@ private:
     ExecutorPtr execPtr = nullptr;
 
     static constexpr std::array<size_t, 3> supportedPrecisionSizes{1, 2, 4};
-    static constexpr size_t DATA_INDEX = 0ul;
-    static constexpr size_t SHIFT_INDEX = 1ul;
-    static constexpr size_t AXES_INDEX = 2ul;
+    static constexpr size_t DATA_INDEX = 0UL;
+    static constexpr size_t SHIFT_INDEX = 1UL;
+    static constexpr size_t AXES_INDEX = 2UL;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

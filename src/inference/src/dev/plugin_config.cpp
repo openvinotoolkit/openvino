@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -118,9 +118,7 @@ void PluginConfig::finalize(const IRemoteContext* context, const ov::Model* mode
 
     finalize_impl(context);
 
-#ifdef ENABLE_DEBUG_CAPS
     apply_env_options();
-#endif
 
     // Clear properties after finalize_impl to be able to check if a property was set by user during plugin-side
     // finalization
@@ -142,23 +140,24 @@ void PluginConfig::apply_env_options() {
     ov::AnyMap env_properties = read_env();
     cleanup_unsupported(env_properties);
     for (auto& [name, val] : env_properties) {
-        std::cout << "Non default env value for " << name << " = " << val.as<std::string>() << std::endl;
+        util::log_message("Non default env value for " + name + " = " + val.as<std::string>());
     }
     set_property(env_properties);
 }
 
-void PluginConfig::apply_config_options(std::string_view device_name, std::filesystem::path config_path) {
+void PluginConfig::apply_config_options(std::string_view device_name, const std::filesystem::path& config_path) {
     if (!config_path.empty()) {
         ov::AnyMap config_properties = read_config_file(config_path, device_name);
         cleanup_unsupported(config_properties);
         for (auto& [name, val] : config_properties) {
-            std::cout << "Non default config value for " << name << " = " << val.as<std::string>() << std::endl;
+            util::log_message("Non default config value for " + name + " = " + val.as<std::string>());
         }
         set_property(config_properties);
     }
 }
 
-ov::AnyMap PluginConfig::read_config_file(std::filesystem::path filename, std::string_view target_device_name) const {
+ov::AnyMap PluginConfig::read_config_file(const std::filesystem::path& filename,
+                                          std::string_view target_device_name) const {
     if (filename.empty())
         return {};
 
@@ -210,7 +209,7 @@ ov::AnyMap PluginConfig::read_env() const {
 
     for (auto& [name, option] : m_options_map) {
         if (auto val = read_env(name, m_allowed_env_prefix, option); !val.empty()) {
-            config[name] = val;
+            config[name] = std::move(val);
         }
     }
 

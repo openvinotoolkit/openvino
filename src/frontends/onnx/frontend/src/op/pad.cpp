@@ -1,17 +1,22 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/pad.hpp"
 
+#include <vector>
+
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "utils/common.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 #include "utils/split.hpp"
+
 namespace {
 ov::op::PadMode get_pad_mode(std::string mode) {
     ov::op::PadMode pad_mode;
@@ -70,7 +75,7 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> padding_begin;
     ov::Output<ov::Node> padding_end;
 
-    if (inputs.size() == 3 && !ov::op::util::is_null(inputs[2])) {
+    if (common::is_input_valid(node, 2)) {
         values = reshape::interpret_as_scalar(inputs[2]);
     } else {
         values = v0::Constant::create(data.get_element_type(), ov::Shape{}, {0});
@@ -80,7 +85,7 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
         std::vector<std::int64_t> pads_vector =
             ov::as_type_ptr<v0::Constant>(pads.get_node_shared_ptr())->get_vector<std::int64_t>();
 
-        std::size_t const half_size = pads_vector.size() / 2;
+        const std::size_t half_size = pads_vector.size() / 2;
         std::vector<std::int64_t> padding_begin_values(pads_vector.begin(), pads_vector.begin() + half_size);
         std::vector<std::int64_t> padding_end_values(pads_vector.begin() + half_size, pads_vector.end());
 
@@ -91,6 +96,18 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
 
         padding_begin = padding.at(0);
         padding_end = padding.at(1);
+    }
+
+    if (common::is_input_valid(node, 3)) {
+        const auto data_rank = static_cast<size_t>(data.get_partial_shape().rank().get_length());
+        auto zeroes = v0::Constant::create(ov::element::i64, ov::Shape{data_rank}, std::vector<int64_t>(data_rank, 0));
+
+        const auto axes = inputs[3];
+
+        auto scatter_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+
+        padding_begin = std::make_shared<v12::ScatterElementsUpdate>(zeroes, axes, padding_begin, scatter_axis);
+        padding_end = std::make_shared<v12::ScatterElementsUpdate>(zeroes, axes, padding_end, scatter_axis);
     }
 
     const std::string mode = node.get_attribute_value<std::string>("mode", "constant");

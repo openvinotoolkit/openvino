@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,7 +97,7 @@ static void reg_pattern_symbol_value(py::module m) {
         Create PatternSymbolValue with the given value.
 
         :param value: list of values representing a group of pattern values
-        :type value: List[PatternSymbolValue]
+        :type value: list[PatternSymbolValue]
     )");
 
     value.def("is_dynamic", &ov::pass::pattern::PatternSymbolValue::is_dynamic);

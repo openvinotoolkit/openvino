@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "impls/onednn/utils.hpp"
 #include "reorder_inst.h"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 
 #include <memory>
 namespace cldnn {
@@ -65,7 +65,7 @@ struct ReorderImplementationManager : public ImplementationManager {
             return false;
 
         // onednn doesn't support paddings
-        if (!is_supported_pad(input_layout) || !is_supported_pad(output_layout))
+        if (!is_supported_pad_for_reorder(input_layout) || !is_supported_pad_for_reorder(output_layout))
             return false;
 
         // Native impl works faster for this type of reorder
@@ -76,7 +76,8 @@ struct ReorderImplementationManager : public ImplementationManager {
         if (input_fmt.dimension() != output_fmt.dimension())
             return false;
 
-        if (in_dt == data_types::i64 || out_dt == data_types::i64)
+        if (in_dt == data_types::u16 || in_dt == data_types::u32 || in_dt == data_types::i16 || in_dt == data_types::i64 || out_dt == data_types::u16
+            || out_dt == data_types::u32 || out_dt == data_types::i16 || out_dt == data_types::i64)
             return false;
 
         // For mixed precision case, oneDNN is slower than clDNN
@@ -88,6 +89,20 @@ struct ReorderImplementationManager : public ImplementationManager {
             return false;
 
         return true;
+    }
+
+    static bool is_supported_pad_for_reorder(const layout& layout) {
+        // check to support the batch/spatial pad for onednn.
+        if (!is_supported_pad(layout))
+            return false;
+
+        // Check feature pad
+        const auto& pad = layout.data_padding;
+        bool no_feature_padding = true;
+        no_feature_padding &= (pad._lower_size[1] == 0);
+        no_feature_padding &= (pad._upper_size[1] == 0);
+
+        return no_feature_padding;
     }
 };
 

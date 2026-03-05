@@ -1,10 +1,11 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "softmax.hpp"
 #include "gtest/gtest.h"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/softmax.hpp"
 
 using namespace CPUTestUtils;
 
@@ -12,13 +13,7 @@ namespace ov {
 namespace test {
 
 std::string SoftMaxLayerCPUTest::getTestCaseName(const testing::TestParamInfo<softmaxCPUTestParams>& obj) {
-    CPUSpecificParams cpuParams;
-    ElementType inType;
-    SoftMaxConfig config;
-    std::string targetDevice;
-    ov::AnyMap additionalConfig;
-    std::tie(inType, config, targetDevice, cpuParams, additionalConfig) = obj.param;
-
+    const auto& [inType, config, targetDevice, cpuParams, additionalConfig] = obj.param;
     std::ostringstream result;
     result << "netPRC=" << inType << "_";
     result << "IS=" << ov::test::utils::partialShape2str({config.inputShape.first}) << "_";
@@ -42,11 +37,8 @@ std::string SoftMaxLayerCPUTest::getTestCaseName(const testing::TestParamInfo<so
 }
 
 void SoftMaxLayerCPUTest::SetUp() {
-    ElementType inType;
-    SoftMaxConfig config;
-    CPUSpecificParams cpuParams;
-    ov::AnyMap additionalConfig;
-    std::tie(inType, config, targetDevice, cpuParams, additionalConfig) = this->GetParam();
+    const auto& [inType, config, _targetDevice, cpuParams, additionalConfig] = this->GetParam();
+    targetDevice = _targetDevice;
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
@@ -67,7 +59,7 @@ void SoftMaxLayerCPUTest::SetUp() {
 
     const auto softMax = std::make_shared<ov::op::v1::Softmax>(params.at(0), config.axis);
 
-    function = makeNgraphFunction(inType, params, softMax, "SoftMax");
+    function = create_ov_model(inType, params, softMax, "SoftMax");
 }
 
 TEST_P(SoftMaxLayerCPUTest, CompareWithRefs) {

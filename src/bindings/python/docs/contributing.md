@@ -65,6 +65,7 @@ XXXX, YYYY                             <-- only numbers from tickets
 ```
 
 ## See also
+ * [Debugging OpenVINO™ Python API with C++ breakpoints](./debugging_python_api.md)
  * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO™ bindings README](../../README.md)
  * [Developer documentation](../../../../docs/dev/index.md)

@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2024 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -63,8 +63,8 @@ class TestKerasConv1DTranspose(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.xfail(reason="Needs tensorflow 2.3.0.")
     def test_keras_conv_1d_case1_transpose_float32(self, params, ie_device, precision, ir_version,
-                                                   temp_dir, use_legacy_frontend):
+                                                   temp_dir):
         self._test(*self.create_keras_conv1d_transpose_net(**params, ir_version=ir_version),
                    ie_device, precision,
                    temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)

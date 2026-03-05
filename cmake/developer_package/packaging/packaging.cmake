@@ -1,8 +1,78 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 include(CPackComponent)
+
+if(OV_GENERATOR_MULTI_CONFIG)
+    set(OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/$<CONFIG>/compile_pdbs)
+else()
+    set(OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/compile_pdbs)
+endif()
+
+#
+# ov_install_pdb(<target name>)
+#
+macro(ov_install_pdb target)
+    if(WIN32)
+        get_target_property(_lib_type ${target} TYPE)
+
+        if(BUILD_SHARED_LIBS)
+            # check that target type is either MODULE or SHARED
+            if(NOT _lib_type MATCHES "^(MODULE_LIBRARY|SHARED_LIBRARY)$")
+                message(FATAL_ERROR "OpenVINO PDB files should be installed only for SHARED or MODULE libraries, given target type is ${_lib_type}")
+            endif()
+
+            # installation of linker PDB files for shared libraries
+            install(FILES $<TARGET_PDB_FILE:${target}>
+                    DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT pdb
+                    OPTIONAL
+                    EXCLUDE_FROM_ALL)
+        elseif(_lib_type STREQUAL "STATIC_LIBRARY")
+            get_target_property(_compile_pdb_name ${target} OUTPUT_NAME)
+            if(_compile_pdb_name MATCHES "NOTFOUND")
+                set(_compile_pdb_name ${target})
+            endif()
+
+            set_target_properties(${target} PROPERTIES
+                                  COMPILE_PDB_NAME ${_compile_pdb_name}
+                                  COMPILE_PDB_NAME_DEBUG ${_compile_pdb_name}${OV_DEBUG_POSTFIX}
+                                  COMPILE_PDB_OUTPUT_DIRECTORY "${OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}")
+
+            # override compile PDB locations for objects libraries within static library
+            get_target_property(sources ${target} SOURCES)
+            foreach(source IN LISTS sources)
+                if(source MATCHES "\\$<TARGET_OBJECTS:")
+                    string(REGEX REPLACE ".*\\$<TARGET_OBJECTS:" "" source "${source}")
+                    string(REGEX REPLACE ">$" "" source "${source}")
+                    string(REGEX REPLACE ">$" "" object_library "${source}")
+
+                    if(TARGET ${object_library})
+                        # we need to rename CPU dnnl PDB files to be different from GPU ones (which we cannot rename on cmake level because of external project)
+                        if(object_library MATCHES "^dnnl.*")
+                            set(_compile_pdb_name "openvino_cpu_${object_library}")
+                        else()
+                            set(_compile_pdb_name ${object_library})
+                        endif()
+
+                        set_target_properties(${object_library} PROPERTIES
+                                              COMPILE_PDB_NAME ${_compile_pdb_name}
+                                              COMPILE_PDB_NAME_DEBUG ${_compile_pdb_name}${OV_DEBUG_POSTFIX}
+                                              COMPILE_PDB_OUTPUT_DIRECTORY "${OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}")
+                    endif()
+
+                    unset(object_library)
+                endif()
+            endforeach()
+
+            unset(source)
+            unset(sources)
+            unset(_compile_pdb_name)
+        endif()
+
+        unset(_lib_type)
+    endif()
+endmacro()
 
 #
 # ov_install_static_lib(<target> <comp>)
@@ -21,6 +91,9 @@ macro(ov_install_static_lib target comp)
 
         install(TARGETS ${target} EXPORT OpenVINOTargets
                 ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${comp} ${ARGN})
+
+        # install compile PDB file as well
+        ov_install_pdb(${target})
 
         # export to local tree to build against static build tree
         export(TARGETS ${target} NAMESPACE openvino::
@@ -64,7 +137,11 @@ endfunction()
 function(ov_get_pyversion pyversion)
     find_package(Python3 QUIET COMPONENTS Interpreter Develoment.Module)
     if(Python3_Interpreter_FOUND)
-        set(${pyversion} "python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}" PARENT_SCOPE)
+        set(_pyversion "python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}")
+        if(Python3_SOABI AND (Python3_SOABI MATCHES "cpython-[0-9]+t-" OR Python3_SOABI MATCHES "cp[0-9]+t-"))
+            set(_pyversion "${_pyversion}t")
+        endif()
+        set(${pyversion} "${_pyversion}" PARENT_SCOPE)
     else()
         set(${pyversion} "NOT-FOUND" PARENT_SCOPE)
     endif()
@@ -144,7 +221,7 @@ function(ov_check_conflicts_versions var_name)
 
     # perform check
     if(NOT ov_prev_version IN_LIST ${var_name})
-        message(FATAL_ERROR "List ${var_name} (${${var_name}}) does not contain verison ${ov_prev_version}")
+        message(FATAL_ERROR "List ${var_name} (${${var_name}}) does not contain version ${ov_prev_version}")
     endif()
 endfunction()
 

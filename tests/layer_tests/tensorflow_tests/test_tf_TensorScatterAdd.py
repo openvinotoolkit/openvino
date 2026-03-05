@@ -1,8 +1,8 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import pytest 
+import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
@@ -79,11 +79,9 @@ class TestTensorScatterAdd(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_tensor_scatter_add(self, data_type, indices_type,
                                 tensor_shape, updates_shape, indices_shape,
-                                ie_device, precision, ir_version, temp_dir,
-                                use_legacy_frontend):
+                                ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("160549: ScatterNDUpdate(opset15) is not supported on GPU")
         self._test(*self.create_tensor_scatter_add_net(data_type, indices_type,
                                                        tensor_shape, updates_shape, indices_shape),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

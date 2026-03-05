@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
 from functools import partial
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 from openvino.exceptions import UserInputError
@@ -35,10 +35,10 @@ def deformable_convolution(
     data: NodeInput,
     offsets: NodeInput,
     filters: NodeInput,
-    strides: List[int],
-    pads_begin: List[int],
-    pads_end: List[int],
-    dilations: List[int],
+    strides: list[int],
+    pads_begin: list[int],
+    pads_end: list[int],
+    dilations: list[int],
     mask: Optional[NodeInput] = None,
     auto_pad: str = "EXPLICIT",
     group: int = 1,
@@ -276,10 +276,10 @@ def gather(
 @nameable_op
 def max_pool(
     data: NodeInput,
-    strides: List[int],
-    dilations: List[int],
-    pads_begin: List[int],
-    pads_end: List[int],
+    strides: list[int],
+    dilations: list[int],
+    pads_begin: list[int],
+    pads_end: list[int],
     kernel_shape: TensorShape,
     rounding_type: str = "floor",
     auto_pad: Optional[str] = None,

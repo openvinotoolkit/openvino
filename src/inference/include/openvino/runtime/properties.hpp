@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 
@@ -529,7 +530,7 @@ static constexpr Property<uint32_t> num_requests{"PERFORMANCE_HINT_NUM_REQUESTS"
  * ov::optimal_batch_size)
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<std::shared_ptr<ov::Model>> model{"MODEL_PTR"};
+static constexpr Property<std::shared_ptr<const ov::Model>> model{"MODEL_PTR"};
 
 /**
  * @brief Special key for auto batching feature configuration. Enabled by default
@@ -607,6 +608,13 @@ static constexpr Property<element::Type, PropertyMutability::RW> kv_cache_precis
  */
 static constexpr Property<float, PropertyMutability::RW> activations_scale_factor{"ACTIVATIONS_SCALE_FACTOR"};
 
+/** @brief  Hint for device to use model compiled blob.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * The property is used pass compiled blob as ov::Tensor.
+ * The blob can be regular or weightless model. The `weights_path` property is hint where to look for weights.
+ */
+inline constexpr Property<Tensor, PropertyMutability::RW> compiled_blob{"COMPILED_BLOB"};
 }  // namespace hint
 
 /**
@@ -720,6 +728,15 @@ static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
 static constexpr Property<bool, PropertyMutability::RO> loaded_from_cache{"LOADED_FROM_CACHE"};
 
 /**
+ * @brief Write property to specify the origin path of compiled model to speed cache model ID calculation.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * The property has meaning when used in `core::compile_model(const std::shared_ptr<const ov::Model>& model, ...)` and
+ * cache feature is enabled.
+ */
+static inline constexpr Property<std::filesystem::path, PropertyMutability::WO> cache_model_path{"CACHE_MODEL_PATH"};
+
+/**
  * @brief Enum to define possible workload types
  *
  * Workload type represents the execution priority for an inference.
@@ -803,10 +820,10 @@ inline std::istream& operator>>(std::istream& is, CacheMode& mode) {
 /** @endcond */
 
 /**
- * @brief Read-write property to select the cache mode between optimize_size and optimize_speed.
- * If optimize_speed is selected(default), loading time will decrease but the cache file size will increase.
- * If optimize_size is selected, smaller cache files will be created.
- * This is only supported from GPU.
+ * @brief Read-write property to select the cache mode between OPTIMIZE_SIZE and OPTIMIZE_SPEED.
+ * If OPTIMIZE_SPEED is selected (default), loading time will decrease but the cache file size will increase.
+ * If OPTIMIZE_SIZE is selected, smaller cache files will be created.
+ * The cache model default behaviour can be overridden by ENABLE_WEIGHTLESS property.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<CacheMode, PropertyMutability::RW> cache_mode{"CACHE_MODE"};
@@ -817,13 +834,17 @@ struct EncryptionCallbacks {
 };
 
 /**
+ * @brief Read-write property to enable/disable weightless cache.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_weightless{"ENABLE_WEIGHTLESS"};
+
+/**
  * @brief Write-only property to set encryption/decryption function for saving/loading model cache.
  * If cache_encryption_callbacks is set, the model topology will be encrypted when saving to the cache and decrypted
  * when loading from the cache. This property is set in core.compile_model only.
  * - First value of the struct is encryption function.
  * - Second value of the struct is decryption function.
- * @note GPU Plugin: encrypts whole blob, not only model structure. Only used when ov::cache_mode property is set to
- * "OPTIMIZE_SIZE".
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<EncryptionCallbacks, PropertyMutability::WO> cache_encryption_callbacks{

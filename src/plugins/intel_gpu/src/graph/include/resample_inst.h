@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,14 @@ public:
 
     program_node& input() const { return get_dependency(0); }
 
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {1, 2}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        // if vector of sizes or scales exists, resample in CreateInterpolateOp generates no dependency for inputs of sizes and scales
+        if (typed_desc()->sizes.size() != 0 && typed_desc()->scales.size() != 0) {
+            return {};
+        } else {
+            return {1, 2};
+        }
+    }
 };
 
 using resample_node = typed_program_node<resample>;
@@ -37,9 +44,12 @@ public:
     static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(resample_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(resample_node const& node);
+    void update_output_memory() override;
 
 public:
     typed_primitive_inst(network& network, resample_node const& node);
+private:
+    void on_execute() override;
 };
 
 using resample_inst = typed_primitive_inst<resample>;

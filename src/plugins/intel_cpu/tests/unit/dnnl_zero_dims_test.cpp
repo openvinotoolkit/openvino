@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -123,9 +123,7 @@ class MemDescWithZeroDimsFmtTest: public testing::WithParamInterface<MemDescWith
                                   public MemDescWithZeroDimsBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MemDescWithZeroDimsParams> &obj) {
-        Shape shape;
-        dnnl::memory::format_tag fmt;
-        std::tie(fmt, shape) = obj.param;
+        const auto& [fmt, shape] = obj.param;
         std::ostringstream result;
         result << "Shape=" << shape.toString();
         result << "_Fmt=" << dnnl::utils::fmt2str(fmt);
@@ -193,9 +191,7 @@ class MemDescWithZeroDimsCloneNewDimsTest: public testing::WithParamInterface<Me
                                            public MemDescWithZeroDimsBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MemDescWithZeroDimsCloneNewDimsParams> &obj) {
-        Shape shapeDynamic, shapeClone;
-        dnnl::memory::format_tag fmt;
-        std::tie(fmt, shapeDynamic, shapeClone) = obj.param;
+        const auto& [fmt, shapeDynamic, shapeClone] = obj.param;
         std::ostringstream result;
         result << "ShapeDynamic=" << shapeDynamic.toString();
         result << "_ShapeClone=" << shapeClone.toString();

@@ -4,35 +4,52 @@
 
 #include "jit_snippets_emitters.hpp"
 
+#include <xbyak/xbyak.h>
+
+#include <climits>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "snippets/lowered/expression.hpp"
+
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu {
 
-using jit_generator = dnnl::impl::cpu::x64::jit_generator;
+using jit_generator_t = dnnl::impl::cpu::x64::jit_generator_t;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-jit_nop_emitter::jit_nop_emitter(jit_generator* h,
+jit_nop_emitter::jit_nop_emitter(jit_generator_t* h,
                                  cpu_isa_t isa,
-                                 const ExpressionPtr& expr,
+                                 [[maybe_unused]] const ExpressionPtr& expr,
                                  emitter_in_out_map emitter_type)
     : jit_emitter(h, isa) {
     in_out_type_ = emitter_type;
 }
 
-jit_parameter_emitter::jit_parameter_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
+jit_parameter_emitter::jit_parameter_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_nop_emitter(h, isa, expr) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
-jit_result_emitter::jit_result_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
+jit_result_emitter::jit_result_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_nop_emitter(h, isa, expr) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
-jit_broadcast_move_emitter::jit_broadcast_move_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
+jit_broadcast_move_emitter::jit_broadcast_move_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     if (n->get_input_element_type(0) != n->get_output_element_type(0)) {
@@ -60,8 +77,8 @@ template <cpu_isa_t isa>
 void jit_broadcast_move_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     using Vmm = typename dnnl::impl::utils::
         conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
-    Xmm xmm_src0 = Xmm(in[0]);
-    Vmm vmm_dst = Vmm(out[0]);
+    auto xmm_src0 = Xmm(in[0]);
+    auto vmm_dst = Vmm(out[0]);
 
     switch (byte_size) {
     case 4:
@@ -96,7 +113,7 @@ int32_t jit_scalar_emitter::read_value(const ov::snippets::lowered::ExpressionPt
     return res;
 }
 
-jit_scalar_emitter::jit_scalar_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
+jit_scalar_emitter::jit_scalar_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     push_arg_entry_of("scalar", read_value(expr), true);
     prepare_table();
@@ -120,10 +137,10 @@ void jit_scalar_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
 }
 
 template <cpu_isa_t isa>
-void jit_scalar_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_scalar_emitter::emit_isa(const std::vector<size_t>& /*in*/, const std::vector<size_t>& out) const {
     using Vmm = typename dnnl::impl::utils::
         conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
-    Vmm vmm_dst = Vmm(out[0]);
+    auto vmm_dst = Vmm(out[0]);
     h->uni_vbroadcastss(vmm_dst, table_val("scalar"));
 }
 

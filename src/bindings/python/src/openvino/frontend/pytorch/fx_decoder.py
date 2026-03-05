@@ -1,12 +1,21 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# -*- coding: utf-8 -*-
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
 # mypy: ignore-errors
 
 import logging
 import inspect
 import torch
+
+# Import HigherOrderOperator for detecting higher-order operations (while_loop, cond, etc.)
+# This is the official PyTorch API used in torch.export, torch.compile backends, etc.
+try:
+    from torch._ops import HigherOrderOperator
+    _HAS_HIGHER_ORDER_OPERATOR = True
+except ImportError:
+    _HAS_HIGHER_ORDER_OPERATOR = False
+    HigherOrderOperator = None
 
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
@@ -15,14 +24,12 @@ from openvino.frontend.pytorch.utils import (
     make_constant, fetch_attr, pt_to_ov_type_map, torch_tensor_to_ov_const)
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 
-class BaseFXDecoder (Decoder):
-    """
-    BaseFXDecoder is a class that extends the Decoder class to handle decoding
-    operations for FX graphs in PyTorch. It provides a common interface for all
-    FX decoders.
+class BaseFXDecoder(Decoder):
+    """Extends Decoder to handle FX graph decoding in PyTorch.
+
+    Provides a common interface for all FX decoders.
     """
 
     def __init__(self, mark_node_callback=None) -> None:
@@ -38,15 +45,15 @@ class BaseFXDecoder (Decoder):
     def unpack_containers(arg):
         if isinstance(arg, (tuple, list)):
             res = []
-            for e in arg:
-                res.extend(BaseFXDecoder.unpack_containers(e))
+            for element in arg:
+                res.extend(BaseFXDecoder.unpack_containers(element))
             return res
         elif isinstance(arg, dict):
             res = []
-            for k, e in arg.items():
-                unpacked = BaseFXDecoder.unpack_containers(e)
+            for key, element in arg.items():
+                unpacked = BaseFXDecoder.unpack_containers(element)
                 if len(unpacked) == 1:
-                    unpacked[0] = (k, unpacked[0][1])
+                    unpacked[0] = (key, unpacked[0][1])
                 res.extend(unpacked)
             return res
         else:
@@ -68,16 +75,17 @@ class BaseFXDecoder (Decoder):
         elif isinstance(arg, float):
             return make_constant(OVType.f32, Shape([]), [arg])
         elif isinstance(arg, str):
-            u8_tensor = torch.frombuffer(str.encode(arg), dtype=torch.uint8)
-            return torch_tensor_to_ov_const(u8_tensor, shared_memory=True)
+            buf = bytearray(arg, "utf-8")
+            u8_tensor = torch.frombuffer(buf, dtype=torch.uint8)
+            return torch_tensor_to_ov_const(u8_tensor, shared_memory=False)
         return None
 
     @staticmethod
     def get_type_for_value(value):
         if issubclass(type(value), torch.fx.Node):
-            if ('tensor_meta' in value.meta.keys()):
-                if value.meta['tensor_meta'] and isinstance(value.meta['tensor_meta'], torch.Tensor):
-                    pt_type = value.meta['tensor_meta'].dtype
+            if ("tensor_meta" in value.meta.keys()):
+                if value.meta["tensor_meta"] and isinstance(value.meta["tensor_meta"], torch.Tensor):
+                    pt_type = value.meta["tensor_meta"].dtype
                     if str(pt_type) in pt_to_ov_type_map:
                         ov_type = pt_to_ov_type_map[str(pt_type)]
                         return OVAny(ov_type)
@@ -98,9 +106,6 @@ class BaseFXDecoder (Decoder):
     def inputs(self):
         # Consider 0 a special case which may mean the input is inlined, but not guaranteed
         return [x if not isinstance(x, InlinedInput) else 0 for x in self._inputs]
-
-    def input(self, index):
-        return self.inputs()[index]
 
     def output(self, index):
         return self.outputs()[index]
@@ -137,7 +142,7 @@ class BaseFXDecoder (Decoder):
         return "fx"
 
     def get_schema(self):
-        return 'NONE'
+        return "NONE"
 
     def mark_node(self, node):
         if self.mark_node_callback is not None:
@@ -162,18 +167,20 @@ class BaseFXDecoder (Decoder):
 
 
 class TorchFXPythonDecoder (BaseFXDecoder):
-    """
-    Decoder for PyTorch FX GraphModule and Node objects to OpenVINO IR.
-    """
+    """Decoder for PyTorch FX GraphModule and Node objects to OpenVINO IR."""
+
+    _decomp_table = None
 
     def __init__(self, pt_module, fx_gm=None, nodes=None,
-                 mark_node_callback=None, input_shapes=[], input_types=[], dynamic_shapes=False):
+                 mark_node_callback=None, input_shapes=None,
+                 input_types=None, dynamic_shapes=False):
         super().__init__(mark_node_callback)
         self.pt_module = pt_module
         self.fx_gm = fx_gm if fx_gm is not None else pt_module
+        self.input_types = input_types or []
         self.input_types = [OVAny(pt_to_ov_type_map[str(t)])
-                            for t in input_types]
-        self.input_shapes = input_shapes
+                            for t in self.input_types]
+        self.input_shapes = input_shapes or []
 
         self._input_signature = []
         self._example_input = None
@@ -184,7 +191,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             found_types = []
             found_shapes = []
             for i, value in enumerate(self._nodes):
-                if value.op == 'placeholder':
+                if value.op == "placeholder":
                     self._inputs.append(i)
                     self._input_signature.append(value.name)
 
@@ -199,7 +206,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                                 new_shape.append(dim)
                         found_shapes[-1] = torch.Size(new_shape)
 
-                elif value.op == 'output':
+                elif value.op == "output":
                     # Instead of putting output index, refer to its target
                     uargs = self.unpack_containers(value.args)
                     self._outputs = [(arg[0], self._nodes.index(arg[1]))
@@ -221,31 +228,123 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             self._outputs = [("", self._nodes.index(pt_module))]
 
             self.input_types = []
-            for arg in pt_module.args:
-                if isinstance(arg, torch.fx.Node):
+            self._subgraph_inputs = []  # Separate storage for subgraph arguments
+
+            # Check if this is a higher-order operation that needs special tuple handling
+            is_higher_order_op = self._is_higher_order_op(pt_module)
+
+            for arg_idx, arg in enumerate(pt_module.args):
+                is_subgraph, graph_module = self._is_subgraph_arg(arg)
+
+                if is_subgraph:
+                    # Subgraph argument (e.g., cond_fn, body_fn in while_loop)
+                    # Store separately - subgraphs are accessed via get_subgraphs(), not inputs()
+                    self._subgraph_inputs.append(SubgraphInput(arg, graph_module, arg_idx))
+                elif is_higher_order_op and isinstance(arg, (tuple, list)):
+                    # Special handling for higher-order operations (while_loop, cond, etc.)
+                    if len(arg) == 0:
+                        # Empty tuple/list (e.g., additional_inputs=() in while_loop) - skip entirely
+                        pass
+                    elif all(isinstance(item, torch.fx.Node) for item in arg):
+                        # Tuple of nodes (e.g., carried_inputs in while_loop) - unpack into separate inputs
+                        for item in arg:
+                            self._inputs.append(self._nodes.index(item))
+                            self.input_types.append(BaseFXDecoder.get_type_for_value(item))
+                    else:
+                        # Mixed tuple - keep as single InlinedInput
+                        self._inputs.append(InlinedInput(arg))
+                        self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
+                elif isinstance(arg, torch.fx.Node):
                     self._inputs.append(self._nodes.index(arg))
+                    self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
                 else:
-                    # Not a node, consider it inlined
+                    # Not a node, consider it inlined (constant)
                     self._inputs.append(InlinedInput(arg))
-                self.input_types.append(
-                    BaseFXDecoder.get_type_for_value(arg))
+                    self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
+
+    @classmethod
+    def from_exported_program(cls, exported_program: torch.export.ExportedProgram) -> "TorchFXPythonDecoder":
+        """Create a TorchFXPythonDecoder instance from an exported PyTorch program."""
+        from packaging import version
+        if version.parse(torch.__version__) >= version.parse("2.6"):
+            if cls._decomp_table is None:
+                from torch.export.decomp_utils import CustomDecompTable
+                from openvino.frontend.pytorch.torchdynamo.decompositions import ops_to_not_decompose
+                cls._decomp_table = CustomDecompTable()
+                for op in ops_to_not_decompose():
+                    try:
+                        cls._decomp_table.pop(op)
+                    except KeyError as e:
+                        logging.warning("Operation %s not found in decomp table", op, exc_info=e)
+            exported_program = exported_program.run_decompositions(cls._decomp_table)
+        elif version.parse(torch.__version__) >= version.parse("2.2"):
+            from torch._decomp import get_decompositions
+            from openvino.frontend.pytorch.torchdynamo.decompositions import get_export_decomposition_list
+            decomp = get_decompositions(get_export_decomposition_list())
+            exported_program = exported_program.run_decompositions(decomp_table=decomp)
+        gm = exported_program.module()
+        logger.debug(gm.code)
+        return cls(gm, dynamic_shapes=True)
 
     @staticmethod
     def get_found_shape(value) -> str:
         # If input is a tensor, read the shape from meta data
         if hasattr(value, "meta"):
-            if ('tensor_meta' in value.meta.keys()) and value.meta['tensor_meta']:
-                return value.meta['tensor_meta'].shape
-            if ('val' in value.meta.keys()) and isinstance(value.meta["val"], torch.Tensor):
-                return value.meta['val'].shape
+            if ("tensor_meta" in value.meta.keys()) and value.meta["tensor_meta"]:
+                return value.meta["tensor_meta"].shape
+            if ("val" in value.meta.keys()) and isinstance(value.meta["val"], torch.Tensor):
+                return value.meta["val"].shape
         return None
 
     @staticmethod
     def get_found_dtype(value) -> str:
         # If input is a tensor, read the data type from meta data
-        if hasattr(value, "meta") and ('tensor_meta' in value.meta.keys()) and value.meta['tensor_meta']:
-            return OVAny(pt_to_ov_type_map[str(value.meta['tensor_meta'].dtype)])
+        if hasattr(value, "meta") and ("tensor_meta" in value.meta.keys()) and value.meta["tensor_meta"]:
+            return OVAny(pt_to_ov_type_map[str(value.meta["tensor_meta"].dtype)])
         return None
+
+    def _is_higher_order_op(self, node):
+        """Check if the node is a higher-order operation.
+
+        Uses the official PyTorch API (isinstance check with HigherOrderOperator).
+        This is the same approach used in torch.export, torch.compile backends,
+        and other PyTorch components (torch/_export/serde/serialize.py,
+        torch/_export/pass_base.py, torch/utils/flop_counter.py).
+
+        Higher-order operations (while_loop, cond, map, scan, etc.) pass tuple
+        of tensors as carried inputs that need to be unpacked into separate inputs.
+        Regular operations should keep tuples as-is (InlinedInput).
+        """
+        if node.op != "call_function":
+            return False
+
+        if not _HAS_HIGHER_ORDER_OPERATOR:
+            return False
+
+        return isinstance(node.target, HigherOrderOperator)
+
+    def _is_subgraph_arg(self, arg):
+        """Check if argument is a subgraph reference (get_attr node pointing to GraphModule).
+
+        This provides universal detection of subgraph arguments for any higher-order
+        operation (while_loop, cond, map, scan, etc.).
+
+        Returns:
+            tuple: (is_subgraph: bool, graph_module: GraphModule or None)
+        """
+        if not isinstance(arg, torch.fx.Node):
+            return False, None
+        if arg.op != "get_attr":
+            return False, None
+
+        # Get the attribute from the root graph module
+        subgraph = getattr(self.fx_gm, arg.target, None)
+        if subgraph is not None and isinstance(subgraph, torch.fx.GraphModule):
+            return True, subgraph
+        # Also handle callables with graph attribute (lambda-wrapped GraphModules)
+        if callable(subgraph) and hasattr(subgraph, "graph"):
+            return True, subgraph
+        return False, None
 
     def get_input_signature_name(self, index: int) -> str:
         if self._input_signature is not None and index < len(self._input_signature):
@@ -255,8 +354,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     def get_input_shape(self, index):
         if index < len(self.input_shapes) and self.input_shapes[index] is not None:
             return PartialShape(self.input_shapes[index])
-        input = self._raw_input(index)
-        return self.get_shape_for_value(input)
+        _input = self._raw_input(index)
+        return self.get_shape_for_value(_input)
 
     def get_input_strides(self, index: int) -> list:
         raw_input = self._raw_input(index)
@@ -271,8 +370,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     def get_input_type(self, index):
         if index < len(self.input_types) and self.input_types[index] is not None:
             return self.input_types[index]
-        input = self._raw_input(index)
-        return self.get_type_for_value(input)
+        _input = self._raw_input(index)
+        return self.get_type_for_value(_input)
 
     def get_output_debug_name(self, index):
         if self._outputs is not None and index < len(self._outputs) and self._outputs[index][0]:
@@ -289,9 +388,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return self.get_type_for_value(output)
 
     def get_shape_for_value(self, value):
-        if value and hasattr(value, "meta") and ('tensor_meta' in value.meta.keys()):
-            if value.meta['tensor_meta']:
-                return PartialShape(len(value.meta['tensor_meta'].shape) * [-1])
+        if value and hasattr(value, "meta") and ("tensor_meta" in value.meta.keys()):
+            if value.meta["tensor_meta"]:
+                return PartialShape(len(value.meta["tensor_meta"].shape) * [-1])
         return PartialShape.dynamic()
 
     def get_attribute(self, name):
@@ -312,8 +411,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return OVAny(None)
 
     def get_named_input(self, name):
-        """
-        Returns id of kwargs input. Such input can be Node or a constant value,
+        """Returns id of kwargs input.
+
+        Such input can be Node or a constant value,
         this function is only used for to return node index. If the input is
         constant, get_attribute should be used.
         """
@@ -326,31 +426,56 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     def visit_subgraph(self, node_visitor):
         # make sure topological order is satisfied
         for node in self._nodes:
-            if node.op == 'placeholder' or node.op == 'output':
+            if node.op in {"placeholder", "output"}:
                 continue  # skipping non-operational nodes
-            if node.op == 'call_function' and str(node.target) in ["aten._assert_async.msg"]:
+            if node.op == "call_function" and str(node.target) in ["aten._assert_async.msg"]:
                 continue
+            # Skip get_attr nodes that reference subgraph GraphModules
+            # These are handled by higher-order op translators (while_loop, cond, etc.)
+            if node.op == "get_attr":
+                is_subgraph, _ = self._is_subgraph_arg(node)
+                if is_subgraph:
+                    continue
             decoder = TorchFXPythonDecoder(
                 node, self.fx_gm, self._nodes, mark_node_callback=self.mark_node_callback)
             self.m_decoders.append(decoder)
             node_visitor(decoder)
 
+    def get_subgraphs(self):
+        """Return list of subgraphs for higher-order operations.
+
+        Works universally for any operation with subgraph arguments
+        (while_loop, cond, map, scan, etc.). Subgraphs are returned
+        in their original argument order.
+        """
+        if not hasattr(self, "_subgraph_inputs") or not self._subgraph_inputs:
+            return []
+        return [sg.graph_module for sg in self._subgraph_inputs]
+
     def get_subgraph_decoder(self, index):
-        decoder = TorchFXPythonDecoder(self.get_subgraphs()[index],
-                                       self.fx_gm,
-                                       mark_node_callback=self.mark_node_callback)
+        """Return decoder for subgraph at given index."""
+        subgraphs = self.get_subgraphs()
+        if index >= len(subgraphs):
+            raise IndexError(f"Subgraph index {index} out of range (have {len(subgraphs)} subgraphs)")
+
+        subgraph = subgraphs[index]
+        decoder = TorchFXPythonDecoder(
+            subgraph,
+            subgraph,  # Use subgraph as fx_gm for proper constant resolution
+            mark_node_callback=self.mark_node_callback
+        )
         self.m_decoders.append(decoder)
         return decoder
 
     def get_op_type(self):
-        if self.pt_module.op == 'call_function':
+        if self.pt_module.op == "call_function":
             if type(self.pt_module.target).__name__ == "EdgeOpOverload":
                 return self.pt_module.target.__name__
             return str(self.pt_module.target)
-        elif self.pt_module.op == 'get_attr':
-            return 'get_attr'  # FIXME should be aligned with get_attr from TS implementation
+        elif self.pt_module.op == "get_attr":
+            return "get_attr"  # FIXME should be aligned with get_attr from TS implementation
         else:
-            return 'UNKNOWN_TYPE_' + str(self.pt_module.op)
+            return "UNKNOWN_TYPE_" + str(self.pt_module.op)
 
     def outputs(self):
         return [o[1] for o in self._outputs]
@@ -362,7 +487,10 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return self._raw_outputs()[index]
 
     def _raw_inputs(self):
-        return [self._nodes[x] if not isinstance(x, InlinedInput) and x < len(self._nodes) else x.data for x in self._inputs]
+        return [
+            self._nodes[x] if not isinstance(x, InlinedInput) and x < len(self._nodes) else x.data
+            for x in self._inputs
+        ]
 
     def _raw_input(self, index):
         return self._raw_inputs()[index]
@@ -386,37 +514,50 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return node
 
     def as_constant(self):
-        assert self.pt_module.op == 'get_attr', "Only get_attr is supported"
+        assert self.pt_module.op == "get_attr", "Only get_attr is supported"
         # Extract Constant from FX module field
         ret = fetch_attr(self.fx_gm, self.pt_module.target)
         ov_const = torch_tensor_to_ov_const(ret, shared_memory=True)
         return ov_const.outputs()
 
     def input_is_none(self, index):
-        if index >= len(self._inputs) or (isinstance(self._inputs[index], InlinedInput) and self._inputs[index].data is None):
+        if index >= len(self._inputs) or (
+            isinstance(self._inputs[index], InlinedInput) and self._inputs[index].data is None
+        ):
             return True
         else:
             r_input = self._raw_input(index)
-            return str(type(r_input)) in ['torch.NoneType', 'NoneType']
+            return str(type(r_input)) in ["torch.NoneType", "NoneType"]
 
     def debug(self):
         self.pt_module.print()
 
 
 class InlinedInput:
-    """
-    Represents an inlined input. This is a special case
-    where the input is not a node, but a constant value.
+    """Represents an inlined input.
+
+    This is a special case where the input is not a node, but a constant value.
     """
 
     def __init__(self, data) -> None:
         self.data = data
 
 
+class SubgraphInput:
+    """Represents a subgraph input (GraphModule reference via get_attr).
+
+    This is used for higher-order operations like while_loop, cond, map, etc.
+    where arguments can be callable subgraphs instead of tensor data.
+    """
+
+    def __init__(self, node, graph_module, original_arg_index) -> None:
+        self.node = node  # The get_attr node referencing the subgraph
+        self.graph_module = graph_module  # The actual GraphModule
+        self.original_arg_index = original_arg_index  # Position in original args
+
+
 class InlinedInputDecoder (BaseFXDecoder):
-    """
-    Decoder for inlined inputs in PyTorch FX graphs.
-    """
+    """Decoder for inlined inputs in PyTorch FX graphs."""
 
     def __init__(self, inlined_input: InlinedInput, nodes=None, mark_node_callback=None) -> None:
         super().__init__(mark_node_callback)
@@ -431,7 +572,7 @@ class InlinedInputDecoder (BaseFXDecoder):
     def get_op_type(self):
         # return specific type for inlined inputs
         if not self.is_const:
-            return "prim::ListConstruct"
+            return "inlined.list.default"
         return "inlined.constant.default"
 
     def outputs(self):

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,25 +9,27 @@
 #include <memory>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset12.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/opsets/opset12_decl.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/utils/utils.hpp"
 using namespace ov;
 using namespace testing;
 
+namespace v0 = ov::op::v0;
 namespace {
 std::shared_ptr<ov::Model> create_v12_model(const ov::op::PadMode pad_mode, const int16_t pad_v = -1) {
     const auto input = std::make_shared<ov::opset12::Parameter>(ov::element::i16, ov::Shape{1, 3, 100, 100});
     const auto pads_begin =
-        std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 1, 0});
+        std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 1, 0});
     const auto pads_end =
-        std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 1, 1, 0});
+        std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 1, 1, 0});
 
     std::shared_ptr<ov::opset12::Pad> pad;
     if (pad_v != -1) {
         const auto pad_value =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i16, ov::Shape{}, std::vector<int16_t>{pad_v});
+            std::make_shared<v0::Constant>(ov::element::i16, ov::Shape{}, std::vector<int16_t>{pad_v});
         pad = std::make_shared<ov::opset12::Pad>(input, pads_begin, pads_end, pad_value, pad_mode);
     } else {
         pad = std::make_shared<ov::opset12::Pad>(input, pads_begin, pads_end, pad_mode);
@@ -40,11 +42,10 @@ std::shared_ptr<ov::Model> create_v12_model(const ov::op::PadMode pad_mode, cons
 std::shared_ptr<ov::Model> create_v1_model(const ov::op::PadMode pad_mode, const int16_t pad_v) {
     const auto input = std::make_shared<ov::opset1::Parameter>(ov::element::i16, ov::Shape{1, 3, 100, 100});
     const auto pads_begin =
-        std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 1, 0});
+        std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 1, 0});
     const auto pads_end =
-        std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 1, 1, 0});
-    const auto pad_value =
-        std::make_shared<ov::op::v0::Constant>(ov::element::i16, ov::Shape{}, std::vector<int16_t>{pad_v});
+        std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 1, 1, 0});
+    const auto pad_value = std::make_shared<v0::Constant>(ov::element::i16, ov::Shape{}, std::vector<int16_t>{pad_v});
 
     const auto pad = std::make_shared<ov::opset1::Pad>(input, pads_begin, pads_end, pad_value, pad_mode);
     pad->set_friendly_name("pad1");

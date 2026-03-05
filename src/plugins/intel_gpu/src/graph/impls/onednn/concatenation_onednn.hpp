@@ -1,10 +1,10 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "concatenation_inst.h"
 #include "impls/onednn/utils.hpp"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 
 #include <memory>
 namespace cldnn {
@@ -54,13 +54,42 @@ struct ConcatenationImplementationManager : public ImplementationManager {
         if (out_layout.data_padding)
             return false;
 
-        std::vector<format::type> all_dep_types;
+        auto is_feature_aligned = [](const layout& l) {
+            if (!format::is_blocked(l.format))
+                return true;
 
-        bool any_dep_is_onednn = false;
+            const auto& order = format::internal_order(l.format);
+            const size_t feature_dim_idx = order.find('f');
+            if (feature_dim_idx == std::string::npos)
+                return true;
+
+            auto feature_dim = l.get_partial_shape()[feature_dim_idx];
+            if (feature_dim.is_dynamic())
+                return false;
+
+            const auto& block_sizes = format::block_sizes(l.format);
+            auto block_it = std::find_if(block_sizes.begin(), block_sizes.end(), [&](const auto& block) {
+                return block.first == feature_dim_idx;
+            });
+
+            if (block_it == block_sizes.end())
+                return true;
+
+            const int feature_block_size = block_it->second;
+            return feature_dim.get_length() % feature_block_size == 0;
+        };
+
+        // onednn concatenation doesn't support non-zero padding which can occur for unaligned feature.
+        if (!is_feature_aligned(out_layout)) {
+            return false;
+        }
+
+        const auto& concat_node = node.as<concatenation>();
+        auto concat_axis = concat_node.get_primitive()->axis;
+
+        size_t index = 0;
         for (const auto& dep : node.get_dependencies()) {
             const auto& in_layout = dep.first->get_output_layout(false, dep.second);
-
-            all_dep_types.push_back(in_layout.format.value);
 
             if (!one_of(in_layout.data_type, supported_types))
                 return false;
@@ -71,15 +100,14 @@ struct ConcatenationImplementationManager : public ImplementationManager {
             if (!one_of(in_layout.format.value, supported_in_fmts))
                 return false;
 
-            if (dep.first->get_preferred_impl_type() == impl_types::onednn)
-                any_dep_is_onednn = true;
+            // WA: Onednn has an issue in simple_concat blocked format Odd value, will be fixed next release.
+            if (index !=0 && concat_axis == 1 &&
+                !format::is_simple_data_format(in_layout.format) &&
+                in_layout.get_partial_shape()[1].is_static() &&
+                in_layout.get_partial_shape()[1].get_length() % 2 != 0)
+                return false;
+            index++;
         }
-
-        if (std::adjacent_find(all_dep_types.begin(), all_dep_types.end(), std::not_equal_to<>() ) != all_dep_types.end())
-            return false;
-
-        if (!any_dep_is_onednn && format::is_simple_data_format(out_layout.format))
-            return false;
 
         return true;
     }

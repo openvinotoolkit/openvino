@@ -1,17 +1,17 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
-#include "transformations/cpu_opset/common/op/submodel.hpp"
 #include "utils/caseless.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using Dim = std::size_t;
 using VectorDims = std::vector<Dim>;
@@ -19,7 +19,7 @@ using VectorDims = std::vector<Dim>;
 std::string dim2str(Dim dim);
 std::string dims2str(const VectorDims& dims);
 
-enum class Type {
+enum class Type : uint8_t {
     Unknown,
     If,
     Reorder,
@@ -51,6 +51,7 @@ enum class Type {
     Transpose,
     SpaceToBatch,
     SpaceToDepth,
+    SparseFillEmptyRows,
     StridedSlice,
     MemoryOutput,
     MemoryInput,
@@ -90,6 +91,7 @@ enum class Type {
     DFT,
     RDFT,
     STFT,
+    ISTFT,
     Math,
     CTCLoss,
     Bucketize,
@@ -112,6 +114,7 @@ enum class Type {
     ExperimentalDetectronGenerateProposalsSingleImage,
     ExtractImagePatches,
     GenerateProposals,
+    Identity,
     Inverse,
     NonMaxSuppression,
     MatrixNms,
@@ -122,7 +125,6 @@ enum class Type {
     PriorBox,
     PriorBoxClustered,
     Interaction,
-    MHA,
     RandomUniform,
     Unique,
     Ngram,
@@ -134,10 +136,12 @@ enum class Type {
     QKVProjection,
     RMS,
     SearchSorted,
-    LoRA
+    SegmentMax,
+    LoRA,
+    GatherMatmul
 };
 
-enum class Algorithm {
+enum class Algorithm : uint8_t {
     Default,
 
     // Pooling algorithms
@@ -289,9 +293,12 @@ extern const ov::intel_cpu::caseless_unordered_map<std::string, Type> type_to_na
 
 Type TypeFromName(const std::string& type);
 
-std::string NameFromType(const Type type);
+std::string NameFromType(Type type);
+inline std::ostream& operator<<(std::ostream& os, const Type& type) {
+    os << NameFromType(type);
+    return os;
+}
 
-std::string algToString(const Algorithm alg);
+std::string algToString(Algorithm alg);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

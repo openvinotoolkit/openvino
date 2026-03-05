@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,6 +94,7 @@ struct OpenVINOParams {
     LayerVariantAttr<std::vector<size_t>> reshape;
     std::map<std::string, std::string> config;
     size_t nireq = 1u;
+    bool clamp_outputs = false;
 };
 
 struct ONNXRTParams {

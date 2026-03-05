@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/tile.hpp"
 
 using namespace CPUTestUtils;
 
@@ -20,18 +21,9 @@ class TileLayerCPUTest : public testing::WithParamInterface<TileLayerCPUTestPara
                          virtual public ov::test::SubgraphBaseTest,
                          public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TileLayerCPUTestParamsSet> obj) {
-        TileLayerTestParamsSet basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
-
-        std::vector<ov::test::InputShape> inputShapes;
-        std::vector<int64_t> repeats;
-        ov::element::Type_t netPrecision;
-        bool isRepeatsConst;
-        std::string deviceName;
-        std::tie(inputShapes, repeats, netPrecision, isRepeatsConst, deviceName) = basicParamsSet;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<TileLayerCPUTestParamsSet>& obj) {
+        const auto& [basicParamsSet, cpuParams] = obj.param;
+        const auto& [inputShapes, repeats, netPrecision, isRepeatsConst, deviceName] = basicParamsSet;
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : inputShapes) {
@@ -55,17 +47,11 @@ public:
 
 protected:
     void SetUp() override {
-        TileLayerTestParamsSet basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
-
+        const auto& [basicParamsSet, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-        std::vector<ov::test::InputShape> inputShapes;
-        ov::element::Type_t netPrecision;
-        bool isRepeatsConst;
-        std::tie(inputShapes, repeatsData, netPrecision, isRepeatsConst, targetDevice) = basicParamsSet;
-
+        const auto& [inputShapes, _repeatsData, netPrecision, isRepeatsConst, _targetDevice] = basicParamsSet;
+        repeatsData = _repeatsData;
+        targetDevice = _targetDevice;
         selectedType += std::string("_") + ov::element::Type(netPrecision).get_type_name();
 
         if (inputShapes.front().first.rank() != 0) {
@@ -104,7 +90,7 @@ protected:
         } else {
             tileNode = std::make_shared<ov::op::v0::Tile>(functionParams[0], functionParams[1]);
         }
-        function = makeNgraphFunction(netPrecision, functionParams, tileNode, "CPUTile");
+        function = create_ov_model(netPrecision, functionParams, tileNode, "CPUTile");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -170,7 +156,7 @@ const std::vector<std::vector<ov::test::InputShape>> staticInputShapes4D = {{{{}
                                                                                {2, 16, 3, 4}}}},
                                                                             {{{},
                                                                               {// Static shapes
-                                                                               {1, 16, 1, 1}}}}};
+                                                                               {1, 16, 3, 1}}}}};
 const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes4D = {
     {{// Origin dynamic shapes
       {ov::Dimension(1, 20), ov::Dimension(10, 20), ov::Dimension(1, 20), ov::Dimension(1, 20)},

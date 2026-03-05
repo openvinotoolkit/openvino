@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ public:
         : ov::frontend::tensorflow::TensorPlace(input_model, pshape, type, names),
           m_quantization(quantization),
           m_sparsity(sparsity),
-          m_data(m_sparsity == nullptr || m_sparsity->is_disabled() ? data : m_sparsity->dense_data()){};
+          m_data(m_sparsity == nullptr || m_sparsity->is_disabled() ? data : m_sparsity->dense_data()) {};
 
     void translate(ov::Output<ov::Node>& output, bool convert_tensor_attrs_to_nodes = false);
 

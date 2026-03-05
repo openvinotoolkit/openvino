@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/tensor_util.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -29,9 +30,19 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-using namespace ov::op;
-using namespace ov::pass::pattern;
 
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::has_static_shape;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::rank_equals;
+using ov::pass::pattern::wrap_type;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
+namespace v7 = ov::op::v7;
+namespace v8 = ov::op::v8;
+namespace op_util = ov::op::util;
 pass::GroupedGatherElimination::GroupedGatherElimination() {
     MATCHER_SCOPE(GroupedGatherElimination);
     auto concat_label = wrap_type<v0::Concat>(rank_equals(1));
@@ -79,7 +90,7 @@ pass::GroupedGatherElimination::GroupedGatherElimination() {
 
             // curr and next are the same type of gather which takes data from the same source
             auto joint_indices =
-                new_ops.add(op::util::make_try_fold<v0::Concat>(OutputVector{curr_indices, next_indices}, 0));
+                new_ops.add(op_util::make_try_fold<v0::Concat>(OutputVector{curr_indices, next_indices}, 0));
             std::shared_ptr<Node> new_gather;
             if (is_type<v1::Gather>(curr)) {
                 new_gather = register_new_node<v1::Gather>(curr->input_value(0),
@@ -120,7 +131,7 @@ pass::GroupedGatherElimination::GroupedGatherElimination() {
 
 pass::GatherNopElimination::GatherNopElimination() {
     MATCHER_SCOPE(GatherNopElimination);
-    const auto gather_label = wrap_type<op::util::GatherBase>(
+    const auto gather_label = wrap_type<op_util::GatherBase>(
         {any_input(has_static_shape()), wrap_type<v0::Constant>(), wrap_type<v0::Constant>()});
 
     matcher_pass_callback callback = [](Matcher& m) {
@@ -144,7 +155,7 @@ pass::GatherNopElimination::GatherNopElimination() {
 
 pass::AbsSinking::AbsSinking() {
     MATCHER_SCOPE(AbsSinking);
-    const auto abs_label = wrap_type<op::v0::Abs>(pattern::rank_equals(1));
+    const auto abs_label = wrap_type<v0::Abs>(rank_equals(1));
 
     matcher_pass_callback callback = [](Matcher& m) {
         NodeVector abs_ops = {m.get_match_root()};
@@ -153,7 +164,7 @@ pass::AbsSinking::AbsSinking() {
 
         if (auto concat = as_type_ptr<v0::Concat>(abs_ops[0]->get_input_node_shared_ptr(0))) {
             for (const auto& input : concat->inputs()) {
-                auto new_abs = ov::op::util::make_try_fold<v0::Abs>(input.get_source_output());
+                auto new_abs = op_util::make_try_fold<v0::Abs>(input.get_source_output());
                 if (!as_type_ptr<v0::Constant>(new_abs))
                     abs_ops.push_back(new_abs);
                 input.replace_source_output(new_abs);
@@ -163,7 +174,14 @@ pass::AbsSinking::AbsSinking() {
             abs_ops.erase(abs_ops.begin());
             graph_got_changed = true;
         }
+        // We don't handle the case where Abs is applied directly to a constant
+        // This is intentionally left to ConstantFolding pass which is better suited for this task
         for (const auto& abs : abs_ops) {
+            // Skip Abs operations applied to constants - let ConstantFolding handle them
+            if (ov::is_type<v0::Constant>(abs->get_input_node_ptr(0))) {
+                continue;
+            }
+
             auto bounds = ov::util::evaluate_both_bounds(abs->input_value(0));
             if (ov::util::reduce_and(ov::util::greater_equal(bounds.first, 0))) {
                 replace_output_update_name(abs->output(0), abs->input_value(0));
@@ -178,15 +196,15 @@ pass::AbsSinking::AbsSinking() {
 
 pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
     MATCHER_SCOPE(SimplifyGatherShapeOf);
-    const auto data_pattern = pattern::any_input(pattern::has_static_rank());
-    const auto indices_pattern = pattern::any_input(pattern::has_static_rank());
-    const auto axis_pattern = wrap_type<op::v0::Constant>();
-    const auto gather_pattern = wrap_type<op::util::GatherBase>({data_pattern, indices_pattern, axis_pattern});
+    const auto data_pattern = any_input(ov::pass::pattern::has_static_rank());
+    const auto indices_pattern = any_input(ov::pass::pattern::has_static_rank());
+    const auto axis_pattern = wrap_type<v0::Constant>();
+    const auto gather_pattern = wrap_type<op_util::GatherBase>({data_pattern, indices_pattern, axis_pattern});
     const auto shape_of_pattern = wrap_type<v0::ShapeOf, v3::ShapeOf>({gather_pattern});
 
     matcher_pass_callback callback = [](Matcher& m) {
         auto node = m.get_match_root();
-        auto gather = as_type_ptr<op::util::GatherBase>(node->input_value(0).get_node_shared_ptr());
+        auto gather = as_type_ptr<op_util::GatherBase>(node->input_value(0).get_node_shared_ptr());
         if (!gather || gather->get_batch_dims() != 0) {
             return false;
         }
@@ -200,9 +218,14 @@ pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
         new_ops.push_back(new_shapeof);
         std::shared_ptr<Node> replace_op;
         if (indices_rank.get_length() == 0) {
-            std::vector<int64_t> vi(gather_in_rank.get_length());
-            std::iota(vi.begin(), vi.end(), 0);
-            vi.erase(vi.begin() + axis);
+            std::vector<int64_t> vi;
+            if (gather_in_rank.get_length() != 0) {
+                vi.reserve(gather_in_rank.get_length() - 1);
+                for (int64_t i = 0; i < gather_in_rank.get_length(); ++i) {
+                    if (i != axis)
+                        vi.push_back(i);
+                }
+            }
             auto new_indices = v0::Constant::create<int64_t>(element::i64, Shape{vi.size()}, vi);
             replace_op = std::make_shared<v1::Gather>(new_shapeof, new_indices, zero_axis);
             new_ops.push_back(replace_op);
@@ -268,13 +291,13 @@ pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
 
         auto data = m.get_pattern_value_map().at(input);
         if (is_type<v0::FakeQuantize>(data.get_node_shared_ptr()) ||
-            op::util::is_unary_elementwise_arithmetic(data.get_node_shared_ptr())) {
+            op_util::is_unary_elementwise_arithmetic(data.get_node_shared_ptr())) {
             data = data.get_node_shared_ptr()->input_value(0);
         }
 
         auto check_shape_of_gather = [&](const std::shared_ptr<Node>& gather) {
             auto shape_of = gather->get_input_node_shared_ptr(0);
-            if (!is_type<op::util::ShapeOfBase>(shape_of)) {
+            if (!is_type<op_util::ShapeOfBase>(shape_of)) {
                 return false;
             }
             return shape_of->input_value(0) == data;
@@ -298,7 +321,7 @@ pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
         // that change the arrangement of dimensions in the reshape pattern
         for (auto& concat_input : new_concat_inputs) {
             auto node = concat_input.get_node_shared_ptr();
-            if (ov::is_type<op::util::GatherBase>(node) &&
+            if (ov::is_type<op_util::GatherBase>(node) &&
                 ov::is_type<v0::Constant>(node->get_input_node_shared_ptr(1)) && check_shape_of_gather(node)) {
                 auto indices_constant = as_type_ptr<v0::Constant>(node->get_input_node_shared_ptr(1));
                 bool gather_can_be_fused = true;
@@ -335,7 +358,7 @@ pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
             return false;
         }
 
-        const auto new_concat = op::util::make_try_fold<v0::Concat>(new_concat_inputs, concat_axis);
+        const auto new_concat = op_util::make_try_fold<v0::Concat>(new_concat_inputs, concat_axis);
         new_concat->set_friendly_name(concat->get_friendly_name());
         copy_runtime_info(concat, new_concat);
 
@@ -358,8 +381,6 @@ bool pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<Model>& f
 
     REGISTER_PASS(manager, PrepareShapeOpsForEliminationAroundBE)
     REGISTER_PASS(manager, AbsSinking)
-    // FIXME: manager runs Validate based on the last pass, when fixed the following line must be deleted
-    REGISTER_PASS(manager, Validate)
     REGISTER_PASS(manager, SharedOpOptimization)
     REGISTER_PASS(manager, EliminateGatherUnsqueeze)  // should run after SharedOpOptimization
     REGISTER_PASS(manager, NopElimination, m_use_shapes)
@@ -370,8 +391,6 @@ bool pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<Model>& f
     REGISTER_PASS(manager, GatherNopElimination)
     REGISTER_PASS(manager, SimplifyGatherShapeOf)
     REGISTER_PASS(manager, SimplifySecondInputOfReshape)
-
-    // TODO: potentially this Validate is not needed but it requires additional validation
     REGISTER_PASS(manager, Validate)
 
     manager.run_passes(f);

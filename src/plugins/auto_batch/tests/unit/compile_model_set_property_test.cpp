@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,10 +25,8 @@ public:
     std::shared_ptr<ov::ICompiledModel> m_auto_batch_compile_model;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<set_property_param> obj) {
-        ov::AnyMap properities;
-        bool throw_exception;
-        std::tie(properities, throw_exception) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<set_property_param>& obj) {
+        const auto& [properities, throw_exception] = obj.param;
 
         std::string res;
         for (auto& c : properities) {

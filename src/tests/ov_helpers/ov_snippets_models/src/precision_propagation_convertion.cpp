@@ -1,10 +1,12 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "precision_propagation_convertion.hpp"
 #include <assert.h>
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/fake_quantize.hpp"
 
 namespace ov {
 namespace test {

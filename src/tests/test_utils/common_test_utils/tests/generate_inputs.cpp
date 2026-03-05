@@ -1,4 +1,4 @@
-// Copyright (C) 20234 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include "openvino/op/util/op_types.hpp"
 #include "common_test_utils/type_ranges.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
-#include "shared_test_classes/base/utils/generate_inputs.hpp"
 
 #include "openvino/op/concat.hpp"
 #include "openvino/op/relu.hpp"
@@ -277,4 +276,3 @@ TEST(RangesTests, not_intersection) {
     ASSERT_EQ(floorMod_range->range, floorMod_range_ref.range);
     ASSERT_EQ(floorMod_range->resolution, floorMod_range_ref.resolution);
 }
-

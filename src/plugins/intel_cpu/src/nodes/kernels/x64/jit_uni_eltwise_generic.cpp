@@ -1,15 +1,33 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_uni_eltwise_generic.hpp"
 
-#include <utility>
+#include <oneapi/dnnl/dnnl_types.h>
+#include <xbyak/xbyak.h>
+
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <set>
 #include <vector>
 
+#include "cpu_types.h"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
 #include "emitters/plugin/x64/jit_eltwise_emitters.hpp"
-#include "nodes/eltwise.h"
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "nodes/executors/eltwise_config.hpp"
+#include "nodes/kernels/jit_eltwise_common.hpp"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "selective_build.h"
 
 namespace ov::intel_cpu {
 namespace x64 {
@@ -26,7 +44,7 @@ jit_uni_eltwise_generic<isa>::jit_uni_eltwise_generic(const jit_eltwise_params& 
                                                       const std::vector<ov::intel_cpu::Type>& ops_list,
                                                       const dnnl::post_ops& post_ops)
     : jit_uni_eltwise_kernel(jep),
-      jit_generator(jit_name()),
+      jit_generator_t(jit_name()),
       eltwise_data_(eltwise_data),
       ops_list_(ops_list),
       post_ops_(post_ops) {}
@@ -35,7 +53,7 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::generate() {
     static const std::vector<element::Type> exec_precisions_priority =
         {element::u8, element::i8, element::u16, element::i16, element::bf16, element::i32, element::f32};
-    auto const exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number,
+    const auto exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number,
                                                                   jep_.src_prc,
                                                                   eltwise_data_,
                                                                   exec_precisions_priority);
@@ -47,9 +65,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
     const auto& p = post_ops_.get();
     for (int i = 0; i < post_ops_.len(); ++i) {
-        if (!p->entry_[i].is_quantization()) {
-            OPENVINO_THROW("Eltwise jitter error. Unsupported post op detected");
-        }
+        OPENVINO_ASSERT(p->entry_[i].is_quantization(), "Eltwise jitter error. Unsupported post op detected");
         quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(this,
                                                                                                   p->entry_[i],
                                                                                                   vmm_d_weights,
@@ -59,7 +75,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
     }
 
     if (mayiuse(avx512_core) || mayiuse(avx2_vnni_2)) {
-        uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
+        uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa);
     }
 
     const auto& jep = jep_;
@@ -161,14 +177,12 @@ void jit_uni_eltwise_generic<isa>::generate() {
             is_valid_configuration = false;
         }
 
-        if (!is_valid_configuration) {
-            OPENVINO_THROW("Eltwise jitter has invalid configuration for Eltwise node");
-        }
+        OPENVINO_ASSERT(is_valid_configuration, "Eltwise jitter has invalid configuration for Eltwise node");
 
         L(unroll_loop_label);
         {
             size_t loop_step = min_src_size;
-            size_t vec_step = cpu_isa_traits<isa>::vlen / exec_prc.size();
+            size_t vec_step = cpu_isa_traits_t<isa>::vlen / exec_prc.size();
 
             cmp(reg_work_amount, loop_step);
             jl(unroll_loop_end_label, T_NEAR);
@@ -230,7 +244,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
     if (min_src_size == jep.dst_size) {
         L(main_loop_label);
         {
-            size_t loop_step = cpu_isa_traits<isa>::vlen / exec_prc.size();
+            size_t loop_step = cpu_isa_traits_t<isa>::vlen / exec_prc.size();
 
             cmp(reg_work_amount, loop_step);
             jl(main_loop_end_label, T_NEAR);
@@ -316,7 +330,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
 namespace {
 struct EltwiseEmitterContext {
     std::shared_ptr<jit_emitter> emitter;
-    jit_generator* host;
+    jit_generator_t* host;
     cpu_isa_t host_isa;
     const EltwiseData& opData;
     ov::element::Type exec_prc;
@@ -364,6 +378,17 @@ struct EltwiseEmitter<jit_is_inf_emitter> {
                                                            ctx.opData.beta);
     }
 };
+
+template <>
+struct EltwiseEmitter<jit_clamp_emitter> {
+    void operator()(EltwiseEmitterContext& ctx) {
+        ctx.emitter = std::make_shared<jit_clamp_emitter>(ctx.host,
+                                                          ctx.host_isa,
+                                                          ctx.exec_prc,
+                                                          ctx.opData.alpha,
+                                                          ctx.opData.beta);
+    }
+};
 }  // namespace
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -381,10 +406,10 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               OV_CASE(Algorithm::EltwiseElu, jit_dnnl_aux_emitter),
               OV_CASE(Algorithm::EltwiseTanh, jit_dnnl_aux_emitter),
               OV_CASE(Algorithm::EltwiseSigmoid, jit_dnnl_aux_emitter),
-              OV_CASE(Algorithm::EltwiseAbs, jit_dnnl_aux_emitter),
+              OV_CASE(Algorithm::EltwiseAbs, jit_abs_emitter),
               OV_CASE(Algorithm::EltwiseSqrt, jit_dnnl_aux_emitter),
               OV_CASE(Algorithm::EltwiseSoftRelu, jit_dnnl_aux_emitter),
-              OV_CASE(Algorithm::EltwiseClamp, jit_dnnl_aux_emitter),
+              OV_CASE(Algorithm::EltwiseClamp, jit_clamp_emitter),
               OV_CASE(Algorithm::EltwiseSwish, jit_dnnl_aux_emitter),
               OV_CASE(Algorithm::EltwiseHswish, jit_dnnl_aux_emitter),
               OV_CASE(Algorithm::EltwiseMish, jit_dnnl_aux_emitter),
@@ -429,9 +454,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               OV_CASE(Algorithm::EltwiseBitwiseOr, jit_bitwise_or_emitter),
               OV_CASE(Algorithm::EltwiseBitwiseXor, jit_bitwise_xor_emitter));
 
-    if (!ctx.emitter) {
-        OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
-    }
+    OPENVINO_ASSERT(ctx.emitter, "Unsupported operation type for Eltwise emitter");
 
     return ctx.emitter;
 }
@@ -521,7 +544,7 @@ void jit_uni_eltwise_generic<isa>::load_vector(Vmm vmm_src,
                                                ov::element::Type src_prc,
                                                ov::element::Type dst_prc,
                                                bool broadcast) {
-    Xmm xmm_src = Xmm(vmm_src.getIdx());
+    auto xmm_src = Xmm(vmm_src.getIdx());
 
     if (src_prc == dst_prc) {
         if (broadcast) {
@@ -562,7 +585,7 @@ void jit_uni_eltwise_generic<isa>::load_vector(Vmm vmm_src,
             uni_vpmovzxbd(vmm_src, op);
             break;
         default:
-            OPENVINO_THROW("unknown src_prc");
+            OPENVINO_THROW("unsupported src_prc: ", src_prc);
         }
 
         switch (dst_prc) {
@@ -577,7 +600,7 @@ void jit_uni_eltwise_generic<isa>::load_vector(Vmm vmm_src,
             }
             break;
         default:
-            OPENVINO_THROW("unknown dst_prc");
+            OPENVINO_THROW("unsupported dst_prc: ", dst_prc);
         }
     }
 }
@@ -598,7 +621,7 @@ void jit_uni_eltwise_generic<isa>::load_scalar(Xmm xmm_src,
             uni_vmovd(xmm_src, reg_tmp_32);
             break;
         default:
-            OPENVINO_THROW("unknown prc");
+            OPENVINO_THROW("unsupported prc: ", src_prc);
         }
         return;
     }
@@ -640,7 +663,7 @@ void jit_uni_eltwise_generic<isa>::load_scalar(Xmm xmm_src,
         uni_vmovq(xmm_src, reg_tmp_64);
         break;
     default:
-        OPENVINO_THROW("unknown src_prc");
+        OPENVINO_THROW("unsupported src_prc: ", src_prc);
     }
 
     switch (dst_prc) {
@@ -655,7 +678,7 @@ void jit_uni_eltwise_generic<isa>::load_scalar(Xmm xmm_src,
         }
         break;
     default:
-        OPENVINO_THROW("unknown dst_prc");
+        OPENVINO_THROW("unsupported dst_prc: ", dst_prc);
     }
 }
 
@@ -664,8 +687,8 @@ void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak::Address& op,
                                                 Vmm vmm_dst,
                                                 ov::element::Type src_prc,
                                                 ov::element::Type dst_prc) {
-    Xmm xmm_dst = Xmm(vmm_dst.getIdx());
-    Ymm ymm_dst = Ymm(vmm_dst.getIdx());
+    auto xmm_dst = Xmm(vmm_dst.getIdx());
+    auto ymm_dst = Ymm(vmm_dst.getIdx());
 
     if (src_prc == dst_prc) {
         uni_vmovups(op, vmm_dst);
@@ -684,7 +707,7 @@ void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak::Address& op,
         }
         break;
     default:
-        OPENVINO_THROW("unknown src_prc");
+        OPENVINO_THROW("unsupported src_prc: ", src_prc);
     }
 
     switch (dst_prc) {
@@ -767,7 +790,7 @@ void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak::Address& op,
         }
         break;
     default:
-        OPENVINO_THROW("unknown dst_prc");
+        OPENVINO_THROW("unsupported dst_prc: ", dst_prc);
     }
 }
 
@@ -786,7 +809,7 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const Xbyak::Address& op,
             mov(op, reg_tmp_8);
             break;
         default:
-            OPENVINO_THROW("unknown prc");
+            OPENVINO_THROW("unsupported prc: ", src_prc);
         }
         return;
     }
@@ -803,7 +826,7 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const Xbyak::Address& op,
         }
         break;
     default:
-        OPENVINO_THROW("unknown src_prc");
+        OPENVINO_THROW("unsupported src_prc: ", src_prc);
     }
 
     switch (dst_prc) {
@@ -843,7 +866,7 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const Xbyak::Address& op,
         mov(op, reg_tmp_8);
         break;
     default:
-        OPENVINO_THROW("unknown dst_prc");
+        OPENVINO_THROW("unsupported dst_prc: ", dst_prc);
     }
 }
 
@@ -862,7 +885,8 @@ struct SupportedPrecisions {
 };
 }  // namespace
 
-std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_precisions(const Algorithm& algo) {
+std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_precisions(
+    [[maybe_unused]] const Algorithm& algo) {
     std::set<std::vector<element::Type>> precisions;
 
     OV_SWITCH(intel_cpu,
@@ -875,10 +899,10 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseElu, jit_dnnl_aux_emitter),
               OV_CASE(Algorithm::EltwiseTanh, jit_dnnl_aux_emitter),
               OV_CASE(Algorithm::EltwiseSigmoid, jit_dnnl_aux_emitter),
-              OV_CASE(Algorithm::EltwiseAbs, jit_dnnl_aux_emitter),
+              OV_CASE(Algorithm::EltwiseAbs, jit_abs_emitter),
               OV_CASE(Algorithm::EltwiseSqrt, jit_dnnl_aux_emitter),
               OV_CASE(Algorithm::EltwiseSoftRelu, jit_dnnl_aux_emitter),
-              OV_CASE(Algorithm::EltwiseClamp, jit_dnnl_aux_emitter),
+              OV_CASE(Algorithm::EltwiseClamp, jit_clamp_emitter),
               OV_CASE(Algorithm::EltwiseSwish, jit_dnnl_aux_emitter),
               OV_CASE(Algorithm::EltwiseHswish, jit_dnnl_aux_emitter),
               OV_CASE(Algorithm::EltwiseMish, jit_dnnl_aux_emitter),
@@ -923,9 +947,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseBitwiseOr, jit_bitwise_or_emitter),
               OV_CASE(Algorithm::EltwiseBitwiseXor, jit_bitwise_xor_emitter));
 
-    if (precisions.empty()) {
-        OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
-    }
+    OPENVINO_ASSERT(!precisions.empty(), "Unsupported operation type for Eltwise emitter");
 
     return precisions;
 }

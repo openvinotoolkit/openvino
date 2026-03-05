@@ -1,11 +1,13 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "memory_formats_attribute.hpp"
 
+#include <memory>
+#include <string>
+
 #include "openvino/core/node.hpp"
-#include "openvino/opsets/opset1.hpp"
 
 namespace ov::intel_cpu {
 

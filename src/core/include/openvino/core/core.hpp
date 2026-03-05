@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/interval.hpp"
 #include "openvino/core/layout.hpp"
+#include "openvino/core/log.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_input.hpp"

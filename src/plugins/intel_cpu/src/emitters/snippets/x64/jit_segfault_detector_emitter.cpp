@@ -1,14 +1,23 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef SNIPPETS_DEBUG_CAPS
+#include <xbyak/xbyak.h>
 
-#    include "jit_segfault_detector_emitter.hpp"
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <string>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#ifdef SNIPPETS_DEBUG_CAPS
 
 #    include <utility>
 
 #    include "emitters/plugin/x64/utils.hpp"
+#    include "emitters/snippets/common/jit_segfault_detector_emitter_base.hpp"
+#    include "jit_segfault_detector_emitter.hpp"
 
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl;
@@ -17,37 +26,20 @@ using namespace Xbyak;
 
 namespace ov::intel_cpu {
 
-std::shared_ptr<ThreadLocal<jit_uni_segfault_detector_emitter*>> g_custom_segfault_handler =
-    std::make_shared<ThreadLocal<jit_uni_segfault_detector_emitter*>>();
-
-jit_uni_segfault_detector_emitter::jit_uni_segfault_detector_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+jit_uni_segfault_detector_emitter::jit_uni_segfault_detector_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                                                                      dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                                                      jit_emitter* target_emitter,
                                                                      bool is_load,
                                                                      bool is_store,
                                                                      std::string target_node_name)
-    : jit_emitter(host, host_isa),
-      m_target_emitter(target_emitter),
-      is_target_use_load_emitter(is_load),
-      is_target_use_store_emitter(is_store),
-      m_target_node_name(std::move(target_node_name)) {}
+    : base_t(host, host_isa, target_emitter, is_load, is_store, std::move(target_node_name)) {}
 
 size_t jit_uni_segfault_detector_emitter::get_inputs_num() const {
     return 1;
 }
 
 const jit_emitter* jit_uni_segfault_detector_emitter::get_target_emitter() const {
-    return m_target_emitter;
-}
-
-void jit_uni_segfault_detector_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
-                                                  const std::vector<size_t>& out_vec_idxs) const {
-    save_target_emitter();
-    if (is_target_use_load_emitter) {
-        memory_track(in_vec_idxs[0]);
-    } else if (is_target_use_store_emitter) {
-        memory_track(out_vec_idxs[0]);
-    }
+    return base_t::get_target_emitter();
 }
 
 void jit_uni_segfault_detector_emitter::save_target_emitter() const {
@@ -68,7 +60,8 @@ void jit_uni_segfault_detector_emitter::save_target_emitter() const {
 }
 
 void jit_uni_segfault_detector_emitter::set_local_handler(jit_uni_segfault_detector_emitter* emitter_address) {
-    g_custom_segfault_handler->local() = emitter_address;
+    base_t::set_local_handler_impl(ov::intel_cpu::g_custom_segfault_handler<jit_uni_segfault_detector_emitter>,
+                                   emitter_address);
 }
 
 void jit_uni_segfault_detector_emitter::memory_track(size_t gpr_idx_for_mem_address) const {

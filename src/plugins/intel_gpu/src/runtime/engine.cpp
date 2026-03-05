@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -216,11 +216,9 @@ std::map<std::string, uint64_t> engine::get_memory_statistics() const {
     const auto add_stat = [&](allocation_type type) {
         auto idx = static_cast<size_t>(type);
         auto value = _memory_usage_data[idx].load();
-        if (value != 0) {
-            std::ostringstream oss;
-            oss << type;
-            statistics[oss.str()] = value;
-        }
+        std::ostringstream oss;
+        oss << type;
+        statistics[oss.str()] = value;
     };
 
     add_stat(allocation_type::unknown);
@@ -248,6 +246,14 @@ void engine::subtract_memory_used(uint64_t bytes, allocation_type type) {
     _memory_usage_data[idx] -= bytes;
 }
 
+void engine::set_enable_large_allocations(bool enable_large_allocations) {
+    this->enable_large_allocations = enable_large_allocations;
+}
+
+bool engine::get_enable_large_allocations() const {
+    return enable_large_allocations;
+}
+
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type, const device::ptr device) {
     std::shared_ptr<cldnn::engine> ret;
     switch (engine_type) {
@@ -268,7 +274,7 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_
 }
 
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type) {
-    device_query query(engine_type, runtime_type);
+    device_query query(engine_type, runtime_type, nullptr, nullptr, 0, -1, true);
     auto devices = query.get_available_devices();
 
     OPENVINO_ASSERT(!devices.empty(), "[GPU] Can't create ", engine_type, " engine for ", runtime_type, " runtime as no suitable devices are found\n"

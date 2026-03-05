@@ -1,12 +1,21 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "store_convert.hpp"
 
-#include "snippets/itt.hpp"
+#include <cstddef>
+#include <memory>
 
-using namespace std;
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/op/store.hpp"
+
 using namespace ov;
 
 intel_cpu::StoreConvertSaturation::StoreConvertSaturation(const Output<Node>& x,

@@ -1,16 +1,33 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngram.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
-#include "openvino/core/parallel.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "shape_inference/custom/ngram.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -55,7 +72,7 @@ void Ngram::initSupportedPrimitiveDescriptors() {
     }
 
     idcesPrecision = getOriginalInputPrecisionAtPort(1);
-    if (idcesPrecision != ov::element::i32 && idcesPrecision != ov::element::i64) {
+    if (none_of(idcesPrecision, ov::element::i32, ov::element::i64)) {
         idcesPrecision = ov::element::i32;
     }
 
@@ -70,8 +87,8 @@ void Ngram::prepareParams() {
     const auto& outDims = getDstMemoryAtPort(0)->getStaticDims();
     ;
 
-    idcesShapeSize = std::accumulate(srcIndicesDims.begin(), srcIndicesDims.end(), 1, std::multiplies<size_t>());
-    numOutElems = std::accumulate(outDims.begin(), outDims.end(), 1, std::multiplies<size_t>());
+    idcesShapeSize = std::accumulate(srcIndicesDims.begin(), srcIndicesDims.end(), 1, std::multiplies<>());
+    numOutElems = std::accumulate(outDims.begin(), outDims.end(), 1, std::multiplies<>());
     idcesStride = getSrcMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
     numIdces = srcIndicesDims[0];
 
@@ -97,9 +114,10 @@ std::vector<size_t> Ngram::computeBatchLenghts() {
     return batchLenghts;
 }
 
-void Ngram::execute(const dnnl::stream& strm) {
-    auto* srcData = getSrcDataAtPortAs<const float>(0);
+void Ngram::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto* srcData = getSrcDataAtPortAs<const float>(0);
     auto* dstData = getDstDataAtPortAs<float>(0);
+    const auto& cpu_parallel = context->getCpuParallel();
 
     std::vector<size_t> batchLenghts;
     if (idcesPrecision == ov::element::i32) {
@@ -107,7 +125,7 @@ void Ngram::execute(const dnnl::stream& strm) {
     } else if (idcesPrecision == ov::element::i64) {
         batchLenghts = computeBatchLenghts<std::int64_t>();
     } else {
-        THROW_CPU_NODE_ERR("Unsupported indices precision: ", idcesPrecision);
+        CPU_NODE_THROW("Unsupported indices precision: ", idcesPrecision);
     }
 
     /* The following procedure applied to each batch:
@@ -115,7 +133,7 @@ void Ngram::execute(const dnnl::stream& strm) {
        2. Apply sliding window of windowSize with a step windowStride and form k new embedding vectors for the embedding
     */
     memset(dstData, 0, numOutElems * sizeof(float));
-    parallel_for(batchLenghts.size() - 1, [&](const size_t batchIdx) {
+    cpu_parallel->parallel_for(batchLenghts.size() - 1, [&](const size_t batchIdx) {
         size_t srcWindowBias = 0;
         size_t dstWindowBias = 0;
 

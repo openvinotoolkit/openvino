@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,10 @@ public:
                   RemoteContextImpl::Ptr context,
                   const ExecutionConfig& config,
                   const bool loaded_from_cache);
+    ~CompiledModel() {
+        auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(get_task_executor());
+        streams_executor->cpu_reset();
+    }
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
@@ -57,6 +61,12 @@ public:
     RemoteContextImpl::Ptr get_context_impl() const {
         return m_context;
     }
+
+    // Helper function to return the model name for ITT tracing
+    std::string_view get_model_name() const {
+        return m_model_name;
+    }
+
     const std::vector<std::shared_ptr<Graph>>& get_graphs() const;
     std::shared_ptr<Graph> get_graph(size_t n) const;
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include "decoder_proto.hpp"
 #include "framework.pb.h"
 #include "input_model.hpp"
+#include "openvino/core/log_util.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/util/common_util.hpp"
@@ -433,15 +434,15 @@ void InputModel::InputModelImpl::create_temp_consts() {
         // as its output. e.g. the tensorarray is both the input and output of the same node.
         // So we have to create a fake empty node here.
         // Problem is, we have no idea which axis should be 0.
-        // Since the models (faster/mask rcnn) are either concating tensors in tensorarray along the dynamic
-        // dimension, or concating static shape tensors. So we make the dynamic dimension to be 0. In case of static
-        // shape, we simply the the first dimension be 0.
+        // Since the models (faster/mask rcnn) are either concatenating tensors in tensorarray along the dynamic
+        // dimension, or concatenating static shape tensors. So we make the dynamic dimension to be 0. In case of
+        // static shape, we simply set the first dimension to 0.
         if (var_desc.type().has_tensor_array()) {
             const auto& tensor = var_desc.type().tensor_array().tensor();
             const auto& type = get_ov_type(tensor.data_type());
 
-            std::cout << "WARNING: The PaddlePaddle model has \"TENSOR_ARRAY\" variables, which is supported "
-                      << " under limited situations.\n";
+            util::log_message("WARNING: The PaddlePaddle model has \"TENSOR_ARRAY\" variables, which is supported "
+                              "under limited situations.");
 
             PartialShape tensor_ps(std::vector<Dimension>(tensor.dims().cbegin(), tensor.dims().cend()));
             tensor_ps.insert(tensor_ps.begin(), 1);  // unsqueeze

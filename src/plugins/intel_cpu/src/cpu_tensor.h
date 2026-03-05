@@ -1,14 +1,20 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <mutex>
+
 #include "cpu_memory.h"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/itensor.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class Tensor : public ITensor {
 public:
@@ -27,7 +33,12 @@ public:
 
     const ov::Strides& get_strides() const override;
 
-    void* data(const element::Type& type) const override;
+    void* data() override;
+    void* data(const element::Type& type) override;
+    const void* data() const override;
+    const void* data(const element::Type& type) const override;
+    void* data_rw() override;
+    void* data_rw(const element::Type& type) override;
 
     MemoryPtr get_memory() {
         return m_memptr;
@@ -46,5 +57,4 @@ private:
 
 std::shared_ptr<ITensor> make_tensor(MemoryPtr mem);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

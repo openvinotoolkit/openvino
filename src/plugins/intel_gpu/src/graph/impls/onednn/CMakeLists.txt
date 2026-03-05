@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -12,3 +12,5 @@ ov_gpu_add_backend_target(
     NAME ${TARGET_NAME}
     LINK_LIBRARIES onednn_gpu_tgt
 )
+
+ov_build_target_faster(${TARGET_NAME} PCH)

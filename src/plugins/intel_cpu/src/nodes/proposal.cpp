@@ -1,14 +1,27 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/proposal.hpp"
 
+#include <cmath>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
-#include "openvino/core/parallel.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "proposal.h"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -18,31 +31,25 @@ static std::vector<float> generate_anchors(proposal_conf& conf) {
     auto round_ratios = conf.round_ratios;
 
     auto num_ratios = conf.ratios.size();
-    auto ratios = conf.ratios.data();
+    auto* ratios = conf.ratios.data();
 
     auto num_scales = conf.scales.size();
-    auto scales = conf.scales.data();
+    auto* scales = conf.scales.data();
 
     std::vector<float> anchors(num_scales * num_ratios * 4);
-    auto anchors_ptr = anchors.data();
+    auto* anchors_ptr = anchors.data();
 
     // base box's width & height & center location
-    const float base_area = static_cast<float>(base_size * base_size);
-    const float half_base_size = base_size * 0.5f;
-    const float center = 0.5f * (base_size - coordinates_offset);
+    const auto base_area = static_cast<float>(base_size * base_size);
+    const float half_base_size = base_size * 0.5F;
+    const float center = 0.5F * (base_size - coordinates_offset);
 
     // enumerate all transformed boxes
     for (size_t ratio = 0; ratio < num_ratios; ++ratio) {
         // transformed width & height for given ratio factors
-        float ratio_w;
-        float ratio_h;
-        if (round_ratios) {
-            ratio_w = std::roundf(std::sqrt(base_area / ratios[ratio]));
-            ratio_h = std::roundf(ratio_w * ratios[ratio]);
-        } else {
-            ratio_w = std::sqrt(base_area / ratios[ratio]);
-            ratio_h = ratio_w * ratios[ratio];
-        }
+        const float ratio_w =
+            round_ratios ? std::roundf(std::sqrt(base_area / ratios[ratio])) : std::sqrt(base_area / ratios[ratio]);
+        const float ratio_h = round_ratios ? std::roundf(ratio_w * ratios[ratio]) : ratio_w * ratios[ratio];
 
         float* const p_anchors_wm = anchors_ptr + 0 * num_ratios * num_scales + ratio * num_scales;
         float* const p_anchors_hm = anchors_ptr + 1 * num_ratios * num_scales + ratio * num_scales;
@@ -51,8 +58,8 @@ static std::vector<float> generate_anchors(proposal_conf& conf) {
 
         for (size_t scale = 0; scale < num_scales; ++scale) {
             // transformed width & height for given scale factors
-            const float scale_w = 0.5f * (ratio_w * scales[scale] - coordinates_offset);
-            const float scale_h = 0.5f * (ratio_h * scales[scale] - coordinates_offset);
+            const float scale_w = 0.5F * (ratio_w * scales[scale] - coordinates_offset);
+            const float scale_h = 0.5F * (ratio_h * scales[scale] - coordinates_offset);
 
             // (x1, y1, x2, y2) for transformed box
             p_anchors_wm[scale] = center - scale_w;
@@ -116,13 +123,13 @@ Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     conf.anchors_shape_0 = conf.ratios.size() * conf.scales.size();
 
     if (proposalAttrs.framework == "tensorflow") {
-        conf.coordinates_offset = 0.0f;
+        conf.coordinates_offset = 0.0F;
         conf.initial_clip = true;
         conf.shift_anchors = true;
         conf.round_ratios = false;
         conf.swap_xy = true;
     } else {
-        conf.coordinates_offset = 1.0f;
+        conf.coordinates_offset = 1.0F;
         conf.initial_clip = false;
         conf.shift_anchors = false;
         conf.round_ratios = true;
@@ -159,12 +166,12 @@ void Proposal::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Proposal::execute(const dnnl::stream& strm) {
+void Proposal::execute([[maybe_unused]] const dnnl::stream& strm) {
     try {
-        const float* probabilitiesData = getSrcDataAtPortAs<const float>(PROBABILITIES_IN_IDX);
-        const float* anchorsData = getSrcDataAtPortAs<const float>(ANCHORS_IN_IDX);
-        const float* imgInfoData = getSrcDataAtPortAs<const float>(IMG_INFO_IN_IDX);
-        float* outRoiData = reinterpret_cast<float*>(getDstDataAtPort(ROI_OUT_IDX));
+        const auto* probabilitiesData = getSrcDataAtPortAs<const float>(PROBABILITIES_IN_IDX);
+        const auto* anchorsData = getSrcDataAtPortAs<const float>(ANCHORS_IN_IDX);
+        const auto* imgInfoData = getSrcDataAtPortAs<const float>(IMG_INFO_IN_IDX);
+        auto* outRoiData = reinterpret_cast<float*>(getDstDataAtPort(ROI_OUT_IDX));
         float* outProbData = nullptr;
         if (store_prob) {
             outProbData = reinterpret_cast<float*>(getDstDataAtPort(PROBABILITIES_OUT_IDX));
@@ -176,15 +183,15 @@ void Proposal::execute(const dnnl::stream& strm) {
         // input image height & width
         const float imgHeight = imgInfoData[0];
         const float imgWidth = imgInfoData[1];
-        if (!std::isnormal(imgHeight) || !std::isnormal(imgWidth) || (imgHeight < 0.f) || (imgWidth < 0.f)) {
-            THROW_CPU_NODE_ERR("image info input must have positive image height and width.");
+        if (!std::isnormal(imgHeight) || !std::isnormal(imgWidth) || (imgHeight < 0.F) || (imgWidth < 0.F)) {
+            CPU_NODE_THROW("image info input must have positive image height and width.");
         }
 
         // scale factor for height & width
         const float scaleHeight = imgInfoData[2];
         const float scaleWidth = imgInfoSize == 4 ? imgInfoData[3] : scaleHeight;
-        if (!std::isfinite(scaleHeight) || !std::isfinite(scaleWidth) || (scaleHeight < 0.f) || (scaleWidth < 0.f)) {
-            THROW_CPU_NODE_ERR("image info input must have non negative scales.");
+        if (!std::isfinite(scaleHeight) || !std::isfinite(scaleWidth) || (scaleHeight < 0.F) || (scaleWidth < 0.F)) {
+            CPU_NODE_THROW("image info input must have non negative scales.");
         }
 
         ov::Extensions::Cpu::XARCH::proposal_exec(probabilitiesData,
@@ -195,9 +202,10 @@ void Proposal::execute(const dnnl::stream& strm) {
                                                   roi_indices.data(),
                                                   outRoiData,
                                                   outProbData,
-                                                  conf);
+                                                  conf,
+                                                  context->getCpuParallel());
     } catch (const ov::Exception& e) {
-        THROW_CPU_NODE_ERR(e.what());
+        CPU_NODE_THROW(e.what());
     }
 }
 

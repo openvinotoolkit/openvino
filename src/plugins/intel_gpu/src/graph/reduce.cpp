@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,15 @@
 #include <string>
 
 #include "reduce_shape_inference.hpp"
+#include "openvino/op/reduce_l1.hpp"
+#include "openvino/op/reduce_l2.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(reduce)
@@ -46,7 +55,7 @@ layout reduce_inst::calc_output_layout(reduce_node const& node, kernel_impl_para
         in_dims[reduce_axes[a]] = 1;
     }
 
-    std::vector<int32_t> updated_dims;
+    std::vector<ov::Dimension::value_type> updated_dims;
     if (!desc->keep_dims) {
         // Get unreduced from b-f and x-w range
         for (size_t b_f_index = 0; b_f_index < 2; b_f_index++) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,7 +71,7 @@ void regclass_graph_AttributeVisitor(py::module m) {
 
                     OPENVINO_ASSERT(!_list.empty(), "Attributes list is empty.");
 
-                    PY_TYPE detected_type = Common::utils::check_list_element_type(_list);
+                    PY_TYPE detected_type = Common::utils::check_container_element_type<py::list>(_list);
 
                     switch (detected_type) {
                     case PY_TYPE::STR:
@@ -88,11 +88,11 @@ void regclass_graph_AttributeVisitor(py::module m) {
                         break;
                     default:
                         throw py::type_error("Unsupported attribute type in provided list: " +
-                                             std::string(py::str(_list[0].get_type())));
+                                             std::string(py::str(py::type::of(_list[0]))));
                     }
                 } else {
                     throw py::type_error("Unsupported attribute type: " +
-                                         std::string(py::str(attribute.second.get_type())));
+                                         std::string(py::str(py::type::of(attribute.second))));
                 }
             }
         },

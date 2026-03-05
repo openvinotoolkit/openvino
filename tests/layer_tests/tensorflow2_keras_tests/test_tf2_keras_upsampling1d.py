@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -31,8 +31,7 @@ class TestKerasUpSampling1D(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_keras_upsampling1d_float32(self, params, ie_device, precision, ir_version, temp_dir,
-                                        use_legacy_frontend):
+    def test_keras_upsampling1d_float32(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_keras_upsampling1d_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)

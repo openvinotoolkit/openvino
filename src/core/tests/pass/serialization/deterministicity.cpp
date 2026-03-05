@@ -1,18 +1,22 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
 #include <fstream>
+#include <regex>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
+
+namespace ov::test {
 
 class DeterministicityCommon {
 protected:
@@ -144,6 +148,19 @@ TEST_F(SerializationDeterministicityTest, ModelWithConstants) {
     ASSERT_TRUE(files_equal(bin_1, bin_2));
 }
 
+TEST_F(SerializationDeterministicityTest, ModelWithVariable) {
+    const auto model = ov::test::utils::getModelFromTestModelZoo(
+        ov::util::path_join({SERIALIZED_ZOO, "ir/dynamic_variable.xml"}).string());
+
+    auto expected = ov::test::readModel(model, "");
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
+
+    std::ifstream xml_1(m_out_xml_path_1, std::ios::in);
+    std::ifstream xml_2(model, std::ios::in);
+
+    ASSERT_TRUE(files_equal(xml_1, xml_2));
+}
+
 class SerializationDeterministicityInputOutputTest : public testing::TestWithParam<ov::pass::Serialize::Version>,
                                                      public DeterministicityCommon {
 protected:
@@ -178,16 +195,16 @@ TEST_P(SerializationDeterministicityInputOutputTest, FromOvModel) {
 
     std::shared_ptr<ov::Model> modelRef;
     {
-        auto parameter0 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
+        auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
         parameter0->set_friendly_name("input0");
-        auto result0 = std::make_shared<ov::opset1::Result>(parameter0);
+        auto result0 = std::make_shared<ov::op::v0::Result>(parameter0);
         result0->set_friendly_name("output0");
-        auto parameter1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
+        auto parameter1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
         parameter1->set_friendly_name("input1");
-        auto result1 = std::make_shared<ov::opset1::Result>(parameter1);
+        auto result1 = std::make_shared<ov::op::v0::Result>(parameter1);
         result1->set_friendly_name("output1");
-        modelRef =
-            std::make_shared<ov::Model>(ov::NodeVector{result0, result1}, ov::ParameterVector{parameter0, parameter1});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result0, result1},
+                                               ov::ParameterVector{parameter0, parameter1});
     }
 
     auto& expected1 = modelRef;
@@ -301,16 +318,16 @@ TEST_P(SerializationDeterministicityInputOutputTest, FromOvModelBybPath) {
 
     std::shared_ptr<ov::Model> modelRef;
     {
-        auto parameter0 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
+        auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
         parameter0->set_friendly_name("input0");
-        auto result0 = std::make_shared<ov::opset1::Result>(parameter0);
+        auto result0 = std::make_shared<ov::op::v0::Result>(parameter0);
         result0->set_friendly_name("output0");
-        auto parameter1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
+        auto parameter1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
         parameter1->set_friendly_name("input1");
-        auto result1 = std::make_shared<ov::opset1::Result>(parameter1);
+        auto result1 = std::make_shared<ov::op::v0::Result>(parameter1);
         result1->set_friendly_name("output1");
-        modelRef =
-            std::make_shared<ov::Model>(ov::NodeVector{result0, result1}, ov::ParameterVector{parameter0, parameter1});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result0, result1},
+                                               ov::ParameterVector{parameter0, parameter1});
     }
 
     auto& expected1 = modelRef;
@@ -338,3 +355,41 @@ TEST_P(SerializationDeterministicityInputOutputTest, FromOvModelBybPath) {
 INSTANTIATE_TEST_SUITE_P(DeterministicityInputOutput,
                          SerializationDeterministicityInputOutputTest,
                          ::testing::Values(ov::pass::Serialize::Version::IR_V10, ov::pass::Serialize::Version::IR_V11));
+
+TEST(DeterministicityInputOutput, LayerIdOrder) {
+    const auto p1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    const auto p2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    const auto p3 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    const auto a1 = std::make_shared<op::v1::Add>(p3, p2);
+    const auto a2 = std::make_shared<op::v1::Add>(p2, p1);
+    const auto a3 = std::make_shared<op::v1::Add>(p1, p3);
+    const auto r1 = std::make_shared<op::v0::Result>(a1);
+    const auto r2 = std::make_shared<op::v0::Result>(a2);
+    const auto r3 = std::make_shared<op::v0::Result>(a3);
+    const auto model = std::make_shared<Model>(ResultVector{r3, r1, r2}, ParameterVector{p2, p3, p1}, "param_order");
+    p2->set_friendly_name("expect id 0");
+    p3->set_friendly_name("expect id 1");
+    p1->set_friendly_name("expect id 2");
+    r3->set_friendly_name("expect id 6");
+    r1->set_friendly_name("expect id 7");
+    r2->set_friendly_name("expect id 8");
+
+    std::stringstream xml, bin;
+    ov::pass::Serialize(xml, bin).run_on_model(model);
+
+    // order matters
+    constexpr auto expected_layer_id = util::make_array(R"(<layer id="0" name="expect id 0" type="Parameter")",
+                                                        R"(<layer id="1" name="expect id 1" type="Parameter")",
+                                                        R"(<layer id="2" name="expect id 2" type="Parameter")",
+                                                        R"(<layer id="6" name="expect id 6" type="Result")",
+                                                        R"(<layer id="7" name="expect id 7" type="Result")",
+                                                        R"(<layer id="8" name="expect id 8" type="Result")");
+    const std::string xml_str = xml.str();
+    std::string::size_type pos = 0;
+    for (const auto& n : expected_layer_id) {
+        const auto found = xml_str.find(n, pos);
+        ASSERT_NE(found, std::string::npos) << "Not found: " << n;
+        pos = found;
+    }
+}
+}  // namespace ov::test

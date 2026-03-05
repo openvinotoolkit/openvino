@@ -1,10 +1,20 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_conversion_emitters.hpp"
 
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl::cpu::aarch64;
 using namespace Xbyak_aarch64;
@@ -34,8 +44,13 @@ inline void jit_convert_emitter::cvt_f32_to_f16(const TReg& src, const TReg& dst
 }
 
 template <typename TReg>
-inline void jit_convert_emitter::cvt_f32_to_i32(const TReg& src, const TReg& dst) const {
-    h->fcvtzs(dst.s, src.s);
+inline void jit_convert_emitter::cvt_f32_to_i32(const TReg& src, const TReg& dst, bool is_saturated) const {
+    if (is_saturated) {
+        h->frintn(dst.s, src.s);
+        h->fcvtzs(dst.s, dst.s);
+    } else {
+        h->fcvtzs(dst.s, src.s);
+    }
 }
 
 template <typename TReg>
@@ -98,8 +113,8 @@ void jit_convert_emitter::jit_convert_process(const TReg& src,
                                               ov::element::Type input_type,
                                               ov::element::Type output_type,
                                               bool is_saturated) const {
-    if (input_type == output_type || (!is_saturated && one_of(input_type, ov::element::i8, ov::element::u8) &&
-                                      one_of(output_type, ov::element::i8, ov::element::u8))) {
+    if (input_type == output_type || (!is_saturated && any_of(input_type, ov::element::i8, ov::element::u8) &&
+                                      any_of(output_type, ov::element::i8, ov::element::u8))) {
         if (src.getIdx() != dst.getIdx()) {
             h->mov(dst.b16, src.b16);
         }
@@ -128,11 +143,11 @@ void jit_convert_emitter::jit_convert_process(const TReg& src,
     case ov::element::i32:
         switch (input_type) {
         case ov::element::f32:
-            cvt_f32_to_i32<TReg>(src, dst);
+            cvt_f32_to_i32<TReg>(src, dst, is_saturated);
             break;
         case ov::element::f16:
             cvt_f16_to_f32<TReg>(src, dst);
-            cvt_f32_to_i32<TReg>(dst, dst);
+            cvt_f32_to_i32<TReg>(dst, dst, is_saturated);
             break;
         case ov::element::i8:
         case ov::element::u8:
@@ -167,7 +182,7 @@ void jit_convert_emitter::jit_convert_process(const TReg& src,
     case ov::element::u8:
         switch (input_type) {
         case ov::element::f32:
-            cvt_f32_to_i32<TReg>(src, dst);
+            cvt_f32_to_i32<TReg>(src, dst, is_saturated);
             cvt_i32_to_i16<TReg>(dst, dst, is_saturated);
             cvt_i16_to_byte<TReg>(dst, dst, output_type.is_signed(), is_saturated);
             break;
@@ -177,7 +192,7 @@ void jit_convert_emitter::jit_convert_process(const TReg& src,
             break;
         case ov::element::f16:
             cvt_f16_to_f32<TReg>(src, dst);
-            cvt_f32_to_i32<TReg>(dst, dst);
+            cvt_f32_to_i32<TReg>(dst, dst, is_saturated);
             cvt_i32_to_i16<TReg>(dst, dst, is_saturated);
             cvt_i16_to_byte<TReg>(dst, dst, output_type.is_signed(), is_saturated);
             break;
@@ -195,7 +210,7 @@ void jit_convert_emitter::jit_convert_process(const TReg& src,
     }
 }
 
-jit_convert_emitter::jit_convert_emitter(jit_generator* host,
+jit_convert_emitter::jit_convert_emitter(jit_generator_t* host,
                                          cpu_isa_t host_isa,
                                          const std::shared_ptr<ov::Node>& node,
                                          ov::element::Type exec_prc)
@@ -205,11 +220,11 @@ jit_convert_emitter::jit_convert_emitter(jit_generator* host,
 
 void jit_convert_emitter::validate_types() const {
     OV_CPU_JIT_EMITTER_ASSERT(
-        one_of(input_type, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
+        any_of(input_type, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
         "Unsupported input type: ",
         input_type.get_type_name());
     OV_CPU_JIT_EMITTER_ASSERT(
-        one_of(output_type, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
+        any_of(output_type, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
         "Unsupported output type: ",
         output_type.get_type_name());
 }
@@ -222,7 +237,7 @@ void jit_convert_emitter::emit_data() const {
     jit_emitter::emit_data();
 }
 
-jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator* host,
+jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator_t* host,
                                                                cpu_isa_t host_isa,
                                                                const std::shared_ptr<ov::Node>& node,
                                                                ov::element::Type exec_prc)
@@ -242,12 +257,12 @@ template <cpu_isa_t isa>
 void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_idxs,
                                               const std::vector<size_t>& out_idxs) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_idxs[0]);
-    TReg dst = TReg(out_idxs[0]);
+    auto src = TReg(in_idxs[0]);
+    auto dst = TReg(out_idxs[0]);
     jit_convert_process<TReg>(src, dst, input_type, output_type, false);
 }
 
-jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator* host,
+jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator_t* host,
                                                                cpu_isa_t host_isa,
                                                                const std::shared_ptr<ov::Node>& node,
                                                                ov::element::Type exec_prc)
@@ -267,8 +282,8 @@ template <cpu_isa_t isa>
 void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_idxs,
                                               const std::vector<size_t>& out_idxs) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_idxs[0]);
-    TReg dst = TReg(out_idxs[0]);
+    auto src = TReg(in_idxs[0]);
+    auto dst = TReg(out_idxs[0]);
     jit_convert_process<TReg>(src, dst, input_type, output_type, true);
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "onnx_utils.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/convolution.hpp"
+#include "openvino/op/identity.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
@@ -58,13 +59,14 @@ OPENVINO_TEST(onnx_tensor_names, simple_model) {
     const auto model = convert_model("tensor_names.onnx");
 
     const auto ops = model->get_ordered_ops();
-    EXPECT_TRUE(
-        matching_node_found_in_graph<op::v0::Parameter>(ops, "identity_on_input", {"input", "identity_on_input"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::v0::Parameter>(ops, "input", {"input"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::v16::Identity>(ops, "identity_node_on_input", {"identity_on_input"}));
     EXPECT_TRUE(matching_node_found_in_graph<op::v0::Relu>(ops, "relu", {"relu_t"}));
-    EXPECT_TRUE(matching_node_found_in_graph<op::v0::Abs>(ops, "final_output", {"abs_t", "final_output"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::v0::Abs>(ops, "abs", {"abs_t"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::v16::Identity>(ops, "final_output", {"final_output"}));
     EXPECT_TRUE(matching_node_found_in_graph<op::v0::Result>(model->get_results(),
                                                              "final_output/sink_port_0",
-                                                             {"abs_t", "final_output"}));
+                                                             {"final_output"}));
 }
 
 OPENVINO_TEST(onnx_tensor_names, node_multiple_outputs) {

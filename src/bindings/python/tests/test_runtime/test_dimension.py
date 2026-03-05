@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino import Dimension, Symbol
@@ -10,7 +10,7 @@ def test_dynamic_dimension():
     assert dim.is_dynamic
     assert str(dim) == "?"
     assert dim.to_string() == "?"
-    assert str(dim.__repr__) == "<bound method PyCapsule.__repr__ of <Dimension: ?>>"
+    assert "<Dimension: ?>" in str(dim.__repr__)
 
 
 def test_dynamic_dimension_with_bounds():

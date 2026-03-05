@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,6 @@ public:
     std::vector<int> gatherIndicesValues;
     std::vector<int> axis;
     int64_t batch_dims;
-    ov::pass::low_precision::LayerTransformation::Params params;
     ov::element::Type precisionBeforeFq;
     ov::builder::subgraph::FakeQuantizeOnData fqOnData;
 };

@@ -1,8 +1,9 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "snippets_helpers.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "snippets/op/subgraph.hpp"
 
 namespace ov {

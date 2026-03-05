@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 project (pyopenvino)
@@ -7,8 +7,7 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(OpenVINODeveloperPackage REQUIRED)
 endif()
 
-# Python3_VERSION_MAJOR and Python3_VERSION_MINOR are defined by FindPython3
-set(pyversion python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
+ov_get_pyversion(pyversion)
 
 if(OV_GENERATOR_MULTI_CONFIG)
     set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python/openvino)
@@ -18,7 +17,6 @@ endif()
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
-set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 
 # compile and linker options
@@ -61,6 +59,11 @@ list(FILTER SOURCES EXCLUDE REGEX ".*(frontend/(onnx|tensorflow|paddle|pytorch|j
 
 pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 
+if(NOT ENABLE_GIL_PYTHON_API)
+    # disable GIL for free-threaded python build
+    target_compile_definitions(${PROJECT_NAME} PRIVATE Py_GIL_DISABLED=1)
+endif()
+
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime openvino::offline_transformations)
@@ -87,15 +90,32 @@ if(OV_GENERATOR_MULTI_CONFIG)
         COMMAND_EXPAND_LISTS)
 endif()
 
-# perform copy
-add_custom_command(TARGET ${PROJECT_NAME}
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINOPython_SOURCE_DIR}/src/openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
-        COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../requirements.txt
-        )
+# Collect all Python source files for dependency tracking
+file(GLOB_RECURSE OPENVINO_PYTHON_SOURCE_FILES CONFIGURE_DEPENDS ${OpenVINOPython_SOURCE_DIR}/src/openvino/*.py)
+
+# Create a stamp file to track when copy was last performed
+set(PYTHON_COPY_STAMP_FILE ${CMAKE_CURRENT_BINARY_DIR}/python_copy.stamp)
+
+# Use add_custom_command with OUTPUT to properly track dependencies
+add_custom_command(
+    OUTPUT ${PYTHON_COPY_STAMP_FILE}
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINOPython_SOURCE_DIR}/src/openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+    COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../requirements.txt
+    COMMAND ${CMAKE_COMMAND} -E touch ${PYTHON_COPY_STAMP_FILE}
+    DEPENDS ${OPENVINO_PYTHON_SOURCE_FILES} ${OpenVINOPython_SOURCE_DIR}/requirements.txt
+    COMMENT "Copying Python source files to build directory"
+)
+
+# Create a target that depends on the stamp file
+add_custom_target(copy_python_files ALL DEPENDS ${PYTHON_COPY_STAMP_FILE})
+
+# Ensure pyopenvino depends on copy_python_files so the files are copied when building pyopenvino
+add_dependencies(${PROJECT_NAME} copy_python_files)
 
 ov_python_minimal_api(${PROJECT_NAME})
 ov_add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
+
+ov_build_target_faster(${TARGET_NAME} PCH)
 
 # install steps
 

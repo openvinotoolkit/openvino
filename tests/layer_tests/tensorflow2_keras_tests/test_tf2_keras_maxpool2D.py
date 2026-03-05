@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2024 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -48,7 +48,7 @@ class TestKerasMaxPool2D(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_maxpool2D_pool_strides_float32(self, params, ie_device, precision, temp_dir,
-                                                  ir_version, use_legacy_frontend):
+                                                  ir_version):
         self._test(*self.create_keras_maxpool2D_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)

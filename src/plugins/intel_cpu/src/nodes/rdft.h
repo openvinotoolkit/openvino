@@ -1,20 +1,26 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "common/primitive_hashing_utils.hpp"
+#include <common/utils.hpp>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "kernels/x64/rdft_kernel.hpp"
 #include "node.h"
+#include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 struct RDFTExecutor {
 public:
-    RDFTExecutor(bool inverse) : isInverse(inverse) {}
+    explicit RDFTExecutor(bool inverse) : isInverse(inverse) {}
     virtual ~RDFTExecutor() = default;
     void execute(float* inputPtr,
                  float* outputPtr,
@@ -25,11 +31,13 @@ public:
                  VectorDims inputShape,
                  const VectorDims& outputShape,
                  const VectorDims& inputStrides,
-                 const VectorDims& outputStrides);
+                 const VectorDims& outputStrides,
+                 const CpuParallelPtr& cpuParallel);
 
     std::vector<std::vector<float>> generateTwiddles(const std::vector<int>& signalSizes,
                                                      const std::vector<size_t>& outputShape,
-                                                     const std::vector<int>& axes);
+                                                     const std::vector<int>& axes,
+                                                     const CpuParallelPtr& cpuParallel);
 
     static std::shared_ptr<RDFTExecutor> build(bool inverse, NodeDesc* primDesc = nullptr);
 
@@ -45,7 +53,8 @@ private:
                      size_t signalSize,
                      size_t outputSize,
                      enum dft_type type,
-                     bool parallelize) = 0;
+                     bool parallelize,
+                     const CpuParallelPtr& cpuParallel) = 0;
     virtual void fft(float* input,
                      const float* twiddlesPtr,
                      float* output,
@@ -53,7 +62,8 @@ private:
                      size_t signalSize,
                      size_t outputSize,
                      enum dft_type type,
-                     bool parallelize);
+                     bool parallelize,
+                     const CpuParallelPtr& cpuParallel);
     void dftCommon(float* inputPtr,
                    const float* twiddlesPtr,
                    float* outputPtr,
@@ -62,7 +72,8 @@ private:
                    size_t outputSize,
                    enum dft_type type,
                    bool useFFT,
-                   bool parallelize);
+                   bool parallelize,
+                   const CpuParallelPtr& cpuParallel);
     void dftOnAxis(enum dft_type type,
                    float* inputPtr,
                    float* outputPtr,
@@ -73,7 +84,8 @@ private:
                    const VectorDims& inputStrides,
                    const VectorDims& outputShape,
                    const VectorDims& outputStrides,
-                   const std::vector<size_t>& iteration_range);
+                   const std::vector<size_t>& iterationRange,
+                   const CpuParallelPtr& cpuParallel);
     void rdftNd(float* inputPtr,
                 float* outputPtr,
                 const std::vector<std::vector<float>>& twiddles,
@@ -82,7 +94,8 @@ private:
                 const VectorDims& inputShape,
                 const VectorDims& inputStrides,
                 const VectorDims& outputShape,
-                const VectorDims& outputStrides);
+                const VectorDims& outputStrides,
+                const CpuParallelPtr& cpuParallel);
     void irdftNd(float* inputPtr,
                  float* outputPtr,
                  const std::vector<std::vector<float>>& twiddles,
@@ -91,10 +104,18 @@ private:
                  const VectorDims& inputShape,
                  const VectorDims& inputStrides,
                  const VectorDims& outputShape,
-                 const VectorDims& outputStrides);
-    virtual std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) = 0;
-    std::vector<float> generateTwiddlesFFT(size_t N);
-    std::vector<float> generateTwiddlesCommon(size_t inputSize, size_t outputSize, enum dft_type type, bool useFFT);
+                 const VectorDims& outputStrides,
+                 const CpuParallelPtr& cpuParallel);
+    virtual std::vector<float> generateTwiddlesDFT(size_t inputSize,
+                                                   size_t outputSize,
+                                                   const CpuParallelPtr& cpuParallel,
+                                                   enum dft_type type) = 0;
+    static std::vector<float> generateTwiddlesFFT(size_t N);
+    std::vector<float> generateTwiddlesCommon(size_t signalSize,
+                                              size_t outputSize,
+                                              enum dft_type type,
+                                              bool useFFT,
+                                              const CpuParallelPtr& cpuParallel);
 };
 
 class RDFT : public Node {
@@ -130,7 +151,7 @@ private:
 struct RDFTKey {
     bool isInverse;
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         size_t seed = 0;
         seed = dnnl::impl::hash_combine(seed, isInverse);
         return seed;
@@ -141,6 +162,4 @@ struct RDFTKey {
     }
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

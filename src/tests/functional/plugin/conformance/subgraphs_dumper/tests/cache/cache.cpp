@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <memory>
 
-#include "openvino/op/ops.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/openvino.hpp"
 
@@ -17,6 +16,7 @@
 #include "utils/cache.hpp"
 
 #include "base_test.hpp"
+#include "openvino/op/convert.hpp"
 
 namespace {
 

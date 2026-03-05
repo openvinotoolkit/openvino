@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,11 +27,13 @@ public:
      *
      * @param output_hash_value Reference to output value. By applying hash pass on function, resulting hash value
      * will be set to this variable
+     * @param skip_weights If set to true, simplifies the hashing process by excluding weights values.
      */
-    Hash(uint64_t& output_hash_value);
+    Hash(uint64_t& output_hash_value, bool skip_weights = false);
 
 private:
     uint64_t& m_hash;
+    bool m_skip_weights;
 };
 
 }  // namespace pass

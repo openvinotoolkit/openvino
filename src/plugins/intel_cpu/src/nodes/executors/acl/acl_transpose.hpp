@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ public:
               const std::vector<MemoryDescPtr>& dstDescs,
               const dnnl::primitive_attr& attr) override;
     void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) override;
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::acl;
     }
 
@@ -31,11 +31,11 @@ private:
 
 class ACLTransposeExecutorBuilder : public TransposeExecutorBuilder {
 public:
-    bool isSupported(const TransposeParams& transposeParams,
-                     const std::vector<MemoryDescPtr>& srcDescs,
-                     const std::vector<MemoryDescPtr>& dstDescs) const override {
-        if (!(srcDescs[0]->hasLayoutType(LayoutType::ncsp) && dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
-            !(srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+    [[nodiscard]] bool isSupported([[maybe_unused]] const TransposeParams& transposeParams,
+                                   const std::vector<MemoryDescPtr>& srcDescs,
+                                   const std::vector<MemoryDescPtr>& dstDescs) const override {
+        if ((srcDescs[0]->hasLayoutType(LayoutType::ncsp) || dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
+            (srcDescs[0]->hasLayoutType(LayoutType::nspc) || dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
             DEBUG_LOG("NEPermute does not support layout:",
                       " src: ",
                       srcDescs[0]->serializeFormat(),
@@ -55,7 +55,7 @@ public:
         return true;
     }
 
-    TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
+    [[nodiscard]] TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
         return std::make_shared<ACLTransposeExecutor>(context);
     }
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -118,6 +118,21 @@ public:
     /// idx should be in range 0..get_subgraph_size()-1
     virtual std::shared_ptr<Model> get_subgraph(int idx) const {
         FRONT_END_NOT_IMPLEMENTED(get_subgraph);
+    }
+
+    /// \brief Returns Node object that can be with updated attributes
+    /// such node name, runtime info, etc.
+    /// By default, it returns the same node without update
+    virtual std::shared_ptr<Node> mark_node(std::shared_ptr<Node> ov_node) const {
+        return ov_node;
+    }
+
+    /// \brief PyTorch may have None inputs coming to operations
+    /// Other frontends do not have it per our observation
+    virtual bool input_is_none(size_t index) const {
+        auto num_inputs = get_input_size();
+        FRONT_END_GENERAL_CHECK(index < num_inputs, "Input index is out of allowed indices range");
+        return false;
     }
 
 private:
