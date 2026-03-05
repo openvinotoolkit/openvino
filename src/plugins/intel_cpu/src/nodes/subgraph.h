@@ -71,6 +71,7 @@ private:
 
     static uint64_t getBodyHash(const std::shared_ptr<snippets::op::Subgraph>& snippet);
     uint32_t getBroadcastingMask(const std::vector<VectorDims>& input_shapes);
+    uint32_t getConstantRepackedMask() const;
     std::set<size_t> getConstantInputIndexes() const;
 
     using DataFlowPasses = std::vector<ov::snippets::pass::Manager::PositionedPassBase>;
