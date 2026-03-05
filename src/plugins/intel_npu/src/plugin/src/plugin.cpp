@@ -262,6 +262,9 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(IMPORT_RAW_BLOB);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     REGISTER_OPTION(TURBO);
+    REGISTER_OPTION(ENABLE_WEIGHTLESS);
+    // WEIGHTLESS_BLOB can be removed once
+    // NPU Compilers support ENABLE_WEIGHTLESS
     REGISTER_OPTION(WEIGHTLESS_BLOB);
     REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
@@ -429,10 +432,10 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    auto npuPluginArguments = arguments;
-    exclude_model_ptr_from_map(npuPluginArguments);
+    if (!arguments.empty()) {
+        auto npuPluginArguments = arguments;
+        exclude_model_ptr_from_map(npuPluginArguments);
 
-    if (!npuPluginArguments.empty()) {
         // Need to create a temporary copy of the properties manager. The set of arguments we get might change the list
         // of supported properties, but we cannot alter the global state
         auto copyPropertiesManager = std::make_unique<Properties>(*_propertiesManager);
@@ -442,6 +445,29 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     }
 
     return _propertiesManager->getProperty(name);
+}
+
+bool Plugin::is_property_supported(const std::string& name, const ov::AnyMap& arguments) const {
+    if (!arguments.empty()) {
+        auto npuPluginArguments = arguments;
+        exclude_model_ptr_from_map(npuPluginArguments);
+
+        // Need to create a temporary copy of the properties manager. The set of arguments we get might change the list
+        // of supported properties, but we cannot alter the global state
+        auto copyPropertiesManager = std::make_unique<Properties>(*_propertiesManager);
+
+        try {
+            copyPropertiesManager->setProperty(npuPluginArguments);
+        } catch (...) {
+            // In case of a failure during property setting, we assume the arguments are not valid and thus the
+            // supported properties cannot be reliably determined - return false in this case
+            return false;
+        }
+
+        return copyPropertiesManager->isPropertySupported(name);
+    }
+
+    return _propertiesManager->isPropertySupported(name);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -646,7 +672,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::shared_ptr<intel_npu::IGraph> graph;
 
     auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
-        if (!localConfig.get<WEIGHTLESS_BLOB>()) {
+        if (!localConfig.get<WEIGHTLESS_BLOB>() && !localConfig.get<ENABLE_WEIGHTLESS>() ) {
             return compiler->compile(modelToCompile, config);
         } else {
             check_weightless_cache_attribute_occurrence(model);
