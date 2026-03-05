@@ -384,10 +384,14 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         auto model_path = ov::util::make_path(variants[0].as<std::string>());
         if (ov::util::directory_exists(model_path)) {
             model_path /= "__model__";
-        } else if (model_path.extension() != ".pdmodel") {
-            return false;
+            FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: ", model_path);
+        } else {
+            FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: ", model_path);
+            if (model_path.extension() != ".pdmodel") {
+                return false;
+            }
         }
-        FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: ", model_path);
+
         std::ifstream model_str(model_path, std::ifstream::binary);
         // It is possible to validate here that protobuf can read model from the stream,
         // but it will complicate the check, while it should be as quick as possible
@@ -398,10 +402,13 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         auto model_path = ov::util::make_path(variants[0].as<std::wstring>());
         if (ov::util::directory_exists(model_path)) {
             model_path /= L"__model__";
-        } else if (model_path.extension() != L".pdmodel") {
-            return false;
+            FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: ", model_path);
+        } else {
+            FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: ", model_path);
+            if (model_path.extension() != L".pdmodel") {
+                return false;
+            }
         }
-        FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: ", model_path);
         std::ifstream model_str(model_path, std::ifstream::binary);
         // It is possible to validate here that protobuf can read model from the stream,
         // but it will complicate the check, while it should be as quick as possible

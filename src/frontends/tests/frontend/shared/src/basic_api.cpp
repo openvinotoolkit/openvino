@@ -184,6 +184,6 @@ TEST_P(FrontEndBasicTest, load_model_not_exists_at_path) {
     auto fem = ov::frontend::FrontEndManager();
     auto fe = fem.load_by_framework(m_feName);
 
-    EXPECT_FALSE(fe->supported({model_file_path}));
+    OV_EXPECT_THROW(fe->supported({model_file_path}), ov::Exception, testing::HasSubstr(error_msg));
     OV_EXPECT_THROW(fe->load(model_file_path), ov::Exception, testing::HasSubstr(error_msg));
 }
