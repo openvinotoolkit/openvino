@@ -9,25 +9,24 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestScaledDotProductAttention(PytorchLayerTest):
     def _prepare_input(self, dtype):
-        rng = np.random.default_rng(42)
-        return (rng.standard_normal((1, 2, 8, 4), dtype=dtype),
-                rng.standard_normal((1, 2, 16, 4), dtype=dtype),
-                rng.standard_normal((1, 2, 16, 6), dtype=dtype))
+        return (self.random.randn(1, 2, 8, 4, dtype=dtype),
+                self.random.randn(1, 2, 16, 4, dtype=dtype),
+                self.random.randn(1, 2, 16, 6, dtype=dtype))
 
     def create_model(self, mask, is_causal, dtype, mask_shape, enable_gqa):
         import torch.nn.functional as F
         import torch
 
+        # Generate mask outside inner class to use test's seeded random
+        attn_mask = None if not mask else torch.from_numpy(
+            self.random.randint(0, 2, mask_shape, dtype=dtype))
+
         class aten_sdpa(torch.nn.Module):
             def __init__(self, mask=False, is_causal=False,
                          dtype=np.float32, mask_shape=None, enable_gqa=False) -> None:
                 super().__init__()
-                self.mask = None if not mask else torch.from_numpy(
-                    np.random.randint(0, 2, mask_shape).astype(dtype))
-                self.is_causal = is_causal
-                if is_causal and mask:
-                    self.mask.to(torch.bool)
-                    self.is_causal = False
+                self.mask = attn_mask
+                self.is_causal = False if (is_causal and mask) else is_causal
                 self.enable_gqa = enable_gqa
 
             def forward(self, query, key, value):
@@ -39,7 +38,6 @@ class TestScaledDotProductAttention(PytorchLayerTest):
                 return a, b
 
         return (aten_sdpa(mask, is_causal, dtype, mask_shape, enable_gqa),
-                None,
                 'aten::scaled_dot_product_attention')
 
     @pytest.mark.nightly
@@ -92,26 +90,25 @@ class TestScaledDotProductAttention(PytorchLayerTest):
 
 class TestScaledDotProductAttentionWithGroupQuery(PytorchLayerTest):
     def _prepare_input(self, dtype):
-        rng = np.random.default_rng(42)
         # with group size equal to 2 = 6 / 3
-        return (rng.standard_normal((1, 7, 6, 8, 4), dtype=dtype),
-                rng.standard_normal((1, 7, 3, 16, 4), dtype=dtype),
-                rng.standard_normal((1, 7, 3, 16, 6), dtype=dtype))
+        return (self.random.randn(1, 7, 6, 8, 4, dtype=dtype),
+                self.random.randn(1, 7, 3, 16, 4, dtype=dtype),
+                self.random.randn(1, 7, 3, 16, 6, dtype=dtype))
 
     def create_model(self, mask, is_causal, dtype, mask_shape):
         import torch.nn.functional as F
         import torch
 
+        # Generate mask outside inner class to use test's seeded random
+        attn_mask = None if not mask else torch.from_numpy(
+            self.random.randint(0, 2, mask_shape, dtype=dtype))
+
         class aten_sdpa(torch.nn.Module):
             def __init__(self, mask=False, is_causal=False,
                          dtype=np.float32, mask_shape=None) -> None:
                 super().__init__()
-                self.mask = None if not mask else torch.from_numpy(
-                    np.random.randint(0, 2, mask_shape).astype(dtype))
-                self.is_causal = is_causal
-                if is_causal and mask:
-                    self.mask.to(torch.bool)
-                    self.is_causal = False
+                self.mask = attn_mask
+                self.is_causal = False if (is_causal and mask) else is_causal
 
             def forward(self, query, key, value):
                 # torch export struggles with dynamic scale
@@ -122,7 +119,6 @@ class TestScaledDotProductAttentionWithGroupQuery(PytorchLayerTest):
                 return a, b
 
         return (aten_sdpa(mask, is_causal, dtype, mask_shape),
-                None,
                 'aten::scaled_dot_product_attention')
 
     @pytest.mark.nightly

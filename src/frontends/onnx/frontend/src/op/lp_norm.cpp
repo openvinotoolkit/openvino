@@ -27,7 +27,7 @@ ov::OutputVector lp_norm(const ov::frontend::onnx::Node& node) {
                      p_norm == 1 || p_norm == 2,
                      "Invalid `p` attribute value: ",
                      p_norm,
-                     "Only normalization of 1st or 2nd order is supported.");
+                     " Only normalization of 1st or 2nd order is supported.");
 
     const auto normalize_axis_const = v0::Constant::create(ov::element::i64, {}, {normalize_axis});
     std::shared_ptr<ov::Node> norm =

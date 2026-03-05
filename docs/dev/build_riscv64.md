@@ -13,18 +13,14 @@ The software was validated on the following devices:
 ## Software requirements
 
 - [CMake](https://cmake.org/download/) 3.13 or higher
-- GCC 7.5 or higher (for non-RVV) / [xuantie-gnu-toolchain](https://github.com/XUANTIE-RV/xuantie-gnu-toolchain) (for RVV)
+- GCC 7.5 or higher (for non-RVV) / [riscv-gnu-toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain.git) (for RVV)
 - Python 3.10 for OpenVINO Runtime Python API
 
 ## How to build
-Currently, there are three ways to build OpenVINO Runtime for 64-bit RISC-V platforms:
+Currently, there are two ways to build OpenVINO Runtime for 64-bit RISC-V platforms:
 
-1. **Recommended**. The build with vectorized (using RVV intrinsics) primitives for limited scope of operations from [`SHL`](https://github.com/XUANTIE-RV/csi-nn2) operations using [`xuantie-gnu-toolchain`](https://github.com/XUANTIE-RV/).
-This GNU Compiler Toolchain supports RVV 0.7.1, ratified RVV 1.0 and Xuantie-specific instruction sets.
-The vector intrinsics don't use the common prefix `__riscv_`.
-This method provides the best performance available at the moment.
-2. The build without optimized primitives implemented with RVV intrinsics using [`riscv-gnu-toolchain`](https://github.com/riscv-collab/riscv-gnu-toolchain.git). This GNU Compiler Toolchain supports RVV 0.7.1 and ratified RVV 1.0. The vector intrinsics use the common prefix `__riscv_`. However, as mentioned earlier, this build method doesn't yet provide optimized primitives implemented using the RVV intrinsics.
-3. The build without optimized primitives using installed Linux packages. The compilers in these packages don't support RVV intrinsics.
+1. The build with RVV intrinsics using [`riscv-gnu-toolchain`](https://github.com/riscv-collab/riscv-gnu-toolchain.git). This GNU Compiler Toolchain supports RVV 0.7.1 and ratified RVV 1.0. The vector intrinsics use the common prefix `__riscv_`.
+2. The build without optimized primitives using installed Linux packages. The compilers in these packages don't support RVV intrinsics.
 
 > **NOTE**: Currently CPU Plugin in OpenVINO supports [Just-In-Time (JIT) code generation](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/emitters/README.md) for limited scope of operations on devices with RVV 1.0.
   All three described above ways to build OpenVINO Runtime for 64-bit RISC-V supports JIT code generation.
@@ -32,14 +28,7 @@ This method provides the best performance available at the moment.
 ### Steps
 
 0. Prerequisite:
-- For target with vectorized primitives from `SHL` - build `xuantie-gnu-toolchain` and `qemu`:
-   ```sh
-   git clone https://github.com/XUANTIE-RV/xuantie-gnu-toolchain.git
-   cd xuantie-gnu-toolchain
-   ./configure --prefix=<xuantie_install_path>
-   make linux build-qemu -j$(nproc)
-   ```
-- For target without optimized primitives using `riscv-gnu-toolchain`:
+- For target with RVV intrinsics using `riscv-gnu-toolchain`:
    ```sh
    git clone https://github.com/riscv-collab/riscv-gnu-toolchain.git
    cd riscv-gnu-toolchain
@@ -71,16 +60,7 @@ This method provides the best performance available at the moment.
    ``` 
 
 4. To cross compile OpenVINO Runtime for RISC-V devices, run `cmake` with specified `CMAKE_TOOLCHAIN_FILE` and `RISCV_TOOLCHAIN_ROOT` (the last one is needed only for build using GNU toolchain).
-- For target with vectorized primitives from `SHL`:
-   ```sh
-   cmake .. \
-     -DCMAKE_BUILD_TYPE=Release \
-     -DCMAKE_INSTALL_PREFIX=<openvino_install_path> \
-     -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/<toolchain_file> \
-     -DRISCV_TOOLCHAIN_ROOT=<xuantie_install_path>
-   ```
-   > **NOTE**: To build OpenVINO Runtime for different versions of RVV, you just need to specify corresponding toolchain files. For example, you can replace `<toolchain_file>` with `riscv64-071-xuantie-gnu.toolchain.cmake` for RVV 0.7.1 and `riscv64-100-xuantie-gnu.toolchain.cmake` for RVV 1.0 respectively.
-- For target without optimized primitives using `riscv-gnu-toolchain`:
+- For target with RVV intrinsics using `riscv-gnu-toolchain`:
    ```sh
    cmake .. \
      -DCMAKE_BUILD_TYPE=Release \
@@ -134,20 +114,19 @@ When installing packages using the utilities `apt` or `apt-get` the packages are
 ### RISC-V Emulation software
 In order to test applications without hardware one can use emulation software. The command line example to launch executable file with riscv64 emulation:
 ```sh
-<xuantie_install_path>/bin/qemu-riscv64 -cpu=<target_cpu> <executable_file_path>
+<riscv_toolchain_root>/bin/qemu-riscv64 -cpu=<target_cpu> <executable_file_path>
 ```
+`<riscv_toolchain_root>` matches the `RISCV_TOOLCHAIN_ROOT` used during the build (for example, `/opt/riscv`), or use `qemu-riscv64` from your system `PATH`.
 
 For example, to emulate RVV 0.7.1:
 ```sh
-<xuantie_install_path>/bin/qemu-riscv64 -cpu rv64,x-v=true,vext_spec=v0.7.1 <executable_file_path>
+<riscv_toolchain_root>/bin/qemu-riscv64 -cpu rv64,x-v=true,vext_spec=v0.7.1 <executable_file_path>
 ```
 
 Or to emulate RVV 1.0:
 ```sh
-<xuantie_install_path>/bin/qemu-riscv64 -cpu rv64,x-v=true,vext_spec=v1.0 <executable_file_path>
+<riscv_toolchain_root>/bin/qemu-riscv64 -cpu rv64,x-v=true,vext_spec=v1.0 <executable_file_path>
 ```
-
-> **Note**: If you are using official `qemu` instead of modified version by Xuantie, you should specify the CPU model with `-cpu rv64,v=true,vext_spec=v1.0` (for `qemu` version greater than `8.0`). 
 
 ## See also
 
@@ -155,4 +134,3 @@ Or to emulate RVV 1.0:
  * [OpenVINO Developer Documentation](index.md)
  * [OpenVINO Get Started](./get_started.md)
  * [How to build OpenVINO](build.md)
-
