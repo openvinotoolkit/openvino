@@ -18,7 +18,7 @@ public:
     /// \brief Constructs a MOE3GemmFusedCompressed operation with config only
     /// \param args The input tensors, in the following order:
     ///   0: hidden_states - input tensor with hidden representations
-    ///   1: routing_weights - [num_seq, num_experts] raw routing logits (before softmax/sigmoid)
+    ///   1: routing_weights - [num_seq, num_experts] routing weights for all experts
     ///   2: w0_weight - expert weights for first projection,
     ///   shape [num_experts, inter_size, group_num, group_size]
     ///   3: w0_scale - expert scale for first projection for compressed experts,

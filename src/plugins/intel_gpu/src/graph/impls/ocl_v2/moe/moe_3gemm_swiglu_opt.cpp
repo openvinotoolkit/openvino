@@ -460,7 +460,6 @@ protected:
 static size_t get_seq_len(cldnn::layout& layout) {
     auto shape = layout.get_shape();
     size_t seq_len = static_cast<size_t>(shape[0]);
-    // Note: this change may be not safe in general case
     if (shape.size() >= 3) {
         seq_len = static_cast<size_t>(shape[0] * shape[1]);
     }
@@ -901,12 +900,13 @@ public:
         }
 
         // Don't change the order of stages
-        auto cur_moe_prim = node.as<moe_3gemm_fused_compressed>().get_primitive();
-        bool is_sigmoid_routing = (cur_moe_prim->_config.routing_type == MOECompressed::RoutingType::SIGMOID_BIAS);
-        if (is_sigmoid_routing) {
+        auto routing_type = node.as<moe_3gemm_fused_compressed>().get_primitive()->_config.routing_type;
+        if (routing_type == MOECompressed::RoutingType::SOFTMAX) {
+            add_stage(softmax_topk, params);
+        } else if (routing_type == MOECompressed::RoutingType::SIGMOID_BIAS) {
             add_stage(sigmoid_bias_topk, params);
         } else {
-            add_stage(softmax_topk, params);
+            OPENVINO_THROW("Unsupported routing type for moe_3gemm_swiglu_opt_impl: ", static_cast<int>(routing_type));
         }
         add_stage(gather, params);
         add_stage(scatter, params);
@@ -1780,8 +1780,16 @@ public:
         // routing: softmax+topk or sigmoid+bias+topk
         auto lws_size = config.num_expert;
         cldnn::event::ptr topk_event;
-        bool is_sigmoid_routing = (config.routing_type == MOECompressed::RoutingType::SIGMOID_BIAS);
-        if (is_sigmoid_routing) {
+        if (config.routing_type == MOECompressed::RoutingType::SOFTMAX) {
+            topk_event = execute_stage(events,
+                                       instance,
+                                       *softmax_topk,
+                                       {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS))},
+                                       {scratch.topk_id, scratch.topk_weights},
+                                       {static_cast<size_t>(token_num), lws_size},
+                                       {1, lws_size},
+                                       instance.needs_completion_event());
+        } else if (config.routing_type == MOECompressed::RoutingType::SIGMOID_BIAS) {
             topk_event = execute_stage(events,
                                        instance,
                                        *sigmoid_bias_topk,
@@ -1792,14 +1800,7 @@ public:
                                        {1, lws_size},
                                        instance.needs_completion_event());
         } else {
-            topk_event = execute_stage(events,
-                                       instance,
-                                       *softmax_topk,
-                                       {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS))},
-                                       {scratch.topk_id, scratch.topk_weights},
-                                       {static_cast<size_t>(token_num), lws_size},
-                                       {1, lws_size},
-                                       instance.needs_completion_event());
+            OPENVINO_THROW("Unsupported routing type ", static_cast<int>(config.routing_type));
         }
 
         // Single token is a special case, we don't need to do gather/scatter,

@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include <intel_gpu/primitives/data.hpp>
 #include <numeric>
 #include <vector>
@@ -2701,7 +2705,7 @@ std::vector<uint8_t> w2_zp_data = {
     32, 32, 17, 1,  0,  33, 33, 17, 18, 18, 34, 17, 32, 0,  17, 32, 1,  1,  17, 18, 32, 16, 16, 16, 18, 34, 18, 16, 17, 32, 17, 17, 34, 0,
 };
 
-ov::float16 output_ref[128] = {
+ov::float16 output_ref_softmax[128] = {
     0.153564453125,
     0.0797119140625,
     0.0118408203125,
