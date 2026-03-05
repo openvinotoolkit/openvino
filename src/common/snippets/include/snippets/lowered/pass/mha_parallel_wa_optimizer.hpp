@@ -49,9 +49,9 @@ public:
      * @return true if split was successfull, otherwise false
      */
     static bool split(const ov::Shape& shape,
-                     size_t optimal_parallelism_work_amount,
-                     size_t& batch_m_dim,
-                     size_t& new_m_dim);
+                      size_t optimal_parallelism_work_amount,
+                      size_t& batch_m_dim,
+                      size_t& new_m_dim);
 
 private:
     /**
