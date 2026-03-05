@@ -188,7 +188,8 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
         }
 
         srcTensorInfo.set_quantization_info(arm_compute::QuantizationInfo(1.0F));
-        dstTensorInfo.set_quantization_info(getDstQuantizationInfo(fqInputScale, fqInputShift, dstDescs[0]->getPrecision()));
+        dstTensorInfo.set_quantization_info(
+            getDstQuantizationInfo(fqInputScale, fqInputShift, dstDescs[0]->getPrecision()));
     }
 
     srcTensor.allocator()->init(srcTensorInfo);

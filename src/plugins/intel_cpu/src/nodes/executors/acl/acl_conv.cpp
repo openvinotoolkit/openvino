@@ -154,10 +154,11 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
     aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0));
     aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(
         weightScale.empty() ? arm_compute::QuantizationInfo(1.0F) : arm_compute::QuantizationInfo(weightScale));
-    const auto dstPrecision =
-        aclMemoryInfos[ACLArgs::ACL_DST]->data_type() == arm_compute::DataType::QASYMM8_SIGNED ? ov::element::i8
-                                                                                                 : ov::element::u8;
-    aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(getDstQuantizationInfo(fqInputScale, fqInputShift, dstPrecision));
+    const auto dstPrecision = aclMemoryInfos[ACLArgs::ACL_DST]->data_type() == arm_compute::DataType::QASYMM8_SIGNED
+                                  ? ov::element::i8
+                                  : ov::element::u8;
+    aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(
+        getDstQuantizationInfo(fqInputScale, fqInputShift, dstPrecision));
 
     return arm_compute::NEConvolutionLayer::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
                                                      aclMemoryInfos[ACLArgs::ACL_WEI].get(),

@@ -345,8 +345,8 @@ void Pooling::getSupportedDescriptors() {
     arm_compute::TensorInfo dstTensorInfo = arm_compute::TensorInfo(
         shapeCast(isDynamicNode() ? MemoryDescUtils::makeDummyShape(childShape).getDims() : childShape.getDims()),
         1,
-        convertToQuantizedType(precisionToAclDataType(fusedWith.empty() ? outputPrecision
-                                                                          : fusedWith.back()->getOriginalOutputPrecisionAtPort(0))),
+        convertToQuantizedType(precisionToAclDataType(
+            fusedWith.empty() ? outputPrecision : fusedWith.back()->getOriginalOutputPrecisionAtPort(0))),
         dataLayout);
     arm_compute::Pooling3dLayerInfo pool3d_info;
     arm_compute::PoolingLayerInfo pool_info;
