@@ -179,19 +179,16 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
 
     if (any_of(srcDescs[0]->getPrecision(), ov::element::u8, ov::element::i8) ||
         any_of(dstDescs[0]->getPrecision(), ov::element::u8, ov::element::i8)) {
-        float dstScale = 1.0F;
-        int dstShift = 0;
+        std::vector<float> fqInputScale;
+        std::vector<float> fqInputShift;
 
         if (const auto* const fq = std::any_cast<FakeQuantizePostOp>(poolingAttrs.postOps.data())) {
-            const auto& fqInputScale = fq->inputScale();
-            const auto& fqInputShift = fq->inputShift();
-
-            dstScale = fqInputScale.empty() ? 1.0F : 1.0F / fqInputScale[0];
-            dstShift = fqInputShift.empty() ? 0 : static_cast<int>(fqInputShift[0]);
+            fqInputScale = fq->inputScale();
+            fqInputShift = fq->inputShift();
         }
 
         srcTensorInfo.set_quantization_info(arm_compute::QuantizationInfo(1.0F));
-        dstTensorInfo.set_quantization_info(arm_compute::QuantizationInfo(dstScale, dstShift));
+        dstTensorInfo.set_quantization_info(getDstQuantizationInfo(fqInputScale, fqInputShift, dstDescs[0]->getPrecision()));
     }
 
     srcTensor.allocator()->init(srcTensorInfo);

@@ -345,7 +345,8 @@ void Pooling::getSupportedDescriptors() {
     arm_compute::TensorInfo dstTensorInfo = arm_compute::TensorInfo(
         shapeCast(isDynamicNode() ? MemoryDescUtils::makeDummyShape(childShape).getDims() : childShape.getDims()),
         1,
-        convertToQuantizedType(precisionToAclDataType(outputPrecision)),
+        convertToQuantizedType(precisionToAclDataType(fusedWith.empty() ? outputPrecision
+                                                                          : fusedWith.back()->getOriginalOutputPrecisionAtPort(0))),
         dataLayout);
     arm_compute::Pooling3dLayerInfo pool3d_info;
     arm_compute::PoolingLayerInfo pool_info;
@@ -696,9 +697,11 @@ void Pooling::initSupportedPrimitiveDescriptors() {
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
             for (size_t i = 0; i < config.outConfs.size(); i++) {
+                const auto outputPrecision = (i == 0 && !fusedWith.empty())
+                                                 ? fusedWith.back()->getOriginalOutputPrecisionAtPort(0)
+                                                 : getOriginalOutputPrecisionAtPort(i);
                 config.outConfs[i].setMemDesc(
-                    creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(i),
-                                                             getOutputShapeAtPort(i)));
+                    creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(i)));
                 dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
             }
 

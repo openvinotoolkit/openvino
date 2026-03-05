@@ -71,11 +71,12 @@ bool match_acl_int8_pooling_fq_chain(const std::shared_ptr<const ov::Node>& node
     if (!node) {
         return false;
     }
+    const auto pool = node->get_input_node_shared_ptr(0);
     // returns true if Pooling-FQ chain will be fused into int8 pooling and handled by ACL executor
     return ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
            any_of(node->get_output_element_type(0), ov::element::Type_t::u8, ov::element::Type_t::i8) &&
-           (ov::is_type<const ov::op::v1::AvgPool>(node->get_input_node_shared_ptr(0)) ||
-            ov::is_type<const ov::op::v1::MaxPool>(node->get_input_node_shared_ptr(0)));
+           (ov::is_type_any_of<ov::op::v1::AvgPool, ov::op::v14::AvgPool, ov::op::v16::AvgPool>(pool) ||
+            ov::is_type_any_of<ov::op::v1::MaxPool, ov::op::v8::MaxPool, ov::op::v14::MaxPool>(pool));
 }
 
 bool match_acl_int8_conv_fq_chain(const std::shared_ptr<const ov::Node>& node) {

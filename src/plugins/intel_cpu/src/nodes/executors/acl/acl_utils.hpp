@@ -3,6 +3,9 @@
 //
 #pragma once
 
+#include <vector>
+
+#include "arm_compute/core/QuantizationInfo.h"
 #include "arm_compute/core/Types.h"
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -213,5 +216,22 @@ arm_compute::ActivationLayerInfo getActivationLayerInfo(Algorithm algorithm, flo
  * @param algorithm activation function of openvino representation
  */
 bool checkActivationLayerInfo(Algorithm algorithm);
+
+/**
+ * @brief Build ACL destination quantization info from FakeQuantize input scale/shift.
+ * @param fqInputScale input scale from FakeQuantize post op (per-tensor expected by ACL destination)
+ * @param fqInputShift input shift from FakeQuantize post op
+ */
+inline arm_compute::QuantizationInfo getDstQuantizationInfo(const std::vector<float>& fqInputScale,
+                                                            const std::vector<float>& fqInputShift,
+                                                            const ov::element::Type& dstPrecision) {
+    const float dstScale = fqInputScale.empty() ? 1.0F : 1.0F / fqInputScale[0];
+    int dstShift = fqInputShift.empty() ? 0 : static_cast<int>(fqInputShift[0]);
+
+    if (dstPrecision == ov::element::i8) {
+        dstShift -= 128;
+    }
+    return arm_compute::QuantizationInfo(dstScale, dstShift);
+}
 
 }  // namespace ov::intel_cpu

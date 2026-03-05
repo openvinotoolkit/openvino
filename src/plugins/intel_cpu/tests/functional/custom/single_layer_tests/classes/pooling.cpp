@@ -21,20 +21,27 @@ using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
 namespace {
 
-std::shared_ptr<ov::Node> addInt8MatMul(const std::shared_ptr<ov::Node>& pooling,
-                                        const ov::element::Type& inPrc,
-                                        const size_t channels) {
-    const auto transpose_order = ov::op::v0::Constant::create(ov::element::i32, {4}, {0, 2, 3, 1});
-    auto pooling_nhwc = std::make_shared<ov::op::v1::Transpose>(pooling, transpose_order);
-    auto matmul_const = ov::test::utils::make_constant(ov::element::i8, {channels, 32});
-    auto convert_mm = std::make_shared<ov::op::v0::Convert>(matmul_const, inPrc);
-    auto multiply_mm = std::make_shared<ov::op::v1::Multiply>(convert_mm, ov::op::v0::Constant::create(inPrc, {}, {0.1f}));
-    auto matmul = std::make_shared<ov::op::v0::MatMul>(pooling_nhwc, multiply_mm, false, false);
-    return ov::test::utils::make_fake_quantize(matmul, inPrc, 256, {});
+std::shared_ptr<ov::Model> addInt8FQAndMatMul(const ov::ParameterVector& params,
+                                              const std::shared_ptr<ov::Node>& pooling,
+                                              const ov::element::Type& inPrc,
+                                              const std::vector<std::vector<ov::Shape>>& targetStaticShapes) {
+    auto fq_after = ov::test::utils::make_fake_quantize(pooling, inPrc, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+    const auto channels = targetStaticShapes.front().front().at(1);
+
+    const auto transposeOrder = ov::op::v0::Constant::create(ov::element::i32, {4}, {0, 2, 3, 1});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(fq_after, transposeOrder);
+    transpose->get_rt_info() = CPUTestsBase::makeCPUInfo({nchw}, {nchw}, {});
+
+    std::vector<int8_t> matmulData(channels, 1);
+    auto matmulConst = ov::test::utils::make_constant(ov::element::i8, {channels, 1}, matmulData);
+    auto convert = std::make_shared<ov::op::v0::Convert>(matmulConst, inPrc);
+    auto multiply = std::make_shared<ov::op::v1::Multiply>(convert, ov::op::v0::Constant::create(inPrc, {1, 1}, {0.005f}));
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(transpose, multiply, false, false);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(matmul->output(0))};
+    return std::make_shared<ov::Model>(results, params, "PoolingCPU");
 }
 
 }  // namespace
@@ -111,8 +118,7 @@ void PoolingLayerCPUTest::SetUp() {
     std::shared_ptr<ov::Node> poolInput = params[0];
     if (isInt8) {
         abs_threshold = 2e-2;
-        ov::Shape newShape(poolInput->get_output_partial_shape(0).size(), 1);
-        poolInput = ov::test::utils::make_fake_quantize(poolInput, inPrc, 256, newShape);
+        poolInput = ov::test::utils::make_fake_quantize(poolInput, inPrc, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
     }
 
     std::shared_ptr<ov::Node> pooling;
@@ -123,13 +129,10 @@ void PoolingLayerCPUTest::SetUp() {
     }
     pooling->get_rt_info() = getCPUInfo();
 
-// On ARM architectures, attach a dummy MatMul after pooling to keep pooling output in low precision,
-// since there is no native support for fp output
+// On ARM architectures, attach FQ->MatMul after int8 AvgPool.
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     if (isInt8) {
-        const auto channels = targetStaticShapes.front().front().at(1);
-        auto fq_after = addInt8MatMul(pooling, inPrc, channels);
-        function = create_ov_model(inPrc, params, fq_after, "PoolingCPU");
+        function = addInt8FQAndMatMul(params, pooling, inPrc, targetStaticShapes);
         return;
     }
 #endif
@@ -195,20 +198,16 @@ void AvgPoolingV14LayerCPUTest::SetUp() {
     std::shared_ptr<ov::Node> poolInput = params[0];
     if (isInt8) {
         abs_threshold = 2e-2;
-        ov::Shape newShape(poolInput->get_output_partial_shape(0).size(), 1);
-        poolInput = ov::test::utils::make_fake_quantize(poolInput, inPrc, 256, newShape);
+        poolInput = ov::test::utils::make_fake_quantize(poolInput, inPrc, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
     }
 
     auto pooling = std::make_shared<ov::op::v14::AvgPool>(poolInput, stride, padBegin, padEnd, kernel, excludePad, roundingType, padType);
     pooling->get_rt_info() = getCPUInfo();
 
-// On ARM architectures, attach a dummy MatMul after pooling to keep pooling output in low precision,
-// since there is no native support for fp output
+// On ARM architectures, attach FQ->MatMul after int8 Pooling
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     if (isInt8) {
-        const auto channels = targetStaticShapes.front().front().at(1);
-        auto fq_after = addInt8MatMul(pooling, inPrc, channels);
-        function = create_ov_model(inPrc, params, fq_after, "PoolingCPU");
+        function = addInt8FQAndMatMul(params, pooling, inPrc, targetStaticShapes);
         return;
     }
 #endif
