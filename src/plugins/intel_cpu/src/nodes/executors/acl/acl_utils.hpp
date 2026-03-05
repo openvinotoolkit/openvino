@@ -228,7 +228,9 @@ inline arm_compute::QuantizationInfo getDstQuantizationInfo(const std::vector<fl
     const float dstScale = fqInputScale.empty() ? 1.0F : 1.0F / fqInputScale[0];
     int dstShift = fqInputShift.empty() ? 0 : static_cast<int>(fqInputShift[0]);
 
-    if (dstPrecision == ov::element::i8) {
+    // FakeQuantize input shift for signed paths may come either in signed-domain form (expected by ACL)
+    // or in unsigned-domain form (offset by 128). Normalize only the latter.
+    if (dstPrecision == ov::element::i8 && dstShift >= 128) {
         dstShift -= 128;
     }
     return {dstScale, dstShift};
