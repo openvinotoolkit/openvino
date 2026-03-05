@@ -143,14 +143,11 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         cldnn::memory::ptr mem = nullptr;
         size_t upload_bytes = constLayout.bytes_count();
         ov::Shape upload_shape = const_shape;
-        const size_t total_experts = const_shape.empty() ? static_cast<size_t>(0) : const_shape[0];
-        size_t upload_experts = upload_shape.empty() ? static_cast<size_t>(0) : upload_shape[0];
 
         if (partial_moe_const_upload && constLayout.bytes_count() > 0 && !const_shape.empty() && const_shape[0] > 0) {
             upload_shape[0] = std::min<size_t>(const_shape[0], otd_expert_num);
             auto upload_layout = cldnn::layout(upload_shape, out_dtype, constFormat);
             auto upload_mem = p.get_engine().allocate_memory(upload_layout, false);
-            upload_experts = upload_shape[0];
             mem = p.get_engine().reinterpret_buffer(*upload_mem, constLayout);
             upload_bytes = upload_layout.bytes_count();
             std::cout << "[EXPERIMENTAL] OTD partial constant allocation at compile stage: "
