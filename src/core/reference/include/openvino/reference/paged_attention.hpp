@@ -526,11 +526,14 @@ void paged_attention(std::uintptr_t node_key,
                 continue;
             }
 
-            // For out_scores aggregation, decide whether to include this query
+            // For out_scores aggregation, decide whether to include this query.
+            // score_window_i == 0 → disabled: no accumulation, output 1 stays zero.
+            // score_window_i  > 0 → only the last score_window_i tokens contribute.
+            // score_window_i  < 0 → all tokens contribute (unbounded window).
             const bool include_in_scores =
-                (scores_acc.empty())
+                (scores_acc.empty() || score_window_i == 0)
                     ? false
-                    : (score_window_i <= 0 ? true : (static_cast<std::int32_t>(new_len - i) <= score_window_i));
+                    : (score_window_i < 0 ? true : (static_cast<std::int32_t>(new_len - i) <= score_window_i));
 
             const T* qrow = query + token * query_features;
 

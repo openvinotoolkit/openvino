@@ -43,7 +43,7 @@ public:
     /// 14  rotated_block_indices                         [num_rotated_blocks] or empty, i32
     /// 15  rotation_deltas                               [num_rotated_blocks] or [num_rotated_blocks, block_size], i32
     /// 16  rotation_trig_lut                             [max_context_len * S] or [max_context_len, S]
-    /// 17  xattention_threshold                          [B_seq, H] or empty
+    /// 17  xattention_threshold                          [] scalar or [B_seq]
     /// 18  xattention_block_size                         [] scalar, i32
     /// 19  xattention_stride                             [] scalar, i32
     /// 20  sinks                                         [1, H, 1, 1] or empty

@@ -67,7 +67,7 @@ public:
         return result.str();
     }
 
-private:
+protected:
     // ---------- Model construction (PA only) ----------
     static std::shared_ptr<ov::op::v0::Parameter> make_param(const ov::PartialShape& ps,
                                                              ov::element::Type et,
@@ -88,7 +88,9 @@ private:
                                                      int32_t max_ctx_len = 1024,
                                                      bool use_rotation = false,
                                                      int64_t block_size = 32,
-                                                     int32_t adaptive_rkv_eviction_size = 0) {
+                                                     int32_t adaptive_rkv_eviction_size = 0,
+                                                     int32_t score_window_val = -1,
+                                                     bool include_score_output = false) {
         // PA expects q/k/v as [tokens, features]
         auto q = make_param({ov::Dimension::dynamic(), ov::Dimension::dynamic()}, data_type, "q");
         auto k = make_param({ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
@@ -122,7 +124,9 @@ private:
             alibi_slopes = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0}, std::vector<float>{});
         }
         auto max_context_len = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{max_ctx_len});
-        auto score_aggregation_window = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{max_ctx_len});
+        // score_window_val < 0 → use max_ctx_len (all tokens, positive window); 0 → disabled
+        const int32_t effective_score_window = (score_window_val < 0) ? max_ctx_len : score_window_val;
+        auto score_aggregation_window = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{effective_score_window});
 
         std::shared_ptr<ov::op::v0::Constant> rotated_block_indices;
         std::shared_ptr<ov::op::v0::Constant> rotation_deltas;
@@ -238,8 +242,10 @@ private:
         //   output 0 = attention,  output 1 = score aggregation,  output 2 = diversity scores
         // For non-adaptive-RKV tests, keep the single-output model unchanged
         ov::OutputVector model_outputs = {pa->output(0)};
-        if (adaptive_rkv_eviction_size > 0) {
+        if (include_score_output || adaptive_rkv_eviction_size > 0) {
             model_outputs.push_back(pa->output(1));
+        }
+        if (adaptive_rkv_eviction_size > 0) {
             model_outputs.push_back(pa->output(2));
         }
         auto model = std::make_shared<ov::Model>(model_outputs, params, "pa_vsref");
