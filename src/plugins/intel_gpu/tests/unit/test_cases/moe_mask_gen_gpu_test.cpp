@@ -29,6 +29,7 @@ TEST(moe_unit, moe_mask_gen_test) {
     };
 
     int64_t num_tokens = 30;
+    int64_t num_total_experts = 32;
     int64_t num_active_experts_per_token = 2;
     int32_t num_actually_used_experts = 2;
     // input shape
@@ -86,10 +87,10 @@ TEST(moe_unit, moe_mask_gen_test) {
     for (size_t i = 0; i < static_cast<size_t>(num_actually_used_experts); i++) {
         ASSERT_EQ(static_cast<int32_t>(output_expert_ids_ptr[i]), expert_ids_ref[i]);
     }
-    std::vector<float> experts_info_start_idx_ref = {0, 30};
+    std::vector<float> experts_info_start_idx_ref = {0, 0, 0, 0, 30, 30, 30, 30, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60};
     const auto& output_experts_info_start_idx = outputs.at("experts_info_start_idx").get_memory();
     cldnn::mem_lock<float, mem_lock_type::read> output_experts_info_start_idx_ptr(output_experts_info_start_idx, get_test_stream());
-    for (size_t i = 0; i < static_cast<size_t>(num_actually_used_experts); i++) {
+    for (size_t i = 0; i < static_cast<size_t>(num_total_experts); i++) {
         ASSERT_EQ(static_cast<int32_t>(output_experts_info_start_idx_ptr[i]), experts_info_start_idx_ref[i]);
     }
     std::vector<float> tokens_lens_per_expert_ref = {30, 30};
