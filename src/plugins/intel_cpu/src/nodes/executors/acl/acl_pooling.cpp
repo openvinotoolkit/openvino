@@ -28,6 +28,7 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/pooling.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "post_ops.hpp"
