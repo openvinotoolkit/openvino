@@ -21,14 +21,14 @@ struct GatedDeltaNetOptImplementationManager : public ImplementationManager {
         : ImplementationManager(impl_types::cm, shape_type, std::move(vf)) {}
 
     [[nodiscard]] in_out_fmts_t query_formats(const program_node& node) const override {
-        assert(node.is_type<vl_sdpa>());
+        assert(node.is_type<gated_delta_net>());
         std::vector<format::type> in_fmts(node.get_dependencies().size(), format::any);
         std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
 
         for (size_t idx = 0; idx < node.get_dependencies().size(); idx++) {
             in_fmts[idx] = format::bfyx;
         }
-        out_fmts[0] = format::ybfx;
+        out_fmts[0] = format::bfyx;
         for (size_t idx = 1; idx < node.get_outputs_count(); idx++) {
             out_fmts[idx] = format::bfyx;
         }
