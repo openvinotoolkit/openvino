@@ -265,8 +265,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         }
     } else if (!model_fs_path.empty() && !checkpoints_fs_dir.empty()) {
         // here, we assume to get the input model path and checkpoints directory
-        const auto model_path = model_fs_path.native();
-        const auto checkpoints_dir = checkpoints_fs_dir.native();
+        const auto model_path = ov::util::path_to_string(model_fs_path);
+        const auto checkpoints_dir = ov::util::path_to_string(checkpoints_fs_dir);
         if (GraphIteratorProto::is_supported(model_path)) {
             auto graph_iterator = std::make_shared<GraphIteratorProto>(model_path, checkpoints_dir);
             // handle binary protobuf format with checkpoints
@@ -292,7 +292,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_checkpoint_v1_reader(),
                                                 false);
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
-            auto saved_model_tags = ov::util::path_to_string(checkpoints_dir);
+            auto saved_model_tags = checkpoints_dir;
             std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
             graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, saved_model_tags, mmap_enabled);
             return std::make_shared<InputModel>(graph_iterator,
