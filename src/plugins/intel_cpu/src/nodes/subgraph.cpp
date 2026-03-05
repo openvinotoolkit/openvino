@@ -149,56 +149,33 @@ struct SubgraphKey {
 
     std::shared_ptr<SubgraphAttrs> attrs = nullptr;
     std::vector<VectorDims> in_shapes;
-    // Bitmask of inputs whose weights were pre-packed at compile time (constant weights via
-    // RepackMatMulWeights). Nodes with identical body structure but different packing states
-    // produce different io_data_offsets baked into the JIT kernel and must be cached separately.
     uint32_t constant_repacked_mask = 0;
 };
 
 struct SubgraphCodeGeneratorKey {
-    SubgraphCodeGeneratorKey(std::shared_ptr<SubgraphAttrs> attrs_, uint8_t mask_)
+    SubgraphCodeGeneratorKey(std::shared_ptr<SubgraphAttrs> attrs_,
+                             uint8_t broadcasting_mask_,
+                             uint32_t constant_repacked_mask_ = 0)
         : attrs(std::move(attrs_)),
-          broadcasting_mask(mask_) {}
+          broadcasting_mask(broadcasting_mask_),
+          constant_repacked_mask(constant_repacked_mask_) {}
 
     [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
 
         size_t seed = get_attr_hash(0, attrs);
-        return hash_combine(seed, broadcasting_mask);
+        seed = hash_combine(seed, broadcasting_mask);
+        return hash_combine(seed, constant_repacked_mask);
     }
     bool operator==(const SubgraphCodeGeneratorKey& rhs) const {
-        return *attrs == *rhs.attrs && broadcasting_mask == rhs.broadcasting_mask;
+        return *attrs == *rhs.attrs && broadcasting_mask == rhs.broadcasting_mask &&
+               constant_repacked_mask == rhs.constant_repacked_mask;
     }
 
     std::shared_ptr<SubgraphAttrs> attrs = nullptr;
     uint32_t broadcasting_mask = 0;
-};
-
-// For the static JIT kernel, io_data_offsets are baked into the compiled code, so
-// the cache key must include io_data_offsets in addition to the body structure.
-struct SubgraphStaticCodeGeneratorKey : public SubgraphCodeGeneratorKey {
-    SubgraphStaticCodeGeneratorKey(std::shared_ptr<SubgraphAttrs> attrs_,
-                                   uint8_t mask_,
-                                   std::vector<std::vector<size_t>> io_data_offsets_)
-        : SubgraphCodeGeneratorKey(std::move(attrs_), mask_),
-          io_data_offsets(std::move(io_data_offsets_)) {}
-
-    [[nodiscard]] size_t hash() const {
-        using namespace dnnl::impl;
-        using namespace dnnl::impl::primitive_hashing;
-
-        size_t seed = SubgraphCodeGeneratorKey::hash();
-        for (const auto& offsets : io_data_offsets) {
-            seed = get_vector_hash(seed, offsets);
-        }
-        return seed;
-    }
-    bool operator==(const SubgraphStaticCodeGeneratorKey& rhs) const {
-        return SubgraphCodeGeneratorKey::operator==(rhs) && io_data_offsets == rhs.io_data_offsets;
-    }
-
-    std::vector<std::vector<size_t>> io_data_offsets;
+    uint32_t constant_repacked_mask = 0;
 };
 #endif
 
@@ -855,6 +832,7 @@ void Subgraph::optimizeIR() {
 }
 
 void Subgraph::prepareParams() {
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     const auto& cache = context->getSnippetsParamsCache();
 
     auto builder = [this, &cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphBaseExecutor> {
@@ -898,13 +876,12 @@ void Subgraph::prepareParams() {
         }  // Static case:
         // 1. Update runtime config to get static scheduling data (io data offsets, parallel domain) which will be
         // compiled in JIT code
-        // 2. Generate JIT code with this static data if needed (keyed on io_data_offsets to distinguish nodes
-        //    whose weights are pre-packed vs. runtime-repacked — they produce different offsets and need separate kernels)
+        // 2. Generate JIT code with this static data if needed
         // 3. Create SubgraphStaticExecutor
         const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
         const auto code_gen_result = cache->getOrCreate(
-            SubgraphStaticCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes), snippet_config->io_data_offsets),
-            [this, &snippet_config](const SubgraphStaticCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
+            SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes), key.constant_repacked_mask),
+            [this, &snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
                 return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config, external_ptrs_idces);
             });
         return std::make_shared<SubgraphStaticExecutor>(snippet_config,
@@ -925,7 +902,7 @@ void Subgraph::prepareParams() {
     const auto constant_repacked_mask = is_dynamic ? 0u : getConstantRepackedMask();
     const auto result = cache->getOrCreate(SubgraphKey(subgraph_attrs, in_shapes, constant_repacked_mask), builder);
     execPtr = result.first;
-
+#endif
     CPU_NODE_ASSERT(execPtr, "Executor is not created for node ", getName(), ".");
 }
 
