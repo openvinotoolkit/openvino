@@ -11,10 +11,9 @@ add_subdirectory(al)
 
 add_subdirectory(ops)
 
-add_subdirectory(vm)
-
 if (ENABLE_NPU_PLUGIN_ENGINE)
     add_subdirectory(common)
+    add_subdirectory(vm)
     add_subdirectory(compiler_adapter)
     add_subdirectory(backend)
     add_subdirectory(plugin)
