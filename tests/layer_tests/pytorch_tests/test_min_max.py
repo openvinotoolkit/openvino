@@ -325,6 +325,8 @@ class TestAminAmax(PytorchLayerTest):
                 return self.op(x, self.axis, self.keep_dims, out=y), y
 
             def forward(self, x):
+                if self.axis is None:
+                    return self.op(x)
                 return self.op(x, self.axis, self.keep_dims)
 
 
@@ -333,7 +335,7 @@ class TestAminAmax(PytorchLayerTest):
         return model_cls, f"aten::{op_type}"
 
     @pytest.mark.parametrize("op_type", ["amin", "amax"])
-    @pytest.mark.parametrize("axis", [0, -1, 1, [1, 2], [-1, -2], [2, 0, -1], [0, 1, 2, 3]])
+    @pytest.mark.parametrize("axis", [None, 0, -1, 1, [1, 2], [-1, -2], [2, 0, -1], [0, 1, 2, 3]])
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("out", [skip_if_export(True), False])
     @pytest.mark.parametrize("input_dtype", ['float32', 'int32', 'int64', 'float64'])

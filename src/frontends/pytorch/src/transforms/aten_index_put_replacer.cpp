@@ -36,15 +36,6 @@ namespace pass {
 
 using namespace ov::op;
 
-namespace {
-Output<Node> generate_zeros_with_convertlike(ov::pass::NodeRegistry& rg,
-                                             const Output<Node> sizes,
-                                             const Output<Node> tensor_of_type) {
-    auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
-    auto zeros = rg.make<v3::Broadcast>(const_0, sizes);
-    return rg.make<v1::ConvertLike>(zeros, tensor_of_type);
-}
-}  // namespace
 
 AtenIndexPutReplacer::AtenIndexPutReplacer() {
     auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(

@@ -365,7 +365,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 strides = list(meta["tensor_meta"].stride)
                 if strides:
                     return strides
-            # Fallback for Edge dialet nodes where tensor_meta is absent but val is present
+            # Fallback for Edge dialect nodes where tensor_meta is absent but val is present
             if "val" in meta and hasattr(meta["val"], "stride"):
                 strides = list(meta["val"].stride())
                 if strides:
