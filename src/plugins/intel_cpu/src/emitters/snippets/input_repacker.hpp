@@ -38,8 +38,7 @@ struct InputRepacker {
     [[nodiscard]] const CpuBlockedMemoryDescPtr& desc() const;
     [[nodiscard]] const VectorDims& in_offsets() const;
     [[nodiscard]] const VectorDims& out_offsets() const;
-    // Returns true if the input was pre-packed at compile time (by RepackMatMulWeights).
-    // Returns false if repacking is deferred to runtime.
+    // Returns true if the input has been already pre-packed (e.g. at compile time by RepackMatMulWeights).
     [[nodiscard]] bool already_repacked() const;
 
 private:
