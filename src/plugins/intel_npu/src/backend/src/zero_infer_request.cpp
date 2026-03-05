@@ -731,42 +731,50 @@ void ZeroInferRequest::prepare_inputs() {
         if (is_batched_input(inputIndex)) {
             if (batch_size.has_value()) {
                 for (size_t i = 0; i < userTensor.size(); i++) {
-                    void* userBuffer = get_tensor_data_ptr(userTensor.at(i)._ptr);
-                    void* levelZeroBuffer = get_level_zero_input(inputIndex, i)->data();
+                    const auto& levelZeroTensor = get_level_zero_input(inputIndex, i);
+                    OPENVINO_ASSERT(levelZeroTensor, "Input zero tensor is not allocated.");
+
+                    const auto& userTensorPtr = userTensor.at(i);
+                    void* userBuffer = get_tensor_data_ptr(userTensorPtr._ptr);
+                    void* levelZeroBuffer = levelZeroTensor->data();
+
+                    if (levelZeroBuffer == nullptr) {
+                        levelZeroTensor->allocate_data();
+                        levelZeroBuffer = levelZeroTensor->data();
+                    }
 
                     if (userBuffer != levelZeroBuffer) {
-                        if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
-                            OPENVINO_THROW("Empty buffer");
-                        }
+                        OPENVINO_ASSERT(userBuffer != nullptr && levelZeroBuffer != nullptr, "Empty buffer");
 
                         _logger.debug(
                             "Batched Tensors - Tensor by index: %zu is not allocated in the current Level Zero "
                             "context, copy bytes from user tensor: %zu, into L0 with expected size: %zu",
                             inputIndex,
-                            userTensor.at(i)->get_byte_size(),
-                            get_level_zero_input(inputIndex, i)->get_byte_size());
+                            userTensorPtr->get_byte_size(),
+                            levelZeroTensor->get_byte_size());
                         OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
-                        userTensor.at(i)->copy_to(get_level_zero_input(inputIndex, i));
+                        userTensorPtr->copy_to(levelZeroTensor);
                     }
                 }
             } else {
+                const auto& levelZeroTensor = get_level_zero_input(inputIndex);
+                OPENVINO_ASSERT(levelZeroTensor, "Input zero tensor is not allocated.");
+
                 _logger.debug("Batched Tensors - Tensor by index: %zu is not allocated in the current Level Zero "
-                              "context or must be "
-                              "in a continued memory space, copy into L0 with size: %zu",
+                              "context or must be in a continued memory space, copy into L0 with size: %zu",
                               inputIndex,
-                              get_level_zero_input(inputIndex)->get_byte_size());
+                              levelZeroTensor->get_byte_size());
                 size_t copied_bytes_from_user = 0;
                 for (size_t i = 0; i < userTensor.size(); i++) {
-                    auto viewTensor =
-                        ov::make_tensor(get_level_zero_input(inputIndex)->get_element_type(),
-                                        get_level_zero_input(inputIndex)->get_shape(),
-                                        static_cast<unsigned char*>(get_level_zero_input(inputIndex)->data()) +
-                                            (i * userTensor.at(i)->get_byte_size()));
+                    auto viewTensor = ov::make_tensor(
+                        levelZeroTensor->get_element_type(),
+                        levelZeroTensor->get_shape(),
+                        static_cast<unsigned char*>(levelZeroTensor->data()) + (i * userTensor.at(i)->get_byte_size()));
 
                     userTensor.at(i)->copy_to(viewTensor);
                     copied_bytes_from_user += userTensor.at(i)->get_byte_size();
                 }
-                OPENVINO_ASSERT(get_level_zero_input(inputIndex)->get_byte_size() == copied_bytes_from_user,
+                OPENVINO_ASSERT(levelZeroTensor->get_byte_size() == copied_bytes_from_user,
                                 "Bytes copied must be equal");
             }
 
@@ -785,14 +793,14 @@ void ZeroInferRequest::prepare_inputs() {
         void* userBuffer = get_tensor_data_ptr(userTensor.at(SINGLE_TENSOR)._ptr);
         void* levelZeroBuffer = levelZeroTensor->data();
 
-        OPENVINO_ASSERT(userBuffer, "Empty user buffer.");
-
         if (levelZeroBuffer == nullptr) {
             levelZeroTensor->allocate_data();
             levelZeroBuffer = levelZeroTensor->data();
         }
 
         if (userBuffer != levelZeroBuffer) {
+            OPENVINO_ASSERT(userBuffer != nullptr && levelZeroBuffer != nullptr, "Empty buffer");
+
             _logger.info("Tensor is not allocated in the current Level Zero context");
             OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
             userTensor.at(SINGLE_TENSOR)->copy_to(levelZeroTensor);
