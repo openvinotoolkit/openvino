@@ -243,9 +243,6 @@ private:
             model_outputs.push_back(pa->output(2));
         }
         auto model = std::make_shared<ov::Model>(model_outputs, params, "pa_vsref");
-        for (size_t i = 0; i < model->get_parameters().size(); ++i) {
-            const auto& p = model->get_parameters()[i];
-        }
         return model;
     }
 
