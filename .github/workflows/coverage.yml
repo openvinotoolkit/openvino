@@ -163,7 +163,7 @@ jobs:
         continue-on-error: true
         run: |
           sudo apt --assume-yes update
-          sudo apt --assume-yes install lcov ca-certificates
+          sudo apt --assume-yes install lcov ca-certificates libtbb12
           python3 -m pip install --upgrade pip
           python3 -m pip install pyyaml
 
@@ -237,7 +237,6 @@ jobs:
           files: coverage.info
           disable_search: true
           flags: cpp-runtime-cpp-${{ env.TEST_PROFILE }}
-          token: ${{ secrets.CODECOV_TOKEN }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
@@ -292,7 +291,7 @@ jobs:
         continue-on-error: true
         run: |
           sudo apt --assume-yes update
-          sudo apt --assume-yes install lcov ca-certificates
+          sudo apt --assume-yes install lcov ca-certificates libtbb12
           python3 -m pip install --upgrade pip
           python3 -m pip install pyyaml coverage pytest pytest-cov pytest-xdist[psutil]
 
@@ -381,7 +380,6 @@ jobs:
           files: python-coverage.xml
           disable_search: true
           flags: python-api-frontend-layer-ovc-${{ env.TEST_PROFILE }}
-          token: ${{ secrets.CODECOV_TOKEN }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
@@ -394,7 +392,6 @@ jobs:
           files: coverage.info
           disable_search: true
           flags: cpp-runtime-python-${{ env.TEST_PROFILE }}
-          token: ${{ secrets.CODECOV_TOKEN }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
@@ -454,7 +451,7 @@ jobs:
         continue-on-error: true
         run: |
           sudo apt --assume-yes update
-          sudo apt --assume-yes install lcov xvfb ca-certificates
+          sudo apt --assume-yes install lcov xvfb ca-certificates libtbb12
           python3 -m pip install --upgrade pip
           python3 -m pip install pyyaml
 
@@ -543,7 +540,6 @@ jobs:
           files: js-lcov.info
           disable_search: true
           flags: nodejs-bindings-unit-e2e-${{ env.TEST_PROFILE }}
-          token: ${{ secrets.CODECOV_TOKEN }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
@@ -556,7 +552,6 @@ jobs:
           files: coverage.info
           disable_search: true
           flags: cpp-runtime-js-${{ env.TEST_PROFILE }}
-          token: ${{ secrets.CODECOV_TOKEN }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true

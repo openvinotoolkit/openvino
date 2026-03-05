@@ -21,6 +21,27 @@ def _remove_gcda(root: Path) -> None:
             pass
 
 
+def _compose_runtime_ld_library_path(ctx: CoverageContext) -> str:
+    paths: list[Path] = []
+
+    candidates = [
+        ctx.paths.bin_dir,
+        ctx.paths.install_pkg_dir / "runtime" / "lib" / "intel64",
+        ctx.paths.install_pkg_dir / "runtime" / "3rdparty" / "tbb" / "lib",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            paths.append(candidate)
+
+    # Find packaged TBB locations across layout variants.
+    tbb_dirs = sorted({p.parent for p in ctx.paths.install_pkg_dir.rglob("libtbb.so*") if p.is_file()})
+    for tbb_dir in tbb_dirs:
+        if tbb_dir not in paths:
+            paths.append(tbb_dir)
+
+    return ":".join(str(p) for p in paths)
+
+
 def _run_test(
     ctx: CoverageContext,
     name: str,
@@ -32,6 +53,7 @@ def _run_test(
     executed: list[str],
     skipped: list[str],
     failed: list[str],
+    runtime_ld_library_path: str,
 ) -> None:
     exe = ctx.paths.bin_dir / binary
     if not exe.exists():
@@ -63,6 +85,10 @@ def _run_test(
             cmd.append(f"--gtest_filter={args}")
 
     env = env_from_assignments(extra_env)
+    existing_ld = env.get("LD_LIBRARY_PATH", "")
+    if runtime_ld_library_path:
+        env["LD_LIBRARY_PATH"] = f"{runtime_ld_library_path}:{existing_ld}" if existing_ld else runtime_ld_library_path
+
     rc = run_cmd(cmd, env=env, check=False)
     if rc != 0:
         failed.append(f"{name} (exit {rc})")
@@ -79,6 +105,7 @@ def run(ctx: CoverageContext) -> None:
     executed: list[str] = []
     skipped: list[str] = []
     failed: list[str] = []
+    runtime_ld_library_path = _compose_runtime_ld_library_path(ctx)
 
     for test in tests:
         if not test.enabled:
@@ -96,6 +123,7 @@ def run(ctx: CoverageContext) -> None:
             executed=executed,
             skipped=skipped,
             failed=failed,
+            runtime_ld_library_path=runtime_ld_library_path,
         )
 
     total_executed = len(executed)
