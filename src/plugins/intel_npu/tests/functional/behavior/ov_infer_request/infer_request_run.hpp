@@ -21,6 +21,7 @@
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/log.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/compiled_model.hpp"
@@ -34,6 +35,22 @@ using CompilationParams = std::tuple<std::string,  // Device name
 
 using ::testing::AllOf;
 using ::testing::HasSubstr;
+
+namespace {
+class LogCallbackGuard {
+public:
+    explicit LogCallbackGuard(const std::function<void(std::string_view)>& callback) {
+        ov::util::set_log_callback(callback);
+    }
+
+    ~LogCallbackGuard() {
+        ov::util::reset_log_callback();
+    }
+
+    LogCallbackGuard(const LogCallbackGuard&) = delete;
+    LogCallbackGuard& operator=(const LogCallbackGuard&) = delete;
+};
+}  // namespace
 
 namespace ov {
 namespace test {
@@ -2105,6 +2122,180 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa1) {
     ::operator delete(state_data[0], std::align_val_t(4096));
     ::operator delete(state_data[1], std::align_val_t(64));
     ::operator delete(state_data[2], std::align_val_t(4096));
+}
+
+TEST_P(CpuVaTensorsTests, checkResultsAfterRawMemoryIsDestroyedAndReallocatedAfterEachRun) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    ov::Core internal_core;
+    ov::InferRequest inference_request;
+    std::string logs;
+    std::mutex logs_mutex;
+    auto shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(ov::element::f32, shape, "N...");
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
+    {
+        // don't flood console with messages from model compilation
+        LogCallbackGuard log_callback_guard(log_cb);
+        ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
+        inference_request = compiled_model.create_infer_request();
+    }
+    logs.clear();
+
+    for (size_t i = 0; i < 10; ++i) {
+        float* input_data = static_cast<float*>(::operator new(shape_size * sizeof(float), std::align_val_t(4096)));
+        float* output_data = static_cast<float*>(::operator new(shape_size * sizeof(float), std::align_val_t(4096)));
+        for (size_t j = 0; j < shape_size; ++j) {
+            input_data[j] = static_cast<float>(i);
+        }
+
+        {
+            LogCallbackGuard log_callback_guard(log_cb);
+            inference_request.set_input_tensor(ov::Tensor{ov::element::f32, shape, input_data});
+            inference_request.set_output_tensor(ov::Tensor{ov::element::f32, shape, output_data});
+            inference_request.infer();
+        }
+
+        ASSERT_NE(logs.find("deallocate the tensor data"), std::string::npos);
+
+        logs.clear();
+
+        for (size_t j = 0; j < shape_size; ++j) {
+            EXPECT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
+                << "Run " << i << ": Expected=" << input_data[j] + 1.0f << ", actual=" << output_data[j]
+                << " for index " << j;
+        }
+
+        ::operator delete(input_data, std::align_val_t(4096));
+        ::operator delete(output_data, std::align_val_t(4096));
+    }
+}
+
+TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    ov::Core internal_core;
+    ov::InferRequest inference_request;
+    std::string logs;
+    std::mutex logs_mutex;
+    auto shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(ov::element::f32, shape, "N...");
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    float* input_data = static_cast<float*>(::operator new(shape_size * sizeof(float), std::align_val_t(4096)));
+    float* output_data = static_cast<float*>(::operator new(shape_size * sizeof(float), std::align_val_t(4096)));
+
+    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
+    {
+        // don't flood console with messages from model compilation
+        LogCallbackGuard log_callback_guard(log_cb);
+        ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
+        inference_request = compiled_model.create_infer_request();
+        inference_request.set_input_tensor(ov::Tensor{ov::element::f32, shape, input_data});
+        inference_request.set_output_tensor(ov::Tensor{ov::element::f32, shape, output_data});
+    }
+    logs.clear();
+
+    for (size_t i = 0; i < 10; ++i) {
+        for (size_t j = 0; j < shape_size; ++j) {
+            input_data[j] = static_cast<float>(i);
+        }
+
+        {
+            LogCallbackGuard log_callback_guard(log_cb);
+            inference_request.infer();
+        }
+
+        if (i == 0) {
+            ASSERT_EQ(logs.find("import the tensor data"), std::string::npos);
+        } else {
+            ASSERT_NE(logs.find("import the tensor data"), std::string::npos);
+        }
+        ASSERT_NE(logs.find("deallocate the tensor data"), std::string::npos);
+
+        logs.clear();
+
+        for (size_t j = 0; j < shape_size; ++j) {
+            EXPECT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
+                << "Run " << i << ": Expected=" << input_data[j] + 1.0f << ", actual=" << output_data[j]
+                << " for index " << j;
+        }
+    }
+
+    ::operator delete(input_data, std::align_val_t(4096));
+    ::operator delete(output_data, std::align_val_t(4096));
+}
+
+TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroTensorMultipleTimes) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    ov::Core internal_core;
+    ov::InferRequest inference_request;
+    float *input_data, *output_data;
+    ov::Tensor input_tensor, output_tensor;
+    std::string logs;
+    std::mutex logs_mutex;
+    auto shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(ov::element::f32, shape, "N...");
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
+    {
+        // don't flood console with messages from model compilation
+        LogCallbackGuard log_callback_guard(log_cb);
+        ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
+        inference_request = compiled_model.create_infer_request();
+        input_tensor = inference_request.get_input_tensor();
+        output_tensor = inference_request.get_output_tensor();
+        input_data = input_tensor.data<float>();
+        output_data = output_tensor.data<float>();
+    }
+    logs.clear();
+
+    for (size_t i = 0; i < 10; ++i) {
+        for (size_t j = 0; j < shape_size; ++j) {
+            input_data[j] = static_cast<float>(i);
+        }
+
+        {
+            LogCallbackGuard log_callback_guard(log_cb);
+            inference_request.infer();
+        }
+
+        ASSERT_EQ(logs.find("import the tensor data"), std::string::npos);
+        ASSERT_EQ(logs.find("deallocate the tensor data"), std::string::npos);
+
+        logs.clear();
+
+        for (size_t j = 0; j < shape_size; ++j) {
+            EXPECT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
+                << "Run " << i << ": Expected=" << input_data[j] + 1.0f << ", actual=" << output_data[j]
+                << " for index " << j;
+        }
+    }
 }
 
 }  // namespace behavior
