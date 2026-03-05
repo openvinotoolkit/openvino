@@ -45,6 +45,16 @@ OutputVector translate_histc(const NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(bins > 0,
                                   "Pytorch frontend: histc expects 'bins' to be a positive integer, got ",
                                   bins);
+
+    // When explicit min/max are provided, ensure the range is valid (PyTorch semantics).
+    // Auto-range case (min == 0 && max == 0) is handled from data and remains unrestricted.
+    if (!(min_val == 0.0 && max_val == 0.0)) {
+        FRONT_END_OP_CONVERSION_CHECK(min_val <= max_val,
+                                      "Pytorch frontend: histc expects 'min' <= 'max' when explicit range is provided, got min=",
+                                      min_val,
+                                      " max=",
+                                      max_val);
+    }
     // Flatten and cast to f64
     auto flat_shape = v0::Constant::create(element::i64, Shape{1}, {-1});
     auto flat_input = context.mark_node(std::make_shared<v1::Reshape>(input, flat_shape, false));
