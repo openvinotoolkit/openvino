@@ -25,8 +25,10 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "transformations/utils/utils.hpp"
@@ -45,6 +47,9 @@ GatedDeltaNet::GatedDeltaNet(const std::shared_ptr<ov::Node>& op, const GraphCon
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
+    const auto& gdn = ov::as_type_ptr<ov::op::GatedDeltaNet>(op);
+    fuse_q_scale = gdn->get_config().fuse_q_scale;
+    fuse_qk_l2norm = gdn->get_config().fuse_qk_l2norm;
 }
 
 void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
@@ -99,6 +104,8 @@ void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
                           recurrent_state,
                           gate,
                           beta,
+                          fuse_qk_l2norm,
+                          fuse_q_scale,
                           output_attn,
                           output_recurrent_state,
                           temp_buffer);
@@ -106,6 +113,10 @@ void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
 
 bool GatedDeltaNet::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                          std::string& errorMessage) noexcept {
+    if (!ov::is_type<ov::op::GatedDeltaNet>(op)) {
+        errorMessage = "Only ov::op::GatedDeltaNet operation is supported";
+        return false;
+    }
     return true;
 }
 

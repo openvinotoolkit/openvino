@@ -45,6 +45,8 @@ public:
 
 private:
     PlainTensor temp_buffer;
+    bool fuse_qk_l2norm = false;
+    bool fuse_q_scale = false;
 };
 
 }  // namespace ov::intel_cpu::node

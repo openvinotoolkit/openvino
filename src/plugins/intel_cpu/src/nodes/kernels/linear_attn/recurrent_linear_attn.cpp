@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <cfloat>
@@ -152,6 +152,8 @@ void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
                            const ov::intel_cpu::PlainTensor& recurrent_state,
                            const ov::intel_cpu::PlainTensor& gate,
                            const ov::intel_cpu::PlainTensor& beta,
+                           const bool fuse_qk_l2norm,
+                           const bool fuse_q_scale,
                            ov::intel_cpu::PlainTensor& output_attn,
                            ov::intel_cpu::PlainTensor& output_recurrent_state,
                            ov::intel_cpu::PlainTensor& temp_buffer) {
@@ -186,9 +188,13 @@ void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
                 b_k[j] = k_ptr[i * H * K_HEAD_DIMS + j];
                 b_q[j] = q_ptr[i * H * K_HEAD_DIMS + j];
             }
-            l2norm(b_k, K_HEAD_DIMS);
-            l2norm(b_q, K_HEAD_DIMS);
-            multiply_scalar(b_q, b_q, q_scale, K_HEAD_DIMS);
+            if (fuse_qk_l2norm) {
+                l2norm(b_k, K_HEAD_DIMS);
+                l2norm(b_q, K_HEAD_DIMS);
+            }
+            if (fuse_q_scale) {
+                multiply_scalar(b_q, b_q, q_scale, K_HEAD_DIMS);
+            }
             // h0 * gate
             // scale(init_state, b_g, K_HEAD_DIMS);
             multiply_scalar(init_state, init_state, b_g, K_HEAD_DIMS);
