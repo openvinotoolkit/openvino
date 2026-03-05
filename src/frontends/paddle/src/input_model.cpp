@@ -165,7 +165,10 @@ bool read_tensor(std::istream& is, char* data, size_t len) {
     if (len == 0) {
         return true;
     }
-    is.read(data, len);
+    if (len > static_cast<size_t>(std::numeric_limits<std::streamsize>::max())) {
+        return false;
+    }
+    is.read(data, static_cast<std::streamsize>(len));
     return is && (size_t)is.gcount() == len;
 }
 
@@ -177,6 +180,8 @@ ov::Shape make_shape_checked(const DimsT& dims) {
     shape.reserve(dims.size());
     for (const auto& dim : dims) {
         FRONT_END_GENERAL_CHECK(dim >= 0, "Negative dimension in Paddle weight tensor.");
+        FRONT_END_GENERAL_CHECK(static_cast<unsigned long long>(dim) <= std::numeric_limits<size_t>::max(),
+                                "Dimension is too large for size_t in Paddle weight tensor.");
         shape.push_back(static_cast<size_t>(dim));
     }
     return shape;
