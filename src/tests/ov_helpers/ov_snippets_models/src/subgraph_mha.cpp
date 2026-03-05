@@ -238,69 +238,26 @@ void MHAConstBFunction::validate_function(const std::shared_ptr<Model>& f) const
 }
 
 std::shared_ptr<ov::Model> MHATwoConstBFunction::initOriginal() const {
-    // Two FULLY-INDEPENDENT MHA branches that trigger the CVS-180477 cache-collision bug.
-    //
-    // Design: V is supplied in PRE-TRANSPOSED form [B, heads, seq, head_dim] = [1,8,300,32]
-    // and fed DIRECTLY to MatMul1 (no Transpose(V) in the graph).  This ensures that both
-    // post-softmax snippet bodies are structurally identical:
-    //     Parameter(V_t) --> MatMul1
-    // → same bodyHash → same SubgraphAttrs → same outer SubgraphKey (without the fix).
-    //
-    // The only difference between the two branches is how V is provided to the CPU graph:
-    //
-    //   Branch 1: V1 is a CONSTANT node
-    //     → parent CPU node isConstant()=true → are_wei_constant=true
-    //     → RepackMatMulWeights pre-packs V1 at compile time
-    //     → constant_repacked_mask bit SET (= 1)
-    //
-    //   Branch 2: V2 is a RUNTIME PARAMETER node
-    //     → parent CPU node isConstant()=false → are_wei_constant=false
-    //     → no pre-packing
-    //     → constant_repacked_mask bit CLEAR (= 0)
-    //
-    // Without the SubgraphKey::constant_repacked_mask fix:
-    //   Both outer keys are equal → branch 2 node gets branch 1's pre-packed executor
-    //   → executor tries to read V from a pre-packed pointer, but branch 2's V2 is a
-    //     live runtime tensor → wrong computation → numerical mismatch.
-    //
-    // With the fix:
-    //   constant_repacked_mask differs (1 vs 0) → distinct SubgraphKey → cache MISS for
-    //   branch 2 → branch 2 gets its own executor compiled for runtime V → correct results.
-    //
-    // NOTE: Using Transpose(V_const) would be constant-folded before MHA tokenization,
-    // producing a different snippet body for branch 1 (no Transpose) vs branch 2 (with
-    // Transpose) → different bodyHashes → no collision even without the fix.  That is why
-    // V must be pre-transposed and passed directly.
     OPENVINO_ASSERT(std::all_of(input_shapes.begin(), input_shapes.end(),
                                 [](const PartialShape& s) { return s.is_static(); }),
                     "MHATwoConstBFunction requires static input shapes");
 
-    // Branch 1 runtime parameters: shapes[0..2] = Q1, K1, Add1
     auto q1Param   = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
     auto k1Param   = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
     auto add1Param = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
 
-    // Branch 1: V1 is a CONSTANT with shape input_shapes[6] (pre-transposed [1,8,300,32])
-    // → triggers are_wei_constant=true → constant_repacked_mask bit 1 set
     auto vConst1 = ov::test::utils::make_constant(precisions[3], input_shapes[6].to_shape());
 
-    // Branch 2 runtime parameters: shapes[3..5] = Q2, K2, Add2
     auto q2Param   = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[3]);
     auto k2Param   = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[4]);
     auto add2Param = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[5]);
 
-    // Branch 2: V2 is a RUNTIME PARAMETER with the same pre-transposed shape
-    // → are_wei_constant=false → constant_repacked_mask bit 1 clear
     auto v2Param   = std::make_shared<ov::opset1::Parameter>(precisions[3], input_shapes[6]);
 
     const size_t rank = input_shapes[0].size();
     const auto fusion_order_vals     = get_fusion_order(rank);
     const auto decomposed_order_vals = get_decomposed_order(rank);
 
-    // Build one complete MHA branch.
-    // v_in is already in transposed form [B, heads, seq, head_dim] and goes directly to
-    // MatMul1 — NO Transpose(V) in the graph.  This keeps snippet bodies identical
-    // between the two branches so that only constant_repacked_mask distinguishes them.
     auto build_branch = [&](std::shared_ptr<ov::Node> q_in,
                              std::shared_ptr<ov::Node> k_in,
                              std::shared_ptr<ov::Node> add_in,
@@ -341,8 +298,6 @@ std::shared_ptr<ov::Model> MHATwoConstBFunction::initOriginal() const {
     auto out1 = build_branch(q1Param, k1Param, add1Param, vConst1);
     auto out2 = build_branch(q2Param, k2Param, add2Param, v2Param);
 
-    // Parameter order: Q1, K1, Add1, Q2, K2, Add2, V2
-    // V1 is a Constant (not listed in parameters).
     ov::ParameterVector params = {q1Param, k1Param, add1Param, q2Param, k2Param, add2Param, v2Param};
     ov::ResultVector results = {
         std::make_shared<ov::opset1::Result>(out1),

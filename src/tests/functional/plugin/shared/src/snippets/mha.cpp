@@ -231,12 +231,6 @@ std::shared_ptr<SnippetsFunctionBase> MHAConstB::get_subgraph() const {
 std::shared_ptr<SnippetsFunctionBase> MHATwoConstB::get_subgraph() const {
     const bool is_with_reshape =
         std::all_of(inputDynamicShapes.begin(), inputDynamicShapes.end(), [](const PartialShape& ps) { return ps.is_static(); });
-    // inputDynamicShapes has 7 shapes matching the 7 model runtime parameters:
-    //   [Q1, K1, Add1, Q2, K2, Add2, V]
-    // MHATwoConstBFunction uses:
-    //   shapes[0..2] for branch 1 runtime params (Q1, K1, Add1)
-    //   shapes[3..5] for branch 2 runtime params (Q2, K2, Add2)
-    //   shapes[6]    as V shape (branch 1 Constant V1 + branch 2 Parameter V2)
     OPENVINO_ASSERT(inputDynamicShapes.size() == 7,
                     "MHATwoConstB expects 7 input shapes: [Q1, K1, Add1, Q2, K2, Add2, V]");
     return std::make_shared<ov::test::snippets::MHATwoConstBFunction>(inputDynamicShapes,
