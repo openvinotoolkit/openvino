@@ -687,10 +687,19 @@ std::string serializeConfig(const FilteredConfig& config,
         }
     };
 
-    // NPU_TURBO is a special option in the sense that by default it is a driver-setting, but certain compilers
-    // support and make use of it too If we have turbo in the config string, we check if compiler supports it. If it
-    // doesn't support it, we remove it
+    // Options with OptionMode::Both may be used by the plugin even when the compiler does not support them.
+    // Remove them from the config string before sending it to the compiler if they are unsupported.
+
+    // NPU_TURBO is a special option in the sense that by default it is a
+    //  driver-setting, but certain compilers support and make use of it too If we have turbo in the config string, we
+    //  check if compiler supports it. If it doesn't support it, we remove it
     removeOptionIfUnsupported(ov::intel_npu::turbo.name());
+    // LOG_LEVEL must not be sent to the compiler if not supported
+    removeOptionIfUnsupported(ov::log::level.name());
+    // PERFORMANCE_HINT must not be sent to the compiler if not supported
+    removeOptionIfUnsupported(ov::hint::performance_mode.name());
+    // PERF_COUNT must not be sent to the compiler if not supported
+    removeOptionIfUnsupported(ov::enable_profiling.name());
 
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
     // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix
