@@ -231,7 +231,7 @@ inline arm_compute::QuantizationInfo getDstQuantizationInfo(const std::vector<fl
     if (dstPrecision == ov::element::i8) {
         dstShift -= 128;
     }
-    return arm_compute::QuantizationInfo(dstScale, dstShift);
+    return {dstScale, dstShift};
 }
 
 }  // namespace ov::intel_cpu
