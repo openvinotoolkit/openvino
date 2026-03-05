@@ -406,6 +406,70 @@ TEST(PagedCacheManagerTest, RepeatedEvictionsNoCorruption) {
 }
 
 // -------------------------------------------------------------------
+// max_cache_bytes triggers eviction before physical blocks run out
+// -------------------------------------------------------------------
+TEST(PagedCacheManagerTest, MaxCacheBytesTriggersEviction) {
+    // 8 physical blocks, block_size=2, 1 kv head, head_size=4 (float=4B)
+    // key_block_bytes = value_block_bytes = 1*2*4*4 = 32 bytes
+    // bytes_per_block = 64 => max_cache_bytes=192 allows 3 active blocks
+    CacheLayout layout{8, 1, 2, 4};
+    std::vector<float> kd(layout.elems(), 0.f);
+    std::vector<float> vd(layout.elems(), 0.f);
+
+    auto mgr = std::make_unique<PagedCacheManager>(ov::element::f32,
+                                                   EvictionPolicy::FIFO,
+                                                   /*max_cache_bytes=*/192);
+
+    std::vector<std::int32_t> past(2, 0);
+    mgr->ensure_operator(NODE,
+                         kd.data(),
+                         vd.data(),
+                         layout.shape(),
+                         layout.shape(),
+                         nullptr,
+                         0,
+                         nullptr,
+                         0,
+                         past.data(),
+                         2);
+
+    std::int32_t pasts[2] = {0, 0};
+    mgr->begin_step(NODE, pasts, 2);
+
+    std::vector<float> krow(layout.kv_heads * layout.head_size, 0.f);
+    std::vector<float> vrow(layout.kv_heads * layout.head_size, 0.f);
+
+    // seq 0: 4 tokens => 2 blocks
+    for (int t = 0; t < 4; t++) {
+        krow[0] = static_cast<float>(t + 100);
+        mgr->write_token_kv<float>(NODE, 0, t, krow.data(), vrow.data());
+    }
+
+    // seq 1: 2 tokens => 1 block.  Total 3 active blocks = budget limit.
+    for (int t = 0; t < 2; t++) {
+        krow[0] = static_cast<float>(t + 200);
+        mgr->write_token_kv<float>(NODE, 1, t, krow.data(), vrow.data());
+    }
+
+    // Writing one more token for seq 1 needs a 4th block, but budget allows only 3,
+    // so eviction fires even though 5 physical blocks are still free.
+    krow[0] = 999.f;
+    mgr->write_token_kv<float>(NODE, 1, 2, krow.data(), vrow.data());
+
+    // FIFO evicts oldest block from longest sequence (seq 0 front block =>
+    // tokens 0,1)
+    PagedCacheManager::TokenAddress addr;
+    EXPECT_FALSE(mgr->resolve_token(NODE, 0, 0, addr));
+    EXPECT_FALSE(mgr->resolve_token(NODE, 0, 1, addr));
+    EXPECT_TRUE(mgr->resolve_token(NODE, 0, 2, addr));
+    EXPECT_TRUE(mgr->resolve_token(NODE, 0, 3, addr));
+    EXPECT_TRUE(mgr->resolve_token(NODE, 1, 2, addr));
+    const float* kp = mgr->key_ptr<float>(NODE, addr, 0);
+    ASSERT_NE(kp, nullptr);
+    EXPECT_FLOAT_EQ(kp[0], 999.f);
+}
+
+// -------------------------------------------------------------------
 // Default constructor uses SCORE policy
 // -------------------------------------------------------------------
 TEST(PagedCacheManagerTest, DefaultConstructorUsesScore) {

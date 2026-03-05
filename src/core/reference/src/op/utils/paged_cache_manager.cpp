@@ -284,6 +284,17 @@ std::int32_t PagedCacheManager::steal_block(OperatorState& st, std::size_t reque
 }
 
 std::int32_t PagedCacheManager::allocate_block(OperatorState& st, std::size_t requester_seq) {
+    // Enforce byte budget: when m_max_cache_bytes > 0, limit active block count.
+    if (m_max_cache_bytes > 0) {
+        const std::size_t bytes_per_block = st.key_block_bytes + st.value_block_bytes;
+        const std::size_t max_blocks =
+            (bytes_per_block > 0) ? std::max<std::size_t>(1, m_max_cache_bytes / bytes_per_block) : st.num_blocks;
+        const std::size_t active = st.num_blocks - st.free_blocks.size();
+        if (active >= max_blocks) {
+            return steal_block(st, requester_seq);
+        }
+    }
+
     if (!st.free_blocks.empty()) {
         const std::int32_t bid = st.free_blocks.back();
         st.free_blocks.pop_back();
