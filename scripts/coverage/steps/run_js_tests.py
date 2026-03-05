@@ -4,9 +4,30 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 import shutil
 
 from coverage_workflow import CoverageContext, load_js_tests, run_cmd, warn
+
+
+def _compose_runtime_ld_library_path(ctx: CoverageContext) -> str:
+    paths: list[Path] = []
+    candidates = [
+        ctx.paths.bin_dir,
+        ctx.paths.install_pkg_dir / "runtime" / "lib" / "intel64",
+        ctx.paths.install_pkg_dir / "runtime" / "3rdparty" / "tbb" / "lib",
+        ctx.paths.js_dir / "bin",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            paths.append(candidate)
+
+    tbb_dirs = sorted({p.parent for p in ctx.paths.install_pkg_dir.rglob("libtbb.so*") if p.is_file()})
+    for tbb_dir in tbb_dirs:
+        if tbb_dir not in paths:
+            paths.append(tbb_dir)
+
+    return ":".join(str(p) for p in paths)
 
 
 def run(ctx: CoverageContext) -> None:
@@ -48,6 +69,8 @@ def run(ctx: CoverageContext) -> None:
 
     os.environ["JS_TEST_CONCURRENCY"] = str(ctx.js_test_concurrency)
     os.environ["OV_WORKSPACE"] = str(ctx.workspace)
+    runtime_ld_library_path = _compose_runtime_ld_library_path(ctx)
+    os.environ["LD_LIBRARY_PATH"] = f"{runtime_ld_library_path}:{os.environ.get('LD_LIBRARY_PATH', '')}".rstrip(":")
 
     run_cmd(["npm", "i"], cwd=ctx.paths.js_dir)
     run_cmd(["npm", "i", "--no-save", "c8"], cwd=ctx.paths.js_dir)

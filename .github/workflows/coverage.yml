@@ -139,8 +139,19 @@ jobs:
             src="${{ github.workspace }}/_artifact"
           fi
 
-          if [[ -d "${src}/build" && -d "${src}/install_pkg" ]]; then
-            cp -a "${src}/." "${{ github.workspace }}/"
+          if [[ -d "${src}/build" && -d "${src}/install_pkg" && -d "${src}/bin" ]]; then
+            rm -rf "${{ github.workspace }}/bin" "${{ github.workspace }}/install_pkg" "${{ github.workspace }}/build" "${{ github.workspace }}/build_js" "${{ github.workspace }}/src/bindings/js/node/bin"
+            mkdir -p "${{ github.workspace }}/src/bindings/js/node"
+
+            rsync -a "${src}/bin/" "${{ github.workspace }}/bin/"
+            rsync -a "${src}/install_pkg/" "${{ github.workspace }}/install_pkg/"
+            rsync -a "${src}/build/" "${{ github.workspace }}/build/"
+            if [[ -d "${src}/build_js" ]]; then
+              rsync -a "${src}/build_js/" "${{ github.workspace }}/build_js/"
+            fi
+            if [[ -d "${src}/src/bindings/js/node/bin" ]]; then
+              rsync -a "${src}/src/bindings/js/node/bin/" "${{ github.workspace }}/src/bindings/js/node/bin/"
+            fi
             echo "ready=true" >> "$GITHUB_OUTPUT"
             echo "Build artifact restored from: ${src}"
           else
@@ -277,8 +288,19 @@ jobs:
             src="${{ github.workspace }}/_artifact"
           fi
 
-          if [[ -d "${src}/build" && -d "${src}/install_pkg" ]]; then
-            cp -a "${src}/." "${{ github.workspace }}/"
+          if [[ -d "${src}/build" && -d "${src}/install_pkg" && -d "${src}/bin" ]]; then
+            rm -rf "${{ github.workspace }}/bin" "${{ github.workspace }}/install_pkg" "${{ github.workspace }}/build" "${{ github.workspace }}/build_js" "${{ github.workspace }}/src/bindings/js/node/bin"
+            mkdir -p "${{ github.workspace }}/src/bindings/js/node"
+
+            rsync -a "${src}/bin/" "${{ github.workspace }}/bin/"
+            rsync -a "${src}/install_pkg/" "${{ github.workspace }}/install_pkg/"
+            rsync -a "${src}/build/" "${{ github.workspace }}/build/"
+            if [[ -d "${src}/build_js" ]]; then
+              rsync -a "${src}/build_js/" "${{ github.workspace }}/build_js/"
+            fi
+            if [[ -d "${src}/src/bindings/js/node/bin" ]]; then
+              rsync -a "${src}/src/bindings/js/node/bin/" "${{ github.workspace }}/src/bindings/js/node/bin/"
+            fi
             echo "ready=true" >> "$GITHUB_OUTPUT"
             echo "Build artifact restored from: ${src}"
           else
@@ -437,8 +459,19 @@ jobs:
             src="${{ github.workspace }}/_artifact"
           fi
 
-          if [[ -d "${src}/build_js" && -d "${src}/src/bindings/js/node/bin" ]]; then
-            cp -a "${src}/." "${{ github.workspace }}/"
+          if [[ -d "${src}/build_js" && -d "${src}/src/bindings/js/node/bin" && -d "${src}/install_pkg" ]]; then
+            rm -rf "${{ github.workspace }}/bin" "${{ github.workspace }}/install_pkg" "${{ github.workspace }}/build" "${{ github.workspace }}/build_js" "${{ github.workspace }}/src/bindings/js/node/bin"
+            mkdir -p "${{ github.workspace }}/src/bindings/js/node"
+
+            if [[ -d "${src}/bin" ]]; then
+              rsync -a "${src}/bin/" "${{ github.workspace }}/bin/"
+            fi
+            rsync -a "${src}/install_pkg/" "${{ github.workspace }}/install_pkg/"
+            if [[ -d "${src}/build" ]]; then
+              rsync -a "${src}/build/" "${{ github.workspace }}/build/"
+            fi
+            rsync -a "${src}/build_js/" "${{ github.workspace }}/build_js/"
+            rsync -a "${src}/src/bindings/js/node/bin/" "${{ github.workspace }}/src/bindings/js/node/bin/"
             echo "ready=true" >> "$GITHUB_OUTPUT"
             echo "Build artifact restored from: ${src}"
           else

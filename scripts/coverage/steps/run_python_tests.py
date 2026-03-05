@@ -24,6 +24,25 @@ omit =
 """
 
 
+def _compose_runtime_ld_library_path(ctx: CoverageContext) -> str:
+    paths: list[Path] = []
+    candidates = [
+        ctx.paths.bin_dir,
+        ctx.paths.install_pkg_dir / "runtime" / "lib" / "intel64",
+        ctx.paths.install_pkg_dir / "runtime" / "3rdparty" / "tbb" / "lib",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            paths.append(candidate)
+
+    tbb_dirs = sorted({p.parent for p in ctx.paths.install_pkg_dir.rglob("libtbb.so*") if p.is_file()})
+    for tbb_dir in tbb_dirs:
+        if tbb_dir not in paths:
+            paths.append(tbb_dir)
+
+    return ":".join(str(p) for p in paths)
+
+
 def _expand(value: str) -> str:
     return os.path.expandvars(value)
 
@@ -98,7 +117,8 @@ def run(ctx: CoverageContext) -> None:
     wheel = _find_openvino_wheel(ctx.paths.install_pkg_dir / "wheels")
     run_cmd(["python3", "-m", "pip", "install", "--force-reinstall", str(wheel)])
 
-    os.environ["LD_LIBRARY_PATH"] = f"{ctx.paths.bin_dir}:{os.environ.get('LD_LIBRARY_PATH', '')}".rstrip(":")
+    runtime_ld_library_path = _compose_runtime_ld_library_path(ctx)
+    os.environ["LD_LIBRARY_PATH"] = f"{runtime_ld_library_path}:{os.environ.get('LD_LIBRARY_PATH', '')}".rstrip(":")
     os.environ["PYTHONPATH"] = f"{tests_dir / 'python'}:{os.environ.get('PYTHONPATH', '')}".rstrip(":")
 
     os.environ["TESTS_DIR"] = str(tests_dir)
