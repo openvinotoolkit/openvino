@@ -140,8 +140,7 @@ jobs:
 
       # Ticket: 139627
       - name: Checkout the latest OneDNN for GPU in nightly
-        # if: ${{ inputs.event-name == 'schedule' && inputs.os == 'ubuntu_22_04' && inputs.use_latest_onednn }} # GPU tests are enabled only on U22
-        if : ${{ inputs.use_latest_onednn && inputs.os == 'ubuntu_22_04' }} # to be changed back after testing
+        if: ${{ inputs.event-name == 'schedule' && inputs.os == 'ubuntu_22_04' && inputs.use_latest_onednn }} # GPU tests are enabled only on U22
         working-directory: ${{ env.OPENVINO_REPO }}/src/plugins/intel_gpu/thirdparty/onednn_gpu
         run: |
           git fetch origin

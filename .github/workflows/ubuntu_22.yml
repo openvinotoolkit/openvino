@@ -69,19 +69,17 @@ jobs:
           echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
         shell: bash
 
-      - name: Determine if OneDNN is needed
+      - name: Determine if latest OneDNN is needed
         id: onednn_day
         shell: bash
         env:
           EVENT_SCHEDULE: ${{ github.event.schedule }}
         run: |
-          # if [[ "$EVENT_SCHEDULE" == '0 0 * * 3,6' ]]; then
-          #   echo "use_latest_onednn=true" >> "$GITHUB_OUTPUT"
-          # else
-          #   echo "use_latest_onednn=false" >> "$GITHUB_OUTPUT"
-          # fi
-          # hardcode to true for testing purposes
-          echo "use_latest_onednn=true" >> "$GITHUB_OUTPUT"
+          if [[ "$EVENT_SCHEDULE" == '0 0 * * 3,6' ]]; then
+            echo "use_latest_onednn=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "use_latest_onednn=false" >> "$GITHUB_OUTPUT"
+          fi
 
   Docker:
     needs: Smart_CI
