@@ -39,22 +39,6 @@ ov_add_test_target(
             ${ctest_labels} PADDLE_FE
 )
 
-if(TARGET protobuf::libprotobuf-lite)
-    target_link_libraries(${TARGET_NAME} PRIVATE protobuf::libprotobuf-lite)
-    target_include_directories(${TARGET_NAME} PRIVATE
-        $<TARGET_PROPERTY:protobuf::libprotobuf-lite,INTERFACE_INCLUDE_DIRECTORIES>)
-elseif(TARGET protobuf::libprotobuf)
-    target_link_libraries(${TARGET_NAME} PRIVATE protobuf::libprotobuf)
-    target_include_directories(${TARGET_NAME} PRIVATE
-        $<TARGET_PROPERTY:protobuf::libprotobuf,INTERFACE_INCLUDE_DIRECTORIES>)
-endif()
-
-# Make generated protobuf headers visible to tests (framework.pb.h is generated in build/src/frontends/paddle/src).
-target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../../src)
-
-# Link generated Paddle protobuf implementation when tests use framework.pb.h.
-target_sources(${TARGET_NAME} PRIVATE ${CMAKE_BINARY_DIR}/src/frontends/paddle/src/framework.pb.cc)
-
 
 if(paddlepaddle_FOUND)
     execute_process(
