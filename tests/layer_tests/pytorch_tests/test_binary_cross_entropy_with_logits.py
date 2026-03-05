@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -39,7 +39,7 @@ class TestBinaryCrossEntropyWithLogits(PytorchLayerTest):
                     reduction=self.reduction,
                 )
 
-        return BCEWithLogitsModel(reduction, with_weight, with_pos_weight), None, \
+        return BCEWithLogitsModel(reduction, with_weight, with_pos_weight), \
             "aten::binary_cross_entropy_with_logits"
 
     @pytest.mark.nightly
