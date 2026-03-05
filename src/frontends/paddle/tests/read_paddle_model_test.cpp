@@ -11,7 +11,6 @@
 #include <set>
 #include <string>
 #include <vector>
-#include "framework.pb.h"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
@@ -23,14 +22,26 @@
 #include "openvino/pass/serialize.hpp"
 
 namespace {
-std::string make_tensor_desc_bytes(const std::vector<int64_t>& dims, int32_t data_type) {
-    paddle::framework::proto::VarType_TensorDesc desc;
-    desc.set_data_type(static_cast<paddle::framework::proto::VarType_Type>(data_type));
-    for (const auto& dim : dims) {
-        desc.add_dims(dim);
+void append_varint(std::string& out, uint64_t value) {
+    while (value > 0x7F) {
+        out.push_back(static_cast<char>((value & 0x7F) | 0x80));
+        value >>= 7;
     }
+    out.push_back(static_cast<char>(value));
+}
+
+void append_key(std::string& out, uint32_t field_number, uint8_t wire_type) {
+    append_varint(out, (static_cast<uint64_t>(field_number) << 3) | wire_type);
+}
+
+std::string make_tensor_desc_bytes(const std::vector<int64_t>& dims, int32_t data_type) {
     std::string out;
-    desc.SerializeToString(&out);
+    append_key(out, 1, 0);
+    append_varint(out, static_cast<uint64_t>(data_type));
+    for (const auto& dim : dims) {
+        append_key(out, 2, 0);
+        append_varint(out, static_cast<uint64_t>(dim));
+    }
     return out;
 }
 
