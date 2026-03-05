@@ -27,7 +27,7 @@ class TestFull(PytorchLayerTest):
 
         class aten_full(torch.nn.Module):
             def __init__(self, shape):
-                super(aten_full, self).__init__()
+                super().__init__()
                 self.shape = shape
 
             def forward(self, x: float):
@@ -35,7 +35,7 @@ class TestFull(PytorchLayerTest):
 
         class aten_full_dtype(torch.nn.Module):
             def __init__(self, shape, dtype):
-                super(aten_full_dtype, self).__init__()
+                super().__init__()
                 self.shape = shape
                 self.dtype = dtype
 
@@ -44,7 +44,7 @@ class TestFull(PytorchLayerTest):
 
         class aten_full_dtype_with_names(torch.nn.Module):
             def __init__(self, shape, dtype):
-                super(aten_full_dtype_with_names, self).__init__()
+                super().__init__()
                 self.shape = shape
                 self.dtype = dtype
 
@@ -53,7 +53,7 @@ class TestFull(PytorchLayerTest):
 
         class aten_full_out(torch.nn.Module):
             def __init__(self, shape, dtype):
-                super(aten_full_out, self).__init__()
+                super().__init__()
                 self.shape = shape
                 self.dtype = dtype
 
@@ -62,14 +62,13 @@ class TestFull(PytorchLayerTest):
 
         class aten_full_out_with_names(torch.nn.Module):
             def __init__(self, shape, dtype):
-                super(aten_full_out_with_names, self).__init__()
+                super().__init__()
                 self.shape = shape
                 self.dtype = dtype
 
             def forward(self, x: float):
                 return torch.full(self.shape, x, out=torch.tensor(1, dtype=self.dtype), names=None)
 
-        ref_net = None
         model = aten_full(shape)
         if use_dtype or use_out:
             dtype = dtype_map.get(dtype, dtype)
@@ -78,7 +77,7 @@ class TestFull(PytorchLayerTest):
             else:
                 model = aten_full_out(shape, dtype) if not with_names else aten_full_out_with_names(shape, dtype)
 
-        return model, ref_net, "aten::full"
+        return model, "aten::full"
 
     @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
     @pytest.mark.parametrize("value", [0, 1, -1, 0.5])
@@ -111,8 +110,8 @@ class TestFull(PytorchLayerTest):
 class TestFill(PytorchLayerTest):
     def _prepare_input(self, value, shape, input_dtype, value_dtype, out=False):
         if not out:
-            return (np.random.randn(*shape).astype(input_dtype), np.array(value, dtype=value_dtype),)
-        return (np.random.randn(*shape).astype(input_dtype), np.array(value, dtype=value_dtype), np.zeros(shape, dtype=input_dtype))
+            return (self.random.randn(*shape, dtype=input_dtype), np.array(value, dtype=value_dtype),)
+        return (self.random.randn(*shape, dtype=input_dtype), np.array(value, dtype=value_dtype), np.zeros(shape, dtype=input_dtype))
 
 
     def create_model(self, mode):
@@ -136,11 +135,10 @@ class TestFill(PytorchLayerTest):
             def forward(self, input_t: torch.Tensor, x:float):
                 return input_t.fill(x)
 
-        ref_net = None
 
         model = aten_fill(mode)
 
-        return model, ref_net, "aten::fill_" if mode == "inplace" else "aten::fill"
+        return model, "aten::fill_" if mode == "inplace" else "aten::fill"
 
     @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
     @pytest.mark.parametrize("value", [0, 1, -1, 0.5])
@@ -178,10 +176,9 @@ class TestFillDiagonal(PytorchLayerTest):
                 x = x.reshape(self.input_shape)
                 return x.fill_diagonal_(y, wrap=self.wrap), x
 
-        ref_net = None
 
         model = aten_fill_diagonal(shape, wrap)
-        return model, "aten::fill_diagonal_", ref_net
+        return model, "aten::fill_diagonal_"
 
     @pytest.mark.parametrize("shape", ([4, 4], [5, 4], [8, 4], [4, 3],  [5, 5, 5], [3, 3, 3, 3], [4, 4, 4, 4, 4]))
     @pytest.mark.parametrize("value", [0, 1, -1, 2.5])
@@ -206,7 +203,7 @@ class TestFillDiagonal(PytorchLayerTest):
 
 class TestZero(PytorchLayerTest):
     def _prepare_input(self, shape, input_dtype):
-        return (np.random.randn(*shape).astype(input_dtype),)
+        return (self.random.randn(*shape, dtype=input_dtype),)
 
     def create_model(self):
         import torch
@@ -215,11 +212,10 @@ class TestZero(PytorchLayerTest):
 
             def forward(self, input_t: torch.Tensor):
                 return input_t.zero_()
-        ref_net = None
 
         model = aten_zero()
 
-        return model, ref_net, "aten::zero_"
+        return model, "aten::zero_"
 
     @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
     @pytest.mark.parametrize("input_dtype", ["int8", "int32", "int64", "float32", "float64"])
@@ -233,7 +229,7 @@ class TestZero(PytorchLayerTest):
 
 class TestFullLike(PytorchLayerTest):
     def _prepare_input(self, value, shape):
-        return (np.random.randn(*shape).astype(np.float32), np.array(value, dtype=np.float32),)
+        return (self.random.randn(*shape), np.array(value, dtype=np.float32),)
 
     def create_model(self, dtype=None, use_dtype=False, use_out=False):
         import torch
@@ -254,7 +250,7 @@ class TestFullLike(PytorchLayerTest):
 
         class aten_full_like_dtype(torch.nn.Module):
             def __init__(self, dtype):
-                super(aten_full_like_dtype, self).__init__()
+                super().__init__()
                 self.dtype = dtype
 
             def forward(self, input_t: torch.Tensor, x: float):
@@ -262,13 +258,12 @@ class TestFullLike(PytorchLayerTest):
 
         class aten_full_like_out(torch.nn.Module):
             def __init__(self, dtype):
-                super(aten_full_like_out, self).__init__()
+                super().__init__()
                 self.dtype = dtype
 
             def forward(self, input_t: torch.Tensor, x: float):
                 return torch.full_like(input_t, x, out=torch.tensor(1, dtype=self.dtype))
 
-        ref_net = None
 
         model = aten_full_like()
         if use_dtype or use_out:
@@ -278,7 +273,7 @@ class TestFullLike(PytorchLayerTest):
             else:
                 model = aten_full_like_out(dtype)
 
-        return model, ref_net, "aten::full_like"
+        return model, "aten::full_like"
 
     @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
     @pytest.mark.parametrize("value", [0, 1, -1, 0.5])
@@ -308,7 +303,7 @@ class TestFullLike(PytorchLayerTest):
 
 class TestNewFull(PytorchLayerTest):
     def _prepare_input(self, value, input_dtype=np.float32):
-        return (np.random.randn(1, 3, 10, 10).astype(input_dtype), np.array(value, dtype=np.float32))
+        return (self.random.randn(1, 3, 10, 10, dtype=input_dtype), np.array(value, dtype=np.float32))
 
     def create_model(self, shape, dtype=None, used_dtype=False):
         import torch
@@ -324,7 +319,7 @@ class TestNewFull(PytorchLayerTest):
 
         class aten_full(torch.nn.Module):
             def __init__(self, shape):
-                super(aten_full, self).__init__()
+                super().__init__()
                 self.shape = shape
 
             def forward(self, input_tensor: torch.Tensor, x: float):
@@ -332,21 +327,20 @@ class TestNewFull(PytorchLayerTest):
 
         class aten_full_with_dtype(torch.nn.Module):
             def __init__(self, shape, dtype):
-                super(aten_full_with_dtype, self).__init__()
+                super().__init__()
                 self.shape = shape
                 self.dtype = dtype
 
             def forward(self, input_tensor: torch.Tensor, x: float):
                 return input_tensor.new_full(size=self.shape, fill_value=x, dtype=self.dtype), input_tensor
 
-        ref_net = None
         model = aten_full(shape)
 
         if used_dtype:
             dtype = dtype_map[dtype]
             model = aten_full_with_dtype(shape, dtype)
 
-        return model, ref_net, "aten::new_full"
+        return model, "aten::new_full"
 
     @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
     @pytest.mark.parametrize("value,input_dtype", [(0, np.uint8), (1, np.int32), (-1, np.float32), (0.5, np.float64)])
@@ -368,7 +362,7 @@ class TestNewFull(PytorchLayerTest):
 
 class TestZerosAndOnes(PytorchLayerTest):
     def _prepare_input(self, shape):
-        return (np.random.randn(*shape).astype(np.float32),)
+        return (self.random.randn(*shape),)
 
     def create_model(self, op_type, dtype=None, with_dtype=False, with_out=False, with_names=False):
         import torch
@@ -390,7 +384,7 @@ class TestZerosAndOnes(PytorchLayerTest):
 
         class aten_op(torch.nn.Module):
             def __init__(self, op):
-                super(aten_op, self).__init__()
+                super().__init__()
                 self.op = op
 
             def forward(self, x):
@@ -399,7 +393,7 @@ class TestZerosAndOnes(PytorchLayerTest):
 
         class aten_op_like(torch.nn.Module):
             def __init__(self, op):
-                super(aten_op_like, self).__init__()
+                super().__init__()
                 self.op = op
 
             def forward(self, x):
@@ -407,7 +401,7 @@ class TestZerosAndOnes(PytorchLayerTest):
 
         class aten_op_dtype(torch.nn.Module):
             def __init__(self, op, dtype):
-                super(aten_op_dtype, self).__init__()
+                super().__init__()
                 self.op = op
                 self.dtype = dtype
 
@@ -422,7 +416,7 @@ class TestZerosAndOnes(PytorchLayerTest):
 
         class aten_op_like_dtype(torch.nn.Module):
             def __init__(self, op, dtype):
-                super(aten_op_like_dtype, self).__init__()
+                super().__init__()
                 self.op = op
                 self.dtype = dtype
 
@@ -431,7 +425,7 @@ class TestZerosAndOnes(PytorchLayerTest):
 
         class aten_op_out(torch.nn.Module):
             def __init__(self, op, dtype):
-                super(aten_op_out, self).__init__()
+                super().__init__()
                 self.op = op
                 self.dtype = dtype
 
@@ -441,7 +435,7 @@ class TestZerosAndOnes(PytorchLayerTest):
 
         class aten_op_out_with_names(torch.nn.Module):
             def __init__(self, op, dtype):
-                super(aten_op_out_with_names, self).__init__()
+                super().__init__()
                 self.op = op
                 self.dtype = dtype
 
@@ -451,7 +445,7 @@ class TestZerosAndOnes(PytorchLayerTest):
 
         class aten_op_like_out(torch.nn.Module):
             def __init__(self, op, dtype):
-                super(aten_op_like_out, self).__init__()
+                super().__init__()
                 self.op = op
                 self.dtype = dtype
 
@@ -474,9 +468,8 @@ class TestZerosAndOnes(PytorchLayerTest):
                 dtype = dtype_map[dtype]
                 model_cls = aten_op_like_dtype(op, dtype) if not with_out else aten_op_like_out(op, dtype)
 
-        ref_net = None
 
-        return model_cls, ref_net, op_type
+        return model_cls, op_type
 
     @pytest.mark.parametrize("shape", [(1, 1), (1, 2), (1, 2, 3), (1, 2, 3, 4), (2, 3, 4, 5, 6)])
     @pytest.mark.parametrize("op_type", ["aten::zeros", "aten::ones", "aten::zeros_like", "aten::ones_like"])
@@ -531,7 +524,7 @@ class TestZerosAndOnes(PytorchLayerTest):
 
 class TestNewZeros(PytorchLayerTest):
     def _prepare_input(self, input_dtype=np.float32):
-        return (np.random.randn(1, 3, 10, 10).astype(input_dtype),)
+        return (self.random.randn(1, 3, 10, 10, dtype=input_dtype),)
 
     def create_model(self, shape, dtype=None, used_dtype=False):
         import torch
@@ -547,7 +540,7 @@ class TestNewZeros(PytorchLayerTest):
 
         class aten_full(torch.nn.Module):
             def __init__(self, shape):
-                super(aten_full, self).__init__()
+                super().__init__()
                 self.shape = shape
 
             def forward(self, input_tensor: torch.Tensor):
@@ -555,21 +548,20 @@ class TestNewZeros(PytorchLayerTest):
 
         class aten_full_with_dtype(torch.nn.Module):
             def __init__(self, shape, dtype):
-                super(aten_full_with_dtype, self).__init__()
+                super().__init__()
                 self.shape = shape
                 self.dtype = dtype
 
             def forward(self, input_tensor: torch.Tensor):
                 return input_tensor.new_zeros(self.shape, dtype=self.dtype), input_tensor
 
-        ref_net = None
         model = aten_full(shape)
 
         if used_dtype:
             dtype = dtype_map[dtype]
             model = aten_full_with_dtype(shape, dtype)
 
-        return model, ref_net, "aten::new_zeros"
+        return model, "aten::new_zeros"
 
     @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
     @pytest.mark.parametrize("input_dtype", [np.uint8, np.int8, np.int32, np.int64, np.float32, np.float64])
@@ -592,7 +584,7 @@ class TestNewZeros(PytorchLayerTest):
 
 class TestNewOnes(PytorchLayerTest):
     def _prepare_input(self, input_dtype=np.float32):
-        return (np.random.randn(1, 3, 10, 10).astype(input_dtype),)
+        return (self.random.randn(1, 3, 10, 10, dtype=input_dtype),)
 
     def create_model(self, shape, dtype=None, used_dtype=False):
         import torch
@@ -608,7 +600,7 @@ class TestNewOnes(PytorchLayerTest):
 
         class aten_full(torch.nn.Module):
             def __init__(self, shape):
-                super(aten_full, self).__init__()
+                super().__init__()
                 self.shape = shape
 
             def forward(self, input_tensor: torch.Tensor):
@@ -616,21 +608,20 @@ class TestNewOnes(PytorchLayerTest):
 
         class aten_full_with_dtype(torch.nn.Module):
             def __init__(self, shape, dtype):
-                super(aten_full_with_dtype, self).__init__()
+                super().__init__()
                 self.shape = shape
                 self.dtype = dtype
 
             def forward(self, input_tensor: torch.Tensor):
                 return input_tensor.new_ones(self.shape, dtype=self.dtype), input_tensor
 
-        ref_net = None
         model = aten_full(shape)
 
         if used_dtype:
             dtype = dtype_map[dtype]
             model = aten_full_with_dtype(shape, dtype)
 
-        return model, ref_net, "aten::new_ones"
+        return model, "aten::new_ones"
 
     @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
     @pytest.mark.parametrize("input_dtype", [np.uint8, np.int8, np.int32, np.int64, np.float32, np.float64])

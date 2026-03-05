@@ -578,8 +578,13 @@ void Snapshot::earlyAvoids() {
         }
         case PatternType::PATTERN: {
             // FIXME: refactor as more patterns are supported
-            if (avoid.pattern != "RMSNorm" && avoid.pattern != "SinCos" && avoid.pattern != "GemmaRoPE") {
-                LOG_WARN("OPENVINO_NPUW_AVOID only supports RMSNorm, SinCos and GemmaRoPE as patterns "
+            if (avoid.pattern != "RMSNorm" && avoid.pattern != "SinCos" && avoid.pattern != "GemmaRoPE" &&
+                avoid.pattern != "DownsampleInterpolate" && avoid.pattern != "FloorModFP32" &&
+                avoid.pattern != "CumSumSinGen" && avoid.pattern != "BoxMullerNoise" &&
+                avoid.pattern != "AngleComplex") {
+                LOG_WARN("OPENVINO_NPUW_AVOID only supports RMSNorm, SinCos, GemmaRoPE, "
+                         "DownsampleInterpolate, FloorModFP32, CumSumSinGen, BoxMullerNoise "
+                         "and AngleComplex as patterns "
                          "(don't confuse with operations). "
                          "Avoid pattern "
                          << avoid.pattern << " is skipped!");
@@ -592,6 +597,16 @@ void Snapshot::earlyAvoids() {
                 rewr.add_matcher<ov::npuw::patterns::avoid::SinCos>(shared_from_this(), avoid.device);
             } else if (avoid.pattern == "GemmaRoPE") {
                 rewr.add_matcher<ov::npuw::patterns::avoid::GemmaRoPE>(shared_from_this(), avoid.device);
+            } else if (avoid.pattern == "DownsampleInterpolate") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::DownsampleInterpolate>(shared_from_this(), avoid.device);
+            } else if (avoid.pattern == "FloorModFP32") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::FloorModFP32>(shared_from_this(), avoid.device);
+            } else if (avoid.pattern == "CumSumSinGen") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::CumSumSinGen>(shared_from_this(), avoid.device);
+            } else if (avoid.pattern == "BoxMullerNoise") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::BoxMullerNoise>(shared_from_this(), avoid.device);
+            } else if (avoid.pattern == "AngleComplex") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::AngleComplex>(shared_from_this(), avoid.device);
             }
 
             break;

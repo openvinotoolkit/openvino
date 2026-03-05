@@ -8,6 +8,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/util/common_util.hpp"
 #include "transformations/hash.hpp"
 
 namespace v0 = ov::op::v0;
@@ -60,6 +61,32 @@ TEST(HashTest, same_model_struct_different_weigth) {
         int data_value = 13;
         auto out = std::make_shared<Add>(std::make_shared<Parameter>(element::i32, Shape{1}),
                                          std::make_shared<Constant>(element::i32, Shape{1}, &data_value));
+        auto model = std::make_shared<Model>(OutputVector{out}, "TestModel");
+
+        ov::pass::Hash hasher(hash2);
+        hasher.run_on_model(model);
+    }
+
+    EXPECT_NE(hash1, hash2);
+}
+
+TEST(HashTest, same_model_struct_different_weigth_by_offset) {
+    constexpr auto weights = ov::util::make_array<int>(11, 11, 12);
+
+    uint64_t hash1 = 0, hash2 = 0;
+    {
+        auto out = std::make_shared<Add>(std::make_shared<Parameter>(element::i32, Shape{1}),
+                                         std::make_shared<Constant>(element::i32, Shape{1}, weights.data()));
+        out = std::make_shared<Add>(out, std::make_shared<Constant>(element::i32, Shape{1}, weights.data() + 1));
+        auto model = std::make_shared<Model>(OutputVector{out}, "TestModel");
+
+        ov::pass::Hash hasher(hash1);
+        hasher.run_on_model(model);
+    }
+    {
+        auto out = std::make_shared<Add>(std::make_shared<Parameter>(element::i32, Shape{1}),
+                                         std::make_shared<Constant>(element::i32, Shape{1}, weights.data()));
+        out = std::make_shared<Add>(out, std::make_shared<Constant>(element::i32, Shape{1}, weights.data() + 2));
         auto model = std::make_shared<Model>(OutputVector{out}, "TestModel");
 
         ov::pass::Hash hasher(hash2);

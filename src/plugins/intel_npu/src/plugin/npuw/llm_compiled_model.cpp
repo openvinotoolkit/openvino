@@ -11,6 +11,8 @@
 #include "low_precision/kv_cache_concat.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/move_fake_convert_up_through_kv_cache_concat.hpp"
+#include "moe_transformations/device_routed_moe_transform.hpp"
+#include "moe_transformations/gather_to_2d_gather.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/group_query_attention.hpp"
@@ -612,12 +614,16 @@ public:
         };
 
         auto past_kv_len = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
-        auto full_ctx_len = opp::wrap_type<ov::op::v1::Add>({past_kv_len, opp::any_input()});
-        auto query_range = opp::wrap_type<ov::op::v4::Range>({past_kv_len, full_ctx_len, opp::any_input()});
+        // TODO: ov::op::v0::Squeeze may accept or not accept optional axes input, so we need to cover both cases in
+        // pattern If Squeeze accepts axes it doesn't match with pattern without axes, and if it doesn't accept axes it
+        // doesn't match with pattern with axes. So we need to add two branches in pattern to cover both cases.
+        auto past_kv_len_squeeze = opp::optional<ov::op::v0::Squeeze>({past_kv_len});
+        auto full_ctx_len = opp::wrap_type<ov::op::v1::Add>({past_kv_len_squeeze, opp::any_input()});
+        auto query_range = opp::wrap_type<ov::op::v4::Range>({past_kv_len_squeeze, full_ctx_len, opp::any_input()});
         auto query_range_column = unsqueeze_sequence(query_range);
 
         auto zero_const = opp::wrap_type<ov::op::v0::Constant>();
-        auto full_ctx_len_2 = opp::wrap_type<ov::op::v1::Add>({opp::any_input(), past_kv_len});
+        auto full_ctx_len_2 = opp::wrap_type<ov::op::v1::Add>({opp::any_input(), past_kv_len_squeeze});
         auto key_range = opp::wrap_type<ov::op::v4::Range>({zero_const, full_ctx_len_2, opp::any_input()});
         auto key_range_row = unsqueeze_sequence(key_range);
         auto opt_key_range_row_f32 = opp::optional<ov::op::v0::Convert>({key_range_row->output(0)});
@@ -636,26 +642,20 @@ public:
             LOG_INFO("Found (4.53) pattern for Phi-3 Sliding Window Attention, will be replaced with custom for static "
                      "shapes.");
             auto& node_to_output = m.get_pattern_value_map();
-            auto node_past_kv_len = node_to_output.at(past_kv_len).get_node_shared_ptr();
-            auto node_full_ctx_len = node_to_output.at(full_ctx_len).get_node_shared_ptr();
+            auto optional_squeeze = node_to_output.find(past_kv_len_squeeze);
+            auto matched_past_kv_len = optional_squeeze != node_to_output.end()
+                                           ? optional_squeeze->second.get_node_shared_ptr()
+                                           : node_to_output.at(past_kv_len).get_node_shared_ptr();
+            auto matched_full_ctx_len = node_to_output.at(full_ctx_len).get_node_shared_ptr();
             auto node_neg_window_size = node_to_output.at(neg_window_size).get_node_shared_ptr();
-            auto node_sliding_mask = node_to_output.at(sliding_mask).get_node_shared_ptr();
-            auto node_sliding_and_causal_mask = node_to_output.at(sliding_and_causal_mask).get_node_shared_ptr();
+            auto matched_sliding_mask = node_to_output.at(sliding_mask).get_node_shared_ptr();
+            auto matched_sliding_and_causal_mask = node_to_output.at(sliding_and_causal_mask).get_node_shared_ptr();
 
-            auto matched_past_kv_len = std::static_pointer_cast<ov::op::v8::Gather>(node_past_kv_len);
-            auto matched_full_ctx_len = std::static_pointer_cast<ov::op::v1::Add>(node_full_ctx_len);
-            std::shared_ptr<ov::Node> matched_key_range_row = nullptr;
-            if (node_to_output.count(opt_key_range_row_f32)) {
-                auto node_key_range_row_f32 = node_to_output[opt_key_range_row_f32].get_node_shared_ptr();
-                matched_key_range_row = std::static_pointer_cast<ov::op::v0::Convert>(node_key_range_row_f32);
-            } else {
-                auto node_key_range_row = node_to_output.at(key_range_row).get_node_shared_ptr();
-                matched_key_range_row = std::static_pointer_cast<ov::op::v0::Unsqueeze>(node_key_range_row);
-            }
+            auto optional_convert = node_to_output.find(opt_key_range_row_f32);
+            std::shared_ptr<ov::Node> matched_key_range_row =
+                optional_convert != node_to_output.end() ? optional_convert->second.get_node_shared_ptr()
+                                                         : node_to_output.at(key_range_row).get_node_shared_ptr();
             auto matched_neg_window_size = std::static_pointer_cast<ov::op::v0::Constant>(node_neg_window_size);
-            auto matched_sliding_mask = std::static_pointer_cast<ov::op::v1::Greater>(node_sliding_mask);
-            auto matched_sliding_and_causal_mask =
-                std::static_pointer_cast<ov::op::v13::BitwiseAnd>(node_sliding_and_causal_mask);
             OPENVINO_ASSERT(matched_neg_window_size->get_output_size() == 1,
                             "Sliding window size constant must be of size 1, but got " +
                                 std::to_string(matched_neg_window_size->get_output_size()));
@@ -1359,29 +1359,29 @@ bool is_moe_model(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
-// Apply MoE-specific optimizations to stage configuration based on hint
-void apply_moe_optimizations(ov::AnyMap& stage_config,
-                             ::intel_npu::npuw::llm::MoEHint moe_hint,
-                             const std::string& stage_name) {
-    // MoE expert and router pattern isolation options
-    const ov::AnyMap expert_opts = {
-        {"NPUW_ONLINE_PIPELINE", "REP"},
-        {"NPUW_ONLINE_ISOLATE", "MOE"},
-        {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
-        {"NPUW_UNFOLD_IREQS", "NO"},
-    };
-
+// Apply MoE-specific configuration based on hint
+void apply_moe_config(ov::AnyMap& stage_config,
+                      ::intel_npu::npuw::llm::MoEHint moe_hint,
+                      const std::string& stage_name) {
     if (moe_hint == ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED) {
-        LOG_INFO("MoE architecture optimization for " << stage_name
-                                                      << " stage: HOST_ROUTED (host-side expert routing)");
+        LOG_INFO("MoE config for " << stage_name << " stage: HOST_ROUTED (host-side expert routing)");
+        // MoE expert and router pattern isolation options
+        const ov::AnyMap expert_opts = {
+            {"NPUW_ONLINE_PIPELINE", "REP"},
+            {"NPUW_ONLINE_ISOLATE", "MOE"},
+            {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
+            {"NPUW_UNFOLD_IREQS", "NO"},
+        };
         merge_config_with(stage_config, expert_opts);
     } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
-        NPUW_ASSERT(false && "MoE DEVICE_ROUTED is not yet implemented! "
-                             "DEVICE_ROUTED will use in-graph gather-based expert selection to avoid "
-                             "graph splitting and reduce host-device communication overhead. "
-                             "This feature is planned for future releases.");
+        if (stage_name == "PREFILL") {
+            NPUW_ASSERT(false && "MoE DEVICE_ROUTED is not supported for PREFILL stage. "
+                                 "DEVICE_ROUTED mode uses in-graph gather-based expert selection which is only "
+                                 "optimized for GENERATE stage. Please use HOST_ROUTED or DENSE for PREFILL.");
+        }
+        stage_config["NPUW_UNFOLD_IREQS"] = "NO";
     } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::DENSE) {
-        LOG_INFO("MoE architecture optimization for " << stage_name << " stage: DENSE (all experts active)");
+        LOG_INFO("MoE config for " << stage_name << " stage: DENSE (all experts active)");
         // DENSE mode requires CPU-only device due to extremely long NPU compilation time and high resource consumption
         auto npuw_devices =
             stage_config.count("NPUW_DEVICES") ? stage_config.at("NPUW_DEVICES").as<std::string>() : "NPU";
@@ -1390,6 +1390,23 @@ void apply_moe_optimizations(ov::AnyMap& stage_config,
                     "DENSE activates all experts simultaneously, causing extremely long NPU compilation time. "
                     "Please set NPUW_DEVICES to 'CPU'.");
     }
+}
+
+// Apply DEVICE_ROUTED MoE transformations to models
+void apply_moe_device_routed_transforms(std::vector<std::shared_ptr<ov::Model>>& model_variants) {
+    LOG_INFO("Applying DEVICE_ROUTED MoE transformations...");
+    ov::npuw::pass::DeviceRoutedMoETransform moe_transform;
+    ov::npuw::pass::GatherTo2DGather gather_transform;
+
+    for (auto& model : model_variants) {
+        moe_transform.run_on_model(model);
+        LOG_DEBUG("  Applied DEVICE_ROUTED transformations to model variant");
+
+        // Apply Gather to 2D Gather transformation for HW optimization
+        gather_transform.run_on_model(model);
+        LOG_DEBUG("  Applied GatherTo2DGather transformation to model variant");
+    }
+    LOG_INFO("DEVICE_ROUTED MoE transformations completed");
 }
 
 }  // namespace
@@ -1599,6 +1616,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_is_eagle = use_eagle_key.value_or(false).as<bool>() == true;
     if (m_is_eagle) {
         LOG_INFO("Eagle3 speculative decoding mode enabled");
+    }
+
+    // Auto-detect MoE model by scanning for router/expert nodes
+    const bool is_moe = is_moe_model(model);
+    if (is_moe) {
+        // Only apply MoE defaults if not explicitly set in external config
+        if (npuw_llm_props.find("NPUW_LLM_SHARED_HEAD") == npuw_llm_props.end()) {
+            m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
+        }
+        if (npuw_llm_props.find("NPUW_LLM_GENERATE_HINT") == npuw_llm_props.end()) {
+            m_cfg.update({{"NPUW_LLM_GENERATE_HINT", "BEST_PERF"}});
+        }
     }
 
     // NB: PREFILL_HINT is now compatible with the PREFILL_CONFIG section, unlike for
@@ -1879,16 +1908,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         merge_config_with(generate_config, dyn_attn_opts);
     }
 
-    // Auto-detect MoE model by scanning for router/expert nodes
-    const bool is_moe = is_moe_model(kvcache_model);
     if (is_moe) {
-        // Apply MoE optimizations for prefill stage
+        // Apply MoE configuration for prefill stage
         const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
-        apply_moe_optimizations(prefill_config, prefill_moe_hint, "PREFILL");
+        apply_moe_config(prefill_config, prefill_moe_hint, "PREFILL");
 
-        // Apply MoE optimizations for generate stage
+        // Apply MoE configuration for generate stage
         const auto generate_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
-        apply_moe_optimizations(generate_config, generate_moe_hint, "GENERATE");
+        apply_moe_config(generate_config, generate_moe_hint, "GENERATE");
+
+        // Apply model transformations only to GENERATE stage (PREFILL doesn't support DEVICE_ROUTED transformations)
+        if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
+            apply_moe_device_routed_transforms(generate_model_variants);
+        }
     }
 
     // Note: with dynamic attention in EITHER STAGE, we have to
@@ -1918,7 +1950,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
         if (!is_best || (max_prompt_len >= CACHE_ROPE_START)) {
             LOG_DEBUG("Enable RoPE Cache for prefill");
-            ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(max_prompt_len);
+            ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(
+                max_prompt_len,
+                ov::npuw::LLMInferRequest::layer_names::longrope_input);
             rope_prefill_cacher.run_on_model(prefill_model);
         }
 
@@ -1927,7 +1961,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             const uint32_t kv_size = m_kvcache_sizes[i];
             if (!is_best || (kv_size >= CACHE_ROPE_START)) {
                 LOG_DEBUG("Enable RoPE Cache for generate variant with size: " << kv_size);
-                ov::npuw::patterns::pre_compute::RopeCache rope_cacher(kv_size);
+                ov::npuw::patterns::pre_compute::RopeCache rope_cacher(
+                    kv_size,
+                    ov::npuw::LLMInferRequest::layer_names::longrope_input);
                 rope_cacher.run_on_model(generate_model_variants[i]);
             }
         }
