@@ -227,6 +227,17 @@ jobs:
             echo "Coverage file missing or empty: ${target}"
           fi
 
+      - name: Cleanup staging/gcno files before Codecov (C++)
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          rm -rf "${{ github.workspace }}/_artifact" || true
+          for d in build build_js install_pkg bin; do
+            if [[ -d "${{ github.workspace }}/${d}" ]]; then
+              find "${{ github.workspace }}/${d}" -type f -name '*.gcno' -delete || true
+            fi
+          done
+
       - name: Upload C++ coverage artifact
         if: ${{ always() }}
         continue-on-error: true
@@ -247,6 +258,7 @@ jobs:
         with:
           files: coverage.info
           disable_search: true
+          plugins: noop
           flags: cpp-runtime-cpp-${{ env.TEST_PROFILE }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
@@ -380,6 +392,17 @@ jobs:
             echo "Coverage file missing or empty: ${target}"
           fi
 
+      - name: Cleanup staging/gcno files before Codecov (Python)
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          rm -rf "${{ github.workspace }}/_artifact" || true
+          for d in build build_js install_pkg bin; do
+            if [[ -d "${{ github.workspace }}/${d}" ]]; then
+              find "${{ github.workspace }}/${d}" -type f -name '*.gcno' -delete || true
+            fi
+          done
+
       - name: Upload Python coverage artifact
         if: ${{ always() }}
         continue-on-error: true
@@ -401,6 +424,7 @@ jobs:
         with:
           files: python-coverage.xml
           disable_search: true
+          plugins: noop
           flags: python-api-frontend-layer-ovc-${{ env.TEST_PROFILE }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
@@ -413,6 +437,7 @@ jobs:
         with:
           files: coverage.info
           disable_search: true
+          plugins: noop
           flags: cpp-runtime-python-${{ env.TEST_PROFILE }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
@@ -551,6 +576,17 @@ jobs:
             echo "Coverage file missing or empty: ${target}"
           fi
 
+      - name: Cleanup staging/gcno files before Codecov (JS)
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          rm -rf "${{ github.workspace }}/_artifact" || true
+          for d in build build_js install_pkg bin; do
+            if [[ -d "${{ github.workspace }}/${d}" ]]; then
+              find "${{ github.workspace }}/${d}" -type f -name '*.gcno' -delete || true
+            fi
+          done
+
       - name: Upload JS coverage artifact
         if: ${{ always() }}
         continue-on-error: true
@@ -572,6 +608,7 @@ jobs:
         with:
           files: js-lcov.info
           disable_search: true
+          plugins: noop
           flags: nodejs-bindings-unit-e2e-${{ env.TEST_PROFILE }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
@@ -584,6 +621,7 @@ jobs:
         with:
           files: coverage.info
           disable_search: true
+          plugins: noop
           flags: cpp-runtime-js-${{ env.TEST_PROFILE }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
