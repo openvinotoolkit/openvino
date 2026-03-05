@@ -182,9 +182,15 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
         std::vector<float> fqInputScale;
         std::vector<float> fqInputShift;
 
-        if (const auto* const fq = std::any_cast<FakeQuantizePostOp>(poolingAttrs.postOps.data())) {
-            fqInputScale = fq->inputScale();
-            fqInputShift = fq->inputShift();
+        if (poolingAttrs.postOps.size() == 1) {
+            if (const auto* const fq = std::any_cast<FakeQuantizePostOp>(poolingAttrs.postOps.data())) {
+                fqInputScale = fq->inputScale();
+                fqInputShift = fq->inputShift();
+            } else {
+                OPENVINO_THROW("AclPoolingExecutor: the executor supports FakeQuantize post op only");
+            }
+        } else {
+            OPENVINO_THROW("AclPoolingExecutor: ACL does not support more than 1 post op");
         }
 
         srcTensorInfo.set_quantization_info(arm_compute::QuantizationInfo(1.0F));

@@ -50,7 +50,7 @@ private:
 
 class AclPoolingExecutorBuilder : public PoolingExecutorBuilder {
 public:
-    [[nodiscard]] bool isSupported([[maybe_unused]] const PoolingAttrs& poolingAttrs,
+    [[nodiscard]] bool isSupported(const PoolingAttrs& poolingAttrs,
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override {
         auto isSupportedPrecision = [](const ov::element::Type precision) {
@@ -121,6 +121,11 @@ public:
                           dstDescs[0]->serializeFormat());
                 return false;
             }
+        }
+        if (poolingAttrs.postOps.size() > 1U || 
+            (poolingAttrs.postOps.size() == 1U && !std::any_cast<FakeQuantizePostOp>(poolingAttrs.postOps.data()))) {
+            DEBUG_LOG("AclPoolingExecutor supports only one post op of type FakeQuantize.");
+            return false;
         }
 
         return true;
