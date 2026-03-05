@@ -34,7 +34,15 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
             const auto q = out_ps[1].get_length();
             const auto k = key_ps[1].get_length();
             const auto v = value_ps[1].get_length();
-            NODE_VALIDATION_CHECK(op, q * v % k == 0, "Key dims cannot be zero");
+            NODE_VALIDATION_CHECK(op,
+                                  k != 0 && q * v % k == 0,
+                                  "Output feature dimension (q * v) must be divisible by the key "
+                                  "feature dimension (k); got q=",
+                                  q,
+                                  ", v=",
+                                  v,
+                                  ", k=",
+                                  k);
             out_ps[1] = q * v / k;
             NODE_VALIDATION_CHECK(op,
                                   !ov::util::dim::is_empty(out_ps[1]),

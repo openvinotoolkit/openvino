@@ -267,7 +267,8 @@ TEST(type_prop, paged_attention_invalid_type_scale) {
 
 TEST(type_prop, paged_attention_invalid_rank_key_cache) {
     auto args = make_valid_pa_args();
-    args[3] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});  // key_cache must be rank 2..5
+    args[3] = std::make_shared<op::v0::Parameter>(element::f32,
+                                                  PartialShape{3});  // key_cache allows rank 2..5; rank 1 is invalid
     EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
 }
 
