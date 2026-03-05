@@ -1,4 +1,5 @@
 name: Linux (Ubuntu 22.04, Python 3.11)
+run-name: ${{ github.event_name == 'schedule' && (github.event.schedule == '0 0 * * 3,6' && 'Linux (Ubuntu 22.04, Python 3.11) - Nightly (with latest OneDNN)' || 'Linux (Ubuntu 22.04, Python 3.11) - Nightly (without latest OneDNN)') || 'Linux (Ubuntu 22.04, Python 3.11)' }}
 on:
   schedule:
     # at 00:00 on Wednesday and Saturday (with latest OneDNN)
