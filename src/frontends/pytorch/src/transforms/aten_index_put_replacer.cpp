@@ -36,7 +36,6 @@ namespace pass {
 
 using namespace ov::op;
 
-
 AtenIndexPutReplacer::AtenIndexPutReplacer() {
     auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(
         fw_node_predicate({"aten::index_put_", "aten.index_put.default"}));
