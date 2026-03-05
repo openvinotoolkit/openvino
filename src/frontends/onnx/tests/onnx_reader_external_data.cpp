@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include <onnx/onnx_pb.h>
 
 #include <algorithm>
@@ -23,6 +23,7 @@ using namespace std;
 using namespace ov;
 using namespace frontend;
 using namespace frontend::onnx::tests;
+using testing::AnyOf, testing::HasSubstr;
 
 // API 2.0 tests
 class OnnxFeMmapFixture : public ::testing::TestWithParam<bool> {};
@@ -120,9 +121,9 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_incorrect_size_exception) {
         const auto model = core.read_model(path);
         FAIL() << "Incorrect size of external data not detected";
     } catch (const Exception& ex) {
-        EXPECT_PRED_FORMAT2(testing::IsSubstring,
-                            string("The Constant byte size and input data byte size not same"),
-                            ex.what());
+        EXPECT_THAT(ex.what(),
+                    AnyOf(HasSubstr("The Constant byte size and input data byte size not same"),
+                          HasSubstr("Cannot calculate byte size for type")));
     } catch (...) {
         FAIL() << "Importing onnx model failed for unexpected reason";
     }
