@@ -101,6 +101,8 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
         if (routing_type == MoERoutingType::SIGMOID_BIAS) {
             auto routing_bias = op::v0::Constant::create(element::f16, Shape{1, 128}, {0.1f});
             args.push_back(routing_bias);
+            auto routing_eps = op::v0::Constant::create(element::f16, Shape{1, 1}, {1e-6f});
+            args.push_back(routing_eps);
         }
 
         auto moe_3gemm_fused_compressed = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, config);

@@ -42,7 +42,8 @@ enum class MOE3GemmInputIndex : uint8_t {
     WEIGHT_2 = 8,
     SCALE_2 = 9,
     ZP_2 = 10,
-    ROUTING_BIAS = 11
+    ROUTING_BIAS = 11,
+    ROUTING_EPS = 12
 };
 
 struct moe_3gemm_config {

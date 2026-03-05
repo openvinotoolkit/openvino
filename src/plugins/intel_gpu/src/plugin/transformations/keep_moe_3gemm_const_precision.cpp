@@ -28,9 +28,9 @@ KeepMOE3GemmConstPrecision::KeepMOE3GemmConstPrecision() {
     auto moe_softmax_m = wrap_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(
         {any_input(), any_input(), wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(), zp_2_m});
 
-    // SigmoidBias routing: 12 inputs (routing_bias appended at index 11)
+    // SigmoidBias routing: 13 inputs (routing_bias at index 11, routing_eps at index 12)
     auto moe_sigmoid_m = wrap_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(
-        {any_input(), any_input(), wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(), zp_2_m, any_input()});
+        {any_input(), any_input(), wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(), zp_2_m, any_input(), any_input()});
 
     auto moe_3gemm_fused_compressed_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{moe_softmax_m, moe_sigmoid_m});
 

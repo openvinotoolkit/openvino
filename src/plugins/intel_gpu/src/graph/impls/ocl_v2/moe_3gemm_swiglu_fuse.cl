@@ -76,6 +76,7 @@ KERNEL(softmax_topk)(
 KERNEL(sigmoid_bias_topk)(
     const __global MOE_DTYPE* input,    // routing logits [input_batch, num_experts]
     const __global MOE_DTYPE* bias,     // routing bias [1, num_experts] or [num_experts]
+    const __global MOE_DTYPE* eps_ptr,  // routing epsilon scalar [1]
     __global uint* output_index,        // [input_batch, TOP_K]
     __global MOE_DTYPE* output          // [input_batch, TOP_K]
 ) {
@@ -142,7 +143,7 @@ KERNEL(sigmoid_bias_topk)(
         for(uint i = 0; i < actual_topk; i++) {
             sum_weights += (float)local_output[i];
         }
-        sum_weights += 1e-20f;  // epsilon to avoid division by zero
+        sum_weights += (float)eps_ptr[0];  // epsilon to avoid division by zero
 
         output_index += batch * TOP_K;
         output += batch * TOP_K;

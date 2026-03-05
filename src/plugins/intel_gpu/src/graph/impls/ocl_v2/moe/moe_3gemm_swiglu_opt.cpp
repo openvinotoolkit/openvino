@@ -379,6 +379,11 @@ protected:
         jit.make("VALUE_NUM", desc->_config.num_expert);
         jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
         jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+
+        const auto eps_idx = static_cast<size_t>(MOE3GemmInputIndex::ROUTING_EPS);
+        OPENVINO_ASSERT(params.input_layouts.size() > eps_idx &&
+                        params.get_input_layout(eps_idx).count() == 1,
+                        "MoE3GemmSwigluSigmoidBiasTopK: routing_eps (input 12) must be a scalar");
         return jit;
     }
 
@@ -1793,7 +1798,8 @@ public:
                                        instance,
                                        *sigmoid_bias_topk,
                                        {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS)),
-                                        instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_BIAS))},
+                                        instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_BIAS)),
+                                        instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_EPS))},
                                        {scratch.topk_id, scratch.topk_weights},
                                        {static_cast<size_t>(token_num), lws_size},
                                        {1, lws_size},

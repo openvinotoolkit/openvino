@@ -37,7 +37,8 @@ public:
     ///   shape [num_experts, hidden_size, group_num, 1]
     ///   10: w2_zp - expert zp for final projection for compressed experts,
     ///   shape [num_experts, hidden_size, group_num, 1]
-    ///   11: routing_bias (optional) - [1, num_experts] routing bias for sigmoid routing
+    ///   11: routing_bias (optional, SIGMOID_BIAS only) - [1, num_experts] routing bias for sigmoid routing
+    ///   12: routing_eps (optional, SIGMOID_BIAS only) - scalar epsilon for normalization (read at kernel compile time)
     /// \param config Configuration for the MOE 3GEMM SWIGLU fused operation
     MOE3GemmFusedCompressed(const OutputVector& args, const MOECompressed::Config config);
 

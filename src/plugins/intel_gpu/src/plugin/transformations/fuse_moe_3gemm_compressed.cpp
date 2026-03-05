@@ -73,7 +73,12 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     auto sig_convert_topk = optional<ov::op::v0::Convert>({sig_topk->output(1)});
     auto sig_gather_el = wrap_type<ov::op::v6::GatherElements>({sig_sigmoid, sig_convert_topk});
     auto sig_reduce = wrap_type<ov::op::v1::ReduceSum>({sig_gather_el, ANY}, consumers_count(1));
-    auto sig_add_eps = wrap_type<ov::op::v1::Add>({sig_reduce, ANY}, consumers_count(1));
+
+    // Note: only scalar eps is supported for now
+    auto sig_eps_value = wrap_type<ov::op::v0::Constant>([](const ov::Output<ov::Node>& output) {
+        return ov::shape_size(output.get_shape()) == 1;
+    });
+    auto sig_add_eps = wrap_type<ov::op::v1::Add>({sig_reduce, sig_eps_value}, consumers_count(1));
     auto sig_norm = wrap_type<ov::op::v1::Divide>({sig_gather_el, sig_add_eps}, consumers_count(1));
     auto sig_slice = wrap_type<ov::op::v8::Slice>({sig_norm, ANY, ANY, ANY, ANY}, consumers_count(1));
     auto sig_bc = wrap_type<ov::op::v3::Broadcast>({ANY, ANY}, consumers_count(1));
@@ -126,6 +131,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
         };
         if (pattern_map.count(sig_routing_bias)) {
             args.push_back(pattern_map.at(sig_routing_bias));
+            args.push_back(pattern_map.at(sig_eps_value));
             config.routing_type = ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS;
         }
 
