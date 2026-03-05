@@ -154,7 +154,7 @@ struct SubgraphKey {
 
 struct SubgraphCodeGeneratorKey {
     SubgraphCodeGeneratorKey(std::shared_ptr<SubgraphAttrs> attrs_,
-                             uint8_t broadcasting_mask_,
+                             uint32_t broadcasting_mask_,
                              uint32_t constant_repacked_mask_ = 0)
         : attrs(std::move(attrs_)),
           broadcasting_mask(broadcasting_mask_),
