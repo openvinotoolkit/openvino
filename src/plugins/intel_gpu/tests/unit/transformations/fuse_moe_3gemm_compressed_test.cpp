@@ -94,7 +94,13 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
         config.group_size = 128;
         config.top_k = 8;
         config.out_type = ov::element::f16;
-        config.routing_type = static_cast<ov::intel_gpu::op::MOECompressed::RoutingType>(routing_type);
+        if (routing_type == MoERoutingType::SOFTMAX) {
+            config.routing_type = ov::intel_gpu::op::MOECompressed::RoutingType::SOFTMAX;
+        } else if (routing_type == MoERoutingType::SIGMOID_BIAS) {
+            config.routing_type = ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS;
+        } else {
+            OPENVINO_THROW("Unsupported routing type");
+        }
 
         ov::OutputVector args{hidden_states, routing_weights,
             wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up, wei_down, scale_down, zp_down};
