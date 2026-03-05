@@ -9,22 +9,21 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestCopy(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
-        return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
+        return (self.random.randn(1, 3, 224, 224),)
 
     def create_model(self, value):
         import torch
 
         class aten_copy(torch.nn.Module):
             def __init__(self, value):
-                super(aten_copy, self).__init__()
+                super().__init__()
                 self.value = torch.tensor(value)
 
             def forward(self, x):
                 return x.copy_(self.value)
 
-        ref_net = None
 
-        return aten_copy(value), ref_net, "aten::copy_"
+        return aten_copy(value), "aten::copy_"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -38,15 +37,15 @@ class TestAliasCopy(PytorchLayerTest):
     def _prepare_input(self, out):
         import numpy as np
         if not out:
-            return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
-        return (np.random.randn(1, 3, 224, 224).astype(np.float32), np.zeros((1, 3, 224, 224), dtype=np.float32))
+            return (self.random.randn(1, 3, 224, 224),)
+        return (self.random.randn(1, 3, 224, 224), np.zeros((1, 3, 224, 224), dtype=np.float32))
 
     def create_model(self, out):
         import torch
 
         class aten_copy(torch.nn.Module):
             def __init__(self, out):
-                super(aten_copy, self).__init__()
+                super().__init__()
                 if out:
                     self.forward = self.forward_out
 
@@ -56,9 +55,8 @@ class TestAliasCopy(PytorchLayerTest):
             def forward_out(self, x, y):
                 return torch.alias_copy(x, out=y), y
 
-        ref_net = None
 
-        return aten_copy(out), ref_net, "aten::alias_copy"
+        return aten_copy(out), "aten::alias_copy"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

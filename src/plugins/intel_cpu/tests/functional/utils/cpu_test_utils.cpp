@@ -373,11 +373,11 @@ static void quantize(const std::shared_ptr<ov::Model>& model, const Quantization
     manager.run_passes(model);
 }
 
-std::shared_ptr<ov::Model> CPUTestsBase::makeNgraphFunction(const ov::element::Type& ngPrc,
-                                                            ov::ParameterVector& params,
-                                                            const std::shared_ptr<ov::Node>& lastNode,
-                                                            std::string name,
-                                                            const QuantizationInfo& qinfo) {
+std::shared_ptr<ov::Model> CPUTestsBase::create_ov_model(const ov::element::Type& ngPrc,
+                                                         ov::ParameterVector& params,
+                                                         const std::shared_ptr<ov::Node>& lastNode,
+                                                         std::string name,
+                                                         const QuantizationInfo& qinfo) {
     auto newLastNode = modifyGraph(ngPrc, params, lastNode);
     ov::ResultVector results;
 
