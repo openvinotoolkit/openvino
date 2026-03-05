@@ -51,7 +51,7 @@ std::ostream& operator<<(std::ostream& s, const MOECompressed::RoutingType& type
 namespace ov {
 
 template <>
-OPENVINO_API EnumNames<ov::intel_gpu::op::MOECompressed::RoutingType>& EnumNames<ov::intel_gpu::op::MOECompressed::RoutingType>::get() {
+EnumNames<ov::intel_gpu::op::MOECompressed::RoutingType>& EnumNames<ov::intel_gpu::op::MOECompressed::RoutingType>::get() {
     static auto enum_names =
         EnumNames<ov::intel_gpu::op::MOECompressed::RoutingType>("MOECompressed::RoutingType",
                                                                  {
