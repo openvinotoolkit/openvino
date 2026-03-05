@@ -122,9 +122,12 @@ namespace {
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
 struct SubgraphKey {
     SubgraphKey() = default;
-    SubgraphKey(std::shared_ptr<SubgraphAttrs> attrs_, std::vector<VectorDims> in_shapes_)
+    SubgraphKey(std::shared_ptr<SubgraphAttrs> attrs_,
+                std::vector<VectorDims> in_shapes_,
+                uint32_t constant_repacked_mask_ = 0)
         : attrs(std::move(attrs_)),
-          in_shapes(std::move(in_shapes_)) {}
+          in_shapes(std::move(in_shapes_)),
+          constant_repacked_mask(constant_repacked_mask_) {}
     virtual ~SubgraphKey() = default;
 
     [[nodiscard]] size_t hash() const {
@@ -135,15 +138,21 @@ struct SubgraphKey {
         for (const auto& shape : in_shapes) {
             seed = get_vector_hash(seed, shape);
         }
+        seed = hash_combine(seed, constant_repacked_mask);
 
         return seed;
     }
     bool operator==(const SubgraphKey& rhs) const {
-        return *attrs == *rhs.attrs && in_shapes == rhs.in_shapes;
+        return *attrs == *rhs.attrs && in_shapes == rhs.in_shapes &&
+               constant_repacked_mask == rhs.constant_repacked_mask;
     }
 
     std::shared_ptr<SubgraphAttrs> attrs = nullptr;
     std::vector<VectorDims> in_shapes;
+    // Bitmask of inputs whose weights were pre-packed at compile time (constant weights via
+    // RepackMatMulWeights). Nodes with identical body structure but different packing states
+    // produce different io_data_offsets baked into the JIT kernel and must be cached separately.
+    uint32_t constant_repacked_mask = 0;
 };
 
 struct SubgraphCodeGeneratorKey {
@@ -164,6 +173,32 @@ struct SubgraphCodeGeneratorKey {
 
     std::shared_ptr<SubgraphAttrs> attrs = nullptr;
     uint32_t broadcasting_mask = 0;
+};
+
+// For the static JIT kernel, io_data_offsets are baked into the compiled code, so
+// the cache key must include io_data_offsets in addition to the body structure.
+struct SubgraphStaticCodeGeneratorKey : public SubgraphCodeGeneratorKey {
+    SubgraphStaticCodeGeneratorKey(std::shared_ptr<SubgraphAttrs> attrs_,
+                                   uint8_t mask_,
+                                   std::vector<std::vector<size_t>> io_data_offsets_)
+        : SubgraphCodeGeneratorKey(std::move(attrs_), mask_),
+          io_data_offsets(std::move(io_data_offsets_)) {}
+
+    [[nodiscard]] size_t hash() const {
+        using namespace dnnl::impl;
+        using namespace dnnl::impl::primitive_hashing;
+
+        size_t seed = SubgraphCodeGeneratorKey::hash();
+        for (const auto& offsets : io_data_offsets) {
+            seed = get_vector_hash(seed, offsets);
+        }
+        return seed;
+    }
+    bool operator==(const SubgraphStaticCodeGeneratorKey& rhs) const {
+        return SubgraphCodeGeneratorKey::operator==(rhs) && io_data_offsets == rhs.io_data_offsets;
+    }
+
+    std::vector<std::vector<size_t>> io_data_offsets;
 };
 #endif
 
@@ -802,6 +837,27 @@ void Subgraph::prepareParams() {
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     const auto& cache = context->getSnippetsParamsCache();
 
+#if defined(OPENVINO_ARCH_X86_64)
+    // Compute a bitmask of inputs pre-packed at compile time (constant weights via RepackMatMulWeights).
+    // RepackMatMulWeights sets desc() on the repacker to signal pre-packing; a null desc() means the input
+    // needs runtime repacking. This mask is part of SubgraphKey so that nodes sharing the same body structure
+    // and input shapes but differing in weight packing state get distinct executor cache entries.
+    const auto& preconfigured =
+        ov::as_type_ptr<CPURuntimeConfig>(subgraph_attrs->snippet->get_runtime_configurator()->get_config());
+    uint32_t constant_repacked_mask = 0;
+    for (const auto& [i, repacker] : preconfigured->input_repackers) {
+        if (repacker.desc()) {  // desc set => pre-packed at compile time; null desc => runtime repacking
+            OPENVINO_ASSERT(i < sizeof(constant_repacked_mask) * CHAR_BIT,
+                            "Input index ",
+                            i,
+                            " exceeds constant_repacked_mask capacity");
+            constant_repacked_mask |= (1u << i);
+        }
+    }
+#else
+    constexpr uint32_t constant_repacked_mask = 0;
+#endif
+
     auto builder = [this, &cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphBaseExecutor> {
         const auto& snippet = subgraph_attrs->snippet;
 
@@ -843,12 +899,13 @@ void Subgraph::prepareParams() {
         }  // Static case:
         // 1. Update runtime config to get static scheduling data (io data offsets, parallel domain) which will be
         // compiled in JIT code
-        // 2. Generate JIT code with this static data if needed
+        // 2. Generate JIT code with this static data if needed (keyed on io_data_offsets to distinguish nodes
+        //    whose weights are pre-packed vs. runtime-repacked — they produce different offsets and need separate kernels)
         // 3. Create SubgraphStaticExecutor
         const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
         const auto code_gen_result = cache->getOrCreate(
-            SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
-            [this, &snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
+            SubgraphStaticCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes), snippet_config->io_data_offsets),
+            [this, &snippet_config](const SubgraphStaticCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
                 return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config, external_ptrs_idces);
             });
         return std::make_shared<SubgraphStaticExecutor>(snippet_config,
@@ -862,7 +919,7 @@ void Subgraph::prepareParams() {
                                                         cache);
     };
 
-    const auto result = cache->getOrCreate(SubgraphKey(subgraph_attrs, in_shapes), builder);
+    const auto result = cache->getOrCreate(SubgraphKey(subgraph_attrs, in_shapes, constant_repacked_mask), builder);
     execPtr = result.first;
 #endif
 

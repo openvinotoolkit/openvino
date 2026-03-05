@@ -90,6 +90,71 @@ protected:
     const std::vector<ov::element::Type> precisions;
 };
 
+// Builds a two-output model with two structurally-identical MHA branches that trigger the
+// SubgraphStaticCodeGeneratorKey inner-JIT-cache collision fixed in CVS-180477:
+//   Both branches use Constant V matrices (different data, same shape).
+//   Transpose(V_const_i, axes) is constant-folded before tokenization so both snippet bodies
+//   are structurally identical (same bodyHash + same in_shapes + same constant_repacked_mask).
+// Regression test for CVS-180477: kernel caching cache-collision fix.
+//
+// Builds a model with two structurally-identical MHA branches:
+//   - Branch 1: Q1/K1/Add1 runtime parameters, V1 CONSTANT
+//     → post-softmax Subgraph has are_wei_constant=true → RepackMatMulWeights pre-packs V1
+//     → constant_repacked_mask bit is SET
+//   - Branch 2: Q2/K2/Add2 runtime parameters, V2 RUNTIME PARAMETER
+//     → post-softmax Subgraph has are_wei_constant=false → no pre-packing
+//     → constant_repacked_mask bit is CLEAR
+//
+// Both post-softmax snippet bodies are structurally identical (same bodyHash, same in_shapes).
+//
+// Without the SubgraphKey::constant_repacked_mask fix, both post-softmax nodes produce the same
+// SubgraphKey → branch 2's node gets branch 1's pre-packed executor → executor assumes V is
+// accessed via pre-packed pointer but V2 is a runtime input → wrong results or crash.
+//
+// With the fix:
+//   - Branch 1 outer key has constant_repacked_mask=1
+//   - Branch 2 outer key has constant_repacked_mask=0
+//   → Different SubgraphKey → cache MISS for branch 2 → independent executor → correct results
+//
+// Input shapes layout (7 shapes, all static) — matches model parameter order:
+//   [0]=Q1, [1]=K1, [2]=Add1,
+//   [3]=Q2, [4]=K2, [5]=Add2,
+//   [6]=V  PRE-TRANSPOSED [B, heads, seq, head_dim] — passed directly to MatMul1
+//          without any Transpose in the graph (see initOriginal() for rationale).
+//          Shape used for both V1 (Constant) and V2 (Parameter).
+// Runtime Parameters: Q1, K1, Add1, Q2, K2, Add2, V2 (7 total).
+// V1 is embedded as a Constant (not a runtime Parameter).
+class MHATwoConstBFunction : public SnippetsFunctionBase {
+public:
+    explicit MHATwoConstBFunction(const std::vector<PartialShape>& inputShapes,
+                                  const std::vector<ov::element::Type>& precisions,
+                                  bool with_reshape = true)
+        : SnippetsFunctionBase(inputShapes),
+          precisions(precisions),
+          with_reshape(with_reshape) {
+        OPENVINO_ASSERT(input_shapes.size() == 7, "Got invalid number of input shapes (expected 7)");
+        OPENVINO_ASSERT(precisions.size() == 4, "Got invalid number of input precisions");
+        OPENVINO_ASSERT(input_shapes[6].is_static(),
+                        "V shape must be static (used to create V1 constant and V2 parameter)");
+    }
+
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+    // 7 runtime parameters: Q1, K1, Add1, Q2, K2, Add2, V2.
+    // V1 is embedded as a Constant (not a runtime Parameter).
+    void validate_function(const std::shared_ptr<Model>& f) const override {
+        OPENVINO_ASSERT(f != nullptr, "The test requires Model to be defined");
+        // Model parameter order: Q1, K1, Add1, Q2, K2, Add2, V2
+        validate_params_shape({input_shapes[0], input_shapes[1], input_shapes[2],
+                               input_shapes[3], input_shapes[4], input_shapes[5],
+                               input_shapes[6]},  // V2 has same shape as V
+                              f->get_parameters());
+    }
+
+    const std::vector<ov::element::Type> precisions;
+    const bool with_reshape = true;
+};
+
 class MHA2DFunction : public SnippetsFunctionBase {
 public:
     explicit MHA2DFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)

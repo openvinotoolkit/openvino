@@ -56,6 +56,23 @@ std::vector<std::vector<InputShape>> transposedShape_4D_matmul1_const_b() {
     return SNIPPETS_TESTS_STATIC_SHAPES({{1, 300, 8, 32}, {1, 300, 8, 32}, {1, 8, 300, 300}, {1, 300, 8, 32}});
 }
 
+// Returns 7 input shapes for MHATwoConstB in model-parameter order:
+//   [Q1, K1, Add1, Q2, K2, Add2, V]
+// V (index 6) is passed in PRE-TRANSPOSED form [B, heads, seq, head_dim] = [1, 8, 300, 32].
+// (This is Transpose([1, 300, 8, 32], [0,2,1,3]) applied ahead of time so that V can be
+//  passed directly to MatMul1 without a Transpose in the graph.  Both branches then have
+//  identical snippet bodies → same bodyHash → the constant_repacked_mask difference
+//  is the only key distinguisher, which is exactly what CVS-180477 tests.)
+std::vector<std::vector<InputShape>> twoConstBShape_4D() {
+    return SNIPPETS_TESTS_STATIC_SHAPES({{1, 300, 8, 32},   // Q1
+                                         {1, 300, 8, 32},   // K1
+                                         {1, 8, 300, 300},  // Add1
+                                         {1, 300, 8, 32},   // Q2
+                                         {1, 300, 8, 32},   // K2
+                                         {1, 8, 300, 300},  // Add2
+                                         {1, 8, 300, 32}});  // V (PRE-TRANSPOSED: [B,heads,seq,head_dim])
+}
+
 std::vector<std::vector<InputShape>> transposedShape_3D(bool with_dynamic = true) {
     auto shapes = SNIPPETS_TESTS_STATIC_SHAPES({{128, 12, 64}, {128, 12, 64}, {12, 128, 128}, {128, 12, 64}},
                                                {{68, 6, 92}, {68, 6, 92}, {1, 68, 68}, {68, 6, 92}},
@@ -112,6 +129,26 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_MatMul1_Const_B_Are_Wei_Blocked,
                                             ::testing::Values(true),
                                             ::testing::Values(expected_nodes_mha_4d_f32),
                                             ::testing::Values(2),  // decomposed Transpose + MHA
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         MHAConstB::getTestCaseName);
+
+// Regression test for CVS-180477: two MHA branches with identical structure (same bodyHash,
+// same in_shapes, same constant_repacked_mask) but different constant V data (different
+// io_data_offsets baked into JIT kernels) must produce correct and independent results.
+// Without the SubgraphStaticCodeGeneratorKey fix, branch 2 reuses branch 1's JIT kernel
+// (inner cache HIT on same SubgraphCodeGeneratorKey) with branch 1's V offset baked in,
+// causing branch 2 to read the wrong memory and compute incorrect outputs.
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_TwoConstB_CacheCollisionRegression,
+                         MHATwoConstB,
+                         ::testing::Combine(::testing::ValuesIn(twoConstBShape_4D()),
+                                            ::testing::ValuesIn(precision_f32(4)),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(false),   // with_mul (unused by MHATwoConstB)
+                                            ::testing::Values(false),   // const_b_matmul0 (unused)
+                                            ::testing::Values(false),   // const_b_matmul1 (unused)
+                                            ::testing::Values(4),       // 2 decomposed Transposes × 2 branches
+                                            ::testing::Values(4),       // 4 Snippets Subgraph nodes: 2 pre-softmax + 2 post-softmax
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MHAConstB::getTestCaseName);
