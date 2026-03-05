@@ -6,7 +6,6 @@
 
 #include <ze_graph_ext.h>
 
-#include "compiler_impl.hpp"
 #include "intel_npu/common/idynamic_graph.hpp"
 #include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -106,14 +105,11 @@ public:
     };
 
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                 std::optional<ov::Tensor> blob,
+                 ov::Tensor blob,
                  bool blobAllocatedByPlugin,
-                 const FilteredConfig& config,
-                 const ov::SoPtr<VCLCompilerImpl>& compiler = {nullptr});
+                 const FilteredConfig& config);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
-
-    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const override;
 
     void set_argument_value(uint32_t argi, const void* argv) const override;
 
@@ -195,7 +191,6 @@ private:
      */
     std::optional<std::size_t> _batchSize = std::nullopt;
 
-    const ov::SoPtr<VCLCompilerImpl> _compiler;
     Logger _logger;
 
     std::unique_ptr<Impl> _impl;

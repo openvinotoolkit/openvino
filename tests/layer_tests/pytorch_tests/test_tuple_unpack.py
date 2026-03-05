@@ -29,7 +29,7 @@ class TestTupleUnpack(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
-    def test_touple_unpack(self, ie_device, precision, ir_version):
+    def test_tuple_unpack(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version,
                    trace_model=False, freeze_model=False)
 
