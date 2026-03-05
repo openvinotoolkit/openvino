@@ -1165,7 +1165,40 @@ struct NPUDesc {
     int64_t compiler_ver = 0;
 };
 
-std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
+int64_t get_compiler_version(const std::shared_ptr<const ov::IPlugin>& plugin, const ov::AnyMap& config) {
+    // Get compiler version based on NPU_COMPILER_TYPE configuration
+    // If NPU_COMPILER_TYPE is not specified in config, use default compiler version
+    auto compiler_type_it = config.find("NPU_COMPILER_TYPE");
+    if (compiler_type_it == config.end()) {
+        return plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
+    }
+
+    // NPU_COMPILER_TYPE is specified, need to temporarily switch compiler type
+    auto non_const_plugin = const_cast<ov::IPlugin*>(plugin.get());
+
+    // Save current compiler type
+    auto current_compiler_type =
+        plugin->get_property(ov::intel_npu::compiler_type.name(), ov::AnyMap{}).as<std::string>();
+    auto target_compiler_type = compiler_type_it->second.as<std::string>();
+
+    // Temporarily set to target compiler type to get its version
+    if (target_compiler_type != current_compiler_type) {
+        non_const_plugin->set_property({{ov::intel_npu::compiler_type.name(), target_compiler_type}});
+    }
+
+    // Get compiler version for the target compiler type
+    auto compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
+
+    // Restore original compiler type
+    if (target_compiler_type != current_compiler_type) {
+        non_const_plugin->set_property({{ov::intel_npu::compiler_type.name(), current_compiler_type}});
+    }
+
+    return compiler_ver;
+}
+
+std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
+                                              const ov::AnyMap& config) {
     const auto all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
     if (all_devices.empty()) {
         return std::nullopt;
@@ -1183,7 +1216,7 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         desc.compiler_dq = true;
     }
 
-    desc.compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
+    desc.compiler_ver = get_compiler_version(plugin, config);
 
     return std::make_optional(std::move(desc));
 }
@@ -1563,11 +1596,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
 
-    const auto npudesc = extract_npu_descriptor(plugin);
-
     ov::AnyMap npuw_llm_props;
     ov::AnyMap other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
+    const auto npudesc = extract_npu_descriptor(plugin, other_props);
     auto use_whisper_key = pop_option(other_props, std::string("NPUW_WHISPER"));
     auto use_eagle_key = pop_option(other_props, std::string("NPUW_EAGLE"));
     auto kv_cache_precision_hint = pop_option(other_props, ov::hint::kv_cache_precision.name());
