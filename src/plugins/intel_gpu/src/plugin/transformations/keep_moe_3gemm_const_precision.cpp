@@ -6,7 +6,8 @@
 
 #include <memory>
 
-#include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
+#include "openvino/op/moe_compressed.hpp"
+#include "openvino/op/moe_3gemm_fused_compressed.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
@@ -22,14 +23,14 @@ KeepMOE3GemmConstPrecision::KeepMOE3GemmConstPrecision() {
     auto zp_0_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
     auto zp_1_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
     auto zp_2_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto moe_3gemm_fused_compressed_m = wrap_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(
+    auto moe_3gemm_fused_compressed_m = wrap_type<ov::op::internal::MOE3GemmFusedCompressed>(
         {any_input(), any_input(), wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(), zp_2_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto moe_3gemm_fused_compressed =
-            ov::as_type_ptr<ov::intel_gpu::op::MOE3GemmFusedCompressed>(pattern_map.at(moe_3gemm_fused_compressed_m).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::internal::MOE3GemmFusedCompressed>(pattern_map.at(moe_3gemm_fused_compressed_m).get_node_shared_ptr());
         if (!moe_3gemm_fused_compressed || transformation_callback(moe_3gemm_fused_compressed)) {
             return false;
         }

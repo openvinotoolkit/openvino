@@ -91,9 +91,21 @@ bool Split::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
         auto axis = get_tensor_data_as<int64_t>(axis_tensor).front();
         axis = ov::util::normalize(axis, data_tensor.get_shape().size());
 
+        auto in_shape = data_tensor.get_shape();
+        auto data_type = data_tensor.get_element_type();
+
+        if (data_type == element::u4) {
+            auto in_shape_rank = in_shape.size();
+            NODE_VALIDATION_CHECK(this,
+                                  (in_shape[in_shape_rank - 1] % 2) == 0,
+                                  "Unsupported u4 shape.");
+            in_shape[in_shape_rank - 1] /= 2;
+            data_type = element::u8;
+        }
+
         ov::reference::split(static_cast<const char*>(data_tensor.data()),
-                             data_tensor.get_shape(),
-                             data_tensor.get_element_type().size(),
+                             in_shape,
+                             data_type.size(),
                              axis,
                              m_num_splits,
                              outputs_data.data());

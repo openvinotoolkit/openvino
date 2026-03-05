@@ -59,3 +59,17 @@ set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION
 if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
+
+#-----------------------------------------------------------------------------------------------
+# Installation logic...
+#-----------------------------------------------------------------------------------------------
+
+message(STATUS "OV_CPACK_INCLUDEDIR ${OV_CPACK_INCLUDEDIR}, COMPONENT: ${OV_CPACK_COMP_CORE_DEV}, OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL: ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL}")
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ov_ops
+        DESTINATION ${OV_CPACK_INCLUDEDIR}
+        COMPONENT ${OV_CPACK_COMP_CORE_DEV}
+        ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL}
+        FILES_MATCHING
+            PATTERN "*.hpp"
+            PATTERN "*.h")

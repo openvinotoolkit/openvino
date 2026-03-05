@@ -7,12 +7,12 @@
 #include "openvino/op/op.hpp"
 #include "openvino/op/moe.hpp"
 
-namespace ov::intel_gpu::op {
+namespace ov::op::internal {
 
 /// \brief MOECompressed experts that support compressed weights for GEMM3_SWIGLU MOE.
-class MOECompressed : public ov::op::internal::MOE {
+class OPENVINO_API MOECompressed : public MOE {
 public:
-    OPENVINO_OP("MOECompressed", "gpu_opset", ov::op::internal::MOE);
+    OPENVINO_OP("MOECompressed");
 
     MOECompressed() = default;
     MOECompressed(const OutputVector& args) : MOE(args) {}
@@ -72,4 +72,4 @@ private:
     Config m_config;
 };
 
-}  // namespace ov::intel_gpu::op
+}  // namespace ov::op::internal

@@ -5,12 +5,12 @@
 #pragma once
 #include <vector>
 
-#include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
+#include "openvino/op/moe_3gemm_fused_compressed.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "primitive.hpp"
 
 namespace cldnn {
-using MOE3GemmFusedCompressed = ov::intel_gpu::op::MOE3GemmFusedCompressed;
+using MOE3GemmFusedCompressed = ov::op::internal::MOE3GemmFusedCompressed;
 
 /// @brief moe compressed primitive
 /// @details Performs moe compressed

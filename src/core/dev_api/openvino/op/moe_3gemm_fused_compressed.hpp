@@ -4,14 +4,16 @@
 
 #pragma once
 
-#include "intel_gpu/op/moe_compressed.hpp"
+#include "openvino/op/op.hpp"
+#include "openvino/op/moe.hpp"
+#include "openvino/op/moe_compressed.hpp"
 
-namespace ov::intel_gpu::op {
+namespace ov::op::internal {
 
-/// \brief MOE3GemmFusedCompressed that support compressed and fused MOE for GEMM3_SWIGLU.
-class MOE3GemmFusedCompressed : public MOECompressed {
+/// \brief MOE3GemmFusedCompressed that supports compressed and fused MOE for GEMM3_SWIGLU.
+class OPENVINO_API MOE3GemmFusedCompressed : public MOECompressed {
 public:
-    OPENVINO_OP("MOE3GemmFusedCompressed", "gpu_opset", MOECompressed);
+    OPENVINO_OP("MOE3GemmFusedCompressed");
 
     MOE3GemmFusedCompressed() = default;
 
@@ -38,9 +40,9 @@ public:
     ///   10: w2_zp - expert zp for final projection for compressed experts,
     ///   shape [num_experts, hidden_size, group_num, 1]
     /// \param config Configuration for the MOE 3GEMM SWIGLU fused operation
-    MOE3GemmFusedCompressed(const OutputVector& args, const MOECompressed::Config config);
+    MOE3GemmFusedCompressed(const OutputVector& args, const Config config);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 
-}  // namespace ov::intel_gpu::op
+}  // namespace ov::op::internal

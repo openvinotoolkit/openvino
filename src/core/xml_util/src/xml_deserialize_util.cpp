@@ -22,11 +22,14 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/variable.hpp"
+#include "openvino/op/moe_3gemm_fused_compressed.hpp"
+#include "openvino/op/linear_attn.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "transformations/rt_info/attributes.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
 
 namespace ov::util {
 
@@ -1267,6 +1270,29 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Out
     if (experimental_ops_added_to_opset.count(type_name) &&
         (params.version == "experimental" || params.version == "extension")) {
         opsetIt = m_opsets.find("opset6");
+    }
+
+    if(type_name == "MOE3GemmFusedCompressed") {
+        ovNode = std::make_shared<ov::op::internal::MOE3GemmFusedCompressed>();
+        ovNode->set_arguments(inputs);
+        auto visitor = make_visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
+        if (ovNode->visit_attributes(*visitor)) {
+            ovNode->constructor_validate_and_infer_types();
+        }
+    } else if(type_name == "RoPE") {
+        ovNode = std::make_shared<ov::op::internal::RoPE>();
+        ovNode->set_arguments(inputs);
+        auto visitor = make_visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
+        if (ovNode->visit_attributes(*visitor)) {
+            ovNode->constructor_validate_and_infer_types();
+        }
+    } else if (type_name == "LinearAttention") {
+        ovNode = std::make_shared<ov::op::LinearAttention>();
+        ovNode->set_arguments(inputs);
+        auto visitor = make_visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
+        if (ovNode->visit_attributes(*visitor)) {
+            ovNode->constructor_validate_and_infer_types();
+        }
     }
 
     if (!ovNode && opsetIt != m_opsets.end()) {

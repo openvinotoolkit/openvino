@@ -71,6 +71,8 @@ ov_add_plugin(NAME ${TARGET_NAME}
 target_compile_options(${TARGET_NAME} PRIVATE
     $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
+target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_OPENVINO_GPU_API)
+
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph openvino::pugixml)
 
 target_include_directories(${TARGET_NAME} PRIVATE
@@ -95,3 +97,14 @@ endif()
 # Failed because of OpenCL
 # must be called after all target_link_libraries
 # ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/op"  
+        DESTINATION ${OV_CPACK_INCLUDEDIR}/intel_gpu  
+        COMPONENT ${OV_CPACK_COMP_CORE_DEV}  
+        ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL}  
+        FILES_MATCHING  
+            PATTERN "*.hpp")
+
+ov_developer_package_export_targets(TARGET openvino_intel_gpu_plugin
+                                    INSTALL_INCLUDE_DIRECTORIES
+                                        ${CMAKE_CURRENT_SOURCE_DIR}/include/)

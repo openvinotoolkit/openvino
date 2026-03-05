@@ -322,6 +322,7 @@ void add_required_reorders::run(program& p) {
                 preferred_layout_formats.push_back(cldnn::format::byxf);
             }
 
+            
             if (original_layout.is_dynamic() && usr->type()->has_impl_for(*usr, shape_types::dynamic_shape)) {
                 correct_layout_selected = true;
             }
@@ -335,6 +336,7 @@ void add_required_reorders::run(program& p) {
                 }
             }
         }
+
 
         OPENVINO_ASSERT(correct_layout_selected,
                         "[GPU] No layout format available for ", usr->id(),  ", impl_type: ", usr->get_preferred_impl_type(),

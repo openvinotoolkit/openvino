@@ -4,7 +4,7 @@
 
 #pragma once
 #include "primitive.hpp"
-#include "intel_gpu/op/moe_compressed.hpp"
+#include "openvino/op/moe_compressed.hpp"
 
 namespace cldnn {
 
@@ -40,7 +40,7 @@ struct moe_gemm : public primitive_base<moe_gemm> {
     ///
     moe_gemm(const primitive_id& id,
              const std::vector<input_info>& inputs,
-             const ov::intel_gpu::op::MOECompressed::Config& moe_config)
+             const ov::op::internal::MOECompressed::Config& moe_config)
           : primitive_base(id, inputs),
             num_experts_per_token(static_cast<int32_t>(moe_config.top_k)),
             has_batch_dim(moe_config.has_batch_dim) {}
