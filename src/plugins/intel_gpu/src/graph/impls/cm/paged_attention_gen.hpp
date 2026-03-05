@@ -88,7 +88,7 @@ inline std::string get_pa_build_options() {
 // The block size for KV cache is set to 256 for xattn to achieve better performance.
 // For non-xattn case, it can be set to 16 for compatibility to legacy implementations.
 #define PA_KV_CACHE_BLOCK_SIZE_LEGACY 16
-#define PA_KV_CACHE_BLOCK_SIZE_XATTN 256
+#define PA_KV_CACHE_BLOCK_SIZE_XATTN  256
 
 constexpr uint32_t SG_M = 4;
 constexpr uint32_t SG_N = 8;
@@ -161,7 +161,7 @@ public:
 class PagedAttentionGeneratorMultiToken : public PagedAttentionGeneratorBase {
 public:
     explicit PagedAttentionGeneratorMultiToken(size_t xattn_block_size = 1)
-                : PagedAttentionGeneratorBase("pa_multi_token", "_cm_bs" + std::to_string(xattn_block_size)),
+        : PagedAttentionGeneratorBase("pa_multi_token", "_cm_bs" + std::to_string(xattn_block_size)),
           _xattn_block_size(xattn_block_size) {}
 
     static size_t get_q_step(const kernel_impl_params& params) {
@@ -216,10 +216,9 @@ public:
 //-----------------------------------------------------------------------------------------------------------------
 class XAttentionEstimateGeneratorBase : public KernelGenerator {
 public:
-    explicit XAttentionEstimateGeneratorBase(std::string_view kernel_name, size_t xattn_block_size, std::string_view stage_suffix = "_cm")
-        : KernelGenerator(kernel_name, stage_suffix),
+    explicit XAttentionEstimateGeneratorBase(std::string_view kernel_name, size_t xattn_block_size)
+        : KernelGenerator(kernel_name, "_cm_bs" + std::to_string(xattn_block_size)),
           _xattn_block_size(xattn_block_size) {}
-
     static uint32_t get_block_sg_m(const kernel_impl_params& params) {
         return is_xe2_or_xe3(params) ? 64u : 32u;
     }
