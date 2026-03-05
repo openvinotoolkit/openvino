@@ -302,12 +302,12 @@ Constant::Constant(const element::Type& type, const Shape& shape, const std::sha
       m_shape(shape),
       m_byte_strides(calc_byte_strides(m_shape, m_element_type)),
       m_data(data) {
-    const auto exp_size = ov::util::get_memory_size_safe(m_element_type, m_shape);
-    const auto data_size = data ? data->size() : 0;
-    const auto is_correct_data_size = exp_size && (data && data->size() == *exp_size);
-    OPENVINO_ASSERT(is_correct_data_size,
+    const auto constant_size = ov::util::get_memory_size_safe(m_element_type, m_shape);
+    OPENVINO_ASSERT(constant_size, "Cannot calculate byte size for type: ", m_element_type, " and shape: ", m_shape);
+    const auto data_size = ((*constant_size > 0) && data) ? data->size() : 0;
+    OPENVINO_ASSERT(*constant_size == data_size,
                     "The Constant byte size and input data byte size not same: ",
-                    exp_size.value_or(0),
+                    *constant_size,
                     " != ",
                     data_size);
     constructor_validate_and_infer_types();
