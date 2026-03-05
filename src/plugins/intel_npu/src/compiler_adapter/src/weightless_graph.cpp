@@ -41,7 +41,17 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
         const auto& weightlessCacheAttrIt = runtimeInfoMap.find(ov::WeightlessCacheAttribute::get_type_info_static());
         if (weightlessCacheAttrIt != runtimeInfoMap.end()) {
             auto& weightlessCacheAttr = weightlessCacheAttrIt->second.as<ov::WeightlessCacheAttribute>();
-            constants[weightlessCacheAttr.bin_offset] = constantNode;
+
+            auto& constant = constants[weightlessCacheAttr.bin_offset];
+            if (bool foundDuplicate = (constant != nullptr); foundDuplicate) {
+                // if multiple constants point to the same buffer, ensure that
+                // their binary sizes are the same
+                OPENVINO_ASSERT(constant->get_byte_size() == constantNode->get_byte_size(),
+                                "Found ov::Constant that points to the common buffer but has mismatching byte size. "
+                                "This may indicate a bug in OV model compression.");
+                continue;
+            }
+            constant = constantNode;
         }
     }
 
@@ -381,23 +391,33 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
         auto currentInputBufferLocation =
             static_cast<unsigned char*>(const_cast<void*>(initInputsAllocatedTensor->data(ov::element::Type_t::u8))) +
             offset;
+        const auto tensorShapeFromCompiler = descriptor.shapeFromCompiler.to_shape();
         const size_t currentInputSize =
-            ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+            ov::util::get_memory_size(descriptor.precision, shape_size(tensorShapeFromCompiler));
 
-        std::shared_ptr<ov::op::v0::Constant> constant;
         const size_t id = std::stoi(descriptor.nameFromCompiler);
-        OPENVINO_ASSERT(constants.count(id) > 0,
+        auto constantIt = constants.find(id);
+        OPENVINO_ASSERT(constantIt != constants.end(),
                         "Weights ID ",
                         id,
                         " not found in the model constants. This may indicate a mismatch between the model and the "
                         "metadata of the compiled model.");
 
-        constant = constants.at(id);
-
+        const auto constant = constantIt->second;
+        OPENVINO_ASSERT(constant->get_byte_size() == currentInputSize,
+                        "Binary size mismatch found for weights ID ",
+                        id,
+                        " between the model and compiled metadata.");
         std::memcpy(currentInputBufferLocation, constant->get_data_ptr(), currentInputSize);
 
+        // Note: Use compiler-provided precision and shape, because duplicates -
+        // constants that point to the same binary data - can in theory have
+        // different shape or even type (OV model compression only guarantees
+        // that the data is the same). In order to avoid any potential issues
+        // due to shape/type mismatches, init tensors should align with
+        // compiler's expectations.
         initInputsViewTensors.push_back(
-            ov::make_tensor(constant->get_element_type(), constant->get_shape(), currentInputBufferLocation));
+            ov::make_tensor(descriptor.precision, tensorShapeFromCompiler, currentInputBufferLocation));
         offset += currentInputSize;
 
         // Note: By construction of the weight schedule, every constant from OV
