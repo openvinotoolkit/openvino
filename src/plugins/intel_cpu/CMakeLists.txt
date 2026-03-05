@@ -256,6 +256,12 @@ if (ENABLE_SNIPPETS_LIBXSMM_TPP)
 endif ()
 if(ENABLE_KLEIDIAI_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE kleidiai)
+    set_source_files_properties(
+        src/emitters/snippets/aarch64/jit_gemm_emitter.cpp
+        src/emitters/snippets/aarch64/jit_gemm_copy_b_emitter.cpp
+        PROPERTIES
+            COMPILE_OPTIONS -march=armv8.2-a+fp16
+            SKIP_PRECOMPILE_HEADERS ON)
 endif()
 
 if(RISCV64)
@@ -342,11 +348,9 @@ set(PCH_EXCLUDE_FILES
     src/emitters/plugin/x64/debug_capabilities.cpp
     src/emitters/plugin/aarch64/debug_capabilities.cpp
     src/nodes/executors/printers.cpp
-    src/emitters/snippets/x64/jit_debug_emitter.cpp
     src/emitters/snippets/x64/jit_perf_count_rdtsc_emitters.cpp
     src/emitters/snippets/x64/jit_segfault_detector_emitter.cpp
     src/emitters/snippets/x64/verbose.cpp
-    src/emitters/snippets/aarch64/jit_debug_emitter.cpp
     src/emitters/snippets/aarch64/jit_segfault_detector_emitter.cpp
     src/emitters/snippets/aarch64/verbose.cpp
     src/transformations/snippets/x64/op/perf_count_rdtsc.cpp)

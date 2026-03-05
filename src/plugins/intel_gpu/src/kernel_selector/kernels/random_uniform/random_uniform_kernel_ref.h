@@ -44,6 +44,8 @@ private:
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 
     JitConstants GetJitConstants(const random_uniform_params &params) const;
+
+    CommonDispatchData SetDefault(const random_uniform_params &params) const;
 };
 
 } /* namespace kernel_selector */
