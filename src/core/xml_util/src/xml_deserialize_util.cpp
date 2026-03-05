@@ -30,6 +30,7 @@
 #include "openvino/util/xml_parse_utils.hpp"
 #include "transformations/rt_info/attributes.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
+#include "ov_ops/rms.hpp"
 
 namespace ov::util {
 
@@ -1281,6 +1282,13 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Out
         }
     } else if(type_name == "RoPE") {
         ovNode = std::make_shared<ov::op::internal::RoPE>();
+        ovNode->set_arguments(inputs);
+        auto visitor = make_visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
+        if (ovNode->visit_attributes(*visitor)) {
+            ovNode->constructor_validate_and_infer_types();
+        }
+    } else if (type_name == "RMS") {
+        ovNode = std::make_shared<ov::op::internal::RMS>();
         ovNode->set_arguments(inputs);
         auto visitor = make_visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
         if (ovNode->visit_attributes(*visitor)) {
