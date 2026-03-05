@@ -20,6 +20,7 @@ file(GLOB LIBRARY_SOURCES_ZE
     "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ze/compute_runtime/*.h"
 )
 file(GLOB_RECURSE SYCL_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ocl/sycl_*.cpp")
 

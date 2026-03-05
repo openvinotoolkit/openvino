@@ -1,4 +1,9 @@
-// Copyright (C) 2018-2026 Intel Corporation
+/*
+ * Copyright (C) 2023-2025 Intel Corporation
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ */
 // intel/compute-runtime 4df478c5139703c82e548a65eafbcc69923953ac
 
 #ifndef _ZEX_EVENT_H

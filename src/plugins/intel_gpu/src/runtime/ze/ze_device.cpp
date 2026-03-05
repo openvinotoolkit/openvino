@@ -4,10 +4,10 @@
 
 #include "ze_device.hpp"
 #include "ze_common.hpp"
-#include "zex_common.h"
+#include "compute_runtime/zex_common.h"
 
 #include <ze_api.h>
-#include <ze_intel_gpu.h>
+#include "compute_runtime/ze_intel_gpu.h"
 #include <vector>
 #include <algorithm>
 #include <cassert>

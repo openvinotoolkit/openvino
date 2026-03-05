@@ -20,8 +20,8 @@
 #include "ze_common.hpp"
 
 #include <ze_api.h>
-#include <ze_intel_gpu.h>
-#include <ze_stypes.h>
+#include "compute_runtime/ze_intel_gpu.h"
+#include "compute_runtime/ze_stypes.h"
 
 #include <cassert>
 #include <string>

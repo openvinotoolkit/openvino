@@ -37,7 +37,6 @@ set(ZE_HEADERS_STAMP_FILE ${CMAKE_CURRENT_BINARY_DIR}/ze_headers.stamp)
 add_custom_command(OUTPUT "${ZE_HEADERS_STAMP_FILE}"
     DEPENDS "${COMPUTE_RUNTIME_HEADERS}" "${LEVEL_ZERO_HEADERS}"
     COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/level-zero/include" "${ZE_INCLUDE_DIR}/level_zero"
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/compute-runtime" "${ZE_INCLUDE_DIR}/level_zero"
     COMMAND "${CMAKE_COMMAND}" -E touch "${ZE_HEADERS_STAMP_FILE}"
     COMMENT "Copying Level Zero and compute-runtime headers..."
 )

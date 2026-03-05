@@ -6,7 +6,7 @@
 #include "ze_common.hpp"
 #include "ze_event.hpp"
 
-#include "zex_event.h"
+#include "compute_runtime/zex_event.h"
 
 using namespace cldnn;
 using namespace ze;

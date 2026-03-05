@@ -6,7 +6,7 @@
 #include "ze_common.hpp"
 #include "ze_counter_based_event.hpp"
 
-#include "zex_event.h"
+#include "compute_runtime/zex_event.h"
 
 #include <mutex>
 
