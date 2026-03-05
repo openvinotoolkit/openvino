@@ -181,9 +181,6 @@
 #endif
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <functional>
-#    include <numeric>
-
 #    include "low_precision/convolution_backprop_data.hpp"
 #    include "low_precision/fold_convert.hpp"
 #    include "low_precision/fuse_convert.hpp"
