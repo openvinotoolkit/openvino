@@ -26,9 +26,10 @@ protected:
         };
         ov::util::set_log_callback(log_cb);
 
-        OV_ASSERT_NO_THROW(core.set_property(DEVICE_NPU, {{ov::log::level.name(), ov::log::Level::WARNING}}));
         // triggers Plugin constructor
         OV_ASSERT_NO_THROW(core.get_property(DEVICE_NPU, ov::hint::enable_cpu_pinning.name()));
+
+        OV_ASSERT_NO_THROW(core.set_property(DEVICE_NPU, {{ov::log::level.name(), ov::log::Level::WARNING}}));
 
         ov::util::reset_log_callback();
 
