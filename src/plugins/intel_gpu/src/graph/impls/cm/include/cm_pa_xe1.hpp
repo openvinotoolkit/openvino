@@ -4,8 +4,6 @@
 
 #ifndef CM_HAS_LSC_UNTYPED_2D
 
-#include "cm_attention_common.hpp"
-
 #if CMPA_KVCACHE_U8
 template<bool use_causal_mask, int num_heads, int num_kv_heads, int head_size, int is_q_fused = 0>
 void pa_lsc_u8(
