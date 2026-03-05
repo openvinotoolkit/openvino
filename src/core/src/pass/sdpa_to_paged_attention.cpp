@@ -158,11 +158,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     } else {
         position_ids = ov::as_type_ptr<v0::Parameter>(model->input("position_ids").get_node_shared_ptr());
         const auto position_ids_shape = position_ids->get_partial_shape();
-        if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 3 &&
+        if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() > 2 &&
+            position_ids_shape[0].is_static()) {
             // Qwen2.5 VL M-RoPE: set position_ids to [3, total_token_num] -> Unsqueeze(axis=-1) -> [3, total_token_num,
             // 1]
-            position_ids_shape[0].is_static() && position_ids_shape[0].get_length() == 3) {
-            position_ids->set_partial_shape(PartialShape{3, -1});
+            position_ids->set_partial_shape(PartialShape{position_ids_shape[0], -1});
         } else {
             position_ids->set_partial_shape(PartialShape{-1});
         }
