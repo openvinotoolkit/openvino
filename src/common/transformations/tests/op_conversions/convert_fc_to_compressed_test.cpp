@@ -18,9 +18,6 @@
 #include "ov_ops/fully_connected.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 
-using namespace testing;
-using namespace ov::pass;
-
 namespace {
 struct ConvertFCToCompressedParams {
     ov::element::Type compressed_type;
@@ -45,8 +42,8 @@ TEST_P(ConvertFCToCompressed, ConvertFCToCompressedTest) {
     const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
     const std::vector<ov::element::Type> supported_weights_types{compressed_type_};
 
-    manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>(supported_activation_types,
-                                                                           supported_weights_types);
+    manager.register_pass<ov::pass::ConvertFullyConnectedToFullyConnectedCompressed>(supported_activation_types,
+                                                                                     supported_weights_types);
 
     auto weight_reshaped_dims = [&]() {
         std::vector<int64_t> wei_reshaped;
