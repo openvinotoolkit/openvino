@@ -23,6 +23,7 @@
 #include "nodes/executors/subgraph.hpp"
 #include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
@@ -747,26 +748,21 @@ uint32_t Subgraph::getBroadcastingMask(const std::vector<VectorDims>& input_shap
     return mask;
 }
 
-uint32_t Subgraph::getConstantRepackedMask() const {
 #if defined(OPENVINO_ARCH_X86_64)
+uint32_t Subgraph::getConstantRepackedMask() const {
     // Returns a bitmask of inputs pre-packed at compile time (constant weights via RepackMatMulWeights).
     const auto& preconfigured =
         ov::as_type_ptr<CPURuntimeConfig>(subgraph_attrs->snippet->get_runtime_configurator()->get_config());
     uint32_t mask = 0;
     for (const auto& [i, repacker] : preconfigured->input_repackers) {
         if (repacker.already_repacked()) {
-            OPENVINO_ASSERT(i < sizeof(mask) * CHAR_BIT,
-                            "Input index ",
-                            i,
-                            " exceeds constant_repacked_mask capacity");
-            mask |= (1u << i);
+            CPU_NODE_ASSERT(i < sizeof(mask) * CHAR_BIT, "Input index ", i, " exceeds constant_repacked_mask capacity");
+            mask |= (1U << i);
         }
     }
     return mask;
-#else
-    return 0;
-#endif
 }
+#endif
 
 std::set<size_t> Subgraph::getConstantInputIndexes() const {
     // TODO [153480]: Some constant inputs can have additional operations
@@ -899,7 +895,11 @@ void Subgraph::prepareParams() {
     // body structure and input shapes but different weight packing states produce different kernels
     // and must be cached separately. In the dynamic case, offsets are recomputed at runtime, so the
     // packing state has no effect on the generated code
-    const auto constant_repacked_mask = is_dynamic ? 0u : getConstantRepackedMask();
+#if defined(OPENVINO_ARCH_X86_64)
+    const auto constant_repacked_mask = is_dynamic ? 0U : getConstantRepackedMask();
+#else
+    constexpr uint32_t constant_repacked_mask = 0;
+#endif
     const auto result = cache->getOrCreate(SubgraphKey(subgraph_attrs, in_shapes, constant_repacked_mask), builder);
     execPtr = result.first;
 #endif
