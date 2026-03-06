@@ -455,6 +455,55 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu) {
     test_case.run();
 }
 
+template <typename T>
+static void run_unary_model_test(const std::string& model_name,
+                                 std::initializer_list<T> input_values,
+                                 std::initializer_list<T> expected_values) {
+    auto model = convert_model(model_name);
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<T>(input_values);
+    test_case.add_expected_output<T>(expected_values);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset6) {
+    run_unary_model_test<ov::float16>("relu_opset6.onnx",
+                                      {-1.0f, -2.0f, 0.0f, 1.0f, 2.0f, 3.0f},
+                                      {0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 3.0f});
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset6_double) {
+    run_unary_model_test<double>("relu_opset6_double.onnx",
+                                 {-1.0, -2.0, 0.0, 1.0, 2.0, 3.0},
+                                 {0.0, 0.0, 0.0, 1.0, 2.0, 3.0});
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset13) {
+    run_unary_model_test<ov::bfloat16>("relu_opset13.onnx",
+                                       {-1.0f, -2.0f, 0.0f, 1.0f, 2.0f, 3.0f},
+                                       {0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 3.0f});
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14_int8) {
+    run_unary_model_test<int8_t>("relu_opset14_int8.onnx", {-1, -2, 0, 1, 2, 3}, {0, 0, 0, 1, 2, 3});
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14_int16) {
+    run_unary_model_test<int16_t>("relu_opset14_int16.onnx", {-1, -2, 0, 1, 2, 3}, {0, 0, 0, 1, 2, 3});
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14_int32) {
+    run_unary_model_test<int32_t>("relu_opset14_int32.onnx", {-1, -2, 0, 1, 2, 3}, {0, 0, 0, 1, 2, 3});
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14_int64) {
+    run_unary_model_test<int64_t>("relu_opset14_int64.onnx", {-1, -2, 0, 1, 2, 3}, {0, 0, 0, 1, 2, 3});
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14_uint8) {
+    run_unary_model_test<uint8_t>("relu_opset14_uint8.onnx", {0, 1, 2, 3, 4, 5}, {0, 1, 2, 3, 4, 5});
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_sum_opset1) {
     // Simple Sum test for opset1.
     auto model = convert_model("sum_opset1.onnx");
