@@ -2547,9 +2547,9 @@ struct gemm_base_test_params {
 #define CASE_GEMM_FP32_TILED_NN_BROADCAST_4 64, 1, 2, 1, 1, 2, 2, 2, 2, 2, 2, false, false, \
 1.0f, 4.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 
-// Real model shape: MatMul_147904 (M=128, K=1025, N=199, batch=32)
-// N_leftover=199%16=7, K_leftover=1025%16=1, M aligned
-#define CASE_GEMM_FP32_TILED_NN_REALMODEL_1 128, 199, 1025, 1, 32, 1, 32, 1, 1, 1, 32, false, false, \
+// Reduced shape from real model MatMul_147904 (M=128, K=1025, N=199, f_num=32)
+// Key OOB conditions preserved: N%16=7, K%16=1; M and batch reduced to keep CPU ref cost low
+#define CASE_GEMM_FP32_TILED_NN_REALMODEL_1 32, 199, 17, 1, 4, 1, 4, 1, 1, 1, 4, false, false, \
 1.0f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 
 #define CASE_GEMM_FP16_TILED_NN_1 64, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
@@ -3761,6 +3761,7 @@ TEST_P(gemm_fp32_tiled_nt_tests, basic_cached) { auto p = GetParam(); execute(p,
 TEST_P(gemm_fp32_tiled_tn_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp32_tiled_tt_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp32_tiled_nn_broadcast_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp32_tiled_nn_realmodel_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp16_tiled_nn_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp16_tiled_nt_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp16_tiled_tn_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
