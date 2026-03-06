@@ -99,6 +99,9 @@ def getParams():
         customCfgPath = "custom_cfg_on_run.json"
         jsonObj = {"template" : {"name" : argHolder.template}}
         for k, v in addDict.items():
+            # WA: no way to pass pure \n's if params passed from CLI,
+            # (e.g. 'code' parameters, like convert_command)
+            v = v.replace('\\n', '\n')
             jsonObj['template'][k] = v
             curTempl = jsonObj['template']
             curTempl[k.replace('-', '')] = v
