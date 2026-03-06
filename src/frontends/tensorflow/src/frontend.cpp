@@ -145,19 +145,11 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     std::filesystem::path model_fs_path, checkpoints_dir;
     if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
         model_fs_path = path.value();
-    } else if (variants[0].is<std::vector<std::string>>() && variants[0].as<std::vector<std::string>>().size() == 2) {
-        const auto paths = variants[0].as<std::vector<std::string>>();
-        model_fs_path = ov::util::make_path(paths[0]);
-        checkpoints_dir = ov::util::make_path(paths[1]);
-    } else if (variants[0].is<std::vector<std::wstring>>() && variants[0].as<std::vector<std::wstring>>().size() == 2) {
-        const auto paths = variants[0].as<std::vector<std::wstring>>();
-        model_fs_path = ov::util::make_path(paths[0]);
-        checkpoints_dir = ov::util::make_path(paths[1]);
-    } else if (variants[0].is<std::vector<std::filesystem::path>>() &&
-               variants[0].as<std::vector<std::filesystem::path>>().size() == 2) {
-        const auto paths = variants[0].as<std::vector<std::filesystem::path>>();
-        model_fs_path = paths[0];
-        checkpoints_dir = paths[1];
+    } else if (const auto paths = ov::frontend::get_path_vec_from_any(variants[0])) {
+        if (paths->size() == 2) {
+            model_fs_path = paths.value()[0];
+            checkpoints_dir = paths.value()[1];
+        }
     }
 
     // to figure out if the model with v1 checkpoints is supported,
@@ -213,22 +205,10 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     std::filesystem::path model_fs_path, checkpoints_fs_dir;
     if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
         model_fs_path = path.value();
-    } else if (variants[0].is<std::vector<std::string>>() && variants[0].as<std::vector<std::string>>().size() == 2) {
-        const auto paths = variants[0].as<std::vector<std::string>>();
-        FRONT_END_GENERAL_CHECK(paths.size() == 2, err_msg);
-        model_fs_path = ov::util::make_path(paths[0]);
-        checkpoints_fs_dir = ov::util::make_path(paths[1]);
-    } else if (variants[0].is<std::vector<std::wstring>>() && variants[0].as<std::vector<std::wstring>>().size() == 2) {
-        const auto paths = variants[0].as<std::vector<std::wstring>>();
-        FRONT_END_GENERAL_CHECK(paths.size() == 2, err_msg);
-        model_fs_path = ov::util::make_path(paths[0]);
-        checkpoints_fs_dir = ov::util::make_path(paths[1]);
-    } else if (variants[0].is<std::vector<std::filesystem::path>>() &&
-               variants[0].as<std::vector<std::filesystem::path>>().size() == 2) {
-        const auto paths = variants[0].as<std::vector<std::filesystem::path>>();
-        FRONT_END_GENERAL_CHECK(paths.size() == 2, err_msg);
-        model_fs_path = paths[0];
-        checkpoints_fs_dir = paths[1];
+    } else if (const auto paths = ov::frontend::get_path_vec_from_any(variants[0])) {
+        FRONT_END_GENERAL_CHECK(paths->size() == 2, err_msg);
+        model_fs_path = paths.value()[0];
+        checkpoints_fs_dir = paths.value()[1];
     }
 
     if (!model_fs_path.empty() && checkpoints_fs_dir.empty()) {

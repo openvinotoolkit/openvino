@@ -191,9 +191,10 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     }
     if (variants[0].is<std::istream*>()) {
         const auto stream = variants[0].as<std::istream*>();
-        if (const auto path = variants.size() > 1 ? get_path_from_any(variants[1]) : std::nullopt) {
-            return std::make_shared<InputModel>(*stream, path.value().native(), enable_mmap, m_extensions);
-        }
+        if (variants.size() > 1)
+            if (const auto path = get_path_from_any(variants[1])) {
+                return std::make_shared<InputModel>(*stream, path.value().native(), enable_mmap, m_extensions);
+            }
         return std::make_shared<InputModel>(*stream, enable_mmap, m_extensions);
     }
     // !!! Experimental feature, it may be changed or removed in the future !!!
