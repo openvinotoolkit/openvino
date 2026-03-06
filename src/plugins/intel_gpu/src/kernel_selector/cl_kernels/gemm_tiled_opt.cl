@@ -287,11 +287,12 @@ KERNEL(gemm_tiled_opt)(
                 #if B_VEC_SIZE == 1
                 b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
                 #else // B_VEC_SIZE == 1
-                    if (TILE_N_NOT_DIVISIBLE == 0 || N_IS_ALIGNED_4BYTE)
+                    // Boundary check: use BLOCK_READ only when the full tile fits within N
+                    if ((TILE_N_NOT_DIVISIBLE == 0 || N_IS_ALIGNED_4BYTE) && (tile_n_offset + SIMD_WIDTH * B_VEC_SIZE <= N)) {
                         b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
-                    else {
+                    } else {
                         unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
-                            b_tile[b_load_id][b_elem] = b_ptr[sglid + SIMD_WIDTH * b_elem];
+                            b_tile[b_load_id][b_elem] = (b_raw_global_id + SIMD_WIDTH * b_elem >= N) ? 0 : b_ptr[sglid + SIMD_WIDTH * b_elem];
                         }
                     }
                 #endif // B_VEC_SIZE == 1
@@ -327,10 +328,19 @@ KERNEL(gemm_tiled_opt)(
             else
             #endif // INDIRECT_INPUT1
             {
-        #if N_IS_ALIGNED_4BYTE
-                b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
-        #else
+        #if TILE_N_NOT_DIVISIBLE
+            #if N_IS_ALIGNED_4BYTE
+                // Boundary check: use BLOCK_READ only when the full tile fits within N
+                if (tile_n_offset + SIMD_WIDTH * B_VEC_SIZE <= N) {
+                    b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
+                } else {
+                    b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
+                }
+            #else
                 b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
+            #endif
+        #else
+                b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
         #endif
                 b_ptr += input1_offset;
             }
@@ -522,11 +532,12 @@ KERNEL(gemm_tiled_opt)(
                 #if B_VEC_SIZE == 1
                     b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
                 #else // B_VEC_SIZE == 1
-                    if (TILE_N_NOT_DIVISIBLE == 0 || N_IS_ALIGNED_4BYTE)
+                    // Boundary check: use BLOCK_READ only when the full tile fits within N
+                    if ((TILE_N_NOT_DIVISIBLE == 0 || N_IS_ALIGNED_4BYTE) && (tile_n_offset + SIMD_WIDTH * B_VEC_SIZE <= N)) {
                         b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
-                    else {
+                    } else {
                         unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
-                            b_tile[b_load_id][b_elem] = b_ptr[sglid + SIMD_WIDTH * b_elem];
+                            b_tile[b_load_id][b_elem] = (b_raw_global_id + SIMD_WIDTH * b_elem >= N) ? 0 : b_ptr[sglid + SIMD_WIDTH * b_elem];
                         }
                     }
                 #endif // B_VEC_SIZE == 1
@@ -595,7 +606,8 @@ KERNEL(gemm_tiled_opt)(
         #else
             uint a_idx = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y + dot_id), (K_FULL_ITERATIONS * TILE_K + sglid));
         #endif
-            INPUT0_TYPE a_read = input0[a_idx];
+            // Boundary check: prevent OOB access when K is not tile-aligned
+            INPUT0_TYPE a_read = ((K_FULL_ITERATIONS * TILE_K + sglid) < K) ? input0[a_idx] : (INPUT0_TYPE)0;
 
             unroll_for (uint simd_id = 0; simd_id < TILE_K_LEFTOVER; simd_id++) {
             #if B_VEC_SIZE > 1
@@ -633,11 +645,20 @@ KERNEL(gemm_tiled_opt)(
             else
             #endif
             {
-        #if N_IS_ALIGNED_4BYTE
-                b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
-        #else // N_IS_ALIGNED_4BYTE
+        #if TILE_N_NOT_DIVISIBLE
+            #if N_IS_ALIGNED_4BYTE
+                // Boundary check: use BLOCK_READ only when the full tile fits within N
+                if (tile_n_offset + SIMD_WIDTH * B_VEC_SIZE <= N) {
+                    b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
+                } else {
+                    b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
+                }
+            #else // N_IS_ALIGNED_4BYTE
                 b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
-        #endif // N_IS_ALIGNED_4BYTE
+            #endif // N_IS_ALIGNED_4BYTE
+        #else
+                b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
+        #endif
                 b_ptr += input1_offset;
             }
         #elif TRANSPOSE_INPUT1 == TRANSPOSE_OTHER // TRANSPOSE_INPUT1 == 0
@@ -676,21 +697,25 @@ KERNEL(gemm_tiled_opt)(
          }
         #endif // TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
 
-#if !INDIRECT_INPUT0 && K_IS_ALIGNED_4BYTE && (TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST)
-    a_ptr = input0 + FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, (K_FULL_ITERATIONS * TILE_K));
-#endif
     // Loading leftovers of the matrix A and tile C calculation
     unroll_for (uint dot_id = 0; dot_id < tile_m_iterations; dot_id++) {
         #if INDIRECT_INPUT0
         uint a_idx = FUNC_CALL(get_input0_indirect_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y + dot_id), (K_FULL_ITERATIONS * TILE_K + sglid), beam_table);
-        INPUT0_TYPE a_read = input0[a_idx];
+        INPUT0_TYPE a_read = ((K_FULL_ITERATIONS * TILE_K + sglid) < K) ? input0[a_idx] : (INPUT0_TYPE)0;
 #else  // INDIRECT_INPUT0
 #if K_IS_ALIGNED_4BYTE && (TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST)
-        INPUT0_TYPE a_read = BLOCK_READ_A(a_ptr, 0);
+        // Boundary check: use BLOCK_READ only when the full tile fits within K
+        INPUT0_TYPE a_read;
+        if ((K_FULL_ITERATIONS * TILE_K) + SIMD_WIDTH <= K) {
+            a_read = BLOCK_READ_A(a_ptr, 0);
+        } else {
+            uint a_idx = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y + dot_id), (K_FULL_ITERATIONS * TILE_K + sglid));
+            a_read = ((K_FULL_ITERATIONS * TILE_K + sglid) < K) ? input0[a_idx] : (INPUT0_TYPE)0;
+        }
         a_ptr += input0_offset;
 #else
         uint a_idx = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y + dot_id), (K_FULL_ITERATIONS * TILE_K + sglid));
-        INPUT0_TYPE a_read = input0[a_idx];
+        INPUT0_TYPE a_read = ((K_FULL_ITERATIONS * TILE_K + sglid) < K) ? input0[a_idx] : (INPUT0_TYPE)0;
 #endif
 #endif // INDIRECT_INPUT0
         unroll_for (uint simd_id = 0; simd_id < TILE_K_LEFTOVER; simd_id++) {
