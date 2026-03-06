@@ -322,6 +322,8 @@ class TestAminAmax(PytorchLayerTest):
                     self.forward = self.forward_out
 
             def forward_out(self, x, y):
+                if self.axis is None:
+                    return self.op(x, out=y), y
                 return self.op(x, self.axis, self.keep_dims, out=y), y
 
             def forward(self, x):
