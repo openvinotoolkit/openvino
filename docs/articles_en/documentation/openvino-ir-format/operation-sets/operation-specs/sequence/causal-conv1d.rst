@@ -21,46 +21,23 @@ The operation provides functionality according to the following pseudo-code:
    :force:
 
    def CausalConv1D(input_embeds, conv_state, conv_weight, conv_bias=None):
-       # input_embeds:  [batch_size, seq_len, hidden_size]
-       # conv_state:    [batch_size, hidden_size, kernel_size]  (kernel_size == conv_kernel_size - 1)
-       # conv_weight:   [out_channels, hidden_size / group_size, conv_kernel_size]
-       # conv_bias:     [out_channels]  (optional)
-
-       batch_size, seq_len, hidden_size = input_embeds.shape
-       out_channels, w_in_channels, conv_kernel_size = conv_weight.shape
-       state_len = conv_state.shape[-1]  # == conv_kernel_size - 1
+       _, hidden_size, seq_len = input_embeds.shape
+       _, w_in_channels, _ = weight.shape
+       state_len = conv_state.shape[-1]
        groups = hidden_size // w_in_channels
 
-       # Transpose input to channels-first layout required by conv1d:
-       # [batch_size, seq_len, hidden_size] -> [batch_size, hidden_size, seq_len]
-       input_t = Transpose(input_embeds, axes=[0, 2, 1])
-
-       # Prepend conv state and cast to weight dtype:
-       # [batch_size, hidden_size, state_len + seq_len]
-       input_new = ConvertLike(Concat([conv_state, input_t], axis=-1), conv_weight)
-
-       # Grouped 1D convolution (no padding):
-       # output shape: [batch_size, out_channels, state_len + seq_len - conv_kernel_size + 1]
-       conv_out = grouped_conv1d(input_new, conv_weight, conv_bias, padding=0, groups=groups)
-
-       # Keep only the last seq_len time steps:
-       # [batch_size, out_channels, seq_len]
+       input_embeds_new = torch.cat([conv_state, input_embeds], dim=-1).to(weight.dtype)
+       conv_out = F.conv1d(input_embeds_new, weight, bias, padding=0, groups=groups)
        conv_out = conv_out[:, :, -seq_len:]
 
-       # Update state: last kernel_size values of the extended input:
-       # [batch_size, hidden_size, kernel_size]
-       new_conv_state = input_new[:, :, -state_len:]
+       new_conv_state = input_embeds_new[:, :, -state_len:]
 
-       # Transpose output back to sequence-last layout:
-       # [batch_size, seq_len, out_channels]  (out_channels == hidden_size)
-       output_embeds = Transpose(conv_out, axes=[0, 2, 1])
-
-       return output_embeds, new_conv_state
+       return conv_out, new_conv_state
 
 
 **Inputs**
 
-* **1**: ``input_embeds`` - 3D tensor of type *T* and shape ``[batch_size, seq_len, hidden_size]``. The input sequence embeddings. **Required.**
+* **1**: ``input_embeds`` - 3D tensor of type *T* and shape ``[batch_size, hidden_size, seq_len]``. The input sequence embeddings. **Required.**
 
 * **2**: ``conv_state`` - 3D tensor of type *T* and shape ``[batch_size, hidden_size, kernel_size]``. The cached past input values used to maintain causality across inference steps. **Required.**
 
@@ -79,17 +56,6 @@ The operation provides functionality according to the following pseudo-code:
 **Types**
 
 * *T*: any supported floating-point type.
-
-
-**Dimension symbols**
-
-* ``batch_size`` - number of sequences in the batch.
-* ``seq_len`` - length of the input sequence (number of time steps).
-* ``hidden_size`` - number of channels in the input embeddings; must equal ``out_channels``.
-* ``out_channels`` - number of output channels produced by the convolution; must equal ``hidden_size``.
-* ``kernel_size`` - size of the convolution state buffer; always equals ``conv_kernel_size - 1``, since the state stores exactly the number of past time steps needed to apply the filter causally.
-* ``conv_kernel_size`` - spatial size of the convolution kernel.
-* ``group_size`` - number of input channels per convolution group; ``groups = hidden_size / group_size``.
 
 
 **Example**
