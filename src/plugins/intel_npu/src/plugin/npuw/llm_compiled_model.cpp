@@ -1569,6 +1569,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     ov::AnyMap other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
     auto use_whisper_key = pop_option(other_props, std::string("NPUW_WHISPER"));
+    auto whisper_eos_token = pop_option(other_props, std::string("NPUW_WHISPER_EOS_TOKEN"));
     auto use_eagle_key = pop_option(other_props, std::string("NPUW_EAGLE"));
     auto kv_cache_precision_hint = pop_option(other_props, ov::hint::kv_cache_precision.name());
 
@@ -1611,6 +1612,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
         m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
         m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
+
+        m_eos_token_id = whisper_eos_token.value_or(50257).as<uint64_t>();
     }
 
     m_is_eagle = use_eagle_key.value_or(false).as<bool>() == true;
@@ -2482,6 +2485,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::generate_attn_hint, NPUW_LLM_GENERATE_ATTENTION_HINT, getString),
                           BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get),
                           BIND(npuw::whisper::enabled, NPUW_WHISPER, get),
+                          BIND(npuw::whisper::whisper_eos_token, NPUW_WHISPER_EOS_TOKEN, get),
                           BIND(npuw::eagle::enabled, NPUW_EAGLE, get),
                           BIND(npuw::text_embed::enabled, NPUW_TEXT_EMBED, get)});
 #undef BIND
