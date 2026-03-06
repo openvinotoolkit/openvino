@@ -43,6 +43,7 @@
 #include "openvino/op/normalize_l2.hpp"
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/prior_box.hpp"
 #include "openvino/op/prior_box_clustered.hpp"
@@ -197,6 +198,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<ov::OpExtension<ov::op::internal::FullyConnectedQuantizedLegacy>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::FullyConnectedQuantized>>(),
     std::make_shared<ov::OpExtension<ov::op::PagedAttentionExtension>>(),
+    std::make_shared<ov::OpExtension<ov::op::GatedDeltaNet>>(),
     // clang-format off
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::InteractionNode>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LLMMLPNode>>())
