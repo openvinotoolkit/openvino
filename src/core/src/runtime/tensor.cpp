@@ -249,17 +249,4 @@ Tensor read_tensor_data(ov::FileHandle file_handle,
     OPENVINO_ASSERT(element_type != ov::element::string);
     return read_tensor_data_mmap_impl(ov::load_mmap_object(file_handle), element_type, partial_shape, offset_in_bytes);
 }
-
-Tensor make_tensor_from(const std::filesystem::path& file_name,
-                        std::size_t offset_in_bytes,
-                        const Shape& shape,
-                        const element::Type& element_type) {
-    const auto mapped_memory = load_mmap_object(file_name, offset_in_bytes, shape_size(shape));
-    const auto shared_buffer =
-        std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
-                                                                              mapped_memory->size(),
-                                                                              mapped_memory);
-    return wrap_obj_to_viewtensor(shared_buffer, shared_buffer->get_ptr(), element_type, shape);
-}
-
 }  // namespace ov
