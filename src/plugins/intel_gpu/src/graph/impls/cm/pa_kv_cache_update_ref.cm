@@ -306,13 +306,14 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
 #if KV_CACHE_COMPRESSION == 2
     const uint global_token_idx = cm_global_id(2) * SUB_BLOCK_SIZE;
+    uint cur_sub_block_size = SUB_BLOCK_SIZE;
 #else
     const uint global_token_idx = cm_global_id(2);
+    uint cur_sub_block_size = 1;
 #endif
 
     uint token_idx = global_token_idx;
     uint dequant_size = 0;
-    uint cur_sub_block_size = SUB_BLOCK_SIZE;
 
 #if KV_CACHE_COMPRESSION == 2
     cm_assert(batch_size_in_sequences <= MAX_SEQS);
