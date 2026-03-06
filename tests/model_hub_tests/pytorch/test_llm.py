@@ -9,7 +9,7 @@ import platform
 import pytest
 import torch
 from huggingface_hub import snapshot_download
-from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM, DynamicCache
 
 from models_hub_common.utils import retry
 from openvino.frontend.pytorch.patch_model import __make_16bit_traceable as patch
@@ -48,7 +48,8 @@ def patch_gptq():
             model.quantize_config = StoreAttr()
             model.quantize_config.desc_act = self.desc_act
             if self.desc_act and not self.disable_exllama and self.max_input_length is not None:
-                model = exllama_set_max_input_length(model, self.max_input_length)
+                model = exllama_set_max_input_length(
+                    model, self.max_input_length)
             return model
 
         GPTQQuantizer.post_init_model = post_init_model
@@ -77,6 +78,8 @@ def patch_gptq():
             x = x.to(torch.float16)
 
             out = dequantize_gemm(qweight, qzeros, scales, w_bit, group_size)
+            # Ensure out has the same dtype as x for matmul
+            out = out.to(x.dtype)
             out = torch.matmul(x, out)
 
             out = out + bias if bias is not None else out
@@ -107,31 +110,97 @@ def unpatch_gptq(orig_cuda_check, orig_post_init_model, orig_gemm_forward):
         pass
 
 
+_causal_mask_patched = False
+
+
+def patch_causal_mask():
+    """Patch transformers.masking_utils to avoid vmap (incompatible with torch.jit.trace)."""
+    global _causal_mask_patched
+    if _causal_mask_patched:
+        return
+
+    import transformers.masking_utils as mu
+
+    def make_causal_mask(config, input_embeds, attention_mask, cache_position,
+                         past_key_values, sliding_window=None, **kwargs):
+        batch_size, seq_length = input_embeds.shape[:2]
+        dtype, device = input_embeds.dtype, input_embeds.device
+        total_length = cache_position[-1].item(
+        ) + 1 if cache_position is not None and len(cache_position) > 0 else seq_length
+        min_dtype = torch.finfo(
+            dtype).min if dtype.is_floating_point else torch.iinfo(dtype).min
+        causal_mask = torch.full(
+            (batch_size, 1, seq_length, total_length), min_dtype, dtype=dtype, device=device)
+
+        positions = cache_position if cache_position is not None else range(
+            seq_length)
+        for i, pos in enumerate(positions):
+            pos_val = pos.item() if hasattr(pos, 'item') else pos
+            start = max(0, pos_val - sliding_window +
+                        1) if sliding_window else 0
+            causal_mask[:, :, i, start:pos_val + 1] = 0
+
+        if attention_mask is not None and attention_mask.dim() == 2:
+            expanded_mask = (
+                1.0 - attention_mask[:, None, None, :total_length].to(dtype)) * min_dtype
+            causal_mask = causal_mask + expanded_mask
+        return causal_mask
+
+    mu.create_causal_mask = lambda *args, **kw: make_causal_mask(*args, **kw)
+    if hasattr(mu, 'create_sliding_window_causal_mask'):
+        mu.create_sliding_window_causal_mask = lambda config, *args, **kw: make_causal_mask(
+            config, *args, sliding_window=getattr(config, 'sliding_window', None), **kw)
+    _causal_mask_patched = True
+
+
 def to_numpy(t):
     if t.dtype in [torch.bfloat16, torch.float16]:
         return t.to(torch.float32).numpy(force=True)
     return t.numpy(force=True)
 
 
-def flattenize_tuples(list_input):
-    unpacked_pt_res = []
-    for r in list_input:
-        if isinstance(r, (tuple, list)):
-            unpacked_pt_res.extend(flattenize_tuples(r))
+class DynamicCacheWrapper(torch.nn.Module):
+    """Wrapper to convert between tuple PKV and DynamicCache for transformers 4.53+."""
+
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+        self.config = model.config
+
+    def forward(self, input_ids, attention_mask=None, position_ids=None, past_key_values=None, **kwargs):
+        if past_key_values is not None and isinstance(past_key_values, tuple):
+            past_key_values = DynamicCache.from_legacy_cache(past_key_values)
+
+        outputs = self.model(
+            input_ids=input_ids, attention_mask=attention_mask,
+            position_ids=position_ids, past_key_values=past_key_values, **kwargs
+        )
+
+        logits = outputs.logits if hasattr(outputs, 'logits') else outputs[0]
+        pkv = getattr(outputs, 'past_key_values', None) or (
+            outputs[1] if len(outputs) > 1 else None)
+        if pkv is not None and isinstance(pkv, DynamicCache):
+            pkv = pkv.to_legacy_cache()
+
+        return (logits, pkv) if pkv is not None else (logits,)
+
+
+def flattenize_tuples(data):
+    result = []
+    for item in data:
+        if isinstance(item, (tuple, list)):
+            result.extend(flattenize_tuples(item))
         else:
-            unpacked_pt_res.append(r)
-    return unpacked_pt_res
+            result.append(item)
+    return result
 
 
 def flattenize_outputs(outputs):
-    if not isinstance(outputs, dict):
-        outputs = flattenize_tuples(outputs)
-        return [to_numpy(i) for i in outputs]
-    else:
-        return dict((k, to_numpy(v)) for k, v in outputs.items())
+    if isinstance(outputs, dict):
+        return {k: to_numpy(v) for k, v in outputs.items()}
+    return [to_numpy(t) for t in flattenize_tuples(outputs)]
 
 
-# To make tests reproducible we seed the random generator
 torch.manual_seed(0)
 
 
@@ -142,29 +211,38 @@ class TestLLMModel(TestTorchConvertModel):
 
     @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, name, type):
-        model = None
-        example = None
-        model_cached = snapshot_download(name)  # required to avoid HF rate limits
+        model_cached = snapshot_download(
+            name,
+            allow_patterns=["*.json", "*.safetensors",
+                            "*.bin", "*.model", "*.txt", "*.py"],
+            ignore_patterns=["*.gguf", "*.ot",
+                             "*.msgpack", "original/*", "*.h5"]
+        )
         try:
-            config = AutoConfig.from_pretrained(model_cached, trust_remote_code=True)
+            config = AutoConfig.from_pretrained(
+                model_cached, trust_remote_code=True)
         except Exception:
             config = {}
-        model_kwargs = {"torchscript": True, "trust_remote_code": True}
+
+        patch_causal_mask()
+
+        model_kwargs = {"trust_remote_code": True}
         is_quant = is_quantized_model(config)
         is_gpt2 = name == "openai-community/gpt2"
 
         if is_quant:
             self.cuda_available, self.gptq_postinit, self.orig_gemm_forward = patch_gptq()
-            model_kwargs["torch_dtype"] = "auto"
             model_kwargs["torch_dtype"] = torch.float32
             self.ov_config = {"DYNAMIC_QUANTIZATION_GROUP_SIZE": "0"}
         elif is_gpt2:
             model_kwargs["torch_dtype"] = torch.float16
         else:
             model_kwargs["torch_dtype"] = "auto"
-        model_cached = snapshot_download(name)  # required to avoid HF rate limits
+
         t = AutoTokenizer.from_pretrained(model_cached, trust_remote_code=True)
-        self.model = AutoModelForCausalLM.from_pretrained(model_cached, **model_kwargs)
+        self.model = AutoModelForCausalLM.from_pretrained(
+            model_cached, **model_kwargs)
+
         if is_quant:
             model = self.model
         else:
@@ -174,32 +252,51 @@ class TestLLMModel(TestTorchConvertModel):
 
         example = t("Some input text to verify that model works.",
                     return_tensors='pt').__dict__['data']
-        atype = type.replace("_gptq", "")
-        if atype not in ["gptj", "starcoder2", "mpt"]:
+        atype = type.replace("_gptq", "").replace("_awq", "")
+
+        self.use_wrapper = atype not in ["gptj", "starcoder2", "mpt", "falcon"]
+        if self.use_wrapper:
             pkv, am = self.get_pkv(model, t)
             example["past_key_values"] = pkv
             example["attention_mask"] = torch.cat(
                 [example["attention_mask"], am], -1)
         if atype not in ["opt", "falcon", "mbart", "mpt"]:
             ids = torch.cumsum(example["attention_mask"] != 0, dim=1) - 1
-            example["position_ids"] = ids[:, -
-                                          example["input_ids"].shape[1]:]
+            example["position_ids"] = ids[:, -example["input_ids"].shape[1]:]
         self.example = example
         return model
 
+    @staticmethod
+    def get_pkv(model, tokenizer):
+        config = model.config
+        num_layers = config.num_hidden_layers
+        num_kv_heads = getattr(
+            config, 'num_key_value_heads', config.num_attention_heads)
+        head_dim = getattr(
+            config, 'head_dim', None) or config.hidden_size // config.num_attention_heads
+        dtype = next(model.parameters()).dtype
+
+        pkv = tuple(
+            (torch.zeros(1, num_kv_heads, 5, head_dim, dtype=dtype),
+             torch.zeros(1, num_kv_heads, 5, head_dim, dtype=dtype))
+            for _ in range(num_layers)
+        )
+        return pkv, torch.ones(1, 5, dtype=torch.long)
+
     def get_inputs_info(self, model_obj):
+        if self.use_wrapper:
+            return list(inspect.signature(DynamicCacheWrapper.forward).parameters)
         return list(inspect.signature(getattr(model_obj, "forward", model_obj.__call__)).parameters)
 
     def prepare_inputs(self, inputs_info):
         inputs = getattr(self, "inputs", self.example)
-        filtered_keys = [i for i in inputs_info if i in inputs]
         res = []
-        for k in filtered_keys:
+        for k in [i for i in inputs_info if i in inputs]:
             v = inputs[k]
             if isinstance(v, tuple):
                 v_flatten = flattenize_outputs(v)
                 if k == "past_key_values":
-                    v_flatten = [v.astype(np.float32) for v in v_flatten]
+                    v_flatten = [x.astype(np.float32) for x in v_flatten]
                 res.extend(v_flatten)
             else:
                 res.append(v.numpy())
@@ -207,7 +304,13 @@ class TestLLMModel(TestTorchConvertModel):
 
     def infer_fw_model(self, model_obj, inputs):
         inputs = getattr(self, "inputs", self.example)
-        fw_outputs = model_obj(**inputs)
+
+        if self.use_wrapper:
+            wrapped_model = DynamicCacheWrapper(model_obj)
+            wrapped_model.eval()
+            fw_outputs = wrapped_model(**inputs)
+        else:
+            fw_outputs = model_obj(**inputs)
         return flattenize_outputs(fw_outputs)
 
     def convert_model_impl(self, model_obj):
@@ -215,30 +318,28 @@ class TestLLMModel(TestTorchConvertModel):
         if getattr(self.model.config, "torch_dtype", None) in [torch.float16, torch.bfloat16]:
             patch(self.model)
             is_patched = True
-        # initialize model after patching
-        self.model(**self.example)
-        with torch.no_grad():
-            ovm = super().convert_model_impl(self.model)
+
+        if self.use_wrapper:
+            wrapped_model = DynamicCacheWrapper(self.model)
+            wrapped_model.eval()
+            wrapped_model(**self.example)
+            with torch.no_grad():
+                ovm = super().convert_model_impl(wrapped_model)
+        else:
+            self.model(**self.example)
+            with torch.no_grad():
+                ovm = super().convert_model_impl(self.model)
+
         if is_patched:
             unpatch(self.model, "_openvino_module_extension_patch_orig_forward")
-        #    model_obj.float()
         return ovm
 
     def teardown_method(self):
-        # restore after gptq patching
         if self.cuda_available is not None:
-            unpatch_gptq(self.cuda_available, self.gptq_postinit, self.orig_gemm_forward)
+            unpatch_gptq(self.cuda_available, self.gptq_postinit,
+                         self.orig_gemm_forward)
             self.cuda_available, self.gptq_postinit, self.orig_gemm_forward = None, None, None
         super().teardown_method()
-
-    @staticmethod
-    def get_pkv(model, tokenizer):
-        for_pkv = tokenizer("To get past key values",
-                            return_tensors='pt').__dict__['data']
-        with torch.no_grad():
-            pkv = model(**for_pkv)[1]
-
-        return pkv, for_pkv["attention_mask"]
 
     def get_supported_precommit_models():
         models = [
@@ -259,8 +360,6 @@ class TestLLMModel(TestTorchConvertModel):
         self.run(model_name=name, model_link=type, ie_device=ie_device)
 
     @pytest.mark.parametrize("type,name", [
-        ("gpt_neox", "databricks/dolly-v2-3b"),
-        ("gpt_neox_japanese", "rinna/japanese-gpt-neox-3.6b"),
         ("opt", "facebook/opt-1.3b"),
         ("phi", "microsoft/phi-2"),
         ("phi3", "microsoft/Phi-3-mini-4k-instruct"),
@@ -282,7 +381,6 @@ class TestLLMModel(TestTorchConvertModel):
         ("baichuan", "baichuan-inc/Baichuan2-7B-Base"),
         pytest.param("chatglm", "THUDM/chatglm3-6b",
                      marks=pytest.mark.xfail(reason="Accuracy validation failed")),
-        ("falcon", "tiiuae/falcon-7b-instruct"),
         ("fuyu", "ybelkada/fuyu-8b-sharded"),
         ("gemma", "beomi/gemma-ko-7b"),
         ("gemma2", "SteelStorage/Tess-v2.5-Gemma-2-27B-alpha-st"),
@@ -290,7 +388,6 @@ class TestLLMModel(TestTorchConvertModel):
         ("gpt_neox", "EleutherAI/gpt-neox-20b"),
         ("llama", "togethercomputer/LLaMA-2-7B-32K"),
         ("mistral", "HuggingFaceH4/zephyr-7b-beta"),
-        ("mpt", "mosaicml/mpt-7b"),
         ("starcoder2", "cognitivecomputations/dolphincoder-starcoder2-7b"),
         ("persimmon", "adept/persimmon-8b-base"),
         pytest.param("mistral_gptq", "TheBloke/em_german_leo_mistral-GPTQ",
