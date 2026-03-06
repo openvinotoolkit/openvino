@@ -2551,7 +2551,7 @@ TEST(eltwise_gpu_f32, sub_basic_in4x4x4x4) {
 TEST(eltwise_gpu_int, basic_in4x4x4x4) {
     //  Same params as in eltwise_gpu_f32, sub_basic_in4x4x4x4 but using int types instead
 
-    std::vector<data_types> data_types_to_test = { data_types::i8, data_types::i32, data_types::i64 };
+    std::vector<data_types> data_types_to_test = { data_types::i8, data_types::i16, data_types::i32, data_types::i64, data_types::u8, data_types::u16, data_types::u32 };
     std::vector<eltwise_mode> eltwise_ops_to_test = {
         eltwise_mode::sum,
         eltwise_mode::sub,
@@ -2565,6 +2565,8 @@ TEST(eltwise_gpu_int, basic_in4x4x4x4) {
 
     for (auto& data_type : data_types_to_test)
     {
+        bool is_unsigned = data_type == data_types::u8 || data_type == data_types::u16 || data_type == data_types::u32;
+
         for (auto& mode : eltwise_ops_to_test)
         {
             auto& engine = get_test_engine();
@@ -2579,20 +2581,35 @@ TEST(eltwise_gpu_int, basic_in4x4x4x4) {
             topology.add(eltwise("eltwise", { input_info("input_reorder"), input_info("input2_reorder") }, mode));
             topology.add(reorder("eltwise_reorder", input_info("eltwise"), { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } }));
 
-            std::vector<float> input_1_vec = {
-                1.f,   0.f,  5.f,  1.f,
-                2.f,   0.f,  6.f,  5.f,
-                3.f,   0.f, 7.f,  12.f,
-                4.f,   0.f, 8.f,   8.f
-            };
+            // For unsigned types, avoid negative values and ensure input1 >= input2
+            // to prevent wrapping and subtraction underflow.
+            std::vector<float> input_1_vec = is_unsigned ?
+                std::vector<float>{
+                    10.f,  4.f,  15.f,  3.f,
+                    12.f,  8.f,   6.f,  5.f,
+                    20.f, 18.f,   7.f, 12.f,
+                     9.f, 14.f,   8.f,  8.f
+                } :
+                std::vector<float>{
+                    1.f,   0.f,  5.f,  1.f,
+                    2.f,   0.f,  6.f,  5.f,
+                    3.f,   0.f, 7.f,  12.f,
+                    4.f,   0.f, 8.f,   8.f
+                };
             set_values(input, input_1_vec);
 
-            std::vector<float> input_2_vec = {
-                0.f,  2.f,  0.f, -1.f,
-                5.f,   7.f,   2.f,   2.f,
-                15.f,  17.f,   8.f,   8.f,
-                6.f,   8.f, 0.f,  10.f };
-            set_values(input2, input_2_vec);
+            std::vector<float> input_2_vec = is_unsigned ?
+                std::vector<float>{
+                    1.f,  2.f,  3.f,  1.f,
+                    5.f,  7.f,  2.f,  2.f,
+                    4.f,  6.f,  3.f,  8.f,
+                    6.f,  8.f,  1.f,  4.f
+                } :
+                std::vector<float>{
+                    1.f,  2.f,  3.f, -1.f,
+                    5.f,   7.f,   2.f,   2.f,
+                    15.f,  17.f,   8.f,   8.f,
+                    6.f,   8.f, 2.f,  10.f };
 
             network network(engine, topology, get_test_default_config(engine));
             network.set_input_data("input", input);
@@ -2709,11 +2726,13 @@ TEST(eltwise_gpu_f32_int, basic_in4x4x4x4) {
     //
     // Eltwise supports mixed inputs, but only first input can be set as intX.
 
-    std::vector<data_types> data_types_to_test = { data_types::i8, data_types::i32, data_types::i64 };
+    std::vector<data_types> data_types_to_test = { data_types::i8, data_types::i16, data_types::i32, data_types::i64, data_types::u8, data_types::u16, data_types::u32 };
     std::vector<eltwise_mode> eltwise_ops_to_test = { eltwise_mode::sum, eltwise_mode::sub, eltwise_mode::div, eltwise_mode::prod, eltwise_mode::min, eltwise_mode::max, eltwise_mode::mod };
 
     for (auto& data_type : data_types_to_test)
     {
+        bool is_unsigned = data_type == data_types::u8 || data_type == data_types::u16 || data_type == data_types::u32;
+
         for (auto& mode : eltwise_ops_to_test)
         {
             auto& engine = get_test_engine();
@@ -2727,20 +2746,35 @@ TEST(eltwise_gpu_f32_int, basic_in4x4x4x4) {
             topology.add(eltwise("eltwise", { input_info("input_reorder"), input_info("input2") }, mode));
             topology.add(reorder("eltwise_reorder", input_info("eltwise"), { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } }));
 
-            std::vector<float> input_1_vec = {
-                1.f,   0.f,  5.f,  1.f,
-                2.f,   0.f,  6.f,  5.f,
-                3.f,   0.f, 7.f,  12.f,
-                4.f,   0.f, 8.f,   8.f
-            };
+            // For unsigned types, avoid negative values and ensure input1 >= input2
+            // to prevent wrapping and subtraction underflow.
+            std::vector<float> input_1_vec = is_unsigned ?
+                std::vector<float>{
+                    10.f,  4.f,  15.f,  3.f,
+                    12.f,  8.f,   6.f,  5.f,
+                    20.f, 18.f,   7.f, 12.f,
+                     9.f, 14.f,   8.f,  8.f
+                } :
+                std::vector<float>{
+                    1.f,   0.f,  5.f,  1.f,
+                    2.f,   0.f,  6.f,  5.f,
+                    3.f,   0.f, 7.f,  12.f,
+                    4.f,   0.f, 8.f,   8.f
+                };
             set_values(input, input_1_vec);
 
-            std::vector<float> input_2_vec = {
-                0.f,  2.f,  0.f, -1.f,
-                5.f,   7.f,   2.f,   2.f,
-                15.f,  17.f,   8.f,   8.f,
-                6.f,   8.f, 0.f,  10.f };
-            set_values(input2, input_2_vec);
+            std::vector<float> input_2_vec = is_unsigned ?
+                std::vector<float>{
+                    1.f,  2.f,  3.f,  1.f,
+                    5.f,  7.f,  2.f,  2.f,
+                    4.f,  6.f,  3.f,  8.f,
+                    6.f,  8.f,  1.f,  4.f
+                } :
+                std::vector<float>{
+                    1.f,  2.f,  3.f, -1.f,
+                    5.f,   7.f,   2.f,   2.f,
+                    15.f,  17.f,   8.f,   8.f,
+                    6.f,   8.f, 2.f,  10.f };
 
             network network(engine, topology, get_test_default_config(engine));
             network.set_input_data("input", input);
