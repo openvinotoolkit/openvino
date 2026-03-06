@@ -866,4 +866,14 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>Skip test-cases failing with Win Drv UD48</message>
+        <enable_rules>
+            <operating_system>windows</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*DX12RemoteRunTests.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>

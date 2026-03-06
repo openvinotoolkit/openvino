@@ -7,31 +7,33 @@
 #include <fstream>
 
 #include "compiled_model.hpp"
-#include "compiler_adapter_factory.hpp"
-#include "driver_compiler_adapter.hpp"
+#include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/common/parser_factory.hpp"
 #include "intel_npu/config/npuw.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "metrics.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
 #include "npuw/serialization.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
-#include "openvino/util/file_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/file_util.hpp"
 #include "remote_context.hpp"
 #include "transformations.hpp"
 
-using namespace intel_npu;
-
 namespace {
+using namespace intel_npu;
 
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
@@ -207,55 +209,16 @@ int get_ir_version(const std::shared_ptr<const ov::Model>& model, const intel_np
     return 11;
 }
 
-}  // namespace
-
-namespace intel_npu {
-
-Plugin::Plugin() : _options(std::make_shared<OptionsDesc>()), _logger("NPUPlugin", Logger::global().level()) {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
-    set_device_name("NPU");
-
-    // parse env_variables to get LOG_LEVEL if needed
-    _options->add<LOG_LEVEL>();
-
-    FilteredConfig filteredConfig(_options);
-
-    filteredConfig.parseEnvVars();
-    Logger::global().setLevel(filteredConfig.get<LOG_LEVEL>());
-    _logger.setLevel(filteredConfig.get<LOG_LEVEL>());
-
-    OV_ITT_TASK_CHAIN(PLUGIN, itt::domains::NPUPlugin, "Plugin::Plugin", "GetBackend");
-    // backend registry shall be created after configs are updated
-    _backendsRegistry = std::make_unique<BackendsRegistry>();
-    _backend = _backendsRegistry->getEngineBackend();
-
-    if (_backend) {
-        OV_ITT_TASK_NEXT(PLUGIN, "registerBackendOptions");
-        _backend->registerOptions(*_options);
-    }
-
-    OV_ITT_TASK_NEXT(PLUGIN, "createMetrics");
-    _metrics = std::make_unique<Metrics>(_backend);
-
-    OV_ITT_TASK_NEXT(PLUGIN, "InitOptions");
-    init_options(filteredConfig);
-
-    /// Init and register properties
-    OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _propertiesManager = std::make_unique<Properties>(PropertiesType::PLUGIN, filteredConfig, _metrics, _backend);
-    _propertiesManager->registerProperties();
-}
-
-void Plugin::init_options(FilteredConfig& filteredConfig) {
+void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredConfig& config) {
     // Initialize (note: it will reset registered options)
-    _options->reset();
+    options.reset();
 
 #define REGISTER_OPTION(OPT_TYPE)                             \
     do {                                                      \
         auto dummyopt = details::makeOptionModel<OPT_TYPE>(); \
         std::string o_name = dummyopt.key().data();           \
-        _options->add<OPT_TYPE>();                            \
-        filteredConfig.enable(std::move(o_name), false);      \
+        options.add<OPT_TYPE>();                              \
+        config.enable(std::move(o_name), false);              \
     } while (0)
 
     REGISTER_OPTION(LOG_LEVEL);
@@ -299,6 +262,9 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
     REGISTER_OPTION(IMPORT_RAW_BLOB);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     REGISTER_OPTION(TURBO);
+    REGISTER_OPTION(ENABLE_WEIGHTLESS);
+    // WEIGHTLESS_BLOB can be removed once
+    // NPU Compilers support ENABLE_WEIGHTLESS
     REGISTER_OPTION(WEIGHTLESS_BLOB);
     REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
@@ -306,19 +272,17 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
     REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
     REGISTER_OPTION(ENABLE_STRIDES_FOR);
 
-    if (_backend) {
-        if (_backend->isCommandQueueExtSupported()) {
+    if (backend) {
+        if (backend->isCommandQueueExtSupported()) {
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
-        if (_backend->isContextExtSupported()) {
+        if (backend->isContextExtSupported()) {
             REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
         }
-        // register backend options
-        _backend->registerOptions(*_options);
     }
 
     // parse again env_variables to update registered configs which have env vars set
-    filteredConfig.parseEnvVars();
+    config.parseEnvVars();
 
     // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
     // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
@@ -371,6 +335,7 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
     REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE);
     REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS);
     REGISTER_OPTION(NPUW_WHISPER);
+    REGISTER_OPTION(NPUW_WHISPER_EOS_TOKEN);
     REGISTER_OPTION(NPUW_EAGLE);
     REGISTER_OPTION(NPUW_TEXT_EMBED);
     REGISTER_OPTION(NPUW_LLM_PREFILL_HINT);
@@ -387,26 +352,71 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
     REGISTER_OPTION(NPUW_KOKORO_BLOCK_SIZE);
     REGISTER_OPTION(NPUW_KOKORO_OVERLAP_SIZE);
 
-    filteredConfig.enableRuntimeOptions();
+    config.enableRuntimeOptions();
 
-    // Special cases
-    filteredConfig.enable(ov::log::level.name(), true);  // needed also by runtime options
+    // Special cases - options with OptionMode::Both must be enabled for the plugin even if the compiler does not
+    // support them, because they may be used by the plugin itself or by the driver.
+    // We still check compiler support to decide whether these options should be removed from the config string.
 
-    if (filteredConfig.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
-        if (_backend) {
-            auto device = _backend->getDevice();
-            if (device) {
-                auto platformName = device->getName();
-                CompilerAdapterFactory compilerFactory;
-                auto compileType = compilerFactory.determinteAppropriateCompilerTypeBasedOnPlatform(platformName);
-                if (compileType == ov::intel_npu::CompilerType::DRIVER) {
-                    filteredConfig.update(
-                        {{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType)}});
-                    _logger.info("Use %s as default compiler", COMPILER_TYPE::toString(compileType).c_str());
-                }
+    // NPU_TURBO might be supported by the driver
+    if (backend && backend->isCommandQueueExtSupported()) {
+        config.enable(ov::intel_npu::turbo.name(), true);
+    }
+
+    // LOG_LEVEL, PERFORMANCE_HINT and PERF_COUNT are needed by runtime options
+    config.enable(ov::log::level.name(), true);
+    config.enable(ov::hint::performance_mode.name(), true);
+    config.enable(ov::enable_profiling.name(), true);
+
+    if (config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN && backend != nullptr) {
+        auto device = backend->getDevice();
+        if (device) {
+            auto platformName = device->getName();
+            CompilerAdapterFactory compilerFactory;
+            auto compileType = compilerFactory.determineAppropriateCompilerTypeBasedOnPlatform(platformName);
+            if (compileType == ov::intel_npu::CompilerType::DRIVER) {
+                config.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType)}});
             }
         }
     }
+}
+
+}  // namespace
+
+namespace intel_npu {
+
+Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
+    set_device_name("NPU");
+
+    std::shared_ptr<OptionsDesc> options = std::make_shared<OptionsDesc>();
+    // parse env_variables to get LOG_LEVEL if needed
+    options->add<LOG_LEVEL>();
+
+    FilteredConfig config(options);
+    config.parseEnvVars();
+    Logger::global().setLevel(config.get<LOG_LEVEL>());
+    _logger.setLevel(config.get<LOG_LEVEL>());
+
+    OV_ITT_TASK_CHAIN(PLUGIN, itt::domains::NPUPlugin, "Plugin::Plugin", "GetBackend");
+    // backend registry shall be created after configs are updated
+    _backendsRegistry = std::make_unique<BackendsRegistry>();
+    _backend = _backendsRegistry->getEngineBackend();
+
+    OV_ITT_TASK_NEXT(PLUGIN, "InitConfig");
+    init_config(_backend._ptr.get(), *options, config);
+
+    if (_backend) {
+        OV_ITT_TASK_NEXT(PLUGIN, "RegisterBackendOptions");
+        _backend->registerOptions(*options);
+    }
+
+    OV_ITT_TASK_NEXT(PLUGIN, "CreateMetrics");
+    auto metrics = std::make_shared<Metrics>(_backend);
+
+    /// Init and register properties
+    OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
+    _propertiesManager = std::make_unique<Properties>(PropertiesType::PLUGIN, config, metrics, _backend);
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
@@ -423,10 +433,10 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    auto npuPluginArguments = arguments;
-    exclude_model_ptr_from_map(npuPluginArguments);
+    if (!arguments.empty()) {
+        auto npuPluginArguments = arguments;
+        exclude_model_ptr_from_map(npuPluginArguments);
 
-    if (!npuPluginArguments.empty()) {
         // Need to create a temporary copy of the properties manager. The set of arguments we get might change the list
         // of supported properties, but we cannot alter the global state
         auto copyPropertiesManager = std::make_unique<Properties>(*_propertiesManager);
@@ -436,6 +446,29 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     }
 
     return _propertiesManager->getProperty(name);
+}
+
+bool Plugin::is_property_supported(const std::string& name, const ov::AnyMap& arguments) const {
+    if (!arguments.empty()) {
+        auto npuPluginArguments = arguments;
+        exclude_model_ptr_from_map(npuPluginArguments);
+
+        // Need to create a temporary copy of the properties manager. The set of arguments we get might change the list
+        // of supported properties, but we cannot alter the global state
+        auto copyPropertiesManager = std::make_unique<Properties>(*_propertiesManager);
+
+        try {
+            copyPropertiesManager->setProperty(npuPluginArguments);
+        } catch (...) {
+            // In case of a failure during property setting, we assume the arguments are not valid and thus the
+            // supported properties cannot be reliably determined - return false in this case
+            return false;
+        }
+
+        return copyPropertiesManager->isPropertySupported(name);
+    }
+
+    return _propertiesManager->isPropertySupported(name);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -520,10 +553,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
-    auto copyPropertiesManager = std::make_unique<Properties>(*_propertiesManager);
-    copyPropertiesManager->updateConfig(localProperties, compiler.get());
-    FilteredConfig localConfig = copyPropertiesManager->getConfig();
-    copyPropertiesManager.reset();
+    FilteredConfig localConfig = _propertiesManager->getConfigForSpecificCompiler(localProperties, compiler.get());
 
     auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
         std::stringstream strStream;
@@ -643,7 +673,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::shared_ptr<intel_npu::IGraph> graph;
 
     auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
-        if (!localConfig.get<WEIGHTLESS_BLOB>()) {
+        if (!localConfig.get<WEIGHTLESS_BLOB>() && !localConfig.get<ENABLE_WEIGHTLESS>() ) {
             return compiler->compile(modelToCompile, config);
         } else {
             check_weightless_cache_attribute_occurrence(model);
@@ -903,10 +933,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         localProperties[ov::intel_npu::platform.name()] = compilationPlatform;
     }
 
-    auto copyPropertiesManager = std::make_unique<Properties>(*_propertiesManager);
-    copyPropertiesManager->updateConfig(localProperties, compiler.get(), OptionMode::CompileTime);
-    FilteredConfig localConfig = copyPropertiesManager->getConfig();
-    copyPropertiesManager.reset();
+    FilteredConfig localConfig = _propertiesManager->getConfigForSpecificCompiler(localProperties, compiler.get());
 
     if (modelSerializerChosenExplicitly) {
         if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
@@ -956,24 +983,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     // list of properties
     auto originalModel = exclude_model_ptr_from_map(localProperties);
 
-    ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
-    auto deviceId = _propertiesManager->determineDeviceId(localProperties);
+    std::shared_ptr<IDevice> device =
+        utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(localProperties));
 
-    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId);
-
-    const auto compilationPlatform =
-        utils::getCompilationPlatform(_propertiesManager->determinePlatform(localProperties),
-                                      device == nullptr ? deviceId : device->getName(),
-                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
-
-    CompilerAdapterFactory factory;
-    auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+    if (_backend == nullptr || device == nullptr) {
+        OPENVINO_THROW("Device not found.");
+    }
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
-    auto copyPropertiesManager = std::make_unique<Properties>(*_propertiesManager);
-    copyPropertiesManager->updateConfig(localProperties, OptionMode::RunTime);
-    FilteredConfig localConfig = copyPropertiesManager->getConfig();
-    copyPropertiesManager.reset();
+    FilteredConfig localConfig = _propertiesManager->getConfigWithCompilerPropertiesDisabled(localProperties);
 
     const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
     if (!loadedFromCache) {
@@ -1050,11 +1068,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     const std::optional<std::vector<ov::Tensor>> initBlobs =
         weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt;
 
-    auto graph =
-        compiler->parse(tensorMain,
-                        localConfig,
-                        initBlobs,
-                        weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt);
+    // Special case for PERF_COUNT as it requires compiler_type detection in case it is still set to PREFER_PLUGIN
+    if (localConfig.has<PERF_COUNT>() && localConfig.get<PERF_COUNT>() &&
+        localConfig.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
+        ov::intel_npu::CompilerType compilerType = localConfig.get<COMPILER_TYPE>();
+        CompilerAdapterFactory factory;
+        (void)factory.getCompiler(_backend, compilerType, device->getName());
+
+        localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
+    }
+
+    ParserFactory parserFactory;
+    auto parser = parserFactory.getParser(_backend->getInitStructs());
+    auto graph = parser->parse(tensorMain,
+                               localConfig,
+                               initBlobs,
+                               weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =

@@ -193,6 +193,7 @@
 #    include "nodes/rms_norm.h"
 #    include "onednn/dnnl.h"
 #    include "openvino/op/group_normalization.hpp"
+#    include "openvino/op/mish.hpp"
 #    include "openvino/op/multiply.hpp"
 #    include "openvino/op/softmax.hpp"
 #    include "openvino/op/subtract.hpp"
@@ -218,7 +219,6 @@
 #endif
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-#    include "low_precision/avg_pool.hpp"
 #    include "low_precision/convolution.hpp"
 #    include "low_precision/convolution_backprop_data.hpp"
 #    include "low_precision/fake_quantize.hpp"
@@ -227,7 +227,6 @@
 #    include "low_precision/group_convolution.hpp"
 #    include "low_precision/interpolate.hpp"
 #    include "low_precision/mat_mul.hpp"
-#    include "low_precision/max_pool.hpp"
 #    include "low_precision/mvn.hpp"
 #    include "low_precision/normalize_l2.hpp"
 #    include "low_precision/recurrent_cell.hpp"
@@ -268,23 +267,10 @@
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)
-#    include "openvino/op/elu.hpp"
-#    include "openvino/op/erf.hpp"
-#    include "openvino/op/exp.hpp"
-#    include "openvino/op/floor.hpp"
-#    include "openvino/op/gelu.hpp"
-#    include "openvino/op/hsigmoid.hpp"
-#    include "openvino/op/hswish.hpp"
-#    include "openvino/op/is_finite.hpp"
-#    include "openvino/op/is_inf.hpp"
-#    include "openvino/op/is_nan.hpp"
-#    include "openvino/op/mish.hpp"
-#    include "openvino/op/negative.hpp"
-#    include "openvino/op/relu.hpp"
-#    include "openvino/op/sigmoid.hpp"
-#    include "openvino/op/softsign.hpp"
-#    include "openvino/op/sqrt.hpp"
-#    include "openvino/op/tanh.hpp"
+#    include "openvino/op/power.hpp"
+#    include "openvino/op/select.hpp"
+#    include "openvino/op/swish.hpp"
+#    include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #endif
 
 #if defined(SNIPPETS_LIBXSMM_TPP)
@@ -1002,13 +988,11 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         FuseMultiplyToFakeQuantizeTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
-    CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
     // ConvolutionTransformation is disabled temporary until ACL issues are fixed: #1252, #1253
     CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
-    CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MVNTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, NormalizeL2Transformation);
     CPU_DISABLE_PASS_ARM(lptManager, RecurrentCellTransformation);
@@ -1410,38 +1394,21 @@ void Transformations::MainSnippets() {
 #endif  // OPENVINO_ARCH_X86_64
 
     auto is_supported_op = []([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
-#if defined(OPENVINO_ARCH_RISCV64)
-        auto is_supported = [](const std::shared_ptr<const ov::Node>& n) {
-            return (ov::is_type_any_of<ov::op::v0::Abs,
-                                       ov::op::v0::Clamp,
-                                       ov::op::v0::Elu,
-                                       ov::op::v0::Erf,
-                                       ov::op::v0::Exp,
-                                       ov::op::v0::Floor,
-                                       ov::op::v0::Gelu,
-                                       ov::op::v5::HSigmoid,
-                                       ov::op::v4::HSwish,
-                                       ov::op::v10::IsFinite,
-                                       ov::op::v10::IsInf,
-                                       ov::op::v10::IsNaN,
-                                       ov::op::v4::Mish,
-                                       ov::op::v0::Negative,
-                                       ov::op::v0::Relu,
-                                       ov::op::v0::Sigmoid,
-                                       ov::op::v9::SoftSign,
-                                       ov::op::v0::Sqrt,
-                                       ov::op::v0::Tanh>(n));
-        };
-        return is_supported(n);
-#else
-        // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
-        // and CPU Plugin does not support Mish for x64
+        // CPU Plugin supports Swish in Subgraph via conversion to SwishCPU that requires scalar beta.
+        // CPU Plugin does not support Mish for x64
         auto is_unsupported = [](const std::shared_ptr<const ov::Node>& n) {
             return (ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
                     !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)))
-#    if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64)
                    || ov::is_type<const ov::op::v4::Mish>(n)
-#    endif
+#elif defined(OPENVINO_ARCH_RISCV64)
+                   // These operations are not currently supported in the RISC-V snippets target machine.
+                   || ov::is_type<const ov::op::v4::Swish>(n) ||
+                   ov::is_type_any_of<const ov::op::v0::Ceiling,
+                                      const ov::op::v1::Power,
+                                      const ov::op::v1::Select,
+                                      const ov::intel_cpu::SwishNode>(n)
+#endif
                 ;
         };
         // todo: general tokenization flow is not currently supported for these operations.
@@ -1457,7 +1424,6 @@ void Transformations::MainSnippets() {
                                        const ov::op::v1::ReduceSum>(n));
         };
         return !is_unsupported(n) && !is_unsupported_by_common_tokenization(n);
-#endif
     };
 
     auto has_supported_tensors = [ignoreCallback](const std::shared_ptr<const ov::Node>& n) -> bool {
@@ -1632,12 +1598,12 @@ void Transformations::PostSnippets() {
             return node::FakeQuantize::isSupportedOperation(node, errMsg);
         },
         ov::pass::FakeQuantizeDecomposition);
-    // FQ node is not decomposed on ARM only if it is fused into Convolution node
+    // FQ node is not decomposed on ARM only if it is fused into nodes that support quantized output
     // Otherwise FQ node is decomposed because there is no native support of FQ on ARM
     CPU_SET_CALLBACK_ARM(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
-            return match_acl_int8_conv_fq_chain(node);
+            return match_acl_int8_pooling_fq_chain(node) || match_acl_int8_conv_fq_chain(node);
         },
         ov::pass::FakeQuantizeDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);

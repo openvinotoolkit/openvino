@@ -477,6 +477,10 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     const FilteredConfig& config) const {
     _logger.debug("compileWsOneShot start");
 
+    /// Check the linked vcl version whether supported in plugin
+    UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
+    _logger.debug("the finally used compiler vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
+
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
@@ -486,7 +490,7 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     compilerVersion.minor = _compilerProperties.version.minor;
 
     bool useBaseModelSerializer = true;
-    useBaseModelSerializer = isUseBaseModelSerializer({7, 5}, config);
+    useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, config);
     _logger.debug("serialize IR method is %s",
                   useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
     auto serializedIR =
@@ -651,32 +655,31 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
 
 bool VCLCompilerImpl::get_supported_options(std::vector<char>& options) const {
     _logger.debug("get_supported_options start");
-    // 1. get size of compiler supported options list
     size_t str_size = 0;
     try {
         THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
                               vclGetCompilerSupportedOptions(_compilerHandle, nullptr, &str_size),
                               _logHandle);
 
-        if (str_size > 0) {
-            _logger.debug("obtain list");
-            // 2. allocate buffer for it
-            options.resize(str_size);
-            // 3. populate char list
-            THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
-                                  vclGetCompilerSupportedOptions(_compilerHandle, options.data(), &str_size),
-                                  _logHandle);
-
-            _logger.debug("Option list size %d, got option list", str_size);
+        if (str_size == 0) {
+            _logger.debug("Option list size 0!");
             return true;
-        } else {
-            _logger.debug("Option list size 0 - skipping!");
         }
+
+        _logger.debug("obtain list");
+        options.resize(str_size);
+        THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
+                              vclGetCompilerSupportedOptions(_compilerHandle, options.data(), &str_size),
+                              _logHandle);
+
+        _logger.debug("Option list size %d, got option list", str_size);
+
+        return true;
     } catch (const std::exception& e) {
         // The API is only supported in new version, just add log here
         _logger.debug("Exception in get_supported_options: %s", e.what());
     }
-    _logger.debug("get_supported_options end, no options found");
+
     return false;
 }
 
