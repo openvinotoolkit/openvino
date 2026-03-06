@@ -158,14 +158,18 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     } else {
         position_ids = ov::as_type_ptr<v0::Parameter>(model->input("position_ids").get_node_shared_ptr());
         const auto position_ids_shape = position_ids->get_partial_shape();
-        if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() > 2 &&
-            position_ids_shape[0].is_static()) {
+
+        if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 2) {
+            position_ids->set_partial_shape(PartialShape{-1});
+        } else if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 3) {
             // Qwen2.5 VL M-RoPE: set position_ids to [3, total_token_num] -> Unsqueeze(axis=-1) -> [3, total_token_num,
             // 1]
             position_ids->set_partial_shape(PartialShape{position_ids_shape[0], -1});
         } else {
-            position_ids->set_partial_shape(PartialShape{-1});
+            OPENVINO_THROW("Unexpected shape for position_ids input: expected rank 2 or 3, observed ",
+                           position_ids_shape.rank().is_static() ? position_ids_shape.rank().get_length() : -1);
         }
+
         position_ids->validate_and_infer_types();
     }
     auto position_ids_target_inputs = position_ids->get_output_target_inputs(0);
