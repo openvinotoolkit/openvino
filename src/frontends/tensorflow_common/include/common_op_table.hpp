@@ -112,6 +112,7 @@ OP_CONVERTER(translate_log_1p_op);
 OP_CONVERTER(translate_lrn_op);
 OP_CONVERTER(translate_mat_mul_op);
 OP_CONVERTER(translate_matrix_diag_op);
+OP_CONVERTER(translate_matrix_diag_v3_op);
 OP_CONVERTER(translate_matrix_band_part_op);
 OP_CONVERTER(translate_matrix_inverse_op);
 OP_CONVERTER(translate_max_pool_op);
