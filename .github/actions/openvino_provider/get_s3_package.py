@@ -13,10 +13,8 @@ from common import action_utils
 # Function to download the JSON file
 def load_json_file(url):
     response = requests.get(url)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        raise Exception(f"Failed to download the file, status code: {response.status_code}")
+    response.raise_for_status()
+    return response.json()
 
 
 # Function to recursively gather all file paths from the JSON structure
