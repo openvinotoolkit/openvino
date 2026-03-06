@@ -17,6 +17,26 @@ Supported configurations:
 - (Windows on ARM only) [LLVM for Windows on ARM (WoA)](https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.6/LLVM-15.0.6-woa64.exe)
   > **NOTE**: After installation, make sure `clang-cl` compiler is available from `PATH`.
 
+### Verify software requirements
+
+Run the following commands in Command Prompt to confirm installation:
+```sh
+cmake --version
+git --version
+python --version
+cl
+```
+Expected results:
+- CMake version 3.13 or higher
+- Git version displayed
+- Python version between 3.10 and 3.14
+- 'cl' shows Microsoft C/C++ compiler info
+
+If 'cl' is not recognized:
+- open "x64 Native Tools Command Prompt for Visual Studio",and run the command again
+- or install the C++ workload from Visual Studio Installer
+
+
 ## How to build
 
 > **NOTE**: By default, the build enables the OpenVINO Runtime GPU plugin to infer models on your Intel® Processor Graphics. This requires you to download and install the [Intel® Graphics Driver for Windows](https://www.intel.com/content/www/us/en/download/19344/intel-graphics-windows-dch-drivers.html) before running the build. If you don't want to use the GPU plugin, use the `-DENABLE_INTEL_GPU=OFF` CMake build option and skip the installation of the Intel® Graphics Driver.
@@ -38,7 +58,37 @@ Supported configurations:
     cmake -G "Visual Studio 17 2022" <path/to/openvino>
     ```
 
-4. Build generated solution in Visual Studio or run `cmake --build . --config Release --verbose -j<number_of_jobs>` to build from the command line. View the number of available processing units with `WMIC cpu get numberofLogicalProcessors`. Be aware that this process may take some time.
+4.You can build OpenVINO in two ways.
+
+Option A — Visual Studio
+1. Open the generated .sln file
+2. Select Release and x64
+3. Click Build → Build Solution
+
+Option B — Command line
+```sh
+cmake --build . --config Release --verbose -j<number_of_jobs>
+```
+To check available CPU threads:
+```sh
+WMIC cpu get numberofLogicalProcessors
+```
+Use that value for <number_of_jobs>.
+
+Build time (rough estimate)
+
+Build duration varies based on CPU, RAM, and disk speed.
+
+Typical ranges observed by contributors:
+
+- 8 GB RAM: ~2–3 hours
+- 16 GB RAM: ~1–2 hours
+- 32 GB RAM + SSD: ~30–70 minutes
+
+The terminal may appear inactive during compilation. This is expected.
+Do not stop the process unless an error appears.
+
+
 
 5. Before running the samples, add paths to the Threading Building Blocks (TBB) binaries used for the build to the `%PATH%` environment variable. By default, TBB binaries are downloaded by the CMake-based script to the `<path/to/openvino>/temp/<platform>/tbb/bin` folder.
 
