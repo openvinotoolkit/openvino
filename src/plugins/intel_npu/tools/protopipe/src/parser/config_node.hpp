@@ -1,0 +1,236 @@
+//
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <yaml-cpp/yaml.h>
+#include <memory>
+#include <unordered_set>
+#include <unordered_map>
+#include <string>
+#include <vector>
+#include <iostream>
+
+class ConfigNode {
+public:
+    ConfigNode(YAML::Node node, bool isRoot = false): _node(std::move(node)), _isRoot(isRoot) {
+        std::cout << "\nConstructor, " << _isRoot << "\n";
+        if (isRoot) {
+        // Print stack trace or marker
+        std::cout << " <--- ROOT CREATED HERE\n";
+    }
+        collectKeys();
+    }
+
+    ~ConfigNode() {
+        if (_isRoot && hasUnusedKeys()) {
+            std::cout << "Destructor, isRoot=" << _isRoot << std::endl;
+            std::cout << "\n------Unused keys:\n";
+            for (const auto& key : getUnusedKeys()) {
+                std::cout << "  " << key << "\n";
+            }
+            std::cout << "\n";
+        }
+    }
+
+    // Delete copy to avoid issues with child storage
+    ConfigNode(const ConfigNode&) = delete;
+    ConfigNode& operator=(const ConfigNode&) = delete;
+
+    // Custom move to reset _isRoot on source
+    ConfigNode(ConfigNode&& other) = delete;
+
+    ConfigNode& operator=(ConfigNode&& other)  = delete;
+    // noexcept {
+    //     if (this != &other) {
+    //         _node = std::move(other._node);
+    //         _isRoot = other._isRoot;
+    //         _keys = std::move(other._keys);
+    //         _children = std::move(other._children);
+    //         other._isRoot = false;
+    //     }
+    //     return *this;
+    // }
+
+    bool IsSequence() const { return _node.IsSequence(); }
+    bool IsMap() const { return _node.IsMap(); }
+    std::size_t size() const { return _node.size(); }
+
+    // For simple types, use YAML's converter directly
+    template <typename T>
+    T as() const {
+        // For primitive types, use YAML's converter
+        if constexpr (std::is_arithmetic_v<T> || std::is_same_v<T, std::string>) {
+            return _node.as<T>();
+        } else {
+            T result;
+            // This passes *this by reference - should be fine
+            std::cout << "Calling decode" << std::endl;  // Add debug
+            YAML::convert<T>::decode(*this, result);
+            std::cout << "Decode complete" << std::endl;  // Add debug
+            return result;
+        }
+    }
+
+    template <typename Key>
+    ConfigNode& operator[](const Key& key);
+
+    template <typename Key>
+    const ConfigNode& operator[](const Key& key) const;
+
+    struct KeyValueProxy {
+        std::string first;
+        const ConfigNode& second;
+        
+        const KeyValueProxy* operator->() const { return this; }
+        
+        // Forward ConfigNode methods to .second for convenience
+        bool IsSequence() const { return second.IsSequence(); }
+        bool IsMap() const { return second.IsMap(); }
+        std::size_t size() const { return second.size(); }
+        
+        template <typename T>
+        T as() const { return second.as<T>(); }
+        
+        template <typename Key>
+        const ConfigNode& operator[](const Key& key) const { return second[key]; }
+        
+        explicit operator bool() const { return static_cast<bool>(second); }
+        
+        // Allow implicit conversion to const ConfigNode&
+        operator const ConfigNode&() const { return second; }
+    };
+
+    class const_iterator {
+    public:
+        const_iterator(ConfigNode& parent, std::size_t index)
+            : _parent(parent), _index(index) {
+            if (_parent._node.IsMap()) {
+                cacheKeys();
+            }
+        }
+
+        KeyValueProxy operator*() const {
+            if (_parent._node.IsMap()) {
+                const std::string& key = _cachedKeys[_index];
+                return KeyValueProxy{key, _parent[key]};
+            } else {
+                return KeyValueProxy{"", _parent[_index]};
+            }
+        }
+
+        KeyValueProxy operator->() const {
+            return operator*();
+        }
+
+        const_iterator& operator++() {
+            ++_index;
+            return *this;
+        }
+
+        bool operator!=(const const_iterator& other) const {
+            return _index != other._index;
+        }
+
+    private:
+        void cacheKeys() {
+            if (_cachedKeys.empty()) {
+                for (const auto& kv : _parent._node) {
+                    _cachedKeys.push_back(kv.first.as<std::string>());
+                }
+            }
+        }
+
+        ConfigNode& _parent;
+        std::size_t _index;
+        mutable std::vector<std::string> _cachedKeys;
+    };
+
+    const_iterator begin() const {
+        return const_iterator(const_cast<ConfigNode&>(*this), 0);
+    }
+
+    const_iterator end() const {
+        return const_iterator(const_cast<ConfigNode&>(*this), _node.size());
+    }
+
+    explicit operator bool() const { return _node.IsDefined() && !_node.IsNull(); }
+
+    void setRoot(bool isRoot) { _isRoot = isRoot; }
+
+private:
+    void collectKeys() {
+        if (_node.IsMap()) {
+            for (const auto& kv : _node) {
+                _keys.insert(kv.first.as<std::string>());
+            }
+        }
+    }
+
+    std::vector<std::string> getUnusedKeys() const {
+        std::vector<std::string> unused(_keys.begin(), _keys.end());
+        for (const auto& [key, child] : _children) {
+            for (const auto& childKey : child->getUnusedKeys()) {
+                unused.push_back(key + "." + childKey);
+            }
+        }
+        return unused;
+    }
+
+    bool hasUnusedKeys() const {
+        if (!_keys.empty()) return true;
+        for (const auto& [key, child] : _children) {
+            if (child->hasUnusedKeys()) return true;
+        }
+        return false;
+    }
+
+    YAML::Node _node;
+    bool _isRoot = true;
+    mutable std::unordered_set<std::string> _keys;
+    mutable std::unordered_map<std::string, std::unique_ptr<ConfigNode>> _children;
+};
+
+template <typename Key>
+ConfigNode& ConfigNode::operator[](const Key& key) {
+    std::string keyStr;
+    if constexpr (std::is_convertible_v<Key, std::string>) {
+        keyStr = std::string(key);
+    } else {
+        keyStr = std::to_string(key);
+    }
+
+    if (_node[key].IsDefined()) {
+        _keys.erase(keyStr);
+    }
+
+    if (_children.find(keyStr) == _children.end()) {
+        auto child = std::make_unique<ConfigNode>(_node[key]);
+        child->setRoot(false);
+        _children[keyStr] = std::move(child);
+    }
+
+    return *_children[keyStr];
+}
+
+template <typename Key>
+const ConfigNode& ConfigNode::operator[](const Key& key) const {
+    std::string keyStr;
+    if constexpr (std::is_convertible_v<Key, std::string>) {
+        keyStr = std::string(key);
+    } else {
+        keyStr = std::to_string(key);
+    }
+
+    _keys.erase(keyStr);
+
+    if (_children.find(keyStr) == _children.end()) {
+        auto child = std::make_unique<ConfigNode>(_node[key]);
+        child->setRoot(false);
+        _children[keyStr] = std::move(child);
+    }
+
+    return *_children[keyStr];
+}

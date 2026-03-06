@@ -6,7 +6,6 @@
 #pragma once
 
 #include "parser/parser.hpp"
+#include "parser/config_node.hpp"
 
-#include <yaml-cpp/yaml.h>
-
-Config parseConfig(const YAML::Node& root, const ReplaceBy& replace_by);
+Config parseConfig(const ConfigNode& root, const ReplaceBy& replace_by);

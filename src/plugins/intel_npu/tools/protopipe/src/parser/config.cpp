@@ -140,7 +140,7 @@ namespace YAML {
 
 template <typename T>
 struct convert<std::vector<T>> {
-    static bool decode(const Node& node, std::vector<T>& vec) {
+    static bool decode(const ConfigNode& node, std::vector<T>& vec) {
         if (!node.IsSequence()) {
             return false;
         }
@@ -154,12 +154,12 @@ struct convert<std::vector<T>> {
 
 template <typename K, typename V>
 struct convert<std::map<K, V>> {
-    static bool decode(const Node& node, std::map<K, V>& map) {
+    static bool decode(const ConfigNode& node, std::map<K, V>& map) {
         if (!node.IsMap()) {
             return false;
         }
         for (const auto& itr : node) {
-            map.emplace(itr.first.as<K>(), itr.second.as<V>());
+            map.emplace(itr.first, itr.second.as<V>());
         }
         return true;
     }
@@ -167,7 +167,7 @@ struct convert<std::map<K, V>> {
 
 template <typename T>
 struct convert<LayerVariantAttr<T>> {
-    static bool decode(const Node& node, LayerVariantAttr<T>& layer_attr) {
+    static bool decode(const ConfigNode& node, LayerVariantAttr<T>& layer_attr) {
         // Note: "metric" and "random" entries in config are always presented
         //       as maps.
         //       To differ passed variants for them between "one value for all layers"
@@ -192,7 +192,7 @@ struct convert<LayerVariantAttr<T>> {
 
 template <>
 struct convert<UniformGenerator::Ptr> {
-    static bool decode(const Node& node, UniformGenerator::Ptr& generator) {
+    static bool decode(const ConfigNode& node, UniformGenerator::Ptr& generator) {
         if (!node["low"]) {
             THROW_ERROR("Uniform distribution must have \"low\" attribute");
         }
@@ -207,7 +207,7 @@ struct convert<UniformGenerator::Ptr> {
 
 template <>
 struct convert<IRandomGenerator::Ptr> {
-    static bool decode(const Node& node, IRandomGenerator::Ptr& generator) {
+    static bool decode(const ConfigNode& node, IRandomGenerator::Ptr& generator) {
         if (!node["dist"]) {
             THROW_ERROR("\"random\" must have \"dist\" attribute!");
         }
@@ -223,7 +223,7 @@ struct convert<IRandomGenerator::Ptr> {
 
 template <>
 struct convert<Norm::Ptr> {
-    static bool decode(const Node& node, Norm::Ptr& metric) {
+    static bool decode(const ConfigNode& node, Norm::Ptr& metric) {
         // NB: If bigger than tolerance - fail.
         if (!node["tolerance"]) {
             THROW_ERROR("Metric \"norm\" must have \"tolerance\" attribute!");
@@ -236,7 +236,7 @@ struct convert<Norm::Ptr> {
 
 template <>
 struct convert<Cosine::Ptr> {
-    static bool decode(const Node& node, Cosine::Ptr& metric) {
+    static bool decode(const ConfigNode& node, Cosine::Ptr& metric) {
         // NB: If lower than threshold - fail.
         if (!node["threshold"]) {
             THROW_ERROR("Metric \"cosine\" must have \"threshold\" attribute!");
@@ -249,7 +249,7 @@ struct convert<Cosine::Ptr> {
 
 template <>
 struct convert<NRMSE::Ptr> {
-    static bool decode(const Node& node, NRMSE::Ptr& metric) {
+    static bool decode(const ConfigNode& node, NRMSE::Ptr& metric) {
         // NB: If bigger than tolerance - fail.
         if (!node["tolerance"]) {
             THROW_ERROR("Metric \"nrmse\" must have \"tolerance\" attribute!");
@@ -262,7 +262,7 @@ struct convert<NRMSE::Ptr> {
 
 template <>
 struct convert<IAccuracyMetric::Ptr> {
-    static bool decode(const Node& node, IAccuracyMetric::Ptr& metric) {
+    static bool decode(const ConfigNode& node, IAccuracyMetric::Ptr& metric) {
         const auto type = node["name"].as<std::string>();
         if (type == "norm") {
             metric = node.as<Norm::Ptr>();
@@ -279,7 +279,7 @@ struct convert<IAccuracyMetric::Ptr> {
 
 template <>
 struct convert<GlobalOptions> {
-    static bool decode(const Node& node, GlobalOptions& opts) {
+    static bool decode(const ConfigNode& node, GlobalOptions& opts) {
         if (node["model_dir"]) {
             if (!node["model_dir"]["local"]) {
                 THROW_ERROR("\"model_dir\" must contain \"local\" key!");
@@ -288,10 +288,13 @@ struct convert<GlobalOptions> {
         }
 
         if (node["blob_dir"]) {
+            std::cout << "Este true\n";
             if (!node["blob_dir"]["local"]) {
                 THROW_ERROR("\"blob_dir\" must contain \"local\" key!");
             }
             opts.blob_dir = node["blob_dir"]["local"].as<std::string>();
+        } else {
+            std::cout << "Este false\n";
         }
 
         if (node["device_name"]) {
@@ -317,7 +320,7 @@ struct convert<GlobalOptions> {
 
 template <>
 struct convert<OpenVINOParams> {
-    static bool decode(const Node& node, OpenVINOParams& params) {
+    static bool decode(const ConfigNode& node, OpenVINOParams& params) {
         // FIXME: Worth to separate these two
         const auto name = node["name"] ? node["name"].as<std::string>() : node["path"].as<std::string>();
         fs::path path{name};
@@ -387,7 +390,7 @@ struct convert<OpenVINOParams> {
 
 template <>
 struct convert<ONNXRTParams::OpenVINO> {
-    static bool decode(const Node& node, ONNXRTParams::OpenVINO& ov_ep) {
+    static bool decode(const ConfigNode& node, ONNXRTParams::OpenVINO& ov_ep) {
         if (node["params"]) {
             ov_ep.params_map = node["params"].as<std::map<std::string, std::string>>();
         }
@@ -406,7 +409,7 @@ struct convert<ONNXRTParams::OpenVINO> {
 
 template <>
 struct convert<ONNXRTParams::EP> {
-    static bool decode(const Node& node, ONNXRTParams::EP& ep) {
+    static bool decode(const ConfigNode& node, ONNXRTParams::EP& ep) {
         const auto ep_name = node["name"].as<std::string>();
         if (ep_name == "OV") {
             ep = node.as<ONNXRTParams::OpenVINO>();
@@ -419,7 +422,7 @@ struct convert<ONNXRTParams::EP> {
 
 template <>
 struct convert<ONNXRTParams> {
-    static bool decode(const Node& node, ONNXRTParams& params) {
+    static bool decode(const ConfigNode& node, ONNXRTParams& params) {
         // FIXME: Worth to separate these two
         params.model_path = node["name"] ? node["name"].as<std::string>() : node["path"].as<std::string>();
         if (node["session_options"]) {
@@ -440,7 +443,7 @@ struct convert<ONNXRTParams> {
 
 template <>
 struct convert<Network> {
-    static bool decode(const Node& node, Network& network) {
+    static bool decode(const ConfigNode& node, Network& network) {
         // NB: Take path stem as network tag
         // Note that at this point, it's fine if names aren't unique
         const auto name = node["name"].as<std::string>();
@@ -475,7 +478,7 @@ struct convert<Network> {
 
 template <>
 struct convert<CPUOp> {
-    static bool decode(const Node& node, CPUOp& op) {
+    static bool decode(const ConfigNode& node, CPUOp& op) {
         // TODO: Assert there are no more options provided
         op.time_in_us = node["time_in_us"] ? node["time_in_us"].as<uint64_t>() : 0u;
         return true;
@@ -484,7 +487,7 @@ struct convert<CPUOp> {
 
 template <>
 struct convert<InferOp> {
-    static bool decode(const Node& node, InferOp& op) {
+    static bool decode(const ConfigNode& node, InferOp& op) {
         const auto framework = node["framework"] ? node["framework"].as<std::string>() : "openvino";
         if (framework == "openvino") {
             // NB: Parse OpenVINO model parameters such as path, device, precision, etc
@@ -514,7 +517,7 @@ struct convert<InferOp> {
 
 template <>
 struct convert<OpDesc> {
-    static bool decode(const Node& node, OpDesc& opdesc) {
+    static bool decode(const ConfigNode& node, OpDesc& opdesc) {
         opdesc.tag = node["tag"].as<std::string>();
         auto type = node["type"] ? node["type"].as<std::string>() : "Infer";
         auto repeat_count = node["repeat_count"] ? node["repeat_count"].as<uint64_t>() : 1u;
@@ -549,7 +552,7 @@ struct convert<OpDesc> {
 
 }  // namespace YAML
 
-static std::vector<std::vector<Network>> parseNetworks(const YAML::Node& node) {
+static std::vector<std::vector<Network>> parseNetworks(const ConfigNode& node) {
     ASSERT(node.IsSequence());
     TagsManager tgs_mngr;
     std::vector<std::vector<Network>> networks_list;
@@ -654,7 +657,7 @@ static InferenceParams adjustParams(InferenceParams&& params, const GlobalOption
     return adjustParams(std::get<ONNXRTParams>(std::move(params)), opts);
 }
 
-static void parseWorkloadType(const YAML::Node& node, StreamDesc& stream) {
+static void parseWorkloadType(const ConfigNode& node, StreamDesc& stream) {
     WorkloadTypeDesc workload_type;
     if (node["initial_value"]) {
         workload_type.initial_value = node["initial_value"].as<std::string>();
@@ -683,7 +686,7 @@ static void parseWorkloadType(const YAML::Node& node, StreamDesc& stream) {
     stream.workload_type = std::make_optional(workload_type);
 }
 
-static StreamDesc parseStream(const YAML::Node& node, const GlobalOptions& opts, const std::string& default_name,
+static StreamDesc parseStream(const ConfigNode& node, const GlobalOptions& opts, const std::string& default_name,
                               const ReplaceBy& replace_by) {
     StreamDesc stream;
 
@@ -813,7 +816,7 @@ static ScenarioGraph buildGraph(const std::vector<OpDesc>& op_descs,
     return graph;
 }
 
-static StreamDesc parseAdvancedStream(const YAML::Node& node, const GlobalOptions& opts,
+static StreamDesc parseAdvancedStream(const ConfigNode& node, const GlobalOptions& opts,
                                       const std::string& default_name, const ReplaceBy& replace_by) {
     StreamDesc stream;
 
@@ -877,7 +880,7 @@ static StreamDesc parseAdvancedStream(const YAML::Node& node, const GlobalOption
     return stream;
 }
 
-static std::vector<StreamDesc> parseStreams(const YAML::Node& node, const GlobalOptions& opts,
+static std::vector<StreamDesc> parseStreams(const ConfigNode& node, const GlobalOptions& opts,
                                             const ReplaceBy& replace_by) {
     std::vector<StreamDesc> streams;
     uint32_t stream_idx = 0;
@@ -891,7 +894,7 @@ static std::vector<StreamDesc> parseStreams(const YAML::Node& node, const Global
     return streams;
 }
 
-static std::vector<ScenarioDesc> parseScenarios(const YAML::Node& node, const GlobalOptions& opts,
+static std::vector<ScenarioDesc> parseScenarios(const ConfigNode& node, const GlobalOptions& opts,
                                                 const ReplaceBy& replace_by) {
     std::vector<ScenarioDesc> scenarios;
     for (const auto& subnode : node) {
@@ -913,7 +916,7 @@ static std::vector<ScenarioDesc> parseScenarios(const YAML::Node& node, const Gl
     return scenarios;
 }
 
-Config parseConfig(const YAML::Node& node, const ReplaceBy& replace_by) {
+Config parseConfig(const ConfigNode& node, const ReplaceBy& replace_by) {
     const auto global_opts = node.as<GlobalOptions>();
 
     // FIXME: Perhaps should be done somewhere else...

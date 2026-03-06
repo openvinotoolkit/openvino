@@ -215,7 +215,9 @@ int main(int argc, char* argv[]) {
         auto parser = std::make_shared<ScenarioParser>(FLAGS_cfg);
 
         LOG_INFO() << "Parse scenarios from " << FLAGS_cfg << " config file" << std::endl;
+        std::cout << "da\n";
         auto config = parser->parseScenarios(replace_by);
+         std::cout << "nu\n";
         LOG_INFO() << "Found " << config.scenarios.size() << " scenario(s)" << std::endl;
 
         // NB: Overwrite termination criteria for all scenarios if specified via CLI
