@@ -53,6 +53,7 @@
 #include "intel_gpu/primitives/roi_pooling.hpp"
 #include "intel_gpu/primitives/roll.hpp"
 #include "intel_gpu/primitives/select.hpp"
+#include "intel_gpu/primitives/segment_max.hpp"
 #include "intel_gpu/primitives/shuffle_channels.hpp"
 #include "intel_gpu/primitives/slice.hpp"
 #include "intel_gpu/primitives/space_to_batch.hpp"
@@ -151,6 +152,7 @@ REGISTER_OCL(eye);
 REGISTER_OCL(unique_count);
 REGISTER_OCL(unique_gather);
 REGISTER_OCL(search_sorted);
+REGISTER_OCL(segment_max);
 REGISTER_OCL(STFT);
 REGISTER_OCL(ISTFT);
 REGISTER_OCL(sparse_fill_empty_rows);

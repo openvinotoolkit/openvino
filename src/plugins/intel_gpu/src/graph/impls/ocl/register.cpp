@@ -81,6 +81,7 @@ void register_implementations() {
     REGISTER_OCL(unique_count);
     REGISTER_OCL(unique_gather);
     REGISTER_OCL(search_sorted);
+    REGISTER_OCL(segment_max);
     REGISTER_OCL(STFT);
     REGISTER_OCL(ISTFT);
     REGISTER_OCL(sparse_fill_empty_rows);
