@@ -4,13 +4,23 @@
 
 #pragma once
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <climits>
+#include <cstdlib>
+#include <cstring>
+#include <future>
+#include <iomanip>
+#include <iostream>
+#include <mutex>
 #include <variant>
+#include <vector>
 
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
@@ -20,6 +30,9 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "primitive.hpp"
 #include "transformations/convert_precision.hpp"
@@ -36,11 +49,10 @@ bool is_alloc_host_accessible(const cldnn::allocation_type& alloc_type) {
 }
 
 void copy_to_dst_mem(cldnn::memory::ptr mem_ptr, const uint8_t* data_ptr) {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "copy_to_dst_mem");
     if (is_alloc_host_accessible(mem_ptr->get_allocation_type())) {
         size_t data_size = mem_ptr->size();
-        std::memcpy(reinterpret_cast<uint8_t*>(mem_ptr->buffer_ptr()),
-                    data_ptr,
-                    data_size);
+        std::memcpy(reinterpret_cast<uint8_t*>(mem_ptr->buffer_ptr()), data_ptr, data_size);
     } else {
         auto& strm = mem_ptr->get_engine()->get_service_stream();
         mem_ptr->copy_from(strm, data_ptr);
@@ -53,8 +65,8 @@ namespace cldnn {
 
 class WeightsMemory {
 public:
-    WeightsMemory(std::shared_ptr<const ov::Model> model,
-                  std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map = nullptr) : weights_memory(model) {
+    WeightsMemory(std::shared_ptr<const ov::Model> model, std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map = nullptr)
+        : weights_memory(model) {
         fill_offset_to_constant_map(model, cache_attr_map);
     }
 
@@ -63,10 +75,7 @@ public:
     constant_memory_ptr get_constant_buf(size_t bin_offset, size_t original_size) {
         if (std::holds_alternative<std::shared_ptr<ov::MappedMemory>>(weights_memory)) {
             auto mapped_memory = std::get<std::shared_ptr<ov::MappedMemory>>(weights_memory);
-            return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
-                mapped_memory->data() + bin_offset,
-                original_size,
-                mapped_memory);
+            return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data() + bin_offset, original_size, mapped_memory);
         } else {
             auto model_ptr = std::get<std::shared_ptr<const ov::Model>>(weights_memory);
             auto const_it = offset_to_constant_map.find(bin_offset);
@@ -79,8 +88,7 @@ public:
     }
 
 private:
-    void fill_offset_to_constant_map(std::shared_ptr<const ov::Model> model,
-                                     std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map = nullptr) {
+    void fill_offset_to_constant_map(std::shared_ptr<const ov::Model> model, std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map = nullptr) {
         const auto& ops = model->get_ops();
 
         if (cache_attr_map != nullptr && cache_attr_map->size() > 0) {
@@ -122,11 +130,7 @@ struct reorder_replication {
 };
 
 struct weightless_cache_manager {
-    void set_constant_info(size_t bin_offset,
-                           size_t original_size,
-                           ov::element::Type original_dtype,
-                           ov::element::Type curr_dtype,
-                           ov::Shape shape) {
+    void set_constant_info(size_t bin_offset, size_t original_size, ov::element::Type original_dtype, ov::element::Type curr_dtype, ov::Shape shape) {
         this->bin_offset = bin_offset;
         this->original_size = original_size;
         this->original_dtype = original_dtype;
@@ -220,7 +224,6 @@ struct weightless_cache_manager {
         return true;
     }
 
-
 private:
     bool do_weightless_caching = false;
     bool do_precision_conversion = false;
@@ -240,10 +243,9 @@ private:
         return do_precision_conversion || should_run_reorder();
     }
 
-    void run_transformations(engine& engine,
-                             memory::ptr dst_mem,
-                             constant_memory_ptr constant_ptr) {
+    void run_transformations(engine& engine, memory::ptr dst_mem, constant_memory_ptr constant_ptr) {
         std::shared_ptr<ov::op::v0::Constant> transformed_constant = nullptr;
+        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "weightless_cache_manager::run_transformations");
 
         // Note: this works only until the data is copied to dst_mem.
         auto get_intermediate_data = [&]() -> const uint8_t* {
@@ -274,8 +276,7 @@ private:
                 orig_constant = std::get<std::shared_ptr<ov::op::v0::Constant>>(constant_ptr);
             } else {
                 auto shared_buf = std::get<shared_mapped_memory_ptr>(constant_ptr);
-                orig_constant =
-                    std::make_shared<ov::op::v0::Constant>(original_dtype, shape, get_intermediate_data(), shared_buf);
+                orig_constant = std::make_shared<ov::op::v0::Constant>(original_dtype, shape, get_intermediate_data(), shared_buf);
             }
 
             ov::ParameterVector inputParams;
@@ -303,17 +304,14 @@ private:
             memory::ptr input_mem = engine.allocate_memory(*reorder_rep.input_layout, allocation_type, false);
 
             if (is_alloc_host_accessible(allocation_type)) {
-                std::memcpy(reinterpret_cast<uint8_t*>(input_mem->buffer_ptr()),
-                            get_intermediate_data(),
-                            get_current_data_size());
+                std::memcpy(reinterpret_cast<uint8_t*>(input_mem->buffer_ptr()), get_intermediate_data(), get_current_data_size());
             } else {
                 auto& strm = engine.get_service_stream();
                 input_mem->copy_from(strm, get_intermediate_data());
             }
 
             reorder_rep.reorder->input = {input_info("input")};
-            topology topology(input_layout("input", *reorder_rep.input_layout),
-                              *reorder_rep.reorder);
+            topology topology(input_layout("input", *reorder_rep.input_layout), *reorder_rep.reorder);
 
             ExecutionConfig config;
             config.set_property(ov::intel_gpu::optimize_data(false));
@@ -404,12 +402,14 @@ struct data : public primitive_base<data> {
         primitive_base<data>::load(ib);
     }
 
-    void load_weights(BinaryInputBuffer& ib, std::shared_ptr<WeightsMemory> weights_memory) {
+    void load_weights(BinaryInputBuffer& ib, std::shared_ptr<WeightsMemory> weights_memory, const std::string& weights_path = "") {
+        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "load_weights");
         layout output_layout = layout();
         ib >> output_layout;
 
         allocation_type _allocation_type = allocation_type::unknown;
         ib >> make_data(&_allocation_type, sizeof(_allocation_type));
+        // std::cout << "load weights: allocation_type = " << static_cast<int>(_allocation_type) << ", weights_path = " << weights_path << std::endl;
 
         size_t data_size = 0;
         ib >> make_data(&data_size, sizeof(size_t));
@@ -419,41 +419,113 @@ struct data : public primitive_base<data> {
         bool is_weightless_caching = cache_info->load(ib, mem, weights_memory);
 
         if (!is_weightless_caching) {
+            const size_t DATA_BLOCK_SIZE = 4 * 1024 * 1024;
+            const size_t FAST_IO_THRESHOLD = 4 * 1024 * 1024;  // Use FAST IO for >4MB
+
             if (is_alloc_host_accessible(_allocation_type)) {
-                ib >> make_data(mem->buffer_ptr(), data_size);
+                bool used_fast_io = false;
+                if (!used_fast_io && !weights_path.empty()) {
+                    if (data_size >= FAST_IO_THRESHOLD) {
+                        auto cur_offset = ib.get_stream().tellg();
+
+                        // Auto-detect header offset compensation for path-based loading
+                        // This applies to both Windows and Linux Parallel loaders which open by path
+                        size_t offset_compensation = 0;
+
+                        // Save current position
+                        auto restore_pos = ib.get_stream().tellg();
+                        ib.get_stream().seekg(0, std::ios::end);
+                        auto stream_end = (size_t)ib.get_stream().tellg();
+                        ib.get_stream().seekg(restore_pos, std::ios::beg);
+
+                        int64_t phys_size = ov::util::file_size(ov::util::make_path(weights_path));
+                        size_t physical_size = (phys_size >= 0) ? static_cast<size_t>(phys_size) : 0;
+
+                        if (physical_size > stream_end) {
+                            offset_compensation = physical_size - stream_end;
+                        }
+
+                        used_fast_io = ov::util::read_binary_file_parallel(ov::util::make_path(weights_path),
+                                                                           mem->buffer_ptr(),
+                                                                           data_size,
+                                                                           (size_t)cur_offset + offset_compensation);
+                        if (used_fast_io) {
+                            ib.get_stream().seekg(data_size, std::ios::cur);
+                        }
+                    }
+                }
+
+                if (!used_fast_io) {
+                    ib >> make_data(mem->buffer_ptr(), data_size);
+                }
             } else {
-                const size_t DATA_BLOCK_SIZE = 2 * 1024 * 1024;
                 auto& strm = ib.get_engine().get_service_stream();
                 if (data_size < DATA_BLOCK_SIZE || output_layout.format.is_image_2d()) {
                     std::vector<uint8_t> _buf(data_size);
                     ib >> make_data(_buf.data(), data_size);
                     mem->copy_from(strm, _buf.data());
                 } else {
-                    std::vector<uint8_t> _buf1(DATA_BLOCK_SIZE);
-                    std::vector<uint8_t> _buf2(DATA_BLOCK_SIZE);
+                    // Pre-calculate file offset if weights_path is available for fast parallel IO
+                    bool can_use_fast_io = !weights_path.empty() && data_size >= FAST_IO_THRESHOLD;
+                    size_t file_base_offset = 0;
+                    auto file_path = ov::util::make_path(weights_path);
+
+                    if (can_use_fast_io) {
+                        auto cur_offset = ib.get_stream().tellg();
+                        size_t offset_compensation = 0;
+                        auto restore_pos = ib.get_stream().tellg();
+                        ib.get_stream().seekg(0, std::ios::end);
+                        auto stream_end = (size_t)ib.get_stream().tellg();
+                        ib.get_stream().seekg(restore_pos, std::ios::beg);
+
+                        int64_t phys_size = ov::util::file_size(file_path);
+                        size_t physical_size = (phys_size >= 0) ? static_cast<size_t>(phys_size) : 0;
+
+                        if (physical_size > stream_end) {
+                            offset_compensation = physical_size - stream_end;
+                        }
+                        file_base_offset = (size_t)cur_offset + offset_compensation;
+                    }
+
+                    // Double-buffered sequential stream read + async GPU copy.
+                    // Uses 4MB chunk size to perfectly fit in CPU L3 cache and maintain fine-grained pipeline overlap.
+                    auto block_layout = layout(ov::PartialShape{static_cast<int64_t>(DATA_BLOCK_SIZE)}, data_types::u8, format::bfyx);
+                    auto buf1_mem = ib.get_engine().allocate_memory(block_layout, allocation_type::usm_host, false);
+                    auto buf2_mem = ib.get_engine().allocate_memory(block_layout, allocation_type::usm_host, false);
+                    uint8_t* _buf1 = reinterpret_cast<uint8_t*>(buf1_mem->buffer_ptr());
+                    uint8_t* _buf2 = reinterpret_cast<uint8_t*>(buf2_mem->buffer_ptr());
                     bool buf_flag = true;
                     event::ptr ev1, ev2;
                     ev1 = ev2 = nullptr;
                     size_t dst_offset = 0;
+
                     while (dst_offset < data_size) {
                         const bool is_blocking = false;
                         const size_t src_offset = 0;
-                        size_t copy_size =
-                            (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
+                        size_t copy_size = (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
+
                         if (buf_flag) {
-                            ib >> make_data(_buf1.data(), copy_size);
+                            if (can_use_fast_io) {
+                                ov::util::read_binary_file_parallel(file_path, _buf1, copy_size, file_base_offset + dst_offset);
+                            } else {
+                                ib >> make_data(_buf1, copy_size);
+                            }
                             if (ev2 != nullptr) {
                                 ev2->wait();
                                 ev2 = nullptr;
                             }
-                            ev1 = mem->copy_from(strm, _buf1.data(), src_offset, dst_offset, copy_size, is_blocking);
+                            ev1 = mem->copy_from(strm, *buf1_mem, src_offset, dst_offset, copy_size, is_blocking);
                         } else {
-                            ib >> make_data(_buf2.data(), copy_size);
+                            if (can_use_fast_io) {
+                                ov::util::read_binary_file_parallel(file_path, _buf2, copy_size, file_base_offset + dst_offset);
+                            } else {
+                                ib >> make_data(_buf2, copy_size);
+                            }
                             if (ev1 != nullptr) {
                                 ev1->wait();
                                 ev1 = nullptr;
                             }
-                            ev2 = mem->copy_from(strm, _buf2.data(), src_offset, dst_offset, copy_size, is_blocking);
+                            ev2 = mem->copy_from(strm, *buf2_mem, src_offset, dst_offset, copy_size, is_blocking);
                         }
                         dst_offset += DATA_BLOCK_SIZE;
                         buf_flag = !buf_flag;
@@ -463,6 +535,11 @@ struct data : public primitive_base<data> {
                     }
                     if (ev1 != nullptr) {
                         ev1->wait();
+                    }
+
+                    if (can_use_fast_io) {
+                        // Advance the global stream pointer by the amount we read directly
+                        ib.get_stream().seekg(data_size, std::ios::cur);
                     }
                 }
             }

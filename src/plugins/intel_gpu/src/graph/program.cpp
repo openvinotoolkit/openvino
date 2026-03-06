@@ -1960,8 +1960,13 @@ void program::load(cldnn::BinaryInputBuffer& ib,
                    std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map) {
     init_program();
 
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "program::load");
     std::shared_ptr<WeightsMemory> weights_memory = nullptr;
     std::string weights_path = _config.get_weights_path();
+    // Use the cached blob file path for parallel I/O in load_weights if available.
+    // This allows optimized file reading directly from the .blob cache file.
+    // The regular weights_path (.bin) is still used for weightless caching (mmap) above.
+    const std::string& load_cached_blob_path = _config.get_cached_blob_path();
     if (_config.get_enable_weightless()) {
         if (model_ptr) {
             if (cache_attr_map) {
@@ -1988,7 +1993,8 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         std::shared_ptr<cldnn::primitive> prim;
         ib >> prim;
         if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
-            data_prim->load_weights(ib, weights_memory);
+            GPU_DEBUG_INFO << "Loading weights blob: " << load_cached_blob_path << std::endl;
+            data_prim->load_weights(ib, weights_memory, load_cached_blob_path);
         }
         get_or_create(prim);
     }

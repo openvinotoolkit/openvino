@@ -748,6 +748,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::model.name(), PropertyMutability::WO},
         ov::PropertyName{ov::intel_gpu::config_file.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::cached_blob_path.name(), PropertyMutability::RW},
     };
 
     return supported_properties;
