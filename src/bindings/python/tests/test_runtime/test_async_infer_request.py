@@ -5,6 +5,7 @@
 from collections.abc import Iterable
 from copy import deepcopy
 import numpy as np
+import platform
 import pytest
 import time
 import sysconfig
@@ -319,7 +320,7 @@ def test_start_async(device, share_inputs):
     (Type.u8, np.uint8),
     (Type.i32, np.int32),
     (Type.u32, np.uint32),
-    (Type.i16, np.int16),
+    pytest.param(Type.i16, np.int16, marks=pytest.mark.skipif(platform.machine() == "aarch64", reason="CVS-177547")),
     (Type.u16, np.uint16),
     (Type.i64, np.int64),
     (Type.u64, np.uint64),
