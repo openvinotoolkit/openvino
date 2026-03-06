@@ -193,3 +193,27 @@ thread.join()
 # running the inference
 request.infer(input_data)
 #! [releasing_gil]
+
+#! [set_rt_info]
+import openvino as ov
+from utils import get_path_to_model
+
+core = ov.Core()
+model_path = get_path_to_model()
+model = core.read_model(model=model_path)
+
+# Set runtime info on the Model using a string path
+model.set_rt_info("my_model_v2", "model_version")
+
+# Set runtime info on the Model using a list path (for nested keys)
+model.set_rt_info("classification", ["config", "type_of_model"])
+model.set_rt_info(42, ["config", "max_batch"])
+
+# Set runtime info on a Node
+for node in model.get_ordered_ops():
+    node.set_rt_info("annotated", "custom_label")
+    break  # demonstrate on the first node
+
+# Set runtime info on an Output
+model.output(0).set_rt_info("output_category", "label")
+#! [set_rt_info]

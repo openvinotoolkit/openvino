@@ -19,6 +19,8 @@ Interface Model
        output(): Output;
        output(name): Output;
        output(index): Output;
+       reshape(partialShape, variablesShapes?): Model;
+       reshape(partialShapes, variablesShapes?): Model;
        setFriendlyName(name): void;
    }
 
@@ -308,6 +310,71 @@ Methods
 
    * **Defined in:**
      `addon.ts:294 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L294>`__
+
+
+.. rubric:: reshape
+   :name: reshape
+
+*
+
+   .. code-block:: ts
+
+      reshape(
+        partialShape: PartialShape | string,
+        variablesShapes?: Record<string, PartialShape | string>,
+      ): Model
+
+   Reshapes a single model input. The partial shape object or its string
+   representation is used to set the new input shape.
+
+   * **Parameters:**
+
+     - partialShape: :doc:`PartialShape <PartialShape>` | string
+
+       The new shape for the model input.
+
+     - ``Optional``
+
+       .. code-block:: ts
+
+          variablesShapes: Record<string, PartialShape | string>
+
+       New shapes for model variables.
+
+   * **Returns:** :doc:`Model <Model>`
+
+   * **Defined in:**
+     `addon.ts:330 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L330>`__
+
+
+   .. code-block:: ts
+
+      reshape(
+        partialShapes: Map<number | string | Output, PartialShape | string>,
+        variablesShapes?: Record<string, PartialShape | string>,
+      ): Model
+
+   Reshapes multiple model inputs. The keys of the map can be input
+   indices, tensor names, or :doc:`Output <Output>` objects.
+
+   * **Parameters:**
+
+     - partialShapes: ``Map<number | string | Output, PartialShape | string>``
+
+       A map of input identifiers to their new shapes.
+
+     - ``Optional``
+
+       .. code-block:: ts
+
+          variablesShapes: Record<string, PartialShape | string>
+
+       New shapes for model variables.
+
+   * **Returns:** :doc:`Model <Model>`
+
+   * **Defined in:**
+     `addon.ts:342 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L342>`__
 
 
 .. rubric:: setFriendlyName
