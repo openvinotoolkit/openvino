@@ -132,8 +132,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*FakeConvertLayerTest.*dataPrecision=bf16.*)"),
             // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
             std::regex(R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)"),
-            // Issue: 123815 (Tests are sensintive to available thread count on testing machines)
-            std::regex(R"(.*smoke_Snippets_MHA_.?D_SplitDimensionM_static.*)"),
             // Issue: 126095
             std::regex(R"(^smoke_Multinomial(?:Static|Dynamic)+(?:Log)*.*seed_g=0_seed_o=0.*device=CPU.*)"),
             // Issue: 129931
