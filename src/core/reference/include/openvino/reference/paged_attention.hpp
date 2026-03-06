@@ -147,6 +147,11 @@ inline std::vector<std::size_t> parse_subsequence_ranges(const int32_t* subseq_b
 // Supports: GQA, ALiBi, RoPE re-rotation (split-half / LLaMA-style), attention sinks,
 //           xattention sparse prefill, and adaptive RKV diversity scoring
 //
+// 
+// pool_kernel argument (default 7, from ReasoningTokenEviction pptx): 
+// is a window size for per-head max-pool applied to per-token attention scores before aggregating into block scores
+// It is currently missing from the operator's inputs, but based on the presentation it should be present
+//
 // In the book 'Clean Code by Robert C. Martin there is a small guideline
 // which says that a function should not have more than 3 inputs unless necessary
 // Safe to say, enjoy!
@@ -199,7 +204,8 @@ void paged_attention(std::uintptr_t node_key,
                      const ov::Shape& key_cache_shape,
                      const ov::Shape& value_cache_shape,
                      const ov::Shape& past_lens_shape,
-                     const ov::Shape& subseq_shape) {
+                     const ov::Shape& subseq_shape,
+                     std::size_t pool_kernel = 7) {
     OPENVINO_ASSERT(cache_manager != nullptr, "PagedAttention reference: cache_manager is null");
     OPENVINO_ASSERT(query != nullptr && key != nullptr && value != nullptr, "PagedAttention reference: null Q/K/V");
     OPENVINO_ASSERT(out != nullptr, "PagedAttention reference: output is null");
@@ -698,15 +704,14 @@ void paged_attention(std::uintptr_t node_key,
     // eviction can use them on the next allocation that runs out of free blocks.
     // Apply per-head max-pool + head-average for more accurate importance estimation
     if (!scores_acc.empty()) {
-        const std::size_t pk = cache_manager->pool_kernel();
-        if (pk > 1 && total_score_len > 0) {
+        if (pool_kernel > 1 && total_score_len > 0) {
             // Per-sequence, per-head max-pool then average across heads
             std::vector<float> pooled(total_score_len, 0.f);
-            const std::size_t half_k = pk / 2;
+            const std::size_t half_k = pool_kernel / 2;
 
             for (std::size_t h = 0; h < q_heads; ++h) {
                 const float* head_row = scores_per_head.data() + h * total_score_len;
-                // Max-pool with kernel pk, stride 1, pad half_k, per-sequence
+                // Max-pool with kernel pool_kernel, stride 1, pad half_k, per-sequence
                 std::size_t seg_start = 0;
                 for (std::size_t s = 0; s < seq_count; ++s) {
                     const std::size_t past = past_lens ? static_cast<std::size_t>(past_lens[s]) : 0;

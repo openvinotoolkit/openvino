@@ -73,7 +73,7 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
     auto& diversity_ps = output_shapes[2];
     // Output[2] is a flat 1D buffer of diversity scores.
     // Exact size = sum_s( evictable_sizes[s]^2 / block_size ) where block_size = key_cache dim 2.
-    // If either is unknown we fall back to dynamic.
+    // If either is unknown we fall back to dynamic
     auto width_dim = Dimension::dynamic();
 
     const auto& key_cache_ps = input_shapes[3];  // [num_blocks, Hkv, block_size, S]

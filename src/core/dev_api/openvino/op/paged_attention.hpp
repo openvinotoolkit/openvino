@@ -29,14 +29,6 @@ public:
     ///   (B_token = total tokens in the call, B_seq = number of sequences,
     ///    H = query heads, Hk = key/value heads, S = head size)
     ///
-    /// NOTE ON INPUT OPTIONALITY: OpenVINO input ports are positional — if port N were
-    /// absent, port N+1 would shift to position N, breaking all subsequent indices.
-    /// Therefore inputs 0-21 MUST always be present as connected tensors.  Features
-    /// that are logically optional are disabled by an empty tensor (size == 0) or a
-    /// zero sentinel, not by omitting the port.  Inputs 22-24 (adaptive RKV group) are
-    /// the only truly optional ports; the legacy 21-input format omits them entirely
-    /// (accepted by the CPU plugin for backward compatibility).
-    ///
     ///  0  query                                            [B_token, H * S]          required
     ///  1  key                                              [B_token, Hk * S]         required
     ///  2  value                                            [B_token, Hk * S]         required
@@ -59,10 +51,9 @@ public:
     /// 19  xattention_stride                                [] scalar, i32            required
     /// 20  sinks                                            [1, H, 1, 1] or empty     required (empty = disabled)
     /// 21  adaptive_rkv_start_size                          [] scalar, i32            required (0 = no protection zone)
-    /// 22  adaptive_rkv_evictable_sizes                     [B_seq], i32              optional (absent in 21-input
-    /// models) 23  adaptive_rkv_diversity_block_set_indices         [num_adaptive_rkv_blocks] optional (absent in
-    /// 21-input models) 24  adaptive_rkv_diversity_block_set_indices_begins  [B_seq + 1], i32          optional (absent
-    /// in 21-input models)
+    /// 22  adaptive_rkv_evictable_sizes                     [B_seq], i32              optional
+    /// 23  adaptive_rkv_diversity_block_set_indices         [num_adaptive_rkv_blocks] optional
+    /// 24  adaptive_rkv_diversity_block_set_indices_begins  [B_seq + 1], i32          optional
     explicit PagedAttentionExtension(const ov::OutputVector& args);
 
     void validate_and_infer_types() override;

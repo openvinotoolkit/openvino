@@ -40,15 +40,15 @@ public:
     };
 
     // The model does not yet expose all necessary parameters to select the eviction policy,
-    // the cache byte limit, per head max pool size, and the attention mass threshold to determine which blocks are
-    // important so we default to SCORE with a 64 MB cap, a pool kernel of 7, and attention mass p of 0.9 (keep blocks
-    // that contribute to 90% of the attention mass)
+    // the cache byte limit, and the attention mass threshold, so we default to SCORE with a
+    // 64 MB cap and attention_mass_p=0.9 (keep blocks covering 90% of attention mass).
     //
-    // The last 2 parameters were obtained from the ReasoningTokenEviction pptx presentation
+    // attention_mass_p is an eviction policy parameter (ReasoningTokenEviction pptx).
+    // Similarly to pool_kernel, it is not currently available in the operator nor the model,
+    // but here it is present for the full support of the adaptive RKV algorithm
     explicit PagedCacheManager(ov::element::Type elem_type,
                                EvictionPolicy policy = EvictionPolicy::SCORE,
                                std::size_t max_cache_bytes = 64UL * 1024UL * 1024UL,
-                               std::size_t pool_kernel = 7,
                                float attention_mass_p = 0.9f);
     PagedCacheManager(const PagedCacheManager&) = delete;
     PagedCacheManager& operator=(const PagedCacheManager&) = delete;
@@ -121,10 +121,6 @@ public:
         return m_policy;
     }
 
-    std::size_t pool_kernel() const noexcept {
-        return m_pool_kernel;
-    }
-
     float attention_mass_p() const noexcept {
         return m_attention_mass_p;
     }
@@ -140,7 +136,7 @@ public:
 
     // Feed the raw 2D diversity matrix from the adaptive RKV calculator
     // so that ADAPTIVE_RKV eviction can apply attention-mass gating + filtered column mean.
-    // diversity_matrix is row-major [num_blocks_in_zone, eviction_size].
+    // diversity_matrix is row-major [num_blocks_in_zone, eviction_size]
     void update_diversity_scores(std::uintptr_t node_key,
                                  std::size_t seq_idx,
                                  const float* diversity_matrix,
@@ -259,7 +255,6 @@ private:
     ov::element::Type m_elem_type;
     EvictionPolicy m_policy;
     std::size_t m_max_cache_bytes;
-    std::size_t m_pool_kernel;
     float m_attention_mass_p;
     std::unordered_map<std::uintptr_t, OperatorState> m_ops;
 };

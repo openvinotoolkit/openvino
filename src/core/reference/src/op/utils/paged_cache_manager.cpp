@@ -29,12 +29,10 @@ inline std::size_t safe_mul(std::size_t a, std::size_t b) {
 PagedCacheManager::PagedCacheManager(ov::element::Type elem_type,
                                      EvictionPolicy policy,
                                      std::size_t max_cache_bytes,
-                                     std::size_t pool_kernel,
                                      float attention_mass_p)
     : m_elem_type(elem_type),
       m_policy(policy),
       m_max_cache_bytes(max_cache_bytes),
-      m_pool_kernel(pool_kernel),
       m_attention_mass_p(attention_mass_p) {}
 
 std::size_t PagedCacheManager::elem_bytes_or_throw(ov::element::Type et) {
