@@ -298,4 +298,11 @@ TEST(PropertyValidation, AutoBatchTimeoutAcceptsPositiveString) {
     });
 }
 
+TEST(PropertiesValidation, BoolPropertyAcceptsIntegerValues) {
+    OV_ASSERT_NO_THROW(std::ignore = ov::enable_mmap(true));
+    OV_ASSERT_NO_THROW(std::ignore = ov::enable_mmap(1));
+    OV_ASSERT_NO_THROW(std::ignore = ov::enable_mmap(2));
+    OV_ASSERT_NO_THROW(std::ignore = ov::enable_mmap(0));
+}
+
 }  // namespace ov::test
