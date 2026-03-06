@@ -1620,7 +1620,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const auto hfa_fused_npu_supported = npudesc.has_value() && npudesc->support_flash_attention_tile;
     if (other_props.count("NPUW_ATTN_HFA_FUSED") == 0 && is_hfa && hfa_fused_npu_supported) {
         other_props["NPUW_ATTN_HFA_FUSED"] = "YES";
-        LOG_INFO("Compiler flash attention tile use is set to YES");
+        LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
     }
 
     m_is_whisper = use_whisper_key.value_or(false).as<bool>() == true;

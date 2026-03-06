@@ -878,7 +878,8 @@ static std::optional<std::size_t> extract_sequence_dim_from_concat(const std::sh
 
 std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr<ov::Model>& model,
                                                            bool fused_flash_attention) {
-    LOG_INFO("Attempting to create HostFlashAttention from model");
+    LOG_INFO("Attempting to create HostFlashAttention"
+             << (fused_flash_attention ? " with fused flash attention node" : ""));
     LOG_BLOCK();
 
     // ========================================================================
