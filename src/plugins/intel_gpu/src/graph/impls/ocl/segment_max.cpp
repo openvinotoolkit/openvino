@@ -49,7 +49,7 @@ struct segment_max_impl : typed_primitive_impl_ocl<segment_max> {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
 
-        params.fill_mode = primitive->fill_mode;
+        params.fill_mode = static_cast<int>(primitive->fill_mode);
         return params;
     }
 

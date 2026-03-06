@@ -16,14 +16,12 @@ static void CreateSegmentMaxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     validate_inputs_count(op, {2, 3});
     auto inputs = p.GetInputInfo(op);
 
-    int fill_mode = (op->get_fill_mode() == ov::op::FillMode::ZERO) ? 0 : 1;
-
     auto prim = cldnn::segment_max(layer_type_name_ID(op),
                                    inputs[0],   // data
                                    inputs[1],   // segment_ids
-                                   fill_mode);
+                                   op->get_fill_mode());
 
-    // Store segment_ids constant data for compile-time shape inference.
+    // Store max(segment_ids) for compile-time shape inference.
     // Use get_constant_from_source to handle cases where the constant is
     // wrapped by Convert/Reshape/etc.
     auto seg_const = ov::util::get_constant_from_source(op->input_value(1));
@@ -37,7 +35,11 @@ static void CreateSegmentMaxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     }
 
     if (seg_const) {
-        prim.segment_ids_data = seg_const->cast_vector<int64_t>();
+        // segment_ids is required to be sorted (non-decreasing), so back() == max.
+        auto seg_ids = seg_const->cast_vector<int64_t>();
+        if (!seg_ids.empty()) {
+            prim.max_segment_id = seg_ids.back();
+        }
     }
 
     // Store num_segments constant data for compile-time shape inference.

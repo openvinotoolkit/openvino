@@ -22,7 +22,7 @@
 //   output       – [num_segments x inner_dim_size]
 
 // Binary search: find first index in [lo, hi) where segment_ids[index] >= target.
-inline int __attribute__((always_inline)) lower_bound(
+inline int FUNC(lower_bound)(
     const __global INPUT1_TYPE* restrict segment_ids,
     int lo, int hi, INPUT1_TYPE target)
 {
@@ -37,7 +37,7 @@ inline int __attribute__((always_inline)) lower_bound(
 }
 
 // Binary search: find first index in [lo, hi) where segment_ids[index] > target.
-inline int __attribute__((always_inline)) upper_bound(
+inline int FUNC(upper_bound)(
     const __global INPUT1_TYPE* restrict segment_ids,
     int lo, int hi, INPUT1_TYPE target)
 {
@@ -69,8 +69,8 @@ KERNEL(segment_max_opt)(
 
     // Binary search for the half-open range [start, end) of rows belonging
     // to this segment.  O(log num_rows) instead of O(num_rows).
-    const int start = lower_bound(segment_ids, 0, num_rows, (INPUT1_TYPE)seg);
-    const int end   = upper_bound(segment_ids, start, num_rows, (INPUT1_TYPE)seg);
+    const int start = FUNC_CALL(lower_bound)(segment_ids, 0, num_rows, (INPUT1_TYPE)seg);
+    const int end   = FUNC_CALL(upper_bound)(segment_ids, start, num_rows, (INPUT1_TYPE)seg);
 
     const int out_idx = seg * inner_dim_size + j;
 

@@ -15,10 +15,10 @@
 #include "test_utils.h"
 #include "segment_max_inst.h"
 
+namespace {
+
 using namespace cldnn;
 using namespace ::tests;
-
-namespace {
 
 constexpr float REL_EPS = 2e-3f;
 constexpr float ABS_EPS = 1e-5f;
@@ -59,7 +59,7 @@ struct SegmentMaxTestParams {
     ov::PartialShape data_shape;
     std::vector<float> data_values;
     std::vector<int32_t> segment_ids;
-    int fill_mode;                          // 0 = ZERO, 1 = LOWEST
+    ov::op::FillMode fill_mode;             // FillMode::ZERO or FillMode::LOWEST
     int64_t num_segments;                   // -1 = not set (infer from segment_ids)
     std::vector<float> expected_output;
     ov::PartialShape expected_output_shape;
@@ -89,9 +89,8 @@ public:
         topology.add(input_layout("segment_ids", seg_dynamic_layout));
 
         auto prim = segment_max("segment_max", input_info("data"), input_info("segment_ids"), p.fill_mode);
-        prim.segment_ids_data.reserve(p.segment_ids.size());
-        for (auto v : p.segment_ids) {
-            prim.segment_ids_data.push_back(static_cast<int64_t>(v));
+        if (!p.segment_ids.empty()) {
+            prim.max_segment_id = static_cast<int64_t>(p.segment_ids.back());
         }
         if (p.num_segments >= 0) {
             prim.num_segments_val = p.num_segments;
@@ -137,7 +136,7 @@ std::vector<SegmentMaxTestParams> generateSegmentMaxTestParams() {
         ov::PartialShape{6},
         {1.0f, 5.0f, 3.0f, 2.0f, 8.0f, 4.0f},
         {0, 0, 1, 2, 2, 2},
-        0, -1,                                                         // fill_mode=ZERO, num_segments=infer
+        ov::op::FillMode::ZERO, -1,                                                         // fill_mode=ZERO, num_segments=infer
         {5.0f, 3.0f, 8.0f},
         ov::PartialShape{3},
         "basic_1d_3seg"
@@ -148,7 +147,7 @@ std::vector<SegmentMaxTestParams> generateSegmentMaxTestParams() {
         ov::PartialShape{3},
         {100.0f, 200.0f, 300.0f},
         {0, 1, 2},
-        0, -1,
+        ov::op::FillMode::ZERO, -1,
         {100.0f, 200.0f, 300.0f},
         ov::PartialShape{3},
         "single_elem_per_seg"
@@ -159,7 +158,7 @@ std::vector<SegmentMaxTestParams> generateSegmentMaxTestParams() {
         ov::PartialShape{5},
         {3.0f, 1.0f, 4.0f, 1.0f, 5.0f},
         {0, 0, 0, 0, 0},
-        0, -1,
+        ov::op::FillMode::ZERO, -1,
         {5.0f},
         ov::PartialShape{1},
         "all_one_segment"
@@ -170,7 +169,7 @@ std::vector<SegmentMaxTestParams> generateSegmentMaxTestParams() {
         ov::PartialShape{5},
         {-3.0f, -1.0f, -5.0f, -2.0f, -4.0f},
         {0, 0, 1, 1, 1},
-        0, -1,
+        ov::op::FillMode::ZERO, -1,
         {-1.0f, -2.0f},
         ov::PartialShape{2},
         "negative_values"
@@ -183,7 +182,7 @@ std::vector<SegmentMaxTestParams> generateSegmentMaxTestParams() {
         ov::PartialShape{4},
         {10.0f, 20.0f, 30.0f, 40.0f},
         {0, 0, 2, 2},                                                 // segment 1 is empty
-        0, -1,
+        ov::op::FillMode::ZERO, -1,
         {20.0f, 0.0f, 40.0f},
         ov::PartialShape{3},
         "empty_seg_zero_fill"
@@ -194,7 +193,7 @@ std::vector<SegmentMaxTestParams> generateSegmentMaxTestParams() {
         ov::PartialShape{4},
         {10.0f, 20.0f, 30.0f, 40.0f},
         {0, 0, 2, 2},                                                 // segment 1 is empty
-        1, -1,
+        ov::op::FillMode::LOWEST, -1,
         {20.0f, std::numeric_limits<float>::lowest(), 40.0f},
         ov::PartialShape{3},
         "empty_seg_lowest_fill"
@@ -210,7 +209,7 @@ std::vector<SegmentMaxTestParams> generateSegmentMaxTestParams() {
          7.0f, 8.0f, 9.0f,
          10.0f, 11.0f, 12.0f},
         {0, 0, 1, 1},
-        0, -1,
+        ov::op::FillMode::ZERO, -1,
         {4.0f, 5.0f, 6.0f,
          10.0f, 11.0f, 12.0f},
         ov::PartialShape{2, 3},
@@ -224,7 +223,7 @@ std::vector<SegmentMaxTestParams> generateSegmentMaxTestParams() {
          3.0f, 4.0f,
          5.0f, 6.0f},
         {0, 2, 2},                                                    // segment 1 is empty
-        0, -1,
+        ov::op::FillMode::ZERO, -1,
         {1.0f, 2.0f,
          0.0f, 0.0f,
          5.0f, 6.0f},
@@ -239,7 +238,7 @@ std::vector<SegmentMaxTestParams> generateSegmentMaxTestParams() {
          5.0f, 6.0f, 7.0f, 8.0f,
          9.0f, 10.0f, 11.0f, 12.0f},
         {0, 1, 1},                                                    // 2 segments, no empty
-        1, -1,
+        ov::op::FillMode::LOWEST, -1,
         {1.0f, 2.0f, 3.0f, 4.0f,                                     // segment 0: row 0
          9.0f, 10.0f, 11.0f, 12.0f},                                  // segment 1: max(row 1, row 2)
         ov::PartialShape{2, 4},
@@ -254,7 +253,7 @@ std::vector<SegmentMaxTestParams> generateSegmentMaxTestParams() {
         ov::PartialShape{5},
         {1.0f, 5.0f, 3.0f, 2.0f, 8.0f},
         {0, 0, 2, 3, 3},
-        0, 2,                                                          // num_segments=2 < 4
+        ov::op::FillMode::ZERO, 2,                                                          // num_segments=2 < 4
         {5.0f, 0.0f},                                                 // seg 0: max(1,5)=5, seg 1: empty=0
         ov::PartialShape{2},
         "num_segments_truncation"
@@ -266,7 +265,7 @@ std::vector<SegmentMaxTestParams> generateSegmentMaxTestParams() {
         ov::PartialShape{5},
         {1.0f, 5.0f, 3.0f, 2.0f, 8.0f},
         {0, 0, 2, 3, 3},
-        0, 8,                                                          // num_segments=8 > 4
+        ov::op::FillMode::ZERO, 8,                                                          // num_segments=8 > 4
         {5.0f, 0.0f, 3.0f, 8.0f, 0.0f, 0.0f, 0.0f, 0.0f},           // seg 4-7 are empty (ZERO fill)
         ov::PartialShape{8},
         "num_segments_padding_zero"
@@ -277,7 +276,7 @@ std::vector<SegmentMaxTestParams> generateSegmentMaxTestParams() {
         ov::PartialShape{3},
         {10.0f, 20.0f, 30.0f},
         {0, 1, 1},
-        1, 5,                                                          // num_segments=5, LOWEST fill
+        ov::op::FillMode::LOWEST, 5,                                                          // num_segments=5, LOWEST fill
         {10.0f, 30.0f,
          std::numeric_limits<float>::lowest(),
          std::numeric_limits<float>::lowest(),
@@ -291,7 +290,7 @@ std::vector<SegmentMaxTestParams> generateSegmentMaxTestParams() {
         ov::PartialShape{4},
         {1.0f, 2.0f, 3.0f, 4.0f},
         {0, 1, 1, 2},
-        0, 3,                                                          // num_segments=3 == max(2)+1
+        ov::op::FillMode::ZERO, 3,                                                          // num_segments=3 == max(2)+1
         {1.0f, 3.0f, 4.0f},
         ov::PartialShape{3},
         "num_segments_exact"
@@ -304,7 +303,7 @@ std::vector<SegmentMaxTestParams> generateSegmentMaxTestParams() {
          3.0f, 4.0f,
          5.0f, 6.0f},
         {0, 0, 1},
-        0, 4,                                                          // num_segments=4, with padding
+        ov::op::FillMode::ZERO, 4,                                                          // num_segments=4, with padding
         {3.0f, 4.0f,                                                  // seg 0: max(row 0, row 1)
          5.0f, 6.0f,                                                  // seg 1: row 2
          0.0f, 0.0f,                                                  // seg 2: empty (ZERO)
@@ -353,8 +352,8 @@ TEST_F(SegmentMaxGpuTypeTest, i64_segment_ids) {
     topology.add(input_layout("segment_ids",
                               layout{ov::PartialShape::dynamic(1), data_types::i64, format::bfyx}));
 
-    auto prim = segment_max("segment_max", input_info("data"), input_info("segment_ids"), 0);
-    prim.segment_ids_data = {0, 0, 1, 2, 2, 2};
+    auto prim = segment_max("segment_max", input_info("data"), input_info("segment_ids"), ov::op::FillMode::ZERO);
+    prim.max_segment_id = 2;
     topology.add(prim);
     topology.add(reorder("output", input_info("segment_max"), format::bfyx, data_types::f32));
 
@@ -390,8 +389,8 @@ TEST_F(SegmentMaxGpuTypeTest, i32_data) {
     topology.add(input_layout("segment_ids",
                               layout{ov::PartialShape::dynamic(1), data_types::i32, format::bfyx}));
 
-    auto prim = segment_max("segment_max", input_info("data"), input_info("segment_ids"), 0);
-    prim.segment_ids_data = {0, 0, 1, 2, 2, 2};
+    auto prim = segment_max("segment_max", input_info("data"), input_info("segment_ids"), ov::op::FillMode::ZERO);
+    prim.max_segment_id = 2;
     topology.add(prim);
     topology.add(reorder("output", input_info("segment_max"), format::bfyx, data_types::i32));
 
@@ -427,8 +426,8 @@ TEST_F(SegmentMaxGpuTypeTest, i32_data_lowest_fill) {
     topology.add(input_layout("segment_ids",
                               layout{ov::PartialShape::dynamic(1), data_types::i32, format::bfyx}));
 
-    auto prim = segment_max("segment_max", input_info("data"), input_info("segment_ids"), 1);
-    prim.segment_ids_data = {0, 0, 2, 2};
+    auto prim = segment_max("segment_max", input_info("data"), input_info("segment_ids"), ov::op::FillMode::LOWEST);
+    prim.max_segment_id = 2;
     topology.add(prim);
     topology.add(reorder("output", input_info("segment_max"), format::bfyx, data_types::i32));
 

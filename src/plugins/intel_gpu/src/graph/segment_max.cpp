@@ -5,7 +5,6 @@
 #include <json_object.h>
 #include <segment_max_inst.h>
 
-#include <algorithm>
 #include <sstream>
 
 #include "openvino/core/enum_names.hpp"
@@ -38,10 +37,8 @@ std::vector<layout> segment_max_inst::calc_output_layouts(segment_max_node const
     // Determine num_segments from stored constant data
     if (primitive->num_segments_val >= 0) {
         output_pshape[0] = primitive->num_segments_val;
-    } else if (!primitive->segment_ids_data.empty()) {
-        int64_t max_seg_id = *std::max_element(primitive->segment_ids_data.begin(),
-                                                primitive->segment_ids_data.end());
-        output_pshape[0] = max_seg_id + 1;
+    } else if (primitive->max_segment_id >= 0) {
+        output_pshape[0] = primitive->max_segment_id + 1;
     } else {
         output_pshape[0] = ov::Dimension::dynamic();
     }
@@ -54,7 +51,7 @@ std::string segment_max_inst::to_string(segment_max_node const& node) {
     json_composite segment_max_info;
     segment_max_info.add("data id", node.input(0).id());
     segment_max_info.add("segment_ids id", node.input(1).id());
-    segment_max_info.add("fill_mode", node.get_primitive()->fill_mode);
+    segment_max_info.add("fill_mode", static_cast<int>(node.get_primitive()->fill_mode));
     node_info->add("segment_max info", segment_max_info);
     std::stringstream primitive_description;
     node_info->dump(primitive_description);
