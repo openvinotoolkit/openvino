@@ -379,9 +379,6 @@ protected:
         jit.make("VALUE_NUM", desc->_config.num_expert);
         jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
         jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
-
-        const auto eps_idx = static_cast<size_t>(MOE3GemmInputIndex::ROUTING_EPS);
-        OPENVINO_ASSERT(params.get_input_layout(eps_idx).count() == 1, "MoE3GemmSwigluSigmoidBiasTopK: routing_eps must be a scalar");
         return jit;
     }
 
