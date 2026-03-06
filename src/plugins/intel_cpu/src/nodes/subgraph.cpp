@@ -23,7 +23,6 @@
 #include "nodes/executors/subgraph.hpp"
 #include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
-#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
@@ -895,11 +894,11 @@ void Subgraph::prepareParams() {
     // body structure and input shapes but different weight packing states produce different kernels
     // and must be cached separately. In the dynamic case, offsets are recomputed at runtime, so the
     // packing state has no effect on the generated code
-#if defined(OPENVINO_ARCH_X86_64)
+#    if defined(OPENVINO_ARCH_X86_64)
     const auto constant_repacked_mask = is_dynamic ? 0U : getConstantRepackedMask();
-#else
+#    else
     constexpr uint32_t constant_repacked_mask = 0;
-#endif
+#    endif
     const auto result = cache->getOrCreate(SubgraphKey(subgraph_attrs, in_shapes, constant_repacked_mask), builder);
     execPtr = result.first;
 #endif
