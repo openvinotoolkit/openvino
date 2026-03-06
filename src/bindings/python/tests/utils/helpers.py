@@ -2,21 +2,20 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import base64
 import io
+import os
+import re
+import sys
+from pathlib import Path
+from sys import platform
 from typing import Union
 
-import os
-import sys
 import numpy as np
-import base64
-import re
-
-from sys import platform
-from pathlib import Path
 
 import openvino
-from openvino import Model, Core, Shape, Tensor, Type
 import openvino.opset13 as ops
+from openvino import Core, Model, Shape, Tensor, Type
 
 
 # noqa: C901 the function is too complex
@@ -54,7 +53,7 @@ def _compare_models(model_one: Model, model_two: Model, compare_names: bool = Tr
         op_one_name = model_one_ops[i].get_friendly_name()  # op from model_one
         op_two_name = model_two_ops[i].get_friendly_name()  # op from model_two
         # Check friendly names
-        if (compare_names and op_one_name != op_two_name and model_one_ops[i].get_type_name() != "Constant"):
+        if compare_names and op_one_name != op_two_name and model_one_ops[i].get_type_name() != "Constant":
             result = False
             msg += "Not equal op names "
             msg += f"model_one: {op_one_name}, "
@@ -127,7 +126,8 @@ def tensor_from_bytes(stream: io.BytesIO) -> Tensor:
 
 def get_model_with_template_extension():
     core = Core()
-    ir = bytes(b"""<net name="Activation" version="10">
+    ir = bytes(
+        b"""<net name="Activation" version="10">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset1">
             <data shape="1,3,22,22" element_type="f32"/>
@@ -173,7 +173,8 @@ def get_model_with_template_extension():
         <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
         <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
     </edges>
-</net>""")
+</net>"""
+    )
     if platform == "win32":
         core.add_extension(library_path="openvino_template_extension.dll")
     else:
@@ -229,7 +230,10 @@ def generate_relu_compiled_model_with_config(
 def generate_model_and_image(device, input_shape: list[int] = None):
     if input_shape is None:
         input_shape = [1, 3, 32, 32]
-    return (generate_relu_compiled_model(device, input_shape), generate_image(input_shape))
+    return (
+        generate_relu_compiled_model(device, input_shape),
+        generate_image(input_shape),
+    )
 
 
 def generate_add_model(input_shape: list[int] = None, input_dtype=np.float32) -> openvino.Model:
@@ -239,6 +243,54 @@ def generate_add_model(input_shape: list[int] = None, input_dtype=np.float32) ->
     param2 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data2")
     add = ops.add(param1, param2)
     return Model(add, [param1, param2], "TestModel")
+
+
+def generate_multi_input_model() -> openvino.Model:
+    """Generate a model with three inputs and three corresponding addition outputs."""
+
+    input_a = ops.parameter([2, 2], name="A")
+    input_b = ops.parameter([1, 3, 224, 244], name="B")
+    input_c = ops.parameter([10], name="C")
+
+    output_d = input_a + input_a
+    output_e = input_b + input_b
+    output_f = input_c + input_c
+
+    model = Model([output_d, output_e, output_f], [input_a, input_b, input_c], "multi_input_model")
+    return model
+
+
+def generate_single_input_model(input_shape: list[int] = None, input_dtype=np.float32) -> openvino.Model:
+    """Generate a model with a single input parameter and relu operation.
+
+    :param input_shape: The shape of the input parameter. Default: [4, 4]
+    :param input_dtype: The data type of the input parameter. Default: np.float32
+    :return: A Model with one input.
+    """
+    if input_shape is None:
+        input_shape = [4, 4]
+    param = ops.parameter(Shape(input_shape), dtype=input_dtype, name="input")
+    relu = ops.relu(param)
+    return Model(relu, [param], "SingleInputModel")
+
+
+def generate_two_input_model():
+    """Generate a test model with two inputs and simple addition operations.
+
+    Returns:
+        Model: An OpenVINO model with two inputs and corresponding outputs.
+    """
+    # Define inputs
+    input1 = ops.parameter([2, 2], name="input1")
+    input2 = ops.parameter([3, 3], name="input2")
+
+    # Simple operations
+    output1 = input1 + input1
+    output2 = input2 + input2
+
+    # Create and return the model
+    model = Model([output1, output2], [input1, input2], "two_input_model")
+    return model
 
 
 def generate_add_compiled_model(
@@ -282,7 +334,10 @@ def generate_concat_compiled_model(device, input_shape: list[int] = None, ov_typ
 
 
 def generate_concat_compiled_model_with_data(
-    device, input_shape: list[int] = None, ov_type=Type.f32, numpy_dtype=np.float32
+    device,
+    input_shape: list[int] = None,
+    ov_type=Type.f32,
+    numpy_dtype=np.float32,
 ):
     if input_shape is None:
         input_shape = [5]
