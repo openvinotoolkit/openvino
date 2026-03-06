@@ -14,6 +14,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -41,6 +42,21 @@
 
 using namespace ov::pass;
 namespace {
+bool is_3d_bmm_matmul(const std::shared_ptr<ov::Node>& node) {
+    const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node);
+    if (!matmul) {
+        return false;
+    }
+
+    const auto rank_a = matmul->get_input_partial_shape(0).rank();
+    const auto rank_b = matmul->get_input_partial_shape(1).rank();
+    if (rank_a.is_static() && rank_b.is_static()) {
+        return rank_a.get_length() == 3 && rank_b.get_length() == 3;
+    }
+
+    return false;
+}
+
 // Note: intermediate nodes remain unchanged,
 // but we need to explicitly call shape inference for them to keep shapes consistency
 void validate_nodes(const pattern::PatternValueMap& map, const std::initializer_list<std::shared_ptr<ov::Node>> nodes) {
@@ -147,6 +163,10 @@ ov::intel_cpu::MoE2GeMMFusion::MoE2GeMMFusion() {
         const auto gate_up_add_node = pattern_map.at(gate_up_add).get_node_shared_ptr();
         const auto gate_up_bias_node = pattern_map.at(gate_up_bias).get_node_shared_ptr();
 
+        if (is_3d_bmm_matmul(gate_up_mm_node)) {
+            return false;
+        }
+
         // BatchGatherMatmul A shape: [n_activated_experts, batch_size * seq_length, hidden_size]
         // Number of activated experts is always 1 for the first BatchGatherMatmul
         const auto unsqueeze = introduce_n_experts_dim(experts_subgraph_input);
@@ -160,6 +180,10 @@ ov::intel_cpu::MoE2GeMMFusion::MoE2GeMMFusion() {
 
         const auto down_proj_mm_node = pattern_map.at(down_proj_matmul).get_node_shared_ptr();
         const auto down_proj_bias_node = pattern_map.at(down_proj_bias).get_node_shared_ptr();
+
+        if (is_3d_bmm_matmul(down_proj_mm_node)) {
+            return false;
+        }
 
         const auto down_gathered_mm = std::make_shared<BatchGatherMatmul>(pattern_map.at(multiply2),
                                                                           down_proj_mm_node->input_value(1),
@@ -288,6 +312,10 @@ ov::intel_cpu::MoE3GeMMFusion::MoE3GeMMFusion() {
         const auto gate_mm_node = pattern_map.at(gate_matmul).get_node_shared_ptr();
         const auto up_mm_node = pattern_map.at(up_matmul).get_node_shared_ptr();
         const auto down_mm_node = pattern_map.at(down_matmul).get_node_shared_ptr();
+
+        if (is_3d_bmm_matmul(gate_mm_node) || is_3d_bmm_matmul(up_mm_node) || is_3d_bmm_matmul(down_mm_node)) {
+            return false;
+        }
 
         // BatchGatherMatmul A shape: [n_activated_experts, batch_size * seq_length, hidden_size]
         // Number of activated experts is always 1 for the first BatchGatherMatmul
