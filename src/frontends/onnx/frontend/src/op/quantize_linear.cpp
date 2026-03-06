@@ -52,12 +52,12 @@ void validate_zero_point_type(const Node& onnx_node, const ov::Output<ov::Node>&
     if (y_zero_point_et == ov::element::f8e4m3 || y_zero_point_et == ov::element::f8e5m2) {
         const auto zp_const = ov::util::get_constant_from_source(y_zero_point);
         if (zp_const) {
-            const auto raw = zp_const->cast_vector<uint8_t>();
+            const auto raw = zp_const->cast_vector<float>();
             CHECK_VALID_NODE(onnx_node,
                              std::all_of(raw.begin(),
                                          raw.end(),
-                                         [](const uint8_t b) {
-                                             return b == 0u;
+                                         [](const float value) {
+                                             return value == 0.0f;
                                          }),
                              "Expecting \"y_zero_point\" in QuantizeLinear equal zero for 8-bit floating point types.");
         }
@@ -146,7 +146,6 @@ std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> get_input_bands
 
     return std::make_tuple(input_low, input_high);
 }
-}  // namespace
 
 std::shared_ptr<ov::Node> make_fake_convert(const ov::Output<ov::Node>& y_scale,
                                             const ov::Output<ov::Node>& y_zero_point,
@@ -166,6 +165,8 @@ std::shared_ptr<ov::Node> make_fake_convert(const ov::Output<ov::Node>& y_scale,
     // Convert the fp8-rounded floating-point value to the actual fp8 output type
     return std::make_shared<v0::Convert>(fake_convert, destination_type);
 }
+
+}  // namespace
 
 std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale,
                                              const ov::Output<ov::Node>& y_zero_point,
