@@ -935,3 +935,100 @@ TEST(IncreasePrecisionTest, IncreaseRMSInputPrecisionForQwenVLMerger) {
     EXPECT_TRUE(ov::as_type_ptr<ov::op::v0::Convert>(rms_user) != nullptr)
         << "rms_m output should feed into Convert node";
 }
+
+TEST(IncreasePrecisionTest, IncreasePrecisionForQwen3) {
+    // Pattern: Qwen3 MLP down_proj MatMul -> Add_1 -> RMS + Add_2
+    // Structure: Swish(gate_proj) * up_proj -> down_proj (MatMul) -> Add_1 (residual) -> RMS
+    //                                                                     \-> Add_2 (next layer attn residual)
+    // Transformation:
+    //   - Convert MatMul inputs to FP32 (FP32 accumulation)
+    //   - Convert Add_1 residual input to FP32
+    //   - Convert RMS gamma weight to FP32
+    //   - Restore FP16 after RMS output
+    //   - Insert Convert(FP32->FP16) between Add_1 and Add_2
+
+    // gate_proj output (simplified as parameter)
+    auto gate_proj_output = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 9728});
+
+    // up_proj output
+    auto up_proj_output = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 9728});
+
+    // SwiGLU: Swish(gate_proj) * up_proj
+    auto act_swish = std::make_shared<ov::op::v4::Swish>(gate_proj_output);
+    auto aten_mul = std::make_shared<ov::op::v1::Multiply>(act_swish, up_proj_output);
+
+    // down_proj MatMul: intermediate_size -> hidden_size
+    auto down_proj_weight = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{2560, 9728});
+    auto down_proj = std::make_shared<ov::op::v0::MatMul>(aten_mul, down_proj_weight, false, true);
+
+    // Add_1 (residual add): down_proj output + residual
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 2560});
+    auto add_1 = std::make_shared<ov::op::v1::Add>(down_proj, residual);
+
+    // RMS normalization after Add_1
+    auto rms_weight = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{2560});
+    auto rms_m = std::make_shared<ov::op::internal::RMS>(add_1, rms_weight, 1e-6f);
+
+    // Add_2 (next layer attention residual add): Add_1 output + attention output
+    auto attn_output = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 2560});
+    auto add_2 = std::make_shared<ov::op::v1::Add>(add_1, attn_output);
+
+    auto test_model = std::make_shared<ov::Model>(
+        ov::OutputVector{rms_m, add_2},
+        ov::ParameterVector{gate_proj_output, up_proj_output, residual, attn_output});
+
+    // Verify: before transformation, all ops should be f16
+    EXPECT_EQ(down_proj->get_input_element_type(0), ov::element::f16);
+    EXPECT_EQ(down_proj->get_input_element_type(1), ov::element::f16);
+    EXPECT_EQ(add_1->get_output_element_type(0), ov::element::f16);
+    EXPECT_EQ(rms_m->get_output_element_type(0), ov::element::f16);
+    EXPECT_EQ(add_2->get_input_element_type(0), ov::element::f16);
+
+    // Run transformation
+    ov::pass::Manager manager;
+    manager.register_pass<IncreaseRMSInputPrecision>();
+    manager.run_passes(test_model);
+
+    // Verify: down_proj inputs should be f32 (via Convert nodes)
+    EXPECT_EQ(down_proj->get_input_element_type(0), ov::element::f32)
+        << "down_proj input 0 (activation) should be f32 after transformation";
+    EXPECT_EQ(down_proj->get_input_element_type(1), ov::element::f32)
+        << "down_proj input 1 (weight) should be f32 after transformation";
+
+    // Verify: Convert(f16->f32) nodes are inserted before down_proj inputs
+    EXPECT_TRUE(ov::as_type_ptr<ov::op::v0::Convert>(down_proj->get_input_node_shared_ptr(0)) != nullptr)
+        << "down_proj input 0 should come from Convert node";
+    EXPECT_TRUE(ov::as_type_ptr<ov::op::v0::Convert>(down_proj->get_input_node_shared_ptr(1)) != nullptr)
+        << "down_proj input 1 should come from Convert node";
+
+    // Verify: Add_1 operates in f32 (MatMul output is f32, residual converted to f32)
+    EXPECT_EQ(add_1->get_input_element_type(0), ov::element::f32)
+        << "Add_1 input 0 (from MatMul) should be f32";
+    EXPECT_EQ(add_1->get_input_element_type(1), ov::element::f32)
+        << "Add_1 input 1 (residual) should be f32";
+    EXPECT_EQ(add_1->get_output_element_type(0), ov::element::f32)
+        << "Add_1 output should be f32";
+
+    // Verify: RMS gamma weight (input 1) is converted to f32
+    EXPECT_EQ(rms_m->get_input_element_type(0), ov::element::f32)
+        << "RMS input 0 (from Add_1) should be f32";
+    EXPECT_EQ(rms_m->get_input_element_type(1), ov::element::f32)
+        << "RMS input 1 (gamma weight) should be f32";
+
+    // Verify: RMS output is f32, with Convert(f32->f16) inserted after
+    EXPECT_EQ(rms_m->get_output_element_type(0), ov::element::f32)
+        << "RMS output should be f32 after transformation";
+    auto rms_users = rms_m->get_users();
+    EXPECT_EQ(rms_users.size(), 1u);
+    auto rms_convert = ov::as_type_ptr<ov::op::v0::Convert>(rms_users[0]);
+    EXPECT_TRUE(rms_convert != nullptr)
+        << "RMS output should feed into Convert node";
+    EXPECT_EQ(rms_convert->get_output_element_type(0), ov::element::f16)
+        << "Convert after RMS should restore f16";
+
+    // Verify: Add_2 receives f16 on both inputs (Convert inserted between Add_1 and Add_2)
+    EXPECT_EQ(add_2->get_input_element_type(0), ov::element::f16)
+        << "Add_2 input 0 (from Add_1) should be f16 (via Convert)";
+    EXPECT_EQ(add_2->get_input_element_type(1), ov::element::f16)
+        << "Add_2 input 1 (attn output) should remain f16";
+}
