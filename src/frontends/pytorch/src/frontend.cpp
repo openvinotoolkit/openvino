@@ -30,6 +30,7 @@
 #include "transforms/index_loop_getitem_replacer.hpp"
 #include "transforms/listconstruct_replacer.hpp"
 #include "transforms/min_max_prim_list_construct_replacer.hpp"
+#include "transforms/prim_layout_replacer.hpp"
 #include "transforms/prim_list_tuple_construct_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
 #include "transforms/prim_unpack_parameter_replacer.hpp"
@@ -235,6 +236,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::frontend::pytorch::pass::AtenEinsumListConstructReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::StringEqualityReplacer>();
+        manager.register_pass<ov::frontend::pytorch::pass::PrimLayoutReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::PrimTupleUnpackReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::DecomposeListTupleResults>();
         manager.register_pass<ov::frontend::pytorch::pass::DecomposeUnpackParameters>();
