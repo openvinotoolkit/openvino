@@ -234,6 +234,7 @@ OP_CONVERTER(translate_rms_norm);
 OP_CONVERTER(translate_rnn);
 OP_CONVERTER(translate_roi_align);
 OP_CONVERTER(translate_roll);
+OP_CONVERTER(translate_rot90);
 OP_CONVERTER(translate_round);
 OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_rsub);
@@ -702,6 +703,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::rnn_relu", op::translate_rnn},
         {"aten::rnn_tanh", op::translate_rnn},
         {"aten::roll", op::translate_roll},
+        {"aten::rot90", op::translate_rot90},
         {"aten::round", op::translate_round},
         {"aten::rsqrt", op::optional_out<op::translate_rsqrt, 1>},
         {"aten::rsqrt_", op::inplace_op<op::translate_rsqrt>},
@@ -1044,6 +1046,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.repeat.default", op::translate_repeat_fx},
         {"aten.rms_norm.default", op::translate_rms_norm},
         {"aten.roll.default", op::translate_roll},
+        {"aten.rot90.default", op::translate_rot90},
         {"aten.rsqrt.default", op::translate_rsqrt},
         {"aten.rsub.Scalar", op::translate_rsub_fx},
         {"aten.rsub.Tensor", op::translate_rsub_fx},
