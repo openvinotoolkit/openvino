@@ -866,4 +866,26 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>Skip test-cases failing with Win Drv UD48</message>
+        <enable_rules>
+            <operating_system>windows</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*DX12RemoteRunTests.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- C#182232 -->
+    <skip_config>
+        <message>ROI Tensor tests fail since UD2026.08 CiP update.</message>
+        <enable_rules>
+            <device>4000</device>
+            <device>5010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*RoiTensorsTestsRun.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
