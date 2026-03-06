@@ -774,9 +774,30 @@ void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak::Address& op,
         break;
     case ov::element::u8:
         if (isa == x64::avx512_core) {
-            vpmaxsd(vmm_dst, vmm_zero, vmm_dst);
-            vpmovusdb(op, vmm_dst);
+            // Use truncating pack for wrap-around behavior (ONNX/PyTorch semantics)
+            // Remove saturation: vpmaxsd(vmm_dst, vmm_zero, vmm_dst);
+            // Use truncating pack instead of saturating pack
+            vpmovdb(op, vmm_dst);  // Truncating pack - allows wrap-around
         } else {
+            // Implement wrap-around behavior for AVX2/SSE by truncating to 8 bits
+            // Create a temporary mask to keep only the low 8 bits of each 32-bit element
+            auto vmm_mask = get_aux_vmm(0);
+            
+            // Load mask 0x000000FF into all elements
+            if (isa == x64::avx2) {
+                mov(reg_tmp_32, 0x000000FF);
+                uni_vmovd(Xmm(vmm_mask.getIdx()), reg_tmp_32);
+                uni_vbroadcastss(vmm_mask, Xmm(vmm_mask.getIdx()));
+            } else { // SSE41
+                mov(reg_tmp_32, 0x000000FF);
+                uni_vmovd(Xmm(vmm_mask.getIdx()), reg_tmp_32);
+                uni_vpshufd(vmm_mask, vmm_mask, 0x00);  // Broadcast to all elements
+            }
+            
+            // Apply mask to truncate to 8 bits (wrap-around)
+            uni_vpand(vmm_dst, vmm_dst, vmm_mask);
+            
+            // Now safe to use saturating pack since values are already in [0,255]
             uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
             if (isa != x64::sse41) {
                 vpermq(ymm_dst, ymm_dst, 0x08);
@@ -860,6 +881,13 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const Xbyak::Address& op,
         mov(op, reg_tmp_8);
         break;
     case ov::element::u8:
+        // Implement wrap-around behavior for uint8 scalar
+        // Mask to 8 bits before packing to simulate wrap-around
+        mov(reg_tmp_32, 0x000000FF);
+        uni_vmovd(get_aux_vmm(0), reg_tmp_32);
+        uni_vpand(xmm_dst, xmm_dst, get_aux_vmm(0));  // Keep only low 8 bits
+        
+        // Now safe to use saturating pack since value is already in [0,255]
         uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
         uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
         movq(reg_tmp_64, xmm_dst);
