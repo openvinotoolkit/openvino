@@ -189,7 +189,9 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
     const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
     std::optional<ov::Dimension>& originalBatch,
     Logger logger) {
-    auto reshapedModel = model->clone();
+    // Keep the original model for all no-op/early-return paths.
+    // A mutable clone is created only when plugin batching is actually about to be applied.
+    auto reshapedModel = std::const_pointer_cast<ov::Model>(model);
     auto successfullyDebatched = false;
 
     auto batchModeIsAvailable = localConfig.isAvailable(ov::intel_npu::batch_mode.name());
@@ -208,7 +210,7 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
     }
 
     try {
-        const auto pluginBatchingIsSupported = validateModelBatch(reshapedModel, logger);
+        const auto pluginBatchingIsSupported = validateModelBatch(model, logger);
 
         if (!pluginBatchingIsSupported) {
             if (batchModeIsAvailable && batchMode == ov::intel_npu::BatchMode::AUTO) {
@@ -219,6 +221,8 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
         }
 
         logger.info("Attempting to handle batching on the plugin side.");
+        // Clone right before mutation to avoid extra memory usage when batching is skipped.
+        reshapedModel = model->clone();
 
         try {
             originalBatch = ov::get_batch(reshapedModel);
