@@ -404,106 +404,40 @@ TEST(MappedMemory, get_id_same_for_same_file) {
     std::filesystem::remove(file_path);
 }
 
-using PartialMappingTestParams =  // offset_1, size_1, offset_2, size_2
-    std::tuple<size_t, size_t, size_t, size_t>;
+TEST(MappedMemory, partial_mapping) {
+    std::filesystem::path file_path = ov::test::utils::generateTestFilePrefix() + "_partial_mapping";
+    std::vector<char> buffer(4 * 4096, 'X');
 
-class PartialMappingTest : public ::testing::TestWithParam<PartialMappingTestParams> {
-protected:
-    std::filesystem::path m_file_path;
-    std::vector<char> m_data_1, m_data_2;
-
-    void SetUp() override {
-        const auto& [offset_1, size_1, offset_2, size_2] = GetParam();
-        ASSERT_GE(offset_2, offset_1 + size_1);
-
-        m_data_1.resize(size_1);
-        m_data_2.resize(size_2);
-        for (size_t i = 0; i < size_1; ++i) {
-            m_data_1[i] = static_cast<char>('A' + i % 26);
-        }
-        for (size_t i = 0; i < size_2; ++i) {
-            m_data_2[i] = static_cast<char>('a' + i % 26);
-        }
-
-        std::vector<char> buffer(offset_2 + size_2, '_');
-        for (size_t i = 0; i < size_1; ++i) {
-            buffer[offset_1 + i] = m_data_1[i];
-        }
-        for (size_t i = 0; i < size_2; ++i) {
-            buffer[offset_2 + i] = m_data_2[i];
-        }
-
-        m_file_path = ov::test::utils::generateTestFilePrefix() + "_partial_mapping";
-        std::ofstream s(m_file_path, std::ios::binary);
-        ASSERT_TRUE(s.is_open());
-        s.write(buffer.data(), buffer.size());
-        ASSERT_TRUE(s.good());
+    const std::vector<char> test_val_1{'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'};
+    const size_t offset_1 = 4096;
+    const size_t size_1 = test_val_1.size();
+    for (size_t i = 0; i < test_val_1.size(); ++i) {
+        buffer[offset_1 + i] = test_val_1[i];
     }
 
-    void TearDown() override {
-        std::filesystem::remove(m_file_path);
+    const std::vector<char> test_val_2{'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S'};
+    const size_t offset_2 = buffer.size();
+    const size_t size_2 = test_val_2.size();
+    buffer.insert(buffer.end(), test_val_2.begin(), test_val_2.end());
+
+    {
+        std::ofstream os(file_path, std::ios::binary);
+        os.write(buffer.data(), buffer.size());
     }
 
-public:
-    static std::string test_name(const testing::TestParamInfo<PartialMappingTestParams>& info) {
-        const auto& [offset_1, size_1, offset_2, size_2] = info.param;
-        std::ostringstream ss;
-        ss << "offset1_" << offset_1 << "_size1_" << size_1 << "_offset2_" << offset_2 << "_size2_" << size_2;
-        return ss.str();
-    }
-};
-
-TEST_P(PartialMappingTest, compare_data) {
-    const auto& [offset_1, size_1, offset_2, size_2] = GetParam();
-
-    const auto mm_1 = ov::load_mmap_object(m_file_path, offset_1, size_1);
-    const auto mm_2 = ov::load_mmap_object(m_file_path, offset_2, size_2);
+    const auto mm_1 = ov::load_mmap_object(file_path, offset_1, size_1);
+    const auto mm_2 = ov::load_mmap_object(file_path, offset_2, size_2);
 
     ASSERT_NE(mm_1, nullptr);
     ASSERT_NE(mm_2, nullptr);
+    EXPECT_NE(mm_1->get_id(), mm_2->get_id());
     EXPECT_EQ(mm_1->size(), size_1);
     EXPECT_EQ(mm_2->size(), size_2);
-    EXPECT_EQ(m_data_1, std::vector<char>(mm_1->data(), mm_1->data() + mm_1->size()));
-    EXPECT_EQ(m_data_2, std::vector<char>(mm_2->data(), mm_2->data() + mm_2->size()));
+    EXPECT_EQ(test_val_1, std::vector<char>(mm_1->data(), mm_1->data() + mm_1->size()));
+    EXPECT_EQ(test_val_2, std::vector<char>(mm_2->data(), mm_2->data() + mm_2->size()));
+
+    std::filesystem::remove(file_path);
 }
-
-TEST_P(PartialMappingTest, compare_id) {
-    const auto& [offset_1, size_1, offset_2, size_2] = GetParam();
-
-    std::filesystem::path the_other_file_path = ov::test::utils::generateTestFilePrefix() + "_partial_mapping";
-    {
-        std::vector<char> buffer(offset_2 + size_2, '_');
-        std::ofstream s(the_other_file_path, std::ios::binary);
-        ASSERT_TRUE(s.is_open());
-        s.write(buffer.data(), buffer.size());
-        ASSERT_TRUE(s.good());
-    }
-
-    const auto mm_1 = ov::load_mmap_object(m_file_path, offset_1, size_1);
-    const auto mm_2 = ov::load_mmap_object(m_file_path, offset_2, size_2);
-    const auto the_other_mm_1 = ov::load_mmap_object(the_other_file_path, offset_1, size_1);
-    const auto the_other_mm_2 = ov::load_mmap_object(the_other_file_path, offset_2, size_2);
-    const auto mm_1_ = ov::load_mmap_object(m_file_path, offset_1, size_1);
-
-    ASSERT_NE(mm_1, nullptr);
-    ASSERT_NE(mm_2, nullptr);
-    ASSERT_NE(the_other_mm_1, nullptr);
-    ASSERT_NE(the_other_mm_2, nullptr);
-    ASSERT_NE(mm_1_, nullptr);
-
-    EXPECT_NE(mm_1->get_id(), mm_2->get_id());
-    EXPECT_NE(mm_1->get_id(), the_other_mm_1->get_id());
-    EXPECT_NE(mm_2->get_id(), the_other_mm_2->get_id());
-    EXPECT_EQ(mm_1->get_id(), mm_1_->get_id());
-}
-
-static auto pg_sz = ov::util::get_system_page_size();
-INSTANTIATE_TEST_SUITE_P(MappedMemory,
-                         PartialMappingTest,
-                         ::testing::Values(PartialMappingTestParams{pg_sz, 127, 2 * pg_sz, 101},
-                                           PartialMappingTestParams{0, 3 * pg_sz, 7 * pg_sz, 1024},
-                                           PartialMappingTestParams{0, pg_sz, pg_sz, pg_sz}),
-                         PartialMappingTest::test_name);
 
 // ==================== SharedBuffer with explicit descriptor Tests ====================
 

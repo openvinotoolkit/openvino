@@ -47,6 +47,16 @@ void write_tlv_string(std::ostream& stream, const std::string& str) {
     write_tlv_record(stream, static_cast<TLVTraits::TagType>(SingleFileStorage::Tag::String), str.size(), str.data());
 }
 
+static const uint64_t alignment = []() {
+#ifdef _WIN32
+    SYSTEM_INFO sysInfo;
+    GetSystemInfo(&sysInfo);
+    return static_cast<uint64_t>(sysInfo.dwPageSize);
+#else
+    return static_cast<uint64_t>(sysconf(_SC_PAGE_SIZE));
+#endif
+}();
+
 bool read_tlv_string(std::istream& stream, std::string& str) {
     TLVTraits::TagType tag;
     TLVTraits::LengthType size;
@@ -59,7 +69,7 @@ bool read_tlv_string(std::istream& stream, std::string& str) {
     return read;
 }
 
-void write_padding(std::ostream& stream, size_t alignment) {
+void write_padding(std::ostream& stream, uint64_t alignment) {
     const uint64_t padding_pos = static_cast<uint64_t>(stream.tellp()) + sizeof(SingleFileStorage::PadSizeType);
     auto aligned_pos = padding_pos + alignment - 1;
     aligned_pos -= aligned_pos % alignment;
@@ -197,7 +207,7 @@ void SingleFileStorage::write_blob_entry(std::ofstream& stream, BlobIdType blob_
 
     const auto blob_writer = [&](std::ostream& s) {
         s.write(reinterpret_cast<const char*>(&blob_id), sizeof(blob_id));
-        write_padding(s, util::get_system_page_size());
+        write_padding(s, alignment);
         blob_pos = s.tellp();
         writer(s);
         blob_size = s.tellp() - blob_pos;
@@ -297,7 +307,7 @@ void SingleFileStorage::write_context(const weight_sharing::Context& context) {
                 const auto device_id = weight_buffer.m_device;
                 s.write(reinterpret_cast<const char*>(&device_id), sizeof(device_id));
                 s.write(reinterpret_cast<const char*>(&source_id), sizeof(source_id));
-                write_padding(s, util::get_system_page_size());
+                write_padding(s, alignment);
                 s.write(reinterpret_cast<const char*>(buf->get_ptr()), buf->size());
             }
 
