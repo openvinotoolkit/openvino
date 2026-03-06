@@ -7,6 +7,7 @@
 #include <future>
 #include <random>
 #include <string>
+#include <optional>
 
 #include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
@@ -189,6 +190,11 @@ bool matchLoRAMatMulBString(const std::string& input);
 
 bool matchLoRAMatMulAlphaString(const std::string& input);
 
+// Function to find SDPA pattern nodes in the model
+SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model);
+std::vector<SDPAPatternNodes> find_all_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model);
+
+
 template <typename T>
 void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
     T* tensor_data = tensor->data<T>();
@@ -243,9 +249,11 @@ private:
     mutable bool done = false;
 };
 
-bool isPastKeyValuesKey(const std::string& str);
 
-bool isPastKeyValuesValue(const std::string& str);
+std::optional<int> isPastKeyValuesKey(const std::string& str);
+std::optional<int> isPastKeyValuesValue(const std::string& str);
+std::optional<int> isPresentKeyValuesKey(const std::string& str);
+std::optional<int> isPresentKeyValuesValue(const std::string& str);
 
 }  // namespace util
 }  // namespace npuw

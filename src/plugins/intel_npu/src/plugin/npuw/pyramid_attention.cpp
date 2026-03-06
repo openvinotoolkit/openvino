@@ -285,8 +285,8 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         const auto& original_params = model->get_parameters();
         for (const auto& param : original_params) {
             const std::string param_name = param->get_friendly_name();
-            bool is_target_param = is_key ? ov::npuw::util::isPastKeyValuesKey(param_name)
-                                          : ov::npuw::util::isPastKeyValuesValue(param_name);
+            bool is_target_param = is_key ? ov::npuw::util::isPastKeyValuesKey(param_name).has_value()
+                                          : ov::npuw::util::isPastKeyValuesValue(param_name).has_value();
 
             if (is_target_param) {
                 sequence_dims[param_name] = concat_axis;
@@ -323,18 +323,24 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
                                    past_value_sequence_dims};
 }
 
-SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model) {
+
+
+namespace {
+std::vector<SDPAPatternNodes> find_sdpa_pattern_nodes_internal(const std::shared_ptr<ov::Model>& model, bool findAll) {
     // Find decomposed SDPA pattern components
-    SDPAPatternNodes pattern_nodes;
+    std::map<size_t, SDPAPatternNodes> pattern_nodes;
+
 
     // Find past key and value parameter nodes
     for (auto input : model->inputs()) {
         auto input_node = input.get_node();
         auto input_name = input_node->get_friendly_name();
-        if (ov::npuw::util::isPastKeyValuesKey(input_name)) {
-            pattern_nodes.past_key_param_node = input_node->shared_from_this();
-        } else if (ov::npuw::util::isPastKeyValuesValue(input_name)) {
-            pattern_nodes.past_value_param_node = input_node->shared_from_this();
+        auto past_k = ov::npuw::util::isPastKeyValuesKey(input_name);
+        auto past_v = ov::npuw::util::isPastKeyValuesValue(input_name);
+        if (past_k) {
+            pattern_nodes[past_k.value()].past_key_param_node = input_node->shared_from_this();
+        } else if (past_v) {
+            pattern_nodes[past_v.value()].past_value_param_node = input_node->shared_from_this();
         }
     }
 
@@ -371,22 +377,25 @@ SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model
 
     // Search for the pattern: MatMul -> Add -> Softmax -> MatMul
     auto ops = model->get_ordered_ops();
+    //hope order meets past_key_value indexing system
+    size_t past_kv_index = 0;
     for (auto&& node : ops) {
         if (ov::is_type<ov::op::v8::Softmax>(node)) {
-            pattern_nodes.softmax_node = node;
+            SDPAPatternNodes &current_node = pattern_nodes[past_kv_index++];
+            current_node.softmax_node = node;
 
             // Check if softmax is fed by Add
             auto softmax_input = node->input(0).get_source_output().get_node_shared_ptr();
             if (ov::is_type<ov::op::v1::Add>(softmax_input)) {
-                pattern_nodes.add_node = softmax_input;
+                current_node.add_node = softmax_input;
 
                 // Check if add is fed by MatMul (first MatMul)
-                auto add_input0 = pattern_nodes.add_node->input(0).get_source_output().get_node_shared_ptr();
+                auto add_input0 = current_node.add_node->input(0).get_source_output().get_node_shared_ptr();
                 if (ov::is_type<ov::op::v0::MatMul>(add_input0)) {
-                    pattern_nodes.matmul1_node = add_input0;
+                    current_node.matmul1_node = add_input0;
 
                     // Find Concat node for past key (input 1 of MatMul1)
-                    pattern_nodes.past_key_concat_node = find_concat_from_matmul(pattern_nodes.matmul1_node, 1);
+                    current_node.past_key_concat_node = find_concat_from_matmul(current_node.matmul1_node, 1);
                 }
             }
 
@@ -395,25 +404,49 @@ SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model
                 for (auto&& target_input : output.get_target_inputs()) {
                     auto target_node = target_input.get_node()->shared_from_this();
                     if (ov::is_type<ov::op::v0::MatMul>(target_node)) {
-                        pattern_nodes.matmul2_node = target_node;
+                        current_node.matmul2_node = target_node;
 
                         // Find Concat node for past value (input 1 of MatMul2)
-                        pattern_nodes.past_value_concat_node = find_concat_from_matmul(pattern_nodes.matmul2_node, 1);
+                        current_node.past_value_concat_node = find_concat_from_matmul(current_node.matmul2_node, 1);
                         break;
                     }
                 }
-                if (pattern_nodes.matmul2_node)
+                if (current_node.matmul2_node)
                     break;
             }
 
-            if (pattern_nodes.is_valid()) {
-                pattern_nodes.log_pattern();
-                break;  // Found complete pattern
+            if (current_node.is_valid()) {
+                current_node.log_pattern();
+               // break;  // Found complete pattern
             }
         }
     }
 
-    return pattern_nodes;
+    // resonstruct nodes vector using indexes
+    std::vector<SDPAPatternNodes> result;
+    past_kv_index = 0;
+    for (auto &&map_element : pattern_nodes) {
+        // check_order - if invalid - return null vector
+        if (map_element.first != past_kv_index++) {
+            return {};
+        }
+        result.emplace_back(std::move(map_element.second));
+    }
+
+    return result;
+}
+}  // namespace
+
+std::vector<SDPAPatternNodes> find_all_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model) {
+    return  find_sdpa_pattern_nodes_internal(model, true);
+}
+
+SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model) {
+    auto internal_nodes =  find_sdpa_pattern_nodes_internal(model, false);
+    if (internal_nodes.size() != 1) {
+        return {};
+    }
+    return internal_nodes.front();
 }
 
 std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov::Model>& model) {

@@ -90,6 +90,8 @@ struct SDPAPatternNodes {
 
 // Function to find SDPA pattern nodes in the model
 SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model);
+std::vector<SDPAPatternNodes> find_all_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model);
+
 
 // Function to find mask parameter by traversing from Add node
 std::shared_ptr<ov::op::v0::Parameter> find_mask_parameter(const std::shared_ptr<ov::Node>& add_node);
