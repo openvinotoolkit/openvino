@@ -1741,6 +1741,21 @@ std::shared_ptr<ov::Model> generateConvertColor(const std::shared_ptr<ov::op::Op
     return std::make_shared<ov::Model>(results, ParameterVector{params}, "ConvertColorGraph");
 }
 
+std::shared_ptr<ov::Model> generateConvertColorToNV12(const std::shared_ptr<ov::op::Op> &node) {
+    const auto params = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, Shape{1, 4, 2, 3});
+    std::shared_ptr<ov::Node> convert;
+    if (ov::is_type<ov::op::v16::RGBtoNV12>(node)) {
+        convert = std::make_shared<ov::op::v16::RGBtoNV12>(params);
+    } else if (ov::is_type<ov::op::v16::BGRtoNV12>(node)) {
+        convert = std::make_shared<ov::op::v16::BGRtoNV12>(params);
+    } else {
+        return nullptr;
+    }
+
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(convert)};
+    return std::make_shared<ov::Model>(results, ParameterVector{params}, "ConvertColorToNV12Graph");
+}
+
 std::shared_ptr<ov::Model> generateMultiSubGraph(const std::shared_ptr<ov::op::Op> &node) {
     if (ov::is_type<ov::op::v8::If>(node)) {
         auto cond = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, Shape{1});
@@ -2225,6 +2240,8 @@ std::shared_ptr<ov::Model> generateGraph() {
     } else if (ov::is_type<ov::op::util::ConvertColorNV12Base>(node) ||
                ov::is_type<ov::op::util::ConvertColorI420Base>(node)) {
         return generateConvertColor(node);
+    } else if (ov::is_type<ov::op::util::ConvertColorToNV12Base>(node)) {
+        return generateConvertColorToNV12(node);
     } else if (ov::is_type<ov::op::util::MulticlassNmsBase>(node)) {
         return generateMulticlassNmsBase(node);
     } else if (ov::is_type<ov::op::util::ReadValueBase>(node)) {
