@@ -25,10 +25,6 @@ namespace KERNEL_NAME {
 #define dtype_c fp16
 #define dtype_acc float
 
-//#define INPUT_SIZE 64 // or 256
-#define hidden_size 128
-#define directions 2
-
 #define mem_layout_x mem_layout::row_major
 #define mem_layout_r mem_layout::col_major
 #define mem_layout_out mem_layout::row_major
@@ -49,7 +45,7 @@ _GENX_MAIN_ void KERNEL_NAME(dtype_a *x [[type("svmptr_t")]],
         dtype_c *cell_state [[type("svmptr_t")]]) {
     sycl::nd_item<3> item;
     using loop_t = __xetla_kernel_lstm_loop<dtype_a, dtype_b, dtype_c,
-            dtype_acc, INPUT_SIZE, hidden_size, directions, mem_layout_x,
+            dtype_acc, INPUT_SIZE, HIDDEN_SIZE, DIRECTIONS, mem_layout_x,
             mem_layout_r, mem_layout_out, mem_space_x, mem_space_r,
             mem_space_out, arch_tag>;
     if constexpr (loop_t::barrier_count != 0) {
