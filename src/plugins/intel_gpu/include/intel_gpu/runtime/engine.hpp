@@ -41,6 +41,8 @@ public:
     virtual engine_types type() const = 0;
     /// Returns runtime type used in the engine
     virtual runtime_types runtime_type() const = 0;
+    /// Returns backend type used in the engine
+    virtual backend_types backend_type() const = 0;
 
     /// Create memory object attached to the buffer allocated by user.
     /// @param ptr  The pointer to user allocated buffer.

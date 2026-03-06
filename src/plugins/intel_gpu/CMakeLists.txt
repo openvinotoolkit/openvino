@@ -8,6 +8,9 @@ endif()
 
 set (TARGET_NAME "openvino_intel_gpu_plugin")
 
+# convert white-space separated string to list
+string(REPLACE " " ";" SYCL_EXTRA_FLAGS "${SYCL_EXTRA_FLAGS}")
+
 if(OV_COMPILER_IS_INTEL_LLVM)
     # For windows we need to disable warning as error option to make FindSYCL.cmake work
     if (WIN32)
@@ -15,6 +18,13 @@ if(OV_COMPILER_IS_INTEL_LLVM)
     endif()
 
     find_package(IntelSYCL REQUIRED)
+    set(OV_GPU_WITH_SYCL 1)
+    set_property(TARGET IntelSYCL::SYCL_CXX APPEND PROPERTY
+        INTERFACE_COMPILE_OPTIONS ${SYCL_EXTRA_FLAGS}
+    )
+    set_property(TARGET IntelSYCL::SYCL_CXX APPEND PROPERTY
+        INTERFACE_LINK_OPTIONS ${SYCL_EXTRA_FLAGS}
+    )
 
     if (WIN32)
         ov_add_compiler_flags(/WX)
@@ -24,6 +34,36 @@ endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Wno-strict-aliasing)
+endif()
+
+if(OV_COMPILER_IS_CLANG)
+    set(FSYCL_OPTION -fsycl)
+    check_cxx_compiler_flag(${FSYCL_OPTION} HAS_FSYCL_OPTION)
+    if (HAS_FSYCL_OPTION)
+        set(OV_GPU_WITH_SYCL 1)
+        function(add_sycl_to_target)
+            set(options)
+            set(one_value_args TARGET)
+            set(multi_value_args SOURCES)
+            cmake_parse_arguments(SYCL
+                ""
+                "${one_value_args}"
+                "${multi_value_args}"
+                ${ARGN})
+            if(SYCL_SOURCES)
+                foreach(source ${SYCL_SOURCES})
+                    set_property(SOURCE ${source}
+                                 APPEND
+                                 PROPERTY COMPILE_OPTIONS
+                                 ${FSYCL_OPTION} ${SYCL_EXTRA_FLAGS}
+                    )
+                endforeach()
+            else()
+                target_compile_options(${SYCL_TARGET} PUBLIC ${FSYCL_OPTION} ${SYCL_EXTRA_FLAGS})
+            endif()
+            target_link_options(${SYCL_TARGET} PUBLIC ${FSYCL_OPTION} ${SYCL_EXTRA_FLAGS})
+        endfunction()
+    endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")

@@ -33,6 +33,19 @@ RemoteContextImpl::RemoteContextImpl(const std::string& device_name, std::vector
     if (initialize_ctx) {
         initialize();
     }
+#ifdef OV_GPU_WITH_SYCL
+    const auto engine_type = cldnn::engine_types::sycl;
+    const auto runtime_type = cldnn::runtime_types::sycl;
+#else
+    const auto engine_type = cldnn::engine_types::ocl;
+    const auto runtime_type = cldnn::runtime_types::ocl;
+#endif
+
+
+    m_engine = cldnn::engine::create(engine_type, runtime_type, devices.front());
+
+    GPU_DEBUG_LOG << "Initialize RemoteContext for " << m_device_name << " (" << m_engine->get_device_info().dev_name << ")" << std::endl;
+    init_properties();
 }
 
 RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts, const AnyMap& params) {
@@ -65,8 +78,13 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
         }
     }
 
+#ifdef OV_GPU_WITH_SYCL
+    const auto engine_type = cldnn::engine_types::sycl;
+    const auto runtime_type = cldnn::runtime_types::sycl;
+#else
     const auto engine_type = cldnn::engine_types::ocl;
     const auto runtime_type = cldnn::runtime_types::ocl;
+#endif
     const auto initialize_devices = true;
 
     // Use actual runtime and engine types
@@ -245,10 +263,11 @@ void RemoteContextImpl::initialize() {
 
 #ifdef OV_GPU_WITH_SYCL
         const auto engine_type = cldnn::engine_types::sycl;
+        const auto runtime_type = cldnn::runtime_types::sycl;
 #else
         const auto engine_type = cldnn::engine_types::ocl;
-#endif
         const auto runtime_type = cldnn::runtime_types::ocl;
+#endif
 
         m_device->initialize();  // Initialize associated device before use
         m_engine = cldnn::engine::create(engine_type, runtime_type, m_device);
