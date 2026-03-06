@@ -729,9 +729,6 @@ static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
  * Cached data might be platform / device specific and might be invalid after OpenVINO version change
  *
  * If the path is a directory, it has the same effect as the `cache_dir` property. Regular caching is used in this case.
- * If the path is a file, single-file caching mode is enabled, which supports sharing data between models.
- * This mode has limitations: only appending new models to the cache is possible, and there is no recompilation of cache
- * model.
  *
  * If this property is not specified or value is empty string, then caching is disabled.
  * The property might enable caching for the plugin using the following code:
@@ -744,10 +741,6 @@ static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
  *
  * @code
  * ie.set_property(ov::cache_path("cache/")); // enables models cache
- * @endcode
- *
- * @code
- * ie.set_property("NPU", ov::cache_path("cache_file.bin")); // enables models cache as single file for NPU plugin
  * @endcode
  */
 inline constexpr Property<std::filesystem::path> cache_path{"CACHE_PATH"};
