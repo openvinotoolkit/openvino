@@ -1049,6 +1049,17 @@ TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputDifferentTensorsMultipleInf
     }
 }
 
+using BatchedTensorsRunFailureTests = BatchedTensorsRunTests;
+
+TEST_P(BatchedTensorsRunFailureTests, FailedToDetectBatch) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto shape = Shape{4, 2, 2};
+    auto model = BatchedTensorsRunTests::create_n_inputs(1, element::f32, shape, "");
+
+    EXPECT_THROW(auto execNet = core->compile_model(model, target_device, configuration);, std::exception);
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
