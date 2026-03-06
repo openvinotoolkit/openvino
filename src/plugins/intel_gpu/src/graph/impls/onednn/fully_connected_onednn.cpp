@@ -424,7 +424,8 @@ public:
 
                 if (prim->activation_zero_point.is_valid()) {
                     idx++;
-                    attr->set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
+                    const size_t last_dim = partial_shape.size() - 1;
+                    attr->set_zero_points(DNNL_ARG_SRC, (1 << (last_dim) | 1 << (last_dim - 1)), dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
                 }
 
                 if (prim->dynamic_quantized_precomputed_reduction) {
