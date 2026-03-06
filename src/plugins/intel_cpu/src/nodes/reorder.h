@@ -21,9 +21,6 @@
 #include "openvino/core/node.hpp"
 #include "thread_pool_imp.hpp"
 
-#if defined(OPENVINO_ARCH_ARM)
-#    include "nodes/executors/transpose.hpp"
-#endif
 #if defined(OV_CPU_WITH_ACL)
 #    include <arm_compute/runtime/NEON/functions/NECopy.h>
 #    include <arm_compute/runtime/Tensor.h>
@@ -103,7 +100,7 @@ private:
 
 #if defined(OPENVINO_ARCH_ARM)
     void prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc);
-    TransposeExecutorPtr transposeExecutor;
+    ExecutorPtr transposeExecutor;
 #endif
 
 #if defined(OV_CPU_WITH_ACL)
