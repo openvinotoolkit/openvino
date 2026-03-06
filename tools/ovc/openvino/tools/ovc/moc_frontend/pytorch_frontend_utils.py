@@ -80,28 +80,19 @@ def _build_dynamic_shapes(inputs, input_specs=None):
     def _get_spec_shapes():
         shapes = []
         for spec in input_specs:
-            if spec is not None and getattr(spec, 'shape', None) is not None:
-                ps = spec.shape
-                if ps.rank.is_static:
-                    dims = []
-                    for i in range(ps.rank.get_length()):
-                        dim = ps.get_dimension(i)
-                        if dim.is_static:
-                            dims.append(dim.get_length())
-                        else:
-                            min_val = dim.get_min_length()
-                            max_val = dim.get_max_length()
-                            if min_val == 0 and max_val == -1:
-                                # Fully dynamic (unbounded)
-                                dims.append(-1)
-                            else:
-                                # Constrained dimension
-                                dims.append((min_val, max_val))
-                    shapes.append(dims)
-                else:
-                    shapes.append(None)
-            else:
+            if spec is None or getattr(spec, 'shape', None) is None or not spec.shape.rank.is_static:
                 shapes.append(None)
+                continue
+            dims = []
+            for i in range(spec.shape.rank.get_length()):
+                dim = spec.shape.get_dimension(i)
+                if dim.is_static:
+                    dims.append(dim.get_length())
+                elif dim.get_min_length() == 0 and dim.get_max_length() == -1:
+                    dims.append(-1)  # Fully dynamic (unbounded)
+                else:
+                    dims.append((dim.get_min_length(), dim.get_max_length()))  # Constrained
+            shapes.append(dims)
         return shapes
 
     spec_shapes = _get_spec_shapes()
