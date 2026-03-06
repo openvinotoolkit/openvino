@@ -366,6 +366,33 @@ protected:
     }
 };
 
+class MoE3GemmSwigluSigmoidBiasTopK : public KernelGenerator {
+public:
+    MoE3GemmSwigluSigmoidBiasTopK() : KernelGenerator("moe_3gemm_swiglu_fuse", "sigmoid_bias_topk") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+        jit.make("SIGMOID_BIAS_TOPK_ENABLE", 1);
+        jit.make("TOP_K", desc->_config.top_k);
+        jit.make("VALUE_NUM", desc->_config.num_expert);
+        jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
+        jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+    }
+};
+
 class MoE3GemmSwigluGather : public KernelGenerator {
 public:
     MoE3GemmSwigluGather() : KernelGenerator("moe_3gemm_swiglu_fuse", "gather") {}
@@ -432,7 +459,7 @@ protected:
 static size_t get_seq_len(cldnn::layout& layout) {
     auto shape = layout.get_shape();
     size_t seq_len = static_cast<size_t>(shape[0]);
-    if (shape.size() == 4) {
+    if (shape.size() >= 3) {
         seq_len = static_cast<size_t>(shape[0] * shape[1]);
     }
     return seq_len;
@@ -755,6 +782,7 @@ class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
     Stage::Ptr softmax_topk = make_stage<MoE3GemmSwigluSoftMaxTopK>();
+    Stage::Ptr sigmoid_bias_topk = make_stage<MoE3GemmSwigluSigmoidBiasTopK>();
     Stage::Ptr gather = make_stage<MoE3GemmSwigluGather>();
     Stage::Ptr scatter = make_stage<MoE3GemmSwigluScatter>();
     Stage::Ptr mlp_gate_up = make_stage<MoE3GemmSwigluMLPGateUp>();
@@ -872,7 +900,14 @@ public:
         }
 
         // Don't change the order of stages
-        add_stage(softmax_topk, params);
+        auto routing_type = node.as<moe_3gemm_fused_compressed>().get_primitive()->_config.routing_type;
+        if (routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SOFTMAX) {
+            add_stage(softmax_topk, params);
+        } else if (routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS) {
+            add_stage(sigmoid_bias_topk, params);
+        } else {
+            OPENVINO_THROW("Unsupported routing type for moe_3gemm_swiglu_opt_impl: ", static_cast<int>(routing_type));
+        }
         add_stage(gather, params);
         add_stage(scatter, params);
         add_stage(mlp_gate_up, params);
@@ -1742,16 +1777,32 @@ public:
         scratch_buffers scratch;
         prepare_internal_buffers(instance, scratch, token_num);
 
-        // softmax+topk
+        // routing: softmax+topk or sigmoid+bias+topk
         auto lws_size = config.num_expert;
-        auto topk_event = execute_stage(events,
-                                        instance,
-                                        *softmax_topk,
-                                        {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS))},
-                                        {scratch.topk_id, scratch.topk_weights},
-                                        {static_cast<size_t>(token_num), lws_size},
-                                        {1, lws_size},
-                                        instance.needs_completion_event());
+        cldnn::event::ptr topk_event;
+        if (config.routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SOFTMAX) {
+            topk_event = execute_stage(events,
+                                       instance,
+                                       *softmax_topk,
+                                       {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS))},
+                                       {scratch.topk_id, scratch.topk_weights},
+                                       {static_cast<size_t>(token_num), lws_size},
+                                       {1, lws_size},
+                                       instance.needs_completion_event());
+        } else if (config.routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS) {
+            topk_event = execute_stage(events,
+                                       instance,
+                                       *sigmoid_bias_topk,
+                                       {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS)),
+                                        instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_BIAS)),
+                                        instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_EPS))},
+                                       {scratch.topk_id, scratch.topk_weights},
+                                       {static_cast<size_t>(token_num), lws_size},
+                                       {1, lws_size},
+                                       instance.needs_completion_event());
+        } else {
+            OPENVINO_THROW("Unsupported routing type ", static_cast<int>(config.routing_type));
+        }
 
         // Single token is a special case, we don't need to do gather/scatter,
         // and we can apply optimal kernels against memory bound to improve performance.
