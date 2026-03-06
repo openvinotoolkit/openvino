@@ -103,7 +103,13 @@ void recurrent_linear_attn(int b_idx,
     for (int i = 0; i < v_head_dim_per_t; i++) {
         int v_head_dim_idx = head_dim_t_idx * v_head_dim_per_t + i;
         int stride = b_idx * v_num_heads * v_head_dims * k_head_dims + head_idx * v_head_dims * k_head_dims + v_head_dim_idx * k_head_dims;
-        cm_load_by_row<float, IN_OUT_DTYPE, k_head_dims>(h0.select<k_head_dims, 1>(k_head_dims * i), initial_state, stride * sizeof(IN_OUT_DTYPE));
+        if constexpr (std::is_same<IN_OUT_DTYPE, float>::value && k_head_dims == 128) {
+            auto h0_row = h0.select<k_head_dims, 1>(k_head_dims * i);
+            cm_load_by_row<float, IN_OUT_DTYPE, 64>(h0_row.select<64, 1>(0), initial_state, stride * sizeof(IN_OUT_DTYPE));
+            cm_load_by_row<float, IN_OUT_DTYPE, 64>(h0_row.select<64, 1>(64), initial_state, (stride + 64) * sizeof(IN_OUT_DTYPE));
+        } else {
+            cm_load_by_row<float, IN_OUT_DTYPE, k_head_dims>(h0.select<k_head_dims, 1>(k_head_dims * i), initial_state, stride * sizeof(IN_OUT_DTYPE));
+        }
     }
 
     const int group_size = v_num_heads / k_num_heads;
@@ -187,7 +193,16 @@ void recurrent_linear_attn(int b_idx,
     for (int i = 0; i < v_head_dim_per_t; i++) {
         int v_head_dim_idx = head_dim_t_idx * v_head_dim_per_t + i;
         int stride = b_idx * v_num_heads * v_head_dims * k_head_dims + head_idx * v_head_dims * k_head_dims + v_head_dim_idx * k_head_dims;
-        cm_store_by_row<IN_OUT_DTYPE, float, k_head_dims>(output_state, h0.select<k_head_dims, 1>(k_head_dims * i), stride * sizeof(IN_OUT_DTYPE));
+        if constexpr (std::is_same<IN_OUT_DTYPE, float>::value && k_head_dims == 128) {
+            auto h0_row = h0.select<k_head_dims, 1>(k_head_dims * i);
+            cm_store_by_row<IN_OUT_DTYPE, float, 64>(output_state, h0_row.select<64, 1>(0), stride * sizeof(IN_OUT_DTYPE));
+            cm_store_by_row<IN_OUT_DTYPE, float, 64>(output_state, h0_row.select<64, 1>(64), (stride + 64) * sizeof(IN_OUT_DTYPE));
+            cm_store_by_row<IN_OUT_DTYPE, float, 64>(initial_state, h0_row.select<64, 1>(0), stride * sizeof(IN_OUT_DTYPE));
+            cm_store_by_row<IN_OUT_DTYPE, float, 64>(initial_state, h0_row.select<64, 1>(64), (stride + 64) * sizeof(IN_OUT_DTYPE));
+        } else {
+            cm_store_by_row<IN_OUT_DTYPE, float, k_head_dims>(output_state, h0.select<k_head_dims, 1>(k_head_dims * i), stride * sizeof(IN_OUT_DTYPE));
+            cm_store_by_row<IN_OUT_DTYPE, float, k_head_dims>(initial_state, h0.select<k_head_dims, 1>(k_head_dims * i), stride * sizeof(IN_OUT_DTYPE));
+        }
     }
 }
 

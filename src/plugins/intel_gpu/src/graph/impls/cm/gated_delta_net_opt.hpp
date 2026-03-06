@@ -39,7 +39,7 @@ struct GatedDeltaNetOptImplementationManager : public ImplementationManager {
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
 
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
-        assert(node.is_type<linear_attention>());
+        assert(node.is_type<gated_delta_net>());
         auto& engine = node.get_program().get_engine();
         const auto& config = node.get_program().get_config();
 
