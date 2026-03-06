@@ -294,6 +294,10 @@ bool convert_function_precision(ov::pass::PassBase& pass,
     register_constants(ops);
     for (auto& node : ops) {
         // Recursively apply transformation for sub-graph based operations
+        if (keep_sensitive_in_fp32 && is_compression_disabled_to(node, element::f16) && precisions.count(element::f32) && precisions.at(element::f32) == element::f16) {
+            // test fix
+            continue;
+        }
         if (auto sub_graph_node = ov::as_type_ptr<op::util::MultiSubGraphOp>(node)) {
             size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
             for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
