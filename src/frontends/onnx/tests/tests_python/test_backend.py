@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+# -*- coding: utf-8 -*-
 
 import platform
 import logging
@@ -41,6 +41,7 @@ from tests import (
     skip_bitwise_ui64,
     xfail_issue_99950,
     xfail_issue_99952,
+    xfail_issue_99954,
     xfail_issue_99961,
     xfail_issue_99968,
     xfail_issue_99969,
@@ -380,11 +381,11 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_99952,
-        "OnnxBackendNodeModelTest.test_col2im_5d_cpu",
-        "OnnxBackendNodeModelTest.test_col2im_cpu",
-        "OnnxBackendNodeModelTest.test_col2im_dilations_cpu",
-        "OnnxBackendNodeModelTest.test_col2im_pads_cpu",
-        "OnnxBackendNodeModelTest.test_col2im_strides_cpu",
+        "OnnxBackendNodeModelTest.test_col2im_5d_cpu"
+    ),
+    (
+        xfail_issue_99954,
+        "OnnxBackendNodeModelTest.test_constant_pad_axes_cpu",
     ),
     (
         xfail_issue_99961,
