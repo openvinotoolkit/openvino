@@ -30,78 +30,62 @@ tests:
 
   - name: tensorflow_layers
     kind: pytest_if_dir
-    profiles: [cpu, cpu_gpu, cpu_npu, cpu_npu_gpu, gpu]
+    profiles: [cpu, gpu, npu]
     target: "${TESTS_DIR}/layer_tests/tensorflow_tests"
     env:
       cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
-      cpu_gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-      cpu_npu: "TEST_DEVICE=NPU TEST_PRECISION=FP16"
-      cpu_npu_gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
+      npu: "TEST_DEVICE=NPU TEST_PRECISION=FP16"
       default: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
     args:
       cpu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      cpu_gpu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      cpu_npu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not gpu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      cpu_npu_gpu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
       gpu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+      npu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not gpu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
       default: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
 
   - name: onnx_layers
     kind: pytest_if_dir
-    profiles: [cpu, cpu_gpu, cpu_npu, cpu_npu_gpu, gpu]
+    profiles: [cpu, gpu, npu]
     target: "${TESTS_DIR}/layer_tests/onnx_tests"
     env:
       cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
-      cpu_gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-      cpu_npu: "TEST_DEVICE=NPU TEST_PRECISION=FP16"
-      cpu_npu_gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
+      npu: "TEST_DEVICE=NPU TEST_PRECISION=FP16"
       default: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
     args:
       cpu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      cpu_gpu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      cpu_npu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not gpu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      cpu_npu_gpu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
       gpu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+      npu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not gpu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
       default: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
 
   - name: pytorch_layers
     kind: pytest_if_dir
-    profiles: [cpu, cpu_gpu, cpu_npu, cpu_npu_gpu, gpu]
+    profiles: [cpu, gpu, npu]
     target: "${TESTS_DIR}/layer_tests/pytorch_tests"
     env:
       cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
-      cpu_gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-      cpu_npu: "TEST_DEVICE=NPU TEST_PRECISION=FP16"
-      cpu_npu_gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
+      npu: "TEST_DEVICE=NPU TEST_PRECISION=FP16"
       default: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
     args:
       cpu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      cpu_gpu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      cpu_npu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not gpu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      cpu_npu_gpu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
       gpu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+      npu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not gpu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
       default: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
 
   - name: paddle_layers
     kind: pytest_if_dir
-    profiles: [cpu, cpu_gpu, cpu_npu, cpu_npu_gpu, gpu]
+    profiles: [cpu, gpu, npu]
     target: "${TESTS_DIR}/layer_tests/paddle_tests"
     env:
       cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
-      cpu_gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-      cpu_npu: "TEST_DEVICE=NPU TEST_PRECISION=FP16"
-      cpu_npu_gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
+      npu: "TEST_DEVICE=NPU TEST_PRECISION=FP16"
       default: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
     args:
       cpu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      cpu_gpu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      cpu_npu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not gpu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      cpu_npu_gpu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
       gpu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+      npu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not gpu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
       default: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
 
   - name: jax_layers_precommit
@@ -147,7 +131,8 @@ tests:
 
   - name: src_py_runtime_remote_api_gpu
     kind: pytest
-    profiles: [cpu_gpu, cpu_npu_gpu, gpu]
+    profiles: [gpu]
+    profile_skip_reason: "GPU profile is OFF"
     target: "${SRC_PY_TESTS_DIR}/test_runtime/test_remote_api.py"
     env: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
     args: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"

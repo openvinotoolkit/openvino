@@ -35,10 +35,9 @@ tests:
   - name: ov_core_unit_tests
     binary: ov_core_unit_tests
     mode: gtest_single
-    profiles: [cpu, cpu_gpu, cpu_npu, cpu_npu_gpu, gpu]
+    profiles: [cpu, gpu]
     args:
       cpu: "-*IE_GPU*"
-      cpu_npu: "-*IE_GPU*"
       gpu: "*IE_GPU*"
       default: ""
 
@@ -83,10 +82,9 @@ tests:
   - name: ov_onnx_frontend_tests
     binary: ov_onnx_frontend_tests
     mode: gtest_single
-    profiles: [cpu, cpu_gpu, cpu_npu, cpu_npu_gpu, gpu]
+    profiles: [cpu, gpu]
     args:
       cpu: "-*IE_GPU*"
-      cpu_npu: "-*IE_GPU*"
       gpu: "*IE_GPU*"
       default: ""
 
@@ -94,10 +92,9 @@ tests:
     binary: ov_onnx_frontend_tests
     mode: gtest_single
     extra_env: "ONNX_ITERATOR=0"
-    profiles: [cpu, cpu_gpu, cpu_npu, cpu_npu_gpu, gpu]
+    profiles: [cpu, gpu]
     args:
       cpu: "-*IE_GPU*"
-      cpu_npu: "-*IE_GPU*"
       gpu: "*IE_GPU*"
       default: ""
 
@@ -130,10 +127,9 @@ tests:
   - name: ov_tensorflow_frontend_tests
     binary: ov_tensorflow_frontend_tests
     mode: gtest_single
-    profiles: [cpu, cpu_gpu, cpu_npu, cpu_npu_gpu, gpu]
+    profiles: [cpu, gpu]
     args:
       cpu: "-*IE_GPU*"
-      cpu_npu: "-*IE_GPU*"
       gpu: "*IE_GPU*"
       default: ""
 
@@ -156,14 +152,14 @@ tests:
   - name: ov_npu_unit_tests
     binary: ov_npu_unit_tests
     mode: gtest_single
-    profiles: [cpu_npu, cpu_npu_gpu]
+    profiles: [npu]
     profile_skip_reason: "NPU profile is OFF"
 
   - name: ov_npu_func_tests
     binary: ov_npu_func_tests
     mode: gtest_single
     args: "*smoke*"
-    profiles: [cpu_npu, cpu_npu_gpu]
+    profiles: [npu]
     profile_skip_reason: "NPU profile is OFF"
 
   - name: ov_nvidia_func_tests
@@ -174,28 +170,30 @@ tests:
   - name: ov_gpu_unit_tests
     binary: ov_gpu_unit_tests
     mode: gtest_single
-    profiles: [cpu_gpu, cpu_npu_gpu, gpu]
+    profiles: [gpu]
     profile_skip_reason: "GPU profile is OFF"
 
   - name: ov_gpu_func_tests
     binary: ov_gpu_func_tests
     mode: gtest_single
     args: "*smoke*"
-    profiles: [cpu_gpu, cpu_npu_gpu, gpu]
+    profiles: [gpu]
     profile_skip_reason: "GPU profile is OFF"
 
   - name: test_inference_async
     binary: test_inference_async
     mode: raw
-    profiles: [cpu, cpu_gpu, cpu_npu, cpu_npu_gpu, gpu]
+    profiles: [cpu, gpu, npu]
     args:
       gpu: "__MODEL_PATH__ GPU"
+      npu: "__MODEL_PATH__ NPU"
       default: "__MODEL_PATH__ CPU"
 
   - name: test_inference_sync
     binary: test_inference_sync
     mode: raw
-    profiles: [cpu, cpu_gpu, cpu_npu, cpu_npu_gpu, gpu]
+    profiles: [cpu, gpu, npu]
     args:
       gpu: "__MODEL_PATH__ GPU"
+      npu: "__MODEL_PATH__ NPU"
       default: "__MODEL_PATH__ CPU"

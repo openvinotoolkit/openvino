@@ -84,7 +84,7 @@ def run(ctx: CoverageContext) -> None:
             "-DENABLE_SAMPLES=OFF",
             "-DENABLE_WHEEL=OFF",
             "-DENABLE_PYTHON=OFF",
-            "-DENABLE_INTEL_GPU=OFF",
+            "-DENABLE_INTEL_GPU=ON" if ctx.run_gpu_tests else "-DENABLE_INTEL_GPU=OFF",
             js_npu_flag,
             "-DENABLE_JS=ON",
             "-DENABLE_COVERAGE=ON",

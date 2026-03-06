@@ -3,16 +3,14 @@ on:
   workflow_dispatch:
     inputs:
       test_profile:
-        description: 'Hardware test profile'
+        description: 'Coverage lanes to execute'
         required: false
-        default: cpu
+        default: cpu_gpu
         type: choice
         options:
           - cpu
-          - gpu
           - cpu_gpu
-          - cpu_npu
-          - cpu_npu_gpu
+          - cpu_gpu_npu
   pull_request:
 
 concurrency:
@@ -26,14 +24,76 @@ env:
   PARALLEL_JOBS: '64'
   PYTEST_XDIST_WORKERS: '1'
   JS_TEST_CONCURRENCY: '1'
-  TEST_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'cpu' }}
+  COVERAGE_SELECTION: ${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'cpu' }}
   NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
 
 jobs:
-  BuildCoverageArtifacts:
-    runs-on: ubuntu-latest-64-cores
+  ResolveMatrix:
+    runs-on: ubuntu-latest
     outputs:
-      artifact_name: ${{ steps.artifact_name.outputs.value }}
+      matrix: ${{ steps.resolve.outputs.matrix }}
+      lanes: ${{ steps.resolve.outputs.lanes }}
+    steps:
+      - name: Resolve coverage lanes
+        id: resolve
+        env:
+          COVERAGE_SELECTION: ${{ env.COVERAGE_SELECTION }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import os
+
+          selection = os.environ["COVERAGE_SELECTION"]
+          selection_map = {
+              "cpu": ["cpu"],
+              "cpu_gpu": ["cpu", "gpu"],
+              "cpu_gpu_npu": ["cpu", "gpu", "npu"],
+          }
+          lane_defs = {
+              "cpu": {
+                  "lane": "cpu",
+                  "test_profile": "cpu",
+                  "cpp_runner": '["ubuntu-latest-64-cores"]',
+                  "python_runner": '["ubuntu-latest-8-cores"]',
+                  "js_runner": '["ubuntu-latest-8-cores"]',
+                  "requires_gpu_runtime": False,
+                  "requires_npu_runtime": False,
+              },
+              "gpu": {
+                  "lane": "gpu",
+                  "test_profile": "gpu",
+                  "cpp_runner": '["self-hosted","Linux","dgpu"]',
+                  "python_runner": '["self-hosted","Linux","dgpu"]',
+                  "js_runner": '["self-hosted","Linux","dgpu"]',
+                  "requires_gpu_runtime": True,
+                  "requires_npu_runtime": False,
+              },
+              "npu": {
+                  "lane": "npu",
+                  "test_profile": "npu",
+                  "cpp_runner": '["self-hosted","Linux","npu"]',
+                  "python_runner": '["self-hosted","Linux","npu"]',
+                  "js_runner": '["self-hosted","Linux","npu"]',
+                  "requires_gpu_runtime": False,
+                  "requires_npu_runtime": True,
+              },
+          }
+
+          lanes = selection_map[selection]
+          matrix = {"include": [lane_defs[lane] for lane in lanes]}
+          print(f"matrix={json.dumps(matrix, separators=(',', ':'))}")
+          print(f"lanes={','.join(lanes)}")
+          PY
+
+  BuildCoverageArtifacts:
+    name: Build coverage artifact (${{ matrix.lane }})
+    needs: ResolveMatrix
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.ResolveMatrix.outputs.matrix) }}
+    runs-on: ubuntu-latest-64-cores
+    env:
+      TEST_PROFILE: ${{ matrix.test_profile }}
     steps:
       - name: Setup python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -91,23 +151,25 @@ jobs:
 
           du -sh "${artifact_dir}" || true
 
-      - name: Set build artifact name
-        id: artifact_name
-        run: echo "value=coverage-build-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
-
       - name: Upload reusable build artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: ${{ steps.artifact_name.outputs.value }}
+          name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: coverage-build-artifact
           if-no-files-found: error
           retention-days: 3
           compression-level: 0
 
   CoverageCpp:
-    if: ${{ needs.BuildCoverageArtifacts.result == 'success' }}
-    needs: BuildCoverageArtifacts
-    runs-on: ubuntu-latest-4-cores
+    name: Coverage C++ (${{ matrix.lane }})
+    if: ${{ always() && needs.ResolveMatrix.result == 'success' }}
+    needs: [ResolveMatrix, BuildCoverageArtifacts]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.ResolveMatrix.outputs.matrix) }}
+    runs-on: ${{ fromJSON(matrix.cpp_runner) }}
+    env:
+      TEST_PROFILE: ${{ matrix.test_profile }}
     steps:
       - name: Setup python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -126,7 +188,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: ${{ needs.BuildCoverageArtifacts.outputs.artifact_name }}
+          name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ github.workspace }}/_artifact
 
       - name: Restore build artifact into workspace
@@ -168,6 +230,39 @@ jobs:
           if [[ -d "${target}" ]]; then
             find "${target}" -type f -exec chmod u+x {} +
           fi
+
+      - name: Install GPU runtime stack
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' && matrix.requires_gpu_runtime }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          sudo apt --assume-yes update
+          sudo apt --assume-yes install wget software-properties-common ca-certificates gpg-agent tzdata clinfo
+          tmpdir="$(mktemp -d)"
+          pushd "${tmpdir}"
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-core_1.0.15985.7_amd64.deb
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-opencl_1.0.15985.7_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu-dbgsym_1.3.28454.6_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu_1.3.28454.6_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd-dbgsym_24.05.28454.6_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
+          sudo dpkg -i ./*.deb || sudo apt-get --assume-yes install -f
+          popd
+          sudo rm -rf "${tmpdir}"
+          sudo apt --assume-yes install \
+            libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
+            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libxatracker2 mesa-va-drivers \
+            mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
+          wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | sudo gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
+          echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | sudo tee /etc/apt/sources.list.d/intel-gpu-jammy.list
+          sudo apt update
+          sudo apt --assume-yes install libze-intel-gpu1 libze1 intel-opencl-icd libze-dev intel-ocloc intel-level-zero-gpu-raytracing
+
+      - name: Verify GPU devices
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' && matrix.requires_gpu_runtime }}
+        continue-on-error: true
+        run: clinfo
 
       - name: Install C++ coverage prerequisites
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
@@ -243,7 +338,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: coverage-cpp-${{ env.TEST_PROFILE }}
+          name: coverage-cpp-${{ matrix.lane }}
           path: |
             coverage.info
             coverage-report
@@ -259,16 +354,22 @@ jobs:
           files: coverage.info
           disable_search: true
           plugins: noop
-          flags: cpp-runtime-cpp-${{ env.TEST_PROFILE }}
+          flags: cpp-runtime-cpp-${{ matrix.lane }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
           verbose: true
 
   CoveragePython:
-    if: ${{ needs.BuildCoverageArtifacts.result == 'success' }}
-    needs: BuildCoverageArtifacts
-    runs-on: ubuntu-latest-8-cores
+    name: Coverage Python (${{ matrix.lane }})
+    if: ${{ always() && needs.ResolveMatrix.result == 'success' }}
+    needs: [ResolveMatrix, BuildCoverageArtifacts]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.ResolveMatrix.outputs.matrix) }}
+    runs-on: ${{ fromJSON(matrix.python_runner) }}
+    env:
+      TEST_PROFILE: ${{ matrix.test_profile }}
     steps:
       - name: Setup python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -287,7 +388,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: ${{ needs.BuildCoverageArtifacts.outputs.artifact_name }}
+          name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ github.workspace }}/_artifact
 
       - name: Restore build artifact into workspace
@@ -319,6 +420,39 @@ jobs:
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "Build artifact is missing required directories"
           fi
+
+      - name: Install GPU runtime stack
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' && matrix.requires_gpu_runtime }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          sudo apt --assume-yes update
+          sudo apt --assume-yes install wget software-properties-common ca-certificates gpg-agent tzdata clinfo
+          tmpdir="$(mktemp -d)"
+          pushd "${tmpdir}"
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-core_1.0.15985.7_amd64.deb
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-opencl_1.0.15985.7_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu-dbgsym_1.3.28454.6_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu_1.3.28454.6_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd-dbgsym_24.05.28454.6_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
+          sudo dpkg -i ./*.deb || sudo apt-get --assume-yes install -f
+          popd
+          sudo rm -rf "${tmpdir}"
+          sudo apt --assume-yes install \
+            libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
+            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libxatracker2 mesa-va-drivers \
+            mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
+          wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | sudo gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
+          echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | sudo tee /etc/apt/sources.list.d/intel-gpu-jammy.list
+          sudo apt update
+          sudo apt --assume-yes install libze-intel-gpu1 libze1 intel-opencl-icd libze-dev intel-ocloc intel-level-zero-gpu-raytracing
+
+      - name: Verify GPU devices
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' && matrix.requires_gpu_runtime }}
+        continue-on-error: true
+        run: clinfo
 
       - name: Install Python coverage prerequisites
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
@@ -408,7 +542,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: coverage-python-${{ env.TEST_PROFILE }}
+          name: coverage-python-${{ matrix.lane }}
           path: |
             python-coverage.xml
             coverage.info
@@ -425,7 +559,7 @@ jobs:
           files: python-coverage.xml
           disable_search: true
           plugins: noop
-          flags: python-api-frontend-layer-ovc-${{ env.TEST_PROFILE }}
+          flags: python-api-frontend-layer-ovc-${{ matrix.lane }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
@@ -438,16 +572,22 @@ jobs:
           files: coverage.info
           disable_search: true
           plugins: noop
-          flags: cpp-runtime-python-${{ env.TEST_PROFILE }}
+          flags: cpp-runtime-python-${{ matrix.lane }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
           verbose: true
 
   CoverageJS:
-    if: ${{ needs.BuildCoverageArtifacts.result == 'success' }}
-    needs: BuildCoverageArtifacts
-    runs-on: ubuntu-latest-8-cores
+    name: Coverage JS (${{ matrix.lane }})
+    if: ${{ always() && needs.ResolveMatrix.result == 'success' }}
+    needs: [ResolveMatrix, BuildCoverageArtifacts]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.ResolveMatrix.outputs.matrix) }}
+    runs-on: ${{ fromJSON(matrix.js_runner) }}
+    env:
+      TEST_PROFILE: ${{ matrix.test_profile }}
     steps:
       - name: Setup python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -471,7 +611,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: ${{ needs.BuildCoverageArtifacts.outputs.artifact_name }}
+          name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ github.workspace }}/_artifact
 
       - name: Restore build artifact into workspace
@@ -503,6 +643,39 @@ jobs:
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "Build artifact is missing required JS directories"
           fi
+
+      - name: Install GPU runtime stack
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' && matrix.requires_gpu_runtime }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          sudo apt --assume-yes update
+          sudo apt --assume-yes install wget software-properties-common ca-certificates gpg-agent tzdata clinfo
+          tmpdir="$(mktemp -d)"
+          pushd "${tmpdir}"
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-core_1.0.15985.7_amd64.deb
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-opencl_1.0.15985.7_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu-dbgsym_1.3.28454.6_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu_1.3.28454.6_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd-dbgsym_24.05.28454.6_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
+          sudo dpkg -i ./*.deb || sudo apt-get --assume-yes install -f
+          popd
+          sudo rm -rf "${tmpdir}"
+          sudo apt --assume-yes install \
+            libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
+            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libxatracker2 mesa-va-drivers \
+            mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
+          wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | sudo gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
+          echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | sudo tee /etc/apt/sources.list.d/intel-gpu-jammy.list
+          sudo apt update
+          sudo apt --assume-yes install libze-intel-gpu1 libze1 intel-opencl-icd libze-dev intel-ocloc intel-level-zero-gpu-raytracing
+
+      - name: Verify GPU devices
+        if: ${{ steps.restore_artifact.outputs.ready == 'true' && matrix.requires_gpu_runtime }}
+        continue-on-error: true
+        run: clinfo
 
       - name: Install JS coverage prerequisites
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
@@ -592,7 +765,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: coverage-js-${{ env.TEST_PROFILE }}
+          name: coverage-js-${{ matrix.lane }}
           path: |
             js-lcov.info
             coverage.info
@@ -609,7 +782,7 @@ jobs:
           files: js-lcov.info
           disable_search: true
           plugins: noop
-          flags: nodejs-bindings-unit-e2e-${{ env.TEST_PROFILE }}
+          flags: nodejs-bindings-unit-e2e-${{ matrix.lane }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
@@ -622,45 +795,44 @@ jobs:
           files: coverage.info
           disable_search: true
           plugins: noop
-          flags: cpp-runtime-js-${{ env.TEST_PROFILE }}
+          flags: cpp-runtime-js-${{ matrix.lane }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
           verbose: true
 
   CoverageSummary:
-    if: ${{ always() && needs.BuildCoverageArtifacts.result == 'success' }}
+    if: ${{ always() && needs.ResolveMatrix.result == 'success' }}
     continue-on-error: true
-    needs: [BuildCoverageArtifacts, CoverageCpp, CoveragePython, CoverageJS]
+    needs: [ResolveMatrix, BuildCoverageArtifacts, CoverageCpp, CoveragePython, CoverageJS]
     runs-on: ubuntu-latest-4-cores
-    env:
-      CPP_JOB_RESULT: ${{ needs.CoverageCpp.result }}
-      PY_JOB_RESULT: ${{ needs.CoveragePython.result }}
-      JS_JOB_RESULT: ${{ needs.CoverageJS.result }}
     steps:
-      - name: Download C++ artifact
+      - name: Download C++ artifacts
         continue-on-error: true
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: coverage-cpp-${{ env.TEST_PROFILE }}
+          pattern: coverage-cpp-*
           path: ${{ github.workspace }}/artifacts/cpp
 
-      - name: Download Python artifact
+      - name: Download Python artifacts
         continue-on-error: true
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: coverage-python-${{ env.TEST_PROFILE }}
+          pattern: coverage-python-*
           path: ${{ github.workspace }}/artifacts/python
 
-      - name: Download JS artifact
+      - name: Download JS artifacts
         continue-on-error: true
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: coverage-js-${{ env.TEST_PROFILE }}
+          pattern: coverage-js-*
           path: ${{ github.workspace }}/artifacts/js
 
       - name: Generate final summary
         continue-on-error: true
+        env:
+          COVERAGE_SELECTION: ${{ env.COVERAGE_SELECTION }}
+          SELECTED_LANES: ${{ needs.ResolveMatrix.outputs.lanes }}
         run: |
           set +e
 
@@ -683,76 +855,111 @@ jobs:
             fi
           }
 
-          CPP_STATS="${{ github.workspace }}/artifacts/cpp/.coverage-stats/cpp.env"
-          PY_STATS="${{ github.workspace }}/artifacts/python/.coverage-stats/python.env"
-          JS_STATS="${{ github.workspace }}/artifacts/js/.coverage-stats/js.env"
+          overall_total=0
+          overall_executed=0
+          overall_passed=0
+          overall_failed=0
+          overall_skipped=0
+          rows_file="$(mktemp)"
 
-          CXX_TOTAL="$(read_stat "${CPP_STATS}" CXX_TESTS_TOTAL)"
-          CXX_EXECUTED="$(read_stat "${CPP_STATS}" CXX_TESTS_EXECUTED)"
-          CXX_PASSED="$(read_stat "${CPP_STATS}" CXX_TESTS_PASSED)"
-          CXX_FAILED="$(read_stat "${CPP_STATS}" CXX_TESTS_FAILED)"
-          CXX_SKIPPED="$(read_stat "${CPP_STATS}" CXX_TESTS_SKIPPED)"
+          append_row() {
+            local suite="$1"
+            local lane="$2"
+            local total="$3"
+            local executed="$4"
+            local passed="$5"
+            local failed="$6"
+            local skipped="$7"
+            local size="$8"
+            local flag="$9"
 
-          PY_TOTAL="$(read_stat "${PY_STATS}" PY_TESTS_TOTAL)"
-          PY_PASSED="$(read_stat "${PY_STATS}" PY_TESTS_PASSED)"
-          PY_FAILED="$(read_stat "${PY_STATS}" PY_TESTS_FAILED)"
-          PY_SKIPPED="$(read_stat "${PY_STATS}" PY_TESTS_SKIPPED)"
+            overall_total=$((overall_total + total))
+            overall_executed=$((overall_executed + executed))
+            overall_passed=$((overall_passed + passed))
+            overall_failed=$((overall_failed + failed))
+            overall_skipped=$((overall_skipped + skipped))
 
-          JS_TOTAL="$(read_stat "${JS_STATS}" JS_TESTS_TOTAL)"
-          JS_PASSED="$(read_stat "${JS_STATS}" JS_TESTS_PASSED)"
-          JS_FAILED="$(read_stat "${JS_STATS}" JS_TESTS_FAILED)"
-          JS_SKIPPED="$(read_stat "${JS_STATS}" JS_TESTS_SKIPPED)"
+            printf '| %s | %s | %s | %s | %s | %s | %s | %s | `%s` |\n' \
+              "${lane}" "${suite}" "${total}" "${executed}" "${passed}" "${failed}" "${skipped}" "${size}" "${flag}" >> "${rows_file}"
+          }
 
-          ALL_TOTAL=$((CXX_TOTAL + PY_TOTAL + JS_TOTAL))
-          ALL_PASSED=$((CXX_PASSED + PY_PASSED + JS_PASSED))
-          ALL_FAILED=$((CXX_FAILED + PY_FAILED + JS_FAILED))
-          ALL_SKIPPED=$((CXX_SKIPPED + PY_SKIPPED + JS_SKIPPED))
+          for dir in "${{ github.workspace }}/artifacts/cpp"/coverage-cpp-*; do
+            [[ -d "${dir}" ]] || continue
+            lane="$(basename "${dir}")"
+            lane="${lane#coverage-cpp-}"
+            stats="${dir}/.coverage-stats/cpp.env"
+            cov="${dir}/coverage.info"
+            total="$(read_stat "${stats}" CXX_TESTS_TOTAL)"
+            executed="$(read_stat "${stats}" CXX_TESTS_EXECUTED)"
+            passed="$(read_stat "${stats}" CXX_TESTS_PASSED)"
+            failed="$(read_stat "${stats}" CXX_TESTS_FAILED)"
+            skipped="$(read_stat "${stats}" CXX_TESTS_SKIPPED)"
+            append_row "C++" "${lane}" "${total}" "${executed}" "${passed}" "${failed}" "${skipped}" "$(file_size "${cov}")" "cpp-runtime-cpp-${lane}"
+          done
 
-          if [[ "${ALL_TOTAL}" -gt 0 ]]; then
-            ALL_RATE="$(awk "BEGIN { printf \"%.1f\", (${ALL_PASSED}*100.0)/${ALL_TOTAL} }")"
+          for dir in "${{ github.workspace }}/artifacts/python"/coverage-python-*; do
+            [[ -d "${dir}" ]] || continue
+            lane="$(basename "${dir}")"
+            lane="${lane#coverage-python-}"
+            stats="${dir}/.coverage-stats/python.env"
+            cov="${dir}/python-coverage.xml"
+            total="$(read_stat "${stats}" PY_TESTS_TOTAL)"
+            skipped="$(read_stat "${stats}" PY_TESTS_SKIPPED)"
+            passed="$(read_stat "${stats}" PY_TESTS_PASSED)"
+            failed="$(read_stat "${stats}" PY_TESTS_FAILED)"
+            executed=$((total - skipped))
+            append_row "Python" "${lane}" "${total}" "${executed}" "${passed}" "${failed}" "${skipped}" "$(file_size "${cov}")" "python-api-frontend-layer-ovc-${lane}"
+          done
+
+          for dir in "${{ github.workspace }}/artifacts/js"/coverage-js-*; do
+            [[ -d "${dir}" ]] || continue
+            lane="$(basename "${dir}")"
+            lane="${lane#coverage-js-}"
+            stats="${dir}/.coverage-stats/js.env"
+            cov="${dir}/js-lcov.info"
+            total="$(read_stat "${stats}" JS_TESTS_TOTAL)"
+            skipped="$(read_stat "${stats}" JS_TESTS_SKIPPED)"
+            passed="$(read_stat "${stats}" JS_TESTS_PASSED)"
+            failed="$(read_stat "${stats}" JS_TESTS_FAILED)"
+            executed=$((total - skipped))
+            append_row "JS" "${lane}" "${total}" "${executed}" "${passed}" "${failed}" "${skipped}" "$(file_size "${cov}")" "nodejs-bindings-unit-e2e-${lane}"
+          done
+
+          if [[ "${overall_total}" -gt 0 ]]; then
+            overall_rate="$(awk "BEGIN { printf \"%.1f\", (${overall_passed}*100.0)/${overall_total} }")"
           else
-            ALL_RATE="0.0"
+            overall_rate="0.0"
           fi
-
-          CPP_FILE="${{ github.workspace }}/artifacts/cpp/coverage.info"
-          PY_FILE="${{ github.workspace }}/artifacts/python/python-coverage.xml"
-          JS_FILE="${{ github.workspace }}/artifacts/js/js-lcov.info"
-
-          CPP_SIZE="$(file_size "${CPP_FILE}")"
-          PY_SIZE="$(file_size "${PY_FILE}")"
-          JS_SIZE="$(file_size "${JS_FILE}")"
 
           {
             echo "## Coverage Summary"
             echo ""
-            echo "**Profile:** \`${TEST_PROFILE}\`"
+            echo "**Selection:** \`${COVERAGE_SELECTION}\`"
             echo ""
-            echo "### Job Status"
-            echo "| Job | Result |"
-            echo "| --- | --- |"
-            echo "| C++ | ${CPP_JOB_RESULT} |"
-            echo "| Python | ${PY_JOB_RESULT} |"
-            echo "| JS | ${JS_JOB_RESULT} |"
+            echo "**Active lanes:** \`${SELECTED_LANES}\`"
             echo ""
-            echo "### Test Results"
-            echo "| Suite | Total | Executed | Passed | Failed | Skipped |"
-            echo "| --- | ---: | ---: | ---: | ---: | ---: |"
-            echo "| C++ | ${CXX_TOTAL} | ${CXX_EXECUTED} | ${CXX_PASSED} | ${CXX_FAILED} | ${CXX_SKIPPED} |"
-            echo "| Python | ${PY_TOTAL} | ${PY_TOTAL} | ${PY_PASSED} | ${PY_FAILED} | ${PY_SKIPPED} |"
-            echo "| JS | ${JS_TOTAL} | ${JS_TOTAL} | ${JS_PASSED} | ${JS_FAILED} | ${JS_SKIPPED} |"
-            echo "| Overall | ${ALL_TOTAL} | ${ALL_TOTAL} | ${ALL_PASSED} | ${ALL_FAILED} | ${ALL_SKIPPED} |"
+            echo "**Overall pass rate:** \`${overall_rate}%\`"
             echo ""
-            echo "**Overall pass rate:** \`${ALL_RATE}%\`"
+            echo "### Overall"
+            echo "| Metric | Value |"
+            echo "| --- | ---: |"
+            echo "| Total test units | ${overall_total} |"
+            echo "| Executed | ${overall_executed} |"
+            echo "| Passed | ${overall_passed} |"
+            echo "| Failed | ${overall_failed} |"
+            echo "| Skipped | ${overall_skipped} |"
             echo ""
-            echo "### Coverage Reports"
-            echo "| Suite | File | Size (bytes) | Codecov Flag |"
-            echo "| --- | --- | ---: | --- |"
-            echo "| C++ | \`coverage.info\` | ${CPP_SIZE} | \`cpp-runtime-cpp-${TEST_PROFILE}\` |"
-            echo "| Python | \`python-coverage.xml\` | ${PY_SIZE} | \`python-api-frontend-layer-ovc-${TEST_PROFILE}\` |"
-            echo "| JS | \`js-lcov.info\` | ${JS_SIZE} | \`nodejs-bindings-unit-e2e-${TEST_PROFILE}\` |"
+            echo "### By Lane And Suite"
+            echo "| Lane | Suite | Total | Executed | Passed | Failed | Skipped | Report Size (bytes) | Codecov Flag |"
+            echo "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |"
+            cat "${rows_file}"
             echo ""
             echo "### Native C++ Runtime Flags By Suite"
-            echo "- \`cpp-runtime-cpp-${TEST_PROFILE}\`"
-            echo "- \`cpp-runtime-python-${TEST_PROFILE}\`"
-            echo "- \`cpp-runtime-js-${TEST_PROFILE}\`"
+            for lane in ${SELECTED_LANES//,/ }; do
+              echo "- \`cpp-runtime-cpp-${lane}\`"
+              echo "- \`cpp-runtime-python-${lane}\`"
+              echo "- \`cpp-runtime-js-${lane}\`"
+            done
           } >> "${GITHUB_STEP_SUMMARY}"
+
+          rm -f "${rows_file}"

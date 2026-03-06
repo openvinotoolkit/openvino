@@ -24,7 +24,7 @@ if str(SCRIPT_DIR) not in sys.path:
 sys.modules.setdefault("coverage_workflow", sys.modules[__name__])
 
 
-SUPPORTED_PROFILES = {"cpu", "cpu_gpu", "cpu_npu", "cpu_npu_gpu", "gpu"}
+SUPPORTED_PROFILES = {"cpu", "gpu", "npu"}
 
 
 @dataclass(frozen=True)
@@ -213,12 +213,8 @@ def _profile_flags(profile: str) -> ProfileFlags:
         return ProfileFlags(False, False, ("-DENABLE_INTEL_GPU=OFF", "-DENABLE_ONEDNN_FOR_GPU=OFF"), ("-DENABLE_INTEL_NPU=OFF",))
     if profile == "gpu":
         return ProfileFlags(True, False, ("-DENABLE_INTEL_GPU=ON", "-DENABLE_ONEDNN_FOR_GPU=ON"), ("-DENABLE_INTEL_NPU=OFF",))
-    if profile == "cpu_gpu":
-        return ProfileFlags(True, False, ("-DENABLE_INTEL_GPU=ON", "-DENABLE_ONEDNN_FOR_GPU=ON"), ("-DENABLE_INTEL_NPU=OFF",))
-    if profile == "cpu_npu":
+    if profile == "npu":
         return ProfileFlags(False, True, ("-DENABLE_INTEL_GPU=OFF", "-DENABLE_ONEDNN_FOR_GPU=OFF"), ("-DENABLE_INTEL_NPU=ON",))
-    if profile == "cpu_npu_gpu":
-        return ProfileFlags(True, True, ("-DENABLE_INTEL_GPU=ON", "-DENABLE_ONEDNN_FOR_GPU=ON"), ("-DENABLE_INTEL_NPU=ON",))
     raise ValueError(f"Unsupported TEST_PROFILE: {profile}. Use one of: {', '.join(sorted(SUPPORTED_PROFILES))}")
 
 
@@ -344,11 +340,11 @@ def _resolve_enabled(test: dict[str, Any], profile: str) -> tuple[bool, str]:
     skip_reason = _as_text(test.get("skip_reason", "")).strip()
     profiles = test.get("profiles")
 
-    # GPU-only profile executes only tests explicitly marked for it.
-    if profile == "gpu" and profiles is None:
+    # Accelerator-specific profiles execute only tests explicitly marked for them.
+    if profile in {"gpu", "npu"} and profiles is None:
         reason = _as_text(test.get("profile_skip_reason", "")).strip()
         if not reason:
-            reason = "GPU-only profile: test is not marked for GPU-only execution"
+            reason = f"{profile.upper()} profile is OFF"
         return False, reason
 
     if profiles is not None:
@@ -356,7 +352,7 @@ def _resolve_enabled(test: dict[str, Any], profile: str) -> tuple[bool, str]:
         if profile not in normalized:
             reason = _as_text(test.get("profile_skip_reason", "")).strip()
             if not reason:
-                reason = f"profile '{profile}' is OFF"
+                reason = f"{profile.upper()} profile is OFF"
             return False, reason
 
     if skip_reason:

@@ -18,10 +18,8 @@ Step modules are in `scripts/coverage/steps/`.
 ## Profiles
 Supported profiles:
 - `cpu`
-- `gpu` (GPU-only; runs only tests explicitly marked for GPU-only execution)
-- `cpu_gpu`
-- `cpu_npu`
-- `cpu_npu_gpu`
+- `gpu` (GPU-only; runs only tests explicitly marked for GPU execution)
+- `npu` (NPU-only; runs only tests explicitly marked for NPU execution)
 
 Profile-specific test selection and args are defined in:
 - `scripts/coverage/config/tests_cpp.yml`
@@ -63,7 +61,7 @@ python3 scripts/coverage/coverage.py validate-config
 
 Inspect resolved tests:
 ```bash
-python3 scripts/coverage/coverage.py list-tests --suite python --profile cpu_gpu
+python3 scripts/coverage/coverage.py list-tests --suite python --profile gpu
 ```
 
 ## Outputs
