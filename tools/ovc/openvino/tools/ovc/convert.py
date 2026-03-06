@@ -97,13 +97,14 @@ def convert_model(
             runtime object, then original memory regions allocated in the original model
             are reused for weights in the converted model.
         :param dynamo:
-            Use torch.export to export a PyTorch model instead of torch.jit.trace.
-            Requires example_input to be provided and PyTorch >= 2.6. Default is False.
-            By default the exported model is fully static (shapes taken from example_input).
-            To make specific dimensions dynamic, combine with the ``input`` parameter:
-            dimensions set to -1 or Dimension(-1) become dynamic via torch.export.Dim.AUTO,
-            and constrained dimensions (e.g. Dimension(1, 10)) are mapped to
-            torch.export.Dim with explicit min/max bounds.
+            Export a PyTorch torch.nn.Module using torch.export instead of
+            torch.jit.trace. Requires example_input and PyTorch >= 2.6.
+            Default is False.
+            The resulting model uses static shapes derived from example_input by default.
+            To enable dynamic dimensions, combine with the input parameter:
+            dimensions set to -1 or Dimension(-1) become fully dynamic
+            (torch.export.Dim.AUTO), and bounded dimensions such as Dimension(1, 10)
+            are exported with explicit min/max constraints.
 
     Returns:
         openvino.Model
