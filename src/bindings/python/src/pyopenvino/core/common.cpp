@@ -8,6 +8,7 @@
 
 #include "Python.h"
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/common_util.hpp"
 #include "pyopenvino/core/remote_tensor.hpp"
 #include "pyopenvino/utils/utils.hpp"
@@ -302,18 +303,29 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
     // Get actual dtype from OpenVINO type:
     auto ov_type = t.get_element_type();
     auto dtype = Common::type_helpers::get_dtype(ov_type);
+
+    auto data_ptr = std::as_const(t).data();
+    auto is_read_only = ov::is_tensor_read_only(t);
+
     // Return the array as a view:
     if (is_shared) {
+        py::array result;
         if (ov_type.bitwidth() < Common::values::min_bitwidth) {
-            return py::array(dtype, t.get_byte_size(), t.data(), py::cast(t));
+            result = py::array(dtype, t.get_byte_size(), data_ptr, py::cast(t));
+        } else {
+            result = py::array(dtype, t.get_shape(), t.get_strides(), data_ptr, py::cast(t));
         }
-        return py::array(dtype, t.get_shape(), t.get_strides(), t.data(), py::cast(t));
+        if (is_read_only) {
+            // Mark array as read-only
+            result.attr("flags").attr("writeable") = false;
+        }
+        return result;
     }
     // Return the array as a copy:
     if (ov_type.bitwidth() < Common::values::min_bitwidth) {
-        return py::array(dtype, t.get_byte_size(), t.data());
+        return py::array(dtype, t.get_byte_size(), data_ptr);
     }
-    return py::array(dtype, t.get_shape(), t.get_strides(), t.data());
+    return py::array(dtype, t.get_shape(), t.get_strides(), data_ptr);
 }
 
 py::array array_from_constant_copy(ov::op::v0::Constant&& c) {
