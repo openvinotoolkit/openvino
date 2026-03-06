@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <climits>
 #include <variant>
-
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
@@ -193,7 +192,6 @@ struct weightless_cache_manager {
         } else {
             original_size = dst_mem->size();
         }
-
         bool do_reorder = false;
         ib >> do_reorder;
         if (do_reorder) {
@@ -414,13 +412,35 @@ struct data : public primitive_base<data> {
         size_t data_size = 0;
         ib >> make_data(&data_size, sizeof(size_t));
 
-        mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
+        bool enable_zero_copy_mode =
+            ((ib.get_engine().get_device_info().arch >= gpu_arch::xe2 && ib.get_engine().get_device_info().dev_type == device_type::integrated_gpu));
+        try {
+            if (!enable_zero_copy_mode) {
+                throw std::runtime_error("Host memory not accessable, skipping Zero Copy attempts.");
+            }
+            const void* tensor_ptr = ib.get_current_ptr(data_size);
+            if (is_alloc_host_accessible(_allocation_type)) {
+                mem = ib.get_engine().pin_mmapped_host_buffer(tensor_ptr, data_size, _allocation_type, output_layout);
+                void* mem_ptr = mem->lock(ib.get_engine().get_service_stream(), mem_lock_type::read);
+                if (mem_ptr != tensor_ptr) {
+                    enable_zero_copy_mode = false;
+                    throw std::runtime_error("Zero memory copy failed for weights.");
+                }
+                mem->unlock(ib.get_engine().get_service_stream());
+            }
+        } catch (...) {
+            mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
+        }
 
         bool is_weightless_caching = cache_info->load(ib, mem, weights_memory);
 
         if (!is_weightless_caching) {
             if (is_alloc_host_accessible(_allocation_type)) {
-                ib >> make_data(mem->buffer_ptr(), data_size);
+                if (enable_zero_copy_mode) {
+                    ib.seek_current_ptr(data_size);
+                } else {
+                    ib >> make_data(std::move(mem->buffer_ptr()), data_size);
+                }
             } else {
                 const size_t DATA_BLOCK_SIZE = 2 * 1024 * 1024;
                 auto& strm = ib.get_engine().get_service_stream();
@@ -438,8 +458,7 @@ struct data : public primitive_base<data> {
                     while (dst_offset < data_size) {
                         const bool is_blocking = false;
                         const size_t src_offset = 0;
-                        size_t copy_size =
-                            (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
+                        size_t copy_size = (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
                         if (buf_flag) {
                             ib >> make_data(_buf1.data(), copy_size);
                             if (ev2 != nullptr) {

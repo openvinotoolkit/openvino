@@ -63,6 +63,9 @@ public:
     /// Created memory object from the other @p memory and reinterpred the data using specified @p new_layout
     virtual memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) = 0;
 
+    // This method is intended to be used for zero-copy input data access in case of integrated GPU when user provides pointer to mmapped host buffer.
+    virtual memory_ptr pin_mmapped_host_buffer(const void* mmapped_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) = 0;
+
     /// Create shared memory object using user-supplied memory buffer @p buf using specified @p layout
     memory_ptr share_buffer(const layout& layout, shared_handle buf);
 

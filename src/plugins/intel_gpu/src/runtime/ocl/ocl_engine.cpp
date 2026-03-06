@@ -239,6 +239,27 @@ memory::ptr ocl_engine::reinterpret_buffer(const memory& memory, const layout& n
     }
 }
 
+memory::ptr ocl_engine::pin_mmapped_host_buffer(const void* mmapped_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
+    try {
+        memory::ptr mmapped_host_memory = nullptr;
+
+        auto tracker = std::make_shared<MemoryTracker>(this,
+                                                       const_cast<void*>(mmapped_address),  // Point directly to mmap'd memory
+                                                       data_size,
+                                                       _allocation_type);
+        cl::Buffer buffer(this->get_cl_context(), {}, data_size, const_cast<void*>(mmapped_address));
+
+        mmapped_host_memory = std::make_shared<cldnn::ocl::gpu_buffer>(this,           // ocl_engine*
+                                                                       output_layout,  // layout
+                                                                       buffer,         // cl::buffer wrapping tensor
+                                                                       tracker         // MemoryTracker
+        );
+        return mmapped_host_memory;
+    } catch (const cl::Error& err) {
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+    }
+}
+
 memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_params params) {
    try {
         if (new_layout.format.is_image_2d() && params.mem_type == shared_mem_type::shared_mem_image) {
