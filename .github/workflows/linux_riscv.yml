@@ -1,5 +1,8 @@
 name: Linux RISC-V (Ubuntu 22.04, Python 3.10)
 on:
+  schedule:
+    # at 00:00 on Wednesday and Saturday
+    - cron: '0 0 * * 3,6'
   workflow_dispatch:
     inputs:
       target-branch:
@@ -7,7 +10,7 @@ on:
         type: string
         required: false
       testFilterType:
-        description: 'Filter for google tests {SMOKE | CONCISE}'
+        description: 'Filter for google tests {SMOKE | CONCISE | NIGHTLY}'
         required: true
         default: 'CONCISE'
   pull_request:
@@ -18,7 +21,7 @@ on:
       - ready_for_review
   merge_group:
     paths:
-      - '.github/workflows/linux_riscv_gnu_dev_cpu.yml'
+      - '.github/workflows/linux_riscv.yml'
       - 'src/plugins/intel_cpu/src/emitters/plugin/aarch64/**'
       - 'src/plugins/intel_cpu/src/emitters/plugin/riscv64/**'
       - 'src/plugins/intel_cpu/src/emitters/plugin/x64/**'
@@ -46,6 +49,8 @@ permissions: read-all
 env:
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
   RISCV_TOOLCHAIN_ROOT: /opt/riscv
+  RISCV_CONCISE_GTEST_FILTER: '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*:smoke_Snippets*'
+  RISCV_NIGHTLY_GTEST_FILTER: '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*:smoke_Snippets*:smoke_CompareWithRefs*'
 
 jobs:
   Smart_CI:
@@ -239,7 +244,6 @@ jobs:
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*:smoke_Snippets*' }}
 
     steps:
       - name: Download OpenVINO artifacts (package)
@@ -260,10 +264,27 @@ jobs:
           pigz -dc openvino_tests.tar.gz | tar -xvf - -C ${INSTALL_DIR}
         working-directory: ${{ env.INSTALL_DIR }}
       - name: Intel CPU plugin func tests (parallel)
+        env:
+          TEST_FILTER_TYPE: ${{ github.event_name == 'schedule' && 'NIGHTLY' || inputs.testFilterType || 'CONCISE' }}
         run: |
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.RISCV_TOOLCHAIN_ROOT}}/bin/qemu-riscv64 -cpu rv64,x-v=true,vlen=256 ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=${{ env.GTEST_FILTER }}
-        timeout-minutes: ${{ inputs.testFilterType == 'SMOKE' && 125 || 25}}
+          source "${INSTALL_DIR}/setupvars.sh"
+          case "${TEST_FILTER_TYPE}" in
+            SMOKE)
+              GTEST_FILTER="${RISCV_SMOKE_GTEST_FILTER}"
+              ;;
+            NIGHTLY)
+              GTEST_FILTER="${RISCV_NIGHTLY_GTEST_FILTER}"
+              ;;
+            *)
+              GTEST_FILTER="${RISCV_CONCISE_GTEST_FILTER}"
+              ;;
+          esac
+          "${RISCV_TOOLCHAIN_ROOT}"/bin/qemu-riscv64 \
+            -cpu rv64,x-v=true,vlen=256 \
+            "${INSTALL_TEST_DIR}"/ov_cpu_func_tests \
+            --gtest_print_time=1 \
+            --gtest_filter="${GTEST_FILTER}"
+        timeout-minutes: ${{ (inputs.testFilterType == 'CONCISE' || (!inputs.testFilterType && github.event_name != 'schedule')) && 25 || 125 }}
 
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv
