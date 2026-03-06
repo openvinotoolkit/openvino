@@ -889,7 +889,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 });
 
         // Convert reduce to reshape expected to be optimized out
-        manager.register_pass<ov::pass::ConvertReduceToReshape>();
+        // manager.register_pass<ov::pass::ConvertReduceToReshape>();
 
         if (device_info.supports_immad) {
             // oneDNN reduction is used
