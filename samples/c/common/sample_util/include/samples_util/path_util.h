@@ -29,6 +29,14 @@ extern "C" {
  */
 bool sanitize_path(const char* filename, char* sanitized_path, size_t size);
 
+/**
+ * @brief Get the directory path of the current executable.
+ * @param dir_path The buffer to store the directory path.
+ * @param size The size of the buffer.
+ * @return true if successful, false otherwise.
+ */
+bool get_executable_dir(char* dir_path, size_t size);
+
 #ifdef __cplusplus
 }
 #endif

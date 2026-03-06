@@ -20,9 +20,9 @@ void infer_result_sort(struct infer_result* results, size_t result_size) {
     qsort(results, result_size, sizeof(struct infer_result), compare);
 }
 
-struct infer_result* tensor_to_infer_result(ov_tensor_t* tensor, size_t* result_size) {
+struct infer_result* tensor_to_infer_result(ov_api_t* api, ov_tensor_t* tensor, size_t* result_size) {
     ov_shape_t output_shape = {0};
-    ov_status_e status = ov_tensor_get_shape(tensor, &output_shape);
+    ov_status_e status = api->ov_tensor_get_shape(tensor, &output_shape);
     if (status != OK)
         return NULL;
 
@@ -30,14 +30,14 @@ struct infer_result* tensor_to_infer_result(ov_tensor_t* tensor, size_t* result_
 
     struct infer_result* results = (struct infer_result*)malloc(sizeof(struct infer_result) * (*result_size));
     if (!results) {
-        ov_shape_free(&output_shape);
+        api->ov_shape_free(&output_shape);
         return NULL;
     }
 
     void* data = NULL;
-    status = ov_tensor_data(tensor, &data);
+    status = api->ov_tensor_data(tensor, &data);
     if (status != OK) {
-        ov_shape_free(&output_shape);
+        api->ov_shape_free(&output_shape);
         free(results);
         return NULL;
     }
@@ -49,7 +49,7 @@ struct infer_result* tensor_to_infer_result(ov_tensor_t* tensor, size_t* result_
         results[i].probability = float_data[i];
     }
 
-    ov_shape_free(&output_shape);
+    api->ov_shape_free(&output_shape);
     return results;
 }
 
