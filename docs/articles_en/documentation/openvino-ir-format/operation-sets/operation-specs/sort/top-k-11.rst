@@ -94,6 +94,11 @@ Sorting and minimum/maximum are controlled by ``sort`` and ``mode`` attributes w
 * *sort* =  ``none``  , *mode* =  ``min``  - undefined
 
 The relative order of equivalent elements is only preserved if the ``stable`` attribute is set to ``true``. This makes the implementation use stable sorting algorithm during the computation of TopK elements. Otherwise the output order is undefined.
+
+**NaN Handling**
+
+For floating-point types, NaN values are treated as smaller than any valid number (consistent with NumPy behavior). In ``max`` mode, NaN values will not appear in top-K results unless fewer than K valid numbers exist. Note that this differs from PyTorch, which treats NaN as larger than all valid numbers.
+
 The "by index" order means that the input tensor's elements are still sorted by value but their order in the output tensor is additionally determined by the indices of those elements in the input tensor. This might yield multiple correct results though. For example if the input tensor contains the following elements:
 
 .. code-block:: cpp
