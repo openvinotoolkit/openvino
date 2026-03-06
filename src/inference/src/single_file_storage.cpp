@@ -230,11 +230,9 @@ void SingleFileStorage::read_cache_entry(const std::string& blob_id, bool enable
         const auto& [blob_pos, blob_size, model_name] = m_blob_index[cid];
         if (enable_mmap) {
             // CVS-181859 Extend memory mapping helpers to suport partial file mapping
-            CompiledBlobVariant compiled_blob{std::in_place_index<0>,
-                                              ov::read_tensor_data(m_file_path,
-                                                                   element::u8,
-                                                                   {static_cast<PartialShape::value_type>(blob_size)},
-                                                                   blob_pos)};
+            CompiledBlobVariant compiled_blob{
+                std::in_place_index<0>,
+                make_tensor_from(m_file_path, blob_pos, {static_cast<Shape::value_type>(blob_size)})};
             reader(compiled_blob);
         } else {
             std::ifstream stream(m_file_path, std::ios::binary);

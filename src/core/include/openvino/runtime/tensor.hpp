@@ -340,4 +340,11 @@ Tensor read_tensor_data(ov::FileHandle file_handle,
                         const element::Type& element_type = element::u8,
                         const PartialShape& shape = PartialShape::dynamic(1),
                         std::size_t offset_in_bytes = 0);
+
+OPENVINO_API
+Tensor make_tensor_from(const std::filesystem::path& file_name,
+                        std::size_t offset_in_bytes,
+                        const Shape& shape,
+                        const element::Type& element_type = element::u8);
+
 }  // namespace ov
