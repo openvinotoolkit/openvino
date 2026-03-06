@@ -15,6 +15,12 @@ set(MANDATORY_UNIT_TESTS_LIBS
         "openvino::npu_logger_utils"
 )
 
+if(MSVC)
+    add_definitions(-DLOADER_VERSION_MAJOR=0xDEAFBEEF)
+    add_definitions(-DLOADER_VERSION_MINOR=0xDEAFBEEF)
+    add_definitions(-DLOADER_VERSION_PATCH=0xDEAFBEEF)
+endif()
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -30,6 +36,11 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/al/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/behavior/npuw/test_engine/models
+            ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero
+            ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero/include
+            ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero/source/loader
+            ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero/source/inc
+            ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero/third_party/spdlog_headers
         OBJECT_FILES
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_compiled_model_utils.cpp

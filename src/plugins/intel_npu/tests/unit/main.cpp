@@ -4,7 +4,12 @@
 
 #include <signal.h>
 
+#include <openvino/runtime/intel_npu/properties.hpp>
 #include <sstream>
+
+#include "openvino/util/file_util.hpp"
+#include "openvino/util/shared_object.hpp"
+#include "ze_api.h"
 #ifdef WIN32
 #    include <process.h>
 #endif
@@ -20,6 +25,19 @@ void sigsegv_handler(int errCode) {
 int main(int argc, char** argv, char** envp) {
     // register crashHandler for SIGSEGV signal
     signal(SIGSEGV, sigsegv_handler);
+
+    try {
+        using zelSetDriverTeardownF = ze_result_t (*)();
+        zelSetDriverTeardownF zelSetDriverTeardown = nullptr;
+
+        auto libpath = ov::util::make_plugin_library_name({}, "ze_loader");
+        auto lib = ov::util::load_shared_object(libpath);
+        zelSetDriverTeardown =
+            reinterpret_cast<zelSetDriverTeardownF>(ov::util::get_symbol(lib, "zelSetDriverTeardown"));
+        zelSetDriverTeardown();
+    } catch (...) {
+        // ze_loader not present on the system, probably it is not an NPU host
+    }
 
     std::ostringstream oss;
     oss << "Command line args (" << argc << "): ";
