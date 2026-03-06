@@ -92,7 +92,8 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
                                             input_info("experts_info_offsets"),
                                             input_info("tokens_len_per_expert"),
                                             input_info("experts_ids"),
-                                            moe_config));
+                                            moe_config,
+                                            true));
     auto input_data_shape = ov::PartialShape{ov::Dimension(num_tokens * num_active_experts_per_token), 1, ov::Dimension(hidden_size)};
     auto input_data_layout = create_layout<T>(input_data_shape);
 

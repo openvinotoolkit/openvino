@@ -125,7 +125,8 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         auto moe_mask_gen_prim = cldnn::moe_mask_gen(moe_mask_gen_name,
                                                      input_infos[2],  // topk indices
                                                      static_cast<int32_t>(config.num_expert),
-                                                     static_cast<int32_t>(config.top_k));
+                                                     static_cast<int32_t>(config.top_k),
+                                                     true);
         p.add_primitive(*op, moe_mask_gen_prim);
         auto moe_mask_gen_reshape_prim =
             cldnn::moe_mask_gen_reshape(moe_mask_gen_reshape_name,
