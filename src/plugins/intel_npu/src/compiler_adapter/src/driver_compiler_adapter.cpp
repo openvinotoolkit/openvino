@@ -25,9 +25,6 @@ namespace {
  * depending on which one is supported by the compiler.
  */
 bool useBaseModelSerializer(const intel_npu::FilteredConfig& config) {
-    if (config.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
-        return config.get<intel_npu::USE_BASE_MODEL_SERIALIZER>();
-    }
     if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
         return (config.get<intel_npu::MODEL_SERIALIZER_VERSION>() !=
                 ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
