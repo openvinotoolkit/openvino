@@ -253,6 +253,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             // Metrics
             ov::PropertyName{ov::supported_properties.name(), PropertyMutability::RO},
             ov::PropertyName{ov::model_name.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::log::level.name(), PropertyMutability::RO},
             ov::PropertyName{ov::optimal_number_of_infer_requests.name(), PropertyMutability::RO},
 
             // Configs
