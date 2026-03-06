@@ -46,12 +46,15 @@ find_package(OpenVINODeveloperScripts REQUIRED
              NO_CMAKE_FIND_ROOT_PATH
              NO_DEFAULT_PATH)
 
+ov_log_section("Features and options")
 include(cmake/features.cmake)
 
+ov_log_section("Getting pre-built dependencies")
 # These options are shared with 3rdparty plugins by means of developer package
 include(cmake/dependencies.cmake)
 
 if(ENABLE_COVERAGE)
+    ov_log_section("Tests coverage")
     include(cmake/coverage.cmake)
 endif()
 
@@ -61,6 +64,7 @@ if(APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET AND
 endif()
 
 # resolving dependencies for the project
+ov_log_section("OpenVINO build configuration")
 message (STATUS "CMAKE_VERSION ......................... " ${CMAKE_VERSION})
 message (STATUS "CMAKE_CROSSCOMPILING .................. " ${CMAKE_CROSSCOMPILING})
 message (STATUS "OpenVINO_SOURCE_DIR ................... " ${OpenVINO_SOURCE_DIR})
@@ -161,8 +165,7 @@ if(CMAKE_GENERATOR STREQUAL "Ninja" OR CMAKE_GENERATOR STREQUAL "Ninja Multi-Con
     set_property(GLOBAL PROPERTY JOB_POOLS "${CMAKE_JOB_POOLS};four_jobs=4")
 
     if(CMAKE_JOB_POOLS)
-        message(STATUS "")
-        message(STATUS "Job pools configuration for Ninja generator:")
+        ov_log_section("Job pools configuration for Ninja generator")
         get_property(current_job_pools GLOBAL PROPERTY JOB_POOLS)
         message(STATUS "CMAKE_JOB_POOLS is set to: ${CMAKE_JOB_POOLS}")
         message(STATUS "JOB_POOLS global property is set to: ${current_job_pools}")
@@ -186,10 +189,12 @@ if(ENABLE_TESTS)
     include(cmake/test_model_zoo.cmake)
 endif()
 
+ov_log_section("Third-party dependencies")
 include(thirdparty/dependencies.cmake)
 add_subdirectory(src)
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
+    ov_log_section("Samples")
     add_subdirectory(samples)
 endif()
 
@@ -206,6 +211,7 @@ add_subdirectory(licensing)
 
 if(ENABLE_TESTS)
     # layers and other more high-level / e2e tests
+    ov_log_section("High-level tests")
     add_subdirectory(tests)
 endif()
 

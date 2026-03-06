@@ -118,7 +118,7 @@ jobs:
 
       - name: Build docs
         run: |
-          cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_DOCS=ON -S ${OPENVINO_REPO} -B ${BUILD_DIR}
+          cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_DOCS=ON -DENABLE_CLANG_FORMAT=OFF -S ${OPENVINO_REPO} -B ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --target sphinx_docs
 
       - name: Cache documentation

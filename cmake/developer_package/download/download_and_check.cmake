@@ -23,7 +23,7 @@ function (DownloadAndCheck from to fatal result sha256)
           list(GET output 0 status_code)
         else()
           foreach(index RANGE 5)
-            message(STATUS "${WGET_EXECUTABLE} --no-cache
+            message(VERBOSE "${WGET_EXECUTABLE} --no-cache
               --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 --tries=5 ${from}")
             execute_process(COMMAND ${WGET_EXECUTABLE} "--no-cache"
               "--retry-connrefused" "--waitretry=1" "--read-timeout=20" "--timeout=15" "--tries=5"
@@ -42,7 +42,7 @@ function (DownloadAndCheck from to fatal result sha256)
           endif()
         endif()
       else()
-        message(STATUS "${aria2c} ,*.*.*.* -d ${download_dir} ${from}")
+        message(VERBOSE "${aria2c} ,*.*.*.* -d ${download_dir} ${from}")
         execute_process(COMMAND "${aria2c}" "-s10" "-x10" "--dir=${download_dir}" "${from}"
             TIMEOUT 2000
             RESULT_VARIABLE status_code)
