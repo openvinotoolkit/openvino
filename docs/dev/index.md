@@ -72,6 +72,7 @@ flowchart LR
      * [Get code coverage report](./test_coverage.md)
      * [Add component developer documentation](./dev_doc_guide.md)
      * [Work with OpenVINO Public CI](./public_ci.md)
+     * [Debug OpenVINO using VS Code](./how_to_debug_openvino_vsc.md)
  * [OpenVINO contributing guidelines](../../CONTRIBUTING.md)
  * [OpenVINO debug capabilities](./debug_capabilities.md)
 
