@@ -187,6 +187,9 @@ OutputVector translate_stack(const NodeContext& context) {
     // GPTQ u4 decompression pattern
     if (const auto& u4_const = u4_compression_stack(stack_inputs, axis))
         return {u4_const};
+    // NNCF u2 decompression pattern
+    if (const auto& u2_const = u2_compression_stack(stack_inputs, axis))
+        return {u2_const};
     // Direct case: unsqueeze each element then concatenate
     auto dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {axis}));
     std::deque<Output<Node>> unsqueezed;
@@ -224,6 +227,10 @@ OutputVector translate_stack_fx(const NodeContext& context) {
     // returns the u4 constant if the stack operation is a part of the decompression pattern
     if (const auto& u4_const = u4_compression_stack(stack_inputs, axis))
         return {u4_const};
+
+    // returns the u2 constant if the stack operation is a part of the 2-bit decompression pattern
+    if (const auto& u2_const = u2_compression_stack(stack_inputs, axis))
+        return {u2_const};
 
     num_elements = list_elems.size();
     list_elems.clear();
