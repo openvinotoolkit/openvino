@@ -3,6 +3,7 @@
 //
 
 #include "fully_connected_kernel_bf_tiled.h"
+#include "fully_connected_kernel_bf_tiled_dyn_b.h"
 #include "kernel_selector_utils.h"
 #include "swiglu/swiglu_kernel_base.h"
 #include <vector>
@@ -15,6 +16,31 @@ static constexpr size_t input_load_size = 4;
 static constexpr size_t min_quantize_grp_size = (simd * 2); // SIMD * (min value of tile_ifm)
 static constexpr size_t min_slm_size = 256;
 static std::vector<size_t> available_quantize_grp_size = {128, 64, 32};
+
+// Per-direction bitmasks of batch sizes where dyn_b is beneficial (based on MTL profiling).
+// IFM << OFM (e.g. 3584→18944): exclude {20, 24}
+static constexpr uint64_t dyn_b_batches_ifm_lt_ofm =
+    (1ULL << 2) | (1ULL << 3) | (1ULL << 4) | (1ULL << 5) | (1ULL << 6) | (1ULL << 7) | (1ULL << 8) |
+    (1ULL << 9) | (1ULL << 10) | (1ULL << 11) | (1ULL << 12) | (1ULL << 13) |
+    (1ULL << 14) | (1ULL << 15) | (1ULL << 16) | (1ULL << 17) | (1ULL << 18) | (1ULL << 19) |
+    (1ULL << 21) | (1ULL << 22) | (1ULL << 23) |
+    (1ULL << 25) | (1ULL << 26) | (1ULL << 27) | (1ULL << 28) | (1ULL << 29) | (1ULL << 30) | (1ULL << 31) | (1ULL << 32);
+// IFM >> OFM (e.g. 18944→3584): exclude {3, 6, 7, 8, 24, 25, 30, 31, 32}
+static constexpr uint64_t dyn_b_batches_ifm_gt_ofm =
+    (1ULL << 2) | (1ULL << 4) | (1ULL << 5) |
+    (1ULL << 9) | (1ULL << 10) | (1ULL << 11) | (1ULL << 12) | (1ULL << 13) |
+    (1ULL << 14) | (1ULL << 15) | (1ULL << 16) | (1ULL << 17) | (1ULL << 18) | (1ULL << 19) |
+    (1ULL << 20) | (1ULL << 21) | (1ULL << 22) | (1ULL << 23) |
+    (1ULL << 26) | (1ULL << 27) | (1ULL << 28) | (1ULL << 29);
+
+static inline bool is_dyn_b_batch_beneficial(size_t batch, size_t ifm, size_t ofm, bool swiglu) {
+    if (swiglu || batch < 2 || batch > 32)
+        return false;
+    if (std::min(ifm, ofm) < simd)
+        return false;
+    uint64_t mask = (ifm < ofm) ? dyn_b_batches_ifm_lt_ofm : dyn_b_batches_ifm_gt_ofm;
+    return (mask >> batch) & 1ULL;
+}
 
 namespace kernel_selector {
 
@@ -852,32 +878,82 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
             size_t quantize_grp_size = get_dynamic_quantize_group_size(prim_params);
             size_t output_batch = get_output_aligned_bf_size(prim_params, false).first;
-            // Get index of the added shape-agnostic kernel
-            // [optional:dyn_quant kernel] | default kernel | [optional:slm kernel]
+            // Get index of the added shape-agnostic kernels
+            // [optional:dyn_quant kernel] | default kernel | [optional:slm kernel] | [optional:dyn_b kernel]
             int32_t quantize_kernel_idx = (kd.internalBuffers.empty()) ? -1 : 0;
             int32_t default_kernel_idx = quantize_kernel_idx + 1;
-            int32_t slm_kernel_idx = (static_cast<int32_t>(kd.kernels.size()) > default_kernel_idx + 1) ? default_kernel_idx + 1 : -1;
 
-            // Choose one of the two shape agnostic kernels: N == added kernel number
-            // - kd.kernels[N-1] for batches <= 240 (default version)
-            // - kd.kernels[N] for batches >= 256 (slm version)
+            // Detect kernel layout: dyn_b (if present) is the last kernel and has no INTERNAL_BUFFER args.
+            // SLM kernel (if present) is between default and dyn_b and HAS INTERNAL_BUFFER args.
+            int32_t total_kernels = static_cast<int32_t>(kd.kernels.size());
+            int32_t dyn_b_kernel_idx = -1;
+            int32_t slm_kernel_idx = -1;
+
+            // The last kernel is dyn_b if it has fewer arguments than the default FC kernel
+            // (dyn_b has no INTERNAL_BUFFER args, default/SLM FC kernels do)
+            if (total_kernels > default_kernel_idx + 1) {
+                int32_t last_idx = total_kernels - 1;
+                auto& last_kernel_args = kd.kernels[last_idx].params.arguments;
+                bool last_has_internal_buffer = false;
+                for (const auto& arg : last_kernel_args) {
+                    if (arg.t == ArgumentDescriptor::Types::INTERNAL_BUFFER) {
+                        last_has_internal_buffer = true;
+                        break;
+                    }
+                }
+                if (!last_has_internal_buffer && !kd.internalBuffers.empty()) {
+                    dyn_b_kernel_idx = last_idx;
+                    // SLM is between default and dyn_b (if exists)
+                    if (last_idx > default_kernel_idx + 1)
+                        slm_kernel_idx = default_kernel_idx + 1;
+                } else {
+                    // No dyn_b: last kernel after default is SLM
+                    slm_kernel_idx = default_kernel_idx + 1;
+                }
+            }
+
             const auto default_alignment = 16;
-            // We can use SLM version if `output_batch + default_alignment > min_slm_size(256)` because memory and batch are aligned (whether 16 or 64 elements)
-            const auto execute_type = ((slm_kernel_idx >= 0) && (output_batch + default_alignment > min_slm_size)) ? KernelType::SLM : KernelType::DEFAULT;
-            const auto execute_kernel_idx = (execute_type == KernelType::SLM) ? slm_kernel_idx : default_kernel_idx;
-            const auto skip_kernel_idx = (execute_type == KernelType::SLM) ? default_kernel_idx : slm_kernel_idx;
+            bool use_slm = (slm_kernel_idx >= 0) && (output_batch + default_alignment > min_slm_size);
+            size_t ifm = prim_params.weights.IFM().v;
+            size_t ofm = prim_params.weights.OFM().v;
+            bool swiglu = is_swiglu_fused(prim_params);
+            bool use_dyn_b = !use_slm && (dyn_b_kernel_idx >= 0)
+                             && is_dyn_b_batch_beneficial(output_batch, ifm, ofm, swiglu);
 
-            // Check default or SLM version FC, and disable remain version
-            if (skip_kernel_idx >= 0)
-                kd.kernels[skip_kernel_idx].skip_execution = true;
+            int execute_fc_idx;
+            if (use_slm)
+                execute_fc_idx = slm_kernel_idx;
+            else if (use_dyn_b)
+                execute_fc_idx = dyn_b_kernel_idx;
+            else
+                execute_fc_idx = default_kernel_idx;
 
-            GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (execute_type == KernelType::SLM ? "SLM" : "Default") << " shape-agnostic kernel version "
+            // Skip all FC kernels except the executing one
+            for (int32_t i = default_kernel_idx; i < total_kernels; i++)
+                kd.kernels[i].skip_execution = (i != execute_fc_idx);
+
+            const char* mode_str = use_slm ? "SLM" : (use_dyn_b ? "DynB" : "Default");
+            GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << mode_str << " shape-agnostic kernel version "
                                     << "will be used for batch size = " << output_batch << "\n";
 
-            auto dispatchData = SetDefault(prim_params, -1, static_cast<int>(execute_type));
-            kd.kernels[execute_kernel_idx].params.workGroups.global = dispatchData.gws;
-            kd.kernels[execute_kernel_idx].params.workGroups.local = dispatchData.lws;
-            kd.kernels[execute_kernel_idx].skip_execution = KernelData::SkipKernelExecution(prim_params);
+            if (use_dyn_b) {
+                // dyn_b: flat dispatch based on actual runtime batch
+                size_t effective_batch = std::max(output_batch, (size_t)1);
+                size_t tile_b = FullyConnected_bf_tiled_dyn_b::select_tile_b(effective_batch);
+                FullyConnected_bf_tiled_dyn_b dyn_b_impl;
+                auto dyn_b_tparams = dyn_b_impl.GetTuneParams(prim_params);
+                auto threads = get_output_aligned_bf_size(prim_params, true,
+                                                          static_cast<uint32_t>(tile_b),
+                                                          static_cast<int32_t>(dyn_b_tparams.tile_ofm * simd));
+                kd.kernels[execute_fc_idx].params.workGroups.global = {threads.second * threads.first * simd, 1, 1};
+                kd.kernels[execute_fc_idx].params.workGroups.local = {simd, 1, 1};
+            } else {
+                auto dispatchData = SetDefault(prim_params, -1, use_slm ? static_cast<int>(KernelType::SLM) : static_cast<int>(KernelType::DEFAULT));
+                kd.kernels[execute_fc_idx].params.workGroups.global = dispatchData.gws;
+                kd.kernels[execute_fc_idx].params.workGroups.local = dispatchData.lws;
+            }
+
+            kd.kernels[execute_fc_idx].skip_execution = KernelData::SkipKernelExecution(prim_params);
 
             auto& input = prim_params.inputs[0];
             if (prim_params.outputs[0].GetLayout() == DataLayout::bfyx)
@@ -886,28 +962,26 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
                 OPENVINO_ASSERT(input.Feature().pad.Total(true) == 0, "[GPU] Invalid padding in f axis observed in FC bf tiled.");
 
             if (quantize_kernel_idx >= 0) {
-                // Pre-quantizing kernel was generated. Update the kernel and intermediate buffers or disable it.
-                if (execute_type == KernelType::DEFAULT) {
-                    kd.kernels[quantize_kernel_idx].skip_execution = true;
-                } else {
+                // Pre-quantizing kernel: enable only for SLM path, disable for default/dyn_b
+                if (use_slm) {
                     kd.kernels[quantize_kernel_idx].skip_execution = false;
+                    auto slm_dispatch = SetDefault(prim_params, -1, static_cast<int>(KernelType::SLM));
                     size_t input_f = get_input_bf_size(prim_params).second;
-                    size_t input_size = input_f * dispatchData.tile_m * dispatchData.gws[2];
+                    size_t input_size = input_f * slm_dispatch.tile_m * slm_dispatch.gws[2];
                     OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
-                    // half type of de_quan_scale and activation sum for each quantized group
                     size_t quan_var_size = (input_size / quantize_grp_size) * 2 * 2;
 
                     if (kd.internalBuffers[0].byte_count < input_size ||
                         kd.internalBuffers[1].byte_count < quan_var_size) {
                         kd.internalBuffers.clear();
-                        // quantized input is char type
                         kd.internalBuffers.push_back(input_size);
-                        // float type of de_quan_scale and activation sum for each quantized group
                         kd.internalBuffers.push_back(quan_var_size);
                     }
 
                     kd.kernels[0].params.workGroups.global = {(std::max((input_size / quantize_grp_size), (size_t)1)), 1, 1};
                     kd.kernels[0].params.workGroups.local = {1, 1, 1};
+                } else {
+                    kd.kernels[quantize_kernel_idx].skip_execution = true;
                 }
             }
         };
@@ -953,10 +1027,11 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
 
     KernelsData kernels_data;
     if (should_dynamic_quantize(fc_params)) {
-        // Use seperate 2 kernels for dynamic quantizing : quantizing_kernel + fc_kernel
+        // Multi-kernel for dynamic quantizing:
         // 1st kernel : Dynamic quantizing by dynamic_quantize_grp_size
-        // 2nd kernel : fully connected kernel with KernelType::DEFAULT. Quantized inputs and scale values could be used.
-        // 3rd kernel : (optional) fully connected shape_agnostic kernel with KernelType::SLM. Quantized inputs and scale values would be used.
+        // 2nd kernel : FC with KernelType::DEFAULT (quantized input via INTERNAL_BUFFER)
+        // 3rd kernel : (optional) FC with KernelType::SLM (quantized input via INTERNAL_BUFFER)
+        // 4th kernel : (optional) FC with dyn_b dispatch (original F16 input, no dynamic quantization)
         kernels_data = GetMultiKernelsData(params,
                                                 fc_params.inputs[0].GetLayout(),
                                                 weights_layout,
@@ -975,26 +1050,106 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
                                                 0);
 
         if (params.is_shape_agnostic) {
-            auto tparams = GetAutoTuneParams(fc_params, KernelType::SLM, autoTuneIndex);
-            auto can_select_slm_kernel = tparams.kernel_type == KernelType::SLM;
+            int32_t default_kernel_idx = 0;
+            int32_t slm_kernel_idx = -1;
+            int32_t dyn_b_kernel_idx = -1;
 
-            if (!can_select_slm_kernel)
-                return kernels_data;
+            // Try to add SLM kernel for large batches
+            {
+                auto slm_tparams = GetAutoTuneParams(fc_params, KernelType::SLM, autoTuneIndex);
+                if (slm_tparams.kernel_type == KernelType::SLM) {
+                    auto slm_kernel = GetCommonKernelsData(params,
+                                                        fc_params.inputs[0].GetLayout(),
+                                                        weights_layout,
+                                                        slm_tparams.exec_options,
+                                                        autoTuneIndex,
+                                                        1);
+                    if (!slm_kernel.empty() && !slm_kernel[0].kernels.empty()) {
+                        kernels_data[0].kernels.push_back(slm_kernel[0].kernels.back());
+                        slm_kernel_idx = static_cast<int32_t>(kernels_data[0].kernels.size()) - 1;
+                    }
+                }
+            }
 
-            auto slm_kernel = GetCommonKernelsData(params,
-                                                fc_params.inputs[0].GetLayout(),
-                                                weights_layout,
-                                                tparams.exec_options,
-                                                autoTuneIndex,
-                                                1);
+            // Try to add dyn_b kernel for batch-optimal runtime dispatch
+            {
+                FullyConnected_bf_tiled_dyn_b dyn_b_impl;
+                auto dyn_b_kd = dyn_b_impl.GetKernelsData(params);
+                if (!dyn_b_kd.empty() && !dyn_b_kd[0].kernels.empty()) {
+                    kernels_data[0].kernels.push_back(dyn_b_kd[0].kernels.back());
+                    dyn_b_kernel_idx = static_cast<int32_t>(kernels_data[0].kernels.size()) - 1;
+                }
+            }
 
-            if (slm_kernel.empty() || slm_kernel[0].kernels.empty())
-                return kernels_data;
+            if (dyn_b_kernel_idx >= 0) {
+                // Combined dispatch: SLM for large batches, dyn_b for the rest
+                unsigned dyn_b_tile_ofm = (weights_layout == WeightsLayout::os_iyx_osv16) ? 1u : 2u;
+                kernels_data[0].update_dispatch_data_func =
+                    [this, default_kernel_idx, slm_kernel_idx, dyn_b_kernel_idx, dyn_b_tile_ofm]
+                    (const Params& params, KernelData& kd) {
+                    const auto& prim_params = static_cast<const fully_connected_params&>(params);
+                    size_t output_batch = get_output_aligned_bf_size(prim_params, false).first;
+                    const auto default_alignment = 16;
 
-            kernels_data[0].kernels.push_back(slm_kernel[0].kernels.back());
+                    bool use_slm = (slm_kernel_idx >= 0) && (output_batch + default_alignment > min_slm_size);
+                    size_t ifm = prim_params.weights.IFM().v;
+                    size_t ofm = prim_params.weights.OFM().v;
+                    bool swiglu = is_swiglu_fused(prim_params);
+                    bool use_dyn_b = !use_slm && (dyn_b_kernel_idx >= 0)
+                                     && is_dyn_b_batch_beneficial(output_batch, ifm, ofm, swiglu);
+                    int execute_idx;
+                    if (use_slm)
+                        execute_idx = slm_kernel_idx;
+                    else if (use_dyn_b)
+                        execute_idx = dyn_b_kernel_idx;
+                    else
+                        execute_idx = default_kernel_idx;
 
-            // Update default update_dispatch_data_func function
-            GetUpdateDispatchDataFunc(kernels_data[0]);
+                    // Skip all non-executing kernels
+                    for (size_t i = 0; i < kd.kernels.size(); i++)
+                        kd.kernels[i].skip_execution = (static_cast<int32_t>(i) != execute_idx);
+
+                    if (use_dyn_b) {
+                        // dyn_b: flat dispatch based on actual runtime batch
+                        size_t effective_batch = std::max(output_batch, (size_t)1);
+                        size_t tile_b = FullyConnected_bf_tiled_dyn_b::select_tile_b(effective_batch);
+                        auto threads = get_output_aligned_bf_size(prim_params, true,
+                                                                  static_cast<uint32_t>(tile_b),
+                                                                  static_cast<int32_t>(dyn_b_tile_ofm * simd));
+                        kd.kernels[execute_idx].params.workGroups.global = {threads.second * threads.first * simd, 1, 1};
+                        kd.kernels[execute_idx].params.workGroups.local = {simd, 1, 1};
+                    } else if (use_slm) {
+                        auto dispatchData = SetDefault(prim_params, -1, static_cast<int>(KernelType::SLM));
+                        kd.kernels[execute_idx].params.workGroups.global = dispatchData.gws;
+                        kd.kernels[execute_idx].params.workGroups.local = dispatchData.lws;
+                    } else {
+                        // default kernel
+                        auto dispatchData = SetDefault(prim_params, -1, static_cast<int>(KernelType::DEFAULT));
+                        kd.kernels[execute_idx].params.workGroups.global = dispatchData.gws;
+                        kd.kernels[execute_idx].params.workGroups.local = dispatchData.lws;
+                    }
+
+                    kd.kernels[execute_idx].skip_execution = KernelData::SkipKernelExecution(prim_params);
+
+                    const char* mode_str = use_slm ? "SLM" : (use_dyn_b ? "DynB" : "Default");
+                    GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: "
+                                           << mode_str
+                                           << " shape-agnostic kernel will be used for batch size = "
+                                           << output_batch << "\n";
+
+                    auto& input = prim_params.inputs[0];
+                    if (prim_params.outputs[0].GetLayout() == DataLayout::bfyx)
+                        OPENVINO_ASSERT(input.X().pad.Total() == 0 && input.Y().pad.Total() == 0,
+                                        "[GPU] Invalid padding in spatial axes observed in FC bf tiled.");
+                    else
+                        OPENVINO_ASSERT(input.Feature().pad.Total(true) == 0,
+                                        "[GPU] Invalid padding in f axis observed in FC bf tiled.");
+                };
+            } else if (slm_kernel_idx >= 0) {
+                // Existing behavior: default + SLM dispatch
+                GetUpdateDispatchDataFunc(kernels_data[0]);
+            }
+            // If neither SLM nor dyn_b, keep default dispatch from GetCommonKernelsData
         }
     }
 
@@ -1183,6 +1338,39 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
 
         sa_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         sa_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel_number++;
+    }
+
+    // FC kernel with dyn_b dispatch (no dynamic quantization, reads original F16 input)
+    if (params.is_shape_agnostic && FullyConnected_bf_tiled_dyn_b::IsBeneficial(fc_params)) {
+        FullyConnected_bf_tiled_dyn_b dyn_b_impl;
+        auto dyn_b_dispatch = dyn_b_impl.SetDefault(new_params);
+        auto dyn_b_jit_constants = dyn_b_impl.GetJitConstants(new_params, dyn_b_dispatch);
+
+        kd.kernels.resize(kernel_number + 1);
+
+        auto dyn_b_entry_point = GetEntryPoint("fully_connected_gpu_bf_tiled_dyn_b", fc_params.layerID, params, kernel_number);
+        auto dyn_b_jit = CreateJit("fully_connected_gpu_bf_tiled_dyn_b", dyn_b_jit_constants, dyn_b_entry_point);
+
+        auto& dyn_b_kernel = kd.kernels[kernel_number];
+        dyn_b_kernel.params.workGroups.global = dyn_b_dispatch.gws;
+        dyn_b_kernel.params.workGroups.local = dyn_b_dispatch.lws;
+        dyn_b_kernel.skip_execution = false;
+
+        FillCLKernelData(dyn_b_kernel,
+                        dyn_b_dispatch,
+                        params.engineInfo,
+                        "fully_connected_gpu_bf_tiled_dyn_b",
+                        dyn_b_jit,
+                        dyn_b_entry_point,
+                        EXE_MODE_DEFAULT,
+                        true,
+                        !fc_params.bias.empty(),
+                        inputs_count,
+                        GetFusedPrimitiveInputsCount(params),
+                        1,
+                        fc_params.is_shape_agnostic);
+        // dyn_b reads original F16 input (no INTERNAL_BUFFER args)
     }
 
     kd.autoTuneIndex = autoTuneIndex;

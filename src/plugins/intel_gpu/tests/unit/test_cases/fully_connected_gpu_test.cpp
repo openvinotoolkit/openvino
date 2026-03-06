@@ -1570,7 +1570,7 @@ public:
             auto inst = network->get_primitive("fc_prim");
             auto impl = inst->get_impl();
             ASSERT_TRUE(impl != NULL);
-            ASSERT_EQ(impl->get_kernels().size(), size_t((is_dynamic ? 3 : 2))); // shape-agnostic kernels
+            ASSERT_GE(impl->get_kernels().size(), size_t((is_dynamic ? 3 : 2))); // shape-agnostic kernels
         }
 
         network->set_input_data("input", input_mem);
@@ -1806,7 +1806,7 @@ public:
             auto inst = network->get_primitive("fc_prim");
             auto impl = inst->get_impl();
             ASSERT_TRUE(impl != NULL);
-            ASSERT_EQ(impl->get_kernels().size(), 2);
+            ASSERT_GE(impl->get_kernels().size(), 2u);
         }
 
         network->set_input_data("input", input_mem);
@@ -2121,7 +2121,7 @@ public:
         if (batch_num == 1) {
             ASSERT_EQ(fc_kernels.size(), 1);
         } else if (batch_num > 1) {
-            ASSERT_EQ(fc_kernels.size(), 2);
+            ASSERT_GE(fc_kernels.size(), 2u);
         } else {
             ASSERT_TRUE(false);
         }
@@ -2545,7 +2545,7 @@ public:
             ASSERT_EQ(fc_kernels.size(), 1);
 
         } else if (batch_num > 1) {
-            ASSERT_EQ(fc_kernels.size(), 2);
+            ASSERT_GE(fc_kernels.size(), 2u);
         } else {
             ASSERT_TRUE(false);
         }
@@ -2693,7 +2693,7 @@ public:
             ASSERT_EQ(fc_kernels.size(), 1);
 
         } else if (batch_num > 1) {
-            ASSERT_EQ(fc_kernels.size(), 2);
+            ASSERT_GE(fc_kernels.size(), 2u);
         } else {
             ASSERT_TRUE(false);
         }
@@ -5787,3 +5787,122 @@ TEST(fully_connected_gpu, cm) {
 
     // Do not validate output for CM
 }
+
+struct fc_bf_tiled_dyn_b_accuracy_test : public ::testing::TestWithParam<std::tuple<long int, long int, long int, bool>> {
+    tests::random_generator rg;
+    void SetUp() override {
+        rg = tests::random_generator(GET_SUITE_NAME);
+    }
+
+    void test_accuracy(long int batch_num, long int ifm_num, long int ofm_num, bool with_post_op, long int scales_group_size = 128) {
+        auto& engine = get_test_engine();
+
+        auto input_mem = engine.allocate_memory({ {batch_num, ifm_num}, data_types::f16, format::bfyx });
+        auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u4, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
+        auto dcomp_zp_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
+
+        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f);
+        set_values(input_mem, input_data);
+        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
+        set_values(weights_mem, weights_data);
+        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -1.0f, 1.0f);
+        set_values(scale_mem, scale_data);
+        auto zp_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -0.5f, 0.5f);
+        set_values(dcomp_zp_mem, zp_data);
+
+        auto dyn_layout = layout{ {-1, ifm_num}, data_types::f16, format::bfyx };
+
+        cldnn::memory::ptr eltw_mem = nullptr;
+        if (with_post_op) {
+            eltw_mem = engine.allocate_memory({ {batch_num, ofm_num}, data_types::f16, format::bfyx });
+            auto eltw_data = rg.generate_random_1d<ov::float16>(batch_num * ofm_num, -1.0f, 1.0f);
+            set_values(eltw_mem, eltw_data);
+        }
+
+        auto build_topology = [&]() {
+            auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "dcomp_zp", data_types::f16, 2, 2);
+            topology topology(
+                input_layout("input", dyn_layout),
+                data("weights", weights_mem),
+                data("scale", scale_mem),
+                data("dcomp_zp", dcomp_zp_mem),
+                fc_prim
+            );
+            if (with_post_op) {
+                topology.add(data("eltw_data", eltw_mem));
+                topology.add(eltwise("eltw", { input_info("fc_prim"), input_info("eltw_data") }, eltwise_mode::sum));
+            }
+            return topology;
+        };
+
+        auto out_name = with_post_op ? "eltw" : "fc_prim";
+
+        // Reference: bfyx_ref kernel
+        auto get_ref_results = [&]() {
+            auto topo = build_topology();
+            auto config = get_test_default_config(engine);
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+            ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl };
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
+            network network(engine, topo, config);
+            network.set_input_data("input", input_mem);
+            auto outputs = network.execute();
+            auto output_mem = outputs.at(out_name).get_memory();
+            return engine.reinterpret_buffer(*output_mem, outputs.at(out_name).get_layout());
+        };
+
+        // Test: dyn_b kernel
+        auto get_dyn_b_results = [&]() {
+            auto topo = build_topology();
+            auto config = get_test_default_config(engine);
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            config.set_property(ov::intel_gpu::optimize_data(true));
+            config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+            ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bf_tiled_dyn_b", impl_types::ocl };
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
+            network network(engine, topo, config);
+            network.set_input_data("input", input_mem);
+            auto outputs = network.execute();
+            auto output_mem = outputs.at(out_name).get_memory();
+            return engine.reinterpret_buffer(*output_mem, outputs.at(out_name).get_layout());
+        };
+
+        auto ref_mem = get_ref_results();
+        auto test_mem = get_dyn_b_results();
+
+        cldnn::mem_lock<ov::float16> ref_ptr(ref_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16> test_ptr(test_mem, get_test_stream());
+
+        ASSERT_EQ(ref_ptr.size(), test_ptr.size());
+        for (size_t i = 0; i < ref_ptr.size(); i++) {
+            ASSERT_NEAR(float(ref_ptr[i]), float(test_ptr[i]), 9.0f)
+                << "Mismatch at i=" << i
+                << " ref=" << float(ref_ptr[i])
+                << " dyn_b=" << float(test_ptr[i]);
+        }
+    }
+};
+
+TEST_P(fc_bf_tiled_dyn_b_accuracy_test, compare_with_ref) {
+    auto [batch_num, ifm_num, ofm_num, with_post_op] = GetParam();
+    test_accuracy(batch_num, ifm_num, ofm_num, with_post_op);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    fully_connected_bf_tiled_dyn_b_accuracy,
+    fc_bf_tiled_dyn_b_accuracy_test,
+    ::testing::Values(
+        // Small batch, IFM < OFM (up/gate projection pattern)
+        std::make_tuple(3L,  256L, 1024L, false),
+        // Prime batch with tail, IFM > OFM (down projection pattern)
+        std::make_tuple(11L, 1024L, 256L, false),
+        // Aligned batch, IFM < OFM
+        std::make_tuple(16L, 256L, 1024L, false),
+        // Large prime batch, IFM < OFM (multi TILE_B + tail)
+        std::make_tuple(29L, 256L, 1024L, false),
+        // With post-op eltwise
+        std::make_tuple(16L, 256L, 1024L, true)
+    )
+);
