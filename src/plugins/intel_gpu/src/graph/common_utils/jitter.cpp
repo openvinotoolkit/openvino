@@ -32,7 +32,7 @@ std::vector<ChannelName> get_data_channels_order(size_t rank) {
     case 8:
         return {channel::BATCH, channel::FEATURE, channel::V, channel::U, channel::W, channel::Z, channel::Y, channel::X};
     default:
-        OPENVINO_ASSERT("[GPU] Unexpected rank ", rank, " in get_data_channels_order() func");
+        OPENVINO_THROW("[GPU] Unexpected rank ", rank, " in get_data_channels_order() func");
     }
 
     return {};
