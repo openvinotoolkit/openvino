@@ -76,6 +76,8 @@ class Testwhere(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_where_as_nonzero(self, mask_fill, mask_dtype, x_dtype, ie_device, precision, ir_version):
+        # torch.jit.script produces aten::where(cond) -> Tensor[] without prim::ListUnpack,
+        # which directly invokes translate_where and previously raised "aten::where(cond) unsupported".
         self._test(*self.create_model(True),
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={
@@ -83,5 +85,22 @@ class Testwhere(PytorchLayerTest):
                        'mask_dtype': mask_dtype,
                        'return_x_y': False,
                        "x_dtype": x_dtype,
-                       },
-                   trace_model=True)
+                       })
+
+    @pytest.mark.parametrize(
+        "mask_fill", ['zeros', 'ones', 'random'])
+    @pytest.mark.parametrize("mask_dtype", [bool])
+    @pytest.mark.parametrize("x_dtype", ["float32", "int32"])
+    @pytest.mark.nightly
+    @pytest.mark.precommit_torch_export
+    def test_where_as_nonzero_export(self, mask_fill, mask_dtype, x_dtype, ie_device, precision, ir_version):
+        # torch.export produces aten.where.default which previously had no registered translator,
+        # causing OpConversionFailure.
+        self._test(*self.create_model(True),
+                   ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={
+                       'mask_fill': mask_fill,
+                       'mask_dtype': mask_dtype,
+                       'return_x_y': False,
+                       "x_dtype": x_dtype,
+                       })
