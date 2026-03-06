@@ -19,8 +19,14 @@ ov::OutputVector grid_sample(const ov::frontend::onnx::Node& node) {
     v9::GridSample::Attributes attributes{};
     attributes.align_corners = node.get_attribute_value<int64_t>("align_corners", 0);
 
-    attributes.mode = ov::EnumNames<v9::GridSample::InterpolationMode>::as_enum(
-        node.get_attribute_value<std::string>("mode", "bilinear"));
+    std::string mode = node.get_attribute_value<std::string>("mode", "bilinear");
+    if (mode == "linear") {
+        mode = "bilinear";
+    } else if (mode == "cubic") {
+        mode = "bicubic";
+    }
+
+    attributes.mode = ov::EnumNames<v9::GridSample::InterpolationMode>::as_enum(mode);
 
     attributes.padding_mode = ov::EnumNames<v9::GridSample::PaddingMode>::as_enum(
         node.get_attribute_value<std::string>("padding_mode", "zeros"));
