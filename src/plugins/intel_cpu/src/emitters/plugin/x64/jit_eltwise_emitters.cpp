@@ -79,6 +79,12 @@ void jit_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
         case ov::element::i32:
             h->uni_vpaddd(vmm_dst, vmm_src0, vmm_src1);
             break;
+        case ov::element::u8:
+            // u8 addition uses vpaddb which naturally wraps around (mod 256).
+            // This gives correct behavior: e.g., 255 + 1 = 0.
+            OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::u8, "u8 add JIT must only be used for u8 output");
+            h->uni_vpaddb(vmm_dst, vmm_src0, vmm_src1);
+            break;
         default:
             OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
         }
@@ -92,9 +98,20 @@ void jit_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     }
 }
 
-std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(
-    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}, {element::i32, element::i32}};
+std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    std::set<std::vector<element::Type>> supported = {{element::f32, element::f32}, {element::i32, element::i32}};
+
+    // Only enable u8 wrap-around for pure u8->u8 arithmetic.
+    // QDQ/dequantization patterns (u8 input, f32/i32 output) must NOT use u8 execution.
+    // node may be nullptr when called from SupportedPrecisions functor (general query).
+    if (node && ov::intel_cpu::all_of(element::u8,
+                                      node->get_input_element_type(0),
+                                      node->get_input_element_type(1),
+                                      node->get_output_element_type(0))) {
+        supported.insert({element::u8, element::u8});
+    }
+
+    return supported;
 }
 
 /// MUL_ADD ///
@@ -243,6 +260,12 @@ void jit_subtract_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         case ov::element::i32:
             h->uni_vpsubd(vmm_dst, vmm_src0, vmm_src1);
             break;
+        case ov::element::u8:
+            // u8 subtraction uses vpsubb which naturally wraps around (mod 256).
+            // This gives correct behavior: e.g., 3 - 4 = 255.
+            OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::u8, "u8 subtract JIT must only be used for u8 output");
+            h->uni_vpsubb(vmm_dst, vmm_src0, vmm_src1);
+            break;
         default:
             OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
         }
@@ -257,8 +280,20 @@ void jit_subtract_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 std::set<std::vector<element::Type>> jit_subtract_emitter::get_supported_precisions(
-    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}, {element::i32, element::i32}};
+    const std::shared_ptr<ov::Node>& node) {
+    std::set<std::vector<element::Type>> supported = {{element::f32, element::f32}, {element::i32, element::i32}};
+
+    // Only enable u8 wrap-around for pure u8->u8 arithmetic.
+    // QDQ/dequantization patterns (u8 input, f32/i32 output) must NOT use u8 execution.
+    // node may be nullptr when called from SupportedPrecisions functor (general query).
+    if (node && ov::intel_cpu::all_of(element::u8,
+                                      node->get_input_element_type(0),
+                                      node->get_input_element_type(1),
+                                      node->get_output_element_type(0))) {
+        supported.insert({element::u8, element::u8});
+    }
+
+    return supported;
 }
 
 /// MULTIPLY ///
