@@ -24,7 +24,7 @@ static void CreateFusedConvOp(ProgramBuilder& p, const std::shared_ptr<ov::op::F
     auto inputs = p.GetInputInfo(op);
 
     const std::string layerName = layer_type_name_ID(op);
-    cldnn::fused_conv fused_conv_prim(layerName, inputs);
+    cldnn::fused_conv fused_conv_prim(layerName, inputs, op->get_variable()->get_info());
     fused_conv_prim.num_outputs = op->get_output_size();
     p.add_primitive(*op, fused_conv_prim);
 }

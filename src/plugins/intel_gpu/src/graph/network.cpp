@@ -34,6 +34,7 @@
 #include "read_value_inst.h"
 #include "reshape_inst.h"
 #include "kv_cache_inst.h"
+#include "fused_conv_inst.h"
 #include "program_helpers.h"
 #include "program_dump_graph.h"
 
@@ -973,6 +974,16 @@ void network::allocate_primitive_instance(program_node const& node) {
                                  prim.get(),
                                  std::dynamic_pointer_cast<memory_state::releasable_variable>(inst),
                                  transpose_required);
+    } else if (node.is_type<fused_conv>()) {
+        auto prim = node.as<fused_conv>().get_primitive();
+        OPENVINO_ASSERT(node.get_output_layouts().size() >= 2,
+                        "[GPU] fused_conv expects 2 outputs to register variable state");
+        set_variables_state_info(prim->variable_info.variable_id,
+                                 node.get_output_layout(1),
+                                 prim->variable_info.data_type,
+                                 prim.get(),
+                                 nullptr,
+                                 false);
     }
 
     if (node.is_constant()) {
