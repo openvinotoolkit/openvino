@@ -307,7 +307,7 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     const auto& [param, routing_type] = GetParam();
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad) {
-        return;
+        GTEST_SKIP() << "No immad support";
     }
 
     tests::random_generator rg(GET_SUITE_NAME);
@@ -484,7 +484,7 @@ TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
     auto routing_type = GetParam();
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad) {
-        return;
+        GTEST_SKIP() << "No immad support";
     }
 
     const size_t batch_size = 1;
