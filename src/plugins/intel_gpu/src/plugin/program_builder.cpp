@@ -144,6 +144,11 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
     {
         GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
         for (const auto& op : ops) {
+            GPU_DEBUG_LOG << "CreateSingleLayerPrimitive begin: "
+                          << op->get_type_info().version_id << "::" << op->get_type_name()
+                          << " (friendly_name=" << op->get_friendly_name() << ")" << std::endl;
+
+            GPU_DEBUG_DEFINE_MEM_LOGGER(layer_type_name_ID(op));
             CreateSingleLayerPrimitive(op);
         }
     }
@@ -309,6 +314,18 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     auto prim_id = prim->id;
     auto id = layer_type_name_ID(&op);
     primitive_ids[id] = prim_id;
+
+    // std::cout << "[PB_PRIM] add_primitive prim_id=" << prim_id
+    //           << ", prim_type=" << prim->type_string()
+    //           << ", origin_op=" << op.get_type_info().version_id << "::" << op.get_type_name()
+    //           << " (friendly_name=" << op.get_friendly_name() << ")"
+    //           << std::endl;
+
+    GPU_DEBUG_LOG << "add_primitive: prim_id=" << prim_id
+                  << ", prim_type=" << prim->type_string()
+                  << ", origin_op=" << op.get_type_info().version_id << "::" << op.get_type_name()
+                  << " (friendly_name=" << op.get_friendly_name() << ")"
+                  << std::endl;
 
     bool multi_output_case = ends_with(prim_id, ".out0") && prim_id.length() > 5 && prim_id.substr(0, prim_id.length() - 5) == id;
     if (id != prim_id) {

@@ -177,7 +177,6 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
         if (!ov::util::validate_weights_path(weights_path) && !is_weightless_cache_attributes_set(cloned_model))
             set_weightless_cache_attributes(cloned_model);
     }
-
     transform_model(cloned_model, config_copy, context);
 
     // Transformations for some reason may drop output tensor names, so here we copy those from the original model

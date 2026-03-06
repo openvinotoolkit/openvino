@@ -47,6 +47,8 @@ public:
     static layout calc_output_layout(const moe_node& /* node */, const kernel_impl_params& impl_param);
     static std::string to_string(const moe_node& node);
     typed_primitive_inst(network& network, const moe_node& node);
+    cldnn::memory::ptr _base;
+    cldnn::moe_weights _weights;
 };
 
 using moe_inst = typed_primitive_inst<moe_3gemm_fused_compressed>;
