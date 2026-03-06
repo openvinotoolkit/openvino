@@ -374,10 +374,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::filesystem::path& model_path,
                                                           const ov::AnyMap& properties) const {
-    return compile_model_impl(ov::util::path_to_string(model_path), nullptr, properties);
+    return compile_model_impl(model_path, nullptr, properties);
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string& model_path,
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesystem::path& model_path,
                                                                const std::shared_ptr<const ov::Model>& model,
                                                                const ov::AnyMap& properties,
                                                                const std::string& model_precision) const {
@@ -724,7 +724,7 @@ void Plugin::register_priority(const unsigned int& priority, const std::string& 
 
 std::string Plugin::get_device_list(ov::AnyMap& properties,
                                     const std::shared_ptr<const ov::Model>& model,
-                                    const std::string& model_path) const {
+                                    const std::filesystem::path& model_path) const {
     std::string all_devices;
     std::string device_architecture;
     auto device_list_config = properties.find(ov::device::priorities.name());
@@ -772,7 +772,7 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                 if (model)
                     blobId = ov::ModelCache::compute_hash(model, dev_properties);
                 else
-                    blobId = ov::ModelCache::compute_hash(util::make_path(model_path), dev_properties);
+                    blobId = ov::ModelCache::compute_hash(model_path, dev_properties);
                 const auto cached_model_path = ov::util::make_path(cache_dir) / (blobId + ".blob");
                 bool is_blob_file_exist = ov::util::file_exists(cached_model_path);
                 num_blob_files += is_blob_file_exist;

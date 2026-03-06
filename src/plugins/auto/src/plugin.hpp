@@ -47,7 +47,7 @@ public:
 
     MOCKTESTMACRO std::string get_device_list(ov::AnyMap& properties,
                                               const std::shared_ptr<const ov::Model>& model = nullptr,
-                                              const std::string& model_path = {}) const;
+                                              const std::filesystem::path& model_path = {}) const;
 
     MOCKTESTMACRO std::list<DeviceInformation> get_valid_device(const std::vector<DeviceInformation>& meta_devices,
                                                                 const std::string& model_precision = "FP32") const;
@@ -78,7 +78,7 @@ public:
                                                              const ov::AnyMap& properties) const override;
 
 private:
-    std::shared_ptr<ov::ICompiledModel> compile_model_impl(const std::string& model_path,
+    std::shared_ptr<ov::ICompiledModel> compile_model_impl(const std::filesystem::path& model_path,
                                                            const std::shared_ptr<const ov::Model>& model,
                                                            const ov::AnyMap& properties,
                                                            const std::string& model_precision = "FP32") const;
