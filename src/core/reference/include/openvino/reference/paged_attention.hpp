@@ -147,8 +147,8 @@ inline std::vector<std::size_t> parse_subsequence_ranges(const int32_t* subseq_b
 // Supports: GQA, ALiBi, RoPE re-rotation (split-half / LLaMA-style), attention sinks,
 //           xattention sparse prefill, and adaptive RKV diversity scoring
 //
-// 
-// pool_kernel argument (default 7, from ReasoningTokenEviction pptx): 
+//
+// pool_kernel argument (default 7, from ReasoningTokenEviction pptx):
 // is a window size for per-head max-pool applied to per-token attention scores before aggregating into block scores
 // It is currently missing from the operator's inputs, but based on the presentation it should be present
 //
