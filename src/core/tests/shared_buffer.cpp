@@ -404,6 +404,41 @@ TEST(MappedMemory, get_id_same_for_same_file) {
     std::filesystem::remove(file_path);
 }
 
+TEST(MappedMemory, partial_mapping) {
+    std::filesystem::path file_path = ov::test::utils::generateTestFilePrefix() + "_partial_mapping";
+    std::vector<char> buffer(4 * 4096, 'X');
+
+    const std::vector<char> test_val_1{'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'};
+    const size_t offset_1 = 4096;
+    const size_t size_1 = test_val_1.size();
+    for (size_t i = 0; i < test_val_1.size(); ++i) {
+        buffer[offset_1 + i] = test_val_1[i];
+    }
+
+    const std::vector<char> test_val_2{'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S'};
+    const size_t offset_2 = buffer.size();
+    const size_t size_2 = test_val_2.size();
+    buffer.insert(buffer.end(), test_val_2.begin(), test_val_2.end());
+
+    {
+        std::ofstream os(file_path, std::ios::binary);
+        os.write(buffer.data(), buffer.size());
+    }
+
+    const auto mm_1 = ov::load_mmap_object(file_path, offset_1, size_1);
+    const auto mm_2 = ov::load_mmap_object(file_path, offset_2, size_2);
+
+    ASSERT_NE(mm_1, nullptr);
+    ASSERT_NE(mm_2, nullptr);
+    EXPECT_NE(mm_1->get_id(), mm_2->get_id());
+    EXPECT_EQ(mm_1->size(), size_1);
+    EXPECT_EQ(mm_2->size(), size_2);
+    EXPECT_EQ(test_val_1, std::vector<char>(mm_1->data(), mm_1->data() + mm_1->size()));
+    EXPECT_EQ(test_val_2, std::vector<char>(mm_2->data(), mm_2->data() + mm_2->size()));
+
+    std::filesystem::remove(file_path);
+}
+
 // ==================== SharedBuffer with explicit descriptor Tests ====================
 
 TEST_F(SharedBufferTest, shared_ptr_void_with_explicit_descriptor) {

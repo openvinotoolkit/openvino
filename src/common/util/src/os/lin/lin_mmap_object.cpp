@@ -16,6 +16,12 @@
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov {
+namespace util {
+size_t get_system_page_size() {
+    static auto page_size = static_cast<size_t>(sysconf(_SC_PAGE_SIZE));
+    return page_size;
+}
+}  // namespace util
 
 class HandleHolder {
     int m_handle = -1;
@@ -126,4 +132,53 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle
     return holder;
 }
 
+class PartialMapHolder final : public MappedMemory {
+    void* m_data = MAP_FAILED;
+    size_t m_size = 0;
+    uint64_t m_id = std::numeric_limits<uint64_t>::max();
+    HandleHolder m_handle;
+
+    void setup_mapping(const int fd, size_t pos, size_t size) {
+        if (size > 0) {
+            m_data = mmap(nullptr, size, PROT_READ, MAP_PRIVATE, fd, pos);
+            if (m_data == MAP_FAILED) {
+                throw std::runtime_error("Can not create file mapping for " + std::to_string(fd) +
+                                         ", err=" + std::strerror(errno));
+            }
+            m_handle = HandleHolder(fd);
+            m_size = size;
+        }
+    }
+
+public:
+    PartialMapHolder(const std::filesystem::path& path, size_t pos, size_t size) {
+        if (int fd = open(path.c_str(), O_RDONLY); fd != -1) {
+            setup_mapping(fd, pos, size);
+            m_id = std::hash<std::filesystem::path::string_type>{}(path.native()) ^ std::hash<size_t>{}(pos) ^
+                   std::hash<size_t>{}(size);
+        } else {
+            throw std::runtime_error("Can not open file " + util::path_to_string(path) +
+                                     " for mapping. Ensure that file exists and has appropriate permissions");
+        }
+    }
+    ~PartialMapHolder() {
+        if (m_data != MAP_FAILED) {
+            munmap(m_data, m_size);
+        }
+    }
+
+    char* data() noexcept override {
+        return static_cast<char*>(m_data);
+    }
+    size_t size() const noexcept override {
+        return m_size;
+    }
+    uint64_t get_id() const noexcept override {
+        return m_id;
+    }
+};
+
+std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path, size_t pos, size_t size) {
+    return std::make_shared<PartialMapHolder>(path, pos, size);
+}
 }  // namespace ov

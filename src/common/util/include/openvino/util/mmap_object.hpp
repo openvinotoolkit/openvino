@@ -16,6 +16,10 @@
 
 namespace ov {
 
+namespace util {
+size_t get_system_page_size();
+}  // namespace util
+
 #ifdef _WIN32
 // Windows uses HANDLE (void*) for file handles
 using FileHandle = void*;
@@ -46,6 +50,15 @@ public:
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path);
+
+/**
+ * @brief Creates a memory mapping for a file.
+ * @param path Path to the file to be mapped.
+ * @param pos Position in the file where the mapping starts.
+ * @param size Size of the mapping.
+ * @return Mapped memory object.
+ */
+std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path, size_t pos, size_t size);
 
 /**
  * @brief Returns mapped memory for a file from provided file handle (cross-platform).
