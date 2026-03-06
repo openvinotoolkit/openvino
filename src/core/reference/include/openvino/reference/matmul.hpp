@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -22,7 +24,8 @@ void dot(const T* arg0,
          const Shape& arg0_shape,
          const Shape& arg1_shape,
          const Shape& out_shape) {
-    std::fill(out, out + shape_size(out_shape), T{0});
+    using Acc = std::conditional_t<!std::is_integral_v<T> && (sizeof(T) < sizeof(float)), float, T>;
+
     const size_t arg0_rank = arg0_shape.size();
     const size_t arg1_rank = arg1_shape.size();
 
@@ -33,15 +36,25 @@ void dot(const T* arg0,
     const size_t J_dim = arg1_rank == 1 ? 1 : arg1_shape[arg1_rank - 1];
     const size_t K_dim = arg1_rank == 1 ? arg1_shape[arg1_rank - 1] : arg1_shape[arg1_rank - 2];
 
+    std::vector<Acc> outTemp(shape_size(out_shape), Acc{0});
+
     for (size_t i = 0; i < I_dim; ++i) {
         for (size_t k = 0; k < K_dim; ++k) {
             const size_t a_idx = i * K_dim + k;
             for (size_t j = 0; j < J_dim; ++j) {
                 const size_t b_idx = k * J_dim + j;
                 const size_t out_idx = i * J_dim + j;
-                out[out_idx] += arg0[a_idx] * arg1[b_idx];
+                outTemp[out_idx] += arg0[a_idx] * arg1[b_idx];
             }
         }
+    }
+
+    if constexpr (std::is_same_v<Acc, T>) {
+        std::copy(outTemp.begin(), outTemp.end(), out);
+    } else {
+        std::transform(outTemp.begin(), outTemp.end(), out, [](Acc val) {
+            return static_cast<T>(val);
+        });
     }
 }
 

@@ -131,7 +131,7 @@ std::vector<std::vector<std::string>> activations_cm = {{"sigmoid", "tanh", "tan
 std::vector<float> clip_cm{0};
 std::vector<ov::element::Type> netPrecisions_cm = {ov::element::f16};
 
-INSTANTIATE_TEST_SUITE_P(LSTMSequenceCM, LSTMSequenceGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCM, LSTMSequenceGPUTest,
                         ::testing::Combine(
                                 ::testing::Values(ov::test::utils::SequenceTestsMode::PURE_SEQ),
                                 ::testing::ValuesIn(seq_lengths_cm),
