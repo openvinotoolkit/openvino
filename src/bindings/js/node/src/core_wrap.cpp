@@ -12,6 +12,7 @@
 #include "node/include/read_model_args.hpp"
 #include "node/include/type_validation.hpp"
 #include "openvino/core/model_util.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 
 void validate_set_property_args(const Napi::CallbackInfo& info) {
@@ -325,15 +326,14 @@ Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
         if (ov::js::validate<Napi::Buffer<uint8_t>, Napi::String>(info, allowed_signatures) ||
             ov::js::validate<Napi::Buffer<uint8_t>, Napi::String, Napi::Object>(info, allowed_signatures)) {
             const auto& model_data = info[0].As<Napi::Buffer<uint8_t>>();
-            const auto model_stream = std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
-            std::stringstream _stream;
-            _stream << model_stream;
+            ov::SharedStreamBuffer mb(model_data.Data(), static_cast<size_t>(model_data.Length()));
+            std::istream stream(&mb);
 
             ov::CompiledModel compiled;
             if (info.Length() == 2) {
-                compiled = _core.import_model(_stream, std::string(info[1].ToString()));
+                compiled = _core.import_model(stream, std::string(info[1].ToString()));
             } else {
-                compiled = _core.import_model(_stream, std::string(info[1].ToString()), to_anyMap(info.Env(), info[2]));
+                compiled = _core.import_model(stream, std::string(info[1].ToString()), to_anyMap(info.Env(), info[2]));
             }
 
             return CompiledModelWrap::wrap(info.Env(), compiled);
@@ -349,6 +349,12 @@ Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
 
 void ImportModelFinalizer(Napi::Env env, void* finalizeData, ImportModelContext* context) {
     context->nativeThread.join();
+
+    // release persistent JS buffer reference
+    if (!context->_buffer_ref.IsEmpty()) {
+        context->_buffer_ref.Reset();
+    }
+
     delete context;
 };
 
@@ -356,7 +362,7 @@ void importModelThread(ImportModelContext* context, std::mutex& mutex) {
     // Imports model without blocking the main thread.
     {
         const std::lock_guard<std::mutex> lock(mutex);
-        context->_compiled_model = context->_core.import_model(context->_stream, context->_device, context->_config);
+        context->_compiled_model = context->_core.import_model(*context->_stream, context->_device, context->_config);
     }
 
     // Callback to return to JS the results of core.import_model()
@@ -380,20 +386,34 @@ Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
             ov::js::validate<Napi::Buffer<uint8_t>, Napi::String>(info, allowed_signatures) ||
             ov::js::validate<Napi::Buffer<uint8_t>, Napi::String, Napi::Object>(info, allowed_signatures)) {
             // Prepare validated data that will be transferred to the new thread.
-            auto context_data = new ImportModelContext(env, _core);
+            auto context_holder = std::make_unique<ImportModelContext>(env, _core);
+            auto* context_data = context_holder.get();
 
-            // Handle Tensor input
+            // ---- Handle input memory safely ----
             if (ov::js::validate_value<TensorWrap>(env, info[0])) {
+                // Tensor input
                 const ov::Tensor tensor = cast_to_tensor(info, 0);
-                const auto* data_ptr = reinterpret_cast<const char*>(tensor.data());
-                context_data->_stream << std::string(data_ptr, tensor.get_byte_size());
+
+                // keep tensor memory alive during async execution
+                context_data->_tensor_owner = tensor;
+
+                context_data->_buffer = std::make_unique<ov::SharedStreamBuffer>(
+                    context_data->_tensor_owner.data(),
+                    static_cast<size_t>(context_data->_tensor_owner.get_byte_size()));
             } else {
-                // Handle Buffer input
+                // Buffer input
                 const auto& model_data = info[0].As<Napi::Buffer<uint8_t>>();
-                const auto model_stream = std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
-                context_data->_stream << model_stream;
+
+                // prevent JS GC from freeing memory
+                context_data->_buffer_ref = Napi::Persistent(model_data);
+
+                context_data->_buffer =
+                    std::make_unique<ov::SharedStreamBuffer>(model_data.Data(),
+                                                             static_cast<size_t>(model_data.Length()));
             }
 
+            // stream creation shared by both paths
+            context_data->_stream = std::make_unique<std::istream>(context_data->_buffer.get());
             context_data->_device = info[1].ToString();
             context_data->_config = info.Length() == 3 ? to_anyMap(env, info[2]) : ov::AnyMap();
 
@@ -412,7 +432,6 @@ Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
         } else {
             OPENVINO_THROW("'importModel'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
-
     } catch (std::exception& e) {
         reportError(info.Env(), e.what());
         return info.Env().Undefined();
