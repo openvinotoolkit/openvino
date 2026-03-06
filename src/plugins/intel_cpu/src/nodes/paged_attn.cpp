@@ -354,8 +354,11 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 
         auto orgInput = static_cast<int>(op->get_input_size());
 
-        // Accept both the legacy 21-input format (up to sinks) and the
-        // modern 25-input format (includes adaptive_rkv inputs).
+        // Accept both the default 21-input format (up to sinks) and the
+        // optional 25-input format (includes adaptive_rkv inputs)
+        //
+        // Note that CPU doesn't use the last 4 inputs for now, but we still want to accept them in the op to avoid
+        // any mismatch between TEMPLATE and CPU plugin, especially in tests
         const int EXPECTED_25 = 25;
         const int EXPECTED_21 = static_cast<int>(PagedAttentionExecutor::ID_SINKS) + 1;  // 21
         if (orgInput != EXPECTED_25 && orgInput != EXPECTED_21) {
@@ -363,10 +366,10 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
             return false;
         }
 
-        // Cache precision validation.
-        // element::dynamic is accepted here — the ConvertPagedAttnInputs transformation
+        // Cache precision validation
+        // element::dynamic is accepted here - the ConvertPagedAttnInputs transformation
         // resolves it to a concrete type before execution.  After the transformation
-        // fires, the concrete precision will be validated on the next compile cycle.
+        // fires, the concrete precision will be validated on the next compile cycle
         auto vCachePrecision = op->get_input_element_type(PagedAttentionExecutor::ID_VCACHE);
         auto kCachePrecision = op->get_input_element_type(PagedAttentionExecutor::ID_KCACHE);
         if (!vCachePrecision.is_dynamic() && !kCachePrecision.is_dynamic()) {
@@ -390,7 +393,7 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
             }
         }
 
-        // Sink input validation — applies to both 21- and 25-input formats.
+        // Sink input validation - applies to both 21- and 25-input formats.
         if (orgInput > static_cast<int>(PagedAttentionExecutor::ID_SINKS)) {
             if (!ov::op::util::is_on_path<ov::op::v0::Constant>(op->input_value(PagedAttentionExecutor::ID_SINKS))) {
                 errorMessage = "Only Constant operation on sink input is supported";

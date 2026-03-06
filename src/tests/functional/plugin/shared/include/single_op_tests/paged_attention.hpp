@@ -15,10 +15,14 @@ TEST_P(PagedAttentionLayerTest, Inference) {
     const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, useAlibi, maxContextLen, additional_config] = GetParam();
     (void)inputShapes; (void)enableXattn; (void)sinkInput; (void)slidingWindow; (void)useAlibi; (void)maxContextLen;
 
-    // Single Core from the test framework (avoids re-registration errors)
+    // Single ov::Core from the test framework (avoids re-registration errors
+    // for other people who might want to launch it with TEMPLATE REGISTRRATION ON)
     auto& core_ref = *core;
 
-    // CPU config — strip test-only keys that the CPU plugin doesn't understand
+    // CPU config: strip test-only keys that the CPU plugin doesn't understand
+    // Important, add the inference precision to ensure the CPU doesn't quantize the key/vaue cache to u8
+    // as this opeartion is not present in the reference. The results should be almost identical for quantized
+    // version anyways, but this way we avoid any discrepancies due to quantization and focus on verifying the core logic of PA and cache management
     ov::AnyMap cpu_cfg = additional_config;
     cpu_cfg.erase("test_use_rotation");
     cpu_cfg.erase("test_block_size");
@@ -28,7 +32,7 @@ TEST_P(PagedAttentionLayerTest, Inference) {
     // TEMPLATE config
     ov::AnyMap tmpl_cfg;
     tmpl_cfg[ov::hint::inference_precision.name()] = ov::element::f32;
-    // Run CPU with fresh caches (do NOT reuse key_cache_init_ directly; the plugin mutates it).
+    // Run CPU with fresh caches (do NOT reuse key_cache_init_ directly, the plugin mutates it).
     ov::Tensor key_cache_cpu(key_cache_init_.get_element_type(), key_cache_init_.get_shape());
     ov::Tensor value_cache_cpu(value_cache_init_.get_element_type(), value_cache_init_.get_shape());
     key_cache_init_.copy_to(key_cache_cpu);
@@ -67,9 +71,9 @@ TEST_P(PagedAttentionLayerTest, Inference) {
             }
             // Output 0 (attention): match between CPU and TEMPLATE
             // Output 1 (score aggregation): match between CPU and TEMPLATE
-            // Output 2 (diversity block indices): both implementations select valid blocks
-            //   to evict but run independent non-deterministic algorithms, so the chosen index
-            //   sets might not match
+            // Output 2 (diversity scores): CPU does NOT compute this output; the buffer
+            //   contents are unspecified after execution.  Only the reference (TEMPLATE)
+            //   fills it via AdaptiveRKVDiversityCalculator.  Skip comparison entirely
             if (oi > 1) {
                 continue;
             }
@@ -100,8 +104,7 @@ TEST_P(PagedAttentionLayerTest, ScoreWindowZeroZerosOutput1) {
     auto model_zero = make_paged_attn_model(inType, /*enable_xattn=*/false, head_size, head_num,
                                             /*use_sink=*/false, /*sliding_window=*/0, /*use_alibi=*/false,
                                             /*max_ctx_len=*/maxContextLen, /*use_rotation=*/false,
-                                            cfg_block_size, /*arkv=*/0, /*score_window_val=*/0,
-                                            /*include_score_output=*/true);
+                                            cfg_block_size, /*arkv=*/0, /*score_window_val=*/0);
 
     // Allocate fresh zero-initialized caches for this model
     ov::Tensor kc0(inType, key_cache_init_.get_shape());

@@ -16,8 +16,7 @@
 
 namespace {
 
-// Resize output tensors calling shape_infer() with a runtime tensor accessor,
-// exactly like other TEMPLATE ops (e.g. multinomial, SDPA, STFT)
+// Resize output tensors calling shape_infer() with a runtime tensor accessor.
 // Unlike most ops, PA keeps some inputs dynamic even after
 // validate_nodes_and_infer_types(), so we build input_shapes from the actual
 // runtime tensors rather than from the node's (possibly dynamic) input shapes
@@ -55,26 +54,12 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
 
     resize_pa_outputs(pa_op, outputs, inputs);
 
-    // shape_infer approximates output 2 as max(evictable_sizes); fix to the exact
-    // flat size sum(evictable_sizes[i]^2 / block_size) before writing
-    if (inputs[22].get_size() > 0) {
-        const size_t block_size = inputs[3].get_shape()[2];
-        const auto* evict_ptr = inputs[22].data<int32_t>();
-        size_t total_elems = 0;
-        for (size_t i = 0; i < inputs[22].get_shape()[0]; ++i) {
-            const size_t es = static_cast<size_t>(evict_ptr[i]);
-            total_elems += (es * es) / block_size;
-        }
-        if (total_elems > 0) {
-            outputs[2].set_shape({total_elems});
-        }
-    }
-    if (outputs[2].get_byte_size() > 0) {
-        std::memset(outputs[2].data(), 0, outputs[2].get_byte_size());
-    }
-
-    // Pass nullptr for disabled optional inputs so the reference can distinguish
-    // absent from present-but-empty; element type is set to dynamic when absent
+    // The nullptr conversion below maps "present but empty" -> nullptr
+    // This is a marker for the inputs that are considered 'optional' in the
+    // original operator indended use, but because we cannot have actual optional positional
+    // inputs in the op, they have to be passed as empty tensors instead
+    //
+    // If in the future we add more positional inputs, this should help cover that
     const void* alibi_ptr = inputs[11].get_size() > 0 ? inputs[11].data() : nullptr;
     const auto alibi_et = alibi_ptr ? inputs[11].get_element_type() : ov::element::dynamic;
     const void* trig_lut_ptr = inputs[16].get_size() > 0 ? inputs[16].data() : nullptr;

@@ -146,7 +146,10 @@ inline std::vector<std::size_t> parse_subsequence_ranges(const int32_t* subseq_b
 // Reference implementation of ov::op::PagedAttentionExtension
 // Supports: GQA, ALiBi, RoPE re-rotation (split-half / LLaMA-style), attention sinks,
 //           xattention sparse prefill, and adaptive RKV diversity scoring
-
+//
+// In the book 'Clean Code by Robert C. Martin there is a small guideline
+// which says that a function should not have more than 3 inputs unless necessary
+// Safe to say, enjoy!
 template <typename T>
 void paged_attention(std::uintptr_t node_key,
                      ov::reference::paged_attention_cache::PagedCacheManager* cache_manager,
@@ -210,8 +213,8 @@ void paged_attention(std::uintptr_t node_key,
     // (it shifts the max/denominator but does not contribute to the weighted output)
     const bool has_sinks = (sinks != nullptr);
 
-    // Xattention: dynamic sparse prefill via strided Q*K dot products, grouped into blocks, with low-importance blocks
-    // masked out
+    // Xattention: dynamic sparse prefill via strided Q*K dot products, grouped into blocks,
+    // with low-importance blocks masked out
     const bool has_xattn = (xattention_threshold != nullptr);
 
     OPENVINO_ASSERT(query_shape.size() == 2 && key_shape.size() == 2 && value_shape.size() == 2,
@@ -285,14 +288,21 @@ void paged_attention(std::uintptr_t node_key,
 
     // out_scores: concatenation of [past_len + new_len] for each sequence
     std::vector<float> scores_acc;
-    if (out_scores != nullptr) {
+    // Per-head score buffer for max-pool + head-average (used for internal eviction scoring)
+    // Layout: [q_heads][total_score_len], row-major
+    std::vector<float> scores_per_head;
+    std::size_t total_score_len = 0;
+    const bool need_scores = (out_scores != nullptr);
+    if (need_scores) {
         std::size_t total = 0;
         for (std::size_t s = 0; s < seq_count; ++s) {
             const std::size_t past = past_lens ? static_cast<std::size_t>(past_lens[s]) : 0;
             const std::size_t new_len = seq_begins[s + 1] - seq_begins[s];
             total += past + new_len;
         }
+        total_score_len = total;
         scores_acc.assign(total, 0.f);
+        scores_per_head.assign(q_heads * total, 0.f);
     }
 
     std::vector<float> logits;
@@ -308,7 +318,7 @@ void paged_attention(std::uintptr_t node_key,
         }
     }
 
-    // --- Xattention: build block-level sparse mask per head ---
+    // Xattention: build block-level sparse mask per head
     // xattn_mask[h][q_block][k_block] = true means "keep this block pair"
     // Only activated for multi-token (prefill), single sequence
     const int32_t xattn_block_sz = (xattention_block_size != nullptr) ? xattention_block_size[0] : 0;
@@ -339,15 +349,15 @@ void paged_attention(std::uintptr_t node_key,
         const std::size_t new_len = t_end - t_begin;
 
         // Per-sequence score aggregation window: shape [] broadcasts to all sequences; shape [B_seq]
-        // selects per-sequence value.  Negative → unbounded (all tokens), 0 → disabled.
+        // selects per-sequence value.  Negative -> unbounded (all tokens), 0 -> disabled.
         const std::size_t saw_idx =
             (score_aggregation_window_count > 1) ? std::min(s, score_aggregation_window_count - 1) : 0;
         const int32_t score_window_i = score_aggregation_window ? score_aggregation_window[saw_idx] : 0;
 
-        // --- Build xattention sparse mask for this sequence (prefill only) ---
+        // Build xattention sparse mask for this sequence (prefill only)
         // xattn_mask[h][q_blk][k_blk] = true => keep; false => skip
         // Only activate when: xattn enabled, multi-token (new_len > 1), single sequence
-        // When past > 0, the mask covers new tokens only; cached tokens are always attended to
+        // When past > 0, the mask covers new tokens only, cached tokens are always attended to
         const bool do_xattn = has_xattn && new_len > 1 && seq_count == 1 && xattn_block_sz > 0 && xattn_stride > 0;
         xattn_mask.clear();
         if (do_xattn) {
@@ -535,9 +545,9 @@ void paged_attention(std::uintptr_t node_key,
             }
 
             // For out_scores aggregation, decide whether to include this query.
-            // score_window_i == 0 → disabled: no accumulation, output 1 stays zero.
-            // score_window_i  > 0 → only the last score_window_i tokens contribute.
-            // score_window_i  < 0 → all tokens contribute (unbounded window).
+            // score_window_i == 0 -> disabled: no accumulation, output 1 stays zero.
+            // score_window_i  > 0 -> only the last score_window_i tokens contribute.
+            // score_window_i  < 0 -> all tokens contribute (unbounded window)
             const bool include_in_scores =
                 (scores_acc.empty() || score_window_i == 0)
                     ? false
@@ -663,6 +673,10 @@ void paged_attention(std::uintptr_t node_key,
                         if (idx < scores_acc.size()) {
                             scores_acc[idx] += w;
                         }
+                        // Also store per-head for max-pool + head-average
+                        if (idx < total_score_len) {
+                            scores_per_head[h * total_score_len + idx] += w;
+                        }
                     }
                 }
 
@@ -681,12 +695,51 @@ void paged_attention(std::uintptr_t node_key,
     }
 
     // Feed accumulated scores back into the cache manager so that score-based
-    // eviction can use them on the next allocation that runs out of free blocks
+    // eviction can use them on the next allocation that runs out of free blocks.
+    // Apply per-head max-pool + head-average for more accurate importance estimation
     if (!scores_acc.empty()) {
-        cache_manager->update_attention_scores(node_key, scores_acc.data(), scores_acc.size(), past_lens, seq_count);
+        const std::size_t pk = cache_manager->pool_kernel();
+        if (pk > 1 && total_score_len > 0) {
+            // Per-sequence, per-head max-pool then average across heads
+            std::vector<float> pooled(total_score_len, 0.f);
+            const std::size_t half_k = pk / 2;
+
+            for (std::size_t h = 0; h < q_heads; ++h) {
+                const float* head_row = scores_per_head.data() + h * total_score_len;
+                // Max-pool with kernel pk, stride 1, pad half_k, per-sequence
+                std::size_t seg_start = 0;
+                for (std::size_t s = 0; s < seq_count; ++s) {
+                    const std::size_t past = past_lens ? static_cast<std::size_t>(past_lens[s]) : 0;
+                    const std::size_t new_len = seq_begins[s + 1] - seq_begins[s];
+                    const std::size_t seg_len = past + new_len;
+                    for (std::size_t t = 0; t < seg_len; ++t) {
+                        const std::size_t lo = (t >= half_k) ? (t - half_k) : 0;
+                        const std::size_t hi = std::min(t + half_k + 1, seg_len);
+                        float mx = -std::numeric_limits<float>::infinity();
+                        for (std::size_t j = lo; j < hi; ++j) {
+                            mx = std::max(mx, head_row[seg_start + j]);
+                        }
+                        pooled[seg_start + t] += mx;  // accumulate across heads
+                    }
+                    seg_start += seg_len;
+                }
+            }
+            // Divide by q_heads to get head-average
+            const float inv_heads = 1.f / static_cast<float>(q_heads);
+            for (std::size_t i = 0; i < total_score_len; ++i) {
+                pooled[i] *= inv_heads;
+            }
+            cache_manager->update_attention_scores(node_key, pooled.data(), pooled.size(), past_lens, seq_count);
+        } else {
+            cache_manager->update_attention_scores(node_key,
+                                                   scores_acc.data(),
+                                                   scores_acc.size(),
+                                                   past_lens,
+                                                   seq_count);
+        }
     }
 
-    // --- Adaptive RKV diversity computation ---
+    // Adaptive RKV diversity computation
     // After all attention is done, compute per-block diversity scores for the
     // eviction zone of each sequence using AdaptiveRKVDiversityCalculator
     // The diversity output is a flat buffer: for each sequence, the calculator
@@ -741,21 +794,19 @@ void paged_attention(std::uintptr_t node_key,
                 }
             }
 
-            // Feed per-block diversity back into the cache manager so adaptive RKV
-            // eviction can pick the least diverse block when the pool runs out\n            // We reduce each
-            // [evict_size/block_size][evict_size] row to a single\n            // per-block mean diversity value
+            // Feed the raw 2D diversity matrix into the cache manager so that
+            // ADAPTIVE_RKV eviction can apply attention-mass gating + filtered
+            // column mean at eviction time
             const std::size_t n_evict_blocks = diversity.size();
-            std::vector<float> per_block_div(n_evict_blocks, 0.f);
+            std::vector<float> flat_div(n_evict_blocks * evict_size, 0.f);
             for (std::size_t b = 0; b < n_evict_blocks; ++b) {
-                float sum = 0.f;
-                for (std::size_t t = 0; t < diversity[b].size(); ++t) {
-                    sum += static_cast<float>(diversity[b][t]);
+                for (std::size_t t = 0; t < diversity[b].size() && t < evict_size; ++t) {
+                    flat_div[b * evict_size + t] = static_cast<float>(diversity[b][t]);
                 }
-                per_block_div[b] = diversity[b].empty() ? 0.f : sum / static_cast<float>(diversity[b].size());
             }
-            // start_block_offset is the block index after the start area
             const std::size_t start_blk_off = start_size / cache_block_size;
-            cache_manager->update_diversity_scores(node_key, s, per_block_div.data(), n_evict_blocks, start_blk_off);
+            cache_manager
+                ->update_diversity_scores(node_key, s, flat_div.data(), n_evict_blocks, evict_size, start_blk_off);
         }
     }
 }

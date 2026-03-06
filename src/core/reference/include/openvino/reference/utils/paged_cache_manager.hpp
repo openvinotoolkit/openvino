@@ -22,16 +22,16 @@ namespace ov {
 namespace reference {
 namespace paged_attention_cache {
 
-// Which eviction strategy to use when the block pool is full
+// Eviction strategy to use when the block pool is full
 // Currently the model has no parameter to select this at compile time,
-// so the default is SCORE and the cache limit is 64 MB
+// so the default is SCORE and the cache size limit is 64 MB
 enum class EvictionPolicy {
     FIFO,         // evict the oldest block of the longest sequence (original behavior)
     SCORE,        // evict the block with the lowest accumulated attention score
     ADAPTIVE_RKV  // evict the block with the lowest key-vector diversity score
 };
 
-// A single-threaded CacheManager used by the reference implementation of PagedAttentionExtension.
+// CacheManager used by the reference implementation of PagedAttentionExtension
 class PagedCacheManager {
 public:
     struct TokenAddress {
@@ -39,11 +39,17 @@ public:
         std::int32_t offset = 0;
     };
 
-    // The model does not yet expose a parameter to select the eviction policy or
-    // the cache byte limit, so we default to SCORE with a 64 MB cap
+    // The model does not yet expose all necessary parameters to select the eviction policy,
+    // the cache byte limit, per head max pool size, and the attention mass threshold to determine which blocks are
+    // important so we default to SCORE with a 64 MB cap, a pool kernel of 7, and attention mass p of 0.9 (keep blocks
+    // that contribute to 90% of the attention mass)
+    //
+    // The last 2 parameters were obtained from the ReasoningTokenEviction pptx presentation
     explicit PagedCacheManager(ov::element::Type elem_type,
                                EvictionPolicy policy = EvictionPolicy::SCORE,
-                               std::size_t max_cache_bytes = 64UL * 1024UL * 1024UL);
+                               std::size_t max_cache_bytes = 64UL * 1024UL * 1024UL,
+                               std::size_t pool_kernel = 7,
+                               float attention_mass_p = 0.9f);
     PagedCacheManager(const PagedCacheManager&) = delete;
     PagedCacheManager& operator=(const PagedCacheManager&) = delete;
 
@@ -63,7 +69,7 @@ public:
     // Update per-sequence logical lengths at the beginning of a step
     //
     // The reference implementation assumes that tokens are appended and that past_lens represents the current
-    // logical length of each sequence before appending the new tokens from this call.
+    // logical length of each sequence before appending the new tokens from this call
     void begin_step(std::uintptr_t node_key, const std::int32_t* past_lens, std::size_t seq_count);
 
     // Ensure storage for a token position within a sequence
@@ -72,8 +78,11 @@ public:
     // This function allocates (or reuses) blocks as needed
     TokenAddress ensure_token(std::uintptr_t node_key, std::size_t seq_idx, std::int32_t token_pos);
 
-    /// Resolve an existing token address
-    /// Returns false if the token is out of the retained window (trimmed) or beyond logical length
+    // Resolve an existing token address
+    // That means the token is within the retained window and has allocated storage.  The caller can then access the
+    // token's KV cache
+    //
+    // Returns false if the token is out of the retained window (trimmed) or beyond logical length
     bool resolve_token(std::uintptr_t node_key,
                        std::size_t seq_idx,
                        std::int32_t token_pos,
@@ -112,6 +121,14 @@ public:
         return m_policy;
     }
 
+    std::size_t pool_kernel() const noexcept {
+        return m_pool_kernel;
+    }
+
+    float attention_mass_p() const noexcept {
+        return m_attention_mass_p;
+    }
+
     // Feed accumulated attention scores from the PA kernel back into the manager
     // so that SCORE eviction can pick the lowest-score block
     // scores is a flat buffer [total_tokens] matching out_scores layout
@@ -121,13 +138,14 @@ public:
                                  const std::int32_t* past_lens,
                                  std::size_t seq_count);
 
-    // Feed per-block diversity scores from the adaptive RKV calculator
-    // so that ADAPTIVE_RKV eviction can pick the least diverse block
-    // diversity_per_block is a flat [num_evictable_blocks] buffer, one value per block
+    // Feed the raw 2D diversity matrix from the adaptive RKV calculator
+    // so that ADAPTIVE_RKV eviction can apply attention-mass gating + filtered column mean.
+    // diversity_matrix is row-major [num_blocks_in_zone, eviction_size].
     void update_diversity_scores(std::uintptr_t node_key,
                                  std::size_t seq_idx,
-                                 const float* diversity_per_block,
+                                 const float* diversity_matrix,
                                  std::size_t num_blocks_in_zone,
+                                 std::size_t eviction_size,
                                  std::size_t start_block_offset);
 
 private:
@@ -140,9 +158,13 @@ private:
         // used by SCORE eviction to find the least important block
         std::deque<float> block_scores;
 
-        // per-block diversity scores from adaptive RKV
-        // used by ADAPTIVE_RKV eviction to find the least diverse block
-        std::deque<float> block_diversity;
+        // Raw 2D diversity matrix [n_diversity_blocks, diversity_evict_size], row-major.
+        // Stored as a flat vector, refreshed every step by update_diversity_scores.
+        // At eviction time the manager applies attention-mass gating + filtered column mean.
+        std::vector<float> diversity_matrix;
+        std::size_t diversity_n_blocks = 0;
+        std::size_t diversity_evict_size = 0;
+        std::size_t diversity_start_block = 0;  // block index offset in seq's deque
     };
 
     struct OperatorState {
@@ -237,6 +259,8 @@ private:
     ov::element::Type m_elem_type;
     EvictionPolicy m_policy;
     std::size_t m_max_cache_bytes;
+    std::size_t m_pool_kernel;
+    float m_attention_mass_p;
     std::unordered_map<std::uintptr_t, OperatorState> m_ops;
 };
 

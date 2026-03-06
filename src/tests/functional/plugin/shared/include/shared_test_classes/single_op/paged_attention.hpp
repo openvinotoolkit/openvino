@@ -68,7 +68,7 @@ public:
     }
 
 protected:
-    // ---------- Model construction (PA only) ----------
+    // Model construction
     static std::shared_ptr<ov::op::v0::Parameter> make_param(const ov::PartialShape& ps,
                                                              ov::element::Type et,
                                                              const std::string& name) {
@@ -89,8 +89,7 @@ protected:
                                                      bool use_rotation = false,
                                                      int64_t block_size = 32,
                                                      int32_t adaptive_rkv_eviction_size = 0,
-                                                     int32_t score_window_val = -1,
-                                                     bool include_score_output = false) {
+                                                     int32_t score_window_val = -1) {
         // PA expects q/k/v as [tokens, features]
         auto q = make_param({ov::Dimension::dynamic(), ov::Dimension::dynamic()}, data_type, "q");
         auto k = make_param({ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
@@ -124,7 +123,7 @@ protected:
             alibi_slopes = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0}, std::vector<float>{});
         }
         auto max_context_len = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{max_ctx_len});
-        // score_window_val < 0 → use max_ctx_len (all tokens, positive window); 0 → disabled
+        // score_window_val < 0 -> use max_ctx_len (all tokens, positive window); 0 -> disabled
         const int32_t effective_score_window = (score_window_val < 0) ? max_ctx_len : score_window_val;
         auto score_aggregation_window = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{effective_score_window});
 
@@ -238,13 +237,9 @@ protected:
         rt["num_v_heads"] = static_cast<size_t>(head_num);
         rt["v_head_size"] = static_cast<size_t>(head_size);
 
-        // When adaptive RKV is active, the CPU executor requires 3 outputs:
-        //   output 0 = attention,  output 1 = score aggregation,  output 2 = diversity scores
-        // For non-adaptive-RKV tests, keep the single-output model unchanged
-        ov::OutputVector model_outputs = {pa->output(0)};
-        if (include_score_output || adaptive_rkv_eviction_size > 0) {
-            model_outputs.push_back(pa->output(1));
-        }
+        // Output 2 (diversity scores) is added only when adaptive RKV is active, because
+        // the CPU does not compute it and the buffer contents are unspecified on that path.
+        ov::OutputVector model_outputs = {pa->output(0), pa->output(1)};
         if (adaptive_rkv_eviction_size > 0) {
             model_outputs.push_back(pa->output(2));
         }
@@ -252,7 +247,7 @@ protected:
         return model;
     }
 
-    // ---------- Input generation ----------
+    // Input generation like in the CPU plugin
     template <typename IT, typename T>
     static void strided_iota(IT first, size_t n, T value, T stride) {
         for (size_t i = 0; i < n; i++) {
@@ -429,43 +424,42 @@ public:
             }
         }
 
-        
-pa_model_ = make_paged_attn_model(inType, enableXattn, head_size, head_num, sinkInput, slidingWindow, useAlibi, maxContextLen, use_rotation_, cfg_block_size, cfg_arkv_eviction_size);
+        pa_model_ = make_paged_attn_model(inType, enableXattn, head_size, head_num, sinkInput, slidingWindow, useAlibi, maxContextLen, use_rotation_, cfg_block_size, cfg_arkv_eviction_size);
 
-// Pre-generate the step inputs ONCE so CPU/TEMPLATE see identical tensors
-// Allocate caches once here, and reuse for both runs by copying initial cache state
-{
-    const auto& kc_ps = pa_model_->get_parameters()[3]->get_partial_shape();
-    OPENVINO_ASSERT(kc_ps.rank().is_static() && kc_ps.rank().get_length() == 4,
-                    "PagedAttention test: expected key_cache rank 4");
-    OPENVINO_ASSERT(kc_ps[2].is_static(), "PagedAttention test: expected static block_size dimension in cache");
-    block_size_ = static_cast<size_t>(kc_ps[2].get_length());
+        // Pre-generate the step inputs once, so the CPU/TEMPLATE see identical tensors
+        // Allocate caches once here, and reuse for both runs by copying initial cache state
+        {
+            const auto& kc_ps = pa_model_->get_parameters()[3]->get_partial_shape();
+            OPENVINO_ASSERT(kc_ps.rank().is_static() && kc_ps.rank().get_length() == 4,
+                            "PagedAttention test: expected key_cache rank 4");
+            OPENVINO_ASSERT(kc_ps[2].is_static(), "PagedAttention test: expected static block_size dimension in cache");
+            block_size_ = static_cast<size_t>(kc_ps[2].get_length());
 
-    // We treat each batch item as an independent sequence in metadata tensors
-    // Ensure cache has enough blocks per sequence for the entire multi-step run
-    batch_size_ = targetStaticShapes.empty() ? 1 : targetStaticShapes[0][0][1];
-    max_blocks_per_seq_ = 1;
-    int32_t past_tmp = 0;
+            // We treat each batch item as an independent sequence in metadata tensors
+            // Ensure cache has enough blocks per sequence for the entire multi-step run
+            batch_size_ = targetStaticShapes.empty() ? 1 : targetStaticShapes[0][0][1];
+            max_blocks_per_seq_ = 1;
+            int32_t past_tmp = 0;
 
-    for (size_t i = 0; i < targetStaticShapes.size(); ++i) {
-        const auto& lbhs = targetStaticShapes[i][0];
-        OPENVINO_ASSERT(lbhs.size() == 4, "PagedAttention test expects [L,B,H,S] shapes");
-        const size_t L = lbhs[0];
-        const size_t B = lbhs[1];
-        if (i == 0) {
-            batch_size_ = B;
-        } else {
-            OPENVINO_ASSERT(B == batch_size_, "PagedAttention test expects stable batch across steps");
+            for (size_t i = 0; i < targetStaticShapes.size(); ++i) {
+                const auto& lbhs = targetStaticShapes[i][0];
+                OPENVINO_ASSERT(lbhs.size() == 4, "PagedAttention test expects [L,B,H,S] shapes");
+                const size_t L = lbhs[0];
+                const size_t B = lbhs[1];
+                if (i == 0) {
+                    batch_size_ = B;
+                } else {
+                    OPENVINO_ASSERT(B == batch_size_, "PagedAttention test expects stable batch across steps");
+                }
+
+                const size_t blocks_now =
+                    std::max<size_t>(1, (static_cast<size_t>(past_tmp) + L + block_size_ - 1) / block_size_);
+                max_blocks_per_seq_ = std::max(max_blocks_per_seq_, blocks_now);
+                past_tmp += static_cast<int32_t>(L);
+            }
+
+            allocate_caches_for_model(pa_model_, batch_size_ * max_blocks_per_seq_, inType);
         }
-
-        const size_t blocks_now =
-            std::max<size_t>(1, (static_cast<size_t>(past_tmp) + L + block_size_ - 1) / block_size_);
-        max_blocks_per_seq_ = std::max(max_blocks_per_seq_, blocks_now);
-        past_tmp += static_cast<int32_t>(L);
-    }
-
-    allocate_caches_for_model(pa_model_, batch_size_ * max_blocks_per_seq_, inType);
-}
 
         int32_t past = 0;
         steps_.clear();

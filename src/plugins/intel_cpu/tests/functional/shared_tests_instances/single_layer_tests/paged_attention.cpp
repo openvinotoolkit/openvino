@@ -62,8 +62,9 @@ const std::vector<ov::AnyMap> additional_configs_ref = {{
 
 #ifdef OPENVINO_ARCH_X86_64
 
-// --- Smoke tests (original)
+// Basic verification tests - first 11 inputs
 
+// 0) The default test (same as in the CPU plugin)
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionLayerTest,
                          PagedAttentionLayerTest,
                          ::testing::Combine(::testing::Values(ElementType::f32),
@@ -76,8 +77,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionLayerTest,
                                             ::testing::Values(1024),   // maxContextLen (effectively unlimited)
                                             ::testing::ValuesIn(additional_configs_ref)),
                          PagedAttentionLayerTest::getTestCaseName);
-
-// --- Basic verification tests - first 11 inputs
 
 // 1) Tiny basic: H=2, S=4, no extras
 INSTANTIATE_TEST_SUITE_P(tiny_PagedAttentionLayerTest,
@@ -135,7 +134,7 @@ INSTANTIATE_TEST_SUITE_P(mediumAlibi_PagedAttentionLayerTest,
                                             ::testing::ValuesIn(additional_configs_ref)),
                          PagedAttentionLayerTest::getTestCaseName);
 
-// --- Advanced tests - all 25 inputs with various feature combinations
+// Advanced tests - all 25 inputs with various feature combinations
 
 // 5) 3-step with non-trivial past_lens: prompt(L=2), prefill(L=3, past=2), decode(L=1)
 INSTANTIATE_TEST_SUITE_P(adv3Step_PagedAttentionLayerTest,
@@ -171,7 +170,7 @@ INSTANTIATE_TEST_SUITE_P(adv3StepAlibi_PagedAttentionLayerTest,
 // TEMPLATE reference always applies it.  Any test with active clipping would always
 // produce different results between the two, so there is no stable ground truth to compare
 
-// --- Feature tests - sinks, rotation, xattention
+// Feature tests - sinks, rotation, xattention
 
 // 7) Tiny + attention sinks: per-head logit added as a virtual token in the softmax denominator
 INSTANTIATE_TEST_SUITE_P(advSinks_PagedAttentionLayerTest,
@@ -240,7 +239,8 @@ INSTANTIATE_TEST_SUITE_P(advXattn_PagedAttentionLayerTest,
                                             ::testing::ValuesIn(additional_configs_ref)),
                          PagedAttentionLayerTest::getTestCaseName);
 
-// --- Adaptive RKV diversity test
+// Adaptive RKV diversity test
+// (Adaptive RKV diversity output is not compared, compile/memory corrupt verification only)
 
 // Shapes for adaptive RKV: L=64 with block_size=32 (forced by CPU plugin's ConvertPagedAttnInputs)
 // and eviction_size=32 so the eviction zone spans exactly one block

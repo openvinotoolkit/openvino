@@ -71,19 +71,24 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
     }
 
     auto& diversity_ps = output_shapes[2];
-    // Output[2] is a flat 1D buffer; use max(evictable_sizes) as an upper-bound estimate
-    // The actual element count is computed at runtime in the evaluate function
+    // Output[2] is a flat 1D buffer of diversity scores.
+    // Exact size = sum_s( evictable_sizes[s]^2 / block_size ) where block_size = key_cache dim 2.
+    // If either is unknown we fall back to dynamic.
     auto width_dim = Dimension::dynamic();
 
-    // If evictable_sizes is constant, compute max for the padded width
-    if (evictable_sizes_ps.rank().is_static() && evictable_sizes_ps.rank().get_length() == 1) {
+    const auto& key_cache_ps = input_shapes[3];  // [num_blocks, Hkv, block_size, S]
+    const bool block_size_known =
+        key_cache_ps.rank().is_static() && key_cache_ps.rank().get_length() >= 3 && key_cache_ps[2].is_static();
+
+    if (block_size_known && evictable_sizes_ps.rank().is_static() && evictable_sizes_ps.rank().get_length() == 1) {
         const auto& evictable_sizes = get_input_const_data_as<TRShape, int32_t>(op, 22, ta);
         if (evictable_sizes.has_value() && !evictable_sizes.value().empty()) {
-            int32_t max_v = 0;
-            for (const auto v : evictable_sizes.value()) {
-                max_v = std::max(max_v, v);
+            const int64_t block_size = key_cache_ps[2].get_length();
+            int64_t total = 0;
+            for (const auto es : evictable_sizes.value()) {
+                total += static_cast<int64_t>(es) * static_cast<int64_t>(es) / block_size;
             }
-            width_dim = static_cast<int64_t>(max_v);
+            width_dim = total;
         }
     }
 

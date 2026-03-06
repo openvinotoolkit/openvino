@@ -26,10 +26,16 @@ inline std::size_t safe_mul(std::size_t a, std::size_t b) {
 }
 }  // namespace
 
-PagedCacheManager::PagedCacheManager(ov::element::Type elem_type, EvictionPolicy policy, std::size_t max_cache_bytes)
+PagedCacheManager::PagedCacheManager(ov::element::Type elem_type,
+                                     EvictionPolicy policy,
+                                     std::size_t max_cache_bytes,
+                                     std::size_t pool_kernel,
+                                     float attention_mass_p)
     : m_elem_type(elem_type),
       m_policy(policy),
-      m_max_cache_bytes(max_cache_bytes) {}
+      m_max_cache_bytes(max_cache_bytes),
+      m_pool_kernel(pool_kernel),
+      m_attention_mass_p(attention_mass_p) {}
 
 std::size_t PagedCacheManager::elem_bytes_or_throw(ov::element::Type et) {
     const auto sz = et.size();
@@ -109,7 +115,7 @@ void PagedCacheManager::init_sequences_from_block_tables(OperatorState& st,
     const std::size_t seq_count = past_lens_count;
     st.sequences.assign(seq_count, SequenceState{});
 
-    // If no block tables were provided, initialize empty sequences.
+    // If no block tables were provided, initialize empty sequences
     if (block_indices == nullptr || block_indices_begins == nullptr || begins_count != (seq_count + 1)) {
         for (std::size_t s = 0; s < seq_count; ++s) {
             st.sequences[s].logical_length = past_lens ? past_lens[s] : 0;
@@ -117,7 +123,7 @@ void PagedCacheManager::init_sequences_from_block_tables(OperatorState& st,
         return;
     }
 
-    // Fill per-sequence block lists based on provided tables.
+    // Fill per-sequence block lists based on provided tables
     for (std::size_t s = 0; s < seq_count; ++s) {
         const std::int32_t begin = block_indices_begins[s];
         const std::int32_t end = block_indices_begins[s + 1];
@@ -143,13 +149,13 @@ void PagedCacheManager::init_sequences_from_block_tables(OperatorState& st,
             }
         }
 
-        // Ensure trim_front is block-aligned and within logical length.
+        // Ensure trim_front is block-aligned and within logical length
         seq.trim_front = 0;
     }
 }
 
 std::int32_t PagedCacheManager::steal_block_fifo(OperatorState& st, std::size_t requester_seq) {
-    // Original behavior: take the oldest block from the sequence with the most blocks
+    // Take the oldest block from the sequence with the most blocks
     std::size_t best_seq = std::numeric_limits<std::size_t>::max();
     std::size_t best_blocks = 0;
 
@@ -184,9 +190,8 @@ std::int32_t PagedCacheManager::steal_block_fifo(OperatorState& st, std::size_t 
     if (!victim.block_scores.empty()) {
         victim.block_scores.pop_front();
     }
-    if (!victim.block_diversity.empty()) {
-        victim.block_diversity.pop_front();
-    }
+    victim.diversity_matrix.clear();
+    victim.diversity_n_blocks = 0;
     victim.trim_front += static_cast<std::int32_t>(st.block_size);
     return bid;
 }
@@ -224,38 +229,135 @@ std::int32_t PagedCacheManager::steal_block_by_score(OperatorState& st, std::siz
     if (!victim.block_scores.empty()) {
         victim.block_scores.pop_front();
     }
-    if (!victim.block_diversity.empty()) {
-        victim.block_diversity.pop_front();
-    }
+    victim.diversity_matrix.clear();
+    victim.diversity_n_blocks = 0;
     victim.trim_front += static_cast<std::int32_t>(st.block_size);
     return bid;
 }
 
 std::int32_t PagedCacheManager::steal_block_by_diversity(OperatorState& st, std::size_t requester_seq) {
-    // Pick the sequence whose front block has the lowest key-vector diversity score
-    // We only evict front blocks so that the deque-index-to-token-position mapping stays valid
+    // Full Adaptive R-KV eviction:
+    // 1. Identify the "retained set" of blocks per sequence via attention-mass gating.
+    // 2. For each non-retained front block, compute diversity as mean over columns
+    //    corresponding to retained blocks' tokens only.
+    // 3. Evict the non-retained front block with the lowest filtered diversity.
+    //
     // Falls back to score eviction if no diversity data was fed
-    std::size_t best_seq = std::numeric_limits<std::size_t>::max();
-    float best_div = std::numeric_limits<float>::max();
-    bool found_any = false;
+
+    struct Candidate {
+        std::size_t seq;
+        float filtered_div;
+    };
+    std::vector<Candidate> candidates;
 
     for (std::size_t s = 0; s < st.sequences.size(); ++s) {
         auto& seq = st.sequences[s];
-        if (seq.blocks.empty() || seq.block_diversity.empty()) {
+        if (seq.blocks.empty()) {
             continue;
         }
-        float penalty = (s == requester_seq) ? 1e12f : 0.f;
-        float div_score = seq.block_diversity.front() + penalty;
-        if (div_score < best_div) {
-            best_div = div_score;
-            best_seq = s;
-            found_any = true;
+
+        // Need diversity matrix to participate
+        if (seq.diversity_matrix.empty() || seq.diversity_n_blocks == 0 || seq.diversity_evict_size == 0) {
+            continue;
         }
+
+        // Step 1: Attention-mass gating within this sequence's eviction zone.
+        // Determine which blocks in the eviction zone are in the "retained set"
+        const std::size_t n_blks = seq.diversity_n_blocks;
+        const std::size_t evict_sz = seq.diversity_evict_size;
+        const std::size_t start_blk = seq.diversity_start_block;
+
+        // Gather per-block attention scores for the eviction zone
+        std::vector<std::pair<float, std::size_t>> scored_blocks;  // (score, zone_index)
+        scored_blocks.reserve(n_blks);
+        for (std::size_t i = 0; i < n_blks; ++i) {
+            float sc = 0.f;
+            const std::size_t deque_idx = start_blk + i;
+            if (deque_idx < seq.block_scores.size()) {
+                sc = seq.block_scores[deque_idx];
+            }
+            scored_blocks.emplace_back(sc, i);
+        }
+
+        // Sort descending by score
+        std::sort(scored_blocks.begin(), scored_blocks.end(), [](const auto& a, const auto& b) {
+            return a.first > b.first;
+        });
+
+        // Greedily select blocks covering >= p fraction of total attention mass
+        float total_score = 0.f;
+        for (auto& sb : scored_blocks)
+            total_score += sb.first;
+        const float target = total_score * m_attention_mass_p;
+
+        std::vector<bool> retained(n_blks, false);
+        float cumsum = 0.f;
+        for (auto& sb : scored_blocks) {
+            if (cumsum >= target && target > 0.f)
+                break;
+            retained[sb.second] = true;
+            cumsum += sb.first;
+        }
+
+        // The front block of the deque corresponds to zone index (0 - start_blk) if start_blk==0,
+        // or may be outside the eviction zone entirely.
+        // Find which zone index the deque front block maps to:
+        // deque index 0 -> zone index = 0 - start_blk (only valid if start_blk == 0)
+        // If the front block is in the start area (before the eviction zone), it is
+        // not in the retained set and is eligible for eviction
+        bool front_is_retained = false;
+        if (start_blk == 0 && n_blks > 0) {
+            front_is_retained = retained[0];
+        }
+
+        // If the front block is retained (attention-important), skip this sequence
+        if (front_is_retained) {
+            continue;
+        }
+
+        // Step 2: Compute filtered diversity for the front block.
+        // diversity_matrix row 0 corresponds to the first eviction zone block.
+        // If start_blk > 0, the front block of the deque is actually in the "start area"
+        // and has no diversity row - use 0 diversity (always evictable)
+        float div_score = 0.f;
+        if (start_blk == 0 && n_blks > 0) {
+            // Front block is zone block 0; its row is diversity_matrix[0, :].
+            // Mean over columns corresponding to retained blocks' tokens only
+            float sum = 0.f;
+            std::size_t count = 0;
+            for (std::size_t bi = 0; bi < n_blks; ++bi) {
+                if (!retained[bi])
+                    continue;
+                // Columns for block bi: [bi * block_size, (bi+1) * block_size)
+                const std::size_t col_start = bi * st.block_size;
+                const std::size_t col_end = std::min(col_start + st.block_size, evict_sz);
+                for (std::size_t c = col_start; c < col_end; ++c) {
+                    if (c < evict_sz) {
+                        sum += seq.diversity_matrix[0 * evict_sz + c];
+                        count++;
+                    }
+                }
+            }
+            div_score = (count > 0) ? (sum / static_cast<float>(count)) : 0.f;
+        }
+
+        float penalty = (s == requester_seq) ? 1e12f : 0.f;
+        candidates.push_back({s, div_score + penalty});
     }
 
-    if (!found_any) {
-        // no diversity data yet, fall back to score eviction
+    if (candidates.empty()) {
+        // no diversity data available, fall back to score eviction
         return steal_block_by_score(st, requester_seq);
+    }
+
+    // Pick candidate with lowest filtered diversity
+    std::size_t best_seq = candidates[0].seq;
+    float best_div = candidates[0].filtered_div;
+    for (std::size_t i = 1; i < candidates.size(); ++i) {
+        if (candidates[i].filtered_div < best_div) {
+            best_div = candidates[i].filtered_div;
+            best_seq = candidates[i].seq;
+        }
     }
 
     auto& victim = st.sequences[best_seq];
@@ -264,9 +366,8 @@ std::int32_t PagedCacheManager::steal_block_by_diversity(OperatorState& st, std:
     if (!victim.block_scores.empty()) {
         victim.block_scores.pop_front();
     }
-    if (!victim.block_diversity.empty()) {
-        victim.block_diversity.pop_front();
-    }
+    victim.diversity_matrix.clear();
+    victim.diversity_n_blocks = 0;
     victim.trim_front += static_cast<std::int32_t>(st.block_size);
     return bid;
 }
@@ -284,7 +385,6 @@ std::int32_t PagedCacheManager::steal_block(OperatorState& st, std::size_t reque
 }
 
 std::int32_t PagedCacheManager::allocate_block(OperatorState& st, std::size_t requester_seq) {
-    // Enforce byte budget: when m_max_cache_bytes > 0, limit active block count.
     if (m_max_cache_bytes > 0) {
         const std::size_t bytes_per_block = st.key_block_bytes + st.value_block_bytes;
         const std::size_t max_blocks =
@@ -344,7 +444,7 @@ bool PagedCacheManager::ensure_operator(std::uintptr_t node_key,
         std::memset(st.value_cache.get_ptr(), 0, value_bytes);
     }
 
-    // Initialize free list and per-seq state.
+    // Initialize free list and per-seq state
     st.block_used.assign(st.num_blocks, 0);
 
     init_sequences_from_block_tables(st,
@@ -355,7 +455,7 @@ bool PagedCacheManager::ensure_operator(std::uintptr_t node_key,
                                      past_lens_init,
                                      past_lens_count);
 
-    // Build free block stack.
+    // Build free block stack
     st.free_blocks.reserve(st.num_blocks);
     for (std::size_t b = 0; b < st.num_blocks; ++b) {
         if (!st.block_used[b]) {
@@ -383,9 +483,6 @@ void PagedCacheManager::begin_step(std::uintptr_t node_key, const std::int32_t* 
 
         // If the external timeline was reset/truncated, reset this sequence state
         if (new_len < seq.logical_length) {
-            // External timeline reset/truncation: drop cached blocks for this sequence
-            // In the reference implementation, blocks are not shared between sequences, so we can
-            // safely return them to the global free list
             for (const std::int32_t bid : seq.blocks) {
                 if (bid >= 0 && static_cast<std::size_t>(bid) < st.num_blocks && st.block_used[bid]) {
                     st.block_used[bid] = 0;
@@ -394,7 +491,10 @@ void PagedCacheManager::begin_step(std::uintptr_t node_key, const std::int32_t* 
             }
             seq.blocks.clear();
             seq.block_scores.clear();
-            seq.block_diversity.clear();
+            seq.diversity_matrix.clear();
+            seq.diversity_n_blocks = 0;
+            seq.diversity_evict_size = 0;
+            seq.diversity_start_block = 0;
             seq.trim_front = 0;
             seq.logical_length = new_len;
             continue;
@@ -556,24 +656,22 @@ void PagedCacheManager::update_attention_scores(std::uintptr_t node_key,
 
 void PagedCacheManager::update_diversity_scores(std::uintptr_t node_key,
                                                 std::size_t seq_idx,
-                                                const float* diversity_per_block,
+                                                const float* diversity_matrix,
                                                 std::size_t num_blocks_in_zone,
+                                                std::size_t eviction_size,
                                                 std::size_t start_block_offset) {
     auto& st = get_state(node_key);
-    if (seq_idx >= st.sequences.size() || diversity_per_block == nullptr || num_blocks_in_zone == 0) {
+    if (seq_idx >= st.sequences.size() || diversity_matrix == nullptr || num_blocks_in_zone == 0 ||
+        eviction_size == 0) {
         return;
     }
 
     auto& seq = st.sequences[seq_idx];
-    seq.block_diversity.resize(seq.blocks.size(), 0.f);
-
-    // write diversity values into the corresponding block positions
-    for (std::size_t i = 0; i < num_blocks_in_zone; ++i) {
-        const std::size_t target = start_block_offset + i;
-        if (target < seq.block_diversity.size()) {
-            seq.block_diversity[target] = diversity_per_block[i];
-        }
-    }
+    const std::size_t total = num_blocks_in_zone * eviction_size;
+    seq.diversity_matrix.assign(diversity_matrix, diversity_matrix + total);
+    seq.diversity_n_blocks = num_blocks_in_zone;
+    seq.diversity_evict_size = eviction_size;
+    seq.diversity_start_block = start_block_offset;
 }
 
 }  // namespace paged_attention_cache
