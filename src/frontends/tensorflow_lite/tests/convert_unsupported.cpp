@@ -71,3 +71,11 @@ INSTANTIATE_TEST_SUITE_P(NegativeQuantDim,
 INSTANTIATE_TEST_SUITE_P(OobQuantDim,
                          MalformedModelConvertTest,
                          ::testing::Values("oob_quant_dim/axis_exceeds_rank.tflite"));
+
+// CVS-181019: sparse tensors with invalid index/segment values or overflow-inducing shapes
+INSTANTIATE_TEST_SUITE_P(SparseOob,
+                         MalformedModelLoadTest,
+                         ::testing::Values("sparse_oob/sparse_oob_index.tflite",
+                                           "sparse_oob/sparse_negative_index.tflite",
+                                           "sparse_oob/sparse_non_monotonic_segments.tflite",
+                                           "sparse_oob/sparse_overflow_shape.tflite"));
