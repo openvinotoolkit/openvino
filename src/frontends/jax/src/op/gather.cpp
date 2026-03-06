@@ -41,7 +41,7 @@ Output<Node> normalize_start_indices(const Output<Node>& indices, int64_t index_
         index_vector_dim += rank;
 
     JAX_OP_CONVERSION_CHECK(index_vector_dim >= 0 && index_vector_dim < rank, 
-            "normalize_start_indices: indeX_vector_dim must be in range [0, ", 
+            "normalize_start_indices: index_vector_dim must be in range [0, ", 
             rank,
             "], but get ",
             index_vector_dim);
