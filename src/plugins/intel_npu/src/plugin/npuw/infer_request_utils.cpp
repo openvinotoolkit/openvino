@@ -8,6 +8,66 @@
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 #include "util_xarch.hpp"
 
+namespace {
+
+struct FoldedTrailingLayout {
+    ov::Shape shape;
+    ov::Strides src_strides;
+    ov::Strides dst_strides;
+};
+
+// Folds the maximal COMMON trailing segment where:
+//   src_stride == dst_stride == default_stride (packed / contiguous-by-bytes)
+// into a single last dimension.
+// This is the only segment eligible for flattening to speed up row-wise memmove.
+FoldedTrailingLayout fold_common_trailing_packed_segment(const ov::Shape& shape0,
+                                                         const ov::Strides& src_strides0,
+                                                         const ov::Strides& dst_strides0,
+                                                         size_t elem_size) {
+    const size_t rank0 = shape0.size();
+    OPENVINO_ASSERT(rank0 > 0);
+
+    ov::Strides default_strides(rank0, 0);
+    default_strides[rank0 - 1] = elem_size;
+    for (size_t i = rank0 - 1; i > 0; --i) {
+        default_strides[i - 1] = default_strides[i] * shape0[i];
+    }
+
+    size_t cut = rank0 - 1;
+    for (size_t inverted_idx = rank0; inverted_idx-- > 0;) {
+        const bool ok = (src_strides0[inverted_idx] == default_strides[inverted_idx]) &&
+                        (dst_strides0[inverted_idx] == default_strides[inverted_idx]) &&
+                        (src_strides0[inverted_idx] == dst_strides0[inverted_idx]);
+        if (!ok) {
+            break;
+        }
+        cut = inverted_idx;
+    }
+
+    FoldedTrailingLayout out;
+    out.shape.reserve(cut + 1);
+    out.src_strides.reserve(cut + 1);
+    out.dst_strides.reserve(cut + 1);
+
+    for (size_t d = 0; d < cut; ++d) {
+        out.shape.push_back(shape0[d]);
+        out.src_strides.push_back(src_strides0[d]);
+        out.dst_strides.push_back(dst_strides0[d]);
+    }
+
+    size_t folded_last = 1;
+    for (size_t d = cut; d < rank0; ++d) {
+        folded_last *= shape0[d];
+    }
+    out.shape.push_back(folded_last);
+    out.src_strides.push_back(elem_size);
+    out.dst_strides.push_back(elem_size);
+
+    return out;
+}
+
+}  // namespace
+
 // FIXME: Use ov::npuw::util::view instead
 ov::SoPtr<ov::ITensor> ov::npuw::util::make_tensor_slice(ov::SoPtr<ov::ITensor> tensor,
                                                          uint32_t dim,
@@ -145,6 +205,146 @@ void ov::npuw::util::copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
     } else {
         src_tensor->copy_to(dst_tensor._ptr);
     }
+}
+
+void ov::npuw::util::copy_inplace_generic_rows(const ov::SoPtr<ov::ITensor> src_tensor,
+                                               ov::SoPtr<ov::ITensor> dst_tensor) {
+    OPENVINO_ASSERT(src_tensor);
+    OPENVINO_ASSERT(dst_tensor);
+    OPENVINO_ASSERT(src_tensor->get_element_type() == dst_tensor->get_element_type());
+
+    // KV-cache values are byte-addressable in the current flow. Sub-byte element types (int4/uint4) are unsupported.
+    const auto et = src_tensor->get_element_type();
+    OPENVINO_ASSERT(et.bitwidth() % 8u == 0u, "sub-byte element types (e.g. int4/uint4) are not supported");
+
+    void* base_data = src_tensor->data();
+    void* dst_data = dst_tensor->data();
+    OPENVINO_ASSERT(base_data && dst_data);
+    OPENVINO_ASSERT(base_data == dst_data);
+
+    const auto& shape0 = src_tensor->get_shape();
+    const auto& dst_shape0 = dst_tensor->get_shape();
+    OPENVINO_ASSERT(shape0 == dst_shape0);
+
+    const size_t rank0 = shape0.size();
+    if (rank0 == 0) {
+        return;
+    }
+
+    for (size_t d = 0; d < rank0; ++d) {
+        if (shape0[d] == 0) {
+            return;
+        }
+    }
+
+    const size_t total_elems = src_tensor->get_size();
+    OPENVINO_ASSERT(total_elems != 0);
+
+    const size_t elem_size = src_tensor->get_byte_size() / total_elems;
+
+    const ov::Strides src_strides0 = src_tensor->get_strides();
+    const ov::Strides dst_strides0 = dst_tensor->get_strides();
+    OPENVINO_ASSERT(src_strides0.size() == rank0);
+    OPENVINO_ASSERT(dst_strides0.size() == rank0);
+
+    // The last dimension is packed in both src and dst.
+    OPENVINO_ASSERT(src_strides0[rank0 - 1] == elem_size && dst_strides0[rank0 - 1] == elem_size,
+                    "src/dst last dimension is not packed");
+
+    auto* base = static_cast<uint8_t*>(base_data);
+
+    const auto folded = fold_common_trailing_packed_segment(shape0, src_strides0, dst_strides0, elem_size);
+
+    const size_t rank = folded.shape.size();
+    OPENVINO_ASSERT(rank >= 1);
+
+    const size_t row_elems = folded.shape[rank - 1];
+    const size_t row_bytes = row_elems * elem_size;
+    if (row_bytes == 0) {
+        return;
+    }
+
+    const size_t outer_rank = rank - 1;
+
+    ov::Shape outer(outer_rank, 0);
+    for (size_t d = 0; d < outer_rank; ++d) {
+        outer[d] = folded.shape[d] - 1;
+    }
+
+    auto compute_outer_offset = [&](const ov::Shape& o, const ov::Strides& strides_bytes) -> size_t {
+        size_t off = 0;
+        for (size_t d = 0; d < o.size(); ++d) {
+            off += o[d] * strides_bytes[d];
+        }
+        return off;
+    };
+
+    size_t src_off = compute_outer_offset(outer, folded.src_strides);
+    size_t dst_off = compute_outer_offset(outer, folded.dst_strides);
+
+    auto step_prev_outer = [&](size_t& off, const ov::Strides& strides_bytes, size_t dim) {
+        off -= strides_bytes[dim];
+    };
+
+    auto wrap_outer_dim =
+        [&](size_t& off, const ov::Shape& shape_folded, const ov::Strides& strides_bytes, size_t dim) {
+            off += (shape_folded[dim] - 1) * strides_bytes[dim];
+        };
+
+    auto dec_outer_and_offsets = [&]() -> bool {
+        for (int d = static_cast<int>(outer_rank) - 1; d >= 0; --d) {
+            const size_t ud = static_cast<size_t>(d);
+            if (outer[ud] > 0) {
+                --outer[ud];
+                step_prev_outer(src_off, folded.src_strides, ud);
+                step_prev_outer(dst_off, folded.dst_strides, ud);
+                return true;
+            }
+            outer[ud] = folded.shape[ud] - 1;
+            wrap_outer_dim(src_off, folded.shape, folded.src_strides, ud);
+            wrap_outer_dim(dst_off, folded.shape, folded.dst_strides, ud);
+        }
+        return false;
+    };
+
+    while (true) {
+        uint8_t* src_ptr = base + src_off;
+        uint8_t* dst_ptr = base + dst_off;
+        if (src_ptr != dst_ptr) {
+            std::memmove(dst_ptr, src_ptr, row_bytes);
+        }
+
+        if (!dec_outer_and_offsets()) {
+            break;
+        }
+    }
+}
+
+// In-place move along kv_dim when src/dst share the same buffer.
+// Requirements:
+//   - kv_dim_src == kv_dim_dst
+//   - src_tensor->data() == dst_tensor->data()
+void ov::npuw::util::copy_tensor_inplace_by_dim(const ov::SoPtr<ov::ITensor> src_tensor,
+                                                ov::SoPtr<ov::ITensor> dst_tensor,
+                                                uint32_t kv_dim_src,
+                                                uint32_t kv_dim_dst) {
+    OPENVINO_ASSERT(src_tensor);
+    OPENVINO_ASSERT(dst_tensor);
+
+    OPENVINO_ASSERT(kv_dim_src == kv_dim_dst, "copy_tensor_inplace_by_dim supports only kv_dim_src == kv_dim_dst");
+
+    void* base_data = src_tensor->data();
+    void* dst_data = dst_tensor->data();
+    OPENVINO_ASSERT(base_data);
+    OPENVINO_ASSERT(dst_data);
+    OPENVINO_ASSERT(base_data == dst_data);
+
+    const auto& src_shape = src_tensor->get_shape();
+    const auto& dst_shape = dst_tensor->get_shape();
+    OPENVINO_ASSERT(src_shape == dst_shape);
+    OPENVINO_ASSERT(kv_dim_src < src_shape.size());
+
+    copy_inplace_generic_rows(src_tensor, dst_tensor);
 }
 
 std::optional<ov::Output<const ov::Node>> ov::npuw::util::find_port_by_name(
