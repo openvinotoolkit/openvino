@@ -35,9 +35,9 @@ jobs:
           echo "Cache info: "
           du -h -d2 ${PIP_CACHE_PATH}
 
-  Cleanup_HF_Cache:
+  Cleanup_HF_Cache_Linux:
     name: Cleanup HuggingFace cache
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-medium
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
@@ -45,22 +45,51 @@ jobs:
         - /mount:/mount
     env:
       HF_CACHE_PATH: /mount/caches/huggingface
+    steps:
+      steps:
+      - name: Pre-Collecting Cache Info
+        run: |
+          echo "Cache info: "
+          du -h -d2 ${HF_CACHE_PATH}
+
+      - name: Cleanup cache
+        run: |
+          echo "Delete cache files if they have not been used in over 30 days"
+          [ ! -z "${HF_CACHE_PATH}" ] && find ${HF_CACHE_PATH} ! -type d -atime +30 -delete
+
+      - name: Post-Collecting Cache Info
+        run: |
+          echo "Cache info: "
+          du -h -d2 ${HF_CACHE_PATH}
+
+  Cleanup_HF_Cache_Windows:
+    name: Cleanup Windows HuggingFace cache
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    runs-on: 'aks-win-4-cores-8gb-test'
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      HF_CACHE_PATH: "C:\\mount\\caches\\huggingface"
 
     steps:
-      - name: Checkout cache action
-        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
-        timeout-minutes: 15
-        with:
-          sparse-checkout: .github/actions/cache
+      - name: Pre-Collecting Cache Info
+        run: |
+          Write-Host "Cache info: "
+          "{0:N2}" -f ((Get-ChildItem -path "$env:HF_CACHE_PATH" -recurse | Measure-Object -property length -sum ).sum /1MB) + " MB"
 
-      - name: Cleanup HF cache
-        uses: ./.github/actions/cache/cleanup
-        with:
-          cache-size: 1700
-          max-cache-size: 2000
-          cache-path: ${{ env.HF_CACHE_PATH }}
-          recursive: true
-          key: '.'
+      - name: Cleanup cache
+        run: |
+          Write-Host "Delete cache files if they have not been used in over 30 days"
+          $cutoff = (Get-Date).AddDays(-30)
+          Get-ChildItem -Path "$env:HF_CACHE_PATH" -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.LastAccessTime -lt $cutoff } |
+            Remove-Item -Force -ErrorAction SilentlyContinue
+
+      - name: Post-Collecting Cache Info
+        run: |
+          Write-Host "Cache info: "
+          "{0:N2}" -f ((Get-ChildItem -path "$env:HF_CACHE_PATH" -recurse | Measure-Object -property length -sum ).sum /1MB) + " MB"
 
   Cleanup_ccache_lin:
     name: Cleanup Linux ccache

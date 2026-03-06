@@ -79,6 +79,7 @@ protected:
                                                  std::optional<size_t> batchSizeCandidate = std::nullopt);
 
     virtual void prepare_inputs();
+    virtual void prepare_outputs();
 
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<IGraph> _graph;

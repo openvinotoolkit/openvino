@@ -76,12 +76,14 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //                 `---------------------power--'
     auto const_2 = wrap_type<v0::Constant>(value_is_equal_to<float>({2.0}));
-    auto power = wrap_type<v1::Power>({optionalConvert, const_2});
+    auto powerof2_square = pattern::wrap_type<ov::op::v1::Power>({optionalConvert, const_2});
+    auto self_multiply_square = pattern::wrap_type<ov::op::v1::Multiply>({optionalConvert, optionalConvert});
+    const auto squareOperation = std::make_shared<pattern::op::Or>(OutputVector{powerof2_square, self_multiply_square});
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //     `---mean3--------------------------------'
     auto mean3_axes = wrap_type<v0::Constant>();
-    auto mean3 = wrap_type<v1::ReduceMean>({power, mean3_axes});
+    auto mean3 = wrap_type<v1::ReduceMean>({squareOperation, mean3_axes});
 
     auto const_0_5 = wrap_type<v0::Constant>(value_is_equal_to<float>({0.5}));
     auto eps = wrap_type<v0::Constant>();
@@ -155,8 +157,14 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
 
         ov::NodeVector nodes_to_copy_info({pattern_to_output.at(mean1).get_node_shared_ptr(),
                                            pattern_to_output.at(sub1).get_node_shared_ptr(),
-                                           pattern_to_output.at(power).get_node_shared_ptr(),
                                            pattern_to_output.at(mean3).get_node_shared_ptr()});
+
+        // Conditionally add the squaring operation (either power or multiply)
+        if (pattern_to_output.count(powerof2_square)) {
+            nodes_to_copy_info.push_back(pattern_to_output.at(powerof2_square).get_node_shared_ptr());
+        } else if (pattern_to_output.count(self_multiply_square)) {
+            nodes_to_copy_info.push_back(pattern_to_output.at(self_multiply_square).get_node_shared_ptr());
+        }
 
         ov::op::MVNEpsMode mode;
         if (pattern_to_output.count(add_eps_os)) {

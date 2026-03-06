@@ -37,7 +37,13 @@ INSTANTIATE_TEST_SUITE_P(BadHeader,
                                            "bad_header/wrong_len_3.tflite",
                                            "bad_header/wrong_pos.tflite"));
 
-// Tests where load() itself throws an exception (malformed indices)
+// quantized_dimension=100 on rank-2 tensor: load() succeeds, convert() throws
+// in get_quant_shape() (axis >= rank check)
+INSTANTIATE_TEST_SUITE_P(OobQuantDim,
+                         MalformedModelConvertTest,
+                         ::testing::Values("oob_quant_dim/axis_exceeds_rank.tflite"));
+
+// Tests where load() itself throws an exception
 class MalformedModelLoadTest : public ::testing::TestWithParam<std::string> {
 protected:
     void SetUp() override {
@@ -60,3 +66,22 @@ INSTANTIATE_TEST_SUITE_P(OobIndices,
                                            "malformed_indices/oob_opcode_index.tflite",
                                            "malformed_indices/oob_graph_io_tensor_index.tflite",
                                            "malformed_indices/oob_buffer_index.tflite"));
+
+// quantized_dimension=-1: load() throws in get_quantization() (non-negative axis check)
+INSTANTIATE_TEST_SUITE_P(NegativeQuantDim,
+                         MalformedModelLoadTest,
+                         ::testing::Values("oob_quant_dim/negative_axis.tflite"));
+
+// CVS-181019: sparse tensors with invalid index/segment values or overflow-inducing shapes
+INSTANTIATE_TEST_SUITE_P(SparseOob,
+                         MalformedModelLoadTest,
+                         ::testing::Values("sparse_oob/sparse_oob_index.tflite",
+                                           "sparse_oob/sparse_negative_index.tflite",
+                                           "sparse_oob/sparse_non_monotonic_segments.tflite",
+                                           "sparse_oob/sparse_overflow_shape.tflite"));
+
+// buffer size smaller than shape requires: load() throws in load_model() buffer size validation
+INSTANTIATE_TEST_SUITE_P(BadBufferSize,
+                         MalformedModelLoadTest,
+                         ::testing::Values("bad_buffer_size/undersized_buffer.tflite",
+                                           "bad_buffer_size/empty_buffer_nonempty_shape.tflite"));

@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "npu_mlir_runtime_api.hpp"
+#include "npu_vm_runtime_api.hpp"
 
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
 namespace intel_npu {
-NPUMLIRRuntimeApi::NPUMLIRRuntimeApi() {
-    const std::string baseName = "npu_mlir_runtime";
+
+NPUVMRuntimeApi::NPUVMRuntimeApi(std::string_view libName) {
+    const std::string baseName = libName.empty() ? "npu_mlir_runtime" : std::string(libName);
     try {
         auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
         this->lib = ov::util::load_shared_object(libPath);
@@ -41,8 +42,8 @@ NPUMLIRRuntimeApi::NPUMLIRRuntimeApi() {
 #undef nmr_symbol_statement
 }
 
-const std::shared_ptr<NPUMLIRRuntimeApi>& NPUMLIRRuntimeApi::getInstance() {
-    static std::shared_ptr<NPUMLIRRuntimeApi> instance = std::make_shared<NPUMLIRRuntimeApi>();
+const std::shared_ptr<NPUVMRuntimeApi>& NPUVMRuntimeApi::getInstance() {
+    static std::shared_ptr<NPUVMRuntimeApi> instance = std::make_shared<NPUVMRuntimeApi>();
     return instance;
 }
 
