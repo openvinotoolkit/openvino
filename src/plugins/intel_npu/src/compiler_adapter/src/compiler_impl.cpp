@@ -290,7 +290,15 @@ VCLApi::VCLApi() : _logger("VCLApi", Logger::global().level()) {
 }
 
 const std::shared_ptr<VCLApi> VCLApi::getInstance() {
-    static std::shared_ptr<VCLApi> instance = std::make_shared<VCLApi>();
+    static std::mutex mutex;
+    static std::weak_ptr<VCLApi> weak_instance;
+
+    std::lock_guard<std::mutex> lock(mutex);
+    auto instance = weak_instance.lock();
+    if (!instance) {
+        instance = std::make_shared<VCLApi>();
+        weak_instance = instance;
+    }
     return instance;
 }
 
@@ -311,7 +319,7 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
     _logger.debug("VCLCompilerImpl constructor start");
 
     // Load VCL library
-    (void)VCLApi::getInstance();
+    _vclApi = VCLApi::getInstance();
 
     // Initialize the VCL API
     THROW_ON_FAIL_FOR_VCL("vclGetVersion", vclGetVersion(&_vclVersion, &_vclProfilingVersion), nullptr);
