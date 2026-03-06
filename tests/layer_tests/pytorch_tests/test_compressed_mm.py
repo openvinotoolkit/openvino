@@ -213,9 +213,9 @@ class TestMatMulU2Weights(PytorchLayerTest):
 
     def create_model(self, group_size):
         class aten_mm_u2(torch.nn.Module):
-            def __init__(
-                self, compressed_weight, scale, zero_point, weight_shape, result_dtype
-            ):
+            ZERO_POINT_VALUE = 2
+
+            def __init__(self, compressed_weight, scale, weight_shape, result_dtype):
                 super(aten_mm_u2, self).__init__()
                 self.compressed_weight_shape = compressed_weight.shape
                 self.packed_weight = torch.nn.Parameter(
@@ -223,9 +223,10 @@ class TestMatMulU2Weights(PytorchLayerTest):
                 )
 
                 self.register_buffer("_scale", scale.type(dtype=torch.float16))
-
-                self.zero_point_shape = zero_point.shape
-                self.register_buffer("_zero_point", zero_point.type(dtype=torch.uint8))
+                self.register_buffer(
+                    "_zero_point",
+                    torch.tensor(self.ZERO_POINT_VALUE, dtype=torch.uint8),
+                )
 
                 self.weight_shape = weight_shape
                 self.result_dtype = result_dtype
@@ -251,21 +252,19 @@ class TestMatMulU2Weights(PytorchLayerTest):
         weight_shape = (8, 4)
         ngroups = weight_shape[0] // group_size
         compressed_weight_shape = (ngroups, group_size, weight_shape[1])
-        zero_point_shape = scale_shape = (ngroups, 1, weight_shape[1])
+        scale_shape = (ngroups, 1, weight_shape[1])
 
         compressed_weight = self.random.randint(
             0, 4, size=compressed_weight_shape, dtype=np.uint8
         )
         scale = self.random.randint(-5, 6, size=scale_shape, dtype=np.int32)
-        zero_point = np.full(zero_point_shape, 2, dtype=np.uint8)
 
         t_compressed_weight = torch.from_numpy(compressed_weight)
         t_scale = torch.from_numpy(scale)
-        t_zero_point = torch.from_numpy(zero_point)
 
-        return aten_mm_u2(
-            t_compressed_weight, t_scale, t_zero_point, weight_shape, torch.float32
-        ), ["aten::matmul"]
+        return aten_mm_u2(t_compressed_weight, t_scale, weight_shape, torch.float32), [
+            "aten::matmul"
+        ]
 
     @pytest.mark.nightly
     @pytest.mark.precommit
