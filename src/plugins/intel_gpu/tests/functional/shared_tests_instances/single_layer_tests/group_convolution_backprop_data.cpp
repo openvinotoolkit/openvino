@@ -73,6 +73,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_AutoPadValid, GroupConvBa
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
+const std::vector<ov::Shape> inputShape2D = {{1, 16, 9, 12}};
+const std::vector<ov::Shape> outputShapes2D = {{6, 6}, {4, 9}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_OutputShapeDefined, GroupConvBackpropLayerTest,
+                        ::testing::Combine(
+                                groupConvBackpropData2DParams_AutoPadValid,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(ov::test::static_shapes_to_test_representation(inputShape2D)),
+                                ::testing::ValuesIn(outputShapes2D),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                        GroupConvBackpropLayerTest::getTestCaseName);
+
 /* ============= 3D GroupConvolution ============= */
 const std::vector<std::vector<ov::Shape>> inputShapes3D = {
         {{1, 16, 5, 5, 5}},
@@ -123,6 +135,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData3D_AutoPadValid, GroupConvBa
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes3D)),
                                 ::testing::ValuesIn(emptyOutputShape),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                        GroupConvBackpropLayerTest::getTestCaseName);
+
+const std::vector<ov::Shape> inputShape3D = {{1, 16, 10, 10, 10}};
+const std::vector<ov::Shape> outputShapes3D = {{8, 8, 8}, {10, 10, 10}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData3D_OutputShapeDefined, GroupConvBackpropLayerTest,
+                        ::testing::Combine(
+                                groupConvBackpropData3DParams_AutoPadValid,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(ov::test::static_shapes_to_test_representation(inputShape3D)),
+                                ::testing::ValuesIn(outputShapes3D),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 }  // namespace
