@@ -27,8 +27,6 @@ computation:
 
    def torch_recurrent_gated_delta_rule(
        query, key, value, g, beta, initial_state,
-       output_final_state,          # if True, return the final hidden state
-       use_qk_l2norm_in_kernel=False  # applies L2 normalisation inside the kernel
    ):
        batch_size, sequence_length, num_heads, k_head_dim = key.shape
        v_head_dim = value.shape[-1]
@@ -42,7 +40,6 @@ computation:
            q_t = query[:, i]
            k_t = key[:, i]
            v_t = value[:, i]
-           # g_t: [batch_size, num_heads, 1, 1] - broadcasts over head dims of state
            g_t = g[:, i].exp().unsqueeze(-1).unsqueeze(-1)
            beta_t = beta[:, i].unsqueeze(-1)
 
@@ -57,14 +54,14 @@ computation:
 
 **Inputs**
 
-* **1**: ``Q`` - 4D tensor of type *T* and shape ``[batch_size, seq_len, num_heads, head_size]``,
+* **1**: ``Q`` - 4D tensor of type *T* and shape ``[batch_size, seq_len, num_heads, key_head_dim]``,
   the query vectors for each token and head. Scaled internally by ``1 / sqrt(head_size)``
   before computing the output. **Required.**
 
-* **2**: ``K`` - 4D tensor of type *T* and shape ``[batch_size, seq_len, num_heads, head_size]``,
+* **2**: ``K`` - 4D tensor of type *T* and shape ``[batch_size, seq_len, num_heads, key_head_dim]``,
   the key vectors for each token and head. **Required.**
 
-* **3**: ``V`` - 4D tensor of type *T* and shape ``[batch_size, seq_len, num_heads, v_head_size]``,
+* **3**: ``V`` - 4D tensor of type *T* and shape ``[batch_size, seq_len, num_heads, value_head_dim]``,
   the value vectors for each token and head. **Required.**
 
 * **4**: ``g`` - 3D tensor of type *T* and shape ``[batch_size, seq_len, num_heads]``,
@@ -76,18 +73,18 @@ computation:
   state. **Required.**
 
 * **6**: ``initial_state`` - 4D tensor of type *T* and shape
-  ``[batch_size, num_heads, head_size, v_head_size]``, the initial hidden state matrix.
+  ``[batch_size, num_heads, key_head_dim, value_head_dim]``, the initial hidden state matrix.
   If not provided, the initial state is treated as an all-zeros matrix. **Optional.**
 
 
 **Outputs**
 
 * **1**: ``Y`` - 4D tensor of type *T* and shape
-  ``[batch_size, seq_len, num_heads, v_head_size]``, the output vectors at each time step
+  ``[batch_size, seq_len, num_heads, value_head_dim]``, the output vectors at each time step
   produced by applying the state matrix to the (scaled) query.
 
 * **2**: ``final_state`` - 4D tensor of type *T* and shape
-  ``[batch_size, num_heads, head_size, v_head_size]``, the hidden state matrix
+  ``[batch_size, num_heads, key_head_dim, value_head_dim]``, the hidden state matrix
   after processing the last token in the sequence.
 
 
@@ -119,7 +116,7 @@ computation:
                <dim>1</dim>
                <dim>16</dim>
                <dim>8</dim>
-               <dim>64</dim>
+               <dim>128</dim>
            </port>
            <port id="3"> <!-- `g` log forget gate -->
                <dim>1</dim>
@@ -135,7 +132,7 @@ computation:
                <dim>1</dim>
                <dim>8</dim>
                <dim>64</dim>
-               <dim>64</dim>
+               <dim>128</dim>
            </port>
        </input>
        <output>
@@ -143,7 +140,7 @@ computation:
                <dim>1</dim>
                <dim>16</dim>
                <dim>8</dim>
-               <dim>64</dim>
+               <dim>128</dim>
            </port>
            <port id="7"> <!-- `final_state` -->
                <dim>1</dim>
