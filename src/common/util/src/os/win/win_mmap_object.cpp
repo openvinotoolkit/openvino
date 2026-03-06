@@ -15,16 +15,6 @@
 // clang-format-on
 
 namespace ov {
-namespace util {
-size_t get_system_page_size() {
-    static auto page_size = []() {
-        SYSTEM_INFO sysInfo;
-        GetSystemInfo(&sysInfo);
-        return static_cast<size_t>(sysInfo.dwPageSize);
-    }();
-    return page_size;
-}
-}  // namespace util
 
 class HandleHolder {
     HANDLE m_handle = INVALID_HANDLE_VALUE;
@@ -157,67 +147,4 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle
     return holder;
 }
 
-class PartialMapHolder final : public MappedMemory {
-    void* m_data = nullptr;
-    size_t m_size = 0;
-    uint64_t m_id = std::numeric_limits<uint64_t>::max();
-    HandleHolder m_handle;
-    HandleHolder m_mapping;
-
-    void map(const std::filesystem::path& path, HANDLE h, size_t pos, size_t size) {
-        if (h == INVALID_HANDLE_VALUE) {
-            throw std::runtime_error("Can not open file " + util::path_to_string(path) +
-                                     " for mapping. Ensure that file exists and has appropriate permissions");
-        }
-        m_handle = HandleHolder(h);
-
-        LARGE_INTEGER file_size_large;
-        if (::GetFileSizeEx(m_handle.get(), &file_size_large) == 0) {
-            throw std::runtime_error("Can not get file size for " + util::path_to_string(path));
-        }
-
-        const uint64_t file_size = static_cast<uint64_t>(file_size_large.QuadPart);
-        if (pos + size > file_size) {
-            throw std::runtime_error("Requested mapping range exceeds file size for " + util::path_to_string(path));
-        }
-
-        m_mapping = HandleHolder(
-            ::CreateFileMapping(m_handle.get(), 0, PAGE_READONLY, (pos + size) >> 32, (pos + size) & 0xffffffff, 0));
-        if (m_mapping.get() == INVALID_HANDLE_VALUE) {
-            throw std::runtime_error("Can not create file mapping for " + util::path_to_string(path));
-        }
-
-        m_data = ::MapViewOfFile(m_mapping.get(), FILE_MAP_READ, pos >> 32, pos & 0xffffffff, size);
-        if (!m_data) {
-            throw std::runtime_error("Can not create map view for " + util::path_to_string(path));
-        }
-
-    public:
-        PartialMapHolder(const std::filesystem::path& path, size_t pos, size_t size) {
-            const auto h =
-                ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-            map(path, h, pos, size);
-            m_id = std::hash<std::filesystem::path::string_type>{}(path.native()) ^ std::hash<size_t>{}(pos) ^
-                   std::hash<size_t>{}(size);
-        }
-        ~PartialMapHolder() {
-            if (m_data != MAP_FAILED) {
-                munmap(m_data, m_size);
-            }
-        }
-
-        char* data() noexcept override {
-            return static_cast<char*>(m_data);
-        }
-        size_t size() const noexcept override {
-            return m_size;
-        }
-        uint64_t get_id() const noexcept override {
-            return m_id;
-        }
-    };
-
-    std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path, size_t pos, size_t size) {
-        return std::make_shared<PartialMapHolder>(path, pos, size);
-    }
 }  // namespace ov
