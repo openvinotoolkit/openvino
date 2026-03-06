@@ -1,0 +1,11 @@
+# Extra dependencies for test_llm.py (LLM quantized models)
+# These are NOT needed by test_hf_transformers.py
+
+# quantized model deps
+autoawq==0.2.7; platform_system == "Linux" and platform_machine == "x86_64"
+triton==3.5.1; platform_system == "Linux" and platform_machine == "x86_64"
+auto-gptq==0.7.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
+peft==0.17.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
+
+# optimum (required by transformers' GptqHfQuantizer for GPTQ model loading)
+optimum; python_version < "3.12"

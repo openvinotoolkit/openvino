@@ -111,6 +111,8 @@ jobs:
         run: |
           # pytorch test requirements
           ${{ env.PIP_INSTALL_COMMAND }} -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
+          # transformers needed by test_repeat.py (not in base to keep timm/torchvision envs slim)
+          ${{ env.PIP_INSTALL_COMMAND }} transformers==4.47.1
 
       - name: PyTorch Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287, 142196
