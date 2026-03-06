@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "gathermatmul.h"
 
 #include <oneapi/dnnl/dnnl_common_types.h>
@@ -46,7 +45,7 @@
 #include "transformations/cpu_opset/common/op/batch_gather_matmul_compressed.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
-
+#ifdef OPENVINO_ARCH_X86_64
 namespace ov::intel_cpu::node {
 
 struct onednn_matmul_key {
@@ -299,7 +298,7 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
                                                   [[maybe_unused]] size_t OC,
                                                   [[maybe_unused]] size_t G,
                                                   [[maybe_unused]] const Config& config) noexcept {
-#ifdef OPENVINO_ARCH_X86_64
+#    ifdef OPENVINO_ARCH_X86_64
     // copy paste from FullyConnected
     try {
         std::string errorMessage;
@@ -341,19 +340,19 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
         return false;
     }
     return true;
-#else
+#    else
     return false;
-#endif
+#    endif
 }
 
 ov::element::TypeVector GatherMatmul::getSupportedCompressedWeightsTypes([[maybe_unused]] bool apply_fp8) {
     using ov::element::Type_t;
 
-#ifdef OPENVINO_ARCH_X86_64
+#    ifdef OPENVINO_ARCH_X86_64
     return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4};
-#else
+#    else
     return {};
-#endif
+#    endif
 }
 
 ov::element::TypeVector GatherMatmul::getSupportedCompressedActivationsTypes() {
@@ -860,3 +859,4 @@ bool GatherMatmul::created() const {
 }
 
 }  // namespace ov::intel_cpu::node
+#endif

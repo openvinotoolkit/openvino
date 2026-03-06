@@ -114,7 +114,6 @@ private:
     MemoryPtr biasMem;
     MemoryPtr rhsPackedMem;
     MemoryPtr lhsPackedMem;
-    MemoryCPtr packedWeights;
     size_t M = 0UL, N = 0UL, K = 0UL;
     size_t mr, nr, kr, sr;
     // F32 Kernel block size

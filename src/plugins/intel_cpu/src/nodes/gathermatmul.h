@@ -7,10 +7,13 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>
+#include <vector>
 
 #include "cpu_memory.h"
 #include "graph_context.h"
 #include "node.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/node.hpp"
 
@@ -54,6 +57,8 @@ private:
         WEIGHT_ZERO_POINTS,
     };
 
+#ifdef OPENVINO_ARCH_X86_64
+
     class onednn_matmul;
 
     using GemvImplPtr = std::shared_ptr<onednn_matmul>;
@@ -72,6 +77,21 @@ private:
     MemoryDescPtr m_tmpOutputDesc = nullptr;
 
     bool bf16_amx_mode = false;
+#else
+
+    ov::element::Type getRuntimePrecision() const override;
+    Algorithm algorithm = Algorithm::GatherMatmulDefault;
+    size_t numExperts = 0;
+
+    std::vector<ExecutorPtr> executor;
+    std::vector<MemoryArgs> memArgsFC;
+
+    MemoryPtr m_weightsMemory = nullptr;
+    MemoryPtr m_tmpInpBuffer = nullptr;
+    MemoryDescPtr m_tmpInputDesc = nullptr;
+    MemoryDescPtr m_tmpOutputDesc = nullptr;
+
+#endif
 };
 
 }  // namespace ov::intel_cpu::node
