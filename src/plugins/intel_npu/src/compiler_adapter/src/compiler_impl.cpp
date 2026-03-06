@@ -261,7 +261,7 @@ VCLApi::VCLApi() : _logger("VCLApi", Logger::global().level()) {
         _logger.debug("Try to load %s", baseName.string().c_str());
         this->lib = ov::util::load_shared_object(libpath);
     } catch (const std::runtime_error& error) {
-        _logger.debug("Failed to load %s", baseName.string().c_str());
+        _logger.debug("Failed to load %s: %s", baseName.string().c_str(), error.what());
 
         // TODO: remove fallback loading logic after all components switch to "openvino_intel_npu_compiler_loader"
         baseName = "openvino_intel_npu_compiler";
