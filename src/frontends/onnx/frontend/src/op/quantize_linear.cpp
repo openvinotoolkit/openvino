@@ -157,7 +157,7 @@ std::shared_ptr<ov::Node> make_fake_convert(const ov::Output<ov::Node>& y_scale,
     // FakeConvert will then simulate fp8 quantization and dequantization on x_scaled
     // using a unit scale (scale=1), since the data is already in the fp8 value range.
     const auto x_scaled = std::make_shared<v1::Divide>(data, y_scale);
-    const auto unit_scale = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 1.0f);
+    const auto unit_scale = std::make_shared<v0::Constant>(data_type, ov::Shape{}, 1.0f);
 
     // FakeConvert simulates: fp8_dequant(fp8_quant(x_scaled)) in f32
     const auto fake_convert = std::make_shared<v13::FakeConvert>(x_scaled, unit_scale, destination_type);
