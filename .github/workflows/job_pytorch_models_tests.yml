@@ -159,23 +159,8 @@ jobs:
       - name: RoPE Test
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
-          # Create isolated venv so that upgrading dependencies does not affect other tests
-          python3 -m venv /tmp/rope_venv
-          source /tmp/rope_venv/bin/activate
-          python3 -m pip install --upgrade pip
-          # Install OpenVINO wheels into the RoPE venv
-          py_version=$(python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
-          for wheel in openvino openvino_tokenizers; do
-            wheel_path=$(find ${INSTALL_DIR} -name "${wheel}-*cp${py_version}*.whl" ! -name "*cp${py_version}t*.whl")
-            if [ -n "${wheel_path}" ]; then
-              python3 -m pip install ${wheel_path}
-            else
-              python3 -m pip install ${INSTALL_DIR}/${wheel}-*.whl
-            fi
-          done
-          # Install pinned RoPE test dependencies (versions managed by dependabot)
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_rope
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_rope.txt
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_rope_tests.html --self-contained-html -v --tb=short -n 2
         env:
           TEST_DEVICE: CPU

@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       test_type:
-        description: 'Type of tests to execute (unit, func, or rope)'
+        description: 'Type of tests to execute'
         type: string
         required: true
       device:
@@ -34,7 +34,7 @@ permissions: read-all
 
 jobs:
   GPU:
-    timeout-minutes: ${{ inputs.test_type == 'rope' && 60 || 80 }}
+    timeout-minutes: 80
     runs-on:
       group: ${{ inputs.runner-group }}
       labels: ${{ fromJSON(inputs.runner) }}
@@ -42,7 +42,6 @@ jobs:
       image: ${{ inputs.image }}
       volumes:
         - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro # Needed to access CA certificates
-        - /mount:/mount # Needed for HuggingFace model cache (RoPE tests)
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
       options: ${{ inputs.options }}
     defaults:
@@ -53,45 +52,18 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       GTEST_PARALLEL_SCRIPT: ${{ github.workspace }}/gtest_parallel.py
-      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
       NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
-      HF_HUB_CACHE: /mount/caches/huggingface
-      USE_SYSTEM_CACHE: False
     steps:
-      - name: Fetch setup_python and install wheels actions
-        if: ${{ inputs.test_type == 'rope' }}
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
-        timeout-minutes: 15
-        with:
-          sparse-checkout: |
-            .github/actions
-          sparse-checkout-cone-mode: false
-          submodules: 'false'
-
-      - name: Download OpenVINO artifacts (wheels)
-        if: ${{ inputs.test_type == 'rope' }}
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
-        with:
-          name: openvino_wheels
-          path: ${{ env.INSTALL_DIR }}
-
       - name: Download OpenVINO artifacts (package)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
-
+      
       - name: Download OpenVINO artifacts (tests)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_tests
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO artifacts (tokenizers_wheel)
-        if: ${{ inputs.test_type == 'rope' }}
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
-        with:
-          name: openvino_tokenizers_wheel
           path: ${{ env.INSTALL_DIR }}
 
       - name: Extract OpenVINO packages
@@ -109,24 +81,12 @@ jobs:
           DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
           TZ: "Europe/London" # to prevent tzdata from waiting user input
 
-      - name: Install Python 3.11
-        if: ${{ inputs.test_type == 'rope' }}
-        run: |
-          # Install Python 3.11 from deadsnakes PPA (same as ov_test Dockerfile)
-          add-apt-repository --yes ppa:deadsnakes/ppa
-          apt-get install -y python3.11-dev python3.11-venv
-          # Create venv so python3/pip resolve to Python 3.11
-          python3.11 -m venv /opt/venv
-          echo "/opt/venv/bin" >> $GITHUB_PATH
-
       - name: Setup Python ${{ env.PYTHON_VERSION }}
-        if: ${{ inputs.test_type != 'rope' }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Get gtest-parallel script
-        if: ${{ inputs.test_type != 'rope' }}
         run: wget https://raw.githubusercontent.com/google/gtest-parallel/master/gtest_parallel.py
 
       - name: Install compute runtime drivers
@@ -159,20 +119,7 @@ jobs:
       # Tests
       #
 
-      - name: Install OpenVINO Python wheels
-        if: ${{ inputs.test_type == 'rope' }}
-        uses: ./.github/actions/install_ov_wheels
-        with:
-          wheels-dir-path: ${{ env.INSTALL_DIR }}
-          wheels-to-install: 'openvino openvino_tokenizers'
-
-      - name: Install PyTorch tests requirements
-        if: ${{ inputs.test_type == 'rope' }}
-        run: |
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_pytorch
-
       - name: OpenVINO GPU ${{ inputs.test_type }} Tests
-        if: ${{ inputs.test_type != 'rope' }}
         id: run_tests
         env:
           TEST_TYPE: ${{ inputs.test_type }}
@@ -194,31 +141,11 @@ jobs:
           fi
           python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests --dump_json_test_results=${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_"${TEST_TYPE}"_tests.json -- --report_unique_name --gtest_filter=$test_filter
 
-      - name: GPU RoPE Transformation Tests
-        if: ${{ inputs.test_type == 'rope' }}
-        run: |
-          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_rope
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py \
-            -m precommit \
-            --html=${INSTALL_TEST_DIR}/TEST-gpu_rope_tests.html \
-            --self-contained-html -v --tb=short
-        env:
-          TEST_DEVICE: GPU
 
       - name: Upload Test Results
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
-        if: ${{ inputs.test_type != 'rope' && !cancelled() }}
+        if: always()
         with:
           name: test-results-${{ inputs.test_type }}-${{ inputs.device }}
           path: ${{ env.INSTALL_TEST_DIR }}/${{ steps.run_tests.outputs.test_results_dir }}
-          if-no-files-found: 'error'
-
-      - name: Upload Test Results (RoPE)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: ${{ inputs.test_type == 'rope' && !cancelled() }}
-        with:
-          name: test-results-gpu-rope-${{ inputs.device }}
-          path: |
-            ${{ env.INSTALL_TEST_DIR }}/TEST-gpu*
           if-no-files-found: 'error'
