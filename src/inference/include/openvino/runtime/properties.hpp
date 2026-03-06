@@ -15,6 +15,7 @@
 #include <cctype>
 #include <iomanip>
 #include <istream>
+#include <limits>
 #include <map>
 #include <string>
 #include <unordered_map>
@@ -138,19 +139,45 @@ class Property : public util::BaseProperty<T, mutability_> {
         }
 
         template <typename U,
-                  typename std::enable_if<!std::is_same<typename std::decay<U>::type, std::string>::value &&
+                  typename std::enable_if<!std::is_same<std::decay_t<U>, std::string>::value &&
                                               std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
+            using UType = std::decay_t<U>;
+            if constexpr (std::is_integral_v<UType> && std::is_unsigned_v<UType>) {
+                const std::string str_value = value;
+                // Find first non-whitespace character
+                const auto pos = str_value.find_first_not_of(" \t\n\r");
+                if (pos != std::string::npos && str_value[pos] == '-') {
+                    OPENVINO_THROW("Cannot assign negative value ", str_value, " to unsigned property");
+                }
+            }
             return Any{value}.as<U>();
         }
 
         template <typename U,
-                  typename std::enable_if<!std::is_same<typename std::decay<U>::type, std::string>::value &&
+                  typename std::enable_if<!std::is_same<std::decay_t<U>, std::string>::value &&
                                               !std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
-            return value;
+            using UType = std::decay_t<U>;
+            using VType = std::decay_t<V>;
+
+            if constexpr (std::is_integral_v<UType> && std::is_unsigned_v<UType> && !std::is_same_v<UType, bool> &&
+                          std::is_integral_v<VType> && std::is_signed_v<VType>) {
+                if (value < 0) {
+                    OPENVINO_THROW("Cannot assign negative value ", value, " to unsigned property");
+                }
+                if constexpr (sizeof(VType) > sizeof(UType)) {
+                    if (value > static_cast<VType>(std::numeric_limits<UType>::max())) {
+                        OPENVINO_THROW("Value ", value, " exceeds maximum for target unsigned type");
+                    }
+                }
+
+                return static_cast<U>(static_cast<std::make_unsigned_t<VType>>(value));
+            } else {
+                return static_cast<U>(value);
+            }
         }
 
         V&& value;
