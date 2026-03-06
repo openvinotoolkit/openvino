@@ -519,6 +519,16 @@ void ZeroInferRequest::update_command_list_for_tensors(SyncInferRequest::FoundPo
                 }
             }
         }
+    } else {
+        // batch handled by compiler, zero tensor allocated with maximum batch
+        auto& levelZeroTensor = get_level_zero_input(foundPort.idx);
+        if (levelZeroTensor != nullptr) {
+            const auto& userTensorElementType = get_user_input(foundPort.idx)->get_element_type();
+            if (userTensorElementType == ov::element::boolean &&
+                levelZeroTensor->get_element_type() == ov::element::u8) {
+                levelZeroTensor->set_element_type(userTensorElementType);
+            }
+        }
     }
     // If command list updates are not supported, fallback to copying tensors every time.
 }

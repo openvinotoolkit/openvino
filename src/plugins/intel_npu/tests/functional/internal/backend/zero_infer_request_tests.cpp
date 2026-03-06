@@ -23,6 +23,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(ov::test::utils::DEVICE_NPU),
         ::testing::ValuesIn(configs),
         ::testing::ValuesIn(specialTensorDataTypes),
+        ::testing::ValuesIn(std::vector<bool>{true, false}),  // with warmup infer
+        ::testing::ValuesIn(std::vector<bool>{true, false}),  // with reset infer request
         // Simulate PV driver having 1.5 graph extension version and no mutable command list extension version
         ::testing::ValuesIn(std::vector<std::pair<uint32_t, uint32_t>>{
             {ZE_GRAPH_EXT_VERSION_1_5, ZE_MAKE_VERSION(0, 0)},

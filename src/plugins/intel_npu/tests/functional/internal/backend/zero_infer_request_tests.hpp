@@ -11,6 +11,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "compiled_model.hpp"
+#include "driver_compiler_adapter.hpp"
 #include "graph.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
@@ -19,6 +20,7 @@
 #include "openvino/op/less_eq.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "plugin_compiler_adapter.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "transformations.hpp"
 #include "zero_backend.hpp"
@@ -50,6 +52,8 @@ using CompilationParamsAndTensorDataType =
     std::tuple<std::string,                     // Device name
                ov::AnyMap,                      // Config
                ov::element::Type,               // Tensor data type
+               bool,                            // With warmup infer
+               bool,                            // With reset infer request
                std::pair<uint32_t, uint32_t>>;  // Graph Ext Version and Mutable Command List Version
 
 class ZeroInferRequestTests : public ov::test::behavior::OVPluginTestBase,
@@ -58,6 +62,8 @@ protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     ov::element::Type element_type;
+    bool withWarmUpInfer;
+    bool withResetInferRequest;
     uint32_t zeGraphNpuExtVersion;
     uint32_t zeMutableCommandListExtVersion;
     std::unique_ptr<::intel_npu::FilteredConfig> npu_config;
@@ -100,23 +106,31 @@ protected:
                 unalignedTensor_2};
     };
 
-    auto set_tensor_and_infer(::intel_npu::ZeroInferRequest& zero_infer_request,
+    auto set_tensor_and_infer(const std::shared_ptr<::intel_npu::ZeroInferRequest>& zero_infer_request,
                               const bool should_infer,
                               const ov::Output<const ov::Node>& port,
-                              const ov::SoPtr<ov::ITensor>& tensor) -> void {
-        zero_infer_request.set_tensor(port, tensor);
+                              const ov::SoPtr<ov::ITensor>& tensor,
+                              const std::function<void(void)>& reset_cb) -> void {
+        zero_infer_request->set_tensor(port, tensor);
         if (should_infer) {
-            zero_infer_request.infer();
+            zero_infer_request->infer();
+        }
+        if (withResetInferRequest) {
+            reset_cb();
         }
     };
 
-    auto set_tensors_and_infer(::intel_npu::ZeroInferRequest& zero_infer_request,
+    auto set_tensors_and_infer(const std::shared_ptr<::intel_npu::ZeroInferRequest>& zero_infer_request,
                                const bool should_infer,
                                const ov::Output<const ov::Node>& port,
-                               const std::vector<ov::SoPtr<ov::ITensor>>& tensors) -> void {
-        zero_infer_request.set_tensors(port, tensors);
+                               const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
+                               std::function<void(void)> reset_cb) -> void {
+        zero_infer_request->set_tensors(port, tensors);
         if (should_infer) {
-            zero_infer_request.infer();
+            zero_infer_request->infer();
+        }
+        if (withResetInferRequest) {
+            reset_cb();
         }
     };
 
@@ -125,8 +139,16 @@ public:
         std::string targetDevice;
         ov::AnyMap configuration;
         ov::element::Type type;
+        bool withWarmUpInfer;
+        bool withResetInferRequest;
         std::pair<uint32_t, uint32_t> graphExtMutableCommandListExtPair;
-        std::tie(targetDevice, configuration, type, graphExtMutableCommandListExtPair) = obj.param;
+
+        std::tie(targetDevice,
+                 configuration,
+                 type,
+                 withWarmUpInfer,
+                 withResetInferRequest,
+                 graphExtMutableCommandListExtPair) = obj.param;
         auto [zeGraphNpuExtVersion, zeMutableCommandListExtVersion] = graphExtMutableCommandListExtPair;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
 
@@ -143,6 +165,9 @@ public:
         if (!type.get_type_name().empty()) {
             result << "tensorDataType=" << type.get_type_name() << "_";
         }
+
+        result << "withWarmUpInfer=" << withWarmUpInfer << "_" << "withResetInferRequest=" << withResetInferRequest
+               << "_";
         result << "zeGraphNpuExtVersion=" + std::to_string(ZE_MAJOR_VERSION(zeGraphNpuExtVersion)) + "." +
                       std::to_string(ZE_MINOR_VERSION(zeGraphNpuExtVersion))
                << "_";
@@ -155,7 +180,12 @@ public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::pair<uint32_t, uint32_t> graphExtMutableCommandListExtPair;
-        std::tie(target_device, configuration, element_type, graphExtMutableCommandListExtPair) = this->GetParam();
+        std::tie(target_device,
+                 configuration,
+                 element_type,
+                 withWarmUpInfer,
+                 withResetInferRequest,
+                 graphExtMutableCommandListExtPair) = this->GetParam();
         zeGraphNpuExtVersion = graphExtMutableCommandListExtPair.first;
         zeMutableCommandListExtVersion = graphExtMutableCommandListExtPair.second;
 
@@ -178,8 +208,8 @@ public:
         }
         npu_config->update(configMap);
 
-        auto zeroInitMock = std::make_shared<::intel_npu::ZeroInitStructsMock>(zeGraphNpuExtVersion,
-                                                                               TARGET_ZE_DRIVER_NPU_EXT_VERSION,
+        auto zeroInitMock = std::make_shared<::intel_npu::ZeroInitStructsMock>(TARGET_ZE_DRIVER_NPU_EXT_VERSION,
+                                                                               zeGraphNpuExtVersion,
                                                                                TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION,
                                                                                TARGET_ZE_PROFILING_NPU_EXT_VERSION,
                                                                                TARGET_ZE_CONTEXT_NPU_EXT_VERSION,
@@ -202,18 +232,18 @@ public:
 }  // namespace test
 }  // namespace ov
 
-TEST_P(ZeroInferRequestTests, CanAllocateZeroTensorForSpecialDataTypes) {
+TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
     ov_model = make_2_input_less_eq();
 
-    auto zero_backend = std::make_shared<intel_npu::ZeroEngineBackend>();
+    auto zero_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
     auto device = intel_npu::utils::getDeviceById(zero_backend,
                                                   ov::test::utils::getDeviceNameID(ov::test::utils::getDeviceName()));
-    intel_npu::CompilerAdapterFactory compilerFactory;
-    auto compilerType = npu_config->get<::intel_npu::COMPILER_TYPE>();
-    auto compiler = compilerFactory.getCompiler(
-        zero_backend,
-        compilerType,
-        ov::intel_npu::Platform::standardize(ov::test::utils::getTestsPlatformFromEnvironmentOr(target_device)));
+
+    auto compiler = npu_config->get<::intel_npu::COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER
+                        ? std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
+                              std::make_shared<::intel_npu::DriverCompilerAdapter>(zeroInitStruct))
+                        : std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
+                              std::make_shared<::intel_npu::PluginCompilerAdapter>(zeroInitStruct));
 
     // WA for error `[NPU_VCL] Unsupported IR API version! Val: 48.0`
     npu_config->update(
@@ -254,7 +284,8 @@ TEST_P(ZeroInferRequestTests, CanAllocateZeroTensorForSpecialDataTypes) {
     OPENVINO_ASSERT(compiledModel->inputs()[0].get_element_type() == element_type);
     OPENVINO_ASSERT(compiledModel->inputs()[1].get_element_type() == element_type);
 
-    ::intel_npu::ZeroInferRequest zero_infer_request(zeroInitStruct, compiledModel, *npu_config);
+    auto zero_infer_request =
+        std::make_shared<::intel_npu::ZeroInferRequest>(zeroInitStruct, compiledModel, *npu_config);
     auto [importMemoryBatchedTensor,
           importMemoryTensor_1,
           importMemoryTensor_2,
@@ -262,34 +293,49 @@ TEST_P(ZeroInferRequestTests, CanAllocateZeroTensorForSpecialDataTypes) {
           unalignedTensor_1,
           unalignedTensor_2] = allocate_tensors();
 
+    auto reset_infer_cb = [this, &zero_infer_request, &compiledModel]() -> void {
+        zero_infer_request =
+            std::make_shared<::intel_npu::ZeroInferRequest>(zeroInitStruct, compiledModel, *npu_config);
+    };
+
+    if (withWarmUpInfer) {
+        zero_infer_request->infer();
+    }
+
     OV_ASSERT_NO_THROW(
         set_tensors_and_infer(zero_infer_request,
                               /* should_infer = */ false,
                               compiledModel->inputs()[0],
-                              {ov::get_tensor_impl(importMemoryTensor_1), ov::get_tensor_impl(unalignedTensor_2)}));
+                              {ov::get_tensor_impl(importMemoryTensor_1), ov::get_tensor_impl(unalignedTensor_2)},
+                              reset_infer_cb));
     OV_ASSERT_NO_THROW(
         set_tensors_and_infer(zero_infer_request,
                               /* should_infer = */ true,
                               compiledModel->inputs()[1],
-                              {ov::get_tensor_impl(importMemoryTensor_2), ov::get_tensor_impl(unalignedTensor_1)}));
+                              {ov::get_tensor_impl(importMemoryTensor_2), ov::get_tensor_impl(unalignedTensor_1)},
+                              reset_infer_cb));
 
     OV_ASSERT_NO_THROW(set_tensor_and_infer(zero_infer_request,
                                             /* should_infer = */ false,
                                             compiledModel->inputs()[0],
-                                            ov::get_tensor_impl(importMemoryBatchedTensor)));
+                                            ov::get_tensor_impl(importMemoryBatchedTensor),
+                                            reset_infer_cb));
     OV_ASSERT_NO_THROW(set_tensor_and_infer(zero_infer_request,
                                             /* should_infer = */ true,
                                             compiledModel->inputs()[1],
-                                            ov::get_tensor_impl(unalignedBatchedTensor)));
+                                            ov::get_tensor_impl(unalignedBatchedTensor),
+                                            reset_infer_cb));
 
     OV_ASSERT_NO_THROW(
         set_tensors_and_infer(zero_infer_request,
                               /* should_infer = */ false,
                               compiledModel->inputs()[0],
-                              {ov::get_tensor_impl(unalignedTensor_1), ov::get_tensor_impl(importMemoryTensor_1)}));
+                              {ov::get_tensor_impl(unalignedTensor_1), ov::get_tensor_impl(importMemoryTensor_1)},
+                              reset_infer_cb));
     OV_ASSERT_NO_THROW(
         set_tensors_and_infer(zero_infer_request,
                               /* should_infer = */ true,
                               compiledModel->inputs()[1],
-                              {ov::get_tensor_impl(unalignedTensor_2), ov::get_tensor_impl(importMemoryTensor_2)}));
+                              {ov::get_tensor_impl(unalignedTensor_2), ov::get_tensor_impl(importMemoryTensor_2)},
+                              reset_infer_cb));
 }
