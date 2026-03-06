@@ -451,7 +451,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                                  fcMappingNotation);
             },
             AcceptsAnyShape<FCAttrs>,
-            CreateDnnlDefault<DnnlFCPrimitive, FCAttrs>{false, true}
+            CreateDnnlDefault<DnnlFCPrimitive, FCAttrs>{true, true}
             )
     };
 
