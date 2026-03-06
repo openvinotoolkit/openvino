@@ -10,6 +10,19 @@
 namespace cldnn {
 namespace ocl {
 
+namespace {
+kernel_selector::segment_max_params::FillMode from(ov::op::FillMode fill_mode) {
+    switch (fill_mode) {
+    case ov::op::FillMode::ZERO:
+        return kernel_selector::segment_max_params::FillMode::ZERO;
+    case ov::op::FillMode::LOWEST:
+        return kernel_selector::segment_max_params::FillMode::LOWEST;
+    default:
+        return kernel_selector::segment_max_params::FillMode::ZERO;
+    }
+}
+}  // namespace
+
 struct segment_max_impl : typed_primitive_impl_ocl<segment_max> {
     using parent = typed_primitive_impl_ocl<segment_max>;
     using parent::parent;
@@ -49,7 +62,7 @@ struct segment_max_impl : typed_primitive_impl_ocl<segment_max> {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
 
-        params.fill_mode = static_cast<int>(primitive->fill_mode);
+        params.fill_mode = from(primitive->fill_mode);
         return params;
     }
 

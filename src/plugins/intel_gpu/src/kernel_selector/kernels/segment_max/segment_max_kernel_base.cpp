@@ -13,12 +13,11 @@ namespace kernel_selector {
 JitConstants SegmentMaxKernelBase::GetJitConstants(const segment_max_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    // FILL_MODE: 0 = ZERO, 1 = LOWEST
-    jit.AddConstants({MakeJitConstant("FILL_MODE", params.fill_mode)});
+    jit.AddConstants({MakeJitConstant("FILL_MODE", static_cast<int>(params.fill_mode))});
 
     // Compute the empty segment value at compile time.
     // For ZERO mode use 0, for LOWEST mode use the type's minimum representable value.
-    if (params.fill_mode == 0) {
+    if (params.fill_mode == segment_max_params::FillMode::ZERO) {
         jit.AddConstants({MakeJitConstant("EMPTY_SEGMENT_VALUE", "0")});
     } else {
         // Use the type-correct minimum value for each output data type.

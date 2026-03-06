@@ -13,10 +13,12 @@ namespace kernel_selector {
 // segment_max_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct segment_max_params : public base_params {
-    segment_max_params() : base_params(KernelType::SEGMENT_MAX), fill_mode(0) {}
+    segment_max_params() : base_params(KernelType::SEGMENT_MAX) {}
 
-    // fill_mode: 0 = ZERO, 1 = LOWEST
-    int fill_mode;
+    enum class FillMode {
+        ZERO = 0,
+        LOWEST,
+    } fill_mode = FillMode::ZERO;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
