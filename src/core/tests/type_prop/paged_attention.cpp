@@ -45,6 +45,10 @@ TEST(type_prop, paged_attention_static_eviction_per_block) {
     const auto adaptive_rkv_diversity_block_set_indices_begins =
         std::make_shared<op::v0::Parameter>(element::i32, PartialShape{5});
 
+    const auto qq_bias = std::make_shared<op::v0::Parameter>(element::u8, PartialShape{4});
+    const auto qq_bias_begins = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2});
+    const auto qq_bias_block_update_indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2});
+    const auto qq_bias_block_update_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2});
     ov::OutputVector args = {query,
                              key,
                              value,
@@ -69,7 +73,11 @@ TEST(type_prop, paged_attention_static_eviction_per_block) {
                              adaptive_rkv_start_size,
                              adaptive_rkv_evictable_sizes,
                              adaptive_rkv_diversity_block_set_indices,
-                             adaptive_rkv_diversity_block_set_indices_begins};
+                             adaptive_rkv_diversity_block_set_indices_begins,
+                             qq_bias,
+                             qq_bias_begins,
+                             qq_bias_block_update_indices,
+                             qq_bias_block_update_indices_begins};
 
     const auto op = std::make_shared<op::PagedAttentionExtension>(args);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
@@ -108,7 +116,10 @@ TEST(type_prop, paged_attention_static_eviction_per_token) {
         std::make_shared<op::v0::Parameter>(element::i32, PartialShape{10});
     const auto adaptive_rkv_diversity_block_set_indices_begins =
         std::make_shared<op::v0::Parameter>(element::i32, PartialShape{5});
-
+    const auto qq_bias = std::make_shared<op::v0::Parameter>(element::u8, PartialShape{4});
+    const auto qq_bias_begins = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2});
+    const auto qq_bias_block_update_indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2});
+    const auto qq_bias_block_update_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2});
     ov::OutputVector args = {query,
                              key,
                              value,
@@ -133,7 +144,11 @@ TEST(type_prop, paged_attention_static_eviction_per_token) {
                              adaptive_rkv_start_size,
                              adaptive_rkv_evictable_sizes,
                              adaptive_rkv_diversity_block_set_indices,
-                             adaptive_rkv_diversity_block_set_indices_begins};
+                             adaptive_rkv_diversity_block_set_indices_begins,
+                             qq_bias,
+                             qq_bias_begins,
+                             qq_bias_block_update_indices,
+                             qq_bias_block_update_indices_begins};
 
     const auto op = std::make_shared<op::PagedAttentionExtension>(args);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
@@ -174,6 +189,11 @@ TEST(type_prop, paged_attention_dynamic_ranks_and_types) {
     const auto adaptive_rkv_diversity_block_set_indices_begins =
         std::make_shared<op::v0::Parameter>(element::dynamic, dyn);
 
+    const auto qq_bias = std::make_shared<op::v0::Parameter>(element::u8, dyn);
+    const auto qq_bias_begins = std::make_shared<op::v0::Parameter>(element::i32, dyn);
+    const auto qq_bias_block_update_indices = std::make_shared<op::v0::Parameter>(element::dynamic, dyn);
+    const auto qq_bias_block_update_indices_begins = std::make_shared<op::v0::Parameter>(element::dynamic, dyn);
+
     ov::OutputVector args = {query,
                              key,
                              value,
@@ -198,7 +218,11 @@ TEST(type_prop, paged_attention_dynamic_ranks_and_types) {
                              adaptive_rkv_start_size,
                              adaptive_rkv_evictable_sizes,
                              adaptive_rkv_diversity_block_set_indices,
-                             adaptive_rkv_diversity_block_set_indices_begins};
+                             adaptive_rkv_diversity_block_set_indices_begins,
+                             qq_bias,
+                             qq_bias_begins,
+                             qq_bias_block_update_indices,
+                             qq_bias_block_update_indices_begins};
 
     EXPECT_NO_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args));
 }

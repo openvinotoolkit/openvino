@@ -164,6 +164,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef HAS_SINK_INPUT
         const global SINK_DATA_T *sink_ptr,
 #endif
+#if HAS_QQ_BIAS
+        const global QQ_BIAS_DATA_T *qq_bias,
+        const global QQ_BIAS_BEGINS_DATA_T *qq_bias_begins,
+#endif
 #if IS_PAGED_ATTENTION
         const __global int* blocked_indexes_start_and_gws_mapping
 #else
@@ -184,10 +188,16 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     const uint subsequence_end = subsequence_begins[gws_mapping + 1];
     const uint subsequence_query_block_idx = block_start_pos - subsequence_begin;
     int q = subsequence_end - subsequence_begin;
+    #if HAS_QQ_BIAS
+        int qq_bias_num = qq_bias_begins[gws_mapping + 1] - qq_bias_begins[gws_mapping];
+        int cumulated_spec_num = qq_bias_begins[gws_mapping];
+    #endif
 #if IS_PREFILL
+    const int past_len = 0;
     const int k = q;
 #else
-    const int k = q + past_lens[gws_mapping];
+    const int past_len = past_lens[gws_mapping];
+    const int k = q + past_len;
 #endif
     const int d = HEAD_SIZE;
 #if IS_GQA_SINGLE_TOKEN
@@ -618,6 +628,35 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                 greater_than, -FLT_MAX, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
                 ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0,
                 ugemm_kq_c_type_nblock1);
+#endif
+
+#if HAS_QQ_BIAS && IS_PAGED_ATTENTION && (IS_PREFILL == 0)
+        // Apply speculative tree mask (QQ_BIAS) for key tokens that belong to the "new" part of K.
+        // qq_bias is interpreted as [subsequence, QQ_BIAS_NUM (query_spec), QQ_BIAS_NUM (key_spec)].
+        // - query_spec is the query index within the current subsequence (new tokens).
+        // - key_spec is the key index within the new tokens region: (key_idx - past_len).
+        const int query_base_local = (int)(wg_j0 + sg_j0_kq);
+        for (int j = 0; j < ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1; j++) {
+            const int key_idx = k0 + sg_i0_kq + j;
+            if (key_idx < past_len)
+                    continue;
+
+            const int key_spec = key_idx - past_len;
+            if (qq_bias_num <= 0 || key_spec < 0 || key_spec >= qq_bias_num)
+                    continue;
+
+            for (int i0 = 0; i0 < ugemm_kq_c_type_block0 * ugemm_kq_c_type_nblock0; i0 += SUBGROUP_SIZE) {
+                const int i = i0 + get_sub_group_local_id();
+                const int query_spec = query_base_local + i;
+                if (query_spec < 0 || query_spec >= qq_bias_num)
+                    continue;
+                const int qq_off = (int)cumulated_spec_num * qq_bias_num + (query_spec - subsequence_begin) * qq_bias_num + key_spec;
+                if (qq_bias[qq_off] == (QQ_BIAS_DATA_T)0) {
+                    tile_access(S_tile, i0, j, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
+                                ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0) = -FLT_MAX;
+                }
+            }
+        }
 #endif
 
         /* Before softmax, we will need to scale columns by maximum values to avoid overflow. */

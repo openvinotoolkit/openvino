@@ -136,6 +136,7 @@ std::string paged_attention_inst::to_string(const paged_attention_node& node) {
     paged_attention_info.add("has_xattention", desc->has_xattention);
     paged_attention_info.add("has_sink_input", desc->has_sink_input);
     paged_attention_info.add("has_adaptive_rkv", desc->has_adaptive_rkv);
+    paged_attention_info.add("has_qq_bias", desc->has_qq_bias);
     paged_attention_info.add("scale", desc->scale_val.value_or(1.0f));
     paged_attention_info.add("is_key_by_channel", desc->is_key_by_channel);
     paged_attention_info.add("key_cache_dt", node.get_input_layout(cldnn::paged_attention::PagedAttentionInputIdx::KEY_CACHE).data_type);
@@ -160,6 +161,14 @@ paged_attention_inst::typed_primitive_inst(network& network, const paged_attenti
         const auto alibi_input_idx = PagedAttentionInputIdx::ALIBI;
         const auto alibi_layout = node.get_input_layout(alibi_input_idx);
         OPENVINO_ASSERT(heads_num == alibi_layout.count(), "[GPU] ALiBi layout count must match heads_num");
+    }
+
+    // Validate qq_bias input (uint8, dynamic shape) if present
+    if (desc->has_qq_bias) {
+        const auto qq_bias_input_idx = cldnn::paged_attention::PagedAttentionInputIdx::QQ_BIAS;
+        const auto& qq_bias_layout = node.get_input_layout(qq_bias_input_idx);
+        OPENVINO_ASSERT(qq_bias_layout.data_type == ov::element::u8,
+            "[GPU] qq_bias input must be uint8");
     }
 
     OPENVINO_ASSERT(heads_num % kv_heads_num == 0, "[GPU] heads_num must be divisible by kv_heads_num");
