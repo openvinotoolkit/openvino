@@ -177,8 +177,8 @@ storage across multiple inference calls.
            new_len = t_end - t_begin
 
            # Window of query tokens that contribute to the score output.
-           # score_win == 0 → disabled: output 1 is zero-filled for this sequence.
-           # score_win  > 0 → only the last score_win tokens of this sequence contribute.
+           # score_win == 0 -> disabled: output 1 is zero-filled for this sequence.
+           # score_win  > 0 -> only the last score_win tokens of this sequence contribute.
            win = score_win if isinstance(score_win, int) else score_win[s]
 
            for i in range(new_len):
@@ -252,12 +252,12 @@ storage across multiple inference calls.
                    sink_val = sinks[0, h, 0, 0] if sinks is not None else None
                    weights  = softmax_with_optional_sink(logits, sink_val)
 
-                   # Weighted sum over value vectors → output 0
+                   # Weighted sum over value vectors -> output 0
                    for t, kpos in enumerate(range(start, qpos + 1)):
                        v_vec = cache_manager.get_value(s, kpos, kvh)
                        output[token, h * Sv : (h+1) * Sv] += weights[t] * v_vec
 
-                   # Score accumulation → output 1
+                   # Score accumulation -> output 1
                    if in_score_window:
                        offset = score_offset(s)   # sum of (past+new) for earlier sequences
                        for t, kpos in enumerate(range(start, qpos + 1)):
@@ -324,6 +324,18 @@ are used at the time the model is built or compiled.
 
 **Inputs**
 
+.. note::
+
+   **Input ports are positional and cannot be skipped.**  OpenVINO does not support
+   absent or null input ports: if port N were omitted, port N+1 would shift down to
+   position N, making all subsequent indices incorrect.  For this reason, all 25
+   input ports must be present in the graph.  Features that are semantically
+   optional (e.g. ALiBi, xattention, sinks) are **disabled by connecting an empty
+   tensor** (zero elements) or a zero sentinel value, not by omitting the port.
+   The only exception is the adaptive RKV group (inputs 22–24): the legacy 21-input
+   model format (without these ports) is accepted by the CPU plugin, in which case
+   those three ports are absent from the graph entirely.
+
 * **0**: ``query`` - 2D tensor of type *T*, shape ``[T, Hq*S]``.  Rows are query tokens
   packed across all sequences; ``Hq`` query heads of size ``S`` are concatenated in
   the feature dimension.  **Required.**
@@ -373,7 +385,7 @@ are used at the time the model is built or compiled.
   ``slope[h] * (key_pos - query_pos)`` to every attention logit before softmax, penalizing
   distant keys with a linearly increasing negative offset.  In the CPU kernel, ALiBi is applied only when the sliding-window code path is
   not active; providing both simultaneously produces undefined results (see
-  implementation notes).  **Optional.**
+  implementation notes).  **Required (always present; empty tensor = disabled).**
 
 * **12**: ``max_context_len`` - scalar tensor of type ``i32``, shape ``[]``.  Hard upper
   bound on the number of attended positions, counting from the current query position backwards.
@@ -389,7 +401,8 @@ are used at the time the model is built or compiled.
 
 * **14**: ``rotated_block_indices`` - 1D tensor of type ``i32``, shape ``[Nrot]``, or empty.
   Physical block IDs of KV-cache blocks whose keys carry pre-rotated position encodings
-  that must be corrected before use.  Empty = RoPE re-rotation is not needed.  **Optional.**
+  that must be corrected before use.  Empty = RoPE re-rotation is not needed.
+  **Required (always present; empty tensor = disabled).**
 
 * **15**: ``rotation_deltas`` - tensor of type ``i32``, shape ``[Nrot]`` (1D, only available for reference implementation), or
   ``[Nrot, 1]`` (2D per-block), or ``[Nrot, Bs]`` (2D per-token), or empty.
@@ -397,19 +410,20 @@ are used at the time the model is built or compiled.
   ``rotation_trig_lut`` to use for re-rotation.  1D and 2D ``[Nrot, 1]`` forms both
   provide one trig-LUT row per block (coarser granularity); 2D ``[Nrot, Bs]`` provides
   one row per token within the block (finer granularity).
-  **Optional.**
+  **Required (always present; empty tensor = disabled).**
 
 * **16**: ``rotation_trig_lut`` - tensor of type ``f16`` or ``f32``, shape ``[C, S]`` or
   ``[C*S]``, or empty.  Look-up table for RoPE position correction.  Row ``r`` contains
   ``[cos_0, ..., cos_{S/2-1}, sin_0, ..., sin_{S/2-1}]`` where ``S/2`` is the half-head
-  size.  ``C`` is the number of available rows.  Empty = no RoPE re-rotation.  **Optional.**
+  size.  ``C`` is the number of available rows.  Empty = no RoPE re-rotation.
+  **Required (always present; empty tensor = disabled).**
 
 * **17**: ``xattention_threshold`` - scalar or 1D tensor of type ``f16`` or ``f32``, shape
   ``[]`` or ``[B_seq]``, or empty.  The CPU plugin expects shape ``[B_seq]``;
   the scalar ``[]`` form is accepted only by the reference implementation.  Attention sparsity threshold for xattention.  For each
   query block, key blocks whose cumulative importance mass covers at least ``threshold``
   fraction of the total causal budget are kept; the rest are masked to ``-inf``.  Empty =
-  dense (full) attention.  **Optional.**
+  dense (full) attention.  **Required (always present; empty tensor = disabled).**
 
 * **18**: ``xattention_block_size`` - scalar tensor of type ``i32``, shape ``[]``.  Token
   granularity for xattention block grouping.  Has no effect when xattention is inactive.
@@ -422,7 +436,7 @@ are used at the time the model is built or compiled.
   validation also accepts rank 1, but the CPU plugin requires rank 4).  Per-query-head
   sink value.  Participates in the softmax normalization as a virtual ``exp(sink[h])`` term
   in the denominator, reducing all real attention weights proportionally.  Does not produce
-  a component in the output.  Empty = disabled.  **Optional.**
+  a component in the output.  Empty = disabled.  **Required (always present; empty tensor = disabled).**
 
 * **21**: ``adaptive_rkv_start_size`` - scalar tensor of type ``i32``, shape ``[]``.
   Number of initial tokens in each sequence that are exempt from eviction scoring (always
@@ -505,7 +519,13 @@ i.e. ``query_features * value_features / key_features``.
 
 * **Output 1**: if ``past_lens`` is a compile-time constant, shape = ``[new_token_count + sum(past_lens)]``; otherwise dynamic.
 
-* **Output 2**: if ``adaptive_rkv_evictable_sizes`` is a compile-time constant and non-empty, shape = ``[max(evictable_sizes)]`` (approximation used during graph build; the exact size ``sum_s(evictable_sizes[s]^2 / block_size)`` is established at runtime).  Otherwise dynamic.
+* **Output 2**: if both ``adaptive_rkv_evictable_sizes`` and the ``key_cache`` block-size
+  dimension (input 3, dim 2) are statically known at graph-build time, shape =
+  ``[sum_s(evictable_sizes[s]^2 / block_size)]`` — the exact flat buffer size.  If
+  either value is dynamic the shape is left dynamic and the exact size is resolved at
+  runtime inside the evaluate function.  Note: the CPU plugin uses
+  ``InternalDynShapeInferFactory`` which always skips shape inference; output 2 sizing on
+  the CPU is handled exclusively in ``executeDynamicImpl`` by reading live input data.
 
 
 **Implementation notes**
@@ -550,15 +570,21 @@ reference.
 +-------------------------------------------------------------+-----+----------+
 | ``adaptive_rkv_start_size`` protection semantics           | ✗   | ✓        |
 +-------------------------------------------------------------+-----+----------+
-| block_size == 32 assertion (kernel layout constraint)      | ✓   | —        |
+| Internal KV-cache eviction (FIFO / SCORE / ADAPTIVE_RKV)   | ✗   | ✓        |
++-------------------------------------------------------------+-----+----------+
+| Per-head max-pool score smoothing (``pool_kernel``)        | ✗   | ✓        |
++-------------------------------------------------------------+-----+----------+
+| Attention-mass gating (``attention_mass_p``)               | ✗   | ✓        |
++-------------------------------------------------------------+-----+----------+
+| block_size == 32 assertion (kernel layout constraint)      | ✓   | ✗        |
 +-------------------------------------------------------------+-----+----------+
 
 \* CPU produces zero score output for prefill steps when the window value is negative
 (see note 1 below).  Decode steps are not affected.
 
 The following behavioral differences exist between the reference implementation (TEMPLATE
-plugin) and the CPU plugin kernel.  These are not specification violations — each
-implementation is internally consistent — but they affect output values in specific
+plugin) and the CPU plugin kernel.  These are not specification violations - each
+implementation is internally consistent - but they affect output values in specific
 configurations.
 
 1. **score_aggregation_window value semantics**
@@ -590,7 +616,19 @@ configurations.
    that fills output 2 is implemented only in the reference.  Consumers of output 2 from
    the CPU plugin will receive an uninitialized buffer.
 
-3. **adaptive_rkv_start_size (input 22) on CPU**
+3. **max_context_len attention-window clipping on CPU**
+
+   The reference implementation applies ``max_context_len`` as a per-token attention
+   window constraint: for each query position ``qpos``, the earliest attended KV
+   position is ``max(0, qpos + 1 - max_context_len)``.  The CPU kernel does **not**
+   apply this clipping; it uses ``max_context_len`` only as a buffer-size hint to
+   pre-allocate the attention weight scratch buffer
+   (``rnd_up(max_context_len, block_size)`` elements).  As a result, when the actual
+   KV sequence length exceeds ``max_context_len``, the CPU will attend over **all**
+   past tokens while the reference trims the window.  A value of ``0`` disables the
+   feature in both implementations and is therefore safe to use for testing.
+
+4. **adaptive_rkv_start_size (input 22) on CPU**
 
    The CPU kernel reads this input but does not use it for any computation
    because the CPU does not implement diversity scoring (output 2).  Any
@@ -624,11 +662,11 @@ configurations.
    Two edge cases are not covered by the CPU implementation but are handled by the
    reference:
 
-   * **1D input shape** (``[Nrot]``) — the spec allows a pure 1D tensor as a shorthand for
+   * **1D input shape** (``[Nrot]``) - the spec allows a pure 1D tensor as a shorthand for
      per-block deltas.  The CPU executor's internal shape assertion requires 2D, so a
      1D tensor causes an assertion failure at runtime.  Pass ``[Nrot, 1]`` instead.
 
-   * **Partial last block** — the CPU rotation kernel always iterates all ``Bs`` token
+   * **Partial last block** - the CPU rotation kernel always iterates all ``Bs`` token
      slots in every block, including unwritten positions at the end of a partially-filled
      last block.  The reference only re-rotates positions up to ``past_len``, leaving
      unoccupied slots untouched.
@@ -652,14 +690,12 @@ configurations.
    ``past_lens`` inputs are reset to their initial state (all zeros / empty blocks) so the
    first ``infer`` call re-initializes the cache through the normal Phase 0 code path.
 
-8. **Output 1 (score_aggregation) is informational only**
+8. **Output 1 (score_aggregation) and internal eviction semantics**
 
-   Neither the CPU plugin nor the reference implementation modifies the KV cache based on
-   the attention scores written to output 1.  The scores are computed and written to the
-   output buffer; the op then returns without touching any cache block.
-
-   All eviction decisions are the sole responsibility of the caller.  The intended workflow
-   is:
+   **CPU plugin:** The CPU plugin does not perform any internal eviction.  The scores
+   written to output 1 are informational only: the CPU kernel does not modify the KV
+   cache based on them, and all eviction decisions remain the caller's responsibility.
+   The intended workflow for host-side eviction is:
 
    #. Read output 1 after each infer step.
    #. Determine which KV-cache blocks to evict (e.g. those with the lowest accumulated
@@ -667,12 +703,75 @@ configurations.
    #. Update ``block_indices`` and ``past_lens`` on the subsequent ``infer`` call to reflect
       that those blocks are now free and should be overwritten.
 
-   The op never evicts, copies, or invalidates any KV-cache block on its own.
+   **Reference implementation:** The reference uses an internal ``PagedCacheManager`` that
+   actively enforces a configurable byte budget (default: ``SCORE`` eviction policy, 64 MB
+   cap).  Whenever ``write_token_kv`` needs to allocate a new block and the number of
+   active blocks would exceed ``max_cache_bytes / bytes_per_block``, the manager
+   automatically evicts the front block of the victim sequence according to the selected
+   policy:
+
+   * ``FIFO`` - evicts the oldest front block of the sequence with the most blocks.
+     Prefers non-requester sequences; falls back to the requester as a last resort.
+
+   * ``SCORE`` - evicts the front block with the lowest accumulated attention score across
+     all sequences.  A penalty of ``1e12`` is added to the requester's score so that
+     other sequences are preferred.  Falls back to ``FIFO`` if no scores have been
+     recorded yet.
+
+   * ``ADAPTIVE_RKV`` - full Adaptive R-KV eviction.  Falls back to ``SCORE`` when no
+     diversity data is available or when no candidate survives the gating step.  The
+     algorithm proceeds as follows:
+
+     **Score processing (per-head max-pool + head-average).**  Before scores are stored
+     in the cache manager, the reference PA kernel applies per-head, per-sequence max-pool
+     with kernel size ``pool_kernel`` (default 7), stride 1, and symmetric padding
+     ``pool_kernel / 2``.  The pooled scores are then averaged across all ``Hq`` query
+     heads.  When ``pool_kernel ≤ 1`` the raw per-token score accumulation is used
+     directly instead.  The result is stored as per-block attention scores in the usual
+     manner (summing token-level values per block).
+
+     **Attention-mass gating.**  At eviction time, for each sequence with diversity data
+     the manager examines the per-block attention scores within the eviction zone.  Blocks
+     are sorted by score in descending order and greedily accumulated until the cumulative
+     sum reaches at least ``attention_mass_p`` (default 0.9) times the total score.  This
+     *retained set* represents the blocks most critical to the sequence's attention
+     distribution.  If the front block of the deque is in the retained set, the sequence
+     is **protected** and is not a candidate for eviction in this round.
+
+     **Filtered column-mean diversity.**  For each non-protected sequence whose front
+     block is eligible, the manager reads its diversity matrix (row 0, corresponding to
+     the front block) and computes the mean over only those columns that belong to
+     retained blocks' token positions.  This filtered mean is the candidate's diversity
+     score.  If the front block is before the eviction zone (``start_block_offset > 0``),
+     it has no diversity row and receives a diversity score of 0 (always evictable).
+
+     **Candidate selection.**  The requester's diversity score receives a ``1e12`` penalty.
+     The candidate with the lowest (penalized) filtered diversity is evicted.  If no
+     candidates remain (all sequences were protected), the manager falls back to
+     ``SCORE`` eviction.
+
+   ``pool_kernel`` and ``attention_mass_p`` are constructor parameters of the
+   ``PagedCacheManager``, with defaults of 7 and 0.9 respectively.  They are not exposed
+   as op inputs.
+
+   **Common eviction behavior.**  Eviction always removes the front block of the victim
+   sequence's deque, advancing ``trim_front`` by ``block_size``.  The diversity matrix
+   for the victim sequence is cleared after eviction (a fresh matrix must be supplied
+   before the next diversity-based decision).  Evicted tokens are silently dropped from
+   the internal cache: ``resolve_token`` returns ``false`` for those positions, which is
+   treated as ``−∞`` during attention computation.  The caller is **not notified** - no
+   output tensor reflects the updated block table.  This internal eviction is independent
+   of and complementary to host-side eviction.
 
 
 **Known limitations**
 
 * Output 2 is not computed by the CPU plugin.  It is only functional in the reference implementation.
+
+* ``max_context_len`` is not applied as an attention-window clip by the CPU plugin; it
+  is used only as a buffer-size hint (see note 3 above).  Tests that rely on active
+  clipping (i.e. KV length > ``max_context_len`` > 0) will produce different results
+  between the CPU and the reference implementation.
 
 * ``adaptive_rkv_start_size`` protection semantics are not honored by the CPU plugin.
 
@@ -830,7 +929,7 @@ are all disabled (empty inputs).  Score aggregation is enabled (``score_aggregat
        </output>
    </layer>
 
-   <!-- port 6: subsequence_begins [B_seq+1=3] — each decode sequence contributes 1 token -->
+   <!-- port 6: subsequence_begins [B_seq+1=3] - each decode sequence contributes 1 token -->
    <layer id="6" name="subsequence_begins/const" type="Const" version="opset1">
        <data element_type="i32" shape="3" offset="8" size="12"/>  <!-- [0, 1, 2] -->
        <output>
@@ -840,7 +939,7 @@ are all disabled (empty inputs).  Score aggregation is enabled (``score_aggregat
        </output>
    </layer>
 
-   <!-- port 7: block_indices [Nb=4] — seq0 occupies blocks 0,1 (33 tokens=2 blocks) and
+   <!-- port 7: block_indices [Nb=4] - seq0 occupies blocks 0,1 (33 tokens=2 blocks) and
         seq1 occupies blocks 2,3 (64 tokens=2 blocks) -->
    <layer id="7" name="block_indices/const" type="Const" version="opset1">
        <data element_type="i32" shape="4" offset="20" size="16"/>  <!-- [0, 1, 2, 3] -->
@@ -877,7 +976,7 @@ are all disabled (empty inputs).  Score aggregation is enabled (``score_aggregat
        </output>
    </layer>
 
-   <!-- port 11: alibi_slopes — empty (ALiBi disabled) -->
+   <!-- port 11: alibi_slopes - empty (ALiBi disabled) -->
    <layer id="11" name="alibi_slopes/const" type="Const" version="opset1">
        <data element_type="f32" shape="0" offset="56" size="0"/>
        <output>
@@ -902,7 +1001,7 @@ are all disabled (empty inputs).  Score aggregation is enabled (``score_aggregat
    </layer>
 
    <!-- ports 14–17: rotated_block_indices, rotation_deltas, rotation_trig_lut,
-        xattention_threshold — all empty (RoPE re-rotation and xattention disabled) -->
+        xattention_threshold - all empty (RoPE re-rotation and xattention disabled) -->
    <layer id="14" name="rotated_block_indices/const" type="Const" version="opset1">
        <data element_type="i32" shape="0" offset="64" size="0"/>
        <output><port id="0" precision="I32"/></output>
@@ -920,7 +1019,7 @@ are all disabled (empty inputs).  Score aggregation is enabled (``score_aggregat
        <output><port id="0" precision="FP32"/></output>
    </layer>
 
-   <!-- port 18: xattention_block_size [] — value irrelevant when xattention is disabled -->
+   <!-- port 18: xattention_block_size [] - value irrelevant when xattention is disabled -->
    <layer id="18" name="xattention_block_size/const" type="Const" version="opset1">
        <data element_type="i32" shape="" offset="64" size="4"/>  <!-- 32 -->
        <output>
@@ -928,7 +1027,7 @@ are all disabled (empty inputs).  Score aggregation is enabled (``score_aggregat
        </output>
    </layer>
 
-   <!-- port 19: xattention_stride [] — value irrelevant when xattention is disabled -->
+   <!-- port 19: xattention_stride [] - value irrelevant when xattention is disabled -->
    <layer id="19" name="xattention_stride/const" type="Const" version="opset1">
        <data element_type="i32" shape="" offset="68" size="4"/>  <!-- 8 -->
        <output>
@@ -936,7 +1035,7 @@ are all disabled (empty inputs).  Score aggregation is enabled (``score_aggregat
        </output>
    </layer>
 
-   <!-- port 20: sinks — empty (attention sinks disabled) -->
+   <!-- port 20: sinks - empty (attention sinks disabled) -->
    <layer id="20" name="sinks/const" type="Const" version="opset1">
        <data element_type="f32" shape="0" offset="72" size="0"/>
        <output><port id="0" precision="FP32"/></output>
@@ -951,7 +1050,7 @@ are all disabled (empty inputs).  Score aggregation is enabled (``score_aggregat
    </layer>
 
    <!-- ports 22–24: adaptive_rkv_evictable_sizes, adaptive_rkv_diversity_block_set_indices,
-        adaptive_rkv_diversity_block_set_indices_begins — all empty (eviction disabled) -->
+        adaptive_rkv_diversity_block_set_indices_begins - all empty (eviction disabled) -->
    <layer id="22" name="adaptive_rkv_evictable_sizes/const" type="Const" version="opset1">
        <data element_type="i32" shape="0" offset="76" size="0"/>
        <output><port id="0" precision="I32"/></output>
