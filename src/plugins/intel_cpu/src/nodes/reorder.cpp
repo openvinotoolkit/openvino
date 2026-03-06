@@ -603,7 +603,7 @@ void Reorder::reorderData(const IMemory& input,
                 };
                 auto setNibble = [](uint8_t* ptr, size_t idx, uint8_t val) {
                     auto& byte = ptr[idx / 2];
-                    const uint8_t nibble = static_cast<uint8_t>(val & 0x0F);
+                    const auto nibble = static_cast<uint8_t>(val & 0x0F);
                     if (idx % 2 == 0) {
                         byte = static_cast<uint8_t>((byte & 0xF0) | nibble);
                     } else {
