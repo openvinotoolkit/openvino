@@ -41,7 +41,7 @@ TEST(moe_unit, moe_mask_gen_test) {
     std::vector<int32_t> num_actually_used_experts_ref = {num_actually_used_experts};
     topology topology(
         input_layout("input_topk", topk_layout),
-        moe_mask_gen("moe_mask_gen", input_info("input_topk"), 32, 2),
+        moe_mask_gen("moe_mask_gen", input_info("input_topk"), 32, 2, true),
         moe_mask_gen_reshape("moe_mask_gen_reshape",
                              input_info("moe_mask_gen", 0),
                              input_info("moe_mask_gen", 1),
