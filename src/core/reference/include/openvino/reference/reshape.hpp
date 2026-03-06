@@ -15,12 +15,10 @@ namespace reference {
  *
  * @param in         Pointer to input data.
  * @param out        Pointer to output data.
- * @param in_shape   Input data shape.
- * @param out_shape  Output data shape.
- * @param elem_size  Single data element size im bytes.
+ * @param copy_size  Number of bytes to copy.
  */
-inline void reshape(const char* in, char* out, const Shape& in_shape, size_t elem_size) {
-    std::memcpy(out, in, shape_size(in_shape) * elem_size);
+inline void reshape(const char* in, char* out, size_t copy_size) {
+    std::memcpy(out, in, copy_size);
 }
 
 /**

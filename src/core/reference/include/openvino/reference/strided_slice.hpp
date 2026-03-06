@@ -13,6 +13,10 @@
 
 namespace ov {
 namespace reference {
-void strided_slice(const char* arg, char* out, const Shape& arg_shape, const op::util::SlicePlan& sp, size_t elem_type);
+void strided_slice(const char* arg,
+                   char* out,
+                   const Shape& arg_shape,
+                   const op::util::SlicePlan& sp,
+                   const element::Type& elem_type);
 }  // namespace reference
 }  // namespace ov

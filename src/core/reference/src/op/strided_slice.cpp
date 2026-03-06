@@ -8,6 +8,7 @@
 
 #include <cmath>
 
+#include "openvino/core/memory_util.hpp"
 #include "openvino/reference/reshape.hpp"
 #include "openvino/reference/reverse.hpp"
 #include "openvino/reference/slice.hpp"
@@ -20,7 +21,7 @@ void strided_slice(const char* arg,
                    char* out,
                    const Shape& arg_shape,
                    const op::util::SlicePlan& sp,
-                   size_t elem_type) {
+                   const element::Type& elem_type) {
     auto hasZeroDims = [](const Shape& shape) -> bool {
         return std::any_of(shape.begin(), shape.end(), [](const size_t& dim) {
             return dim == 0;
@@ -29,8 +30,11 @@ void strided_slice(const char* arg,
     if (hasZeroDims(sp.reshape_in_shape) || hasZeroDims(sp.reshape_out_shape)) {
         return;
     }
+    OPENVINO_ASSERT(elem_type.bitwidth() >= 8,
+                    "StridedSlice reference implementation does not support element types with bitwidth less than 8.");
 
-    ov::AlignedBuffer slice_out_buffer(shape_size(sp.reshape_in_shape) * elem_type);
+    auto in_memory_size = ov::util::get_memory_size_safe(elem_type, sp.reshape_in_shape).value_or(1);
+    ov::AlignedBuffer slice_out_buffer(in_memory_size);
     slice(arg,
           slice_out_buffer.get_ptr<char>(),
           arg_shape,
@@ -38,17 +42,21 @@ void strided_slice(const char* arg,
           Coordinate(sp.ends.begin(), sp.ends.end()),
           Strides(sp.strides.begin(), sp.strides.end()),
           sp.reshape_in_shape,
-          elem_type);
+          elem_type.size());
 
-    ov::AlignedBuffer reshape_out_buffer(shape_size(sp.reshape_out_shape) * elem_type);
-    reshape(slice_out_buffer.get_ptr<char>(), reshape_out_buffer.get_ptr<char>(), sp.reshape_in_shape, elem_type);
+    auto out_memory_size = ov::util::get_memory_size_safe(elem_type, sp.reshape_out_shape).value_or(1);
+    ov::AlignedBuffer reshape_out_buffer(out_memory_size);
+
+    auto copy_size = std::min(in_memory_size, out_memory_size);
+
+    reshape(slice_out_buffer.get_ptr<char>(), reshape_out_buffer.get_ptr<char>(), copy_size);
 
     reverse(reshape_out_buffer.get_ptr<char>(),
             out,
             sp.reshape_out_shape,
             sp.reshape_out_shape,
             sp.reverse_axes,
-            elem_type);
+            elem_type.size());
 }
 }  // namespace reference
 }  // namespace ov
