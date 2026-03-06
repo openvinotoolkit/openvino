@@ -72,7 +72,7 @@ To pack PDB files, it's essential to run cmake command to create a dedicated arc
     ```
     set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python;<openvino_repo>/tools/ovc;%PYTHONPATH%
     set OPENVINO_LIB_PATHS=<openvino_repo>/bin/<arch>/Release;<openvino_repo>/temp/<platform>/tbb/bin
-    set PATH=<openvino_repo>/tools/ovc/openvino/tools/ovc:%PATH%
+    set PATH=<openvino_repo>/tools/ovc/openvino/tools/ovc;%PATH%
     ```
   or install the wheel with pip:
   ```
