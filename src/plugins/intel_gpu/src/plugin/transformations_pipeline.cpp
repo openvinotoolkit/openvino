@@ -84,6 +84,7 @@
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/fc_per_layer_scaling.hpp"
+#include "plugin/transformations/fuse_fc_swiglu_to_gated_mlp.hpp"
 #include "plugin/transformations/fuse_moe_3gemm_compressed.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
@@ -384,6 +385,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     const ov::element::TypeVector supported_woq_types = {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
     bool enableInt8;
     bool unroll_loop = config.get_enable_loop_unrolling();
+    const bool disable_gated_mlp_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_gated_mlp_fusion(), true);
     auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
 
     // call conversion of float types with keep_precision_sensitive_in_fp32 = true
@@ -1304,7 +1306,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEShareCosSin>();
 
         manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
-        manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
+        if (!device_info.supports_immad || !config.get_use_onednn() || disable_gated_mlp_fusion) {
+            manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
+        }
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
 
@@ -1371,6 +1375,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
         manager.register_pass<ov::intel_gpu::IncreaseRMSInputPrecision>();
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
+        if (device_info.supports_immad && config.get_use_onednn() && !disable_gated_mlp_fusion) {
+            manager.register_pass<ov::intel_gpu::FuseFCSwiGLUToGatedMLP>();
+        }
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>(device_info.supports_immad);
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
@@ -1379,7 +1386,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const bool disable_fc_swiglu_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_fc_swiglu_fusion(), false);
 
         // mlp fusion is only supported for cldnn on high performant GPUis
-        bool fuse_mlp_swiglu = !device_info.supports_immad &&
+        bool fuse_mlp_swiglu = !config.get_use_onednn() &&
+                               !device_info.supports_immad &&
                                device_info.execution_units_count >= 128 &&
                                !disable_fc_swiglu_fusion;
         if (!disable_horizontal_fc_fusion) {
@@ -1421,7 +1429,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
         manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeSDPAFusion>();
 
-        manager.register_pass<ov::pass::GLUFusion>();
+        if (!device_info.supports_immad || !config.get_use_onednn() || disable_gated_mlp_fusion) {
+            manager.register_pass<ov::pass::GLUFusion>();
+        }
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
 
         auto kv_cache_compression_dt = config.get_kv_cache_precision();
