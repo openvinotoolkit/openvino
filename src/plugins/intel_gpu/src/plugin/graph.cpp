@@ -173,6 +173,49 @@ Graph::~Graph() {
             print_entry("Avg", avg, iters_num);
         }
     }
+
+#ifdef ENABLE_DEBUG_CAPS
+    // Dump average counters for the graph if the path is specified in debug configuration using perfMap
+    const char* envPath = std::getenv("OV_GPU_AVERAGE_COUNTERS");
+
+    if (!envPath) {
+        return;
+    }
+    
+    std::string path = envPath ? std::string(envPath) : "";
+    static int graphIndex = 0;
+    std::string fileName = std::to_string(graphIndex++) + "_" + path;
+
+    const auto profiling_info = get_profiling_info();
+    if (!fileName.empty()) {
+        std::ofstream perf_dump_file(fileName, std::ios::out);
+        OPENVINO_ASSERT(perf_dump_file.is_open(), "[GPU] Couldn't open file to dump profiling data: ", fileName, "Please check the path and permissions.");
+        const std::string header = "layerName;execStatus;layerType;execType;realTime (ms);cpuTime (ms);";
+        perf_dump_file << header << "\n";
+
+        const auto to_string = [](ov::ProfilingInfo::Status status) {
+            switch (status) {
+            case ov::ProfilingInfo::Status::EXECUTED:
+                return "EXECUTED";
+            case ov::ProfilingInfo::Status::NOT_RUN:
+                return "NOT_RUN";
+            case ov::ProfilingInfo::Status::OPTIMIZED_OUT:
+                return "OPTIMIZED_OUT";
+            }
+
+            return "UNKNOWN";
+        };
+
+        for (const auto& entry : profiling_info) {
+            perf_dump_file << entry.node_name << ";" << to_string(entry.status) << ";" << entry.node_type << ";"
+                           << entry.exec_type << ";" << std::fixed << std::setprecision(2)
+                           << static_cast<double>(entry.real_time.count()) / 1000.0 << ";"
+                           << static_cast<double>(entry.cpu_time.count()) / 1000.0 << ";" << "\n";
+        }
+
+        perf_dump_file.close();
+    }
+#endif
 }
 
 void Graph::build(std::shared_ptr<cldnn::program> program) {

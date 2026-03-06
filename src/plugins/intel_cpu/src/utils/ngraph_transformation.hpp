@@ -74,7 +74,7 @@ private:
     void dump(const std::string&& postfix) {
         static int num = 0;  // just to keep dumped IRs ordered in filesystem
         const std::filesystem::path dumpDir{config.dumpIR.dir};
-        const auto pathAndName = dumpDir / ("ir_" + std::to_string(num) + '_' + infoMap.at(type).name + postfix);
+        const auto pathAndName = dumpDir / model->get_friendly_name() / ("ir_" + std::to_string(num) + '_' + infoMap.at(type).name + postfix);
 
         ov::util::create_directory_recursive(dumpDir);
 

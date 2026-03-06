@@ -85,6 +85,13 @@ void SyncInferRequest::redefine_memory_for_input_nodes(Graph& graph) {
         OPENVINO_ASSERT(inputNode, "CPU execution graph doesn't contain input node with index: ", input_port.first);
         if (inputNode->isDynamicNode()) {
             const auto& tensor = get_tensor_ptr(input_port.second);
+            // const auto originalOutputShape = inputNode->originalOutputShapes[0];
+            // for (int i = 0; originalOutputShape.size(); i++) {
+            //     const auto& dim = originalOutputShape[i];
+            //     if (dim.is_dynamic() && dim.get_symbol() && graph.m_symbolicDimValues.count(dim.get_symbol()) == 0) {
+            //         graph.m_symbolicDimValues[dim.get_symbol()] = tensor->get_shape()[i];
+            //     }
+            // }
             inputNode->redefineOutputMemory({tensor->get_shape()});
         }
     }

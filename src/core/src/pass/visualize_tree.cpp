@@ -179,6 +179,45 @@ static std::filesystem::path name_of_subgraph_file(const std::shared_ptr<ov::Nod
     return file_name;
 }
 
+static void collect_leaf_symbols(const std::shared_ptr<ov::Symbol>& symbol,
+                                 std::unordered_map<std::shared_ptr<ov::Symbol>, size_t>& symbol_to_number,
+                                 size_t& n) {
+    if (!symbol)
+        return;
+    if (symbol->is_leaf()) {
+        const auto& root = ov::symbol::ancestor_of(symbol);
+        if (symbol_to_number.count(root) == 0)
+            symbol_to_number[root] = n++;
+    } else {
+        collect_leaf_symbols(symbol->get_lhs(), symbol_to_number, n);
+        collect_leaf_symbols(symbol->get_rhs(), symbol_to_number, n);
+    }
+}
+
+static std::string format_symbol(const std::shared_ptr<ov::Symbol>& symbol,
+                                 const std::unordered_map<std::shared_ptr<ov::Symbol>, size_t>& symbol_map) {
+    if (!symbol)
+        return "?";
+    if (symbol->is_leaf()) {
+        const auto& root = ov::symbol::ancestor_of(symbol);
+        if (symbol_map.count(root))
+            return std::to_string(symbol_map.at(root));
+        return "?";
+    }
+    const char* op_str = nullptr;
+    switch (symbol->get_kind()) {
+    case ov::SymbolKind::ADD:
+        op_str = "+";
+        break;
+    case ov::SymbolKind::MUL:
+        op_str = "*";
+        break;
+    default:
+        return "?";
+    }
+    return format_symbol(symbol->get_lhs(), symbol_map) + op_str + format_symbol(symbol->get_rhs(), symbol_map);
+}
+
 static void collect_symbol_print_values(const std::shared_ptr<ov::Model>& m,
                                         std::unordered_map<std::shared_ptr<ov::Symbol>, size_t>& symbol_to_number) {
     size_t n = symbol_to_number.size() + 1;
@@ -193,20 +232,12 @@ static void collect_symbol_print_values(const std::shared_ptr<ov::Model>& m,
             if (shape.rank().is_dynamic())
                 continue;
             for (const auto& dim : shape)
-                if (auto symbol = dim.get_symbol()) {
-                    const auto& root = ov::symbol::ancestor_of(symbol);
-                    if (symbol_to_number.count(root))
-                        continue;
-                    symbol_to_number[root] = n++;
-                }
+                if (auto symbol = dim.get_symbol())
+                    collect_leaf_symbols(symbol, symbol_to_number, n);
             const auto& value_symbols = output.get_tensor().get_value_symbol();
             for (const auto& value_symbol : value_symbols)
-                if (value_symbol) {
-                    const auto& root = ov::symbol::ancestor_of(value_symbol);
-                    if (symbol_to_number.count(root))
-                        continue;
-                    symbol_to_number[root] = n++;
-                }
+                if (value_symbol)
+                    collect_leaf_symbols(value_symbol, symbol_to_number, n);
         }
     }
 }
@@ -364,11 +395,7 @@ static std::string pretty_partial_shape(
             }
             if (d.is_dynamic()) {
                 if (const auto& symbol = d.get_symbol()) {
-                    const auto& root = ov::symbol::ancestor_of(symbol);
-                    if (symbol_map.count(root))
-                        str << "<" << symbol_map.at(root) << ">";
-                    else
-                        str << "<?>";
+                    str << "<" << format_symbol(symbol, symbol_map) << ">";
                 }
             }
             str << d;
@@ -497,18 +524,17 @@ static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& consta
 
 static std::string pretty_symbol_value(const ov::TensorSymbol& symbols,
                                        const std::unordered_map<std::shared_ptr<ov::Symbol>, size_t>& symbol_map = {}) {
-    std::vector<size_t> mapped_symbols;
+    std::stringstream ss;
+    ss << "[";
+    bool first = true;
     for (const auto& symbol : symbols) {
-        if (symbol) {
-            const auto& root = ov::symbol::ancestor_of(symbol);
-            if (symbol_map.count(root)) {
-                mapped_symbols.push_back(symbol_map.at(root));
-                continue;
-            }
-        }
-        mapped_symbols.push_back(0);
+        if (!first)
+            ss << ", ";
+        ss << format_symbol(symbol, symbol_map);
+        first = false;
     }
-    return pretty_value(mapped_symbols);
+    ss << "]";
+    return ss.str();
 }
 
 static std::string get_bounds_and_label_info(

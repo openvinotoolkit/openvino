@@ -6,6 +6,7 @@
 
 #include <array>
 
+#include "openvino/core/symbol.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/slice.hpp"
 #include "slice_shape_inference_utils.hpp"
@@ -141,6 +142,20 @@ std::vector<TRShape> shape_infer(const Slice* op,
                 (last_dim == input_dim && last_dim != Dimension::dynamic())) {
                 // for equal ov::Dimension do merge to get input label (always success)
                 DimType::merge(last_dim, last_dim, input_dim);
+            } else {
+                if constexpr (std::is_same<DimType, ov::Dimension>::value) {
+                    if (start && stop && steps &&
+                        (*start)[i] == slice::Bounds{0, 0} && (*steps)[i] == 1) {
+                        // Slice(start=0, stop=S, step=1) along a dim with symbol S_dim:
+                        // if stop's value symbol equals S_dim, output = input (whole dim is taken)
+                        const auto& stop_symbols = op->input_value(2).get_tensor().get_value_symbol();
+                        if (i < stop_symbols.size() && stop_symbols[i] && input_dim.get_symbol()) {
+                            if (ov::symbol::are_equal(stop_symbols[i], input_dim.get_symbol())) {
+                                DimType::merge(last_dim, last_dim, input_dim);
+                            }
+                        }
+                    }
+                }
             }
             ++axis_it;
         } else if (axes_map.is_valid) {

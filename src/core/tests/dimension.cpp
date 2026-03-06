@@ -6,6 +6,8 @@
 #include "gtest/gtest.h"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/symbol.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace std;
 using namespace ov;
@@ -166,4 +168,227 @@ TEST(dimension, dimension_symbolic_equality) {
     ov::symbol::set_equal(D, C);
     ov::symbol::set_equal(A, D);
     EXPECT_TRUE(ov::symbol::are_equal(B, C));
+}
+
+// --- Compound symbol tests ---
+
+TEST(symbol, leaf_properties) {
+    auto s = std::make_shared<ov::Symbol>();
+    EXPECT_TRUE(s->is_leaf());
+    EXPECT_FALSE(s->is_compound());
+    EXPECT_EQ(s->get_kind(), ov::SymbolKind::LEAF);
+    EXPECT_EQ(s->get_lhs(), nullptr);
+    EXPECT_EQ(s->get_rhs(), nullptr);
+}
+
+TEST(symbol, add_creates_compound) {
+    auto a = std::make_shared<ov::Symbol>();
+    auto b = std::make_shared<ov::Symbol>();
+    auto c = ov::symbol::add(a, b);
+
+    ASSERT_NE(c, nullptr);
+    EXPECT_TRUE(c->is_compound());
+    EXPECT_FALSE(c->is_leaf());
+    EXPECT_EQ(c->get_kind(), ov::SymbolKind::ADD);
+    EXPECT_EQ(c->get_lhs(), a);
+    EXPECT_EQ(c->get_rhs(), b);
+}
+
+TEST(symbol, add_null_identity) {
+    auto a = std::make_shared<ov::Symbol>();
+
+    // null + a = a
+    EXPECT_EQ(ov::symbol::add(nullptr, a), a);
+    // a + null = a
+    EXPECT_EQ(ov::symbol::add(a, nullptr), a);
+    // null + null = null
+    EXPECT_EQ(ov::symbol::add(nullptr, nullptr), nullptr);
+}
+
+TEST(symbol, structural_equality_same_operands) {
+    auto a = std::make_shared<ov::Symbol>();
+    auto b = std::make_shared<ov::Symbol>();
+    auto c1 = ov::symbol::add(a, b);
+    auto c2 = ov::symbol::add(a, b);
+
+    EXPECT_TRUE(ov::symbol::structurally_equal(c1, c2));
+    EXPECT_TRUE(ov::symbol::are_equal(c1, c2));
+}
+
+TEST(symbol, structural_equality_commutativity) {
+    auto a = std::make_shared<ov::Symbol>();
+    auto b = std::make_shared<ov::Symbol>();
+    auto ab = ov::symbol::add(a, b);
+    auto ba = ov::symbol::add(b, a);
+
+    // ADD is commutative: A+B == B+A
+    EXPECT_TRUE(ov::symbol::structurally_equal(ab, ba));
+    EXPECT_TRUE(ov::symbol::are_equal(ab, ba));
+}
+
+TEST(symbol, structural_equality_with_union_find) {
+    auto a = std::make_shared<ov::Symbol>();
+    auto b = std::make_shared<ov::Symbol>();
+    auto c = std::make_shared<ov::Symbol>();
+    auto d = std::make_shared<ov::Symbol>();
+
+    ov::symbol::set_equal(a, c);  // a == c via union-find
+    ov::symbol::set_equal(b, d);  // b == d via union-find
+
+    auto ab = ov::symbol::add(a, b);
+    auto cd = ov::symbol::add(c, d);
+
+    // (a+b) structurally equals (c+d) because a==c and b==d
+    EXPECT_TRUE(ov::symbol::structurally_equal(ab, cd));
+}
+
+TEST(symbol, structural_inequality_different_operands) {
+    auto a = std::make_shared<ov::Symbol>();
+    auto b = std::make_shared<ov::Symbol>();
+    auto c = std::make_shared<ov::Symbol>();
+    auto ab = ov::symbol::add(a, b);
+    auto ac = ov::symbol::add(a, c);
+
+    EXPECT_FALSE(ov::symbol::structurally_equal(ab, ac));
+    EXPECT_FALSE(ov::symbol::are_equal(ab, ac));
+}
+
+TEST(symbol, set_equal_noop_for_compound) {
+    auto a = std::make_shared<ov::Symbol>();
+    auto b = std::make_shared<ov::Symbol>();
+    auto compound = ov::symbol::add(a, b);
+    auto leaf = std::make_shared<ov::Symbol>();
+
+    // set_equal should silently do nothing when either operand is compound
+    ov::symbol::set_equal(compound, leaf);
+    EXPECT_FALSE(ov::symbol::are_equal(compound, leaf));
+}
+
+TEST(symbol, ancestor_of_compound_returns_self) {
+    auto a = std::make_shared<ov::Symbol>();
+    auto b = std::make_shared<ov::Symbol>();
+    auto c = ov::symbol::add(a, b);
+
+    EXPECT_EQ(ov::symbol::ancestor_of(c), c);
+}
+
+TEST(symbol, structural_equality_null_handling) {
+    auto a = std::make_shared<ov::Symbol>();
+    EXPECT_FALSE(ov::symbol::structurally_equal(nullptr, a));
+    EXPECT_FALSE(ov::symbol::structurally_equal(a, nullptr));
+    EXPECT_FALSE(ov::symbol::structurally_equal(nullptr, nullptr));
+}
+
+TEST(symbol, nested_compound_equality) {
+    auto a = std::make_shared<ov::Symbol>();
+    auto b = std::make_shared<ov::Symbol>();
+    auto c = std::make_shared<ov::Symbol>();
+
+    auto ab = ov::symbol::add(a, b);
+    auto abc1 = ov::symbol::add(ab, c);
+    auto abc2 = ov::symbol::add(ov::symbol::add(a, b), c);
+
+    EXPECT_TRUE(ov::symbol::structurally_equal(abc1, abc2));
+}
+
+TEST(dimension, addition_propagates_compound_symbol) {
+    ov::Dimension d1(3);
+    ov::Dimension d2(5);
+
+    auto s1 = std::make_shared<ov::Symbol>();
+    auto s2 = std::make_shared<ov::Symbol>();
+    d1.set_symbol(s1);
+    d2.set_symbol(s2);
+
+    auto result = d1 + d2;
+    EXPECT_EQ(result.get_length(), 8);
+    ASSERT_NE(result.get_symbol(), nullptr);
+    EXPECT_TRUE(result.get_symbol()->is_compound());
+    EXPECT_EQ(result.get_symbol()->get_kind(), ov::SymbolKind::ADD);
+    EXPECT_EQ(result.get_symbol()->get_lhs(), s1);
+    EXPECT_EQ(result.get_symbol()->get_rhs(), s2);
+}
+
+TEST(dimension, addition_one_symbol_returns_it) {
+    ov::Dimension d1(3);
+    ov::Dimension d2(5);
+
+    auto s1 = std::make_shared<ov::Symbol>();
+    d1.set_symbol(s1);
+    // d2 has no symbol
+
+    auto result = d1 + d2;
+    EXPECT_EQ(result.get_length(), 8);
+    // symbol::add(s1, nullptr) returns s1 directly
+    EXPECT_EQ(result.get_symbol(), s1);
+}
+
+TEST(dimension, addition_no_symbols_no_symbol) {
+    ov::Dimension d1(3);
+    ov::Dimension d2(5);
+
+    auto result = d1 + d2;
+    EXPECT_EQ(result.get_length(), 8);
+    EXPECT_EQ(result.get_symbol(), nullptr);
+}
+
+TEST(symbol, add_op_evaluate_symbol) {
+    // Create two 1D parameters with shape {3}
+    auto param0 = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{3});
+    auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{3});
+
+    // Set up value symbols on both inputs via ShapeOf-like mechanism
+    auto s0 = std::make_shared<ov::Symbol>();
+    auto s1 = std::make_shared<ov::Symbol>();
+    auto s2 = std::make_shared<ov::Symbol>();
+    auto s3 = std::make_shared<ov::Symbol>();
+    auto s4 = std::make_shared<ov::Symbol>();
+    auto s5 = std::make_shared<ov::Symbol>();
+
+    param0->get_output_tensor(0).set_value_symbol({s0, s1, s2});
+    param1->get_output_tensor(0).set_value_symbol({s3, s4, s5});
+
+    auto add_node = std::make_shared<ov::op::v1::Add>(param0, param1);
+    add_node->validate_and_infer_types();
+
+    ov::TensorSymbolVector output_symbols;
+    ASSERT_TRUE(add_node->evaluate_symbol(output_symbols));
+    ASSERT_EQ(output_symbols.size(), 1u);
+    ASSERT_EQ(output_symbols[0].size(), 3u);
+
+    // Each output symbol should be compound ADD of corresponding inputs
+    for (size_t i = 0; i < 3; ++i) {
+        ASSERT_NE(output_symbols[0][i], nullptr);
+        EXPECT_TRUE(output_symbols[0][i]->is_compound());
+        EXPECT_EQ(output_symbols[0][i]->get_kind(), ov::SymbolKind::ADD);
+    }
+    // Verify specific operand linkage
+    EXPECT_EQ(output_symbols[0][0]->get_lhs(), s0);
+    EXPECT_EQ(output_symbols[0][0]->get_rhs(), s3);
+    EXPECT_EQ(output_symbols[0][1]->get_lhs(), s1);
+    EXPECT_EQ(output_symbols[0][1]->get_rhs(), s4);
+    EXPECT_EQ(output_symbols[0][2]->get_lhs(), s2);
+    EXPECT_EQ(output_symbols[0][2]->get_rhs(), s5);
+}
+
+TEST(symbol, add_op_evaluate_symbol_one_input_no_symbols) {
+    auto param0 = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{2});
+    auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{2});
+
+    auto s0 = std::make_shared<ov::Symbol>();
+    auto s1 = std::make_shared<ov::Symbol>();
+    param0->get_output_tensor(0).set_value_symbol({s0, s1});
+    // param1 has no value symbols
+
+    auto add_node = std::make_shared<ov::op::v1::Add>(param0, param1);
+    add_node->validate_and_infer_types();
+
+    ov::TensorSymbolVector output_symbols;
+    ASSERT_TRUE(add_node->evaluate_symbol(output_symbols));
+    ASSERT_EQ(output_symbols.size(), 1u);
+    ASSERT_EQ(output_symbols[0].size(), 2u);
+
+    // symbol::add(s, nullptr) returns s directly (identity)
+    EXPECT_EQ(output_symbols[0][0], s0);
+    EXPECT_EQ(output_symbols[0][1], s1);
 }
