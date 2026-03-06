@@ -1399,6 +1399,12 @@ public:
         rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
 
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
+            if (data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision())) {
+                rt_params->use_gqa_kernel = false;
+                rt_params->use_micro_sdpa = false;
+                return;
+            }
+
             if (rt_params->use_micro_sdpa) {
                 size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
                 rt_params->use_gqa_kernel = (kv_group_size == 8 && desc->k_head_size == 64);
