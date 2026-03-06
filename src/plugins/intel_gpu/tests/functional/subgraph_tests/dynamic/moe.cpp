@@ -4,6 +4,7 @@
 
 #include "common_test_utils/node_builders/moe_builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
@@ -88,6 +89,20 @@ protected:
                        ov::test::utils::create_and_fill_tensor(params[0]->get_element_type(),
                                                                target_input_static_shapes[0],
                                                                ov::test::utils::InputGenerateData(0.125f, 2, 8, 1234))});
+    }
+
+    void validate() override {
+        ov::test::SubgraphBaseTest::validate();
+        auto runtime_model = compiledModel.get_runtime_model();
+        ASSERT_TRUE(runtime_model != nullptr) << "Runtime model should not be null";
+        bool moe_found = false;
+        for (const auto& op : runtime_model->get_ordered_ops()) {
+            auto layer_type = op->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
+            if (layer_type == std::string("moe_3gemm_fused_compressed")) {
+                moe_found = true;
+            }
+        }
+        ASSERT_TRUE(moe_found) << "moe_3gemm_fused_compressed op is not found";
     }
 };
 
