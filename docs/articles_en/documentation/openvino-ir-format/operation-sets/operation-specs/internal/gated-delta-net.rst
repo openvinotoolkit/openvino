@@ -18,62 +18,76 @@ that combines the delta rule memory update with a gating mechanism.
 **Detailed description**: *GatedDeltaNet* implements the recurrence from the paper
 `arXiv:2412.06464 <https://arxiv.org/abs/2412.06464>`__. It processes a sequence of
 query, key, and value vectors using the delta rule to update a hidden state matrix,
-controlled by per-token forget (alpha) and write (beta) gates. Keys are L2-normalized
-before being used to update the state.
+controlled by a per-token forget gate ``g`` (applied as ``exp(g)``) and a per-token
+write gate ``beta``. Queries are scaled by ``1 / sqrt(head_size)`` before being used
+to compute the output. The following PyTorch-equivalent code illustrates the full
+computation:
 
 .. code-block:: py
 
-   GatedDeltaNet recurrence (applied independently per head, for each t = 1, ..., T):
-     *    - matrix multiplication
-    (.)   - Hadamard product (element-wise)
-    (x)   - outer product
-    ||.||_2 - L2 norm along the last (head_size) dimension
+   def torch_recurrent_gated_delta_rule(
+       query, key, value, g, beta, initial_state,
+       output_final_state,          # if True, return the final hidden state
+       use_qk_l2norm_in_kernel=False  # applies L2 normalisation inside the kernel
+   ):
+       batch_size, sequence_length, num_heads, k_head_dim = key.shape
+       v_head_dim = value.shape[-1]
+       scale = 1 / (query.shape[-1] ** 0.5)
+       query = query * scale
 
-    # Normalize key
-    k_norm_t = K_t / ||K_t||_2  # L2 norm along head_size dimension
+       core_attn_out = torch.zeros(batch_size, sequence_length, num_heads, v_head_dim).to(value)
+       last_recurrent_state = initial_state
 
-    # Delta memory update: remove existing value associated with k_norm_t,
-    # then write the new value, controlled by write gate beta_t
-    S_t = alpha_t (.) S_{t-1} + beta_t * (V_t - S_{t-1} * k_norm_t) (x) k_norm_t
+       for i in range(sequence_length):
+           q_t = query[:, i]
+           k_t = key[:, i]
+           v_t = value[:, i]
+           # g_t: [batch_size, num_heads, 1, 1] - broadcasts over head dims of state
+           g_t = g[:, i].exp().unsqueeze(-1).unsqueeze(-1)
+           beta_t = beta[:, i].unsqueeze(-1)
 
-    # Compute output for each time step
-    O_t = S_t * Q_t
+           last_recurrent_state = last_recurrent_state * g_t
+           kv_mem = (last_recurrent_state * k_t.unsqueeze(-1)).sum(dim=-2)
+           delta = (v_t - kv_mem) * beta_t
+           last_recurrent_state = last_recurrent_state + k_t.unsqueeze(-1) * delta.unsqueeze(-2)
+           core_attn_out[:, i] = (last_recurrent_state * q_t.unsqueeze(-1)).sum(dim=-2)
+
+       return core_attn_out, last_recurrent_state
 
 
 **Inputs**
 
 * **1**: ``Q`` - 4D tensor of type *T* and shape ``[batch_size, seq_len, num_heads, head_size]``,
-  the query vectors for each token and head. **Required.**
+  the query vectors for each token and head. Scaled internally by ``1 / sqrt(head_size)``
+  before computing the output. **Required.**
 
 * **2**: ``K`` - 4D tensor of type *T* and shape ``[batch_size, seq_len, num_heads, head_size]``,
-  the key vectors for each token and head. Keys are L2-normalized internally before
-  being used in the state update. **Required.**
+  the key vectors for each token and head. **Required.**
 
-* **3**: ``V`` - 4D tensor of type *T* and shape ``[batch_size, seq_len, num_heads, head_size]``,
+* **3**: ``V`` - 4D tensor of type *T* and shape ``[batch_size, seq_len, num_heads, v_head_size]``,
   the value vectors for each token and head. **Required.**
 
-* **4**: ``beta`` - 4D tensor of type *T* and shape ``[batch_size, seq_len, num_heads, 1]``,
-  the write gate (delta rule strength) controlling how much of the new value is written
-  into the state. Expected values are in ``[0, 1]``. **Required.**
+* **4**: ``g`` - 3D tensor of type *T* and shape ``[batch_size, seq_len, num_heads]``,
+  the forget gate in log-space. Applied as ``exp(g)`` at each time step to decay the
+  hidden state before the delta update. **Required.**
 
-* **5**: ``alpha`` - 4D tensor of type *T* and shape
-  ``[batch_size, seq_len, num_heads, head_size]``,
-  the forget gate (per-element decay) applied to the state matrix before the delta
-  update. Expected values are in ``[0, 1]``. **Required.**
+* **5**: ``beta`` - 3D tensor of type *T* and shape ``[batch_size, seq_len, num_heads]``,
+  the write gate controlling how much of the delta correction is applied to the hidden
+  state. **Required.**
 
 * **6**: ``initial_state`` - 4D tensor of type *T* and shape
-  ``[batch_size, num_heads, head_size, head_size]``, the initial hidden state matrix
-  ``S_0``. If not provided, ``S_0`` is treated as an all-zeros matrix. **Optional.**
+  ``[batch_size, num_heads, head_size, v_head_size]``, the initial hidden state matrix.
+  If not provided, the initial state is treated as an all-zeros matrix. **Optional.**
 
 
 **Outputs**
 
 * **1**: ``Y`` - 4D tensor of type *T* and shape
-  ``[batch_size, seq_len, num_heads, head_size]``, the output vectors at each time step
-  produced by applying the state matrix to the query.
+  ``[batch_size, seq_len, num_heads, v_head_size]``, the output vectors at each time step
+  produced by applying the state matrix to the (scaled) query.
 
 * **2**: ``final_state`` - 4D tensor of type *T* and shape
-  ``[batch_size, num_heads, head_size, head_size]``, the hidden state matrix
+  ``[batch_size, num_heads, head_size, v_head_size]``, the hidden state matrix
   after processing the last token in the sequence.
 
 
@@ -107,17 +121,15 @@ before being used to update the state.
                <dim>8</dim>
                <dim>64</dim>
            </port>
-           <port id="3"> <!-- `beta` write gate -->
+           <port id="3"> <!-- `g` log forget gate -->
                <dim>1</dim>
                <dim>16</dim>
                <dim>8</dim>
-               <dim>1</dim>
            </port>
-           <port id="4"> <!-- `alpha` forget gate -->
+           <port id="4"> <!-- `beta` write gate -->
                <dim>1</dim>
                <dim>16</dim>
                <dim>8</dim>
-               <dim>64</dim>
            </port>
            <port id="5"> <!-- `initial_state` -->
                <dim>1</dim>
