@@ -7,8 +7,10 @@
 
 #include <sstream>
 
+#include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "openvino/core/enum_names.hpp"
 #include "primitive_type_base.h"
+#include "segment_max_shape_inference.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(segment_max)
@@ -24,26 +26,27 @@ std::vector<layout> segment_max_inst::calc_output_layouts(segment_max_node const
                                                           kernel_impl_params const& impl_param) {
     auto primitive = impl_param.typed_desc<segment_max>();
 
-    auto input0_layout = impl_param.get_input_layout(0);   // data
+    auto input0_layout = impl_param.get_input_layout(0);
 
     const data_types output_type = impl_param.desc->output_data_types[0].value_or(input0_layout.data_type);
 
-    // Compute output shape manually to avoid calling shape_infer on 4D-padded shapes.
-    // Output shape = [num_segments] + data_shape[1:] (original)
-    // In the CLDNN 4D layout (bfyx), data_shape is padded to 4D.
-    // Output first dimension (batch) = num_segments.
-    auto output_pshape = input0_layout.get_partial_shape();
-
-    // Determine num_segments from stored constant data
-    if (primitive->num_segments_val >= 0) {
-        output_pshape[0] = primitive->num_segments_val;
-    } else if (primitive->max_segment_id >= 0) {
-        output_pshape[0] = primitive->max_segment_id + 1;
-    } else {
-        output_pshape[0] = ov::Dimension::dynamic();
+    std::vector<ShapeType> input_shapes;
+    for (size_t i = 0; i < impl_param.input_layouts.size(); i++) {
+        input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
     }
 
-    return {layout{output_pshape, output_type, input0_layout.format}};
+    TensorsContainer const_data(&impl_param.get_stream(), impl_param.memory_deps);
+
+    ov::op::v16::SegmentMax op;
+    auto output_shapes = ov::op::v16::shape_infer(&op, input_shapes, cldnn::make_tensor_accessor(const_data));
+
+    // shape_infer with a default-constructed op cannot detect 3-input form
+    // (op->inputs().size() is 0), so apply stored num_segments if available.
+    if (primitive->num_segments_val >= 0) {
+        output_shapes[0][0] = primitive->num_segments_val;
+    }
+
+    return {layout{output_shapes[0], output_type, input0_layout.format}};
 }
 
 std::string segment_max_inst::to_string(segment_max_node const& node) {
