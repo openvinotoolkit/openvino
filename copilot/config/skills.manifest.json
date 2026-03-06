@@ -1,0 +1,19 @@
+{
+  "skills": [
+    "copilot/skills/skills.md",
+    "copilot/skills/optimum_bootstrap.md",
+    "copilot/skills/optimum_model_conversion.md",
+    "copilot/skills/optimum_debug_export.md",
+    "copilot/skills/optimum_create_tiny_model.md",
+    "copilot/skills/optimum_create_model_config.md",
+    "copilot/skills/optimum_add_model_support.md",
+    "copilot/skills/core_op_analysis.md",
+    "copilot/skills/core_op_implementation.md",
+    "copilot/skills/core_op_testing.md",
+    "copilot/skills/core_op_specification.md",
+    "copilot/skills/gpu_hardware_analysis.md",
+    "copilot/skills/gpu_kernel_development.md",
+    "copilot/skills/gpu_performance_profiling.md",
+    "copilot/skills/gpu_testing.md"
+  ]
+}

@@ -1,0 +1,225 @@
+name: Update Issue
+description: >
+  Post a rich, human-readable status comment to the tracking issue.
+  Includes a stage-by-stage table with descriptions, optional artifact
+  summary, next-steps section, and an overall result banner.
+
+inputs:
+  issue_number:
+    description: "Tracking issue number"
+    required: true
+
+  summary:
+    description: "Free-form Markdown paragraph shown at the top of the comment"
+    required: true
+
+  # ── overall pipeline result banner ───────────────────────────────────────
+  overall_result:
+    description: |
+      One of: success_ootb | success_pass1_patched | success_pass2 |
+              failed_after_pass1 | failed_after_pass2 |
+              blocked_pending_transformers_release | running | (empty)
+      Controls the headline banner text shown at the top of the comment.
+    required: false
+    default: ""
+
+  # ── per-stage results table ───────────────────────────────────────────────
+  stage_results:
+    description: |
+      JSON object where keys are stage names and values are either:
+        • A status string: "success" | "failed" | "patched" | "skipped" | "blocked"
+        • OR a richer object:
+            { "status": "patched",
+              "description": "Applied 1 patch to optimum-intel",
+              "next": "Re-deploying with patch applied" }
+    required: false
+    default: "{}"
+
+  # ── artifact summary ──────────────────────────────────────────────────────
+  artifacts_json:
+    description: |
+      JSON array of artifact entries (same schema as meat_manifest.json).
+      When provided, a downloadable artifact table is appended to the comment.
+    required: false
+    default: "[]"
+
+  # ── next steps ───────────────────────────────────────────────────────────
+  next_steps:
+    description: |
+      Markdown list (or free text) describing what the pipeline does next.
+      Shown as a "What happens next" section after the stage table.
+    required: false
+    default: ""
+
+  # ── enablement guide ─────────────────────────────────────────────────────
+  guide_link:
+    description: "URL to the generated enablement guide (shown when available)"
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - id: update
+      uses: actions/github-script@v7
+      env:
+        ISSUE_NUMBER:    ${{ inputs.issue_number }}
+        SUMMARY:         ${{ inputs.summary }}
+        OVERALL_RESULT:  ${{ inputs.overall_result }}
+        STAGE_RESULTS:   ${{ inputs.stage_results }}
+        ARTIFACTS_JSON:  ${{ inputs.artifacts_json }}
+        NEXT_STEPS:      ${{ inputs.next_steps }}
+        GUIDE_LINK:      ${{ inputs.guide_link }}
+      with:
+        script: |
+          const issueNumber   = Number(process.env.ISSUE_NUMBER);
+          const summary       = process.env.SUMMARY || '';
+          const overallResult = (process.env.OVERALL_RESULT || '').trim();
+          const guideLink     = (process.env.GUIDE_LINK     || '').trim();
+          const nextSteps     = (process.env.NEXT_STEPS     || '').trim();
+
+          // ── status icon + one-word label ───────────────────────────────
+          const STATUS_ICON = {
+            success:  '✅', patched:  '🔧', failed:   '❌',
+            skipped:  '⏭️', blocked:  '🚧', running:  '🔄', unknown: '❓',
+          };
+          const statusIcon = s => STATUS_ICON[s] || STATUS_ICON.unknown;
+
+          // ── overall result → human-readable banner ─────────────────────
+          const OVERALL_BANNER = {
+            success_ootb:
+              '✅ **Model deployed successfully — no patches needed.**\n' +
+              '> The model exported and ran correctly out-of-the-box with stable OpenVINO packages.',
+            success_pass1_patched:
+              '✅ **Model deployed successfully after Pass 1 fixes.**\n' +
+              '> Patches were prepared and applied; the model now exports and runs correctly. ' +
+              'See the artifact table below for downloadable patches.',
+            success_pass2:
+              '✅ **Model deployed successfully after Pass 2 fixes.**\n' +
+              '> The first fix cycle uncovered a secondary issue which was resolved in Pass 2. ' +
+              'See the artifact table below for all patches.',
+            failed_after_pass1:
+              '❌ **Deployment failed — fix attempted but re-deploy not completed.**\n' +
+              '> A patch was generated but the pipeline could not verify it. ' +
+              'Download the patch below and continue manually.',
+            failed_after_pass2:
+              '❌ **Deployment failed after two full fix cycles.**\n' +
+              '> The automation exhausted its repair attempts. Manual developer intervention ' +
+              'is required. All partial patches are attached below for reference.',
+            blocked_pending_transformers_release:
+              '🚧 **Blocked — waiting for upstream `transformers` support.**\n' +
+              '> The model architecture is not yet recognised by the installed `transformers` ' +
+              'release. No further automated action is possible until transformers adds support.',
+            running:
+              '🔄 **Pipeline in progress…**\n' +
+              '> This comment will be updated as each stage completes.',
+          };
+
+          // ── default descriptions for well-known stage × status combos ──
+          const DEFAULT_STAGE_DESCRIPTION = {
+            'deploy-1':    { success: 'Exported and ran out-of-the-box. No changes needed.',
+                             failed:  'Export or inference failed. Error classified and routed to fix agent.' },
+            'classify-1':  { success: 'Error classified successfully — fix agent identified.',
+                             skipped: 'Pass 1 succeeded — no classification needed.' },
+            'fix-pass-1':  { success: 'Patch prepared and self-tested. Proceeding to re-deploy.',
+                             failed:  'Fix agent could not resolve the issue. Attempting Pass 2.',
+                             patched: 'Patch generated and verified locally. Re-deploying with fix applied.' },
+            'deploy-2':    { success: 'Model deployed successfully after applying Pass 1 patches.',
+                             failed:  'Deployment still failing after patches. Classifying new error.' },
+            'classify-2':  { success: 'Secondary error classified — routing to Pass 2 fix agent.',
+                             skipped: 'Pass 2 deploy succeeded — no further classification needed.' },
+            'fix-pass-2':  { success: 'Secondary issue resolved.',
+                             failed:  'Automation exhausted — manual intervention required.',
+                             patched: 'Patch for secondary issue generated. Finalising.' },
+            'finalize':    { success: 'Pipeline complete. Enablement guide generated.',
+                             failed:  'Pipeline finished with unresolved issues.' },
+            'wwb':         { success: 'Accuracy check passed (similarity ≥ 0.90).',
+                             failed:  'Accuracy below threshold. Model may need further optimisation.',
+                             skipped: 'WWB skipped — deployment did not reach inference stage.' },
+            'gate-check':  { success: 'Parameter count, license, and task tag validated.',
+                             failed:  'Gate check failed — pipeline stopped.' },
+          };
+
+          // ── parse stage_results ────────────────────────────────────────
+          let stages = {};
+          try { stages = JSON.parse(process.env.STAGE_RESULTS || '{}'); } catch (_) {}
+
+          // ── parse artifacts ────────────────────────────────────────────
+          let artifacts = [];
+          try { artifacts = JSON.parse(process.env.ARTIFACTS_JSON || '[]'); } catch (_) {}
+
+          // ── build comment body ─────────────────────────────────────────
+          let body = '';
+
+          // Banner
+          if (overallResult && OVERALL_BANNER[overallResult]) {
+            body += `## Pipeline Update\n\n${OVERALL_BANNER[overallResult]}\n\n`;
+          } else {
+            body += `## Enablement Status Update\n\n`;
+          }
+
+          // Summary paragraph
+          if (summary) body += `${summary}\n\n`;
+
+          // Stage table
+          if (Object.keys(stages).length > 0) {
+            body += '### Stage Results\n\n';
+            body += '| Stage | Status | What this means |\n';
+            body += '|-------|--------|----------------|\n';
+
+            for (const [stage, value] of Object.entries(stages)) {
+              let status, description, next;
+              if (typeof value === 'string') {
+                status = value;
+                description = DEFAULT_STAGE_DESCRIPTION[stage]?.[status] || '';
+              } else {
+                status = value.status || 'unknown';
+                description = value.description
+                  || DEFAULT_STAGE_DESCRIPTION[stage]?.[status]
+                  || '';
+                next = value.next || '';
+              }
+              const icon = statusIcon(status);
+              const descCell = next
+                ? `${description}<br>_→ ${next}_`
+                : description;
+              body += `| ${stage} | ${icon} **${status}** | ${descCell} |\n`;
+            }
+            body += '\n';
+          }
+
+          // Artifacts table
+          const installableTypes = ['patch', 'wheel', 'override_url', 'model_ir'];
+          const installable = artifacts.filter(a => installableTypes.includes(a.type));
+          if (installable.length > 0) {
+            const typeIcon = { patch: '🩹', wheel: '📦', model_ir: '🗜️',
+                               override_url: '🔗', analysis: '📄', log: '📋' };
+            body += '### 📦 Artifacts & Patches\n\n';
+            body += '| Pass | Component | Type | Description | Apply |\n';
+            body += '|------|-----------|------|-------------|-------|\n';
+            for (const a of installable) {
+              const icon  = typeIcon[a.type] || '📎';
+              const dl    = a.artifact_url ? `[Download](${a.artifact_url})` : (a.artifact_name || '—');
+              const apply = a.install_cmd  ? `\`${a.install_cmd}\`` : (a.branch ? `branch \`${a.branch}\`` : '—');
+              const desc  = a.description || '—';
+              body += `| ${a.pass || '?'} | \`${a.component || '?'}\` | ${icon} \`${a.type}\` | ${desc} | ${apply} |\n`;
+            }
+            body += '\n> 💡 Patches are retained for 90 days. Download and apply them to continue work manually.\n\n';
+          }
+
+          // Next steps
+          if (nextSteps) {
+            body += `### ▶️ What happens next\n\n${nextSteps}\n\n`;
+          }
+
+          // Guide link
+          if (guideLink) {
+            body += `### Enablement Guide\n\n📄 [View enablement guide](${guideLink})\n`;
+          }
+
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo:  context.repo.repo,
+            issue_number: issueNumber,
+            body,
+          });
