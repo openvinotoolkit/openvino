@@ -16,6 +16,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 namespace ov::test {
 
@@ -25,16 +26,6 @@ namespace {
 constexpr uint64_t version_size() {
     return 3 * sizeof(uint16_t);  // major, minor, patch
 }
-
-std::streamoff get_system_page_size() {
-#ifdef _WIN32
-    SYSTEM_INFO sysInfo;
-    GetSystemInfo(&sysInfo);
-    return static_cast<std::streamoff>(sysInfo.dwPageSize);
-#else
-    return static_cast<std::streamoff>(sysconf(_SC_PAGE_SIZE));
-#endif
-}
 }  // namespace
 
 class SingleFileStorageTest : public ::testing::Test {
@@ -43,7 +34,7 @@ protected:
     std::unique_ptr<SingleFileStorage> m_storage;
 
     void SetUp() override {
-        m_file_path = ov::test::utils::generateTestFilePrefix() + ".bin";
+        m_file_path = utils::generateTestFilePrefix() + ".bin";
         m_storage = std::make_unique<SingleFileStorage>(m_file_path);
         ASSERT_TRUE(std::filesystem::exists(m_file_path));
     }
@@ -100,10 +91,10 @@ TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
             });
 
             storage.read_cache_entry(blob_id, true, [&](const ICacheManager::CompiledBlobVariant& compiled_blob) {
-                ASSERT_TRUE(std::holds_alternative<const ov::Tensor>(compiled_blob));
+                ASSERT_TRUE(std::holds_alternative<const Tensor>(compiled_blob));
                 ++read_count;
                 // CVS-181859 Check support for multimap memory mapping
-                auto& tensor = std::get<const ov::Tensor>(compiled_blob);
+                auto& tensor = std::get<const Tensor>(compiled_blob);
                 ASSERT_EQ(tensor.get_byte_size(), blob_data.size());
                 std::vector<uint8_t> read_data(blob_data.size());
                 std::memcpy(read_data.data(), tensor.data(), tensor.get_byte_size());
@@ -135,7 +126,7 @@ TEST_F(SingleFileStorageTest, BlobAlignment) {
     const auto stream_end = stream.tellg();
     stream.seekg(version_size(), std::ios::beg);
 
-    const auto alignment = get_system_page_size();
+    const auto alignment = static_cast<std::streamoff>(util::get_system_page_size());
 
     while (stream.good() && stream.tellg() < stream_end) {
         SingleFileStorage::Tag tag;
@@ -179,13 +170,13 @@ TEST_F(SingleFileStorageTest, AppendOnlyCacheEntry) {
     EXPECT_TRUE(read_called);
 
     OV_EXPECT_THROW_HAS_SUBSTRING(m_storage->write_cache_entry(blob_id, [&](std::ostream&) {}),
-                                  ov::AssertFailure,
+                                  AssertFailure,
                                   blob_id + " already exists in cache");
     m_storage.reset();
 
     SingleFileStorage reopened_storage(m_file_path);
     OV_EXPECT_THROW_HAS_SUBSTRING(reopened_storage.write_cache_entry(blob_id, [&](std::ostream&) {}),
-                                  ov::AssertFailure,
+                                  AssertFailure,
                                   blob_id + " already exists in cache");
 
     EXPECT_NO_THROW(reopened_storage.read_cache_entry("987", false, [](const ICacheManager::CompiledBlobVariant&) {
@@ -258,19 +249,19 @@ TEST_F(SingleFileStorageTest, ContextMetaAppendDelta) {
 
 TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
     weight_sharing::Context test_context;
-    const auto buffer = std::make_shared<ov::AlignedBuffer>(1024);
+    const auto buffer = std::make_shared<AlignedBuffer>(1024);
     for (size_t i = 0; i < buffer->size(); i += 2) {
         buffer->get_ptr<uint8_t>()[i] = 0xAB;
         buffer->get_ptr<uint8_t>()[i + 1] = 0xCD;
     }
-    test_context.m_cache_sources[1].m_weights = std::weak_ptr<ov::AlignedBuffer>{buffer};
+    test_context.m_cache_sources[1].m_weights = std::weak_ptr<AlignedBuffer>{buffer};
     m_storage->write_context(test_context);
 
     std::ifstream stream(m_file_path, std::ios::binary | std::ios::ate);
     const auto stream_end = stream.tellg();
     stream.seekg(version_size(), std::ios::beg);
 
-    const auto alignment = get_system_page_size();
+    const auto alignment = static_cast<std::streamoff>(util::get_system_page_size());
 
     while (stream.good() && stream.tellg() < stream_end) {
         SingleFileStorage::Tag tag;
@@ -304,11 +295,11 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
 
 TEST_F(SingleFileStorageTest, ContextWeightSourceAppendDelta) {
     weight_sharing::Context test_context;
-    const auto buffer_1 = std::make_shared<ov::AlignedBuffer>(1024);
+    const auto buffer_1 = std::make_shared<AlignedBuffer>(1024);
     test_context.m_cache_sources[1].m_weights = buffer_1;
     m_storage->write_context(test_context);
 
-    const auto buffer_2 = std::make_shared<ov::AlignedBuffer>(47);
+    const auto buffer_2 = std::make_shared<AlignedBuffer>(47);
     test_context.m_cache_sources[11].m_weights = buffer_2;
     m_storage->write_context(test_context);
 

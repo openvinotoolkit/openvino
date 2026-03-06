@@ -58,7 +58,7 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& 
  * @param size Size of the mapping.
  * @return Mapped memory object.
  */
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path, size_t pos, size_t size);
+std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path, size_t pos, size_t size);
 
 /**
  * @brief Returns mapped memory for a file from provided file handle (cross-platform).
