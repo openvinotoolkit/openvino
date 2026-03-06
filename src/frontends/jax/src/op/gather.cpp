@@ -34,11 +34,17 @@ std::shared_ptr<Node> make_transpose(const Output<Node>& input, const std::vecto
 
 Output<Node> normalize_start_indices(const Output<Node>& indices, int64_t index_vector_dim) {
     auto pshape = indices.get_partial_shape();
+    int64_t rank = pshape.rank().get_length();
     JAX_OP_CONVERSION_CHECK(pshape.rank().is_static(),
                             "Dynamic rank for start_indices is not supported yet in normalize_start_indices");
-    int64_t rank = pshape.rank().get_length();
     if (index_vector_dim < 0)
         index_vector_dim += rank;
+
+    JAX_OP_CONVERSION_CHECK(index_vector_dim >= 0 && index_vector_dim < rank, 
+            "normalize_start_indices: indeX_vector_dim must be in range [0, ", 
+            rank,
+            "], but get ",
+            index_vector_dim);
     if (index_vector_dim == rank - 1) {
         return indices;
     }
@@ -79,6 +85,7 @@ OutputVector translate_gather(const NodeContext& context) {
     JAX_OP_CONVERSION_CHECK(operand_pshape.rank().is_static(), "Dynamic rank for gather operand is not supported yet.");
 
     auto operand_reordered = operand;
+    auto operand_rank = operand_pshape.rank().get_length();
     auto slice_sizes_reordered = slice_sizes;
 
     int64_t index_vector_axis = -1;
@@ -96,6 +103,14 @@ OutputVector translate_gather(const NodeContext& context) {
     bool all_slice_one = std::all_of(slice_sizes_reordered.begin(), slice_sizes_reordered.end(), [](int64_t s) {
         return s == 1;
     });
+
+    // validate start_index_map is identity
+    for (size_t i = 0; i < start_index_map.size(); i++) {
+        FRONT_END_OP_CONVERSION_CHECK(
+            start_index_map[i] == static_cast<int64_t>(i),
+            "Non-identity start_index_map is not supported yet.");
+    }
+
     FRONT_END_OP_CONVERSION_CHECK(
         all_slice_one,
         "OpenVINO JAX Frontend currently only supports scalar point gathering (slice_sizes == 1).");
@@ -107,18 +122,26 @@ OutputVector translate_gather(const NodeContext& context) {
     if (mode == 1) {
         auto indices_i64 = std::make_shared<v0::Convert>(normalized_indices, element::i64);
         auto zero_const = v0::Constant::create(element::i64, Shape{}, {0});
-	auto clamped_min = std::make_shared<v1::Maximum>(indices_i64, zero_const);
+	      auto clamped_min = std::make_shared<v1::Maximum>(indices_i64, zero_const);
 	
         std::vector<int64_t> upper_bounds_val;
         for (size_t i = 0; i < start_index_map.size(); ++i) {
             int64_t dim_idx = start_index_map[i];
+
+            JAX_OP_CONVERSION_CHECK(dim_idx >= 0 && dim_idx < operand_rank,
+                    "start_index_map contains out-of-range dimension index.");
+            JAX_OP_CONVERSION_CHECK(operand_pshape[dim_idx].is_static(), 
+                    "Dynamic operand dimension not supported in CLIP Mode.");
+            JAX_OP_CONVERSION_CHECK(dim_idx < static_cast<int64_t>(slice_sizes.size()),
+                    "slice_sizes does not cover dimension referenced by start_index_map.");
+            
             int64_t dim_size = operand_pshape[dim_idx].get_length();
             int64_t window_size = slice_sizes[dim_idx];
-	    upper_bounds_val.push_back(std::max<int64_t>(0, dim_size - window_size));
+	          upper_bounds_val.push_back(std::max<int64_t>(0, dim_size - window_size));
         }
-	int64_t indices_rank_val = normalized_indices.get_partial_shape().rank().get_length();
-	Shape limits_shape(indices_rank_val, 1);
-	limits_shape.back() = upper_bounds_val.size();
+	      int64_t indices_rank_val = normalized_indices.get_partial_shape().rank().get_length();
+	      Shape limits_shape(indices_rank_val, 1);
+        limits_shape.back() = upper_bounds_val.size();
 
         auto upper_limits_const = v0::Constant::create(element::i64, limits_shape, upper_bounds_val);
         normalized_indices = std::make_shared<v1::Minimum>(clamped_min, upper_limits_const);

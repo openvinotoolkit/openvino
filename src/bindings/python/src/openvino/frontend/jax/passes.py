@@ -64,17 +64,18 @@ def gather_param_pass(param_name: str, jax_eqn):
         res['start_index_map'] = list(param.start_index_map)
         res['operand_batching_dims'] = list(param.operand_batching_dims)
         res['start_indices_batching_dims'] = list(param.start_indices_batching_dims)
+    elif param_name == "mode":
+        from jax import lax
+        mode_map = {
+            lax.GatherScatterMode.PROMISE_IN_BOUNDS:0, 
+            lax.GatherScatterMode.CLIP: 1,
+            lax.GatherScatterMode.FILL_OR_DROP: 2,
+        }
+        if param not in mode_map:
+            raise ValueError(f"Unsupported GatherScatterMode: {param}")
+        res[param_name] = mode_map[param]
     else:
-        if param_name == "mode":
-            from jax import lax
-            mode_map = {
-                lax.GatherScatterMode.PROMISE_IN_BOUNDS:0, 
-                lax.GatherScatterMode.CLIP: 1,
-                lax.GatherScatterMode.FILL_OR_DROP: 2,
-            }
-            res[param_name] = mode_map.get(param, 0)
-        else:
-            res[param_name] = enum_values_pass(param)
+        res[param_name] = enum_values_pass(param)
     return res
 
 # mapping from primitive to pass
