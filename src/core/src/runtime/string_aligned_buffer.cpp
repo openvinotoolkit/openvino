@@ -18,12 +18,21 @@ void aux_unpack_string_tensor(const char* data, size_t size, std::shared_ptr<ov:
     OPENVINO_ASSERT(size >= 4, "Incorrect packed string tensor format: no batch size in the packed string tensor");
     const int32_t* pindices = reinterpret_cast<const int32_t*>(data);
     int32_t num_strings = pindices[0];
-    OPENVINO_ASSERT(int32_t(size) >= 4 + 4 + 4 * num_strings,
-                    "Incorrect packed string tensor format: the packed string tensor must contain first "
-                    "string offset and end indices");
+    OPENVINO_ASSERT(num_strings >= 0, "Incorrect packed string tensor format: negative number of strings");
+
+    // Calculate header size: [num_strings][0][offset1...offsetN]
+    const size_t num_elements = static_cast<size_t>(num_strings);
+    const size_t header_elems = 2 + num_elements;
+    const size_t header_size_bytes = header_elems * sizeof(int32_t);
+
+    OPENVINO_ASSERT(header_size_bytes <= size,
+                    "Incorrect packed string tensor format: header exceeds provided buffer size");
+
     const int32_t* begin_ids = pindices + 1;
     const int32_t* end_ids = pindices + 2;
     const char* symbols = reinterpret_cast<const char*>(pindices + 2 + num_strings);
+
+    const size_t data_region_size = size - header_size_bytes;
 
     // allocate StringAlignedBuffer to store unpacked strings in std::string objects
     // SharedBuffer to read byte stream is not applicable because we need unpacked format for strings
@@ -34,7 +43,18 @@ void aux_unpack_string_tensor(const char* data, size_t size, std::shared_ptr<ov:
         true);
     std::string* src_strings = static_cast<std::string*>(string_buffer->get_ptr());
     for (int32_t idx = 0; idx < num_strings; ++idx) {
-        src_strings[idx] = std::string(symbols + begin_ids[idx], symbols + end_ids[idx]);
+        const int32_t b = begin_ids[idx];
+        const int32_t e = end_ids[idx];
+        OPENVINO_ASSERT(b >= 0 && e >= 0,
+                        "Incorrect packed string tensor format: negative string offset in the packed string tensor");
+        const size_t ub = static_cast<size_t>(b);
+        const size_t ue = static_cast<size_t>(e);
+        OPENVINO_ASSERT(ub <= ue,
+                        "Incorrect packed string tensor format: begin offset greater than end offset");
+        OPENVINO_ASSERT(ue <= data_region_size,
+                        "Incorrect packed string tensor format: string offset exceeds buffer bounds");
+
+        src_strings[idx] = std::string(symbols + ub, symbols + ue);
     }
 }
 
