@@ -13,6 +13,7 @@ cmake-build*
 
 # developer tools
 *.idea
+.clangd
 .vscode
 .vs/
 .vsconan/
