@@ -57,7 +57,7 @@ TEST(PaddleBasicTest, check_supported_legacy_model_not_exists) {
     EXPECT_FALSE(fe.supported({{legacy_model_path}, false})) << "Should throw if std path supported";
 }
 
-TEST(PaddleBasicTest, check_supported_incorect_extension) {
+TEST(PaddleBasicTest, check_supported_incorrect_extension) {
     const auto test_dir = std::filesystem::path(ov::test::utils::generateTestFilePrefix());
     const auto model_path = test_dir / "model.onnx";
 
