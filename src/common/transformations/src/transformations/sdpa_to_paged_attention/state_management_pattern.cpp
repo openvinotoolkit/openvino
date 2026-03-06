@@ -611,8 +611,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                 offset = std::make_shared<v0::Convert>(offset, element::i32);
             }
             sliding_window = std::make_shared<v1::Multiply>(offset, v0::Constant::create(element::i32, Shape{}, {-1}));
+            std::cout << "gpt oss sliding window" << std::endl;
         } else {
             sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
+            std::cout << "general sliding window" << std::endl;
         }
 
         std::initializer_list<std::shared_ptr<Node>> additional_params = {scale,

@@ -16,6 +16,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
+#include "transformations/fp16_compression/convert_legacy_precision_attribute.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "utils.hpp"
 
@@ -303,6 +304,7 @@ std::string FrontEnd::get_name() const {
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager("Frontend:IR:normalize");
     manager.register_pass<pass::ResolveNameCollisions>();
+    manager.register_pass<pass::ConvertLegacyPrecisionAttribute>();
     manager.run_passes(model);
 }
 

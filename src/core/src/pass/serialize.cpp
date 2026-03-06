@@ -104,8 +104,8 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
     // ['precise_0'] = '' into => rt_info['precise_0'] = DisableFP16Compression{}
     for (auto& node : model->get_ops())
-        if (fp16_compression_is_disabled(node))
-            disable_fp16_compression(node);
+        if (ov::is_compression_disabled_to(node, element::f16))
+            ov::disable_compression_to(node, element::f16);
 
     if (m_xmlFile && m_binFile) {
         serialize_func(*m_xmlFile, *m_binFile, model, m_version);
