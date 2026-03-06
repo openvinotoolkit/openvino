@@ -12,7 +12,6 @@
 #         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_6_0-c74b126.tar.gz
 #         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_6_0-c74b126.tar.gz
 function(download_and_extract url zip_file extracted_dir)
-
     # Check if the prebuilt Plugin compiler libraries not exist
     if(NOT EXISTS "${extracted_dir}")
         # Download the prebuilt Plugin compiler libraries, if failure, show error message and exit
@@ -90,6 +89,17 @@ function(download_and_extract url zip_file extracted_dir)
     endif()
 endfunction()
 
+function(print_build_manifest extracted_file)
+    if(NOT EXISTS "${extracted_file}")
+        message(WARNING "Build manifest file '${extracted_file}' not found. Skipping build_manifest information printing for plugin compiler.")
+        return()
+    endif()
+    # read the build_manifest.json file
+    file(READ "${extracted_file}" FILE_CONTENT)
+    string(REGEX REPLACE "[{}\"']" "" FILE_CONTENT "${FILE_CONTENT}")
+    message(STATUS "build_manifest.json for npu plugin compiler:\n${FILE_CONTENT}")
+endfunction()
+
 if(ENABLE_INTEL_NPU_COMPILER)
     message(STATUS "Downloading prebuilt NPU Plugin compiler libraries")
     set(PLUGIN_COMPILER_VERSION_MAJOR 7)
@@ -111,8 +121,9 @@ if(ENABLE_INTEL_NPU_COMPILER)
         set(PLUGIN_COMPILER_LIBS_DIR_UNZIPPED "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_windows_2022-${PLUGIN_COMPILER_VERSION}-${PLUGIN_COMPILER_COMMIT_SHA}")
 
         download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_ZIP}" "${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}")
-        set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}/cid/lib")
+        print_build_manifest("${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}/build_manifest.json")
 
+        set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}/cid/lib")
         configure_file(
             ${PLUGIN_COMPILER_LIB_PATH}/npu_driver_compiler.dll
             ${PLUGIN_COMPILER_LIB_PATH}/openvino_intel_npu_compiler.dll
@@ -138,8 +149,9 @@ if(ENABLE_INTEL_NPU_COMPILER)
                     set(PLUGIN_COMPILER_LIBS_DIR_EXTRACTED "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_ubuntu_22_04-${PLUGIN_COMPILER_VERSION}-${PLUGIN_COMPILER_COMMIT_SHA}")
 
                     download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_TAR}" "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}")
-                    set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/cid/lib/")
+                    print_build_manifest("${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/build_manifest.json")
 
+                    set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/cid/lib/")
                     configure_file(
                         ${PLUGIN_COMPILER_LIB_PATH}/libnpu_driver_compiler.so
                         ${PLUGIN_COMPILER_LIB_PATH}/libopenvino_intel_npu_compiler.so
@@ -156,6 +168,8 @@ if(ENABLE_INTEL_NPU_COMPILER)
                     set(PLUGIN_COMPILER_LIBS_DIR_EXTRACTED "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_ubuntu_24_04-${PLUGIN_COMPILER_VERSION}-${PLUGIN_COMPILER_COMMIT_SHA}")
 
                     download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_TAR}" "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}")
+                    print_build_manifest("${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/build_manifest.json")
+                    
                     set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/cid/lib/")
                     configure_file(
                         ${PLUGIN_COMPILER_LIB_PATH}/libnpu_driver_compiler.so
