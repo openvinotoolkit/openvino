@@ -57,6 +57,8 @@ __tests__/runner/*
 node_modules
 # Coverage directory used by tools like istanbul
 coverage
+!scripts/coverage/
+!scripts/coverage/**
 *.lcov
 # Optional npm cache directory
 .npm
