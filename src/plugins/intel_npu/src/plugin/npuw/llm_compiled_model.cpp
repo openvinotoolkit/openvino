@@ -1594,28 +1594,16 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
-    // Decide on using compiler flash attention based on provided option and NPU capabilities
-    const auto use_hfa_fused = pop_option(other_props, std::string("NPUW_ATTN_HFA_FUSED"));
+    // Decide on using fused flash attention tile based on provided option and NPU capabilities.
+    // If hardware supports and attention hint is set to HFA, then we can use fused flash attention implementation
+    // automatically, unless user explicitly disables it via NPUW_ATTN_HFA_FUSED=NO option.
+    const auto hfa_fused_requested =
+        pop_option(other_props, std::string("NPUW_ATTN_HFA_FUSED")).value_or(true).as<bool>();
     const auto is_hfa =
         m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>() == ::intel_npu::npuw::llm::AttentionHint::HFA;
-    bool supported = false;
-    if (use_hfa_fused.has_value()) {
-        if (!is_hfa) {
-            LOG_WARN("NPUW_LLM_PREFILL_ATTENTION_HINT is not set or not equal to HFA, ignoring NPUW_ATTN_HFA_FUSED");
-        } else {
-            const bool user_requested = use_hfa_fused.value().as<bool>();
-            const bool hw_supported = npudesc.has_value() && npudesc->support_flash_attention_tile;
-            if (user_requested && !hw_supported) {
-                LOG_WARN("Flash attention tile is not supported by the NPU, ignoring NPUW_ATTN_HFA_FUSED");
-            }
-            supported = user_requested && hw_supported;
-        }
-    } else {
-        // If config option is not set, enable compiler flash attention tile if attention hint is set to HFA and NPU
-        // supports it
-        supported = is_hfa && npudesc.has_value() && npudesc->support_flash_attention_tile;
-    }
-    other_props["NPUW_ATTN_HFA_FUSED"] = supported ? "YES" : "NO";
+    const auto hfa_fused_npu_supported = npudesc.has_value() && npudesc->support_flash_attention_tile;
+    const auto use_fused_hfa = is_hfa && hfa_fused_npu_supported && hfa_fused_requested;
+    other_props["NPUW_ATTN_HFA_FUSED"] = use_fused_hfa ? "YES" : "NO";
     LOG_INFO("Compiler flash attention tile use is set to " << other_props["NPUW_ATTN_HFA_FUSED"].as<std::string>());
 
     m_is_whisper = use_whisper_key.value_or(false).as<bool>() == true;
