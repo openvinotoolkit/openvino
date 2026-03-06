@@ -2,7 +2,7 @@
 <img src="docs/dev/assets/openvino-logo-purple-black.svg" width="400px">
 
 <h3 align="center">
-Open-source software toolkit for optimizing and deploying deep learning models
+Open-source software toolkit for optimizing and deploying deep learning models.
 </h3>
 
 <p align="center">
