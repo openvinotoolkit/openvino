@@ -142,20 +142,6 @@ public:
 
         return std::make_shared<Model>(res, params);
     }
-
-    std::shared_ptr<ov::Model> createTwoInputLessEqualModel(const PartialShape& shape) {
-        auto param0 = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, shape);
-        param0->get_output_tensor(0).set_names({"tensor_input_0"});
-        auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, shape);
-        param1->get_output_tensor(0).set_names({"tensor_input_1"});
-        auto lessEqual = std::make_shared<ov::op::v1::LessEqual>(param0, param1);
-        auto result = std::make_shared<ov::op::v0::Result>(lessEqual);
-        result->get_output_tensor(0).set_names({"tensor_output"});
-
-        auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param0, param1});
-        model->set_friendly_name("TwoInputLessEqual");
-        return model;
-    }
 };
 
 class BooleanPrecisionInferRequestRunTests : public InferRequestRunTests {
@@ -213,7 +199,6 @@ protected:
     };
 
     auto set_tensor_and_infer(ov::InferRequest& infer_request,
-                              const ov::CompiledModel& compiled_model,
                               const bool should_infer,
                               const ov::Output<const ov::Node>& port,
                               const ov::Tensor& tensor) -> void {
@@ -224,7 +209,6 @@ protected:
     };
 
     auto set_tensors_and_infer(ov::InferRequest& infer_request,
-                               const ov::CompiledModel& compiled_model,
                                const bool should_infer,
                                const ov::Output<const ov::Node>& port,
                                const std::vector<ov::Tensor>& tensors) -> void {
@@ -343,12 +327,10 @@ TEST_P(BooleanPrecisionInferRequestRunTests, BooleanTensorDataTypesForBooleanMod
     }
 
     const auto infer_requests =
-        (isPVDriver ? std::initializer_list<std::reference_wrapper<ov::InferRequest>>{std::ref(infer_request_boolean)}
-                    : std::initializer_list<std::reference_wrapper<ov::InferRequest>>{
-                          std::ref(infer_request_boolean),
-                          std::ref(infer_request_boolean_imported)});
+        (isPVDriver ? std::vector<ov::InferRequest>{infer_request_boolean}
+                    : std::vector<ov::InferRequest>{infer_request_boolean, infer_request_boolean_imported});
 
-    for (ov::InferRequest& infer_request : infer_requests) {
+    for (auto infer_request : infer_requests) {
         for (const auto batchMode : {ov::intel_npu::BatchMode::PLUGIN, ov::intel_npu::BatchMode::COMPILER}) {
             if (isBatchModeSupported) {
                 configuration[ov::intel_npu::batch_mode.name()] = batchMode;
@@ -358,44 +340,38 @@ TEST_P(BooleanPrecisionInferRequestRunTests, BooleanTensorDataTypesForBooleanMod
                   importMemoryTensor_1,
                   importMemoryTensor_2,
                   unalignedBatchedTensor,
-                  unalignedBatchedTensor_1,
-                  unalignedBatchedTensor_2] = allocate_tensors();
+                  unalignedTensor_1,
+                  unalignedTensor_2] = allocate_tensors();
 
             infer_request.infer();
             const auto& compiled_model = infer_request.get_compiled_model();
 
             OV_ASSERT_NO_THROW(set_tensors_and_infer(infer_request,
-                                                     compiled_model,
                                                      /* should_infer = */ false,
                                                      compiled_model.input(0),
-                                                     {importMemoryTensor_1, unalignedBatchedTensor_2}));
+                                                     {importMemoryTensor_1, unalignedTensor_2}));
             OV_ASSERT_NO_THROW(set_tensors_and_infer(infer_request,
-                                                     compiled_model,
                                                      /* should_infer = */ true,
                                                      compiled_model.input(1),
-                                                     {importMemoryTensor_2, unalignedBatchedTensor_1}));
+                                                     {importMemoryTensor_2, unalignedTensor_1}));
 
             OV_ASSERT_NO_THROW(set_tensor_and_infer(infer_request,
-                                                    compiled_model,
                                                     /* should_infer = */ false,
                                                     compiled_model.input(0),
                                                     importMemoryBatchedTensor));
             OV_ASSERT_NO_THROW(set_tensor_and_infer(infer_request,
-                                                    compiled_model,
                                                     /* should_infer = */ true,
                                                     compiled_model.input(1),
                                                     unalignedBatchedTensor));
 
             OV_ASSERT_NO_THROW(set_tensors_and_infer(infer_request,
-                                                     compiled_model,
                                                      /* should_infer = */ false,
                                                      compiled_model.input(0),
-                                                     {unalignedBatchedTensor_1, importMemoryTensor_1}));
+                                                     {unalignedTensor_1, importMemoryTensor_1}));
             OV_ASSERT_NO_THROW(set_tensors_and_infer(infer_request,
-                                                     compiled_model,
                                                      /* should_infer = */ true,
                                                      compiled_model.input(1),
-                                                     {unalignedBatchedTensor_2, importMemoryTensor_2}));
+                                                     {unalignedTensor_2, importMemoryTensor_2}));
             if (!isBatchModeSupported) {
                 break;
             }
