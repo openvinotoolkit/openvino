@@ -192,12 +192,14 @@ jobs:
             -DENABLE_DEBUG_CAPS=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
+            -DCMAKE_JOB_POOLS:STRING=link_jobs=8 \
+            -DCMAKE_JOB_POOL_LINK:STRING=link_jobs \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
       - name: Cmake build - CC COLLECT
         run: |
-          cmake --build ${BUILD_DIR} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }}
+          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
           cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
 
       - name: Show sccache stats
@@ -289,7 +291,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-8-cores-16gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_cc }}
       volumes:
