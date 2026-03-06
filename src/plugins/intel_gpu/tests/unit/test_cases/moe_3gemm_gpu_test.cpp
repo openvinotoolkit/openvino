@@ -171,7 +171,7 @@ struct Moe3GemmReference {
     std::vector<ov::float16> run_reference_sigmoid(const std::vector<ov::float16>& hidden_states,
                                                    const std::vector<ov::float16>& routing_logits,
                                                    const std::vector<ov::float16>& routing_bias,
-                                                   float epsilon,
+                                                   ov::float16 epsilon,
                                                    const std::vector<float>& w0_data,
                                                    const std::vector<float>& w1_data,
                                                    const std::vector<float>& w2_data) {
@@ -208,7 +208,7 @@ struct Moe3GemmReference {
                 float sum_weights = 0.0f;
                 for (size_t k = 0; k < top_k; ++k)
                     sum_weights += sigmoid_scores[expert_weights[k].second];
-                sum_weights += epsilon;
+                sum_weights += static_cast<float>(epsilon);
 
                 std::vector<std::pair<float, size_t>> top_k_normalized(top_k);
                 for (size_t k = 0; k < top_k; ++k)
@@ -291,20 +291,10 @@ struct Moe3GemmTestParams {
     size_t group_size;
 };
 
-class moe_3gemm_compressed_gpu_random : public ::testing::TestWithParam<std::tuple<Moe3GemmTestParams, cldnn::MOE3GemmFusedCompressed::RoutingType>> {
-public:
-    static std::string get_test_case_name(const ::testing::TestParamInfo<std::tuple<Moe3GemmTestParams, cldnn::MOE3GemmFusedCompressed::RoutingType>>& info) {
-        const auto& [p, routing_type] = info.param;
-        std::stringstream ss;
-        ss << "seq_len_" << p.seq_len << "_is_u4_" << p.is_u4 << "_hidden_size_" << p.hidden_size << "_inter_size_" << p.inter_size << "_num_experts_"
-           << p.num_experts << "_top_k_" << p.top_k << "_group_size_" << p.group_size << "_routing_"
-           << (routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS ? "SigmoidBias" : "Softmax");
-        return ss.str();
-    }
-};
+class moe_3gemm_compressed_gpu_random : public ::testing::TestWithParam<std::tuple<cldnn::MOE3GemmFusedCompressed::RoutingType, Moe3GemmTestParams>> {};
 
 TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
-    const auto& [param, routing_type] = GetParam();
+    const auto& [routing_type, param] = GetParam();
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad) {
         GTEST_SKIP() << "No immad support";
@@ -381,7 +371,7 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     auto routing_weights_mem = create_f16_tensor_3d(routing_weights, config.batch_size, config.seq_len, config.num_experts);
     auto routing_bias_data = rg.generate_random_1d<ov::float16>(config.num_experts, -0.5f, 0.5f, 1000);
     auto routing_bias_mem = create_f16_tensor(routing_bias_data, 1, 1, 1, config.num_experts);
-    float routing_eps_val = 1e-6f;
+    ov::float16 routing_eps_val = ov::float16(1e-6f);
 
     size_t group_num = config.hidden_size / config.group_size;
     size_t group_num2 = config.inter_size / config.group_size;
@@ -435,7 +425,7 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     if (routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS) {
         topology.add(data("routing_bias", routing_bias_mem));
         moe_inputs.push_back(input_info("routing_bias"));
-        auto routing_eps_mem = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+        auto routing_eps_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
         set_values(routing_eps_mem, {routing_eps_val});
         get_test_stream().finish();
         topology.add(data("routing_eps", routing_eps_mem));
@@ -458,27 +448,24 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     auto ref_output = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS
                           ? ref.run_reference_sigmoid(hidden_states, routing_weights, routing_bias_data, routing_eps_val, w0_data, w1_data, w2_data)
                           : ref.run_reference_softmax(hidden_states, routing_weights, w0_data, w1_data, w2_data);
+    // SigmoidBias routing performs all routing math (sigmoid, bias, normalization) in f16 on the kernel side,
+    // while the reference uses f32, leading to slightly larger numerical divergence than Softmax.
+    const float tolerance = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS ? 0.2f : 0.1f;
     for (size_t i = 0; i < ref_output.size(); ++i) {
-        ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), 0.1f);
+        ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance);
     }
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          moe_3gemm_compressed_gpu_random,
-                         ::testing::Combine(::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 128},
+                         ::testing::Combine(::testing::Values(cldnn::MOE3GemmFusedCompressed::RoutingType::SOFTMAX,
+                                                              cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS),
+                                            ::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 128},
                                                               Moe3GemmTestParams{16, true, 128, 256, 4, 2, 128},
                                                               Moe3GemmTestParams{1, false, 128, 256, 4, 2, 128},
-                                                              Moe3GemmTestParams{16, false, 128, 256, 4, 2, 128}),
-                                            ::testing::Values(cldnn::MOE3GemmFusedCompressed::RoutingType::SOFTMAX,
-                                                              cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS)),
-                         moe_3gemm_compressed_gpu_random::get_test_case_name);
+                                                              Moe3GemmTestParams{16, false, 128, 256, 4, 2, 128})));
 
-class moe_3gemm_compressed_gpu_u4 : public ::testing::TestWithParam<cldnn::MOE3GemmFusedCompressed::RoutingType> {
-public:
-    static std::string get_test_case_name(const ::testing::TestParamInfo<cldnn::MOE3GemmFusedCompressed::RoutingType>& info) {
-        return info.param == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS ? "SigmoidBias" : "Softmax";
-    }
-};
+class moe_3gemm_compressed_gpu_u4 : public ::testing::TestWithParam<cldnn::MOE3GemmFusedCompressed::RoutingType> {};
 
 TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
     auto routing_type = GetParam();
@@ -592,8 +579,8 @@ TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
     if (routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS) {
         topology.add(data("routing_bias", routing_bias));
         moe_inputs.push_back(input_info("routing_bias"));
-        auto routing_eps_mem = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
-        set_values(routing_eps_mem, {1e-6f});
+        auto routing_eps_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
+        set_values(routing_eps_mem, {ov::float16(1e-6f)});
         get_test_stream().finish();
         topology.add(data("routing_eps", routing_eps_mem));
         moe_inputs.push_back(input_info("routing_eps"));
@@ -628,5 +615,4 @@ TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          moe_3gemm_compressed_gpu_u4,
-                         ::testing::Values(cldnn::MOE3GemmFusedCompressed::RoutingType::SOFTMAX, cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS),
-                         moe_3gemm_compressed_gpu_u4::get_test_case_name);
+                         ::testing::Values(cldnn::MOE3GemmFusedCompressed::RoutingType::SOFTMAX, cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS));
