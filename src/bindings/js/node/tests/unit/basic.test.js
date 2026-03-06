@@ -320,14 +320,14 @@ describe("ov basic tests.", { skip: true }, () => {
     it("Test importModelSync(stream, device) throws", () => {
       assert.throws(
         () => core.importModelSync(model, "CPU"),
-        /'importModelSync' method called with incorrect parameters./,
+        /'importModelSync' method called with incorrect parameters/,
       );
     });
 
     it("Test importModelSync(stream, device) throws", () => {
       assert.throws(
         () => core.importModelSync(userStream, tensor),
-        /'importModelSync' method called with incorrect parameters./,
+        /'importModelSync' method called with incorrect parameters/,
       );
     });
     it("Test importModelSync(stream, device, config: tensor) throws", () => {
@@ -341,7 +341,7 @@ describe("ov basic tests.", { skip: true }, () => {
       const testString = "test";
       assert.throws(
         () => core.importModelSync(userStream, "CPU", testString),
-        /'importModelSync' method called with incorrect parameters./,
+        /'importModelSync' method called with incorrect parameters/,
       );
     });
 
@@ -397,6 +397,11 @@ describe("ov basic tests.", { skip: true }, () => {
         () => core.importModel(userStream, "CPU", testString).then(),
         /'importModel' method called with incorrect parameters./,
       );
+    });
+
+    it("importModel rejects promise on invalid buffer", async () => {
+      const invalid = Buffer.alloc(0);
+      await assert.rejects(core.importModel(invalid, "CPU"), Error);
     });
 
     it("Test importModelSync from Tensor", () => {
