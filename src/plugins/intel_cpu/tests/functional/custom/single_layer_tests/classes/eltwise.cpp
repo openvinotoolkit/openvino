@@ -273,7 +273,7 @@ void EltwiseLayerCPUTest::SetUp() {
         }
     }
     auto eltwise = utils::make_eltwise(parameters[0], secondaryInput, eltwiseType);
-    function = makeNgraphFunction(netType, parameters, eltwise, "Eltwise");
+    function = create_ov_model(netType, parameters, eltwise, "Eltwise");
 }
 
 std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& eltwise_type,

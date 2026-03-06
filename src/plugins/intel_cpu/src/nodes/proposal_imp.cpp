@@ -33,7 +33,8 @@ static void enumerate_proposals_cpu(const float* bottom4d,
                                     float coordinates_offset,
                                     bool initial_clip,
                                     bool swap_xy,
-                                    bool clip_before_nms) {
+                                    bool clip_before_nms,
+                                    const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     const int bottom_area = bottom_H * bottom_W;
 
     const float* p_anchors_wm = anchors + 0 * num_anchors;
@@ -41,7 +42,7 @@ static void enumerate_proposals_cpu(const float* bottom4d,
     const float* p_anchors_wp = anchors + 2 * num_anchors;
     const float* p_anchors_hp = anchors + 3 * num_anchors;
 
-    parallel_for2d(bottom_H, bottom_W, [&](size_t h, size_t w) {
+    cpu_parallel->parallel_for2d(bottom_H, bottom_W, [&](size_t h, size_t w) {
         const auto x = static_cast<float>((swap_xy ? h : w) * feat_stride);
         const auto y = static_cast<float>((swap_xy ? w : h) * feat_stride);
 
@@ -115,9 +116,13 @@ static void enumerate_proposals_cpu(const float* bottom4d,
     });
 }
 
-static void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int pre_nms_topn, bool store_prob) {
+static void unpack_boxes(const float* p_proposals,
+                         float* unpacked_boxes,
+                         int pre_nms_topn,
+                         bool store_prob,
+                         const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     if (store_prob) {
-        parallel_for(pre_nms_topn, [&](size_t i) {
+        cpu_parallel->parallel_for(pre_nms_topn, [&](size_t i) {
             unpacked_boxes[0 * pre_nms_topn + i] = p_proposals[5 * i + 0];
             unpacked_boxes[1 * pre_nms_topn + i] = p_proposals[5 * i + 1];
             unpacked_boxes[2 * pre_nms_topn + i] = p_proposals[5 * i + 2];
@@ -125,7 +130,7 @@ static void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int pr
             unpacked_boxes[4 * pre_nms_topn + i] = p_proposals[5 * i + 4];
         });
     } else {
-        parallel_for(pre_nms_topn, [&](size_t i) {
+        cpu_parallel->parallel_for(pre_nms_topn, [&](size_t i) {
             unpacked_boxes[0 * pre_nms_topn + i] = p_proposals[5 * i + 0];
             unpacked_boxes[1 * pre_nms_topn + i] = p_proposals[5 * i + 1];
             unpacked_boxes[2 * pre_nms_topn + i] = p_proposals[5 * i + 2];
@@ -276,14 +281,15 @@ static void retrieve_rois_cpu(const int num_rois,
                               float img_h,
                               float img_w,
                               bool clip_after_nms,
-                              float* probs) {
+                              float* probs,
+                              const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     const float* src_x0 = proposals + 0 * num_proposals;
     const float* src_y0 = proposals + 1 * num_proposals;
     const float* src_x1 = proposals + 2 * num_proposals;
     const float* src_y1 = proposals + 3 * num_proposals;
     const float* src_probs = proposals + 4 * num_proposals;
 
-    parallel_for(num_rois, [&](size_t roi) {
+    cpu_parallel->parallel_for(num_rois, [&](size_t roi) {
         int index = roi_indices[roi];
 
         float x0 = src_x0[index];
@@ -334,7 +340,8 @@ void proposal_exec(const float* input0,
                    int* roi_indices,
                    float* output0,
                    float* output1,
-                   proposal_conf& conf) {
+                   proposal_conf& conf,
+                   const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     // Prepare memory
     const float* p_bottom_item = input0;
     const float* p_d_anchor_item = input1;
@@ -404,7 +411,8 @@ void proposal_exec(const float* input0,
                                 conf.coordinates_offset,
                                 conf.initial_clip,
                                 conf.swap_xy,
-                                conf.clip_before_nms);
+                                conf.clip_before_nms,
+                                cpu_parallel);
         std::partial_sort(proposals_.begin(),
                           proposals_.begin() + pre_nms_topn,
                           proposals_.end(),
@@ -412,7 +420,11 @@ void proposal_exec(const float* input0,
                               return (struct1.score > struct2.score);
                           });
 
-        unpack_boxes(reinterpret_cast<float*>(proposals_.data()), unpacked_boxes.data(), pre_nms_topn, store_prob);
+        unpack_boxes(reinterpret_cast<float*>(proposals_.data()),
+                     unpacked_boxes.data(),
+                     pre_nms_topn,
+                     store_prob,
+                     cpu_parallel);
         nms_cpu(pre_nms_topn,
                 is_dead.data(),
                 unpacked_boxes.data(),
@@ -435,7 +447,8 @@ void proposal_exec(const float* input0,
                           img_H,
                           img_W,
                           conf.clip_after_nms,
-                          p_probs);
+                          p_probs,
+                          cpu_parallel);
     }
 }
 

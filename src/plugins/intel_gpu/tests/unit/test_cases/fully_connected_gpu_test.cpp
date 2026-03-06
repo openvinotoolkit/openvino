@@ -3844,6 +3844,139 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
         OPENVINO_ASSERT((avg/count) < 1);
     }
+
+    // Test for FP16 overflow prevention in dynamic quantization scale multiplication.
+    // When convert_half(acc_tmp) * ds exceeds FP16 max (65504), the intermediate overflows to INF.
+    // The fix reorders multiplication to: convert_half(acc_tmp) * de_quantize_scale * ds,
+    // where de_quantize_scale is small (< 0.1), preventing intermediate overflow.
+    // This test uses large batch (> 256) to trigger SLM/dyn_quan path and large decompression
+    // scales to reproduce the overflow condition.
+    void test_compressed_int4_dyn_quan_large_scale_no_overflow(bool is_dynamic, long int batch_num) {
+        tests::random_generator rg(GET_SUITE_NAME);
+        auto& engine = get_test_engine();
+
+        if (engine.get_device_info().dev_type == device_type::discrete_gpu)
+            GTEST_SKIP();
+
+        // Use small IFM with only 2 scale groups so that the total output stays within
+        // FP16 range, while the intermediate convert_half(acc_tmp) * ds can still overflow.
+        long int ifm_num = 256;
+        long int ofm_num = 64;
+        long int scales_group_size = 128;
+
+        auto input_ps = ov::PartialShape{ batch_num, 1, ifm_num };
+        auto dyn_input_ps = ov::PartialShape{ -1, 1, ifm_num };
+        auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
+        auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u4, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
+
+        // Input [-2, 2]: after dynamic quantization (dq_scale = max_abs/127 ~ 0.016),
+        // INT8 values span [-127, 127]. Accumulating 128 INT8 x INT4 products yields
+        // |acc_tmp| up to ~1000-2000 in realistic scenarios.
+        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f);
+        set_values(input_mem, input_data);
+
+        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 15);
+        set_values(weights_mem, weigths_data);
+
+        // Decompression scales up to 60. This triggers intermediate overflow:
+        //   convert_half(1500) * 60 = 90,000 > 65,504 -> INF in old code
+        // But the actual output value is small:
+        //   1500 * 0.016 * 60 = 1,440 -> well within FP16 range
+        // With only 2 scale groups and random cancellation, total output stays within FP16.
+        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -60.0f, 60.0f);
+        set_values(scale_mem, scale_data);
+
+        auto in_layout = is_dynamic ? layout{ dyn_input_ps, data_types::f16, format::bfyx }
+                                    : layout{ input_ps, data_types::f16, format::bfyx };
+
+        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, 3, 2);
+        fc_prim.decompression_zero_point_scalar = 0;
+
+        auto get_ref_results = [&]() {
+            topology topology(
+                input_layout("input", in_layout),
+                data("weights", weights_mem),
+                data("scale", scale_mem),
+                fc_prim
+            );
+
+            auto config = get_test_default_config(engine);
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl };
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
+
+            network network(engine, topology, config);
+            network.set_input_data("input", input_mem);
+
+            auto outputs = network.execute();
+            OPENVINO_ASSERT(outputs.size() == 1);
+            OPENVINO_ASSERT(outputs.begin()->first == "fc_prim");
+
+            auto output_layout = outputs.begin()->second.get_layout();
+            auto output_mem = outputs.begin()->second.get_memory();
+
+            return engine.reinterpret_buffer(*output_mem, output_layout);
+        };
+
+        topology topology(
+            input_layout("input", in_layout),
+            data("weights", weights_mem),
+            data("scale", scale_mem),
+            fc_prim
+        );
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_user_property(ov::hint::dynamic_quantization_group_size(32));
+
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+
+        network->set_input_data("input", input_mem);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+        auto output_mem = outputs.begin()->second.get_memory();
+        auto ref_output_mem = get_ref_results();
+
+        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16> ref_ptr(ref_output_mem, get_test_stream());
+
+        // Count INF/NaN in both test and reference outputs
+        size_t test_inf = 0, test_nan = 0, ref_inf = 0;
+        for (size_t i = 0; i < output_ptr.size(); i++) {
+            if (std::isinf(static_cast<float>(output_ptr[i]))) test_inf++;
+            if (std::isnan(static_cast<float>(output_ptr[i]))) test_nan++;
+            if (std::isinf(static_cast<float>(ref_ptr[i]))) ref_inf++;
+        }
+        // The test output should not have more INF than the reference.
+        // Any extra INF indicates intermediate FP16 overflow in the dyn_quan kernel.
+        ASSERT_EQ(test_nan, 0u) << "Output contains " << test_nan << " NaN values";
+        ASSERT_LE(test_inf, ref_inf) << "Dyn_quan output has " << test_inf
+            << " INF values vs reference " << ref_inf << " (intermediate FP16 overflow)";
+
+        // Compare non-INF outputs against reference
+        size_t count = 0;
+        float max_diff = 0.f;
+        float avg = 0.f;
+        for (size_t i = 0; i < ref_ptr.size(); ++i) {
+            float ref_val = static_cast<float>(ref_ptr[i]);
+            float test_val = static_cast<float>(output_ptr[i]);
+            if (std::isinf(ref_val) || std::isinf(test_val))
+                continue;
+            auto abs_diff = std::abs(ref_val - test_val);
+            if (max_diff < abs_diff)
+                max_diff = abs_diff;
+            avg += abs_diff;
+            count++;
+        }
+        GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff
+                      << ", avg_diff: " << (count > 0 ? avg / count : 0.f) << std::endl;
+        ASSERT_LT(max_diff, 512) << "max_diff = " << max_diff;
+    }
 };
 
 using shared_dims = std::tuple<size_t, size_t, size_t>;
@@ -4870,6 +5003,10 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_quan_dynamic_f_input
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_quan_dynamic_f_input_unaligned) {
     this->test_compressed_int4_scale_dyn_quan(false, true, 511, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_dyn_quan_large_scale_no_overflow_unaligned) {
+    this->test_compressed_int4_dyn_quan_large_scale_no_overflow(false, 566);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_batch_1) {

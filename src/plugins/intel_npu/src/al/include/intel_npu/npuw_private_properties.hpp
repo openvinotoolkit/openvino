@@ -756,6 +756,14 @@ namespace whisper {
  * Default value: false.
  */
 static constexpr ov::Property<bool> enabled{"NPUW_WHISPER"};
+
+/**
+ * @brief
+ * Type: uint64_t.
+ * Provide eos_token for Whisper model (WA).
+ * Default value: 50257.
+ */
+static constexpr ov::Property<uint64_t> whisper_eos_token{"NPUW_WHISPER_EOS_TOKEN"};
 }  // namespace whisper
 
 namespace eagle {
