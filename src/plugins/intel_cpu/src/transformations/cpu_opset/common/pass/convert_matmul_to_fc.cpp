@@ -98,8 +98,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             }
             auto const_shape = const_node->get_shape();
             auto const_dtype = const_node->get_element_type();
-            return (any_of(const_dtype, ov::element::nf4) &&
-                    (const_shape.size() == 3 && const_shape[0] > 1));
+            return (any_of(const_dtype, ov::element::nf4) && (const_shape.size() == 3 && const_shape[0] > 1));
         };
 
         auto is_3d_decompression_path2 = [](const std::shared_ptr<Node>& root) {
@@ -121,8 +120,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             }
             auto const_shape = const_node->get_shape();
             auto const_dtype = const_node->get_element_type();
-            return (any_of(const_dtype, ov::element::nf4) &&
-                    (const_shape.size() == 3 && const_shape[0] > 1));
+            return (any_of(const_dtype, ov::element::nf4) && (const_shape.size() == 3 && const_shape[0] > 1));
         };
 
         if (is_3d_decompression_path1(fc_input_b.get_node_shared_ptr()) ||
