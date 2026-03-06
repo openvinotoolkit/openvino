@@ -27,6 +27,12 @@ COMMON_OP_CONVERTER(translate_unsqueeze);
 OutputVector translate_atan2_util(const NodeContext& context, const Output<Node>& lhs, const Output<Node>& rhs);
 OutputVector translate_erfc_util(const NodeContext& context, const Output<Node>& data);
 
+OutputVector translate_bincount_common(const NodeContext& context,
+                                       const Output<Node>& arr,
+                                       const Output<Node>& size,
+                                       const Output<Node>& weights,
+                                       const element::Type& weights_type);
+
 }  // namespace common_translators
 }  // namespace frontend
 }  // namespace ov
