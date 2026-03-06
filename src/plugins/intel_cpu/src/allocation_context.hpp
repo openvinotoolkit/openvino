@@ -23,4 +23,5 @@ struct AllocationContext {
     std::vector<size_t> syncPoints;
 };
 
+
 }  // namespace ov::intel_cpu
