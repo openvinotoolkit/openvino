@@ -747,6 +747,25 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         }
     }
 
+    // If this node's sole user is an optimized output node with an external output
+    // memory block, use the ext_block memory directly so this node's kernel writes
+    // into it, achieving zero-copy.  This mirrors the reorder+remote_tensor pattern
+    // above: the predecessor adopts the output node's memory before execution.
+    if (users.size() == 1 && users.front()->can_be_optimized() && users.front()->is_output()) {
+        auto* ext_block = get_network().get_output_memory_block(users.front()->id());
+        if (ext_block) {
+            ext_block->resize(actual_layouts[0]);
+            _outputs[0] = get_network().get_engine().reinterpret_buffer(*ext_block->memory(), actual_layouts[0]);
+            _max_output_layout_count[0] = ext_block->capacity();
+            GPU_DEBUG_TRACE_DETAIL << id() << ": use ext output memory block from optimized output user "
+                                   << users.front()->id() << " - "
+                                   << actual_layouts[0].get_linear_size() << "/" << ext_block->capacity()
+                                   << std::endl;
+            GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("ext_output_block_via_user");
+            return;
+        }
+    }
+
     // input_layout node is supposed to always use external memory in dynamic case
     if (get_node().is_type<input_layout>())
         return;
@@ -1056,6 +1075,23 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         }
         if (updated_params.output_layouts[i].get_linear_size() < updated_layouts[i].get_linear_size()) {
             updated_params.output_layouts[i] = updated_layouts[i];
+        }
+
+        // Check for external output memory block (zero-copy dynamic output path).
+        // When registered by the infer request, the block owns USM host memory that the
+        // GPU kernel writes into directly, avoiding an extra GPU->Host copy after execution.
+        if (is_output()) {
+            auto* ext_block = get_network().get_output_memory_block(id());
+            if (ext_block) {
+                ext_block->resize(updated_params.output_layouts[i]);
+                _outputs[i] = get_network().get_engine().reinterpret_buffer(*ext_block->memory(), actual_layouts[i]);
+                _max_output_layout_count[i] = ext_block->capacity();
+                GPU_DEBUG_TRACE_DETAIL << id() << ": ext output memory block for output[" << i << "] - "
+                                       << actual_layouts[i].get_linear_size() << "/" << ext_block->capacity()
+                                       << std::endl;
+                GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("ext_output_block");
+                continue;
+            }
         }
 
         if (can_reuse_buffer) {
