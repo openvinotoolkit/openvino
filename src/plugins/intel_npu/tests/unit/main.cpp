@@ -26,13 +26,18 @@ int main(int argc, char** argv, char** envp) {
     // register crashHandler for SIGSEGV signal
     signal(SIGSEGV, sigsegv_handler);
 
-    using zelSetDriverTeardownF = ze_result_t (*)();
-    zelSetDriverTeardownF zelSetDriverTeardown = nullptr;
+    try {
+        using zelSetDriverTeardownF = ze_result_t (*)();
+        zelSetDriverTeardownF zelSetDriverTeardown = nullptr;
 
-    auto libpath = ov::util::make_plugin_library_name({}, "ze_loader");
-    auto lib = ov::util::load_shared_object(libpath);
-    zelSetDriverTeardown = reinterpret_cast<zelSetDriverTeardownF>(ov::util::get_symbol(lib, "zelSetDriverTeardown"));
-    zelSetDriverTeardown();
+        auto libpath = ov::util::make_plugin_library_name({}, "ze_loader");
+        auto lib = ov::util::load_shared_object(libpath);
+        zelSetDriverTeardown =
+            reinterpret_cast<zelSetDriverTeardownF>(ov::util::get_symbol(lib, "zelSetDriverTeardown"));
+        zelSetDriverTeardown();
+    } catch (...) {
+        // ze_loader not present on the system, probably it is not an NPU host
+    }
 
     std::ostringstream oss;
     oss << "Command line args (" << argc << "): ";
