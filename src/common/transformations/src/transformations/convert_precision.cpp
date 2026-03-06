@@ -1083,6 +1083,13 @@ bool extend_reverse_type(const std::shared_ptr<ov::Node>& node, const precisions
 
 template <typename src_type, typename dst_type>
 inline dst_type convert_value(src_type val) {
+    // If both source and destination are floating point,
+    if constexpr (std::is_floating_point_v<src_type> &&
+                  std::is_floating_point_v<dst_type>) {
+        return static_cast<dst_type>(val);
+    }
+
+    // For other conversions (e.g., float→int), clamp
     if (val > std::numeric_limits<dst_type>::max()) {
         return std::numeric_limits<dst_type>::max();
     } else if (val < std::numeric_limits<dst_type>::lowest()) {
@@ -1090,6 +1097,7 @@ inline dst_type convert_value(src_type val) {
     }
     return static_cast<dst_type>(val);
 }
+
 
 // We need to treat U64->I32 and U32->I32 as a separate case, because of C++'s implicit promotion
 // from signed to unsigned, and we don't need to compare and clamp the input to
