@@ -167,6 +167,17 @@ file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
                           ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
+# Ensure AArch64 JIT 3D conv sources are included explicitly
+if (AARCH64)
+    list(APPEND SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/jit_conv3d.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/jit_deconv3d.cpp)
+    # Enable FP16 NEON intrinsics for JIT 3D conv source
+    set_source_files_properties(
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/jit_conv3d.cpp
+        PROPERTIES COMPILE_OPTIONS "-march=armv8.2-a+fp16")
+endif()
+
 if(NOT OV_CPU_WITH_ACL)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/acl/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/acl/*)
@@ -237,6 +248,13 @@ elseif(RISCV64)
 endif()
 
 ov_mark_target_as_cc(${TARGET_NAME})
+
+# Enable FP16 NEON intrinsics for AArch64 in jit_conv3d.cpp (uses f16 vector ops in fallback paths)
+if (AARCH64)
+    set_source_files_properties(
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/jit_conv3d.cpp
+        PROPERTIES COMPILE_OPTIONS "-march=armv8.2-a+fp16")
+endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE dnnl
                                              openvino::shape_inference
