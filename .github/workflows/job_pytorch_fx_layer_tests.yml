@@ -31,18 +31,20 @@ jobs:
   PyTorch_FX_Layer_Tests:
     name: PyTorch FX Layer Tests
     timeout-minutes: 60
-    runs-on: ${{ inputs.runner }}
+    runs-on: aks-win-8-cores-16gb-test-st
     container:
       image: ${{ inputs.image }}
       volumes:
         - /mount:/mount
+        - /home/runner/secrets/:/secrets:ro
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      options: "-e HF_TOKEN" # Needed for HuggingFace cache authentication
+      options: "-e HF_TOKEN_LINUX_PATH=/secrets/huggingface/hf-token" # Needed for HuggingFace cache authentication
     defaults:
       run:
         shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      HF_TOKEN_WINDOWS_PATH: "C:\\mount\\secrets\\huggingface\\hf-token"
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -50,6 +52,29 @@ jobs:
       HF_HUB_VERBOSITY: debug
       TRANSFORMERS_VERBOSITY: debug
     steps:
+      - name: Append the environment variable - load HF_TOKEN from file (Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          HF_TOKEN="$(cat "${HF_TOKEN_LINUX_PATH}")"
+          echo "::add-mask::${HF_TOKEN}"
+          echo "HF_TOKEN=${HF_TOKEN}" >> $GITHUB_ENV
+          echo "✓ HuggingFace token loaded and masked"
+
+      - name: Append the environment variable - load HF_TOKEN from file (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $tokenPath = $env:HF_TOKEN_WINDOWS_PATH
+          if (Test-Path $tokenPath) {
+            $HF_TOKEN = (Get-Content $tokenPath -Raw).Trim()
+            Write-Output "::add-mask::$HF_TOKEN"
+            Add-Content -Path $env:GITHUB_ENV -Value "HF_TOKEN=$HF_TOKEN"
+            Write-Output "✓ HuggingFace token loaded and masked"
+          } else {
+            Write-Output "⚠ HuggingFace token file not found at $tokenPath, skipping"
+          }
+
       - name: Fetch setup_python and install wheels actions
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
