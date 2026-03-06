@@ -4,35 +4,26 @@
 
 #include "gated_delta_net.h"
 
-#include <common/utils.hpp>
 #include <cstddef>
-#include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
-#include "config.h"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "kernels/linear_attn/recurrent_linear_attn.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
-#include "nodes/common/blocked_desc_creator.h"
-#include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
-#include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/gated_delta_net.hpp"
-#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
-#include "transformations/utils/utils.hpp"
-#include "utils/general_utils.h"
+#include "utils/plain_tensor.hpp"
 
 using namespace ov::Extensions::Cpu;
 using namespace dnnl::impl;
@@ -64,19 +55,15 @@ void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
-void GatedDeltaNet::createPrimitive() {
-    return;
-}
-
 void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
-    auto orginInputNumber = getOriginalInputsNumber();
-    std::vector<MemoryPtr> inputs(orginInputNumber);
+    auto originalInputNumber = getOriginalInputsNumber();
+    std::vector<MemoryPtr> inputs(originalInputNumber);
     std::vector<MemoryPtr> outputs(2);
 
-    for (size_t i = 0; i < orginInputNumber; i++) {
+    for (size_t i = 0; i < originalInputNumber; i++) {
         inputs[i] = getSrcMemoryAtPort(i);
     }
-    std::vector<VectorDims> output_dims = {inputs[0]->getStaticDims(), inputs[3]->getStaticDims()};
+    std::vector<VectorDims> output_dims = {inputs[2]->getStaticDims(), inputs[3]->getStaticDims()};
     redefineOutputMemory(output_dims);
 
     outputs[0] = getDstMemoryAtPort(0);
@@ -114,7 +101,7 @@ void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
 bool GatedDeltaNet::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                          std::string& errorMessage) noexcept {
     if (!ov::is_type<ov::op::GatedDeltaNet>(op)) {
-        errorMessage = "Only ov::op::GatedDeltaNet operation is supported";
+        errorMessage = "Node is not an instance of ov::op::GatedDeltaNet.";
         return false;
     }
     return true;

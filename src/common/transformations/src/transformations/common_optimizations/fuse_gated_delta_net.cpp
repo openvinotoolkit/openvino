@@ -438,10 +438,10 @@ ov::pass::GatedDeltaNetFusion::GatedDeltaNetFusion() {
 
         auto linear_attn = std::make_shared<ov::op::GatedDeltaNet>(inputs);
         linear_attn->set_friendly_name(loop->get_friendly_name());
-		ov::op::GatedDeltaNet::Config config;
-		config.fuse_qk_l2norm = true;
-		config.fuse_q_scale = true;
-		linear_attn->set_config(config);
+        ov::op::GatedDeltaNet::Config config;
+        config.fuse_qk_l2norm = true;
+        config.fuse_q_scale = true;
+        linear_attn->set_config(config);
         ov::copy_runtime_info(rt_nodes, linear_attn);
         bool status = replace_concat_slice_with_linear_attention(loop, linear_attn);
         if (!status) {

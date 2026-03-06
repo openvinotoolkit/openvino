@@ -45,7 +45,8 @@ inline float dot_product(float* a, float* b, size_t n) {
         __m256 vb = _mm256_loadu_ps(b + i);
         vsum = _mm256_fmadd_ps(va, vb, vsum);
     }
-    float result = hsum(vsum);
+    hsum(vsum);
+    float result = _mm256_cvtss_f32(vsum);
     for (; i < n; ++i) {
         result += a[i] * b[i];
     }
@@ -120,7 +121,8 @@ static inline void l2norm(float* a, size_t n) {
         __m256 v = _mm256_loadu_ps(a + i);
         vsum = _mm256_fmadd_ps(v, v, vsum);
     }
-    float sum = hsum(vsum);
+    hsum(vsum);
+    sum = _mm256_cvtss_f32(vsum);
     for (; i < n; ++i) {
         sum += a[i] * a[i];
     }
@@ -152,8 +154,8 @@ void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
                            const ov::intel_cpu::PlainTensor& recurrent_state,
                            const ov::intel_cpu::PlainTensor& gate,
                            const ov::intel_cpu::PlainTensor& beta,
-                           const bool fuse_qk_l2norm,
-                           const bool fuse_q_scale,
+                           bool fuse_qk_l2norm,
+                           bool fuse_q_scale,
                            ov::intel_cpu::PlainTensor& output_attn,
                            ov::intel_cpu::PlainTensor& output_recurrent_state,
                            ov::intel_cpu::PlainTensor& temp_buffer) {

@@ -35,7 +35,6 @@
 #include "openvino/core/type/float16.hpp"
 
 #include <cmath>
-#include <iostream>
 
 namespace ov {
 namespace test {

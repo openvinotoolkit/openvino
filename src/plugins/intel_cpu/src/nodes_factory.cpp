@@ -112,13 +112,13 @@
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/fake_quantize.h"
+#    include "nodes/gated_delta_net.h"
 #    include "nodes/grid_sample.hpp"
 #    include "nodes/interaction.h"
 #    include "nodes/llm_mlp.h"
 #    include "nodes/paged_attn.h"
 #    include "nodes/qkv_proj.h"
 #    include "nodes/rms_norm.h"
-#    include "nodes/gated_delta_net.h"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
