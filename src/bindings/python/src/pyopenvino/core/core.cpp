@@ -215,7 +215,7 @@ void regclass_Core(py::module m) {
            const std::string& device_name,
            const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
-            std::string path = Common::utils::convert_path_to_string(model_path);
+            const auto path = Common::utils::to_fs_path(model_path);
             py::gil_scoped_release release;
             return self.compile_model(path, device_name, _properties);
         },
@@ -291,7 +291,7 @@ void regclass_Core(py::module m) {
         "compile_model",
         [](ov::Core& self, const py::object& model_path, const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
-            std::string path = Common::utils::convert_path_to_string(model_path);
+            const auto path = Common::utils::to_fs_path(model_path);
             py::gil_scoped_release release;
             return self.compile_model(path, _properties);
         },
@@ -305,7 +305,7 @@ void regclass_Core(py::module m) {
             GIL is released while running this function.
 
             :param model_path: A path to a model in IR / ONNX / PDPD / TF and TFLite format.
-            :type model_path: typing.Union[str, pathlib.Path]
+            :type model_path: typing.Union[str, bytes, pathlib.Path]
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict[str, typing.Any]
             :return: A compiled model.
@@ -498,14 +498,14 @@ void regclass_Core(py::module m) {
                 return self.read_model(std::string(static_cast<char*>(buffer_info.ptr), buffer_info.size), tensor);
             } else if (py::isinstance(model_path, py::module_::import("pathlib").attr("Path")) ||
                        py::isinstance<py::str>(model_path)) {
-                const std::string model_path_cpp{py::str(model_path)};
-                std::string weights_path_cpp;
+                        const auto model_fs_path = Common::utils::to_fs_path(model_path);
+                std::filesystem::path weights_fs_path;
                 if (!py::isinstance<py::none>(weights_path)) {
-                    weights_path_cpp = py::str(weights_path);
+                    weights_fs_path = Common::utils::to_fs_path(weights_path);
                 }
                 const auto any_map = Common::utils::properties_to_any_map(config);
                 py::gil_scoped_release release;
-                return self.read_model(model_path_cpp, weights_path_cpp, any_map);
+                return self.read_model(model_fs_path, weights_fs_path, any_map);
             }
 
             throw py::type_error("Provided python object type " + (std::string)(py::str(py::type::of(model_path))) +
@@ -708,15 +708,18 @@ void regclass_Core(py::module m) {
             :rtype: dict[str, str]
         )");
 
-    cls.def("add_extension",
-            static_cast<void (ov::Core::*)(const std::string&)>(&ov::Core::add_extension),
-            py::arg("library_path"),
-            R"(
-                Registers an extension to a Core object.
+    cls.def(
+        "add_extension",
+        [](ov::Core& self, const py::object& library_path) {
+            self.add_extension(Common::utils::to_fs_path(library_path));
+        },
+        py::arg("library_path"),
+        R"(
+            Registers an extension to a Core object.
 
-                :param library_path: Path to library with ov::Extension
-                :type library_path: str
-            )");
+            :param library_path: Path to library with ov::Extension
+            :type library_path: Union[str, bytes, pathlib.Path]
+        )");
 
     cls.def("add_extension",
             static_cast<void (ov::Core::*)(const std::shared_ptr<ov::Extension>&)>(&ov::Core::add_extension),
