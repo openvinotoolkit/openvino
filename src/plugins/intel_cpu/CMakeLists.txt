@@ -335,7 +335,7 @@ cross_compiled_file(${TARGET_NAME}
 )
 
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F ANY
+        ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/linear_attn/recurrent_linear_attn.cpp
         API         src/nodes/kernels/linear_attn/recurrent_linear_attn.hpp
         NAME        recurrent_linear_attn
