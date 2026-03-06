@@ -38,7 +38,7 @@ public:
                                                               const ov::AnyMap& properties,
                                                               const ov::SoPtr<ov::IRemoteContext>& context) const override;
 
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::filesystem::path& model_path,
                                                       const ov::AnyMap& properties) const override;
 
     MOCKTESTMACRO bool is_meta_device(const std::string& priorities) const;

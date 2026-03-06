@@ -372,9 +372,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     return compile_model_impl({}, model, properties, model_precision);
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::string& model_path,
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::filesystem::path& model_path,
                                                           const ov::AnyMap& properties) const {
-    return compile_model_impl(model_path, nullptr, properties);
+    return compile_model_impl(ov::util::path_to_string(model_path), nullptr, properties);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string& model_path,
