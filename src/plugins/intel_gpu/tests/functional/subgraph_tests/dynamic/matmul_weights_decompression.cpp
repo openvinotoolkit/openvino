@@ -64,7 +64,7 @@ using MatmulWeightsDecompressionParams = std::tuple<ShapeParams,              //
                                                     bool,                     // extra multiply
                                                     bool,                     // per-tensor zero-point
                                                     uint64_t,                 // dynamic_quantization_group_size
-                                                    float,                    // abs_threshold_f16
+                                                    float,                    // threshold
                                                     bool                      // is mxfp
                                                     >;
 
@@ -81,7 +81,7 @@ public:
                      extra_multiply,
                      per_tensor_zp,
                      dyn_quan_group_size,
-                     abs_threshold_f16,
+                     threshold,
                      is_mxfp] = obj.param;
 
         std::ostringstream result;
@@ -282,7 +282,7 @@ protected:
                      extra_multiply,
                      per_tensor_zp,
                      dyn_quan_group_size,
-                     abs_threshold_f16,
+                     threshold,
                      is_mxfp] = GetParam();
 
         init_input_shapes({shape_params.data_shape, {{}, {{shape_params.weights_shape}}}});
@@ -302,9 +302,9 @@ protected:
                                  is_mxfp);
 
         if (is_mxfp) {
-            rel_threshold = abs_threshold_f16;
+            rel_threshold = threshold;
         } else if (activations_precision == ov::element::f16) {
-            abs_threshold = abs_threshold_f16;
+            abs_threshold = threshold;
         } else {
             abs_threshold = 1e-4f;
         }
@@ -543,7 +543,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(false),
                        ::testing::Values(false),
                        ::testing::Values(32),
-                       ::testing::Values(2.0f),
+                       ::testing::Values(0.01f),
                        ::testing::Values(true)),
     MatmulWeightsDecompression::get_test_case_name);
 
@@ -559,14 +559,14 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(false),
                        ::testing::Values(false),
                        ::testing::Values(32),
-                       ::testing::Values(2.0f),
+                       ::testing::Values(0.01f),
                        ::testing::Values(true)),
     MatmulWeightsDecompression::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_MatMulCompressedWeights_dyn_quan_mxfp4_e2m1,
     MatmulWeightsDecompression,
-    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 1024}, {{1, 1, 1024}, {2, 1, 1024}}}, {1024, 1024}, 32}),  // shape
+    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 4096}, {{1, 1, 4096}, {8, 1, 4096}}}, {4096, 1024}, 32}),  // shape
                        ::testing::Values(ov::element::f4e2m1),
                        ::testing::Values(ov::element::f16),
                        ::testing::Values(true),
@@ -575,8 +575,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(false),
                        ::testing::Values(false),
                        ::testing::Values(32),
-                       ::testing::Values(0.08f),
-                       ::testing::Values(true)),  // Note: this is because of potential cldnn accuracy issue
+                       ::testing::Values(0.05f),
+                       ::testing::Values(true)),
     MatmulWeightsDecompression::get_test_case_name);
     
 INSTANTIATE_TEST_SUITE_P(

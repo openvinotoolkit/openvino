@@ -473,8 +473,8 @@ TEST_F(dynamic_quantization_gpu_tests, dynamic_quantization_mxf8e5m2) {
 
 TEST_F(dynamic_quantization_gpu_tests, dynamic_quantization_mxf4e2m1) {
     this->test_dynamic_quantization(false,
-                                    {1, 1, 4096},
-                                    {1, 1, 4096},
+                                    {1, 128, 1, 32},
+                                    {1, 128, 1, 32},
                                     QuantizationType::Symmetric,
                                     32,
                                     data_types::f4e2m1,

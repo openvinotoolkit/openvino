@@ -2,20 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT)
+
+#include "include/batch_headers/fetch_data.cl"
+#if IS_MXFP
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/f8_utils.cl"
 #include "include/batch_headers/f4_utils.cl"
-#include "include/batch_headers/fetch_data.cl"
-#if IS_F8
-#include "include/batch_headers/common.cl"
-#include "include/batch_headers/f8_utils.cl"
 #endif
 
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFF
 
-#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT || F4E2M1_OUTPUT)
-
-#if IS_F8
+#if IS_MXFP
     #define SCALE_TYPE float
     #define TO_SCALE_TYPE(x) _convert_float(x)
     #define TO_SCALE_TYPE_8(x) _convert_float8(x)
@@ -33,7 +31,7 @@
 #elif F8E4M3_OUTPUT
     #define TO_OUTPUT_TYPE_CUSTOM(val)  _convert_fp8e4m3_t_sat(val)
     #define TO_OUTPUT_VEC_TYPE_CUSTOM(val)  _convert_fp8e4m3_t8_sat(val)
-    #elif F4E2M1_OUTPUT
+#elif F4E2M1_OUTPUT
     #define TO_OUTPUT_TYPE_CUSTOM(val)  _convert_fp4e2m1_t_sat(val)
     #define TO_OUTPUT_VEC_TYPE_CUSTOM(val)  _convert_fp4e2m1_t8_sat(val)
 #elif (ASYMMETRIC_QUANTIZATION && UNSIGNED_OUTPUT)
@@ -42,6 +40,12 @@
 #else
     #define TO_OUTPUT_TYPE_CUSTOM(val)  convert_char_rte(val)
     #define TO_OUTPUT_VEC_TYPE_CUSTOM(val)  convert_char8_rte(val)
+#endif
+
+#if F4E2M1_OUTPUT
+#define ELEMENTS_PER_BYTE 2
+#else
+#define ELEMENTS_PER_BYTE 1
 #endif
 
 #if GENERATE_PRECOMPUTED_REDUCTION
@@ -140,7 +144,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if !ASYMMETRIC_QUANTIZATION
     max_val = fmax(max_val, grp_max);
 #endif
-    printf("KERNEL REF \n");
+
 #if ASYMMETRIC_QUANTIZATION
     // If the range of input data is zero, it is adjusted to the minimum value.
     ACCUMULATOR_TYPE diff_value = max_val == min_val ? (grp_max) : (max_val - min_val);
@@ -153,7 +157,6 @@ KERNEL(dynamic_quantize_gpu_ref)(
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)(scale_tmp);
     OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(zp_tmp);
 #else  // !ASYMMETRIC_QUANTIZATION
-    max_val = work_group_reduce_max(max_val);
 #if IS_MXFP
     SCALE_TYPE scale = (SCALE_TYPE)(exp2(floor(log2(_convert_float(OUTPUT_VAL_MAX) / _convert_float(max_val)))));
 #else
@@ -166,11 +169,10 @@ KERNEL(dynamic_quantize_gpu_ref)(
     for (int b_off = 0; b_off < (GROUP_SIZE_DIM0 == 1 ? 1 : INPUT0_BATCH_NUM); b_off++) {
     for (int f_off = 0; f_off < (GROUP_SIZE_DIM1 == 1 ? 1 : INPUT0_FEATURE_NUM); f_off++) {
     for (int y_off = 0; y_off < (GROUP_SIZE_DIM2 == UINT64_MAX ? INPUT0_SIZE_Y : GROUP_SIZE_DIM2); y_off++) {
-        
 #if GROUP_SIZE_DIM3 == 1
-printf("group_dims3 = 1 /n");
         const uint in_offset = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off, x);
         const uint out_offset = OUTPUT_GET_INDEX(b + b_off, f + f_off, y + y_off, x);
+        const uint byte_offset = out_offset / ELEMENTS_PER_BYTE;
 
         half val = input[in_offset];
         val *= scale;
@@ -178,43 +180,54 @@ printf("group_dims3 = 1 /n");
         val += zp;
 #endif
         OUTPUT_TYPE ival = TO_OUTPUT_TYPE_CUSTOM(val);
-        output[out_offset] = ival;
+#if F4E2M1_OUTPUT
+            if (out_offset % 2 == 0)
+                output[byte_offset].data = (output[byte_offset].data & 0xF0) | (ival.data & 0x0F);
+            else
+                output[byte_offset].data = (output[byte_offset].data & 0x0F) | ((ival.data << 4) & 0xF0);
+#else
+            output[out_offset] = ival;
+#endif
         FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += ival);
 #else   // GROUP_SIZE_DIM3 != 1
         const uint in_offset = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off, 0);
         const uint out_offset = OUTPUT_GET_INDEX(b + b_off, f + f_off, y + y_off, 0);
+        const uint byte_offset = out_offset / ELEMENTS_PER_BYTE;
         int x;
-        printf("%d \n", INPUT0_SIZE_X);
         for (x = 0; x < INPUT0_SIZE_X / 8; x++) {
-            printf("%d /n", x);
             half8 val = as_half8(vload8(0, (ushort*)input + in_offset + x * 8));
             val = convert_half8(TO_SCALE_TYPE_8(val) * (MAKE_VECTOR_TYPE(SCALE_TYPE, 8))scale);
 #if ASYMMETRIC_QUANTIZATION
             val += zp;
 #endif
-#if IS_F8
-            vstore4(TO_OUTPUT_VEC_TYPE_CUSTOM(val).data, 0, (uchar*)(&output[out_offset + x * 4]));
+#if F4E2M1_OUTPUT
+            vstore4(TO_OUTPUT_VEC_TYPE_CUSTOM(val).data, 0, (uchar*)(&output[byte_offset + x * 4]));
+#elif IS_F8
+            vstore8(TO_OUTPUT_VEC_TYPE_CUSTOM(val).data, 0, (char*)(&output[byte_offset + x * 8]));
 #else
-            MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) ival = TO_OUTPUT_VEC_TYPE_RTE(val);
-            vstore8(ival, 0, output + out_offset + x * 8);
+            MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) ival = TO_OUTPUT_VEC_TYPE_CUSTOM(val);
+            vstore8(ival, 0, output + byte_offset + x * 8);
             FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += ((int)ival[0]) + ival[1] + ival[2] + ival[3] + ival[4] + ival[5] + ival[6] + ival[7]);
 #endif
         }
         x *= 8;
-        printf("zero x = %d \n", x);
-        printf("out_offset x = %d \n", out_offset);
         for (; x < INPUT0_SIZE_X; x++) {
             half val = input[in_offset + x];
             val *= scale;
 #if ASYMMETRIC_QUANTIZATION
             val += zp;
 #endif
-            printf("first x = %d \n", x);
             OUTPUT_TYPE ival = TO_OUTPUT_TYPE_CUSTOM(val);
-            if ((out_offset + x) % 2 == 0)
-                output[(out_offset + x) / 2] = ival;
+            uint out_idx = out_offset + x;
+#if F4E2M1_OUTPUT
+            uint byte_idx = out_idx / 2;
+            if (out_idx % 2 == 0)
+                output[byte_idx].data = (output[byte_idx].data & 0xF0) | (ival.data & 0x0F);
             else
-                output[(out_offset + x) / 2].data = (((ival.data << 4) & 0xF0) | (output[(out_offset + x) / 2].data & 0xF));
+                output[byte_idx].data = (output[byte_idx].data & 0x0F) | ((ival.data << 4) & 0xF0);
+#else
+            output[out_idx] = ival;
+#endif
             FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += ival);
         }
 #endif
@@ -222,7 +235,7 @@ printf("group_dims3 = 1 /n");
     }
     }
 
-    output_scale[scale_idx] = TO_OUTPUT1_TYPE(1.0h / scale);
+    output_scale[scale_idx] = TO_OUTPUT1_TYPE(1.0f / scale);
     FOR_PRECOMPUTED_REDUCTION(output_precomputed_reduction[scale_idx] = precomputed_reduction);
 #if ASYMMETRIC_QUANTIZATION && GROUP_SCALES_WITH_ZP
     output_scale[scale_idx + 1] = zp;
