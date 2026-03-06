@@ -77,7 +77,7 @@ public:
     MockCachingIPluginBase() = default;
     ~MockCachingIPluginBase() = default;
 
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::filesystem::path& model_path,
                                                       const ov::AnyMap& config) const override {
         // In GTEST, it is not possible to call base implementation inside of mocked class
         // Thus, we define a proxy callback and will use

@@ -111,11 +111,11 @@ public:
 
     /**
      * @brief Compiles model from ov::Model object
-     * @param model_path A path to model (path can be converted from unicode representation)
+     * @param model_path A path to model
      * @param properties A ov::AnyMap of properties relevant only for this load operation
      * @return Created Compiled Model object
      */
-    virtual std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
+    virtual std::shared_ptr<ov::ICompiledModel> compile_model(const std::filesystem::path& model_path,
                                                               const ov::AnyMap& properties) const;
 
     /**

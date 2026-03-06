@@ -112,7 +112,7 @@ public:
                          std::shared_ptr<ov::ICompiledModel>(const std::shared_ptr<const ov::Model>& model,
                                                              const ov::AnyMap& properties));
     MOCK_CONST_METHOD2_T(compile_model,
-                         std::shared_ptr<ov::ICompiledModel>(const std::string& model_path,
+                         std::shared_ptr<ov::ICompiledModel>(const std::filesystem::path& model_path,
                                                              const ov::AnyMap& properties));
     MOCK_CONST_METHOD3_T(compile_model,
                          std::shared_ptr<ov::ICompiledModel>(const std::shared_ptr<const ov::Model>& model,
