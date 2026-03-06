@@ -190,7 +190,7 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
             } else {
                 OPENVINO_THROW("AclPoolingExecutor: the executor supports FakeQuantize post op only");
             }
-        } else {
+        } else if (poolingAttrs.postOps.size() > 1) {
             OPENVINO_THROW("AclPoolingExecutor: ACL does not support more than 1 post op");
         }
 
