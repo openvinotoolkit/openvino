@@ -820,6 +820,12 @@ void ZeroInferRequest::prepare_inputs() {
                               "context or must be in a continued memory space, copy into L0 with size: %zu",
                               inputIndex,
                               levelZeroTensor->get_byte_size());
+
+                void* levelZeroBuffer = levelZeroTensor->data();
+                if (levelZeroBuffer == nullptr) {
+                    levelZeroTensor->allocate_data();
+                }
+
                 size_t copied_bytes_from_user = 0;
                 for (size_t i = 0; i < userTensor.size(); i++) {
                     auto viewTensor =
