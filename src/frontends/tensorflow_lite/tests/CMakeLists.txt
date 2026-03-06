@@ -28,6 +28,19 @@ ov_add_test_target(
             ${ctest_labels} TFL_FE
 )
 
+# ========================================
+# Configuration for testing internal implementation details
+# ========================================
+# Some unit tests need to directly test internal passes and transformations.
+# This requires:
+# 1. Adding internal source files to the test target
+# 2. Adding include directories for internal headers
+# 3. Ensuring test utility headers take precedence over internal headers with same names
+
+# Add internal pass source files that are tested directly
+target_sources(${TARGET_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/tflite_transformations/tflite_quantize_resolver.cpp)
+
 # Test model generating
 
 set(TEST_TENSORFLOW_LITE_MODELS_DIRNAME ${TEST_MODEL_ZOO}/tensorflow_lite_test_models)
@@ -71,7 +84,25 @@ else()
     add_custom_target(tensorflow_lite_test_models DEPENDS unable_build_tensorflow_models.txt)
 endif()
 
+# ========================================
+# Include directories for internal headers
+# ========================================
+
 get_target_property(TENSORFLOW_LITE_FRONTEND_SRC_DIR openvino_tensorflow_lite_frontend SOURCE_DIR)
+get_target_property(TENSORFLOW_LITE_FRONTEND_BIN_DIR openvino_tensorflow_lite_frontend BINARY_DIR)
+
+# Add internal source directories for unit tests that need to test internal implementation
+target_include_directories(${TARGET_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src                                  # Internal implementation headers
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tensorflow_common/include         # TensorFlow common headers (e.g., internal_operation.hpp)
+    ${TENSORFLOW_LITE_FRONTEND_BIN_DIR})                                # Generated headers (e.g., schema_generated.h)
+
+# Ensure test utility headers take precedence over internal headers with same names (e.g., utils.hpp)
+# Using BEFORE to prepend to the include search path
+target_include_directories(${TARGET_NAME} BEFORE PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/frontend/shared/include)
+
+# ========================================
 
 add_subdirectory(standalone_build)
 add_dependencies(${TARGET_NAME} tensorflow_lite_fe_standalone_build_test)
