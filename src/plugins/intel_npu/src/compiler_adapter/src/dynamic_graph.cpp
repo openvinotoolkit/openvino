@@ -409,7 +409,6 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
                            const FilteredConfig& config)
     : _zeroInitStruct(zeroInitStruct),
       _blob(std::move(blob)),
-      _blobAllocatedByPlugin(blobAllocatedByPlugin),
       _logger("DynamicGraph", config.get<LOG_LEVEL>()) {
     _logger.info("Create DynamicGraph");
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
