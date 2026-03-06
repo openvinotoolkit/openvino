@@ -182,8 +182,7 @@ class _PagedAttentionExtension(openvino._pyopenvino.Node):
     Experimental extention for PagedAttention operation. Use with care: no backward compatibility is guaranteed in future releases.
     """
     def __init__(self, arg0: collections.abc.Sequence[openvino._pyopenvino.Output]) -> None:
-        ...
-        
+        ...        
 class _GatedDeltaNet(openvino._pyopenvino.Node):
     """
     Experimental extention for GatedDeltaNet operation. Use with care: no backward compatibility is guaranteed in future releases.
