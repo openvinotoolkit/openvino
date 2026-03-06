@@ -460,17 +460,6 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
                                                               m_shape,
                                                               ext_data.load_external_data(m_model_dir.string()));
         }
-        // ext_data.size() might be zero, need to recalc by using info about actually red data (for byte-size)
-        element_count = constant->get_byte_size() / ov_type.size();
-        if (ov::element::is_nibble_type(ov_type)) {
-            element_count *= 2;  // Each byte contains 2 data items, so byte size must be multiplicated
-        }
-        if (element_count != ov::shape_size(m_shape) ||
-            (ext_data.size() != 0 && constant->get_byte_size() != ext_data.size())) {
-            throw error::invalid_external_data(
-                "The size of the external data file does not match the byte size of an initializer '" + get_name() +
-                "' in the model");
-        }
     } else if (element_count == shape_size(m_shape) && m_tensor_proto != nullptr) {
         switch (m_tensor_proto->data_type()) {
         case TensorProto_DataType::TensorProto_DataType_FLOAT:
