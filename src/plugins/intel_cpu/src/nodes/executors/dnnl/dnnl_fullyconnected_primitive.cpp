@@ -384,18 +384,19 @@ static VectorDims makeDummyInputDims(const Shape& inShape, const Shape& wShape) 
 }
 
 static VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDims& wShape, const size_t out_rank) {
-    size_t activationRank = inShape.size();
-    size_t channelRank = wShape.size() - 1;
+    const auto wShape2D = reshapeDownToRank<2>(wShape);
+    const size_t activationRank = inShape.size();
+    const size_t channelRank = 1;
     // activation   weight    output_shape
     // NCHW         CoCHW     NCo
     // TNC          CoC       TNCo
     // NC           CoC       NCo
     VectorDims outputShape(out_rank, 1);
     // set Co
-    outputShape.back() = wShape[0];
+    outputShape.back() = wShape2D[0];
     // set batch dims
-    size_t batchRank = activationRank - channelRank;
-    size_t startIdx = out_rank - batchRank - 1;
+    const size_t batchRank = activationRank - channelRank;
+    const size_t startIdx = out_rank - batchRank - 1;
     for (size_t i = 0; i < batchRank; i++) {
         outputShape[i + startIdx] = inShape[i];
     }
