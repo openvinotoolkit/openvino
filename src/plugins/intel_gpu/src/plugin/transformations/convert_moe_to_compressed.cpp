@@ -324,10 +324,18 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             config.top_k = topk_shape[1].get_length();
             config.out_type = ov::element::f16;
             config.has_batch_dim = is_pa ? 0 : 1;
-            auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
-
+            std::shared_ptr<ov::Node> moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
             moe_compressed->set_friendly_name(moe->get_friendly_name());
             ov::copy_runtime_info(moe, moe_compressed);
+
+            // Since f16 precision is forced for MOECompressed output, we may need to insert Convert after MOECompressed
+            // in order not to break the model semantic. This Convert will be most likely optimized at ConvertPrecision stage
+            if (moe->get_output_element_type(0) != moe_compressed->get_output_element_type(0)) {
+                moe_compressed->set_friendly_name(moe_compressed->get_friendly_name() + "/MOECompressed");
+                moe_compressed = std::make_shared<ov::op::v0::Convert>(moe_compressed, moe->get_output_element_type(0));
+                moe_compressed->set_friendly_name(moe->get_friendly_name());
+                ov::copy_runtime_info(moe, moe_compressed);
+            }
             if (has_shared_expert) {
                 moe_compressed->set_friendly_name(root_node->get_friendly_name());
                 ov::copy_runtime_info(root_node, moe_compressed);

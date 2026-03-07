@@ -1,4 +1,3 @@
-#include "openvino/op/constant.hpp"
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
