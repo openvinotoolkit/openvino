@@ -93,6 +93,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     auto shared_down_wei_m = wrap_type<ov::op::v0::Constant>();
     auto shared_down_scale_m = any_input();
     auto shared_down_zp_m = any_input();
+    auto shared_gate_gate_wei_m = any_input();
 
     auto moe_compressed_shared_m = wrap_type<ov::intel_gpu::op::MOECompressed>({hidden_state_m->output(0),
                                                                          unsqueeze_moe_m->output(0),
@@ -114,7 +115,8 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
                                                                          shared_up_zp_m->output(0),
                                                                          shared_down_wei_m->output(0),
                                                                          shared_down_scale_m->output(0),
-                                                                         shared_down_zp_m->output(0)});
+                                                                         shared_down_zp_m->output(0),
+                                                                         shared_gate_gate_wei_m->output(0)});
 
     auto moe_compressed_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{moe_compressed_no_shared_m, moe_compressed_shared_m});
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -125,7 +127,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
             return false;
         }
         bool has_shared_expert = pattern_map.count(shared_gate_wei_m) > 0;
-        OutputVector args(has_shared_expert ? 20 : 11);
+        OutputVector args(has_shared_expert ? 21 : 11);
         args[0] = pattern_map.at(hidden_state_m);
         args[1] = pattern_map.at(router_matmul_m);
         args[2] = pattern_map.at(gate_wei_m);
@@ -148,6 +150,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
             args[17] = pattern_map.at(shared_down_wei_m);
             args[18] = pattern_map.at(shared_down_scale_m);
             args[19] = pattern_map.at(shared_down_zp_m);
+            args[20] = pattern_map.at(shared_gate_gate_wei_m);
         }
         auto moe_3gemm_fused_compressed = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, moe_compressed->get_config());
         moe_3gemm_fused_compressed->set_friendly_name(moe_compressed->get_friendly_name());
