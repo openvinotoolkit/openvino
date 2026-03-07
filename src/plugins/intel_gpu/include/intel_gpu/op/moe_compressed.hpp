@@ -21,6 +21,7 @@ public:
         size_t hidden_size = 0;
         size_t inter_size = 0;
         size_t num_expert = 0;
+        size_t num_shared_expert = 0;
         size_t top_k = 0;
         // numeric_limits<size_t>::max() means per_channel compression (single group).
         // other non-zero value means group compression with this given group_size.

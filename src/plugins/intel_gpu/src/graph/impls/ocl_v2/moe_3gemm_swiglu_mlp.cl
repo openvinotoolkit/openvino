@@ -231,7 +231,7 @@ inline void gate_up_gemv_n2x_f16(const __global half* weight, __global half* y, 
             half4 sum1;
             half8 a = as_half8(intel_sub_group_block_read_us8((const __global ushort*)x2 + gk * FAKE_GROUP_SIZE));
             half8 b = as_half8(intel_sub_group_block_read_us8((const __global ushort*)B + gk * FAKE_GROUP_SIZE));
-            half8 b2= as_half8(intel_sub_group_block_read_us8((const __global ushort*)(B + K + gk * FAKE_GROUP_SIZE)));
+            half8 b2 = as_half8(intel_sub_group_block_read_us8((const __global ushort*)(B + K + gk * FAKE_GROUP_SIZE)));
 
             sum0.s0 = fma(a.s0, b.s0, 0);
             sum0.s1 = fma(a.s1, b.s1, 0);
@@ -253,7 +253,7 @@ inline void gate_up_gemv_n2x_f16(const __global half* weight, __global half* y, 
             sum1.s2 = fma(a.s6, b2.s6, sum1.s2);
             sum1.s3 = fma(a.s7, b2.s7, sum1.s3);
 
-            sum_all0 += sum0[0] + sum0[1] + sum0[2] + sum0[3] ;
+            sum_all0 += sum0[0] + sum0[1] + sum0[2] + sum0[3];
             sum_all1 += sum1[0] + sum1[1] + sum1[2] + sum1[3];
 #    endif
         }
@@ -272,18 +272,36 @@ inline void gate_up_gemv_n2x_f16(const __global half* weight, __global half* y, 
     }
 }
 
-__attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(const __global int* expert_list,
-                                                                              const __global MOE_WEI_DT* gate_weight_addr,
-                                                                              const __global MOE_SCALE_DT* gate_scale_addr,
-                                                                              const __global MOE_ZP_DT* gate_zp_addr,
-                                                                              const __global MOE_WEI_DT* up_weight_addr,
-                                                                              const __global MOE_SCALE_DT* up_scale_addr,
-                                                                              const __global MOE_ZP_DT* up_zp_addr,
-                                                                              __global MOE_DTYPE* x,    // [1, HIDDEN_SIZE]
-                                                                              __global MOE_DTYPE* y) {  // [MAX_TOPK, INTERMEDIATE_SIZE]
+__attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
+    const __global int* expert_list,
+    const __global MOE_WEI_DT* gate_weight_addr,
+    const __global MOE_SCALE_DT* gate_scale_addr,
+    const __global MOE_ZP_DT* gate_zp_addr,
+    const __global MOE_WEI_DT* up_weight_addr,
+    const __global MOE_SCALE_DT* up_scale_addr,
+    const __global MOE_ZP_DT* up_zp_addr,
+#    if SHARED_EXPERT_ENABLE
+    const __global uchar* shared_gate_weight,
+    const __global half* shared_gate_scale,
+    const __global uchar* shared_gate_zp,
+    const __global uchar* shared_up_weight,
+    const __global half* shared_up_scale,
+    const __global uchar* shared_up_zp,
+    const __global half* shared_gate_gate_weight,  // [HIDDEN_SIZE] (assuming no scale/zp for now, or pre-dequantized)
+    __global MOE_DTYPE* routing_weights,           // Input routing weights, will append shared gate result at end
+#    endif
+    __global MOE_DTYPE* x,    // [1, HIDDEN_SIZE]
+    __global MOE_DTYPE* y) {  // [MAX_TOPK (+1 if shared), INTERMEDIATE_SIZE]
     // global: [expert, SUBGROUP_SIZE, N//N_BLOCK],[1, SUBGROUP_SIZE, SUBGROUP_NUM]
     int expert_no = get_global_id(0);
     y += expert_no * INTERMEDIATE_SIZE;
+
+    // Check if we are processing the Shared Expert
+#    if SHARED_EXPERT_ENABLE
+    bool is_shared = (expert_no == MAX_TOPK);  // Assuming global size was increased by 1
+#    else
+    bool is_shared = false;
+#    endif
 
 #    if WEIGHT_COMPRESSEION_DT == 0
     const int expert_wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / 2;
@@ -296,16 +314,39 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(co
 #    endif
 
     int expert_id = expert_list[expert_no];
-
     // gate, [HIDDEN_SIZE, INTERMEDIATE_SIZE]
-    __global MOE_WEI_DT* gate_weight = (__global MOE_WEI_DT*)(gate_weight_addr + expert_id * expert_wei_size);
-    __global MOE_SCALE_DT* gate_scale = (__global MOE_SCALE_DT*)(gate_scale_addr + expert_id * expert_scale_size);
-    __global MOE_ZP_DT* gate_zp = (__global MOE_ZP_DT*)(gate_zp_addr + expert_id * expert_zp_size);
-
+    __global MOE_WEI_DT* gate_weight;
+    __global MOE_SCALE_DT* gate_scale;
+    __global MOE_ZP_DT* gate_zp;
     // up, [HIDDEN_SIZE, INTERMEDIATE_SIZE]
-    __global MOE_WEI_DT* up_weight = (__global MOE_WEI_DT*)(up_weight_addr + expert_id * expert_wei_size);
-    __global MOE_SCALE_DT* up_scale = (__global MOE_SCALE_DT*)(up_scale_addr + expert_id * expert_scale_size);
-    __global MOE_ZP_DT* up_zp = (__global MOE_ZP_DT*)(up_zp_addr + expert_id * expert_zp_size);
+    __global MOE_WEI_DT* up_weight;
+    __global MOE_SCALE_DT* up_scale;
+    __global MOE_ZP_DT* up_zp;
+
+    if (!is_shared) {
+        expert_id = expert_list[expert_no];
+        // gate, [HIDDEN_SIZE, INTERMEDIATE_SIZE]
+        gate_weight = (__global MOE_WEI_DT*)(gate_weight_addr + expert_id * expert_wei_size);
+        gate_scale = (__global MOE_SCALE_DT*)(gate_scale_addr + expert_id * expert_scale_size);
+        gate_zp = (__global MOE_ZP_DT*)(gate_zp_addr + expert_id * expert_zp_size);
+
+        // up, [HIDDEN_SIZE, INTERMEDIATE_SIZE]
+        up_weight = (__global MOE_WEI_DT*)(up_weight_addr + expert_id * expert_wei_size);
+        up_scale = (__global MOE_SCALE_DT*)(up_scale_addr + expert_id * expert_scale_size);
+        up_zp = (__global MOE_ZP_DT*)(up_zp_addr + expert_id * expert_zp_size);
+    }
+#    if SHARED_EXPERT_ENABLE
+    else {
+        // Use shared expert pointers directly
+        // [HIDDEN_SIZE, SHARED_INTERMEDIATE_SIZE] - assume layout/size match sparse experts for now
+        gate_weight = (__global MOE_WEI_DT*)shared_gate_weight;
+        gate_scale = (__global MOE_SCALE_DT*)shared_gate_scale;
+        gate_zp = (__global MOE_ZP_DT*)shared_gate_zp;
+        up_weight = (__global MOE_WEI_DT*)shared_up_weight;
+        up_scale = (__global MOE_SCALE_DT*)shared_up_scale;
+        up_zp = (__global MOE_ZP_DT*)shared_up_zp;
+    }
+#    endif
 
 #    if GATE_UP_GROUP_SIZE % FAKE_GROUP_SIZE != 0
     if (get_sub_group_id() == 0 && get_sub_group_local_id() == 0) {
@@ -316,6 +357,9 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(co
 
     __local half x2[HIDDEN_SIZE];
     __local float xg_sum[HIDDEN_SIZE / FAKE_GROUP_SIZE];
+#    if SHARED_EXPERT_ENABLE
+    __local float shared_gate_partial[SUBGROUP_NUM];  // one slot per subgroup for scalar gate reduction
+#    endif
 
 #    if WEIGHT_COMPRESSEION_DT == 0
     //# interleaving x into x2
@@ -362,6 +406,42 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(co
 #    endif
 
     barrier(CLK_LOCAL_MEM_FENCE);
+
+#    if SHARED_EXPERT_ENABLE
+    // Compute scalar gate for shared expert using all threads in the workgroup.
+    // Only the N-block-0 workgroup writes routing_weights[MAX_TOPK]; other N-block workgroups
+    // skip this entirely to avoid redundant work and races.
+    if (is_shared && get_group_id(2) == 0) {
+        // Step 1: every thread accumulates a partial dot product over its slice of HIDDEN_SIZE.
+        // With num_sg subgroups * SUBGROUP_SIZE threads, each thread handles ~14 elements
+        // (HIDDEN_SIZE=3584 / 256 threads) instead of one thread doing all 3584.
+        float gate_val = 0.0f;
+        int thread_id = id_sg * SUBGROUP_SIZE + id_local;
+        int total_threads = num_sg * SUBGROUP_SIZE;
+        for (int i = thread_id; i < HIDDEN_SIZE; i += total_threads) {
+            gate_val += (float)x[i] * (float)shared_gate_gate_weight[i];
+        }
+
+        // Step 2: intra-subgroup reduction.
+        gate_val = sub_group_reduce_add(gate_val);
+
+        // Step 3: store per-subgroup partial to SLM.
+        if (id_local == 0) {
+            shared_gate_partial[id_sg] = gate_val;
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        // Step 4: subgroup 0 does final cross-subgroup reduction and writes sigmoid result.
+        if (id_sg == 0) {
+            float final_val = (id_local < num_sg) ? shared_gate_partial[id_local] : 0.0f;
+            final_val = sub_group_reduce_add(final_val);
+            if (id_local == 0) {
+                routing_weights[MAX_TOPK] = (MOE_DTYPE)(1.0f / (1.0f + exp(-final_val)));
+            }
+        }
+    }
+    // routing_weights[MAX_TOPK] is consumed by the next kernel (mlp_down) — no barrier needed here.
+#    endif
 
 #    if WEIGHT_COMPRESSEION_DT == 0
     gate_up_gemv_n2x_u4(up_weight, up_scale, up_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, false);
@@ -627,6 +707,11 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
                                                                            const __global MOE_WEI_DT* down_weight_addr,
                                                                            const __global MOE_SCALE_DT* down_scale_addr,
                                                                            const __global MOE_ZP_DT* down_zp_addr,
+#    if SHARED_EXPERT_ENABLE
+                                                                           const __global MOE_WEI_DT* shared_down_weight,
+                                                                           const __global MOE_SCALE_DT* shared_down_scale,
+                                                                           const __global MOE_ZP_DT* shared_down_zp,
+#    endif
                                                                            const __global MOE_DTYPE* x,          // [MAX_TOPK, INTERMEDIATE_SIZE]
                                                                            __global MOE_DTYPE* routing_weights,  // [MAX_TOPK]
                                                                            __global MOE_DTYPE* y) {              // [MAX_TOPK, HIDDEN_SIZE]
@@ -634,6 +719,12 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     int expert_no = get_global_id(0);
     x += expert_no * INTERMEDIATE_SIZE;
     y += expert_no * HIDDEN_SIZE;
+
+#    if SHARED_EXPERT_ENABLE
+    bool is_shared = (expert_no == MAX_TOPK);
+#    else
+    bool is_shared = false;
+#    endif
 
 #    if WEIGHT_COMPRESSEION_DT == 0
     const int expert_wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / 2;
@@ -647,9 +738,24 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     int expert_id = expert_list[expert_no];
 
     // down, [INTERMEDIATE_SIZE, HIDDEN_SIZE]
-    __global MOE_WEI_DT* weight = (__global MOE_WEI_DT*)(down_weight_addr + expert_id * expert_wei_size);
-    __global MOE_SCALE_DT* scales = (__global MOE_SCALE_DT*)(down_scale_addr + expert_id * expert_scale_size);
-    __global MOE_ZP_DT* zps = (__global MOE_ZP_DT*)(down_zp_addr + expert_id * expert_zp_size);
+    __global MOE_WEI_DT* weight;
+    __global MOE_SCALE_DT* scales;
+    __global MOE_ZP_DT* zps;
+
+    if (!is_shared) {
+        expert_id = expert_list[expert_no];
+        // down, [INTERMEDIATE_SIZE, HIDDEN_SIZE]
+        weight = (__global MOE_WEI_DT*)(down_weight_addr + expert_id * expert_wei_size);
+        scales = (__global MOE_SCALE_DT*)(down_scale_addr + expert_id * expert_scale_size);
+        zps = (__global MOE_ZP_DT*)(down_zp_addr + expert_id * expert_zp_size);
+    }
+#    if SHARED_EXPERT_ENABLE
+    else {
+        weight = (__global MOE_WEI_DT*)shared_down_weight;
+        scales = (__global MOE_SCALE_DT*)shared_down_scale;
+        zps = (__global MOE_ZP_DT*)shared_down_zp;
+    }
+#    endif
 
     int N = HIDDEN_SIZE;
     int K = INTERMEDIATE_SIZE;
@@ -716,11 +822,16 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_reduce)(const __global MOE_DTYPE* x,  // [MAX_TOPK, HIDDEN_SIZE]
                                                                              __global MOE_DTYPE* y) {      // [1, HIDDEN_SIZE]
     int n = get_global_id(1);
-    half sum[MAX_TOPK] = {0};
-    __attribute__((opencl_unroll_hint(MAX_TOPK))) for (int i = 0; i < MAX_TOPK; i++) {
+#    if SHARED_EXPERT_ENABLE
+#        define REDUCE_COUNT (MAX_TOPK + 1)
+#    else
+#        define REDUCE_COUNT MAX_TOPK
+#    endif
+    half sum[REDUCE_COUNT] = {0};
+    __attribute__((opencl_unroll_hint(REDUCE_COUNT))) for (int i = 0; i < REDUCE_COUNT; i++) {
         sum[i] = as_half(intel_sub_group_block_read_us((const __global ushort*)(x + i * HIDDEN_SIZE + n)));
     }
-    for (int i = 1; i < MAX_TOPK; i++) {
+    for (int i = 1; i < REDUCE_COUNT; i++) {
         sum[0] += sum[i];
     }
     intel_sub_group_block_write_us((__global ushort*)(y + n), as_ushort(sum[0]));
