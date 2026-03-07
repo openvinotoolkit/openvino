@@ -339,8 +339,14 @@ KERNEL(rope_opt)
 #else
     const uint b = get_global_id(0);
     const uint h = get_global_id(1);
+#ifdef ENABLE_IO_COPY
+    const uint work_offset = (uint)get_global_id(2) * VEC_SIZE;
+    const uint p = work_offset / WORK_CHUNK_SIZE;
+    const uint r = work_offset % WORK_CHUNK_SIZE;
+#else
     const uint p = ((uint)get_global_id(2) * VEC_SIZE) / HALF_ROTARY_NDIMS;
     const uint r = ((uint)get_global_id(2) * VEC_SIZE) % HALF_ROTARY_NDIMS;
+#endif
 #endif
 
 #if ENABLE_TRANSPOSE
@@ -412,27 +418,43 @@ uint cos_sin_p = p;
     uint output_idx = OUTPUT_GET_INDEX(b, h, p, 0);
 
 #if VEC_SIZE == 1
-    ACCUMULATOR_TYPE in1 = TO_ACCUMULATOR_TYPE(input[input_idx + r]);
-    ACCUMULATOR_TYPE in2 = TO_ACCUMULATOR_TYPE(input[input_idx + HALF_ROTARY_NDIMS + r]);
+    if (r < HALF_ROTARY_NDIMS) {
+        ACCUMULATOR_TYPE in1 = TO_ACCUMULATOR_TYPE(input[input_idx + r]);
+        ACCUMULATOR_TYPE in2 = TO_ACCUMULATOR_TYPE(input[input_idx + HALF_ROTARY_NDIMS + r]);
 
-    ACCUMULATOR_TYPE res = cos[cos_idx + r] * in1 - sin[sin_idx + r] * in2;
-    output[output_idx + r] = TO_OUTPUT_TYPE(res);
+        ACCUMULATOR_TYPE res = cos[cos_idx + r] * in1 - sin[sin_idx + r] * in2;
+        output[output_idx + r] = TO_OUTPUT_TYPE(res);
 
-    res = cos[cos_idx + COS_SIN_TABLE_OFFSET + r] * in2 + sin[sin_idx + COS_SIN_TABLE_OFFSET + r] * in1;
-    output[output_idx + HALF_ROTARY_NDIMS + r] = TO_OUTPUT_TYPE(res);
+        res = cos[cos_idx + COS_SIN_TABLE_OFFSET + r] * in2 + sin[sin_idx + COS_SIN_TABLE_OFFSET + r] * in1;
+        output[output_idx + HALF_ROTARY_NDIMS + r] = TO_OUTPUT_TYPE(res);
+    }
+#ifdef ENABLE_IO_COPY
+    if (r < HEAD_SIZE - ROTARY_NDIMS) {
+        output[output_idx + ROTARY_NDIMS + r] = input[input_idx + ROTARY_NDIMS + r];
+    }
+#endif
 #else
-    INPUT_VEC_TYPE in1 = *(INPUT_VEC_TYPE*)(input + input_idx + r);
-    INPUT_VEC_TYPE in2 = *(INPUT_VEC_TYPE*)(input + input_idx + HALF_ROTARY_NDIMS + r);
-    INPUT_VEC_TYPE cos1 = *(INPUT_VEC_TYPE*)(cos + cos_idx + r);
-    INPUT_VEC_TYPE cos2 = *(INPUT_VEC_TYPE*)(cos + cos_idx + COS_SIN_TABLE_OFFSET + r);
-    INPUT_VEC_TYPE sin1 = *(INPUT_VEC_TYPE*)(sin + sin_idx + r);
-    INPUT_VEC_TYPE sin2 = *(INPUT_VEC_TYPE*)(sin + sin_idx + COS_SIN_TABLE_OFFSET + r);
+    if (r < HALF_ROTARY_NDIMS) {
+        INPUT_VEC_TYPE in1 = *(INPUT_VEC_TYPE*)(input + input_idx + r);
+        INPUT_VEC_TYPE in2 = *(INPUT_VEC_TYPE*)(input + input_idx + HALF_ROTARY_NDIMS + r);
+        INPUT_VEC_TYPE cos1 = *(INPUT_VEC_TYPE*)(cos + cos_idx + r);
+        INPUT_VEC_TYPE cos2 = *(INPUT_VEC_TYPE*)(cos + cos_idx + COS_SIN_TABLE_OFFSET + r);
+        INPUT_VEC_TYPE sin1 = *(INPUT_VEC_TYPE*)(sin + sin_idx + r);
+        INPUT_VEC_TYPE sin2 = *(INPUT_VEC_TYPE*)(sin + sin_idx + COS_SIN_TABLE_OFFSET + r);
 
-    OUTPUT_VEC_TYPE out1 = cos1 * in1 - sin1 * in2;
-    OUTPUT_VEC_TYPE out2 = cos2 * in2 + sin2 * in1;
+        OUTPUT_VEC_TYPE out1 = cos1 * in1 - sin1 * in2;
+        OUTPUT_VEC_TYPE out2 = cos2 * in2 + sin2 * in1;
 
-    *(OUTPUT_VEC_TYPE*)(output + output_idx + r) = out1;
-    *(OUTPUT_VEC_TYPE*)(output + output_idx + HALF_ROTARY_NDIMS + r) = out2;
+        *(OUTPUT_VEC_TYPE*)(output + output_idx + r) = out1;
+        *(OUTPUT_VEC_TYPE*)(output + output_idx + HALF_ROTARY_NDIMS + r) = out2;
+    }
+#ifdef ENABLE_IO_COPY
+    if (r < HEAD_SIZE - ROTARY_NDIMS) {
+        unroll_for (int i = 0; i < VEC_SIZE; i += 1) {
+            output[output_idx + ROTARY_NDIMS + r + i] = TO_OUTPUT_TYPE(input[input_idx + ROTARY_NDIMS + r + i]);
+        }
+    }
+#endif
 #endif
 
 }
