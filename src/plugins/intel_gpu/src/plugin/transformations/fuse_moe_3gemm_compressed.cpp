@@ -48,7 +48,6 @@
 
 namespace ov::intel_gpu {
 FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
-<<<<<<< HEAD
     using namespace ov::pass::pattern;
     using namespace ov::pass;
 #define ANY any_input()
@@ -146,6 +145,8 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     moe_inputs_shared.push_back(shared_down_wei_m);
     moe_inputs_shared.push_back(shared_down_scale_m);
     moe_inputs_shared.push_back(shared_down_zp_m);
+    auto shared_gate_gate_wei_m = ANY;
+    moe_inputs_shared.push_back(shared_gate_gate_wei_m);
     auto moe_compressed_shared_m = wrap_type<ov::intel_gpu::op::MOECompressed>(moe_inputs_shared);
 
     auto moe_compressed_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{moe_compressed_no_shared_m, moe_compressed_shared_m});
@@ -188,6 +189,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
             args.push_back(pattern_map.at(shared_down_wei_m));
             args.push_back(pattern_map.at(shared_down_scale_m));
             args.push_back(pattern_map.at(shared_down_zp_m));
+            args.push_back(pattern_map.at(shared_gate_gate_wei_m));
         }
 
         std::shared_ptr<ov::Node> moe_router_fused = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, config);
