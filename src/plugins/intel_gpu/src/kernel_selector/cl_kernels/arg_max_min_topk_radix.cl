@@ -295,9 +295,12 @@ KERNEL(arg_max_min_topk_radix)(
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // ============================================================
-    // Phase 2b: Gather ALL elements AT threshold into SLM (up to PADDED_K)
-    // Gather more than needed; bitonic sort + combined key will deterministically
-    // place the correct subset into the top-K positions.
+    // Phase 2b: Gather elements AT threshold into SLM
+    // Strategy: check if all at-threshold elements fit in remaining slots.
+    //   - Fast path (common): all fit. parallel atomic_add (no correctness issue)
+    //   - Slow path (rare):   overflow. single WI sequential scan for deterministic
+    //     index ordering (smallest indices first, matching TF/ONNX behavior)
+    // histogram[threshold & 0xFF] still holds the fine histogram count from Phase 1.
     // ============================================================
     uint current_count = min(gather_count, (uint)PADDED_K);
     if (lid == 0) {
@@ -306,18 +309,43 @@ KERNEL(arg_max_min_topk_radix)(
     barrier(CLK_LOCAL_MEM_FENCE);
 
     if (current_count < PADDED_K) {
-        for (uint i = lid; i < VALUES_NUM; i += WG_SIZE) {
-            uint sortable = my_sortable[i];
-            if (sortable == threshold) {
-                uint pos = atomic_add(&gather_count, 1);
-                if (pos < PADDED_K) {
+        uint at_count = histogram[threshold & 0xFF];
+        uint available_slots = PADDED_K - current_count;
+
+        if (at_count <= available_slots) {
+            // Fast path: all at-threshold elements fit, parallel gather is safe
+            for (uint i = lid; i < VALUES_NUM; i += WG_SIZE) {
+                uint sortable = my_sortable[i];
+                if (sortable == threshold) {
+                    uint pos = atomic_add(&gather_count, 1);
+                    if (pos < PADDED_K) {
 #ifdef MAX_OUT
-                    sort_keys[pos] = (sortable << 16) | (0xFFFF - (i & 0xFFFF));
+                        sort_keys[pos] = (sortable << 16) | (0xFFFF - (i & 0xFFFF));
 #else
-                    sort_keys[pos] = (sortable << 16) | (i & 0xFFFF);
+                        sort_keys[pos] = (sortable << 16) | (i & 0xFFFF);
 #endif
-                    sort_idxs[pos] = i;
+                        sort_idxs[pos] = i;
+                    }
                 }
+            }
+        } else {
+            // Slow path: more at-threshold elements than slots,
+            // sequential scan ensures smallest indices are selected first
+            if (lid == 0) {
+                uint pos = current_count;
+                for (uint i = 0; i < VALUES_NUM && pos < PADDED_K; i++) {
+                    uint sortable = my_sortable[i];
+                    if (sortable == threshold) {
+#ifdef MAX_OUT
+                        sort_keys[pos] = (sortable << 16) | (0xFFFF - (i & 0xFFFF));
+#else
+                        sort_keys[pos] = (sortable << 16) | (i & 0xFFFF);
+#endif
+                        sort_idxs[pos] = i;
+                        pos++;
+                    }
+                }
+                gather_count = pos;
             }
         }
     }

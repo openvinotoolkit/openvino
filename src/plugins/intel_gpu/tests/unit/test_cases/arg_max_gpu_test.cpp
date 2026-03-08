@@ -1343,3 +1343,74 @@ TEST(arg_max_gpu_topk_radix, f16_max_yolov26n_like) {
     // Verify last top-K value is > base values (~0.99 max)
     ASSERT_GT(static_cast<float>(output_ptr[top_k - 1]), 50.0f);
 }
+
+// Radix test: CI failure reproducer - many duplicate values, verify indices tiebreaking
+// CI failed on shape [4,2,70] K=5 because at-threshold elements with same value
+// had non-deterministic index selection in Phase 2b (atomic_add race).
+// This test uses feature axis with N=70 duplicates to verify correct tiebreaking.
+TEST(arg_max_gpu_topk_radix, f16_max_duplicates_n70_k5_indices_tiebreak) {
+    static const int32_t batch_num = 4, feature_num = 70, x_size = 1, y_size = 1;
+    auto& engine = get_test_engine();
+    const int top_k = 5;
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {batch_num, feature_num, x_size, y_size}});
+    auto top_k_input = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
+    auto second_output = engine.allocate_memory({data_types::f32, format::bfyx, {batch_num, top_k, x_size, y_size}});
+
+    // Random ints 0-14, same distribution as CI test → many duplicates
+    std::vector<ov::float16> input_vec(batch_num * feature_num);
+    std::mt19937 rng(42);
+    std::uniform_int_distribution<int> dist(0, 14);
+    for (size_t i = 0; i < input_vec.size(); i++) {
+        input_vec[i] = ov::float16(static_cast<float>(dist(rng)));
+    }
+    set_values(input, input_vec);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(cldnn::data("const", top_k_input));
+    topology.add(mutable_data("second_output", second_output));
+    topology.add(arg_max_min("arg_max",
+                             { input_info("input"), input_info("const"), input_info("second_output") },
+                             ov::op::TopKMode::MAX,
+                             top_k,
+                             1,    // axis=1 (feature)
+                             ov::op::TopKSortType::SORT_VALUES,
+                             true,   // values_first
+                             false,
+                             data_types::f16));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("arg_max").get_memory();
+    cldnn::mem_lock<ov::float16> val_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> idx_ptr(second_output, get_test_stream());
+
+    // For each batch, verify values AND indices match CPU reference
+    for (int b = 0; b < batch_num; b++) {
+        int input_offset = b * feature_num;
+        int out_offset = b * top_k;
+
+        // CPU reference: sort by (value desc, index asc) via stable_sort
+        std::vector<std::pair<float, int>> ref;
+        for (int i = 0; i < feature_num; i++) {
+            ref.push_back({static_cast<float>(input_vec[input_offset + i]), i});
+        }
+        std::stable_sort(ref.begin(), ref.end(),
+            [](const auto& a, const auto& b) { return a.first > b.first; });
+
+        for (int k = 0; k < top_k; k++) {
+            float gpu_val = static_cast<float>(val_ptr[out_offset + k]);
+            float ref_val = ref[k].first;
+            ASSERT_NEAR(gpu_val, ref_val, 0.01f)
+                << "value mismatch at b=" << b << " k=" << k;
+
+            int gpu_idx = static_cast<int>(idx_ptr[out_offset + k]);
+            int ref_idx = ref[k].second;
+            ASSERT_EQ(gpu_idx, ref_idx)
+                << "index mismatch at b=" << b << " k=" << k
+                << " (value=" << ref_val << ", expected idx=" << ref_idx << ", got idx=" << gpu_idx << ")";
+        }
+    }
+}
