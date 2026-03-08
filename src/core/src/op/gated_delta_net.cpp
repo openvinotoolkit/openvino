@@ -92,30 +92,27 @@ void GatedDeltaNet::validate_and_infer_types() {
     const auto k_head_size = key_ps[3];
     const auto v_head_size = value_ps[3];
 
-    NODE_VALIDATION_CHECK(
-        this,
-        q_head_num.is_static() && k_head_num.is_static() && q_head_num.get_length() == k_head_num.get_length(),
-        "The number of heads in query and key should be the same, but got ",
-        q_head_num,
-        " and ",
-        k_head_num,
-        ".");
+    NODE_VALIDATION_CHECK(this,
+                          q_head_num.compatible(k_head_num),
+                          "The number of heads in query and key should be the same, but got ",
+                          q_head_num,
+                          " and ",
+                          k_head_num,
+                          ".");
 
-    NODE_VALIDATION_CHECK(
-        this,
-        k_head_size.is_static() && v_head_size.is_static() && k_head_size.get_length() == v_head_size.get_length(),
-        "The head size in key and value should be the same, but got ",
-        k_head_size,
-        " and ",
-        v_head_size,
-        ".");
+    NODE_VALIDATION_CHECK(this,
+                          k_head_size.compatible(v_head_size),
+                          "The head size in key and value should be the same, but got ",
+                          k_head_size,
+                          " and ",
+                          v_head_size,
+                          ".");
 
     const auto gate_head_num = gate_ps[2];
     const auto beta_head_num = beta_ps[2];
 
     NODE_VALIDATION_CHECK(this,
-                          gate_head_num.is_static() && beta_head_num.is_static() &&
-                              gate_head_num.get_length() == beta_head_num.get_length(),
+                          gate_head_num.compatible(beta_head_num),
                           "The number of heads in gate and beta should be the same, but got ",
                           gate_head_num,
                           " and ",
@@ -127,34 +124,41 @@ void GatedDeltaNet::validate_and_infer_types() {
     const auto state_hidden_size_0 = state_ps[2];
     const auto state_hidden_size_1 = state_ps[3];
     NODE_VALIDATION_CHECK(this,
-                          state_head_num.is_static() && state_head_num.get_length() == v_head_num.get_length(),
+                          state_head_num.compatible(v_head_num),
                           "The number of heads in recurrent_state and value should be the same, but got ",
                           state_head_num,
                           " and ",
                           v_head_num,
                           ".");
-    NODE_VALIDATION_CHECK(
-        this,
-        state_hidden_size_0.is_static() && state_hidden_size_0.get_length() == v_head_size.get_length(),
-        "The [-2] dim in shape of recurrent_state and value should be the same, but got ",
-        state_hidden_size_0,
-        " and ",
-        v_head_size,
-        ".");
-    NODE_VALIDATION_CHECK(
-        this,
-        state_hidden_size_1.is_static() && state_hidden_size_1.get_length() == k_head_size.get_length(),
-        "The [-1] dim in shape of recurrent_state and key should be the same, but got ",
-        state_hidden_size_1,
-        " and ",
-        k_head_size,
-        ".");
+    NODE_VALIDATION_CHECK(this,
+                          state_hidden_size_0.compatible(v_head_size),
+                          "The [-2] dim in shape of recurrent_state and value should be the same, but got ",
+                          state_hidden_size_0,
+                          " and ",
+                          v_head_size,
+                          ".");
+    NODE_VALIDATION_CHECK(this,
+                          state_hidden_size_1.compatible(k_head_size),
+                          "The [-1] dim in shape of recurrent_state and key should be the same, but got ",
+                          state_hidden_size_1,
+                          " and ",
+                          k_head_size,
+                          ".");
     // output has the same shape and type as input value, output state has the same shape and type as input
     // recurrent_state
     auto out_ps = get_input_partial_shape(2);
     const auto& h_ps = get_input_partial_shape(3);
     set_output_type(0, get_input_element_type(2), out_ps);
     set_output_type(1, get_input_element_type(3), h_ps);
+}
+
+bool GatedDeltaNet::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(GatedDeltaNet_visit_attributes);
+    visitor.start_structure("config");
+    visitor.on_attribute("fuse_qk_l2norm", m_config.fuse_qk_l2norm);
+    visitor.on_attribute("fuse_q_scale", m_config.fuse_q_scale);
+    visitor.finish_structure();
+    return true;
 }
 
 std::shared_ptr<ov::Node> GatedDeltaNet::clone_with_new_inputs(const ov::OutputVector& new_args) const {

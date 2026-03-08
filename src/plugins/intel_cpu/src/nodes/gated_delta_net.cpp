@@ -22,7 +22,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/gated_delta_net.hpp"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/plain_tensor.hpp"
 
 using namespace ov::Extensions::Cpu;
