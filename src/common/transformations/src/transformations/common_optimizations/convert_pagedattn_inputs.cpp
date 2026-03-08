@@ -122,10 +122,8 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
         };
         auto key_cache_precision = format_cache_precision(m_config.keyCachePrecision, m_config.inferencePrecision);
         auto value_cache_precision = format_cache_precision(m_config.valueCachePrecision, m_config.inferencePrecision);
-
         key_cache->set_element_type(key_cache_precision);
         value_cache->set_element_type(value_cache_precision);
-
         bool status = false;
         if (pa_op->get_rt_info().count("num_k_heads") && pa_op->get_rt_info().count("k_head_size") &&
             pa_op->get_rt_info().count("num_v_heads") && pa_op->get_rt_info().count("v_head_size")) {

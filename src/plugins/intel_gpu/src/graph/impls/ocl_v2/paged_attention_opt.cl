@@ -271,13 +271,8 @@ KERNEL(pa_sdpa_opt)(
                     INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
                     comp_scale[0] = key_comp_ptr[0];
                     comp_zp[0] = key_comp_ptr[1];
-                    // unroll_for (uint i = 0; i < PACK_SIZE; i++) {
-                    {
-                        // const uint key_comp_offset = key_block_offset + (qk_idx+i) * SUBGROUP_SIZE * hidden_stride + sglid * hidden_stride + PAGED_ATTENTION_BLOCK_SIZE;
-                        // INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
-                        comp_scale[1] = key_comp_ptr[2];
-                        comp_zp[1] = key_comp_ptr[3];
-                    }
+                    comp_scale[1] = key_comp_ptr[2];
+                    comp_zp[1] = key_comp_ptr[3];
                 #endif
 
                 uint init_index = key_block_offset + 0 * hidden_stride * KEY_VEC_SIZE;
@@ -289,14 +284,14 @@ KERNEL(pa_sdpa_opt)(
 
                     char key_orig = buff.s0;
                     #ifdef IS_KEY_BY_CHANNEL
-                        INPUT0_TYPE prev_scale = sub_group_shuffle(comp_scale[0], i);
-                        INPUT0_TYPE temp_scale = sub_group_shuffle(comp_scale[1], i);
-                        INPUT0_TYPE prev_zp = sub_group_shuffle(comp_zp[0], i);
-                        INPUT0_TYPE temp_zp = sub_group_shuffle(comp_zp[1], i);
-                        k_vals[qk_idx][i] = ((INPUT0_TYPE)key_orig - prev_zp) * prev_scale;
+                        INPUT0_TYPE first_scale = sub_group_shuffle(comp_scale[0], i);
+                        INPUT0_TYPE second_scale = sub_group_shuffle(comp_scale[1], i);
+                        INPUT0_TYPE first_zp = sub_group_shuffle(comp_zp[0], i);
+                        INPUT0_TYPE second_zp = sub_group_shuffle(comp_zp[1], i);
+                        k_vals[qk_idx][i] = ((INPUT0_TYPE)key_orig - first_zp) * first_scale;
                         if (qk_idx + 1 < (K_HEAD_SIZE / KEY_VEC_SIZE)) {
                             key_orig = buff.s1;
-                            k_vals[qk_idx+1][i] = ((INPUT0_TYPE)key_orig - temp_zp) * temp_scale;
+                            k_vals[qk_idx+1][i] = ((INPUT0_TYPE)key_orig - second_zp) * second_scale;
                         }
                     #else
                         k_vals[qk_idx][i] = ((INPUT0_TYPE)key_orig - comp_zp) * comp_scale;

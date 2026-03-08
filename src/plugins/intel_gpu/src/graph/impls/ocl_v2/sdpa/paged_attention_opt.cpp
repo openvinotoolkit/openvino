@@ -620,6 +620,10 @@ public:
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::ALIBI});  // alibi
         }
 
+        if (desc->has_sink_input) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
+        }
+
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         add_intermediate_inputs(args, has_scores_output, true, desc->has_score_aggregation);
         return args;
@@ -694,8 +698,6 @@ public:
 
             wgs.global = {total_tokens, heads_num, head_size};
             wgs.local = {1, 1, subgroup_size};
-            // [DEBUG]
-            // printf(">>>> [DEBUG] _multi_tokens_finalization : local(2):(%lu) head_size(%lu), subgroup_size(%lu)\n", wgs.local[2], head_size, subgroup_size);
 
             scalars[0].t = ScalarDescriptor::Types::UINT32;
             scalars[0].v.u32 = static_cast<uint32_t>(rtp->num_of_partitions);
@@ -1059,6 +1061,21 @@ protected:
         jit.make("IS_KEY_BY_CHANNEL", (is_kv_compressed && is_key_by_channel) ? 1 : 0);
         if (is_kv_compressed) {
             auto scales_zp_size = get_element_size(original_cache_dt) * 2;  // scale + zp;
+            const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+            if (data_type_traits::is_i4_u4(kv_cache_dt)) {
+                // INT4 compression is packing elements along groups in head which has different scalea and zp
+                scales_zp_size = get_element_size(original_cache_dt) * 4;
+                jit.make("IS_INT4_COMPRESSED", true);
+                jit.make("PACKED_K_HEAD_SIZE", kernel_selector::Align(desc->k_head_size / pack_size, subgroup_size));
+                if (is_key_by_channel) {
+                    jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size / pack_size, subgroup_size)));
+                } else {
+                    jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size / pack_size, subgroup_size)) + scales_zp_size);
+                }
+            } else {
+                jit.make("IS_INT4_COMPRESSED", false);
+            }
+
             jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
             if (is_key_by_channel) {
                 jit.make("ADJUSTED_HEAD_SIZE", desc->k_head_size);

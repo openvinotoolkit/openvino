@@ -208,7 +208,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
         #define OUT_DATA_VEC MAKE_VECTOR_TYPE(OUTPUT_TYPE, READ_SIZE)
         #define IN_DATA_VEC MAKE_VECTOR_TYPE(INPUT0_TYPE, READ_SIZE)
         #define VLOAD CAT(vload, READ_SIZE)
-        // IN_DATA_VEC cache_data_vec_decompressed[PACK_SIZE];
+
         for (int j = 0; j < new_tokens_num; ++j) {
             INPUT0_TYPE new_token = BLOCK_READN(INPUT0_TYPE, 1, in_data, in_data_offset + j * K_HEAD_SIZE * KV_HEADS_NUM + hidden_idx);
 
