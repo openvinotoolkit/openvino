@@ -75,19 +75,30 @@ bool matches_linear_attention_loop(const std::shared_ptr<ov::op::v5::Loop>& loop
         }
         return n->input_value(idx).get_node_shared_ptr();
     };
+    auto skip_convert = [](std::shared_ptr<ov::Node> n) -> std::shared_ptr<ov::Node> {
+        while (n) {
+            auto cvt = std::dynamic_pointer_cast<ov::op::v0::Convert>(n);
+            if (!cvt || cvt->get_input_size() == 0) {
+                break;
+            }
+            n = cvt->input_value(0).get_node_shared_ptr();
+        }
+        return n;
+    };
 
     std::shared_ptr<ov::op::v3::ScatterUpdate> scatter_result;
     std::shared_ptr<ov::op::v1::Add> add_result;
     bool has_bool_const_result = false;
     for (const auto& result : body->get_results()) {
-        auto src = result->input_value(0).get_node_shared_ptr();
+        auto src_raw = result->input_value(0).get_node_shared_ptr();
+        auto src = skip_convert(src_raw);
         if (!scatter_result) {
             scatter_result = std::dynamic_pointer_cast<ov::op::v3::ScatterUpdate>(src);
         }
         if (!add_result) {
             add_result = std::dynamic_pointer_cast<ov::op::v1::Add>(src);
         }
-        auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(src);
+        auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(src_raw);
         if (c && c->get_element_type() == ov::element::boolean) {
             has_bool_const_result = true;
         }
@@ -97,24 +108,24 @@ bool matches_linear_attention_loop(const std::shared_ptr<ov::op::v5::Loop>& loop
     }
 
     // Scatter update value must be ReduceSum(keep_dims=true) over Multiply(Add(state), Unsqueeze(Squeeze(q))).
-    auto rs_out = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(get_input_node(scatter_result, 2));
+    auto rs_out = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(skip_convert(get_input_node(scatter_result, 2)));
     if (!rs_out || !rs_out->get_keep_dims()) {
         return false;
     }
-    auto mul_out = std::dynamic_pointer_cast<ov::op::v1::Multiply>(get_input_node(rs_out, 0));
+    auto mul_out = std::dynamic_pointer_cast<ov::op::v1::Multiply>(skip_convert(get_input_node(rs_out, 0)));
     if (!mul_out) {
         return false;
     }
-    auto add_state = std::dynamic_pointer_cast<ov::op::v1::Add>(get_input_node(mul_out, 0));
-    auto unsq_q = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(get_input_node(mul_out, 1));
+    auto add_state = std::dynamic_pointer_cast<ov::op::v1::Add>(skip_convert(get_input_node(mul_out, 0)));
+    auto unsq_q = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(skip_convert(get_input_node(mul_out, 1)));
     if (!add_state || !unsq_q) {
-        add_state = std::dynamic_pointer_cast<ov::op::v1::Add>(get_input_node(mul_out, 1));
-        unsq_q = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(get_input_node(mul_out, 0));
+        add_state = std::dynamic_pointer_cast<ov::op::v1::Add>(skip_convert(get_input_node(mul_out, 1)));
+        unsq_q = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(skip_convert(get_input_node(mul_out, 0)));
     }
     if (!add_state || !unsq_q) {
         return false;
     }
-    if (!std::dynamic_pointer_cast<ov::op::v0::Squeeze>(get_input_node(unsq_q, 0))) {
+    if (!std::dynamic_pointer_cast<ov::op::v0::Squeeze>(skip_convert(get_input_node(unsq_q, 0)))) {
         return false;
     }
     if (add_state != add_result) {
@@ -122,26 +133,26 @@ bool matches_linear_attention_loop(const std::shared_ptr<ov::op::v5::Loop>& loop
     }
 
     // Add(state) must combine: state_gated and outer_update
-    auto add_in0_mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(get_input_node(add_state, 0));
-    auto add_in1_mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(get_input_node(add_state, 1));
+    auto add_in0_mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(skip_convert(get_input_node(add_state, 0)));
+    auto add_in1_mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(skip_convert(get_input_node(add_state, 1)));
     if (!add_in0_mul || !add_in1_mul) {
         return false;
     }
 
     auto is_state_gated_mul = [&](const std::shared_ptr<ov::op::v1::Multiply>& m) {
-        auto u0 = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(get_input_node(m, 0));
-        auto u1 = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(get_input_node(m, 1));
-        return (u0 && std::dynamic_pointer_cast<ov::op::v0::Exp>(get_input_node(u0, 0))) ||
-               (u1 && std::dynamic_pointer_cast<ov::op::v0::Exp>(get_input_node(u1, 0)));
+        auto u0 = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(skip_convert(get_input_node(m, 0)));
+        auto u1 = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(skip_convert(get_input_node(m, 1)));
+        return (u0 && std::dynamic_pointer_cast<ov::op::v0::Exp>(skip_convert(get_input_node(u0, 0)))) ||
+               (u1 && std::dynamic_pointer_cast<ov::op::v0::Exp>(skip_convert(get_input_node(u1, 0))));
     };
     auto is_outer_update_mul = [&](const std::shared_ptr<ov::op::v1::Multiply>& m) {
-        auto u0 = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(get_input_node(m, 0));
-        auto u1 = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(get_input_node(m, 1));
+        auto u0 = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(skip_convert(get_input_node(m, 0)));
+        auto u1 = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(skip_convert(get_input_node(m, 1)));
         if (!u0 || !u1) {
             return false;
         }
-        return std::dynamic_pointer_cast<ov::op::v0::Squeeze>(get_input_node(u0, 0)) ||
-               std::dynamic_pointer_cast<ov::op::v0::Squeeze>(get_input_node(u1, 0));
+        return std::dynamic_pointer_cast<ov::op::v0::Squeeze>(skip_convert(get_input_node(u0, 0))) ||
+               std::dynamic_pointer_cast<ov::op::v0::Squeeze>(skip_convert(get_input_node(u1, 0)));
     };
 
     std::shared_ptr<ov::op::v1::Multiply> state_gated_mul;
@@ -157,37 +168,38 @@ bool matches_linear_attention_loop(const std::shared_ptr<ov::op::v5::Loop>& loop
     }
 
     // outer_update must consume Unsqueeze(Multiply(Subtract(...), beta))
-    auto ou_u0 = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(get_input_node(outer_update_mul, 0));
-    auto ou_u1 = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(get_input_node(outer_update_mul, 1));
+    auto ou_u0 = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(skip_convert(get_input_node(outer_update_mul, 0)));
+    auto ou_u1 = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(skip_convert(get_input_node(outer_update_mul, 1)));
     if (!ou_u0 || !ou_u1) {
         return false;
     }
-    auto delta_mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(get_input_node(ou_u0, 0));
+    auto delta_mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(skip_convert(get_input_node(ou_u0, 0)));
     if (!delta_mul) {
-        delta_mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(get_input_node(ou_u1, 0));
+        delta_mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(skip_convert(get_input_node(ou_u1, 0)));
     }
     if (!delta_mul) {
         return false;
     }
-    auto sub = std::dynamic_pointer_cast<ov::op::v1::Subtract>(get_input_node(delta_mul, 0));
+    auto sub = std::dynamic_pointer_cast<ov::op::v1::Subtract>(skip_convert(get_input_node(delta_mul, 0)));
     if (!sub) {
-        sub = std::dynamic_pointer_cast<ov::op::v1::Subtract>(get_input_node(delta_mul, 1));
+        sub = std::dynamic_pointer_cast<ov::op::v1::Subtract>(skip_convert(get_input_node(delta_mul, 1)));
     }
     if (!sub) {
         return false;
     }
-    auto rs_mid = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(get_input_node(sub, 0));
+    auto rs_mid = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(skip_convert(get_input_node(sub, 0)));
     if (!rs_mid) {
-        rs_mid = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(get_input_node(sub, 1));
+        rs_mid = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(skip_convert(get_input_node(sub, 1)));
     }
     if (!rs_mid || rs_mid->get_keep_dims()) {
         return false;
     }
-    auto mul_mid = std::dynamic_pointer_cast<ov::op::v1::Multiply>(get_input_node(rs_mid, 0));
+    auto mul_mid = std::dynamic_pointer_cast<ov::op::v1::Multiply>(skip_convert(get_input_node(rs_mid, 0)));
     if (!mul_mid) {
         return false;
     }
-    if (get_input_node(mul_mid, 0) != state_gated_mul && get_input_node(mul_mid, 1) != state_gated_mul) {
+    if (skip_convert(get_input_node(mul_mid, 0)) != state_gated_mul &&
+        skip_convert(get_input_node(mul_mid, 1)) != state_gated_mul) {
         return false;
     }
     return true;
@@ -343,12 +355,13 @@ bool replace_concat_slice_with_linear_attention(const std::shared_ptr<ov::op::v5
 using namespace ov::gen_pattern;
 using namespace ov::pass::pattern;
 ov::pass::GatedDeltaNetFusion::GatedDeltaNetFusion() {
-    auto query = ov::pass::pattern::any_input(rank_equals(4));
-    auto key = ov::pass::pattern::any_input(rank_equals(4));
-    auto value = ov::pass::pattern::any_input(rank_equals(4));
+    auto query = ov::pass::pattern::any_input(rank_equals(4) && shape_matches("[?, ?, qk_head_num, qk_head_size]"));
+    auto key = ov::pass::pattern::any_input(rank_equals(4) && shape_matches("[?, ?, qk_head_num, qk_head_size]"));
+    auto value =
+        ov::pass::pattern::any_input(rank_equals(4) && shape_matches("[?, ?, value_head_num, value_head_size]"));
     auto init_state = ov::pass::pattern::any_input(rank_equals(4));
-    auto gate = ov::pass::pattern::any_input(rank_equals(3));
-    auto beta = ov::pass::pattern::any_input(rank_equals(3));
+    auto gate = ov::pass::pattern::any_input(rank_equals(3) && shape_matches("[?, ?, head_num]"));
+    auto beta = ov::pass::pattern::any_input(rank_equals(3) && shape_matches("[?, ?, head_num]"));
     auto transpose_value = pattern::wrap_type<ov::op::v1::Transpose>({value, {0, 2, 1, 3}});
     auto transpose_gate = pattern::wrap_type<ov::op::v1::Transpose>({gate, {0, 2, 1}});
     auto transpose_beta = pattern::wrap_type<ov::op::v1::Transpose>({beta, {0, 2, 1}});
@@ -370,8 +383,8 @@ ov::pass::GatedDeltaNetFusion::GatedDeltaNetFusion() {
 
     auto inv_const_k_const = pattern::wrap_type<ov::op::v0::Constant>(value_matches("1"));
     auto inv_const_k = pattern::optional<ov::op::v0::Convert>({inv_const_k_const});
-
-    auto Multiply_14 = pattern::wrap_type<ov::op::v1::Multiply>({query, query});
+    auto q_convert_before_l2_norm = pattern::optional<ov::op::v0::Convert>({query});
+    auto Multiply_14 = pattern::wrap_type<ov::op::v1::Multiply>({q_convert_before_l2_norm, q_convert_before_l2_norm});
     auto ReduceSum_15 =
         pattern::wrap_type<ov::op::v1::ReduceSum>({Multiply_14, axis_q->output(0)}, {{"keep_dims", true}});
     auto Add_18 = pattern::wrap_type<ov::op::v1::Add>({ReduceSum_15, eps_q->output(0)});
@@ -379,14 +392,16 @@ ov::pass::GatedDeltaNetFusion::GatedDeltaNetFusion() {
     auto Divide_20 = pattern::wrap_type<ov::op::v1::Divide>({inv_const_q->output(0), Sqrt_19});
     auto Power_20 = pattern::wrap_type<ov::op::v1::Power>({Sqrt_19, {-1}});
     auto inv_sqrt_q = std::make_shared<pattern::op::Or>(OutputVector{Divide_20, Power_20});
-    auto Multiply_21 = pattern::wrap_type<ov::op::v1::Multiply>({query, inv_sqrt_q->output(0)});
+    auto Multiply_21 = pattern::wrap_type<ov::op::v1::Multiply>({q_convert_before_l2_norm, inv_sqrt_q->output(0)});
     auto q_type_convert = pattern::optional<ov::op::v0::Convert>({Multiply_21});
     // q / sqrt(d)
     auto transpose_query = pattern::wrap_type<ov::op::v1::Transpose>({q_type_convert, {0, 2, 1, 3}});
     auto Multiply_32 = pattern::wrap_type<ov::op::v1::Divide>({transpose_query, any_input()});
     auto q_candidate = Multiply_32;
 
-    auto Multiply_22 = pattern::wrap_type<ov::op::v1::Multiply>({key, key});
+    auto key_convert_before_l2_norm = pattern::optional<ov::op::v0::Convert>({key});
+    auto Multiply_22 =
+        pattern::wrap_type<ov::op::v1::Multiply>({key_convert_before_l2_norm, key_convert_before_l2_norm});
     auto ReduceSum_23 =
         pattern::wrap_type<ov::op::v1::ReduceSum>({Multiply_22, axis_k->output(0)}, {{"keep_dims", true}});
     auto Add_26 = pattern::wrap_type<ov::op::v1::Add>({ReduceSum_23, eps_k->output(0)});
@@ -394,7 +409,7 @@ ov::pass::GatedDeltaNetFusion::GatedDeltaNetFusion() {
     auto Divide_28 = pattern::wrap_type<ov::op::v1::Divide>({inv_const_k->output(0), Sqrt_27});
     auto Power_28 = pattern::wrap_type<ov::op::v1::Power>({Sqrt_27, {-1}});
     auto inv_sqrt_k = std::make_shared<pattern::op::Or>(OutputVector{Divide_28, Power_28});
-    auto Multiply_29 = pattern::wrap_type<ov::op::v1::Multiply>({key, inv_sqrt_k->output(0)});
+    auto Multiply_29 = pattern::wrap_type<ov::op::v1::Multiply>({key_convert_before_l2_norm, inv_sqrt_k->output(0)});
     auto k_type_convert = pattern::optional<ov::op::v0::Convert>({Multiply_29});
     auto transpose_key = pattern::wrap_type<ov::op::v1::Transpose>({k_type_convert, {0, 2, 1, 3}});
 
@@ -417,7 +432,6 @@ ov::pass::GatedDeltaNetFusion::GatedDeltaNetFusion() {
         if (!matches_linear_attention_loop(loop)) {
             return false;
         }
-
         std::vector<std::shared_ptr<ov::Node>> rt_nodes{loop};
         ov::OutputVector inputs;
         inputs.reserve(6);

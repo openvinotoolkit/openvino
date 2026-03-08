@@ -33,7 +33,7 @@ using namespace ov::Extensions::Cpu::XARCH;
 namespace ov::intel_cpu::node {
 
 GatedDeltaNet::GatedDeltaNet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, InternalDynShapeInferFactory()) {
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -100,7 +100,7 @@ void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
 
 bool GatedDeltaNet::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                          std::string& errorMessage) noexcept {
-    if (!ov::is_type<ov::op::GatedDeltaNet>(op)) {
+    if (!ov::is_type<ov::op::GatedDeltaNet>(op) || op == nullptr) {
         errorMessage = "Node is not an instance of ov::op::GatedDeltaNet.";
         return false;
     }

@@ -27,7 +27,6 @@ public:
         return getType() == Type::GatedDeltaNet;
     }
 
-    // pastkv may have zero dimension
     bool isExecutable() const override {
         return true;
     }
