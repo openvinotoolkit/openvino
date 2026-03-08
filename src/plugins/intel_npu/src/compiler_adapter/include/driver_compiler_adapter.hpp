@@ -23,16 +23,10 @@ public:
 
     std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model, const FilteredConfig& config) const override;
 
-    std::shared_ptr<IGraph> parse(
-        const ov::Tensor& mainBlob,
-        const FilteredConfig& config,
-        const std::optional<std::vector<ov::Tensor>>& initBlobs = std::nullopt,
-        std::optional<std::shared_ptr<const ov::Model>>&& model = std::nullopt) const override;
-
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
                               const FilteredConfig& config) const override;
 
-    std::vector<std::string> get_supported_options() const override;
+    std::optional<std::vector<std::string>> get_supported_options() const override;
 
     bool is_option_supported(std::string optName, std::optional<std::string> optValue = std::nullopt) const override;
 
