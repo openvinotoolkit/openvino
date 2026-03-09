@@ -1919,7 +1919,8 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
 //     Const(S) ---------------------> Multiply -> to(f32) -> MatMul -> Result
 //     ???(Act) -------------------------------------------->
 
-PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx, PreserveConstDictMatMulAsymm::Results to_keep) {
+PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
+                                                           PreserveConstDictMatMulAsymm::Results to_keep) {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
@@ -1931,7 +1932,6 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx, Pre
     auto qmmi = opp::any_input();
     auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtm});
     std::shared_ptr<Node> qres;
-
 
     // MatMul -> Divide -> Tanh -> Multiply -> Result
     if (ctx.get().mm_gate) {

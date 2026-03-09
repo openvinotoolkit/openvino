@@ -1199,10 +1199,11 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
                                                ov::AnyMap{{ov::intel_npu::compiler_type.name(), target_compiler_type}})
                                 .as<int64_t>();
     }
-    LOG_INFO("Compiler version: " << ONEAPI_VERSION_MAJOR(desc.compiler_ver) << "." << ONEAPI_VERSION_MINOR(desc.compiler_ver));
+    LOG_INFO("Compiler version: " << ONEAPI_VERSION_MAJOR(desc.compiler_ver) << "."
+                                  << ONEAPI_VERSION_MINOR(desc.compiler_ver));
 
-    constexpr std::string_view compiler_gate_support_msg
-        = "Compiler: accurate gated matmul (MatMul -> Divide -> Tanh -> Multiply -> Result) : ";
+    constexpr std::string_view compiler_gate_support_msg =
+        "Compiler: accurate gated matmul (MatMul -> Divide -> Tanh -> Multiply -> Result) : ";
 
     if (desc.compiler_ver >= ONEAPI_MAKE_VERSION(7, 28)) {
         // accuracy for gated matmul fixed at 7.28
@@ -1255,7 +1256,7 @@ ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
         config.erase("NPUW_DCOFF_SCALE");
     }
 
-    //default version is ON - while for older compiler it might be turned off
+    // default version is ON - while for older compiler it might be turned off
     if (npudesc.has_value()) {
         config.emplace("NPUW_MM_GATED", (npudesc->compiler_matmul_gate ? "YES" : "NO"));
     }
