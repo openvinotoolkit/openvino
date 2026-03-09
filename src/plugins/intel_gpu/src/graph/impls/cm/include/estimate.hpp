@@ -33,6 +33,10 @@
 #define ATTR_BUF [[type("buffer_t")]]
 #endif
 
+#ifndef KV_CACHE_COMPRESSION
+#define KV_CACHE_COMPRESSION 0
+#endif
+
 #define MYMIN(x, y) ((x) < (y) ? (x) : (y))
 
 template<typename T, int N>
@@ -378,7 +382,7 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
     uint block_idx = (uint)(id_wg_n * BLOCK_WG_N + id_sg_n * BLOCK_SG_N) * STRIDE / KV_BLOCK_SIZE;
     uint max_block_idx = (uint)(N * STRIDE + KV_BLOCK_SIZE - 1) / KV_BLOCK_SIZE - 1;
     block_idx = MYMIN(block_idx, max_block_idx);
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
     uint offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
     lsc::block_2d_desc<int, 1, KEY_LINES_PER_LOAD, 8> desc_b0{ key_cache + offset, KEY_LINES_PER_LOAD - 1, (uint)(K * sizeof(char) - 1), (uint)(K * sizeof(char) - 1),
         0, 0 };
@@ -399,8 +403,12 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
     // N[:]xK[0:32]                                                     --> 16 * 1 regs
     matrix<int, KEY_LINES_PER_LOAD, 8> b0_up_s8, b0_down_s8, b1_up_s8, b1_down_s8;
     matrix<half, 2, BLOCK_REG_B> b0;                      // --> 16 regs
+    #if (KV_CACHE_COMPRESSION == 1)
     matrix<half, 2, KEY_LINES_PER_LOAD * 2> scales, zps;
     matrix<half, 2, KV_BLOCK_SIZE> scales_block, zps_block;
+    #else
+    matrix<half, 2, 16 * 16> scales_block, zps_block;
+    #endif
 #else
     uint offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE * (uint)sizeof(half));
     lsc::block_2d_desc<int, 1, KEY_LINES_PER_LOAD, 8> desc_b0{ key_cache + offset, KEY_LINES_PER_LOAD - 1, (uint)(K * sizeof(half) - 1), (uint)(K * sizeof(half) - 1),
@@ -430,8 +438,9 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
     }
 
     // load b: N[0:16]xK[0:16]
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
     {
+        #if (KV_CACHE_COMPRESSION == 1)
         lsc::block_2d_desc<int, 1, 16, 16 / 2> desc_scale{ key_cache + scale_offset0, 16 * 2 - 1, (uint)(16 * sizeof(half) - 1), (uint)(16 * sizeof(half) - 1),
             0, 0 };
         matrix<half, 16, 16> tmp_scale, tmp_zp;
@@ -441,6 +450,7 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
         scales_block[0].format<half, 16, 16>().select<8, 2, 16, 1>(1) = tmp_scale.format<half, 8, 32>().select<8, 1, 16, 2>(0, 1);
         zps_block[0].format<half, 16, 16>().select<8, 2, 16, 1>(0) = tmp_zp.format<half, 8, 32>().select<8, 1, 16, 2>(0, 0);
         zps_block[0].format<half, 16, 16>().select<8, 2, 16, 1>(1) = tmp_zp.format<half, 8, 32>().select<8, 1, 16, 2>(0, 1);
+
         desc_scale.set_base(key_cache + scale_offset1);
         cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_scale.format<int>(), desc_scale);
         cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 16>(tmp_zp.format<int>(), desc_scale);
@@ -448,6 +458,7 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
         scales_block[1].format<half, 16, 16>().select<8, 2, 16, 1>(1) = tmp_scale.format<half, 8, 32>().select<8, 1, 16, 2>(0, 1);
         zps_block[1].format<half, 16, 16>().select<8, 2, 16, 1>(0) = tmp_zp.format<half, 8, 32>().select<8, 1, 16, 2>(0, 0);
         zps_block[1].format<half, 16, 16>().select<8, 2, 16, 1>(1) = tmp_zp.format<half, 8, 32>().select<8, 1, 16, 2>(0, 1);
+        #endif
     }
 
     if constexpr (IS64) {
@@ -465,7 +476,8 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
         desc_b1.set_block_x(desc_b1.get_block_x() + 8);
     }
 
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
+    #if (KV_CACHE_COMPRESSION == 1)
     auto dec = [&](vector<int, 64> B0_i8, vector<int, 64> B1_i8, matrix_ref<half, REG_N, BLOCK_REG_B> B0) {
 #pragma unroll
         for (int n = 0; n < REG_N; n++) {
@@ -485,6 +497,51 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
             }
         }
     };
+    #else
+    auto dec = [&](vector<int, 64> B0_i8, vector<int, 64> B1_i8, matrix_ref<half, REG_N, BLOCK_REG_B> B0) {
+#pragma unroll
+        for (int n = 0; n < REG_N; n++) {
+            auto b = B0[n].format<half, 8, 32>();
+#pragma unroll
+            for (int m = 0; m < 8; m++) {
+                auto b_row = b[m];
+                vector<ushort, 16> d0;
+                if (n == 0)
+                    d0 = B0_i8.format<ushort, 4, 32>()[m / 2].select<16, 2>(m % 2);
+                else
+                    d0 = B1_i8.format<ushort, 4, 32>()[m / 2].select<16, 2>(m % 2);
+                b_row.format<ushort>() = d0.format<uchar>();
+                b_row *= half{32768.0};
+                b_row *= half{512.0};
+                auto scale_mat = scales_block[n].format<half, 8, 32>();
+                auto zp_mat = zps_block[n].format<half, 8, 32>();
+                b_row = (b_row - zp_mat.row(m)) * scale_mat.row(m);
+            }
+        }
+    };
+
+    uint zp_offset0 = scale_offset0 + 16 * HEAD_SIZE * sizeof(half);
+    uint zp_offset1 = scale_offset1 + 16 * HEAD_SIZE * sizeof(half);
+    auto load_scale_zp = [&](uint channel_base) {
+        lsc::block_2d_desc<int, 1, 16, 16 / 2> desc_scale{ key_cache + scale_offset0 + channel_base * sizeof(half),
+            16 * 2 - 1, (uint)(16 * sizeof(half) - 1), (uint)(HEAD_SIZE * sizeof(half) - 1), 0, 0 };
+        matrix<half, 16, 16> tmp_scale, tmp_zp;
+
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_scale.format<int>(), desc_scale);
+        scales_block[0].format<half, 8, 32>() = tmp_scale.format<half, 8, 32>();
+
+        desc_scale.set_base(key_cache + zp_offset0 + channel_base * sizeof(half));
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_zp.format<int>(), desc_scale);
+        zps_block[0].format<half, 8, 32>() = tmp_zp.format<half, 8, 32>();
+
+        desc_scale.set_base(key_cache + scale_offset1 + channel_base * sizeof(half));
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_scale.format<int>(), desc_scale);
+        scales_block[1].format<half, 8, 32>() = tmp_scale.format<half, 8, 32>();
+        desc_scale.set_base(key_cache + zp_offset1 + channel_base * sizeof(half));
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_zp.format<int>(), desc_scale);
+        zps_block[1].format<half, 8, 32>() = tmp_zp.format<half, 8, 32>();
+    };
+    #endif
 #endif
     auto dot = [&](matrix<half, REG_M, BLOCK_REG_A> A, matrix<half, REG_N, BLOCK_REG_B> B) {
 #pragma unroll
@@ -498,7 +555,7 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
     };
 
     for (uint s = 0; s < STRIDE; s++) {
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION == 1)
         auto tmp = scales_block[0].select<16, 1>(s * 16);
         scales[0].select<16, 2>(0) = tmp;
         scales[0].select<16, 2>(1) = scales[0].select<16, 2>(0);
@@ -514,6 +571,7 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
 #endif
         #pragma unroll
         for (uint hs = 0; hs < HEAD_SIZE / BLOCK_WG_K; hs++) {
+            uint channel_base = hs * BLOCK_WG_K;
             if constexpr (IS64) {
                 // 4 phases with b0, b1 ping-pong buffer
                 // prefetch
@@ -529,11 +587,18 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
                 cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0,  0>(a0.select<4, 1, BLOCK_REG_A, 1>(0).format<half>(), desc_a);
                 cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0, 32>(a0.select<4, 1, BLOCK_REG_A, 1>(4).format<half>(), desc_a);
                 // load b: N[0:16*2]xK[16:32]
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1_up_s8.format<int>(), desc_b0);
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1_down_s8.format<int>(), desc_b1);
+                #if (KV_CACHE_COMPRESSION == 1)
                 dec(b0_up_s8.format<int>().select<64, 1>(), b0_down_s8.format<int>().select<64, 1>(), b0);
                 dot(a0, b0);
+                #else
+                load_scale_zp(channel_base);
+                dec(b0_up_s8.format<int>().select<64, 1>(), b0_down_s8.format<int>().select<64, 1>(), b0);
+                channel_base += BLOCK_REG_K;
+                dot(a0, b0);
+                #endif
 #else
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1[0].format<int>(), desc_b0);
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1[1].format<int>(), desc_b1);
@@ -548,9 +613,16 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
                 cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0,  0>(a0.select<4, 1, BLOCK_REG_A, 1>(0).format<half>(), desc_a);
                 cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0, 32>(a0.select<4, 1, BLOCK_REG_A, 1>(4).format<half>(), desc_a);
 
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
+                #if (KV_CACHE_COMPRESSION == 1)
                 dec(b0_up_s8.format<int>().select<64, 1>(64), b0_down_s8.format<int>().select<64, 1>(64), b0);
                 dot(a0, b0);
+                #else
+                load_scale_zp(channel_base);
+                dec(b0_up_s8.format<int>().select<64, 1>(64), b0_down_s8.format<int>().select<64, 1>(64), b0);
+                dot(a0, b0);
+                channel_base += BLOCK_REG_K;
+                #endif
 #else
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[0].format<int>(), desc_b0);
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[1].format<int>(), desc_b1);
@@ -571,11 +643,18 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
                 cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0, 32>(a0.select<4, 1, BLOCK_REG_A, 1>(4).format<half>(), desc_a);
 
                 // load b: N[0:16*2]xK[32:64]
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_up_s8.format<int>(), desc_b0);
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_down_s8.format<int>(), desc_b1);
+                #if (KV_CACHE_COMPRESSION == 1)
                 dec(b1_up_s8.format<int>().select<64, 1>(), b1_down_s8.format<int>().select<64, 1>(), b0);
                 dot(a0, b0);
+                #else
+                load_scale_zp(channel_base);
+                dec(b1_up_s8.format<int>().select<64, 1>(), b1_down_s8.format<int>().select<64, 1>(), b0);
+                dot(a0, b0);
+                channel_base += BLOCK_REG_K;
+                #endif
 #else
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1[0].format<int>(), desc_b0);
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1[1].format<int>(), desc_b1);
@@ -595,9 +674,16 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
                     desc_a.set_block_x(desc_a.get_block_x() + 16);
                 }
 
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
+                #if (KV_CACHE_COMPRESSION == 1)
                 dec(b1_up_s8.format<int>().select<64, 1>(64), b1_down_s8.format<int>().select<64, 1>(64), b0);
                 dot(a0, b0);
+                #else
+                load_scale_zp(channel_base);
+                dec(b1_up_s8.format<int>().select<64, 1>(64), b1_down_s8.format<int>().select<64, 1>(64), b0);
+                dot(a0, b0);
+                channel_base += BLOCK_REG_K;
+                #endif
 #else
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[0].format<int>(), desc_b0);
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[1].format<int>(), desc_b1);
@@ -616,12 +702,19 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
                 // load a: M[0:16*4]xK[0:16]
                 cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0,  0>(a0.select<4, 1, BLOCK_REG_A, 1>(0).format<half>(), desc_a);
                 cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0, 32>(a0.select<4, 1, BLOCK_REG_A, 1>(4).format<half>(), desc_a);
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
                 // load b: N[0:16*2]xK[0:32]
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_up_s8.format<int>(), desc_b0);
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_down_s8.format<int>(), desc_b1);
+                #if (KV_CACHE_COMPRESSION == 1)
                 dec(b0_up_s8.format<int>().select<64, 1>(), b0_down_s8.format<int>().select<64, 1>(), b0);
                 dot(a0, b0);
+                #else
+                load_scale_zp(channel_base);
+                dec(b0_up_s8.format<int>().select<64, 1>(), b0_down_s8.format<int>().select<64, 1>(), b0);
+                dot(a0, b0);
+                channel_base += BLOCK_REG_K;
+                #endif
 #else
                 // load b: N[0:16*2]xK[0:16]
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[0].format<int>(), desc_b0);
@@ -650,9 +743,17 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
                 } else {
                     desc_a.set_block_x(desc_a.get_block_x() + 16);
                 }
-#if USE_INT8
+#if (KV_CACHE_COMPRESSION != 0)
+                #if (KV_CACHE_COMPRESSION == 1)
                 dec(b0_up_s8.format<int>().select<64, 1>(64), b0_down_s8.format<int>().select<64, 1>(64), b0);
                 dot(a0, b0);
+                #else
+                load_scale_zp(channel_base);
+                dec(b0_up_s8.format<int>().select<64, 1>(64), b0_down_s8.format<int>().select<64, 1>(64), b0);
+                dot(a0, b0);
+                channel_base += BLOCK_REG_K;
+                #endif
+                
 #else
                 // load b: N[0:16*2]xK[16:32]
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[0].format<int>(), desc_b0);
