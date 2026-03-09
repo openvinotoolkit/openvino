@@ -262,11 +262,9 @@ private:
         const auto blocksize_mem = input_mem.at(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE);
         mem_lock<int32_t, mem_lock_type::read> lock(blocksize_mem, *params.strm);  // converted
         auto xattn_block_size = static_cast<int32_t>(lock[seq_idx]);
-        if (xattn_block_size != 128 && xattn_block_size != 256) {
-            xattn_block_size = 128;  // default
-        }
-        if (xattn_block_size == 256 && params.get_device_info().arch < gpu_arch::xe2) {
-            xattn_block_size = 128;  // on pre-XE2, only support 128
+        if (xattn_block_size != 256 || params.get_device_info().arch < gpu_arch::xe2){
+            // pre-XE2: only support 128; other: 128/256, default: 128
+            xattn_block_size = 128; 
         }
         return xattn_block_size;
     }
