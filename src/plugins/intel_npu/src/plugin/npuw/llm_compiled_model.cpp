@@ -1166,7 +1166,8 @@ struct NPUDesc {
     bool support_flash_attention_tile = false;
 };
 
-std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
+std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
+                                              const ov::AnyMap& config) {
     const auto all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
     if (all_devices.empty()) {
         return std::nullopt;
@@ -1184,7 +1185,20 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         desc.compiler_dq = true;
     }
 
-    desc.compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
+    // Get compiler version based on NPU_COMPILER_TYPE configuration
+    // If NPU_COMPILER_TYPE is not specified in config, use default compiler version
+    auto compiler_type_it = config.find(ov::intel_npu::compiler_type.name());
+    if (compiler_type_it == config.end()) {
+        // NPU_COMPILER_TYPE is not specified in config, use default compiler version
+        desc.compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
+    } else {
+        // NPU_COMPILER_TYPE is specified in config, get compiler version for the specified compiler type
+        auto target_compiler_type = compiler_type_it->second.as<std::string>();
+        desc.compiler_ver = plugin
+                                ->get_property(ov::intel_npu::compiler_version.name(),
+                                               ov::AnyMap{{ov::intel_npu::compiler_type.name(), target_compiler_type}})
+                                .as<int64_t>();
+    }
 
     if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
         // Flash attention tile is supported starting from compiler version 7.29 on NPU5010
@@ -1569,11 +1583,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
 
-    const auto npudesc = extract_npu_descriptor(plugin);
-
     ov::AnyMap npuw_llm_props;
     ov::AnyMap other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
+    const auto npudesc = extract_npu_descriptor(plugin, other_props);
     auto use_whisper_key = pop_option(other_props, std::string("NPUW_WHISPER"));
     auto whisper_eos_token = pop_option(other_props, std::string("NPUW_WHISPER_EOS_TOKEN"));
     auto use_eagle_key = pop_option(other_props, std::string("NPUW_EAGLE"));
@@ -1647,6 +1660,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
         if (npuw_llm_props.find("NPUW_LLM_GENERATE_HINT") == npuw_llm_props.end()) {
             m_cfg.update({{"NPUW_LLM_GENERATE_HINT", "BEST_PERF"}});
+        }
+
+        // Enable DEVICE_ROUTED mode by default for MoE models on newer compiler versions, as it's more efficient than
+        // HOST_ROUTED
+        if (npuw_llm_props.find("NPUW_LLM_GENERATE_MOE_HINT") == npuw_llm_props.end() && npudesc->arch == "5010" &&
+            npudesc->compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
+            m_cfg.update({{"NPUW_LLM_GENERATE_MOE_HINT", "DEVICE_ROUTED"}});
         }
     }
 
