@@ -34,7 +34,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
     "globals": "^16.5.0",
-    "mocha": "12.0.0-beta-10",
+    "mocha": "12.0.0-beta-9",
     "prettier": "3.7.3",
     "random-bigint": "^0.0.1",
     "typescript": "^5.9.3",
