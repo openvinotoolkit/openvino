@@ -33,7 +33,6 @@ public:
 protected:
     void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override;
     void SetUp() override;
-    void TearDown() override;
 };
 
 }  // namespace test

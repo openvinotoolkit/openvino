@@ -119,7 +119,7 @@ void GatedDeltaNet::validate_and_infer_types() {
                           beta_head_num,
                           ".");
 
-    // [batch, v_head_nums, v_head_size, k_head_size]
+    // [batch, v_head_nums, k_head_size, v_head_size]
     const auto state_head_num = state_ps[1];
     const auto state_hidden_size_0 = state_ps[2];
     const auto state_hidden_size_1 = state_ps[3];
@@ -131,25 +131,23 @@ void GatedDeltaNet::validate_and_infer_types() {
                           v_head_num,
                           ".");
     NODE_VALIDATION_CHECK(this,
-                          state_hidden_size_0.compatible(v_head_size),
-                          "The [-2] dim in shape of recurrent_state and value should be the same, but got ",
+                          state_hidden_size_0.compatible(k_head_size),
+                          "The [-2] dim in shape of recurrent_state and key should be the same, but got ",
                           state_hidden_size_0,
-                          " and ",
-                          v_head_size,
-                          ".");
-    NODE_VALIDATION_CHECK(this,
-                          state_hidden_size_1.compatible(k_head_size),
-                          "The [-1] dim in shape of recurrent_state and key should be the same, but got ",
-                          state_hidden_size_1,
                           " and ",
                           k_head_size,
                           ".");
+    NODE_VALIDATION_CHECK(this,
+                          state_hidden_size_1.compatible(v_head_size),
+                          "The [-1] dim in shape of recurrent_state and value should be the same, but got ",
+                          state_hidden_size_1,
+                          " and ",
+                          v_head_size,
+                          ".");
     // output has the same shape and type as input value, output state has the same shape and type as input
     // recurrent_state
-    auto out_ps = get_input_partial_shape(2);
-    const auto& h_ps = get_input_partial_shape(3);
-    set_output_type(0, get_input_element_type(2), out_ps);
-    set_output_type(1, get_input_element_type(3), h_ps);
+    set_output_type(0, get_input_element_type(2), value_ps);
+    set_output_type(1, get_input_element_type(3), state_ps);
 }
 
 bool GatedDeltaNet::visit_attributes(AttributeVisitor& visitor) {
@@ -157,6 +155,7 @@ bool GatedDeltaNet::visit_attributes(AttributeVisitor& visitor) {
     visitor.start_structure("config");
     visitor.on_attribute("fuse_qk_l2norm", m_config.fuse_qk_l2norm);
     visitor.on_attribute("fuse_q_scale", m_config.fuse_q_scale);
+    visitor.on_attribute("l2_norm_eps", m_config.l2_norm_eps);
     visitor.finish_structure();
     return true;
 }
@@ -165,11 +164,6 @@ std::shared_ptr<ov::Node> GatedDeltaNet::clone_with_new_inputs(const ov::OutputV
     auto cloned = std::make_shared<GatedDeltaNet>(new_args);
     cloned->m_config = m_config;
     return cloned;
-}
-
-void GatedDeltaNet::set_out_type(int index, const ov::element::Type& output_type) {
-    OPENVINO_ASSERT(index < 2, "Output index should be 0 or 1, but got " + std::to_string(index));
-    m_output_type[index] = output_type;
 }
 
 }  // namespace op

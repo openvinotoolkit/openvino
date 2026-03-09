@@ -45,6 +45,7 @@ private:
     PlainTensor temp_buffer;
     bool fuse_qk_l2norm = false;
     bool fuse_q_scale = false;
+    float eps = 1e-6f;
 };
 
 }  // namespace ov::intel_cpu::node

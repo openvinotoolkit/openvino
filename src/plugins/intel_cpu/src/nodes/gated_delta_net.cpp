@@ -41,9 +41,11 @@ GatedDeltaNet::GatedDeltaNet(const std::shared_ptr<ov::Node>& op, const GraphCon
     const auto& gdn = ov::as_type_ptr<ov::op::GatedDeltaNet>(op);
     fuse_q_scale = gdn->get_config().fuse_q_scale;
     fuse_qk_l2norm = gdn->get_config().fuse_qk_l2norm;
+    eps = gdn->get_config().l2_norm_eps;
 }
 
 void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
+    // TODO: support other precision CVS-182464
     auto dataPrecision = ov::element::f32;
     std::vector<PortConfigurator> inPortConfigs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
@@ -91,11 +93,13 @@ void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
                           recurrent_state,
                           gate,
                           beta,
+                          eps,
                           fuse_qk_l2norm,
                           fuse_q_scale,
                           output_attn,
                           output_recurrent_state,
-                          temp_buffer);
+                          temp_buffer,
+                          context->getCpuParallel());
 }
 
 bool GatedDeltaNet::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,

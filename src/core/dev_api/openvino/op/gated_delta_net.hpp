@@ -18,6 +18,7 @@ public:
     struct Config {
         bool fuse_qk_l2norm = false;
         bool fuse_q_scale = false;
+        float l2_norm_eps = 1e-6f;
     };
     GatedDeltaNet(const ov::OutputVector& args);
     void validate_and_infer_types() override;
@@ -29,10 +30,8 @@ public:
     void set_config(const Config& config) {
         m_config = config;
     }
-    void set_out_type(int index, const ov::element::Type& output_type);
 
 protected:
-    std::vector<ov::element::Type> m_output_type = {ov::element::dynamic, ov::element::dynamic};
     Config m_config;
 };
 

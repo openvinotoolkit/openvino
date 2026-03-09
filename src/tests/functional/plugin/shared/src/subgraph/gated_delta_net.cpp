@@ -4,8 +4,11 @@
 
 #include "shared_test_classes/subgraph/gated_delta_net.hpp"
 
-#include "common_test_utils/ov_tensor_utils.hpp"
+#include <cmath>
 
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -13,28 +16,24 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/gated_delta_net.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_prod.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/sqrt.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/core/type/bfloat16.hpp"
-#include "openvino/core/type/float16.hpp"
-
-#include <cmath>
 
 namespace ov {
 namespace test {
@@ -44,7 +43,7 @@ std::shared_ptr<ov::Model> GatedDeltaNet::buildLoopedGDN(int32_t batch,
                                                          int32_t qk_head_num,
                                                          int32_t v_head_num,
                                                          int32_t head_size) {
-    const auto dtype = ov::element::f32;
+    constexpr auto dtype = ov::element::f32;
     const ov::Shape qk_shape{static_cast<size_t>(batch),
                              static_cast<size_t>(seq_len),
                              static_cast<size_t>(qk_head_num),
@@ -110,9 +109,7 @@ std::shared_ptr<ov::Model> GatedDeltaNet::buildLoopedGDN(int32_t batch,
     auto beta_t = std::make_shared<ov::op::v1::Transpose>(beta, perm_bhs);
 
     auto vt_shape = std::make_shared<ov::op::v3::ShapeOf>(v_t);
-    core_attn_init = std::make_shared<ov::op::v3::Broadcast>(
-        ov::op::v0::Constant::create(dtype, {}, {0.0f}),
-        vt_shape);
+    core_attn_init = std::make_shared<ov::op::v3::Broadcast>(ov::op::v0::Constant::create(dtype, {}, {0.0f}), vt_shape);
 
     auto timestep = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{});
     auto q_i_param = std::make_shared<ov::op::v0::Parameter>(dtype, ov::PartialShape{-1, -1, 1, -1});
@@ -149,9 +146,8 @@ std::shared_ptr<ov::Model> GatedDeltaNet::buildLoopedGDN(int32_t batch,
     auto hq = std::make_shared<ov::op::v1::Multiply>(h_res, q_unsq);
     auto o_step = std::make_shared<ov::op::v1::ReduceSum>(hq, minus2, true);
 
-    auto timestep_unsq = std::make_shared<ov::op::v0::Unsqueeze>(
-        timestep,
-        ov::op::v0::Constant::create(ov::element::i32, {1}, {0}));
+    auto timestep_unsq =
+        std::make_shared<ov::op::v0::Unsqueeze>(timestep, ov::op::v0::Constant::create(ov::element::i32, {1}, {0}));
     auto core_buf_res = std::make_shared<ov::op::v3::ScatterUpdate>(core_attn_buf, timestep_unsq, o_step, axis_2);
 
     auto body_cond = ov::op::v0::Constant::create(ov::element::boolean, {1}, {true});
@@ -165,8 +161,8 @@ std::shared_ptr<ov::Model> GatedDeltaNet::buildLoopedGDN(int32_t batch,
     auto trip_count_i64 = std::make_shared<ov::op::v8::Gather>(vt_shape, t_index, gather_axis);
     auto trip_count = std::make_shared<ov::op::v0::Convert>(trip_count_i64, ov::element::i32);
 
-    auto loop = std::make_shared<ov::op::v5::Loop>(trip_count,
-                                                   ov::op::v0::Constant::create(ov::element::boolean, {1}, {true}));
+    auto loop =
+        std::make_shared<ov::op::v5::Loop>(trip_count, ov::op::v0::Constant::create(ov::element::boolean, {1}, {true}));
     loop->set_function(body);
     loop->set_sliced_input(q_i_param, q_scaled_t, 0, 1, 1, -1, 2);
     loop->set_sliced_input(k_i_param, k_norm_t, 0, 1, 1, -1, 2);
@@ -195,25 +191,17 @@ std::shared_ptr<ov::Model> GatedDeltaNet::buildLoopedGDN(int32_t batch,
     auto slice_step = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
     auto slice_axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
 
-    auto core_slice = std::make_shared<ov::op::v8::Slice>(packed_loop_outputs,
-                                                           slice_start,
-                                                           core_numel,
-                                                           slice_step,
-                                                           slice_axis);
-    auto state_slice = std::make_shared<ov::op::v8::Slice>(packed_loop_outputs,
-                                                            core_numel,
-                                                            state_slice_end,
-                                                            slice_step,
-                                                            slice_axis);
+    auto core_slice =
+        std::make_shared<ov::op::v8::Slice>(packed_loop_outputs, slice_start, core_numel, slice_step, slice_axis);
+    auto state_slice =
+        std::make_shared<ov::op::v8::Slice>(packed_loop_outputs, core_numel, state_slice_end, slice_step, slice_axis);
 
     auto core_restored = std::make_shared<ov::op::v1::Reshape>(core_slice, core_shape, false);
     auto state_restored = std::make_shared<ov::op::v1::Reshape>(state_slice, state_shape, false);
 
-    auto core_attn_final = std::make_shared<ov::op::v1::Transpose>(core_restored,
-                                                                    ov::op::v0::Constant::create(
-                                                                        ov::element::i64,
-                                                                        {4},
-                                                                        {0, 2, 1, 3}));
+    auto core_attn_final =
+        std::make_shared<ov::op::v1::Transpose>(core_restored,
+                                                ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3}));
 
     return std::make_shared<ov::Model>(ov::OutputVector{core_attn_final, state_restored},
                                        ov::ParameterVector{q, k, v, h0, g, beta});
@@ -238,24 +226,18 @@ void GatedDeltaNet::generate_inputs(const std::vector<ov::Shape>& targetInputSta
     for (size_t i = 0; i < params.size(); ++i) {
         const auto& param = params[i];
         const auto& shape = targetInputStaticShapes[i];
-        // initial_state are setting to zeros
-        if (i == 3) {
-            inputs[param] = ov::test::utils::create_and_fill_tensor(
-                param->get_element_type(),
-                shape,
-                ov::test::utils::InputGenerateData(0, 0, 1, 1));
-        } else if (i == 4) {
+
+        if (i == 4) {
             // g: allow negative values
-            inputs[param] = ov::test::utils::create_and_fill_tensor(
-                param->get_element_type(),
-                shape,
-                ov::test::utils::InputGenerateData(-1, 1, 1000, 1));
+            inputs[param] = ov::test::utils::create_and_fill_tensor(param->get_element_type(),
+                                                                    shape,
+                                                                    ov::test::utils::InputGenerateData(-1, 1, 1000, 1));
         } else if (i == 5) {
             // beta: values in [0, 1]
-            inputs[param] = ov::test::utils::create_and_fill_tensor(
-                param->get_element_type(),
-                shape,
-                ov::test::utils::InputGenerateData(0.0, 1, 1000, 1));
+            inputs[param] =
+                ov::test::utils::create_and_fill_tensor(param->get_element_type(),
+                                                        shape,
+                                                        ov::test::utils::InputGenerateData(0.0, 1, 1000, 1));
         } else {
             inputs[param] = ov::test::utils::create_and_fill_tensor(param->get_element_type(), shape);
         }
@@ -265,33 +247,7 @@ void GatedDeltaNet::generate_inputs(const std::vector<ov::Shape>& targetInputSta
 void GatedDeltaNet::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
     ASSERT_EQ(expected.size(), actual.size());
     ov::test::utils::compare(expected[0], actual[0], abs_threshold, rel_threshold);
-
-    ASSERT_EQ(expected[1].get_shape().size(), 4);
-    ASSERT_EQ(expected[1].get_element_type(), ov::element::f32);
-
-    const auto& exp_shape = expected[1].get_shape();
-    const size_t B = exp_shape[0];
-    const size_t H = exp_shape[1];
-    const size_t K = exp_shape[2];
-    const size_t V = exp_shape[3];
-
-    ov::Tensor expected_state_transposed(expected[1].get_element_type(), ov::Shape{B, H, V, K});
-    const auto* src = expected[1].data<const float>();
-    auto* dst = expected_state_transposed.data<float>();
-    // internal gdn ops uses state [B, H, V, K], so transpose reference state from [B, H, K, V] to [B, H, V, K]
-    for (size_t b = 0; b < B; ++b) {
-        for (size_t h = 0; h < H; ++h) {
-            for (size_t k = 0; k < K; ++k) {
-                for (size_t v = 0; v < V; ++v) {
-                    const size_t src_idx = ((b * H + h) * K + k) * V + v;
-                    const size_t dst_idx = ((b * H + h) * V + v) * K + k;
-                    dst[dst_idx] = src[src_idx];
-                }
-            }
-        }
-    }
-
-    ov::test::utils::compare(expected_state_transposed, actual[1], abs_threshold, rel_threshold);
+    ov::test::utils::compare(expected[1], actual[1], abs_threshold, rel_threshold);
 }
 
 void GatedDeltaNet::SetUp() {
@@ -313,30 +269,11 @@ void GatedDeltaNet::SetUp() {
                             static_cast<size_t>(qk_head_num),
                             static_cast<size_t>(head_size),
                             static_cast<size_t>(head_size)};
-    const ov::Shape g_shape{static_cast<size_t>(batch),
-                            static_cast<size_t>(seq_len),
-                            static_cast<size_t>(qk_head_num)};
+    const ov::Shape g_shape{static_cast<size_t>(batch), static_cast<size_t>(seq_len), static_cast<size_t>(qk_head_num)};
 
     init_input_shapes(static_shapes_to_test_representation({q_shape, q_shape, v_shape, h_shape, g_shape, g_shape}));
 
-    auto q = std::make_shared<ov::op::v0::Parameter>(prec, q_shape);
-    auto k = std::make_shared<ov::op::v0::Parameter>(prec, q_shape);
-    auto v = std::make_shared<ov::op::v0::Parameter>(prec, v_shape);
-    auto h0 = std::make_shared<ov::op::v0::Parameter>(prec, h_shape);
-    auto g = std::make_shared<ov::op::v0::Parameter>(prec, g_shape);
-    auto beta = std::make_shared<ov::op::v0::Parameter>(prec, g_shape);
-
-    q->set_friendly_name("q");
-    k->set_friendly_name("k");
-    v->set_friendly_name("v");
-    h0->set_friendly_name("h0");
-    g->set_friendly_name("g");
-    beta->set_friendly_name("beta");
-
     function = buildLoopedGDN(batch, seq_len, qk_head_num, v_head_num, head_size);
-}
-
-void GatedDeltaNet::TearDown() {
 }
 
 }  // namespace test
