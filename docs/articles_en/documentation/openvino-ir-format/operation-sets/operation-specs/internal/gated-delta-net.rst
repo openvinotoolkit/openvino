@@ -19,7 +19,7 @@ that combines the delta rule memory update with a gating mechanism.
 `arXiv:2412.06464 <https://arxiv.org/abs/2412.06464>`__. It processes a sequence of
 query, key, and value vectors using the delta rule to update a hidden state matrix,
 controlled by a per-token forget gate ``g`` (applied as ``exp(g)``) and a per-token
-write gate ``beta``. Queries are scaled by ``1 / sqrt(head_size)`` before being used
+write gate ``beta``. Queries are scaled by ``1 / sqrt(key_head_dim)`` before being used
 to compute the output. The following PyTorch-equivalent code illustrates the full
 computation:
 
