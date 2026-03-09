@@ -146,7 +146,7 @@ computation:
                <dim>1</dim>
                <dim>8</dim>
                <dim>64</dim>
-               <dim>64</dim>
+               <dim>128</dim>
            </port>
        </output>
    </layer>
