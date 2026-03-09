@@ -15,10 +15,18 @@
 using namespace ov::intel_npu;
 using namespace ov::test::utils;
 
-using OfflineCompilationUnitTests = ::testing::Test;
+class OfflineCompilationUnitTests : public ::testing::Test {
+protected:
+    void SetUp() override {
+        std::vector<std::string> availableDevices = core.get_available_devices();
+        auto it = std::find(availableDevices.begin(), availableDevices.end(), DEVICE_NPU);
+        ASSERT_TRUE(it == availableDevices.end());
+    }
+
+    ov::Core core;
+};
 
 TEST_F(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalledSetProperty) {
-    ov::Core core;
     ov::AnyMap config;
 
     config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
@@ -30,7 +38,6 @@ TEST_F(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalledSetPrope
 }
 
 TEST_F(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalled) {
-    ov::Core core;
     ov::AnyMap config;
 
     config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
