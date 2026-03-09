@@ -2027,7 +2027,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Compile multiple generate model variants with different sizes
     compile_generate_model_variants(generate_model_variants, npuw_cm_factory, plugin, generate_config);
 
-    m_prefill_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
+    m_prefill_compiled = std::dynamic_pointer_cast<ov::npuw::ICompiledModel>(
        npuw_cm_factory->create(prefill_model, plugin, prefill_config));
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
                                       "model and its config, please check passed config.");
@@ -2039,7 +2039,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
         apply_weights_bank_name(lm_head_config, weights_bank_name);
 
-        m_lm_head_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
+        m_lm_head_compiled = std::dynamic_pointer_cast<ov::npuw::ICompiledModel>(
             npuw_cm_factory->create(lm_head_model, plugin, lm_head_config));
         NPUW_ASSERT(m_lm_head_compiled);
     }

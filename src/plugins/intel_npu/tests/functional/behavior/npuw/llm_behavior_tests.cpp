@@ -95,7 +95,6 @@ public:
         config["NPUW_DEVICES"] = ov::AnyMap{{"NPUW_DEVICES", "CPU"}};
         config["NPUW_LLM_MIN_RESPONSE_LEN"] = 2;
         config["NPUW_LLM_NPUWMODEL_FACTORY_PTR"] = mock_npuw_factory;
-        std::cout << "factory: " << mock_npuw_factory << std::endl;
     }
 
 protected:
