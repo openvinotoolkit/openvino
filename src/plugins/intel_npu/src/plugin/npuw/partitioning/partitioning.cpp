@@ -1495,7 +1495,7 @@ void Partitioner::saveTailDictConstants(const std::string& func_name) {
     std::vector<CPtr> to_keep;
 
     ov::npuw::patterns::opt::Context ctx;
-    ctx.mm_gate =  cfg.get<::intel_npu::NPUW_MM_GATED>();
+    ctx.mm_gate = cfg.get<::intel_npu::NPUW_MM_GATED>();
 
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(ctx), std::ref(to_keep));
