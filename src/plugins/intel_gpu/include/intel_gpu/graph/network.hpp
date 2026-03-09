@@ -208,6 +208,14 @@ public:
     /// or when switching to a different graph).
     void clear_output_memory_blocks();
 
+    /// @brief Walk backward from an output node through optimized predecessors
+    /// to find the compute node(s) whose output memory aliases the ext_block,
+    /// and clear their _outputs[0].  Called by the infer request after
+    /// nextMemory() switches the double-buffer.  The null _outputs[0] will
+    /// trigger realloc_if_needed in prepare_primitive, which re-probes the
+    /// forward chain and picks up the new ext_block buffer.
+    void invalidate_ext_block_compute_nodes(const primitive_id& output_id);
+
     memory_pool& get_memory_pool() const {
         return *_memory_pool;
     }

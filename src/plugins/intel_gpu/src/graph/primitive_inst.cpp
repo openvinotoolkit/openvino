@@ -747,22 +747,33 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         }
     }
 
-    // If this node's sole user is an optimized output node with an external output
-    // memory block, use the ext_block memory directly so this node's kernel writes
-    // into it, achieving zero-copy.  This mirrors the reorder+remote_tensor pattern
-    // above: the predecessor adopts the output node's memory before execution.
-    if (users.size() == 1 && users.front()->can_be_optimized() && users.front()->is_output()) {
-        auto* ext_block = get_network().get_output_memory_block(users.front()->id());
-        if (ext_block) {
-            ext_block->resize(actual_layouts[0]);
-            _outputs[0] = get_network().get_engine().reinterpret_buffer(*ext_block->memory(), actual_layouts[0]);
-            _max_output_layout_count[0] = ext_block->capacity();
-            GPU_DEBUG_TRACE_DETAIL << id() << ": use ext output memory block from optimized output user "
-                                   << users.front()->id() << " - "
-                                   << actual_layouts[0].get_linear_size() << "/" << ext_block->capacity()
-                                   << std::endl;
-            GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("ext_output_block_via_user");
-            return;
+    // Forward probe: walk through single-user optimized chains to find an output
+    // node with an external output memory block (ext_block).  If found, use the
+    // ext_block memory directly so this node's kernel writes into it, achieving
+    // zero-copy.  This handles arbitrary-depth chains like:
+    //   ComputeNode -> Reshape(opt) -> Reorder(opt) -> Result(opt, ext_block)
+    // The walk stops at the first non-optimized user, multi-user fork, or when
+    // an ext_block output is found.
+    {
+        auto* cursor = this;
+        while (cursor->get_user_insts().size() == 1 && cursor->get_user_insts().front()->can_be_optimized()) {
+            auto* next = cursor->get_user_insts().front();
+            if (next->is_output()) {
+                auto* ext_block = get_network().get_output_memory_block(next->id());
+                if (ext_block) {
+                    ext_block->resize(actual_layouts[0]);
+                    _outputs[0] = get_network().get_engine().reinterpret_buffer(*ext_block->memory(), actual_layouts[0]);
+                    _max_output_layout_count[0] = ext_block->capacity();
+                    GPU_DEBUG_TRACE_DETAIL << id() << ": use ext output memory block via forward probe -> "
+                                           << next->id() << " - "
+                                           << actual_layouts[0].get_linear_size() << "/" << ext_block->capacity()
+                                           << std::endl;
+                    GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("ext_output_block_via_forward_probe");
+                    return;
+                }
+                break;  // output node without ext_block — stop probing
+            }
+            cursor = next;
         }
     }
 
@@ -2134,6 +2145,17 @@ void primitive_inst::prepare_primitive() {
     }
     _update_shape_done_by_other = false; // reset
     OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
+
+    // Re-acquire output memory when _outputs[0] was cleared.  This happens when:
+    //   - invalidate_output_memory_chain clears it on register/unregister
+    //   - invalidate_ext_block_compute_nodes clears it after double-buffer flip
+    // The null-check is the single canonical invalidation signal.  No flag abuse.
+    if (is_dynamic() && !_outputs.empty() && _impl) {
+        if (!_outputs[0]) {
+            realloc_if_needed(prev_execution_skipped);
+            set_flag(ExecutionFlags::MEMORY_CHANGED);
+        }
+    }
 
     std::function<bool(const cldnn::primitive_inst*)> has_dynamic_dependencies_insts =
         [&has_dynamic_dependencies_insts](const cldnn::primitive_inst* prim_inst) {

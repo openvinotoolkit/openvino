@@ -686,6 +686,24 @@ void network::invalidate_output_memory_chain(const primitive_id& id) {
     }
 }
 
+void network::invalidate_ext_block_compute_nodes(const primitive_id& output_id) {
+    // Walk backward from the output node through optimized single-dependency
+    // predecessors until we reach the compute node (the first non-optimized one).
+    // Clear its _outputs[0] so that prepare_primitive's null-check triggers
+    // realloc_if_needed, which will re-probe forward and pick up the new ext_block
+    // buffer after a double-buffer flip.
+    auto cursor = find_primitive(output_id);
+    while (cursor->can_be_optimized() && !cursor->dependencies().empty()) {
+        cursor->clear_output_memory();
+        GPU_DEBUG_TRACE_DETAIL << "[double-buffer] cleared output memory on optimized node " << cursor->id() << std::endl;
+        auto dep_id = cursor->dependencies().front().first->id();
+        cursor = find_primitive(dep_id);
+    }
+    // cursor is now the compute node — clear its output so it re-acquires from ext_block
+    cursor->clear_output_memory();
+    GPU_DEBUG_TRACE_DETAIL << "[double-buffer] cleared output memory on compute node " << cursor->id() << std::endl;
+}
+
 void network::register_output_memory_block(const primitive_id& id, ov::intel_gpu::OutputMemoryBlock* block) {
     OPENVINO_ASSERT(block != nullptr, "[GPU] Use unregister path (nullptr) via clear_output_memory_blocks or erase");
 

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <array>
+
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/memory.hpp"
@@ -17,17 +19,19 @@ namespace ov::intel_gpu {
 /// to ensure the buffer is large enough for the actual output shape. The block
 /// encapsulates grow-only allocation with a reclaim policy for shape reduction.
 ///
+/// Double buffering: when the user feeds the previous output back as input,
+/// the infer request calls nextMemory() to switch to the alternate buffer
+/// before execution.  This avoids read/write aliasing without an extra copy.
+///
 /// Lifetime: owned by SyncInferRequest, outlives any single network::execute() call.
 /// The graph holds a non-owning pointer.
 class OutputMemoryBlock {
 public:
     explicit OutputMemoryBlock(cldnn::engine& engine, size_t reclaim_threshold = 2)
         : m_engine(engine),
-          m_capacity(0),
-          m_elem_size(0),
           m_reclaim_threshold(reclaim_threshold) {}
 
-    /// @brief Ensures the block has enough capacity for the given layout.
+    /// @brief Ensures the current buffer has enough capacity for the given layout.
     ///
     /// Called by primitive_inst::realloc_outputs() during execution.
     /// All comparisons are done in bytes so the buffer can be reused across
@@ -44,46 +48,72 @@ public:
         auto needed_elems = alloc_layout.get_linear_size();
         auto needed_elem_size = cldnn::data_type_traits::size_of(alloc_layout.data_type);
         auto needed_bytes = needed_elems * needed_elem_size;
-        auto current_bytes = m_capacity * m_elem_size;  // 0 when unallocated
+
+        auto& buf = m_buffers[m_buff_idx];
+        auto current_bytes = buf.capacity * buf.elem_size;  // 0 when unallocated
 
         // RECLAIM: if current allocation is much larger than needed, release and reallocate
-        if (m_memory && m_reclaim_threshold > 0 && needed_bytes * m_reclaim_threshold < current_bytes) {
+        if (buf.memory && m_reclaim_threshold > 0 && needed_bytes * m_reclaim_threshold < current_bytes) {
             GPU_DEBUG_TRACE_DETAIL << "OutputMemoryBlock: reclaim oversized buffer " << current_bytes << "B -> " << needed_bytes << "B" << std::endl;
-            m_memory = nullptr;
-            m_capacity = 0;
-            m_elem_size = 0;
+            buf.memory = nullptr;
+            buf.capacity = 0;
+            buf.elem_size = 0;
         }
 
+        current_bytes = buf.capacity * buf.elem_size;
+
         // REUSE: current buffer has enough bytes
-        if (m_memory && needed_bytes <= current_bytes) {
+        if (buf.memory && needed_bytes <= current_bytes) {
             // Recalculate capacity in elements of the (possibly new) type
-            m_capacity = current_bytes / needed_elem_size;
-            m_elem_size = needed_elem_size;
-            return m_memory;
+            buf.capacity = current_bytes / needed_elem_size;
+            buf.elem_size = needed_elem_size;
+            return buf.memory;
         }
 
         // ALLOCATE: need a (larger) buffer
-        m_memory = m_engine.allocate_memory(alloc_layout, cldnn::allocation_type::usm_host);
-        m_capacity = alloc_layout.get_linear_size();
-        m_elem_size = needed_elem_size;
-        return m_memory;
+        buf.memory = m_engine.allocate_memory(alloc_layout, cldnn::allocation_type::usm_host);
+        buf.capacity = alloc_layout.get_linear_size();
+        buf.elem_size = needed_elem_size;
+        return buf.memory;
     }
 
     /// @return Current memory pointer (may be null if not yet allocated or after reclaim).
     cldnn::memory::ptr memory() const {
-        return m_memory;
+        return m_buffers[m_buff_idx].memory;
     }
 
     /// @return Current capacity in elements.
     size_t capacity() const {
-        return m_capacity;
+        return m_buffers[m_buff_idx].capacity;
+    }
+
+    /// @return Raw data pointer of the current buffer, for alias detection.
+    void* rawPtr() const {
+        auto mem = m_buffers[m_buff_idx].memory;
+        return mem ? mem->buffer_ptr() : nullptr;
+    }
+
+    /// @brief Switch to the alternate buffer.
+    ///
+    /// Called by the infer request when it detects that the current buffer's
+    /// rawPtr() matches an input tensor's data pointer (i.e. the user fed the
+    /// previous output back as input).  The next resize() call will allocate
+    /// or grow the alternate buffer, so the kernel writes to a different
+    /// location than the one being read as input.
+    void nextMemory() {
+        m_buff_idx ^= 1;
     }
 
 private:
+    struct Buffer {
+        cldnn::memory::ptr memory;
+        size_t capacity = 0;    ///< Capacity in elements (linear size of the allocated layout).
+        size_t elem_size = 0;   ///< Byte size of one element in the current allocation.
+    };
+
     cldnn::engine& m_engine;
-    cldnn::memory::ptr m_memory;
-    size_t m_capacity;           ///< Capacity in elements (linear size of the allocated layout).
-    size_t m_elem_size;          ///< Byte size of one element in the current allocation.
+    std::array<Buffer, 2> m_buffers;
+    int m_buff_idx = 0;
     size_t m_reclaim_threshold;  ///< Reclaim if capacity > needed * threshold.
 };
 
