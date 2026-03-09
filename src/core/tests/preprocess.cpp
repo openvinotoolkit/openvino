@@ -141,7 +141,7 @@ TEST(pre_post_process, build_is_thread_safe_for_parallel_invocations) {
     constexpr size_t iterations_per_thread = 50;
     std::atomic_size_t failures{0};
 
-    auto worker = [&failures, iterations_per_thread]() {
+    auto worker = [&failures]() {
         for (size_t i = 0; i < iterations_per_thread; ++i) {
             try {
                 auto f = create_conv(element::f32, Shape{1, 3, 8, 8}, element::f16);
