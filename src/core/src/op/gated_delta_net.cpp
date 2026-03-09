@@ -27,19 +27,19 @@ inline void input_check(const ov::Node* node,
     const auto& tp = node->get_input_element_type(idx);
 
     auto rank_check = [&](const Rank& rank) {
-        return rank.is_dynamic() || empty(allowed_ranks) || is_rank_compatible_any_of(rank.get_length(), allowed_ranks);
+        return !rank.is_dynamic() && is_rank_compatible_any_of(rank.get_length(), allowed_ranks);
     };
 
     auto type_check = [&](const Type& type) {
         auto it = std::find(allowed_types.begin(), allowed_types.end(), tp);
-        return type.is_dynamic() || allowed_types.empty() || it != allowed_types.end();
+        return !type.is_dynamic() && (allowed_types.empty() || it != allowed_types.end());
     };
 
     NODE_VALIDATION_CHECK(node,
                           rank_check(rank),
                           "Rank of `",
                           input_name,
-                          "` input should be in [dynamic, ",
+                          "` input should be in [",
                           join(allowed_ranks),
                           "] list, but it is ",
                           rank,
@@ -49,7 +49,7 @@ inline void input_check(const ov::Node* node,
                           type_check(tp),
                           "Element type of `",
                           input_name,
-                          "` input should be in [dynamic, ",
+                          "` input should be in [",
                           join(allowed_types),
                           "] list, but it is ",
                           tp,
@@ -70,12 +70,12 @@ void GatedDeltaNet::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, get_input_size() == 6, "GatedDeltaNet expects 6 inputs, but it has ", get_input_size());
 
     // format: Node*, input_idx, name, {rank_list}, {type_list}
-    input_check(this, 0, "query", {4}, {});
-    input_check(this, 1, "key", {4}, {});
-    input_check(this, 2, "value", {4}, {});
-    input_check(this, 3, "recurrent_state", {4}, {});
-    input_check(this, 4, "gate", {3}, {});
-    input_check(this, 5, "beta", {3}, {});
+    input_check(this, 0, "query", {4}, {ov::element::f32, ov::element::f16, ov::element::bf16});
+    input_check(this, 1, "key", {4}, {ov::element::f32, ov::element::f16, ov::element::bf16});
+    input_check(this, 2, "value", {4}, {ov::element::f32, ov::element::f16, ov::element::bf16});
+    input_check(this, 3, "recurrent_state", {4}, {ov::element::f32, ov::element::f16, ov::element::bf16});
+    input_check(this, 4, "gate", {3}, {ov::element::f32, ov::element::f16, ov::element::bf16});
+    input_check(this, 5, "beta", {3}, {ov::element::f32, ov::element::f16, ov::element::bf16});
 
     // batch, seq_len, head_num, head_size
     const auto& query_ps = get_input_partial_shape(0);

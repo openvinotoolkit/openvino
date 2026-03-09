@@ -14,6 +14,7 @@
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "kernels/linear_attn/recurrent_linear_attn.hpp"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "onednn/iml_type_mapper.h"
@@ -82,11 +83,12 @@ void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
     // q, k, h per (B, H, V)
     const auto& q_dims = inputs[0]->getStaticDims();
     const auto& v_dims = inputs[2]->getStaticDims();
-    const size_t B = q_dims[0];
-    const size_t H = q_dims[2];
     const size_t K = q_dims[3];
-    const size_t V = v_dims[3];
-    temp_buffer.resize<float>({B * H * V * 3 * K});
+    auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(
+        ov::element::f32,
+        ov::intel_cpu::Shape{static_cast<size_t>(parallel_get_max_threads()), 3 * K});
+    auto scratchMem = context->getScratchPad()->createScratchPadMem(newMemDesc);
+    auto* temp_buffer = scratchMem->getDataAs<float>();
     recurrent_linear_attn(query,
                           key,
                           value,

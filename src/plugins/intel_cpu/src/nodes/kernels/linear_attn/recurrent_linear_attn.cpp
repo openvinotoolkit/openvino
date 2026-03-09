@@ -89,7 +89,7 @@ void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
                            bool fuse_q_scale,
                            ov::intel_cpu::PlainTensor& output_attn,
                            ov::intel_cpu::PlainTensor& output_recurrent_state,
-                           ov::intel_cpu::PlainTensor& temp_buffer,
+                           float* temp_buffer,
                            const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     size_t B = query.m_dims[0];
     size_t T = query.m_dims[1];
@@ -100,10 +100,10 @@ void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
     const size_t V_HEAD_DIMS = V;
     const float q_scale = 1 / std::sqrt(static_cast<float>(K_HEAD_DIMS));
     cpu_parallel->parallel_for3d(B, H, V, [&](size_t i_b, size_t i_h, size_t i_v) {
-        const size_t work_offset = ((i_b * H + i_h) * V + i_v) * (3 * K_HEAD_DIMS);
-        float* init_state = temp_buffer.ptr<float>(work_offset);
-        float* b_k = temp_buffer.ptr<float>(work_offset + K_HEAD_DIMS);
-        float* b_q = temp_buffer.ptr<float>(work_offset + 2 * K_HEAD_DIMS);
+        size_t tid = parallel_get_thread_num();
+        float* init_state = temp_buffer + tid * 3 * K_HEAD_DIMS;
+        float* b_k = temp_buffer + tid * 3 * K_HEAD_DIMS + K_HEAD_DIMS;
+        float* b_q = temp_buffer + tid * 3 * K_HEAD_DIMS + 2 * K_HEAD_DIMS;
         // B, T, H, K
         float* q_ptr = query.ptr<float>(i_b, 0, i_h);
         float* k_ptr = key.ptr<float>(i_b, 0, i_h);

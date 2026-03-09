@@ -21,7 +21,7 @@ void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
                            bool fuse_q_scale,
                            ov::intel_cpu::PlainTensor& output_attn,
                            ov::intel_cpu::PlainTensor& output_recurrent_state,
-                           ov::intel_cpu::PlainTensor& temp_buffer,
+                           float* temp_buffer,
                            const ov::intel_cpu::CpuParallelPtr& cpu_parallel);
 
 }  // namespace ov::Extensions::Cpu::XARCH
