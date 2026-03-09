@@ -3,8 +3,6 @@
 //
 
 #include "transformations/common_optimizations/activations_scaling.hpp"
-#include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
-#include "transformations/common_optimizations/nop_elimination.hpp"
 
 #include <gtest/gtest.h>
 
@@ -25,6 +23,8 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
