@@ -32,7 +32,7 @@ jobs:
           max-size: 50G
 
       - name: Clone OpenVINO
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           submodules: 'true'
