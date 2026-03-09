@@ -23,7 +23,7 @@ If you need to configure a release package layout and have Single Image Test in 
 ### Standalone build
 
 #### Prerequisites
-* [OpenVINO™ Runtime release package](https://docs.openvino.ai/2025/get-started/install-openvino.html)
+* [OpenVINO™ Runtime release package](https://docs.openvino.ai/2026/get-started/install-openvino.html)
 * [OpenCV: Open Source Computer Vision Library release package](https://opencv.org/get-started/)
 
 #### Build instructions
@@ -38,7 +38,7 @@ If you need to configure a release package layout and have Single Image Test in 
     cmake --install . --prefix <sit_install_dir>
     ```
     > Note 1: command line instruction might differ on different platforms (e.g. Windows cmd)
-    > Note 2: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, specifying OpenVINO_DIR and calling setupvars might not be needed. Refer [documentation](https://docs.openvino.ai/2025/get-started/install-openvino.html) for details.
+    > Note 2: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, specifying OpenVINO_DIR and calling setupvars might not be needed. Refer [documentation](https://docs.openvino.ai/2026/get-started/install-openvino.html) for details.
     > Note 3: depending on OpenCV installation method, there might not be a need to specify OpenCV_DIR.
     > Note 4: depending on OpenCV version, cmake configs might be located somewhere else. You need to specify a directory that contains `OpenCVConfig.cmake` file
     > Note 5: `<sit_install_dir>` can be any directory on your filesystem that you want to use for installation including `<openvino_install_dir>` if you wish to extend OpenVINO package
@@ -50,7 +50,7 @@ If you need to configure a release package layout and have Single Image Test in 
     ```
     > Note 1: command line might differ depending on your platform
     > Note 2: depending on OpenCV installation method, there might not be a need to call setupvars.
-    > Note 3: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, calling setupvars might not be needed. Refer [documentation](https://docs.openvino.ai/2025/get-started/install-openvino.html) for details.
+    > Note 3: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, calling setupvars might not be needed. Refer [documentation](https://docs.openvino.ai/2026/get-started/install-openvino.html) for details.
 
     Successful build will show the information about Single Image Test Tool CLI options
 
