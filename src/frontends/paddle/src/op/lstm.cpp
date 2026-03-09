@@ -30,10 +30,24 @@ struct LSTMNgInputMap {
         auto input_x = reorder_axes(prev_output, {1, 0, 2});
         //[begin. end)
         auto weight_list = node.get_ng_inputs("WeightList");
+        const auto num_layers = node.get_attribute<int32_t>("num_layers");
+        PADDLE_OP_CHECK(node, num_layers > 0, "num_layers must be positive for LSTM.");
+        PADDLE_OP_CHECK(node,
+                        (weight_list.size() % 2) == 0,
+                        "WeightList size must be even (weights + biases).",
+                        " Got ",
+                        weight_list.size(),
+                        ".");
         auto weight_begin = weight_list.begin();
-        auto weight_end = std::next(weight_begin, weight_list.size() / 2);
-        auto bias_begin = weight_end;
+        const size_t half_size = weight_list.size() / 2;
         int bidirect_len = node.get_attribute<bool>("is_bidirec") ? 4 : 2;
+        const size_t required_per_half =
+            static_cast<size_t>(num_layers) * static_cast<size_t>(bidirect_len);
+        PADDLE_OP_CHECK(node,
+                        half_size >= required_per_half,
+                        "WeightList size is insufficient for num_layers and is_bidirec.");
+        auto weight_end = std::next(weight_begin, half_size);
+        auto bias_begin = weight_end;
         int layer_weight_start = layer * bidirect_len;
         int layer_weight_end = bidirect_len + layer * bidirect_len;
         int layer_bias_start = layer * bidirect_len;
