@@ -174,6 +174,28 @@ protected:
         return model;
     }
 
+    std::shared_ptr<ov::Model> createTwoInputNonZeroAddModel(const PartialShape& shape = {2, 16, 16, 16}) {
+        auto param0 = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, shape);
+        param0->get_output_tensor(0).set_names({"tensor_input_0"});
+        param0->set_layout("N...");
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, shape);
+        param1->get_output_tensor(0).set_names({"tensor_input_1"});
+        param1->set_layout("N...");
+        auto nonZero0 = std::make_shared<ov::op::v3::NonZero>(param0);
+        auto nonZero1 = std::make_shared<ov::op::v3::NonZero>(param1);
+        // NonZero Op returns 2D tensor [rank(data), num_non_zero] where second value is dynamic depending on the input
+        // need to workaround this for NPU_BATCH_MODE=PLUGIN using intermediary op e.g. ShapeOf
+        auto shapeOf0 = std::make_shared<ov::op::v0::ShapeOf>(nonZero0);
+        auto shapeOf1 = std::make_shared<ov::op::v0::ShapeOf>(nonZero1);
+        auto add = std::make_shared<ov::op::v1::Add>(shapeOf0, shapeOf1);
+        auto result = std::make_shared<ov::op::v0::Result>(add);
+        result->get_output_tensor(0).set_names({"tensor_output"});
+
+        auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param0, param1});
+        model->set_friendly_name("TwoTwoInputNonZeroAddModel");
+        return model;
+    }
+
     auto allocate_tensors() -> std::tuple</* importMemoryBatched */ ov::Tensor,
                                           /* importMemoryTensor_1 */ ov::Tensor,
                                           /* importMemoryTensor_2 */ ov::Tensor,
@@ -246,7 +268,7 @@ public:
 
         std::tie(target_device, configuration, withWarmUpInfer, withResetInferRequest) = this->GetParam();
         OVPluginTestBase::SetUp();
-        ov_model = createTwoInputLessEqualModel();  // FIXME: E#80555
+        ov_model = createTwoInputNonZeroAddModel();
     }
 };
 
@@ -316,6 +338,7 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
 }
 
 TEST_P(BooleanPrecisionInferRequestRunTests, BooleanTensorDataTypesForBooleanModelsWork) {
+    // TODO: Also test createTwoInputLessEqualModel model when we have compiler support
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::CompiledModel compiled_model_boolean, compiled_model_boolean_imported;
     ov::InferRequest infer_request_boolean, infer_request_boolean_imported;
@@ -327,6 +350,7 @@ TEST_P(BooleanPrecisionInferRequestRunTests, BooleanTensorDataTypesForBooleanMod
     }
 
     bool isPVDriver = (core->get_property(target_device, ov::intel_npu::driver_version) == 1688);
+
     bool isDriverCompiler =
         (configuration.find(ov::intel_npu::compiler_type.name()) != configuration.end() &&
          configuration.find(ov::intel_npu::compiler_type.name())->second.as<ov::intel_npu::CompilerType>() ==

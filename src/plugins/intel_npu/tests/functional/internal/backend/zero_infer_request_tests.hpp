@@ -17,7 +17,10 @@
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/less_eq.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "plugin_compiler_adapter.hpp"
@@ -27,7 +30,7 @@
 #include "zero_infer_request.hpp"
 
 namespace {
-std::shared_ptr<ov::Model> make_2_input_less_eq(ov::Shape input_shape = {2, 16, 16, 16}) {
+[[maybe_unused]] std::shared_ptr<ov::Model> make_2_input_less_eq(const ov::Shape& input_shape = {2, 16, 16, 16}) {
     auto param0 = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, input_shape);
     param0->get_output_tensor(0).set_names({"tensor_input_0"});
     param0->set_layout("N...");
@@ -42,6 +45,29 @@ std::shared_ptr<ov::Model> make_2_input_less_eq(ov::Shape input_shape = {2, 16, 
     model->set_friendly_name("TwoInputLessEqual");
     return model;
 }
+
+std::shared_ptr<ov::Model> make_2_input_less_eq_non_zero(const ov::Shape& input_shape = {2, 16, 16, 16}) {
+    auto param0 = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, input_shape);
+    param0->get_output_tensor(0).set_names({"tensor_input_0"});
+    param0->set_layout("N...");
+    auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, input_shape);
+    param1->get_output_tensor(0).set_names({"tensor_input_1"});
+    param1->set_layout("N...");
+    auto nonZero0 = std::make_shared<ov::op::v3::NonZero>(param0);
+    auto nonZero1 = std::make_shared<ov::op::v3::NonZero>(param1);
+    // NonZero Op returns 2D tensor [rank(data), num_non_zero] where second value is dynamic depending on the input
+    // need to workaround this for NPU_BATCH_MODE=PLUGIN using intermediary op e.g. ShapeOf
+    auto shapeOf0 = std::make_shared<ov::op::v0::ShapeOf>(nonZero0);
+    auto shapeOf1 = std::make_shared<ov::op::v0::ShapeOf>(nonZero1);
+    auto add = std::make_shared<ov::op::v1::Add>(shapeOf0, shapeOf1);
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    result->get_output_tensor(0).set_names({"tensor_output"});
+
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param0, param1});
+    model->set_friendly_name("TwoTwoInputNonZeroAddModel");
+    return model;
+}
+
 }  // namespace
 
 namespace ov {
@@ -233,7 +259,8 @@ public:
 }  // namespace ov
 
 TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
-    ov_model = make_2_input_less_eq();
+    // TODO: Also test make_2_input_less_eq model when we have compiler support
+    ov_model = make_2_input_less_eq_non_zero();
 
     auto zero_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
     auto device = intel_npu::utils::getDeviceById(zero_backend,

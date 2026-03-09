@@ -876,15 +876,34 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- C#181730 -->
     <skip_config>
-        <message>Cannot compile LessEqual Op with boolean input yet</message>
+        <message>PV driver cannot create infer request for models with boolean inputs</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
+        </enable_rules>
+        <filters>
+            <filter>.*BooleanPrecisionInferRequestRunTests.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Bug for infer() -> set_tensors() with PV driver</message>
         <enable_rules>
             <backend>LEVEL0</backend>
         </enable_rules>
         <filters>
-            <filter>.*BooleanPrecisionInferRequestRunTests.*</filter>
-            <filter>.*ZeroInferRequestTests.BooleanSetTensorSetTensorsWork.*</filter>
+            <filter>.*ZeroInferRequestTests.BooleanSetTensorSetTensorsWork.*withWarmUpInfer=1.*zeGraphNpuExtVersion=1.5_zeMutableCommandListExtVersion=0.0.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Bug for set_tensors() -> set_tensor() -> set_tensors() with PV driver</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*ZeroInferRequestTests.BooleanSetTensorSetTensorsWork.*withWarmUpInfer=0_withResetInferRequest=0.*zeGraphNpuExtVersion=1.5_zeMutableCommandListExtVersion=0.0.*</filter>
         </filters>
     </skip_config>
 
