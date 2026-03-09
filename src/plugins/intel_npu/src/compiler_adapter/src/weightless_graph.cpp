@@ -369,12 +369,8 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
 
     // Due to the large number of init inputs, allocating a single buffer for all of them is more efficient. "View
     // tensors" are used for separating them.
-    const ov::SoPtr<ZeroHostTensor> initInputsAllocatedTensor = {
-        std::make_shared<ZeroHostTensor>(nullptr,
-                                         _zeroInitStruct,
-                                         ov::element::Type_t::u8,
-                                         ov::Shape({initInputsByteSize}),
-                                         ov::intel_npu::TensorType::INPUT)};
+    const ov::SoPtr<ZeroTensor> initInputsAllocatedTensor = {
+        std::make_shared<ZeroTensor>(_zeroInitStruct, ov::element::Type_t::u8, ov::Shape({initInputsByteSize}), true)};
 
     size_t offset = 0;
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).inputs) {
@@ -419,12 +415,11 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
             ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
-    const ov::SoPtr<ZeroHostTensor> initOutputsAllocatedTensor = {
-        std::make_shared<ZeroHostTensor>(nullptr,
-                                         _zeroInitStruct,
-                                         ov::element::Type_t::u8,
-                                         ov::Shape({initOutputsByteSize}),
-                                         ov::intel_npu::TensorType::BINDED)};
+    const ov::SoPtr<ZeroTensor> initOutputsAllocatedTensor = {
+        std::make_shared<ZeroTensor>(_zeroInitStruct,
+                                     ov::element::Type_t::u8,
+                                     ov::Shape({initOutputsByteSize}),
+                                     false)};
 
     size_t offset = 0;
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).outputs) {
@@ -471,9 +466,6 @@ void WeightlessGraph::run_init_multi_threaded() {
         run_init_single_threaded();
         return;
     }
-
-    std::unordered_map<std::string, std::shared_ptr<ZeroHostTensor>> weightsInputs;
-    std::vector<ov::SoPtr<ZeroHostTensor>> initTensors;
 
     // the pipeline:
     // allocate I/O -> create Pipeline -> run Pipeline

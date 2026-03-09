@@ -7,7 +7,7 @@
 #pragma once
 
 #include "graph.hpp"
-#include "intel_npu/utils/zero/zero_host_tensor.hpp"
+#include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 
@@ -47,12 +47,12 @@ public:
     // TODO: public for multi-threaded execution
     struct InputData {
         std::vector<std::shared_ptr<ov::ITensor>> tensors;
-        ov::SoPtr<ZeroHostTensor> hostTensor;
+        ov::SoPtr<ZeroTensor> hostTensor;
     };
 
     struct OutputData {
         std::vector<std::shared_ptr<ov::ITensor>> tensors;
-        ov::SoPtr<ZeroHostTensor> hostTensor;
+        ov::SoPtr<ZeroTensor> hostTensor;
         std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> tensorsMap;
     };
 
@@ -118,7 +118,7 @@ private:
      * @details Each vector entry corresponds to the output of one init schedule. The allocations have been performed
      * per init compiled model and not per init schedule output for performance reasons.
      */
-    mutable std::vector<ov::SoPtr<ZeroHostTensor>> _mainInputsAllocatedTensors;
+    mutable std::vector<ov::SoPtr<ZeroTensor>> _mainInputsAllocatedTensors;
     /**
      * @brief Tensors pointing towards the buffers found in "_mainInputsAllocatedTensors".
      * @details Each map entry corresponds to one input of the main schedule.
