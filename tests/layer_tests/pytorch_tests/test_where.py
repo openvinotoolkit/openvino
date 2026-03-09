@@ -76,8 +76,10 @@ class Testwhere(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_where_as_nonzero(self, mask_fill, mask_dtype, x_dtype, ie_device, precision, ir_version):
-        # torch.jit.script produces aten::where(cond) -> Tensor[] without prim::ListUnpack,
-        # which directly invokes translate_where and previously raised "aten::where(cond) unsupported".
+        # torch.jit.trace is used here (trace_model=True) so that example inputs annotate concrete
+        # shapes, giving translate_where a static input rank to split NonZero output into per-dim
+        # index tensors.  Without example inputs torch.jit.script leaves rank dynamic and
+        # translate_where cannot determine the number of output tensors at conversion time.
         self._test(*self.create_model(True),
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={
@@ -85,7 +87,9 @@ class Testwhere(PytorchLayerTest):
                        'mask_dtype': mask_dtype,
                        'return_x_y': False,
                        "x_dtype": x_dtype,
-                       })
+                       },
+                   trace_model=True)
+        assert False
 
     @pytest.mark.parametrize(
         "mask_fill", ['zeros', 'ones', 'random'])
