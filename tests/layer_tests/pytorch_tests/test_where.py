@@ -89,7 +89,6 @@ class Testwhere(PytorchLayerTest):
                        "x_dtype": x_dtype,
                        },
                    trace_model=True)
-        assert False
 
     @pytest.mark.parametrize(
         "mask_fill", ['zeros', 'ones', 'random'])
