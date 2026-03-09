@@ -52,37 +52,23 @@ jobs:
       HF_HUB_VERBOSITY: debug
       TRANSFORMERS_VERBOSITY: debug
     steps:
-      - name: Append the environment variable - load HF_TOKEN from file (Linux)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          HF_TOKEN="$(cat "${HF_TOKEN_LINUX_PATH}")"
-          echo "::add-mask::${HF_TOKEN}"
-          echo "HF_TOKEN=${HF_TOKEN}" >> $GITHUB_ENV
-          echo "✓ HuggingFace token loaded and masked"
-
-      - name: Append the environment variable - load HF_TOKEN from file (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $tokenPath = $env:HF_TOKEN_WINDOWS_PATH
-          if (Test-Path $tokenPath) {
-            $HF_TOKEN = (Get-Content $tokenPath -Raw).Trim()
-            Write-Output "::add-mask::$HF_TOKEN"
-            Add-Content -Path $env:GITHUB_ENV -Value "HF_TOKEN=$HF_TOKEN"
-            Write-Output "✓ HuggingFace token loaded and masked"
-          } else {
-            Write-Output "⚠ HuggingFace token file not found at $tokenPath, skipping"
-          }
-
       - name: Fetch setup_python and install wheels actions
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: |
             .github/actions
+            .github/scripts
           sparse-checkout-cone-mode: false
           submodules: 'false'
+
+      - name: Append environment variables
+        shell: bash
+        run: |
+          python3 "${GITHUB_WORKSPACE}/.github/scripts/append_variables.py" \
+            --runner-os "${{ runner.os }}" \
+            --linux-path "${HF_TOKEN_LINUX_PATH}" \
+            --windows-path "${{ env.HF_TOKEN_WINDOWS_PATH }}"
 
       - name: Download OpenVINO artifacts (wheels)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
