@@ -21,6 +21,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/gated_delta_net.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
@@ -390,8 +391,23 @@ ov::pass::GatedDeltaNetFusion::GatedDeltaNetFusion() {
     auto Multiply_21 = pattern::wrap_type<ov::op::v1::Multiply>({q_convert_before_l2_norm, inv_sqrt_q});
     auto q_type_convert = pattern::optional<ov::op::v0::Convert>({Multiply_21});
     // q / sqrt(d)
+    auto shape_of_q = pattern::wrap_type<ov::op::v3::ShapeOf>(
+        {any_input(rank_equals(4) && shape_matches("[?, ?, head_num, qk_head_size]"))});
+    auto gather_q_shape = pattern::wrap_type<ov::op::v8::Gather>({shape_of_q, {0, 2, 1, 3}, 0}, {{"batch_dims", 0}});
+
+    auto shape_of_q_tranposed = pattern::wrap_type<ov::op::v3::ShapeOf>(
+        {any_input(rank_equals(4) && shape_matches("[?, head_num, ?, qk_head_size]"))});
+
+    auto q_shape = std::make_shared<pattern::op::Or>(OutputVector{gather_q_shape, shape_of_q_tranposed});
+    auto gather_head_size = pattern::wrap_type<ov::op::v8::Gather>({q_shape, 3, 0}, {{"batch_dims", 0}});
+
+    auto gather_head_size_convert = pattern::wrap_type<ov::op::v0::Convert>({gather_head_size});
+    auto power_const = pattern::wrap_type<ov::op::v0::Constant>(value_matches(("0.5")));
+    auto power_const_convert = pattern::optional<ov::op::v0::Convert>({power_const});
+    auto power_q_head = pattern::wrap_type<ov::op::v1::Power>({gather_head_size_convert, power_const_convert});
+
     auto transpose_query = pattern::wrap_type<ov::op::v1::Transpose>({q_type_convert, {0, 2, 1, 3}});
-    auto Multiply_32 = pattern::wrap_type<ov::op::v1::Divide>({transpose_query, any_input()});
+    auto Multiply_32 = pattern::wrap_type<ov::op::v1::Divide>({transpose_query, power_q_head});
 
     auto key_convert_before_l2_norm = pattern::optional<ov::op::v0::Convert>({key});
     auto Multiply_22 =

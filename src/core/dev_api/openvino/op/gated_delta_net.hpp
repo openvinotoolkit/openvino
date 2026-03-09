@@ -18,7 +18,7 @@ public:
     struct Config {
         bool fuse_qk_l2norm = false;
         bool fuse_q_scale = false;
-        float l2_norm_eps = 1e-6f;
+        float l2_norm_eps = 1e-6F;
     };
     GatedDeltaNet(const ov::OutputVector& args);
     void validate_and_infer_types() override;

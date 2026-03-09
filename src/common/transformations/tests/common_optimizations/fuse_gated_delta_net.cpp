@@ -71,7 +71,7 @@ std::shared_ptr<ov::Model> build_looped_gdn(int32_t batch,
         auto sq = std::make_shared<ov::op::v1::Multiply>(x, x);
         auto axis = ov::op::v0::Constant::create(ov::element::i32, {1}, {-1});
         auto sum = std::make_shared<ov::op::v1::ReduceSum>(sq, axis, true);
-        auto eps = ov::op::v0::Constant::create(dtype, {}, {1e-6f});
+        auto eps = ov::op::v0::Constant::create(dtype, {}, {1e-6F});
         auto inv = std::make_shared<ov::op::v1::Divide>(
             ov::op::v0::Constant::create(dtype, {}, {1.0f}),
             std::make_shared<ov::op::v0::Sqrt>(std::make_shared<ov::op::v1::Add>(sum, eps)));
@@ -84,11 +84,14 @@ std::shared_ptr<ov::Model> build_looped_gdn(int32_t batch,
     auto perm_bhsd = ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3});
     auto perm_bhs = ov::op::v0::Constant::create(ov::element::i64, {3}, {0, 2, 1});
     auto q_norm_t = std::make_shared<ov::op::v1::Transpose>(q_norm, perm_bhsd);
-    auto q_norm_t_shape = std::make_shared<ov::op::v3::ShapeOf>(q_norm_t);
-    auto q_d_index = ov::op::v0::Constant::create(ov::element::i64, {1}, {3});
-    auto q_gather_axis = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
-    auto q_d_i64 = std::make_shared<ov::op::v8::Gather>(q_norm_t_shape, q_d_index, q_gather_axis);
-    auto q_d = std::make_shared<ov::op::v0::Convert>(q_d_i64, dtype);
+    auto shape_of_q = std::make_shared<ov::op::v3::ShapeOf>(q);
+    auto gather_q_perm_index = ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3});
+    auto gather_axis0 = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+    auto gather_q_shape = std::make_shared<ov::op::v8::Gather>(shape_of_q, gather_q_perm_index, gather_axis0, 0);
+    auto gather_head_size_index = ov::op::v0::Constant::create(ov::element::i64, {}, {3});
+    auto gather_head_size =
+        std::make_shared<ov::op::v8::Gather>(gather_q_shape, gather_head_size_index, gather_axis0, 0);
+    auto q_d = std::make_shared<ov::op::v0::Convert>(gather_head_size, dtype);
     auto half = ov::op::v0::Constant::create(dtype, {}, {0.5f});
     auto q_scale = std::make_shared<ov::op::v1::Power>(q_d, half);
     auto q_scaled_t = std::make_shared<ov::op::v1::Divide>(q_norm_t, q_scale);
@@ -230,6 +233,7 @@ std::shared_ptr<ov::Model> build_fused_gdn_ref(int32_t batch,
     ov::op::GatedDeltaNet::Config cfg;
     cfg.fuse_qk_l2norm = true;
     cfg.fuse_q_scale = true;
+    cfg.l2_norm_eps = 1e-6F;
     gdn->set_config(cfg);
 
     return std::make_shared<ov::Model>(ov::OutputVector{gdn->output(0), gdn->output(1)},
