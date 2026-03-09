@@ -3,6 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/maximum.hpp"
@@ -20,6 +21,17 @@ namespace pytorch {
 namespace op {
 
 using namespace ov::op;
+
+// Returns true when the output is an empty list
+static bool is_empty_axes(const Output<Node>& dims_input) {
+    if (is_empty_list(dims_input)) {
+        return true;
+    }
+    if (const auto constant_src = ov::util::get_constant_from_source(dims_input)) {
+        return constant_src->get_shape() == Shape{0};
+    }
+    return false;
+}
 
 OutputVector translate_max(const NodeContext& context) {
     // torch.max (same for torch.min) actually has two interfaces smashed together:
@@ -177,14 +189,15 @@ OutputVector translate_amin(const NodeContext& context) {
     // aten::amin.out(Tensor self, int[1] dim=[], bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
     num_inputs_check(context, 1, 4);
     auto x = context.get_input(0);
-    // From torch 2.8, amax dim input is optional
-    // check if dim is provided, if not, get the range of axes to reduce over all dimensions
-    auto dims = !context.input_is_none(1) ? context.get_input(1) : get_axes_range(context, 0);
+    // From torch 2.8, amin dim input is optional; an empty list also means reduce all dims
+    auto dim_input = !context.input_is_none(1) ? context.get_input(1) : Output<Node>{};
+    auto dim = (dim_input.get_node() == nullptr || is_empty_axes(dim_input)) ? get_axes_range(context, 0)
+                                                                             : dim_input;
     bool keep_dims = false;
     if (!context.input_is_none(2)) {
         keep_dims = context.const_input<bool>(2);
     }
-    auto res = context.mark_node(std::make_shared<v1::ReduceMin>(x, dims, keep_dims));
+    auto res = context.mark_node(std::make_shared<v1::ReduceMin>(x, dim, keep_dims));
     if (!context.input_is_none(3)) {
         context.mutate_input(3, res);
     }
@@ -197,14 +210,15 @@ OutputVector translate_amax(const NodeContext& context) {
     // aten::amax.out(Tensor self, int[1] dim=[], bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
     num_inputs_check(context, 1, 4);
     auto x = context.get_input(0);
-    // From torch 2.8, amax dim input is optional
-    // check if dim is provided, if not, get the range of axes to reduce over all dimensions
-    auto dims = !context.input_is_none(1) ? context.get_input(1) : get_axes_range(context, 0);
+    // From torch 2.8, amax dim input is optional; an empty list also means reduce all dims
+    auto dim_input = !context.input_is_none(1) ? context.get_input(1) : Output<Node>{};
+    auto dim = (dim_input.get_node() == nullptr || is_empty_axes(dim_input)) ? get_axes_range(context, 0)
+                                                                             : dim_input;
     bool keep_dims = false;
     if (!context.input_is_none(2)) {
         keep_dims = context.const_input<bool>(2);
     }
-    auto res = context.mark_node(std::make_shared<v1::ReduceMax>(x, dims, keep_dims));
+    auto res = context.mark_node(std::make_shared<v1::ReduceMax>(x, dim, keep_dims));
     if (!context.input_is_none(3)) {
         context.mutate_input(3, res);
     }
@@ -217,9 +231,9 @@ OutputVector translate_aminmax(const NodeContext& context) {
 
     auto input = context.get_input(0);
 
-    // From torch 2.8, amax dim input is optional
-    // check if dim is provided, if not, get the range of axes to compute min and max
-    auto dim = !context.input_is_none(1) ? context.get_input(1) : get_axes_range(context, 0);
+    // From torch 2.8, amax dim input is optional; an empty list also means reduce all dims
+    auto dim_input = !context.input_is_none(1) ? context.get_input(1) : Output<Node>{};
+    auto dim = (dim_input.get_node() == nullptr || is_empty_axes(dim_input)) ? get_axes_range(context, 0) : dim_input;
 
     // check if keepdim is provided, if not, set it to false like PyTorch
     bool keep_dims = !context.input_is_none(2) ? context.const_input<bool>(2) : false;
