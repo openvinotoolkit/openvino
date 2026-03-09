@@ -1,6 +1,6 @@
 -c ../constraints.txt
 --extra-index-url https://download.pytorch.org/whl/cpu
 optimum-intel[tests,nncf]
-whowhatbench[llm-test-openvino0] @ git+https://github.com/sbalandi/openvino.genai.git@wwb_extras_test#subdirectory=tools/who_what_benchmark
+whowhatbench[llm-test-openvino] @ git+https://github.com/openvinotoolkit/openvino.genai.git#subdirectory=tools/who_what_benchmark
 pytest
 jinja2>=3.1.0
