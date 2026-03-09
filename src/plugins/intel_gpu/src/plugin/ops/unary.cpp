@@ -77,14 +77,24 @@ static void CreatePReluOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::P
 
     auto slope_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     auto slope_shape = op->get_input_partial_shape(1);
-    auto out_shape = op->get_output_partial_shape(0);
 
+    // Check if slope is a scalar constant (single element)
     if (slope_node && ov::shape_size(slope_shape.to_shape()) == 1) {
+        // Scalar slope case: Extract the slope value and embed it as a constant parameter
+        // This path handles:
+        // - 0D scalar tests (shape [], size 1)
+        // - 1D constant tensors with shape [1]
+        // - Any constant slope with exactly 1 element
         float slope;
         OPENVINO_ASSERT(ov::op::util::get_single_value(slope_node, slope),
                         "[GPU] Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
         CreateUnaryEltwiseOp(p, op, cldnn::activation_func::relu_negative_slope, {slope});
-    } else if (out_shape.size() >= 2) {
+    } else {
+        // Non-scalar slope case: Use slope as a second input to the activation primitive
+        // This path handles:
+        // - Multi-element constant slopes (e.g., per-channel slopes)
+        // - Non-constant (dynamic) slopes
+        // - ALL dimensionalities (1D, 2D, 3D, 4D, 5D, etc.)
         auto inputs = p.GetInputInfo(op);
         std::string layerName = layer_type_name_ID(op);
         auto activationPrimitive = cldnn::activation(layerName,
