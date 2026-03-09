@@ -24,6 +24,7 @@
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/moe_3gemm_fused_compressed.hpp"
 #include "openvino/op/linear_attn.hpp"
+#include "openvino/op/fused_conv.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
@@ -1296,6 +1297,13 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Out
         }
     } else if (type_name == "LinearAttention") {
         ovNode = std::make_shared<ov::op::LinearAttention>();
+        ovNode->set_arguments(inputs);
+        auto visitor = make_visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
+        if (ovNode->visit_attributes(*visitor)) {
+            ovNode->constructor_validate_and_infer_types();
+        }
+    } else if (type_name == "FusedConv") {
+        ovNode = std::make_shared<ov::op::FusedConv>();
         ovNode->set_arguments(inputs);
         auto visitor = make_visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
         if (ovNode->visit_attributes(*visitor)) {

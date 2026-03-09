@@ -1,6 +1,8 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <algorithm>
+
 #include "rope_opt.hpp"
 
 #include "common_utils/dispatch_utils.hpp"
@@ -12,6 +14,33 @@
 
 namespace ov::intel_gpu::ocl {
 namespace {
+
+size_t get_head_size(const RuntimeParams& params) {
+    auto desc = params.typed_desc<rope>();
+    if (desc->config.head_size != 0) {
+        return desc->config.head_size;
+    }
+    return extract_channel(ChannelName::X, params.output_layouts[0]);
+}
+
+size_t get_head_count(const RuntimeParams& params) {
+    auto desc = params.typed_desc<rope>();
+    if (desc->config.head_cnt != 0) {
+        return desc->config.head_cnt;
+    }
+    return extract_channel(ChannelName::FEATURE, params.output_layouts[0]);
+}
+
+size_t get_tail_size(const RuntimeParams& params) {
+    auto desc = params.typed_desc<rope>();
+    const auto head_size = get_head_size(params);
+    return head_size > desc->config.rotary_ndims ? head_size - desc->config.rotary_ndims : 0;
+}
+
+size_t get_work_chunk_size(const RuntimeParams& params) {
+    auto desc = params.typed_desc<rope>();
+    return std::max(desc->config.rotary_ndims / 2ul, get_tail_size(params));
+}
 
 size_t get_vec_size(const RuntimeParams& params) {
     const auto& input = params.get_input_layout(0);
@@ -38,8 +67,13 @@ size_t get_vec_size(const RuntimeParams& params) {
     if (input1.data_type == ov::element::f32 && input.data_type != input1.data_type)
         vec_size = 1;
 
+    const auto tail_size = get_tail_size(params);
+    if (tail_size > 0 && tail_size % vec_size != 0) {
+        vec_size = 1;
+    }
+
     if (desc->config.is_qwen) {
-        auto count = desc->config.head_cnt * std::max(desc->config.rotary_ndims / 2ul, desc->config.head_size - desc->config.rotary_ndims);
+        auto count = get_head_count(params) * std::max(desc->config.rotary_ndims / 2ul, tail_size);
         if (count % vec_size != 0) {
             vec_size = 1;
         }
@@ -57,14 +91,18 @@ protected:
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<rope>();
 
-        auto in_l = params.input_layouts[0];
-        jit.make("HEAD_SIZE", desc->config.head_size);
+        const auto head_size = get_head_size(params);
+        const auto head_count = get_head_count(params);
+        const auto tail_size = get_tail_size(params);
+
+        jit.make("HEAD_SIZE", head_size);
         jit.make("ROTARY_NDIMS", desc->config.rotary_ndims);
         jit.make("HALF_ROTARY_NDIMS", desc->config.rotary_ndims / 2);
         jit.make("COS_SIN_TABLE_OFFSET", (desc->config.cos_sin_ndims == (desc->config.rotary_ndims / 2)) ? 0 : desc->config.rotary_ndims / 2);
-        jit.make("HEAD_COUNT", desc->config.head_cnt);
+        jit.make("HEAD_COUNT", head_count);
+        jit.make("WORK_CHUNK_SIZE", get_work_chunk_size(params));
 
-        if (desc->config.head_size > desc->config.rotary_ndims) {
+        if (tail_size > 0) {
             jit.make("ENABLE_IO_COPY", true);
         }
 
@@ -100,7 +138,7 @@ protected:
             jit.make("RotateInterleaved", true);
         } else {
             jit.make("RotateHalf", true);
-            if (get_vec_size(params) == 1) {
+            if (get_vec_size(params) == 1 && tail_size == 0) {
                 jit.make("REVERSED_GWS", true);
             }
         }
@@ -151,29 +189,30 @@ protected:
                 if (cfg.is_qwen) {
                     auto b = extract_channel(ChannelName::BATCH, in_l);
                     auto f = extract_channel(ChannelName::FEATURE, in_l);
-                    wgs.global = {b, f, cfg.head_cnt * std::max(cfg.rotary_ndims / 2ul, cfg.head_size - cfg.rotary_ndims) / vec_size};
+                    wgs.global = {b, f, get_head_count(params) * get_work_chunk_size(params) / vec_size};
                 } else if (cfg.is_chatglm) {
                     auto b = extract_channel(ChannelName::BATCH, in_l);
                     auto f = extract_channel(ChannelName::FEATURE, in_l);
+                    auto head_count = get_head_count(params);
 
                     if (cfg.support_2d_rope) {
                         // input  [batch_size, seq_length]
                         // output [batch_size, head_count, seq_length, half_rotary_ndims]
-                        wgs.global = {b * cfg.head_cnt, f, cfg.rotary_ndims / 2ul / vec_size};
+                        wgs.global = {b * head_count, f, cfg.rotary_ndims / 2ul / vec_size};
                     } else {
-                        wgs.global = {b, f, cfg.head_cnt * (cfg.rotary_ndims / 2ul) / vec_size};
+                        wgs.global = {b, f, head_count * (cfg.rotary_ndims / 2ul) / vec_size};
                     }
 
                 } else {
                     auto b = extract_channel(ChannelName::BATCH, out_l);
                     auto f = extract_channel(ChannelName::FEATURE, out_l);
                     auto y = extract_channel(ChannelName::Y, out_l);
-                    wgs.global = {b, f, y * cfg.rotary_ndims / 2ul / vec_size};
+                    wgs.global = {b, f, y * get_work_chunk_size(params) / vec_size};
                     if (cfg.support_3d_rope) {
-                        wgs.global = {b, f, cfg.rotary_ndims / 2ul / vec_size};
+                        wgs.global = {b, f, get_work_chunk_size(params) / vec_size};
                     }
                     // reverse gws when RotateHalf and vec_size is one
-                    if (!desc->config.is_interleaved && vec_size == 1) {
+                    if (!desc->config.is_interleaved && vec_size == 1 && get_tail_size(params) == 0) {
                         size_t tmp = wgs.global[0];
                         wgs.global[0] = wgs.global[2];
                         wgs.global[2] = tmp;

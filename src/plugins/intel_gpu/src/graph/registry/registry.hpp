@@ -139,6 +139,7 @@ REGISTER_IMPLS(eltwise);
 REGISTER_IMPLS(fake_convert);
 REGISTER_IMPLS(fully_connected);
 REGISTER_IMPLS(fused_mlp);
+REGISTER_IMPLS(fused_conv);
 REGISTER_IMPLS(gather);
 REGISTER_IMPLS(gather_nd);
 REGISTER_IMPLS(gemm);
