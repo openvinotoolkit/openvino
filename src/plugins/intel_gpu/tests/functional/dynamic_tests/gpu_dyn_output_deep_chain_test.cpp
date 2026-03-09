@@ -22,8 +22,8 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/softmax.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/runtime/core.hpp"
@@ -50,13 +50,11 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        const auto input_shapes = std::vector<InputShape>{
-            {{-1, K}, {{2, K}, {3, K}, {2, K}}}};
+        const auto input_shapes = std::vector<InputShape>{{{-1, K}, {{2, K}, {3, K}, {2, K}}}};
         init_input_shapes(input_shapes);
 
         // Build model:  Param{-1,4} → Softmax(axis=1) → Reshape(-1,4) → Result
-        auto param = std::make_shared<ov::op::v0::Parameter>(
-            ov::element::f32, ov::PartialShape{ov::Dimension::dynamic(), K});
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ov::Dimension::dynamic(), K});
         param->set_friendly_name("input");
         param->get_output_tensor(0).set_names({"input_tensor"});
 
@@ -124,12 +122,10 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        const auto input_shapes = std::vector<InputShape>{
-            {{-1, K}, {{2, K}, {3, K}, {2, K}}}};
+        const auto input_shapes = std::vector<InputShape>{{{-1, K}, {{2, K}, {3, K}, {2, K}}}};
         init_input_shapes(input_shapes);
 
-        auto param = std::make_shared<ov::op::v0::Parameter>(
-            ov::element::f32, ov::PartialShape{ov::Dimension::dynamic(), K});
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ov::Dimension::dynamic(), K});
         param->set_friendly_name("input");
         param->get_output_tensor(0).set_names({"input_tensor"});
 
@@ -202,12 +198,10 @@ protected:
         targetDevice = ov::test::utils::DEVICE_GPU;
 
         // Input shape: {-1, 1, K}
-        const auto input_shapes = std::vector<InputShape>{
-            {{-1, 1, K}, {{2, 1, K}, {3, 1, K}, {2, 1, K}}}};
+        const auto input_shapes = std::vector<InputShape>{{{-1, 1, K}, {{2, 1, K}, {3, 1, K}, {2, 1, K}}}};
         init_input_shapes(input_shapes);
 
-        auto param = std::make_shared<ov::op::v0::Parameter>(
-            ov::element::f32, ov::PartialShape{ov::Dimension::dynamic(), 1, K});
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ov::Dimension::dynamic(), 1, K});
         param->set_friendly_name("input");
         param->get_output_tensor(0).set_names({"input_tensor"});
 
@@ -284,12 +278,10 @@ protected:
         targetDevice = ov::test::utils::DEVICE_GPU;
 
         // 5 shapes: enough to exercise multiple flips with shape changes.
-        const auto input_shapes = std::vector<InputShape>{
-            {{-1, K}, {{2, K}, {3, K}, {4, K}, {2, K}, {3, K}}}};
+        const auto input_shapes = std::vector<InputShape>{{{-1, K}, {{2, K}, {3, K}, {4, K}, {2, K}, {3, K}}}};
         init_input_shapes(input_shapes);
 
-        auto param = std::make_shared<ov::op::v0::Parameter>(
-            ov::element::f32, ov::PartialShape{ov::Dimension::dynamic(), K});
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ov::Dimension::dynamic(), K});
         param->set_friendly_name("input");
         param->get_output_tensor(0).set_names({"input_tensor"});
 
@@ -375,12 +367,10 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        const auto input_shapes = std::vector<InputShape>{
-            {{-1, K}, {{2, K}, {3, K}, {2, K}}}};
+        const auto input_shapes = std::vector<InputShape>{{{-1, K}, {{2, K}, {3, K}, {2, K}}}};
         init_input_shapes(input_shapes);
 
-        auto param = std::make_shared<ov::op::v0::Parameter>(
-            ov::element::f32, ov::PartialShape{ov::Dimension::dynamic(), K});
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ov::Dimension::dynamic(), K});
         param->set_friendly_name("input");
         param->get_output_tensor(0).set_names({"input_tensor"});
 
@@ -395,8 +385,7 @@ protected:
         add->set_friendly_name("add");
 
         // Concat on axis 1: {-1, 2} + {-1, 2} → {-1, 4}
-        auto concat = std::make_shared<ov::op::v0::Concat>(
-            ov::OutputVector{multiply, add}, 1);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{multiply, add}, 1);
         concat->set_friendly_name("concat");
 
         auto result = std::make_shared<ov::op::v0::Result>(concat);
@@ -426,18 +415,16 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        const auto input_shapes = std::vector<InputShape>{
-            {{-1, K}, {{2, K}, {3, K}, {2, K}}}};
+        const auto input_shapes = std::vector<InputShape>{{{-1, K}, {{2, K}, {3, K}, {2, K}}}};
         init_input_shapes(input_shapes);
 
-        auto param = std::make_shared<ov::op::v0::Parameter>(
-            ov::element::f32, ov::PartialShape{ov::Dimension::dynamic(), K});
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ov::Dimension::dynamic(), K});
         param->set_friendly_name("input");
         param->get_output_tensor(0).set_names({"input_tensor"});
 
-        auto weights = ov::test::utils::make_constant(
-            ov::element::f32, ov::Shape{static_cast<size_t>(K), static_cast<size_t>(K)},
-            ov::test::utils::InputGenerateData(0, 1, 1000, 42));
+        auto weights = ov::test::utils::make_constant(ov::element::f32,
+                                                      ov::Shape{static_cast<size_t>(K), static_cast<size_t>(K)},
+                                                      ov::test::utils::InputGenerateData(0, 1, 1000, 42));
 
         auto matmul = std::make_shared<ov::op::v0::MatMul>(param, weights, false, false);
         matmul->set_friendly_name("matmul");
@@ -457,8 +444,7 @@ protected:
         auto result_2 = std::make_shared<ov::op::v0::Result>(reshape_2);
         result_2->set_friendly_name("result_2");
 
-        function = std::make_shared<ov::Model>(
-            ov::ResultVector{result_1, result_2}, ov::ParameterVector{param});
+        function = std::make_shared<ov::Model>(ov::ResultVector{result_1, result_2}, ov::ParameterVector{param});
     }
 };
 
@@ -482,18 +468,16 @@ protected:
         targetDevice = ov::test::utils::DEVICE_GPU;
 
         // 6 shapes for stress testing
-        const auto input_shapes = std::vector<InputShape>{
-            {{-1, K}, {{1, K}, {2, K}, {3, K}, {4, K}, {2, K}, {1, K}}}};
+        const auto input_shapes = std::vector<InputShape>{{{-1, K}, {{1, K}, {2, K}, {3, K}, {4, K}, {2, K}, {1, K}}}};
         init_input_shapes(input_shapes);
 
-        auto param = std::make_shared<ov::op::v0::Parameter>(
-            ov::element::f32, ov::PartialShape{ov::Dimension::dynamic(), K});
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ov::Dimension::dynamic(), K});
         param->set_friendly_name("input");
         param->get_output_tensor(0).set_names({"input_tensor"});
 
-        auto weights = ov::test::utils::make_constant(
-            ov::element::f32, ov::Shape{static_cast<size_t>(K), static_cast<size_t>(K)},
-            ov::test::utils::InputGenerateData(0, 1, 1000, 42));
+        auto weights = ov::test::utils::make_constant(ov::element::f32,
+                                                      ov::Shape{static_cast<size_t>(K), static_cast<size_t>(K)},
+                                                      ov::test::utils::InputGenerateData(0, 1, 1000, 42));
 
         auto matmul = std::make_shared<ov::op::v0::MatMul>(param, weights, false, false);
         matmul->set_friendly_name("matmul");

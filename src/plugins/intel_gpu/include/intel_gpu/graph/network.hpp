@@ -193,8 +193,6 @@ public:
 
     /// @brief Register an externally-owned output memory block for a network output primitive.
     /// The block is owned by the infer request; the network holds a non-owning pointer.
-    /// If the block pointer changes from the previously registered one, the graph's cached
-    /// output memory for the primitive chain is invalidated.
     void register_output_memory_block(const primitive_id& id, ov::intel_gpu::OutputMemoryBlock* block);
 
     /// @brief Unregister a previously registered output memory block for a primitive.
@@ -210,10 +208,7 @@ public:
 
     /// @brief Walk backward from an output node through optimized predecessors
     /// to find the compute node(s) whose output memory aliases the ext_block,
-    /// and clear their _outputs[0].  Called by the infer request after
-    /// nextMemory() switches the double-buffer.  The null _outputs[0] will
-    /// trigger realloc_if_needed in prepare_primitive, which re-probes the
-    /// forward chain and picks up the new ext_block buffer.
+    /// and clear their _outputs[0].
     void invalidate_ext_block_compute_nodes(const primitive_id& output_id);
 
     memory_pool& get_memory_pool() const {
@@ -258,6 +253,8 @@ private:
     memory::ptr _shape_info_ptr;
 
     std::unordered_map<primitive_id, memory::ptr> _output_remote_mem_ptrs;
+    // Non-owning pointers to OutputMemoryBlocks, keyed by Result node's primitive_id.
+    // Owned by SyncInferRequest::m_output_memory_blocks. One entry per OV model output.
     std::unordered_map<primitive_id, ov::intel_gpu::OutputMemoryBlock*> _output_memory_blocks;
 
     std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;

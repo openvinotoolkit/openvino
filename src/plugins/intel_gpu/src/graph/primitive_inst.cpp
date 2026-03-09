@@ -752,8 +752,6 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     // ext_block memory directly so this node's kernel writes into it, achieving
     // zero-copy.  This handles arbitrary-depth chains like:
     //   ComputeNode -> Reshape(opt) -> Reorder(opt) -> Result(opt, ext_block)
-    // The walk stops at the first non-optimized user, multi-user fork, or when
-    // an ext_block output is found.
     {
         auto* cursor = this;
         while (cursor->get_user_insts().size() == 1 && cursor->get_user_insts().front()->can_be_optimized()) {
@@ -2146,15 +2144,10 @@ void primitive_inst::prepare_primitive() {
     _update_shape_done_by_other = false; // reset
     OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
 
-    // Re-acquire output memory when _outputs[0] was cleared.  This happens when:
-    //   - invalidate_output_memory_chain clears it on register/unregister
-    //   - invalidate_ext_block_compute_nodes clears it after double-buffer flip
-    // The null-check is the single canonical invalidation signal.  No flag abuse.
-    if (is_dynamic() && !_outputs.empty() && _impl) {
-        if (!_outputs[0]) {
-            realloc_if_needed(prev_execution_skipped);
-            set_flag(ExecutionFlags::MEMORY_CHANGED);
-        }
+    // Re-acquire output memory when _outputs[0] was cleared.
+    if (is_dynamic() && !_outputs.empty() && !_outputs[0]) {
+        realloc_if_needed(prev_execution_skipped);
+        set_flag(ExecutionFlags::MEMORY_CHANGED);
     }
 
     std::function<bool(const cldnn::primitive_inst*)> has_dynamic_dependencies_insts =
