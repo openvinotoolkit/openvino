@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "icache_manager.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
+#include "openvino/runtime/icache_manager.hpp"
 #include "openvino/runtime/tlv_format.hpp"
 #include "openvino/util/ov_version.hpp"
 

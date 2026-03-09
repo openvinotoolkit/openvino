@@ -103,7 +103,10 @@ SingleFileStorage::SingleFileStorage(const std::filesystem::path& path) : m_file
 }
 
 bool SingleFileStorage::build_content_index(std::ifstream& stream) {
-    const auto blob_reader = [this](std::istream& s, TLVTraits::LengthType size) {
+    const auto current_pos = stream.tellg();
+    const auto end_pos = stream.seekg(0, std::ios::end).tellg();
+    stream.seekg(current_pos);
+    const auto blob_reader = [this, end_pos](std::istream& s, TLVTraits::LengthType size) {
         if (size == 0) {
             return true;
         }
@@ -111,14 +114,21 @@ bool SingleFileStorage::build_content_index(std::ifstream& stream) {
         PadSizeType padding_size;
         s.read(reinterpret_cast<char*>(&id), sizeof(id));
         s.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
+        if (s.tellg() + static_cast<std::streamoff>(padding_size) > end_pos) {
+            return false;
+        }
         s.seekg(padding_size, std::ios::cur);
         if (!s.good()) {
             return false;
         }
         const auto blob_data_pos = s.tellg();
-        const auto blob_data_size = size - sizeof(id) - sizeof(padding_size) - padding_size;
+        const auto blob_data_size =
+            static_cast<std::streamoff>(size - sizeof(id) - sizeof(padding_size) - padding_size);
         m_blob_index[id].offset = blob_data_pos;
         m_blob_index[id].size = blob_data_size;
+        if (blob_data_pos + blob_data_size > end_pos) {
+            return false;
+        }
         s.seekg(blob_data_size, std::ios::cur);
         return s.good();
     };
@@ -136,9 +146,12 @@ bool SingleFileStorage::build_content_index(std::ifstream& stream) {
         }
         return s.good();
     };
-    const auto constant_meta_reader = [this](std::istream& s, TLVTraits::LengthType size) {
+    const auto constant_meta_reader = [this, end_pos](std::istream& s, TLVTraits::LengthType size) {
         if (size == 0) {
             return true;
+        }
+        if (s.tellg() + static_cast<std::streamoff>(size) > end_pos) {
+            return false;
         }
         uint64_t source_id;
         s.read(reinterpret_cast<char*>(&source_id), sizeof(source_id));
@@ -166,21 +179,31 @@ bool SingleFileStorage::build_content_index(std::ifstream& stream) {
         }
         return s.good();
     };
-    const auto constant_source_reader = [this](std::istream& s, TLVTraits::LengthType size) {
+    const auto constant_source_reader = [this, end_pos](std::istream& s, TLVTraits::LengthType size) {
         if (size == 0) {
             return true;
         }
         DataIdType device_id, source_id;
         PadSizeType padding_size;
+        if (size < sizeof(device_id) + sizeof(source_id) + sizeof(padding_size) ||
+            s.tellg() + static_cast<std::streamoff>(size) > end_pos) {
+            return false;
+        }
         s.read(reinterpret_cast<char*>(&device_id), sizeof(device_id));
         s.read(reinterpret_cast<char*>(&source_id), sizeof(source_id));
         s.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
+        if (s.tellg() + static_cast<std::streamoff>(padding_size) > end_pos) {
+            return false;
+        }
         s.seekg(padding_size, std::ios::cur);
         if (!s.good()) {
             return false;
         }
         const auto weight_size = size - sizeof(device_id) - sizeof(source_id) - sizeof(padding_size) - padding_size;
         m_shared_context.m_cache_sources[source_id] = {};
+        if (s.tellg() + static_cast<std::streamoff>(weight_size) > end_pos) {
+            return false;
+        }
         s.seekg(weight_size, std::ios::cur);
         return s.good();
     };

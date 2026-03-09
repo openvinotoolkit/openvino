@@ -16,7 +16,7 @@
 #include <string>
 #include <variant>
 
-#include "icache_manager.hpp"
+#include "openvino/runtime/icache_manager.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
