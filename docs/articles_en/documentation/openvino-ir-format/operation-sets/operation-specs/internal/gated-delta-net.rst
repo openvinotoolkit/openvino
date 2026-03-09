@@ -55,7 +55,7 @@ computation:
 **Inputs**
 
 * **1**: ``Q`` - 4D tensor of type *T* and shape ``[batch_size, seq_len, num_heads, key_head_dim]``,
-  the query vectors for each token and head. Scaled internally by ``1 / sqrt(head_size)``
+  the query vectors for each token and head. Scaled internally by ``1 / sqrt(key_head_dim)``
   before computing the output. **Required.**
 
 * **2**: ``K`` - 4D tensor of type *T* and shape ``[batch_size, seq_len, num_heads, key_head_dim]``,
