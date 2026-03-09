@@ -15,6 +15,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include <iostream>
+
 #include "cache/multi_cache.h"
 #include "emitters/snippets/aarch64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/aarch64/kernel_executors/gemm_copy_b.hpp"
@@ -47,11 +49,13 @@ jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(
     OV_CPU_JIT_EMITTER_ASSERT(gemm_repack, "expects GemmCopyB node");
     const auto& input_prc = gemm_repack->get_input_element_type(0);
     if (input_prc == element::f16) {
+        std::cout << "[GemmCopyB] Registering FP16 KleidiAI kernel executor" << std::endl;
         m_kernel_executor =
             kernel_table->register_kernel<GemmCopyBF16KaiKernelExecutor>(expr, GemmCopyBKernelKaiConfig());
         m_is_f16 = true;
     } else {
         OV_CPU_JIT_EMITTER_ASSERT(input_prc == element::f32, "Unexpected precision for GemmCopyB executor");
+        std::cout << "[GemmCopyB] Registering FP32 KleidiAI kernel executor" << std::endl;
         m_kernel_executor =
             kernel_table->register_kernel<GemmCopyBF32KaiKernelExecutor>(expr, GemmCopyBKernelKaiConfig());
         m_is_f16 = false;
