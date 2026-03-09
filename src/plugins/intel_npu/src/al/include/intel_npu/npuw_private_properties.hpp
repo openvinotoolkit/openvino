@@ -308,6 +308,14 @@ static constexpr ov::Property<bool> attn_no_copy{"NPUW_ATTN_NO_COPY"};
 
 /**
  * @brief
+ * Type: boolean.
+ * Use flash attention implementation from the compiler for the attention block, if attn set to HFA
+ * Default value: true
+ */
+static constexpr ov::Property<bool> attn_hfa_fused{"NPUW_ATTN_HFA_FUSED"};
+
+/**
+ * @brief
  * Type: boolean
  * Force subgraph interconnect tensors to f16 precision if those are in f32
  * Default value: false
