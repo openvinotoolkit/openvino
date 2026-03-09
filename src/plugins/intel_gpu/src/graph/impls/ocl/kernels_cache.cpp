@@ -350,8 +350,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
             std::vector<uint8_t> binary = kernels[0]->get_binary();
             kernels.clear();
             // Update binary and rebuild kernel
-            using namespace dnnl::impl::gpu::intel;
-            micro::fuseMicrokernels(binary, combined_source.c_str());
+            gemmstone::microkernel::fuse(binary, combined_source.c_str());
             _builder->build_kernels(binary.data(), binary.size(), KernelFormat::NATIVE_BIN, "", kernels);
 #else  // ENABLE_ONEDNN_FOR_GPU
             OPENVINO_THROW("[GPU] Can't compile kernel w/ microkernels as onednn is not available");
