@@ -113,6 +113,8 @@ private:
     friend class PrefixCachingHelper;
 
     bool m_is_whisper = false;
+    uint64_t m_eos_token_id = 0;
+
     bool m_is_embedding = false;
 
     // Create generate model variants with different sizes

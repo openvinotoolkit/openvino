@@ -21,10 +21,12 @@
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/ric_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
+#include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
+#include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -95,6 +97,12 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
         Manager manager("pre_post_processing");
         manager.set_per_pass_validation(false);
 
+        // To avoid extra memory allocations and ensure behavior consistent with plugin
+        // expectations, Transpose on MatMul inputs (optionally via Convert)
+        // must be fused into MatMul rather than constant-folded.
+        // Therefore, TransposeMatMul should run before the first ConstantFolding pass.
+        REGISTER_PASS(manager, TransposeConvert)
+        REGISTER_PASS(manager, TransposeMatMul)
         // prerequisite: the model structure optimization before applying of the markup
         REGISTER_PASS(manager, SharedOpOptimization)
 

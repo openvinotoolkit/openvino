@@ -50,6 +50,7 @@ log_level: INFO
 - `name` or `path` - **Required**. Path to the model file.
 - `framework` - **Optional**. Framework to use for inference: *onnxrt*, *openvino*. (**Default**: *openvino*)
 - `input_data`, `output_data`, `metric`, `random` - **Optional**. Follow [Use-cases](#use-cases) to  learn the details.
+- `reshape` - **Optional**. Set shape for input layers. For example, "input1: [1,3,224,224], input2: [1,4]" or "[1,3,224,224]" in case of one input layer.
 #### OpenVINO parameters
 - `priority` - **Optional**. Model priority: _HIGH_, _MEDIUM_, _LOW_. (Default: _MEDIUM_)
 - `config` - **Optional**. OpenVINO Plugin specific parameters.
@@ -60,7 +61,6 @@ log_level: INFO
 - `ol` - **Optional**. Output layer layout.
 - `iml` - **Optional**. Input model layout.
 - `oml` - **Optional**. Output model layout.
-- `reshape` - **Optional**. Set shape for input layers. For example, "input1: [1,3,224,224], input2: [1,4]" or "[1,3,224,224]" in case of one input layer.
 - `clamp_outputs` - **Optional**. Clamps all model outputs to the valid range for their precision. Requires `op` to be set for it to take effect.
 
 Examples:
