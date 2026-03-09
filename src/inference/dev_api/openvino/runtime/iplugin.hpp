@@ -110,7 +110,7 @@ public:
                                                               const ov::AnyMap& properties) const = 0;
 
     /**
-     * @brief Compiles model from ov::Model object
+     * @brief Compiles a model from a file path
      * @param model_path A path to model
      * @param properties A ov::AnyMap of properties relevant only for this load operation
      * @return Created Compiled Model object
