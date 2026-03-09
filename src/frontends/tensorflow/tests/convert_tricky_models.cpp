@@ -842,3 +842,45 @@ TEST_F(FrontEndConversionWithReferenceTestsF, UnitializedVariableV2AsInput) {
         model_ref = make_shared<Model>(OutputVector{mul}, ParameterVector{x, var});
     }
 }
+
+TEST(FrontEndConvertTrickyModels, dynpart_zero_num_partitions) {
+    shared_ptr<Model> model = nullptr;
+    try {
+        model = convert_model("dynpart_zero_partitions/dynpart_zero_partitions.pbtxt");
+        FAIL() << "DynamicPartition with num_partitions=0 must throw OpConversionFailure.";
+    } catch (const OpConversionFailure& error) {
+        std::string error_message = error.what();
+        ASSERT_TRUE(error_message.find("num_partitions") != std::string::npos);
+        ASSERT_EQ(model, nullptr);
+    } catch (...) {
+        FAIL() << "DynamicPartition with num_partitions=0 failed with unexpected exception type.";
+    }
+}
+
+TEST(FrontEndConvertTrickyModels, dynpart_negative_num_partitions) {
+    shared_ptr<Model> model = nullptr;
+    try {
+        model = convert_model("dynpart_negative_partitions/dynpart_negative_partitions.pbtxt");
+        FAIL() << "DynamicPartition with num_partitions=-1 must throw OpConversionFailure.";
+    } catch (const OpConversionFailure& error) {
+        std::string error_message = error.what();
+        ASSERT_TRUE(error_message.find("num_partitions") != std::string::npos);
+        ASSERT_EQ(model, nullptr);
+    } catch (...) {
+        FAIL() << "DynamicPartition with num_partitions=-1 failed with unexpected exception type.";
+    }
+}
+
+TEST(FrontEndConvertTrickyModels, dynpart_overflow_num_partitions) {
+    shared_ptr<Model> model = nullptr;
+    try {
+        model = convert_model("dynpart_overflow_partitions/dynpart_overflow_partitions.pbtxt");
+        FAIL() << "DynamicPartition with num_partitions exceeding int32 range must throw OpConversionFailure.";
+    } catch (const OpConversionFailure& error) {
+        std::string error_message = error.what();
+        ASSERT_TRUE(error_message.find("num_partitions") != std::string::npos);
+        ASSERT_EQ(model, nullptr);
+    } catch (...) {
+        FAIL() << "DynamicPartition with overflowing num_partitions failed with unexpected exception type.";
+    }
+}

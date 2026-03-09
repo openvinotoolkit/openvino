@@ -29,6 +29,12 @@ struct SoPtr {
      */
     SoPtr() = default;
 
+    SoPtr(const SoPtr<T>&) = default;
+    SoPtr(SoPtr<T>&&) noexcept = default;
+
+    SoPtr& operator=(const SoPtr<T>&) = default;
+    SoPtr& operator=(SoPtr<T>&&) noexcept = default;
+
     /**
      * @brief Destructor preserves unloading order of implementation object and reference to library
      */
@@ -53,8 +59,8 @@ struct SoPtr {
      * @brief Constructs an object with existing shared object reference
      * @param ptr pointer to the loaded object
      */
-    template <class U, typename std::enable_if<std::is_base_of<T, U>::value, bool>::type = true>
-    SoPtr(const std::shared_ptr<U>& ptr) : _ptr{std::dynamic_pointer_cast<T>(ptr)},
+    template <class U, std::enable_if_t<std::is_base_of_v<T, U>, bool> = true>
+    SoPtr(const std::shared_ptr<U>& ptr) : _ptr{std::static_pointer_cast<T>(ptr)},
                                            _so{nullptr} {}
 
     /**

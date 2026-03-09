@@ -23,6 +23,7 @@
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <vector>
 
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -31,7 +32,6 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/reorder.h"
 #include "openvino/core/except.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -693,6 +693,7 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
                          int dim,
                          int w_rank,
                          int w_size,
+                         const CpuParallelPtr& cpu_parallel,
                          bool need_fill) {
     auto desc = src->getDescPtr();
     const auto& shape = src->getShape();
@@ -747,7 +748,7 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
         strideSize /= 2;
         copySize /= 2;
     }
-    parallel_for(step, [&](int i) {
+    cpu_parallel->parallel_for(step, [&](int i) {
         int dst_offset = i * copySize;
         int src_offset = i * splited_size + w_rank * strideSize;
         cpu_parallel_memcpy(dstPtr + dst_offset, srcPtr + src_offset, copySize);

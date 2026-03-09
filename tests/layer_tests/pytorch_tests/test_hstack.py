@@ -21,7 +21,7 @@ class aten_hstack_out(aten_hstack):
 
 class TestHstack(PytorchLayerTest):
     def _prepare_input(self, out=False, num_repeats=2):
-        data = np.random.randn(2, 1, 3)
+        data = self.random.randn(2, 1, 3)
         if not out:
             return (data, )
         concat = [data for _ in range(num_repeats)]
@@ -33,7 +33,7 @@ class TestHstack(PytorchLayerTest):
     @pytest.mark.parametrize("out", [False, True])
     def test_hstack(self, out, ie_device, precision, ir_version):
         model = aten_hstack() if not out else aten_hstack_out()
-        self._test(model, None, "aten::hstack", ie_device,
+        self._test(model, "aten::hstack", ie_device,
                    precision, ir_version, kwargs_to_prepare_input={"out": out, "num_repeats": 2})
 
 
@@ -42,7 +42,7 @@ class TestHstackAlignTypes(PytorchLayerTest):
         in_vals = []
         for i in range(len(in_types)):
             dtype = in_types[i]
-            in_vals.append(np.random.randn(2, 1, 3).astype(dtype))
+            in_vals.append(self.random.randn(2, 1, 3, dtype=dtype))
         return in_vals
 
     def create_model(self, in_count):
@@ -83,5 +83,5 @@ class TestHstackAlignTypes(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_align_types_hstack(self, ie_device, precision, ir_version, in_types):
-        self._test(self.create_model(len(in_types)), None, "aten::hstack",
+        self._test(self.create_model(len(in_types)), "aten::hstack",
                    ie_device, precision, ir_version, kwargs_to_prepare_input={"in_types": in_types})
