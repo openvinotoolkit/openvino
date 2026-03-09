@@ -37,7 +37,9 @@ public:
     Stage::Ptr kv_cache_update = make_stage<PagedAttentionGeneratorKVCacheUpdate>();
     Stage::Ptr pa_single_token = make_stage<PagedAttentionGeneratorSingleToken>();
     Stage::Ptr pa_single_token_finalization = make_stage<PagedAttentionGeneratorSingleTokenFinalization>();
-    Stage::Ptr pa_multi_token = make_stage<PagedAttentionGeneratorMultiToken>();
+    Stage::Ptr pa_multi_token_1 = make_stage<PagedAttentionGeneratorMultiToken>(1);
+    Stage::Ptr pa_multi_token_128 = make_stage<PagedAttentionGeneratorMultiToken>(128);
+    Stage::Ptr pa_multi_token_256 = make_stage<PagedAttentionGeneratorMultiToken>(256);
     Stage::Ptr xattn_estimate_gemmqk = make_stage<XAttentionEstimateGEMMQK>(128);
     Stage::Ptr xattn_estimate_find_block = make_stage<XAttentionEstimateFindBlock>(128);
     Stage::Ptr xattn_estimate_post_proc = make_stage<XAttentionEstimatePostProc>(128);
@@ -55,15 +57,22 @@ public:
         add_stage(kv_cache_update, params);
         add_stage(pa_single_token, params);
         add_stage(pa_single_token_finalization, params);
-        add_stage(pa_multi_token, params);
+        add_stage(pa_multi_token_1, params);
         if (desc->has_xattention) {
+            add_stage(pa_multi_token_128, params);
+            if (params.get_device_info().arch >= gpu_arch::xe2) {
+                add_stage(pa_multi_token_256, params);
+            }
+
             add_stage(xattn_estimate_gemmqk, params);
             add_stage(xattn_estimate_find_block, params);
             add_stage(xattn_estimate_post_proc, params);
 
-            add_stage(xattn_estimate_gemmqk_256, params);
-            add_stage(xattn_estimate_find_block_256, params);
-            add_stage(xattn_estimate_post_proc_256, params);
+            if (params.get_device_info().arch >= gpu_arch::xe2) {
+                add_stage(xattn_estimate_gemmqk_256, params);
+                add_stage(xattn_estimate_find_block_256, params);
+                add_stage(xattn_estimate_post_proc_256, params);
+            }
         }
     }
 
@@ -126,7 +135,7 @@ public:
                                << std::endl;
 
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
-            auto partition_size = get_partition_size(desc->has_xattention);
+            auto partition_size = PagedAttentionGeneratorSingleToken::get_partition_size(desc->has_xattention);
             rt_params->num_of_partitions = ceil_div(max_context_len, partition_size);
             rt_params->q_chunking = get_single_token_q_chunking(params, *desc, partition_size);
             GPU_DEBUG_TRACE_DETAIL << "  partition_size: " << partition_size << "  num_of_partitions: " << rt_params->num_of_partitions << std::endl;
@@ -158,28 +167,37 @@ public:
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
 
         if (rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) {
-            if (!bypass_xattn(params)) {
-                if (rt_params->xattn_block_size == 128) {
-                    res_event = {execute_stage(res_event, instance, xattn_estimate_gemmqk)};
-                    XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX);  // 2: kq_max_wg
-                    XATTN_DUMP(instance,
-                               PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS);  // idx 3: kq_exp_partial_sum is subject to change in find_block kernel.
-                    res_event = {execute_stage(res_event, instance, xattn_estimate_find_block)};
-                    res_event = {execute_stage(res_event, instance, xattn_estimate_post_proc)};
-                } else {
-                    res_event = {execute_stage(res_event, instance, xattn_estimate_gemmqk_256)};
-                    XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX);
-                    XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS);
-                    res_event = {execute_stage(res_event, instance, xattn_estimate_find_block_256)};
-                    XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK);  // 4: sparse_block_mask
-                    res_event = {execute_stage(res_event, instance, xattn_estimate_post_proc_256)};
-                }
+            const bool is_xattn_bypassed = bypass_xattn(params);
+            if (is_xattn_bypassed || desc->has_xattention == false) {
+                GPU_DEBUG_TRACE_DETAIL << "Execute multi-token stage w/o XAttention estimation stages." << std::endl;
+
+                res_event = {execute_stage(res_event, instance, *pa_multi_token_1)};
+            } else {
+                GPU_DEBUG_TRACE_DETAIL << "Execute multi-token stage w/ XAttention estimation stages." << std::endl;
+
+                OPENVINO_ASSERT(rt_params->xattn_block_size == 128 || rt_params->xattn_block_size == 256,
+                                "Unsupported xattention block size for multi token stage: ",
+                                rt_params->xattn_block_size);
+
+                const bool use_256 = rt_params->xattn_block_size == 256;
+                Stage::Ptr& xattn_gemmqk = use_256 ? xattn_estimate_gemmqk_256 : xattn_estimate_gemmqk;
+                Stage::Ptr& xattn_find_block = use_256 ? xattn_estimate_find_block_256 : xattn_estimate_find_block;
+                Stage::Ptr& xattn_post_proc = use_256 ? xattn_estimate_post_proc_256 : xattn_estimate_post_proc;
+                Stage::Ptr& pa_multi_token = use_256 ? pa_multi_token_256 : pa_multi_token_128;
+
+                res_event = {execute_stage(res_event, instance, xattn_gemmqk)};
+                XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX);  // 2: kq_max_wg
+                XATTN_DUMP(instance,
+                           PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS);  // idx 3: kq_exp_partial_sum is subject to change in find_block kernel.
+                res_event = {execute_stage(res_event, instance, xattn_find_block)};
+                XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK);  // 4: sparse_block_mask
 #if FIND_DEBUG_ACC
                 XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_FIND_DEBUG_ACC);  // 6: kq_sum for debug purpose only
 #endif
+                res_event = {execute_stage(res_event, instance, xattn_post_proc)};
+                res_event = {execute_stage(res_event, instance, pa_multi_token)};
             }
-            res_event = {execute_stage(res_event, instance, pa_multi_token)};
-        } else if (rt_params->stage == PagedAttentionStage::GENERATE) {
+        } else {
             res_event = {execute_stage(res_event, instance, pa_single_token)};
             res_event = {execute_stage(res_event, instance, pa_single_token_finalization)};
         }
@@ -262,8 +280,9 @@ private:
         const auto blocksize_mem = input_mem.at(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE);
         mem_lock<int32_t, mem_lock_type::read> lock(blocksize_mem, *params.strm);  // converted
         auto xattn_block_size = static_cast<int32_t>(lock[seq_idx]);
+        GPU_DEBUG_TRACE_DETAIL << "XAttention block size from input: " << xattn_block_size << std::endl;
         if (xattn_block_size != 128 && xattn_block_size != 256) {
-            xattn_block_size = 128;  // default
+            xattn_block_size = 256;  // default
         }
         if (xattn_block_size == 256 && params.get_device_info().arch < gpu_arch::xe2) {
             xattn_block_size = 128;  // on pre-XE2, only support 128
