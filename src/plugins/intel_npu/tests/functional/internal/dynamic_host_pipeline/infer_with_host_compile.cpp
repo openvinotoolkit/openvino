@@ -16,6 +16,10 @@ const std::vector<ov::AnyMap> configs = {{{"NPU_COMPILER_TYPE", "PLUGIN"},
                                          {{"NPU_COMPILER_TYPE", "PLUGIN"},
                                           {"NPU_PLATFORM", "NPU5010"},
                                           {"NPU_COMPILATION_MODE", "HostCompile"},
+                                          {"NPU_CREATE_EXECUTOR", "0"}},
+                                         {{"NPU_COMPILER_TYPE", "PLUGIN"},
+                                          {"NPU_PLATFORM", "NPU5020"},
+                                          {"NPU_COMPILATION_MODE", "HostCompile"},
                                           {"NPU_CREATE_EXECUTOR", "0"}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
