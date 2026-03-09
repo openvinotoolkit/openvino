@@ -76,7 +76,7 @@ struct Subgraph {
 
     using Ref = std::reference_wrapper<Subgraph>;
 
-    void settag(const std::string& t) {
+    void settag(const std::string & t) {
         LOG_DEBUG("Subgraph set-tag=" << t);
         _tag = t;
     }
@@ -111,16 +111,15 @@ struct Function {
     // FIXME: shouldn't be here. Needed to not unpack some lazy closures in DCOFF
     std::set<std::size_t> _idx_lazy_unpack;
 
-    void settag(const std::string& t) {
+    void settag(const std::string & t) {
         LOG_DEBUG("Function set-tag=" << t);
         _tag = t;
     }
     std::string gettag() const {
         return _tag;
     }
-
 private:
-    std::string _tag;  // derived from the partitioning
+    std::string _tag; // derived from the partitioning
 };
 
 struct Group {
@@ -140,7 +139,7 @@ struct Group {
 
     ov::npuw::Subgraph sg;
 
-    void settag(const std::string& t) {
+    void settag(const std::string & t) {
         LOG_DEBUG("group set-tag=" << t);
         _tag = t;
     }

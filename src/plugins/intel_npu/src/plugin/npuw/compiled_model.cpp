@@ -635,7 +635,7 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
     std::vector<CPtr> to_keep;
 
     ov::pass::GraphRewrite rewr2;
-    ctx.mm_gate = m_cfg.get<::intel_npu::NPUW_MM_GATED>();
+    ctx.mm_gate =  m_cfg.get<::intel_npu::NPUW_MM_GATED>();
 
     rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(ctx), std::ref(to_keep));
     rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulFP8>(std::ref(ctx), std::ref(to_keep));
