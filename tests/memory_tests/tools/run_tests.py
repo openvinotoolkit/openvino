@@ -10,6 +10,7 @@ import itertools
 import subprocess
 import json
 import time
+import sys
 
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -76,7 +77,7 @@ class MemSample:
 
 
 def run_test_executable_extract_result(command):
-    proc = subprocess.run(command, stdout=subprocess.PIPE)
+    proc = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     run_out = proc.stdout.decode()
     if run_out.startswith("TEST_RESULTS: "):
         results_json = run_out.splitlines()[0].removeprefix("TEST_RESULTS: ")
@@ -245,9 +246,11 @@ class TestSession:
                 print(f"  stderr: {stderr.strip()}\n  === END OF STDERR ===")
             if exception:
                 print(f"  {repr(exception)}")
-            return
-        for sname, sample in result["samples"].items():
-            print(f"  {sname:>15}: {sample}")
+        else:
+            for sname, sample in result["samples"].items():
+                print(f"  {sname:>15}: {sample}")
+        sys.stdout.flush()
+        sys.stderr.flush()
 
     def run(self):
         for (modelid, model_path), device in self.generate_test_cases():
@@ -282,7 +285,7 @@ if __name__ == "__main__":
     TestSession(
         args.test_executable,
         args.ir_cache,
-        args.devices.split(","),
+        [device.upper() for device in args.devices.split(",")],
         args.api,
         args.upload_reference
     ).run()
