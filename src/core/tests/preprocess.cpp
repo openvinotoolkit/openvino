@@ -153,7 +153,8 @@ TEST(pre_post_process, build_is_thread_safe_for_parallel_invocations) {
 
                 f = p.build();
 
-                if (f->input().get_partial_shape() != PartialShape{1, 3, 8, 8}) {
+                const auto& input = f->input();
+                if (input.get_partial_shape() != PartialShape{1, 8, 8, 3} || input.get_layout() != "NHWC") {
                     ++failures;
                 }
             } catch (...) {
