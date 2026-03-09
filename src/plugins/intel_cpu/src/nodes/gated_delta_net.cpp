@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "cpu_memory.h"
-#include "cpu_types.h"
 #include "graph_context.h"
 #include "kernels/linear_attn/recurrent_linear_attn.hpp"
 #include "memory_desc/cpu_blocked_memory_desc.h"
@@ -61,9 +60,10 @@ void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
 void GatedDeltaNet::createPrimitive() {
     const auto queryDims = getInputShapeAtPort(0).getDims();
     auto headSize = *(queryDims.end() - 1);
+    const auto numWorkerThreads = context->getCpuParallel()->get_num_worker_threads();
     auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(
         ov::element::f32,
-        ov::intel_cpu::Shape{static_cast<size_t>(parallel_get_max_threads()), 3 * headSize});
+        ov::intel_cpu::Shape{static_cast<size_t>(numWorkerThreads), 3 * headSize});
     m_tmpInpBuffer = context->getScratchPad()->createScratchPadMem(newMemDesc);
 }
 

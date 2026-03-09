@@ -38,6 +38,9 @@ public:
                                                                          : parallel_get_max_threads() * m_multiplier;
         return num;
     }
+    [[nodiscard]] int get_num_worker_threads() const {
+        return parallel_get_max_threads();
+    }
     void activate() const {
 #if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         dnnl_threadpool_interop_set_max_concurrency(get_num_threads());
