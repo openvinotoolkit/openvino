@@ -10,6 +10,7 @@
 class SimpleLLMPipeline {
 public:
     void initialize(const std::string& model_path, ov::Core& core, const ov::AnyMap& config);
+    void initialize(const std::shared_ptr<ov::Model>& model, ov::Core& core, const ov::AnyMap& config);
     std::vector<int64_t> generate(const std::vector<int64_t>& input_ids_vec);
 private:
     uint32_t m_max_prompt_len{std::numeric_limits<uint32_t>::max()};

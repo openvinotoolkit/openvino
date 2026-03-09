@@ -20,6 +20,7 @@ set(SKIP_CONFIG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/${SKIP_C
 list(APPEND OPTIONAL_FUNC_TESTS_INCLUDES
       "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/include"
       "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include"
+      "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin"
 )
 
 list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_common openvino_npu_driver_compiler_adapter
