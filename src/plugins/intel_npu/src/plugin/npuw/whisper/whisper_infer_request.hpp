@@ -16,6 +16,8 @@ public:
 
     void infer() override;
 
+    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
+
 protected:
     void prepare_for_new_conversation() override;
 
@@ -24,6 +26,8 @@ protected:
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids);
 
     bool m_need_copy_kvcache = false;
+    // <name, tensor>
+    std::map<std::string, ov::SoPtr<ov::ITensor>> m_alignment_tensors{};
 };
 
 }  // namespace npuw
