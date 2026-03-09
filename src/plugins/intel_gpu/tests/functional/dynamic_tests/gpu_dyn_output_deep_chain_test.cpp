@@ -404,27 +404,6 @@ protected:
 
         function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
-
-    void run() override {
-        compile_model();
-
-        for (const auto& targetStaticShapeVec : targetStaticShapes) {
-            generate_inputs(targetStaticShapeVec);
-
-            auto iter0_outputs = get_plugin_outputs();
-            auto& output_tensor_0 = iter0_outputs.front();
-
-            // Verify output has correct shape: {B, 4} = {B, 2+2}
-            auto out_shape = output_tensor_0.get_shape();
-            ASSERT_EQ(out_shape.size(), 2u);
-            ASSERT_EQ(out_shape[1], static_cast<size_t>(K * 2));
-
-            // Compare against reference
-            auto expectedOutputs = calculate_refs();
-            std::vector<ov::Tensor> actualOutputs = {output_tensor_0};
-            compare(expectedOutputs, actualOutputs);
-        }
-    }
 };
 
 TEST_F(OVDynamicOutputConcatTest, smoke_ConcatOutput) {
@@ -481,18 +460,6 @@ protected:
         function = std::make_shared<ov::Model>(
             ov::ResultVector{result_1, result_2}, ov::ParameterVector{param});
     }
-
-    void run() override {
-        compile_model();
-
-        for (const auto& targetStaticShapeVec : targetStaticShapes) {
-            generate_inputs(targetStaticShapeVec);
-
-            auto actualOutputs = get_plugin_outputs();
-            auto expectedOutputs = calculate_refs();
-            compare(expectedOutputs, actualOutputs);
-        }
-    }
 };
 
 TEST_F(OVDynamicOutputMultiOutputTest, smoke_MultiOutputSharedCompute) {
@@ -543,18 +510,6 @@ protected:
         result->set_friendly_name("result");
 
         function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
-    }
-
-    void run() override {
-        compile_model();
-
-        for (const auto& targetStaticShapeVec : targetStaticShapes) {
-            generate_inputs(targetStaticShapeVec);
-
-            auto actualOutputs = get_plugin_outputs();
-            auto expectedOutputs = calculate_refs();
-            compare(expectedOutputs, actualOutputs);
-        }
     }
 };
 
