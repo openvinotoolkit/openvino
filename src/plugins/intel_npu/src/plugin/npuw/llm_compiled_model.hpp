@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "compiled_model.hpp"
+#include "openvino/openvino.hpp"
 
 namespace {
 struct KVAxesPosition {
@@ -16,12 +17,42 @@ struct KVAxesPosition {
 }  // anonymous namespace
 
 namespace ov {
+class IPlugin;
+namespace intel_npu {
 namespace npuw {
+namespace llm {
+class INPUWCompiledModelFactory {
+public:
+    virtual std::shared_ptr<ov::npuw::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
+                                                             const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                             const ov::AnyMap& properties) = 0;
+    virtual std::shared_ptr<ov::npuw::ICompiledModel> deserialize(std::istream& stream,
+                                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                                  const ov::AnyMap& properties,
+                                                                  const ov::npuw::s11n::CompiledContext& enc_ctx) = 0;
+};
+} // namespace llm
+} // namespace npuw
+} // namespace intel_npu
+
+using INPUWCompiledModelFactory = ov::intel_npu::npuw::llm::INPUWCompiledModelFactory;
+namespace npuw {
+class DefaultNPUWCompiledModelFactory : public INPUWCompiledModelFactory {
+public:
+    std::shared_ptr<ov::npuw::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
+                                                     const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                     const ov::AnyMap& properties) override;
+
+    std::shared_ptr<ov::npuw::ICompiledModel> deserialize(std::istream& stream,
+                                                          const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                          const ov::AnyMap& properties,
+                                                          const ov::npuw::s11n::CompiledContext& enc_ctx) override;
+};
 
 class LLMInferRequest;
 class WhisperInferRequest;
 struct PrefixCacheRestorationContext;
-class LLMCompiledModel : public ov::npuw::ICompiledModel {
+class LLMCompiledModel : public ov::ICompiledModel {
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
 
@@ -75,6 +106,7 @@ private:
 
     void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const;
     static std::shared_ptr<LLMCompiledModel> deserialize(std::istream& stream,
+                                                         const std::shared_ptr<INPUWCompiledModelFactory>& factory,
                                                          const std::shared_ptr<const ov::IPlugin>& plugin,
                                                          const ov::AnyMap& properties,
                                                          const ov::npuw::s11n::CompiledContext& ctx);
@@ -91,13 +123,13 @@ private:
     KVCacheDesc m_kvcache_desc;
     uint64_t m_prefill_chunk_size = 0;
     bool m_use_chunk_prefill = false;
-    std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
-    std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
+    std::shared_ptr<ov::npuw::ICompiledModel> m_kvcache_compiled;
+    std::shared_ptr<ov::npuw::ICompiledModel> m_prefill_compiled;
     // This model is optional, so can be null.
-    std::shared_ptr<ov::npuw::CompiledModel> m_lm_head_compiled;
+    std::shared_ptr<ov::npuw::ICompiledModel> m_lm_head_compiled;
 
     // Multiple generate models with different static KV cache shapes (1K, 2K, 4K, 8K stepping)
-    std::vector<std::shared_ptr<ov::npuw::CompiledModel>> m_generate_compiled_variants;
+    std::vector<std::shared_ptr<ov::npuw::ICompiledModel>> m_generate_compiled_variants;
     std::vector<uint32_t> m_kvcache_sizes;  // Corresponding KV cache sizes for each variant
 
     // Support LoRA
@@ -123,6 +155,7 @@ private:
 
     // Compile multiple generate model variants
     void compile_generate_model_variants(const std::vector<std::shared_ptr<ov::Model>>& generate_model_variants,
+                                         const std::shared_ptr<INPUWCompiledModelFactory>& factory,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
                                          const ov::AnyMap& generate_config);
 

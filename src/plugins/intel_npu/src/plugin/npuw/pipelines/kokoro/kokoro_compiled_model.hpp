@@ -23,7 +23,7 @@ struct KokoroConfig {
     uint64_t overlap_size = 20;
 };
 
-class KokoroCompiledModel : public ov::npuw::ICompiledModel {
+class KokoroCompiledModel : public ov::ICompiledModel {
 public:
     KokoroCompiledModel(const std::shared_ptr<ov::Model>& model,
                         const std::shared_ptr<const ov::IPlugin>& plugin,

@@ -31,12 +31,123 @@ class Plugin;
 
 namespace ov {
 namespace npuw {
+std::shared_ptr<ov::ICompiledModel> create_compiled_model(const std::shared_ptr<ov::Model>& model,
+                                                          const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                          const ov::AnyMap& properties);
+
+// Aggregator for execution statistics 
+struct execution_stats {
+    float gflops{};
+    std::size_t ops{};
+};
+
+// Compiled Submodel descriptor 
+struct CompiledModelDesc {
+    std::vector<std::string>::const_iterator device_it;
+    std::set<std::string> devices_to_avoid;
+    std::shared_ptr<ov::Model> model;
+    ov::SoPtr<ov::ICompiledModel> compiled_model;
+
+    std::optional<std::size_t> replaced_by;
+
+    Subgraph::Gather host_gather;
+    Subgraph::QuantUnpackGather quant_unpack_gather;
+    std::optional<ov::npuw::compiled::Spatial> spatial;
+    std::optional<ov::npuw::compiled::Attention> attention;
+    std::optional<ov::npuw::compiled::PyramidAttention> pyramid_attention;
+    std::optional<ov::npuw::compiled::HostFlashAttention> host_flash_attention;
+    std::optional<ov::npuw::compiled::MoEExperts> moe_experts;
+    std::optional<ov::npuw::compiled::MoEDownstream> moe_experts_downstream;
+
+    // Infer requests for pyramid attention models (if pyramid_attention is present)
+    std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_infer_requests;
+
+    // Pipeline infer requests for pyramid attention models (if pyramid_attention is present and pipelining is
+    // enabled)
+    std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_pipeline_requests;
+
+    // HFA tile model indices for infer request vectors
+    enum HFATileIdx : size_t {
+        REGULAR_TILE = 0,  // Regular tile model (intermediate tiles)
+        FINAL_TILE = 1,    // Final tile model (last tile with division and transpose)
+        COUNT = 2          // Total number of HFA tile models
+    };
+
+    // Infer requests for host flash attention tile models (if host_flash_attention is present)
+    // [REGULAR_TILE]: regular tile model, [FINAL_TILE]: final tile model
+    std::vector<ov::SoPtr<ov::IAsyncInferRequest>> hfa_infer_requests;
+
+    // Pipeline infer requests for host flash attention tile models (if host_flash_attention is present and
+    // pipelining is enabled)
+    std::vector<ov::SoPtr<ov::IAsyncInferRequest>> hfa_pipeline_requests;
+
+    // Infer requests for MoE expert models with different chunk sizes (if moe_experts is present)
+    // Map: chunk_size -> infer_request
+    std::map<size_t, ov::SoPtr<ov::IAsyncInferRequest>> moe_infer_requests;
+
+    // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
+    // w.r.t. function calls
+    std::size_t param_base = 0;
+
+    struct Closure {
+        std::vector<ov::Tensor> closure;
+        std::vector<int64_t> closure_uid;  // Note: value -1 is considered uninitialized
+        std::vector<bool> is_remote;
+    };
+
+    // Need to wrap closure, since finalize_weights_bank() will
+    // asynchronously evaluate weights and put them in closure.
+    // Other functions of CompiledModel as well as InferRequest and
+    // other entities need to wait for the closure to be populated first
+    // (meaning to wait for async weights processing to end).
+    ov::npuw::util::Delayed<Closure> closure;
+
+    // NB: closure and lazy_closure are of the same size - to preserve proper indexing.
+    //     closure is responsible for host-side tensors (DCOFF, Gather, etc) while
+    //     lazy_closure is used for weights sharing and allocating device memory.
+    std::vector<weights::LazyTensor> lazy_closure;
+    std::vector<ov::Tensor> scales;
+    std::vector<ov::Tensor> zerops;
+
+    bool forced_to_fcall = false;
+
+    // FIXME: Take it out of structure
+    ov::SoPtr<ov::ICompiledModel> ref_compiled_model;
+    bool switched_to_ref = false;
+
+    // Metrics
+    execution_stats stat;
+
+    void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
+    void deserialize(std::istream& stream,
+                        const ov::npuw::s11n::WeightsContext& ctx,
+                        const ov::npuw::s11n::SubmodelDeserializeCtx& submodel_ctx);
+};
+
 class ICompiledModel : public ov::ICompiledModel {
 public:
-    static std::shared_ptr<ov::npuw::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
-                                                            const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                            const ov::AnyMap& properties);
-    ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin);
+    ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
+        : ov::ICompiledModel(model, plugin) {}
+
+    // API for easily create and manage NPUW infer-requests
+    virtual std::shared_ptr<ov::npuw::IBaseInferRequest> create_base_infer_request() const = 0;
+
+    virtual std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
+        std::shared_ptr<ov::npuw::IBaseInferRequest> internal_request) const = 0;
+
+    virtual std::string submodel_device(const std::size_t idx) const = 0;
+
+    virtual std::vector<CompiledModelDesc> get_compiled_submodels() const = 0;
+
+    virtual void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const = 0;
+
+    virtual std::shared_ptr<weights::Bank> get_weights_bank() const = 0;
+
+    virtual void set_weights_bank(std::shared_ptr<weights::Bank> bank) = 0;
+
+    virtual void finalize_weights_bank() = 0;
+
+    virtual void reconstruct_closure() = 0;
 };
 
 // Forward declarations
@@ -80,7 +191,7 @@ private:
     friend class UnfoldInferRequest;
     friend class MemAccessSim;
     friend class FuncMemMgr;
-    friend class LLMCompiledModel;
+    friend class DefaultNPUWCompiledModelFactory;
     friend class LLMInferRequest;
     friend class moe::MoEExecutor;
 
@@ -100,7 +211,7 @@ private:
 
     void report_io() const;
 
-    void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const;
+    void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const override;
     static std::shared_ptr<CompiledModel> deserialize(std::istream& stream,
                                                       const std::shared_ptr<const ov::IPlugin>& plugin,
                                                       const ov::AnyMap& properties,
@@ -116,11 +227,11 @@ private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
     // API for easily create and manage NPUW infer-requests
-    std::shared_ptr<ov::npuw::IBaseInferRequest> create_base_infer_request() const;
+    std::shared_ptr<ov::npuw::IBaseInferRequest> create_base_infer_request() const override;
     std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
-        std::shared_ptr<ov::npuw::IBaseInferRequest> internal_request) const;
+        std::shared_ptr<ov::npuw::IBaseInferRequest> internal_request) const override;
 
-    std::string submodel_device(const std::size_t idx) const;
+    std::string submodel_device(const std::size_t idx) const override;
     bool is_gather_closure(const std::size_t idx, const std::size_t cidx) const;
     bool unpack_required(const std::size_t idx) const;
     bool unpack_required(const std::size_t idx, const std::size_t cidx) const;
@@ -131,14 +242,18 @@ private:
     bool should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) const;
 
     // For full deserialization flow with weights
-    void reconstruct_closure();
+    void reconstruct_closure() override;
     // For weightless serialization flow
     void store_const_offsets(const std::shared_ptr<ov::Model>& model);
 
-    void finalize_weights_bank();
+    std::shared_ptr<weights::Bank> get_weights_bank() const override;
+    void set_weights_bank(std::shared_ptr<weights::Bank> bank) override;
+    void finalize_weights_bank() override;
     void detach_memory();
     std::string global_mem_device() const;
     std::string funcall_mem_device(const std::size_t idx) const;
+
+    std::vector<CompiledModelDesc> get_compiled_submodels() const override;
 
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
@@ -169,11 +284,6 @@ private:
 
     DevList m_dev_list;
 
-    struct execution_stats {
-        float gflops{};
-        std::size_t ops{};
-    };
-
     // Shouldn't this be counter instead? There's nothing much to
     // average across compilation processes per model (it's a single
     // process).
@@ -182,87 +292,6 @@ private:
 
     void init_profiling();
 
-    struct CompiledModelDesc {
-        DevList::const_iterator device_it;
-        std::set<std::string> devices_to_avoid;
-        std::shared_ptr<ov::Model> model;
-        ov::SoPtr<ov::ICompiledModel> compiled_model;
-
-        std::optional<std::size_t> replaced_by;
-
-        Subgraph::Gather host_gather;
-        Subgraph::QuantUnpackGather quant_unpack_gather;
-        std::optional<ov::npuw::compiled::Spatial> spatial;
-        std::optional<ov::npuw::compiled::Attention> attention;
-        std::optional<ov::npuw::compiled::PyramidAttention> pyramid_attention;
-        std::optional<ov::npuw::compiled::HostFlashAttention> host_flash_attention;
-        std::optional<ov::npuw::compiled::MoEExperts> moe_experts;
-        std::optional<ov::npuw::compiled::MoEDownstream> moe_experts_downstream;
-
-        // Infer requests for pyramid attention models (if pyramid_attention is present)
-        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_infer_requests;
-
-        // Pipeline infer requests for pyramid attention models (if pyramid_attention is present and pipelining is
-        // enabled)
-        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_pipeline_requests;
-
-        // HFA tile model indices for infer request vectors
-        enum HFATileIdx : size_t {
-            REGULAR_TILE = 0,  // Regular tile model (intermediate tiles)
-            FINAL_TILE = 1,    // Final tile model (last tile with division and transpose)
-            COUNT = 2          // Total number of HFA tile models
-        };
-
-        // Infer requests for host flash attention tile models (if host_flash_attention is present)
-        // [REGULAR_TILE]: regular tile model, [FINAL_TILE]: final tile model
-        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> hfa_infer_requests;
-
-        // Pipeline infer requests for host flash attention tile models (if host_flash_attention is present and
-        // pipelining is enabled)
-        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> hfa_pipeline_requests;
-
-        // Infer requests for MoE expert models with different chunk sizes (if moe_experts is present)
-        // Map: chunk_size -> infer_request
-        std::map<size_t, ov::SoPtr<ov::IAsyncInferRequest>> moe_infer_requests;
-
-        // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
-        // w.r.t. function calls
-        std::size_t param_base = 0;
-
-        struct Closure {
-            std::vector<ov::Tensor> closure;
-            std::vector<int64_t> closure_uid;  // Note: value -1 is considered uninitialized
-            std::vector<bool> is_remote;
-        };
-
-        // Need to wrap closure, since finalize_weights_bank() will
-        // asynchronously evaluate weights and put them in closure.
-        // Other functions of CompiledModel as well as InferRequest and
-        // other entities need to wait for the closure to be populated first
-        // (meaning to wait for async weights processing to end).
-        ov::npuw::util::Delayed<Closure> closure;
-
-        // NB: closure and lazy_closure are of the same size - to preserve proper indexing.
-        //     closure is responsible for host-side tensors (DCOFF, Gather, etc) while
-        //     lazy_closure is used for weights sharing and allocating device memory.
-        std::vector<weights::LazyTensor> lazy_closure;
-        std::vector<ov::Tensor> scales;
-        std::vector<ov::Tensor> zerops;
-
-        bool forced_to_fcall = false;
-
-        // FIXME: Take it out of structure
-        ov::SoPtr<ov::ICompiledModel> ref_compiled_model;
-        bool switched_to_ref = false;
-
-        // Metrics
-        execution_stats stat;
-
-        void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
-        void deserialize(std::istream& stream,
-                         const ov::npuw::s11n::WeightsContext& ctx,
-                         const ov::npuw::s11n::SubmodelDeserializeCtx& submodel_ctx);
-    };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 
     std::function<bool(const ov::SoPtr<ov::ITensor>&, const ov::SoPtr<ov::ITensor>&)> m_acc_check;

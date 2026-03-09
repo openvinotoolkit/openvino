@@ -171,7 +171,8 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     // was in copy_kvcache() call. When it was removed, it broke the import accuracy.
     bool enable_cpu_wa = false;
     const auto& kvcache_compiled = m_npuw_llm_compiled_model->m_kvcache_compiled;
-    for (std::size_t idx = 0; idx < kvcache_compiled->m_compiled_submodels.size(); ++idx) {
+    auto kvcache_submodels = kvcache_compiled->get_compiled_submodels();
+    for (std::size_t idx = 0; idx < kvcache_submodels.size(); ++idx) {
         if (kvcache_compiled->submodel_device(idx) == "CPU") {
             enable_cpu_wa = true;
             break;
@@ -209,7 +210,8 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 std::string ov::npuw::LLMInferRequest::init_pre_alloc_device() {
     bool pre_alloc_on_npu = true;
     const auto& kvcache_compiled = m_npuw_llm_compiled_model->m_kvcache_compiled;
-    for (std::size_t idx = 0; idx < kvcache_compiled->m_compiled_submodels.size(); ++idx) {
+    auto kvcache_compiled_submodels = kvcache_compiled->get_compiled_submodels();
+    for (std::size_t idx = 0; idx < kvcache_compiled_submodels.size(); ++idx) {
         if (kvcache_compiled->submodel_device(idx) != "NPU") {
             pre_alloc_on_npu = false;
             break;

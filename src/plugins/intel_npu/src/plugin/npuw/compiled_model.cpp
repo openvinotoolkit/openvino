@@ -135,13 +135,13 @@ void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
 }
 }  // anonymous namespace
 
-std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
+std::shared_ptr<ov::ICompiledModel> ov::npuw::create_compiled_model(
     const std::shared_ptr<ov::Model>& model,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties) {
     LOG_INFO("Choosing which NPUW CompiledModel to create");
     LOG_BLOCK();
-    std::shared_ptr<ov::npuw::ICompiledModel> compiled_model;
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
     auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
     auto use_kokoro_key = ov::intel_npu::npuw::kokoro::enabled.name();
 
@@ -164,10 +164,6 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     LOG_INFO("Done");
     return compiled_model;
 }
-
-ov::npuw::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model,
-                                         const std::shared_ptr<const ov::IPlugin>& plugin)
-    : ov::ICompiledModel(model, plugin) {}
 
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -687,8 +683,8 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
     return false;
 }
 
-void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
-                                                           const ov::npuw::s11n::WeightsContext& ctx) const {
+void ov::npuw::CompiledModelDesc::serialize(std::ostream& stream,
+                                            const ov::npuw::s11n::WeightsContext& ctx) const {
     using namespace ov::npuw::s11n;
 
     LOG_DEBUG("Serializing CompiledModelDesc...");
@@ -826,7 +822,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     LOG_DEBUG("DONE.");
 }
 
-void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
+void ov::npuw::CompiledModelDesc::deserialize(
     std::istream& stream,
     const ov::npuw::s11n::WeightsContext& ctx,
     const ov::npuw::s11n::SubmodelDeserializeCtx& submodel_ctx) {
@@ -1492,6 +1488,14 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
     }
 }
 
+std::shared_ptr<ov::npuw::weights::Bank> ov::npuw::CompiledModel::get_weights_bank() const {
+    return m_weights_bank;
+}
+
+void ov::npuw::CompiledModel::set_weights_bank(std::shared_ptr<ov::npuw::weights::Bank> bank) {
+    m_weights_bank = bank;
+}
+
 void ov::npuw::CompiledModel::finalize_weights_bank() {
     LOG_INFO("Finalizing weights bank...");
     std::shared_future<void> weights_bank_evaluation = std::async(std::launch::async, [&]() {
@@ -1639,6 +1643,10 @@ std::string ov::npuw::CompiledModel::funcall_mem_device(const std::size_t idx) c
 
     auto& comp_model_desc = m_compiled_submodels[idx];
     return *comp_model_desc.device_it;
+}
+
+std::vector<ov::npuw::CompiledModelDesc> ov::npuw::CompiledModel::get_compiled_submodels() const {
+    return m_compiled_submodels;
 }
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {

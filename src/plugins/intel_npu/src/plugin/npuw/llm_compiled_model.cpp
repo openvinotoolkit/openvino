@@ -5,6 +5,7 @@
 
 #include "embedding_infer_request.hpp"
 #include "embedding_model_utils.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
 #include "low_precision/concat.hpp"
@@ -19,7 +20,6 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/util/node_util.hpp"
-#include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
@@ -777,6 +777,7 @@ public:
         register_matcher(std::make_shared<opp::Matcher>(pattern, "ConvertTypeRelaxedToRegular"), callback);
     }
 };
+
 class Phi3SlidingMask : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::LLMCompiledModel::Phi3SlidingMask");
@@ -1526,10 +1527,12 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
 
 void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
     const std::vector<std::shared_ptr<ov::Model>>& generate_model_variants,
+    const std::shared_ptr<INPUWCompiledModelFactory>& npuw_cm_factory,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& generate_config) {
     // Compile multiple generate model variants with different sizes
     LOG_INFO("Compiling " << m_kvcache_sizes.size() << " generate model variants...");
+    OPENVINO_ASSERT(npuw_cm_factory, "Passed NPUW CompiledModel factory is null!");
     m_generate_compiled_variants.reserve(m_kvcache_sizes.size());
 
     for (size_t i = 0; i < m_kvcache_sizes.size(); ++i) {
@@ -1541,8 +1544,8 @@ void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
         auto& generate_variant = generate_model_variants[i];
 
         // Compile the variant
-        auto compiled_variant = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
-            ov::npuw::ICompiledModel::create(generate_variant, plugin, generate_config));
+        auto compiled_variant = std::dynamic_pointer_cast<ov::npuw::ICompiledModel>(
+            npuw_cm_factory->create(generate_variant, plugin, generate_config));
         NPUW_ASSERT(compiled_variant && "Can't create ov::npuw::CompiledModel for generate variant!");
 
         m_generate_compiled_variants.push_back(compiled_variant);
@@ -1553,10 +1556,26 @@ void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
     m_kvcache_compiled = m_generate_compiled_variants.back();
 }
 
+std::shared_ptr<ov::npuw::ICompiledModel>
+ov::npuw::DefaultNPUWCompiledModelFactory::create(const std::shared_ptr<ov::Model>& model,
+                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                  const ov::AnyMap& properties) {
+    return std::make_shared<ov::npuw::CompiledModel>(model, plugin, properties);
+}
+
+std::shared_ptr<ov::npuw::ICompiledModel>
+ov::npuw::DefaultNPUWCompiledModelFactory::deserialize(std::istream& stream,
+                                                       const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                       const ov::AnyMap& properties,
+                                                       const ov::npuw::s11n::CompiledContext& enc_ctx) {
+    
+    return ov::npuw::CompiledModel::deserialize(stream, plugin, properties, enc_ctx);
+}
+
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const ov::AnyMap& properties)
-    : ov::npuw::ICompiledModel(model, plugin),
+    : ov::ICompiledModel(model, plugin),
       m_name(model->get_friendly_name()),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc) {
@@ -1576,6 +1595,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     // Solely used for serialization at the moment
     m_non_llm_props = other_props;
+
+    std::shared_ptr<INPUWCompiledModelFactory> npuw_cm_factory = std::make_shared<DefaultNPUWCompiledModelFactory>();
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    // Check if custom factory for ov::npuw::ICompiledModel was passed:
+    if (auto custom_cm_factory_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_NPUWMODEL_FACTORY_PTR")); custom_cm_factory_opt.has_value()) {
+        ov::Any npuw_cm_factory_any = custom_cm_factory_opt.value();
+        auto* npuw_cm_factory_ptr = npuw_cm_factory_any.addressof();
+        OPENVINO_ASSERT(npuw_cm_factory_ptr, "Pointer to object inside of ov::Any is not nullptr");
+        npuw_cm_factory = *(reinterpret_cast<std::shared_ptr<INPUWCompiledModelFactory>*>(npuw_cm_factory_ptr));
+    }
+#endif
+    OPENVINO_ASSERT(npuw_cm_factory, "Factory is not nullptr");
 
     // Remove "NPUW_LLM_PREFILL_CONFIG", "NPUW_LLM_GENERATE_CONFIG" from map,
     // to not pass them into ::intel_npu::Config object, as we don't need to
@@ -1994,10 +2025,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     // Compile multiple generate model variants with different sizes
-    compile_generate_model_variants(generate_model_variants, plugin, generate_config);
+    compile_generate_model_variants(generate_model_variants, npuw_cm_factory, plugin, generate_config);
 
     m_prefill_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
-        ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
+       npuw_cm_factory->create(prefill_model, plugin, prefill_config));
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
                                       "model and its config, please check passed config.");
     if (lm_head_model) {
@@ -2009,7 +2040,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         apply_weights_bank_name(lm_head_config, weights_bank_name);
 
         m_lm_head_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
-            ov::npuw::ICompiledModel::create(lm_head_model, plugin, lm_head_config));
+            npuw_cm_factory->create(lm_head_model, plugin, lm_head_config));
         NPUW_ASSERT(m_lm_head_compiled);
     }
 
@@ -2020,7 +2051,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const bool serialized)
-    : ov::npuw::ICompiledModel(model, plugin),
+    : ov::ICompiledModel(model, plugin),
       m_name(model->get_friendly_name()),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc) {
@@ -2161,8 +2192,8 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
     }
 
     // Serialize bank name
-    const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
-    const auto& p_bank = m_prefill_compiled->m_weights_bank;
+    const auto& kv_bank = m_kvcache_compiled->get_weights_bank();
+    const auto& p_bank = m_prefill_compiled->get_weights_bank();
     NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
     write(stream, kv_bank->get_name());
 
@@ -2238,40 +2269,48 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
             auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
 
             for (const auto& compiled_variant : compiled->m_generate_compiled_variants) {
-                compiled_variant->m_weights_bank = bank;
+                compiled_variant->set_weights_bank(bank);
                 compiled_variant->finalize_weights_bank();
             }
 
-            compiled->m_prefill_compiled->m_weights_bank = bank;
+            compiled->m_prefill_compiled->set_weights_bank(bank);
             compiled->m_prefill_compiled->finalize_weights_bank();
 
             if (compiled->m_lm_head_compiled) {
-                compiled->m_lm_head_compiled->m_weights_bank = bank;
+                compiled->m_lm_head_compiled->set_weights_bank(bank);
                 compiled->m_lm_head_compiled->finalize_weights_bank();
             }
         } else {
             auto bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
 
-            compiled->m_kvcache_compiled->m_weights_bank = bank;
+            compiled->m_kvcache_compiled->set_weights_bank(bank);
             for (const auto& compiled_variant : compiled->m_generate_compiled_variants) {
-                compiled_variant->m_weights_bank = bank;
+                compiled_variant->set_weights_bank(bank);
                 compiled_variant->reconstruct_closure();
             }
 
-            compiled->m_prefill_compiled->m_weights_bank = bank;
+            compiled->m_prefill_compiled->set_weights_bank(bank);
             compiled->m_prefill_compiled->reconstruct_closure();
 
             if (compiled->m_lm_head_compiled) {
-                compiled->m_lm_head_compiled->m_weights_bank = bank;
+                compiled->m_lm_head_compiled->set_weights_bank(bank);
                 compiled->m_lm_head_compiled->reconstruct_closure();
             }
         }
     };
 
+    std::shared_ptr<INPUWCompiledModelFactory> npuw_cm_factory = std::make_shared<DefaultNPUWCompiledModelFactory>();
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    // Check if custom factory for ov::npuw::ICompiledModel was passed:
+    if (properties.count("NPUW_LLM_NPUWMODEL_FACTORY_PTR")) {
+        OPENVINO_THROW("Import shouldn't use custom INPUWCompiledModelFactory!");
+    }
+#endif
+
     if (!encrypted) {
         CompiledContext ctx(false, nullptr, nullptr);
-        auto compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx);
+        auto compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, npuw_cm_factory,plugin, properties, ctx);
         NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
         read_and_finalize_banks(stream, compiled_model);
         LOG_INFO("Done.");
@@ -2294,10 +2333,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
         read(stream, encrypted_str);
         std::istringstream decrypted_stream(std::move(enc_callbacks.decrypt(encrypted_str)));
         CompiledContext ctx(false, nullptr, nullptr);
-        compiled_model = ov::npuw::LLMCompiledModel::deserialize(decrypted_stream, plugin, properties, ctx);
+        compiled_model = ov::npuw::LLMCompiledModel::deserialize(decrypted_stream, npuw_cm_factory, plugin, properties, ctx);
     } else {
         CompiledContext ctx(true, nullptr, enc_callbacks.decrypt);
-        compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx);
+        compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, npuw_cm_factory, plugin, properties, ctx);
     }
 
     NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
@@ -2310,6 +2349,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
 
 std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserialize(
     std::istream& stream,
+    const std::shared_ptr<INPUWCompiledModelFactory>& factory,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties,
     const ov::npuw::s11n::CompiledContext& ctx) {
@@ -2365,9 +2405,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         // Note: no need to pass any encryption here as it's done in import_model()
         CompiledContext enc_ctx(false, nullptr, nullptr);
 
+        OPENVINO_ASSERT(factory != nullptr); 
         // Deserialize all generate variants
         for (uint32_t i = 0; i < num_variants; ++i) {
-            auto compiled_variant = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
+            auto compiled_variant = factory->deserialize(model_stream, plugin, properties, enc_ctx);
             compiled->m_generate_compiled_variants.push_back(compiled_variant);
         }
 
@@ -2376,12 +2417,12 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_kvcache_compiled = compiled->m_generate_compiled_variants.back();
         }
 
-        compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
+        compiled->m_prefill_compiled = factory->deserialize(model_stream, plugin, properties, enc_ctx);
         bool is_shared_lm_head = false;
         read(model_stream, is_shared_lm_head);
         if (is_shared_lm_head) {
             compiled->m_lm_head_compiled =
-                ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
+               factory->deserialize(model_stream, plugin, properties, enc_ctx);
         }
 
         return compiled;

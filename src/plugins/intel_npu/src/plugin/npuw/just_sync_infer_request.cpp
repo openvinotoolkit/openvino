@@ -1205,18 +1205,18 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
     }
 
     // Allocate storage for infer requests: [REGULAR_TILE] and [FINAL_TILE]
-    submodel_desc.hfa_infer_requests.resize(CompiledModel::CompiledModelDesc::HFATileIdx::COUNT);
+    submodel_desc.hfa_infer_requests.resize(CompiledModelDesc::HFATileIdx::COUNT);
     if (is_piped) {
-        submodel_desc.hfa_pipeline_requests.resize(CompiledModel::CompiledModelDesc::HFATileIdx::COUNT);
+        submodel_desc.hfa_pipeline_requests.resize(CompiledModelDesc::HFATileIdx::COUNT);
     }
 
     // Create infer request for regular tile model
     try {
         LOG_INFO("Creating infer request for HFA regular tile model...");
-        submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE] =
+        submodel_desc.hfa_infer_requests[CompiledModelDesc::HFATileIdx::REGULAR_TILE] =
             hfa._compiled_tile_model->create_infer_request();
         if (is_piped) {
-            submodel_desc.hfa_pipeline_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE] =
+            submodel_desc.hfa_pipeline_requests[CompiledModelDesc::HFATileIdx::REGULAR_TILE] =
                 hfa._compiled_tile_model->create_infer_request();
         }
     } catch (const std::exception& ex) {
@@ -1232,10 +1232,10 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
     // For final tile model, reuse the main compiled_model's infer request
     // because compiled_model points to _compiled_final_tile_model for HFA
     LOG_INFO("Reusing " << (is_recreate ? "recreated " : "") << "main infer request for HFA final tile model");
-    submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::FINAL_TILE] =
+    submodel_desc.hfa_infer_requests[CompiledModelDesc::HFATileIdx::FINAL_TILE] =
         m_subrequests[real_idx];
     if (is_piped) {
-        submodel_desc.hfa_pipeline_requests[CompiledModel::CompiledModelDesc::HFATileIdx::FINAL_TILE] =
+        submodel_desc.hfa_pipeline_requests[CompiledModelDesc::HFATileIdx::FINAL_TILE] =
             m_funcall_pipeline[real_idx].subrequest;
     }
 
@@ -1248,14 +1248,14 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
 
         // Directly share tensor from main infer request to regular tile request
         auto main_tensor = m_subrequests[real_idx]->get_tensor(final_tile_input);
-        submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE]->set_tensor(
+        submodel_desc.hfa_infer_requests[CompiledModelDesc::HFATileIdx::REGULAR_TILE]->set_tensor(
             tile_input,
             main_tensor);
 
         // Repeat for pipeline infer request if pipelined
         if (is_piped) {
             auto pipeline_tensor = m_funcall_pipeline[real_idx].subrequest->get_tensor(final_tile_input);
-            submodel_desc.hfa_pipeline_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE]->set_tensor(
+            submodel_desc.hfa_pipeline_requests[CompiledModelDesc::HFATileIdx::REGULAR_TILE]->set_tensor(
                 tile_input,
                 pipeline_tensor);
         }
@@ -1297,13 +1297,13 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
 
         // Get state tensors from regular tile request
         auto state_acc =
-            submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE]->get_tensor(
+            submodel_desc.hfa_infer_requests[CompiledModelDesc::HFATileIdx::REGULAR_TILE]->get_tensor(
                 hfa._compiled_tile_model->inputs()[tile_in.acc]);
         auto state_max =
-            submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE]->get_tensor(
+            submodel_desc.hfa_infer_requests[CompiledModelDesc::HFATileIdx::REGULAR_TILE]->get_tensor(
                 hfa._compiled_tile_model->inputs()[tile_in.max]);
         auto state_sum =
-            submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE]->get_tensor(
+            submodel_desc.hfa_infer_requests[CompiledModelDesc::HFATileIdx::REGULAR_TILE]->get_tensor(
                 hfa._compiled_tile_model->inputs()[tile_in.d]);
 
         // Initialize state tensors with zeros/minus infinity
@@ -1529,7 +1529,7 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     auto& hfa_desc = comp_model_desc.host_flash_attention.value();
 
     NPUW_ASSERT(hfa_desc.is_valid() && "HFA configuration must be valid");
-    NPUW_ASSERT(comp_model_desc.hfa_infer_requests.size() == CompiledModel::CompiledModelDesc::HFATileIdx::COUNT &&
+    NPUW_ASSERT(comp_model_desc.hfa_infer_requests.size() == CompiledModelDesc::HFATileIdx::COUNT &&
                 "HFA infer requests must be created");
 
     // Calculate tile configuration
@@ -1565,9 +1565,9 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
 
     // Get tile infer requests
     auto& regular_tile_request =
-        comp_model_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE];
+        comp_model_desc.hfa_infer_requests[CompiledModelDesc::HFATileIdx::REGULAR_TILE];
     auto& final_tile_request =
-        comp_model_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::FINAL_TILE];
+        comp_model_desc.hfa_infer_requests[CompiledModelDesc::HFATileIdx::FINAL_TILE];
 
     // Use pre-cached indices (populated during compilation)
     const auto& tile_in = sdpa_info._tile_input_indices;

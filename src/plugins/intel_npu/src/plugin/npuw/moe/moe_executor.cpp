@@ -29,7 +29,7 @@ void MoEExecutor::prepare(size_t idx, size_t real_idx, size_t num_sublayers, siz
 
     // Get function body descriptor directly (no need to resolve, caller already did it)
     const auto& desc =
-        *static_cast<const ov::npuw::CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
+        *static_cast<const ov::npuw::CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
 
     if (!desc.moe_experts.has_value()) {
         OPENVINO_THROW("MoEExecutor::prepare called on non-MoE submodel[real_idx=", real_idx, "]");
@@ -143,7 +143,7 @@ bool MoEExecutor::function_prologue_moe_input(size_t idx,
                                               const ov::SoPtr<ov::ITensor>& i_tensor) {
     // Get descriptor
     const auto& desc =
-        *static_cast<const ov::npuw::CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
+        *static_cast<const ov::npuw::CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
 
     // MoE expert layer: handle router scores and expert inputs
     if (desc.moe_experts) {
@@ -308,7 +308,7 @@ void MoEExecutor::run_expert_batch(size_t idx, size_t real_idx, const std::vecto
 
     // Get compiled model descriptor
     const auto& desc =
-        *static_cast<const ov::npuw::CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
+        *static_cast<const ov::npuw::CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
 
     // Step 4: Bind input/output tensors to cached request (must bind every time as these tensors change)
     // 4.1: Bind expert input (token embeddings)
@@ -551,7 +551,7 @@ void MoEExecutor::set_router_scores(size_t idx,
 
     // Get compiled model from config
     const auto& desc =
-        *static_cast<const ov::npuw::CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
+        *static_cast<const ov::npuw::CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
 
     // Set each unrolled router score parameter
     for (size_t k = 0; k < num_active_experts; ++k) {
@@ -578,20 +578,20 @@ void MoEExecutor::set_router_scores(size_t idx,
 
 std::string MoEExecutor::get_device_name(size_t idx, const void* compiled_model_desc_ptr) const {
     const auto& desc = compiled_model_desc_ptr
-                           ? *static_cast<const CompiledModel::CompiledModelDesc*>(compiled_model_desc_ptr)
-                           : *static_cast<const CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(idx));
+                           ? *static_cast<const CompiledModelDesc*>(compiled_model_desc_ptr)
+                           : *static_cast<const CompiledModelDesc*>(m_accessor.get_submodel_desc(idx));
     return *desc.device_it;
 }
 
 void MoEExecutor::unpack_single_expert_closure(std::size_t idx, RqPtr request, size_t expert_id) {
     // Get model descriptors
     const auto& comp_model_desc =
-        *static_cast<const CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(idx));
+        *static_cast<const CompiledModelDesc*>(m_accessor.get_submodel_desc(idx));
     NPUW_ASSERT(comp_model_desc.replaced_by);
 
     const auto real_idx = comp_model_desc.replaced_by.value();
     const auto& func_desc =
-        *static_cast<const CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
+        *static_cast<const CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
 
     NPUW_ASSERT(func_desc.moe_experts.has_value());
     const auto num_experts = func_desc.moe_experts->num_experts;
@@ -681,12 +681,12 @@ void MoEExecutor::unpack_multiple_experts_closure(std::size_t idx,
 
     // ========== Step 1: Get model descriptors and validate MoE structure ==========
     const auto& comp_model_desc =
-        *static_cast<const CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(idx));
+        *static_cast<const CompiledModelDesc*>(m_accessor.get_submodel_desc(idx));
     NPUW_ASSERT(comp_model_desc.replaced_by);
 
     const auto real_idx = comp_model_desc.replaced_by.value();
     const auto& func_desc =
-        *static_cast<const CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
+        *static_cast<const CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
 
     NPUW_ASSERT(func_desc.moe_experts.has_value());
     const auto& moe_experts = func_desc.moe_experts.value();

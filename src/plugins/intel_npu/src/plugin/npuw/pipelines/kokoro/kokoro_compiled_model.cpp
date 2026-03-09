@@ -64,7 +64,7 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
 ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Model>& model,
                                                    const std::shared_ptr<const ov::IPlugin>& plugin,
                                                    const ov::AnyMap& properties)
-    : ov::npuw::ICompiledModel(model, plugin),
+    : ov::ICompiledModel(model, plugin),
       m_name(model->get_friendly_name()),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc) {
@@ -112,7 +112,7 @@ ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Mod
         properties_model_b["NPUW_SUBMODEL_DEVICE"] = "20:CPU,99:CPU,55:CPU,62:CPU";
     }
     m_model_b_compiled = std::dynamic_pointer_cast<ov::npuw::ICompiledModel>(
-        ov::npuw::ICompiledModel::create(split_result.model_b, plugin, properties_model_b));
+        ov::npuw::create_compiled_model(split_result.model_b, plugin, properties_model_b));
 }
 
 void ov::npuw::KokoroCompiledModel::export_model(std::ostream& stream) const {

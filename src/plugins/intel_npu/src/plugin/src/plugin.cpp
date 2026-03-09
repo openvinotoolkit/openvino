@@ -457,7 +457,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ov::AnyMap localProperties = properties;
     if (localProperties.count(useNpuwKey)) {
         if (localProperties.at(useNpuwKey).as<bool>() == true) {
-            return ov::npuw::ICompiledModel::create(model->clone(), shared_from_this(), localProperties);
+            return ov::npuw::create_compiled_model(model->clone(), shared_from_this(), localProperties);
         } else {
             // NPUW is disabled, remove the key from the properties
             localProperties.erase(useNpuwKey);

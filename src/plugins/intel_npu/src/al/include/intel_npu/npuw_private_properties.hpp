@@ -738,6 +738,16 @@ static constexpr ov::Property<ov::AnyMap> shared_lm_head_config{"NPUW_LLM_SHARED
  * NOTE: !! Write-only !!
  */
 static constexpr ov::Property<ov::AnyMap> additional_shared_lm_head_config{"++NPUW_LLM_SHARED_HEAD_CONFIG"};
+
+class INPUWCompiledModelFactory;
+/**
+ * @brief
+ * Type: std::shared_ptr<INPUWCompiledModelFactory>
+ * Factory for creation of ov::npuw::ICompiledModels instances to use by ov::npuw::LLMCompiledModel.
+ *
+ * NOTE: Enabled in develop build only.
+ */
+static constexpr ov::Property<std::shared_ptr<INPUWCompiledModelFactory>>  npuw_compiled_model_factory{"NPUW_LLM_NPUWMODEL_FACTORY_PTR"};
 }  // namespace llm
 
 namespace whisper {
