@@ -6,6 +6,9 @@
 
 #include <numeric>
 
+#include "openvino/util/common_util.hpp"
+#include <limits>
+
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 
@@ -22,27 +25,34 @@ void aux_unpack_string_tensor(const char* data, size_t size, std::shared_ptr<ov:
 
     // Calculate header size: [num_strings][0][offset1...offsetN]
     const size_t num_elements = static_cast<size_t>(num_strings);
+    // Check addition overflow for header element count (2 + num_elements)
+    OPENVINO_ASSERT(num_elements <= std::numeric_limits<size_t>::max() - 2,
+                    "Incorrect packed string tensor format: number of strings is too large");
     const size_t header_elems = 2 + num_elements;
-    const size_t header_size_bytes = header_elems * sizeof(int32_t);
+    // Check multiplication overflow for header size in bytes
+    size_t header_size_bytes = 0;
+    bool mul_of = ov::util::mul_overflow(header_elems, static_cast<size_t>(sizeof(int32_t)), header_size_bytes);
+    OPENVINO_ASSERT(!mul_of,
+                    "Incorrect packed string tensor format: header size overflow detected");
 
     OPENVINO_ASSERT(header_size_bytes <= size,
                     "Incorrect packed string tensor format: header exceeds provided buffer size");
 
     const int32_t* begin_ids = pindices + 1;
     const int32_t* end_ids = pindices + 2;
-    const char* symbols = reinterpret_cast<const char*>(pindices + 2 + num_strings);
+    const char* symbols = reinterpret_cast<const char*>(pindices + 2 + num_elements);
 
     const size_t data_region_size = size - header_size_bytes;
 
     // allocate StringAlignedBuffer to store unpacked strings in std::string objects
     // SharedBuffer to read byte stream is not applicable because we need unpacked format for strings
     string_buffer = std::make_shared<ov::StringAlignedBuffer>(
-        num_strings,
-        ov::element::string.size() * num_strings,
+        num_elements,
+        ov::element::string.size() * num_elements,
         64,  // host alignment used the same as in creation of buffer for Constant
         true);
     std::string* src_strings = static_cast<std::string*>(string_buffer->get_ptr());
-    for (int32_t idx = 0; idx < num_strings; ++idx) {
+    for (size_t idx = 0; idx < num_elements; ++idx) {
         const int32_t b = begin_ids[idx];
         const int32_t e = end_ids[idx];
         OPENVINO_ASSERT(b >= 0 && e >= 0,
@@ -68,7 +78,15 @@ void aux_get_header(const std::shared_ptr<ov::StringAlignedBuffer>& string_align
     auto strings = reinterpret_cast<std::string*>(string_aligned_buffer_ptr->get_ptr());
 
     // first run over all elements: calculate total memory required to hold all strings
-    header_size = sizeof(int32_t) * (1 + 1 + num_elements);
+    // Check addition overflow for header element count (1 + 1 + num_elements)
+    OPENVINO_ASSERT(num_elements <= std::numeric_limits<size_t>::max() - 2,
+                    "Too many strings: header element count overflow");
+    const size_t header_elems = 2 + num_elements;
+    // Check multiplication overflow for header size in bytes
+    size_t header_size_bytes = 0;
+    bool mul_of = ov::util::mul_overflow(header_elems, static_cast<size_t>(sizeof(int32_t)), header_size_bytes);
+    OPENVINO_ASSERT(!mul_of, "Too many strings: header size overflow detected");
+    header_size = header_size_bytes;
     header = std::shared_ptr<uint8_t>(new uint8_t[header_size], std::default_delete<uint8_t[]>());
 
     int32_t* pindices = reinterpret_cast<int32_t*>(header.get());
