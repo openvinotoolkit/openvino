@@ -88,6 +88,7 @@ void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM_GENERATE_ATTENTION_HINT>();
     desc.add<NPUW_LLM_SHARED_HEAD>();
     desc.add<NPUW_WHISPER>();
+    desc.add<NPUW_WHISPER_EOS_TOKEN>();
     desc.add<NPUW_EAGLE>();
     desc.add<NPUW_TEXT_EMBED>();
 }
