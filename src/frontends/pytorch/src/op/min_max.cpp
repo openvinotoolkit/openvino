@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/maximum.hpp"
@@ -191,8 +191,7 @@ OutputVector translate_amin(const NodeContext& context) {
     auto x = context.get_input(0);
     // From torch 2.8, amin dim input is optional; an empty list also means reduce all dims
     auto dim_input = !context.input_is_none(1) ? context.get_input(1) : Output<Node>{};
-    auto dim = (dim_input.get_node() == nullptr || is_empty_axes(dim_input)) ? get_axes_range(context, 0)
-                                                                             : dim_input;
+    auto dim = (dim_input.get_node() == nullptr || is_empty_axes(dim_input)) ? get_axes_range(context, 0) : dim_input;
     bool keep_dims = false;
     if (!context.input_is_none(2)) {
         keep_dims = context.const_input<bool>(2);
@@ -212,8 +211,7 @@ OutputVector translate_amax(const NodeContext& context) {
     auto x = context.get_input(0);
     // From torch 2.8, amax dim input is optional; an empty list also means reduce all dims
     auto dim_input = !context.input_is_none(1) ? context.get_input(1) : Output<Node>{};
-    auto dim = (dim_input.get_node() == nullptr || is_empty_axes(dim_input)) ? get_axes_range(context, 0)
-                                                                             : dim_input;
+    auto dim = (dim_input.get_node() == nullptr || is_empty_axes(dim_input)) ? get_axes_range(context, 0) : dim_input;
     bool keep_dims = false;
     if (!context.input_is_none(2)) {
         keep_dims = context.const_input<bool>(2);
