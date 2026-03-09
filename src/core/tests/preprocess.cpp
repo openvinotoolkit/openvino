@@ -138,7 +138,7 @@ TEST(pre_post_process, simple_mean_scale_getters_f64) {
 
 TEST(pre_post_process, build_is_thread_safe_for_parallel_invocations) {
     constexpr size_t num_threads = 8;
-    constexpr size_t iterations_per_thread = 50;
+    static constexpr size_t iterations_per_thread = 50;
     std::atomic_size_t failures{0};
 
     auto worker = [&failures]() {
