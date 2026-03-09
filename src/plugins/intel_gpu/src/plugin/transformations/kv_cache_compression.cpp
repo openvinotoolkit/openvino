@@ -11,6 +11,7 @@
 #include "intel_gpu/op/read_values.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 
 #include "openvino/core/node_vector.hpp"
@@ -138,7 +139,7 @@ public:
 KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compression_dt, bool supports_immad) {
     using namespace ov::pass::pattern;
 
-    if (compression_dt != element::i8 && compression_dt != element::u8 && compression_dt != element::i4 && compression_dt != element::u4)
+    if (!cldnn::one_of(compression_dt, {element::i8, element::u8, element::i4, element::u4}))
         return;
 
     const auto quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
