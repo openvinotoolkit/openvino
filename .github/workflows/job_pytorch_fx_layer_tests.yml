@@ -44,6 +44,7 @@ jobs:
         shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      HF_TOKEN_LINUX_PATH: /secrets/huggingface/hf-token
       HF_TOKEN_WINDOWS_PATH: "C:\\mount\\secrets\\huggingface\\hf-token"
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -61,14 +62,6 @@ jobs:
             .github/scripts
           sparse-checkout-cone-mode: false
           submodules: 'false'
-
-      - name: Append environment variables
-        shell: bash
-        run: |
-          python3 "${GITHUB_WORKSPACE}/.github/scripts/append_variables.py" \
-            --runner-os "${{ runner.os }}" \
-            --linux-path "${HF_TOKEN_LINUX_PATH}" \
-            --windows-path "${{ env.HF_TOKEN_WINDOWS_PATH }}"
 
       - name: Download OpenVINO artifacts (wheels)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
@@ -113,6 +106,16 @@ jobs:
           pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH_LINUX || env.PIP_CACHE_PATH_WIN }}
           should-setup-pip-paths: ${{ runner.os != 'macOS' }}
           self-hosted-runner: ${{ runner.os != 'macOS' }}
+
+      - name: Append environment variables (Linux, macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash "${{ github.workspace }}/.github/scripts/append_variables.sh" "${{ env.HF_TOKEN_LINUX_PATH }}"
+
+      - name: Append environment variables (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: '& "${{ github.workspace }}/.github/scripts/append_variables.ps1" -TokenPath "${{ env.HF_TOKEN_WINDOWS_PATH }}"'
 
       - name: Install OpenVINO Python wheels
         uses: ./.github/actions/install_ov_wheels
