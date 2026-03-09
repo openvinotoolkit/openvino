@@ -6,7 +6,7 @@
 #include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/int4_utils.cl"
 
-#define UINT4_RANGE 15
+#define INT4_RANGE 15
 
 inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_data,
                                     const uint in_data_offset,
@@ -36,7 +36,7 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
     ACCUMULATOR_TYPE diff_value = max_value == min_value ? (grp_max) : (max_value - min_value);
 
     #if IS_INT4_COMPRESSED
-    ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((UINT4_RANGE) / diff_value);
+    ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((INT4_RANGE) / diff_value);
     ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp);
     #else
     ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
@@ -49,11 +49,11 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
 
     #if IS_INT4_COMPRESSED
         char2 res_vec = 0;
-        uint packed_offset[((K_HEAD_SIZE+V_HEAD_SIZE) / SUBGROUP_SIZE) / U4_ELEMS_PER_BYTE] = {0, };
-        unroll_for (uint i = 0; i < num_groups; i+=U4_ELEMS_PER_BYTE) {
+        uint packed_offset[((K_HEAD_SIZE+V_HEAD_SIZE) / SUBGROUP_SIZE) / PACK_SIZE] = {0, };
+        unroll_for (uint i = 0; i < num_groups; i+=PACK_SIZE) {
             res_vec.s0 = convert_char_rte(input_data[i] * scale + zp);
             res_vec.s1 = (i+1 < num_groups) ? convert_char_rte(input_data[i+1] * scale + zp) : 0;
-            uint packed_output_offset = out_data_offset + ((i / U4_ELEMS_PER_BYTE) * SUBGROUP_SIZE + sglid) * out_data_pitch;
+            uint packed_output_offset = out_data_offset + ((i / PACK_SIZE) * SUBGROUP_SIZE + sglid) * out_data_pitch;
             out_data[packed_output_offset] = cvt_int8x2_to_uint4x2(res_vec);
         }
     #else  // !IS_INT4_COMPRESSED
@@ -158,13 +158,13 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
                                     const uint new_tokens_num,
                                     const uint sglid,
                                     const uint is_prefill_stage) {
-    int head_size_offset = SUBGROUP_SIZE * get_group_id(2) * U4_ELEMS_PER_BYTE;
+    int head_size_offset = SUBGROUP_SIZE * get_group_id(2) * PACK_SIZE;
     int num_head_size_groups;
     if (is_prefill_stage) {
         num_head_size_groups = NUM_HEAD_SIZE_GROUPS;
     } else {
-        // But INT4 work groups process U4_ELEMS_PER_BYTE partitions at a time, so multiply by U4_ELEMS_PER_BYTE
-        num_head_size_groups = (NUM_HEAD_SIZE_GROUPS / NUM_K_HEAD_SIZE_PARTITIONS) * U4_ELEMS_PER_BYTE;
+        // But INT4 work groups process PACK_SIZE partitions at a time, so multiply by PACK_SIZE
+        num_head_size_groups = (NUM_HEAD_SIZE_GROUPS / NUM_K_HEAD_SIZE_PARTITIONS) * PACK_SIZE;
         if ((NUM_K_HEAD_SIZE_PARTITIONS % 2) != 0 && NUM_K_HEAD_SIZE_PARTITIONS > 1 &&
             get_group_id(2) == get_num_groups(2) - 1) {
             num_head_size_groups -= 1;
@@ -173,12 +173,12 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
 
     int packed_head_size_offset = SUBGROUP_SIZE * (get_group_id(2));
 
-    INPUT0_TYPE orig_scale[U4_ELEMS_PER_BYTE] = {0, };
-    INPUT0_TYPE orig_zp[U4_ELEMS_PER_BYTE] = {0, };
+    INPUT0_TYPE orig_scale[PACK_SIZE] = {0, };
+    INPUT0_TYPE orig_zp[PACK_SIZE] = {0, };
     OUTPUT_TYPE orig_cache[ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE] = {0, };
 
-    INPUT0_TYPE scale[U4_ELEMS_PER_BYTE];
-    INPUT0_TYPE zp[U4_ELEMS_PER_BYTE];
+    INPUT0_TYPE scale[PACK_SIZE];
+    INPUT0_TYPE zp[PACK_SIZE];
     OUTPUT_TYPE buffer[ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE] = {0, };
 
     MAKE_VECTOR_TYPE(INPUT0_TYPE, 16) cache_data_vec_decompressed[NUM_HEAD_SIZE_GROUPS] = {0, };
@@ -188,8 +188,8 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
         const int hidden_idx = head_size_offset + h_sub * SUBGROUP_SIZE + sglid;
 
         // cache
-        const uint order_in_packed = (h_sub % U4_ELEMS_PER_BYTE);
-        const int packed_hidden_idx = packed_head_size_offset + (h_sub/U4_ELEMS_PER_BYTE) * SUBGROUP_SIZE + sglid;
+        const uint order_in_packed = (h_sub % PACK_SIZE);
+        const int packed_hidden_idx = packed_head_size_offset + (h_sub/PACK_SIZE) * SUBGROUP_SIZE + sglid;
         const uint packed_out_offset_per_wi = out_data_offset + packed_hidden_idx * out_data_pitch;
 
         // Read original scale and zp
@@ -233,7 +233,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
                     if (order_in_packed == 0) {
                         // Generate cache_data_vec_decompressed[0~token_pos_in_block] from key-cache
                         char temp = prev_cache_data_vec[j];
-                        MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&temp);
+                        MAKE_VECTOR_TYPE(char, PACK_SIZE) buff = unpack_to_char(*(uint4x2_t *)&temp);
 
                         if (h_sub + 1 >= num_head_size_groups) {
                             cache_data_vec_decompressed[0][j] = ((INPUT0_TYPE)buff.s0 - orig_zp[0]) * orig_scale[0];
@@ -259,7 +259,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
                 range += fmax(1.0f, min_range);
             }
 
-            ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((UINT4_RANGE) / range);
+            ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((INT4_RANGE) / range);
             ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp);
             scale[order_in_packed] = (INPUT1_TYPE)(scale_tmp);
             zp[order_in_packed] = (INPUT1_TYPE)(zp_tmp);
@@ -272,7 +272,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
         }
 
         if (order_in_packed == 0 && h_sub + 1 >= num_head_size_groups) {
-            // NUM_HEAD_SIZE_GROUPS or number of processing groups of this partition is not aligned by U4_ELEMS_PER_BYTE.
+            // NUM_HEAD_SIZE_GROUPS or number of processing groups of this partition is not aligned by PACK_SIZE.
             // This sub is the last and single size.
             for (uint token = 0; token < token_pos_in_block + new_tokens_num; ++token) {
                 char2 res_vec = 0;
@@ -283,7 +283,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
         } else {
             // Process aligned size sub-group from num_head_size_groups
             for (uint token = 0; token < token_pos_in_block + new_tokens_num; ++token) {
-                if (order_in_packed == (U4_ELEMS_PER_BYTE - 1)) {
+                if (order_in_packed == (PACK_SIZE - 1)) {
                     char2 res_vec;
                     res_vec.s0 = buffer[token];
                     res_vec.s1 = convert_char_rte(cache_data_vec_decompressed[1][token] * scale[1] + zp[1]);
@@ -331,7 +331,7 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
         }
 
         #if IS_INT4_COMPRESSED
-            ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((UINT4_RANGE) / range);
+            ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((INT4_RANGE) / range);
             ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp);
         #else
             ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / range);
@@ -347,7 +347,7 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
         INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*) (&out_data[out_offset_per_wi + COMP_K_OFFSET]);
 
         #if IS_INT4_COMPRESSED
-            const uint order_in_packed = i % U4_ELEMS_PER_BYTE;
+            const uint order_in_packed = i % PACK_SIZE;
             comp_ptr[2 * order_in_packed] = 1.0 / scale;
             comp_ptr[2 * order_in_packed + 1] = zp;
         #else
@@ -358,7 +358,7 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
         // Store quantized key
         #if IS_INT4_COMPRESSED
             for (uint token_num = 0; token_num < tokens_num; token_num++) {
-                if (order_in_packed == (U4_ELEMS_PER_BYTE - 1)) {
+                if (order_in_packed == (PACK_SIZE - 1)) {
                     char2 res_vec = 0;
                     res_vec.s0 = buffer[token_num];
                     res_vec.s1 = convert_char_rte(input_data[token_num] * scale + zp);
@@ -379,7 +379,7 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
                 }
             }
 
-            if (order_in_packed == (U4_ELEMS_PER_BYTE - 1)) {
+            if (order_in_packed == (PACK_SIZE - 1)) {
                 out_offset += (ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * SUBGROUP_SIZE);
             }
         #else
@@ -421,15 +421,15 @@ KERNEL(pa_kv_cache_update)(
     #endif
 
 #if IS_INT4_COMPRESSED
-    const uint phys_adjusted_k_head_size = PACKED_ADJUSTED_K_HEAD_SIZE;
-    const uint phys_adjusted_v_head_size = PACKED_ADJUSTED_V_HEAD_SIZE;
-    const uint phys_k_head_size = PACKED_K_HEAD_SIZE;
-    const uint phys_v_head_size = PACKED_V_HEAD_SIZE;
+    const uint adjusted_k_head_size = PACKED_ADJUSTED_K_HEAD_SIZE;
+    const uint adjusted_v_head_size = PACKED_ADJUSTED_V_HEAD_SIZE;
+    const uint k_head_size = PACKED_K_HEAD_SIZE;
+    const uint v_head_size = PACKED_V_HEAD_SIZE;
 #else
-    const uint phys_adjusted_k_head_size = ADJUSTED_K_HEAD_SIZE;
-    const uint phys_adjusted_v_head_size = ADJUSTED_V_HEAD_SIZE;
-    const uint phys_k_head_size = K_HEAD_SIZE;
-    const uint phys_v_head_size = V_HEAD_SIZE;
+    const uint adjusted_k_head_size = ADJUSTED_K_HEAD_SIZE;
+    const uint adjusted_v_head_size = ADJUSTED_V_HEAD_SIZE;
+    const uint k_head_size = K_HEAD_SIZE;
+    const uint v_head_size = V_HEAD_SIZE;
 #endif
 
     if (!is_prefill_stage) {
@@ -447,13 +447,13 @@ KERNEL(pa_kv_cache_update)(
         uint value_in_offset = INPUT1_OFFSET + seq_idx * VAL_IN_STRIDE + head_idx * V_HEAD_SIZE;
 
         #ifdef IS_KEY_BY_CHANNEL
-        uint block_k_base_offset = block_idx * KV_HEADS_NUM * phys_adjusted_k_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE + head_idx * phys_adjusted_k_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+        uint block_k_base_offset = block_idx * KV_HEADS_NUM * adjusted_k_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE + head_idx * adjusted_k_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
         #else // can it be shared?
-        uint block_k_base_offset = block_idx * KV_HEADS_NUM * phys_adjusted_k_head_size * PAGED_ATTENTION_BLOCK_SIZE + head_idx * phys_adjusted_k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
+        uint block_k_base_offset = block_idx * KV_HEADS_NUM * adjusted_k_head_size * PAGED_ATTENTION_BLOCK_SIZE + head_idx * adjusted_k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
         #endif
-        uint block_v_base_offset = block_idx * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE + head_idx * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
+        uint block_v_base_offset = block_idx * KV_HEADS_NUM * adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE + head_idx * adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
         uint key_out_offset = block_k_base_offset + current_token_pos_in_block;
-        uint value_out_offset = block_v_base_offset + current_token_pos_in_block * phys_v_head_size;
+        uint value_out_offset = block_v_base_offset + current_token_pos_in_block * v_head_size;
 
 #if !IS_KV_COMPRESSED
         #define READ_K_BLOCK_SIZE GENERATE_STAGE_K_BLOCK_SIZE
@@ -511,7 +511,7 @@ KERNEL(pa_kv_cache_update)(
 
         // value per token
         if (get_group_id(2) == 0) {
-            const uint comp_v_offset = block_v_base_offset + phys_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
+            const uint comp_v_offset = block_v_base_offset + v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             INPUT0_TYPE input_data[V_HEAD_SIZE / SUBGROUP_SIZE];
             FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1, comp_v_offset,
                 current_token_pos_in_block, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
@@ -519,13 +519,13 @@ KERNEL(pa_kv_cache_update)(
         #else
         // IS_KEY_BY_CHANNEL false
         {
-            const uint comp_k_offset = block_k_base_offset + phys_k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
+            const uint comp_k_offset = block_k_base_offset + k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             // key processing
             INPUT0_TYPE input_k_data[K_HEAD_SIZE / SUBGROUP_SIZE];
             FUNC_CALL(quantize_and_save_per_token)(key_data, key_in_offset, key_cache_data, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE, comp_k_offset,
                 current_token_pos_in_block, sglid, K_HEAD_SIZE / SUBGROUP_SIZE, &input_k_data[0]);
 
-            const uint comp_v_offset = block_v_base_offset + phys_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
+            const uint comp_v_offset = block_v_base_offset + v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             INPUT0_TYPE input_v_data[V_HEAD_SIZE / SUBGROUP_SIZE];
             FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1, comp_v_offset,
                 current_token_pos_in_block, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_v_data[0]);
@@ -557,22 +557,22 @@ KERNEL(pa_kv_cache_update)(
         const uint block_offset = block_indices_begins[subsequence_idx] + current_block_idx;
 
         #if defined(IS_KV_COMPRESSED) && defined(IS_KEY_BY_CHANNEL)
-            uint block_k_base_offset = block_indices[block_offset] * KV_HEADS_NUM * phys_adjusted_k_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE +
-                                    head_idx * phys_adjusted_k_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+            uint block_k_base_offset = block_indices[block_offset] * KV_HEADS_NUM * adjusted_k_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE +
+                                    head_idx * adjusted_k_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
             uint key_out_offset = block_k_base_offset;
         #else
-            uint block_k_base_offset = block_indices[block_offset] * KV_HEADS_NUM * phys_adjusted_k_head_size * PAGED_ATTENTION_BLOCK_SIZE +
-                                    head_idx * phys_adjusted_k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
+            uint block_k_base_offset = block_indices[block_offset] * KV_HEADS_NUM * adjusted_k_head_size * PAGED_ATTENTION_BLOCK_SIZE +
+                                    head_idx * adjusted_k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             uint key_out_offset = block_k_base_offset;
-            const uint comp_k_offset = block_k_base_offset + phys_k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
+            const uint comp_k_offset = block_k_base_offset + k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             key_out_offset += token_start_pos_key;
         #endif
 
-        uint block_v_base_offset = block_indices[block_offset] * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE +
-                                 head_idx * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
-        const uint comp_v_offset = block_v_base_offset + phys_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
+        uint block_v_base_offset = block_indices[block_offset] * KV_HEADS_NUM * adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE +
+                                 head_idx * adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
+        const uint comp_v_offset = block_v_base_offset + v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
         uint value_out_offset = block_v_base_offset;
-        value_out_offset += token_start_pos_val * phys_v_head_size;
+        value_out_offset += token_start_pos_val * v_head_size;
 
         if (tokens_num == PAGED_ATTENTION_BLOCK_SIZE) {
         // block is full
@@ -609,7 +609,7 @@ KERNEL(pa_kv_cache_update)(
                 FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1,
                     comp_v_offset, token_num, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
                 value_in_offset += (KV_HEADS_NUM * V_HEAD_SIZE + INPUT1_PAD_AFTER_FEATURE_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM);
-                value_out_offset += phys_v_head_size;
+                value_out_offset += v_head_size;
             }
         #else // !(defined(IS_KV_COMPRESSED) && defined(IS_KEY_BY_CHANNEL))
             unroll_for (uint token_num = 0; token_num < PAGED_ATTENTION_BLOCK_SIZE; token_num++) {
@@ -742,7 +742,7 @@ KERNEL(pa_kv_cache_update)(
                 key_in_offset += (KV_HEADS_NUM * K_HEAD_SIZE + INPUT0_PAD_AFTER_FEATURE_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM);
                 key_out_offset += 1;
                 value_in_offset += (KV_HEADS_NUM * V_HEAD_SIZE + INPUT1_PAD_AFTER_FEATURE_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM);
-                value_out_offset += phys_v_head_size;
+                value_out_offset += v_head_size;
             }
         #endif // !(defined(IS_KV_COMPRESSED) && defined(IS_KEY_BY_CHANNEL))
         } else {
@@ -780,7 +780,7 @@ KERNEL(pa_kv_cache_update)(
                 FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1,
                     comp_v_offset, token_start_pos_val + token_num, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
                 value_in_offset += (KV_HEADS_NUM * V_HEAD_SIZE + INPUT1_PAD_AFTER_FEATURE_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM);
-                value_out_offset += phys_v_head_size;
+                value_out_offset += v_head_size;
             }
         #else // defined(IS_KV_COMPRESSED) && defined(IS_KEY_BY_CHANNEL)
             for (uint token_num = 0; token_num < tokens_num; token_num++) {
@@ -824,7 +824,7 @@ KERNEL(pa_kv_cache_update)(
                 key_in_offset += (KV_HEADS_NUM * K_HEAD_SIZE + INPUT0_PAD_AFTER_FEATURE_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM);
                 key_out_offset += 1;
                 value_in_offset += (KV_HEADS_NUM * V_HEAD_SIZE + INPUT1_PAD_AFTER_FEATURE_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM);
-                value_out_offset += phys_v_head_size;
+                value_out_offset += v_head_size;
             }
         #endif // defined(IS_KV_COMPRESSED) && defined(IS_KEY_BY_CHANNEL)
         }

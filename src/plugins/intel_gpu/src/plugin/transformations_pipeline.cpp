@@ -13,7 +13,6 @@
 #include <string>
 #include <tuple>
 #include <vector>
-#include <type_traits>
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
