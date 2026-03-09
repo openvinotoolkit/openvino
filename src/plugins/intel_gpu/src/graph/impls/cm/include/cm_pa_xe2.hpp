@@ -703,7 +703,7 @@ void pa_kernel_lsc_prefetch_f16(
                 matrix<half, REG_K/2, REG_N*2> Vmat;
                 cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(k));
                 cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(k));
-                // somtimes KV cache would be filled with random Nan, so need to clean up the unused value data.
+                // sometimes KV cache would be filled with random Nan, so need to clean up the unused value data.
                 if ((kv_pos + kv_step) > kv_stop) {
                     uint valid_rows = kv_stop - kv_pos;
                     uint valid_rows_vnni = (valid_rows+1)/2;
