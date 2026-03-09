@@ -44,6 +44,7 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/avg_pool_base.hpp"
 #include "openvino/op/util/max_pool_base.hpp"
+#include "post_ops.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
@@ -337,11 +338,15 @@ void Pooling::getSupportedDescriptors() {
     arm_compute::DataLayout dataLayout =
         (inShape.getDims().size() == 5) ? arm_compute::DataLayout::NDHWC : arm_compute::DataLayout::NCHW;
     arm_compute::TensorInfo srcTensorInfo =
-        arm_compute::TensorInfo(shapeCast(inShape.getDims()), 1, precisionToAclDataType(inputPrecision), dataLayout);
+        arm_compute::TensorInfo(shapeCast(inShape.getDims()),
+                                1,
+                                convertToQuantizedType(precisionToAclDataType(inputPrecision)),
+                                dataLayout);
     arm_compute::TensorInfo dstTensorInfo = arm_compute::TensorInfo(
         shapeCast(isDynamicNode() ? MemoryDescUtils::makeDummyShape(childShape).getDims() : childShape.getDims()),
         1,
-        precisionToAclDataType(outputPrecision),
+        convertToQuantizedType(precisionToAclDataType(
+            fusedWith.empty() ? outputPrecision : fusedWith.back()->getOriginalOutputPrecisionAtPort(0))),
         dataLayout);
     arm_compute::Pooling3dLayerInfo pool3d_info;
     arm_compute::PoolingLayerInfo pool_info;
@@ -487,6 +492,8 @@ void Pooling::prepareParams() {
             poolingAttrs.data_pad_end = shapeInference->get_pads_end();
         }
     }
+    poolingAttrs.postOps = getPostOps(fusedWith, ov::element::dynamic);
+
     if (useACL) {
         auto dstMemPtr = getDstMemoryAtPort(0);
         auto srcMemPtr = getSrcMemoryAtPort(0);
@@ -690,9 +697,11 @@ void Pooling::initSupportedPrimitiveDescriptors() {
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
             for (size_t i = 0; i < config.outConfs.size(); i++) {
+                const auto outputPrecision = (i == 0 && !fusedWith.empty())
+                                                 ? fusedWith.back()->getOriginalOutputPrecisionAtPort(0)
+                                                 : getOriginalOutputPrecisionAtPort(i);
                 config.outConfs[i].setMemDesc(
-                    creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(i),
-                                                             getOutputShapeAtPort(i)));
+                    creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(i)));
                 dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
             }
 

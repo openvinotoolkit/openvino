@@ -371,15 +371,20 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants.empty() || variants.size() > 2 + extra_variants_num)
         return false;
 
+    // Validating first path, it must contain a model
     if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
         std::filesystem::path model_path = path.value();
-        // Validating first path, it must contain a model
-        std::string suffix = ".pdmodel";
-        FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: ", model_path);
-        if (model_path.extension() != ".pdmodel") {
+        if (ov::util::directory_exists(model_path)) {
             model_path /= "__model__";
+            FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: ", model_path);
+        } else {
+            FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: ", model_path);
+            if (model_path.extension() != ".pdmodel") {
+                return false;
+            }
         }
-        std::ifstream model_str(model_path, std::ios::in | std::ifstream::binary);
+
+        std::ifstream model_str(model_path, std::ifstream::binary);
         // It is possible to validate here that protobuf can read model from the stream,
         // but it will complicate the check, while it should be as quick as possible
         return model_str && model_str.is_open();

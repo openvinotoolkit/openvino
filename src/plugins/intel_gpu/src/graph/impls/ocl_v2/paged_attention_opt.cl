@@ -14,6 +14,13 @@
     #define STORE_QUERY_TO_SLM 1
 #endif
 
+// Disable outer QK loop unrolling to prevent register spill in the non-SLM path.
+// Full unroll with K_HEAD_SIZE=128, SUBGROUP_SIZE=16 produces 8 live k_vals copies
+// (16 GRF each = 128 GRF total), exceeding the hardware limit (measured SPILL=1088 bytes).
+#if !defined(STORE_QUERY_TO_SLM) && K_HEAD_SIZE >= 128
+    #define DISABLE_QK_LOOP_UNROLL
+#endif
+
 #ifdef SDPA_STAGE_0
 
 #if SEQ_LEN_PARTITION_SIZE % PAGED_ATTENTION_BLOCK_SIZE != 0
@@ -121,8 +128,6 @@ KERNEL(pa_sdpa_opt)(
 #else
     #error "pa_sdpa_opt.cl: Unsupported scale factor"
 #endif
-
-    const uint batch_idx = seq_idx;
 
 #if MULTI_TOKENS_PROCESSING
     const int subsequence_idx = gws_subseq_mapping[seq_idx];
@@ -237,9 +242,12 @@ KERNEL(pa_sdpa_opt)(
             const uint block_offset = block_indice * ADJUSTED_K_HEAD_SIZE * KV_HEADS_NUM * SUBGROUP_SIZE + head_idx * ADJUSTED_K_HEAD_SIZE * SUBGROUP_SIZE;
 #endif
 
+            #define KEY_BLOCK_UNCOMPRESSED MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_VEC_SIZE)
+#ifdef DISABLE_QK_LOOP_UNROLL
+            for (uint qk_idx = 0; qk_idx < K_HEAD_SIZE / KEY_VEC_SIZE; qk_idx++) {
+#else
             unroll_for (uint qk_idx = 0; qk_idx < K_HEAD_SIZE / KEY_VEC_SIZE; qk_idx++) {
-                #define KEY_BLOCK_UNCOMPRESSED MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_VEC_SIZE)
-                #define TO_KEY_BLOCK_UNCOMPRESSED_TYPE(val) CAT(convert_, KEY_BLOCK_UNCOMPRESSED)(val)
+#endif
 
 #if IS_KV_COMPRESSED
                  #ifdef IS_KEY_BY_CHANNEL
@@ -253,10 +261,8 @@ KERNEL(pa_sdpa_opt)(
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
                     k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, key_block_offset + qk_idx * hidden_stride * KEY_VEC_SIZE + i * hidden_stride);
                  #ifdef IS_KEY_BY_CHANNEL
-                    INPUT0_TYPE key_orig = k_vals[i];
                     k_vals[i] = (k_vals[i] - _sub_group_shuffle(comp_zp, i)) * _sub_group_shuffle(comp_scale, i);
                 #else
-                    half key_orig = k_vals[i];
                     k_vals[i] = (k_vals[i] - comp_zp) * comp_scale;
                 #endif
                 }
@@ -286,12 +292,15 @@ KERNEL(pa_sdpa_opt)(
                 unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
 #if STORE_QUERY_TO_SLM
                     SOFTMAX_ACCUMULATOR_TYPE q_val = slm_query[q_idx * K_HEAD_SIZE + qk_idx * KEY_VEC_SIZE + sglid];
+#else
+                    // Cache to a scalar to avoid GRF indirect addressing when qk_idx is a runtime variable.
+                    const INPUT0_TYPE q_val_cur = q_val[qk_idx];
 #endif
                     unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
 #if STORE_QUERY_TO_SLM
                         GET_VECTOR_ELEMENT(qk_acc, q_idx) = mad(sub_group_broadcast(q_val, i), TO_SOFTMAX_ACCUMULATOR_TYPE(k_vals[i]), GET_VECTOR_ELEMENT(qk_acc, q_idx));
 #else
-                        qk_acc = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(sub_group_broadcast(q_val[qk_idx], i)), TO_SOFTMAX_ACCUMULATOR_TYPE(k_vals[i]), qk_acc);
+                        qk_acc = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(sub_group_broadcast(q_val_cur, i)), TO_SOFTMAX_ACCUMULATOR_TYPE(k_vals[i]), qk_acc);
 #endif
                     }
                 }
