@@ -261,6 +261,8 @@ JitConstants make_uint4_kv_cache_jit_constants(const kernel_impl_params& params)
     } else {
         jit.make("IS_INT4_COMPRESSED", false);
     }
+
+    return jit;
 }
 
 class PagedAttentionGeneratorBase : public KernelGenerator {
