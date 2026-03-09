@@ -294,7 +294,8 @@ bool convert_function_precision(ov::pass::PassBase& pass,
     register_constants(ops);
     for (auto& node : ops) {
         // Recursively apply transformation for sub-graph based operations
-        if (keep_sensitive_in_fp32 && is_compression_disabled_to(node, element::f16) && precisions.count(element::f32) && precisions.at(element::f32) == element::f16) {
+        if (keep_sensitive_in_fp32 && is_compression_disabled_to(node, element::f16) &&
+            precisions.count(element::f32) && precisions.at(element::f32) == element::f16) {
             // test fix
             continue;
         }
