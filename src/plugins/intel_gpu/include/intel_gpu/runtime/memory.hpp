@@ -196,7 +196,7 @@ struct mem_lock {
 
     /// @brief Provides indexed access to pointed memory.
     T& operator[](size_t idx) const& {
-        assert(idx < size());
+        OPENVINO_ASSERT(idx < size(), "Index out of bounds (idx >= size())");
         return _ptr[idx];
     }
 
