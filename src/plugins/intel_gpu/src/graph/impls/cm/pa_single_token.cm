@@ -31,11 +31,19 @@
 #define KV_PARTITION_STEP_NUM  (KV_PARTITION_SIZE / KV_STEP)
 
 #if KV_CACHE_COMPRESSION
+    // Currently supports 'by channel' and 'by token' for K, V still uses 'by token'.
     // scale/zp is half-precision, so size = 2 * 2 = 4 bytes
-    #define KV_SCALE_ZP_SIZE 4 // scale/zp bytes
+    #if KV_CACHE_COMPRESSION_BY_CHANNEL
+    #define GROUPS_PER_BLOCK (KV_BLOCK_SIZE / SUB_GROUP_SIZE)
+    #define K_SCALE_ZP_SIZE (4 * GROUPS_PER_BLOCK) // scale/zp bytes
+    #define V_SCALE_ZP_SIZE 4 // scale/zp bytes
+    #elif KV_CACHE_COMPRESSION_BY_TOKEN
+    #define K_SCALE_ZP_SIZE 4 // scale/zp bytes
+    #define V_SCALE_ZP_SIZE 4 // scale/zp bytes
+    #endif
     #define KV_ELEMENT_TYPE uint8_t
 #else
-    #define KV_SCALE_ZP_SIZE 0 // no scale/zp
+    #define V_SCALE_ZP_SIZE 0 // no scale/zp
     #define KV_ELEMENT_TYPE half
 #endif
 
@@ -104,11 +112,13 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     matrix <half, Q_head_chunk_size, HEAD_SIZE> Qmat = 0;
     cm_svm_block_read<half, Q_head_chunk_size * HEAD_SIZE>((svmptr_t)(query + qo_offset), Qmat.format<half>());
 
-    constexpr uint per_v_block_element_num = KV_BLOCK_SIZE * KV_HEADS_NUM * (HEAD_SIZE + KV_SCALE_ZP_SIZE); // 4 bytes: scale/zp
+    constexpr uint per_v_block_element_num = KV_BLOCK_SIZE * KV_HEADS_NUM * (HEAD_SIZE + V_SCALE_ZP_SIZE); // 0 or 4 bytes: scale/zp
     #if KV_CACHE_COMPRESSION_BY_TOKEN
-        constexpr uint per_k_block_element_num = KV_BLOCK_SIZE * KV_HEADS_NUM * (HEAD_SIZE + KV_SCALE_ZP_SIZE); // 4 bytes: scale/zp
+        constexpr uint per_k_block_element_num = KV_BLOCK_SIZE * KV_HEADS_NUM * (HEAD_SIZE + K_SCALE_ZP_SIZE); // 4 bytes: scale/zp
+    #elif KV_CACHE_COMPRESSION_BY_CHANNEL
+        constexpr uint per_k_block_element_num = KV_HEADS_NUM * HEAD_SIZE * (KV_BLOCK_SIZE + K_SCALE_ZP_SIZE); // 4 * GROUPS_PER_BLOCK bytes: scale/zp
     #else
-        constexpr uint per_k_block_element_num = KV_HEADS_NUM * HEAD_SIZE * (KV_BLOCK_SIZE + KV_SCALE_ZP_SIZE); // 4 bytes: scale/zp
+        constexpr uint per_k_block_element_num = KV_BLOCK_SIZE * KV_HEADS_NUM * HEAD_SIZE;
     #endif
     uint block_num = KV_PARTITION_SIZE / KV_BLOCK_SIZE;
 
@@ -168,12 +178,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     zp_vec[i] = 0.0;
                 }
             }
-            #else
-            // load scale/zp
-            vector<half, HEAD_SIZE> scale_vec;
-            vector<half, HEAD_SIZE> zp_vec;
-            cm_svm_block_read(reinterpret_cast<svmptr_t>(key + k_scale_zp_offset), scale_vec);
-            cm_svm_block_read(reinterpret_cast<svmptr_t>(key + k_scale_zp_offset + HEAD_SIZE * sizeof(half)), zp_vec);
+            #elif KV_CACHE_COMPRESSION_BY_CHANNEL
+            // TODO: Maybe using scale_vec and zp_vec would be better
             #endif
         #endif
 
@@ -211,16 +217,18 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                         quant_dst.row(r+1) = quant_src.select<2,1,8,2>(r,1);
                     }
 
-                    #if KV_CACHE_COMPRESSION_BY_TOKEN
-                    #pragma unroll
-                    for(int r = 0; r < REG_K; r++) {
-                        Kt[r] = Kt_quant[r] - temp_zp.format<half, 2, REG_N>()[r%2]; //vector - vector
-                        Kt[r] = cm_mul<half>(Kt[r], temp_scale.format<half, 2, REG_N>()[r%2]);    // vector * vector
-                    }
-                    #else
+                    #if KV_CACHE_COMPRESSION_BY_CHANNEL
+                    uint group_idx = (kv_pos / SUB_GROUP_SIZE);
                     vector<half, REG_K> temp_scale, temp_zp;
-                    temp_scale.select<REG_K, 1>(0) = scale_vec.select<REG_K, 1>(k * 4);
-                    temp_zp.select<REG_K, 1>(0) = zp_vec.select<REG_K, 1>(k * 4);
+                    svmptr_t scale_ptr = (svmptr_t)(key + k_scale_zp_offset
+                                        + group_idx * HEAD_SIZE * sizeof(half)
+                                        + k * 4 * sizeof(half));
+                    svmptr_t zp_ptr = (svmptr_t)(key + k_scale_zp_offset
+                                        + GROUPS_PER_BLOCK * HEAD_SIZE * sizeof(half)
+                                        + group_idx * HEAD_SIZE * sizeof(half)
+                                        + k * 4 * sizeof(half));
+                    cm_svm_block_read<half, REG_K>(scale_ptr, temp_scale);
+                    cm_svm_block_read<half, REG_K>(zp_ptr, temp_zp);
 
                     auto Kt_dequant_out = Kt.format<half, REG_K/2, 2*REG_N>();
                     auto Kt_dequant_tmp = Kt_quant.format<uint8_t, REG_K/2, 2*REG_N>();
@@ -230,6 +238,12 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                         Kt_dequant_out[r].select<REG_N, 2>(0) = cm_mul<half>(Kt_dequant_out[r].select<REG_N, 2>(0), temp_scale[r*2]);
                         Kt_dequant_out[r].select<REG_N, 2>(1) = Kt_dequant_tmp[r].select<REG_N, 2>(1) - temp_zp[r*2+1];
                         Kt_dequant_out[r].select<REG_N, 2>(1) = cm_mul<half>(Kt_dequant_out[r].select<REG_N, 2>(1), temp_scale[r*2+1]);
+                    }
+                    #elif KV_CACHE_COMPRESSION_BY_TOKEN
+                    #pragma unroll
+                    for(int r = 0; r < REG_K; r++) {
+                        Kt[r] = Kt_quant[r] - temp_zp.format<half, 2, REG_N>()[r%2]; //vector - vector
+                        Kt[r] = cm_mul<half>(Kt[r], temp_scale.format<half, 2, REG_N>()[r%2]);    // vector * vector
                     }
                     #endif
                 #else
