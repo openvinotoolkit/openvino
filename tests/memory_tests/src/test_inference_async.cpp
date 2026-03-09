@@ -17,7 +17,7 @@ std::vector<std::string> test_samples() {
 }
 
 
-void do_test(TestContext &test) {
+void do_test(memory_tests::Context &test) {
     test.sample("start");
 
     ov::Core core;

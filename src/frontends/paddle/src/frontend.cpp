@@ -381,29 +381,35 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 
     // Validating first path, it must contain a model
     if (variants[0].is<std::string>()) {
-        std::string suffix = ".pdmodel";
-        std::string model_path = variants[0].as<std::string>();
-        FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: \"", model_path, '"');
-        if (!ov::util::ends_with(model_path, suffix)) {
-            model_path += paddle::get_path_sep<char>() + "__model__";
+        auto model_path = ov::util::make_path(variants[0].as<std::string>());
+        if (ov::util::directory_exists(model_path)) {
+            model_path /= "__model__";
+            FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: ", model_path);
+        } else {
+            FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: ", model_path);
+            if (model_path.extension() != ".pdmodel") {
+                return false;
+            }
         }
-        std::ifstream model_str(model_path, std::ios::in | std::ifstream::binary);
+
+        std::ifstream model_str(model_path, std::ifstream::binary);
         // It is possible to validate here that protobuf can read model from the stream,
         // but it will complicate the check, while it should be as quick as possible
         return model_str && model_str.is_open();
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (variants[0].is<std::wstring>()) {
-        std::wstring suffix = L".pdmodel";
-        std::wstring model_path = variants[0].as<std::wstring>();
-        FRONT_END_GENERAL_CHECK(util::file_exists(model_path),
-                                "Could not open the file: \"",
-                                util::path_to_string(model_path),
-                                '"');
-        if (!ov::util::ends_with(model_path, suffix)) {
-            model_path += paddle::get_path_sep<wchar_t>() + L"__model__";
+        auto model_path = ov::util::make_path(variants[0].as<std::wstring>());
+        if (ov::util::directory_exists(model_path)) {
+            model_path /= L"__model__";
+            FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: ", model_path);
+        } else {
+            FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: ", model_path);
+            if (model_path.extension() != L".pdmodel") {
+                return false;
+            }
         }
-        std::ifstream model_str(model_path.c_str(), std::ios::in | std::ifstream::binary);
+        std::ifstream model_str(model_path, std::ifstream::binary);
         // It is possible to validate here that protobuf can read model from the stream,
         // but it will complicate the check, while it should be as quick as possible
         return model_str && model_str.is_open();
