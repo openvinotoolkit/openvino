@@ -13,8 +13,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include <iostream>
-
 #include "cache/multi_cache.h"
 #include "emitters/snippets/aarch64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/aarch64/kernel_executors/gemm.hpp"
@@ -51,12 +49,10 @@ jit_gemm_emitter::jit_gemm_emitter(jit_generator* h,
     OV_CPU_JIT_EMITTER_ASSERT(gemm_node, "Expected GemmCPU node");
     const auto& input_prc = gemm_node->get_input_element_type(0);
     if (input_prc == element::f16) {
-        std::cout << "[GEMM] Registering FP16 KleidiAI kernel executor" << std::endl;
         m_kernel_executor_kai = kernel_table->register_kernel<GemmF16KaiKernelExecutor>(expr, kernel_config);
         m_is_f16 = true;
     } else {
         OV_CPU_JIT_EMITTER_ASSERT(input_prc == element::f32, "Unexpected precision for GemmKai executor");
-        std::cout << "[GEMM] Registering FP32 KleidiAI kernel executor" << std::endl;
         m_kernel_executor_kai = kernel_table->register_kernel<GemmF32KaiKernelExecutor>(expr, kernel_config);
         m_is_f16 = false;
     }
