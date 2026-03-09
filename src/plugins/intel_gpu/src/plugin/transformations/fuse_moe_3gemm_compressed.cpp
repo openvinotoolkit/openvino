@@ -53,8 +53,8 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
 #define ANY any_input()
 
     auto hidden_state_m = ANY;
-    auto opt_reshape = optional<ov::op::v1::Reshape>({hidden_state_m, ANY});
-    auto matmul = wrap_type<ov::op::v0::MatMul>({opt_reshape, ANY}, consumers_count(1));
+    auto hidden_state_reshape = optional<ov::op::v1::Reshape>({hidden_state_m, ANY});
+    auto matmul = wrap_type<ov::op::v0::MatMul>({hidden_state_reshape, ANY}, consumers_count(1));
 
     // ── Softmax routing branch ──────────────────────────────────────────
     auto sm_softmax = wrap_type<ov::op::v8::Softmax>({matmul}, consumers_count(1));
@@ -110,8 +110,18 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     auto down_scale_m = ANY;
     auto down_zp_m = ANY;
 
-    ov::OutputVector moe_inputs =
-        {opt_reshape | hidden_state_m, unsqueeze_moe, topk_idces, gate_wei_m, gate_scale_m, gate_zp_m, up_wei_m, up_scale_m, up_zp_m, down_wei_m, down_scale_m, down_zp_m};
+    ov::OutputVector moe_inputs = {hidden_state_reshape | hidden_state_m,
+                                   unsqueeze_moe,
+                                   topk_idces,
+                                   gate_wei_m,
+                                   gate_scale_m,
+                                   gate_zp_m,
+                                   up_wei_m,
+                                   up_scale_m,
+                                   up_zp_m,
+                                   down_wei_m,
+                                   down_scale_m,
+                                   down_zp_m};
     auto moe_compressed_m = wrap_type<ov::intel_gpu::op::MOECompressed>(moe_inputs);
 #undef ANY
 
@@ -125,7 +135,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
 
         auto config = moe_compressed->get_config();
         OutputVector args{
-            pattern_map.at(opt_reshape),
+            pattern_map.at(hidden_state_reshape),
             pattern_map.at(matmul),
             pattern_map.at(gate_wei_m),
             pattern_map.at(gate_scale_m),
@@ -143,13 +153,12 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
             config.routing_type = ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS;
         }
 
-        std::shared_ptr<ov::op::Op> moe_router_fused = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, config);
+        std::shared_ptr<ov::Node> moe_router_fused = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, config);
         ov::copy_runtime_info(moe_compressed, moe_router_fused);
 
         // If MOECompressed's first input was the original (un-reshaped) hidden state
         // but the fused op works on the flattened 2D input, reshape the output back.
-        if (moe_compressed->input_value(0) == pattern_map.at(hidden_state_m) &&
-            pattern_map.at(hidden_state_m) != pattern_map.at(opt_reshape)) {
+        if (moe_compressed->input_value(0) == pattern_map.at(hidden_state_m)) {
             auto hidden_state_shape = std::make_shared<ov::op::v3::ShapeOf>(pattern_map.at(hidden_state_m));
             moe_router_fused = std::make_shared<ov::op::v1::Reshape>(moe_router_fused, hidden_state_shape, false);
             ov::copy_runtime_info(moe_compressed, {hidden_state_shape, moe_router_fused});

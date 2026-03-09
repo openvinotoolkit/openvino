@@ -7,22 +7,10 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "intel_gpu/op/moe_compressed.hpp"
 #include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/divide.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/slice.hpp"
-#include "openvino/op/softmax.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/topk.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "plugin/transformations/fuse_moe_3gemm_compressed.hpp"
 #include "common_test_utils/node_builders/moe_builders.hpp"
 
@@ -34,22 +22,32 @@ namespace test {
 namespace intel_gpu {
 
 using namespace ov::test;
-class FuseMOE3GemmCompressedTest : public TransformationTestsF, public ::testing::WithParamInterface<MoERoutingType> {
+
+using FuseMOE3GemmCompressedTestParams = std::tuple<MoERoutingType, bool /* reshape_on_moe_input */>;
+
+class FuseMOE3GemmCompressedTest : public TransformationTestsF,
+                                   public ::testing::WithParamInterface<FuseMOE3GemmCompressedTestParams> {
 public:
-    static std::string get_test_case_name(const ::testing::TestParamInfo<MoERoutingType>& info) {
-        switch (info.param) {
+    static std::string get_test_case_name(const ::testing::TestParamInfo<FuseMOE3GemmCompressedTestParams>& info) {
+        std::string name;
+        switch (std::get<0>(info.param)) {
         case MoERoutingType::SOFTMAX:
-            return "Softmax";
+            name = "Softmax";
+            break;
         case MoERoutingType::SIGMOID_BIAS:
-            return "SigmoidBias";
+            name = "SigmoidBias";
+            break;
         default:
             OPENVINO_THROW("Unsupported routing type");
         }
+        if (std::get<1>(info.param))
+            name += "_ReshapeOnMoeInput";
+        return name;
     }
 };
 
 TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
-    const auto routing_type = GetParam();
+    const auto& [routing_type, reshape_on_moe_input] = GetParam();
     {
         // tokens:32, hidden_size:2048, inter_size:768, experts:128, topk:8
         auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{4, 8, 2048});
@@ -81,8 +79,14 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
         config.group_size = 128;
         config.top_k = 8;
         config.out_type = ov::element::f16;
+
+        // When reshape_on_moe_input is true, MOECompressed gets the flattened 2D hidden_states_reshape;
+        // otherwise it gets the original 3D hidden_states.
+        auto moe_input_0 = reshape_on_moe_input
+            ? ov::Output<ov::Node>(hidden_states_reshape)
+            : ov::Output<ov::Node>(hidden_states);
         auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(
-            ov::OutputVector{hidden_states_reshape, unsqueeze_moe, topk_indices,
+            ov::OutputVector{moe_input_0, unsqueeze_moe, topk_indices,
                 wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up, wei_down, scale_down, zp_down}, config);
         model = std::make_shared<ov::Model>(moe_compressed, ov::ParameterVector{hidden_states});
     }
@@ -129,124 +133,25 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
             args.push_back(routing_eps);
         }
 
-        auto moe_3gemm_fused_compressed = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, config);
-        model_ref = std::make_shared<ov::Model>(moe_3gemm_fused_compressed, ov::ParameterVector{hidden_states});
+        std::shared_ptr<ov::Node> result = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, config);
+
+        // When reshape_on_moe_input is false, MOE3GemmFusedCompressed takes reshaped input from routing subgraph,
+        // so the transformation inserts a reshape-back to restore the original shape.
+        if (!reshape_on_moe_input) {
+            auto hidden_state_shape = std::make_shared<ov::op::v3::ShapeOf>(hidden_states);
+            result = std::make_shared<ov::op::v1::Reshape>(result, hidden_state_shape, false);
+        }
+
+        model_ref = std::make_shared<ov::Model>(result, ov::ParameterVector{hidden_states});
     }
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          FuseMOE3GemmCompressedTest,
-                         ::testing::Values(MoERoutingType::SOFTMAX, MoERoutingType::SIGMOID_BIAS),
+                         ::testing::Combine(
+                             ::testing::Values(MoERoutingType::SOFTMAX, MoERoutingType::SIGMOID_BIAS),
+                             ::testing::Values(false, true)),
                          FuseMOE3GemmCompressedTest::get_test_case_name);
-
-TEST_F(TransformationTestsF, FuseMOE3GemmCompressedTest1) {
-    {
-        // tokens:32, hidden_size:2048, iter_size:512, experts:512, topk:10
-        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{4, 8, 2048});
-        auto flatten_shape = op::v0::Constant::create(element::i32, Shape{2}, {32, 2048});
-        auto hidden_states_reshape = std::make_shared<ov::op::v1::Reshape>(hidden_states, flatten_shape, false);
-        auto routers = op::v0::Constant::create(element::f16, Shape{2048, 512}, {0.2});
-        // [32, 512]
-        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshape, routers);
-
-        auto softmax = std::make_shared<ov::op::v8::Softmax>(routing_weights, 1);
-        auto k = op::v0::Constant::create(element::i64, Shape{}, {10});
-        // [32, 10]
-        auto topk = std::make_shared<ov::op::v11::TopK>(softmax, k, 1,
-            ov::op::v11::TopK::Mode::MAX, ov::op::v11::TopK::SortType::SORT_VALUES);
-
-        // weight output
-        auto reduce_axis = op::v0::Constant::create(element::i64, Shape{1}, {1});
-        auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(topk->output(0), reduce_axis->output(0), true);
-        auto norm = std::make_shared<ov::op::v1::Divide>(topk->output(0), reduce_sum->output(0));
-
-        // index
-        auto topk_indices_i32 = std::make_shared<ov::op::v0::Convert>(topk->output(1), ov::element::i32);
-        auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(topk_indices_i32);
-
-        auto slice = std::make_shared<ov::op::v8::Slice>(norm,
-                                                         op::v0::Constant::create(element::i32, Shape{2}, {0, 0}),
-                                                         shape_of,
-                                                         op::v0::Constant::create(element::i32, Shape{2}, {1, 1}),
-                                                         op::v0::Constant::create(element::i32, Shape{2}, {0, 1}));
-
-        auto zero = op::v0::Constant::create(element::f16, Shape{1}, {0});
-        auto router_shape = op::v0::Constant::create(element::i64, Shape{2}, {32, 512});
-        auto bc = std::make_shared<ov::op::v3::Broadcast>(zero, router_shape);
-        auto scatter_axis = op::v0::Constant::create(element::i64, Shape{1}, {1});
-        auto scatter = std::make_shared<ov::op::v12::ScatterElementsUpdate>(bc,
-                                                                            topk_indices_i32,
-                                                                            slice,
-                                                                            scatter_axis);
-        // [512, 32]
-        auto transpose_shape = op::v0::Constant::create(element::i64, Shape{2}, {1, 0});
-        auto transpose = std::make_shared<ov::op::v1::Transpose>(scatter, transpose_shape);
-        // [512, 4, 8]
-        auto router_shape_transpose = op::v0::Constant::create(element::i64, Shape{3}, {512, 4, 8});
-        auto reshape = std::make_shared<ov::op::v1::Reshape>(transpose, router_shape_transpose, false);
-        // [512, 4, 8, 1]
-        auto unsqueeze_const = op::v0::Constant::create(element::i64, Shape{1}, {3});
-        auto unsqueeze_moe = std::make_shared<ov::op::v0::Unsqueeze>(reshape, unsqueeze_const);
-
-        // weight
-        auto wei_gate = op::v0::Constant::create(element::u4, Shape{512, 512, 16, 128}, {1});
-        auto scale_gate = op::v0::Constant::create(element::f16, Shape{512, 16, 512}, {0.01f});
-        auto zp_gate = op::v0::Constant::create(element::u4, Shape{512, 16, 512}, {0});
-        auto wei_up = op::v0::Constant::create(element::u4, Shape{512, 512, 16, 128}, {1});
-        auto scale_up = op::v0::Constant::create(element::f16, Shape{512, 16, 512}, {0.01f});
-        auto zp_up = op::v0::Constant::create(element::u4, Shape{512, 16, 512}, {0});
-        auto wei_down = op::v0::Constant::create(element::u4, Shape{512, 2048, 4, 128}, {1});
-        auto scale_down = op::v0::Constant::create(element::f16, Shape{512, 4, 2048}, {0.01f});
-        auto zp_down = op::v0::Constant::create(element::u4, Shape{512, 4, 2048}, {0});
-
-        ov::intel_gpu::op::MOECompressed::Config config;
-        config.hidden_size = 2048;
-        config.inter_size = 512;
-        config.num_expert = 512;
-        config.group_size = 128;
-        config.top_k = 10;
-        config.out_type = ov::element::f16;
-        auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(
-            ov::OutputVector{hidden_states, unsqueeze_moe, topk->output(1),
-                wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up, wei_down, scale_down, zp_down}, config);
-        model = std::make_shared<ov::Model>(moe_compressed, ov::ParameterVector{hidden_states});
-        manager.register_pass<FuseMOE3GemmCompressed>();
-    }
-    {
-        // tokens:32, hidden_size:2048, inter_size:512, experts:512, topk:10
-        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{4, 8, 2048});
-        auto flatten_shape = op::v0::Constant::create(element::i32, Shape{2}, {32, 2048});
-        auto hidden_states_reshape = std::make_shared<ov::op::v1::Reshape>(hidden_states, flatten_shape, false);
-        auto routers = op::v0::Constant::create(element::f16, Shape{2048, 512}, {0.2});
-        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshape, routers);
-
-        // weight
-        auto wei_gate = op::v0::Constant::create(element::u4, Shape{512, 512, 16, 128}, {1});
-        auto scale_gate = op::v0::Constant::create(element::f16, Shape{512, 16, 512}, {0.01f});
-        auto zp_gate = op::v0::Constant::create(element::u4, Shape{512, 16, 512}, {0});
-        auto wei_up = op::v0::Constant::create(element::u4, Shape{512, 512, 16, 128}, {1});
-        auto scale_up = op::v0::Constant::create(element::f16, Shape{512, 16, 512}, {0.01f});
-        auto zp_up = op::v0::Constant::create(element::u4, Shape{512, 16, 512}, {0});
-        auto wei_down = op::v0::Constant::create(element::u4, Shape{512, 2048, 4, 128}, {1});
-        auto scale_down = op::v0::Constant::create(element::f16, Shape{512, 4, 2048}, {0.01f});
-        auto zp_down = op::v0::Constant::create(element::u4, Shape{512, 4, 2048}, {0});
-
-        ov::intel_gpu::op::MOECompressed::Config config;
-        config.hidden_size = 2048;
-        config.inter_size = 512;
-        config.num_expert = 512;
-        config.group_size = 128;
-        config.top_k = 10;
-        config.out_type = ov::element::f16;
-        auto moe_3gemm_fused_compressed = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(
-            ov::OutputVector{hidden_states_reshape, routing_weights,
-                wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up, wei_down, scale_down, zp_down}, config);
-        auto hidden_state_shape = std::make_shared<ov::op::v3::ShapeOf>(hidden_states);
-        auto reshape_back = std::make_shared<ov::op::v1::Reshape>(moe_3gemm_fused_compressed->output(0), hidden_state_shape, false);
-
-        model_ref = std::make_shared<ov::Model>(reshape_back, ov::ParameterVector{hidden_states});
-    }
-}
 
 }  // namespace intel_gpu
 }  // namespace test
