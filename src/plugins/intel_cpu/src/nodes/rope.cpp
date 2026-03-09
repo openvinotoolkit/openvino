@@ -185,7 +185,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
                     dst[i + half_rotary_dims] = cos[i + cos_sin_offset] * src1 + sin[i + cos_sin_offset] * src0;
                 }
             }
-            if (!can_inplace) {
+            if (feature_size > rotary_dims && (!can_inplace || dst != src)) {
                 memcpy(dst + rotary_dims, src + rotary_dims, (feature_size - rotary_dims) * sizeof(T));
             }
         });
