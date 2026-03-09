@@ -311,17 +311,22 @@ struct PagedAttentionManager {
         auto adjusted_head_size = k_head_size;
         auto adjusted_block_size = block_size;
         if (kv_cache_compression) {
-            // u4/i4: stored as u8/i8 with head_size halved (2 u4 packed per byte).
-            // Scale/zp for BY_CHANNEL: 4 fp16 values = 8 bytes appended to block_size dim.
-            // Scale/zp for BY_TOKEN: 2 fp16 values = 4 bytes appended to head_size dim.
             key_cache_dt = is_int4_kv_cache() ? data_types::u8 : data_types::i8;
             const int scale_zp_bytes = is_int4_kv_cache() ? 8 : 4;
             if (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
-                if (is_int4_kv_cache())
+                if (is_int4_kv_cache()) {
+                    // u4/i4: stored as u8/i8 with head_size halved (2 u4 packed per byte).
+                    // Scale/zp for BY_CHANNEL: 4 fp16 values = 8 bytes appended to block_size dim.
                     adjusted_head_size = k_head_size / 2;  // pack 2 u4 into 1 u8 byte
+                }
                 adjusted_block_size += scale_zp_bytes;
             } else {
-                adjusted_head_size += scale_zp_bytes;
+                if (is_int4_kv_cache()) {
+                    // Scale/zp for BY_TOKEN: 2 fp16 values = 4 bytes appended to head_size dim.
+                    adjusted_head_size = k_head_size / 2 + scale_zp_bytes;
+                } else {
+                    adjusted_head_size += scale_zp_bytes;
+                }
             }
         }
 
@@ -438,19 +443,68 @@ struct PagedAttentionManager {
                                     size_t output_block_offset = (start_block_idx + block_idx) * num_kv_heads * adjusted_head_size * block_size +
                                                                  head_idx * adjusted_head_size * block_size;
 
-                                    auto [quantized_data, scale, zp] = quantize_data(data_ptr, k_head_size);
-                                    for (int k_head_size_idx = 0; k_head_size_idx < k_head_size; k_head_size_idx++) {
-                                        auto quantized_data_ptr = quantized_data.data() + k_head_size_idx;
+                                    if (is_int4_kv_cache()) {
+                                        // INT4 BY_TOKEN: [num_blocks, kv_heads, k_head_size/2+8, block_size] u8
+                                        // Kernel packing (SUBGROUP_SIZE=16):
+                                        //   Y = pack_group*16 + sglid, where pack_group = d/(2*16), sglid = d%16
+                                        //   lower 4bit = q(dim[pack_group*32+sglid])
+                                        //   upper 4bit = q(dim[pack_group*32+sglid+16])
+                                        // Scale/ZP: fp16 in comp region at Y=packed_head_size..
+                                        //   inv_scale[t] at fp16 idx (comp_base/2 + t)
+                                        //   zp[t]        at fp16 idx (comp_base/2 + block_size + t)
+                                        const int packed_head_size = k_head_size / 2;
+                                        constexpr int SG = 16;  // SUBGROUP_SIZE
+                                        // Compute per-token min/max, then scale/zp in u4 range [0,15]
+                                        float min_v = std::numeric_limits<float>::max();
+                                        float max_v = -std::numeric_limits<float>::max();
+                                        for (int d = 0; d < k_head_size; d++) {
+                                            float v = static_cast<float>(data_ptr[d]);
+                                            min_v = std::min(min_v, v);
+                                            max_v = std::max(max_v, v);
+                                        }
+                                        float range = (max_v == min_v) ? 0.001f : (max_v - min_v);
+                                        const float min_range = std::abs(max_v) * 0.1f;
+                                        if (range <= min_range) range += std::max(1.0f, min_range);
+                                        float token_scale = 15.0f / range;
+                                        float token_zp = -min_v * token_scale;
+                                        std::vector<uint8_t> q(k_head_size);
+                                        for (int d = 0; d < k_head_size; d++) {
+                                            int v = static_cast<int>(std::nearbyint(static_cast<float>(data_ptr[d]) * token_scale + token_zp));
+                                            q[d] = static_cast<uint8_t>(std::max(0, std::min(15, v)));
+                                        }
+                                        // Pack and write: Y=pack_group*SG+sglid → (lower=q[d0], upper=q[d1])
+                                        for (int y = 0; y < packed_head_size; y++) {
+                                            int sglid_val = y % SG;
+                                            int pack_group = y / SG;
+                                            int d0 = pack_group * 2 * SG + sglid_val;
+                                            int d1 = d0 + SG;
+                                            uint8_t packed_byte = q[d0] & 0xFu;
+                                            if (d1 < k_head_size)
+                                                packed_byte |= (q[d1] & 0xFu) << 4;
+                                            size_t offset = output_block_offset + static_cast<size_t>(y) * block_size + token_idx;
+                                            set_values(test_stream, memory, &packed_byte, 1, offset);
+                                        }
+                                        // Write inv_scale and zp as fp16 in the comp region
+                                        size_t comp_offset_fp16 = (output_block_offset + static_cast<size_t>(packed_head_size) * block_size) / 2;
+                                        ov::float16 fp16_inv_scale = static_cast<float>(1.0f / token_scale);
+                                        ov::float16 fp16_zp = static_cast<float>(token_zp);
+                                        set_values(test_stream, memory, &fp16_inv_scale, 1, comp_offset_fp16 + token_idx);
+                                        set_values(test_stream, memory, &fp16_zp, 1, comp_offset_fp16 + block_size + token_idx);
+                                    } else {
+                                        auto [quantized_data, scale, zp] = quantize_data(data_ptr, k_head_size);
+                                        for (int k_head_size_idx = 0; k_head_size_idx < k_head_size; k_head_size_idx++) {
+                                            auto quantized_data_ptr = quantized_data.data() + k_head_size_idx;
 
-                                        size_t output_offset = output_block_offset +
-                                                               k_head_size_idx * block_size +
-                                                               token_idx;
+                                            size_t output_offset = output_block_offset +
+                                                                   k_head_size_idx * block_size +
+                                                                   token_idx;
 
-                                        set_values(test_stream, memory, quantized_data_ptr, 1, output_offset);
+                                            set_values(test_stream, memory, quantized_data_ptr, 1, output_offset);
+                                        }
+                                        size_t comp_offset = (output_block_offset + k_head_size * block_size) / 2;
+                                        set_values(test_stream, memory, &scale, 1, comp_offset + token_idx);
+                                        set_values(test_stream, memory, &zp, 1, comp_offset + block_size + token_idx);
                                     }
-                                    size_t comp_offset = (output_block_offset + k_head_size * block_size) / 2;
-                                    set_values(test_stream, memory, &scale, 1, comp_offset + token_idx);
-                                    set_values(test_stream, memory, &zp, 1, comp_offset + block_size + token_idx);
                                 }
                             } else {
                                 for (int k_head_size_idx = 0; k_head_size_idx < k_head_size; k_head_size_idx++) {
@@ -1485,6 +1539,56 @@ private:
                     }
                 }
             } else {
+                // BY_TOKEN
+                if (pam.is_int4_kv_cache()) {
+                    // INT4 BY_TOKEN: [num_blocks, kv_heads, k_head_size/2+8, block_size] u8
+                    // Packing (SUBGROUP_SIZE=16):
+                    //   Y = pack_group*16 + sglid, where pack_group = d/(2*16), sglid = d%16
+                    //   lower nibble = q(dim[pack_group*32 + sglid])
+                    //   upper nibble = q(dim[pack_group*32 + sglid + 16])
+                    // Scale/ZP: fp16 in comp region at base + packed_head_size*block_size
+                    //   inv_scale[t] at comp_ptr[t], zp[t] at comp_ptr[block_size + t]
+                    mem_lock<uint8_t, mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
+                    const int packed_head_size = pam.k_head_size / 2;
+                    const int adj_head_size = packed_head_size + 8;
+                    constexpr int SG = 16;
+
+                    for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
+                        const int physical_block = pam.block_indices[blocks_start + block_idx];
+                        const int tokens_in_block = std::min(pam.block_size, total_tokens - block_idx * pam.block_size);
+
+                        for (int head_idx = 0; head_idx < pam.num_kv_heads; head_idx++) {
+                            const size_t cache_base = static_cast<size_t>(physical_block) * pam.num_kv_heads * adj_head_size * pam.block_size +
+                                                      static_cast<size_t>(head_idx) * adj_head_size * pam.block_size;
+                            // Scale and ZP are in the comp region after the packed data
+                            const size_t comp_byte_base = cache_base + static_cast<size_t>(packed_head_size) * pam.block_size;
+                            const auto* inv_scale_arr = reinterpret_cast<const ov::float16*>(&cache_ptr[comp_byte_base]);
+                            const auto* zp_arr = reinterpret_cast<const ov::float16*>(&cache_ptr[comp_byte_base + pam.block_size * 2]);
+
+                            for (int token_offset = 0; token_offset < tokens_in_block; token_offset++) {
+                                const int token_idx = block_idx * pam.block_size + token_offset;
+                                float inv_scale = static_cast<float>(inv_scale_arr[token_offset]);
+                                float zp_val = static_cast<float>(zp_arr[token_offset]);
+                                const size_t out_base = static_cast<size_t>(head_idx) * total_tokens * pam.k_head_size +
+                                                        static_cast<size_t>(token_idx) * pam.k_head_size;
+
+                                for (int d = 0; d < pam.k_head_size; d++) {
+                                    int sglid_val = d % SG;
+                                    int pack_group = d / (2 * SG);
+                                    int group_in_pack = (d / SG) % 2;  // 0=lower nibble, 1=upper nibble
+                                    int y = pack_group * SG + sglid_val;
+                                    const size_t byte_off = cache_base + static_cast<size_t>(y) * pam.block_size + token_offset;
+                                    uint8_t packed_byte = cache_ptr[byte_off];
+                                    uint8_t q_d = (group_in_pack == 0) ? (packed_byte & 0xFu) : ((packed_byte >> 4) & 0xFu);
+                                    key_data[out_base + d] = ov::float16((static_cast<float>(q_d) - zp_val) * inv_scale);
+                                }
+                            }
+                        }
+                    }
+
+                    return key_data;
+                }
+
                 // BY_TOKEN: [num_blocks, num_kv_heads, head_size+4, block_size]
                 // Token-wise quantization with shared scale/zp per token
                 // Layout: data rows [0..head_size-1], scale at [head_size], zp at [head_size+2] (fp16)
@@ -1523,8 +1627,9 @@ private:
                         }
                     }
                 }
-            }
-        }
+            }  // end else (i8 BY_TOKEN)
+        }  // is_compressed
+
         return key_data;
     }
 
@@ -2170,21 +2275,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing:
     paged_attention_test_params{ {{40, 96}, {30, 50}}, 2, 2, 64, 64, 16, {100.0}, 8, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token, per token rotate
     paged_attention_test_params{ {{128, 130}, {256, 60}}, 2, 2, 48, 64, 16, {100.0}, 128, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, ENABLE_FA_V2 }, // 2nd token, per token rotate
     /* INT4 KV-cache compression (u4+BY_CHANNEL) */
-    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 1st token u4+BY_CHANNEL
-    paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 2nd token u4+BY_CHANNEL
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 2nd token + 2nd token u4+BY_CHANNEL
-    /* INT4 KV-cache compression (u4+BY_TOKEN) */
     paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 1st token u4+BY_TOKEN
     paged_attention_test_params{ {{256, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 1st token long u4+BY_TOKEN
     paged_attention_test_params{ {{256, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 1st token long u4+BY_CHANNEL
     paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 1st token + 1st token u4+BY_TOKEN
     paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 1st token + 1st token u4+BY_CHANNEL
+    paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 2nd token u4+BY_TOKEN
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 2nd token + 2nd token u4+BY_TOKEN
+    paged_attention_test_params{ {{1, 300}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 2nd token, past_len>partition_size u4+BY_TOKEN
     paged_attention_test_params{ {{1, 300}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 2nd token, past_len>partition_size u4+BY_CHANNEL
     /* u4 MIXED mode (generate+prefill in same batch) - covers pa_multi_token sink_ptr fix */
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // mixed u4+BY_TOKEN
     paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // mixed u4+BY_CHANNEL
     /* u4 with larger head size */
+    paged_attention_test_params{ {{1, 34}}, 2, 2, 128, 128, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 2nd token, head_size=128 u4+BY_TOKEN
     paged_attention_test_params{ {{1, 34}}, 2, 2, 128, 128, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 2nd token, head_size=128 u4+BY_CHANNEL
     /* u4 with GQA (multi query groups) */
+    paged_attention_test_params{ {{1, 34}}, 8, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 2nd token, GQA 8/2 u4+BY_TOKEN
     paged_attention_test_params{ {{1, 34}}, 8, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 2nd token, GQA 8/2 u4+BY_CHANNEL
 }));
 
