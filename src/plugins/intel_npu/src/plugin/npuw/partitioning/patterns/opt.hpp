@@ -23,6 +23,7 @@ struct Context {
     std::string pmm_dims;
     bool is_spatial = false;
     bool mm_dq_full = true;
+    bool mm_gate = false;
 
     using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
     using NPtr = std::shared_ptr<ov::Node>;
@@ -229,7 +230,7 @@ public:
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
-    PreserveConstDictMatMulAsymm(Results to_keep);
+    PreserveConstDictMatMulAsymm(Context::Ref ctx, Results to_keep);
 };
 
 class PreserveConstDictMatMulFP8 : public ov::pass::MatcherPass {
@@ -239,7 +240,7 @@ public:
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
-    PreserveConstDictMatMulFP8(Results to_keep);
+    PreserveConstDictMatMulFP8(Context::Ref ctx, Results to_keep);
 };
 
 // Slice last Matmul

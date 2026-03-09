@@ -1162,6 +1162,7 @@ struct NPUDesc {
     std::string arch;
     int64_t max_tiles = 0;
     bool compiler_dq = false;
+    bool compiler_matmul_gate = false;
     int64_t compiler_ver = 0;
 };
 
@@ -1184,6 +1185,18 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     }
 
     desc.compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
+    LOG_INFO("Compiler version: " << ONEAPI_VERSION_MAJOR(desc.compiler_ver) << "." << ONEAPI_VERSION_MINOR(desc.compiler_ver));
+
+    constexpr std::string_view compiler_gate_support_msg
+        = "Compiler: accurate gated matmul (MatMul -> Divide -> Tanh -> Multiply -> Result) : ";
+
+    if (desc.compiler_ver >= ONEAPI_MAKE_VERSION(7, 28)) {
+        // accuracy for gated matmul fixed at 7.28
+        desc.compiler_matmul_gate = true;
+        LOG_INFO(compiler_gate_support_msg << "supported");
+    } else {
+        LOG_WARN(compiler_gate_support_msg << "unsupported");
+    }
 
     return std::make_optional(std::move(desc));
 }
@@ -1227,6 +1240,12 @@ ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
         config.erase("NPUW_DCOFF_TYPE");
         config.erase("NPUW_DCOFF_SCALE");
     }
+
+    //default version is ON - while for older compiler it might be turned off
+    if (npudesc.has_value()) {
+        config.emplace("NPUW_MM_GATED", (npudesc->compiler_matmul_gate ? "YES" : "NO"));
+    }
+
     return config;
 }
 
@@ -1239,6 +1258,7 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
     } else {
         config.emplace("NPUW_FUNCALL_FOR_ALL", "YES");
     }
+
     return config;
 }
 
@@ -1255,6 +1275,7 @@ ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, c
             config.emplace("NPUW_PMM", "NO");
         }
     }
+
     return config;
 }
 
@@ -1838,7 +1859,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (!m_is_embedding) {
         if (!m_use_chunk_prefill) {
             // TODO: sometimes it is ok if we cannot find any empty inputs or not?
-            NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
+            remove_empty_kv_inputs(prefill_model);
         } else {
             LOG_DEBUG("Don't remove input key/values from prefill model.");
             LOG_DEBUG("Ask prefill model to output key/values for prefill chunk size tokens.");

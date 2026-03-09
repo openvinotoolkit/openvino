@@ -219,6 +219,15 @@ static constexpr ov::Property<std::string> par_matmul_merge_dims{"NPUW_PMM"};
 /**
  * @brief
  * Type: bool.
+ * whether to preserve constants for gated version of matmul
+ * on some version of compiler - might produce incorrect results when enabled
+ * Default value: YES
+ */
+static constexpr ov::Property<bool> matmul_gate_preserve_constants{"NPUW_MM_GATED"};
+
+/**
+ * @brief
+ * Type: bool.
  * Add Slice before the last MatMul reducing output's dimention.
  * Default value: false.
  */
