@@ -62,8 +62,8 @@ bool read_tlv_string(std::istream& stream, std::string& str) {
     TLVTraits::LengthType size;
     std::vector<char> buffer;
     const auto read = read_tlv_record(stream, tag, size, buffer);
-    OPENVINO_ASSERT(SingleFileStorage::Tag{tag} == SingleFileStorage::Tag::String);
     if (read) {
+        OPENVINO_ASSERT(SingleFileStorage::Tag{tag} == SingleFileStorage::Tag::String);
         str = std::string{buffer.begin(), buffer.end()};
     }
     return read;
@@ -90,7 +90,7 @@ SingleFileStorage::SingleFileStorage(const std::filesystem::path& path) : m_file
         write_version(stream, m_version);
     } else {
         std::ifstream stream(m_file_path, std::ios::binary);
-        util::Version file_version{"0.0.0-0-"};
+        util::Version file_version{0, 0, 0, 0, 0};
         read_version(stream, file_version);
         validate_version(file_version);
 
@@ -149,6 +149,10 @@ bool SingleFileStorage::build_content_index(std::ifstream& stream) {
             uint8_t const_type;
             constexpr auto const_meta_size =
                 sizeof(const_id) + sizeof(const_offset) + sizeof(const_size) + sizeof(const_type);
+            if (left_size < const_meta_size) {
+                return false;
+            }
+            left_size -= const_meta_size;
             s.read(reinterpret_cast<char*>(&const_id), sizeof(const_id));
             s.read(reinterpret_cast<char*>(&const_offset), sizeof(const_offset));
             s.read(reinterpret_cast<char*>(&const_size), sizeof(const_size));
@@ -156,8 +160,6 @@ bool SingleFileStorage::build_content_index(std::ifstream& stream) {
             if (!s.good()) {
                 return false;
             }
-            left_size -= const_meta_size;
-
             m_shared_context.m_weight_registry[source_id][const_id] = {static_cast<size_t>(const_offset),
                                                                        static_cast<size_t>(const_size),
                                                                        element::Type_t{const_type}};

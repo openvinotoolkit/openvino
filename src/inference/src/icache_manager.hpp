@@ -16,7 +16,6 @@ namespace ov {
 
 /**
  * @brief This class represents private interface for Cache Manager
- *
  */
 class ICacheManager {
 public:
@@ -27,7 +26,6 @@ public:
 
     /**
      * @brief Function passing created output stream
-     *
      */
     using StreamWriter = std::function<void(std::ostream&)>;
     /**
@@ -93,21 +91,20 @@ public:
 
 /**
  * @brief This class limits the locale env to a special value in sub-scope
- *
  */
 class ScopedLocale {
 public:
-    ScopedLocale(int category, std::string newLocale) : m_category(category) {
-        m_oldLocale = setlocale(category, nullptr);
-        setlocale(m_category, newLocale.c_str());
+    ScopedLocale(int category, std::string new_locale) : m_category(category) {
+        m_old_locale = setlocale(category, nullptr);
+        setlocale(m_category, new_locale.c_str());
     }
     ~ScopedLocale() {
-        setlocale(m_category, m_oldLocale.c_str());
+        setlocale(m_category, m_old_locale.c_str());
     }
 
 private:
     int m_category;
-    std::string m_oldLocale;
+    std::string m_old_locale;
 };
 
 }  // namespace ov
