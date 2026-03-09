@@ -41,6 +41,7 @@ void pa_lsc_u8(
     constexpr int num_P_tiles = REG_N / REG_M;
     matrix<half, head_size/REG_K, REG_K*REG_N> rQ;
     matrix <float, head_size/REG_N*num_P_tiles, REG_M*REG_N> rO;
+    bool first_active = true;
 
     auto q_tokens_left = q_len;
     static_assert(q_step == REG_N);
@@ -277,14 +278,22 @@ void pa_lsc_u8(
             matrix<half, REG_N, REG_K> P;
             Transpose2DMatrix(St, P);
 
-            if (kv_pos == 0)
+            if (first_active) {
                 ugemm_PV0(slm_V, P, rO, slm_offset);
-            else
+                first_active = false;
+            } else {
                 ugemm_PV1(slm_V, P, max_comp, rO, slm_offset);
+            }
         }
     }
     // cm_sbarrier(0);
     if (q_tokens_left == 0) return;
+
+#ifdef CMPA_DEBUG_ALL_MASKED
+    if (first_active) {
+        cm_printf("CMPA error: all blocks masked out, q_start=%d\n", q_start);
+    }
+#endif
 
     //# save cur_O/cur_sum.transpose(0, 1)
     matrix<half, num_P_tiles*REG_M, REG_N> cur_O_f16;
@@ -348,6 +357,7 @@ void pa_kernel_lsc_prefetch_f16(
     constexpr int VALUE_TILE_NUM = 2;
     matrix<half, head_size/REG_K, REG_K*REG_N> rQ;
     matrix <float, head_size/REG_M, REG_M*REG_N> rO;
+    bool first_active = true;
 
 #if SPARSE_BLOCK_SIZE > 1
     const int sb_shift = (SPARSE_BLOCK_SIZE == 128) ? 7 : (SPARSE_BLOCK_SIZE == 256) ? 8 : -1;
@@ -540,7 +550,7 @@ void pa_kernel_lsc_prefetch_f16(
                 Vmat.row(r).select<REG_N*VALUE_TILE_NUM, 2>(1) = Vmat_tmp.row(r*2+1);
             }
 
-            if (kv_pos == 0) {
+            if (first_active) {
                 #pragma unroll
                 for (int tile = 0; tile < VALUE_TILE_NUM; tile++) {
                     int rO_base = ri + tile * num_P_tiles;
@@ -553,6 +563,7 @@ void pa_kernel_lsc_prefetch_f16(
                             P2.row(p).format<int32_t>());
                     }
                 }
+                first_active = false;
             } else {
                 #pragma unroll
                 for (int tile = 0; tile < VALUE_TILE_NUM; tile++) {
@@ -583,6 +594,13 @@ void pa_kernel_lsc_prefetch_f16(
             }
         }
     }
+
+#ifdef CMPA_DEBUG_ALL_MASKED
+    if (first_active) {
+        cm_printf("CMPA error: all blocks masked out, q_start=%d\n", q_start);
+    }
+#endif
+
     //# save cur_O/cur_sum.transpose(0, 1)
     matrix<half, num_P_tiles * REG_M, REG_N> cur_O_f16;
     cur_sum = cm_inv(cur_sum);

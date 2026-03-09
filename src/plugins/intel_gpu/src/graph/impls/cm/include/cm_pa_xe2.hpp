@@ -78,6 +78,7 @@ void pa_lsc_u8(
     constexpr int num_P_tiles = REG_N / REG_M;
     matrix<half, head_size / REG_K, REG_K * REG_N> rQ;
     matrix<float, head_size / REG_N * num_P_tiles, REG_M * REG_N> rO;
+    bool first_active = true;
 
     auto q_tokens_left = q_len;
     static_assert(q_step == REG_N);
@@ -316,10 +317,12 @@ void pa_lsc_u8(
                     matrix<half, REG_N, REG_K> P;
                     Transpose2DMatrix(St, P);
 
-                    if (kv_pos == 0)
+                    if (first_active) {
                         ugemm_PV0(slm_V, P, rO, slm_offset);
-                    else
+                        first_active = false;
+                    } else {
                         ugemm_PV1(slm_V, P, max_comp, rO, slm_offset);
+                    }
                 }
             }
         }
@@ -480,10 +483,12 @@ void pa_lsc_u8(
             matrix<half, REG_N, REG_K> P;
             Transpose2DMatrix(St, P);
 
-            if (kv_pos == 0)
+            if (first_active) {
                 ugemm_PV0(slm_V, P, rO, slm_offset);
-            else
+                first_active = false;
+            } else {
                 ugemm_PV1(slm_V, P, max_comp, rO, slm_offset);
+            }
         }
     }
 #endif
@@ -492,6 +497,12 @@ void pa_lsc_u8(
     // Store O (unchanged)
     // ============================================================
     if (q_tokens_left == 0) return;
+
+#ifdef CMPA_DEBUG_ALL_MASKED
+    if (first_active) {
+        cm_printf("CMPA error: all blocks masked out, q_start=%d\n", q_start);
+    }
+#endif
 
     matrix<half, num_P_tiles * REG_M, REG_N> cur_O_f16;
     cur_sum = cm_inv(cur_sum);
@@ -559,6 +570,7 @@ void pa_kernel_lsc_prefetch_f16(
     constexpr int num_P_tiles = REG_N / REG_M;
     matrix<half, head_size/REG_K, REG_K*REG_N> rQ;
     matrix <float, head_size/REG_N*num_P_tiles, REG_M*REG_N> rO;
+    bool first_active = true;
 
 #if SPARSE_BLOCK_SIZE > 1
     constexpr int sb_shift = (SPARSE_BLOCK_SIZE == 128) ? 7 : (SPARSE_BLOCK_SIZE == 256) ? 8 : -1;
@@ -695,7 +707,7 @@ void pa_kernel_lsc_prefetch_f16(
 
         b2dV.set_base_ptr((reinterpret_cast<half*>(v_cache_base)+cur_block_id*blk_stride));
         b2dV.set_block_y(kv_pos%CMPA_BLOCK_SZ);
-        if (kv_pos == 0) {
+        if (first_active) {
             // ugemm_PV0(slm_V, P, rO, slm_offset);
             auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
             #pragma unroll
@@ -720,6 +732,7 @@ void pa_kernel_lsc_prefetch_f16(
                                     P2.row(p).format<int32_t>());
                 }
             }
+            first_active = false;
         }
         else {
             //ugemm_PV1(slm_V, P, max_comp, rO, slm_offset);
@@ -842,7 +855,7 @@ void pa_kernel_lsc_prefetch_f16(
 
         b2dV.set_base_ptr((reinterpret_cast<half*>(v_cache_base)+cur_block_id*blk_stride));
         b2dV.set_block_y(kv_pos%CMPA_BLOCK_SZ);
-        if (kv_pos == 0) {
+        if (first_active) {
             // ugemm_PV0(slm_V, P, rO, slm_offset);
             auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
             #pragma unroll
@@ -867,6 +880,7 @@ void pa_kernel_lsc_prefetch_f16(
                                     P2.row(p).format<int32_t>());
                 }
             }
+            first_active = false;
         }
         else {
             //ugemm_PV1(slm_V, P, max_comp, rO, slm_offset);
@@ -907,6 +921,13 @@ void pa_kernel_lsc_prefetch_f16(
         }
     }
 #endif
+
+#ifdef CMPA_DEBUG_ALL_MASKED
+    if (first_active) {
+        cm_printf("CMPA error: all blocks masked out, q_start=%d\n", q_start);
+    }
+#endif
+
     if (q_tokens_left == 0) return;
 
     //# save cur_O/cur_sum.transpose(0, 1)
