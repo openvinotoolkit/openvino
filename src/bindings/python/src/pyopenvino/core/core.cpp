@@ -771,8 +771,10 @@ void regclass_Core(py::module m) {
             )");
 
     cls.def_property_readonly("available_devices",
-                              &ov::Core::get_available_devices,
-                              py::call_guard<py::gil_scoped_release>(),
+                              py::cpp_function([](const ov::Core& self) {
+                                  py::gil_scoped_release release;
+                                  return self.get_available_devices();
+                              }),
                               R"(
                                     Returns devices available for inference Core objects goes over all registered plugins.
 
