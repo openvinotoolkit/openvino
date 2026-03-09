@@ -100,6 +100,10 @@ struct ConcatenationImplementationManager : public ImplementationManager {
             if (!one_of(in_layout.format.value, supported_in_fmts))
                 return false;
 
+            if (!is_feature_aligned(in_layout)) {
+                return false;
+            }
+
             // WA: Onednn has an issue in simple_concat blocked format Odd value, will be fixed next release.
             if (index !=0 && concat_axis == 1 &&
                 !format::is_simple_data_format(in_layout.format) &&
