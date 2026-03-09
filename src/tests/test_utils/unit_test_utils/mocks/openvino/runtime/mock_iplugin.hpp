@@ -6,6 +6,7 @@
 
 #include <gmock/gmock.h>
 
+#include <filesystem>
 #include <map>
 #include <string>
 

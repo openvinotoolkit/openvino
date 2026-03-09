@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include <filesystem>
 #include <memory>
 #include <utility>
 

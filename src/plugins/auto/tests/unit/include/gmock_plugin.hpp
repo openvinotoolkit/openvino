@@ -5,6 +5,7 @@
 #pragma once
 #include <gmock/gmock.h>
 
+#include <filesystem>
 #include <iostream>
 
 #include "openvino/runtime/core.hpp"

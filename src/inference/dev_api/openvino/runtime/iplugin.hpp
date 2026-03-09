@@ -10,6 +10,7 @@
 #pragma once
 
 #include <memory>
+#include <filesystem>
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
