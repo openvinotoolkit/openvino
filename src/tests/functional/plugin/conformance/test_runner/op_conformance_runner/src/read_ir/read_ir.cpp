@@ -235,6 +235,33 @@ void ReadIRTest::SetUp() {
         GTEST_SKIP() << "Static cases are skipped according `shape_mode`";
     }
 
+    auto ordered_ops = function->get_ordered_ops();
+    // Skip cases with Interpolate linear_onnx with axes [1,2] for 4D
+    for (const auto& op : ordered_ops) {
+        size_t axes_idx = 0;
+        if (ov::is_type<ov::op::v11::Interpolate>(op)) {
+            axes_idx = 2;
+        } else if (ov::is_type<ov::op::v4::Interpolate>(op)) {
+            axes_idx = 3;
+        } else {
+            continue;
+        }
+    
+        auto interp_base = ov::as_type_ptr<ov::op::util::InterpolateBase>(op);
+        if (interp_base->get_attrs().mode != ov::op::util::InterpolateBase::InterpolateMode::LINEAR_ONNX)
+            continue;
+        if (interp_base->get_input_partial_shape(0).rank().get_length() != 4)
+            continue;
+        if (interp_base->get_input_size() <= axes_idx)
+            continue;
+        auto axes_node = interp_base->get_input_node_shared_ptr(axes_idx);
+        auto axes_const = ov::as_type_ptr<ov::op::v0::Constant>(axes_node);
+        if (!axes_const)
+            continue;
+        std::vector<int64_t> axes = axes_const->cast_vector<int64_t>();
+        if (axes == std::vector<int64_t>{1, 2})
+            GTEST_SKIP() << "Interpolate linear_onnx with axes [1,2] for 4D is not supported by reference; skipping.";
+    }
     std::vector<InputShape> inputShapes;
     auto shapeMap = utils::getShapeMap();
     for (const auto& param : function -> get_parameters()) {
