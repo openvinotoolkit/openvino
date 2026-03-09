@@ -5,12 +5,12 @@
 # Function to download and extract files
 # download vcl prebuilt package info:
 #     vcl version: 7.6.0
-#     release: npu_cip_ud_2026_08_rc2
+#     release: releases/unified/2026/12_cip
 #     storage localtion: https://storage.openvinotoolkit.org/dependencies/thirdparty
-#     WINDOWS: npu_compiler_vcl_windows_2022-7_6_0-c74b126.zip
+#     WINDOWS: npu_compiler_vcl_windows_2022-7_6_0-bd9c7d4.zip
 #     LINUX: 
-#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_6_0-c74b126.tar.gz
-#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_6_0-c74b126.tar.gz
+#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_6_0-bd9c7d4.tar.gz
+#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_6_0-bd9c7d4.tar.gz
 function(download_and_extract url zip_file extracted_dir)
 
     # Check if the prebuilt Plugin compiler libraries not exist
@@ -95,7 +95,7 @@ if(ENABLE_INTEL_NPU_COMPILER)
     set(PLUGIN_COMPILER_VERSION_MAJOR 7)
     set(PLUGIN_COMPILER_VERSION_MINOR 6)
     set(PLUGIN_COMPILER_VERSION_PATCH 0)
-    set(PLUGIN_COMPILER_COMMIT_SHA c74b126)
+    set(PLUGIN_COMPILER_COMMIT_SHA bd9c7d4)
     set(PLUGIN_COMPILER_VERSION "${PLUGIN_COMPILER_VERSION_MAJOR}_${PLUGIN_COMPILER_VERSION_MINOR}_${PLUGIN_COMPILER_VERSION_PATCH}")
     message(STATUS "The prebuilt compiler version is ${PLUGIN_COMPILER_VERSION_MAJOR}.${PLUGIN_COMPILER_VERSION_MINOR}.${PLUGIN_COMPILER_VERSION_PATCH}")
     # The destinations are the same. CMAKE_BUILD_TYPE is added based on the option USE_BUILD_TYPE_SUBFOLDER
