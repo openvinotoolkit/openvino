@@ -8,7 +8,6 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "intel_npu/npu_private_properties.hpp"
-#include "openvino/core/log.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -16,33 +15,10 @@
 using namespace ov::intel_npu;
 using namespace ov::test::utils;
 
-class OfflineCompilationUnitTests : public ::testing::Test {
-protected:
-    void SetUp() override {
-        // std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
-        //     std::lock_guard<std::mutex> lock(logs_mutex);
-        //     logs.append(msg);
-        //     logs.push_back('\n');
-        // };
-        // ov::util::set_log_callback(log_cb);
-
-        // triggers Plugin constructor
-        OV_ASSERT_NO_THROW(core.get_property(DEVICE_NPU, ov::hint::enable_cpu_pinning.name()));
-
-        OV_ASSERT_NO_THROW(core.set_property(DEVICE_NPU, {{ov::log::level.name(), ov::log::Level::WARNING}}));
-
-        OV_ASSERT_NO_THROW(core.get_property(DEVICE_NPU, ov::hint::enable_cpu_pinning.name()));
-        // ov::util::reset_log_callback();
-
-        // ASSERT_NE(logs.find("Only offline compilation can be done"), std::string::npos);
-    }
-
-    ov::Core core;
-    // std::string logs;
-    std::mutex logs_mutex;
-};
+using OfflineCompilationUnitTests = ::testing::Test;
 
 TEST_F(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalledSetProperty) {
+    ov::Core core;
     ov::AnyMap config;
 
     config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
@@ -54,6 +30,7 @@ TEST_F(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalledSetPrope
 }
 
 TEST_F(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalled) {
+    ov::Core core;
     ov::AnyMap config;
 
     config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
