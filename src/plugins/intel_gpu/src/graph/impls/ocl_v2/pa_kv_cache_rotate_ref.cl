@@ -38,14 +38,6 @@ KERNEL(pa_kv_cache_rotate)(
 
     const bool per_token_rotation = INPUT1_FEATURE_NUM == PAGED_ATTENTION_BLOCK_SIZE;
 
-#if IS_INT4_COMPRESSED
-    const uint adjusted_head_size = PACKED_ADJUSTED_K_HEAD_SIZE;
-    const uint head_size = PACKED_K_HEAD_SIZE;
-#else
-    const uint adjusted_head_size = ADJUSTED_HEAD_SIZE;
-    const uint head_size = HEAD_SIZE;
-#endif
-
     if (per_token_rotation) {
         // Need to load HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE coefficients in total, each subgroup loads SUBGROUP_SIZE values
         for (uint i = sgid; i < HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE / SUBGROUP_SIZE; i += SUBGROUPS_PER_WG) {
@@ -75,8 +67,8 @@ KERNEL(pa_kv_cache_rotate)(
     barrier(CLK_LOCAL_MEM_FENCE);
 
     const uint token_coefficient_idx = per_token_rotation ? sglid : 0;
-    const uint block_base_offset = rotated_block_indices[block_idx] * KV_HEADS_NUM * adjusted_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE +
-                                   head_idx * adjusted_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+    const uint block_base_offset = rotated_block_indices[block_idx] * KV_HEADS_NUM * ADJUSTED_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE +
+                                   head_idx * ADJUSTED_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
     const uint token_offset = block_base_offset + sglid;
 
 #if IS_KV_COMPRESSED
