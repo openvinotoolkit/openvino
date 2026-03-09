@@ -7,8 +7,8 @@
 #include <fstream>
 #include <limits>
 #include <openvino/util/file_util.hpp>
-#include <sstream>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -182,9 +182,8 @@ TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
 }
 
 TEST(Paddle_Reader_Tests, LoadModelWithInvalidTensorDescSize) {
-    auto model_path = FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) +
-                                                         "conv2d_relu/conv2d_relu" +
-                                                         std::string(TEST_PADDLE_MODEL_EXT));
+    auto model_path = FrontEndTestUtils::make_model_path(
+        std::string(TEST_PADDLE_MODELS_DIRNAME) + "conv2d_relu/conv2d_relu" + std::string(TEST_PADDLE_MODEL_EXT));
 
     std::ifstream model_ifs(model_path, std::ios::in | std::ios::binary);
     ASSERT_TRUE(model_ifs.is_open()) << "Cannot open model file: " << model_path;
@@ -213,9 +212,8 @@ TEST(Paddle_Reader_Tests, LoadModelWithInvalidTensorDescSize) {
 }
 
 TEST(Paddle_Reader_Tests, LoadModelWithNegativeDimInTensorDesc) {
-    auto model_path = FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) +
-                                                         "conv2d_relu/conv2d_relu" +
-                                                         std::string(TEST_PADDLE_MODEL_EXT));
+    auto model_path = FrontEndTestUtils::make_model_path(
+        std::string(TEST_PADDLE_MODELS_DIRNAME) + "conv2d_relu/conv2d_relu" + std::string(TEST_PADDLE_MODEL_EXT));
 
     std::ifstream model_ifs(model_path, std::ios::in | std::ios::binary);
     ASSERT_TRUE(model_ifs.is_open()) << "Cannot open model file: " << model_path;
@@ -245,9 +243,8 @@ TEST(Paddle_Reader_Tests, LoadModelWithNegativeDimInTensorDesc) {
 }
 
 TEST(Paddle_Reader_Tests, LoadModelWithOverflowingTensorSize) {
-    auto model_path = FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) +
-                                                         "conv2d_relu/conv2d_relu" +
-                                                         std::string(TEST_PADDLE_MODEL_EXT));
+    auto model_path = FrontEndTestUtils::make_model_path(
+        std::string(TEST_PADDLE_MODELS_DIRNAME) + "conv2d_relu/conv2d_relu" + std::string(TEST_PADDLE_MODEL_EXT));
 
     std::ifstream model_ifs(model_path, std::ios::in | std::ios::binary);
     ASSERT_TRUE(model_ifs.is_open()) << "Cannot open model file: " << model_path;
