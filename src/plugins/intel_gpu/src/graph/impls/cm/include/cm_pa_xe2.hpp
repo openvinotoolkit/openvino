@@ -575,7 +575,7 @@ void pa_kernel_lsc_prefetch_f16(
     };
 #endif
 
-    auto q_tokens_left = q_len;;
+    auto q_tokens_left = q_len;
     static_assert(q_step == REG_N);
     static_assert(kv_step == REG_K);
 
