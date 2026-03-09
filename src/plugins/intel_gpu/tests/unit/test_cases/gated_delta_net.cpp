@@ -118,9 +118,9 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
                     const T* q_ptr = q.data() + i_b * BATCH_STRIDE_Q + i_hk * HEAD_STRIDE;
                     const T* k_ptr = k.data() + i_b * BATCH_STRIDE_K + i_hk * HEAD_STRIDE;
                     const T* v_ptr = v.data() + i_b * BATCH_STRIDE_V + i_h * HEAD_STRIDE;
-                    // B, H, V, K
+                    // B, H, K, V
                     for (size_t j = 0; j < this->K; j++) {
-                        init_state[j] = state[i_b * this->H * this->V * this->K + i_h * this->V * this->K + i_v * this->K + j];
+                        init_state[j] = state[i_b * this->H * this->V * this->K + i_h * this->V * this->K + j * this->V + i_v];
                     }
                     for (size_t i = 0; i < this->T; i++) {
                         // g: B, T, H
@@ -128,7 +128,6 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
                         float b_g = g[i_b * G_B_STRIDE + i * this->H + i_h];
                         float b_beta = beta[i_b * G_B_STRIDE + i * this->H + i_h];
                         b_g = exp(b_g);
-                        // TODO SCALE
                         for (int j = 0; j < this->K; j++) {
                             b_k[j] = k_ptr[i * this->K * this->HK + j];
                             b_q[j] = q_ptr[i * this->K * this->HK + j];
@@ -138,11 +137,6 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
                         l2norm(b_q, this->K);
 
                         scale(b_q, attn_scale, this->K);
-                        // std::cout << "b_q ";
-                        // for (size_t nn = 0; nn < this->K; nn++) {
-                        //     std::cout << " " << b_q[nn];
-                        // }
-                        // std::cout << "b_q" << std::endl;
 
                         // h0 * g
                         scale(init_state, b_g, this->K);
@@ -155,18 +149,12 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
                         // h = h0 + update
                         add(init_state, b_k, this->K);
                         float b_output  = dot_product(init_state, b_q, this->K);
-                        // std::cout << "init_state ";
-                        // for (size_t nn = 0; nn < this->K; nn++) {
-                        //     std::cout << " " << init_state[nn];
-                        // }
-                        // std::cout << "init_state" << std::endl;
                         // B, T, H, V
                         output[i_b * this->T * this->H * this->V + i * this->H * this->V + i_h * this->V + i_v] = b_output;
-                        // printf("i_b %zd i %zd i_h %zd iv %zd b_output %f\n", i_b, i, i_h, i_v, b_output);
                     }
-                    // B, H, V, K
+                    // B, H, K, V
                     for (size_t j = 0; j < this->K; j++) {
-                        state[i_b * this->H * this->V * this->K + i_h * this->V * this->K + i_v * this->K + j] = init_state[j];
+                        state[i_b * this->H * this->V * this->K + i_h * this->V * this->K + j * this->V + i_v] = init_state[j];
                     }
                 }
             }

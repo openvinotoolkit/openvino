@@ -4,11 +4,12 @@
 #include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/sub_group_shuffle.cl"
 #define V_BLOCK_SIZE 4
+#define EPSILON 1e-6f
 
 inline float l2norm_scale(float sum, float extra_scale) {
     sum = sub_group_reduce_add(sum);
     sum = sub_group_broadcast(sum, 0);
-    return rsqrt(sum + 0.000001f) * extra_scale;
+    return rsqrt(sum + EPSILON) * extra_scale;
 }
 
 inline float sum8(float8 v) {
@@ -48,9 +49,13 @@ KERNEL(gated_delta_net_ref)
     const int K_B_STRIDE = T_len * K_T_STRIDE;
     const int V_B_STRIDE = T_len * V_T_STRIDE;
     const int STATE_BASE = (b * H_len + h) * (K_len * V_len);
+    const int group_size = H_len / HK_len;
+    const int hk = h / group_size;
+    const int out_bh_base = b * T_len * H_len * V_len + h * V_len;
 
 #if (K_HEAD_DIM == 128)
-    float8 h_state[V_BLOCK_SIZE][K_HEAD_DIM / (SUBGROUP_SIZE * 8)];
+    const int K_CHUNKS = K_HEAD_DIM / (SUBGROUP_SIZE * 8);
+    float8 h_state[V_BLOCK_SIZE][K_CHUNKS];
 #else
     float h_state_f[V_BLOCK_SIZE][K_HEAD_DIM];
 #endif
@@ -58,7 +63,7 @@ KERNEL(gated_delta_net_ref)
 #if (K_HEAD_DIM == 128)
 // 1. LOAD STATE BLOCK: 4 V-columns, 8 K-rows per lane
 #    pragma unroll
-    for (int row_chunk = 0; row_chunk < (K_HEAD_DIM / (SUBGROUP_SIZE * 8)); row_chunk++) {
+    for (int row_chunk = 0; row_chunk < K_CHUNKS; row_chunk++) {
 #    pragma unroll
         for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
             int curr_iv = start_iv + v_idx;
@@ -66,7 +71,7 @@ KERNEL(gated_delta_net_ref)
 #    pragma unroll
             for (int j = 0; j < 8; j++) {
                 int row_idx = lid * (K_HEAD_DIM / SUBGROUP_SIZE) + row_chunk * 8 + j;
-                lane_state[j] = convert_float(initial_state[STATE_BASE + curr_iv * K_len + row_idx]);
+                lane_state[j] = convert_float(initial_state[STATE_BASE + row_idx * V_len + curr_iv]);
             }
             h_state[v_idx][row_chunk] = lane_state;
         }
@@ -76,7 +81,7 @@ KERNEL(gated_delta_net_ref)
         for (int k_idx = 0; k_idx < K_len; k_idx++) {
             for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
                 int curr_iv = start_iv + v_idx;
-                h_state_f[v_idx][k_idx] = convert_float(initial_state[STATE_BASE + curr_iv * K_len + k_idx]);
+                h_state_f[v_idx][k_idx] = convert_float(initial_state[STATE_BASE + k_idx * V_len + curr_iv]);
             }
         }
     }
@@ -90,19 +95,17 @@ KERNEL(gated_delta_net_ref)
         float b_beta = convert_float(beta[g_idx]);
         const int lane_k_base = lid * (K_HEAD_DIM / SUBGROUP_SIZE);
 
-        const int group_size = H_len / HK_len;
-        const int hk = h / group_size;
         int q_offset = b * Q_B_STRIDE + t * Q_T_STRIDE + hk * K_len;
         int k_offset = b * K_B_STRIDE + t * K_T_STRIDE + (hk + key_offset) * K_len;
         int v_offset = b * V_B_STRIDE + t * V_T_STRIDE + (h + value_offset) * V_len;
-        int out_offset = b * T_len * H_len * V_len + t * H_len * V_len + h * V_len;
-        float8 b_k[K_HEAD_DIM / (SUBGROUP_SIZE * 8)];
-        float8 b_q[K_HEAD_DIM / (SUBGROUP_SIZE * 8)];
+        int out_offset = out_bh_base + t * H_len * V_len;
+        float8 b_k[K_CHUNKS];
+        float8 b_q[K_CHUNKS];
 
         // normalize k and q (l2norm + q scale)
         float k_sum = 0.0f;
 #    pragma unroll
-        for (int c = 0; c < (K_HEAD_DIM / (SUBGROUP_SIZE * 8)); c++) {
+        for (int c = 0; c < K_CHUNKS; c++) {
             float8 lane_k = (float8)(0.0f);
 #    pragma unroll
             for (int j = 0; j < 8; j++) {
@@ -113,12 +116,12 @@ KERNEL(gated_delta_net_ref)
             b_k[c] = lane_k;
         }
         float k_scale = l2norm_scale(k_sum, 1.0f);
-        for (int c = 0; c < (K_HEAD_DIM / (SUBGROUP_SIZE * 8)); c++)
+        for (int c = 0; c < K_CHUNKS; c++)
             b_k[c] *= (float8)(k_scale);
 
         float q_sum = 0.0f;
 #    pragma unroll
-        for (int c = 0; c < (K_HEAD_DIM / (SUBGROUP_SIZE * 8)); c++) {
+        for (int c = 0; c < K_CHUNKS; c++) {
             float8 lane_q = (float8)(0.0f);
 #    pragma unroll
             for (int j = 0; j < 8; j++) {
@@ -129,7 +132,7 @@ KERNEL(gated_delta_net_ref)
             b_q[c] = lane_q;
         }
         float q_scale = l2norm_scale(q_sum, SCALE_FACTOR);
-        for (int c = 0; c < (K_HEAD_DIM / (SUBGROUP_SIZE * 8)); c++)
+        for (int c = 0; c < K_CHUNKS; c++)
             b_q[c] *= (float8)(q_scale);
 
         // V load
@@ -147,22 +150,22 @@ KERNEL(gated_delta_net_ref)
             if (curr_iv >= V_len)
                 continue;
 
-            for (int c = 0; c < (K_HEAD_DIM / (SUBGROUP_SIZE * 8)); c++)
+            for (int c = 0; c < K_CHUNKS; c++)
                 h_state[v_idx][c] *= (float8)(b_g);
 
             float dot_part_k = 0.0f;
 #    pragma unroll
-            for (int c = 0; c < (K_HEAD_DIM / (SUBGROUP_SIZE * 8)); c++)
+            for (int c = 0; c < K_CHUNKS; c++)
                 dot_part_k += sum8(h_state[v_idx][c] * b_k[c]);
             float h_k = sub_group_reduce_add(dot_part_k);
 
             float update_val = (b_v_vec[v_idx] - h_k) * b_beta;
-            for (int c = 0; c < (K_HEAD_DIM / (SUBGROUP_SIZE * 8)); c++)
+            for (int c = 0; c < K_CHUNKS; c++)
                 h_state[v_idx][c] += (b_k[c] * (float8)(update_val));
 
             float dot_part_q = 0.0f;
 #    pragma unroll
-            for (int c = 0; c < (K_HEAD_DIM / (SUBGROUP_SIZE * 8)); c++)
+            for (int c = 0; c < K_CHUNKS; c++)
                 dot_part_q += sum8(h_state[v_idx][c] * b_q[c]);
             float b_output = sub_group_reduce_add(dot_part_q);
 
@@ -176,12 +179,10 @@ KERNEL(gated_delta_net_ref)
             float b_g = exp(convert_float(g[g_idx]));
             float b_beta = convert_float(beta[g_idx]);
 
-            const int group_size = H_len / HK_len;
-            const int hk = h / group_size;
             int q_offset = b * Q_B_STRIDE + t * Q_T_STRIDE + hk * K_len;
             int k_offset = b * K_B_STRIDE + t * K_T_STRIDE + (hk + key_offset) * K_len;
             int v_offset = b * V_B_STRIDE + t * V_T_STRIDE + (h + value_offset) * V_len;
-            int out_offset = b * T_len * H_len * V_len + t * H_len * V_len + h * V_len;
+            int out_offset = out_bh_base + t * H_len * V_len;
 
             float k_sum = 0.0f;
             float q_sum = 0.0f;
@@ -191,8 +192,15 @@ KERNEL(gated_delta_net_ref)
                 k_sum += k_val * k_val;
                 q_sum += q_val * q_val;
             }
-            float k_scale = rsqrt(k_sum + 0.000001f);
-            float q_scale = rsqrt(q_sum + 0.000001f) * SCALE_FACTOR;
+            float k_scale = rsqrt(k_sum + EPSILON);
+            float q_scale = rsqrt(q_sum + EPSILON) * SCALE_FACTOR;
+
+            float k_norm[K_HEAD_DIM];
+            float q_norm[K_HEAD_DIM];
+            for (int k_idx = 0; k_idx < K_len; k_idx++) {
+                k_norm[k_idx] = convert_float(k[k_offset + k_idx]) * k_scale;
+                q_norm[k_idx] = convert_float(q[q_offset + k_idx]) * q_scale;
+            }
 
             float4 b_v_vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
 #    pragma unroll
@@ -209,19 +217,16 @@ KERNEL(gated_delta_net_ref)
 
                 float h_k = 0.0f;
                 for (int k_idx = 0; k_idx < K_len; k_idx++) {
-                    float k_norm = convert_float(k[k_offset + k_idx]) * k_scale;
                     h_state_f[v_idx][k_idx] *= b_g;
-                    h_k += h_state_f[v_idx][k_idx] * k_norm;
+                    h_k += h_state_f[v_idx][k_idx] * k_norm[k_idx];
                 }
 
                 float update_val = (b_v_vec[v_idx] - h_k) * b_beta;
 
                 float b_output = 0.0f;
                 for (int k_idx = 0; k_idx < K_len; k_idx++) {
-                    float k_norm = convert_float(k[k_offset + k_idx]) * k_scale;
-                    float q_norm = convert_float(q[q_offset + k_idx]) * q_scale;
-                    h_state_f[v_idx][k_idx] += k_norm * update_val;
-                    b_output += h_state_f[v_idx][k_idx] * q_norm;
+                    h_state_f[v_idx][k_idx] += k_norm[k_idx] * update_val;
+                    b_output += h_state_f[v_idx][k_idx] * q_norm[k_idx];
                 }
 
                 output[out_offset + curr_iv] = TO_OUTPUT_TYPE(b_output);
@@ -233,7 +238,7 @@ KERNEL(gated_delta_net_ref)
 #if (K_HEAD_DIM == 128)
 // 4. WRITE BACK STATE BLOCK
 #    pragma unroll
-    for (int row_chunk = 0; row_chunk < (K_HEAD_DIM / (SUBGROUP_SIZE * 8)); row_chunk++) {
+    for (int row_chunk = 0; row_chunk < K_CHUNKS; row_chunk++) {
 #    pragma unroll
         for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
             int curr_iv = start_iv + v_idx;
@@ -243,9 +248,9 @@ KERNEL(gated_delta_net_ref)
             for (int j = 0; j < 8; j++) {
                 int row_idx = lid * (K_HEAD_DIM / SUBGROUP_SIZE) + row_chunk * 8 + j;
 #if OUTPUT_STATE
-                output_state[STATE_BASE + curr_iv * K_len + row_idx] = (OUTPUT1_TYPE)(h_state[v_idx][row_chunk][j]);
+                output_state[STATE_BASE + row_idx * V_len + curr_iv] = (OUTPUT1_TYPE)(h_state[v_idx][row_chunk][j]);
 #else
-                initial_state[STATE_BASE + curr_iv * K_len + row_idx] = (INPUT3_TYPE)(h_state[v_idx][row_chunk][j]);
+                initial_state[STATE_BASE + row_idx * V_len + curr_iv] = (INPUT3_TYPE)(h_state[v_idx][row_chunk][j]);
 #endif
             }
         }
@@ -258,9 +263,9 @@ KERNEL(gated_delta_net_ref)
                 if (curr_iv >= V_len)
                     continue;
 #if OUTPUT_STATE
-                output_state[STATE_BASE + curr_iv * K_len + k_idx] = (OUTPUT1_TYPE)(h_state_f[v_idx][k_idx]);
+                output_state[STATE_BASE + k_idx * V_len + curr_iv] = (OUTPUT1_TYPE)(h_state_f[v_idx][k_idx]);
 #else
-                initial_state[STATE_BASE + curr_iv * K_len + k_idx] = (INPUT3_TYPE)(h_state_f[v_idx][k_idx]);
+                initial_state[STATE_BASE + k_idx * V_len + curr_iv] = (INPUT3_TYPE)(h_state_f[v_idx][k_idx]);
 #endif
             }
         }
