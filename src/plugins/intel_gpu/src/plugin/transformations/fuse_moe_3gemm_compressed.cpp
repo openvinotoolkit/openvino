@@ -9,7 +9,9 @@
 #include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
 #include "intel_gpu/op/moe_compressed.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -34,8 +36,15 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/op.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov::intel_gpu {
 FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
@@ -56,12 +65,11 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     auto sm_norm = wrap_type<ov::op::v1::Divide>({sm_topk->output(0), sm_reduce}, consumers_count(1));
 
     auto sm_convert_topk = optional<ov::op::v0::Convert>({sm_topk->output(1)});
+    auto sm_bc = wrap_type<ov::op::v3::Broadcast>({ANY, ANY});
+
+    // Optional slice on normalized weights (covers Qwen3-next pattern)
     auto sm_shape_of = wrap_type<ov::op::v3::ShapeOf>({sm_convert_topk}, consumers_count(1));
-    auto sm_gather = wrap_type<ov::op::v8::Gather>({sm_shape_of, ANY, ANY}, consumers_count(1));
-    auto sm_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({sm_gather, ANY});
-    auto sm_unsqueeze_const = wrap_type<ov::op::v0::Unsqueeze>({ANY, ANY});
-    auto sm_concat = wrap_type<ov::op::v0::Concat>({sm_unsqueeze, sm_unsqueeze_const}, consumers_count(1));
-    auto sm_bc = wrap_type<ov::op::v3::Broadcast>({ANY, sm_concat}, consumers_count(1));
+    auto sm_norm_slice = optional<ov::op::v8::Slice>({sm_norm, ANY, sm_shape_of, ANY, ANY}, consumers_count(1));
 
     // ── Sigmoid+bias routing branch ─────────────────────────────────────
     auto sig_sigmoid = wrap_type<ov::op::v0::Sigmoid>({matmul});
@@ -84,7 +92,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     auto sig_bc = wrap_type<ov::op::v3::Broadcast>({ANY, ANY}, consumers_count(1));
 
     auto topk_idces = sm_convert_topk | sig_convert_topk;
-    auto scatter = wrap_type<ov::op::v12::ScatterElementsUpdate>({sm_bc | sig_bc, topk_idces, sm_norm | sig_slice, ANY}, consumers_count(1));
+    auto scatter = wrap_type<ov::op::v12::ScatterElementsUpdate>({sm_bc | sig_bc, topk_idces, sm_norm_slice | sig_slice, ANY}, consumers_count(1));
 
     // ── Shared tail: scatter → transpose → reshape → unsqueeze ──────────
     auto transpose = wrap_type<ov::op::v1::Transpose>({scatter, ANY}, consumers_count(1));
@@ -103,7 +111,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     auto down_zp_m = ANY;
 
     ov::OutputVector moe_inputs =
-        {hidden_state_m, unsqueeze_moe, topk_idces, gate_wei_m, gate_scale_m, gate_zp_m, up_wei_m, up_scale_m, up_zp_m, down_wei_m, down_scale_m, down_zp_m};
+        {opt_reshape | hidden_state_m, unsqueeze_moe, topk_idces, gate_wei_m, gate_scale_m, gate_zp_m, up_wei_m, up_scale_m, up_zp_m, down_wei_m, down_scale_m, down_zp_m};
     auto moe_compressed_m = wrap_type<ov::intel_gpu::op::MOECompressed>(moe_inputs);
 #undef ANY
 
@@ -117,7 +125,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
 
         auto config = moe_compressed->get_config();
         OutputVector args{
-            pattern_map.at(hidden_state_m),
+            pattern_map.at(opt_reshape),
             pattern_map.at(matmul),
             pattern_map.at(gate_wei_m),
             pattern_map.at(gate_scale_m),
@@ -135,10 +143,20 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
             config.routing_type = ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS;
         }
 
-        auto moe_3gemm_fused_compressed = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, config);
-        moe_3gemm_fused_compressed->set_friendly_name(moe_compressed->get_friendly_name());
-        ov::copy_runtime_info(moe_compressed, moe_3gemm_fused_compressed);
-        ov::replace_node(moe_compressed, moe_3gemm_fused_compressed);
+        std::shared_ptr<ov::op::Op> moe_router_fused = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, config);
+        ov::copy_runtime_info(moe_compressed, moe_router_fused);
+
+        // If MOECompressed's first input was the original (un-reshaped) hidden state
+        // but the fused op works on the flattened 2D input, reshape the output back.
+        if (moe_compressed->input_value(0) == pattern_map.at(hidden_state_m) &&
+            pattern_map.at(hidden_state_m) != pattern_map.at(opt_reshape)) {
+            auto hidden_state_shape = std::make_shared<ov::op::v3::ShapeOf>(pattern_map.at(hidden_state_m));
+            moe_router_fused = std::make_shared<ov::op::v1::Reshape>(moe_router_fused, hidden_state_shape, false);
+            ov::copy_runtime_info(moe_compressed, {hidden_state_shape, moe_router_fused});
+        }
+
+        moe_router_fused->set_friendly_name(moe_compressed->get_friendly_name());
+        ov::replace_node(moe_compressed, moe_router_fused);
 
         return true;
     };

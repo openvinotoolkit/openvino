@@ -228,6 +228,16 @@ std::shared_ptr<SnippetsFunctionBase> MHAConstB::get_subgraph() const {
                                                                    m_const_b_matmul1);
 }
 
+std::shared_ptr<SnippetsFunctionBase> MHATwoConstB::get_subgraph() const {
+    const bool is_with_reshape =
+        std::all_of(inputDynamicShapes.begin(), inputDynamicShapes.end(), [](const PartialShape& ps) { return ps.is_static(); });
+    OPENVINO_ASSERT(inputDynamicShapes.size() == 7,
+                    "MHATwoConstB expects 7 input shapes: [Q1, K1, Add1, Q2, K2, Add2, V]");
+    return std::make_shared<ov::test::snippets::MHATwoConstBFunction>(inputDynamicShapes,
+                                                                      m_input_types,
+                                                                      is_with_reshape);
+}
+
 void MHA::init_thresholds() {
     MHABase::init_thresholds();
     auto precision_hint = configuration.count(ov::hint::inference_precision.name())
@@ -354,6 +364,12 @@ TEST_P(MHA, CompareWithRefImpl) {
 }
 
 TEST_P(MHAConstB, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHATwoConstB, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();

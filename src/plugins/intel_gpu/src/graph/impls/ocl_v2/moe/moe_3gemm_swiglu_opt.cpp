@@ -12,7 +12,6 @@
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <initializer_list>
 #    include <oneapi/dnnl/dnnl.hpp>
-#    include <oneapi/dnnl/dnnl_ocl.hpp>
 #    include <sstream>
 #    include <string_view>
 #    include <tuple>
@@ -883,7 +882,8 @@ public:
 
         auto& engine = params.prog->get_engine();
         const auto& info = engine.get_device_info();
-        if (info.arch < gpu_arch::xe2) {
+        // FIXME: CVS-182236 Prefill performance on discrete GPU is bad when using micro_gemm_prefill, need to investigate further, disable it for now.
+        if (info.arch < gpu_arch::xe2 || info.dev_type == cldnn::device_type::discrete_gpu) {
             use_micro_gemm_prefill = false;
             GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
                                    << ", arch=" << static_cast<int>(info.arch) << std::endl;
