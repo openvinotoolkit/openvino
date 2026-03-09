@@ -35,6 +35,7 @@ TensorMetaInfo extract_tensor_meta_info(const TensorInfo& tensor_info) {
                                                                                    tensor_data,
                                                                                    tensor_data_size);
     tensor_meta_info.m_tensor_data = tensor_data;
+    tensor_meta_info.m_tensor_data_size = tensor_data_size;
     tensor_meta_info.m_tensor_name = tensor->name()->str();
 
     return tensor_meta_info;
@@ -131,7 +132,8 @@ std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffe
                                                     ov::frontend::tensorflow_lite::get_ov_type(tensor->type()),
                                                     tensor_data,
                                                     tensor_data_size),
-        tensor_data);
+        tensor_data,
+        tensor_data_size);
 }
 
 ov::Any get_value_as_ov_any(const flexbuffers::Reference& value) {
