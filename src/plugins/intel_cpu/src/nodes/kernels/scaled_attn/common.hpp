@@ -699,6 +699,7 @@ float dot_product(TA* a,
     sum = _mm256_cvtss_f32(vsum0);
 
 #elif defined(OPENVINO_ARCH_ARM64)
+    // TODO correct handle bf16/f16 for this path CVS-182514
 #    if defined(HAVE_SVE)
     svbool_t pg = svptrue_b32();
     svfloat32_t sum0 = svdup_n_f32(0.0f);
@@ -975,6 +976,7 @@ float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* h
     }
     return sum;
 #elif defined(OPENVINO_ARCH_ARM64)
+    // TODO correct handle bf16/f16 for this path CVS-182514
     while (group_id < n / group_size) {
         size_t i = 0;
         float group_scale = *(scale + group_id * 2);

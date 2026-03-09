@@ -34,6 +34,9 @@ public:
     bool needPrepareParams() const override {
         return false;
     }
+
+    void createPrimitive() override;
+
     void executeDynamicImpl(const dnnl::stream& strm) override {
         execute(strm);
     }
@@ -42,10 +45,10 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    PlainTensor temp_buffer;
-    bool fuse_qk_l2norm = false;
-    bool fuse_q_scale = false;
-    float eps = 1e-6F;
+    MemoryPtr m_tmpInpBuffer = nullptr;
+    bool m_fuse_qk_l2norm = false;
+    bool m_fuse_q_scale = false;
+    float m_eps = 1e-6F;
 };
 
 }  // namespace ov::intel_cpu::node

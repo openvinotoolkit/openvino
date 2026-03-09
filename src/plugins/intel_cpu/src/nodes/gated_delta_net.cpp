@@ -40,9 +40,9 @@ GatedDeltaNet::GatedDeltaNet(const std::shared_ptr<ov::Node>& op, const GraphCon
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto& gdn = ov::as_type_ptr<ov::op::GatedDeltaNet>(op);
-    fuse_q_scale = gdn->get_config().fuse_q_scale;
-    fuse_qk_l2norm = gdn->get_config().fuse_qk_l2norm;
-    eps = gdn->get_config().l2_norm_eps;
+    m_fuse_q_scale = gdn->get_config().fuse_q_scale;
+    m_fuse_qk_l2norm = gdn->get_config().fuse_qk_l2norm;
+    m_eps = gdn->get_config().l2_norm_eps;
 }
 
 void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
@@ -58,6 +58,15 @@ void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
+void GatedDeltaNet::createPrimitive() {
+    const auto queryDims = getInputShapeAtPort(0).getDims();
+    auto headSize = *(queryDims.end() - 1);
+    auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(
+        ov::element::f32,
+        ov::intel_cpu::Shape{static_cast<size_t>(parallel_get_max_threads()), 3 * headSize});
+    m_tmpInpBuffer = context->getScratchPad()->createScratchPadMem(newMemDesc);
+}
+
 void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto originalInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(originalInputNumber);
@@ -66,8 +75,6 @@ void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
     for (size_t i = 0; i < originalInputNumber; i++) {
         inputs[i] = getSrcMemoryAtPort(i);
     }
-    std::vector<VectorDims> output_dims = {inputs[2]->getStaticDims(), inputs[3]->getStaticDims()};
-    redefineOutputMemory(output_dims);
 
     outputs[0] = getDstMemoryAtPort(0);
     outputs[1] = getDstMemoryAtPort(1);
@@ -81,23 +88,16 @@ void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
     PlainTensor output_attn(outputs[0]);
     PlainTensor output_recurrent_state(outputs[1]);
     // q, k, h per (B, H, V)
-    const auto& q_dims = inputs[0]->getStaticDims();
-    const auto& v_dims = inputs[2]->getStaticDims();
-    const size_t K = q_dims[3];
-    auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(
-        ov::element::f32,
-        ov::intel_cpu::Shape{static_cast<size_t>(parallel_get_max_threads()), 3 * K});
-    auto scratchMem = context->getScratchPad()->createScratchPadMem(newMemDesc);
-    auto* temp_buffer = scratchMem->getDataAs<float>();
+    auto* temp_buffer = m_tmpInpBuffer->getDataAs<float>();
     recurrent_linear_attn(query,
                           key,
                           value,
                           recurrent_state,
                           gate,
                           beta,
-                          eps,
-                          fuse_qk_l2norm,
-                          fuse_q_scale,
+                          m_eps,
+                          m_fuse_qk_l2norm,
+                          m_fuse_q_scale,
                           output_attn,
                           output_recurrent_state,
                           temp_buffer,
