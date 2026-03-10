@@ -41,8 +41,7 @@ struct LSTMNgInputMap {
         auto weight_begin = weight_list.begin();
         const size_t half_size = weight_list.size() / 2;
         int bidirect_len = node.get_attribute<bool>("is_bidirec") ? 4 : 2;
-        const size_t required_per_half =
-            static_cast<size_t>(num_layers) * static_cast<size_t>(bidirect_len);
+        const size_t required_per_half = static_cast<size_t>(num_layers) * static_cast<size_t>(bidirect_len);
         PADDLE_OP_CHECK(node,
                         half_size >= required_per_half,
                         "WeightList size is insufficient for num_layers and is_bidirec.");
