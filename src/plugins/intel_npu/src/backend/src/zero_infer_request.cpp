@@ -764,8 +764,15 @@ void ZeroInferRequest::prepare_inputs() {
                     void* levelZeroBuffer = levelZeroTensor->data();
 
                     if (levelZeroBuffer == nullptr) {
-                        levelZeroTensor->allocate_data();
+                        std::lock_guard<std::mutex> lock(_inferRequestMutex);
                         levelZeroBuffer = levelZeroTensor->data();
+                        if (levelZeroBuffer == nullptr) {
+                            levelZeroTensor->allocate_data();
+                            levelZeroBuffer = levelZeroTensor->data();
+                            _pipeline->update_graph_arguments(_metadata.inputs.at(inputIndex).indexUsedByDriver,
+                                                              levelZeroTensor,
+                                                              i);
+                        }
                     }
 
                     if (userBuffer != levelZeroBuffer) {
@@ -819,8 +826,13 @@ void ZeroInferRequest::prepare_inputs() {
         void* levelZeroBuffer = levelZeroTensor->data();
 
         if (levelZeroBuffer == nullptr) {
-            levelZeroTensor->allocate_data();
+            std::lock_guard<std::mutex> lock(_inferRequestMutex);
             levelZeroBuffer = levelZeroTensor->data();
+            if (levelZeroBuffer == nullptr) {
+                levelZeroTensor->allocate_data();
+                levelZeroBuffer = levelZeroTensor->data();
+                _pipeline->update_graph_arguments(_metadata.inputs.at(inputIndex).indexUsedByDriver, levelZeroTensor);
+            }
         }
 
         if (userBuffer != levelZeroBuffer) {
@@ -842,7 +854,11 @@ void ZeroInferRequest::prepare_outputs() {
         OPENVINO_ASSERT(levelZeroTensor, "Output zero tensor is not allocated.");
 
         if (levelZeroTensor->data() == nullptr) {
-            levelZeroTensor->allocate_data();
+            std::lock_guard<std::mutex> lock(_inferRequestMutex);
+            if (levelZeroTensor->data() == nullptr) {
+                levelZeroTensor->allocate_data();
+                _pipeline->update_graph_arguments(_metadata.outputs.at(outputIndex).indexUsedByDriver, levelZeroTensor);
+            }
         }
     }
 }

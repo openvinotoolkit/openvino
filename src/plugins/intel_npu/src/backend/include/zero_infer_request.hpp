@@ -4,9 +4,11 @@
 
 #pragma once
 
-#include <atomic>
 #include <ze_api.h>
 #include <ze_graph_ext.h>
+
+#include <atomic>
+#include <mutex>
 
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/common/sync_infer_request.hpp"
@@ -97,6 +99,7 @@ protected:
     bool _pipelineIsCreated = false;
     bool _dynamicBatchValueChanged = false;
     std::atomic<size_t> _inflightInferAsyncCalls{0};
+    mutable std::mutex _inferRequestMutex;
 };
 
 }  //  namespace intel_npu
