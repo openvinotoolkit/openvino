@@ -258,8 +258,14 @@ public:
 
 private:
     size_t get_xattn_block_size(const kernel_impl_params& params, const size_t seq_idx = 0) {
-        const auto& input_mem = params.memory_deps;
-        const auto blocksize_mem = input_mem.at(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE);
+        const auto& input_mem = params.memory_deps;    
+        auto it = input_mem.find(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE);
+        if (it == input_mem.end() || !it->second || it->second->size() == 0) {
+            GPU_DEBUG_TRACE_DETAIL << "XAttention input is empty. \
+                Returning default xattn block size 128. " << std::endl;
+            return 128;  // default
+        }
+        const auto blocksize_mem = it->second;
         mem_lock<int32_t, mem_lock_type::read> lock(blocksize_mem, *params.strm);  // converted
         auto xattn_block_size = static_cast<int32_t>(lock[seq_idx]);
         GPU_DEBUG_TRACE_DETAIL << "XAttention block size from input: " << xattn_block_size << std::endl;
