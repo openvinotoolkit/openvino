@@ -163,3 +163,18 @@ TEST(Paddle_Reader_Tests, ImportBasicModelToCoreWstring) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 #endif
+
+TEST(Paddle_Reader_Tests, LoadModelWithPartialOpsInsufficientInputs) {
+    auto model =
+        FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) + "partial_sum_oob/partial_sum_oob" +
+                                           std::string(TEST_PADDLE_MODEL_EXT));
+
+    ov::Core core;
+    try {
+        core.read_model(model);
+        FAIL() << "Expected load to fail due to insufficient X inputs for partial_sum";
+    } catch (const std::exception& ex) {
+        const std::string msg = ex.what();
+        ASSERT_NE(msg.find("partial ops require exactly 2 inputs in X."), std::string::npos) << msg;
+    }
+}
