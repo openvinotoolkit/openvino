@@ -586,6 +586,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::online::keep_block_size,
                                  NPUW_ONLINE_KEEP_BLOCK_SIZE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::attn, NPUW_ATTN);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::attn_hfa_fused, NPUW_ATTN_HFA_FUSED);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::fold, NPUW_FOLD);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::cwai, NPUW_CWAI);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::dyn_quant, NPUW_DQ);
@@ -637,6 +638,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::additional_shared_lm_head_config,
                                  NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::whisper::enabled, NPUW_WHISPER);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::whisper::whisper_eos_token, NPUW_WHISPER_EOS_TOKEN);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::eagle::enabled, NPUW_EAGLE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::text_embed::enabled, NPUW_TEXT_EMBED);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::kokoro::enabled, NPUW_KOKORO);
@@ -1140,11 +1142,22 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
     std::map<std::string, std::string> cfgsToSet;
     for (const auto& [key, value] : rawConfig) {
-        if ((updatedConfig.hasOpt(key) && updatedConfig.getOpt(key).mode() == OptionMode::CompileTime)) {
-            _logger.info(
-                "Config key '%s' is recognized as a compiler option, will not be used for current configuration.",
-                key.c_str());
-            continue;
+        if (updatedConfig.hasOpt(key)) {
+            const auto optionMode = updatedConfig.getOpt(key).mode();
+
+            if (optionMode == OptionMode::CompileTime) {
+                _logger.info(
+                    "Config key '%s' is recognized as a compiler option, will not be used for current configuration.",
+                    key.c_str());
+                continue;
+            }
+
+            if (optionMode == OptionMode::Both && !updatedConfig.isAvailable(key)) {
+                _logger.info(
+                    "Config key '%s' is not enabled by the plugin, will not be used for current configuration.",
+                    key.c_str());
+                continue;
+            }
         }
 
         cfgsToSet.emplace(key, value);
