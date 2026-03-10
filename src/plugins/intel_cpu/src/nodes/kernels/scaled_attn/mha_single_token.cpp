@@ -668,7 +668,15 @@ void sum_q_head(T* a, size_t n, size_t group_size, float* out) {
     }
 }
 
+#if defined(OPENVINO_ARCH_ARM64)
+template <typename TA,
+          typename TB,
+          typename std::enable_if<(std::is_same_v<TA, float> || std::is_same_v<TA, ov::float16>) &&
+                                  (std::is_same_v<TB, float> || std::is_same_v<TB, ov::float16>),
+                                  bool>::type = true>
+#else
 template <typename TA, typename TB>
+#endif
 static float
 dot_product(TA* a, TB* b, size_t n, float* scale, float* zp, float* head_sum, [[maybe_unused]] size_t group_size) {
     size_t i = 0;
@@ -760,8 +768,6 @@ dot_product(TA* a, TB* b, size_t n, float* scale, float* zp, float* head_sum, [[
     sum = _mm256_cvtss_f32(vsum0);
 
 #elif defined(OPENVINO_ARCH_ARM64)
-    static_assert(!std::is_same_v<TA, ov::bfloat16> && !std::is_same_v<TB, ov::bfloat16>,
-                  "bfloat16 is not supported on ARM64 platform.");
 #    if defined(HAVE_SVE)
     if constexpr (std::is_same_v<TA, float> && std::is_same_v<TB, float>) {
         svbool_t pg = svptrue_b32();
@@ -1320,7 +1326,11 @@ static float dot_product_by_channel(TA* a,
     return sum;
 }
 
+#if defined(OPENVINO_ARCH_ARM64)
+template <typename TA, typename std::enable_if<std::is_same_v<TA, float> || std::is_same_v<TA, ov::float16>, bool>::type = true>
+#else
 template <typename TA>
+#endif
 static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* head_sum, size_t group_size) {
     float sum = 0.0f;
     size_t group_id = 0;
@@ -1484,8 +1494,6 @@ static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, f
     }
     return sum;
 #elif defined(OPENVINO_ARCH_ARM64)
-    static_assert(std::is_same_v<TA, float> || std::is_same_v<TA, ov::float16>,
-                  "Only support float16 and float32 for ARM64 dot product.");
     while (group_id < n / group_size) {
         size_t i = 0;
         float group_scale = *(scale + group_id * 2);
@@ -2115,7 +2123,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                        sink_input,
                                                                        cpu_parallel);
         }
-    } else
+    }
 #endif
     if (query.get_precision() == ov::element::f16) {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
