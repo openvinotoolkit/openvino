@@ -887,24 +887,4 @@ Example:
         </filters>
     </skip_config>
 
-    <skip_config>
-        <message>Bug for infer() -> set_tensors() with PV driver</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-        </enable_rules>
-        <filters>
-            <filter>.*ZeroInferRequestTests.BooleanSetTensorSetTensorsWork.*withWarmUpInfer=1.*zeGraphNpuExtVersion=1.5_zeMutableCommandListExtVersion=0.0.*</filter>
-        </filters>
-    </skip_config>
-
-    <skip_config>
-        <message>Bug for set_tensors() -> set_tensor() -> set_tensors() with PV driver</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-        </enable_rules>
-        <filters>
-            <filter>.*ZeroInferRequestTests.BooleanSetTensorSetTensorsWork.*withWarmUpInfer=0_withResetInferRequest=0.*zeGraphNpuExtVersion=1.5_zeMutableCommandListExtVersion=0.0.*</filter>
-        </filters>
-    </skip_config>
-
 </skip_configs>

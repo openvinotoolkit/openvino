@@ -262,20 +262,33 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
     // TODO: Also test make_2_input_less_eq model when we have compiler support
     ov_model = make_2_input_less_eq_non_zero();
 
+    // FIXME: OV needs to update ov::util::load_shared_object logic to check if certain module was already loaded in
+    // memory
+    // Force loading compiler lib via core flow to avoid missing library in the current path
+    core->set_property(target_device, ov::intel_npu::compiler_type(npu_config->get<::intel_npu::COMPILER_TYPE>()));
+    (void)core->get_property(target_device, ov::supported_properties);
+
     auto zero_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
     auto device = intel_npu::utils::getDeviceById(zero_backend,
                                                   ov::test::utils::getDeviceNameID(ov::test::utils::getDeviceName()));
 
-    auto compiler = npu_config->get<::intel_npu::COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER
-                        ? std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
-                              std::make_shared<::intel_npu::DriverCompilerAdapter>(zeroInitStruct))
-                        : std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
-                              std::make_shared<::intel_npu::PluginCompilerAdapter>(zeroInitStruct));
+    std::shared_ptr<::intel_npu::ICompilerAdapter> compiler;
+    try {
+        compiler = npu_config->get<::intel_npu::COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER
+                       ? std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
+                             std::make_shared<::intel_npu::DriverCompilerAdapter>(zeroInitStruct))
+                       : std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
+                             std::make_shared<::intel_npu::PluginCompilerAdapter>(zeroInitStruct));
+    } catch (...) {
+        GTEST_SKIP() << "Couldn't load compiler library";
+    }
 
     // WA for error `[NPU_VCL] Unsupported IR API version! Val: 48.0`
-    npu_config->update(
-        {{::intel_npu::MODEL_SERIALIZER_VERSION::key().data(),
-          ::intel_npu::MODEL_SERIALIZER_VERSION::toString(ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY)}});
+    if (compiler->is_option_supported(::intel_npu::MODEL_SERIALIZER_VERSION::key().data())) {
+        npu_config->update({{::intel_npu::MODEL_SERIALIZER_VERSION::key().data(),
+                             ::intel_npu::MODEL_SERIALIZER_VERSION::toString(
+                                 ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY)}});
+    }
 
     // logic for batch
     auto copy_model = ov_model;

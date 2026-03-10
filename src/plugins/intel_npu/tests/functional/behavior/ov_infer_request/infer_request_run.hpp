@@ -376,7 +376,7 @@ TEST_P(BooleanPrecisionInferRequestRunTests, BooleanTensorDataTypesForBooleanMod
                     : std::vector<ov::InferRequest>{infer_request_boolean, infer_request_boolean_imported});
 
     for (auto infer_request : infer_requests) {
-        auto reset_infer_request_cb = [this, &infer_request]() {
+        auto reset_infer_request_cb = [&infer_request]() {
             auto compiled_model = infer_request.get_compiled_model();
             infer_request = compiled_model.create_infer_request();
         };
