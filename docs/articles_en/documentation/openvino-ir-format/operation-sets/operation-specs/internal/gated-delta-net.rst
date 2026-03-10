@@ -65,8 +65,7 @@ computation:
   the value vectors for each token and head. **Required.**
 
 * **4**: ``recurrent_state`` - 4D tensor of type *T* and shape
-  ``[batch_size, num_heads, key_head_dim, value_head_dim]``, the initial hidden state matrix.
-  If not provided, the initial state is treated as an all-zeros matrix. **Optional.**
+  ``[batch_size, num_heads, key_head_dim, value_head_dim]``, the recurrent (initially all-zeros) hidden state matrix.  **Required.**
 
 * **5**: ``gate`` - 3D tensor of type *T* and shape ``[batch_size, seq_len, num_heads]``,
   the forget gate in log-space. Applied as ``exp(g)`` at each time step to decay the
