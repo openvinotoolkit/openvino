@@ -329,7 +329,7 @@ void SingleFileStorage::write_context(const weight_sharing::Context& context) {
         const auto weight_source_writer = [&](std::ostream& s) {
             const auto& [source_id, weight_buffer] = cache_registry;
             if (auto buf = weight_buffer.m_weights.lock()) {
-                const auto device_id = weight_buffer.m_device;
+                const auto device_id = static_cast<uint64_t>(std::strtoul(weight_buffer.m_device.c_str(), nullptr, 10));
                 s.write(reinterpret_cast<const char*>(&device_id), sizeof(device_id));
                 s.write(reinterpret_cast<const char*>(&source_id), sizeof(source_id));
                 write_padding(s, alignment);
