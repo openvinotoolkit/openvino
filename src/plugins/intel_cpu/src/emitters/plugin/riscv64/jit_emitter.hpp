@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <set>
+#include <vector>
 
 #include "emitters/utils.hpp"
 #include "node.h"
@@ -14,6 +15,7 @@
 #include "snippets/generator.hpp"
 
 #ifdef SNIPPETS_DEBUG_CAPS
+#    include "emitters/snippets/common/jit_debug_emitter_base.hpp"
 #    include "emitters/snippets/riscv64/verbose.hpp"
 #endif
 
@@ -25,6 +27,29 @@ enum emitter_in_out_map : uint8_t {
     gpr_to_vec,
     gpr_to_gpr,
 };
+
+inline void set_vector_length(ov::intel_cpu::riscv64::jit_generator_t* h,
+                              const size_t vector_length,
+                              const Xbyak_riscv::SEW sew,
+                              const std::vector<size_t>& aux_gpr_idxs,
+                              const Xbyak_riscv::LMUL lmul = Xbyak_riscv::LMUL::m1,
+                              const Xbyak_riscv::Reg* avl = nullptr) {
+    if (avl != nullptr) {
+        h->vsetvli(Xbyak_riscv::zero, *avl, sew, lmul);
+        return;
+    }
+
+    OV_CPU_JIT_EMITTER_ASSERT(vector_length > 0, "set_vector_length requires either vector_length or avl register");
+    if (vector_length <= 31) {
+        h->vsetivli(Xbyak_riscv::zero, vector_length, sew, lmul);
+        return;
+    }
+
+    OV_CPU_JIT_EMITTER_ASSERT(!aux_gpr_idxs.empty(), "Large vector length requires an auxiliary GPR register");
+    const auto vector_length_reg = Xbyak_riscv::Reg(static_cast<int>(aux_gpr_idxs.back()));
+    h->uni_li(vector_length_reg, vector_length);
+    h->vsetvli(Xbyak_riscv::zero, vector_length_reg, sew, lmul);
+}
 
 class jit_emitter : public ov::snippets::Emitter {
 public:
@@ -217,6 +242,10 @@ private:
     mutable std::vector<size_t> preserved_fp_gpr_idxs;
 
 #ifdef SNIPPETS_DEBUG_CAPS
+    template <typename>
+    friend class ov::intel_cpu::jit_debug_emitter_base_common;
+    template <typename>
+    friend class jit_debug_emitter_riscv_base;
     friend class jit_debug_emitter;
 #endif
 

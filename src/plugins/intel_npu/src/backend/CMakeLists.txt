@@ -5,6 +5,7 @@
 set(TARGET_NAME "openvino_npu_level_zero_backend")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
+
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
