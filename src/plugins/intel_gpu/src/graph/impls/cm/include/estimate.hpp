@@ -33,10 +33,6 @@
 #define ATTR_BUF [[type("buffer_t")]]
 #endif
 
-#ifndef KV_CACHE_COMPRESSION
-#define KV_CACHE_COMPRESSION 0
-#endif
-
 #define MYMIN(x, y) ((x) < (y) ? (x) : (y))
 
 template<typename T, int N>

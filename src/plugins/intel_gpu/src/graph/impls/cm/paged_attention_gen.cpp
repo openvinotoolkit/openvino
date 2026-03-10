@@ -622,10 +622,14 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     jit.make("WALK_HQ", desc->heads_num != desc->kv_heads_num ? 2 : 1);
     jit.make("IS_CAUSAL", 1);
     if (get_kv_compressed(params)) {
-        jit.make("USE_INT8", 1);
+        if (desc->is_key_by_channel) {
+            jit.make("KV_CACHE_COMPRESSION", 2);
+        } else {
+            jit.make("KV_CACHE_COMPRESSION", 1);
+        }
         jit.make("HEAD_SIZE_KEY", desc->k_head_size + 2 * 2);
     } else {
-        jit.make("USE_INT8", 0);
+        jit.make("KV_CACHE_COMPRESSION", 0);
         jit.make("HEAD_SIZE_KEY", desc->k_head_size);
     }
     jit.make("SOFTMAX_TYPE", "float");
