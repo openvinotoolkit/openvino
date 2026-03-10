@@ -476,6 +476,15 @@ static bool can_read_value_be_optimize(const read_value_node& node) {
         }
     }
 
+    // For state variables with multiple consumers (e.g., linear attention states),
+    // zero-copy is safe when no user is assign or kv_cache, since GPU ops only
+    // read from input buffers and variable memory is managed separately.
+    bool all_users_read_only = std::all_of(unique_users.begin(), unique_users.end(), [](const auto* user) {
+        return !user->is_type<assign>() && !user->is_type<kv_cache>();
+    });
+    if (all_users_read_only)
+        return true;
+
     return false;
 }
 
