@@ -404,12 +404,11 @@ void DynamicGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescript
 }
 
 DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                           std::optional<ov::Tensor> blob,
+                           ov::Tensor blob,
                            bool blobAllocatedByPlugin,
                            const FilteredConfig& config)
     : _zeroInitStruct(zeroInitStruct),
       _blob(std::move(blob)),
-      _blobAllocatedByPlugin(blobAllocatedByPlugin),
       _logger("DynamicGraph", config.get<LOG_LEVEL>()) {
     _logger.info("Create DynamicGraph");
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
@@ -516,16 +515,6 @@ void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) const 
     }
 
     _commandQueue->setWorkloadType(zeWorkloadType);
-}
-
-std::vector<ov::ProfilingInfo> DynamicGraph::process_profiling_output(const std::vector<uint8_t>& profData) const {
-    auto compiler = VCLCompilerImpl::getInstance();
-    OPENVINO_ASSERT(compiler != nullptr, "VCL compiler is nullptr");
-
-    std::vector<uint8_t> blob(_blob->get_byte_size());
-    blob.assign(reinterpret_cast<const uint8_t*>(_blob->data()),
-                reinterpret_cast<const uint8_t*>(_blob->data()) + _blob->get_byte_size());
-    return compiler->process_profiling_output(profData, blob);
 }
 
 void DynamicGraph::set_argument_value(uint32_t argi, const void* argv) const {
