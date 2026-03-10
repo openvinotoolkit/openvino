@@ -112,6 +112,11 @@ public:
                 return property == ov::intel_npu::enable_strides_for.name();
             });
 
+        auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
+        if (zeroInit->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+            stridesEnabled = false;
+        }
+
         if (!stridesEnabled) {
             GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
         }
