@@ -72,6 +72,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         seed = hash_combine(seed, has_xattention);
         seed = hash_combine(seed, has_sink_input);
         seed = hash_combine(seed, has_adaptive_rkv);
+        seed = hash_combine(seed, has_token_type_ids);
         if (scale_val.has_value()) {
             seed = hash_combine(seed, scale_val.value());
         }
@@ -97,6 +98,7 @@ struct paged_attention : public primitive_base<paged_attention> {
                has_xattention == rhs_casted.has_xattention &&
                has_sink_input == rhs_casted.has_sink_input &&
                has_adaptive_rkv == rhs_casted.has_adaptive_rkv &&
+               has_token_type_ids == rhs_casted.has_token_type_ids &&
                scale_val.value_or(1.0f) == rhs_casted.scale_val.value_or(1.0f) &&
                is_key_by_channel == rhs_casted.is_key_by_channel;
     }
@@ -114,6 +116,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ob << has_xattention;
         ob << has_sink_input;
         ob << has_adaptive_rkv;
+        ob << has_token_type_ids;
 
         if (scale_val.has_value()) {
             ob << true;
@@ -137,6 +140,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ib >> has_xattention;
         ib >> has_sink_input;
         ib >> has_adaptive_rkv;
+        ib >> has_token_type_ids;
 
         bool has_scale;
         ib >> has_scale;
@@ -162,6 +166,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     bool has_xattention = false;
     bool has_sink_input = false;
     bool has_adaptive_rkv = false;
+    bool has_token_type_ids = false;
     bool is_key_by_channel = false;
 };
 }  // namespace cldnn

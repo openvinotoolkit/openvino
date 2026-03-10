@@ -118,6 +118,12 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     OPENVINO_ASSERT(sinks_const != nullptr);
     prim.has_sink_input = ov::shape_size(sinks_const->get_output_shape(0)) > 0;
 
+    const size_t token_type_ids_idx = cldnn::paged_attention::PagedAttentionInputIdx::TOKEN_TYPE_IDS;
+    auto token_type_ids_input = ov::as_type_ptr<ov::op::v0::Parameter>(op->get_input_node_shared_ptr(token_type_ids_idx));
+    if (token_type_ids_input && token_type_ids_input->get_output_partial_shape(0).is_dynamic()) {
+        prim.has_token_type_ids = true;
+    }
+
     prim.is_key_by_channel = p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
     prim.num_outputs = 1;
 
