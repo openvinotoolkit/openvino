@@ -87,9 +87,17 @@ size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx) {
 float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
     const auto& input_mem = params.memory_deps;
     const auto threshold_mem = input_mem.at(PagedAttentionInputIdx::XATTENTION_THRESHOLD);
-    mem_lock<float16, mem_lock_type::read> lock(threshold_mem, *params.strm);  // converted
-    const auto thresh = static_cast<float>(lock[seq_idx]);
-    return thresh;
+    const auto dt = threshold_mem->get_layout().data_type;
+    if (dt == data_types::f16) {
+        mem_lock<float16, mem_lock_type::read> lock(threshold_mem, *params.strm);
+        return static_cast<float>(lock[seq_idx]);
+    }
+    if (dt == data_types::f32) {
+        mem_lock<float, mem_lock_type::read> lock(threshold_mem, *params.strm);
+        return lock[seq_idx];
+    }
+    OPENVINO_ASSERT(false, "Unsupported xattention_threshold data type");
+    return 1.0f;
 }
 
 // Bypass xattn stages in the following conditions -
