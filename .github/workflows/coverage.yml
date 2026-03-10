@@ -22,7 +22,8 @@ permissions: read-all
 env:
   CMAKE_BUILD_TYPE: 'Release'
   PARALLEL_JOBS: '64'
-  PYTEST_XDIST_WORKERS: '1'
+  CPP_TEST_CONCURRENCY: '32'
+  PYTEST_XDIST_WORKERS: '4'
   JS_TEST_CONCURRENCY: '1'
   COVERAGE_SELECTION: ${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'cpu' }}
   NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
@@ -96,10 +97,20 @@ jobs:
       TEST_PROFILE: ${{ matrix.test_profile }}
     steps:
       - name: Setup python
+        if: ${{ matrix.lane != 'gpu' }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.10.10'
           architecture: 'x64'
+
+      - name: Install python from apt (GPU lane)
+        if: ${{ matrix.lane == 'gpu' }}
+        continue-on-error: true
+        run: |
+          sudo apt --assume-yes update
+          sudo apt --assume-yes install python3 python3-pip python3-venv
+          python3 --version
+          python3 -m pip --version
 
       - name: Setup Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
@@ -172,10 +183,20 @@ jobs:
       TEST_PROFILE: ${{ matrix.test_profile }}
     steps:
       - name: Setup python
+        if: ${{ matrix.lane != 'gpu' }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.10.10'
           architecture: 'x64'
+
+      - name: Install python from apt (GPU lane)
+        if: ${{ matrix.lane == 'gpu' }}
+        continue-on-error: true
+        run: |
+          sudo apt --assume-yes update
+          sudo apt --assume-yes install python3 python3-pip python3-venv
+          python3 --version
+          python3 -m pip --version
 
       - name: Checkout sources for path mapping
         continue-on-error: true
@@ -296,7 +317,16 @@ jobs:
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
         continue-on-error: true
         run: |
-          if find "${{ github.workspace }}/build" "${{ github.workspace }}/build_js" -type f -name '*.gcda' -print -quit | grep -q .; then
+          search_roots=()
+          for root in \
+            "${{ github.workspace }}/build" \
+            "${{ github.workspace }}/build_js" \
+            "${{ github.workspace }}/.tmp/cpp-gcov"; do
+            if [[ -d "${root}" ]]; then
+              search_roots+=("${root}")
+            fi
+          done
+          if (( ${#search_roots[@]} > 0 )) && find "${search_roots[@]}" -type f -name '*.gcda' -print -quit | grep -q .; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
@@ -590,15 +620,35 @@ jobs:
       TEST_PROFILE: ${{ matrix.test_profile }}
     steps:
       - name: Setup python
+        if: ${{ matrix.lane != 'gpu' }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.10.10'
           architecture: 'x64'
 
+      - name: Install python from apt (GPU lane)
+        if: ${{ matrix.lane == 'gpu' }}
+        continue-on-error: true
+        run: |
+          sudo apt --assume-yes update
+          sudo apt --assume-yes install python3 python3-pip python3-venv
+          python3 --version
+          python3 -m pip --version
+
       - name: Setup Node.js
+        if: ${{ matrix.lane != 'gpu' }}
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: '22'
+
+      - name: Install Node.js from apt (GPU lane)
+        if: ${{ matrix.lane == 'gpu' }}
+        continue-on-error: true
+        run: |
+          sudo apt --assume-yes update
+          sudo apt --assume-yes install nodejs npm
+          node --version
+          npm --version
 
       - name: Checkout sources for path mapping
         continue-on-error: true

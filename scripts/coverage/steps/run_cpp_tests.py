@@ -3,12 +3,22 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 import os
 from pathlib import Path
+import re
 import shlex
 import shutil
 
-from coverage_workflow import CoverageContext, env_from_assignments, load_cpp_tests, run_cmd, warn
+from coverage_workflow import CoverageContext, CppTestCase, env_from_assignments, load_cpp_tests, run_cmd, warn
+
+
+@dataclass(frozen=True)
+class _CppTestRunResult:
+    name: str
+    skipped: str = ""
+    failed: str = ""
 
 
 def _remove_gcda(root: Path) -> None:
@@ -42,56 +52,161 @@ def _compose_runtime_ld_library_path(ctx: CoverageContext) -> str:
     return ":".join(str(p) for p in paths)
 
 
+def _slugify(value: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip("-") or "test"
+
+
+def _gcov_stage_root(ctx: CoverageContext) -> Path:
+    return ctx.workspace / ".tmp" / "cpp-gcov"
+
+
+def _gcov_prefix_strip(path: Path) -> int:
+    return len([part for part in path.resolve().parts if part != os.sep])
+
+
+def _build_gcov_env(env: dict[str, str], *, gcov_dir: Path | None, workspace: Path) -> dict[str, str]:
+    prepared = dict(env)
+    if gcov_dir is None:
+        prepared.pop("GCOV_PREFIX", None)
+        prepared.pop("GCOV_PREFIX_STRIP", None)
+        return prepared
+
+    gcov_dir.mkdir(parents=True, exist_ok=True)
+    prepared["GCOV_PREFIX"] = str(gcov_dir)
+    prepared["GCOV_PREFIX_STRIP"] = str(_gcov_prefix_strip(workspace))
+    return prepared
+
+
+def _build_test_command(exe: Path, *, mode: str, args: str) -> list[str]:
+    cmd = [str(exe)]
+    if mode == "raw":
+        if args:
+            cmd.extend(shlex.split(args))
+        return cmd
+
+    if args:
+        cmd.append(f"--gtest_filter={args}")
+    return cmd
+
+
 def _run_test(
     ctx: CoverageContext,
-    name: str,
-    binary: str,
-    mode: str,
+    test: CppTestCase,
     args: str,
-    extra_env: str,
     *,
-    executed: list[str],
-    skipped: list[str],
-    failed: list[str],
     runtime_ld_library_path: str,
-) -> None:
-    exe = ctx.paths.bin_dir / binary
+    gcov_dir: Path | None,
+) -> _CppTestRunResult:
+    exe = ctx.paths.bin_dir / test.binary
     if not exe.exists():
-        skipped.append(f"{name} (missing binary: {binary})")
-        return
+        return _CppTestRunResult(name=test.name, skipped=f"{test.name} (missing binary: {test.binary})")
 
     if not os.access(exe, os.X_OK):
         # GitHub artifact download may drop execute bits; try to recover in-place.
         try:
-            mode = exe.stat().st_mode
-            exe.chmod(mode | 0o111)
+            file_mode = exe.stat().st_mode
+            exe.chmod(file_mode | 0o111)
         except OSError:
             pass
 
     if not os.access(exe, os.X_OK):
-        skipped.append(f"{name} (binary not executable: {binary})")
-        return
+        return _CppTestRunResult(name=test.name, skipped=f"{test.name} (binary not executable: {test.binary})")
 
-    executed.append(name)
-    print(f"========== Running {name} ==========")
-
-    if mode == "raw":
-        cmd = [str(exe)]
-        if args:
-            cmd.extend(shlex.split(args))
-    else:
-        cmd = [str(exe)]
-        if args:
-            cmd.append(f"--gtest_filter={args}")
-
-    env = env_from_assignments(extra_env)
+    print(f"========== Running {test.name} ==========")
+    cmd = _build_test_command(exe, mode=test.mode, args=args)
+    env = env_from_assignments(test.extra_env)
     existing_ld = env.get("LD_LIBRARY_PATH", "")
     if runtime_ld_library_path:
         env["LD_LIBRARY_PATH"] = f"{runtime_ld_library_path}:{existing_ld}" if existing_ld else runtime_ld_library_path
+    env = _build_gcov_env(env, gcov_dir=gcov_dir, workspace=ctx.workspace)
 
     rc = run_cmd(cmd, env=env, check=False)
     if rc != 0:
-        failed.append(f"{name} (exit {rc})")
+        return _CppTestRunResult(name=test.name, failed=f"{test.name} (exit {rc})")
+    return _CppTestRunResult(name=test.name)
+
+
+def _run_tests_serial(
+    ctx: CoverageContext,
+    tests: list[tuple[CppTestCase, str]],
+    *,
+    runtime_ld_library_path: str,
+) -> tuple[list[str], list[str], list[str]]:
+    executed: list[str] = []
+    skipped: list[str] = []
+    failed: list[str] = []
+
+    for test, args in tests:
+        result = _run_test(
+            ctx,
+            test,
+            args,
+            runtime_ld_library_path=runtime_ld_library_path,
+            gcov_dir=None,
+        )
+        if result.skipped:
+            skipped.append(result.skipped)
+            continue
+        executed.append(result.name)
+        if result.failed:
+            failed.append(result.failed)
+
+    return executed, skipped, failed
+
+
+def _run_tests_parallel(
+    ctx: CoverageContext,
+    tests: list[tuple[CppTestCase, str]],
+    *,
+    runtime_ld_library_path: str,
+) -> tuple[list[str], list[str], list[str]]:
+    executed: list[str] = []
+    skipped: list[str] = []
+    failed: list[str] = []
+
+    stage_root = _gcov_stage_root(ctx)
+    runs_root = stage_root / "runs"
+    shutil.rmtree(stage_root, ignore_errors=True)
+    runs_root.mkdir(parents=True, exist_ok=True)
+
+    workers = min(ctx.cpp_test_concurrency, len(tests))
+    print(
+        f"[coverage] Running {len(tests)} C++ test binaries with concurrency={workers} "
+        f"using staged gcov output under {runs_root}"
+    )
+
+    futures = {}
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        for index, (test, args) in enumerate(tests, start=1):
+            gcov_dir = runs_root / f"{index:03d}-{_slugify(test.name)}"
+            future = executor.submit(
+                _run_test,
+                ctx,
+                test,
+                args,
+                runtime_ld_library_path=runtime_ld_library_path,
+                gcov_dir=gcov_dir,
+            )
+            futures[future] = (index, test.name)
+
+        ordered_results: dict[int, _CppTestRunResult] = {}
+        for future in as_completed(futures):
+            index, name = futures[future]
+            try:
+                ordered_results[index] = future.result()
+            except Exception as exc:  # noqa: BLE001
+                ordered_results[index] = _CppTestRunResult(name=name, failed=f"{name} (runner error: {exc})")
+
+    for index in sorted(ordered_results):
+        result = ordered_results[index]
+        if result.skipped:
+            skipped.append(result.skipped)
+            continue
+        executed.append(result.name)
+        if result.failed:
+            failed.append(result.failed)
+
+    return executed, skipped, failed
 
 
 def run(ctx: CoverageContext) -> None:
@@ -101,11 +216,11 @@ def run(ctx: CoverageContext) -> None:
     _remove_gcda(ctx.paths.build_dir)
     _remove_gcda(ctx.paths.build_js_dir)
     shutil.rmtree(ctx.paths.build_dir / "gcov", ignore_errors=True)
+    shutil.rmtree(_gcov_stage_root(ctx), ignore_errors=True)
 
-    executed: list[str] = []
-    skipped: list[str] = []
-    failed: list[str] = []
     runtime_ld_library_path = _compose_runtime_ld_library_path(ctx)
+    enabled_tests: list[tuple[CppTestCase, str]] = []
+    skipped: list[str] = []
 
     for test in tests:
         if not test.enabled:
@@ -113,18 +228,22 @@ def run(ctx: CoverageContext) -> None:
             continue
 
         args = test.args.replace("__MODEL_PATH__", str(ctx.paths.model_path))
-        _run_test(
+        enabled_tests.append((test, args))
+
+    if ctx.cpp_test_concurrency > 1 and enabled_tests:
+        executed, dynamic_skips, failed = _run_tests_parallel(
             ctx,
-            test.name,
-            test.binary,
-            test.mode,
-            args,
-            test.extra_env,
-            executed=executed,
-            skipped=skipped,
-            failed=failed,
+            enabled_tests,
             runtime_ld_library_path=runtime_ld_library_path,
         )
+    else:
+        executed, dynamic_skips, failed = _run_tests_serial(
+            ctx,
+            enabled_tests,
+            runtime_ld_library_path=runtime_ld_library_path,
+        )
+
+    skipped.extend(dynamic_skips)
 
     total_executed = len(executed)
     total_failed = len(failed)
@@ -152,6 +271,8 @@ def run(ctx: CoverageContext) -> None:
         f"GPU mode: {'true' if ctx.run_gpu_tests else 'false'}",
         "",
         f"NPU mode: {'true' if ctx.run_npu_tests else 'false'}",
+        "",
+        f"C++ test concurrency: {max(1, ctx.cpp_test_concurrency)}",
         "",
         f"C++ tests planned: {total_planned}",
         f"C++ tests executed: {total_executed}",

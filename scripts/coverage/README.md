@@ -74,6 +74,7 @@ Main artifacts in workspace root:
 
 ## Key Runtime Options
 - `--parallel-jobs <N>`
+- `--cpp-test-concurrency <N>`: run configured C++ coverage test binaries in parallel. Values above `1` isolate gcov output per run and merge it during `collect-cpp-coverage`.
 - `--pytest-workers <N>`
 - `--js-test-concurrency <N>`
 - `--profile <name>`

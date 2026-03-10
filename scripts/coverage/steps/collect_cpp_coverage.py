@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import re
 import shlex
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -28,7 +29,7 @@ def _read_header(path: Path) -> bytes | None:
         return None
 
 
-def _prefilter_incompatible_gcda(root: Path, *, label: str) -> None:
+def _prefilter_incompatible_gcda(root: Path, *, label: str, gcno_root: Path | None = None) -> None:
     if not root.exists():
         return
 
@@ -39,7 +40,10 @@ def _prefilter_incompatible_gcda(root: Path, *, label: str) -> None:
 
     for gcda in root.rglob("*.gcda"):
         scanned += 1
-        gcno = gcda.with_suffix(".gcno")
+        if gcno_root is None:
+            gcno = gcda.with_suffix(".gcno")
+        else:
+            gcno = gcno_root / gcda.relative_to(root).with_suffix(".gcno")
         if not gcno.exists():
             try:
                 gcda.unlink()
@@ -159,12 +163,41 @@ def _run_lcov_capture(
     raise RuntimeError(f"{label}: failed to capture coverage after {max_attempts} attempts")
 
 
+def _collect_staged_gcov_runs(ctx: CoverageContext) -> list[Path]:
+    runs_root = ctx.workspace / ".tmp" / "cpp-gcov" / "runs"
+    if not runs_root.exists():
+        return []
+    return sorted(path for path in runs_root.iterdir() if path.is_dir())
+
+
+def _merge_tracefiles(tracefiles: list[Path], output: Path) -> None:
+    if not tracefiles:
+        warn("No native C/C++ coverage tracefiles were produced; creating empty coverage.info")
+        output.write_text("", encoding="utf-8")
+        return
+
+    if len(tracefiles) == 1:
+        output.write_bytes(tracefiles[0].read_bytes())
+        return
+
+    cmd = ["lcov"]
+    for tracefile in tracefiles:
+        cmd.extend(["-a", str(tracefile)])
+    cmd.extend(["-o", str(output)])
+    run_cmd(cmd)
+
+
 def run(ctx: CoverageContext) -> None:
     src_dir = ctx.workspace
     report_dir = ctx.workspace / "coverage-report"
-    main_info = ctx.workspace / "coverage-cpp-main.info"
-    js_info = ctx.workspace / "coverage-cpp-js.info"
     merged_info = ctx.workspace / "coverage.info"
+    trace_dir = ctx.workspace / ".tmp" / "cpp-coverage-parts"
+    shutil.rmtree(trace_dir, ignore_errors=True)
+    trace_dir.mkdir(parents=True, exist_ok=True)
+    tracefiles: list[Path] = []
+    staged_runs = _collect_staged_gcov_runs(ctx)
+    has_staged_main_gcda = any(_has_gcda(run_dir / "build") for run_dir in staged_runs)
+    has_staged_js_gcda = any(_has_gcda(run_dir / "build_js") for run_dir in staged_runs)
 
     _prefilter_incompatible_gcda(ctx.paths.build_dir, label="main build")
     if ctx.paths.build_js_dir.exists():
@@ -174,6 +207,7 @@ def run(ctx: CoverageContext) -> None:
     has_js_gcda = _has_gcda(ctx.paths.build_js_dir)
 
     if has_main_gcda:
+        main_info = trace_dir / "main-build.info"
         _run_lcov_capture(
             directory=ctx.paths.build_dir,
             build_directory=ctx.paths.build_dir,
@@ -182,9 +216,13 @@ def run(ctx: CoverageContext) -> None:
             label="C/C++ main capture",
         )
     else:
-        warn(f"No .gcda files found in {ctx.paths.build_dir}, skipping main native C++ capture")
+        if not has_staged_main_gcda:
+            warn(f"No .gcda files found in {ctx.paths.build_dir}, skipping main native C++ capture")
+
+        main_info = None
 
     if has_js_gcda:
+        js_info = trace_dir / "js-build.info"
         _run_lcov_capture(
             directory=ctx.paths.build_js_dir,
             build_directory=ctx.paths.build_js_dir,
@@ -192,23 +230,50 @@ def run(ctx: CoverageContext) -> None:
             output_file=js_info,
             label="C/C++ JS-side capture",
         )
-
-    if main_info.exists() and js_info.exists():
-        run_cmd(["lcov", "-a", str(main_info), "-a", str(js_info), "-o", str(merged_info)])
-    elif main_info.exists():
-        merged_info.write_bytes(main_info.read_bytes())
-    elif js_info.exists():
-        merged_info.write_bytes(js_info.read_bytes())
+        tracefiles.append(js_info)
     else:
-        warn("No native C/C++ coverage tracefiles were produced; creating empty coverage.info")
-        merged_info.write_text("", encoding="utf-8")
+        if not has_staged_js_gcda and ctx.paths.build_js_dir.exists():
+            warn(f"No .gcda files found in {ctx.paths.build_js_dir}, skipping JS-side native C++ capture")
+        js_info = None
+
+    if has_main_gcda and main_info is not None:
+        tracefiles.append(main_info)
+
+    if staged_runs:
+        print(f"[coverage] Found {len(staged_runs)} staged C++ gcov run(s) under {ctx.workspace / '.tmp' / 'cpp-gcov' / 'runs'}")
+
+    for run_dir in staged_runs:
+        staged_main_dir = run_dir / "build"
+        if _has_gcda(staged_main_dir):
+            _prefilter_incompatible_gcda(staged_main_dir, label=f"staged main build ({run_dir.name})", gcno_root=ctx.paths.build_dir)
+            tracefile = trace_dir / f"{run_dir.name}-main.info"
+            _run_lcov_capture(
+                directory=staged_main_dir,
+                build_directory=ctx.paths.build_dir,
+                base_directory=src_dir,
+                output_file=tracefile,
+                label=f"C/C++ staged main capture ({run_dir.name})",
+            )
+            tracefiles.append(tracefile)
+
+        staged_js_dir = run_dir / "build_js"
+        if _has_gcda(staged_js_dir):
+            _prefilter_incompatible_gcda(staged_js_dir, label=f"staged js build ({run_dir.name})", gcno_root=ctx.paths.build_js_dir)
+            tracefile = trace_dir / f"{run_dir.name}-js.info"
+            _run_lcov_capture(
+                directory=staged_js_dir,
+                build_directory=ctx.paths.build_js_dir,
+                base_directory=src_dir,
+                output_file=tracefile,
+                label=f"C/C++ staged JS capture ({run_dir.name})",
+            )
+            tracefiles.append(tracefile)
+
+    _merge_tracefiles(tracefiles, merged_info)
 
     if not merged_info.exists() or merged_info.stat().st_size == 0:
         warn("coverage.info is empty; skipping lcov --remove and genhtml.")
-        if main_info.exists():
-            main_info.unlink()
-        if js_info.exists():
-            js_info.unlink()
+        shutil.rmtree(trace_dir, ignore_errors=True)
         return
 
     run_cmd(
@@ -235,10 +300,7 @@ def run(ctx: CoverageContext) -> None:
         ]
     )
 
-    if main_info.exists():
-        main_info.unlink()
-    if js_info.exists():
-        js_info.unlink()
+    shutil.rmtree(trace_dir, ignore_errors=True)
 
     run_cmd(["grep", "-m", "5", f"^SF:{src_dir}/build/", str(merged_info)], check=False)
     run_cmd(["grep", "-m", "5", f"^SF:{src_dir}/build_js/", str(merged_info)], check=False)

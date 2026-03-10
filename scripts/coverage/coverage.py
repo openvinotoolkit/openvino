@@ -223,6 +223,7 @@ class CoverageContext:
     workspace: Path
     build_type: str
     parallel_jobs: int
+    cpp_test_concurrency: int
     pytest_workers: int
     js_test_concurrency: int
     test_profile: str
@@ -251,6 +252,7 @@ class CoverageContext:
 
         cpu_count = os.cpu_count() or 1
         parallel_jobs = _int_env("PARALLEL_JOBS", cpu_count)
+        cpp_test_concurrency = max(1, _int_env("CPP_TEST_CONCURRENCY", 1))
         pytest_workers = _int_env("PYTEST_XDIST_WORKERS", 1)
         js_concurrency = _int_env("JS_TEST_CONCURRENCY", 1)
 
@@ -276,6 +278,7 @@ class CoverageContext:
         os.environ["OV_WORKSPACE"] = str(workspace)
         os.environ["CMAKE_BUILD_TYPE"] = build_type
         os.environ["PARALLEL_JOBS"] = str(parallel_jobs)
+        os.environ["CPP_TEST_CONCURRENCY"] = str(cpp_test_concurrency)
         os.environ["PYTEST_XDIST_WORKERS"] = str(pytest_workers)
         os.environ["JS_TEST_CONCURRENCY"] = str(js_concurrency)
         os.environ["TEST_PROFILE"] = test_profile
@@ -286,6 +289,7 @@ class CoverageContext:
             workspace=workspace,
             build_type=build_type,
             parallel_jobs=parallel_jobs,
+            cpp_test_concurrency=cpp_test_concurrency,
             pytest_workers=pytest_workers,
             js_test_concurrency=js_concurrency,
             test_profile=test_profile,
@@ -519,6 +523,10 @@ def _apply_common_env(args: argparse.Namespace) -> None:
     if parallel_jobs is not None:
         os.environ["PARALLEL_JOBS"] = str(parallel_jobs)
 
+    cpp_test_concurrency = getattr(args, "cpp_test_concurrency", None)
+    if cpp_test_concurrency is not None:
+        os.environ["CPP_TEST_CONCURRENCY"] = str(cpp_test_concurrency)
+
     pytest_workers = getattr(args, "pytest_workers", None)
     if pytest_workers is not None:
         os.environ["PYTEST_XDIST_WORKERS"] = str(pytest_workers)
@@ -722,6 +730,7 @@ def _add_common_options(parser: argparse.ArgumentParser, *, include_profile: boo
     parser.add_argument("--workspace", default=os.environ.get("OV_WORKSPACE") or os.environ.get("GITHUB_WORKSPACE"))
     parser.add_argument("--build-type", default=os.environ.get("CMAKE_BUILD_TYPE", "Release"))
     parser.add_argument("--parallel-jobs", type=int, default=None)
+    parser.add_argument("--cpp-test-concurrency", type=int, default=None)
     parser.add_argument("--pytest-workers", type=int, default=None)
     parser.add_argument("--js-test-concurrency", type=int, default=None)
     parser.add_argument(
