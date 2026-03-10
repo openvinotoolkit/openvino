@@ -7,10 +7,8 @@
 
 #include <sstream>
 
-#include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "openvino/core/enum_names.hpp"
 #include "primitive_type_base.h"
-#include "segment_max_shape_inference.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(segment_max)
@@ -30,23 +28,21 @@ std::vector<layout> segment_max_inst::calc_output_layouts(segment_max_node const
 
     const data_types output_type = impl_param.desc->output_data_types[0].value_or(input0_layout.data_type);
 
-    std::vector<ShapeType> input_shapes;
-    for (size_t i = 0; i < impl_param.input_layouts.size(); i++) {
-        input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
-    }
+    // GPU-internal layouts are padded to 4D/5D (bfyx/bfzyx).  The core
+    // SegmentMax shape_infer expects logical OV shapes and will reject the
+    // padded segment_ids (e.g. [1,6,1,1] instead of [6]).  Compute the output
+    // shape directly: output_shape = [num_segments] + data_shape[1:]
+    auto output_pshape = input0_layout.get<ShapeType>();
 
-    TensorsContainer const_data(&impl_param.get_stream(), impl_param.memory_deps);
-
-    ov::op::v16::SegmentMax op;
-    auto output_shapes = ov::op::v16::shape_infer(&op, input_shapes, cldnn::make_tensor_accessor(const_data));
-
-    // shape_infer with a default-constructed op cannot detect 3-input form
-    // (op->inputs().size() is 0), so apply stored num_segments if available.
     if (primitive->num_segments_val >= 0) {
-        output_shapes[0][0] = primitive->num_segments_val;
+        output_pshape[0] = primitive->num_segments_val;
+    } else if (primitive->max_segment_id >= 0) {
+        output_pshape[0] = primitive->max_segment_id + 1;
+    } else {
+        output_pshape[0] = ov::Dimension::dynamic();
     }
 
-    return {layout{output_shapes[0], output_type, input0_layout.format}};
+    return {layout{output_pshape, output_type, input0_layout.format}};
 }
 
 std::string segment_max_inst::to_string(segment_max_node const& node) {
