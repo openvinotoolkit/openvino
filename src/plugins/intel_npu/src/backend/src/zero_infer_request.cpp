@@ -699,16 +699,27 @@ void ZeroInferRequest::infer_async() {
     prepare_outputs();
 
     _inflightInferAsyncCalls.fetch_add(1, std::memory_order_acq_rel);
-    try {
-        OV_ITT_TASK_NEXT(ZERO_INFER, "push");
-        _pipeline->push();
-    } catch (ov::Exception& error) {
-        _inflightInferAsyncCalls.fetch_sub(1, std::memory_order_acq_rel);
-        OPENVINO_THROW(error.what());
-    } catch (...) {
-        _inflightInferAsyncCalls.fetch_sub(1, std::memory_order_acq_rel);
-        OPENVINO_THROW("Unknown exception occurred during infer.");
-    }
+    struct InflightCounterOnFailureGuard {
+        explicit InflightCounterOnFailureGuard(std::atomic<size_t>& counter) : _counter(counter) {}
+
+        ~InflightCounterOnFailureGuard() {
+            if (_active) {
+                _counter.fetch_sub(1, std::memory_order_acq_rel);
+            }
+        }
+
+        void release() {
+            _active = false;
+        }
+
+    private:
+        std::atomic<size_t>& _counter;
+        bool _active = true;
+    } inFlightGuard(_inflightInferAsyncCalls);
+
+    OV_ITT_TASK_NEXT(ZERO_INFER, "push");
+    _pipeline->push();
+    inFlightGuard.release();
     _logger.debug("InferRequest::infer_async completed");
 }
 
@@ -866,6 +877,26 @@ void ZeroInferRequest::prepare_outputs() {
 void ZeroInferRequest::get_result() {
     OV_ITT_TASK_CHAIN(ZERO_RESULT, itt::domains::LevelZeroBackend, "get_result", "pull");
     _logger.debug("InferRequest::get_result start");
+
+    struct InflightCounterGuard {
+        explicit InflightCounterGuard(std::atomic<size_t>& counter) : _counter(counter) {}
+
+        ~InflightCounterGuard() {
+            if (_active) {
+                _counter.fetch_sub(1, std::memory_order_acq_rel);
+            }
+        }
+
+        size_t release_and_decrement() {
+            _active = false;
+            return _counter.fetch_sub(1, std::memory_order_acq_rel);
+        }
+
+    private:
+        std::atomic<size_t>& _counter;
+        bool _active = true;
+    } inFlightGuard(_inflightInferAsyncCalls);
+
     _pipeline->pull();
 
     size_t outputIndex = 0;
@@ -904,8 +935,7 @@ void ZeroInferRequest::get_result() {
         ++outputIndex;
     }
 
-
-    const auto inFlightBeforeDecrement = _inflightInferAsyncCalls.fetch_sub(1, std::memory_order_acq_rel);
+    const auto inFlightBeforeDecrement = inFlightGuard.release_and_decrement();
     OPENVINO_ASSERT(inFlightBeforeDecrement > 0,
                     "get_result called without matching infer_async, in-flight infer count is invalid");
 
