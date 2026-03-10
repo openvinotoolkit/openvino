@@ -5,11 +5,13 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
+import csv
 import os
 from pathlib import Path
 import re
 import shlex
 import shutil
+import time
 
 from coverage_workflow import CoverageContext, CppTestCase, env_from_assignments, load_cpp_tests, run_cmd, warn
 
@@ -17,8 +19,10 @@ from coverage_workflow import CoverageContext, CppTestCase, env_from_assignments
 @dataclass(frozen=True)
 class _CppTestRunResult:
     name: str
+    status: str = "passed"
     skipped: str = ""
     failed: str = ""
+    duration_seconds: float = 0.0
 
 
 def _remove_gcda(root: Path) -> None:
@@ -60,6 +64,13 @@ def _gcov_stage_root(ctx: CoverageContext) -> Path:
     return ctx.workspace / ".tmp" / "cpp-gcov"
 
 
+def _selected_test_names() -> list[str]:
+    raw = os.environ.get("CXX_TEST_NAMES", "").strip()
+    if not raw:
+        return []
+    return [name.strip() for name in raw.split(",") if name.strip()]
+
+
 def _gcov_prefix_strip(path: Path) -> int:
     return len([part for part in path.resolve().parts if part != os.sep])
 
@@ -99,7 +110,11 @@ def _run_test(
 ) -> _CppTestRunResult:
     exe = ctx.paths.bin_dir / test.binary
     if not exe.exists():
-        return _CppTestRunResult(name=test.name, skipped=f"{test.name} (missing binary: {test.binary})")
+        return _CppTestRunResult(
+            name=test.name,
+            status="skipped",
+            skipped=f"{test.name} (missing binary: {test.binary})",
+        )
 
     if not os.access(exe, os.X_OK):
         # GitHub artifact download may drop execute bits; try to recover in-place.
@@ -110,7 +125,11 @@ def _run_test(
             pass
 
     if not os.access(exe, os.X_OK):
-        return _CppTestRunResult(name=test.name, skipped=f"{test.name} (binary not executable: {test.binary})")
+        return _CppTestRunResult(
+            name=test.name,
+            status="skipped",
+            skipped=f"{test.name} (binary not executable: {test.binary})",
+        )
 
     print(f"========== Running {test.name} ==========")
     cmd = _build_test_command(exe, mode=test.mode, args=args)
@@ -120,10 +139,30 @@ def _run_test(
         env["LD_LIBRARY_PATH"] = f"{runtime_ld_library_path}:{existing_ld}" if existing_ld else runtime_ld_library_path
     env = _build_gcov_env(env, gcov_dir=gcov_dir, workspace=ctx.workspace)
 
+    started_at = time.monotonic()
     rc = run_cmd(cmd, env=env, check=False)
+    duration_seconds = time.monotonic() - started_at
     if rc != 0:
-        return _CppTestRunResult(name=test.name, failed=f"{test.name} (exit {rc})")
-    return _CppTestRunResult(name=test.name)
+        return _CppTestRunResult(
+            name=test.name,
+            status="failed",
+            failed=f"{test.name} (exit {rc})",
+            duration_seconds=duration_seconds,
+        )
+    return _CppTestRunResult(name=test.name, status="passed", duration_seconds=duration_seconds)
+
+
+def _write_duration_report(ctx: CoverageContext, results: list[_CppTestRunResult]) -> None:
+    report_path = ctx.workspace / "cpp-test-durations.csv"
+    with report_path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["test_name", "status", "duration_seconds"])
+        for result in results:
+            writer.writerow([result.name, result.status, f"{result.duration_seconds:.3f}"])
+
+    total_duration = sum(result.duration_seconds for result in results)
+    ctx.io.export_env("CXX_TEST_DURATION_REPORT", str(report_path))
+    ctx.io.export_env("CXX_TEST_DURATION_TOTAL_SECONDS", f"{total_duration:.3f}")
 
 
 def _run_tests_serial(
@@ -132,6 +171,7 @@ def _run_tests_serial(
     *,
     runtime_ld_library_path: str,
 ) -> tuple[list[str], list[str], list[str]]:
+    results: list[_CppTestRunResult] = []
     executed: list[str] = []
     skipped: list[str] = []
     failed: list[str] = []
@@ -146,11 +186,14 @@ def _run_tests_serial(
         )
         if result.skipped:
             skipped.append(result.skipped)
+            results.append(result)
             continue
         executed.append(result.name)
         if result.failed:
             failed.append(result.failed)
+        results.append(result)
 
+    _write_duration_report(ctx, results)
     return executed, skipped, failed
 
 
@@ -160,6 +203,7 @@ def _run_tests_parallel(
     *,
     runtime_ld_library_path: str,
 ) -> tuple[list[str], list[str], list[str]]:
+    results: list[_CppTestRunResult] = []
     executed: list[str] = []
     skipped: list[str] = []
     failed: list[str] = []
@@ -201,17 +245,28 @@ def _run_tests_parallel(
         result = ordered_results[index]
         if result.skipped:
             skipped.append(result.skipped)
+            results.append(result)
             continue
         executed.append(result.name)
         if result.failed:
             failed.append(result.failed)
+        results.append(result)
 
+    _write_duration_report(ctx, results)
     return executed, skipped, failed
 
 
 def run(ctx: CoverageContext) -> None:
     config = ctx.workspace / "scripts" / "coverage" / "config" / "tests_cpp.yml"
     tests = load_cpp_tests(config, ctx.test_profile)
+    selected_names = _selected_test_names()
+    if selected_names:
+        selected_set = set(selected_names)
+        known_names = {test.name for test in tests}
+        missing_names = [name for name in selected_names if name not in known_names]
+        if missing_names:
+            warn("Requested C++ tests were not found in config: " + ", ".join(missing_names))
+        tests = [test for test in tests if test.name in selected_set]
 
     _remove_gcda(ctx.paths.build_dir)
     _remove_gcda(ctx.paths.build_js_dir)
@@ -273,6 +328,8 @@ def run(ctx: CoverageContext) -> None:
         f"NPU mode: {'true' if ctx.run_npu_tests else 'false'}",
         "",
         f"C++ test concurrency: {max(1, ctx.cpp_test_concurrency)}",
+        "",
+        f"C++ test selection: {', '.join(selected_names) if selected_names else 'all enabled tests'}",
         "",
         f"C++ tests planned: {total_planned}",
         f"C++ tests executed: {total_executed}",

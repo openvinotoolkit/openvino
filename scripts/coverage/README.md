@@ -67,6 +67,7 @@ python3 scripts/coverage/coverage.py list-tests --suite python --profile gpu
 ## Outputs
 Main artifacts in workspace root:
 - `coverage.info` (native C/C++ lcov)
+- `cpp-test-durations.csv` (per-run C++ test durations in seconds)
 - `python-coverage.xml` (Python coverage XML)
 - `js-lcov.info` (Node.js lcov)
 - `coverage-report/index.html` (HTML report)
@@ -81,3 +82,7 @@ Main artifacts in workspace root:
 - `--install-deps`
 - `--install-nodejs`
 - `--nodejs-version <major>`
+
+## Step-specific Environment
+- `CXX_TEST_NAMES=name1,name2,...`: limit `run-cpp-tests` to the named config entries. This is used by the GitHub Actions workflow to shard C++ coverage jobs.
+- `PY_TEST_NAMES=name1,name2,...`: limit `run-python-tests` to the named config entries. This is used by the GitHub Actions workflow to shard Python coverage jobs.

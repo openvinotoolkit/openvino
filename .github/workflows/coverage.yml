@@ -22,7 +22,9 @@ permissions: read-all
 env:
   CMAKE_BUILD_TYPE: 'Release'
   PARALLEL_JOBS: '64'
-  CPP_TEST_CONCURRENCY: '32'
+  CPP_TEST_CONCURRENCY: '1'
+  CPP_TESTS_PER_JOB: '4'
+  PY_TESTS_PER_JOB: '4'
   PYTEST_XDIST_WORKERS: '4'
   JS_TEST_CONCURRENCY: '1'
   COVERAGE_SELECTION: ${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'cpu' }}
@@ -171,16 +173,94 @@ jobs:
           retention-days: 3
           compression-level: 0
 
-  CoverageCpp:
-    name: Coverage C++ (${{ matrix.lane }})
-    if: ${{ always() && needs.ResolveMatrix.result == 'success' }}
+  ResolveCppShards:
+    name: Resolve C++ coverage shards
+    if: ${{ always() && needs.ResolveMatrix.result == 'success' && needs.BuildCoverageArtifacts.result == 'success' }}
     needs: [ResolveMatrix, BuildCoverageArtifacts]
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+      count: ${{ steps.resolve.outputs.count }}
+    steps:
+      - name: Checkout sources for C++ shard discovery
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        with:
+          fetch-depth: 0
+          submodules: 'true'
+
+      - name: Setup python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.10.10'
+          architecture: 'x64'
+
+      - name: Install shard discovery prerequisites
+        run: python3 -m pip install pyyaml
+
+      - name: Resolve C++ shard matrix
+        id: resolve
+        env:
+          BASE_MATRIX: ${{ needs.ResolveMatrix.outputs.matrix }}
+          CPP_TESTS_PER_JOB: ${{ env.CPP_TESTS_PER_JOB }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import csv
+          import io
+          import json
+          import os
+          import subprocess
+
+          base_matrix = json.loads(os.environ["BASE_MATRIX"])
+          tests_per_job = max(1, int(os.environ.get("CPP_TESTS_PER_JOB", "4")))
+          include = []
+
+          for lane in base_matrix["include"]:
+              output = subprocess.check_output(
+                  [
+                      "python3",
+                      "scripts/coverage/coverage.py",
+                      "list-tests",
+                      "--suite",
+                      "cpp",
+                      "--profile",
+                      lane["test_profile"],
+                  ],
+                  text=True,
+              )
+              rows = csv.DictReader(io.StringIO(output), delimiter="\t")
+              enabled = [row["name"] for row in rows if row["enabled"] == "1"]
+              if not enabled:
+                  continue
+              shard_count = max(1, (len(enabled) + tests_per_job - 1) // tests_per_job)
+
+              for shard_index in range(shard_count):
+                  shard_tests = enabled[shard_index * tests_per_job : (shard_index + 1) * tests_per_job]
+                  include.append(
+                      {
+                          **lane,
+                          "cpp_shard_index": shard_index + 1,
+                          "cpp_shard_count": shard_count,
+                          "cpp_shard_label": f"{shard_index + 1:02d}-of-{shard_count:02d}",
+                          "cpp_test_count": len(shard_tests),
+                          "cpp_test_names": ",".join(shard_tests),
+                      }
+                  )
+
+          print(f"matrix={json.dumps({'include': include}, separators=(',', ':'))}")
+          print(f"count={len(include)}")
+          PY
+
+  CoverageCpp:
+    name: Coverage C++ (${{ matrix.lane }} / shard ${{ matrix.cpp_shard_index }}/${{ matrix.cpp_shard_count }})
+    if: ${{ always() && needs.ResolveMatrix.result == 'success' && needs.ResolveCppShards.result == 'success' }}
+    needs: [ResolveMatrix, BuildCoverageArtifacts, ResolveCppShards]
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.ResolveMatrix.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.ResolveCppShards.outputs.matrix) }}
     runs-on: ${{ fromJSON(matrix.cpp_runner) }}
     env:
       TEST_PROFILE: ${{ matrix.test_profile }}
+      CXX_TEST_NAMES: ${{ matrix.cpp_test_names }}
     steps:
       - name: Setup python
         if: ${{ matrix.lane != 'gpu' }}
@@ -297,7 +377,10 @@ jobs:
       - name: Run selected C++ coverage tests
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
         continue-on-error: true
-        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-cpp-tests
+        run: |
+          echo "C++ shard ${{ matrix.cpp_shard_index }}/${{ matrix.cpp_shard_count }} running ${{ matrix.cpp_test_count }} test(s)"
+          echo "Selected tests: ${{ matrix.cpp_test_names }}"
+          python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-cpp-tests
 
       - name: Persist C++ suite stats
         if: ${{ always() }}
@@ -368,10 +451,11 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: coverage-cpp-${{ matrix.lane }}
+          name: coverage-cpp-${{ matrix.lane }}-shard-${{ matrix.cpp_shard_label }}
           path: |
             coverage.info
             coverage-report
+            cpp-test-durations.csv
             .coverage-stats/cpp.env
           if-no-files-found: warn
           retention-days: 14
@@ -384,22 +468,100 @@ jobs:
           files: coverage.info
           disable_search: true
           plugins: noop
-          flags: cpp-runtime-cpp-${{ matrix.lane }}
+          flags: cpp-runtime-cpp-${{ matrix.lane }}-shard-${{ matrix.cpp_shard_label }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
           verbose: true
 
-  CoveragePython:
-    name: Coverage Python (${{ matrix.lane }})
-    if: ${{ always() && needs.ResolveMatrix.result == 'success' }}
+  ResolvePythonShards:
+    name: Resolve Python coverage shards
+    if: ${{ always() && needs.ResolveMatrix.result == 'success' && needs.BuildCoverageArtifacts.result == 'success' }}
     needs: [ResolveMatrix, BuildCoverageArtifacts]
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+      count: ${{ steps.resolve.outputs.count }}
+    steps:
+      - name: Checkout sources for Python shard discovery
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        with:
+          fetch-depth: 0
+          submodules: 'true'
+
+      - name: Setup python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.10.10'
+          architecture: 'x64'
+
+      - name: Install shard discovery prerequisites
+        run: python3 -m pip install pyyaml
+
+      - name: Resolve Python shard matrix
+        id: resolve
+        env:
+          BASE_MATRIX: ${{ needs.ResolveMatrix.outputs.matrix }}
+          PY_TESTS_PER_JOB: ${{ env.PY_TESTS_PER_JOB }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import csv
+          import io
+          import json
+          import os
+          import subprocess
+
+          base_matrix = json.loads(os.environ["BASE_MATRIX"])
+          tests_per_job = max(1, int(os.environ.get("PY_TESTS_PER_JOB", "4")))
+          include = []
+
+          for lane in base_matrix["include"]:
+              output = subprocess.check_output(
+                  [
+                      "python3",
+                      "scripts/coverage/coverage.py",
+                      "list-tests",
+                      "--suite",
+                      "python",
+                      "--profile",
+                      lane["test_profile"],
+                  ],
+                  text=True,
+              )
+              rows = csv.DictReader(io.StringIO(output), delimiter="\t")
+              enabled = [row["name"] for row in rows if row["enabled"] == "1"]
+              if not enabled:
+                  continue
+              shard_count = max(1, (len(enabled) + tests_per_job - 1) // tests_per_job)
+
+              for shard_index in range(shard_count):
+                  shard_tests = enabled[shard_index * tests_per_job : (shard_index + 1) * tests_per_job]
+                  include.append(
+                      {
+                          **lane,
+                          "py_shard_index": shard_index + 1,
+                          "py_shard_count": shard_count,
+                          "py_shard_label": f"{shard_index + 1:02d}-of-{shard_count:02d}",
+                          "py_test_count": len(shard_tests),
+                          "py_test_names": ",".join(shard_tests),
+                      }
+                  )
+
+          print(f"matrix={json.dumps({'include': include}, separators=(',', ':'))}")
+          print(f"count={len(include)}")
+          PY
+
+  CoveragePython:
+    name: Coverage Python (${{ matrix.lane }} / shard ${{ matrix.py_shard_index }}/${{ matrix.py_shard_count }})
+    if: ${{ always() && needs.ResolveMatrix.result == 'success' && needs.ResolvePythonShards.result == 'success' }}
+    needs: [ResolveMatrix, BuildCoverageArtifacts, ResolvePythonShards]
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.ResolveMatrix.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.ResolvePythonShards.outputs.matrix) }}
     runs-on: ${{ fromJSON(matrix.python_runner) }}
     env:
       TEST_PROFILE: ${{ matrix.test_profile }}
+      PY_TEST_NAMES: ${{ matrix.py_test_names }}
     steps:
       - name: Setup python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -496,7 +658,10 @@ jobs:
       - name: Run Python API/Frontend/Layer/OVC tests with coverage
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
         continue-on-error: true
-        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-python-tests
+        run: |
+          echo "Python shard ${{ matrix.py_shard_index }}/${{ matrix.py_shard_count }} running ${{ matrix.py_test_count }} test(s)"
+          echo "Selected tests: ${{ matrix.py_test_names }}"
+          python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-python-tests
 
       - name: Persist Python suite stats
         if: ${{ always() }}
@@ -572,7 +737,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: coverage-python-${{ matrix.lane }}
+          name: coverage-python-${{ matrix.lane }}-shard-${{ matrix.py_shard_label }}
           path: |
             python-coverage.xml
             coverage.info
@@ -589,7 +754,7 @@ jobs:
           files: python-coverage.xml
           disable_search: true
           plugins: noop
-          flags: python-api-frontend-layer-ovc-${{ matrix.lane }}
+          flags: python-api-frontend-layer-ovc-${{ matrix.lane }}-shard-${{ matrix.py_shard_label }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
@@ -602,7 +767,7 @@ jobs:
           files: coverage.info
           disable_search: true
           plugins: noop
-          flags: cpp-runtime-python-${{ matrix.lane }}
+          flags: cpp-runtime-python-${{ matrix.lane }}-shard-${{ matrix.py_shard_label }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
@@ -854,7 +1019,7 @@ jobs:
   CoverageSummary:
     if: ${{ always() && needs.ResolveMatrix.result == 'success' }}
     continue-on-error: true
-    needs: [ResolveMatrix, BuildCoverageArtifacts, CoverageCpp, CoveragePython, CoverageJS]
+    needs: [ResolveMatrix, BuildCoverageArtifacts, ResolveCppShards, ResolvePythonShards, CoverageCpp, CoveragePython, CoverageJS]
     runs-on: ubuntu-latest-4-cores
     steps:
       - name: Download C++ artifacts
@@ -1013,3 +1178,50 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
           rm -f "${rows_file}"
+
+      - name: Merge C++ duration reports
+        continue-on-error: true
+        run: |
+          python3 - <<'PY'
+          import csv
+          from pathlib import Path
+
+          root = Path("${{ github.workspace }}/artifacts/cpp")
+          output = Path("${{ github.workspace }}/cpp-test-durations-all.csv")
+          rows = []
+
+          if root.exists():
+              for report in sorted(root.glob("coverage-cpp-*/cpp-test-durations.csv")):
+                  shard = report.parent.name
+                  with report.open(encoding="utf-8", newline="") as f:
+                      reader = csv.DictReader(f)
+                      for row in reader:
+                          rows.append(
+                              {
+                                  "artifact": shard,
+                                  "test_name": row.get("test_name", ""),
+                                  "status": row.get("status", ""),
+                                  "duration_seconds": row.get("duration_seconds", "0"),
+                              }
+                          )
+
+          rows.sort(key=lambda row: (-float(row["duration_seconds"] or 0), row["test_name"]))
+
+          with output.open("w", encoding="utf-8", newline="") as f:
+              writer = csv.DictWriter(f, fieldnames=["artifact", "test_name", "status", "duration_seconds"])
+              writer.writeheader()
+              writer.writerows(rows)
+
+          print(f"Wrote {len(rows)} C++ duration row(s) to {output}")
+          PY
+
+      - name: Upload merged C++ duration artifact
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: coverage-cpp-durations
+          path: cpp-test-durations-all.csv
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0

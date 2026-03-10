@@ -47,6 +47,13 @@ def _expand(value: str) -> str:
     return os.path.expandvars(value)
 
 
+def _selected_test_names() -> list[str]:
+    raw = os.environ.get("PY_TEST_NAMES", "").strip()
+    if not raw:
+        return []
+    return [name.strip() for name in raw.split(",") if name.strip()]
+
+
 def _find_openvino_wheel(wheels_dir: Path) -> Path:
     candidates = sorted(wheels_dir.glob("openvino-*.whl"))
     if not candidates:
@@ -76,6 +83,14 @@ def _run_python_command(test_name: str, command: str, env_assignments: str) -> i
 def run(ctx: CoverageContext) -> None:
     config = ctx.workspace / "scripts" / "coverage" / "config" / "tests_python.yml"
     tests = load_python_tests(config, ctx.test_profile)
+    selected_names = _selected_test_names()
+    if selected_names:
+        selected_set = set(selected_names)
+        known_names = {test.name for test in tests}
+        missing_names = [name for name in selected_names if name not in known_names]
+        if missing_names:
+            warn("Requested Python tests were not found in config: " + ", ".join(missing_names))
+        tests = [test for test in tests if test.name in selected_set]
 
     if not any(test.enabled for test in tests):
         skipped = [f"{test.name} ({test.skip_reason})" for test in tests]
@@ -87,6 +102,7 @@ def run(ctx: CoverageContext) -> None:
         lines = [
             "",
             "## Python coverage test execution summary",
+            f"Python test selection: {', '.join(selected_names) if selected_names else 'all enabled tests'}",
             "Python tests executed: 0",
             "Python tests passed: 0",
             "Python tests failed: 0",
@@ -182,6 +198,7 @@ def run(ctx: CoverageContext) -> None:
     lines = [
         "",
         "## Python coverage test execution summary",
+        f"Python test selection: {', '.join(selected_names) if selected_names else 'all enabled tests'}",
         f"Python tests executed: {executed}",
         f"Python tests passed: {total_passed}",
         f"Python tests failed: {total_failed}",
