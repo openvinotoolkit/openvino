@@ -106,7 +106,7 @@ void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
 
 bool GatedDeltaNet::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                          std::string& errorMessage) noexcept {
-    if (!ov::is_type<ov::op::GatedDeltaNet>(op) || op == nullptr) {
+    if (op == nullptr || !ov::is_type<ov::op::GatedDeltaNet>(op)) {
         errorMessage = "Node is not an instance of ov::op::GatedDeltaNet.";
         return false;
     }

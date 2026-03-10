@@ -71,7 +71,7 @@ static inline void l2norm(float* a, size_t n, float eps) {
     for (size_t j = 0; j < n; j++) {
         sum += a[j] * a[j];
     }
-    float inv = 1.0f / std::sqrt(sum + 1e-6f);
+    float inv = 1.0f / std::sqrt(sum + eps);
     for (size_t j = 0; j < n; j++) {
         a[j] *= inv;
     }

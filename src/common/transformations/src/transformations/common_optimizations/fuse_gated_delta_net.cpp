@@ -57,53 +57,56 @@ bool matches_linear_attention_loop(const std::shared_ptr<ov::op::v5::Loop>& loop
     if (loop->get_input_size() < 9 || loop->get_output_size() != 2) {
         return false;
     }
-    auto Parameter_5427 = any_input(rank_equals(4) && shape_matches("[?, head_num, ?, v_head_size]"));
-    auto Parameter_5426 = any_input(rank_equals(4) && shape_matches("[?, head_num, k_head_size, v_head_size]"));
-    auto Parameter_5425 = any_input(rank_equals(3) && shape_matches("[?, head_num, 1]"));
-    auto Parameter_5424 = any_input(rank_equals(3) && shape_matches("[?, head_num, 1]"));
-    // value
-    auto Parameter_5423 = any_input(rank_equals(4) && shape_matches("[?, head_num, 1, value_head_size]"));
-    // key
-    auto Parameter_5422 = any_input(rank_equals(4) && shape_matches("[?, head_num, 1, k_head_size]"));
-    // query
-    auto Parameter_5421 = any_input(rank_equals(4) && shape_matches("[?, head_num, 1, k_head_size]"));
-    auto Parameter_5420 = any_input();
-    ;  //  tensor_array<i32[]> Parameter_5420()
-    auto Unsqueeze_5454 = wrap_type<ov::op::v0::Unsqueeze>({Parameter_5420, 0});
-    auto Parameter_5426_decompressed_to_f32 = pattern::optional<ov::op::v0::Convert>({Parameter_5426});
-    auto Parameter_5424_decompressed_to_f32 = pattern::optional<ov::op::v0::Convert>({Parameter_5424});
-    // gate
-    auto Exp_5435 = wrap_type<ov::op::v0::Exp>({Parameter_5424_decompressed_to_f32});
-    auto Unsqueeze_5436 = wrap_type<ov::op::v0::Unsqueeze>({Exp_5435, {-1}});
-    auto Multiply_5437 = wrap_type<ov::op::v1::Multiply>({Parameter_5426_decompressed_to_f32, Unsqueeze_5436});
-    auto Parameter_5422_decompressed_to_f32 = pattern::optional<ov::op::v0::Convert>({Parameter_5422});
-    auto Squeeze_5431 = wrap_type<ov::op::v0::Squeeze>({Parameter_5422_decompressed_to_f32, {2}});
-    auto Unsqueeze_5445 = wrap_type<ov::op::v0::Unsqueeze>({Squeeze_5431, {-1}});
-    auto Parameter_5423_decompressed_to_f32 = pattern::optional<ov::op::v0::Convert>({Parameter_5423});
-    auto Squeeze_5432 = wrap_type<ov::op::v0::Squeeze>({Parameter_5423_decompressed_to_f32, {2}});
-    auto Multiply_5441 = wrap_type<ov::op::v1::Multiply>({Multiply_5437, Unsqueeze_5445});
-    auto ReduceSum_5442 = wrap_type<ov::op::v1::ReduceSum>({Multiply_5441, {-2}}, {{"keep_dims", false}});
-    auto Subtract_5443 = wrap_type<ov::op::v1::Subtract>({Squeeze_5432, ReduceSum_5442});
-    auto Parameter_5425_decompressed_to_f32 = pattern::optional<ov::op::v0::Convert>({Parameter_5425});
-    auto Multiply_5444 = wrap_type<ov::op::v1::Multiply>({Subtract_5443, Parameter_5425_decompressed_to_f32});
-    auto Unsqueeze_5446 = wrap_type<ov::op::v0::Unsqueeze>({Multiply_5444, {-2}});
-    auto Multiply_5447 = wrap_type<ov::op::v1::Multiply>({Unsqueeze_5445, Unsqueeze_5446});
-    auto Add_5448 = wrap_type<ov::op::v1::Add>({Multiply_5437, Multiply_5447});
-    auto Parameter_5421_decompressed_to_f32 = pattern::optional<ov::op::v0::Convert>({Parameter_5421});
-    auto Squeeze_5430 = wrap_type<ov::op::v0::Squeeze>({Parameter_5421_decompressed_to_f32, 2});
-    auto Unsqueeze_5449 = wrap_type<ov::op::v0::Unsqueeze>({Squeeze_5430, {-1}});
-    auto Multiply_5450 = wrap_type<ov::op::v1::Multiply>({Add_5448, Unsqueeze_5449});
+    auto output_attn_buffer = any_input(rank_equals(4) && shape_matches("[?, head_num, ?, v_head_size]"));
+    auto recurrent_state = any_input(rank_equals(4) && shape_matches("[?, head_num, k_head_size, v_head_size]"));
+    auto beta = any_input(rank_equals(3) && shape_matches("[?, head_num, 1]"));
+    auto gate = any_input(rank_equals(3) && shape_matches("[?, head_num, 1]"));
+    auto value = any_input(rank_equals(4) && shape_matches("[?, head_num, 1, value_head_size]"));
+    auto key = any_input(rank_equals(4) && shape_matches("[?, head_num, 1, k_head_size]"));
+    auto query = any_input(rank_equals(4) && shape_matches("[?, head_num, 1, k_head_size]"));
+    auto step_index = any_input();
 
-    auto ReduceSum_5451 = wrap_type<ov::op::v1::ReduceSum>({Multiply_5450, {-2}}, {{"keep_dims", true}});
-    auto ReduceSum_5451_compressed_to_f16 = pattern::optional<ov::op::v0::Convert>({ReduceSum_5451});
-    auto ScatterUpdate_5455 =
-        wrap_type<ov::op::v3::ScatterUpdate>({Parameter_5427, Unsqueeze_5454, ReduceSum_5451_compressed_to_f16, 2});
-    auto Result_5460 = wrap_type<ov::op::v0::Result>({ScatterUpdate_5455});
-    auto Add_5448_compressed_to_f16 = pattern::optional<ov::op::v0::Convert>({Add_5448});
-    auto Result_5459 = wrap_type<ov::op::v0::Result>({Add_5448_compressed_to_f16});
+    auto step_index_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({step_index, 0});
+    auto recurrent_state_f32 = pattern::optional<ov::op::v0::Convert>({recurrent_state});
+    auto gate_f32 = pattern::optional<ov::op::v0::Convert>({gate});
 
-    ov::pass::pattern::Matcher loop_output_matcher(Result_5460);
-    ov::pass::pattern::Matcher loop_state_matcher(Result_5459);
+    auto exp_gate = wrap_type<ov::op::v0::Exp>({gate_f32});
+    auto exp_gate_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({exp_gate, {-1}});
+    auto gated_state = wrap_type<ov::op::v1::Multiply>({recurrent_state_f32, exp_gate_unsqueeze});
+
+    auto key_f32 = pattern::optional<ov::op::v0::Convert>({key});
+    auto key_squeezed = wrap_type<ov::op::v0::Squeeze>({key_f32, {2}});
+    auto key_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({key_squeezed, {-1}});
+
+    auto value_f32 = pattern::optional<ov::op::v0::Convert>({value});
+    auto value_squeezed = wrap_type<ov::op::v0::Squeeze>({value_f32, {2}});
+
+    auto projected_value = wrap_type<ov::op::v1::Multiply>({gated_state, key_unsqueeze});
+    auto projected_sum = wrap_type<ov::op::v1::ReduceSum>({projected_value, {-2}}, {{"keep_dims", false}});
+    auto delta = wrap_type<ov::op::v1::Subtract>({value_squeezed, projected_sum});
+
+    auto beta_f32 = pattern::optional<ov::op::v0::Convert>({beta});
+    auto scaled_delta = wrap_type<ov::op::v1::Multiply>({delta, beta_f32});
+    auto scaled_delta_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({scaled_delta, {-2}});
+    auto outer_update = wrap_type<ov::op::v1::Multiply>({key_unsqueeze, scaled_delta_unsqueeze});
+    auto updated_state = wrap_type<ov::op::v1::Add>({gated_state, outer_update});
+
+    auto query_f32 = pattern::optional<ov::op::v0::Convert>({query});
+    auto query_squeezed = wrap_type<ov::op::v0::Squeeze>({query_f32, 2});
+    auto query_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({query_squeezed, {-1}});
+    auto weighted_output = wrap_type<ov::op::v1::Multiply>({updated_state, query_unsqueeze});
+
+    auto output_reduce_sum = wrap_type<ov::op::v1::ReduceSum>({weighted_output, {-2}}, {{"keep_dims", true}});
+    auto output_reduce_sum_fp16 = pattern::optional<ov::op::v0::Convert>({output_reduce_sum});
+    auto scatter_update_output =
+        wrap_type<ov::op::v3::ScatterUpdate>({output_attn_buffer, step_index_unsqueeze, output_reduce_sum_fp16, 2});
+    auto output_result = wrap_type<ov::op::v0::Result>({scatter_update_output});
+
+    auto updated_state_fp16 = pattern::optional<ov::op::v0::Convert>({updated_state});
+    auto state_result = wrap_type<ov::op::v0::Result>({updated_state_fp16});
+
+    ov::pass::pattern::Matcher loop_output_matcher(output_result);
+    ov::pass::pattern::Matcher loop_state_matcher(state_result);
     auto body = loop->get_function();
     const auto& body_results = body->get_results();
 
