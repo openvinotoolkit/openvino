@@ -131,15 +131,15 @@ KERNEL(pa_sdpa_opt)(
 #endif
 
 #if IS_INT4_COMPRESSED
-    const uint adjusted_k_head_size = PACKED_ADJUSTED_K_HEAD_SIZE;
-    const uint adjusted_v_head_size = PACKED_ADJUSTED_V_HEAD_SIZE;
-    const uint k_head_size = PACKED_K_HEAD_SIZE;
-    const uint v_head_size = PACKED_V_HEAD_SIZE;
+    const uint phys_adjusted_k_head_size = PACKED_ADJUSTED_K_HEAD_SIZE;
+    const uint phys_adjusted_v_head_size = PACKED_ADJUSTED_V_HEAD_SIZE;
+    const uint phys_k_head_size = PACKED_K_HEAD_SIZE;
+    const uint phys_v_head_size = PACKED_V_HEAD_SIZE;
 #else
-    const uint adjusted_k_head_size = ADJUSTED_K_HEAD_SIZE;
-    const uint adjusted_v_head_size = ADJUSTED_V_HEAD_SIZE;
-    const uint k_head_size = K_HEAD_SIZE;
-    const uint v_head_size = V_HEAD_SIZE;
+    const uint phys_adjusted_k_head_size = ADJUSTED_K_HEAD_SIZE;
+    const uint phys_adjusted_v_head_size = ADJUSTED_V_HEAD_SIZE;
+    const uint phys_k_head_size = K_HEAD_SIZE;
+    const uint phys_v_head_size = V_HEAD_SIZE;
 #endif
 
     const uint batch_idx = seq_idx;
@@ -241,15 +241,15 @@ KERNEL(pa_sdpa_opt)(
             #define KEY_BLOCK MAKE_VECTOR_TYPE(INPUT1_TYPE, KEY_VEC_SIZE)
 #if IS_KV_COMPRESSED
     #ifdef IS_KEY_BY_CHANNEL
-            const uint head_stride = adjusted_k_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+            const uint head_stride = phys_adjusted_k_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
             const uint block_stride = KV_HEADS_NUM * head_stride;
             const uint key_block_offset = block_indice * block_stride + head_idx * head_stride;
             const uint hidden_stride = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
     #else
-            const uint block_offset = block_indice * adjusted_k_head_size * KV_HEADS_NUM * SUBGROUP_SIZE + head_idx * adjusted_k_head_size * SUBGROUP_SIZE;
+            const uint block_offset = block_indice * phys_adjusted_k_head_size * KV_HEADS_NUM * SUBGROUP_SIZE + head_idx * phys_adjusted_k_head_size * SUBGROUP_SIZE;
             const uint key_block_offset = block_offset;
             const uint hidden_stride = SUBGROUP_SIZE;
-            const uint key_comp_offset = key_block_offset + k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
+            const uint key_comp_offset = key_block_offset + phys_k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
             INPUT0_TYPE comp_scale = key_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = key_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
@@ -610,11 +610,11 @@ KERNEL(pa_sdpa_opt)(
             const uint value_offset = block_offset + head_size_idx;
 
 #if IS_KV_COMPRESSED
-            const uint packed_block_offset = block_indices[start_block_idx + block_num] * KV_HEADS_NUM * adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
-                                                + head_idx * adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
+            const uint packed_block_offset = block_indices[start_block_idx + block_num] * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
+                                                + head_idx * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             const uint head_size_offset = ((head_size_idx / SUBGROUP_SIZE) / U4_ELEMS_PER_BYTE) * SUBGROUP_SIZE + (head_size_idx % SUBGROUP_SIZE);
             const uint packed_value_offset = packed_block_offset + head_size_offset;
-            const uint value_comp_offset = packed_block_offset + v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
+            const uint value_comp_offset = packed_block_offset + phys_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
             INPUT0_TYPE comp_scale = value_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = value_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
@@ -634,7 +634,7 @@ KERNEL(pa_sdpa_opt)(
             VALUE_BLOCK v_vals_packed;
 
             unroll_for (uint i = 0; i < VALUE_VEC_SIZE; i++) {
-                uint index = packed_value_offset + i * v_head_size;
+                uint index = packed_value_offset + i * phys_v_head_size;
                 char packed_value = BLOCK_READN(INPUT2_TYPE, 1, value_cache, index);
                 MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed_value);
 
@@ -680,12 +680,12 @@ KERNEL(pa_sdpa_opt)(
             const uint value_offset = block_offset + head_size_idx;
 
 #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
-            const uint packed_block_offset = block_indices[last_block_idx] * KV_HEADS_NUM * adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
-                                                + head_idx * adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
+            const uint packed_block_offset = block_indices[last_block_idx] * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
+                                                + head_idx * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             const uint head_size_offset = ((head_size_idx / SUBGROUP_SIZE) / U4_ELEMS_PER_BYTE) * SUBGROUP_SIZE + (head_size_idx % SUBGROUP_SIZE);
             const uint packed_value_offset = packed_block_offset + head_size_offset;
 
-            const uint value_comp_offset = packed_block_offset + v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
+            const uint value_comp_offset = packed_block_offset + phys_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
             INPUT0_TYPE comp_scale = value_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = value_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
@@ -707,7 +707,7 @@ KERNEL(pa_sdpa_opt)(
             for (uint i = 0; i < leftovers; i++) {
 #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
                 INPUT2_TYPE value_packed = 0;
-                uint index = packed_value_offset + i * v_head_size;
+                uint index = packed_value_offset + i * phys_v_head_size;
                 char packed_value = BLOCK_READN(INPUT2_TYPE, 1, value_cache, index);
                 MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed_value);
 
