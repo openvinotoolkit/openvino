@@ -448,17 +448,23 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
                                                                reinterpret_cast<size_t>(m_tensor_place->get_data()),
                                                                m_tensor_place->get_data_size())
                                   : detail::TensorExternalData(*m_tensor_proto);
-        if (ext_data.data_location() == detail::ORT_MEM_ADDR) {
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, ext_data.load_external_mem_data());
-        } else if (m_mmap_cache) {
-            constant = std::make_shared<ov::op::v0::Constant>(
-                ov_type,
-                m_shape,
-                ext_data.load_external_mmap_data(m_model_dir.string(), m_mmap_cache));
-        } else {
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type,
-                                                              m_shape,
-                                                              ext_data.load_external_data(m_model_dir.string()));
+        try {
+            if (ext_data.data_location() == detail::ORT_MEM_ADDR) {
+                constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, ext_data.load_external_mem_data());
+            } else if (m_mmap_cache) {
+                constant = std::make_shared<ov::op::v0::Constant>(
+                    ov_type,
+                    m_shape,
+                    ext_data.load_external_mmap_data(m_model_dir.string(), m_mmap_cache));
+            } else {
+                constant = std::make_shared<ov::op::v0::Constant>(ov_type,
+                                                                  m_shape,
+                                                                  ext_data.load_external_data(m_model_dir.string()));
+            }
+        } catch (const ov::Exception&) {
+            throw error::invalid_external_data(
+                "The size of the external data file does not match the byte size of an initializer '" + get_name() +
+                "' in the model");
         }
     } else if (element_count == shape_size(m_shape) && m_tensor_proto != nullptr) {
         switch (m_tensor_proto->data_type()) {
