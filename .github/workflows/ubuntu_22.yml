@@ -627,7 +627,7 @@ jobs:
       runner: "[ 'self-hosted', 'dgpu', 'Arc-B580' ]"
       runner-group: 'Intel-GPU'
       image: ubuntu:22.04
-      options: "--group-add 44 --group-add 993 --device /dev/dri/card2:/dev/dri/card2 --device /dev/dri/renderD129:/dev/dri/renderD129"
+      options: "--group-add 44 --group-add 993 --device /dev/dri"
     # if: ${{ github.event_name == 'schedule' }}
     # if: ${{ 'false' }} # Ticket: 143677
 
