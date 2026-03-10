@@ -189,9 +189,10 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
     const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
     std::optional<ov::Dimension>& originalBatch,
     Logger logger) {
+    auto originalModel = std::const_pointer_cast<ov::Model>(model);
     // Keep the original model for all no-op/early-return paths.
     // A mutable clone is created only when plugin batching is actually about to be applied.
-    auto reshapedModel = std::const_pointer_cast<ov::Model>(model);
+    auto reshapedModel = originalModel;
     auto successfullyDebatched = false;
 
     auto batchModeIsAvailable = localConfig.isAvailable(ov::intel_npu::batch_mode.name());
@@ -245,6 +246,8 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
             updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
         }
     } catch (const std::exception& ex) {
+        // If plugin-side transformation failed, keep the original model and drop the clone
+        reshapedModel = originalModel;
         if (batchMode == ov::intel_npu::BatchMode::AUTO) {
             logger.info("Couldn't validate and reshape the model. Batching will be handled by compiler. Error: %s",
                         ex.what());
