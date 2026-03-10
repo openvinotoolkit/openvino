@@ -185,7 +185,9 @@ void storeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
  * @param model Both source and target.
  */
 void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
+    std::unordered_map<size_t, size_t> wca_offset_to_size;
     size_t constantId = 0;
+
     for (auto&& node : model->get_ordered_ops()) {
         if (ov::is_type<ov::op::v0::Constant>(node)) {
             ov::RTMap& runtimeInfoMap = node->get_rt_info();
@@ -195,6 +197,16 @@ void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
             const std::string constantIdString = std::to_string(constantId++);
             if (weightlessCacheAttrIt != runtimeInfoMap.end()) {
                 auto& weightlessCacheAttr = weightlessCacheAttrIt->second.as<ov::WeightlessCacheAttribute>();
+
+                if (!wca_offset_to_size.count(weightlessCacheAttr.bin_offset)) {
+                    wca_offset_to_size[weightlessCacheAttr.bin_offset] = weightlessCacheAttr.original_size;
+                } else {
+                    OPENVINO_ASSERT(
+                        wca_offset_to_size.at(weightlessCacheAttr.bin_offset) == weightlessCacheAttr.original_size,
+                        "The WeightlessCacheAttribute of at least two Constant nodes use the same offset, but "
+                        "different sizes");
+                }
+
                 model->set_rt_info(weightlessCacheAttr.bin_offset, "ws_bin_offset_" + constantIdString);
                 model->set_rt_info(weightlessCacheAttr.original_size, "ws_original_size_" + constantIdString);
                 model->set_rt_info(weightlessCacheAttr.original_dtype, "ws_original_dtype_" + constantIdString);
