@@ -12,8 +12,7 @@ namespace ov::intel_gpu::ocl {
 
 struct SliceScatter : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::slice_scatter")
-    explicit SliceScatter(shape_types shape_type, ValidateFunc vf = nullptr)
-        : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
+    explicit SliceScatter(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
 
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
 
