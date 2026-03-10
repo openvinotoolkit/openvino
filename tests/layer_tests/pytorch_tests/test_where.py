@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class Testwhere(PytorchLayerTest):
@@ -53,11 +53,12 @@ class Testwhere(PytorchLayerTest):
 
     @pytest.mark.parametrize(
         "mask_fill", ['zeros', 'ones', 'random'])
-    @pytest.mark.parametrize("mask_dtype", [np.uint8, bool])  # np.float32 incorrectly casted to bool
+    @pytest.mark.parametrize("mask_dtype", [skip_if_export(np.uint8, reason="torch.export requires bool predicate for where"), bool])
     @pytest.mark.parametrize("x_dtype", ["float32", "int32"])
     @pytest.mark.parametrize("y_dtype", ["float32", "int32"])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_where(self, mask_fill, mask_dtype, x_dtype, y_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(False, dtypes=(x_dtype, y_dtype)),
                    ie_device, precision, ir_version,
