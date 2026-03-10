@@ -499,13 +499,13 @@ void regclass_Core(py::module m) {
             } else if (py::isinstance(model_path, py::module_::import("pathlib").attr("Path")) ||
                        py::isinstance<py::str>(model_path)) {
                 const auto model_path_cpp = Common::utils::to_fs_path(model_path);
-                std::filesystem::path weights_fs_path;
+                std::filesystem::path weights_path_cpp;
                 if (!py::isinstance<py::none>(weights_path)) {
-                    weights_fs_path = Common::utils::to_fs_path(weights_path);
+                    weights_path_cpp = Common::utils::to_fs_path(weights_path);
                 }
                 const auto any_map = Common::utils::properties_to_any_map(config);
                 py::gil_scoped_release release;
-                return self.read_model(model_path_cpp, weights_fs_path, any_map);
+                return self.read_model(model_path_cpp, weights_path_cpp, any_map);
             }
 
             throw py::type_error("Provided python object type " + (std::string)(py::str(py::type::of(model_path))) +
