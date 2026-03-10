@@ -196,7 +196,7 @@ ResampleKernelBase::DispatchData ResampleKernelPilRef::SetDefaultForKernel(Kerne
 
 static void SetKernelArguments(const resample_params& params, ResampleKernelPilRef::KernelId kernelId,
                                cldnn::arguments_desc& arguments,
-                               std::vector<InternalBuffer>& internalBuffers) {
+                               std::vector<InternalBuffer>& internalBuffers, const uint32_t fusedCount) {
     /* maximum number of coeffs */
     switch (kernelId) {
     case ResampleKernelPilRef::eCalcHorizontalCoefficients: {
@@ -258,6 +258,11 @@ static void SetKernelArguments(const resample_params& params, ResampleKernelPilR
             arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1}); // bounds
             arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});          // output
         }
+
+        for (uint32_t i = 0; i < fusedCount; i++) {
+            arguments.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, i});
+        }
+
         break;
     }
     default:
@@ -362,6 +367,18 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
                 MakeJitConstant("ENABLE_HORIZONTAL_PASS", NeedHorizontalPass(params)),
                 MakeJitConstant("KSIZE", ksize),
             });
+
+            if (!params.fused_ops.empty()) {
+                std::vector<std::string> idx_order;
+                if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
+                    idx_order = {"b", "f", "y", "x"};
+                } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
+                    idx_order = {"b", "f", "z", "y", "x"};
+                }
+                FusedOpsConfiguration conf = {"", idx_order, "ss", GetUnitType(params), 1};
+                jit_constants.Merge(MakeFusedOpsJitConstants(params, {conf}));
+            }
+
             break;
         }
         default:
@@ -399,7 +416,9 @@ KernelsData ResampleKernelPilRef::GetKernelsData(const Params &params) const {
                          0,
                          0,
                          0);
-        SetKernelArguments(resample_parameters, id, kernel.params.arguments, kd.internalBuffers);
+
+        const auto fusedCount = GetFusedPrimitiveInputsCount(params);
+        SetKernelArguments(resample_parameters, id, kernel.params.arguments, kd.internalBuffers, fusedCount);
     }
     return {kd};
 }

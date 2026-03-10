@@ -243,7 +243,12 @@ KERNEL (resample_vertical_gpu_ref)(  __global INPUT0_TYPE* input
 #endif // ENABLE_HORIZONTAL_PASS
     }
     int out_idx = OUTPUT_GET_INDEX(b, f, y, x);
-    output[out_idx] = ss;
+    #if HAS_FUSED_OPS
+        FUSED_OPS;
+        output[out_idx] = FUSED_OPS_RESULT;
+    #else
+        output[out_idx] = ss;
+    #endif
 }
 
 #endif
