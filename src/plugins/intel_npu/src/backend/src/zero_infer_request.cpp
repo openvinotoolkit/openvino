@@ -698,29 +698,8 @@ void ZeroInferRequest::infer_async() {
     prepare_inputs();
     prepare_outputs();
 
-    _inflightInferAsyncCalls.fetch_add(1, std::memory_order_acq_rel);
-    struct InflightCounterOnFailureGuard {
-        explicit InflightCounterOnFailureGuard(std::atomic<size_t>& counter) : _counter(counter) {}
-
-        ~InflightCounterOnFailureGuard() {
-            if (_active) {
-                _counter.fetch_sub(1, std::memory_order_acq_rel);
-            }
-        }
-
-        void release() {
-            _active = false;
-        }
-
-    private:
-        std::atomic<size_t>& _counter;
-        bool _active = true;
-    } inFlightGuard(_inflightInferAsyncCalls);
-
     OV_ITT_TASK_NEXT(ZERO_INFER, "push");
     _pipeline->push();
-    inFlightGuard.release();
-    _logger.debug("InferRequest::infer_async completed");
 }
 
 void ZeroInferRequest::prepare_inputs() {
@@ -775,15 +754,11 @@ void ZeroInferRequest::prepare_inputs() {
                     void* levelZeroBuffer = levelZeroTensor->data();
 
                     if (levelZeroBuffer == nullptr) {
-                        std::lock_guard<std::mutex> lock(_inferRequestMutex);
+                        levelZeroTensor->allocate_data();
                         levelZeroBuffer = levelZeroTensor->data();
-                        if (levelZeroBuffer == nullptr) {
-                            levelZeroTensor->allocate_data();
-                            levelZeroBuffer = levelZeroTensor->data();
-                            _pipeline->update_graph_arguments(_metadata.inputs.at(inputIndex).indexUsedByDriver,
-                                                              levelZeroTensor,
-                                                              i);
-                        }
+                        _pipeline->update_graph_arguments(_metadata.inputs.at(inputIndex).indexUsedByDriver,
+                                                          levelZeroTensor,
+                                                          i);
                     }
 
                     if (userBuffer != levelZeroBuffer) {
@@ -837,13 +812,9 @@ void ZeroInferRequest::prepare_inputs() {
         void* levelZeroBuffer = levelZeroTensor->data();
 
         if (levelZeroBuffer == nullptr) {
-            std::lock_guard<std::mutex> lock(_inferRequestMutex);
+            levelZeroTensor->allocate_data();
             levelZeroBuffer = levelZeroTensor->data();
-            if (levelZeroBuffer == nullptr) {
-                levelZeroTensor->allocate_data();
-                levelZeroBuffer = levelZeroTensor->data();
-                _pipeline->update_graph_arguments(_metadata.inputs.at(inputIndex).indexUsedByDriver, levelZeroTensor);
-            }
+            _pipeline->update_graph_arguments(_metadata.inputs.at(inputIndex).indexUsedByDriver, levelZeroTensor);
         }
 
         if (userBuffer != levelZeroBuffer) {
@@ -865,11 +836,8 @@ void ZeroInferRequest::prepare_outputs() {
         OPENVINO_ASSERT(levelZeroTensor, "Output zero tensor is not allocated.");
 
         if (levelZeroTensor->data() == nullptr) {
-            std::lock_guard<std::mutex> lock(_inferRequestMutex);
-            if (levelZeroTensor->data() == nullptr) {
-                levelZeroTensor->allocate_data();
-                _pipeline->update_graph_arguments(_metadata.outputs.at(outputIndex).indexUsedByDriver, levelZeroTensor);
-            }
+            levelZeroTensor->allocate_data();
+            _pipeline->update_graph_arguments(_metadata.outputs.at(outputIndex).indexUsedByDriver, levelZeroTensor);
         }
     }
 }
@@ -877,26 +845,6 @@ void ZeroInferRequest::prepare_outputs() {
 void ZeroInferRequest::get_result() {
     OV_ITT_TASK_CHAIN(ZERO_RESULT, itt::domains::LevelZeroBackend, "get_result", "pull");
     _logger.debug("InferRequest::get_result start");
-
-    struct InflightCounterGuard {
-        explicit InflightCounterGuard(std::atomic<size_t>& counter) : _counter(counter) {}
-
-        ~InflightCounterGuard() {
-            if (_active) {
-                _counter.fetch_sub(1, std::memory_order_acq_rel);
-            }
-        }
-
-        size_t release_and_decrement() {
-            _active = false;
-            return _counter.fetch_sub(1, std::memory_order_acq_rel);
-        }
-
-    private:
-        std::atomic<size_t>& _counter;
-        bool _active = true;
-    } inFlightGuard(_inflightInferAsyncCalls);
-
     _pipeline->pull();
 
     size_t outputIndex = 0;
@@ -932,28 +880,16 @@ void ZeroInferRequest::get_result() {
             levelZeroTensor->copy_to(userTensor._ptr);
         }
 
+        levelZeroTensor->detach_imported_allocation_for_custom_tensor();
+
         ++outputIndex;
     }
 
-    const auto inFlightBeforeDecrement = inFlightGuard.release_and_decrement();
-    OPENVINO_ASSERT(inFlightBeforeDecrement > 0,
-                    "get_result called without matching infer_async, in-flight infer count is invalid");
-
-    if (inFlightBeforeDecrement == 1) {
-        for (size_t inputIndex = 0; inputIndex < _levelZeroInputTensors.size(); ++inputIndex) {
-            for (const auto& zeroTensor : get_level_zero_inputs(inputIndex)) {
-                OPENVINO_ASSERT(zeroTensor, "Input zero tensor is not allocated.");
-                if (zeroTensor != nullptr) {
-                    zeroTensor->detach_imported_allocation_for_custom_tensor();
-                }
+    for (size_t inputIndex = 0; inputIndex < _levelZeroInputTensors.size(); ++inputIndex) {
+        for (const auto& levelZeroTensor : get_level_zero_inputs(inputIndex)) {
+            if (levelZeroTensor != nullptr) {
+                levelZeroTensor->detach_imported_allocation_for_custom_tensor();
             }
-        }
-
-        for (size_t detachedOutputIndex = 0; detachedOutputIndex < _levelZeroOutputTensors.size();
-             ++detachedOutputIndex) {
-            const auto& zeroTensor = _levelZeroOutputTensors.at(detachedOutputIndex);
-            OPENVINO_ASSERT(zeroTensor, "Output zero tensor is not allocated.");
-            zeroTensor->detach_imported_allocation_for_custom_tensor();
         }
     }
 
