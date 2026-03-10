@@ -46,14 +46,14 @@ public:
 
     // TODO: public for multi-threaded execution
     struct InputData {
-        std::vector<std::shared_ptr<ov::ITensor>> tensors;
-        ov::SoPtr<ZeroTensor> hostTensor;
+        std::vector<std::shared_ptr<ZeroTensor>> tensors;
+        std::shared_ptr<ZeroTensor> hostTensor;
     };
 
     struct OutputData {
-        std::vector<std::shared_ptr<ov::ITensor>> tensors;
-        ov::SoPtr<ZeroTensor> hostTensor;
-        std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> tensorsMap;
+        std::vector<std::shared_ptr<ZeroTensor>> tensors;
+        std::shared_ptr<ZeroTensor> hostTensor;
+        std::unordered_map<std::string, std::shared_ptr<ZeroTensor>> tensorsMap;
     };
 
     ~WeightlessGraph();
@@ -81,8 +81,8 @@ private:
      * @brief Creates a pipeline for a single init schedule. This pipeline can be used for running inferences.
      */
     void create_pipeline(const size_t initIndex,
-                         const std::vector<std::shared_ptr<ov::ITensor>>& inputTensors,
-                         const std::vector<std::shared_ptr<ov::ITensor>>& outputTensors);
+                         const std::vector<std::shared_ptr<ZeroTensor>>& inputTensors,
+                         const std::vector<std::shared_ptr<ZeroTensor>>& outputTensors);
 
     /**
      * @brief Runs the pipeline corresponding to a single init schedule.
@@ -118,12 +118,12 @@ private:
      * @details Each vector entry corresponds to the output of one init schedule. The allocations have been performed
      * per init compiled model and not per init schedule output for performance reasons.
      */
-    mutable std::vector<ov::SoPtr<ZeroTensor>> _mainInputsAllocatedTensors;
+    mutable std::vector<std::shared_ptr<ZeroTensor>> _mainInputsAllocatedTensors;
     /**
      * @brief Tensors pointing towards the buffers found in "_mainInputsAllocatedTensors".
      * @details Each map entry corresponds to one input of the main schedule.
      */
-    mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _mainInputsViewTensors;
+    mutable std::unordered_map<std::string, std::shared_ptr<ZeroTensor>> _mainInputsViewTensors;
     Logger _wgLogger;  // Uses the "WeightlessGraph" domain
 };
 
