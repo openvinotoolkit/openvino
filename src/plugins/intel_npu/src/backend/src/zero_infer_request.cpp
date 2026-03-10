@@ -883,7 +883,9 @@ void ZeroInferRequest::get_result() {
 
     for (size_t inputIndex = 0; inputIndex < _levelZeroInputTensors.size(); ++inputIndex) {
         for (const auto& levelZeroTensor : get_level_zero_inputs(inputIndex)) {
-            levelZeroTensor->detach_imported_allocation_for_custom_tensor();
+            if (levelZeroTensor != nullptr) {
+                levelZeroTensor->detach_imported_allocation_for_custom_tensor();
+            }
         }
     }
 
