@@ -466,7 +466,6 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
 
 void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_length) {
     namespace uu = ov::npuw::util;
-    namespace pp = ov::npuw::perf;
 
     uu::fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
     if (auto type_ids_port = m_prefill_in_ports.find(layer_names::token_type_ids);
