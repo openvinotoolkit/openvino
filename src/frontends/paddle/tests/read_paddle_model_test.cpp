@@ -269,8 +269,7 @@ TEST(Paddle_Reader_Tests, LoadModelWithOverflowingTensorSize) {
         FAIL() << "Expected load to fail due to overflowing tensor size";
     } catch (const std::exception& ex) {
         const std::string msg = ex.what();
-        const bool has_weight_overflow =
-            msg.find("Weight tensor size overflow for constant") != std::string::npos;
+        const bool has_weight_overflow = msg.find("Weight tensor size overflow for constant") != std::string::npos;
         const bool has_dim_overflow =
             msg.find("Dimension is too large for size_t in Paddle weight tensor.") != std::string::npos;
         ASSERT_TRUE(has_weight_overflow || has_dim_overflow) << msg;
