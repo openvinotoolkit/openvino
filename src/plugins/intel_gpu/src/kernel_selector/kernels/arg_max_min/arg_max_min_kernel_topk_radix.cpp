@@ -10,7 +10,9 @@ namespace kernel_selector {
 
 namespace {
 
-size_t getOperationNumber(const arg_max_min_params& params) {
+constexpr size_t kWgSize = 256;
+
+size_t GetOperationNumber(const arg_max_min_params& params) {
     switch (params.argMaxMinAxis) {
         case ArgMaxMinAxis::BATCH: return params.outputs[0].Feature().v * params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v;
         case ArgMaxMinAxis::FEATURE: return params.outputs[0].Batch().v * params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v;
@@ -21,7 +23,7 @@ size_t getOperationNumber(const arg_max_min_params& params) {
     }
 }
 
-std::string getOperationNumberString(const arg_max_min_params& params) {
+std::string GetOperationNumberString(const arg_max_min_params& params) {
     const auto& output = params.outputs[0];
     DimensionAccessHelperJit dims(output);
     switch (params.argMaxMinAxis) {
@@ -34,7 +36,7 @@ std::string getOperationNumberString(const arg_max_min_params& params) {
     }
 }
 
-size_t getSortSize(const arg_max_min_params& params) {
+size_t GetSortSize(const arg_max_min_params& params) {
     switch (params.argMaxMinAxis) {
         case ArgMaxMinAxis::BATCH: return params.inputs[0].Batch().v;
         case ArgMaxMinAxis::FEATURE: return params.inputs[0].Feature().v;
@@ -69,25 +71,25 @@ ParamsKey ArgMaxMinKernelTopKRadix::GetSupportedKey() const {
 
 bool ArgMaxMinKernelTopKRadix::Validate(const Params& p) const {
     if (!ArgMaxMinKernelBase::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const auto& params = static_cast<const arg_max_min_params&>(p);
 
     // Only f16 input for radix approach (bit manipulation)
     if (params.inputs[0].GetDType() != Datatype::F16)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.argMaxMinSortType != ArgMaxMinSortType::VALUE)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
-    const size_t sort_size = getSortSize(params);
+    const size_t sort_size = GetSortSize(params);
 
     if (sort_size < 2)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // Combined key uses (i & 0xFFFF) as tiebreaker, so N must fit in 16 bits
     if (sort_size > 65535)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // PADDED_K (next power of 2 >= topK) must fit in SLM:
     // sort_keys[PADDED_K] + sort_idxs[PADDED_K] + histogram[256] + scalars
@@ -96,7 +98,7 @@ bool ArgMaxMinKernelTopKRadix::Validate(const Params& p) const {
         padded_k <<= 1;
     const size_t slm_needed = padded_k * 2 * sizeof(uint32_t) + 256 * sizeof(uint32_t) + 24;
     if (slm_needed > params.engineInfo.maxLocalMemSize)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }
@@ -104,14 +106,13 @@ bool ArgMaxMinKernelTopKRadix::Validate(const Params& p) const {
 ArgMaxMinKernelBase::DispatchData ArgMaxMinKernelTopKRadix::SetDefault(const arg_max_min_params& params) const {
     DispatchData dispatchData;
 
-    const size_t WG_SIZE = 256;
     size_t ops_size = 1;
     if (!params.has_dynamic_tensors()) {
-        ops_size = getOperationNumber(params);
+        ops_size = GetOperationNumber(params);
     }
 
-    dispatchData.gws = { ops_size * WG_SIZE, 1, 1 };
-    dispatchData.lws = { WG_SIZE, 1, 1 };
+    dispatchData.gws = { ops_size * kWgSize, 1, 1 };
+    dispatchData.lws = { kWgSize, 1, 1 };
 
     return dispatchData;
 }
@@ -126,8 +127,8 @@ void ArgMaxMinKernelTopKRadix::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
 
         // Sortable keys buffer: VALUES_NUM * sizeof(uint) per operation
-        const size_t sort_size = getSortSize(prim_params);
-        const size_t ops_num = getOperationNumber(prim_params);
+        const size_t sort_size = GetSortSize(prim_params);
+        const size_t ops_num = GetOperationNumber(prim_params);
         kd.internalBuffers.clear();
         kd.internalBuffers.push_back(4 * sort_size * ops_num);
     };
@@ -136,8 +137,7 @@ void ArgMaxMinKernelTopKRadix::GetUpdateDispatchDataFunc(KernelData& kd) const {
 JitConstants ArgMaxMinKernelTopKRadix::GetJitConstants(const arg_max_min_params& params) const {
     auto jit = ArgMaxMinKernelBase::GetJitConstants(params);
 
-    const size_t WG_SIZE = 256;
-    jit.AddConstant(MakeJitConstant("WG_SIZE", WG_SIZE));
+    jit.AddConstant(MakeJitConstant("WG_SIZE", kWgSize));
 
     // PADDED_K: next power of 2 >= TOP_K (for bitonic sort)
     size_t padded_k = 1;
@@ -145,9 +145,9 @@ JitConstants ArgMaxMinKernelTopKRadix::GetJitConstants(const arg_max_min_params&
     jit.AddConstant(MakeJitConstant("PADDED_K", padded_k));
 
     if (params.has_dynamic_tensors()) {
-        jit.AddConstant(MakeJitConstant("OPERATION_NUM", getOperationNumberString(params)));
+        jit.AddConstant(MakeJitConstant("OPERATION_NUM", GetOperationNumberString(params)));
     } else {
-        jit.AddConstant(MakeJitConstant("OPERATION_NUM", getOperationNumber(params)));
+        jit.AddConstant(MakeJitConstant("OPERATION_NUM", GetOperationNumber(params)));
     }
 
     if (params.argMaxMinSortType == ArgMaxMinSortType::VALUE)
@@ -179,8 +179,8 @@ KernelsData ArgMaxMinKernelTopKRadix::GetKernelsData(const Params& params) const
                      orgParams.is_shape_agnostic);
 
     // Add internal buffer for sortable keys (VALUES_NUM * sizeof(uint) per operation)
-    const size_t sort_size = getSortSize(orgParams);
-    const size_t ops_num = getOperationNumber(orgParams);
+    const size_t sort_size = GetSortSize(orgParams);
+    const size_t ops_num = GetOperationNumber(orgParams);
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
     kd.internalBuffers.push_back(4 * sort_size * ops_num);
     kd.internalBufferDataType = Datatype::UINT32;

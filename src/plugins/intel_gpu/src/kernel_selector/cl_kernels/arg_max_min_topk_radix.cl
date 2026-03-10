@@ -133,9 +133,6 @@ KERNEL(arg_max_min_topk_radix)(
     const uint lid = (uint)get_local_id(0);
     const uint output_idx = (uint)get_group_id(0);
 
-    if (OPERATION_NUM > 1 && output_idx >= OPERATION_NUM)
-        return;
-
     uint base_indices[] = { 0, 0, 0, 0, 0 };
     if (OPERATION_NUM > 1) {
         FUNC_CALL(get_indices_from_dims)(OPTIONAL_SHAPE_INFO_TENSOR output_idx, base_indices);
