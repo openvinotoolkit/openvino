@@ -18,6 +18,11 @@ using namespace ov::test::utils;
 class OfflineCompilationUnitTests : public ::testing::Test {
 protected:
     void SetUp() override {
+#ifdef _WIN32
+        _putenv_s("OV_NPU_LOG_LEVEL", "LOG_DEBUG");
+#else
+        setenv("OV_NPU_LOG_LEVEL", "LOG_DEBUG", 1);
+#endif
         std::vector<std::string> availableDevices = core.get_available_devices();
         auto it = std::find(availableDevices.begin(), availableDevices.end(), DEVICE_NPU);
         ASSERT_TRUE(it == availableDevices.end());
