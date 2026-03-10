@@ -30,21 +30,9 @@ struct LSTMNgInputMap {
         auto input_x = reorder_axes(prev_output, {1, 0, 2});
         //[begin. end)
         auto weight_list = node.get_ng_inputs("WeightList");
-        const auto num_layers = node.get_attribute<int32_t>("num_layers");
-        PADDLE_OP_CHECK(node, num_layers > 0, "num_layers must be positive for LSTM.");
-        PADDLE_OP_CHECK(node,
-                        (weight_list.size() % 2) == 0,
-                        "WeightList size must be even (weights + biases).",
-                        " Got ",
-                        weight_list.size(),
-                        ".");
         auto weight_begin = weight_list.begin();
         const size_t half_size = weight_list.size() / 2;
         int bidirect_len = node.get_attribute<bool>("is_bidirec") ? 4 : 2;
-        const size_t required_per_half = static_cast<size_t>(num_layers) * static_cast<size_t>(bidirect_len);
-        PADDLE_OP_CHECK(node,
-                        half_size >= required_per_half,
-                        "WeightList size is insufficient for num_layers and is_bidirec.");
         auto weight_end = std::next(weight_begin, half_size);
         auto bias_begin = weight_end;
         int layer_weight_start = layer * bidirect_len;
@@ -168,6 +156,29 @@ NamedOutputs lstm(const NodeContext& node) {
     auto prev_inputs = node.get_ng_inputs("Input");
     Output<Node> prev_output = prev_inputs[0];
     LSTMAttributes attrs(node);
+    PADDLE_OP_CHECK(node, attrs.m_layers > 0, "num_layers must be positive for LSTM.");
+    auto weight_list = node.get_ng_inputs("WeightList");
+    PADDLE_OP_CHECK(node,
+                    (weight_list.size() % 2) == 0,
+                    "WeightList size must be even (weights + biases).",
+                    " Got ",
+                    weight_list.size(),
+                    ".");
+    const size_t half_size = weight_list.size() / 2;
+    const int bidirect_len_weights = node.get_attribute<bool>("is_bidirec") ? 4 : 2;
+    const size_t required_per_half = static_cast<size_t>(attrs.m_layers) * static_cast<size_t>(bidirect_len_weights);
+    PADDLE_OP_CHECK(node,
+                    half_size >= required_per_half,
+                    "WeightList size is insufficient for num_layers and is_bidirec. ",
+                    "half_size=",
+                    half_size,
+                    ", required_per_half=",
+                    required_per_half,
+                    ", num_layers=",
+                    attrs.m_layers,
+                    ", is_bidirec=",
+                    node.get_attribute<bool>("is_bidirec"),
+                    ".");
     OutputVector final_h;
     OutputVector final_c;
     auto axis_const = std::make_shared<opset6::Constant>(element::i64, Shape{}, 0);
