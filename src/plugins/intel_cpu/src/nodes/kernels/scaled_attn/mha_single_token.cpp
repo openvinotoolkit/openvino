@@ -672,7 +672,7 @@ void sum_q_head(T* a, size_t n, size_t group_size, float* out) {
 template <typename TA,
           typename TB,
           typename std::enable_if<(std::is_same_v<TA, float> || std::is_same_v<TA, ov::float16>) &&
-                                  (std::is_same_v<TB, float> || std::is_same_v<TB, ov::float16>),
+                                      (std::is_same_v<TB, float> || std::is_same_v<TB, ov::float16>),
                                   bool>::type = true>
 #else
 template <typename TA, typename TB>
@@ -1327,7 +1327,8 @@ static float dot_product_by_channel(TA* a,
 }
 
 #if defined(OPENVINO_ARCH_ARM64)
-template <typename TA, typename std::enable_if<std::is_same_v<TA, float> || std::is_same_v<TA, ov::float16>, bool>::type = true>
+template <typename TA,
+          typename std::enable_if<std::is_same_v<TA, float> || std::is_same_v<TA, ov::float16>, bool>::type = true>
 #else
 template <typename TA>
 #endif
