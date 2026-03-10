@@ -107,6 +107,10 @@ class TestScatter(PytorchLayerTest):
     def test_scatter(self, dim, index, src, dtype, inplace, has_out, reduce, ie_device, precision, ir_version):
         if isinstance(src, torch.Tensor):
             src = src.to(getattr(torch, dtype))
+        if isinstance(src, torch.Tensor) and reduce is not None:
+            pytest.skip(
+                "torch.scatter with reduce and tensor src is deprecated; use torch.scatter_reduce instead"
+            )
         freeze = True
         if index is None:
             # Freeze creates empty constant tensor which isn't supported by OV.

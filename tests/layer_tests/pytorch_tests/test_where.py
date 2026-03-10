@@ -3,8 +3,13 @@
 
 import numpy as np
 import pytest
+import torch
+from packaging import version
 
 from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+
+# torch.where with a uint8 condition tensor is deprecated in PyTorch 2.9.
+_WHERE_UINT8_DEPRECATED = version.parse(torch.__version__) >= version.parse("2.9.0")
 
 
 class Testwhere(PytorchLayerTest):
@@ -60,6 +65,8 @@ class Testwhere(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     def test_where(self, mask_fill, mask_dtype, x_dtype, y_dtype, ie_device, precision, ir_version):
+        if mask_dtype == np.uint8 and _WHERE_UINT8_DEPRECATED:
+            pytest.skip("torch.where with uint8 condition is deprecated in PyTorch 2.9; use bool condition instead")
         self._test(*self.create_model(False, dtypes=(x_dtype, y_dtype)),
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={
@@ -77,6 +84,8 @@ class Testwhere(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_where_as_nonzero(self, mask_fill, mask_dtype, x_dtype, ie_device, precision, ir_version):
+        if mask_dtype == np.uint8 and _WHERE_UINT8_DEPRECATED:
+            pytest.skip("torch.where with uint8 condition is deprecated in PyTorch 2.9; use bool condition instead")
         self._test(*self.create_model(True),
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={

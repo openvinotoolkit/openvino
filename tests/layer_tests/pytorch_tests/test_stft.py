@@ -2,8 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import torch
+from packaging import version
 
 from pytorch_layer_test_class import PytorchLayerTest
+
+# stft with return_complex=False is deprecated in PyTorch 2.9.
+# return_complex=True is already tested in TestSTFTAttrs.
+_STFT_RETURN_REAL_DEPRECATED = version.parse(torch.__version__) >= version.parse("2.9.0")
 
 
 class TestSTFT(PytorchLayerTest):
@@ -68,6 +74,9 @@ class TestSTFT(PytorchLayerTest):
     def test_stft(self, n_fft, hop_length, window_size, signal_shape, normalized, ie_device, precision, ir_version, trace_model):
         if ie_device == "GPU":
             pytest.xfail(reason="STFT op is not supported on GPU yet")
+        if _STFT_RETURN_REAL_DEPRECATED:
+            pytest.skip("stft with return_complex=False is deprecated in this PyTorch version; "
+                        "return_complex=True is already covered by TestSTFTAttrs")
         self._test(*self.create_model(n_fft, hop_length, window_size, normalized), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={"win_length": window_size, "signal_shape": signal_shape}, trace_model=trace_model)
 
@@ -119,6 +128,9 @@ class TestSTFTAttrs(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    # Several parametrize entries intentionally pass window=None to test default-window
+    # handling; PyTorch warns about the missing window in those cases.
+    @pytest.mark.filterwarnings("ignore:A window was not provided:UserWarning")
     @pytest.mark.parametrize(("trace_model"), [True, False])
     @pytest.mark.parametrize(("n_fft", "hop_length", "win_length", "center", "pad_mode", "normalized", "onesided", "return_complex"), [
         [16, 4, 16, False, "reflect", False, True, False],  # default window
@@ -137,6 +149,10 @@ class TestSTFTAttrs(PytorchLayerTest):
     def test_stft_not_supported_attrs(self, n_fft, hop_length, win_length, center, pad_mode, normalized, onesided, return_complex, ie_device, precision, ir_version, trace_model):
         if ie_device == "GPU":
             pytest.xfail(reason="STFT op is not supported on GPU yet")
+
+        if not return_complex and _STFT_RETURN_REAL_DEPRECATED:
+            pytest.skip("stft with return_complex=False is deprecated in this PyTorch version; "
+                        "return_complex=True is already covered by other entries in this class")
 
         if center is True and trace_model is False:
             pytest.xfail(

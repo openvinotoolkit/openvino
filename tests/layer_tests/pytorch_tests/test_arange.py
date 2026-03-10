@@ -245,7 +245,7 @@ class TestArangeLegacy(PytorchLayerTest):
                 self.dtype = dtype
 
             def forward(self, x):
-                return torch.arange(x, out=torch.zeros(1, dtype=self.dtype))
+                return torch.arange(x, out=torch.zeros(int(x), dtype=self.dtype))
 
         class aten_arange_start_end_out(torch.nn.Module):
             def __init__(self, out) -> None:
