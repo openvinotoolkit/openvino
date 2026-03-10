@@ -692,8 +692,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         ov::npuw::util::fill_tensor_bytes(input_ids_in_tensor, 0u);
         std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()) + prefilled_bytes,
                     current_prefill_bytes,
-                    reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) +
-                        input_ids_in_tensor->get_byte_size() - current_prefill_bytes);
+                    reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) + input_ids_in_tensor->get_byte_size() -
+                        current_prefill_bytes);
 
         // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni uses 3D position_ids [3, BATCH,
         // SEQ_LEN]
