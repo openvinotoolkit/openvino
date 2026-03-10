@@ -129,6 +129,14 @@ jobs:
         env:
           TEST_DEVICE: CPU
 
+      - name: RoPE Test
+        if: ${{ inputs.model_scope == 'precommit' }}
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_rope_tests.html --self-contained-html -v --tb=short -n 2
+        env:
+          TEST_DEVICE: CPU
+
       - name: StatefulToStateless Test
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
@@ -153,15 +161,6 @@ jobs:
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pip install optimum-intel==1.25.2 transformers==4.53.3 --upgrade
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_moe_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_moe_tests.html --self-contained-html -vvv -s --tb=short -n 2
-        env:
-          TEST_DEVICE: CPU
-
-      - name: RoPE Test
-        if: ${{ inputs.model_scope == 'precommit' }}
-        run: |
-          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_rope.txt
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_rope_tests.html --self-contained-html -v --tb=short -n 2
         env:
           TEST_DEVICE: CPU
 

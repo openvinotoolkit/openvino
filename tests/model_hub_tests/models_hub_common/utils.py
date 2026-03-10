@@ -41,12 +41,7 @@ def get_models_list(file_name: str):
             other = line_items[4:]
             transformations = [item[8:] for item in other if item.startswith('ts_name:')]
             layers = [item[6:] for item in other if item.startswith('layer:')]
-            model_type = None
-            for item in other:
-                if item.startswith('type:'):
-                    model_type = item[5:]
-                    break
-            models.append((model_name, model_link, mark, reason, transformations, layers, model_type))
+            models.append((model_name, model_link, mark, reason, transformations, layers))
         else:
             items = ','.join(line_items)
             assert False, \
