@@ -37,7 +37,6 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino::npu_al
         openvino::reference
-        openvino::npu_ops
 )
 
 target_include_directories(${TARGET_NAME}
