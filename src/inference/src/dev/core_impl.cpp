@@ -1293,7 +1293,7 @@ void ov::CoreImpl::unload_plugin(const std::string& device_name) {
     m_plugins.erase(device_name);
 }
 
-void ov::CoreImpl::register_plugin(const std::string& plugin,
+void ov::CoreImpl::register_plugin(const std::filesystem::path& plugin,
                                    const std::string& device_name,
                                    const ov::AnyMap& properties) {
     std::lock_guard<std::mutex> lock(get_mutex());
@@ -1308,7 +1308,7 @@ void ov::CoreImpl::register_plugin(const std::string& plugin,
         OPENVINO_THROW("Device name must not contain dot '.' symbol");
     }
 
-    PluginDescriptor desc{ov::util::get_plugin_path(ov::util::make_path(plugin)), properties};
+    PluginDescriptor desc{ov::util::get_plugin_path(plugin), properties};
     register_plugin_in_registry_unsafe(device_name, desc);
 }
 

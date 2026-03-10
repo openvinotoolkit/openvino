@@ -4,13 +4,17 @@
 
 #pragma once
 
+#include <memory>
 #include <openvino/runtime/intel_npu/properties.hpp>
 #include <vector>
 
 #include "behavior/compiled_model/properties.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "openvino/core/log.hpp"
+#include "zero_backend.hpp"
+#include "zero_device.hpp"
 
 using namespace ov::test::behavior;
 
@@ -29,6 +33,18 @@ public:
     LogCallbackGuard(const LogCallbackGuard&) = delete;
     LogCallbackGuard& operator=(const LogCallbackGuard&) = delete;
 };
+
+bool has_non_negative_numeric_suffix(const std::string& value) {
+    const auto dot_pos = value.find('.');
+    if (dot_pos == std::string::npos || dot_pos + 1 >= value.size()) {
+        return false;
+    }
+
+    const auto suffix = value.substr(dot_pos + 1);
+    return std::all_of(suffix.begin(), suffix.end(), [](const char ch) {
+        return ch >= '0' && ch <= '9';
+    });
+}
 
 // ExecutableNetwork Properties tests
 class ClassExecutableNetworkGetPropertiesTestNPU
@@ -239,6 +255,21 @@ using ClassExecutableNetworkInvalidDeviceIDTestSuite = ClassExecutableNetworkGet
 
 TEST_P(ClassExecutableNetworkInvalidDeviceIDTestSuite, InvalidNPUdeviceIDTest) {
     deviceName = configValue.as<std::string>();
+    const bool is_non_negative_numeric_device_id = has_non_negative_numeric_suffix(deviceName);
+
+    auto backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
+    auto device = backend->getDevice();
+    if (device != nullptr && device->getName() == ov::intel_npu::Platform::AUTO_DETECT) {
+        if (is_non_negative_numeric_device_id) {
+            GTEST_SKIP()
+                << "Skip since AUTO_DETECT platform should ignore numeric suffix and find the device successfully\n";
+        }
+
+        OV_EXPECT_THROW_HAS_SUBSTRING(ov::CompiledModel compiled_model = ie.compile_model(model, deviceName),
+                                      ov::Exception,
+                                      "Compilation failed.");
+        return;
+    }
 
     OV_EXPECT_THROW_HAS_SUBSTRING(ov::CompiledModel compiled_model = ie.compile_model(model, deviceName),
                                   ov::Exception,
