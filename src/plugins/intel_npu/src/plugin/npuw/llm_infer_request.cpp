@@ -488,8 +488,6 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
     m_kvcache_request = select_generate_request(prompt_length);
     m_kvcache_in_ports = m_generate_variant_in_ports.at(m_kvcache_request);
     m_kvcache_out_ports = m_generate_variant_out_ports.at(m_kvcache_request);
-
-    apply_lora();
 }
 
 void ov::npuw::LLMInferRequest::copy_kvcache() {
@@ -694,8 +692,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         ov::npuw::util::fill_tensor_bytes(input_ids_in_tensor, 0u);
         std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()) + prefilled_bytes,
                     current_prefill_bytes,
-                    reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) + input_ids_in_tensor->get_byte_size() -
-                        current_prefill_bytes);
+                    reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) +
+                        input_ids_in_tensor->get_byte_size() - current_prefill_bytes);
 
         // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni uses 3D position_ids [3, BATCH,
         // SEQ_LEN]
@@ -727,43 +725,49 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // dynamic attention selector needs history size to determin the past KV shape and attention mask shape
         m_prefill_base_request->update_history_size(kvcache_desc.num_stored_tokens);
 
-        m_prefill_request->infer();
+        m_llm_profile["1/prefill:3.infer"] += ov::npuw::perf::ms_to_run([&]() {
+            m_prefill_request->infer();
 
-        // Accumulate Eagle3 last_hidden_state from this chunk
-        if (m_eagle3_ext.is_eagle3_model()) {
-            m_eagle3_ext.accumulate_chunk_last_hidden_state(m_prefill_request,
-                                                            m_prefill_out_ports,
-                                                            static_cast<uint32_t>(current_prompts_len),
-                                                            static_cast<uint32_t>(input_prompt_len));
-        }
+            // Accumulate Eagle3 last_hidden_state from this chunk
+            if (m_eagle3_ext.is_eagle3_model()) {
+                m_eagle3_ext.accumulate_chunk_last_hidden_state(m_prefill_request,
+                                                                m_prefill_out_ports,
+                                                                static_cast<uint32_t>(current_prompts_len),
+                                                                static_cast<uint32_t>(input_prompt_len));
+            }
 
-        if (enable_prefix_caching) {
-            m_prefix_caching_helper->store_computed_blocks(current_prompts_len,
-                                                           cache_context.prompt_hashes,
-                                                           cache_context.token_idx);
-        }
+            if (enable_prefix_caching) {
+                m_prefix_caching_helper->store_computed_blocks(current_prompts_len,
+                                                               cache_context.prompt_hashes,
+                                                               cache_context.token_idx);
+            }
 
-        remaining_prompts -= current_prompts_len;
-        kvcache_desc.num_stored_tokens += static_cast<uint32_t>(current_prompts_len);
+            remaining_prompts -= current_prompts_len;
+            kvcache_desc.num_stored_tokens += static_cast<uint32_t>(current_prompts_len);
 
-        // Do not copy last computed chunk and preserve it in present k/v layer
+            // Do not copy last computed chunk and preserve it in present k/v layer
+            if (remaining_prompts <= 0) {
+                LOG_DEBUG("All prompts have been prefilled in chunks");
+                m_tokens_in_present_chunk = current_prompts_len;
+                return;
+            }
+
+            // Copy calculated key/values chunk from present k/v layer to past k/v layer for storage
+            update_kvcache_for(m_prefill_request,
+                               m_prefill_in_ports,
+                               m_prefill_out_ports,
+                               static_cast<uint32_t>(current_prompts_len),
+                               kvcache_desc.v_tensors_transposed_pre);
+
+            // Update attention mask for the next iteration
+            std::copy_n(attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len,
+                        current_prompts_len,
+                        attn_mask_in_tensor->data<int64_t>() + kvcache_desc.num_stored_tokens - current_prompts_len);
+        });
+
         if (remaining_prompts <= 0) {
-            LOG_DEBUG("All prompts have been prefilled in chunks");
-            m_tokens_in_present_chunk = current_prompts_len;
             break;
         }
-
-        // Copy calculated key/values chunk from present k/v layer to past k/v layer for storage
-        update_kvcache_for(m_prefill_request,
-                           m_prefill_in_ports,
-                           m_prefill_out_ports,
-                           static_cast<uint32_t>(current_prompts_len),
-                           kvcache_desc.v_tensors_transposed_pre);
-
-        // Update attention mask for the next iteration
-        std::copy_n(attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len,
-                    current_prompts_len,
-                    attn_mask_in_tensor->data<int64_t>() + kvcache_desc.num_stored_tokens - current_prompts_len);
     }
 
     LOG_DEBUG("Done.");
@@ -807,7 +811,7 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
         m_eagle3_ext.prepare_inputs(m_prefill_request, m_prefill_in_ports);
     }
 
-    m_llm_profile["1/prefill:2a.device_infer"] += ov::npuw::perf::ms_to_run([&]() {
+    m_llm_profile["1/prefill:3.infer"] += ov::npuw::perf::ms_to_run([&]() {
         m_prefill_request->infer();
     });
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
@@ -834,24 +838,26 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     namespace pp = ov::npuw::perf;
 
-    process_longrope(m_prefill_request, m_prefill_in_ports, position_ids);
     m_llm_profile["1/prefill:1.prepare"] += pp::ms_to_run([&]() {
+        process_longrope(m_prefill_request, m_prefill_in_ports, position_ids);
         prepare_for_new_conversation(prompt_length);
     });
 
-    const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
-    m_llm_profile["1/prefill:2.infer"] += pp::ms_to_run([&]() {
-        if (use_chunk_prefill) {
-            OPENVINO_ASSERT(!token_type_ids,
-                            "Chunking is not implemented for Gemma model family yet. "
-                            "Please set NPUW_LLM_PREFILL_HINT to 'STATIC'");
-            infer_chunked_prefill(input_ids, attention_mask, position_ids);
-        } else {
-            infer_whole_prefill(input_ids, attention_mask, position_ids, token_type_ids);
-        }
+    m_llm_profile["1/prefill:2.apply_lora"] += pp::ms_to_run([&]() {
+        apply_lora();
     });
 
-    m_llm_profile["1/prefill:3.lm_head"] += pp::ms_to_run([&]() {
+    const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
+    if (use_chunk_prefill) {
+        OPENVINO_ASSERT(!token_type_ids,
+                        "Chunking is not implemented for Gemma model family yet. "
+                        "Please set NPUW_LLM_PREFILL_HINT to 'STATIC'");
+        infer_chunked_prefill(input_ids, attention_mask, position_ids);
+    } else {
+        infer_whole_prefill(input_ids, attention_mask, position_ids, token_type_ids);
+    }
+
+    m_llm_profile["1/prefill:4.lm_head"] += pp::ms_to_run([&]() {
         if (m_lm_head_request) {
             LOG_DEBUG("Calling inference for LM head model.");
             m_lm_head_request->infer();
@@ -859,13 +865,13 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         } else {
             m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::logits));
         }
-    });
 
-    // Update last_hidden_state only for non-chunked prefill
-    // For chunked prefill, accumulate_chunk_last_hidden_state() already set the tensor
-    if (m_eagle3_ext.is_eagle3_model() && !use_chunk_prefill) {
-        m_eagle3_ext.update_last_hidden_state(m_prefill_request, m_prefill_out_ports);
-    }
+        // Update last_hidden_state only for non-chunked prefill
+        // For chunked prefill, accumulate_chunk_last_hidden_state() already set the tensor
+        if (m_eagle3_ext.is_eagle3_model() && !use_chunk_prefill) {
+            m_eagle3_ext.update_last_hidden_state(m_prefill_request, m_prefill_out_ports);
+        }
+    });
 
     m_generate_initialized = false;
 
@@ -892,14 +898,12 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     if (!m_generate_initialized) {
         namespace pp = ov::npuw::perf;
 
-        m_llm_profile["N/generate:1.copy_kvcache"] += pp::ms_to_run([&]() {
+        m_llm_profile["N/generate:1.prepare"] += pp::ms_to_run([&]() {
             LOG_DEBUG("Copy kv-cache from prefill to generate model.");
             if (kvcache_desc.num_stored_tokens > 0) {
                 copy_kvcache();
             }
-        });
 
-        m_llm_profile["N/generate:2.init_inputs"] += pp::ms_to_run([&]() {
             LOG_DEBUG("Prepare inputs.");
             namespace uu = ov::npuw::util;
             uu::fill_tensor_bytes(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name)), 0u);
@@ -922,11 +926,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         OPENVINO_THROW("KV-Cache is full.");
     }
 
-    process_longrope(m_kvcache_request, m_kvcache_in_ports, position_ids);
-
     namespace pp = ov::npuw::perf;
 
-    m_llm_profile["N/generate:3.prepare"] += pp::ms_to_run([&]() {
+    m_llm_profile["N/generate:2.prepare"] += pp::ms_to_run([&]() {
+        process_longrope(m_kvcache_request, m_kvcache_in_ports, position_ids);
         // FIXME: these tensors should be shared between the parent & child models
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         auto kv_input_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name));
@@ -968,7 +971,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         }
     });
 
-    m_llm_profile["N/generate:4.infer"] += pp::ms_to_run([&]() {
+    m_llm_profile["N/generate:3.infer"] += pp::ms_to_run([&]() {
         m_kvcache_request->infer();
     });
     kvcache_desc.num_stored_tokens += input_tokens_len;
@@ -978,7 +981,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         m_lm_head_request->start_async();
     }
 
-    m_llm_profile["N/generate:5.update_kvcache"] += pp::ms_to_run([&]() {
+    m_llm_profile["N/generate:4.update_kvcache"] += pp::ms_to_run([&]() {
         if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
             update_kvcache_for(m_kvcache_request,
                                m_kvcache_in_ports,
@@ -988,7 +991,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         }
     });
 
-    m_llm_profile["N/generate:6.lm_head"] += pp::ms_to_run([&]() {
+    m_llm_profile["N/generate:5.lm_head"] += pp::ms_to_run([&]() {
         if (m_lm_head_request) {
             m_lm_head_request->wait();
             LOG_DEBUG("Calling inference for LM head model -- done.");
