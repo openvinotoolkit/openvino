@@ -629,7 +629,7 @@ jobs:
       image: ubuntu:22.04
       options: "--group-add 44 --group-add 993 --device /dev/dri/card2:/dev/dri/card2 --device /dev/dri/renderD129:/dev/dri/renderD129"
     # if: ${{ github.event_name == 'schedule' }}
-    if: ${{ 'false' }} # Ticket: 143677
+    # if: ${{ 'false' }} # Ticket: 143677
 
   # Ticket: CVS-182443 — iGPU runners cannot install pip packages from PyPI, need to whitelist pypi.org and download.pytorch.org
   # iGPU_RoPE_Tests:
