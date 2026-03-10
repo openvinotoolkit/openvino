@@ -105,9 +105,9 @@ if(ENABLE_ONEDNN_FOR_GPU)
             set(ONEDNN_GPU_RT "ZE")
         elseif(GPU_RUNTIME STREQUAL "OCL")
             set(ONEDNN_GPU_RT "OCL")
+        elseif(GPU_RUNTIME STREQUAL "SYCL")
+            set(ONEDNN_GPU_RT "SYCL")
         endif()
-
-        set(ONEDNN_GPU_RUNTIME "OCL" CACHE STRING "Runtime for oneDNN GPU library")
 
         ExternalProject_Add(onednn_gpu_build
             # Directory Options:
