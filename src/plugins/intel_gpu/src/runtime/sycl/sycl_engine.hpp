@@ -30,7 +30,6 @@ public:
     memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t offset) override;
     memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) override;
     bool is_the_same_buffer(const memory& mem1, const memory& mem2) override;
-    bool check_allocatable(const layout& layout, allocation_type type) override;
 
     void* get_user_context() const override;
 
@@ -45,14 +44,11 @@ public:
 
     stream_ptr create_stream(const ExecutionConfig& config) const override;
     stream_ptr create_stream(const ExecutionConfig& config, void *handle) const override;
-    stream& get_service_stream() const override;
 
-    kernel::ptr prepare_kernel(const kernel::ptr kernel) const override;
+    std::shared_ptr<kernel_builder> create_kernel_builder() const override;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     void create_onednn_engine(const ExecutionConfig& config) override;
-    // Returns onednn engine object which shares device and context with current engine
-    dnnl::engine& get_onednn_engine() const override;
 #endif
 
     static std::shared_ptr<cldnn::engine> create(const device::ptr device, runtime_types runtime_type);

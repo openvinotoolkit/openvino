@@ -33,6 +33,21 @@ public:
 
         OPENVINO_THROW("SYCL kernel cloning with reuse_kernel_handle=false is not supported.");
     }
+    bool is_same(const kernel &other) const override {
+        auto other_ptr = dynamic_cast<const sycl_kernel*>(&other);
+        if (other_ptr == nullptr) {
+            return false;
+        }
+        return get_handle() == other_ptr->get_handle();
+    }
+
+    std::vector<uint8_t> get_binary() const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::string get_build_log() const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
 };
 
 }  // namespace sycl

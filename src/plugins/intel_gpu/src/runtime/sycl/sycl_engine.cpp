@@ -67,7 +67,7 @@ backend_types sycl_engine::backend_type() const {
         case ::sycl::backend::opencl: return backend_types::ocl;
         case ::sycl::backend::ext_oneapi_hip: return backend_types::hip;
         case ::sycl::backend::ext_oneapi_cuda: return backend_types::cuda;
-        case ::sycl::backend::ext_oneapi_level_zero: return backend_types::l0;
+        case ::sycl::backend::ext_oneapi_level_zero: return backend_types::ze;
         default:
             OPENVINO_THROW("[GPU] Unsupported SYCL backend type: ", backend);
     }
@@ -85,10 +85,6 @@ void sycl_engine::create_onednn_engine(const ExecutionConfig& config) {
     }
 }
 
-dnnl::engine& sycl_engine::get_onednn_engine() const {
-    OPENVINO_ASSERT(_onednn_engine, "[GPU] Can't get onednn engine handle as it was not initialized. Please check that create_onednn_engine() was called");
-    return *_onednn_engine;
-}
 #endif
 
 const ::sycl::context& sycl_engine::get_sycl_context() const {
@@ -117,50 +113,6 @@ allocation_type sycl_engine::detect_usm_allocation_type(const void* memory) cons
     } else {
         return allocation_type::unknown;
     }
-}
-
-bool sycl_engine::check_allocatable(const layout& layout, allocation_type type) {
-    OPENVINO_ASSERT(supports_allocation(type) || type == allocation_type::sycl_buffer, "[GPU] Unsupported allocation type: ", type);
-
-    bool exceed_allocatable_mem_size = (layout.bytes_count() > get_device_info().max_alloc_mem_size);
-
-    // When dynamic shape upper bound makes bigger buffer, then return false.
-    if (exceed_allocatable_mem_size && layout.is_dynamic()) {
-        OPENVINO_ASSERT(layout.has_upper_bound(), "[GPU] Dynamic shape without upper bound tries to allocate");
-        return false;
-    }
-
-    OPENVINO_ASSERT(!exceed_allocatable_mem_size,
-                    "[GPU] Exceeded max size of memory object allocation: ",
-                    "requested ", layout.bytes_count(), " bytes, "
-                    "but max alloc size supported by device is ", get_device_info().max_alloc_mem_size, " bytes.",
-                    "Please try to reduce batch size or use lower precision.");
-
-    auto used_mem = get_used_device_memory(allocation_type::usm_device) + get_used_device_memory(allocation_type::usm_host);
-    auto exceed_available_mem_size = (layout.bytes_count() + used_mem > get_max_memory_size());
-
-    // When dynamic shape upper bound makes bigger buffer, then return false.
-    if (exceed_available_mem_size && layout.is_dynamic()) {
-        OPENVINO_ASSERT(layout.has_upper_bound(), "[GPU] Dynamic shape without upper bound tries to allocate");
-        return false;
-    }
-
-#ifdef __unix__
-    // Prevent from being killed by Ooo Killer of Linux
-    OPENVINO_ASSERT(!exceed_available_mem_size,
-                    "[GPU] Exceeded max size of memory allocation: ",
-                    "Required ", layout.bytes_count(), " bytes, already occupied : ", used_mem, " bytes, ",
-                    "but available memory size is ", get_max_memory_size(), " bytes");
-#else
-    if (exceed_available_mem_size) {
-        GPU_DEBUG_COUT << "[Warning] [GPU] Exceeded max size of memory allocation: " << "Required " << layout.bytes_count() << " bytes, already occupied : "
-                       << used_mem << " bytes, but available memory size is " << get_max_memory_size() << " bytes" << std::endl;
-        GPU_DEBUG_COUT << "Please note that performance might drop due to memory swap." << std::endl;
-        return false;
-    }
-#endif
-
-    return true;
 }
 
 memory::ptr sycl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
@@ -272,15 +224,10 @@ void* sycl_engine::get_user_context() const {
      return const_cast<void*>(static_cast<const void*>(&sycl_device.get_context()));
 }
 
-kernel::ptr sycl_engine::prepare_kernel(const kernel::ptr kernel) const {
-    // TODO: remove ocl_kernel check
-    // currently accept both sycl and ocl kernels for testing purposes
-    if (dynamic_cast<const ocl::ocl_kernel*>(kernel.get())) {
-        return kernel;
-    }
-
-    OPENVINO_ASSERT(downcast<const sycl::sycl_kernel>(kernel.get()) != nullptr);
-    return kernel;
+std::shared_ptr<kernel_builder> sycl_engine::create_kernel_builder() const {
+    auto sycl_device = std::dynamic_pointer_cast<sycl::sycl_device>(_device);
+    OPENVINO_ASSERT(sycl_device, "[GPU] Invalid device type for sycl_engine");
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 bool sycl_engine::extension_supported(::sycl::aspect extension) const {
@@ -293,10 +240,6 @@ stream::ptr sycl_engine::create_stream(const ExecutionConfig& config) const {
 
 stream::ptr sycl_engine::create_stream(const ExecutionConfig& config, void* handle) const {
     return std::make_shared<sycl_stream>(*this, config, handle);
-}
-
-stream& sycl_engine::get_service_stream() const {
-    return *_service_stream;
 }
 
 std::shared_ptr<cldnn::engine> sycl_engine::create(const device::ptr device, runtime_types runtime_type) {
