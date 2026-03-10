@@ -47,8 +47,10 @@ KERNEL(slice_scatter_ref)(OPTIONAL_SHAPE_INFO_ARG
         slice_start[i] = 0;
     }
 
-    unroll_for(int i = 0; i < AXES_BUFFER_SIZE; ++i) {
+    unroll_for(int i = 0; i < (AXES_BUFFER_SIZE < INPUT0_DIMS ? AXES_BUFFER_SIZE : INPUT0_DIMS); ++i) {
         const long axis = axes_buff[i];
+        if (axis < 0 || axis >= INPUT0_DIMS)
+            continue;
         slice_step[axis] = step_buff[i];
         slice_start[axis] = start_buff[i];
     }

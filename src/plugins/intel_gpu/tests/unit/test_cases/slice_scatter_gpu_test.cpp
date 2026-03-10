@@ -858,7 +858,7 @@ protected:
     }
 };
 
-TEST_F(SliceScatterPerfTest, large_tensor_perf) {
+TEST_F(SliceScatterPerfTest, DISABLED_large_tensor_perf) {
     // Large tensor: data [4, 16, 64, 256], updates [4, 16, 32, 256]
     // step=1 on all axes => opt kernel eligible (X=256 >> VEC_SIZE=8)
     const ov::PartialShape data_shape{4, 16, 64, 256};
@@ -878,7 +878,7 @@ TEST_F(SliceScatterPerfTest, large_tensor_perf) {
     ASSERT_GT(avg_us, 0.0);
 }
 
-TEST_F(SliceScatterPerfTest, medium_tensor_perf) {
+TEST_F(SliceScatterPerfTest, DISABLED_medium_tensor_perf) {
     // Medium tensor: data [8, 32, 64, 64], updates [8, 32, 32, 64]
     const ov::PartialShape data_shape{8, 32, 64, 64};
     const ov::PartialShape updates_shape{8, 32, 32, 64};

@@ -62,8 +62,10 @@ KERNEL(slice_scatter_opt)(OPTIONAL_SHAPE_INFO_ARG
     unroll_for(int i = 0; i < INPUT0_DIMS; ++i) {
         slice_start[i] = 0;
     }
-    unroll_for(int i = 0; i < AXES_BUFFER_SIZE; ++i) {
+    unroll_for(int i = 0; i < (AXES_BUFFER_SIZE < INPUT0_DIMS ? AXES_BUFFER_SIZE : INPUT0_DIMS); ++i) {
         const long axis = axes_buff[i];
+        if (axis < 0 || axis >= INPUT0_DIMS)
+            continue;
         slice_start[axis] = start_buff[i];
     }
 
@@ -82,7 +84,8 @@ KERNEL(slice_scatter_opt)(OPTIONAL_SHAPE_INFO_ARG
     const long total_spatial = (long)INPUT1_SIZE_Y * (long)INPUT1_SIZE_X;
 
     // Bounds check - skip excess work-items
-    if (upd_dim23_base >= total_spatial / VEC_SIZE)
+    const long num_blocks_4d = (total_spatial + VEC_SIZE - 1) / VEC_SIZE;
+    if (upd_dim23_base >= num_blocks_4d)
         return;
 
     const long linear_pos = upd_dim23_base * VEC_SIZE;
@@ -120,7 +123,8 @@ KERNEL(slice_scatter_opt)(OPTIONAL_SHAPE_INFO_ARG
     const long upd_dim234_base = get_global_id(2);
     const long total_spatial = (long)INPUT1_SIZE_Z * (long)INPUT1_SIZE_Y * (long)INPUT1_SIZE_X;
 
-    if (upd_dim234_base >= total_spatial / VEC_SIZE)
+    const long num_blocks_5d = (total_spatial + VEC_SIZE - 1) / VEC_SIZE;
+    if (upd_dim234_base >= num_blocks_5d)
         return;
 
     const long linear_pos = upd_dim234_base * VEC_SIZE;

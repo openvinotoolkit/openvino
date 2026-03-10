@@ -17,7 +17,7 @@ namespace ocl {
 namespace {
 template <typename T, class = typename std::enable_if<std::is_integral<T>::value>::type>
 std::vector<std::int64_t> extractIntegerData(const data_node& node, const stream& stream) {
-    mem_lock<T> lock{node.get_attached_memory_ptr(), stream};
+    mem_lock<T, mem_lock_type::read> lock{node.get_attached_memory_ptr(), stream};
     T* data = lock.data();
     std::vector<std::int64_t> integer_data;
     integer_data.reserve(node.get_output_layout().count());
