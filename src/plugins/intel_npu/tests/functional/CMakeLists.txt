@@ -43,6 +43,8 @@ ov_add_test_target(
   "${CMAKE_CURRENT_SOURCE_DIR}/internal"
   OBJECT_FILES
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/remote_context.cpp"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/properties.cpp"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metrics.cpp"
   LINK_LIBRARIES
   ${OPTIONAL_FUNC_TESTS_LIBS}
   openvino::func_test_utils
