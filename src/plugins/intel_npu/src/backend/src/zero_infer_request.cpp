@@ -456,8 +456,7 @@ void ZeroInferRequest::update_command_list_for_tensors(SyncInferRequest::FoundPo
                 try {
                     _logger.debug("ZeroInferRequest::set_tensors - create zero tensor");
                     OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "create zero tensor");
-                    get_level_zero_input(foundPort.idx, i) =
-                        std::make_shared<ZeroTensor>(_initStructs, tensors.at(i));
+                    get_level_zero_input(foundPort.idx, i) = std::make_shared<ZeroTensor>(_initStructs, tensors.at(i));
                 } catch (const ZeroMemException& exception) {
                     _logger.debug(
                         "ZeroInferRequest::set_tensors - exception caught while trying to create a Level Zero tensor "
