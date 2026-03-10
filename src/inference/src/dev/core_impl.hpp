@@ -272,7 +272,7 @@ public:
      * @param device_name A name of device
      * @param properties Plugin configuration
      */
-    void register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& properties);
+    void register_plugin(const std::filesystem::path& plugin, const std::string& device_name, const ov::AnyMap& properties);
 
     /**
      * @brief Provides a list of plugin names in registry; physically such plugins may not be created
