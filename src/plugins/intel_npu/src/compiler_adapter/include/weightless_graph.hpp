@@ -46,14 +46,14 @@ public:
 
     // TODO: public for multi-threaded execution
     struct InputData {
-        std::vector<std::shared_ptr<ZeroTensor>> tensors;
+        std::vector<std::shared_ptr<ov::ITensor>> tensors;
         std::shared_ptr<ZeroTensor> hostTensor;
     };
 
     struct OutputData {
-        std::vector<std::shared_ptr<ZeroTensor>> tensors;
+        std::vector<std::shared_ptr<ov::ITensor>> tensors;
         std::shared_ptr<ZeroTensor> hostTensor;
-        std::unordered_map<std::string, std::shared_ptr<ZeroTensor>> tensorsMap;
+        std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> tensorsMap;
     };
 
     ~WeightlessGraph();
@@ -81,8 +81,8 @@ private:
      * @brief Creates a pipeline for a single init schedule. This pipeline can be used for running inferences.
      */
     void create_pipeline(const size_t initIndex,
-                         const std::vector<std::shared_ptr<ZeroTensor>>& inputTensors,
-                         const std::vector<std::shared_ptr<ZeroTensor>>& outputTensors);
+                         const std::vector<std::shared_ptr<ov::ITensor>>& inputTensors,
+                         const std::vector<std::shared_ptr<ov::ITensor>>& outputTensors);
 
     /**
      * @brief Runs the pipeline corresponding to a single init schedule.
@@ -123,7 +123,7 @@ private:
      * @brief Tensors pointing towards the buffers found in "_mainInputsAllocatedTensors".
      * @details Each map entry corresponds to one input of the main schedule.
      */
-    mutable std::unordered_map<std::string, std::shared_ptr<ZeroTensor>> _mainInputsViewTensors;
+    mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _mainInputsViewTensors;
     Logger _wgLogger;  // Uses the "WeightlessGraph" domain
 };
 

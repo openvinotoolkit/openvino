@@ -139,8 +139,8 @@ template <typename Task1Callable, typename Task2Callable>
 Parallelizer(const std::shared_ptr<const ov::Model>&, Task1Callable&&, Task2Callable&&, const Logger&)
     -> Parallelizer<Task1Callable, Task2Callable>;
 
-void merge_two_maps(std::unordered_map<std::string, std::shared_ptr<ZeroTensor>>& dst,
-                    std::unordered_map<std::string, std::shared_ptr<ZeroTensor>>& src) {
+void merge_two_maps(std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& dst,
+                    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& src) {
     dst.merge(src);
     OPENVINO_ASSERT(src.empty(), "Found weights inputs collision between different inits");
 }
@@ -359,7 +359,7 @@ void WeightlessGraph::initialize(const FilteredConfig& config) {
 WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
     const size_t initIndex,
     std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants) {
-    std::vector<std::shared_ptr<ZeroTensor>> initInputsViewTensors;
+    std::vector<std::shared_ptr<ov::ITensor>> initInputsViewTensors;
     size_t initInputsByteSize = 0;
 
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).inputs) {
@@ -392,9 +392,8 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
 
         std::memcpy(currentInputBufferLocation, constant->get_data_ptr(), currentInputSize);
 
-        initInputsViewTensors.push_back(std::make_shared<ZeroTensor>(
-            _zeroInitStruct,
-            ov::make_tensor(constant->get_element_type(), constant->get_shape(), currentInputBufferLocation)));
+        initInputsViewTensors.push_back(
+            ov::make_tensor(constant->get_element_type(), constant->get_shape(), currentInputBufferLocation));
         offset += currentInputSize;
 
         // Note: By construction of the weight schedule, every constant from OV
@@ -407,8 +406,8 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
 }
 
 WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initIndex) {
-    std::vector<std::shared_ptr<ZeroTensor>> initOutputsViewTensorsVector;
-    std::unordered_map<std::string, std::shared_ptr<ZeroTensor>> initOutputsViewTensorsMap;
+    std::vector<std::shared_ptr<ov::ITensor>> initOutputsViewTensorsVector;
+    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> initOutputsViewTensorsMap;
     size_t initOutputsByteSize = 0;
 
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).outputs) {
@@ -425,11 +424,8 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
             static_cast<unsigned char*>(const_cast<void*>(initOutputsAllocatedTensor->data(ov::element::Type_t::u8))) +
             offset;
 
-        const std::shared_ptr<ZeroTensor> hostTensor =
-            std::make_shared<ZeroTensor>(_zeroInitStruct,
-                                         ov::make_tensor(descriptor.precision,
-                                                         descriptor.shapeFromCompiler.to_shape(),
-                                                         currentOutputBufferLocation));
+        const std::shared_ptr<ov::ITensor> hostTensor =
+            ov::make_tensor(descriptor.precision, descriptor.shapeFromCompiler.to_shape(), currentOutputBufferLocation);
 
         initOutputsViewTensorsVector.push_back(hostTensor);
         initOutputsViewTensorsMap.emplace(descriptor.nameFromCompiler, hostTensor);
@@ -510,8 +506,8 @@ void WeightlessGraph::run_init_multi_threaded() {
 }
 
 void WeightlessGraph::create_pipeline(const size_t initIndex,
-                                      const std::vector<std::shared_ptr<ZeroTensor>>& inputTensors,
-                                      const std::vector<std::shared_ptr<ZeroTensor>>& outputTensors) {
+                                      const std::vector<std::shared_ptr<ov::ITensor>>& inputTensors,
+                                      const std::vector<std::shared_ptr<ov::ITensor>>& outputTensors) {
     _wgLogger.debug("Init Pipeline - initialize started");
 
     if (_zeGraphExt == nullptr) {
@@ -567,7 +563,7 @@ void WeightlessGraph::set_weights_inputs() {
                         "Mismatch between main inputs and init outputs. The input of the main schedule \"",
                         desc.nameFromCompiler,
                         "\" has no correspondent within the init outputs.");
-        std::shared_ptr<ZeroTensor> weightsTensor = _mainInputsViewTensors.at(desc.nameFromCompiler);
+        std::shared_ptr<ov::ITensor> weightsTensor = _mainInputsViewTensors.at(desc.nameFromCompiler);
         set_argument_value(desc.indexUsedByDriver, static_cast<unsigned char*>(weightsTensor->data()));
     }
 }
