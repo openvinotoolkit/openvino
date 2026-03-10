@@ -22,6 +22,7 @@
 #include "node.h"
 #include "nodes/input.h"
 #include "openvino/core/model.hpp"
+#include "openvino/core/symbol.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -287,6 +288,10 @@ public:
     }
 
     friend class GraphOptimizer;
+
+    std::unordered_map<std::shared_ptr<Symbol>, Dim> m_symbolicDimValues;
+
+    SymbolTable m_symbolTable;
 
 protected:
     void ForgetGraphData() {

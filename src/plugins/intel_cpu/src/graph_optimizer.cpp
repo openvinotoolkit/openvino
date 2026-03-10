@@ -90,6 +90,7 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     // For conv with input zp, canBeExecutedInInt8() check has dependency on input zero point check.
     // Also zero point node is the input of computing-intensive nodes. Most others fusing are the output of
     // computing-intensive nodes. So Locate the FuseConvolutionAndZeroPoints() as the first optimization.
+
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE,
                        taskChain,
                        itt::domains::ov_intel_cpu_LT,
@@ -206,9 +207,9 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     FuseGatherAndConvert(graph);
     graph.RemoveDroppedNodes();
 
-    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseEltwiseAndSimple");
-    FuseEltwiseAndSimple(graph);
-    graph.RemoveDroppedNodes();
+    // OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseEltwiseAndSimple");
+    // FuseEltwiseAndSimple(graph);
+    // graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "MergeEltwiseAndConvert");
     MergeEltwiseAndConvert(graph);

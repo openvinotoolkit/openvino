@@ -138,6 +138,10 @@ TDim resolve_minus_one_dim(const Product<TDim>& product) {
 
     if (minus_one_dim.is_static() && product_out.is_static()) {
         minus_one_dim /= product_out.get_length();
+    } else if (minus_one_dim.has_symbol() && product_out.has_symbol() &&
+               ov::symbol::are_equal(minus_one_dim.get_symbol(), product_out.get_symbol())) {
+        // Dynamic products are symbolically equal: total_in / total_out = 1
+        minus_one_dim = TDim(1);
     } else {
         using namespace ov::util;
         auto& minus_one_interval = minus_one_dim.get_interval();

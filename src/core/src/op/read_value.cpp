@@ -29,6 +29,7 @@ void ReadValue::validate_and_infer_types() {
         m_variable = std::make_shared<util::Variable>(info);
     else
         m_variable->update(info);
+    // std::cout << "ReadValue: " << get_friendly_name() << " variable: " << m_variable_id << " shape: " << input_shape << " type: " << arg_t << std::endl;
     set_output_type(0, arg_t, input_shape);
 }
 
@@ -101,6 +102,11 @@ void ReadValue::validate_and_infer_types() {
         }
     }
 
+    // std::cout << "ReadValue: " << get_friendly_name() << " variable: " << variable_info.variable_id << " shape: " << variable_shape << " type: " << variable_type << std::endl;
+    // if (variable_shape.rank() != 0 && variable_shape[0].has_symbol()) {
+    //     std::cout << "ReadValue: " << get_friendly_name() << " variable: " << variable_info.variable_id
+    //               << " shape[0] symbol: " << variable_shape[0].get_symbol() << std::endl;
+    // }
     set_output_type(0, variable_type, variable_shape);
 }
 

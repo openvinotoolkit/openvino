@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <iostream>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>

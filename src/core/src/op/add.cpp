@@ -82,6 +82,77 @@ bool Add::has_evaluate() const {
         return false;
     }
 }
+bool Add::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    const auto& symbols0 = get_input_tensor(0).get_value_symbol();
+    const auto& symbols1 = get_input_tensor(1).get_value_symbol();
+
+    if (symbols0.empty() && symbols1.empty())
+        return false;
+
+    const auto& pshape0 = get_input_partial_shape(0);
+    const auto& pshape1 = get_input_partial_shape(1);
+    const auto& out_pshape = get_output_partial_shape(0);
+
+    if (pshape0.is_dynamic() || pshape1.is_dynamic() || out_pshape.is_dynamic())
+        return false;
+
+    const auto& shape0 = pshape0.to_shape();
+    const auto& shape1 = pshape1.to_shape();
+    const auto& out_shape = out_pshape.to_shape();
+
+    const auto out_size = ov::shape_size(out_shape);
+    const auto out_rank = out_shape.size();
+    const auto rank0 = shape0.size();
+    const auto rank1 = shape1.size();
+
+    output_symbols.resize(1);
+    auto& out_syms = output_symbols[0];
+    out_syms.resize(out_size, nullptr);
+
+    // Compute strides for output
+    std::vector<size_t> out_strides(out_rank, 1);
+    for (size_t i = out_rank; i > 1; --i)
+        out_strides[i - 2] = out_strides[i - 1] * out_shape[i - 1];
+
+    for (size_t flat = 0; flat < out_size; ++flat) {
+        // Decompose flat index into output coordinates
+        size_t remaining = flat;
+        size_t idx0 = 0, idx1 = 0;
+        size_t stride0 = 1, stride1 = 1;
+
+        // Compute input flat indices with broadcasting
+        // Process from last dimension to first
+        for (size_t d = out_rank; d > 0; --d) {
+            size_t coord = remaining % out_shape[d - 1];
+            remaining /= out_shape[d - 1];
+
+            // Map to input0 index (right-aligned)
+            if (d - 1 >= out_rank - rank0) {
+                size_t d0 = d - 1 - (out_rank - rank0);
+                if (shape0[d0] != 1)
+                    idx0 += coord * stride0;
+                stride0 *= shape0[d0];
+            }
+            // Map to input1 index (right-aligned)
+            if (d - 1 >= out_rank - rank1) {
+                size_t d1 = d - 1 - (out_rank - rank1);
+                if (shape1[d1] != 1)
+                    idx1 += coord * stride1;
+                stride1 *= shape1[d1];
+            }
+        }
+
+        const auto& s0 = (idx0 < symbols0.size()) ? symbols0[idx0] : nullptr;
+        const auto& s1 = (idx1 < symbols1.size()) ? symbols1[idx1] : nullptr;
+        out_syms[flat] = ov::symbol::add(s0, s1);
+    }
+
+    // Check if at least one output symbol is non-null
+    for (const auto& s : out_syms)
+        if (s != nullptr)
+            return true;
+    return false;
+}
 }  // namespace v1
 }  // namespace op
 }  // namespace ov
