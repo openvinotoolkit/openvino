@@ -40,7 +40,7 @@ struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, ov::hint::Performan
     }
 
     static OptionMode mode() {
-        return OptionMode::CompileTime;
+        return OptionMode::Both;
     }
 
     static ov::hint::PerformanceMode parse(std::string_view val) {
@@ -1354,6 +1354,20 @@ struct BATCH_COMPILER_MODE_SETTINGS final : OptionBase<BATCH_COMPILER_MODE_SETTI
 
     static bool isPublic() {
         return false;
+    }
+};
+
+struct ENABLE_WEIGHTLESS final : OptionBase<ENABLE_WEIGHTLESS, bool> {
+    static std::string_view key() {
+        return ov::enable_weightless.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
     }
 };
 

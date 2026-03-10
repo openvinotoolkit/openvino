@@ -49,7 +49,12 @@ public:
 
     void destroyGraph(GraphDescriptor& graphDescriptor);
 
-    std::string getCompilerSupportedOptions() const;
+    /**
+     * @brief Returns the list of compiler options supported by the driver.
+     * @return `std::optional<std::string>` containing the list of supported options if the query is supported,
+     *         or `std::nullopt` if the query itself is not supported.
+     */
+    std::optional<std::string> getCompilerSupportedOptions() const;
 
     /**
      * @brief Checks whether the specified driver/compiler option is supported by the driver.
