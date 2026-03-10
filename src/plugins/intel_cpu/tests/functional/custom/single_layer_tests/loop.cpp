@@ -477,6 +477,10 @@ TEST_F(StaticLoopDynamicSubgraphCPUTest, smoke_StaticLoopWithDynSubgraph) {
 
 TEST_F(LoopZeroDimBackEdgeCPUTest, smoke_ZeroDimBackEdgeNoCrash) {
     run();
+    ASSERT_EQ(function->get_output_size(), 1);
+    auto output_shape = function->get_output_shape(0);
+    ov::Shape expected_shape{0, 10, 10};
+    EXPECT_EQ(output_shape, expected_shape);
 }
 
 namespace {
