@@ -700,8 +700,10 @@ void network::invalidate_ext_block_compute_nodes(const primitive_id& output_id) 
         cursor = find_primitive(dep_id);
     }
     // cursor is now the compute node — clear its output so it re-acquires from ext_block
-    cursor->clear_output_memory();
-    GPU_DEBUG_TRACE_DETAIL << "[double-buffer] cleared output memory on compute node " << cursor->id() << std::endl;
+    if (!cursor->has_inner_networks()) {
+        cursor->clear_output_memory();
+        GPU_DEBUG_TRACE_DETAIL << "[double-buffer] cleared output memory on compute node " << cursor->id() << std::endl;
+    }
 }
 
 void network::register_output_memory_block(const primitive_id& id, ov::intel_gpu::OutputMemoryBlock* block) {
@@ -713,17 +715,13 @@ void network::register_output_memory_block(const primitive_id& id, ov::intel_gpu
             return;  // Same block already registered — nothing to do
         it->second = block;
     }
-
-    // Block changed (newly inserted or replaced) — invalidate the graph's cached
-    // output memory so realloc_outputs() doesn't reuse memory from a different block.
-    invalidate_output_memory_chain(id);
 }
 
 void network::unregister_output_memory_block(const primitive_id& id) {
     auto it = _output_memory_blocks.find(id);
     if (it != _output_memory_blocks.end()) {
         _output_memory_blocks.erase(it);
-        invalidate_output_memory_chain(id);
+        invalidate_ext_block_compute_nodes(id);
     }
 }
 
@@ -734,7 +732,7 @@ ov::intel_gpu::OutputMemoryBlock* network::get_output_memory_block(const primiti
 
 void network::clear_output_memory_blocks() {
     for (auto& [prim_id, block_ptr] : _output_memory_blocks) {
-        invalidate_output_memory_chain(prim_id);
+        invalidate_ext_block_compute_nodes(prim_id);
     }
     _output_memory_blocks.clear();
 }

@@ -747,6 +747,10 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         }
     }
 
+    // input_layout node is supposed to always use external memory in dynamic case
+    if (get_node().is_type<input_layout>())
+        return;
+
     // Forward probe: walk through single-user optimized chains to find an output
     // node with an external output memory block (ext_block).  If found, use the
     // ext_block memory directly so this node's kernel writes into it, achieving
@@ -774,10 +778,6 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             cursor = next;
         }
     }
-
-    // input_layout node is supposed to always use external memory in dynamic case
-    if (get_node().is_type<input_layout>())
-        return;
 
     auto& sp = *get_network().get_shape_predictor();
     std::vector<size_t> dt_sizes_in_B;
@@ -2144,8 +2144,9 @@ void primitive_inst::prepare_primitive() {
     _update_shape_done_by_other = false; // reset
     OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
 
-    // Re-acquire output memory when _outputs[0] was cleared.
-    if (is_dynamic() && !_outputs.empty() && !_outputs[0]) {
+    // Re-acquire output memory when _outputs[0] was cleared by
+    // invalidate_ext_block_compute_nodes (double-buffer flip).
+    if (is_dynamic() && !has_inner_networks() && !_outputs.empty() && !_outputs[0]) {
         realloc_if_needed(prev_execution_skipped);
         set_flag(ExecutionFlags::MEMORY_CHANGED);
     }
