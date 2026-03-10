@@ -80,12 +80,7 @@ void regclass_frontend_FrontEndManager(py::module m) {
         "load_by_model",
         [](const std::shared_ptr<ov::frontend::FrontEndManager>& fem, const py::object& model) {
             if (py::isinstance(model, py::module_::import("pathlib").attr("Path")) || py::isinstance<py::str>(model)) {
-                // return fem->load_by_model(Common::utils::to_fs_path(model));
-                std::string model_path = Common::utils::convert_path_to_string(model);
-
-                std::string model_path_str = model_path;
-                return fem->load_by_model(model_path_str);
-
+                return fem->load_by_model(Common::utils::to_fs_path(model));
             }
             return fem->load_by_model({Common::utils::py_object_to_any(model)});
         },
@@ -97,7 +92,7 @@ void regclass_frontend_FrontEndManager(py::module m) {
                 :type model: Any
                 :return: Frontend interface for further loading of models. 'None' if no suitable frontend is found.
                 :rtype: openvino.frontend.FrontEnd
-             )");
+            )");
 
     fem.def("__repr__", [](const ov::frontend::FrontEndManager& self) -> std::string {
         return "<FrontEndManager>";

@@ -35,11 +35,7 @@ void regclass_frontend_FrontEnd(py::module m) {
         [](FrontEnd& self, const py::object& py_obj, const bool enable_mmap = true) {
             if (py::isinstance(py_obj, py::module_::import("pathlib").attr("Path")) ||
                 py::isinstance<py::str>(py_obj) || py::isinstance<py::bytes>(py_obj)) {
-                // return self.load(Common::utils::to_fs_path(py_obj));
-
-                // check if model path is either a string/pathlib.Path/bytes
-                std::string model_path = Common::utils::convert_path_to_string(py_obj);
-                return self.load(model_path, enable_mmap);
+                return self.load(Common::utils::to_fs_path(py_obj), enable_mmap);
             } else if (py::isinstance(py_obj, pybind11::module::import("io").attr("BytesIO"))) {
                 // support of BytesIO
                 py::buffer_info info = py::buffer(py_obj.attr("getbuffer")()).request();
@@ -69,16 +65,7 @@ void regclass_frontend_FrontEnd(py::module m) {
         [](FrontEnd& self, const py::object& model) {
             if (py::isinstance(model, py::module_::import("pathlib").attr("Path")) || py::isinstance<py::str>(model) ||
                 py::isinstance<py::bytes>(model)) {
-                // return self.supported(Common::utils::to_fs_path(model));
-
-                // check if model path is either a string/pathlib.Path/bytes
-                std::string model_path = Common::utils::convert_path_to_string(model);
-                if (py::isinstance(model, py::module_::import("pathlib").attr("Path")) ||
-                    py::isinstance<py::str>(model)) {
-
-                    return self.supported(model_path.c_str());
-
-                }
+                return self.supported(Common::utils::to_fs_path(model));
             }
             return self.supported({Common::utils::py_object_to_any(model)});
         },
