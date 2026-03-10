@@ -18,7 +18,8 @@ installing via ``pip``), telemetry behavior follows the configuration of the
 Users can stop data collection at any time by running the command ``opt_in_out --opt_out``.
 Telemetry does not extend to any other Intel software, hardware, website usage, or other products.
 
-Google Analytics is used for telemetry purposes. Refer to
+When telemetry is enabled, Google Analytics is used for telemetry purposes.
+Refer to
 `Google Analytics support <https://support.google.com/analytics/answer/6004245#zippy=%2Cour-privacy-policy%2Cgoogle-analytics-cookies-and-identifiers%2Cdata-collected-by-google-analytics%2Cwhat-is-the-data-used-for%2Cdata-access>`__
 to understand how the data is collected and processed.
 
