@@ -12,7 +12,7 @@ namespace op {
 
 NamedOutputs partial_ops(const NodeContext& node, const std::string type) {
     auto x = node.get_ng_inputs("X");
-    PADDLE_OP_CHECK(node, x.size() == 2, "partial ops require exactly 2 inputs in X.");
+    PADDLE_OP_CHECK(node, x.size() == 2, "partial_ops requires exactly 2 inputs in X.");
     const auto start_index = node.get_attribute<int>("start_index");
     const auto length = node.get_attribute<int>("length");
     PADDLE_OP_CHECK(node, x[0].get_partial_shape().rank().get_length() == 2, "partial ops only support 2-D Tensor");
