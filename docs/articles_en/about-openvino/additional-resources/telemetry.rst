@@ -9,7 +9,11 @@ OpenVINO™ Telemetry
 
 To facilitate debugging and further development, OpenVINO™ may collect anonymous telemetry data.
 
-Telemetry behavior depends on the installation method and user consent. For toolkit installations, users may be asked to provide consent for telemetry during installation. For Python package installations (for example, when installing via ``pip``), telemetry behavior follows the configuration of the openvino-telemetry package.
+Telemetry behavior depends on the installation method and user consent. For
+toolkit installations, users may be asked to provide consent for telemetry
+during installation. For Python package installations (for example, when
+installing via ``pip``), telemetry behavior follows the configuration of the
+``openvino-telemetry`` package.
 
 Users can stop data collection at any time by running the command ``opt_in_out --opt_out``.
 Telemetry does not extend to any other Intel software, hardware, website usage, or other products.
