@@ -134,28 +134,4 @@ std::string slice_scatter_inst::to_string(slice_scatter_node const& node) {
     return primitive_description.str();
 }
 
-void slice_scatter_inst::update_shape_info_tensor(const kernel_impl_params& params) {
-    if (!_shape_info_memory) {
-        allocate_shape_info_memory();
-    }
-
-    mem_lock<int32_t> lock(_shape_info_memory, _network.get_stream());
-    auto shape_info_ptr = lock.data();
-    size_t offset = 0;
-    const SliceScatterKernelRefNeededInputs inputs = SliceScatterKernelRefNeededInputs::Create(*_node);
-
-    for (auto idx : inputs.GetNeededInputIndexes()) {
-        GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for input[" << idx << "]" << std::endl;
-        const auto& node_in_lay = get_node().get_input_layout(idx);
-        const auto& runtime_in_lay = params.input_layouts[idx];
-        fill_shape_info_data(runtime_in_lay, node_in_lay, shape_info_ptr, offset);
-    }
-    for (size_t i = 0; i < get_node().get_output_layouts().size(); i++) {
-        GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for output[" << i << "]" << std::endl;
-        const auto& node_out_lay = get_node().get_output_layout(i);
-        const auto& runtime_out_lay = params.output_layouts[i];
-        fill_shape_info_data(runtime_out_lay, node_out_lay, shape_info_ptr, offset);
-    }
-}
-
 }  // namespace cldnn

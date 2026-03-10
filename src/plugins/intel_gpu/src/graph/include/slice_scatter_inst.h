@@ -58,7 +58,6 @@ public:
 
     typed_primitive_inst(network& network, slice_scatter_node const& desc);
     void update_output_memory() override;
-    void update_shape_info_tensor(const kernel_impl_params& params) override;
 
 private:
     void on_execute() override;

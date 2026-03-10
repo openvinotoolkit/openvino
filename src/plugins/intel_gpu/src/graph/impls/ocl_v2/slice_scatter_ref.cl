@@ -78,10 +78,10 @@ KERNEL(slice_scatter_ref)(OPTIONAL_SHAPE_INFO_ARG
     const long slice_begin_dim3 = BRING_INTO_RANGE(slice_start[3], INPUT0_SIZE_Y);
     const long slice_begin_dim4 = BRING_INTO_RANGE(slice_start[4], INPUT0_SIZE_X);
     const long upd_dim234 = get_global_id(2);
-    const long upd_dim34 = upd_dim234 % (INPUT1_SIZE_X * INPUT1_SIZE_Y);
-    const long upd_dim2 = upd_dim234 / (INPUT1_SIZE_X * INPUT1_SIZE_Y);
-    const long upd_dim3 = upd_dim34 / INPUT1_SIZE_X;
-    const long upd_dim4 = upd_dim34 % INPUT1_SIZE_X;
+    const long upd_dim4 = upd_dim234 % INPUT1_SIZE_X;
+    const long upd_dim23 = upd_dim234 / INPUT1_SIZE_X;
+    const long upd_dim3 = upd_dim23 % INPUT1_SIZE_Y;
+    const long upd_dim2 = upd_dim23 / INPUT1_SIZE_Y;
     const long updates_index = INPUT1_GET_INDEX(upd_dim0, upd_dim1, upd_dim2, upd_dim3, upd_dim4);
     const long output_index = OUTPUT_GET_INDEX(
         slice_begin_dim0 + upd_dim0 * slice_step[0],
