@@ -285,9 +285,11 @@ private:
         mem_lock<int32_t, mem_lock_type::read> lock(blocksize_mem, *params.strm);  // converted
         auto xattn_block_size = static_cast<int32_t>(lock[seq_idx]);
         GPU_DEBUG_TRACE_DETAIL << "XAttention block size from input: " << xattn_block_size << std::endl;
-        if (xattn_block_size != 256 || params.get_device_info().arch < gpu_arch::xe2) {
-            // pre-XE2: only support 128; other: 128/256, default: 128
+        if (xattn_block_size == 128 || params.get_device_info().arch < gpu_arch::xe2) {
+            // pre-XE2: only support 128; other: 128/256, default: 256
             xattn_block_size = 128;
+        } else {
+            xattn_block_size = 256;
         }
         return xattn_block_size;
     }
