@@ -6,6 +6,7 @@
 
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/arg_max_min.hpp"
+#include "intel_gpu/primitives/assign.hpp"
 #include "intel_gpu/primitives/batch_to_space.hpp"
 #include "intel_gpu/primitives/border.hpp"
 #include "intel_gpu/primitives/broadcast.hpp"
@@ -78,6 +79,7 @@ namespace detail {
 
 REGISTER_OCL(activation);
 REGISTER_OCL(adaptive_pooling);
+REGISTER_OCL(assign);
 REGISTER_OCL(arg_max_min);
 REGISTER_OCL(batch_to_space);
 REGISTER_OCL(border);
