@@ -55,6 +55,16 @@ void ov::disable_compression_from_to(const std::shared_ptr<Node>& node, element:
     }
 }
 
+void ov::disable_compression_from_to(const std::shared_ptr<Node>& node,
+                                     const std::vector<element::Type>& from_types,
+                                     const std::vector<element::Type>& to_types) {
+    for (const auto& from : from_types) {
+        for (const auto& to : to_types) {
+            disable_compression_from_to(node, from, to);
+        }
+    }
+}
+
 void ov::enable_compression_to(const std::shared_ptr<Node>& node, element::Type to) {
     enable_compression_from_to(node, element::dynamic, to);
 }
@@ -69,6 +79,16 @@ void ov::enable_compression_from_to(const std::shared_ptr<Node>& node, element::
             if (dpc_attribute.m_disabled_precisions[from].empty()) {
                 dpc_attribute.m_disabled_precisions.erase(from);
             }
+        }
+    }
+}
+
+void ov::enable_compression_from_to(const std::shared_ptr<Node>& node,
+                                    const std::vector<element::Type>& from_types,
+                                    const std::vector<element::Type>& to_types) {
+    for (const auto& from : from_types) {
+        for (const auto& to : to_types) {
+            enable_compression_from_to(node, from, to);
         }
     }
 }

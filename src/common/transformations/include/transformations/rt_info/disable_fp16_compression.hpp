@@ -6,6 +6,7 @@
 
 #include <map>
 #include <set>
+#include <vector>
 
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/node.hpp"
@@ -56,11 +57,19 @@ TRANSFORMATIONS_API void disable_compression_from_to(const std::shared_ptr<Node>
                                                      element::Type from,
                                                      element::Type to);
 
+TRANSFORMATIONS_API void disable_compression_from_to(const std::shared_ptr<Node>& node,
+                                                     const std::vector<element::Type>& from_types,
+                                                     const std::vector<element::Type>& to_types);
+
 TRANSFORMATIONS_API void enable_compression_to(const std::shared_ptr<Node>& node, element::Type to);
 
 TRANSFORMATIONS_API void enable_compression_from_to(const std::shared_ptr<Node>& node,
                                                     element::Type from,
                                                     element::Type to);
+
+TRANSFORMATIONS_API void enable_compression_from_to(const std::shared_ptr<Node>& node,
+                                                    const std::vector<element::Type>& from_types,
+                                                    const std::vector<element::Type>& to_types);
 
 TRANSFORMATIONS_API bool is_compression_disabled_to(const std::shared_ptr<Node>& node, element::Type to);
 
