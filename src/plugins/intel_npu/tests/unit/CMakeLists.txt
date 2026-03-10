@@ -13,6 +13,7 @@ set(MANDATORY_UNIT_TESTS_LIBS
         "openvino::reference"
         "openvino::npu_al"
         "openvino::npu_logger_utils"
+        "openvino::npu_ops"
 )
 
 ov_add_test_target(
@@ -47,6 +48,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/moe_transformations/moe_unroll_patterns.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/moe_transformations/device_routed_moe_transform.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/moe_transformations/gather_to_2d_gather.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/pipelines/kokoro/kokoro_utils.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/behavior/npuw/test_engine/models/model_builder.cpp
         LINK_LIBRARIES
             ${MANDATORY_UNIT_TESTS_LIBS}

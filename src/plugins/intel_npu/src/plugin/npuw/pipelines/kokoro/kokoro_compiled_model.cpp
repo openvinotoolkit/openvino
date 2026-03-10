@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,9 +107,9 @@ ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Mod
         // REP mode is giving best compile time / stability results
         properties_model_b["NPUW_ONLINE_PIPELINE"] = "REP";
     }
-    if (!properties_model_b.count("NPUW_SUBMODEL_DEVICE")) {
-        // 20 & 99 - ISTFT & STFT, 55 & 62 - Not accurate
-        properties_model_b["NPUW_SUBMODEL_DEVICE"] = "20:CPU,99:CPU,55:CPU,62:CPU";
+    if (!properties_model_b.count("NPUW_ONLINE_AVOID")) {
+        properties_model_b["NPUW_ONLINE_AVOID"] = "P:DownsampleInterpolate/NPU,P:FloorModFP32/NPU,P:CumSumSinGen/"
+                                                  "NPU,P:BoxMullerNoise/NPU,P:AngleComplex/NPU,Op:ISTFT/NPU";
     }
     m_model_b_compiled = std::dynamic_pointer_cast<ov::npuw::ICompiledModel>(
         ov::npuw::ICompiledModel::create(split_result.model_b, plugin, properties_model_b));
