@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <clocale>
 #include <functional>
 #include <iostream>
 #include <string>
@@ -101,6 +102,10 @@ public:
     ~ScopedLocale() {
         setlocale(m_category, m_old_locale.c_str());
     }
+
+    // Disable heap allocation - it's meant for local scope usage only.
+    static void* operator new(std::size_t) = delete;
+    static void* operator new[](std::size_t) = delete;
 
 private:
     int m_category;

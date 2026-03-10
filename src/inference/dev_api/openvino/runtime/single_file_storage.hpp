@@ -13,7 +13,7 @@ namespace ov::runtime {
 class SingleFileStorage final : public ICacheManager, public IContextStore {
 public:
     /** @brief Current version of the single file storage format. */
-    static constexpr util::Version m_version{0, 1, 0, 0, 0};
+    static constexpr util::Version m_version{0, 1, 0};
 
     enum class Tag : TLVTraits::TagType {
         String = 0x02,

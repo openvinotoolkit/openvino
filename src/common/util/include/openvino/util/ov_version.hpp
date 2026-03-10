@@ -57,7 +57,7 @@ struct Version {
 
     explicit Version(std::string_view version_str) : Version(version_str.data()) {}
 
-    explicit constexpr Version(size_t major, size_t minor, size_t patch, size_t tweak, size_t build)
+    explicit constexpr Version(size_t major, size_t minor, size_t patch, size_t tweak = 0, size_t build = 0)
         : major{major},
           minor{minor},
           patch{patch},

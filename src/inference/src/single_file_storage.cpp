@@ -40,7 +40,7 @@ void read_version(std::istream& stream, util::Version& version) {
 }
 
 void validate_version(const util::Version& version) {
-    // todo Implement version compatibility check
+    util::is_version_compatible(SingleFileStorage::m_version, version);
 }
 
 void write_tlv_string(std::ostream& stream, const std::string& str) {
@@ -90,7 +90,7 @@ SingleFileStorage::SingleFileStorage(const std::filesystem::path& path) : m_file
         write_version(stream, m_version);
     } else {
         std::ifstream stream(m_file_path, std::ios::binary);
-        util::Version file_version{0, 0, 0, 0, 0};
+        util::Version file_version{0, 0, 0};
         read_version(stream, file_version);
         validate_version(file_version);
 

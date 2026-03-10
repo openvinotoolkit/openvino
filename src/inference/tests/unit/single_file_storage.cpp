@@ -65,7 +65,7 @@ TEST_F(SingleFileStorageTest, FileHeader) {
     const auto end_pos = stream.seekg(0, std::ios::end).tellg();
     EXPECT_EQ(last_pos, end_pos);  // No more data after header in just created file
 
-    util::Version read_version{header_data[0], header_data[1], header_data[2], 0, 0};
+    util::Version read_version{header_data[0], header_data[1], header_data[2]};
     EXPECT_EQ(read_version, SingleFileStorage::m_version);
 }
 
