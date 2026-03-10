@@ -43,7 +43,7 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
             auto& weightlessCacheAttr = weightlessCacheAttrIt->second.as<ov::WeightlessCacheAttribute>();
 
             auto& constant = constants[weightlessCacheAttr.bin_offset];
-            if (bool foundDuplicate = (constant != nullptr); foundDuplicate) {
+            if (constant != nullptr) {
                 // if multiple constants point to the same buffer, ensure that
                 // their binary sizes are the same
                 OPENVINO_ASSERT(constant->get_byte_size() == constantNode->get_byte_size(),
