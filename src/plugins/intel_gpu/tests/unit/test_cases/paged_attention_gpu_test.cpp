@@ -153,6 +153,11 @@ struct PagedAttentionManager {
         subsequence_begins.push_back(0);
         block_indices_begins.push_back(0);
         for (int i = 0; i < static_cast<int>(threshold.size()); i++) {
+            if (has_xattention) {
+                for (size_t i = 0; i < subsequence_descs.size(); i++) {
+                    xattention_block_size.push_back(block_size);
+                }
+            }
             xattention_threshold.emplace_back(static_cast<ov::float16>(threshold[i]));
         }
 
