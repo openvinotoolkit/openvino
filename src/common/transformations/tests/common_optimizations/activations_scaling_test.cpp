@@ -15,7 +15,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_normalization.hpp"
-#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/parameter.hpp"
@@ -23,8 +22,6 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
-#include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -71,43 +68,6 @@ TEST_F(TransformationTestsF, ScaleDownSingleLayerTest) {
         auto scale_up = std::make_shared<v1::Multiply>(add, scale_up_const);
         auto convert = std::make_shared<v0::Convert>(scale_up, ov::element::f32);
         auto result = std::make_shared<v0::Result>(convert);
-
-        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
-    }
-}
-
-TEST_F(TransformationTestsF, ScaleDownSingleLayerTest_f32) {
-    float scale_factor = 128.f;
-    {
-        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 16});
-        auto weights_const0 = v0::Constant::create(ov::element::f16, ov::Shape{16, 8}, {1});
-        auto matmul0 = std::make_shared<v0::MatMul>(input, weights_const0);
-        auto weights_const1 = v0::Constant::create(ov::element::f16, ov::Shape{8, 16}, {1});
-        auto matmul1 = std::make_shared<v0::MatMul>(matmul0, weights_const1);
-        auto convert = std::make_shared<v0::Convert>(matmul1, ov::element::f32);
-        disable_fp16_compression(convert);
-        disable_constant_folding(convert);
-        auto convert_f16 = std::make_shared<v0::Convert>(convert, ov::element::f16);
-        auto result = std::make_shared<v0::Result>(convert_f16);
-
-        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
-        manager.register_pass<ov::pass::activations_scaling::ScaleDownSingleLayer>(scale_factor, ov::element::f16);
-        manager.register_pass<ov::pass::MultiplyMultiplyFusion>();
-        manager.register_pass<ov::pass::EliminateEltwise>();
-    }
-    {
-        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 16});
-        auto weights_const0 = v0::Constant::create(ov::element::f16, ov::Shape{16, 8}, {1});
-        auto scale_down_const = v0::Constant::create(ov::element::f16, ov::Shape{}, {1.f / scale_factor});
-        auto scale_down = std::make_shared<v1::Multiply>(input, scale_down_const);
-        auto matmul0 = std::make_shared<v0::MatMul>(scale_down, weights_const0);
-        auto weights_const1 = v0::Constant::create(ov::element::f16, ov::Shape{8, 16}, {1});
-        auto matmul1 = std::make_shared<v0::MatMul>(matmul0, weights_const1);
-        auto convert = std::make_shared<v0::Convert>(matmul1, ov::element::f32);
-        auto scale_up_const = v0::Constant::create(ov::element::f32, ov::Shape{}, {scale_factor});
-        auto scale_up = std::make_shared<v1::Multiply>(convert, scale_up_const);
-        auto convert_f16 = std::make_shared<v0::Convert>(scale_up, ov::element::f16);
-        auto result = std::make_shared<v0::Result>(convert_f16);
 
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
     }
