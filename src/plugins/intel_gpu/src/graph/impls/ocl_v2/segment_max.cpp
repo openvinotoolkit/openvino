@@ -80,8 +80,7 @@ protected:
             if (out_l.is_dynamic()) {
                 wgs.global = {1, 1, 1};
             } else {
-                size_t inner_dim = static_cast<size_t>(out_l.feature()) *
-                                   out_l.spatial(2) * out_l.spatial(1) * out_l.spatial(0);
+                size_t inner_dim = static_cast<size_t>(out_l.feature()) * out_l.spatial(2) * out_l.spatial(1) * out_l.spatial(0);
                 size_t num_segments = static_cast<size_t>(out_l.batch());
                 wgs.global = {inner_dim, num_segments, 1};
             }
