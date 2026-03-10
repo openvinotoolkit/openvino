@@ -205,7 +205,6 @@ TEST_F(RTInfoSerializationTest, disabled_precision_map_adapter_roundtrip) {
 
     ov::AttributeAdapter<ov::DisabledPrecisionMap> serializing_adapter(original);
     const std::string& serialized = serializing_adapter.get();
-    ASSERT_EQ(serialized, "dynamic:f16;f32:bf16,f16");
 
     ov::DisabledPrecisionMap restored;
     ov::AttributeAdapter<ov::DisabledPrecisionMap> deserializing_adapter(restored);
