@@ -187,6 +187,7 @@ void ZeroDynamicInferRequest::infer_async() {
     predict_shapes(outputPros);
     check_tensor_and_predicted_shapes(outputPros);
     prepare_inputs();
+    prepare_outputs();
     update_tensor(outputPros);
 
     OV_ITT_TASK_NEXT(ZERO_INFER, "push");

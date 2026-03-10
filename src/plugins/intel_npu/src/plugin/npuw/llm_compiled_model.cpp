@@ -1163,9 +1163,11 @@ struct NPUDesc {
     int64_t max_tiles = 0;
     bool compiler_dq = false;
     int64_t compiler_ver = 0;
+    bool support_flash_attention_tile = false;
 };
 
-std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
+std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
+                                              const ov::AnyMap& config) {
     const auto all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
     if (all_devices.empty()) {
         return std::nullopt;
@@ -1183,7 +1185,25 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         desc.compiler_dq = true;
     }
 
-    desc.compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
+    // Get compiler version based on NPU_COMPILER_TYPE configuration
+    // If NPU_COMPILER_TYPE is not specified in config, use default compiler version
+    auto compiler_type_it = config.find(ov::intel_npu::compiler_type.name());
+    if (compiler_type_it == config.end()) {
+        // NPU_COMPILER_TYPE is not specified in config, use default compiler version
+        desc.compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
+    } else {
+        // NPU_COMPILER_TYPE is specified in config, get compiler version for the specified compiler type
+        auto target_compiler_type = compiler_type_it->second.as<std::string>();
+        desc.compiler_ver = plugin
+                                ->get_property(ov::intel_npu::compiler_version.name(),
+                                               ov::AnyMap{{ov::intel_npu::compiler_type.name(), target_compiler_type}})
+                                .as<int64_t>();
+    }
+
+    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
+        // Flash attention tile is supported starting from compiler version 7.29 on NPU5010
+        desc.support_flash_attention_tile = true;
+    }
 
     return std::make_optional(std::move(desc));
 }
@@ -1563,12 +1583,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
 
-    const auto npudesc = extract_npu_descriptor(plugin);
-
     ov::AnyMap npuw_llm_props;
     ov::AnyMap other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
+    const auto npudesc = extract_npu_descriptor(plugin, other_props);
     auto use_whisper_key = pop_option(other_props, std::string("NPUW_WHISPER"));
+    auto whisper_eos_token = pop_option(other_props, std::string("NPUW_WHISPER_EOS_TOKEN"));
     auto use_eagle_key = pop_option(other_props, std::string("NPUW_EAGLE"));
     auto kv_cache_precision_hint = pop_option(other_props, ov::hint::kv_cache_precision.name());
 
@@ -1605,12 +1625,25 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
+    // Decide on using fused flash attention tile based on provided option and NPU capabilities.
+    // If hardware supports and attention hint is set to HFA, then we can use fused flash attention implementation
+    // automatically, unless user explicitly disables it via NPUW_ATTN_HFA_FUSED=NO option.
+    const auto is_hfa =
+        m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>() == ::intel_npu::npuw::llm::AttentionHint::HFA;
+    const auto hfa_fused_npu_supported = npudesc.has_value() && npudesc->support_flash_attention_tile;
+    if (other_props.count("NPUW_ATTN_HFA_FUSED") == 0 && is_hfa && hfa_fused_npu_supported) {
+        other_props["NPUW_ATTN_HFA_FUSED"] = "YES";
+        LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
+    }
+
     m_is_whisper = use_whisper_key.value_or(false).as<bool>() == true;
     if (m_is_whisper) {
         m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
         m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
         m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
         m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
+
+        m_eos_token_id = whisper_eos_token.value_or(50257).as<uint64_t>();
     }
 
     m_is_eagle = use_eagle_key.value_or(false).as<bool>() == true;
@@ -1627,6 +1660,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
         if (npuw_llm_props.find("NPUW_LLM_GENERATE_HINT") == npuw_llm_props.end()) {
             m_cfg.update({{"NPUW_LLM_GENERATE_HINT", "BEST_PERF"}});
+        }
+
+        // Enable DEVICE_ROUTED mode by default for MoE models on newer compiler versions, as it's more efficient than
+        // HOST_ROUTED
+        if (npuw_llm_props.find("NPUW_LLM_GENERATE_MOE_HINT") == npuw_llm_props.end() && npudesc->arch == "5010" &&
+            npudesc->compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
+            m_cfg.update({{"NPUW_LLM_GENERATE_MOE_HINT", "DEVICE_ROUTED"}});
         }
     }
 
@@ -2482,6 +2522,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::generate_attn_hint, NPUW_LLM_GENERATE_ATTENTION_HINT, getString),
                           BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get),
                           BIND(npuw::whisper::enabled, NPUW_WHISPER, get),
+                          BIND(npuw::whisper::whisper_eos_token, NPUW_WHISPER_EOS_TOKEN, get),
                           BIND(npuw::eagle::enabled, NPUW_EAGLE, get),
                           BIND(npuw::text_embed::enabled, NPUW_TEXT_EMBED, get)});
 #undef BIND

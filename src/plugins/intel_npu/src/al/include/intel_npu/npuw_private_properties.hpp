@@ -308,6 +308,14 @@ static constexpr ov::Property<bool> attn_no_copy{"NPUW_ATTN_NO_COPY"};
 
 /**
  * @brief
+ * Type: boolean.
+ * Use flash attention implementation from the compiler for the attention block, if attn set to HFA
+ * Default value: true
+ */
+static constexpr ov::Property<bool> attn_hfa_fused{"NPUW_ATTN_HFA_FUSED"};
+
+/**
+ * @brief
  * Type: boolean
  * Force subgraph interconnect tensors to f16 precision if those are in f32
  * Default value: false
@@ -748,6 +756,14 @@ namespace whisper {
  * Default value: false.
  */
 static constexpr ov::Property<bool> enabled{"NPUW_WHISPER"};
+
+/**
+ * @brief
+ * Type: uint64_t.
+ * Provide eos_token for Whisper model (WA).
+ * Default value: 50257.
+ */
+static constexpr ov::Property<uint64_t> whisper_eos_token{"NPUW_WHISPER_EOS_TOKEN"};
 }  // namespace whisper
 
 namespace eagle {
