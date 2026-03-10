@@ -31,17 +31,17 @@ inline constexpr DataID invalid_constant_id = invalid_source_id;
 
 /** @brief Metadata for a weight */
 struct WeightMetaData {
-    size_t m_offset;           //!< weight data bytes offset in source buffer.
-    size_t m_size;             //!< weight data size in bytes
-    ov::element::Type m_type;  //!< weight data precisoin.
+    size_t m_offset;
+    size_t m_size;
+    ov::element::Type m_type;
 };
 
-/** @brief Metadata for the origin properties of weight to restore it from the original source. */
+/** @brief Metadata for the origin of a weight */
 struct WeightOriginMetaData {
-    DataID m_id;               //!< weight id to identify weight in source.
-    size_t m_offset;           //!< weight data bytes offset in source buffer.
-    size_t m_size;             //!< weight data size in bytes
-    ov::element::Type m_type;  //!< weight data precisoin.
+    DataID m_id;
+    size_t m_offset;
+    size_t m_size;
+    ov::element::Type m_type;
 };
 
 /** @brief Type for weight buffer shared pointer*/
@@ -51,7 +51,7 @@ using WeakWeightBuffer = std::weak_ptr<ov::AlignedBuffer>;
 
 /** @brief Structure representing a weight source */
 struct WeightSource {
-    std::string m_device;
+    DataID m_device;
     WeakWeightBuffer m_weights;
 };
 
