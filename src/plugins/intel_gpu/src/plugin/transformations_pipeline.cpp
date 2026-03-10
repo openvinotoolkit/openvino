@@ -439,7 +439,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 [&](const_node_ptr &) -> bool {
                     auto& engine = m_context->get_engine();
                     const auto& info = engine.get_device_info();
-                    if (!(info.supports_immad)) { // CM optimized for systolic-array architectures
+                    if (!info.supports_immad) { // CM optimized for systolic-array architectures
                         return true;
                     }
 
@@ -605,7 +605,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             auto check_xattn_gpu_compatibility  = [&](void) -> bool {
                         auto& engine = m_context->get_engine();
                         const auto& info = engine.get_device_info();
-                         if (!(info.supports_immad)) {  // CM optimized for systolic-array architectures
+                         if (!info.supports_immad) {  // CM optimized for systolic-array architectures
                             return false;
                         }
 
