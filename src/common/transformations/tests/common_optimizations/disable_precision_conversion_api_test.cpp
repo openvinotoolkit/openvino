@@ -91,4 +91,4 @@ TEST(DisablePrecisionConversionAPITest, dynamic_to_dynamic_blocks_everything) {
     ASSERT_TRUE(is_compression_disabled_from_to(node, element::f32, element::i8));
 }
 
-} // namespace ov::test
+}  // namespace ov::test
