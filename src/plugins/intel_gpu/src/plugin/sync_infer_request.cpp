@@ -253,6 +253,14 @@ void SyncInferRequest::enqueue() {
     // into the network object primitives
     std::vector<cldnn::event::ptr> dependencies;
 
+    // Collect host-side input pointers during the input preparation loop so
+    // we can later detect when a user feeds the previous output back as input
+    // (double-buffer alias detection).  Only non-remote tensors have valid host
+    // pointers; remote tensors live in device memory and can never alias a
+    // USM-host output block.
+    std::unordered_set<const void*> input_host_ptrs;
+    const bool need_alias_detection = !m_output_memory_blocks.empty();
+
     for (const auto& it : m_input_ports_map) {
         size_t port_idx = it.first;
         const auto& port = it.second;
@@ -265,22 +273,25 @@ void SyncInferRequest::enqueue() {
             auto events = prepare_input(internal_name, port_idx, port, m_user_inputs.at(port_idx));
             std::move(events.begin(), events.end(), std::back_inserter(dependencies));
         }
+
+        if (need_alias_detection) {
+            const auto& wrapper = m_user_inputs.at(port_idx);
+            if (wrapper.ptr && !std::dynamic_pointer_cast<IRemoteTensor>(wrapper.ptr)) {
+                if (auto* p = wrapper.ptr->data()) {
+                    input_host_ptrs.insert(p);
+                }
+            }
+        }
     }
 
     // Double buffering: detect when an input tensor aliases an output memory
     // block — i.e. the user fed the previous output back as input.  Switch the
     // aliased block to its alternate buffer so the kernel writes to a different
     // location than the one being read as input.
-    if (!m_output_memory_blocks.empty()) {
+    if (!m_output_memory_blocks.empty() && !input_host_ptrs.empty()) {
         auto network = m_graph->get_network();
-        std::unordered_set<const void*> input_ptrs;
-        for (const auto& [idx, wrapper] : m_user_inputs) {
-            if (wrapper.ptr && wrapper.ptr->data()) {
-                input_ptrs.insert(wrapper.ptr->data());
-            }
-        }
         for (auto& [idx, block] : m_output_memory_blocks) {
-            if (block->rawPtr() && input_ptrs.count(block->rawPtr())) {
+            if (block->rawPtr() && input_host_ptrs.count(block->rawPtr())) {
                 block->nextMemory();
                 network->invalidate_ext_block_compute_nodes(m_output_names_map.at(idx));
                 GPU_DEBUG_TRACE_DETAIL << "Output block [" << idx << "]: input aliases output - switching to alternate buffer" << std::endl;
