@@ -195,35 +195,99 @@ static std::map<size_t, ov::Tensor> allocate_input_tensors(
     return input_tensors;
 }
 
-TEST(MLIRExecution, CompileBasicSDPA) {
+TEST(MLIRExecution, CompileSDPABasic) {
     auto mode = ov::util::getenv_string("OV_MLIR_MODE");
     if (mode != "GC_GPU" && mode != "GC")
         GTEST_SKIP() << "This test is only for GC or GC_GPU MLIR modes. "
                  << "Set 'OV_MLIR_MODE' env variable to 'GC' or 'GC_GPU'";
-    const ov::PartialShape query_shape{2, 2, 4096, 64};
-    const ov::PartialShape key_shape{2, 2, 4096, 64};
-    const ov::PartialShape value_shape{2, 2, 4096, 64};
+    const ov::PartialShape query_shape{4, 4096, 64};
+    const ov::PartialShape key_shape{4, 4096, 64};
+    const ov::PartialShape value_shape{4, 4096, 64};
 
     const auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, query_shape);
     const auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, key_shape);
     const auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, value_shape);
-    const auto sdpa_mask_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, std::vector<float>{0.0f});
-    const auto sdpa_scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, std::vector<float>{2.0f});
-    const auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, std::vector<float>{8.0f});
+
     const auto casual = false;
     const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query,
                                                                         key,
                                                                         value,
-                                                                        sdpa_mask_const,
-                                                                        sdpa_scale_const,
                                                                         casual);
 
     auto model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{query, key, value});
     ov::Core core;
 
     ov::AnyMap device_config;
-    device_config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::THROUGHPUT;
-    device_config[ov::enable_profiling.name()] = false;
+    // disable sdpa-decomposition
+    device_config[ov::intel_gpu::hint::enable_sdpa_optimization.name()] = false;
+
+    auto compiled_model = core.compile_model(model, "GPU", device_config);
+}
+
+TEST(MLIRExecution, CompileSDPA4DWithMaskAndScale) {
+    auto mode = ov::util::getenv_string("OV_MLIR_MODE");
+    if (mode != "GC_GPU" && mode != "GC")
+        GTEST_SKIP() << "This test is only for GC or GC_GPU MLIR modes. "
+                 << "Set 'OV_MLIR_MODE' env variable to 'GC' or 'GC_GPU'";
+    const ov::PartialShape query_shape{2, 8, 4096, 64};
+    const ov::PartialShape key_shape{2, 8, 4096, 64};
+    const ov::PartialShape value_shape{2, 8, 4096, 64};
+    const ov::PartialShape mask_shape{2, 8, 4096, 4096};
+
+    const auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, query_shape);
+    const auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, key_shape);
+    const auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, value_shape);
+    const auto mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, mask_shape);
+    const auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, std::vector<float>{0.125f});
+
+    const auto casual = false;
+    const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query,
+                                                                        key,
+                                                                        value,
+                                                                        mask,
+                                                                        scale_const,
+                                                                        casual);
+
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{query, key, value, mask});
+    ov::Core core;
+
+    ov::AnyMap device_config;
+    // disable sdpa-decomposition
+    device_config[ov::intel_gpu::hint::enable_sdpa_optimization.name()] = false;
+
+    auto compiled_model = core.compile_model(model, "GPU", device_config);
+}
+
+TEST(MLIRExecution, CompileSDPAWithScaleNoMask) {
+    auto mode = ov::util::getenv_string("OV_MLIR_MODE");
+    if (mode != "GC_GPU" && mode != "GC")
+        GTEST_SKIP() << "This test is only for GC or GC_GPU MLIR modes. "
+                 << "Set 'OV_MLIR_MODE' env variable to 'GC' or 'GC_GPU'";
+    const ov::PartialShape query_shape{4, 4096, 64};
+    const ov::PartialShape key_shape{4, 4096, 64};
+    const ov::PartialShape value_shape{4, 4096, 64};
+
+    const auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, query_shape);
+    const auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, key_shape);
+    const auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, value_shape);
+    // Empty mask constant (scalar placeholder)
+    const auto empty_mask = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, std::vector<float>{0.0f});
+    const auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, std::vector<float>{0.125f});
+
+    const auto casual = false;
+    const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query,
+                                                                        key,
+                                                                        value,
+                                                                        empty_mask,
+                                                                        scale_const,
+                                                                        casual);
+
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{query, key, value});
+    ov::Core core;
+
+    ov::AnyMap device_config;
+    // disable sdpa-decomposition
+    device_config[ov::intel_gpu::hint::enable_sdpa_optimization.name()] = false;
 
     auto compiled_model = core.compile_model(model, "GPU", device_config);
 }
