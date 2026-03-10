@@ -33,11 +33,11 @@
 #if KV_CACHE_COMPRESSION
     // Currently supports 'by channel' and 'by token' for K, V still uses 'by token'.
     // scale/zp is half-precision, so size = 2 * 2 = 4 bytes
-    #if KV_CACHE_COMPRESSION_BY_CHANNEL
+    #if KV_CACHE_COMPRESSION == 2
     #define GROUPS_PER_BLOCK (KV_BLOCK_SIZE / SUB_GROUP_SIZE)
     #define K_SCALE_ZP_SIZE (4 * GROUPS_PER_BLOCK) // scale/zp bytes
     #define V_SCALE_ZP_SIZE 4 // scale/zp bytes
-    #elif KV_CACHE_COMPRESSION_BY_TOKEN
+    #elif KV_CACHE_COMPRESSION == 1
     #define K_SCALE_ZP_SIZE 4 // scale/zp bytes
     #define V_SCALE_ZP_SIZE 4 // scale/zp bytes
     #endif
@@ -113,9 +113,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     cm_svm_block_read<half, Q_head_chunk_size * HEAD_SIZE>((svmptr_t)(query + qo_offset), Qmat.format<half>());
 
     constexpr uint per_v_block_element_num = KV_BLOCK_SIZE * KV_HEADS_NUM * (HEAD_SIZE + V_SCALE_ZP_SIZE); // 0 or 4 bytes: scale/zp
-    #if KV_CACHE_COMPRESSION_BY_TOKEN
+    #if KV_CACHE_COMPRESSION == 1
         constexpr uint per_k_block_element_num = KV_BLOCK_SIZE * KV_HEADS_NUM * (HEAD_SIZE + K_SCALE_ZP_SIZE); // 4 bytes: scale/zp
-    #elif KV_CACHE_COMPRESSION_BY_CHANNEL
+    #elif KV_CACHE_COMPRESSION == 2
         constexpr uint per_k_block_element_num = KV_HEADS_NUM * HEAD_SIZE * (KV_BLOCK_SIZE + K_SCALE_ZP_SIZE); // 4 * GROUPS_PER_BLOCK bytes: scale/zp
     #else
         constexpr uint per_k_block_element_num = KV_BLOCK_SIZE * KV_HEADS_NUM * HEAD_SIZE;
@@ -164,7 +164,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         }
 
         #if KV_CACHE_COMPRESSION
-            #if KV_CACHE_COMPRESSION_BY_TOKEN
+            #if KV_CACHE_COMPRESSION == 1
             // load scale/zp
             vector<half, KV_BLOCK_SIZE> scale_vec;
             vector<half, KV_BLOCK_SIZE> zp_vec;
@@ -178,13 +178,13 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     zp_vec[i] = 0.0;
                 }
             }
-            #elif KV_CACHE_COMPRESSION_BY_CHANNEL
+            #elif KV_CACHE_COMPRESSION == 2
             // TODO: Maybe using scale_vec and zp_vec would be better
             #endif
         #endif
 
         for(int kv_pos = 0; kv_pos < kv_pos_end; kv_pos += KV_STEP, ki++) {
-            #if KV_CACHE_COMPRESSION && KV_CACHE_COMPRESSION_BY_TOKEN
+            #if KV_CACHE_COMPRESSION == 1
                 vector<half, REG_N * 2> temp_scale, temp_zp;
                 temp_scale.select<REG_N,2>(0) = scale_vec.select<REG_N,1>(kv_pos);
                 temp_scale.select<REG_N,2>(1) = scale_vec.select<REG_N,1>(kv_pos);
@@ -217,7 +217,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                         quant_dst.row(r+1) = quant_src.select<2,1,8,2>(r,1);
                     }
 
-                    #if KV_CACHE_COMPRESSION_BY_CHANNEL
+                    #if KV_CACHE_COMPRESSION == 2
                     uint group_idx = (kv_pos / SUB_GROUP_SIZE);
                     vector<half, REG_K> temp_scale, temp_zp;
                     svmptr_t scale_ptr = (svmptr_t)(key + k_scale_zp_offset
@@ -239,7 +239,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                         Kt_dequant_out[r].select<REG_N, 2>(1) = Kt_dequant_tmp[r].select<REG_N, 2>(1) - temp_zp[r*2+1];
                         Kt_dequant_out[r].select<REG_N, 2>(1) = cm_mul<half>(Kt_dequant_out[r].select<REG_N, 2>(1), temp_scale[r*2+1]);
                     }
-                    #elif KV_CACHE_COMPRESSION_BY_TOKEN
+                    #elif KV_CACHE_COMPRESSION == 1
                     #pragma unroll
                     for(int r = 0; r < REG_K; r++) {
                         Kt[r] = Kt_quant[r] - temp_zp.format<half, 2, REG_N>()[r%2]; //vector - vector

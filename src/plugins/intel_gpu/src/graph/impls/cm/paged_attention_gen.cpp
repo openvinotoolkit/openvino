@@ -444,11 +444,12 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     jit.make("Q_head_chunk_size", q_head_chunk_size);
 
     if (get_kv_compressed(params)) {
-        jit.make("KV_CACHE_COMPRESSION", 1);
-        const bool is_key_by_channel = desc->is_key_by_channel;
-        jit.make("KV_CACHE_COMPRESSION_BY_TOKEN", is_key_by_channel ? 0 : 1);
-        jit.make("KV_CACHE_COMPRESSION_BY_CHANNEL", is_key_by_channel ? 1 : 0);
-        jit.make("SUB_GROUP_SIZE", KV_SUB_BLOCK_SIZE);
+        if (desc->is_key_by_channel) {
+            jit.make("KV_CACHE_COMPRESSION", 2);
+            jit.make("SUB_GROUP_SIZE", KV_SUB_BLOCK_SIZE);
+        } else {
+            jit.make("KV_CACHE_COMPRESSION", 1);
+        }
     } else {
         jit.make("KV_CACHE_COMPRESSION", 0);
     }
