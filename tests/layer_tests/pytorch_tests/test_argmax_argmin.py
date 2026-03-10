@@ -10,8 +10,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestArgMinArgMax(PytorchLayerTest):
     def _prepare_input(self, dtype="float32"):
-        import numpy as np
-        a = np.random.randn(1, 3, 10, 10).astype(dtype)
+        a = self.random.randn(1, 3, 10, 10, dtype=dtype)
 
         return (a.repeat(2).reshape(1, 3, 20, 10),)
 
@@ -27,7 +26,7 @@ class TestArgMinArgMax(PytorchLayerTest):
 
         class aten_argmin_argmax(torch.nn.Module):
             def __init__(self, op):
-                super(aten_argmin_argmax, self).__init__()
+                super().__init__()
                 self.op = op
 
             def forward(self, x):
@@ -43,13 +42,12 @@ class TestArgMinArgMax(PytorchLayerTest):
             def forward(self, x):
                 return self.op(x, self.axes, self.keep_dims)
 
-        ref_net = None
         if axes is None and keep_dims is None:
             model_cls = aten_argmin_argmax(op)
         else:
             model_cls = aten_argmin_argmax_3arg(op, axes, keep_dims)
 
-        return model_cls, ref_net, f"aten::arg{op_type}"
+        return model_cls, f"aten::arg{op_type}"
 
     @pytest.mark.parametrize("axes,keep_dims", [
         (None, None),

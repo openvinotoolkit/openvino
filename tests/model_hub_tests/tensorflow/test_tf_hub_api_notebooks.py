@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import pytest
 import tensorflow as tf
 import tensorflow_hub as hub
@@ -35,7 +37,8 @@ class TestTFHubApiNotebooks(TestConvertModel):
             )
             film_layer = hub.KerasLayer(
                 "https://www.kaggle.com/models/google/film/frameworks/tensorFlow2/variations/film/versions/1")(inputs)
-            film_model = tf.keras.Model(inputs=inputs, outputs=list(film_layer.values())[0])
+            # Select 'image' output - the interpolated frame
+            film_model = tf.keras.Model(inputs=inputs, outputs=film_layer['image'])
             return film_model
         else:
             raise "Unknown input model: {}".format(model_name)
@@ -73,4 +76,9 @@ class TestTFHubApiNotebooks(TestConvertModel):
     @pytest.mark.precommit
     @pytest.mark.parametrize("model_name", ['mobilenet_v2_100_224_dict', 'mobilenet_v2_100_224_list', 'film'])
     def test_tf_hub_api_notebook1(self, model_name, ie_device):
+
+        arm_platforms = {'arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'}
+        if platform.machine() in arm_platforms and model_name == 'film':
+            pytest.skip(f"Model {model_name} is not enabled on ARM platform")
+
         self.run(model_name, '', ie_device)

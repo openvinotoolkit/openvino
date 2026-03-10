@@ -6,12 +6,14 @@
 
 #include <arm_compute/core/CoreTypes.h>
 #include <arm_compute/core/Error.h>
+#include <arm_compute/core/QuantizationInfo.h>
 #include <arm_compute/core/TensorInfo.h>
 #include <arm_compute/core/Types.h>
 #include <arm_compute/runtime/IFunction.h>
 #include <arm_compute/runtime/NEON/functions/NEPooling3dLayer.h>
 #include <arm_compute/runtime/NEON/functions/NEPoolingLayer.h>
 
+#include <any>
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -26,8 +28,12 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/pooling.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "post_ops.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -165,12 +171,33 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
 
     TensorInfo srcTensorInfo = TensorInfo(srcShape,
                                           1,
-                                          precisionToAclDataType(srcDescs[0]->getPrecision()),
+                                          convertToQuantizedType(precisionToAclDataType(srcDescs[0]->getPrecision())),
                                           getAclDataLayoutByMemoryDesc(srcDescs[0]));
     TensorInfo dstTensorInfo = TensorInfo(dstShape,
                                           1,
-                                          precisionToAclDataType(dstDescs[0]->getPrecision()),
+                                          convertToQuantizedType(precisionToAclDataType(dstDescs[0]->getPrecision())),
                                           getAclDataLayoutByMemoryDesc(dstDescs[0]));
+
+    if (any_of(srcDescs[0]->getPrecision(), ov::element::u8, ov::element::i8) ||
+        any_of(dstDescs[0]->getPrecision(), ov::element::u8, ov::element::i8)) {
+        std::vector<float> fqInputScale;
+        std::vector<float> fqInputShift;
+
+        if (poolingAttrs.postOps.size() == 1) {
+            if (const auto* const fq = std::any_cast<FakeQuantizePostOp>(poolingAttrs.postOps.data())) {
+                fqInputScale = fq->inputScale();
+                fqInputShift = fq->inputShift();
+            } else {
+                OPENVINO_THROW("AclPoolingExecutor: the executor supports FakeQuantize post op only");
+            }
+        } else if (poolingAttrs.postOps.size() > 1) {
+            OPENVINO_THROW("AclPoolingExecutor: ACL does not support more than 1 post op");
+        }
+
+        srcTensorInfo.set_quantization_info(arm_compute::QuantizationInfo(1.0F));
+        dstTensorInfo.set_quantization_info(
+            getDstQuantizationInfo(fqInputScale, fqInputShift, dstDescs[0]->getPrecision()));
+    }
 
     srcTensor.allocator()->init(srcTensorInfo);
     dstTensor.allocator()->init(dstTensorInfo);

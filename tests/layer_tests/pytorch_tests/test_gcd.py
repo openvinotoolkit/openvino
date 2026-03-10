@@ -20,9 +20,8 @@ class TestGcd(PytorchLayerTest):
             def forward(self, tensor_a, tensor_b):
                 return torch.gcd(tensor_a, tensor_b)
 
-        ref_net = None
 
-        return aten_gcd_tensor(), ref_net, "aten::gcd"
+        return aten_gcd_tensor(), "aten::gcd"
 
     def create_model_int_input(self):
         class aten_gcd_int(torch.nn.Module):
@@ -32,9 +31,8 @@ class TestGcd(PytorchLayerTest):
             def forward(self, int_a: int, int_b: int):
                 return torch.tensor(torch.gcd(int_a, int_b))
 
-        ref_net = None
 
-        return aten_gcd_int(), ref_net, "aten::gcd"
+        return aten_gcd_int(), "aten::gcd"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

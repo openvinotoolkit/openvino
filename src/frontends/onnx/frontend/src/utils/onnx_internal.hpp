@@ -26,7 +26,7 @@ using ::ONNX_NAMESPACE::ModelProto;
 ///             to an ov::Model representation.
 ///
 /// \note       The function can be used only internally by OV components!
-///             Passing ModelProto between componets which use different protobuf
+///             Passing ModelProto between components which use different protobuf
 ///             library can cause segfaults. If stream parsing fails or the ONNX model
 ///             contains unsupported ops, the function throws an ov::Exception.
 ///

@@ -21,7 +21,7 @@ class TestLogAddExp(PytorchLayerTest):
 
         class LogAddExpModel(torch.nn.Module):
             def __init__(self, out):
-                super(LogAddExpModel, self).__init__()
+                super().__init__()
                 if out:
                     self.forward = self.forward_out
 
@@ -32,9 +32,8 @@ class TestLogAddExp(PytorchLayerTest):
                 return torch.logaddexp(x, y, out=out), out
 
         model_class = LogAddExpModel(out)
-        ref_net = None
 
-        return model_class, ref_net, "aten::logaddexp"
+        return model_class, "aten::logaddexp"
 
     @pytest.mark.parametrize(
         "dtype1",
@@ -120,8 +119,8 @@ class TestLogAddExp(PytorchLayerTest):
     )
     def test_logaddexp_shapes(self, dtype1, dtype2, shape, out, ie_device, precision, ir_version):
         # Generate random inputs within a reasonable range
-        input1 = np.random.uniform(-10, 10, shape)
-        input2 = np.random.uniform(-10, 10, shape)
+        input1 = self.random.uniform(-10, 10, shape)
+        input2 = self.random.uniform(-10, 10, shape)
 
         self._test(
             *self.create_model(out),

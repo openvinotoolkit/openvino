@@ -70,6 +70,14 @@ public:
     [[nodiscard]] R parallel_sum(const T0& D0, const R& input, const F& func) const {
         return cpu_parallel_sum(D0, input, func);
     }
+    template <typename T0, typename T1, typename R, typename F>
+    [[nodiscard]] R parallel_sum2d(const T0& D0, const T1& D1, const R& input, const F& func) const {
+        return cpu_parallel_sum2d(D0, D1, input, func);
+    }
+    template <typename T0, typename T1, typename T2, typename R, typename F>
+    [[nodiscard]] R parallel_sum3d(const T0& D0, const T1& D1, const T2& D2, const R& input, const F& func) const {
+        return cpu_parallel_sum3d(D0, D1, D2, input, func);
+    }
     template <typename T0, typename F>
     void parallel_for(const T0& D0, const F& func) const {
         cpu_parallel_for(D0, func);
@@ -139,6 +147,98 @@ private:
         return res_sum;
 #else
         return ov::parallel_sum(D0, input, func);
+#endif
+    }
+
+    template <typename T0, typename T1, typename R, typename F>
+    [[nodiscard]] R cpu_parallel_sum2d(const T0& D0, const T1& D1, const R& input, const F& func) const {
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+        R res_sum = 0;
+        if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+            res_sum = _TBB_REDUCE_FUNC(
+                tbb::blocked_range2d<T0, T1>(0, D0, 0, D1),
+                input,
+                [&](const tbb::blocked_range2d<T0, T1>& r, R init) -> R {
+                    R sum = init;
+                    for (T0 dim2 = r.rows().begin(); dim2 < r.rows().end(); dim2++) {
+                        for (T1 dim1 = r.cols().begin(); dim1 < r.cols().end(); dim1++) {
+                            sum += func(dim2, dim1);
+                        }
+                    }
+                    return sum;
+                },
+                [](R x, R y) -> R {
+                    return x + y;
+                });
+        } else {
+            res_sum = _TBB_REDUCE_FUNC(
+                tbb::blocked_range2d<T0, T1>(0, D0, 0, D1),
+                input,
+                [&](const tbb::blocked_range2d<T0, T1>& r, R init) -> R {
+                    R sum = init;
+                    for (T0 dim2 = r.rows().begin(); dim2 < r.rows().end(); dim2++) {
+                        for (T1 dim1 = r.cols().begin(); dim1 < r.cols().end(); dim1++) {
+                            sum += func(dim2, dim1);
+                        }
+                    }
+                    return sum;
+                },
+                [](R x, R y) -> R {
+                    return x + y;
+                },
+                tbb::static_partitioner());
+        }
+        return res_sum;
+#else
+        return ov::parallel_sum2d(D0, D1, input, func);
+#endif
+    }
+
+    template <typename T0, typename T1, typename T2, typename R, typename F>
+    [[nodiscard]] R cpu_parallel_sum3d(const T0& D0, const T1& D1, const T2& D2, const R& input, const F& func) const {
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+        R res_sum = 0;
+        if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+            res_sum = _TBB_REDUCE_FUNC(
+                tbb::blocked_range3d<T0, T1, T2>(0, D0, 0, D1, 0, D2),
+                input,
+                [&](const tbb::blocked_range3d<T0, T1, T2>& r, R init) -> R {
+                    R sum = init;
+                    for (T0 dim1 = r.pages().begin(); dim1 < r.pages().end(); dim1++) {
+                        for (T1 dim2 = r.rows().begin(); dim2 < r.rows().end(); dim2++) {
+                            for (T2 dim3 = r.cols().begin(); dim3 < r.cols().end(); dim3++) {
+                                sum += func(dim1, dim2, dim3);
+                            }
+                        }
+                    }
+                    return sum;
+                },
+                [](R x, R y) -> R {
+                    return x + y;
+                });
+        } else {
+            res_sum = _TBB_REDUCE_FUNC(
+                tbb::blocked_range3d<T0, T1, T2>(0, D0, 0, D1, 0, D2),
+                input,
+                [&](const tbb::blocked_range3d<T0, T1, T2>& r, R init) -> R {
+                    R sum = init;
+                    for (T0 dim1 = r.pages().begin(); dim1 < r.pages().end(); dim1++) {
+                        for (T1 dim2 = r.rows().begin(); dim2 < r.rows().end(); dim2++) {
+                            for (T2 dim3 = r.cols().begin(); dim3 < r.cols().end(); dim3++) {
+                                sum += func(dim1, dim2, dim3);
+                            }
+                        }
+                    }
+                    return sum;
+                },
+                [](R x, R y) -> R {
+                    return x + y;
+                },
+                tbb::static_partitioner());
+        }
+        return res_sum;
+#else
+        return ov::parallel_sum3d(D0, D1, D2, input, func);
 #endif
     }
 
@@ -356,5 +456,7 @@ private:
     size_t m_multiplier = default_multiplier;
     std::shared_ptr<ThreadPool> m_thread_pool = nullptr;
 };
+
+using CpuParallelPtr = std::shared_ptr<ov::intel_cpu::CpuParallel>;
 
 }  // namespace ov::intel_cpu

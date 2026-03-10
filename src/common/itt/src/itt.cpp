@@ -9,6 +9,8 @@
 #include <mutex>
 #include <vector>
 
+#include "openvino/shutdown.hpp"
+
 #ifdef ENABLE_PROFILING_ITT
 #    include <ittnotify.h>
 #endif
@@ -108,6 +110,10 @@ void regionEnd(domain_t d) {
     current_region_handle = nullptr;
 }
 
+void shutdown() {
+    __itt_release_resources();
+}
+
 #else
 
 domain_t domain(const char*) {
@@ -128,8 +134,16 @@ void regionBegin(domain_t, handle_t) {}
 
 void regionEnd(domain_t) {}
 
+void shutdown() {}
+
 #endif  // ENABLE_PROFILING_ITT
 
 }  // namespace internal
 }  // namespace itt
 }  // namespace openvino
+
+static void shutdown_itt_resources() {
+    openvino::itt::internal::shutdown();
+}
+
+OV_REGISTER_SHUTDOWN_CALLBACK(shutdown_itt_resources)

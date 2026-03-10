@@ -7,13 +7,15 @@
 #include <string>
 #include <vector>
 
-std::vector<std::string> disabledTestPatterns() {
-    return {
+const std::vector<std::regex>& disabled_test_patterns() {
+    const static std::vector<std::regex> patterns{
 #ifdef OPENVINO_STATIC_LIBRARY
         // Disable tests for static libraries
-        ".*FrontendLibCloseTest.*",
+        std::regex(".*FrontendLibCloseTest.*"),
 #endif
         // CVS-123201
-        ".*testUnloadLibBeforeDeletingDependentObject.*",
+        std::regex(".*testUnloadLibBeforeDeletingDependentObject.*"),
     };
+
+    return patterns;
 }

@@ -146,7 +146,7 @@ protected:
         }
 
         ov::ParameterVector params{ float_params[0], float_params[1], int_param };
-        function = makeNgraphFunction(inputPrecision, params, roialign, "ROIAlign");
+        function = create_ov_model(inputPrecision, params, roialign, "ROIAlign");
     }
 };
 

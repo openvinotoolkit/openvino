@@ -358,6 +358,55 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentTensorsMultipleInferMCL) {
     ::operator delete(buffer, std::align_val_t(4096));
 }
 
+TEST_P(BatchedTensorsRunTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    size_t batch = 4;
+    auto one_shape = Shape{1, 16, 16, 16};
+    auto batch_shape = Shape{batch, 16, 16, 16};
+    auto one_shape_size = ov::shape_size(one_shape);
+    auto model = BatchedTensorsRunTests::create_n_inputs(2, element::f32, batch_shape, "N...");
+    auto execNet = core->compile_model(model, target_device, configuration);
+    ov::InferRequest req = execNet.create_infer_request();
+
+    float* buffer0 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+    float* buffer1 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+    float* buffer2 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+    float* buffer3 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+
+    std::vector<ov::Tensor> tensors;
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer0));
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer1));
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer2));
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer3));
+
+    req.set_tensors("tensor_input0", tensors);
+
+    for (size_t i = 0; i < 10; i++) {
+        for (size_t j = 0; j < one_shape_size; ++j) {
+            buffer0[j] = static_cast<float>(i);
+            buffer1[j] = static_cast<float>(i);
+            buffer2[j] = static_cast<float>(i);
+            buffer3[j] = static_cast<float>(i);
+        }
+
+        req.infer();
+
+        auto output_tensor = req.get_tensor("tensor_output0");
+        auto* output_data = output_tensor.data<float>();
+        for (size_t j = 0; j < one_shape_size * batch; ++j) {
+            ASSERT_EQ(output_data[j], static_cast<float>(i) + 1.0f)
+                << "Run " << i << ": Expected=" << static_cast<float>(i) + 1.0f << ", actual=" << output_data[j]
+                << " for index " << j;
+        }
+    }
+
+    ::operator delete(buffer0, std::align_val_t(4096));
+    ::operator delete(buffer1, std::align_val_t(4096));
+    ::operator delete(buffer2, std::align_val_t(4096));
+    ::operator delete(buffer3, std::align_val_t(4096));
+}
+
 TEST_P(BatchedTensorsRunTests, SetInputDifferentRemoteTensorsMultipleInferMCL) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
@@ -1047,6 +1096,17 @@ TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputDifferentTensorsMultipleInf
                                                << ", actual=" << actual[j] << " for index " << j;
         }
     }
+}
+
+using BatchedTensorsRunFailureTests = BatchedTensorsRunTests;
+
+TEST_P(BatchedTensorsRunFailureTests, FailedToDetectBatch) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto shape = Shape{4, 2, 2};
+    auto model = BatchedTensorsRunTests::create_n_inputs(1, element::f32, shape, "");
+
+    EXPECT_THROW(auto execNet = core->compile_model(model, target_device, configuration);, std::exception);
 }
 
 }  // namespace behavior

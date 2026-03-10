@@ -13,9 +13,16 @@
 #include "ocl_v2/utils/jitter.hpp"
 #include "moe_gemm_inst.h"
 #include "../utils/kernel_generator.hpp"
+#include "gemmstone/kernel_selector.hpp"
 
 // clang-format on
 namespace ov::intel_gpu::ocl {
+
+namespace {
+void entryObserver(const gemmstone::kcatalog::Entry* entry, double score, gemmstone::EvaluateAuxOutput aux) {
+    GPU_DEBUG_TRACE_DETAIL << "consider strategy: " << entry->str() << ", score: " << score << "\n";
+};
+}  // anonymous namespace
 
 static size_t get_subgroup_size(gpu_arch arch) {
     switch (arch) {
@@ -144,6 +151,7 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params, 
     micro::GEMMProblem problem_moe;
     micro::GEMMProtocol::Options opts_moe;
     opts_moe.slmPtr = true;
+    opts_moe.kParallelLocal = !is_prefill;
     enum class MICRO_DIMENSIONALITY { NONE = -1, SCALAR = 0, VECTOR = 1, MATRIX = 2 };
 
     if (moe_cfg.is_weight_quantized) {
@@ -198,7 +206,8 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params, 
     GPU_DEBUG_TRACE_DETAIL << "sizes to select gemm : m : " << m << " n : " << n << " k : " << k << std::endl;
     try {
         /* Ask microkernel provider for microkernel */
-        gemm_moe = micro::select_gemm_microkernel(opts_moe, hw_info, sizes, problem_moe);
+        gemmstone::SelectionObserver observer = entryObserver;
+        gemm_moe = micro::select_gemm_microkernel(opts_moe, hw_info, sizes, problem_moe, &observer);
     } catch (const std::runtime_error& ex) {
         OPENVINO_THROW("Can't create moe micro kernel: ", ex.what());
     }
@@ -213,8 +222,9 @@ DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
         const auto& gemm_p = kd.micro_kernels[0]->p;
         auto sg_per_wg_n = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_n"));
         auto sg_per_wg_m = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_m"));
-        auto sg_tile_m = gemm_p.getSetting("sg_tile_m");
-        auto sg_tile_n = gemm_p.getSetting("sg_tile_n");
+        auto sg_per_wg_k = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_k"));
+        auto wg_tile_m = gemm_p.getSetting("wg_tile_m");
+        auto wg_tile_n = gemm_p.getSetting("wg_tile_n");
 
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
@@ -229,10 +239,11 @@ DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
         const auto& experts_weight_shape = experts_weight_layout.get_shape();
         size_t m = experts_weight_shape[1];
         size_t k = experts_weight_shape.size() == 4 ? experts_weight_shape[2] * experts_weight_shape[3] : experts_weight_shape[2];
-        wgs.local = {sg_per_wg_m * get_subgroup_size(device_info.arch), sg_per_wg_n, 1};
-        wgs.global = {align_to(ceil_div(m, sg_tile_m), sg_per_wg_m) * get_subgroup_size(device_info.arch),
-                      align_to(ceil_div(n, sg_tile_n), sg_per_wg_n),
-                      static_cast<size_t>(rtp->num_actually_used_experts)};
+        wgs.local = {sg_per_wg_m * get_subgroup_size(device_info.arch), sg_per_wg_n, sg_per_wg_k};
+        wgs.global = {ceil_div(m, wg_tile_m), ceil_div(n, wg_tile_n), static_cast<size_t>(rtp->num_actually_used_experts)};
+        wgs.global[0] *= wgs.local[0];
+        wgs.global[1] *= wgs.local[1];
+        wgs.global[2] *= wgs.local[2];
         ScalarDescriptor s_m{ScalarDescriptor::Types::INT32};
         s_m.v.s32 = static_cast<int32_t>(m);
         scalars.push_back(s_m);

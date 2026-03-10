@@ -41,6 +41,8 @@ private:
     static DnnlMemoryDescPtr get_src_desc(const VectorDims& shape,
                                           const VectorDims& layout,
                                           const brgemm_utils::BrgemmConfig& brgemm_config);
+    static CpuBlockedMemoryDescPtr get_dst_cpu_desc(const Shape& shape,
+                                                    const brgemm_utils::BrgemmConfig& brgemm_config);
     static DnnlMemoryDescPtr get_dst_desc(const Shape& shape, const brgemm_utils::BrgemmConfig& brgemm_config);
 
     const GraphContext::CPtr m_context;

@@ -23,7 +23,7 @@ using namespace Xbyak_aarch64;
 
 namespace ov::intel_cpu::aarch64 {
 
-using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
+using jit_generator = dnnl::impl::cpu::aarch64::jit_generator_t;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 
 // Helper function to get max_offset and alignment for different register types
@@ -102,7 +102,7 @@ static void store_with_offset_check(jit_generator* h, const RegType& src, const 
     }
 }
 
-jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                    ov::element::Type src_prc,
                                    ov::element::Type dst_prc,
@@ -256,7 +256,7 @@ size_t jit_load_emitter::get_aux_gprs_count() const {
     return 0;
 }
 
-jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                      ov::element::Type src_prc,
                                      ov::element::Type dst_prc,

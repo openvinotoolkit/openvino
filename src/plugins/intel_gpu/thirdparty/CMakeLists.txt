@@ -9,7 +9,7 @@ set(XETLA_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/xetla/include/" CACHE PATH "P
 #
 
 if(ENABLE_ONEDNN_FOR_GPU)
-    function(build_onednn_gpu)
+    function(build_onednn_gpu GPU_RUNTIME)
         include(ExternalProject)
         set(ONEDNN_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_build")
         set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install" CACHE PATH "Installation path for oneDNN GPU library")
@@ -99,13 +99,20 @@ if(ENABLE_ONEDNN_FOR_GPU)
 
         set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${DNNL_GPU_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
         set(ONEDNN_GPU_LIB_PATH ${ONEDNN_INSTALL_DIR}/lib/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library")
+        set(ONEDNN_GPU_DIR ${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu CACHE FILEPATH "Path to oneDNN GPU repository")
+        if(GPU_RUNTIME STREQUAL "L0")
+            message(FATAL_ERROR "Current OneDNN version does not support Level Zero")
+            set(ONEDNN_GPU_RT "ZE")
+        elseif(GPU_RUNTIME STREQUAL "OCL")
+            set(ONEDNN_GPU_RT "OCL")
+        endif()
 
         set(ONEDNN_GPU_RUNTIME "OCL" CACHE STRING "Runtime for oneDNN GPU library")
 
         ExternalProject_Add(onednn_gpu_build
             # Directory Options:
             PREFIX "${ONEDNN_PREFIX_DIR}"
-            SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
+            SOURCE_DIR "${ONEDNN_GPU_DIR}"
             BINARY_DIR "${ONEDNN_BUILD_DIR}"
             INSTALL_DIR "${ONEDNN_INSTALL_DIR}"
             # Configure Step Options:
@@ -115,7 +122,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
                 "-DDNNL_TARGET_ARCH=${ONEDNN_TARGET_ARCH}"
                 "-DDNNL_CPU_RUNTIME=NONE"
-                "-DDNNL_GPU_RUNTIME=${ONEDNN_GPU_RUNTIME}"
+                "-DDNNL_GPU_RUNTIME=${ONEDNN_GPU_RT}"
                 "-DDNNL_LIBRARY_NAME=${DNNL_GPU_LIBRARY_NAME}"
                 "-DCMAKE_INSTALL_PREFIX=${ONEDNN_INSTALL_DIR}"
                 "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
@@ -157,13 +164,12 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 DEPENDEES install  # Ensures this runs after install
             )
         endif()
-
         set(LIB_INCLUDE_DIRS "${ONEDNN_INSTALL_DIR}/include"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/jit/ngen"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/jit/config"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/gemm/jit/include"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/third_party/ngen")
+                             "${ONEDNN_GPU_DIR}/src"
+                             "${ONEDNN_GPU_DIR}/src/gpu/intel/jit/ngen"
+                             "${ONEDNN_GPU_DIR}/src/gpu/intel/jit/config"
+                             "${ONEDNN_GPU_DIR}/src/gpu/intel/gemm/jit/include"
+                             "${ONEDNN_GPU_DIR}/third_party/ngen")
         set(LIB_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
                             DNNL_DLL
                             DNNL_DLL_EXPORTS
@@ -190,5 +196,5 @@ if(ENABLE_ONEDNN_FOR_GPU)
                     COMPONENT ${OV_CPACK_COMP_CORE})
         endif()
     endfunction()
-    build_onednn_gpu()
+    build_onednn_gpu(${GPU_RT_TYPE})
 endif()

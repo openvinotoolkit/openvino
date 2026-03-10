@@ -29,7 +29,7 @@ public:
 
     /// \brief Creates an edge mapper based on a GraphProto object.
     ///
-    /// \note If state of graph_proto will be changed, the information from edge mapper
+    /// \note If the state of graph_proto changes, the information from the edge mapper
     ///       is outdated. In such a case the update method should be called.
     ///
     /// \param graph_proto Reference to a GraphProto object.
@@ -39,37 +39,37 @@ public:
     ///        and an input (input name or input index).
     ///
     /// \note  The node name can be ambiguous (many ONNX nodes can have the same name).
-    ///        In such a case the algorthim tries to match the given node name
+    ///        In such a case the algorithm tries to match the given node name
     ///        with the input name (providing an input index is not enough).
     ///        If a unique edge is found, it will be returned.
     ///        If InputEdge cannot be determined based on parameter values an
-    ///        ov:Exception will be thrown.
+    ///        ov::Exception will be thrown.
     ///
     /// \param node An EditorNode helper structure created based on a node name
     ///             or a node output name.
     ///
-    /// \param input An EditorInput helper structure created based on a input name
-    ///              or a input index.
+    /// \param input An EditorInput helper structure created based on an input name
+    ///              or an input index.
     InputEdge find_input_edge(const EditorNode& node, const EditorInput& input) const;
 
     /// \brief Returns an OutputEdge based on a node (node name or output name)
     ///        and an output (output name or output index).
     ///
     /// \note  The node name can be ambiguous (many ONNX nodes can have the same name).
-    ///        In such a case the algorthim will try to match the given node name
+    ///        In such a case the algorithm will try to match the given node name
     ///        with the output name (providing an output index is not enough).
-    ///        If after such operation a found edge is unique, it is returned.
+    ///        If the found edge is unique after such an operation, it is returned.
     ///        If OutputEdge cannot be determined based on given params an
     ///        ov::Exception is thrown.
     ///
     /// \param node An EditorNode helper structure created based on a node name
     ///             or a node output name.
     ///
-    /// \param output An EditorOutput helper structure created based on a output name
-    ///               or a output index.
+    /// \param output An EditorOutput helper structure created based on an output name
+    ///               or an output index.
     OutputEdge find_output_edge(const EditorNode& node, const EditorOutput& output) const;
 
-    /// \brief Returns an OutputEdge based on a output name.
+    /// \brief Returns an OutputEdge based on an output name.
     ///
     /// \note  The output name guarantees the uniqueness of the edge.
     ///

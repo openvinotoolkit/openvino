@@ -10,12 +10,12 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestInplaceNormal(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
-        return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
+        return (self.random.randn(1, 3, 224, 224),)
 
     def create_model(self, mean, std):
         class aten_normal(torch.nn.Module):
             def __init__(self, mean, std):
-                super(aten_normal, self).__init__()
+                super().__init__()
                 self.mean = mean
                 self.std = std
 
@@ -23,7 +23,7 @@ class TestInplaceNormal(PytorchLayerTest):
                 x = x.to(torch.float32)
                 return x.normal_(mean=self.mean, std=self.std), x
 
-        return aten_normal(mean, std), None, "aten::normal_"
+        return aten_normal(mean, std), "aten::normal_"
 
     @pytest.mark.parametrize("mean,std", [(0., 1.), (5., 20.)])
     @pytest.mark.nightly
@@ -37,7 +37,7 @@ class TestNormal(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
         if isinstance(self.inputs, list):
-            return (np.random.randn(*self.inputs).astype(np.float32),)
+            return (self.random.randn(*self.inputs),)
         return self.inputs
 
     class aten_normal1(torch.nn.Module):
@@ -86,7 +86,7 @@ class TestNormal(PytorchLayerTest):
     ])
     def test_inplace_normal(self, model, inputs, ie_device, precision, ir_version):
         self.inputs = inputs
-        self._test(model, None, "aten::normal",
+        self._test(model, "aten::normal",
                    ie_device, precision, ir_version, custom_eps=1e30)
 
 

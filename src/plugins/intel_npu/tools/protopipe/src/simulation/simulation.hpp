@@ -28,7 +28,7 @@ using DummySources = std::vector<DummySource::Ptr>;
 class Simulation {
 public:
     using Ptr = std::shared_ptr<Simulation>;
-
+    std::shared_ptr<WorkloadTypeInfo> workload;
     struct Config {
         std::string stream_name;
         uint64_t frames_interval_in_us;

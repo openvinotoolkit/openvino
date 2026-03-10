@@ -13,7 +13,6 @@
 #include <numeric>
 #include <optional>
 #include <set>
-#include <sstream>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -29,9 +28,15 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/util/common_util.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_port.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
+#include "snippets/op/reshape.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
@@ -481,21 +486,22 @@ void visit_path(const lowered::ExpressionPtr& expr,
 }
 
 std::string tensor2str(const VectorDims& tensor, const std::string& delimiter) {
-    std::stringstream ss;
-    for (size_t i = 0; i < tensor.size(); ++i) {
-        const auto& v = tensor[i];
-        std::string v_str;
+    std::vector<std::string> dims(tensor.size());
+    std::transform(tensor.cbegin(), tensor.cend(), dims.begin(), [](const auto& v) -> std::string {
         if (utils::is_full_dim_value(v)) {
-            v_str = "FULL_DIM";
-        } else if (utils::is_dynamic_value(v)) {
-            v_str = "?";
-        } else {
-            v_str = std::to_string(v);
+            return "FULL_DIM";
         }
-        const auto del = i < tensor.size() - 1 ? delimiter : "";
-        ss << v_str << del;
-    }
-    return ss.str();
+        if (utils::is_dynamic_value(v)) {
+            return "?";
+        }
+        return std::to_string(v);
+    });
+    return ov::util::join(dims, delimiter);
+}
+
+bool need_full_connectors(const lowered::ExpressionPtr& expr) {
+    return ov::as_type_ptr<lowered::BufferExpression>(expr) ||
+           ov::is_type_any_of<op::Result, op::HorizonSum, op::HorizonMax, op::Reshape>(expr->get_node());
 }
 
 }  // namespace ov::snippets::utils

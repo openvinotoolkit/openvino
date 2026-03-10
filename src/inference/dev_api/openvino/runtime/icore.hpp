@@ -63,9 +63,9 @@ public:
      * @param properties Optional map of pairs: (property name, property value) relevant only for this read operation.
      * @return shared pointer to ov::Model
      */
-    virtual std::shared_ptr<ov::Model> read_model(const std::string& model_path,
-                                                  const std::string& bin_path,
-                                                  const AnyMap& properties) const = 0;
+    virtual std::shared_ptr<ov::Model> read_model(const std::filesystem::path& model_path,
+                                                  const std::filesystem::path& bin_path,
+                                                  const ov::AnyMap& properties) const = 0;
 
     virtual ov::AnyMap create_compile_config(const std::string& device_name, const ov::AnyMap& origConfig) const = 0;
 
@@ -113,7 +113,7 @@ public:
      * operation
      * @return A pointer to compiled model
      */
-    virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path,
+    virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::filesystem::path& model_path,
                                                         const std::string& device_name,
                                                         const ov::AnyMap& config) const = 0;
 

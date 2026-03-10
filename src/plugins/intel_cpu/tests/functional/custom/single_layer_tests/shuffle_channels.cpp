@@ -55,7 +55,7 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
         }
         auto shuffleChannels = std::make_shared<ov::op::v0::ShuffleChannels>(params[0], axis, group);
-        function = makeNgraphFunction(inType, params, shuffleChannels, "ShuffleChannels");
+        function = create_ov_model(inType, params, shuffleChannels, "ShuffleChannels");
     }
 };
 

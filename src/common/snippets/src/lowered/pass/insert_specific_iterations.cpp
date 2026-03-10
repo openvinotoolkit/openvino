@@ -26,7 +26,6 @@
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/lowered/specific_loop_iter_types.hpp"
 #include "snippets/op/loop.hpp"
-#include "snippets/op/memory_access.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered::pass {
@@ -43,38 +42,36 @@ std::vector<LoopPort> clone_ports(const ExpressionMap& expression_map, const std
     return new_ports;
 }
 
-void connect_cloned_body_with_buffers_outside(const LoopManager::LoopBounds& cur_bounds,
-                                              const LoopManager::LoopBounds& res_bounds,
-                                              LinearIR& linear_ir) {
+void connect_cloned_body_with_expr_outside_loop(const LoopManager::LoopBounds& cur_bounds,
+                                                const LoopManager::LoopBounds& res_bounds,
+                                                LinearIR& linear_ir) {
     const auto& [cur_begin, cur_end] = cur_bounds;
     const auto& [res_begin, res_end] = res_bounds;
     for (auto result_it = res_begin, original_it = cur_begin; result_it != res_end; ++result_it, ++original_it) {
         const auto& result_expr = *result_it;
         const auto& original_expr = *original_it;
-        // Buffer input can be connected only to outputs of MA ops
-        if (std::dynamic_pointer_cast<modifier::MemoryAccess>(original_expr->get_node())) {
-            for (size_t i = 0; i < original_expr->get_output_count(); i++) {
-                const auto& consumers = original_expr->get_output_port_connector(i)->get_consumers();
-                for (const auto& consumer : consumers) {
-                    const auto consumer_expr = consumer.get_expr();
-                    const auto buffer_expr = ov::as_type_ptr<BufferExpression>(consumer_expr);
-                    if (buffer_expr && std::find(cur_begin, cur_end, consumer.get_expr()) == cur_end) {
-                        std::vector<PortDescriptorPtr> new_descs = {
-                            buffer_expr->get_input_port_descriptor(consumer.get_index())->clone()};
-                        std::vector<PortConnectorPtr> new_inputs = {result_expr->get_output_port_connector(i)};
-                        OutputVector new_op_inputs = {result_expr->get_node()->output(i)};
-                        for (size_t j = 0; j < buffer_expr->get_input_count(); ++j) {
-                            const auto& source = buffer_expr->get_input_port_connector(j)->get_source();
-                            new_op_inputs.push_back(source.get_expr()->get_node()->output(source.get_index()));
-                            new_descs.push_back(buffer_expr->get_input_port_descriptor(j)->clone());
-                            new_inputs.push_back(buffer_expr->get_input_port_connector(j));
-                        }
-                        const auto new_buffer_op = buffer_expr->get_node()->clone_with_new_inputs(new_op_inputs);
-                        linear_ir.replace_with_expr(
-                            {consumer_expr},
-                            buffer_expr->clone_with_new_inputs(new_buffer_op, new_inputs, new_descs));
-                        break;
+        for (size_t i = 0; i < original_expr->get_output_count(); i++) {
+            const auto& consumers = original_expr->get_output_port_connector(i)->get_consumers();
+            for (const auto& consumer : consumers) {
+                const auto consumer_expr = consumer.get_expr();
+                // these expressions should be connected from all expanded loop for correct register assignment.
+                if (utils::need_full_connectors(consumer_expr) &&
+                    std::find(cur_begin, cur_end, consumer_expr) == cur_end) {
+                    std::vector<PortDescriptorPtr> new_descs = {
+                        consumer_expr->get_input_port_descriptor(consumer.get_index())->clone()};
+                    std::vector<PortConnectorPtr> new_inputs = {result_expr->get_output_port_connector(i)};
+                    OutputVector new_op_inputs = {result_expr->get_node()->output(i)};
+                    for (size_t j = 0; j < consumer_expr->get_input_count(); ++j) {
+                        const auto& source = consumer_expr->get_input_port_connector(j)->get_source();
+                        new_op_inputs.push_back(source.get_expr()->get_node()->output(source.get_index()));
+                        new_descs.push_back(consumer_expr->get_input_port_descriptor(j)->clone());
+                        new_inputs.push_back(consumer_expr->get_input_port_connector(j));
                     }
+                    const auto new_consumer_op = consumer_expr->get_node()->clone_with_new_inputs(new_op_inputs);
+                    linear_ir.replace_with_expr(
+                        {consumer_expr},
+                        consumer_expr->clone_with_new_inputs(new_consumer_op, new_inputs, new_descs));
+                    break;
                 }
             }
         }
@@ -223,9 +220,9 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir,
                 ExpressionMap expression_map;
                 decomposed_loop_bounds = insert_copy_loop(linear_ir, cur_bounds, begin, expression_map);
 
-                // Add connections between output of cloned bodies and Buffers from the current LinearIR
-                // (Buffers are connections between Loops)
-                connect_cloned_body_with_buffers_outside(cur_bounds, decomposed_loop_bounds, linear_ir);
+                // Add connections between output of cloned bodies and expressions outside loop from the current
+                // LinearIR (these expressions are connections between Loops)
+                connect_cloned_body_with_expr_outside_loop(cur_bounds, decomposed_loop_bounds, linear_ir);
 
                 const auto original_loop_info = loop_manager->get_loop_info(unified_loop_id);
                 decomposed_loop_entry_ports = clone_ports(expression_map, original_loop_info->get_input_ports());
@@ -330,6 +327,13 @@ bool InsertSpecificIterations::run(LinearIR& linear_ir,
                             " has not been decomposed!");
             modified = true;
         }
+    }
+    // Expressions are iterated and check if it's connected to
+    // result and replace with new one. The first such expression may not connect to the first result in
+    // m_result_expressions. This means the result replacement doesn't happen in order. Result replacement push_back
+    // result to m_result_expressions. So Result order could be changed after this pass. We need to sort results again.
+    if (modified) {
+        linear_ir.sort_results();
     }
 
     return modified;

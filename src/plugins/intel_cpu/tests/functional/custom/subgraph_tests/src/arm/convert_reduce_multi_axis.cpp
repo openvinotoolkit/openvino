@@ -55,7 +55,7 @@ protected:
             std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape(shapeAxes), axes));
 
         const auto reduce = utils::make_reduce(params[0], reductionAxesNode, keepDims, reductionType);
-        function = makeNgraphFunction(ElementType::f32, params, reduce, "Reduce");
+        function = create_ov_model(ElementType::f32, params, reduce, "Reduce");
     }
 private:
     utils::ReductionType reductionType;

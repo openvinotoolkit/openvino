@@ -66,6 +66,7 @@ public:
         // rename/deletion, but it doesn't work with FAT32 filesystem (works on NTFS)
         auto h = ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         map(path, h);
+        m_id = std::hash<std::wstring>{}(path.native());
     }
 
     void set_from_handle(HANDLE h) {
@@ -77,6 +78,10 @@ public:
     }
     size_t size() const noexcept override {
         return m_size;
+    }
+
+    uint64_t get_id() const noexcept override {
+        return m_id;
     }
 
 private:
@@ -119,6 +124,7 @@ private:
 private:
     void* m_data = nullptr;
     size_t m_size = 0;
+    uint64_t m_id = std::numeric_limits<uint64_t>::max();
     HandleHolder m_handle;
     HandleHolder m_mapping;
 };

@@ -11,7 +11,10 @@ import tempfile
 from pathlib import Path
 from datetime import datetime, timedelta
 
+import requests
 from github import Github, Auth
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 from workflow_rerun.log_collector import collect_logs_for_run
 
@@ -23,6 +26,15 @@ class LogCollectorTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
+        cls.session = requests.Session()
+        retry_strategy = Retry(
+            total=5,
+            backoff_factor=3,
+            backoff_jitter=1,
+            status_forcelist=[429, 500, 502, 503, 504]
+        )
+        cls.session.mount("https://github.com", HTTPAdapter(max_retries=retry_strategy))
+
         cls.github = Github(auth=Auth.Token(token=os.environ.get('GITHUB_TOKEN')))
         gh_repo = cls.github.get_repo(full_name_or_id='openvinotoolkit/openvino')
 
@@ -47,7 +59,7 @@ class LogCollectorTest(unittest.TestCase):
         """
         with tempfile.TemporaryDirectory() as temp_dir:
             logs_dir = Path(temp_dir)
-            collect_logs_for_run(run=self.failed_workflow_run, logs_dir=logs_dir)
+            collect_logs_for_run(run=self.failed_workflow_run, logs_dir=logs_dir, session=self.session)
             self.assertTrue(any(logs_dir.iterdir()),
                             'Logs directory should not be empty for failed runs')
 
@@ -57,7 +69,7 @@ class LogCollectorTest(unittest.TestCase):
         """
         with tempfile.TemporaryDirectory() as temp_dir:
             logs_dir = Path(temp_dir)
-            collect_logs_for_run(run=self.successful_workflow_run, logs_dir=logs_dir)
+            collect_logs_for_run(run=self.successful_workflow_run, logs_dir=logs_dir, session=self.session)
             self.assertFalse(any(logs_dir.iterdir()),
                             'Logs directory should be empty for successful runs')
 

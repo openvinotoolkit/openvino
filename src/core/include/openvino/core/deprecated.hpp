@@ -14,26 +14,11 @@
 // so any use of `frobnicate` will produce a compiler warning.
 //
 
-#if defined(__GNUC__)
-#    define OPENVINO_DEPRECATED(msg) __attribute__((deprecated(msg)))
-#    if __GNUC__ >= 6 || defined(__clang__)
-#        define OPENVINO_ENUM_DEPRECATED(msg) OPENVINO_DEPRECATED(msg)
-#    else
-#        define OPENVINO_ENUM_DEPRECATED(msg)
-#    endif
-#elif defined(_MSC_VER)
-#    define OPENVINO_DEPRECATED(msg) __declspec(deprecated(msg))
-#    if _MSC_VER >= 1900 /* VS2015 */
-#        define OPENVINO_ENUM_DEPRECATED(msg) [[deprecated(msg)]]
-#    else
-#        define OPENVINO_ENUM_DEPRECATED(msg)
-#    endif
-#elif defined(__INTEL_COMPILER)
-#    define OPENVINO_DEPRECATED(msg)      __attribute__((deprecated(msg)))
+#ifndef OPENVINO_DEPRECATED
+#    define OPENVINO_DEPRECATED(msg) [[deprecated(msg)]]
+#endif
+#ifndef OPENVINO_ENUM_DEPRECATED
 #    define OPENVINO_ENUM_DEPRECATED(msg) OPENVINO_DEPRECATED(msg)
-#else
-#    define OPENVINO_DEPRECATED(msg)
-#    define OPENVINO_ENUM_DEPRECATED(msg)
 #endif
 
 // Suppress warning "-Wdeprecated-declarations" / C4996

@@ -3884,3 +3884,51 @@ TEST(reorder_gpu_i4, basic_int4)
 {
     run_reorder_int4({32, 1, 1, 1});
 }
+
+template <typename T>
+void run_reorder_test_i4(data_types input_type, data_types output_type, const std::vector<T>& input_data, const std::vector<uint8_t>& expected) {
+    auto& engine = get_test_engine();
+
+    layout in_layout({ov::Shape{1, 1, 2, 2}, input_type, format::bfyx});
+    layout out_layout({ov::Shape{1, 1, 2, 2}, output_type, format::bfyx});
+
+    memory::ptr input_mem = engine.allocate_memory(in_layout);
+    set_values(input_mem, input_data);
+
+    topology topology(input_layout("input", in_layout), reorder("reorder", input_info("input"), out_layout));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    auto output_mem = outputs.at("reorder").get_memory();
+    cldnn::mem_lock<uint8_t> output_ptr(output_mem, get_test_stream());
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], output_ptr[i]);
+    }
+}
+
+TEST(reorder_gpu_i4, i4_identity) {
+    std::vector<uint8_t> input_data = {0x78, 0x60};
+    run_reorder_test_i4(data_types::i4, data_types::i4, input_data, {0x78, 0x60});
+}
+
+TEST(reorder_gpu_i4, u4_identity) {
+    std::vector<uint8_t> input_data = {0x78, 0x60};
+    run_reorder_test_i4(data_types::u4, data_types::u4, input_data, {0x78, 0x60});
+}
+
+TEST(reorder_gpu_i4, fp16_to_i4) {
+    std::vector<ov::float16> input_data = {ov::float16(-8.5f), ov::float16(7.2f), ov::float16(0.0f), ov::float16(6.0f)};
+    run_reorder_test_i4(data_types::f16, data_types::i4, input_data, {0x78, 0x60});
+}
+
+TEST(reorder_gpu_i4, fp16_to_u4) {
+    std::vector<ov::float16> input_data = {ov::float16(-8.5f), ov::float16(7.2f), ov::float16(0.0f), ov::float16(6.0f)};
+    run_reorder_test_i4(data_types::f16, data_types::u4, input_data, {0x70, 0x60});
+}

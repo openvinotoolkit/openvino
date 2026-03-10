@@ -87,6 +87,10 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
             _ptr = static_cast<uint8_t*>(mem_handle_object.value()) + ov::get_tensor_data_offset(*remote_tensor);
         }
     } else {
+        if (std::dynamic_pointer_cast<ZeroTensor>(_user_tensor._ptr) == nullptr) {
+            _is_custom_user_tensor = true;
+        }
+
         _ptr = _user_tensor->data();
     }
 
@@ -228,6 +232,20 @@ void ZeroTensor::prevent_reuse() {
 
 bool ZeroTensor::can_be_reused() {
     return _can_be_reused;
+}
+
+void ZeroTensor::allocate_data() {
+    _logger.debug("ZeroTensor::allocate_data - import the tensor data");
+    _ptr = _user_tensor->data();
+    _mem_ref = ZeroMemPool::get_instance().import_standard_allocation_memory(_init_structs, _ptr, _bytes_capacity);
+}
+
+void ZeroTensor::detach_imported_allocation_for_custom_tensor() {
+    if (_is_custom_user_tensor) {
+        _logger.debug("ZeroTensor::detach_imported_allocation_for_custom_tensor - deallocate the tensor data");
+        _mem_ref = nullptr;
+        _ptr = nullptr;
+    }
 }
 
 ZeroTensor::~ZeroTensor() {

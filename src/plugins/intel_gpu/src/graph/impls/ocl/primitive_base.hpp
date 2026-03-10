@@ -139,7 +139,6 @@ protected:
         if (is_cpu()) {
             return;
         }
-
         _kernels.clear();
         if (!_kernel_data.kernels.empty()) {
             auto compiled_kernels = kernels_cache.get_kernels(params);

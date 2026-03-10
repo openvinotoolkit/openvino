@@ -62,8 +62,8 @@ SyncInferRequest::FoundPort SyncInferRequest::find_port(const ov::Output<const o
     // Find port without caching work slow because we need each time iterate over all ports and compare different
     // strings So use WA with caching in order to make 2+ calls for the same ports faster.
     // Calculate hash for the port
-    size_t port_hash = ov::util::hash_combine(
-        std::vector<size_t>{std::hash<const ov::Node*>()(port.get_node()), std::hash<size_t>()(port.get_index())});
+    size_t port_hash =
+        ov::util::hash_combine({std::hash<const ov::Node*>()(port.get_node()), std::hash<size_t>()(port.get_index())});
     {
         std::lock_guard<std::mutex> lock(_cacheMutex);
         if (_cachedPorts.find(port_hash) != _cachedPorts.end()) {
@@ -174,7 +174,7 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
         OPENVINO_THROW("The tensor is not initialized!");
 
     bool is_input = ov::op::util::is_parameter(port.get_node());
-    std::string tensor_type = is_input ? "input" : "output";
+    const std::string_view tensor_type = is_input ? "input" : "output";
 
     if (!support_strides) {
         OPENVINO_ASSERT(
@@ -185,55 +185,60 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
             "  2. Enable stride support using the 'enable_strides_for' configuration property if this is supported.");
     }
 
-    if ((port.get_element_type() == ov::element::Type_t::boolean ||
-         tensor->get_element_type() == ov::element::Type_t::boolean) &&
-        port.get_element_type() != tensor->get_element_type()) {
+    const auto& port_element_type = port.get_element_type();
+    const auto& tensor_element_type = tensor->get_element_type();
+
+    if ((port_element_type == ov::element::Type_t::boolean || tensor_element_type == ov::element::Type_t::boolean) &&
+        port_element_type != tensor_element_type) {
         // Exception case for boolean treated as u8 in the NPU driver
-        OPENVINO_ASSERT(
-            port.get_element_type() == ov::element::Type_t::u8 || tensor->get_element_type() == ov::element::Type_t::u8,
-            "The tensor element type is not corresponding with output element type (",
-            tensor->get_element_type(),
-            " != ",
-            port.get_element_type());
-    } else {
-        OPENVINO_ASSERT(port.get_element_type() == tensor->get_element_type(),
+        OPENVINO_ASSERT(port_element_type == ov::element::Type_t::u8 || tensor_element_type == ov::element::Type_t::u8,
                         "The tensor element type is not corresponding with output element type (",
-                        tensor->get_element_type(),
+                        tensor_element_type,
                         " != ",
-                        port.get_element_type());
+                        port_element_type);
+    } else {
+        OPENVINO_ASSERT(port_element_type == tensor_element_type,
+                        "The tensor element type is not corresponding with output element type (",
+                        tensor_element_type,
+                        " != ",
+                        port_element_type);
     }
 
-    bool is_dynamic = port.get_partial_shape().is_dynamic();
+    const auto& port_partial_shape = port.get_partial_shape();
+    const auto& tensor_shape = tensor->get_shape();
+
+    bool is_dynamic = port_partial_shape.is_dynamic();
 
     if (is_dynamic) {
-        auto port_length = port.get_partial_shape().rank().get_length();
-        OPENVINO_ASSERT(ov::PartialShape(tensor->get_shape()).rank().get_length() == port_length,
+        auto port_length = port_partial_shape.rank().get_length();
+        OPENVINO_ASSERT(ov::PartialShape(tensor_shape).rank().get_length() == port_length,
                         "The tensor shape size is not equal to the model input/output rank: got ",
-                        tensor->get_shape().size(),
+                        tensor_shape.size(),
                         " expecting ",
                         port_length);
 
         if (port_length > 0) {
+            const auto& port_max_shape = port_partial_shape.get_max_shape();
             for (auto i = 0; i < port_length; ++i) {
-                if (tensor->get_shape()[i] > port.get_partial_shape().get_max_shape()[i]) {
+                if (tensor_shape[i] > port_max_shape[i]) {
                     OPENVINO_THROW("The tensor shape is not compatible with the model input/output max shape: got ",
-                                   tensor->get_shape(),
+                                   tensor_shape,
                                    " expecting max shape ",
-                                   port.get_partial_shape().get_max_shape());
+                                   port_max_shape);
                 }
             }
         }
     }
 
-    OPENVINO_ASSERT(is_dynamic || port.get_shape() == tensor->get_shape(),
+    OPENVINO_ASSERT(is_dynamic || port_partial_shape == tensor_shape,
                     "The ",
                     tensor_type,
                     " tensor size is not equal to the model ",
                     tensor_type,
                     " type: got ",
-                    tensor->get_shape(),
+                    tensor_shape,
                     " expecting ",
-                    port.get_shape(),
+                    port_partial_shape,
                     ".");
     OPENVINO_ASSERT(
         std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) || tensor->data() != nullptr || is_dynamic,

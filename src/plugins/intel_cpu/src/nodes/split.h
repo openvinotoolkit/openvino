@@ -46,7 +46,9 @@ public:
 
 private:
     struct SplitExecutor {
-        virtual void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) = 0;
+        virtual void exec(const uint8_t* srcData,
+                          const std::vector<uint8_t*>& dstRawMemPtrs,
+                          const CpuParallelPtr& cpuParallel) = 0;
         virtual ~SplitExecutor() = default;
     };
     std::shared_ptr<SplitExecutor> execPtr = nullptr;
@@ -56,7 +58,9 @@ private:
         SplitOptimizedExecutor(const BlockedMemoryDescCPtr& inDesc,
                                const std::vector<BlockedMemoryDescCPtr>& outDescs,
                                size_t axis);
-        void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) override;
+        void exec(const uint8_t* srcData,
+                  const std::vector<uint8_t*>& dstRawMemPtrs,
+                  const CpuParallelPtr& cpuParallel) override;
 
     private:
         std::vector<size_t> dataSize;

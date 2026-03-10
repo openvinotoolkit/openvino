@@ -28,7 +28,7 @@
     "install_runtime": "npm run download_runtime -- --ignore-if-exists"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
+    "@eslint/js": "^9.39.3",
     "@types/node": "^22.19.1",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
@@ -38,7 +38,7 @@
     "prettier": "3.7.3",
     "random-bigint": "^0.0.1",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.48.0"
+    "typescript-eslint": "^8.56.1"
   },
   "engines": {
     "node": ">=21.0.0"

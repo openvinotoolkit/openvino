@@ -25,6 +25,7 @@
 #include "snippets/op/fill.hpp"
 #include "snippets/op/reduce.hpp"
 #include "snippets/op/reshape.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/target_machine.hpp"
 
 
@@ -41,7 +42,6 @@ DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&
 
     jitters[op::v0::Parameter::get_type_info_static()] = dummy_functor;
     jitters[op::v0::Constant::get_type_info_static()] = dummy_functor;
-    jitters[op::v0::Result::get_type_info_static()] = dummy_functor;
     jitters[op::v1::Add::get_type_info_static()] = dummy_functor;
     jitters[op::v1::Subtract::get_type_info_static()] = dummy_functor;
     jitters[op::v1::Multiply::get_type_info_static()] = dummy_functor;
@@ -74,6 +74,7 @@ DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&
     jitters[ov::snippets::op::ReduceMax::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::ReduceSum::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::Reshape::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::Result::get_type_info_static()] = dummy_functor;
 
     for (const auto& elem : custom_opset) {
         jitters[elem] = dummy_functor;

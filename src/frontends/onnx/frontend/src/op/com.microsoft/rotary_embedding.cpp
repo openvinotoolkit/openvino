@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cmath"
+#include <cmath>
+
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -77,13 +78,27 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
                                                   position_ids,
                                                   zero);  // [seqlen, head_size/2] or [bs, seqlen, head_size/2]
 
+    const auto cos_cache_shape = cos_cache.get_partial_shape();
+    const auto cos_cache_rank = cos_cache_shape.rank();
+    CHECK_VALID_NODE(node,
+                     cos_cache_rank.is_static() && cos_cache_rank.get_length() >= 1,
+                     "cos_cache must have static rank with at least one dimension, got: ",
+                     cos_cache_shape);
+    const auto last_dim = cos_cache_shape[cos_cache_rank.get_length() - 1];
+    CHECK_VALID_NODE(node,
+                     last_dim.is_static(),
+                     "cos_cache last dimension must be static to derive head size, got: ",
+                     cos_cache_shape);
+    const auto headsize_val = static_cast<int64_t>(last_dim.get_length() * 2);
+
     const auto input_shape = std::make_shared<v3::ShapeOf>(input);
-    const bool input_is_3d = input.get_partial_shape().rank().get_length() == 3;
+    const auto input_rank = input.get_partial_shape().rank();
+    const bool input_is_3d = input_rank.is_static() && input_rank.get_length() == 3;
     const auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
 
     ov::Output<ov::Node> input_4d = input;
     if (input_is_3d) {
-        const auto headsize = v0::Constant::create(ov::element::i64, ov::Shape{1}, {cos_cache.get_shape()[-1] * 2});
+        const auto headsize = v0::Constant::create(ov::element::i64, ov::Shape{1}, {headsize_val});
         const auto input_shape_prev_2 = get_dimensions(input_shape, {0, 1});
         auto new_input_shape = std::make_shared<v0::Concat>(ov::NodeVector{input_shape_prev_2, minus_one, headsize}, 0);
         auto input_reshaped =
@@ -95,7 +110,7 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
     if (interleaved) {
         auto input_4d_shape = std::make_shared<v3::ShapeOf>(input_4d);
         auto dim_bns = get_dimensions(input_4d_shape, {0, 1, 2});
-        auto half_head_size = v0::Constant::create(ov::element::i64, ov::Shape{1}, {cos_cache.get_shape()[-1]});
+        auto half_head_size = v0::Constant::create(ov::element::i64, ov::Shape{1}, {last_dim.get_length()});
         auto split_input_shape = std::make_shared<v0::Concat>(ov::NodeVector{dim_bns, half_head_size, two}, 0);
         auto reshaped_input = std::make_shared<v1::Reshape>(input_4d, split_input_shape, false);
 

@@ -17,6 +17,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_input.hpp"
 #include "openvino/core/node_output.hpp"
+#include "openvino/util/common_util.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/shape_types.hpp"
 
@@ -116,18 +117,15 @@ PortDescriptorPtr PortDescriptor::clone() const {
 std::string PortDescriptor::serialize() const {
     std::stringstream ss;
     OPENVINO_ASSERT(m_tensor_shape, "TensorShape is nullptr!");
-    ss << m_tensor_shape->size() << " ";
-    for (auto val : *m_tensor_shape) {
-        ss << val << " ";
-    }
-    ss << m_subtensor_shape.size() << " ";
-    for (auto val : m_subtensor_shape) {
-        ss << val << " ";
-    }
-    ss << m_layout.size() << " ";
-    for (auto val : m_layout) {
-        ss << val << " ";
-    }
+    const auto serialize_container = [&ss](const auto& container) {
+        ss << container.size() << " ";
+        if (!container.empty()) {
+            ss << ov::util::join(container, " ") << " ";
+        }
+    };
+    serialize_container(*m_tensor_shape);
+    serialize_container(m_subtensor_shape);
+    serialize_container(m_layout);
     ss << m_reg;
     return ss.str();
 }

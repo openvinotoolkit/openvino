@@ -12,8 +12,8 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestLinalgCross(PytorchLayerTest):
     def _prepare_input(self, x_shape, y_shape, out, dtype):
         import numpy as np
-        x = np.random.randn(*x_shape).astype(dtype)
-        y = np.random.randn(*y_shape).astype(dtype)
+        x = self.random.randn(*x_shape, dtype=dtype)
+        y = self.random.randn(*y_shape, dtype=dtype)
         if not out:
             return (x, y)
         return (x, y, np.zeros(np.maximum(np.array(x_shape), np.array(y_shape)).tolist(), dtype=dtype))
@@ -23,7 +23,7 @@ class TestLinalgCross(PytorchLayerTest):
 
         class aten_linalg_cross(torch.nn.Module):
             def __init__(self, dim, out):
-                super(aten_linalg_cross, self).__init__()
+                super().__init__()
                 if dim is None:
                     self.forward = self.forward_no_dim_no_out if not out else self.forward_no_dim_out
                 elif out:
@@ -42,9 +42,8 @@ class TestLinalgCross(PytorchLayerTest):
             def forward_no_dim_no_out(self, x, y):
                 return torch.linalg.cross(x, y)
 
-        ref_net = None
 
-        return aten_linalg_cross(dim, out), ref_net, "aten::linalg_cross"
+        return aten_linalg_cross(dim, out), "aten::linalg_cross"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -70,8 +69,8 @@ class TestLinalgCross(PytorchLayerTest):
 class TestCross(PytorchLayerTest):
     def _prepare_input(self, x_shape, y_shape, out, dtype):
         import numpy as np
-        x = np.random.randn(*x_shape).astype(dtype)
-        y = np.random.randn(*y_shape).astype(dtype)
+        x = self.random.randn(*x_shape, dtype=dtype)
+        y = self.random.randn(*y_shape, dtype=dtype)
         if not out:
             return (x, y)
         return (x, y, np.zeros(np.maximum(np.array(x_shape), np.array(y_shape)).tolist(), dtype=dtype))
@@ -81,7 +80,7 @@ class TestCross(PytorchLayerTest):
 
         class aten_cross(torch.nn.Module):
             def __init__(self, dim, out, shape):
-                super(aten_cross, self).__init__()
+                super().__init__()
                 if dim is None:
                     self.forward = self.forward_no_dim_no_out if not out else self.forward_no_dim_out
                 elif out:
@@ -103,9 +102,8 @@ class TestCross(PytorchLayerTest):
                 x = torch.reshape(x, self.shape)
                 return torch.cross(x, y)
 
-        ref_net = None
 
-        return aten_cross(dim, out, shape), ref_net, "aten::cross"
+        return aten_cross(dim, out, shape), "aten::cross"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

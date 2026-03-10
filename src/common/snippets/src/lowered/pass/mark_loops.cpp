@@ -58,7 +58,7 @@ bool MarkLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
         auto loop_end_pos = loop_begin_pos;
 
         bool collapse = true;
-        do {
+        while (collapse) {
             const auto& prev_expr = *loop_end_pos;
             loop_end_pos++;
             // If iterator is the last, we should finish Loop
@@ -89,7 +89,7 @@ bool MarkLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                 }
             }
             collapse = is_connected && !is_conflicted;
-        } while (collapse);
+        }
 
         loop_manager->mark_loop(loop_begin_pos, loop_end_pos, loop_depth, m_vector_size);
         expr_it = std::prev(loop_end_pos);

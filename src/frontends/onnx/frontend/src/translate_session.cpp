@@ -157,6 +157,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         }
         if (!error_message.empty()) {
             auto telemetry = model_onnx->get_telemetry_extension();
+            std::string onnx_domain = decoder->get_domain();
+            uint64_t opset_version = decoder->get_op_set();
             if (m_fail_fast) {
                 if (telemetry && translator == nullptr) {
                     telemetry->send_event("error_cause", "onnx_" + decoder->get_op_type());
@@ -164,8 +166,6 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 FRONT_END_THROW(error_message);
             } else {
                 if (telemetry && !error_message.empty()) {
-                    std::string onnx_domain = decoder->get_domain();
-                    uint64_t opset_version = decoder->get_op_set();
                     error_message = "[ONNX Frontend] Conversion failed for " +
                                     (onnx_domain != "" ? "***." + decoder->get_op_type() + "-X"
                                                        : decoder->get_op_type() + "-" + std::to_string(opset_version)) +
@@ -174,8 +174,9 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 auto operation =
                     std::make_shared<ov::frontend::onnx::NotSupportedONNXNode>(node_context.get_ov_inputs(),
                                                                                decoder->get_output_size(),
-                                                                               decoder->get_domain(),
+                                                                               onnx_domain,
                                                                                decoder->get_op_type(),
+                                                                               static_cast<int64_t>(opset_version),
                                                                                error_message);
                 operation->set_friendly_name(decoder->get_op_name());
                 ov_outputs = operation->outputs();
@@ -198,7 +199,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     for (const auto& output : model_onnx->get_outputs()) {
         const auto tensor = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(output);
         FRONT_END_GENERAL_CHECK(tensor != nullptr,
-                                "Inputs of ov::frontend::onnx::InputModel must be TensorLitePlace instances");
+                                "Inputs of ov::frontend::onnx::InputModel must be TensorONNXPlace instances");
         const auto name = tensor->get_names()[0];
         if (!m_tensor_values.count(name)) {
             continue;

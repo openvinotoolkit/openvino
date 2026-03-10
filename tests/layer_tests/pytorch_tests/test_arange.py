@@ -22,7 +22,7 @@ class TestArange(PytorchLayerTest):
             def forward(self, end):
                 return torch.arange(end)
 
-        self._test(aten_arange_end(), None, "aten::arange",
+        self._test(aten_arange_end(), "aten::arange",
                    ie_device, precision, ir_version, trace_model=True,
                    kwargs_to_prepare_input={"end": end})
 
@@ -40,7 +40,7 @@ class TestArange(PytorchLayerTest):
             def forward(self, end):
                 return torch.arange(end, dtype=self.dtype)
 
-        self._test(aten_arange_end_dtype(dtype), None, "aten::arange",
+        self._test(aten_arange_end_dtype(dtype), "aten::arange",
                    ie_device, precision, ir_version, trace_model=True,
                    kwargs_to_prepare_input={"end": end})
 
@@ -54,7 +54,7 @@ class TestArange(PytorchLayerTest):
             def forward(self, end, ref):
                 return torch.arange(end, dtype=ref.dtype)
 
-        self._test(aten_arange_end_prim_dtype(), None, ["aten::arange", "prim::dtype"],
+        self._test(aten_arange_end_prim_dtype(), ["aten::arange", "prim::dtype"],
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"end": end,
                                             "ref_value": torch.tensor(1, dtype=dtype).numpy()})
@@ -70,7 +70,7 @@ class TestArange(PytorchLayerTest):
             def forward(self, start, end):
                 return torch.arange(start, end)
 
-        self._test(aten_arange_start_end(), None, "aten::arange",
+        self._test(aten_arange_start_end(), "aten::arange",
                    ie_device, precision, ir_version, trace_model=True,
                    kwargs_to_prepare_input={"start": start, "end": end})
 
@@ -94,7 +94,7 @@ class TestArange(PytorchLayerTest):
             def forward(self, start, end):
                 return torch.arange(start, end, dtype=self.dtype)
 
-        self._test(aten_arange_start_end_dtype(dtype), None, "aten::arange",
+        self._test(aten_arange_start_end_dtype(dtype), "aten::arange",
                    ie_device, precision, ir_version, trace_model=True,
                    kwargs_to_prepare_input={"start": start, "end": end})
 
@@ -115,7 +115,7 @@ class TestArange(PytorchLayerTest):
             def forward(self, start, end, ref):
                 return torch.arange(start, end, dtype=ref.dtype)
 
-        self._test(aten_arange_start_end_prim_dtype(), None, ["aten::arange", "prim::dtype"],
+        self._test(aten_arange_start_end_prim_dtype(), ["aten::arange", "prim::dtype"],
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"start": start, "end": end,
                                             "ref_value": torch.tensor(1, dtype=dtype).numpy()})
@@ -134,7 +134,7 @@ class TestArange(PytorchLayerTest):
             def forward(self, start, end, step):
                 return torch.arange(start, end, step)
 
-        self._test(aten_arange_start_end_step(), None, "aten::arange",
+        self._test(aten_arange_start_end_step(), "aten::arange",
                    ie_device, precision, ir_version, trace_model=True,
                    kwargs_to_prepare_input={"start": start, "end": end, "step": step})
 
@@ -162,7 +162,7 @@ class TestArange(PytorchLayerTest):
             def forward(self, start, end, step):
                 return torch.arange(start, end, step, dtype=self.dtype)
 
-        self._test(aten_arange_start_end_step_dtype(dtype), None, "aten::arange",
+        self._test(aten_arange_start_end_step_dtype(dtype), "aten::arange",
                    ie_device, precision, ir_version, trace_model=True,
                    kwargs_to_prepare_input={"start": start, "end": end, "step": step})
 
@@ -188,7 +188,7 @@ class TestArange(PytorchLayerTest):
                 ref = ref.to(self.dtype)
                 return torch.arange(start, end, step, dtype=ref.dtype)
 
-        self._test(aten_arange_start_end_step_prim_dtype(dtype), None, ["aten::arange", "prim::dtype"],
+        self._test(aten_arange_start_end_step_prim_dtype(dtype), ["aten::arange", "prim::dtype"],
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"start": start, "end": end, "step": step,
                                             "ref_value": torch.tensor(1, dtype=dtype).numpy()})
@@ -217,7 +217,7 @@ class TestArangeLegacy(PytorchLayerTest):
 
         class aten_arange_end_dtype(torch.nn.Module):
             def __init__(self, dtype) -> None:
-                super(aten_arange_end_dtype, self).__init__()
+                super().__init__()
                 self.dtype = dtype
 
             def forward(self, x):
@@ -225,7 +225,7 @@ class TestArangeLegacy(PytorchLayerTest):
 
         class aten_arange_start_end_dtype(torch.nn.Module):
             def __init__(self, dtype) -> None:
-                super(aten_arange_start_end_dtype, self).__init__()
+                super().__init__()
                 self.dtype = dtype
 
             def forward(self, x, y):
@@ -233,7 +233,7 @@ class TestArangeLegacy(PytorchLayerTest):
 
         class aten_arange_start_end_step_dtype(torch.nn.Module):
             def __init__(self, dtype) -> None:
-                super(aten_arange_start_end_step_dtype, self).__init__()
+                super().__init__()
                 self.dtype = dtype
 
             def forward(self, x, y, z):
@@ -241,7 +241,7 @@ class TestArangeLegacy(PytorchLayerTest):
 
         class aten_arange_end_out(torch.nn.Module):
             def __init__(self, dtype) -> None:
-                super(aten_arange_end_out, self).__init__()
+                super().__init__()
                 self.dtype = dtype
 
             def forward(self, x):
@@ -249,7 +249,7 @@ class TestArangeLegacy(PytorchLayerTest):
 
         class aten_arange_start_end_out(torch.nn.Module):
             def __init__(self, out) -> None:
-                super(aten_arange_start_end_out, self).__init__()
+                super().__init__()
                 self.out = out
 
             def forward(self, x, y):
@@ -257,7 +257,7 @@ class TestArangeLegacy(PytorchLayerTest):
 
         class aten_arange_start_end_step_out(torch.nn.Module):
             def __init__(self, out) -> None:
-                super(aten_arange_start_end_step_out, self).__init__()
+                super().__init__()
                 self.out = out
 
             def forward(self, x, y, z):
@@ -291,9 +291,8 @@ class TestArangeLegacy(PytorchLayerTest):
         else:
             model_class = model_classes[num_inputs][1](dtype)
 
-        ref_net = None
 
-        return model_class, ref_net, "aten::arange"
+        return model_class, "aten::arange"
 
     @pytest.mark.nightly
     @pytest.mark.precommit_torch_export

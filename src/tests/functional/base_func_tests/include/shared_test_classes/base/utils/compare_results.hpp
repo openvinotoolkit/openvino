@@ -20,7 +20,7 @@ using CompareMap = std::map<ov::NodeTypeInfo, std::function<void(
         double topk_threshold,
         double mvn_threshold)>>;
 
-CompareMap getCompareMap();
+const CompareMap& getCompareMap();
 
 } // namespace utils
 } // namespace test

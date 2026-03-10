@@ -28,14 +28,19 @@ Reshape::Reshape(const Output<Node>& arg, ov::PartialShape target_shape)
     constructor_validate_and_infer_types();
 }
 
+Reshape::Reshape(const OutputVector& args, ov::PartialShape target_shape)
+    : ShapeInferOp(args),
+      m_target_shape(std::move(target_shape)) {
+    constructor_validate_and_infer_types();
+}
+
 void Reshape::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), m_target_shape);
 }
 
 std::shared_ptr<Node> Reshape::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(Reshape);
-    check_new_args_count(this, new_args);
-    return std::make_shared<Reshape>(new_args.at(0), m_target_shape);
+    return std::make_shared<Reshape>(new_args, m_target_shape);
 }
 
 bool Reshape::visit_attributes(AttributeVisitor& visitor) {

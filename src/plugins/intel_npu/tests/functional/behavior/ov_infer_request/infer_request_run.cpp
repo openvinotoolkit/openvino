@@ -19,6 +19,15 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                                             ::testing::ValuesIn(configsInferRequestRunTests)),
                          InferRequestRunTests::getTestCaseName);
 
+const std::vector<ov::AnyMap> profilingConfigs{{ov::intel_npu::profiling_type(ov::intel_npu::ProfilingType::MODEL)},
+                                               {ov::intel_npu::profiling_type(ov::intel_npu::ProfilingType::INFER)}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+                         ProfilingBlob,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(profilingConfigs)),
+                         InferRequestRunTests::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          RandomTensorOverZeroTensorRunTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
@@ -43,10 +52,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                                             ::testing::ValuesIn(configsInferRequestRunTests)),
                          InferRequestRunTests::getTestCaseName);
 
-const std::vector<ov::AnyMap> batchingConfigs = {
-    {ov::log::level(ov::log::Level::WARNING), ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::PLUGIN)},
-    {ov::log::level(ov::log::Level::WARNING), ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::COMPILER)},
-    {ov::log::level(ov::log::Level::WARNING), ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::AUTO)}};
+const std::vector<ov::AnyMap> batchingConfigs = {{ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::PLUGIN)},
+                                                 {ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::COMPILER)},
+                                                 {ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::AUTO)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          BatchingRunTests,

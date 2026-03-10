@@ -139,7 +139,7 @@ void ConvertCPULayerTest::SetUp() {
     }
     auto conversion = std::make_shared<ov::op::v0::Convert>(params.front(), outPrc);
 
-    function = makeNgraphFunction(inPrc, params, conversion, "ConversionCPU");
+    function = create_ov_model(inPrc, params, conversion, "ConversionCPU");
 
     // issue 161636
     if (special_value == ov::test::SpecialValue::none && outPrc == ov::element::f8e4m3) {

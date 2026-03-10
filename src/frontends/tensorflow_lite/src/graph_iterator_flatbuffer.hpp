@@ -80,7 +80,7 @@ public:
 #endif
             char buf[offset_size * 2 + 1] = {};  // +1 is used to overcome gcc's -Wstringop-overread warning
             tflite_stream.read(buf, offset_size * 2);
-            // If we have enough readed bytes - try to detect prefixed identifier, else try without size prefix
+            // If we have enough read bytes - try to detect prefixed identifier, else try without size prefix
             if ((tflite_stream.gcount() == offset_size * 2) && ::tflite::ModelBufferHasIdentifier(buf + offset_size)) {
                 return true;
             } else if (tflite_stream.gcount() >= offset_size && ::tflite::ModelBufferHasIdentifier(buf)) {

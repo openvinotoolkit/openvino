@@ -99,7 +99,7 @@ protected:
             selectedType = getPrimitiveType() + "_" + inPrec.get_type_name();
         }
 
-        function = makeNgraphFunction(inPrec, params, fq, "FakeQuantizeCPU");
+        function = create_ov_model(inPrec, params, fq, "FakeQuantizeCPU");
 
         if (inPrec == ov::element::f32) {
             abs_threshold = 1e-4;

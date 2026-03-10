@@ -40,7 +40,8 @@ protected:
     bool is_offset_runtime = false;
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    friend std::string init_info_jit_memory_emitter(const jit_memory_emitter* emitter);
+    template <typename MemoryEmitter>
+    friend std::string snippets_common::format_memory_emitter_info(const MemoryEmitter* emitter);
 #endif
 };
 

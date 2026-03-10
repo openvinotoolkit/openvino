@@ -21,7 +21,7 @@ class TestIsInf(PytorchLayerTest):
             def forward(self, input_tensor):
                 return torch.isinf(input_tensor * float("inf"))
 
-        return aten_isinf(), None, "aten::isinf"
+        return aten_isinf(), "aten::isinf"
 
     @pytest.mark.precommit_fx_backend
     def test_isinf(self, ie_device, precision, ir_version, input_tensor):

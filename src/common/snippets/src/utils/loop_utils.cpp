@@ -18,10 +18,9 @@
 
 namespace ov::snippets::utils {
 
-using namespace ov::snippets::lowered;
 namespace {
-inline int64_t get_ptr_increment(const LoopInfoPtr& outer_split_info_of_nested_loop,
-                                 const LoopPort& loop_port,
+inline int64_t get_ptr_increment(const lowered::LoopInfoPtr& outer_split_info_of_nested_loop,
+                                 const lowered::LoopPort& loop_port,
                                  size_t work_amount,
                                  size_t port_count) {
     if (!loop_port.is_incremented()) {
@@ -30,10 +29,10 @@ inline int64_t get_ptr_increment(const LoopInfoPtr& outer_split_info_of_nested_l
     const auto& layout = loop_port.get_expr_port()->get_descriptor_ptr()->get_layout();
     const auto port_type = loop_port.get_expr_port()->get_type();
     auto get_port_dim_idx = [&layout, &port_type](size_t dim_idx) {
-        if (port_type == ExpressionPort::Input) {
+        if (port_type == lowered::ExpressionPort::Input) {
             return get_input_dim_idx(layout, dim_idx);
         }
-        if (port_type == ExpressionPort::Output) {
+        if (port_type == lowered::ExpressionPort::Output) {
             return get_output_dim_idx(layout, dim_idx);
         }
         OPENVINO_THROW("Unsupported expression port type!");
@@ -67,10 +66,10 @@ inline int64_t get_ptr_increment(const LoopInfoPtr& outer_split_info_of_nested_l
         // - Load from Buffer_in: ptr_increment = n_blk, since this loop port is inside outer_split loop
         // - Store to Buffer_out: ptr_increment = n, since this loop port is outside outer_split loop
         if (outer_split_info_of_nested_loop != nullptr) {
-            const auto& ports = port_type == ExpressionPort::Input
+            const auto& ports = port_type == lowered::ExpressionPort::Input
                                     ? outer_split_info_of_nested_loop->get_input_ports()
                                     : outer_split_info_of_nested_loop->get_output_ports();
-            auto it = std::find_if(ports.cbegin(), ports.cend(), [&expr_port](const LoopPort& lp) {
+            auto it = std::find_if(ports.cbegin(), ports.cend(), [&expr_port](const lowered::LoopPort& lp) {
                 return *lp.get_expr_port() == *expr_port;
             });
             if (it == ports.cend()) {
@@ -84,7 +83,7 @@ inline int64_t get_ptr_increment(const LoopInfoPtr& outer_split_info_of_nested_l
 }
 
 inline int64_t get_finalization_offset(size_t work_amount, int64_t ptr_increment) {
-    if (any_of(0U, ptr_increment, work_amount)) {
+    if (ov::snippets::utils::any_of(0U, ptr_increment, work_amount)) {
         return 0;
     }
     if (is_dynamic_value(work_amount) || is_dynamic_value(ptr_increment)) {
@@ -93,14 +92,14 @@ inline int64_t get_finalization_offset(size_t work_amount, int64_t ptr_increment
     return -1 * ptr_increment * work_amount;
 }
 
-inline void init_work_amount(const LoopInfoPtr& loop_info) {
+inline void init_work_amount(const lowered::LoopInfoPtr& loop_info) {
     size_t work_amount = 1;
-    loop_info->iterate_through_ports([&work_amount](const LoopPort& loop_port) {
+    loop_info->iterate_through_ports([&work_amount](const lowered::LoopPort& loop_port) {
         if (loop_port.is_processed()) {
             const auto& desc = loop_port.get_expr_port()->get_descriptor_ptr();
             const auto& shape = desc->get_shape();
             const auto& layout = desc->get_layout();
-            const auto is_input = loop_port.get_expr_port()->get_type() == ExpressionPort::Input;
+            const auto is_input = loop_port.get_expr_port()->get_type() == lowered::ExpressionPort::Input;
             const auto dim_idx = is_input ? get_input_dim_idx(layout, loop_port.get_dim_idx())
                                           : get_output_dim_idx(layout, loop_port.get_dim_idx());
             OPENVINO_ASSERT(broadcast_merge_dim(work_amount, work_amount, shape[dim_idx]),
@@ -111,18 +110,20 @@ inline void init_work_amount(const LoopInfoPtr& loop_info) {
 }
 }  // namespace
 
-void update_data_pointer_shifts(const LoopManagerPtr& loop_manager, const UnifiedLoopInfoPtr& loop_info) {
+void update_data_pointer_shifts(const lowered::LoopManagerPtr& loop_manager,
+                                const lowered::UnifiedLoopInfoPtr& loop_info) {
     OPENVINO_ASSERT(loop_info != nullptr, "UnifiedLoopInfo is nullptr, nothing to update");
     const auto work_amount = loop_info->get_work_amount();
     const auto input_count = loop_info->get_input_count();
     const auto output_count = loop_info->get_output_count();
 
-    auto extract_inner_split_loop = [](const LoopInfoPtr& loop_info) -> InnerSplittedUnifiedLoopInfoPtr {
-        if (auto inner_splitted_loop = ov::as_type_ptr<InnerSplittedUnifiedLoopInfo>(loop_info)) {
+    auto extract_inner_split_loop =
+        [](const lowered::LoopInfoPtr& loop_info) -> lowered::InnerSplittedUnifiedLoopInfoPtr {
+        if (auto inner_splitted_loop = ov::as_type_ptr<lowered::InnerSplittedUnifiedLoopInfo>(loop_info)) {
             return inner_splitted_loop;
         }
-        if (const auto expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(loop_info)) {
-            return ov::as_type_ptr<InnerSplittedUnifiedLoopInfo>(expanded_loop_info->get_unified_loop_info());
+        if (const auto expanded_loop_info = ov::as_type_ptr<lowered::ExpandedLoopInfo>(loop_info)) {
+            return ov::as_type_ptr<lowered::InnerSplittedUnifiedLoopInfo>(expanded_loop_info->get_unified_loop_info());
         }
         return nullptr;
     };
@@ -131,8 +132,8 @@ void update_data_pointer_shifts(const LoopManagerPtr& loop_manager, const Unifie
     // which is nested inside the current loop
     // TODO: this logic must be reworked, and WA should be removed, when blocking shapes are supported
     // Ticket: 155651
-    LoopInfoPtr outer_split_info_of_nested_loop = nullptr;
-    if (auto cur_dim_idx = loop_info->get_dim_idx(); cur_dim_idx != LoopPort::UNDEFINED_DIM_IDX) {
+    lowered::LoopInfoPtr outer_split_info_of_nested_loop = nullptr;
+    if (auto cur_dim_idx = loop_info->get_dim_idx(); cur_dim_idx != lowered::LoopPort::UNDEFINED_DIM_IDX) {
         auto fst_port_expr = loop_info->get_input_ports().front().get_expr_port()->get_expr();
         for (const auto loop_idx : fst_port_expr->get_loop_ids()) {
             const auto loop_info = loop_manager->get_loop_info(loop_idx);
@@ -146,20 +147,21 @@ void update_data_pointer_shifts(const LoopManagerPtr& loop_manager, const Unifie
         }
     }
 
-    auto update_shifts = [&](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& ptr_shifts_params) {
+    auto update_shifts = [&](lowered::LoopPort& loop_port, lowered::UnifiedLoopInfo::LoopPortDesc& ptr_shifts_params) {
         ptr_shifts_params.ptr_increment = get_ptr_increment(
             outer_split_info_of_nested_loop,
             loop_port,
             work_amount,
-            loop_port.get_expr_port()->get_type() == ExpressionPort::Input ? input_count : output_count);
+            loop_port.get_expr_port()->get_type() == lowered::ExpressionPort::Input ? input_count : output_count);
         ptr_shifts_params.finalization_offset = get_finalization_offset(work_amount, ptr_shifts_params.ptr_increment);
     };
     loop_info->iterate_through_infos(update_shifts);
 }
 
-void update_runtime_parameters(const LoopManagerPtr& loop_manager, const UnifiedLoopInfoPtr& loop_info) {
+void update_runtime_parameters(const lowered::LoopManagerPtr& loop_manager,
+                               const lowered::UnifiedLoopInfoPtr& loop_info) {
     OPENVINO_ASSERT(loop_info != nullptr, "UnifiedLoopInfo is nullptr, nothing to update");
-    if (!ov::is_type<InnerSplittedUnifiedLoopInfo>(loop_info)) {
+    if (!ov::is_type<lowered::InnerSplittedUnifiedLoopInfo>(loop_info)) {
         init_work_amount(loop_info);
     }
     update_data_pointer_shifts(loop_manager, loop_info);
@@ -167,10 +169,12 @@ void update_runtime_parameters(const LoopManagerPtr& loop_manager, const Unified
 
 bool should_be_loop_port(const ov::snippets::lowered::ExpressionPort& port, size_t loop_id) {
     const auto& connected_ports = port.get_connected_ports();
-    return std::any_of(connected_ports.cbegin(), connected_ports.cend(), [&](const ExpressionPort& connected_port) {
-        const auto& loops = connected_port.get_expr()->get_loop_ids();
-        return std::find(loops.cbegin(), loops.cend(), loop_id) == loops.cend();
-    });
+    return std::any_of(connected_ports.cbegin(),
+                       connected_ports.cend(),
+                       [&](const lowered::ExpressionPort& connected_port) {
+                           const auto& loops = connected_port.get_expr()->get_loop_ids();
+                           return std::find(loops.cbegin(), loops.cend(), loop_id) == loops.cend();
+                       });
 }
 
 }  // namespace ov::snippets::utils

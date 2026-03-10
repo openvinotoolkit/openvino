@@ -145,7 +145,7 @@ protected:
         auto nms = std::make_shared<ov::op::v9::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
                                                                        softNmsSigmaNode, boxEncoding, sortResDescend, outType);
 
-        function = makeNgraphFunction(paramsPrec, params, nms, "NMS");
+        function = create_ov_model(paramsPrec, params, nms, "NMS");
     }
 
 private:

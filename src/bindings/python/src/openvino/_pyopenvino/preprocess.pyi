@@ -51,7 +51,7 @@ class ColorFormat:
         ...
     def __index__(self) -> int:
         ...
-    def __init__(self, value: typing.SupportsInt) -> None:
+    def __init__(self, value: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def __int__(self) -> int:
         ...
@@ -59,7 +59,7 @@ class ColorFormat:
         ...
     def __repr__(self) -> str:
         ...
-    def __setstate__(self, state: typing.SupportsInt) -> None:
+    def __setstate__(self, state: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def __str__(self) -> str:
         ...
@@ -142,11 +142,11 @@ class InputTensorInfo:
     def set_shape(self, shape: openvino._pyopenvino.PartialShape) -> InputTensorInfo:
         ...
     @typing.overload
-    def set_shape(self, shape: collections.abc.Sequence[typing.SupportsInt]) -> InputTensorInfo:
+    def set_shape(self, shape: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> InputTensorInfo:
         ...
     def set_spatial_dynamic_shape(self) -> InputTensorInfo:
         ...
-    def set_spatial_static_shape(self, height: typing.SupportsInt, width: typing.SupportsInt) -> InputTensorInfo:
+    def set_spatial_static_shape(self, height: typing.SupportsInt | typing.SupportsIndex, width: typing.SupportsInt | typing.SupportsIndex) -> InputTensorInfo:
         ...
 class OutputInfo:
     """
@@ -212,7 +212,7 @@ class PaddingMode:
         ...
     def __index__(self) -> int:
         ...
-    def __init__(self, value: typing.SupportsInt) -> None:
+    def __init__(self, value: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def __int__(self) -> int:
         ...
@@ -220,7 +220,7 @@ class PaddingMode:
         ...
     def __repr__(self) -> str:
         ...
-    def __setstate__(self, state: typing.SupportsInt) -> None:
+    def __setstate__(self, state: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def __str__(self) -> str:
         ...
@@ -248,7 +248,7 @@ class PostProcessSteps:
     def convert_layout(self, dst_layout: openvino._pyopenvino.Layout) -> PostProcessSteps:
         ...
     @typing.overload
-    def convert_layout(self, dims: collections.abc.Sequence[typing.SupportsInt]) -> PostProcessSteps:
+    def convert_layout(self, dims: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> PostProcessSteps:
         ...
     def custom(self, operation: collections.abc.Callable) -> PostProcessSteps:
         """
@@ -280,7 +280,7 @@ class PrePostProcessor:
     def input(self, tensor_name: str) -> InputInfo:
         ...
     @typing.overload
-    def input(self, input_index: typing.SupportsInt) -> InputInfo:
+    def input(self, input_index: typing.SupportsInt | typing.SupportsIndex) -> InputInfo:
         ...
     @typing.overload
     def output(self) -> OutputInfo:
@@ -289,7 +289,7 @@ class PrePostProcessor:
     def output(self, tensor_name: str) -> OutputInfo:
         ...
     @typing.overload
-    def output(self, output_index: typing.SupportsInt) -> OutputInfo:
+    def output(self, output_index: typing.SupportsInt | typing.SupportsIndex) -> OutputInfo:
         ...
 class PreProcessSteps:
     """
@@ -311,9 +311,9 @@ class PreProcessSteps:
     def convert_layout(self, dst_layout: openvino._pyopenvino.Layout) -> PreProcessSteps:
         ...
     @typing.overload
-    def convert_layout(self, dims: collections.abc.Sequence[typing.SupportsInt]) -> PreProcessSteps:
+    def convert_layout(self, dims: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> PreProcessSteps:
         ...
-    def crop(self, begin: collections.abc.Sequence[typing.SupportsInt], end: collections.abc.Sequence[typing.SupportsInt]) -> PreProcessSteps:
+    def crop(self, begin: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex], end: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> PreProcessSteps:
         ...
     def custom(self, operation: collections.abc.Callable) -> PreProcessSteps:
         """
@@ -325,7 +325,7 @@ class PreProcessSteps:
                     :rtype: openvino.preprocess.PreProcessSteps
         """
     @typing.overload
-    def mean(self, value: typing.SupportsFloat) -> PreProcessSteps:
+    def mean(self, value: typing.SupportsFloat | typing.SupportsIndex) -> PreProcessSteps:
         """
                     Subtracts single float value from each element in input tensor.
                     Input tensor must have ov.Type.f32 data type.
@@ -336,7 +336,7 @@ class PreProcessSteps:
                     :rtype: openvino.preprocess.PreProcessSteps
         """
     @typing.overload
-    def mean(self, values: collections.abc.Sequence[typing.SupportsFloat]) -> PreProcessSteps:
+    def mean(self, values: collections.abc.Sequence[typing.SupportsFloat | typing.SupportsIndex]) -> PreProcessSteps:
         """
                     Subtracts a given single float value from each element in a given channel from input tensor.
                     Input tensor must have ov.Type.f32 data type.
@@ -347,7 +347,7 @@ class PreProcessSteps:
                     :rtype: openvino.preprocess.PreProcessSteps
         """
     @typing.overload
-    def pad(self, pads_begin: collections.abc.Sequence[typing.SupportsInt], pads_end: collections.abc.Sequence[typing.SupportsInt], value: typing.SupportsFloat, mode: PaddingMode) -> PreProcessSteps:
+    def pad(self, pads_begin: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex], pads_end: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex], value: typing.SupportsFloat | typing.SupportsIndex, mode: PaddingMode) -> PreProcessSteps:
         """
                     Adds padding preprocessing operation.
         
@@ -363,7 +363,7 @@ class PreProcessSteps:
                     :rtype: openvino.preprocess.PreProcessSteps
         """
     @typing.overload
-    def pad(self, pads_begin: collections.abc.Sequence[typing.SupportsInt], pads_end: collections.abc.Sequence[typing.SupportsInt], value: collections.abc.Sequence[typing.SupportsFloat], mode: PaddingMode) -> PreProcessSteps:
+    def pad(self, pads_begin: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex], pads_end: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex], value: collections.abc.Sequence[typing.SupportsFloat | typing.SupportsIndex], mode: PaddingMode) -> PreProcessSteps:
         """
                     Adds padding preprocessing operation.
         
@@ -379,7 +379,7 @@ class PreProcessSteps:
                     :rtype: openvino.PreProcessSteps
         """
     @typing.overload
-    def resize(self, alg: ResizeAlgorithm, dst_height: typing.SupportsInt, dst_width: typing.SupportsInt) -> PreProcessSteps:
+    def resize(self, alg: ResizeAlgorithm, dst_height: typing.SupportsInt | typing.SupportsIndex, dst_width: typing.SupportsInt | typing.SupportsIndex) -> PreProcessSteps:
         ...
     @typing.overload
     def resize(self, alg: ResizeAlgorithm) -> PreProcessSteps:
@@ -387,7 +387,7 @@ class PreProcessSteps:
     def reverse_channels(self) -> PreProcessSteps:
         ...
     @typing.overload
-    def scale(self, value: typing.SupportsFloat) -> PreProcessSteps:
+    def scale(self, value: typing.SupportsFloat | typing.SupportsIndex) -> PreProcessSteps:
         """
                     Divides each element in input tensor by specified constant float value.
                     Input tensor must have ov.Type.f32 data type.
@@ -398,7 +398,7 @@ class PreProcessSteps:
                     :rtype: openvino.preprocess.PreProcessSteps
         """
     @typing.overload
-    def scale(self, values: collections.abc.Sequence[typing.SupportsFloat]) -> PreProcessSteps:
+    def scale(self, values: collections.abc.Sequence[typing.SupportsFloat | typing.SupportsIndex]) -> PreProcessSteps:
         """
                     Divides each element in a given channel from input tensor by a given single float value.
                     Input tensor must have ov.Type.f32 data type.
@@ -436,7 +436,7 @@ class ResizeAlgorithm:
         ...
     def __index__(self) -> int:
         ...
-    def __init__(self, value: typing.SupportsInt) -> None:
+    def __init__(self, value: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def __int__(self) -> int:
         ...
@@ -444,7 +444,7 @@ class ResizeAlgorithm:
         ...
     def __repr__(self) -> str:
         ...
-    def __setstate__(self, state: typing.SupportsInt) -> None:
+    def __setstate__(self, state: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def __str__(self) -> str:
         ...

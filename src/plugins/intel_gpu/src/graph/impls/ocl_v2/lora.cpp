@@ -542,8 +542,7 @@ protected:
                 if (lora_count == 2) {
                     output_state = fused_mlp_output;
                 } else {
-                    size_t q_state = extract_channel(ChannelName::FEATURE, params.input_layouts[2]);
-                    output_state = fused_mlp_output + q_state;
+                    output_state += fused_mlp_output;
                 }
             }
 
@@ -736,7 +735,7 @@ protected:
                 size_t fused_output = kv_state * 2;
 
                 if (lora_count == 3) {
-                    size_t q_state = extract_channel(ChannelName::FEATURE, params.input_layouts[2]);
+                    size_t q_state = extract_channel(ChannelName::BATCH, params.input_layouts[4]);
                     fused_output += q_state;
                 }
 

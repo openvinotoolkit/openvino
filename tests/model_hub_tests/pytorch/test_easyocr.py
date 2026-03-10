@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
 import pytest
 import torch
 
@@ -29,4 +30,6 @@ class TestEasyOCRConvertModel(TestTorchConvertModel):
     @pytest.mark.nightly
     @pytest.mark.parametrize("name", ["detector", "recognizer"])
     def test_convert_model(self, name, ie_device):
+        if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+            pytest.skip("EasyOCR models are not enabled on ARM")
         self.run(name, None, ie_device)

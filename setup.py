@@ -804,7 +804,7 @@ if os.getenv("CI_BUILD_DEV_TAG"):
     long_description_md = WORKING_DIR / "build" / "pypi-openvino-rt.md"
     long_description_md.parent.mkdir(exist_ok=True)
     concat_files(md_files, long_description_md)
-    docs_url = "https://docs.openvino.ai/2025/index.html"
+    docs_url = "https://docs.openvino.ai/2026/index.html"
     OPENVINO_VERSION = WHEEL_VERSION[0:8]
 
 setup(

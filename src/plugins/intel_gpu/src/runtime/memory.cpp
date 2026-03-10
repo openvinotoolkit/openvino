@@ -7,12 +7,6 @@
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-#include "ocl/ocl_memory.hpp"
-
-#ifdef OV_GPU_WITH_SYCL
-#include "sycl/sycl_memory.hpp"
-#endif
-
 #include <string>
 #include <vector>
 #include <memory>
@@ -47,18 +41,6 @@ MemoryTracker::~MemoryTracker() {
 
 memory::memory(engine* engine, const layout& layout, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker)
     : _engine(engine), _layout(layout), _bytes_count(_layout.bytes_count()), m_mem_tracker(mem_tracker), _type(type) {
-}
-
-std::unique_ptr<surfaces_lock> surfaces_lock::create(engine_types engine_type, std::vector<memory::ptr> mem, const stream& stream) {
-    switch (engine_type) {
-#ifdef OV_GPU_WITH_SYCL
-    case engine_types::sycl:
-        return std::unique_ptr<sycl::sycl_surfaces_lock>(new sycl::sycl_surfaces_lock(mem, stream));
-#endif
-    case engine_types::ocl:
-        return std::unique_ptr<ocl::ocl_surfaces_lock>(new ocl::ocl_surfaces_lock(mem, stream));
-    default: throw std::runtime_error("Unsupported engine type in surfaces_lock::create");
-    }
 }
 
 bool surfaces_lock::is_lock_needed(const shared_mem_type& mem_type) {

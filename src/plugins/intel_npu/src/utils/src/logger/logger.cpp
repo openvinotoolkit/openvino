@@ -71,9 +71,9 @@ Logger& Logger::global() {
     return log;
 }
 
-Logger::Logger(std::string_view name, ov::log::Level lvl) : _name(name), _logLevel(lvl) {}
+Logger::Logger(const char* name, ov::log::Level lvl) : _name(name), _logLevel(lvl) {}
 
-Logger Logger::clone(std::string_view name) const {
+Logger Logger::clone(const char* name) const {
     Logger logger(name, level());
     return logger;
 }

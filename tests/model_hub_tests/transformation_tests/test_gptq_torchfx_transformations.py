@@ -9,6 +9,7 @@ from openvino.frontend.pytorch.torchdynamo.execute import compiled_cache
 import models_hub_common.utils as utils
 import pytest
 import os
+import platform
 
 def patch_gptq(config):
     do_gptq_patching = False
@@ -96,9 +97,14 @@ def run_gptq_torchfx(tmp_path, model_id, model_link, prompt_result_pair):
 def test_gptq_torchfx_precommit(tmp_path, model_name, model_link, mark, reason, prompt_result_pair, ie_device):
     assert mark is None or mark == 'skip' or mark == 'xfail', \
         "Incorrect test case: {}, {}".format(model_name, model_link)
+    arm_machine_names = {'arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'}
+    arm_missing_accelerate_models = {
+        "atorsvn/TinyLlama-1.1B-Chat-v0.3-gptq-4bit",
+    }
+    if platform.machine() in arm_machine_names and model_name in arm_missing_accelerate_models:
+        pytest.skip("accelerate is not available on ARM for this GPTQ model")
     if mark == 'skip':
         pytest.skip(reason)
     elif mark == 'xfail':
         pytest.xfail(reason)
     run_gptq_torchfx(tmp_path, model_name, model_link, prompt_result_pair)
-

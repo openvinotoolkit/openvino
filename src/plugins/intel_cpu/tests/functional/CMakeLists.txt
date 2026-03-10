@@ -53,7 +53,7 @@ if(NOT RISCV64)
     list(APPEND EXCLUDED_SOURCE_PATHS
          ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/riscv64
          ${CMAKE_CURRENT_SOURCE_DIR}/utils/riscv64)
-elseif(NOT OV_CPU_WITH_SHL)
+else()
     list(APPEND EXCLUDED_SOURCE_PATHS
          ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/riscv64/shl)
 endif()

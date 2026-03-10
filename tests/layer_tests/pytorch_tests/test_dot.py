@@ -43,9 +43,8 @@ class TestDot(PytorchLayerTest):
 
         dtype = dtype_map.get(dtype)
 
-        ref_net = None
 
-        return aten_dot(mode, dtype), ref_net, "aten::dot"
+        return aten_dot(mode, dtype), "aten::dot"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

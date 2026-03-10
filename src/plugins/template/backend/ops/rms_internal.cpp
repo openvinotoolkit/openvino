@@ -28,22 +28,39 @@ bool evaluate(const std::shared_ptr<ov::op::internal::RMS>& node,
     // The type compression mechanism is implemented for F16 only
     // The scale is expected to have the same type as the first input
     if (in_type != out_type && out_type == ov::element::f16) {
-        ov::reference::rms_norm_mul_convert_out(inputs[0].data<ET>(),
-                                                normalized_axes,
-                                                outputs[0].data<ov::float16>(),
-                                                inputs[0].get_shape(),
-                                                node->get_epsilon(),
-                                                inputs[1].get_shape(),
-                                                inputs[1].data<ET>());
-
+        if (node->get_elementwise_affine()) {
+            ov::reference::rms_norm_mul_convert_out(inputs[0].data<ET>(),
+                                                    normalized_axes,
+                                                    outputs[0].data<ov::float16>(),
+                                                    inputs[0].get_shape(),
+                                                    node->get_epsilon(),
+                                                    inputs[1].get_shape(),
+                                                    inputs[1].data<ET>());
+        } else {
+            std::vector<ET> temp_output(shape_size(inputs[0].get_shape()));
+            ov::reference::rms_norm(inputs[0].data<ET>(),
+                                    normalized_axes,
+                                    temp_output.data(),
+                                    inputs[0].get_shape(),
+                                    node->get_epsilon());
+            ov::reference::convert(temp_output.data(), outputs[0].data<ov::float16>(), temp_output.size());
+        }
     } else {
-        ov::reference::rms_norm(inputs[0].data<ET>(),
-                                normalized_axes,
-                                outputs[0].data<ET>(),
-                                inputs[0].get_shape(),
-                                node->get_epsilon(),
-                                inputs[1].get_shape(),
-                                inputs[1].data<ET>());
+        if (node->get_elementwise_affine()) {
+            ov::reference::rms_norm(inputs[0].data<ET>(),
+                                    normalized_axes,
+                                    outputs[0].data<ET>(),
+                                    inputs[0].get_shape(),
+                                    node->get_epsilon(),
+                                    inputs[1].get_shape(),
+                                    inputs[1].data<ET>());
+        } else {
+            ov::reference::rms_norm(inputs[0].data<ET>(),
+                                    normalized_axes,
+                                    outputs[0].data<ET>(),
+                                    inputs[0].get_shape(),
+                                    node->get_epsilon());
+        }
     }
     return true;
 }

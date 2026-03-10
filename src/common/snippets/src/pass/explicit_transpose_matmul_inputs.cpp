@@ -15,6 +15,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_input.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
@@ -28,6 +29,7 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
+#include "transformations/utils/utils.hpp"
 
 bool ov::snippets::pass::ExplicitTransposeMatMulInputs::are_weights_scalar(const std::shared_ptr<ov::Node>& node) {
     const auto inputs = node->inputs();
@@ -37,12 +39,22 @@ bool ov::snippets::pass::ExplicitTransposeMatMulInputs::are_weights_scalar(const
 }
 
 void ov::snippets::pass::ExplicitTransposeMatMulInputs::extract(const ov::Input<ov::Node>& input) {
+    auto get_transpose_order = [&input]() {
+        OPENVINO_ASSERT(input.get_partial_shape().rank().is_static(),
+                        "ExplicitTransposeMatMulInputs supports only static ranks of shapes");
+        const auto rank = input.get_partial_shape().size();
+        std::vector<size_t> transpose_order(rank, 0);
+        std::iota(transpose_order.begin(), transpose_order.end(), 0);
+        std::swap(transpose_order[rank - 1], transpose_order[rank - 2]);
+        return transpose_order;
+    };
+
     auto parent = input.get_source_output().get_node_shared_ptr();
     auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(parent);
     while (!transpose && !ov::is_type<ov::op::v0::Parameter>(parent)) {
         // We can set supported order and transposed_<a|b>=false only if ops have scalar shapes to avoid shape
         // mismatching
-        if (!are_weights_scalar(parent)) {
+        if (parent->get_input_size() == 0 || !are_weights_scalar(parent)) {
             break;
         }
 
@@ -69,6 +81,20 @@ void ov::snippets::pass::ExplicitTransposeMatMulInputs::extract(const ov::Input<
         return;
     }
 
+    // If there is no existing Transpose and input branch starts from Constant,
+    // fold explicit transposition into the constant value and keep transposed_b=false.
+    if (const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(parent)) {
+        const auto transpose_order = get_transpose_order();
+        const auto constant_order =
+            std::make_shared<opset1::Constant>(ov::element::i32, ov::Shape{transpose_order.size()}, transpose_order);
+        const auto folded_const =
+            ov::as_type_ptr<opset1::Constant>(ov::op::util::make_try_fold<opset1::Transpose>(constant, constant_order));
+        OPENVINO_ASSERT(folded_const != nullptr,
+                        "ExplicitTransposeMatMulInputs failed to fold Transpose over Constant input");
+        input.replace_source_output(folded_const);
+        return;
+    }
+
     // Create new Transpose before Parameter
     OPENVINO_ASSERT(
         ov::is_type<opset1::Parameter>(parent),
@@ -78,15 +104,9 @@ void ov::snippets::pass::ExplicitTransposeMatMulInputs::extract(const ov::Input<
                     "ExplicitTransposeMatMulInputs expects Parameter with one consumer in cases when there isn't "
                     "existing Transpose on input");
     // Extract Transpose from MatMul
-    OPENVINO_ASSERT(input.get_partial_shape().rank().is_static(),
-                    "ExplicitTransposeMatMulInputs supports only static ranks of shapes");
-
-    const auto rank = input.get_partial_shape().size();
-    std::vector<size_t> transpose_order(rank, 0);
-    std::iota(transpose_order.begin(), transpose_order.end(), 0);
-    std::swap(transpose_order[rank - 1], transpose_order[rank - 2]);
-
-    const auto constant_order = std::make_shared<opset1::Constant>(ov::element::i32, ov::Shape{rank}, transpose_order);
+    const auto transpose_order = get_transpose_order();
+    const auto constant_order =
+        std::make_shared<opset1::Constant>(ov::element::i32, ov::Shape{transpose_order.size()}, transpose_order);
     const auto new_transpose = std::make_shared<opset1::Transpose>(parent, constant_order);  // parent is Parameter
     const auto consumer_input = *(consumers.begin());
     consumer_input.replace_source_output(new_transpose);

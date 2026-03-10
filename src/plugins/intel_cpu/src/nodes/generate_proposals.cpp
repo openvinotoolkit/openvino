@@ -27,8 +27,8 @@
 #    include <immintrin.h>
 #endif
 
+#include "cpu_parallel.hpp"
 #include "generate_proposals.h"
-#include "openvino/core/parallel.hpp"
 #include "openvino/op/generate_proposals.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
@@ -59,13 +59,14 @@ void refine_anchors(const float* deltas,
                     const float min_box_H,
                     const float min_box_W,
                     const float max_delta_log_wh,
-                    float coordinates_offset) {
+                    float coordinates_offset,
+                    const std::shared_ptr<CpuParallel>& cpu_parallel) {
     Indexer4d delta_idx(4, bottom_H, bottom_W);
     Indexer4d score_idx(1, bottom_H, bottom_W);
     Indexer4d proposal_idx(bottom_W, anchors_num, 6);
     Indexer4d anchor_idx(bottom_W, anchors_num, 4);
 
-    parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
+    cpu_parallel->parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
         for (int anchor = 0; anchor < anchors_num; ++anchor) {
             int a_idx = anchor_idx(h, w, anchor, 0);
             float x0 = anchors[a_idx + 0];
@@ -123,8 +124,12 @@ void refine_anchors(const float* deltas,
     });
 }
 
-void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int* is_dead, int pre_nms_topn) {
-    parallel_for(pre_nms_topn, [&](size_t i) {
+void unpack_boxes(const float* p_proposals,
+                  float* unpacked_boxes,
+                  int* is_dead,
+                  int pre_nms_topn,
+                  const std::shared_ptr<CpuParallel>& cpu_parallel) {
+    cpu_parallel->parallel_for(pre_nms_topn, [&](size_t i) {
         unpacked_boxes[0 * pre_nms_topn + i] = p_proposals[6 * i + 0];
         unpacked_boxes[1 * pre_nms_topn + i] = p_proposals[6 * i + 1];
         unpacked_boxes[2 * pre_nms_topn + i] = p_proposals[6 * i + 2];
@@ -270,14 +275,15 @@ void fill_output_blobs(const float* proposals,
                        uint8_t* roi_num,
                        const int num_proposals,
                        const size_t num_rois,
-                       ov::element::Type roi_num_type) {
+                       ov::element::Type roi_num_type,
+                       const std::shared_ptr<CpuParallel>& cpu_parallel) {
     const float* src_x0 = proposals + 0 * num_proposals;
     const float* src_y0 = proposals + 1 * num_proposals;
     const float* src_x1 = proposals + 2 * num_proposals;
     const float* src_y1 = proposals + 3 * num_proposals;
     const float* src_score = proposals + 4 * num_proposals;
 
-    parallel_for(num_rois, [&](size_t i) {
+    cpu_parallel->parallel_for(num_rois, [&](size_t i) {
         int index = roi_indices[i];
         rois[i * 4 + 0] = src_x0[index];
         rois[i * 4 + 1] = src_y0[index];
@@ -356,6 +362,7 @@ void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
         CPU_NODE_ASSERT(inputShapes.size() == 4 && outputShapes.size() == 3,
                         "Incorrect number of input or output edges!");
 
+        const auto& cpu_parallel = context->getCpuParallel();
         size_t anchor_dims_size = 1;
         const auto& anchorDims = getParentEdgeAt(INPUT_ANCHORS)->getMemory().getStaticDims();
         for (uint64_t anchorDim : anchorDims) {
@@ -460,7 +467,8 @@ void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
                            min_box_H,
                            min_box_W,
                            static_cast<const float>(std::log(1000. / 16.)),
-                           coordinates_offset_);
+                           coordinates_offset_,
+                           cpu_parallel);
             std::partial_sort(proposals_.begin(),
                               proposals_.begin() + pre_nms_topn,
                               proposals_.end(),
@@ -471,7 +479,8 @@ void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
             unpack_boxes(reinterpret_cast<float*>(proposals_.data()),
                          unpacked_boxes.data(),
                          is_dead.data(),
-                         pre_nms_topn);
+                         pre_nms_topn,
+                         cpu_parallel);
             nms_cpu(pre_nms_topn,
                     is_dead.data(),
                     unpacked_boxes.data(),
@@ -493,7 +502,8 @@ void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
                               p_roi_num,
                               pre_nms_topn,
                               num_rois,
-                              roi_num_type);
+                              roi_num_type,
+                              cpu_parallel);
             p_deltas_item += deltas_dims_size;
             p_scores_item += score_dims_size;
             p_img_info_cpu += im_info_dims_size;

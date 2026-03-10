@@ -82,7 +82,7 @@ protected:
         std::vector<ov::Shape> WRB = {{hiddenSize, inputSize}, {hiddenSize, hiddenSize}, {hiddenSize}};
         auto rnnCellOp = utils::make_rnn(paramsOuts, WRB, hiddenSize, activations, {}, {}, clip);
 
-        function = makeNgraphFunction(netPrecision, params, rnnCellOp, "RNNCellCPU");
+        function = create_ov_model(netPrecision, params, rnnCellOp, "RNNCellCPU");
     }
 };
 

@@ -18,6 +18,14 @@ Install OpenVINO™ Runtime from Conan Package Manager
    Before installing OpenVINO, see the
    :doc:`System Requirements page <../../../about-openvino/release-notes-openvino/system-requirements>`.
 
+.. note::
+    This community-maintained distribution channel is provided to help users explore and evaluate OpenVINO.
+    
+    Please note that accuracy, performance, and behavior may differ from officially supported OpenVINO distributions, and are not guaranteed by the OpenVINO team in this channel. Due to the community-driven nature of this distribution channel, the OpenVINO team does not guarantee timely updates aligned with official releases, nor update availability for all OpenVINO versions.
+    
+    For production deployments and product integration, we recommend using officially supported distribution channels (for example, official S3 archives or PyPI packages), which provide validated builds and defined guarantees.
+
+
 Installing OpenVINO Runtime with Conan Package Manager
 ############################################################
 
@@ -32,7 +40,7 @@ Installing OpenVINO Runtime with Conan Package Manager
    .. code-block:: sh
 
       [requires]
-      openvino/2025.3.0
+      openvino/2026.0.0
       [generators]
       CMakeDeps
       CMakeToolchain

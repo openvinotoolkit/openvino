@@ -28,7 +28,7 @@ class TestKthValue(PytorchLayerTest):
     def _prepare_input(self, shape, dtype):
         size = np.prod(shape)
         data = np.arange(size, dtype=dtype)
-        np.random.shuffle(data)
+        self.random.shuffle(data)
         data = data.reshape(shape)
         return (data,)
 
@@ -47,7 +47,6 @@ class TestKthValue(PytorchLayerTest):
     @pytest.mark.precommit
     def test_kthvalue(self, shape, k, dim, keepdim, dtype, ie_device, precision, ir_version):
         self._test(aten_kthvalue(k, dim, keepdim),
-                   None,
                    "aten::kthvalue",
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"shape": shape, "dtype": dtype},

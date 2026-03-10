@@ -76,7 +76,7 @@ protected:
         }
         auto concat = std::make_shared<ov::op::v0::Concat>(paramsOuts, axis);
 
-        function = makeNgraphFunction(netPrecision, params, concat, "ConcatCPU");
+        function = create_ov_model(netPrecision, params, concat, "ConcatCPU");
     }
 };
 

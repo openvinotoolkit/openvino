@@ -273,7 +273,7 @@ void EltwiseLayerCPUTest::SetUp() {
         }
     }
     auto eltwise = utils::make_eltwise(parameters[0], secondaryInput, eltwiseType);
-    function = makeNgraphFunction(netType, parameters, eltwise, "Eltwise");
+    function = create_ov_model(netType, parameters, eltwise, "Eltwise");
 }
 
 std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& eltwise_type,
@@ -318,14 +318,6 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
             return "jit";
         }
     }
-#if defined(OV_CPU_WITH_SHL)
-    if ((eltwise_type == utils::EltwiseTypes::ADD) ||
-        (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
-        (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
-        (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
-        return "shl";
-    }
-#endif
 #endif
     return CPUTestsBase::getPrimitiveType();
 }

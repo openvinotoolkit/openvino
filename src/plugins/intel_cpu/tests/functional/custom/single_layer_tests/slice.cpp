@@ -150,7 +150,7 @@ protected:
                            secondaryInputType);
         }
 
-        function = makeNgraphFunction(netPrecision, params, sliceNode, "Slice8");
+        function = create_ov_model(netPrecision, params, sliceNode, "Slice8");
     }
     Slice8SpecificParams sliceParams;
 };

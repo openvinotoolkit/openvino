@@ -28,5 +28,5 @@ class TestShapeAsTensor(PytorchLayerTest):
     @pytest.mark.precommit
     def test_all_noparams(self, shape, ie_device, precision, ir_version):
         self.input_tensor = np.zeros(shape)
-        self._test(aten_shape_as_tensor(), None, "aten::_shape_as_tensor",
+        self._test(aten_shape_as_tensor(), "aten::_shape_as_tensor",
                 ie_device, precision, ir_version)

@@ -20,8 +20,8 @@ namespace npuw_utest{
 }
 
 enum class NetworkKind {
-    llama2,
-    llama3
+    MHA,  // Multi-Head Attention (e.g., llama2) - no broadcast
+    GQA   // Grouped Query Attention (e.g., llama3, phi3, mistral, GPT-OSS) - with broadcast
 };
 
 typedef std::tuple <
@@ -30,6 +30,7 @@ typedef std::tuple <
     bool,       // withTranspose - without transpose node - matcher shouldnt detect subgraph, easy way to negative case
     bool,       // withSDPA - should SDPA layer present or be already unrolled or simplified
     bool,       // use high precision on attention_mask input
+    bool,       // withSink - SDPA with 6th input (sink) for GPT-OSS pattern
     NetworkKind
 > OptimizeVTTestParamsTuple;
 
@@ -41,11 +42,12 @@ struct OptimizeVTTestParams {
     _AT(2)  withTranspose;
     _AT(3)  withSDPA;
     _AT(4)  withHpAttenMask;
-    _AT(5)  kind;
+    _AT(5)  withSink;
+    _AT(6)  kind;
     #undef _AT
 
     OptimizeVTTestParams(const OptimizeVTTestParamsTuple& tup) {
-        std::tie(inputShape, withConvert, withTranspose, withSDPA, withHpAttenMask, kind) = tup;
+        std::tie(inputShape, withConvert, withTranspose, withSDPA, withHpAttenMask, withSink, kind) = tup;
     }
 };
 
@@ -75,8 +77,9 @@ public:
 
      
         // validation of High Precision attention mask - implies enabling SDPA layer to be unrolled, 
-        // and also specific FP16 activation transformation in partitioning 
-        if (test.withSDPA) {
+        // and also specific FP16 activation transformation in partitioning
+        // Note: When withSink=true, standard OpenVINO SDPA decomposition is used which doesn't support HP
+        if (test.withSDPA && !test.withSink) {
             std::shared_ptr<::intel_npu::OptionsDesc> options_desc;
 
             auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
@@ -187,9 +190,10 @@ public:
 
         std::ostringstream result;
         result << "npuw_llm_pipeline_" << test.inputShape << "_" 
-               << (test.kind == NetworkKind::llama3 ?  "LLAMA3" : "LLAMA2") 
+               << (test.kind == NetworkKind::MHA ? "MHA" : "GQA")
                << (test.withConvert ? "_with_convert" : "")
                << (test.withSDPA ? "_SDPA" : "")
+               << (test.withSink ? "_Sink" : "")
                << (test.withHpAttenMask ? "_HP" : "")
                << (!test.withTranspose ? "_NEGATIVE" : "");
         return result.str();
@@ -212,7 +216,7 @@ protected:
         };
 
         // in case of non broadcast number of input channels significantly smaller
-        auto numChannels = (test.kind == NetworkKind::llama3) ? 8 : 32;
+        auto numChannels = (test.kind == NetworkKind::MHA) ? 32 : 8;
         auto input_shape = test.inputShape;
         auto input_2 = static_cast<int>(test.inputShape[2]);
         auto input_3 = static_cast<int>(test.inputShape[3]);
@@ -256,7 +260,7 @@ protected:
 
         std::shared_ptr<ov::Node> concat_or_reshape = concat;
 
-        if (test.kind == NetworkKind::llama3) {
+        if (test.kind == NetworkKind::GQA) {
             auto unsqueeze_pattern =  create_shape_constant({2}, "unsqueese_pattern"); 
             auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(concat, unsqueeze_pattern);
             unsqueeze->set_friendly_name("unsqueeze");
@@ -285,25 +289,32 @@ protected:
             auto k_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 32,  input_shape[2] + 1, input_shape[3]});
             k_input->set_friendly_name("k_input");
 
-
             auto q_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 32,  input_shape[2] + 1, input_shape[3]});
             q_input->set_friendly_name("q_input");
 
             auto scale_node = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1});
 
-            // TODO: add sdpa subgraph
-            std::shared_ptr<ov::Node> sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(
-                q_input,
-                k_input,
-                concat_or_reshape,
-                mask_input_1,
-                scale_node,
-                false);
+            std::shared_ptr<ov::Node> sdpa;
+            ov::ParameterVector params = {param, param2, mask_input, k_input, q_input};
+
+            // SDPA with sink (6 inputs) for GPT-OSS pattern
+            if (test.withSink) {
+                auto sink = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 32, 1, 1});
+                sink->set_friendly_name("sink");
+                params.push_back(sink);
+
+                sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(
+                    q_input, k_input, concat_or_reshape, mask_input_1, scale_node, sink, false);
+            } else {
+                sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(
+                    q_input, k_input, concat_or_reshape, mask_input_1, scale_node, false);
+            }
+
             sdpa->set_friendly_name("sdpa");
             auto result = std::make_shared<ov::op::v0::Result>(sdpa);
 
             result->set_friendly_name("res");
-            return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param, param2, mask_input, k_input, q_input});
+            return std::make_shared<ov::Model>(ov::ResultVector{result}, params);
 
         } else {
             auto param3 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 32, 1, input_shape[2] + 1});
@@ -344,9 +355,11 @@ const std::vector<bool> withSDPA{true, false};
 
 const std::vector<bool> withHpAttenMask{true, false};
 
+const std::vector<bool> withSink{true, false};
+
 const std::vector<NetworkKind> networkKind = {
-    // llama2 or llama3 type of concat, with convert layer or without
-    NetworkKind::llama2,  NetworkKind::llama3
+    NetworkKind::MHA,  // Multi-Head Attention
+    NetworkKind::GQA   // Grouped Query Attention
 };
 
  INSTANTIATE_TEST_SUITE_P(smoke_Run_MatchAndTransposeVT,
@@ -357,6 +370,7 @@ const std::vector<NetworkKind> networkKind = {
                                 ::testing::ValuesIn(withBroadCast),
                                 ::testing::ValuesIn(withSDPA),
                                 ::testing::ValuesIn(withHpAttenMask),
+                                ::testing::ValuesIn(withSink),
                                 ::testing::ValuesIn(networkKind)),
                           TransposeVTTest::getTestCaseName);
 

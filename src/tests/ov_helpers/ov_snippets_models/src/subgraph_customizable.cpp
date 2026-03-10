@@ -5,6 +5,7 @@
 #include "subgraph_customizable.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "snippets/op/result.hpp"
 #include <snippets/op/subgraph.hpp>
 #include "common_test_utils/data_utils.hpp"
 
@@ -51,9 +52,11 @@ std::shared_ptr<ov::Model> ConvMulActivationFunction::initReference() const {
     auto ineltwise_unary_1 = custom_ops[1]->clone_with_new_inputs({ineltwise_binary->output(0)});
     auto ineltwise_unary_2 = custom_ops[2]->clone_with_new_inputs({ineltwise_unary_1->output(0)});
 
+    auto snippets_result = std::make_shared<ov::snippets::op::Result>(ineltwise_unary_2);
+
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
         OutputVector{conv, eltwise_sinh},
-        std::make_shared<ov::Model>(OutputVector{ineltwise_unary_2}, ParameterVector{indata0, indata1}));
+        std::make_shared<ov::Model>(OutputVector{snippets_result}, ParameterVector{indata0, indata1}));
     return std::make_shared<ov::Model>(OutputVector{subgraph}, ParameterVector{conv_param, eltwise_param});
 }
 std::shared_ptr<ov::Model> ConvBiasActivationFunction::initOriginal() const {
@@ -118,10 +121,11 @@ std::shared_ptr<ov::Model> ConvBiasTwoActivationFunction::initReference() const 
     auto indata = std::make_shared<op::v0::Parameter>(precision, unary_1->get_shape());
 
     auto unary_2 = custom_ops[2]->clone_with_new_inputs({indata->output(0)});
+    auto snippets_result = std::make_shared<ov::snippets::op::Result>(unary_2);
 
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
         OutputVector{unary_1},
-        std::make_shared<ov::Model>(OutputVector{unary_2}, ParameterVector{indata}));
+        std::make_shared<ov::Model>(OutputVector{snippets_result}, ParameterVector{indata}));
     return std::make_shared<ov::Model>(OutputVector{subgraph}, ParameterVector{conv_param});
 }
 std::shared_ptr<ov::Model> MatMulTwoActivationFunction::initOriginal() const {
@@ -181,10 +185,11 @@ std::shared_ptr<ov::Model> MatMulBiasActivationBinaryFunction::initReference() c
     auto indata1 = std::make_shared<op::v0::Parameter>(precision, binary_param->get_shape());
 
     auto binary = custom_ops[2]->clone_with_new_inputs({indata0->output(0), indata1->output(0)});
+    auto snippets_result = std::make_shared<ov::snippets::op::Result>(binary);
 
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
         OutputVector{unary, binary_param},
-        std::make_shared<ov::Model>(OutputVector{binary}, ParameterVector{indata0, indata1}));
+        std::make_shared<ov::Model>(OutputVector{snippets_result}, ParameterVector{indata0, indata1}));
 
     return std::make_shared<ov::Model>(OutputVector{subgraph},
                                        ParameterVector{matmul_param0, matmul_param1, binary_param});

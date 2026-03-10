@@ -78,7 +78,7 @@ void LogicalLayerCPUTest::SetUp() {
         logical_node = std::make_shared<ov::op::v1::LogicalNot>(params[0]);
     }
 
-    function = makeNgraphFunction(prc, params, logical_node, "Logical");
+    function = create_ov_model(prc, params, logical_node, "Logical");
 }
 
 std::string LogicalLayerCPUTest::getPrimitiveType(const utils::LogicalTypes& type) const {

@@ -49,8 +49,8 @@ public:
     std::shared_ptr<T> register_pass(Args&&... args) {
         auto rc = push_pass<T>(std::forward<Args>(args)...);
         rc->set_pass_config(m_pass_config);
-        if (m_per_pass_validation) {
-            push_pass<Validate>();
+        if (m_per_pass_validation && T::get_type_info_static() != Validate::get_type_info_static()) {
+            push_validate_pass();
         }
         if (!Enable && !m_pass_config->is_enabled<T>()) {
             m_pass_config->disable<T>();
@@ -61,8 +61,8 @@ public:
     std::shared_ptr<PassBase> register_pass_instance(std::shared_ptr<PassBase> pass) {
         pass->set_pass_config(m_pass_config);
         m_pass_list.push_back(pass);
-        if (m_per_pass_validation) {
-            push_pass<Validate>();
+        if (m_per_pass_validation && !ov::as_type_ptr<Validate>(pass)) {
+            push_validate_pass();
         }
         return pass;
     }
@@ -98,13 +98,17 @@ protected:
         return pass;
     }
 
+    virtual void push_validate_pass() {
+        push_pass<Validate>();
+    }
+
     std::shared_ptr<PassConfig> m_pass_config;
     std::vector<std::shared_ptr<PassBase>> m_pass_list;
     bool m_per_pass_validation = true;
     std::string m_name = "UnnamedManager";
 
 private:
-    bool run_pass(const std::shared_ptr<PassBase>& pass, const std::shared_ptr<Model>& model, bool needs_validate);
+    bool run_pass(const std::shared_ptr<PassBase>& pass, const std::shared_ptr<Model>& model);
 };
 }  // namespace pass
 }  // namespace ov

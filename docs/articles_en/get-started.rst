@@ -29,7 +29,7 @@ GET STARTED
 
 
 For a quick reference, check out
-`the Quick Start Guide [pdf] <https://docs.openvino.ai/2025/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
+`the Quick Start Guide [pdf] <https://docs.openvino.ai/2026/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
 
 
 .. _quick-start-example:
@@ -104,7 +104,6 @@ Model Compression and Quantization
 
 Use OpenVINO’s model compression tools to reduce your model’s latency and memory footprint while maintaining good accuracy.
 
-* Tutorial - `Quantization-Aware Training in TensorFlow with OpenVINO NNCF <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/tensorflow-quantization-aware-training>`__
 * Tutorial - `Quantization-Aware Training in PyTorch with NNCF <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-aware-training>`__
 * :doc:`Model Optimization Guide <openvino-workflow/model-optimization>`
 

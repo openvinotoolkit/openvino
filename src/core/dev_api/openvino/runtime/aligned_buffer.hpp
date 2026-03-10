@@ -14,6 +14,17 @@ namespace ov {
 /// allocated memory is larger than the requested size by the alignment, so allocating 1
 /// byte
 /// on 64 byte alignment will allocate 65 bytes.
+
+class AlignedBuffer;
+
+class OPENVINO_API IBufferDescriptor {
+public:
+    virtual size_t get_id() const = 0;
+    virtual size_t get_offset() const = 0;
+    virtual std::shared_ptr<ov::AlignedBuffer> get_source_buffer() const = 0;
+    virtual ~IBufferDescriptor() = default;
+};
+
 class OPENVINO_API AlignedBuffer {
 public:
     // Allocator objects and the allocation interfaces are owned by the
@@ -53,6 +64,8 @@ public:
         return get_ptr<T>();
     }
 
+    virtual std::shared_ptr<IBufferDescriptor> get_descriptor() const;
+
     AlignedBuffer(const AlignedBuffer&) = delete;
     AlignedBuffer& operator=(const AlignedBuffer&) = delete;
 
@@ -70,5 +83,4 @@ public:
     ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>");
 };
-
 }  // namespace ov

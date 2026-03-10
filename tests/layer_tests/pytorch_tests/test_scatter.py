@@ -9,7 +9,7 @@ from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 class TestScatter(PytorchLayerTest):
     def _prepare_input(self, dtype, out=False):
-        inp = np.random.randn(6, 6).astype(dtype)
+        inp = self.random.randn(6, 6, dtype=dtype)
         if not out:
             return (inp,)
         return (inp, np.zeros_like(inp, dtype=dtype))
@@ -17,7 +17,7 @@ class TestScatter(PytorchLayerTest):
     def create_model(self, dim, index, src, inplace, reduce, has_out):
         class aten_scatter(torch.nn.Module):
             def __init__(self, dim, index, src, inplace, reduce, has_out=False):
-                super(aten_scatter, self).__init__()
+                super().__init__()
                 self.dim = dim
                 self.use_empty_index = False
                 if index is None:
@@ -81,13 +81,12 @@ class TestScatter(PytorchLayerTest):
                     index = self.index
                 return x.scatter_(self.dim, index, self.src, reduce=self.reduce)
 
-        ref_net = None
         if inplace:
             op_name = "aten::scatter_"
         else:
             op_name = "aten::scatter"
 
-        return aten_scatter(dim, index, src, inplace, reduce, has_out), ref_net, op_name
+        return aten_scatter(dim, index, src, inplace, reduce, has_out), op_name
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -128,7 +127,7 @@ class TestScatter(PytorchLayerTest):
 
 class TestScatterReduce(PytorchLayerTest):
     def _prepare_input(self, dtype, out=False):
-        inp = np.random.randn(6, 6).astype(dtype)
+        inp = self.random.randn(6, 6, dtype=dtype)
         if not out:
             return (inp,)
         return (inp, np.zeros_like(inp, dtype=dtype))
@@ -136,7 +135,7 @@ class TestScatterReduce(PytorchLayerTest):
     def create_model(self, dim, index, src, inplace, reduce, include_self, has_out):
         class aten_scatter_reduce(torch.nn.Module):
             def __init__(self, dim, index, src, inplace, reduce, include_self, has_out=False):
-                super(aten_scatter_reduce, self).__init__()
+                super().__init__()
                 self.dim = dim
                 self.use_empty_index = False
                 if index is None:
@@ -177,13 +176,12 @@ class TestScatterReduce(PytorchLayerTest):
                     index = self.index
                 return x.scatter_reduce_(self.dim, index, self.src, self.reduce, include_self=self.include_self)
 
-        ref_net = None
         if inplace:
             op_name = "aten::scatter_reduce_"
         else:
             op_name = "aten::scatter_reduce"
 
-        return aten_scatter_reduce(dim, index, src, inplace, reduce, include_self, has_out), ref_net, op_name
+        return aten_scatter_reduce(dim, index, src, inplace, reduce, include_self, has_out), op_name
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -226,12 +224,12 @@ class TestScatterReduce(PytorchLayerTest):
 
 class TestScatterAdd(PytorchLayerTest):
     def _prepare_input(self, dtype):
-        return (np.random.randn(6, 6).astype(dtype),)
+        return (self.random.randn(6, 6, dtype=dtype),)
 
     def create_model(self, dim, index, src, inplace):
         class aten_scatter_reduce(torch.nn.Module):
             def __init__(self, dim, index, src, inplace):
-                super(aten_scatter_reduce, self).__init__()
+                super().__init__()
                 self.dim = dim
                 self.use_empty_index = False
                 if index is None:
@@ -255,7 +253,7 @@ class TestScatterAdd(PytorchLayerTest):
 
         op_name = "aten::scatter_add_" if inplace else "aten::scatter_add"
 
-        return aten_scatter_reduce(dim, index, src, inplace), None, op_name
+        return aten_scatter_reduce(dim, index, src, inplace), op_name
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -285,4 +283,5 @@ class TestScatterAdd(PytorchLayerTest):
             precision,
             ir_version,
             kwargs_to_prepare_input={"dtype": dtype},
+            fx_kind="aten.scatter_add",
         )

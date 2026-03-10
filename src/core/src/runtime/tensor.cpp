@@ -185,13 +185,9 @@ void read_tensor_via_ifstream(const std::filesystem::path& file_name, Tensor& te
     OPENVINO_ASSERT(tensor.get_element_type() != ov::element::string);
     std::ifstream fin(file_name, std::ios::binary);
     fin.seekg(offset);
-    auto bytes_to_read = tensor.get_byte_size();
+    const auto bytes_to_read = static_cast<std::streamsize>(tensor.get_byte_size());
     fin.read(static_cast<char*>(tensor.data()), bytes_to_read);
-    OPENVINO_ASSERT(static_cast<size_t>(fin.gcount()) == bytes_to_read,
-                    "Cannot read ",
-                    bytes_to_read,
-                    "bytes from ",
-                    file_name);
+    OPENVINO_ASSERT(fin.gcount() == bytes_to_read, "Cannot read ", bytes_to_read, " bytes from ", file_name);
 }
 
 ov::Tensor wrap_obj_to_viewtensor(const std::shared_ptr<void>& shared_obj,
@@ -226,8 +222,10 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
                         bool mmap) {
     OPENVINO_ASSERT(element_type != ov::element::string);
     if (mmap) {
-        auto mapped_memory = ov::load_mmap_object(file_name);
-        return read_tensor_data_mmap_impl(mapped_memory, element_type, partial_shape, offset_in_bytes);
+        return read_tensor_data_mmap_impl(ov::load_mmap_object(file_name),
+                                          element_type,
+                                          partial_shape,
+                                          offset_in_bytes);
     } else {
         auto file_size = std::filesystem::file_size(file_name);
         auto static_shape = calc_static_shape_for_file(file_size, element_type, partial_shape, offset_in_bytes);
@@ -242,7 +240,6 @@ Tensor read_tensor_data(ov::FileHandle file_handle,
                         const ov::PartialShape& partial_shape,
                         size_t offset_in_bytes) {
     OPENVINO_ASSERT(element_type != ov::element::string);
-    auto mapped_memory = ov::load_mmap_object(file_handle);
-    return read_tensor_data_mmap_impl(mapped_memory, element_type, partial_shape, offset_in_bytes);
+    return read_tensor_data_mmap_impl(ov::load_mmap_object(file_handle), element_type, partial_shape, offset_in_bytes);
 }
 }  // namespace ov

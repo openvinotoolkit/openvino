@@ -3,6 +3,7 @@
 //
 
 #include <cstdint>
+#include <limits>
 
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"

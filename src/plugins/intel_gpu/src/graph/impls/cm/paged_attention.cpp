@@ -20,6 +20,14 @@
 #include "primitive_cm_base.hpp"
 #include "primitive_inst.h"
 
+#define DUMP_XATTN_INTERNALS 0
+#if DUMP_XATTN_INTERNALS
+#    include "openvino/util/file_util.hpp"
+#    define XATTN_DUMP(instance, stage) dump_xattn_internals((instance), (stage))
+#else
+#    define XATTN_DUMP(instance, stage) ((void)0)
+#endif
+
 namespace ov::intel_gpu::cm {
 
 class PagedAttentionCmImpl : public PrimitiveImplCM {
@@ -65,28 +73,32 @@ public:
         // XAttention estimate is following afer kvcache_update.
         auto out_shape = params.output_layouts[0].get_shape();
         const size_t block_size = get_xattn_block_size(params);
+        const uint32_t block_wg_n = XAttentionEstimateGeneratorBase::get_block_wg_n(params);
+        const uint32_t block_wg_m = XAttentionEstimateGeneratorBase::get_block_wg_m(params);
         const size_t kv_len = get_max_context_len(params);
         const size_t q_len = out_shape[0];
         const size_t N = kv_len / STRIDE;
-        const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
+        const size_t N_kq_groups = ceil_div(N, block_wg_n);
 
         const auto q_block_pad = ceil_div(q_len, block_size);
         const auto sum_per_token_in_block = block_size / STRIDE;
-        const auto k_block_in_group = BLOCK_WG_N / sum_per_token_in_block;
+        const auto k_block_in_group = block_wg_n / sum_per_token_in_block;
         const auto k_block_pad = k_block_in_group * N_kq_groups;
 
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        rt_params->block_wg_m = block_wg_m;
         rt_params->q_block_pad = q_block_pad;
         rt_params->k_block_pad = k_block_pad;
-        const size_t MERGED_Q_NUM = PA_KV_CACHE_BLOCK_SIZE_XATTN / block_size;  // for xattn post_proc
-        rt_params->q_block_pad_merged = ceil_div(q_block_pad, MERGED_Q_NUM);
+
+        const size_t merged_q_num = PagedAttentionGeneratorMultiToken::get_wg_seq_len(params) / block_size;
+        rt_params->q_block_pad_merged = ceil_div(q_block_pad, merged_q_num);
 
         const size_t head_size = desc->k_head_size;
 
         const auto M = q_len / STRIDE;  //# will slient drop the tails which is less than `stride`
         const auto K = STRIDE * head_size;
 
-        const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
+        const size_t q_stride_pad = round_up_to(M, block_wg_m);
 
         rt_params->N_kq_groups = N_kq_groups;
         rt_params->M = M;
@@ -116,7 +128,7 @@ public:
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
             auto partition_size = get_partition_size(desc->has_xattention);
             rt_params->num_of_partitions = ceil_div(max_context_len, partition_size);
-
+            rt_params->q_chunking = get_single_token_q_chunking(params, *desc, partition_size);
             GPU_DEBUG_TRACE_DETAIL << "  partition_size: " << partition_size << "  num_of_partitions: " << rt_params->num_of_partitions << std::endl;
         } else {
             if (desc->has_xattention) {
@@ -149,13 +161,22 @@ public:
             if (!bypass_xattn(params)) {
                 if (rt_params->xattn_block_size == 128) {
                     res_event = {execute_stage(res_event, instance, xattn_estimate_gemmqk)};
+                    XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX);  // 2: kq_max_wg
+                    XATTN_DUMP(instance,
+                               PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS);  // idx 3: kq_exp_partial_sum is subject to change in find_block kernel.
                     res_event = {execute_stage(res_event, instance, xattn_estimate_find_block)};
                     res_event = {execute_stage(res_event, instance, xattn_estimate_post_proc)};
                 } else {
                     res_event = {execute_stage(res_event, instance, xattn_estimate_gemmqk_256)};
+                    XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX);
+                    XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS);
                     res_event = {execute_stage(res_event, instance, xattn_estimate_find_block_256)};
+                    XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK);  // 4: sparse_block_mask
                     res_event = {execute_stage(res_event, instance, xattn_estimate_post_proc_256)};
                 }
+#if FIND_DEBUG_ACC
+                XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_FIND_DEBUG_ACC);  // 6: kq_sum for debug purpose only
+#endif
             }
             res_event = {execute_stage(res_event, instance, pa_multi_token)};
         } else if (rt_params->stage == PagedAttentionStage::GENERATE) {
@@ -215,6 +236,13 @@ public:
                 auto count_elements_mask_merged = static_cast<int64_t>(desc->heads_num * rt_params->q_block_pad_merged * rt_params->k_block_pad);
                 internal_buffers.emplace_back(count_elements_mask_merged, ov::element::boolean);  // 5: sparse_block_mask_wg
 
+#if FIND_DEBUG_ACC
+                const size_t sum_per_n_token_in_block = static_cast<size_t>(rt_params->xattn_block_size / STRIDE);
+                size_t q_block_input = rt_params->q_stride_pad / sum_per_n_token_in_block;
+                auto count_elements_kq_sum = static_cast<int64_t>(desc->heads_num * q_block_input * rt_params->k_block_pad);
+                internal_buffers.emplace_back(count_elements_kq_sum, ov::element::f16);  // 6: kq_sum
+#endif
+
                 GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: count_kq_max_wg=" << count_kq_max_wg * 4
                                        << "  count_kq_exp_partial_sum=" << count_kq_exp_partial_sum * 4 << "  count_elements_mask=" << count_elements_mask * 1
                                        << "  count_elements_mask_merged=" << count_elements_mask_merged * 1 << std::endl;
@@ -237,8 +265,44 @@ private:
         if (xattn_block_size != 128 && xattn_block_size != 256) {
             xattn_block_size = 128;  // default
         }
+        if (xattn_block_size == 256 && params.get_device_info().arch < gpu_arch::xe2) {
+            xattn_block_size = 128;  // on pre-XE2, only support 128
+        }
         return xattn_block_size;
     }
+
+#if DUMP_XATTN_INTERNALS
+    void dump_xattn_internals(primitive_inst& instance, PagedAttentionInternBuffIdx idx) {
+        const char* dump_root_env = std::getenv("DUMP_XATTN_INTERNALS");
+        if (dump_root_env == nullptr || dump_root_env[0] == '\0') {
+            return;  // skip dumping
+        }
+
+        cldnn::stream& stream = instance.get_network().get_stream();
+        stream.finish();
+
+        const auto node_name = instance.get_node().id();
+        auto output_mem = instance.get_intermediates_memories()[idx];
+        mem_lock<char, mem_lock_type::read> lock(output_mem, stream);
+        auto& layout = output_mem->get_layout();
+        std::string data_type = ov::element::Type(layout.data_type).get_type_name();
+        std::string format = layout.format.to_string();
+        std::string tensor;
+        auto dims = layout.get_dims();
+        for (size_t r = 0; r < layout.get_rank(); r++) {
+            tensor += ("_" + to_string(dims[r]));
+        }
+
+        std::string out_path =
+            std::string(dump_root_env) + "xattn_internals_" + std::to_string(idx) + "__" + node_name + "__" + data_type + "_" + tensor + "__" + format + ".bin";
+        try {
+            ov::util::save_binary(out_path, lock.data(), output_mem->size());
+            std::cout << "[dump_xattn_internals] dump to " << out_path << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "[dump_xattn_internals] Failed to save dump to '" << out_path << "': " << e.what() << "\n";
+        }
+    }
+#endif
 };
 
 std::unique_ptr<primitive_impl> PagedAttentionImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {

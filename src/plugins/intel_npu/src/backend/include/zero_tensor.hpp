@@ -72,6 +72,9 @@ public:
     void prevent_reuse();
     bool can_be_reused();
 
+    void allocate_data();
+    void detach_imported_allocation_for_custom_tensor();
+
     ~ZeroTensor() override;
 
 private:
@@ -94,6 +97,7 @@ private:
     bool _can_be_reused = false;
 
     std::shared_ptr<ZeroMem> _mem_ref;
+    bool _is_custom_user_tensor = false;
 };
 
 }  // namespace intel_npu
