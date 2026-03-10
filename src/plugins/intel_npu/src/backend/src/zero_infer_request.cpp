@@ -698,8 +698,18 @@ void ZeroInferRequest::infer_async() {
     prepare_inputs();
     prepare_outputs();
 
-    OV_ITT_TASK_NEXT(ZERO_INFER, "push");
-    _pipeline->push();
+    _inflightInferAsyncCalls.fetch_add(1, std::memory_order_acq_rel);
+    try {
+        OV_ITT_TASK_NEXT(ZERO_INFER, "push");
+        _pipeline->push();
+    } catch (ov::Exception& error) {
+        _inflightInferAsyncCalls.fetch_sub(1, std::memory_order_acq_rel);
+        OPENVINO_THROW(error.what());
+    } catch (...) {
+        _inflightInferAsyncCalls.fetch_sub(1, std::memory_order_acq_rel);
+        OPENVINO_THROW("Unknown exception occurred during infer.");
+    }
+    _logger.debug("InferRequest::infer_async completed");
 }
 
 void ZeroInferRequest::prepare_inputs() {
@@ -875,16 +885,29 @@ void ZeroInferRequest::get_result() {
             levelZeroTensor->copy_to(userTensor._ptr);
         }
 
-        levelZeroTensor->detach_imported_allocation_for_custom_tensor();
-
         ++outputIndex;
     }
 
-    for (size_t inputIndex = 0; inputIndex < _levelZeroInputTensors.size(); ++inputIndex) {
-        for (const auto& levelZeroTensor : get_level_zero_inputs(inputIndex)) {
-            if (levelZeroTensor != nullptr) {
-                levelZeroTensor->detach_imported_allocation_for_custom_tensor();
+
+    const auto inFlightBeforeDecrement = _inflightInferAsyncCalls.fetch_sub(1, std::memory_order_acq_rel);
+    OPENVINO_ASSERT(inFlightBeforeDecrement > 0,
+                    "get_result called without matching infer_async, in-flight infer count is invalid");
+
+    if (inFlightBeforeDecrement == 1) {
+        for (size_t inputIndex = 0; inputIndex < _levelZeroInputTensors.size(); ++inputIndex) {
+            for (const auto& zeroTensor : get_level_zero_inputs(inputIndex)) {
+                OPENVINO_ASSERT(zeroTensor, "Input zero tensor is not allocated.");
+                if (zeroTensor != nullptr) {
+                    zeroTensor->detach_imported_allocation_for_custom_tensor();
+                }
             }
+        }
+
+        for (size_t detachedOutputIndex = 0; detachedOutputIndex < _levelZeroOutputTensors.size();
+             ++detachedOutputIndex) {
+            const auto& zeroTensor = _levelZeroOutputTensors.at(detachedOutputIndex);
+            OPENVINO_ASSERT(zeroTensor, "Output zero tensor is not allocated.");
+            zeroTensor->detach_imported_allocation_for_custom_tensor();
         }
     }
 

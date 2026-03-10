@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
@@ -95,6 +96,7 @@ protected:
 
     bool _pipelineIsCreated = false;
     bool _dynamicBatchValueChanged = false;
+    std::atomic<size_t> _inflightInferAsyncCalls{0};
 };
 
 }  //  namespace intel_npu
