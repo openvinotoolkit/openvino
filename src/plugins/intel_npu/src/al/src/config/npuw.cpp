@@ -38,6 +38,7 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_ATTN>();
     desc.add<NPUW_ATTN_DYN>();
     desc.add<NPUW_ATTN_NO_COPY>();
+    desc.add<NPUW_ATTN_HFA_FUSED>();
     desc.add<NPUW_HOST_GATHER>();
     desc.add<NPUW_F16IC>();
     desc.add<NPUW_DCOFF_TYPE>();
@@ -87,6 +88,7 @@ void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM_GENERATE_ATTENTION_HINT>();
     desc.add<NPUW_LLM_SHARED_HEAD>();
     desc.add<NPUW_WHISPER>();
+    desc.add<NPUW_WHISPER_EOS_TOKEN>();
     desc.add<NPUW_EAGLE>();
     desc.add<NPUW_TEXT_EMBED>();
 }
