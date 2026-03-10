@@ -195,7 +195,7 @@ static bool is_segfault_detector_emitter(const intel_cpu::aarch64::jit_emitter* 
          OPENVINO_THROW("Unsupported Round mode");                                                \
      }}
 
-class jit_snippet : public dnnl::impl::cpu::aarch64::jit_generator {
+class jit_snippet : public dnnl::impl::cpu::aarch64::jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_snippet)
 
@@ -380,7 +380,7 @@ snippets::CompiledSnippetPtr CPUTargetMachine::get_snippet() {
     OPENVINO_ASSERT(h->create_kernel() == dnnl::impl::status::success, "Failed to create jit_kernel in get_snippet()");
 
     const auto& result =
-        std::make_shared<CompiledSnippetCPU>(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator>(h.release()));
+        std::make_shared<CompiledSnippetCPU>(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator_t>(h.release()));
     // Note that we reset all the generated code, since it was copied into CompiledSnippetCPU
     h = std::make_unique<jit_snippet>();
     return result;

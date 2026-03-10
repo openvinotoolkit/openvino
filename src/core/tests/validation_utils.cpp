@@ -235,7 +235,8 @@ INSTANTIATE_TEST_SUITE_P(negative_axis,
                          NormalizeAxisTestP,
                          Values(NormalizeAxisParam{-5, 0, Rank{5}},
                                 NormalizeAxisParam{-3, 2, Rank{5}},
-                                NormalizeAxisParam{-1, 4, Rank{5}}),
+                                NormalizeAxisParam{-1, 4, Rank{5}},
+                                NormalizeAxisParam{-1, 0, Rank{0}}),
                          testing::PrintToStringParamName());
 
 TEST_P(NormalizeAxisTestP, is_axis_valid) {
@@ -248,14 +249,17 @@ TEST_P(NormalizeAxisTestP, is_axis_valid) {
 TEST_P(NormalizeAxisTestP, is_axis_valid_scalar_rank) {
     const auto& axis = std::get<0>(GetParam());
 
-    if (axis) {
+    if (axis == 0 || axis == -1) {
+        EXPECT_TRUE(util::is_axis_valid(axis, 0));
+    } else {
         EXPECT_FALSE(util::is_axis_valid(axis, 0));
     }
 }
 
 TEST_P(NormalizeAxisTestP, validate_axis) {
-    const auto axes_node = Parameter(element::i64, PartialShape::dynamic(5));
     const auto& axis = std::get<0>(GetParam());
+    const auto& rank = std::get<2>(GetParam());
+    const auto axes_node = Parameter(element::i64, PartialShape::dynamic(rank));
 
     EXPECT_NO_THROW(util::validate_axis(axis, axes_node.get_output_partial_shape(0).rank(), axes_node));
 }
