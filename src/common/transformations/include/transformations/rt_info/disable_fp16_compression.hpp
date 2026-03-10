@@ -67,8 +67,12 @@ TRANSFORMATIONS_API bool is_compression_disabled_to(const std::shared_ptr<Node>&
 TRANSFORMATIONS_API bool is_compression_disabled_from_to(const std::shared_ptr<Node>& node,
                                                          element::Type from,
                                                          element::Type to);
-
-using DisabledPrecisionMap = std::map<ov::element::Type, std::set<ov::element::Type>>;
+struct ElementTypeHash {
+    size_t operator()(const ov::element::Type& t) const {
+        return t.hash();
+    }
+};
+using DisabledPrecisionMap = std::unordered_map<ov::element::Type, std::set<ov::element::Type>, ElementTypeHash>;
 
 class TRANSFORMATIONS_API DisablePrecisionConversion : public RuntimeAttribute {
 public:
@@ -94,7 +98,7 @@ class TRANSFORMATIONS_API AttributeAdapter<DisabledPrecisionMap> : public ValueA
 public:
     OPENVINO_RTTI("AttributeAdapter<DisabledPrecisionMap>");
 
-    explicit AttributeAdapter(DisabledPrecisionMap& value) : m_ref(value) {}
+    explicit AttributeAdapter(DisabledPrecisionMap& value) : m_ref(value), m_serialized() {}
 
     const std::string& get() override;
     void set(const std::string& value) override;

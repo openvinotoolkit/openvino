@@ -7,13 +7,11 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
-namespace ov {
-namespace pass {
+namespace ov::pass {
 
 class TRANSFORMATIONS_API ConvertLegacyPrecisionAttribute;
 
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass
 
 /**
  * @ingroup ov_transformation_common_api

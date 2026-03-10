@@ -293,12 +293,14 @@ bool convert_function_precision(ov::pass::PassBase& pass,
     // replacement
     register_constants(ops);
     for (auto& node : ops) {
-        // Recursively apply transformation for sub-graph based operations
-        if (keep_sensitive_in_fp32 && is_compression_disabled_to(node, element::f16) &&
-            precisions.count(element::f32) && precisions.at(element::f32) == element::f16) {
-            // test fix
+        auto node_precisions = filter_precisions_for_node(node, precisions);
+
+        // Skip nodes where all requested conversions are disabled (e.g. sensitive ops kept in FP32)
+        if (keep_sensitive_in_fp32 && node_precisions.empty()) {
             continue;
         }
+
+        // Recursively apply transformation for sub-graph based operations
         if (auto sub_graph_node = ov::as_type_ptr<op::util::MultiSubGraphOp>(node)) {
             size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
             for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
@@ -310,8 +312,8 @@ bool convert_function_precision(ov::pass::PassBase& pass,
                                                         const_to_internal_output,
                                                         keep_sensitive_in_fp32,
                                                         is_changed || is_output_precision_changed,
-                                                        /* is_changed */ true,
-                                                        /* is_subgraph */ true,
+                                                        true,  // is_changed
+                                                        true,  // is_subgraph
                                                         store_original_precision_as_rt_attribute,
                                                         names_compatibility_mode) ||
                              is_changed;
@@ -325,7 +327,6 @@ bool convert_function_precision(ov::pass::PassBase& pass,
             node->revalidate_and_infer_types();
             continue;
         }
-        auto node_precisions = filter_precisions_for_node(node, precisions);
         is_output_precision_changed = convert_node_output_precision(node,
                                                                     node_precisions,
                                                                     type_to_fuse,

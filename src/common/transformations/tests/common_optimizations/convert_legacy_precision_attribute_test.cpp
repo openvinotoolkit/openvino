@@ -17,8 +17,7 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
-using namespace testing;
-using namespace ov;
+namespace ov::testing {
 
 TEST(ConvertLegacyPrecisionAttributeTest, basic_migration) {
     // Create model with legacy attribute on a node
@@ -101,3 +100,5 @@ TEST(ConvertLegacyPrecisionAttributeTest, multiple_nodes) {
     ASSERT_TRUE(matmul->get_rt_info().count(DisablePrecisionConversion::get_type_info_static()));
     ASSERT_TRUE(is_compression_disabled_to(matmul, element::f16));
 }
+
+}  // namespace ov::testing

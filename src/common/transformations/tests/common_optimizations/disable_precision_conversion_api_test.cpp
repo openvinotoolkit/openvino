@@ -8,7 +8,7 @@
 #include "openvino/op/parameter.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
-using namespace ov;
+namespace ov::test {
 
 TEST(DisablePrecisionConversionAPITest, no_attribute_returns_false) {
     auto data_1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 10});
@@ -90,3 +90,5 @@ TEST(DisablePrecisionConversionAPITest, dynamic_to_dynamic_blocks_everything) {
     ASSERT_TRUE(is_compression_disabled_from_to(node, element::f64, element::bf16));
     ASSERT_TRUE(is_compression_disabled_from_to(node, element::f32, element::i8));
 }
+
+} // namespace ov::test

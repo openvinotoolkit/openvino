@@ -8,8 +8,6 @@
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
-using namespace ov;
-
 bool ov::pass::ConvertLegacyPrecisionAttribute::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(ConvertLegacyPrecisionAttribute);
     bool changed = false;
