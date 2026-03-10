@@ -279,9 +279,7 @@ private:
         const auto& input_mem = params.memory_deps;    
         auto it = input_mem.find(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE);
         if (it == input_mem.end() || !it->second || it->second->size() == 0) {
-            GPU_DEBUG_TRACE_DETAIL << "XAttention input is empty. \
-                Returning default xattn block size 128. " << std::endl;
-            return 128;  // default
+            OPENVINO_THROW("XAttention input is empty.");
         }
         const auto blocksize_mem = it->second;
         mem_lock<int32_t, mem_lock_type::read> lock(blocksize_mem, *params.strm);  // converted
