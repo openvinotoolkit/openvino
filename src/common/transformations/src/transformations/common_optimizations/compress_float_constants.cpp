@@ -107,7 +107,7 @@ public:
         auto zero_point_const = pattern::wrap_type<v0::Constant>();
         auto zero_point = pattern::optional<v0::Convert>(zero_point_const);
         auto subtract = pattern::wrap_type<v1::Subtract>({convert, zero_point});
-        auto subtract_or_convert = std::make_shared<pattern::op::Or>(ov::OutputVector{convert, subtract});
+        auto subtract_or_convert = convert | subtract;
         auto multiply = pattern::wrap_type<v1::Multiply>({subtract_or_convert, pattern::wrap_type<v0::Constant>()});
 
         ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {

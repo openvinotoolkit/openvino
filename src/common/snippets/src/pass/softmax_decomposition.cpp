@@ -29,12 +29,14 @@
 namespace ov::snippets::pass {
 
 SoftmaxDecomposition::SoftmaxDecomposition() {
-    MATCHER_SCOPE(SoftmaxDecomposition);
-    auto softmax_v1_m = ov::pass::pattern::wrap_type<ov::op::v1::Softmax>();
-    auto softmax_v8_m = ov::pass::pattern::wrap_type<ov::op::v8::Softmax>();
-    auto softmax_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{softmax_v1_m, softmax_v8_m});
+    using namespace ov::pass;
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    MATCHER_SCOPE(SoftmaxDecomposition);
+    auto softmax_v1_m = pattern::wrap_type<ov::op::v1::Softmax>();
+    auto softmax_v8_m = pattern::wrap_type<ov::op::v8::Softmax>();
+    auto softmax_m = softmax_v1_m | softmax_v8_m;
+
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::SoftmaxDecomposition")
         auto softmax = m.get_match_root();
 
@@ -72,7 +74,7 @@ SoftmaxDecomposition::SoftmaxDecomposition() {
         return ov::replace_node_update_name(softmax, multiply);
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(softmax_m, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(softmax_m, matcher_name);
     register_matcher(m, callback);
 }
 

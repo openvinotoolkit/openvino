@@ -18,13 +18,14 @@ namespace ov::intel_gpu {
 
 FullyConnectedPerLayerScaling::FullyConnectedPerLayerScaling(float scale_factor) {
     using namespace ov::pass::pattern;
+    using ov::pass::operator|;
 
     auto data_m = any_input();
     auto weights_m = any_input();
     auto bias_m = any_input();
     auto fc_compressed_wo_zp_m = wrap_type<op::FullyConnectedCompressed>({data_m, weights_m, bias_m, any_input()}, consumers_count(1));
     auto fc_compressed_w_zp_m = wrap_type<op::FullyConnectedCompressed>({data_m, weights_m, bias_m, any_input(), any_input()}, consumers_count(1));
-    auto fc_compressed_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fc_compressed_wo_zp_m, fc_compressed_w_zp_m});
+    auto fc_compressed_m = fc_compressed_wo_zp_m | fc_compressed_w_zp_m;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         if (scale_factor == 0.f || scale_factor == 1.f)

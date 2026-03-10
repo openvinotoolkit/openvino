@@ -55,8 +55,8 @@ ListConstructReplacer::ListConstructReplacer() {
         pattern::wrap_type<v11::Interpolate>({pattern::any_input(), interpolate_mul_op, pattern::any_input()});
     // aten::randint case
     const auto& rand_op = pattern::wrap_type<v8::RandomUniform>({list, pattern::any_input(), pattern::any_input()});
-    const auto& lc_pattern = std::make_shared<pattern::op::Or>(
-        OutputVector{broadcast_op, shape_of_op, equal_op, select_op, tile_op, vsplit_op, interpolate_op, rand_op});
+    const auto& lc_pattern =
+        broadcast_op | shape_of_op | equal_op | select_op | tile_op | vsplit_op | interpolate_op | rand_op;
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();

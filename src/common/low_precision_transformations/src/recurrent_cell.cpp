@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,11 +64,7 @@ RecurrentCellTransformation::RecurrentCellTransformation(const Params& params) :
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(
-        std::make_shared<pass::pattern::op::Or>(
-            OutputVector {
-                lstm_seq,
-                gru_seq
-            }),
+        lstm_seq | gru_seq,
         "RecurrentCellTransformation");
 
     this->register_matcher(m, callback);

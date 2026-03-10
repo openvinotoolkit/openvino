@@ -38,8 +38,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
     auto activations_m = ov::pass::pattern::any_input(static_rank_gt_1);
     auto general_weights_m = ov::pass::pattern::any_input(weights_path);
 
-    auto weights_m = std::make_shared<ov::pass::pattern::op::Or>(
-        ov::OutputVector{compressed_weights_input_m, general_weights_m});
+    auto weights_m = compressed_weights_input_m | general_weights_m;
     auto matmul_m =
         ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({activations_m, weights_m}, ov::pass::pattern::has_static_rank());
 

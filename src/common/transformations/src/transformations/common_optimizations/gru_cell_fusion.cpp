@@ -89,7 +89,7 @@ GRUCellFusion::GRUCellFusion() {
         {pattern::any_input(is_first_dim_static), pattern::any_input(is_first_dim_static)});
     auto matmul_1 = pattern::wrap_type<v0::MatMul>({concat_1, pattern::any_input(is_first_dim_static)});
     auto add_1 = pattern::wrap_type<v1::Add>({matmul_1, pattern::any_input()});
-    auto optional_bias_add_1 = std::make_shared<pattern::op::Or>(OutputVector{matmul_1, add_1});
+    auto optional_bias_add_1 = matmul_1 | add_1;
     auto activation_1 = pattern::wrap_type<v0::Relu, v0::Tanh, v0::Sigmoid>({optional_bias_add_1});
     auto split = pattern::wrap_type<v1::Split>({activation_1, pattern::any_input()});
 
@@ -97,7 +97,7 @@ GRUCellFusion::GRUCellFusion() {
     auto concat_2 = pattern::wrap_type<v0::Concat>({pattern::any_input(), multiply_1});
     auto matmul_2 = pattern::wrap_type<v0::MatMul>({concat_2, pattern::any_input(is_first_dim_static)});
     auto add_2 = pattern::wrap_type<v1::Add>({matmul_2, pattern::any_input()});
-    auto optional_bias_add_2 = std::make_shared<pattern::op::Or>(OutputVector{matmul_2, add_2});
+    auto optional_bias_add_2 = matmul_2 | add_2;
     auto activation_2 = pattern::wrap_type<v0::Relu, v0::Tanh, v0::Sigmoid>({optional_bias_add_2});
 
     auto subtract = pattern::wrap_type<v1::Subtract>({pattern::any_input(), split});

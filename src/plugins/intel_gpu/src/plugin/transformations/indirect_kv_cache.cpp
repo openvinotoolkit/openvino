@@ -70,6 +70,7 @@ namespace ov::intel_gpu {
 
 IndirectGemmOpt::IndirectGemmOpt() {
     using namespace ov::pass::pattern;
+    using ov::pass::operator|;
 
     auto beam_idx = wrap_type<ov::op::v0::Parameter>();
     auto gather_input = wrap_type<ov::intel_gpu::op::ReadValue>();
@@ -80,10 +81,10 @@ IndirectGemmOpt::IndirectGemmOpt() {
     auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, axis_const});
     auto kv_cache_notrim = wrap_type<ov::intel_gpu::op::KVCache>({gather_past, any_input()});
     auto kv_cache_trim = wrap_type<ov::intel_gpu::op::KVCache>({gather_past, any_input(), any_input()});
-    auto kv_cache = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{kv_cache_notrim, kv_cache_trim});
+    auto kv_cache = kv_cache_notrim | kv_cache_trim;
     auto matmul_0 = wrap_type<ov::intel_gpu::op::Gemm>({kv_cache, any_input()});
     auto matmul_1 = wrap_type<ov::intel_gpu::op::Gemm>({any_input(), kv_cache});
-    auto matmul = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{matmul_0, matmul_1});
+    auto matmul = matmul_0 | matmul_1;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
@@ -136,7 +137,7 @@ IndirectGemmOpt::IndirectGemmOpt() {
 
 IndirectSDPAOpt::IndirectSDPAOpt() {
     using namespace ov::pass::pattern;
-    using ov::pass::pattern::op::Or;
+    using ov::pass::operator|;
 
     auto beam_idx = wrap_type<ov::op::v0::Parameter>();
     auto gather_input_0 = wrap_type<ov::intel_gpu::op::ReadValue>();
@@ -151,8 +152,8 @@ IndirectSDPAOpt::IndirectSDPAOpt() {
     auto kv_cache_notrim_1 = wrap_type<ov::intel_gpu::op::KVCache>({gather_past_1, any_input()});
     auto kv_cache_trim_0 = wrap_type<ov::intel_gpu::op::KVCache>({gather_past_0, any_input(), any_input()});
     auto kv_cache_trim_1 = wrap_type<ov::intel_gpu::op::KVCache>({gather_past_1, any_input(), any_input()});
-    auto kv_cache_0 = std::make_shared<Or>(OutputVector{kv_cache_notrim_0, kv_cache_trim_0});
-    auto kv_cache_1 = std::make_shared<Or>(OutputVector{kv_cache_notrim_1, kv_cache_trim_1});
+    auto kv_cache_0 = kv_cache_notrim_0 | kv_cache_trim_0;
+    auto kv_cache_1 = kv_cache_notrim_1 | kv_cache_trim_1;
 
     auto input_attn_mask = any_input();
     auto input_scale = any_input();
@@ -161,7 +162,7 @@ IndirectSDPAOpt::IndirectSDPAOpt() {
     auto sdpa_with_attn_mask_and_scale_m =
         wrap_type<ov::intel_gpu::op::SDPA>({ any_input(), kv_cache_0, kv_cache_1, input_attn_mask, input_scale });
 
-    auto sdpa_m = std::make_shared<Or>(OutputVector{sdpa_without_attn_mask_m, sdpa_with_attn_mask_m, sdpa_with_attn_mask_and_scale_m});
+    auto sdpa_m = sdpa_without_attn_mask_m | sdpa_with_attn_mask_m | sdpa_with_attn_mask_and_scale_m;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {

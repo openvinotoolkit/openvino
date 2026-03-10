@@ -125,6 +125,7 @@ U4BlockRepack::U4BlockRepack(bool is_symmetrical) {
 };
 
 U4ConvertReshape::U4ConvertReshape() {
+    using ov::pass::operator|;
     const auto& m_constant = wrap_type<v0::Constant>(type_matches(element::u4));
     const auto& m_convert = wrap_type<v0::Convert>({m_constant});
 
@@ -134,11 +135,9 @@ U4ConvertReshape::U4ConvertReshape() {
     const auto& m_convert_8 = wrap_type<v0::Convert>({m_constant_8});
     const auto& m_multiply = wrap_type<v1::Multiply>({m_convert_8, m_convert_1});
 
-    const auto& m_converted_constant_8 =
-        std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{m_multiply, m_convert_8});
+    const auto& m_converted_constant_8 = m_multiply | m_convert_8;
     const auto& m_subtract = wrap_type<v1::Subtract>({m_convert, m_converted_constant_8});
-    const auto& m_converted_constant =
-        std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{m_subtract, m_constant});
+    const auto& m_converted_constant = m_subtract | m_constant;
     const auto& m_reshape = wrap_type<v1::Reshape>({m_converted_constant, any_input()});
 
     register_matcher(

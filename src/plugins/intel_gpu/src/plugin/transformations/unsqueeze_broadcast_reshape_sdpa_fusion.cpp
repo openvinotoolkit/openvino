@@ -20,10 +20,10 @@
 #include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_gpu {
-using ov::pass::pattern::op::Or;
 
 UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
     using namespace ov::pass::pattern;
+    using ov::pass::operator|;
 
     auto unsqueeze_predicate = rank_equals(5) && consumers_count(1);
 
@@ -49,23 +49,23 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
     auto pre_reshape_b_m = wrap_type<ov::op::v1::Reshape>({input_b_rope_m, any_input()}, unsqueeze_predicate);
     auto pre_reshape_c_m = wrap_type<ov::op::v1::Reshape>({input_c_transpose_m, any_input()}, unsqueeze_predicate);
 
-    auto broadcast_input_b_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{unsqueeze_b_m, pre_reshape_b_m});
-    auto broadcast_input_c_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{unsqueeze_c_m, pre_reshape_c_m});
+    auto broadcast_input_b_m = unsqueeze_b_m | pre_reshape_b_m;
+    auto broadcast_input_c_m = unsqueeze_c_m | pre_reshape_c_m;
     auto broadcast_b_m = wrap_type<ov::op::v3::Broadcast>({broadcast_input_b_m, any_input()}, broadcast_predicate);
     auto broadcast_c_m = wrap_type<ov::op::v3::Broadcast>({broadcast_input_c_m, any_input()}, broadcast_predicate);
     auto reshape_b_m = wrap_type<ov::op::v1::Reshape>({broadcast_b_m, any_input()}, reshape_predicate);
     auto reshape_c_m = wrap_type<ov::op::v1::Reshape>({broadcast_c_m, any_input()}, reshape_predicate);
 
     auto convert_reshape_b_m = wrap_type<ov::op::v0::Convert>({reshape_b_m});
-    auto reshape_b_input_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape_b_m, convert_reshape_b_m});
+    auto reshape_b_input_m = reshape_b_m | convert_reshape_b_m;
     auto convert_reshape_c_m = wrap_type<ov::op::v0::Convert>({reshape_c_m});
-    auto reshape_c_input_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape_c_m, convert_reshape_c_m});
+    auto reshape_c_input_m = reshape_c_m | convert_reshape_c_m;
 
     auto sdpa_without_attn_mask_m = wrap_type<op::SDPA>({ input_a_m, reshape_b_m, reshape_c_m });
     auto sdpa_with_attn_mask_m = wrap_type<op::SDPA>({ input_a_m, reshape_b_input_m, reshape_c_input_m, input_attn_mask_m });
     auto sdpa_with_attn_mask_and_scale_m = wrap_type<op::SDPA>({ input_a_m, reshape_b_m, reshape_c_m, input_attn_mask_m, input_scale_m });
 
-    auto sdpa_m = std::make_shared<Or>(OutputVector{sdpa_without_attn_mask_m, sdpa_with_attn_mask_m, sdpa_with_attn_mask_and_scale_m});
+    auto sdpa_m = sdpa_without_attn_mask_m | sdpa_with_attn_mask_m | sdpa_with_attn_mask_and_scale_m;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {

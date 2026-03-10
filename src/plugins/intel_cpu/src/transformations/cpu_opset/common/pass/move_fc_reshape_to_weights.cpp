@@ -35,6 +35,8 @@
 ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     MATCHER_SCOPE(MoveFCReshapeToWeights);
     using namespace ov::pass::pattern;
+    using ov::pass::operator|;
+
     auto weights_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto convert_m = wrap_type<ov::op::v0::Convert>({weights_m}, consumers_count(1));
 
@@ -48,20 +50,19 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     auto subtract_wo_convert_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_const_m}, consumers_count(1));
     auto sub_convert = wrap_type<ov::op::v0::Convert>({sub_const_m}, consumers_count(1));
     auto subtract_w_convert_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_convert}, consumers_count(1));
-    auto subtract_m =
-        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{subtract_wo_convert_m, subtract_w_convert_m});
+    auto subtract_m = subtract_wo_convert_m | subtract_w_convert_m;
 
     auto mul_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto mul_with_sub_m = wrap_type<ov::op::v1::Multiply>({subtract_m, mul_const_m}, one_consumer_rank_equals(3));
     auto mul_no_sub_m = wrap_type<ov::op::v1::Multiply>({convert_m, mul_const_m}, one_consumer_rank_equals(3));
-    auto mul_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_with_sub_m, mul_no_sub_m});
+    auto mul_m = mul_with_sub_m | mul_no_sub_m;
 
     auto reshape_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto reshape_m = wrap_type<ov::op::v1::Reshape>({mul_m, reshape_const_m}, one_consumer_rank_equals(2));
 
     auto transpose_const_m = wrap_type<ov::op::v0::Constant>();
     auto transpose_m = wrap_type<ov::op::v1::Transpose>({reshape_m, transpose_const_m});
-    auto weights_input_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, transpose_m});
+    auto weights_input_m = reshape_m | transpose_m;
 
     auto data_m = any_input();
     auto bias_m = any_input();

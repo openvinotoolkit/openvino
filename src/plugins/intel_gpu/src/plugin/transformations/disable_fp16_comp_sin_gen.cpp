@@ -20,6 +20,8 @@
 namespace ov::intel_gpu {
 DisableFP16ComSinGenPatternForHiFiGAN::DisableFP16ComSinGenPatternForHiFiGAN() {
     using namespace ov::pass::pattern;
+    using ov::pass::operator|;
+
     using ov::op::v0::Sin;
     using ov::op::v1::Multiply;
     using ov::op::v1::Transpose;
@@ -35,7 +37,7 @@ DisableFP16ComSinGenPatternForHiFiGAN::DisableFP16ComSinGenPatternForHiFiGAN() {
     auto interpolate_v11 = wrap_type<ov::op::v11::Interpolate>({multiply, any_input()});
     auto interpolate_v11_with_axes = wrap_type<ov::op::v11::Interpolate>({multiply, any_input(), any_input()});
 
-    auto interpolate = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{interpolate_v0, interpolate_v4, interpolate_v4_with_axes, interpolate_v11, interpolate_v11_with_axes});
+    auto interpolate = interpolate_v0 | interpolate_v4 | interpolate_v4_with_axes | interpolate_v11 | interpolate_v11_with_axes;
     auto transpose = wrap_type<Transpose>({interpolate, any_input()});
     auto sin = wrap_type<Sin>({transpose});
 

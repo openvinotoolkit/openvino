@@ -1089,7 +1089,7 @@ EliminateEltwise::EliminateEltwise() {
         pattern::wrap_type<v1::Add, v1::Subtract, v1::Multiply, v1::Divide>({input, constant_pattern});
     auto subtract_pattern =
         pattern::wrap_type<v1::Subtract>({input, pattern::wrap_type<v0::Convert>({constant_pattern})});
-    auto root = std::make_shared<pattern::op::Or>(OutputVector{eltwise_pattern, subtract_pattern});
+    auto root = eltwise_pattern | subtract_pattern;
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -1302,7 +1302,7 @@ EliminateStridedSliceByShape::EliminateStridedSliceByShape() {
 
     auto axes = pattern::any_input();
     auto slice = pattern::wrap_type<v8::Slice>({input, begin, end, optional_stride_const, axes});
-    auto ptrn = std::make_shared<pattern::op::Or>(OutputVector{strided_slice, slice});
+    auto ptrn = strided_slice | slice;
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();

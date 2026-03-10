@@ -31,7 +31,6 @@
 #include <ostream>
 
 using namespace ov::pass::pattern;
-using ov::pass::pattern::op::Or;
 
 namespace ov::intel_gpu {
 
@@ -194,6 +193,8 @@ TransposeVLSDPAMatcher::TransposeVLSDPAMatcher() {
 }
 
 TransposeSDPAMatcher::TransposeSDPAMatcher() {
+    using ov::pass::operator|;
+
     auto is_fp_type = [](const ov::Output<ov::Node>& output) -> bool {
         switch (output.get_element_type()) {
             case ov::element::f16:
@@ -218,16 +219,16 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
     auto transpose_k_m = wrap_type<ov::op::v1::Transpose>({input_k_m, transpose_k_order_m}, is_fp_type);
     auto transpose_v_m = wrap_type<ov::op::v1::Transpose>({input_v_m, transpose_v_order_m}, is_fp_type);
 
-    auto sdpa_in_q = std::make_shared<Or>(OutputVector{input_q_m, transpose_q_m});
-    auto sdpa_in_k = std::make_shared<Or>(OutputVector{input_k_m, transpose_k_m});
-    auto sdpa_in_v = std::make_shared<Or>(OutputVector{input_v_m, transpose_v_m});
+    auto sdpa_in_q = input_q_m | transpose_q_m;
+    auto sdpa_in_k = input_k_m | transpose_k_m;
+    auto sdpa_in_v = input_v_m | transpose_v_m;
 
     auto sdpa_without_attn_mask_m = wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v });
     auto sdpa_with_attn_mask_m = wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v, input_attn_mask });
     auto sdpa_with_attn_mask_and_scale_m =
         wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v, input_attn_mask, input_scale });
 
-    auto sdpa_m = std::make_shared<Or>(OutputVector{sdpa_without_attn_mask_m, sdpa_with_attn_mask_m, sdpa_with_attn_mask_and_scale_m});
+    auto sdpa_m = sdpa_without_attn_mask_m | sdpa_with_attn_mask_m | sdpa_with_attn_mask_and_scale_m;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -311,6 +312,8 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
 }
 
 TransposeMatMulMatcher::TransposeMatMulMatcher(bool supports_immad) {
+    using ov::pass::operator|;
+
     auto not_transpose = [](const ov::Output<ov::Node>& output) -> bool {
         return ov::as_type_ptr<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr
                && output.get_element_type().is_real();
@@ -342,8 +345,8 @@ TransposeMatMulMatcher::TransposeMatMulMatcher(bool supports_immad) {
     auto transpose_a_m = wrap_type<ov::op::v1::Transpose>({input_a_m, transpose_a_order_m}, transpose_predicate);
     auto transpose_b_m = wrap_type<ov::op::v1::Transpose>({input_b_m, transpose_b_order_m}, transpose_predicate);
 
-    auto matmul_in_a = std::make_shared<Or>(OutputVector{input_a_m, transpose_a_m});
-    auto matmul_in_b = std::make_shared<Or>(OutputVector{input_b_m, transpose_b_m});
+    auto matmul_in_a = input_a_m | transpose_a_m;
+    auto matmul_in_b = input_b_m | transpose_b_m;
 
     auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b }, matmul_predicate);
 
@@ -400,6 +403,8 @@ TransposeMatMulMatcher::TransposeMatMulMatcher(bool supports_immad) {
 }
 
 TransposeMatMulTransposeMatcher::TransposeMatMulTransposeMatcher(bool supports_immad) {
+    using ov::pass::operator|;
+
     auto not_transpose = [](const ov::Output<ov::Node>& output) -> bool {
         return ov::as_type_ptr<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr
                && output.get_element_type().is_real();
@@ -417,8 +422,8 @@ TransposeMatMulTransposeMatcher::TransposeMatMulTransposeMatcher(bool supports_i
     auto transpose_a_m = wrap_type<ov::op::v1::Transpose>({input_a_m, transpose_a_order_m}, input_transpose_predicate);
     auto transpose_b_m = wrap_type<ov::op::v1::Transpose>({input_b_m, transpose_b_order_m}, input_transpose_predicate);
 
-    auto matmul_in_a = std::make_shared<Or>(OutputVector{input_a_m, transpose_a_m});
-    auto matmul_in_b = std::make_shared<Or>(OutputVector{input_b_m, transpose_b_m});
+    auto matmul_in_a = input_a_m | transpose_a_m;
+    auto matmul_in_b = input_b_m | transpose_b_m;
 
     auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b }, consumers_count(1));
     auto transpose_c_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));

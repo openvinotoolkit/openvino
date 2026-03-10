@@ -427,11 +427,9 @@ TEST(pattern, matcher) {
     ASSERT_EQ(n.get_pattern_map()[label2], add);
 
     // Or
-    ASSERT_TRUE(n.match(std::make_shared<pattern::op::Or>(OutputVector{std::make_shared<op::v1::Add>(a, b),
-                                                                       std::make_shared<op::v1::Subtract>(a, b)}),
+    ASSERT_TRUE(n.match(std::make_shared<op::v1::Add>(a, b) | std::make_shared<op::v1::Subtract>(a, b),
                         std::make_shared<op::v1::Add>(a, b)));
-    ASSERT_TRUE(n.match(std::make_shared<pattern::op::Or>(OutputVector{std::make_shared<op::v1::Add>(a, b),
-                                                                       std::make_shared<op::v1::Subtract>(a, b)}),
+    ASSERT_TRUE(n.match(std::make_shared<op::v1::Add>(a, b) | std::make_shared<op::v1::Subtract>(a, b),
                         std::make_shared<op::v1::Subtract>(a, b)));
 
     // strict mode
@@ -1180,8 +1178,7 @@ TEST(pattern, pattern_or) {
     auto blue_pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({blue_pattern_abs->output(0)});
 
     // Create Or node
-    auto pattern_or = std::make_shared<ov::pass::pattern::op::Or>(
-        OutputVector{red_pattern_sigmoid->output(0), blue_pattern_relu->output(0)});
+    auto pattern_or = red_pattern_sigmoid->output(0) | blue_pattern_relu->output(0);
 
     // Create a matcher and try to match the nodes
     TestMatcher tm;

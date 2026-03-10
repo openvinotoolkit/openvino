@@ -32,8 +32,6 @@ using namespace ov;
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::Matcher;
 using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::op::Or;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 constexpr auto SQRT2 = static_cast<float>(M_SQRT2);
@@ -78,7 +76,7 @@ ov::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
     // In case of ConvertDivideWithConstant is applied and Div is converted to Mul
     auto mul_as_div_constant = wrap_type<v0::Constant>(check_value(SQRT1_2, 0.001f));
     auto mul_as_div = wrap_type<v1::Multiply>({input, mul_as_div_constant});
-    auto erf_input = std::make_shared<Or>(ov::OutputVector{div, mul_as_div});
+    auto erf_input = div | mul_as_div;
 
     auto erf = wrap_type<v0::Erf>({erf_input});
 
@@ -109,7 +107,7 @@ ov::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
     // In case of ConvertDivideWithConstant is applied and Div is converted to Mul
     auto mul_as_div_constant = wrap_type<v0::Constant>(check_value(SQRT1_2, 0.001f));
     auto mul_as_div = wrap_type<v1::Multiply>({input, mul_as_div_constant});
-    auto erf_input = std::make_shared<Or>(ov::OutputVector{div, mul_as_div});
+    auto erf_input = div | mul_as_div;
 
     auto erf = wrap_type<v0::Erf>({erf_input});
     auto add_constant = wrap_type<v0::Constant>(check_value(1.0f));
@@ -139,7 +137,7 @@ ov::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
     // In case of ConvertDivideWithConstant is applied and Div is converted to Mul
     auto mul_as_div_constant = wrap_type<v0::Constant>(check_value(SQRT1_2, 0.001f));
     auto mul_as_div = wrap_type<v1::Multiply>({input, mul_as_div_constant});
-    auto erf_input = std::make_shared<Or>(ov::OutputVector{div, mul_as_div});
+    auto erf_input = div | mul_as_div;
 
     auto erf = wrap_type<v0::Erf>({erf_input});
     auto add_constant = wrap_type<v0::Constant>(check_value(1.0f));
@@ -213,7 +211,7 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
     auto mul_2_2 = wrap_type<v1::Multiply>({input, mul_2_constant});
     auto mul_3_2 = wrap_type<v1::Multiply>({add_1, mul_2_2});
 
-    auto mul_3 = std::make_shared<Or>(OutputVector{mul_3_1, mul_3_2});
+    auto mul_3 = mul_3_1 | mul_3_2;
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         return gelu_replacer(m, input, ov::op::GeluApproximationMode::TANH);
@@ -296,7 +294,7 @@ ov::pass::GeluFusionWithTanhNoPower2::GeluFusionWithTanhNoPower2() {
     auto mul_4_3 = wrap_type<v1::Multiply>({add_1, input});
     auto mul_5_3 = wrap_type<v1::Multiply>({mul_4_3, mul_4_constant});
 
-    auto mul_5 = std::make_shared<Or>(OutputVector{mul_5_1, mul_5_2, mul_5_3});
+    auto mul_5 = mul_5_1 | mul_5_2 | mul_5_3;
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         return gelu_replacer(m, input, ov::op::GeluApproximationMode::TANH);

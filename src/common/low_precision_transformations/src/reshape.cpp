@@ -33,7 +33,7 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
     auto mul_m = pattern::wrap_type<ov::opset1::Multiply>({ input, mul_const_m });
     auto reshape_pattern_const = pattern::wrap_type<ov::opset1::Constant>();
     auto reshape_pattern_nonconst = ov::pass::pattern::any_input();
-    auto reshape_pattern = std::make_shared<pass::pattern::op::Or>(OutputVector{ reshape_pattern_const, reshape_pattern_nonconst });
+    auto reshape_pattern = reshape_pattern_const | reshape_pattern_nonconst;
     auto matcher = pattern::wrap_type<ov::opset1::Reshape>({ mul_m, reshape_pattern });
 
     ov::graph_rewrite_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {

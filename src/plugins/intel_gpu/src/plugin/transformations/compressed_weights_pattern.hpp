@@ -1,6 +1,11 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma once
 
 using namespace ov::pass::pattern;
+using ov::pass::operator|;
 #define FC_COMPRESSED_WEIGHT_PATTERN\
         auto compressed_constant = [](const ov::Output<ov::Node>& output) {\
             return (output.get_element_type() == ov::element::u8 || output.get_element_type() == ov::element::i8 ||\
@@ -21,12 +26,12 @@ using namespace ov::pass::pattern;
         auto sub_convert_const_m = wrap_type<ov::op::v0::Convert>({sub_const_m});\
         auto sub_with_convert_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_convert_const_m});\
         auto sub_no_convert_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_const_m});\
-        auto subtract_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sub_with_convert_m, sub_no_convert_m});\
+        auto subtract_m = sub_with_convert_m | sub_no_convert_m;\
 \
         auto mul_const_m = wrap_type<ov::op::v0::Constant>();\
         auto mul_with_sub_m = wrap_type<ov::op::v1::Multiply>({subtract_m, mul_const_m});\
         auto mul_no_sub_m = wrap_type<ov::op::v1::Multiply>({convert_m, mul_const_m});\
-        auto mul_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_with_sub_m, mul_no_sub_m});\
+        auto mul_m = mul_with_sub_m | mul_no_sub_m;\
 \
         auto reshape_const_m = wrap_type<ov::op::v0::Constant>();\
         auto reshape_m = wrap_type<ov::op::v1::Reshape>({mul_m, reshape_const_m}, reshape_squeeze);\
@@ -35,9 +40,8 @@ using namespace ov::pass::pattern;
         auto mul2_const_m = wrap_type<ov::op::v0::Constant>();\
         auto mul2_m = wrap_type<ov::op::v1::Multiply>({reshape_m, mul2_const_m});\
 \
-        auto transpose_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape_m, mul_m});\
+        auto transpose_input = reshape_m | mul_m;\
         auto transpose_const_m = wrap_type<ov::op::v0::Constant>();\
         auto transpose_m = wrap_type<ov::op::v1::Transpose>({transpose_input, transpose_const_m});\
 \
-        auto compressed_weights_input_m =\
-            std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, convert_reshape_m, transpose_m, mul_m, mul2_m});
+        auto compressed_weights_input_m = reshape_m | convert_reshape_m | transpose_m | mul_m | mul2_m;

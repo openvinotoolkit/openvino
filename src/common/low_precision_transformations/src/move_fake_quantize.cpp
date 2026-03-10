@@ -54,7 +54,7 @@ MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(p
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(
-        std::make_shared<pass::pattern::op::Or>(OutputVector{fq, fq_with_operation}),
+        fq | fq_with_operation,
         matcher_name);
     this->register_matcher(m, callback);
 }

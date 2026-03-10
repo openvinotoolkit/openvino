@@ -17,11 +17,10 @@ namespace ov::intel_gpu {
 
 DisableFP16CompForGemma3RMSPattern::DisableFP16CompForGemma3RMSPattern() {
     using namespace ov::pass::pattern;
+    using ov::pass::operator|;
 
-    auto const_or_convert = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{
-        wrap_type<ov::op::v0::Constant>(),
-        wrap_type<ov::op::v0::Convert>({wrap_type<ov::op::v0::Constant>()})
-    });
+    auto const_or_convert = wrap_type<ov::op::v0::Constant>()
+                          | wrap_type<ov::op::v0::Convert>({wrap_type<ov::op::v0::Constant>()});
  
     auto add_m = wrap_type<ov::op::v1::Add>({any_input(), any_input()}, type_matches(element::f32));
     auto rms_post_m = wrap_type<ov::op::internal::RMS>({any_input(), const_or_convert}, type_matches(element::f32));

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,10 +31,7 @@ ConvolutionTransformation::ConvolutionTransformation(const Params& params) : Wei
     MATCHER_SCOPE(ConvolutionTransformation);
     auto matcher = ov::pass::pattern::wrap_type<ov::opset1::Convolution>({
         ov::pass::pattern::wrap_type<ov::opset1::Multiply>(),
-        std::make_shared<pass::pattern::op::Or>(OutputVector {
-            pattern::wrap_type<ov::opset1::Multiply>(),
-            pattern::wrap_type<ov::opset1::FakeQuantize>()
-        })
+        pattern::wrap_type<ov::opset1::Multiply>() | pattern::wrap_type<ov::opset1::FakeQuantize>()
     });
 
 

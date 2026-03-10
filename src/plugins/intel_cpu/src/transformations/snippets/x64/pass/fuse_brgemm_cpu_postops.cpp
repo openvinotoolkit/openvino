@@ -52,6 +52,7 @@ using namespace dnnl::impl;
 using namespace snippets::op;
 using namespace snippets::lowered;
 using namespace ov::pass::pattern;
+
 using PortDescriptorUtils = snippets::lowered::PortDescriptorUtils;
 
 bool pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(const ov::element::Type& input_precision) {
@@ -151,11 +152,12 @@ bool pass::FuseUnaryEltwise::can_be_fused(const std::shared_ptr<const ov::Node>&
 
 pass::FuseUnaryEltwise::FuseUnaryEltwise() {
     MATCHER_SCOPE(FuseUnaryEltwise);
+    using ov::pass::operator|;
 
     auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
     auto m_round = wrap_type<ov::op::v5::Round>({m_brgemm});
     auto m_relu = wrap_type<ov::op::v0::Relu>({m_brgemm});
-    auto m_postop = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_round, m_relu});
+    auto m_postop = m_round | m_relu;
     auto callback = [=](Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseUnaryEltwise")
         const auto& pattern_map = m.get_pattern_value_map();
@@ -209,6 +211,7 @@ bool pass::FuseScalarEltwise::can_be_fused(const std::shared_ptr<const ov::Node>
 
 pass::FuseScalarEltwise::FuseScalarEltwise() {
     MATCHER_SCOPE(FuseScalarEltwise);
+    using ov::pass::operator|;
 
     // These predicates are used to skip the transformation in cases where a more optimized transformation is available
     ov::pass::pattern::op::Predicate not_scale_shift_pattern(
@@ -243,7 +246,7 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
     auto m_sub = wrap_type<ov::op::v1::Subtract>({m_brgemm, m_scalar});
     auto m_max = wrap_type<ov::op::v1::Maximum>({m_brgemm, m_scalar}, not_clip_pattern);
     auto m_min = wrap_type<ov::op::v1::Minimum>({m_brgemm, m_scalar});
-    auto m_postop = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_mul, m_add, m_sub, m_max, m_min});
+    auto m_postop = m_mul | m_add | m_sub | m_max | m_min;
 
     auto callback = [=](Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseScalarEltwise")
@@ -312,6 +315,7 @@ bool pass::FuseBinaryEltwise::can_be_fused(const std::shared_ptr<const ov::Node>
 pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::Parameter>>& external_params)
     : m_external_params(external_params) {
     MATCHER_SCOPE(FuseBinaryEltwise);
+    using ov::pass::operator|;
 
     auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
     auto m_postop_input = wrap_type<ov::op::v0::Parameter>(binary_input_predicate);
@@ -321,7 +325,7 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
     auto m_sub = wrap_type<ov::op::v1::Subtract>({m_brgemm, m_rank_norm});
     auto m_max = wrap_type<ov::op::v1::Maximum>({m_brgemm, m_rank_norm});
     auto m_min = wrap_type<ov::op::v1::Minimum>({m_brgemm, m_rank_norm});
-    auto m_postop = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_mul, m_add, m_sub, m_max, m_min});
+    auto m_postop = m_mul | m_add | m_sub | m_max | m_min;
 
     auto callback = [=](Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseScalarEltwise")

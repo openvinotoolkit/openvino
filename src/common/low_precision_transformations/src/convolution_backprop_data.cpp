@@ -28,26 +28,25 @@ namespace low_precision {
 
 ConvolutionBackpropDataTransformation::ConvolutionBackpropDataTransformation(const Params& params) : WeightableLayerTransformation(params) {
     MATCHER_SCOPE(ConvolutionBackpropDataTransformation);
-    auto matcher = std::make_shared<pass::pattern::op::Or>(OutputVector{
+    auto matcher =
         pattern::wrap_type<ov::opset1::ConvolutionBackpropData>({
             pattern::wrap_type<ov::opset1::Multiply>(),
             pattern::wrap_type<ov::opset1::Multiply>()
-        }),
+        }) |
         ov::pass::pattern::wrap_type<ov::opset1::ConvolutionBackpropData>({
             pattern::wrap_type<ov::opset1::Multiply>(),
             pattern::wrap_type<ov::opset1::FakeQuantize>()
-        }),
+        }) |
         ov::pass::pattern::wrap_type<ov::opset1::ConvolutionBackpropData>({
             pattern::wrap_type<ov::opset1::Multiply>(),
             pattern::wrap_type<ov::opset1::Multiply>(),
             pattern::wrap_type<ov::opset1::Constant>()
-        }),
+        }) |
         ov::pass::pattern::wrap_type<ov::opset1::ConvolutionBackpropData>({
             pattern::wrap_type<ov::opset1::Multiply>(),
             pattern::wrap_type<ov::opset1::FakeQuantize>(),
             pattern::wrap_type<ov::opset1::Constant>()
-        }),
-    });
+        });
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();

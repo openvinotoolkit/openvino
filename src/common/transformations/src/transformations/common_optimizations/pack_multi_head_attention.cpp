@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "transformations/common_optimizations/pack_multi_head_attention.hpp"
 
@@ -345,7 +346,7 @@ MergeUnrolledRoPE::MergeUnrolledRoPE() {
         nodes.mul_l = pattern::wrap_type<v1::Multiply>({nodes.input, pattern::any_input()});
         nodes.add = pattern::wrap_type<v1::Add>({nodes.mul_l, nodes.mul_r});
         nodes.reshape = pattern::wrap_type<v1::Reshape, v1::Transpose>({nodes.add, pattern::any_input()});
-        nodes.output = std::make_shared<pattern::op::Or>(OutputVector{nodes.reshape, nodes.add});
+        nodes.output = nodes.reshape | nodes.add;
         return nodes;
     };
 
@@ -480,7 +481,7 @@ MergeLinearProjections::MergeLinearProjections() {
         nodes.matmul = pattern::wrap_type<v0::MatMul>({input, nodes.multiply});
         nodes.add = pattern::wrap_type<v1::Add>({nodes.matmul, pattern::any_input()});
         auto reshape = pattern::wrap_type<v1::Reshape, v0::Unsqueeze>({nodes.add, pattern::any_input()});
-        nodes.output = std::make_shared<pattern::op::Or>(OutputVector{reshape, nodes.add});
+        nodes.output = reshape | nodes.add;
         return nodes;
     };
 

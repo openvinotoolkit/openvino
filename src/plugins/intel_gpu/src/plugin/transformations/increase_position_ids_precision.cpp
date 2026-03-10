@@ -43,12 +43,11 @@ namespace ov::intel_gpu {
 
 IncreasePositionIdsPrecisionForRoPE::IncreasePositionIdsPrecisionForRoPE() {
     using namespace ov::pass::pattern;
-    using ov::pass::pattern::op::Or;
-
+    using ov::pass::operator|;
     auto gemm_or_matmul = wrap_type<ov::intel_gpu::op::Gemm, ov::op::v0::MatMul>();
     auto transpose_m = wrap_type<ov::op::v1::Transpose>({gemm_or_matmul, any_input()});
     auto reshape_m = wrap_type<ov::op::v1::Reshape>({gemm_or_matmul, any_input()});
-    auto concat_input = std::make_shared<Or>(OutputVector{gemm_or_matmul, transpose_m, reshape_m});
+    auto concat_input = gemm_or_matmul | transpose_m | reshape_m;
     auto concat = wrap_type<ov::op::v0::Concat>({concat_input, concat_input});
     auto sin = wrap_type<ov::op::v0::Sin>({concat});
     auto cos = wrap_type<ov::op::v0::Cos>({concat});
@@ -75,8 +74,8 @@ IncreasePositionIdsPrecisionForRoPE::IncreasePositionIdsPrecisionForRoPE() {
     auto cos_gather = wrap_type<ov::op::v8::Gather>({cos_slice, any_input(), any_input()});
     auto cos_unsqueeze2 = wrap_type<ov::op::v0::Unsqueeze>({cos_gather, wrap_type<ov::op::v0::Constant>()});
 
-    auto rope_sin_input = std::make_shared<Or>(OutputVector{sin_reshape, sin_squeeze, sin_unsqueeze, sin_unsqueeze2, sin_multiply_reshape, sin});
-    auto rope_cos_input = std::make_shared<Or>(OutputVector{cos_reshape, cos_squeeze, cos_unsqueeze, cos_unsqueeze2, cos_multiply_reshape, cos});
+    auto rope_sin_input = sin_reshape | sin_squeeze | sin_unsqueeze | sin_unsqueeze2 | sin_multiply_reshape | sin;
+    auto rope_cos_input = cos_reshape | cos_squeeze | cos_unsqueeze | cos_unsqueeze2 | cos_multiply_reshape | cos;
 
     auto rope = wrap_type<ov::op::internal::RoPE>({any_input(), rope_cos_input, rope_sin_input});
 
@@ -112,7 +111,6 @@ IncreasePositionIdsPrecisionForRoPE::IncreasePositionIdsPrecisionForRoPE() {
 
 IncreasePositionIdsPrecisionForQwen25VL::IncreasePositionIdsPrecisionForQwen25VL() {
     using namespace ov::pass::pattern;
-    using ov::pass::pattern::op::Or;
 
     // Qwen2.5-VL RoPE pattern:
     // position_ids -> Convert_to_i32 -> Unsqueeze -> Convert_to_f16 -> MatMul -> Transpose -> Concat -> Sin/Cos -> ... -> RoPE
@@ -297,7 +295,6 @@ IncreasePositionIdsPrecisionForQwen3VL::IncreasePositionIdsPrecisionForQwen3VL()
 
 IncreasePositionIdsPrecisionForLtxVideo::IncreasePositionIdsPrecisionForLtxVideo() {
     using namespace ov::pass::pattern;
-    using ov::pass::pattern::op::Or;
 
     // for ltx-video pattern
     auto mul = wrap_type<ov::op::v1::Multiply>({any_input(), any_input()});
@@ -364,7 +361,7 @@ IncreasePositionIdsPrecisionForLtxVideo::IncreasePositionIdsPrecisionForLtxVideo
 
 IncreasePositionIdsPrecisionForGPTOSS::IncreasePositionIdsPrecisionForGPTOSS() {
     using namespace ov::pass::pattern;
-    using ov::pass::pattern::op::Or;
+    using ov::pass::operator|;
 
     auto broadcast_freq = wrap_type<ov::op::v3::Broadcast>({any_input(), any_input()});
     auto convert_broadcast_freq = wrap_type<ov::op::v0::Convert>({broadcast_freq});
@@ -372,41 +369,41 @@ IncreasePositionIdsPrecisionForGPTOSS::IncreasePositionIdsPrecisionForGPTOSS() {
     auto convert_pos_id_to_i32 = wrap_type<ov::op::v0::Convert>({any_input()});
     auto unsqueeze_pos_id_1 = wrap_type<ov::op::v0::Unsqueeze>({convert_pos_id_to_i32, any_input()});
     auto unsqueeze_pos_id_2 = wrap_type<ov::op::v1::Reshape>({convert_pos_id_to_i32, any_input()});
-    auto unsqueeze_pos_id = std::make_shared<Or>(OutputVector{unsqueeze_pos_id_1, unsqueeze_pos_id_2});
+    auto unsqueeze_pos_id = unsqueeze_pos_id_1 | unsqueeze_pos_id_2;
     auto convert_pos_id_to_f16 = wrap_type<ov::op::v0::Convert>({unsqueeze_pos_id});
 
-    auto broadcast_freq_ = std::make_shared<Or>(OutputVector{broadcast_freq, convert_broadcast_freq});
+    auto broadcast_freq_ = broadcast_freq | convert_broadcast_freq;
 
     auto matmul_freq_pos_id = wrap_type<ov::op::v0::MatMul>({broadcast_freq_, convert_pos_id_to_f16});
     auto reshape_matmul = wrap_type<ov::op::v1::Reshape>({matmul_freq_pos_id, any_input()});
     auto transpose_matmul = wrap_type<ov::op::v1::Transpose>({matmul_freq_pos_id, any_input()});
-    auto transpose_or_reshape = std::make_shared<Or>(OutputVector{transpose_matmul, reshape_matmul});
+    auto transpose_or_reshape = transpose_matmul | reshape_matmul;
 
     auto sin_ = wrap_type<ov::op::v0::Sin>({transpose_or_reshape});
     auto sin_convert = wrap_type<ov::op::v0::Convert>({sin_});
-    auto sin = std::make_shared<Or>(OutputVector{sin_, sin_convert});
+    auto sin = sin_ | sin_convert;
 
     auto cos = wrap_type<ov::op::v0::Cos>({transpose_or_reshape});
     auto cos_convert = wrap_type<ov::op::v0::Convert>({cos});
-    auto cos_ = std::make_shared<Or>(OutputVector{cos, cos_convert});
+    auto cos_ = cos | cos_convert;
 
     auto scale_const_sin = wrap_type<ov::op::v0::Constant>();
     auto scale_const_sin_convert = wrap_type<ov::op::v0::Convert>({scale_const_sin});
-    auto scale_const_sin_ = std::make_shared<Or>(OutputVector{scale_const_sin, scale_const_sin_convert});
+    auto scale_const_sin_ = scale_const_sin | scale_const_sin_convert;
     auto mul_sin_scale = wrap_type<ov::op::v1::Multiply>({sin, scale_const_sin_});
 
     auto scale_const_cos = wrap_type<ov::op::v0::Constant>();
     auto scale_const_cos_convert = wrap_type<ov::op::v0::Convert>({scale_const_cos});
-    auto scale_const_cos_ = std::make_shared<Or>(OutputVector{scale_const_cos, scale_const_cos_convert});
+    auto scale_const_cos_ = scale_const_cos | scale_const_cos_convert;
     auto mul_cos_scale = wrap_type<ov::op::v1::Multiply>({cos_, scale_const_cos_});
 
     auto unsqueeze_mul_sin_scale_ = wrap_type<ov::op::v0::Unsqueeze>({mul_sin_scale, any_input()});
     auto reshape_mul_sin_scale_ = wrap_type<ov::op::v1::Reshape>({mul_sin_scale, any_input()});
-    auto reshape_mul_sin_scale = std::make_shared<Or>(OutputVector{unsqueeze_mul_sin_scale_, reshape_mul_sin_scale_});
+    auto reshape_mul_sin_scale = unsqueeze_mul_sin_scale_ | reshape_mul_sin_scale_;
 
     auto unsqueeze_mul_cos_scale_ = wrap_type<ov::op::v0::Unsqueeze>({mul_cos_scale, any_input()});
     auto reshape_mul_cos_scale_ = wrap_type<ov::op::v1::Reshape>({mul_cos_scale, any_input()});
-    auto reshape_mul_cos_scale = std::make_shared<Or>(OutputVector{unsqueeze_mul_cos_scale_, reshape_mul_cos_scale_});
+    auto reshape_mul_cos_scale = unsqueeze_mul_cos_scale_ | reshape_mul_cos_scale_;
 
     auto rope_qk = wrap_type<ov::op::internal::RoPE>({any_input(), reshape_mul_cos_scale, reshape_mul_sin_scale});
 
@@ -455,7 +452,6 @@ bool IncreasePositionIdsPrecision::run_on_model(const std::shared_ptr<ov::Model>
 
 DisableFP16ComForGPTOSSROPEPattern::DisableFP16ComForGPTOSSROPEPattern() {
     using namespace ov::pass::pattern;
-    using ov::pass::pattern::op::Or;
 
     // for gpt-oss pattern
     auto freq_const = wrap_type<ov::op::v0::Constant>();

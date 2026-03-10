@@ -131,7 +131,7 @@ EyeDecomposition::EyeDecomposition() {
     auto p_eye_no_batch = wrap_type<v9::Eye>({p_height, p_width, p_k});
     auto p_eye_batch = wrap_type<v9::Eye>({p_height, p_width, p_k, p_batch});
 
-    auto p_eye = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{p_eye_batch, p_eye_no_batch});
+    auto p_eye = p_eye_batch | p_eye_no_batch;
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto m_eye = ov::as_type_ptr<v9::Eye>(m.get_match_root());

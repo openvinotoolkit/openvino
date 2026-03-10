@@ -126,7 +126,7 @@ LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
 
     auto select_then = pattern::wrap_type<op::v1::Select>({pattern::any_input(), input_reshape, pattern::any_input()});
     auto select_else = pattern::wrap_type<op::v1::Select>({pattern::any_input(), pattern::any_input(), input_reshape});
-    auto select = std::make_shared<pattern::op::Or>(OutputVector{select_then, select_else});
+    auto select = select_then | select_else;
 
     auto softmax = pattern::wrap_type<op::v1::Softmax>({select});
     auto reshape = pattern::wrap_type<op::v1::Reshape>({softmax, pattern::any_input()});
