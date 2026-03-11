@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
-#include "openvino/op/constant.hpp"
 #include "openvino/op/paged_attention.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace op {
@@ -21,7 +20,7 @@ using PagedAttentionExtension = ov::op::PagedAttentionExtension;
 namespace ov::intel_gpu {
 
 static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::PagedAttentionExtension>& op) {
-    validate_inputs_count(op, {29});
+    validate_inputs_count(op, {27});
     auto inputs = p.GetInputInfo(op);
     auto prim = cldnn::paged_attention(layer_type_name_ID(op), inputs);
 
@@ -29,9 +28,8 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     const auto k_head_size_id = "k_head_size";
     const auto v_head_size_id = "v_head_size";
     const auto num_k_heads_id = "num_k_heads";
-    const auto has_rt_params = rt_info.find(k_head_size_id) != rt_info.end() &&
-                               rt_info.find(v_head_size_id) != rt_info.end() &&
-                               rt_info.find(num_k_heads_id) != rt_info.end();
+    const auto has_rt_params =
+        rt_info.find(k_head_size_id) != rt_info.end() && rt_info.find(v_head_size_id) != rt_info.end() && rt_info.find(num_k_heads_id) != rt_info.end();
 
     auto query_ps = op->get_input_partial_shape(0);
     auto key_cache_ps = op->get_input_partial_shape(3);
@@ -128,13 +126,13 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
 
     if (op->get_output_size() > 1) {
         if (!op->get_output_target_inputs(1).empty()) {
-            prim.num_outputs++; // Add scores output
+            prim.num_outputs++;  // Add scores output
         } else {
             prim.has_score_aggregation = false;
         }
 
         if (!op->get_output_target_inputs(2).empty()) {
-            prim.num_outputs++; // Add diversity outut
+            prim.num_outputs++;  // Add diversity outut
         } else {
             prim.has_adaptive_rkv = false;
         }

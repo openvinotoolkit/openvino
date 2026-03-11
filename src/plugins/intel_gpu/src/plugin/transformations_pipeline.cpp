@@ -94,6 +94,7 @@
 #include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
+#include "plugin/transformations/pa_kv_reorder_fusion.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
@@ -694,6 +695,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         }
                     }
                 });
+            manager.register_pass<ov::intel_gpu::PaKVReorderFusion>(kv_cache_config.keyCacheQuantBychannel,
+                                                                    kv_cache_config.keyCacheDimOrder,
+                                                                    kv_cache_config.valueCacheDimOrder,
+                                                                    kv_cache_config.keyCachePrecision,
+                                                                    kv_cache_config.valueCachePrecision,
+                                                                    kv_cache_config.inferencePrecision);
         }
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){

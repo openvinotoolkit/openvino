@@ -746,106 +746,6 @@ public:
         }};
     }
 };
-class KVCacheReorderGenerator : public KernelGenerator {
-public:
-    KVCacheReorderGenerator() : KernelGenerator("pa_kv_cache_reorder_ref") {}
-
-protected:
-    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
-        auto jit = make_base_jit_constants(params);
-
-        const auto& in_offsets_map = params.in_port_to_shape_info_offset;
-
-        constexpr static std::array input_ids = {PagedAttentionInputIdx::BLOCK_INDICES,
-                                                 PagedAttentionInputIdx::BLOCK_INDICES_BEGINS,
-                                                 PagedAttentionInputIdx::BLOCK_UPDATE_INDICES,
-                                                 PagedAttentionInputIdx::BLOCK_UPDATE_INDICES_BEGINS};
-
-        for (size_t i = 0; i < input_ids.size(); i++) {
-            const size_t tensor_id = input_ids.at(i);
-            jit.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
-        }
-
-        constexpr size_t key_cache_id = PagedAttentionInputIdx::KEY_CACHE;
-        constexpr size_t value_cache_id = PagedAttentionInputIdx::VALUE_CACHE;
-
-        jit.add(make_layout_jit_constants("OUTPUT", params.input_layouts[key_cache_id], in_offsets_map.at(key_cache_id)));
-        jit.add(make_layout_jit_constants("OUTPUT" + to_code_string(1), params.input_layouts[value_cache_id], in_offsets_map.at(value_cache_id)));
-
-        const auto desc = params.typed_desc<paged_attention>();
-        jit.make("K_HEAD_SIZE", desc->k_head_size);
-        jit.make("V_HEAD_SIZE", desc->v_head_size);
-        jit.make("KV_HEADS_NUM", desc->kv_heads_num);
-        jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
-        jit.make("SUBGROUP_SIZE", subgroup_size);
-
-        const bool is_kv_compressed = get_kv_compressed(params);
-        jit.make("IS_KV_COMPRESSED", is_kv_compressed ? 1 : 0);
-        const bool is_key_by_channel = desc->is_key_by_channel;
-        if (is_kv_compressed) {
-            auto data_type = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;  // key tensor data size
-            auto scales_zp_size = get_element_size(data_type) * 2;                         // scale + zp
-            // jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
-            if (is_key_by_channel) {
-                jit.make("IS_KEY_BY_CHANNEL", 1);
-                jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
-                jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size + scales_zp_size);
-            } else {
-                jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + scales_zp_size);
-                jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
-            }
-            jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + scales_zp_size);
-        } else {
-            jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
-            jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
-            jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
-        }
-        const auto& key_layout = params.input_layouts[PagedAttentionInputIdx::KEY];
-        jit.add(make_type_jit_constants("UNCOMPRESSED", key_layout.data_type));
-        return jit;
-    }
-
-    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override {
-        Arguments args;
-
-        if (params.is_dynamic()) {
-            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
-        }
-
-        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});                // block_indices
-        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});         // block_indices_begins
-        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_UPDATE_INDICES});         // block_update_indices
-        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_UPDATE_INDICES_BEGINS});  // block_update_indices_begins
-
-        // Outputs
-        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});    // key_cache
-        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE_CACHE});  // value_cache
-
-        return args;
-    }
-
-    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-            assert(!params.is_dynamic());
-            auto& wgs = kd.params.workGroups;
-            auto& scalars = kd.params.scalars;
-            scalars.clear();
-
-            const auto desc = params.typed_desc<paged_attention>();
-
-            auto heads_number = desc->kv_heads_num;
-
-            const auto& begins_input = params.input_layouts[PagedAttentionInputIdx::BLOCK_UPDATE_INDICES_BEGINS];
-            const auto begins_len = static_cast<size_t>(begins_input.get_partial_shape()[0].get_length());
-            OPENVINO_ASSERT(begins_len >= 1, "[GPU] BLOCK_UPDATE_INDICES_BEGINS must have at least 1 element");
-            const auto sequences_number = begins_len - 1;
-            const bool is_kv_compressed = get_kv_compressed(params);
-            auto wg_heads_number = std::min(heads_number, static_cast<size_t>((params.get_device_info().max_work_group_size) / heads_number));
-            wgs.global = {sequences_number, heads_number, subgroup_size};
-            wgs.local = {1, is_kv_compressed ? 1 : wg_heads_number, subgroup_size};
-        }};
-    }
-};
 
 class AdaptiveRKVDiversityGenerator : public KernelGenerator {
 public:
@@ -1293,7 +1193,6 @@ public:
 class PagedAttentionOptImpl : public SDPAImplBase {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::PagedAttentionOptImpl)
-    Stage::Ptr kv_cache_reorder = make_stage<KVCacheReorderGenerator>();
     Stage::Ptr kv_cache_update = make_stage<KVCacheUpdateGenerator>();
     Stage::Ptr pa_single_token = make_stage<PagedAttentionGeneratorSingleToken>();
     Stage::Ptr pa_gqa_single_token = make_stage<PagedAttentionGeneratorGQASingleToken>();
@@ -1315,7 +1214,6 @@ public:
         const auto desc = params.typed_desc<paged_attention>();
         const bool has_scores_output = desc->has_scores_output();
         const bool has_rotated_blocks = desc->has_rotated_blocks;
-        const bool has_qq_bias = desc->has_qq_bias;
         const bool has_adaptive_rkv = desc->has_adaptive_rkv;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -1334,10 +1232,6 @@ public:
         add_stage(pa_gqa_single_token, params);
         add_stage(pa_single_token_finalization, params);
         add_stage(pa_sdpa_opt, params);
-
-        if (has_qq_bias) {
-            add_stage(kv_cache_reorder, params);
-        }
 
         if (has_rotated_blocks) {
             add_stage(kv_cache_rotate, params);
@@ -1468,12 +1362,6 @@ public:
         } else {
             rt_params->use_gqa_kernel = false;
         }
-
-        /*if (rt_params->stage == PagedAttentionStage::MIXED && desc->has_qq_bias) {
-            const auto& qq_bias_ps = params.get_input_layout(PagedAttentionInputIdx::QQ_BIAS).get_partial_shape();
-            OPENVINO_ASSERT(qq_bias_ps.is_static(), "[GPU] Unexpected shape of qq_bias memory for Paged Attention for mixed stage with qq bias");
-            rt_params->paged_attention_speculative_validation_len = static_cast<size_t>(qq_bias_ps[-1].get_length());
-        }*/
         return;
     }
 
@@ -1489,7 +1377,6 @@ public:
         const bool has_scores_output = desc->has_scores_output();
         const bool has_rotated_blocks = desc->has_rotated_blocks;
         const bool has_adaptive_rkv = desc->has_adaptive_rkv;
-        const bool has_qq_bias = desc->has_qq_bias;
 
         update_stages_flags(instance);
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
@@ -1502,11 +1389,7 @@ public:
                 res_event = {execute_stage(res_event, instance, kv_cache_rotate)};
             }
         }
-        if (has_qq_bias) {
-            const auto& block_update_indices_input = params.get_input_layout(PagedAttentionInputIdx::BLOCK_UPDATE_INDICES);
-            if (block_update_indices_input.get_partial_shape()[0].get_length() > 0)
-                res_event = {execute_stage(res_event, instance, kv_cache_reorder)};
-        }
+
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {

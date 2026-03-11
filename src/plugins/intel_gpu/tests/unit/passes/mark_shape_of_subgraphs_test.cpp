@@ -473,8 +473,6 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
     auto adaptive_rkv_diversity_block_set_indices_begins_layout = layout{ov::PartialShape{1}, data_types::f32, format::bfyx};
     auto qq_bias = layout{ ov::PartialShape{1, 4, 4}, data_types::boolean, format::bfyx };
     auto qq_bias_begins = layout{ov::PartialShape::dynamic(1), data_types::boolean, format::bfyx};;
-    auto block_update_indices = dynamic_i32_layout;
-    auto block_update_indices_begins_layout = dynamic_i32_layout;
 
     std::vector<input_info> pa_inputs = {input_info("query"),
                                          input_info("key"),
@@ -502,9 +500,7 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
                                          input_info("adaptive_rkv_diversity_block_set_indices"),
                                          input_info("adaptive_rkv_diversity_block_set_indices_begins"),
                                          input_info("qq_bias"),
-                                         input_info("qq_bias_begins"),
-                                         input_info("block_update_indices"),
-                                         input_info("block_update_indices_begins")
+                                         input_info("qq_bias_begins")
     };
 
     auto pa_prim = paged_attention("paged_attention", pa_inputs);
@@ -546,8 +542,6 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
     topology.add(input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_layout));
     topology.add(input_layout("qq_bias", qq_bias));
     topology.add(input_layout("qq_bias_begins", qq_bias_begins));
-    topology.add(input_layout("block_update_indices", block_update_indices));
-    topology.add(input_layout("block_update_indices_begins", block_update_indices_begins_layout));
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(data("target_shape", target_shape));
     topology.add(data("subtract_one", subtract_one));

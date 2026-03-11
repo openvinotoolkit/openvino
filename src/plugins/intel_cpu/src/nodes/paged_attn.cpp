@@ -99,7 +99,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    CPU_NODE_ASSERT(orgInputNumber == 29U, "The input number of PagedAttention should be 29.");
+    CPU_NODE_ASSERT(orgInputNumber == 27U, "The input number of PagedAttention should be 29.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
@@ -218,15 +218,6 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     config.inConfs[PagedAttentionExecutor::ID_QQ_BIAS_BEGINS].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_QQ_BIAS_BEGINS)));
-    // block_update_indices, int32, [num_update_slots]
-    config.inConfs[PagedAttentionExecutor::ID_BLOCK_UPDATE_INDICES].setMemDesc(
-        creatorsMap.at(LayoutType::ncsp)
-            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_BLOCK_UPDATE_INDICES)));
-    // block_update_indices_begins, int32, [B_seq + 1]
-    config.inConfs[PagedAttentionExecutor::ID_BLOCK_UPDATE_INDICES_BEGINS].setMemDesc(
-        creatorsMap.at(LayoutType::ncsp)
-            ->createSharedDesc(ov::element::i32,
-                               getInputShapeAtPort(PagedAttentionExecutor::ID_BLOCK_UPDATE_INDICES_BEGINS)));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }

@@ -40,9 +40,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES = 23,
         ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS = 24,
         QQ_BIAS = 25,
-        QQ_BIAS_BEGINS = 26,
-        BLOCK_UPDATE_INDICES = 27,
-        BLOCK_UPDATE_INDICES_BEGINS = 28
+        QQ_BIAS_BEGINS = 26
     };
 
     static constexpr size_t block_size = 16;
@@ -53,7 +51,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     paged_attention(const primitive_id& id,
                     const std::vector<input_info>& inputs)
         : primitive_base(id, inputs) {
-        OPENVINO_ASSERT((inputs.size() == 29),
+        OPENVINO_ASSERT((inputs.size() == 27),
                         "[GPU] Unexpected inputs number for PagedAttention primitive: ",
                         inputs.size());
     }

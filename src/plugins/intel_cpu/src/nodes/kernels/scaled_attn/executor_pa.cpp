@@ -1904,8 +1904,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
               PlainTensor& adaptive_rkv_diversity_block_set_indices_begins,
               PlainTensor& qq_bias,
               PlainTensor& qq_bias_begins,
-              PlainTensor& block_update_indices,
-              PlainTensor& block_update_indices_begins,
               PlainTensor& output_emb,
               PlainTensor& output_score,
               std::vector<PlainTensor>& sparse_attention_mask,
@@ -1931,7 +1929,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         size_t inputs_size = inputs.size();
-        OPENVINO_ASSERT(inputs_size == 29);
+        OPENVINO_ASSERT(inputs_size == 27);
         if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims()) {
             rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);  // [num_blocks]
         }
@@ -2255,8 +2253,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         PlainTensor adaptive_rkv_diversity_block_set_indices_begins;
         PlainTensor qq_bias;
         PlainTensor qq_bias_begins;
-        PlainTensor block_update_indices;
-        PlainTensor block_update_indices_begins;
         PlainTensor output_emb;
         PlainTensor output_score;
         PlainTensor output_arkv_similarity;
@@ -2294,8 +2290,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              adaptive_rkv_diversity_block_set_indices_begins,
              qq_bias,
              qq_bias_begins,
-             block_update_indices,
-             block_update_indices_begins,
              output_emb,
              output_score,
              sparse_attention_mask,

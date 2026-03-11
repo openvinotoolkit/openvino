@@ -149,6 +149,7 @@ REGISTER_IMPLS(lstm_seq);
 REGISTER_IMPLS(gru_seq);
 REGISTER_IMPLS(non_max_suppression);
 REGISTER_IMPLS(paged_attention);
+REGISTER_IMPLS(pa_kv_reorder);
 REGISTER_IMPLS(pooling);
 REGISTER_IMPLS(reduce);
 REGISTER_IMPLS(reorder);

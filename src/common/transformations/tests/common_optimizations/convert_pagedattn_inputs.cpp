@@ -123,8 +123,6 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
             std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto qq_bias = std::make_shared<v0::Parameter>(ov::element::u8, PartialShape{DYN});
         auto qq_bias_begins = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto qq_bias_block_update_indices = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto qq_bias_block_update_indices_begins = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto pa =
             std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
                                                                        K,
@@ -152,9 +150,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                        adaptive_rkv_diversity_block_set_indices,
                                                                        adaptive_rkv_diversity_block_set_indices_begins,
                                                                        qq_bias,
-                                                                       qq_bias_begins,
-                                                                       qq_bias_block_update_indices,
-                                                                       qq_bias_block_update_indices_begins});
+                                                                       qq_bias_begins});
         pa->get_rt_info()["num_k_heads"] = numKeyHeads;
         pa->get_rt_info()["k_head_size"] = keyHeadSize;
         pa->get_rt_info()["num_v_heads"] = numValueHeads;
@@ -183,9 +179,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                 adaptive_rkv_diversity_block_set_indices,
                                                                 adaptive_rkv_diversity_block_set_indices_begins,
                                                                 qq_bias,
-                                                                qq_bias_begins,
-                                                                qq_bias_block_update_indices,
-                                                                qq_bias_block_update_indices_begins});
+                                                                qq_bias_begins});
 
         if (isIRKVCacheF16) {
             model->set_rt_info("f16", "runtime_options", ov::hint::kv_cache_precision.name());
@@ -267,8 +261,6 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
             std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto qq_bias = std::make_shared<v0::Parameter>(ov::element::u8, PartialShape{DYN});
         auto qq_bias_begins = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto qq_bias_block_update_indices = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto qq_bias_block_update_indices_begins = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto pa =
             std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
                                                                        K,
@@ -296,9 +288,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                        adaptive_rkv_diversity_block_set_indices,
                                                                        adaptive_rkv_diversity_block_set_indices_begins,
                                                                        qq_bias,
-                                                                       qq_bias_begins,
-                                                                       qq_bias_block_update_indices,
-                                                                       qq_bias_block_update_indices_begins});
+                                                                       qq_bias_begins});
         pa->get_rt_info()["num_k_heads"] = numKeyHeads;
         pa->get_rt_info()["k_head_size"] = keyHeadSize;
         pa->get_rt_info()["num_v_heads"] = numValueHeads;
@@ -327,9 +317,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                     adaptive_rkv_diversity_block_set_indices,
                                                                     adaptive_rkv_diversity_block_set_indices_begins,
                                                                     qq_bias,
-                                                                    qq_bias_begins,
-                                                                    qq_bias_block_update_indices,
-                                                                    qq_bias_block_update_indices_begins});
+                                                                    qq_bias_begins});
     }
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
     cacheConfig.keyCacheBlockSize = blockSize[0];

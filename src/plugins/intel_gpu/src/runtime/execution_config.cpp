@@ -5,6 +5,7 @@
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
 #include "intel_gpu/op/sdpa.hpp"
+#include "intel_gpu/op/pa_kv_reorder.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
@@ -231,9 +232,14 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     }
 
     const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
-
+    auto is_auxiliary_kv_update_model = [](const ov::Model& model) {
+        if (model.get_rt_info().count("auxiliary_kv_update_model")) {
+            return model.get_rt_info<ov::Any>("auxiliary_kv_update_model").template as<bool>();
+        }
+        return false;
+    };
     if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
-        if (is_paged_attention_model || !info.supports_immad) {
+        if (is_paged_attention_model || !info.supports_immad || is_auxiliary_kv_update_model(model)) {
             // Enable KV-cache compression by default for:
             // 1) Non-systolic platforms in case of SDPA-based models
             // 2) For any platforms in case of PagedAttention-based model
