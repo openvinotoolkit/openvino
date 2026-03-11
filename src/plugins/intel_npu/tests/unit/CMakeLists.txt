@@ -14,6 +14,7 @@ set(MANDATORY_UNIT_TESTS_LIBS
         "openvino::npu_al"
         "openvino::npu_logger_utils"
         "openvino_npu_common"
+        "openvino::npu_ops"
 )
 
 ov_add_test_target(

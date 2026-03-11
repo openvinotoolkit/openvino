@@ -7,7 +7,6 @@
 #include <memory>
 #include <mutex>
 
-#include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_mem.hpp"
 #include "openvino/runtime/common.hpp"
@@ -26,13 +25,11 @@ public:
      * @brief Constructs a ZeroTensor with the specified element type and shape. Allocates internal storage in the given
      * level zero context.
      * @param init_structs Shared pointer to the ZeroInitStructHolder instance that will provide the level zero context.
-     * @param config NPU plugin configuration
      * @param type Data type of tensor elements
      * @param shape Tensor shape
      * @param is_input Indicates if the tensor is used as a network input ( true) or output (false)
      */
     ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-               const Config& config,
                const ov::element::Type element_type,
                const ov::Shape& shape,
                const bool is_input);
@@ -42,11 +39,9 @@ public:
      * is not allocated in the level zero context specified through init_structs or in case the memory cannot be
      * imported in that context ( to be implemented). ZeroTensor will keep a reference to the source tensor.
      * @param init_structs Shared pointer to ZeroInitStructsHolder
-     * @param config NPU plugin configuration
      * @param user_tensor Tensor to create ZeroTensor from
      */
     ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-               const Config& config,
                const ov::SoPtr<ov::ITensor>& user_tensor);
 
     void* data() override;
