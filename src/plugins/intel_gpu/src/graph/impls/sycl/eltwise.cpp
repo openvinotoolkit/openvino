@@ -5,6 +5,7 @@
 #include "eltwise.hpp"
 #include "eltwise_inst.h"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "sycl/sycl.hpp"
 #include "sycl/sycl_stream.hpp"
 #include "sycl/sycl_memory.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -13,7 +14,6 @@
 
 #include "impls/ocl/kernel_selector_helper.h"
 
-#include "sycl/sycl.hpp"
 
 #include <memory>
 #include <variant>
