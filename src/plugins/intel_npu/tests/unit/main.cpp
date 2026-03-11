@@ -7,6 +7,7 @@
 #include <openvino/runtime/intel_npu/properties.hpp>
 #include <sstream>
 
+#include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "ze_api.h"
@@ -32,6 +33,9 @@ int main(int argc, char** argv, char** envp) {
         zelSetDriverTeardownF zelSetDriverTeardown = nullptr;
 
         auto libpath = ov::util::make_plugin_library_name({}, "ze_loader");
+#if !defined(_WIN32) && !defined(ANDROID)
+        libpath += LIB_ZE_LOADER_SUFFIX;
+#endif
         lib = ov::util::load_shared_object(libpath);
         zelSetDriverTeardown =
             reinterpret_cast<zelSetDriverTeardownF>(ov::util::get_symbol(lib, "zelSetDriverTeardown"));
