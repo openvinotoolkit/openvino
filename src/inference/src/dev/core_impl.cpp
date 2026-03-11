@@ -28,6 +28,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/single_file_storage.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
@@ -1496,8 +1497,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
 
     const auto get_cfg_with_shared_ctx = [](auto&& parsed_config, auto&& cache_content) {
         auto config_with_shared_ctx = parsed_config;
-        config_with_shared_ctx.emplace(
-            ov::internal::model_sharing_context(cache_content.m_shared_ctx->get_shared_ctx()));
+        config_with_shared_ctx.emplace(ov::internal::model_sharing_context(cache_content.m_shared_ctx->get_context()));
         return config_with_shared_ctx;
     };
     const auto& cfg =
@@ -1520,7 +1520,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                     auto ctx = compiled_model->get_property(ov::internal::model_sharing_context.name())
                                    .as<ov::internal::WeightSharingCtxPtr>();
                     if (ctx) {
-                        cache_content.m_shared_ctx->write_context_entry(*ctx);
+                        cache_content.m_shared_ctx->write_context(*ctx);
                     }
                 }
             } catch (const ov::Exception&) {
@@ -1634,7 +1634,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 if (device_supports_internal_property(plugin, ov::internal::model_sharing_context)) {
                     if (cache_content.m_shared_ctx) {
                         update_config.emplace(
-                            ov::internal::model_sharing_context(cache_content.m_shared_ctx->get_shared_ctx()));
+                            ov::internal::model_sharing_context(cache_content.m_shared_ctx->get_context()));
                     }
                 }
 
@@ -1765,7 +1765,7 @@ ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov
 ov::CoreConfig::CacheConfig ov::CoreConfig::CacheConfig::create(const std::filesystem::path& dir) {
     auto cfg = CacheConfig{dir, nullptr};
     if (dir.extension() == ".bin") {
-        cfg.m_cache_manager = std::make_shared<SingleFileStorageCacheManager>(dir);
+        cfg.m_cache_manager = std::make_shared<runtime::SingleFileStorage>(dir);
     } else if (!dir.empty()) {
         ov::util::create_directory_recursive(dir);
         cfg.m_cache_manager = std::make_shared<FileStorageCacheManager>(dir);
