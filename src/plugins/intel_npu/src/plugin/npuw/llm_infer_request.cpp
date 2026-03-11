@@ -723,46 +723,43 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // Update history size for dynamic context:
         // dynamic attention selector needs history size to determin the past KV shape and attention mask shape
         m_prefill_base_request->update_history_size(kvcache_desc.num_stored_tokens);
+        m_prefill_request->infer();
 
-        m_llm_profile["1/prefill:3.infer"] += ov::npuw::perf::ms_to_run([&]() {
-            m_prefill_request->infer();
+        // Accumulate Eagle3 last_hidden_state from this chunk
+        if (m_eagle3_ext.is_eagle3_model()) {
+            m_eagle3_ext.accumulate_chunk_last_hidden_state(m_prefill_request,
+                                                            m_prefill_out_ports,
+                                                            static_cast<uint32_t>(current_prompts_len),
+                                                            static_cast<uint32_t>(input_prompt_len));
+        }
 
-            // Accumulate Eagle3 last_hidden_state from this chunk
-            if (m_eagle3_ext.is_eagle3_model()) {
-                m_eagle3_ext.accumulate_chunk_last_hidden_state(m_prefill_request,
-                                                                m_prefill_out_ports,
-                                                                static_cast<uint32_t>(current_prompts_len),
-                                                                static_cast<uint32_t>(input_prompt_len));
-            }
+        if (enable_prefix_caching) {
+            m_prefix_caching_helper->store_computed_blocks(current_prompts_len,
+                                                           cache_context.prompt_hashes,
+                                                           cache_context.token_idx);
+        }
 
-            if (enable_prefix_caching) {
-                m_prefix_caching_helper->store_computed_blocks(current_prompts_len,
-                                                               cache_context.prompt_hashes,
-                                                               cache_context.token_idx);
-            }
+        remaining_prompts -= current_prompts_len;
+        kvcache_desc.num_stored_tokens += static_cast<uint32_t>(current_prompts_len);
 
-            remaining_prompts -= current_prompts_len;
-            kvcache_desc.num_stored_tokens += static_cast<uint32_t>(current_prompts_len);
+        // Do not copy last computed chunk and preserve it in present k/v layer
+        if (remaining_prompts <= 0) {
+            LOG_DEBUG("All prompts have been prefilled in chunks");
+            m_tokens_in_present_chunk = current_prompts_len;
+            return;
+        }
 
-            // Do not copy last computed chunk and preserve it in present k/v layer
-            if (remaining_prompts <= 0) {
-                LOG_DEBUG("All prompts have been prefilled in chunks");
-                m_tokens_in_present_chunk = current_prompts_len;
-                return;
-            }
+        // Copy calculated key/values chunk from present k/v layer to past k/v layer for storage
+        update_kvcache_for(m_prefill_request,
+                           m_prefill_in_ports,
+                           m_prefill_out_ports,
+                           static_cast<uint32_t>(current_prompts_len),
+                           kvcache_desc.v_tensors_transposed_pre);
 
-            // Copy calculated key/values chunk from present k/v layer to past k/v layer for storage
-            update_kvcache_for(m_prefill_request,
-                               m_prefill_in_ports,
-                               m_prefill_out_ports,
-                               static_cast<uint32_t>(current_prompts_len),
-                               kvcache_desc.v_tensors_transposed_pre);
-
-            // Update attention mask for the next iteration
-            std::copy_n(attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len,
-                        current_prompts_len,
-                        attn_mask_in_tensor->data<int64_t>() + kvcache_desc.num_stored_tokens - current_prompts_len);
-        });
+        // Update attention mask for the next iteration
+        std::copy_n(attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len,
+                    current_prompts_len,
+                    attn_mask_in_tensor->data<int64_t>() + kvcache_desc.num_stored_tokens - current_prompts_len);
 
         if (remaining_prompts <= 0) {
             break;
@@ -810,9 +807,7 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
         m_eagle3_ext.prepare_inputs(m_prefill_request, m_prefill_in_ports);
     }
 
-    m_llm_profile["1/prefill:3.infer"] += ov::npuw::perf::ms_to_run([&]() {
-        m_prefill_request->infer();
-    });
+    m_prefill_request->infer();
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     kvcache_desc.num_stored_tokens += static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
 
@@ -848,14 +843,16 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     });
 
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
-    if (use_chunk_prefill) {
-        OPENVINO_ASSERT(!token_type_ids,
-                        "Chunking is not implemented for Gemma model family yet. "
-                        "Please set NPUW_LLM_PREFILL_HINT to 'STATIC'");
-        infer_chunked_prefill(input_ids, attention_mask, position_ids);
-    } else {
-        infer_whole_prefill(input_ids, attention_mask, position_ids, token_type_ids);
-    }
+    m_llm_profile["1/prefill:3.infer"] += ov::npuw::perf::ms_to_run([&]() {
+        if (use_chunk_prefill) {
+            OPENVINO_ASSERT(!token_type_ids,
+                            "Chunking is not implemented for Gemma model family yet. "
+                            "Please set NPUW_LLM_PREFILL_HINT to 'STATIC'");
+            infer_chunked_prefill(input_ids, attention_mask, position_ids);
+        } else {
+            infer_whole_prefill(input_ids, attention_mask, position_ids, token_type_ids);
+        }
+    });
 
     m_llm_profile["1/prefill:4.lm_head"] += pp::ms_to_run([&]() {
         if (m_lm_head_request) {
