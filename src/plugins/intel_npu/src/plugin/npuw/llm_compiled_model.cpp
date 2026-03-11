@@ -72,22 +72,25 @@ public:
     RemoveEmptyKVTensors(Context::Ref ctx) {
         auto param = opp::wrap_type<ov::op::v0::Parameter>();
         auto param_or =
-            std::make_shared<opp::op::Or>(ov::OutputVector{param, match_down_up_convert_subgraph_after_lpt(param)});
+            std::make_shared<opp::op::Or>(ov::OutputVector{param,
+                match_down_up_convert_subgraph_after_lpt(param)});
 
         auto concat = opp::wrap_type<ov::op::v0::Concat>({param_or, opp::any_input()});
 
         auto callback = [=](opp::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
-            auto matched_param = ov::as_type_ptr<ov::op::v0::Parameter>(node_to_output.at(param).get_node_shared_ptr());
+            auto matched_param =
+                ov::as_type_ptr<ov::op::v0::Parameter>(node_to_output.at(param).get_node_shared_ptr());
             auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
 
             ctx.get().old_params.push_back(matched_param);
 
             // Use concat's first input source node to find ShapeOf users.
             // This works universally for both plain parameter and down_up_convert subgraph cases,
-            // because in the subgraph case matched_param->get_users() would return the Convert node
-            // (first node of the subgraph), not the ShapeOf.
-            auto concat_input0_node = matched_node_concat->input(0).get_source_output().get_node_shared_ptr();
+            // because in the subgraph case matched_param->get_users() would return the Convert
+            // node (first node of the subgraph), not the ShapeOf.
+            auto concat_input0_node =
+                matched_node_concat->input(0).get_source_output().get_node_shared_ptr();
             auto users = concat_input0_node->get_users();
 
             // In subgraph case the parameter itself may also have a ShapeOf user,
@@ -542,7 +545,7 @@ public:
                             "Sliding window size constant must be of size 1, but got " +
                                 std::to_string(matched_neg_window_size->get_output_size()));
 
-            // 1.(K range <= (Q_pos range - sliding window).T) | (K range > Q range.T)
+            // 1.(K range > (Q_pos range - sliding window).T) & (K range <= Q range.T)
             auto query_range_as_pos_ids =
                 std::make_shared<ov::op::v0::Convert>(matched_pos_ids_input, ov::element::f32);
             std::vector<int64_t> vector_shape{-1, 1};
@@ -556,7 +559,7 @@ public:
                 std::make_shared<ov::op::v1::LessEqual>(matched_key_range_f32, query_range_as_pos_left_bound);
             matched_bitwise_or->input(1).replace_source_output(forget_left_mask_for_right_padding);
 
-            // 2. (K range <= (Q range - sliding window).T) & (K range >= shape(past_key_values, 2))
+            // 2. (K range > (Q range - sliding window).T) | (K range < shape(past_key_values, 2))
             auto past_kv_len_f32 = std::make_shared<ov::op::v0::Convert>(matched_past_kv_len, ov::element::f32);
             auto only_present_tokens_mask =
                 std::make_shared<ov::op::v1::GreaterEqual>(matched_key_range_f32, past_kv_len_f32);
