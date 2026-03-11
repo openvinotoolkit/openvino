@@ -17,6 +17,7 @@
 #include "behavior/ov_infer_request/inference.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
@@ -309,18 +310,23 @@ TEST_P(BooleanPrecisionInferRequestRunTests, BooleanTensorDataTypesForBooleanMod
              ? std::vector<std::shared_ptr<ov::InferRequest>>{infer_request_boolean}
              : std::vector<std::shared_ptr<ov::InferRequest>>{infer_request_boolean, infer_request_boolean_imported});
 
+    auto [importMemoryBatchedTensor,
+          importMemoryTensor_1,
+          importMemoryTensor_2,
+          unalignedBatchedTensor,
+          unalignedTensor_1,
+          unalignedTensor_2] = ov::test::utils::allocate_tensors(ov_model, ov::element::boolean);
+
+    ov::Tensor ref_import_tensor(importMemoryBatchedTensor.get_element_type(), importMemoryBatchedTensor.get_shape());
+    ov::Tensor ref_tensor_unaligned(unalignedBatchedTensor.get_element_type(), unalignedBatchedTensor.get_shape());
+    importMemoryBatchedTensor.copy_to(ref_import_tensor);
+    unalignedBatchedTensor.copy_to(ref_tensor_unaligned);
+
     for (auto infer_request : infer_requests) {
         auto reset_infer_request_cb = [&infer_request]() {
             auto compiled_model = infer_request->get_compiled_model();
             infer_request = std::make_shared<ov::InferRequest>(compiled_model.create_infer_request());
         };
-
-        auto [importMemoryBatchedTensor,
-              importMemoryTensor_1,
-              importMemoryTensor_2,
-              unalignedBatchedTensor,
-              unalignedTensor_1,
-              unalignedTensor_2] = ov::test::utils::allocate_tensors(ov_model, ov::element::boolean);
 
         if (withWarmUpInfer) {
             infer_request->infer();
@@ -371,6 +377,10 @@ TEST_P(BooleanPrecisionInferRequestRunTests, BooleanTensorDataTypesForBooleanMod
                                                    std::vector<ov::Tensor>{unalignedTensor_2, importMemoryTensor_2},
                                                    reset_infer_request_cb));
     }  // for infer_request
+
+    // ensure user tensors don't get altered during tests
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(ref_import_tensor, importMemoryBatchedTensor, ov::element::boolean));
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(ref_tensor_unaligned, importMemoryBatchedTensor, ov::element::boolean));
 }
 
 using ProfilingBlob = InferRequestRunTests;

@@ -356,6 +356,13 @@ void ZeroInferRequest::update_command_list_for_tensor(SyncInferRequest::FoundPor
         try {
             _logger.debug("ZeroInferRequest::set_tensor - create zero tensor");
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "create zero tensor");
+
+            if (!isMutableCommandListSupported) {
+                // Forbid memory import when tensor reallocation is not supported
+                // Copies into level zero tensor will cause altering the initial user tensor
+                throw ZeroMemException{"Importing standard allocation is forbidden with this driver version"};
+            }
+
             // Try to use the user tensor directly if its underlying data is already allocated in the same Level Zero
             // context.
             levelZeroTensor = std::make_shared<ZeroTensor>(_initStructs, tensor);

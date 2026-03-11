@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "common_test_utils/data_utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "openvino/op/constant.hpp"
@@ -158,6 +159,9 @@ std::tuple<ov::Tensor, ov::Tensor, ov::Tensor, ov::Tensor, ov::Tensor, ov::Tenso
     ov::Tensor unalignedBatchedTensor(element_type, model_shape, unAlignedAllocator);
     ov::Tensor unalignedTensor_1(unalignedBatchedTensor, ov::Coordinate{0, 0, 0, 0}, start_coordinate);
     ov::Tensor unalignedTensor_2(unalignedBatchedTensor, ov::Coordinate{1, 0, 0, 0}, stop_coordinate);
+
+    ov::test::utils::fill_tensor_random(importMemoryBatchedTensor);
+    ov::test::utils::fill_tensor_random(unalignedBatchedTensor);
 
     return {importMemoryBatchedTensor,
             importMemoryTensor_1,

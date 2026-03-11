@@ -11,6 +11,7 @@
 #include "common/utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "compiled_model.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "graph.hpp"
@@ -271,6 +272,11 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
           unalignedTensor_1,
           unalignedTensor_2] = ov::test::utils::allocate_tensors(ov_model, ov::element::boolean);
 
+    ov::Tensor ref_import_tensor(importMemoryBatchedTensor.get_element_type(), importMemoryBatchedTensor.get_shape());
+    ov::Tensor ref_tensor_unaligned(unalignedBatchedTensor.get_element_type(), unalignedBatchedTensor.get_shape());
+    importMemoryBatchedTensor.copy_to(ref_import_tensor);
+    unalignedBatchedTensor.copy_to(ref_tensor_unaligned);
+
     auto reset_infer_cb = [this, &zero_infer_request, &compiledModel]() -> void {
         zero_infer_request =
             std::make_shared<::intel_npu::ZeroInferRequest>(zeroInitStruct, compiledModel, *npu_config);
@@ -326,4 +332,8 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         std::vector<ov::SoPtr<ov::ITensor>>{ov::get_tensor_impl(unalignedTensor_2),
                                             ov::get_tensor_impl(importMemoryTensor_2)},
         reset_infer_cb));
+
+    // ensure user tensors don't get altered during tests
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(ref_import_tensor, importMemoryBatchedTensor, ov::element::boolean));
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(ref_tensor_unaligned, importMemoryBatchedTensor, ov::element::boolean));
 }
