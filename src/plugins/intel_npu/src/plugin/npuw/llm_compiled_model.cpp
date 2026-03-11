@@ -2201,6 +2201,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_prefix_caching_block_size);
         write(model_stream, m_prefix_caching_max_num_blocks);
         write(model_stream, m_is_whisper);
+        write(model_stream, m_eos_token_id);
         write(model_stream, m_is_eagle);
         write(model_stream, m_is_embedding);
 
@@ -2426,6 +2427,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_prefix_caching_block_size);
         read(model_stream, compiled->m_prefix_caching_max_num_blocks);
         read(model_stream, compiled->m_is_whisper);
+        read(model_stream, compiled->m_eos_token_id);
         read(model_stream, compiled->m_is_eagle);
         read(model_stream, compiled->m_is_embedding);
 
