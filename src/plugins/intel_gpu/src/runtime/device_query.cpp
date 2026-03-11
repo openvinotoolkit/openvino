@@ -6,7 +6,7 @@
 #include "ocl/ocl_device_detector.hpp"
 #include "ze/ze_device_detector.hpp"
 
-#ifdef OV_GPU_WITH_SYCL
+#ifdef OV_GPU_WITH_SYCL_RT
 #include "sycl/sycl_device_detector.hpp"
 #endif
 
@@ -21,7 +21,7 @@ engine_types device_query::get_default_engine_type() {
     engine_type = engine_types::ze;
 #elif defined(OV_GPU_WITH_OCL_RT)
     engine_type = engine_types::ocl;
-#elif defined(OV_GPU_WITH_SYCL)
+#elif defined(OV_GPU_WITH_SYCL_RT)
     engine_type = engine_types::sycl;
 #endif
     return engine_type;
@@ -32,7 +32,7 @@ runtime_types device_query::get_default_runtime_type() {
     rt_type = runtime_types::ze;
 #elif defined(OV_GPU_WITH_OCL_RT)
     rt_type = runtime_types::ocl;
-#elif defined(OV_GPU_WITH_SYCL)
+#elif defined(OV_GPU_WITH_SYCL_RT)
     rt_type = runtime_types::sycl;
 #endif
     return rt_type;

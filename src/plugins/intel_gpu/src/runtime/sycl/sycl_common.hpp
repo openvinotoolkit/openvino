@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include "sycl/sycl.hpp"
 #include "sycl_wrapper.hpp"
 #include "sycl/sycl_device_detector.hpp"
 #include "openvino/core/except.hpp"
