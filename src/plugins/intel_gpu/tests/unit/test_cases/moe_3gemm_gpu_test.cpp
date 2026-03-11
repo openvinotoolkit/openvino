@@ -1,5 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 #include <algorithm>
 #include <cmath>
 #include <intel_gpu/primitives/data.hpp>
@@ -110,19 +112,17 @@ struct Moe3GemmReference {
         return {q_data, scales, zps};
     }
 
-    std::vector<ov::float16> run_reference(const std::vector<ov::float16>& hidden_states,
-                                           const std::vector<ov::float16>& routing_weights,
-                                           const std::vector<float>& w0_data,
-                                           const std::vector<float>& w1_data,
-                                           const std::vector<float>& w2_data) {
+    std::vector<ov::float16> run_reference_softmax(const std::vector<ov::float16>& hidden_states,
+                                                   const std::vector<ov::float16>& routing_weights,
+                                                   const std::vector<float>& w0_data,
+                                                   const std::vector<float>& w1_data,
+                                                   const std::vector<float>& w2_data) {
         size_t batch_size = config.batch_size;
         size_t seq_len = config.seq_len;
-        size_t hidden_size = config.hidden_size;
-        size_t inter_size = config.inter_size;
         size_t num_experts = config.num_experts;
         size_t top_k = config.top_k;
 
-        std::vector<ov::float16> output(batch_size * seq_len * hidden_size, 0);
+        std::vector<ov::float16> output(batch_size * seq_len * config.hidden_size, 0);
 
         for (size_t b = 0; b < batch_size; ++b) {
             for (size_t s = 0; s < seq_len; ++s) {
@@ -154,66 +154,130 @@ struct Moe3GemmReference {
                                       return a.first > b.first;
                                   });
 
-                // Normalize weights
+                // Normalize top-k weights
                 float sum_weights = 0.0f;
-                for (size_t k = 0; k < top_k; ++k) {
+                for (size_t k = 0; k < top_k; ++k)
                     sum_weights += expert_weights[k].first;
-                }
 
-                for (size_t k = 0; k < top_k; ++k) {
-                    size_t expert_idx = expert_weights[k].second;
-                    float weight = expert_weights[k].first / sum_weights;
-
-                    std::vector<float> gate(inter_size);
-                    std::vector<float> up(inter_size);
-
-                    // Compute gate and up
-                    for (size_t i = 0; i < inter_size; ++i) {
-                        float gate_val = 0.0f;
-                        float up_val = 0.0f;
-                        for (size_t j = 0; j < hidden_size; ++j) {
-                            float x_val = static_cast<float>(hidden_states[b * seq_len * hidden_size + s * hidden_size + j]);
-
-                            // w0_data is Row-Major: [num_experts, hidden_size, inter_size]
-                            size_t w0_cols = inter_size;
-                            size_t w0_r = expert_idx * hidden_size + j;
-                            float w0_val = w0_data[w0_r * w0_cols + i];
-                            gate_val += x_val * w0_val;
-
-                            // w1_data is Row-Major: [num_experts, hidden_size, inter_size]
-                            size_t w1_cols = inter_size;
-                            size_t w1_r = expert_idx * hidden_size + j;
-                            float w1_val = w1_data[w1_r * w1_cols + i];
-                            up_val += x_val * w1_val;
-                        }
-                        gate[i] = gate_val;
-                        up[i] = up_val;
-                    }
-
-                    // SwiGLU
-                    std::vector<float> act(inter_size);
-                    for (size_t i = 0; i < inter_size; ++i) {
-                        float silu = gate[i] / (1.0f + std::exp(-gate[i]));
-                        act[i] = silu * up[i];
-                    }
-
-                    // Compute out = act @ w2
-                    for (size_t j = 0; j < hidden_size; ++j) {
-                        float out_val = 0.0f;
-                        for (size_t i = 0; i < inter_size; ++i) {
-                            // w2_data is Row-Major: [num_experts, inter_size, hidden_size]
-                            size_t w2_cols = hidden_size;
-                            size_t w2_r = expert_idx * inter_size + i;
-                            float w2_val = w2_data[w2_r * w2_cols + j];
-
-                            out_val += act[i] * w2_val;
-                        }
-                        output[b * seq_len * hidden_size + s * hidden_size + j] += static_cast<ov::float16>(out_val * weight);
-                    }
-                }
+                std::vector<std::pair<float, size_t>> top_k_normalized(top_k);
+                for (size_t k = 0; k < top_k; ++k)
+                    top_k_normalized[k] = {expert_weights[k].first / sum_weights, expert_weights[k].second};
+                apply_top_k_experts(b, s, hidden_states, w0_data, w1_data, w2_data, top_k_normalized, output);
             }
         }
         return output;
+    }
+
+    std::vector<ov::float16> run_reference_sigmoid(const std::vector<ov::float16>& hidden_states,
+                                                   const std::vector<ov::float16>& routing_logits,
+                                                   const std::vector<ov::float16>& routing_bias,
+                                                   ov::float16 epsilon,
+                                                   const std::vector<float>& w0_data,
+                                                   const std::vector<float>& w1_data,
+                                                   const std::vector<float>& w2_data) {
+        size_t batch_size = config.batch_size;
+        size_t seq_len = config.seq_len;
+        size_t num_experts = config.num_experts;
+        size_t top_k = config.top_k;
+
+        std::vector<ov::float16> output(batch_size * seq_len * config.hidden_size, 0);
+
+        for (size_t b = 0; b < batch_size; ++b) {
+            for (size_t s = 0; s < seq_len; ++s) {
+                // Apply sigmoid to logits
+                std::vector<float> sigmoid_scores(num_experts);
+                for (size_t e = 0; e < num_experts; ++e) {
+                    float logit = static_cast<float>(routing_logits[b * seq_len * num_experts + s * num_experts + e]);
+                    sigmoid_scores[e] = 1.0f / (1.0f + std::exp(-logit));
+                }
+
+                // Add bias and select top-k by (sigmoid + bias)
+                std::vector<std::pair<float, size_t>> expert_weights;
+                for (size_t e = 0; e < num_experts; ++e) {
+                    float score = sigmoid_scores[e] + static_cast<float>(routing_bias[e]);
+                    expert_weights.push_back({score, e});
+                }
+                std::partial_sort(expert_weights.begin(),
+                                  expert_weights.begin() + top_k,
+                                  expert_weights.end(),
+                                  [](const std::pair<float, size_t>& a, const std::pair<float, size_t>& b) {
+                                      return a.first > b.first;
+                                  });
+
+                // Gather sigmoid scores at top-k indices and normalize
+                float sum_weights = 0.0f;
+                for (size_t k = 0; k < top_k; ++k)
+                    sum_weights += sigmoid_scores[expert_weights[k].second];
+                sum_weights += static_cast<float>(epsilon);
+
+                std::vector<std::pair<float, size_t>> top_k_normalized(top_k);
+                for (size_t k = 0; k < top_k; ++k)
+                    top_k_normalized[k] = {sigmoid_scores[expert_weights[k].second] / sum_weights, expert_weights[k].second};
+                apply_top_k_experts(b, s, hidden_states, w0_data, w1_data, w2_data, top_k_normalized, output);
+            }
+        }
+        return output;
+    }
+
+private:
+    void apply_top_k_experts(size_t b,
+                             size_t s,
+                             const std::vector<ov::float16>& hidden_states,
+                             const std::vector<float>& w0_data,
+                             const std::vector<float>& w1_data,
+                             const std::vector<float>& w2_data,
+                             const std::vector<std::pair<float, size_t>>& top_k_normalized,
+                             std::vector<ov::float16>& output) {
+        const size_t hidden_size = config.hidden_size;
+        const size_t inter_size = config.inter_size;
+
+        for (const auto& [weight, expert_idx] : top_k_normalized) {
+            std::vector<float> gate(inter_size);
+            std::vector<float> up(inter_size);
+
+            // Compute gate and up
+            for (size_t i = 0; i < inter_size; ++i) {
+                float gate_val = 0.0f;
+                float up_val = 0.0f;
+                for (size_t j = 0; j < hidden_size; ++j) {
+                    float x_val = static_cast<float>(hidden_states[b * config.seq_len * hidden_size + s * hidden_size + j]);
+
+                    // w0_data is Row-Major: [num_experts, hidden_size, inter_size]
+                    size_t w0_cols = inter_size;
+                    size_t w0_r = expert_idx * hidden_size + j;
+                    float w0_val = w0_data[w0_r * w0_cols + i];
+                    gate_val += x_val * w0_val;
+
+                    // w1_data is Row-Major: [num_experts, hidden_size, inter_size]
+                    size_t w1_cols = inter_size;
+                    size_t w1_r = expert_idx * hidden_size + j;
+                    float w1_val = w1_data[w1_r * w1_cols + i];
+                    up_val += x_val * w1_val;
+                }
+                gate[i] = gate_val;
+                up[i] = up_val;
+            }
+
+            // SwiGLU
+            std::vector<float> act(inter_size);
+            for (size_t i = 0; i < inter_size; ++i) {
+                float silu = gate[i] / (1.0f + std::exp(-gate[i]));
+                act[i] = silu * up[i];
+            }
+
+            // Compute out = act @ w2
+            for (size_t j = 0; j < hidden_size; ++j) {
+                float out_val = 0.0f;
+                for (size_t i = 0; i < inter_size; ++i) {
+                    // w2_data is Row-Major: [num_experts, inter_size, hidden_size]
+                    size_t w2_cols = hidden_size;
+                    size_t w2_r = expert_idx * inter_size + i;
+                    float w2_val = w2_data[w2_r * w2_cols + j];
+                    out_val += act[i] * w2_val;
+                }
+                output[b * config.seq_len * hidden_size + s * hidden_size + j] += static_cast<ov::float16>(out_val * weight);
+            }
+        }
     }
 };
 
@@ -227,13 +291,13 @@ struct Moe3GemmTestParams {
     size_t group_size;
 };
 
-class moe_3gemm_compressed_gpu_random : public ::testing::TestWithParam<Moe3GemmTestParams> {};
+class moe_3gemm_compressed_gpu_random : public ::testing::TestWithParam<std::tuple<cldnn::MOE3GemmFusedCompressed::RoutingType, Moe3GemmTestParams>> {};
 
 TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
-    auto param = GetParam();
+    const auto& [routing_type, param] = GetParam();
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad) {
-        return;
+        GTEST_SKIP() << "No immad support";
     }
 
     tests::random_generator rg(GET_SUITE_NAME);
@@ -296,8 +360,18 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
         return mem;
     };
 
-    auto hidden_states_mem = create_f16_tensor(hidden_states, config.batch_size, config.seq_len, config.hidden_size, 1);
-    auto routing_weights_mem = create_f16_tensor(routing_weights, config.batch_size, config.seq_len, config.num_experts, 1);
+    auto create_f16_tensor_3d = [&](const std::vector<ov::float16>& values, int64_t d0, int64_t d1, int64_t d2) {
+        auto mem = engine.allocate_memory(layout{ov::PartialShape{d0, d1, d2}, data_types::f16, format::bfyx});
+        set_values(mem, values);
+        get_test_stream().finish();
+        return mem;
+    };
+
+    auto hidden_states_mem = create_f16_tensor_3d(hidden_states, config.batch_size, config.seq_len, config.hidden_size);
+    auto routing_weights_mem = create_f16_tensor_3d(routing_weights, config.batch_size, config.seq_len, config.num_experts);
+    auto routing_bias_data = rg.generate_random_1d<ov::float16>(config.num_experts, -0.5f, 0.5f, 1000);
+    auto routing_bias_mem = create_f16_tensor(routing_bias_data, 1, 1, 1, config.num_experts);
+    ov::float16 routing_eps_val = ov::float16(1e-6f);
 
     size_t group_num = config.hidden_size / config.group_size;
     size_t group_num2 = config.inter_size / config.group_size;
@@ -335,20 +409,30 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     moe_config.top_k = config.top_k;
     moe_config.group_size = config.group_size;
     moe_config.out_type = data_types::f16;
+    moe_config.routing_type = routing_type;
 
-    auto moe_prim = moe_3gemm_fused_compressed("moe_3gemm_fused_compressed",
-                                               {input_info("hidden_states"),
-                                                input_info("routing_weights"),
-                                                input_info("w0_weight"),
-                                                input_info("w0_scale"),
-                                                input_info("w0_zp"),
-                                                input_info("w1_weight"),
-                                                input_info("w1_scale"),
-                                                input_info("w1_zp"),
-                                                input_info("w2_weight"),
-                                                input_info("w2_scale"),
-                                                input_info("w2_zp")},
-                                               moe_config);
+    std::vector<input_info> moe_inputs{input_info("hidden_states"),
+                                       input_info("routing_weights"),
+                                       input_info("w0_weight"),
+                                       input_info("w0_scale"),
+                                       input_info("w0_zp"),
+                                       input_info("w1_weight"),
+                                       input_info("w1_scale"),
+                                       input_info("w1_zp"),
+                                       input_info("w2_weight"),
+                                       input_info("w2_scale"),
+                                       input_info("w2_zp")};
+    if (routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS) {
+        topology.add(data("routing_bias", routing_bias_mem));
+        moe_inputs.push_back(input_info("routing_bias"));
+        auto routing_eps_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
+        set_values(routing_eps_mem, {routing_eps_val});
+        get_test_stream().finish();
+        topology.add(data("routing_eps", routing_eps_mem));
+        moe_inputs.push_back(input_info("routing_eps"));
+    }
+
+    auto moe_prim = moe_3gemm_fused_compressed("moe_3gemm_fused_compressed", moe_inputs, moe_config);
 
     topology.add(moe_prim);
 
@@ -361,23 +445,33 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     get_test_stream().flush();
     cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
-    auto ref_output = ref.run_reference(hidden_states, routing_weights, w0_data, w1_data, w2_data);
+    auto ref_output = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS
+                          ? ref.run_reference_sigmoid(hidden_states, routing_weights, routing_bias_data, routing_eps_val, w0_data, w1_data, w2_data)
+                          : ref.run_reference_softmax(hidden_states, routing_weights, w0_data, w1_data, w2_data);
+    // SigmoidBias routing performs all routing math (sigmoid, bias, normalization) in f16 on the kernel side,
+    // while the reference uses f32, leading to slightly larger numerical divergence than Softmax.
+    const float tolerance = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS ? 0.2f : 0.1f;
     for (size_t i = 0; i < ref_output.size(); ++i) {
-        ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), 0.1f);
+        ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance);
     }
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          moe_3gemm_compressed_gpu_random,
-                         ::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 128},
-                                           Moe3GemmTestParams{16, true, 128, 256, 4, 2, 128},
-                                           Moe3GemmTestParams{1, false, 128, 256, 4, 2, 128},
-                                           Moe3GemmTestParams{16, false, 128, 256, 4, 2, 128}));
+                         ::testing::Combine(::testing::Values(cldnn::MOE3GemmFusedCompressed::RoutingType::SOFTMAX,
+                                                              cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS),
+                                            ::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{16, true, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{1, false, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{16, false, 128, 256, 4, 2, 128})));
 
-TEST(moe_3gemm_compressed_gpu, moe_accuracy_test_u4) {
+class moe_3gemm_compressed_gpu_u4 : public ::testing::TestWithParam<cldnn::MOE3GemmFusedCompressed::RoutingType> {};
+
+TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
+    auto routing_type = GetParam();
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad) {
-        return;
+        GTEST_SKIP() << "No immad support";
     }
 
     const size_t batch_size = 1;
@@ -403,11 +497,19 @@ TEST(moe_3gemm_compressed_gpu, moe_accuracy_test_u4) {
         get_test_stream().finish();
         return mem;
     };
-    // Input 0: hidden_states [batch_size, seq_len, hidden_size]
-    auto hidden_states = create_f16_tensor(hidden_states_data, batch_size, seq_len, hidden_size, 1);
+
+    auto create_f16_tensor_3d = [&](const std::vector<ov::float16>& values, int64_t d0, int64_t d1, int64_t d2) {
+        auto mem = engine.allocate_memory(layout{ov::PartialShape{d0, d1, d2}, data_types::f16, format::bfyx});
+        set_values(mem, values);
+        get_test_stream().finish();
+        return mem;
+    };
+
+    auto hidden_states = create_f16_tensor_3d(hidden_states_data, batch_size, seq_len, hidden_size);
 
     // Input 1: routing_weights [batch_size, seq_len, num_experts]
-    auto routing_weights = create_f16_tensor(router_weights_data, batch_size, seq_len, num_experts, 1);
+    auto routing_weights = create_f16_tensor_3d(router_weights_data, batch_size, seq_len, num_experts);
+    auto routing_bias = create_f16_tensor(routing_bias_data, 1, 1, 1, num_experts);
 
     // Input 3: w0_weight [num_experts, inter_size, group_num, group_size]
     auto w0_weight = create_u4_tensor(w0_weights_data, num_experts, inter_size, group_num, group_size);
@@ -461,29 +563,38 @@ TEST(moe_3gemm_compressed_gpu, moe_accuracy_test_u4) {
     config.top_k = top_k;
     config.group_size = group_size;
     config.out_type = data_types::f16;
+    config.routing_type = routing_type;
+
+    std::vector<input_info> moe_inputs{input_info("hidden_states"),
+                                       input_info("routing_weights"),
+                                       input_info("w0_weight"),
+                                       input_info("w0_scale"),
+                                       input_info("w0_zp"),
+                                       input_info("w1_weight"),
+                                       input_info("w1_scale"),
+                                       input_info("w1_zp"),
+                                       input_info("w2_weight"),
+                                       input_info("w2_scale"),
+                                       input_info("w2_zp")};
+    if (routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS) {
+        topology.add(data("routing_bias", routing_bias));
+        moe_inputs.push_back(input_info("routing_bias"));
+        auto routing_eps_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
+        set_values(routing_eps_mem, {ov::float16(1e-6f)});
+        get_test_stream().finish();
+        topology.add(data("routing_eps", routing_eps_mem));
+        moe_inputs.push_back(input_info("routing_eps"));
+    }
 
     // Create MOECompressed primitive
-    auto moe_prim = moe_3gemm_fused_compressed("moe_3gemm_fused_compressed",
-                                               {input_info("hidden_states"),
-                                                input_info("routing_weights"),
-                                                input_info("w0_weight"),
-                                                input_info("w0_scale"),
-                                                input_info("w0_zp"),
-                                                input_info("w1_weight"),
-                                                input_info("w1_scale"),
-                                                input_info("w1_zp"),
-                                                input_info("w2_weight"),
-                                                input_info("w2_scale"),
-                                                input_info("w2_zp")},
-                                               config);
-
-    topology.add(moe_prim);
+    topology.add(moe_3gemm_fused_compressed("moe_3gemm_fused_compressed", moe_inputs, config));
 
     // Create and execute network
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("hidden_states", hidden_states);
     network.set_input_data("routing_weights", routing_weights);
 
+    // Verify output shape should be [batch_size, seq_len, hidden_size]
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
     ASSERT_EQ(outputs.begin()->first, "moe_3gemm_fused_compressed");
@@ -492,12 +603,16 @@ TEST(moe_3gemm_compressed_gpu, moe_accuracy_test_u4) {
     get_test_stream().flush();
     cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
-    // Verify output shape should be [batch_size, seq_len, hidden_size]
     auto output_layout = output_prim->get_layout();
     EXPECT_EQ(output_layout.batch(), batch_size);
     EXPECT_EQ(output_layout.feature(), seq_len);
 
+    const auto& output_reference = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS ? output_ref_sigmoid_bias : output_ref_softmax;
     for (size_t i = 0; i < batch_size * seq_len * hidden_size; ++i) {
-        EXPECT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(output_ref[i]), 1e-3f);
+        EXPECT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(output_reference[i]), 1e-3f);
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         moe_3gemm_compressed_gpu_u4,
+                         ::testing::Values(cldnn::MOE3GemmFusedCompressed::RoutingType::SOFTMAX, cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS));

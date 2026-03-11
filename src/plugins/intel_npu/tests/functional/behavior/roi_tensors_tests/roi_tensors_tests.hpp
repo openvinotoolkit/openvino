@@ -12,6 +12,7 @@
 #include "common/utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
+#include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -22,7 +23,6 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "remote_context.hpp"
 #include "zero_backend.hpp"
-#include "zero_tensor.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
