@@ -100,15 +100,15 @@ CM_INLINE void process_quantization_per_token(const half* in, uchar* out, uint i
     half min_val = cm_reduced_min<half>(in_data);
 
     half qrange = max_val - min_val;
-    float scale_val = qrange == (half)0.0 ? 1.0f : 255.0 / qrange;
-    half zp_val = (0.0 - min_val) * scale_val;
+    float scale_val = qrange == (half)0.0f ? 1.0f : 255.0f / qrange;
+    half zp_val = (0.0f - min_val) * scale_val;
     vector<half, HEAD_SIZE>  dequant_data = cm_mul<half>(in_data, scale_val) + zp_val;
     vector<uchar, HEAD_SIZE> data_u8 = cm_rnde<uchar, HEAD_SIZE>(dequant_data);
 
     store_kvcache<uchar, HEAD_SIZE>(reinterpret_cast<svmptr_t>(out + data_offset), 0, data_u8);
 
     half *out_scale_zp = (half*)(out + scale_offset);
-    out_scale_zp[0] = 1.0 / scale_val;
+    out_scale_zp[0] = 1.0f / scale_val;
     out_scale_zp[BLOCK_SIZE] = zp_val;
 }
 #endif
@@ -158,12 +158,12 @@ CM_INLINE void process_quantization_per_channel(const half* in,
     }
 
     vector<float, HEAD_SIZE> qrange = max_vals - min_vals;
-    vector<ushort, HEAD_SIZE> mask = (qrange == (half)0.0);
+    vector<ushort, HEAD_SIZE> mask = (qrange == (half)0.0f);
 
     // scale_vals needs fp32 precision to perform cm_div_ieee to avoid accuracy loss caused by reciprocal approximation division ('/') instruction
-    vector<float, HEAD_SIZE> scale_vals = cm_div_ieee(255.0, qrange);
+    vector<float, HEAD_SIZE> scale_vals = cm_div_ieee(255.0f, qrange);
     scale_vals.merge(1.0f, mask);
-    vector<half, HEAD_SIZE> zp_vals = cm_mul<half>((0.0 - min_vals), scale_vals);
+    vector<half, HEAD_SIZE> zp_vals = cm_mul<half>((0.0f - min_vals), scale_vals);
 
     if (dequant_size) {
         uint update_offset = data_offset - dequant_size * HEAD_SIZE;
@@ -171,7 +171,7 @@ CM_INLINE void process_quantization_per_channel(const half* in,
         for (int i = 0; i < SUB_BLOCK_SIZE; i++) {
             if (i < dequant_size) {
                 vector<half, HEAD_SIZE> quant_data = cm_mul<half>(in_data.row(i), scale_vals) + zp_vals;
-                quant_data = cm_min<half>(cm_max<half>(quant_data, (half)0.0), (half)255.0);
+                quant_data = cm_min<half>(cm_max<half>(quant_data, (half)0.0f), (half)255.0f);
                 vector<uchar, HEAD_SIZE> data_u8 = cm_rnde<uchar, HEAD_SIZE>(quant_data);
                 store_kvcache<uchar, HEAD_SIZE>(reinterpret_cast<svmptr_t>(out + update_offset + i * HEAD_SIZE), 0, data_u8);
             }
@@ -181,12 +181,12 @@ CM_INLINE void process_quantization_per_channel(const half* in,
     #pragma unroll
     for (int i = 0; i < cur_sub_block_size; i++) {
         vector<half, HEAD_SIZE> quant_data = cm_mul<half>(in_data.row(dequant_size + i), scale_vals) + zp_vals;
-        quant_data = cm_min<half>(cm_max<half>(quant_data, (half)0.0), (half)255.0);
+        quant_data = cm_min<half>(cm_max<half>(quant_data, (half)0.0f), (half)255.0f);
         vector<uchar, HEAD_SIZE> data_u8 = cm_rnde<uchar, HEAD_SIZE>(quant_data);
         store_kvcache<uchar, HEAD_SIZE>(reinterpret_cast<svmptr_t>(out + data_offset + i * HEAD_SIZE), 0, data_u8);
     }
 
-    vector<half, HEAD_SIZE> scale_out = cm_div_ieee(1.0, scale_vals);
+    vector<half, HEAD_SIZE> scale_out = cm_div_ieee(1.0f, scale_vals);
     vector<half, HEAD_SIZE> zp_out = zp_vals;
     uint zp_offset = scale_offset + BLOCK_SIZE / SUB_BLOCK_SIZE * HEAD_SIZE * sizeof(half);
     store_kvcache<half, HEAD_SIZE>(reinterpret_cast<svmptr_t>(out + scale_offset), 0, scale_out);
