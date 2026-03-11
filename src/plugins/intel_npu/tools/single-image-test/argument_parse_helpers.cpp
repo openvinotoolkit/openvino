@@ -240,7 +240,7 @@ utils::PerLayerValueMap utils::parsePerLayerValues(const std::string& str, doubl
             try {
                 double value = std::stod(valueStr);
                 result[layerName] = value;
-            } catch (const std::exception& e) {
+            } catch (const std::exception&) {
                 std::cerr << "Warning: Failed to parse value '" << valueStr << "' for layer '" << layerName << "'" << std::endl;
             }
         }
