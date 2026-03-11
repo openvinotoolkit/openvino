@@ -58,25 +58,28 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                                     config.get<MODEL_SERIALIZER_VERSION>(),
                                                     isOptionValueSupportedByCompiler,
                                                     _zeGraphExt->isPluginModelHashSupported());
+    FilteredConfig updatedConfig = config;
+    updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                           MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
     const auto isOptionSupportedByCompiler = std::bind(&DriverCompilerAdapter::isCompilerOptionSupported,
                                                        this,
-                                                       std::cref(config),
+                                                       std::cref(updatedConfig),
                                                        std::cref(compilerVersion),
                                                        std::placeholders::_1);
 
     _logger.debug("build flags");
     buildFlags += compiler_utils::serializeIOInfo(model, useIndices);
     buildFlags += " ";
-    buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
+    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
 
     _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
 
     _logger.debug("compile start");
     // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
-    const bool bypassCache = !config.get<CACHE_DIR>().empty() || config.get<BYPASS_UMD_CACHING>();
+    const bool bypassCache = !updatedConfig.get<CACHE_DIR>().empty() || updatedConfig.get<BYPASS_UMD_CACHING>();
     auto graphDesc = _zeGraphExt->getGraphDescriptor(std::move(serializedIR), buildFlags, bypassCache);
     _logger.debug("compile end");
 
@@ -89,7 +92,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                    graphDesc,
                                    std::move(networkMeta),
                                    /* blob = */ std::nullopt,
-                                   config);
+                                   updatedConfig);
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
@@ -127,6 +130,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                                     isOptionValueSupportedByCompiler,
                                                     _zeGraphExt->isPluginModelHashSupported(),
                                                     true);
+    updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                           MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -164,7 +169,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
         _logger.debug("compile start");
         // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
-        const bool bypassCache = !config.get<CACHE_DIR>().empty() || config.get<BYPASS_UMD_CACHING>();
+        const bool bypassCache = !updatedConfig.get<CACHE_DIR>().empty() || updatedConfig.get<BYPASS_UMD_CACHING>();
         auto graphDesc = _zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, bypassCache);
         _logger.debug("compile end");
 
@@ -202,7 +207,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                              std::move(initNetworkMetadata),
                                              /* initBlobs = */ std::nullopt,
                                              std::move(model),
-                                             config);
+                                             updatedConfig);
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
@@ -223,14 +228,18 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
                                                     maxOpsetVersion,
                                                     config.get<MODEL_SERIALIZER_VERSION>(),
                                                     isOptionValueSupportedByCompiler);
+
+    FilteredConfig updatedConfig = config;
+    updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                           MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
     const auto isOptionSupportedByCompiler = std::bind(&DriverCompilerAdapter::isCompilerOptionSupported,
                                                        this,
-                                                       std::cref(config),
+                                                       std::cref(updatedConfig),
                                                        std::cref(compilerVersion),
                                                        std::placeholders::_1);
 
     std::string buildFlags;
-    buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
+    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     ov::SupportedOpsMap result;

@@ -393,6 +393,9 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
                                                     isOptionValueSupportedByCompiler,
                                                     false,
                                                     storeWeightlessCacheAttributeFlag);
+    FilteredConfig updatedConfig = config;
+    updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                           MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
 
     std::string buildFlags;
     const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
@@ -402,7 +405,7 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     _logger.debug("create build flags");
     buildFlags += compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
+    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
 
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
@@ -478,6 +481,9 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
                                                     isOptionValueSupportedByCompiler,
                                                     false,
                                                     true);
+    FilteredConfig updatedConfig = config;
+    updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                           MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
 
     std::string buildFlags;
     const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
@@ -487,7 +493,7 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     _logger.debug("create build flags");
     buildFlags += compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
+    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
     vcl_executable_desc_t exeDesc = {serializedIR.buffer.get(),
@@ -596,6 +602,7 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     ze_graph_compiler_version_info_t compilerVersion;
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
+    FilteredConfig updatedConfig = config;
     const auto isOptionValueSupportedByCompiler = [this](std::string optionName,
                                                          std::optional<std::string> optionValue) {
         return is_option_supported(optionName, optionValue);
@@ -605,12 +612,14 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
                                                     maxOpsetVersion,
                                                     config.get<MODEL_SERIALIZER_VERSION>(),
                                                     isOptionValueSupportedByCompiler);
+    updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                           MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
 
     std::string buildFlags;
     const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
         return is_option_supported(optionName);
     };
-    buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
+    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     vcl_query_handle_t queryHandle;

@@ -10,6 +10,7 @@
 #include <string>
 
 #include "intel_npu/common/filtered_config.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/model.hpp"
@@ -20,6 +21,7 @@ namespace intel_npu {
 struct SerializedIR {
     std::shared_ptr<uint8_t> buffer = nullptr;
     size_t size = 0;
+    ov::intel_npu::ModelSerializerVersion serializerVersion = MODEL_SERIALIZER_VERSION::defaultValue();
     std::optional<uint64_t> hash = std::nullopt;
 };
 

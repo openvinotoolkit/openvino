@@ -128,6 +128,7 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelWeightsCopy) {
                         ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY));
     // If the size changes significantly, then investigation may be required
     ASSERT_TRUE(serializedModel.size > SERIALIZED_MODEL_THRESHOLD_ALL_WEIGHTS_COPY);
+    ASSERT_TRUE(serializedModel.serializerVersion == ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
 }
 
 TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelNoWeightsCopy) {
@@ -142,10 +143,25 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelNoWeightsCopy) {
                         ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY));
     // If the size changes significantly, then investigation may be required
     ASSERT_TRUE(serializedModel.size < SERIALIZED_MODEL_THRESHOLD_NO_WEIGHTS_COPY);
+    ASSERT_TRUE(serializedModel.serializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
 
     ov::pass::StreamSerialize::DataHeader dataHeader;
     memcpy(&dataHeader, serializedModel.buffer.get(), sizeof(dataHeader));
     ASSERT_TRUE(dataHeader.consts_size == 0);
+}
+
+TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelAutoSerializerVersion) {
+    auto model = createModelWithLargeWeights();
+    const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
+
+    ::intel_npu::SerializedIR serializedModel;
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::compiler_utils::serializeIR(model,
+                                                                 dummyCompilerVersion,
+                                                                 11,
+                                                                 ov::intel_npu::ModelSerializerVersion::AUTO));
+    // The serializer should decide which version to use. This value should not be "auto".
+    ASSERT_TRUE(serializedModel.serializerVersion != ov::intel_npu::ModelSerializerVersion::AUTO);
 }
 
 TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckHashPresence) {
