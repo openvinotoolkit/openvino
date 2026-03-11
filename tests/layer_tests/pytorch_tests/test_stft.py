@@ -31,8 +31,6 @@ class TestSTFT(PytorchLayerTest):
         return (signal, window.astype(out_dtype))
 
     def create_model(self, n_fft, hop_length, win_length, normalized):
-        import torch
-
         class aten_stft(torch.nn.Module):
 
             def __init__(self, n_fft, hop_length, win_length, normalized):
@@ -61,8 +59,8 @@ class TestSTFT(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize(("trace_model"), [True, False])
-    @pytest.mark.parametrize(("signal_shape"), [(1, 256), (2, 128), (128,)])
+    @pytest.mark.parametrize("trace_model", [True, False])
+    @pytest.mark.parametrize("signal_shape", [(1, 256), (2, 128), (128,)])
     @pytest.mark.parametrize(("n_fft", "hop_length", "window_size"), [
         [16, 4, 16],
         [32, 32, 32],
@@ -70,7 +68,7 @@ class TestSTFT(PytorchLayerTest):
         [24, 32, 20],
         [128, 128, 128],
     ])
-    @pytest.mark.parametrize(("normalized"), [True, False])
+    @pytest.mark.parametrize("normalized", [True, False])
     def test_stft(self, n_fft, hop_length, window_size, signal_shape, normalized, ie_device, precision, ir_version, trace_model):
         if ie_device == "GPU":
             pytest.xfail(reason="STFT op is not supported on GPU yet")
@@ -89,8 +87,6 @@ class TestSTFTAttrs(PytorchLayerTest):
         return (signal,)
 
     def create_model_with_attrs(self, n_fft, hop_length, win_length, center, pad_mode, normalized, onesided, return_complex):
-        import torch
-
         class aten_stft_attrs(torch.nn.Module):
 
             def __init__(self, n_fft, hop_length, win_length, center, pad_mode, normalized, onesided, return_complex):
@@ -131,10 +127,9 @@ class TestSTFTAttrs(PytorchLayerTest):
     # Several parametrize entries intentionally pass window=None to test default-window
     # handling; PyTorch warns about the missing window in those cases.
     @pytest.mark.filterwarnings("ignore:A window was not provided:UserWarning")
-    @pytest.mark.parametrize(("trace_model"), [True, False])
+    @pytest.mark.parametrize("trace_model", [True, False])
     @pytest.mark.parametrize(("n_fft", "hop_length", "win_length", "center", "pad_mode", "normalized", "onesided", "return_complex"), [
         [16, 4, 16, False, "reflect", False, True, False],  # default window
-        [16, 4, 14, True, "reflect", False, True, False],  # center True
         [16, 4, 14, True, "reflect", False, True, False],  # center True
         [16, 4, 14, True, "replicate", False, True, False],  # center True
         [16, 4, 14, False, "replicate", False, True, False],  # center False

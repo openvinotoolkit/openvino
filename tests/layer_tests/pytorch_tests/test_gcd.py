@@ -4,12 +4,8 @@
 import numpy as np
 import pytest
 import torch
-from packaging import version
 
 from pytorch_layer_test_class import PytorchLayerTest
-
-# torch.tensor(tensor) copy-construction is deprecated in PyTorch 2.9.
-_TENSOR_COPY_CONSTRUCT_DEPRECATED = version.parse(torch.__version__) >= version.parse("2.9.0")
 
 
 class TestGcd(PytorchLayerTest):
@@ -33,7 +29,7 @@ class TestGcd(PytorchLayerTest):
                 super().__init__()
 
             def forward(self, int_a: int, int_b: int):
-                return torch.tensor(torch.gcd(int_a, int_b))
+                return torch.gcd(int_a, int_b)
 
 
         return aten_gcd_int(), "aten::gcd"
@@ -41,8 +37,6 @@ class TestGcd(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_gcd_int(self, ie_device, precision, ir_version):
-        if _TENSOR_COPY_CONSTRUCT_DEPRECATED:
-            pytest.skip("torch.tensor(tensor) copy construction is deprecated in this PyTorch version")
         self.input_data = (np.array(11, dtype=np.int32), np.array(17, dtype=np.int32))
         self._test(
             *self.create_model_int_input(),
@@ -72,8 +66,6 @@ class TestGcd(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_gcd_int64(self, ie_device, precision, ir_version):
-        if _TENSOR_COPY_CONSTRUCT_DEPRECATED:
-            pytest.skip("torch.tensor(tensor) copy construction is deprecated in this PyTorch version")
         self.input_data = (np.array(11, dtype=np.int64), np.array(17, dtype=np.int64))
         self._test(
             *self.create_model_int_input(),
@@ -103,8 +95,6 @@ class TestGcd(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_gcd_int_diff_dtypes(self, ie_device, precision, ir_version):
-        if _TENSOR_COPY_CONSTRUCT_DEPRECATED:
-            pytest.skip("torch.tensor(tensor) copy construction is deprecated in this PyTorch version")
         self.input_data = (np.array(11, dtype=np.int64), np.array(17, dtype=np.int32))
         self._test(
             *self.create_model_int_input(),
