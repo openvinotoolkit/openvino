@@ -472,3 +472,59 @@ TEST_F(SharedBufferTest, mmap_with_offset) {
     ASSERT_NE(parent_desc, nullptr);
     EXPECT_EQ(parent_desc->get_offset(), offset);
 }
+
+TEST_F(SharedBufferTest, specialization_overload_resolution) {
+    // Test various SharedBuffer constructor variants to ensure SFINAE and overload resolution work correctly
+    {
+        auto src_buffer = std::make_shared<ov::AlignedBuffer>(sizeof(float) * 4000);
+        {
+            auto sh_buff = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+                src_buffer->get_ptr<char>(),
+                src_buffer->size(),
+                src_buffer,
+                ov::create_base_descriptor(10, 5, src_buffer));
+
+            auto desc = sh_buff->get_descriptor();
+            ASSERT_NE(desc, nullptr);
+            EXPECT_EQ(desc->get_id(), 10u);
+            EXPECT_EQ(desc->get_offset(),
+                      0u);  // offset is calculated from source buffer pointer, not constructor argument
+            EXPECT_EQ(desc->get_source_buffer(), src_buffer);
+        }
+        {
+            auto sh_buff =
+                std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(src_buffer->get_ptr<char>(),
+                                                                                       src_buffer->size(),
+                                                                                       src_buffer);
+
+            ASSERT_EQ(sh_buff->get_descriptor(), nullptr);  // no descriptor to inherit
+        }
+    }
+    {
+        auto mapped_memory = ov::load_mmap_object(m_file_path);
+        {
+            auto sh_buff = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
+                mapped_memory->data(),
+                mapped_memory->size(),
+                mapped_memory,
+                ov::create_base_descriptor(10, 5, nullptr));
+
+            auto desc = sh_buff->get_descriptor();
+            ASSERT_NE(desc, nullptr);
+            EXPECT_EQ(desc->get_id(), 10u);
+            EXPECT_EQ(desc->get_offset(), 0u);              // no source buffer provided, so offset should be 0
+            EXPECT_EQ(desc->get_source_buffer(), nullptr);  // no source buffer provided
+        }
+        {
+            auto sh_buff = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
+                                                                                                 mapped_memory->size(),
+                                                                                                 mapped_memory);
+
+            auto desc = sh_buff->get_descriptor();
+            ASSERT_NE(desc, nullptr);
+            EXPECT_EQ(desc->get_id(), mapped_memory->get_id());
+            EXPECT_EQ(desc->get_offset(), 0u);
+            EXPECT_NE(desc->get_source_buffer(), nullptr);
+        }
+    }
+}
