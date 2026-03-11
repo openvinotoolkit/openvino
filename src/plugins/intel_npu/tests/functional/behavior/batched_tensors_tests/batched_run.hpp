@@ -365,7 +365,7 @@ TEST_P(BatchedTensorsRunTests, checkResultsAfterRunningWithSameRawMemoryMultiple
     auto one_shape = Shape{1, 16, 16, 16};
     auto batch_shape = Shape{batch, 16, 16, 16};
     auto one_shape_size = ov::shape_size(one_shape);
-    auto model = BatchedTensorsRunTests::create_n_inputs(2, element::f32, batch_shape, "N...");
+    auto model = BatchedTensorsRunTests::create_n_inputs(1, element::f32, batch_shape, "N...");
     auto execNet = core->compile_model(model, target_device, configuration);
     ov::InferRequest req = execNet.create_infer_request();
 
@@ -405,6 +405,252 @@ TEST_P(BatchedTensorsRunTests, checkResultsAfterRunningWithSameRawMemoryMultiple
     ::operator delete(buffer1, std::align_val_t(4096));
     ::operator delete(buffer2, std::align_val_t(4096));
     ::operator delete(buffer3, std::align_val_t(4096));
+}
+
+TEST_P(BatchedTensorsRunTests, checkResultsAfterRunningWithRawAlignedMemoryWithSetTensorAndTensors) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto one_shape = Shape{1, 16, 16, 16};
+    auto batch_shape = Shape{4, 16, 16, 16};
+    auto one_shape_size = ov::shape_size(one_shape);
+    auto batch_size = ov::shape_size(batch_shape);
+    auto model = BatchedTensorsRunTests::create_n_inputs(1, element::f32, batch_shape, "N...");
+    auto execNet = core->compile_model(model, target_device, configuration);
+    ov::InferRequest req = execNet.create_infer_request();
+
+    float* bigger_buffer = static_cast<float*>(::operator new(batch_size * sizeof(float), std::align_val_t(4096)));
+    for (size_t j = 0; j < batch_size; ++j) {
+        bigger_buffer[j] = 1.0f;
+    }
+
+    ov::Tensor bigger_tensor(element::f32, batch_shape, bigger_buffer);
+    req.set_tensor("tensor_input0", bigger_tensor);
+    req.infer();
+
+    ::operator delete(bigger_buffer, std::align_val_t(4096));
+
+    auto output_tensor = req.get_tensor("tensor_output0");
+    auto* output_data = output_tensor.data<float>();
+    for (size_t j = 0; j < batch_size; ++j) {
+        ASSERT_EQ(output_data[j], 2.0f) << "Expected=" << 2.0f << ", actual=" << output_data[j] << " for index " << j;
+    }
+
+    float* buffer0 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+    float* buffer1 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+    float* buffer2 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+    float* buffer3 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+
+    std::vector<ov::Tensor> tensors;
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer0));
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer1));
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer2));
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer3));
+    req.set_tensors("tensor_input0", tensors);
+
+    for (size_t j = 0; j < one_shape_size; ++j) {
+        buffer0[j] = 5.0f;
+        buffer1[j] = 5.0f;
+        buffer2[j] = 5.0f;
+        buffer3[j] = 5.0f;
+    }
+
+    req.infer();
+
+    output_tensor = req.get_tensor("tensor_output0");
+    output_data = output_tensor.data<float>();
+    for (size_t j = 0; j < batch_size; ++j) {
+        ASSERT_EQ(output_data[j], 6.0f) << "Expected=" << 6.0f << ", actual=" << output_data[j] << " for index " << j;
+    }
+
+    ::operator delete(buffer0, std::align_val_t(4096));
+    ::operator delete(buffer1, std::align_val_t(4096));
+    ::operator delete(buffer2, std::align_val_t(4096));
+    ::operator delete(buffer3, std::align_val_t(4096));
+}
+
+TEST_P(BatchedTensorsRunTests, checkResultsAfterRunningWithRawAlignedMemoryWithSetTensorsAndTensor) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto one_shape = Shape{1, 16, 16, 16};
+    auto batch_shape = Shape{4, 16, 16, 16};
+    auto one_shape_size = ov::shape_size(one_shape);
+    auto batch_size = ov::shape_size(batch_shape);
+    auto model = BatchedTensorsRunTests::create_n_inputs(1, element::f32, batch_shape, "N...");
+    auto execNet = core->compile_model(model, target_device, configuration);
+    ov::InferRequest req = execNet.create_infer_request();
+
+    float* buffer0 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+    float* buffer1 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+    float* buffer2 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+    float* buffer3 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+
+    std::vector<ov::Tensor> tensors;
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer0));
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer1));
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer2));
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer3));
+    req.set_tensors("tensor_input0", tensors);
+
+    for (size_t j = 0; j < one_shape_size; ++j) {
+        buffer0[j] = 5.0f;
+        buffer1[j] = 5.0f;
+        buffer2[j] = 5.0f;
+        buffer3[j] = 5.0f;
+    }
+
+    req.infer();
+
+    auto output_tensor = req.get_tensor("tensor_output0");
+    auto* output_data = output_tensor.data<float>();
+    for (size_t j = 0; j < batch_size; ++j) {
+        ASSERT_EQ(output_data[j], 6.0f) << "Expected=" << 6.0f << ", actual=" << output_data[j] << " for index " << j;
+    }
+
+    ::operator delete(buffer0, std::align_val_t(4096));
+    ::operator delete(buffer1, std::align_val_t(4096));
+    ::operator delete(buffer2, std::align_val_t(4096));
+    ::operator delete(buffer3, std::align_val_t(4096));
+
+    float* bigger_buffer = static_cast<float*>(::operator new(batch_size * sizeof(float), std::align_val_t(4096)));
+    for (size_t j = 0; j < batch_size; ++j) {
+        bigger_buffer[j] = 1.0f;
+    }
+
+    ov::Tensor bigger_tensor(element::f32, batch_shape, bigger_buffer);
+    req.set_tensor("tensor_input0", bigger_tensor);
+    req.infer();
+
+    ::operator delete(bigger_buffer, std::align_val_t(4096));
+
+    output_tensor = req.get_tensor("tensor_output0");
+    output_data = output_tensor.data<float>();
+    for (size_t j = 0; j < batch_size; ++j) {
+        ASSERT_EQ(output_data[j], 2.0f) << "Expected=" << 2.0f << ", actual=" << output_data[j] << " for index " << j;
+    }
+}
+
+TEST_P(BatchedTensorsRunTests, checkResultsAfterRunningWithRawUnalignedMemoryWithSetTensorAndTensors) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto one_shape = Shape{1, 16, 16, 16};
+    auto batch_shape = Shape{4, 16, 16, 16};
+    auto one_shape_size = ov::shape_size(one_shape);
+    auto batch_size = ov::shape_size(batch_shape);
+    auto model = BatchedTensorsRunTests::create_n_inputs(1, element::f32, batch_shape, "N...");
+    auto execNet = core->compile_model(model, target_device, configuration);
+    ov::InferRequest req = execNet.create_infer_request();
+
+    float* bigger_buffer =
+        static_cast<float*>(::operator new(batch_size * sizeof(float) + 16 * sizeof(float), std::align_val_t(4096)));
+    for (size_t j = 0; j < batch_size + 16; ++j) {
+        bigger_buffer[j] = 1.0f;
+    }
+
+    ov::Tensor bigger_tensor(element::f32, batch_shape, bigger_buffer + 16);
+    req.set_tensor("tensor_input0", bigger_tensor);
+    req.infer();
+
+    ::operator delete(bigger_buffer, std::align_val_t(4096));
+
+    auto output_tensor = req.get_tensor("tensor_output0");
+    auto* output_data = output_tensor.data<float>();
+    for (size_t j = 0; j < batch_size; ++j) {
+        ASSERT_EQ(output_data[j], 2.0f) << "Expected=" << 2.0f << ", actual=" << output_data[j] << " for index " << j;
+    }
+
+    float* buffer0 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+    float* buffer1 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+    float* buffer2 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+    float* buffer3 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+
+    std::vector<ov::Tensor> tensors;
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer0));
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer1));
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer2));
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer3));
+    req.set_tensors("tensor_input0", tensors);
+
+    for (size_t j = 0; j < one_shape_size; ++j) {
+        buffer0[j] = 5.0f;
+        buffer1[j] = 5.0f;
+        buffer2[j] = 5.0f;
+        buffer3[j] = 5.0f;
+    }
+
+    req.infer();
+
+    output_tensor = req.get_tensor("tensor_output0");
+    output_data = output_tensor.data<float>();
+    for (size_t j = 0; j < batch_size; ++j) {
+        ASSERT_EQ(output_data[j], 6.0f) << "Expected=" << 6.0f << ", actual=" << output_data[j] << " for index " << j;
+    }
+
+    ::operator delete(buffer0, std::align_val_t(4096));
+    ::operator delete(buffer1, std::align_val_t(4096));
+    ::operator delete(buffer2, std::align_val_t(4096));
+    ::operator delete(buffer3, std::align_val_t(4096));
+}
+
+TEST_P(BatchedTensorsRunTests, checkResultsAfterRunningWithRawUnalignedMemoryWithSetTensorsAndTensor) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto one_shape = Shape{1, 16, 16, 16};
+    auto batch_shape = Shape{4, 16, 16, 16};
+    auto one_shape_size = ov::shape_size(one_shape);
+    auto batch_size = ov::shape_size(batch_shape);
+    auto model = BatchedTensorsRunTests::create_n_inputs(1, element::f32, batch_shape, "N...");
+    auto execNet = core->compile_model(model, target_device, configuration);
+    ov::InferRequest req = execNet.create_infer_request();
+
+    float* buffer0 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+    float* buffer1 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+    float* buffer2 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+    float* buffer3 = static_cast<float*>(::operator new(one_shape_size * sizeof(float), std::align_val_t(4096)));
+
+    std::vector<ov::Tensor> tensors;
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer0));
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer1));
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer2));
+    tensors.push_back(ov::Tensor(element::f32, one_shape, buffer3));
+    req.set_tensors("tensor_input0", tensors);
+
+    for (size_t j = 0; j < one_shape_size; ++j) {
+        buffer0[j] = 5.0f;
+        buffer1[j] = 5.0f;
+        buffer2[j] = 5.0f;
+        buffer3[j] = 5.0f;
+    }
+
+    req.infer();
+
+    auto output_tensor = req.get_tensor("tensor_output0");
+    auto* output_data = output_tensor.data<float>();
+    for (size_t j = 0; j < batch_size; ++j) {
+        ASSERT_EQ(output_data[j], 6.0f) << "Expected=" << 6.0f << ", actual=" << output_data[j] << " for index " << j;
+    }
+
+    ::operator delete(buffer0, std::align_val_t(4096));
+    ::operator delete(buffer1, std::align_val_t(4096));
+    ::operator delete(buffer2, std::align_val_t(4096));
+    ::operator delete(buffer3, std::align_val_t(4096));
+
+    float* bigger_buffer =
+        static_cast<float*>(::operator new(batch_size * sizeof(float) + 16 * sizeof(float), std::align_val_t(4096)));
+    for (size_t j = 0; j < batch_size + 16; ++j) {
+        bigger_buffer[j] = 1.0f;
+    }
+
+    ov::Tensor bigger_tensor(element::f32, batch_shape, bigger_buffer + 16);
+    req.set_tensor("tensor_input0", bigger_tensor);
+    req.infer();
+
+    ::operator delete(bigger_buffer, std::align_val_t(4096));
+
+    output_tensor = req.get_tensor("tensor_output0");
+    output_data = output_tensor.data<float>();
+    for (size_t j = 0; j < batch_size; ++j) {
+        ASSERT_EQ(output_data[j], 2.0f) << "Expected=" << 2.0f << ", actual=" << output_data[j] << " for index " << j;
+    }
 }
 
 TEST_P(BatchedTensorsRunTests, SetInputDifferentRemoteTensorsMultipleInferMCL) {

@@ -42,7 +42,7 @@ TEST(PaddleBasicTest, check_supported_legacy_model) {
     paddle::FrontEnd fe;
 
     EXPECT_TRUE(fe.supported({{legacy_model_path.native()}, {false}}));
-    EXPECT_FALSE(fe.supported({{legacy_model_path}, {false}})) << "Should be true if std path supported";
+    EXPECT_TRUE(fe.supported({{legacy_model_path}, {false}}));
 
     std::filesystem::remove_all(test_dir);
 }
@@ -54,7 +54,7 @@ TEST(PaddleBasicTest, check_supported_legacy_model_not_exists) {
     paddle::FrontEnd fe;
 
     OV_EXPECT_THROW(fe.supported({{legacy_model_path.native()}, {false}}), ov::Exception, testing::_);
-    EXPECT_FALSE(fe.supported({{legacy_model_path}, false})) << "Should throw if std path supported";
+    OV_EXPECT_THROW(fe.supported({{legacy_model_path}, false}), ov::Exception, testing::_);
 }
 
 TEST(PaddleBasicTest, check_supported_incorrect_extension) {
