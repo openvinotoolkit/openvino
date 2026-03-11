@@ -197,18 +197,6 @@ std::shared_ptr<const ov::Model> exclude_model_ptr_from_map(ov::AnyMap& properti
     return modelPtr;
 }
 
-// int get_ir_version(const std::shared_ptr<const ov::Model>& model, const intel_npu::Logger& logger) {
-//     const auto& rtInfo = model->get_rt_info();
-//     const auto it = rtInfo.find("version");
-//     if (it != rtInfo.end()) {
-//         return static_cast<int>(it->second.as<int64_t>());
-//     }
-
-//     logger.warning("The IR version was not found within the runtime information attributes. The NPU plugin will "
-//                    "continue execution assuming the version is 11. If wrong, compilation issues may occur.");
-//     return 11;
-// }
-
 void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredConfig& config) {
     // Initialize (note: it will reset registered options)
     options.reset();

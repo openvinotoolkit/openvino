@@ -33,8 +33,9 @@ namespace compiler_utils {
  *
  * @param compilerVersion The compiler version reported by the driver.
  * @param supportedOpsetVersion The last operators set version supported by the compiler.
- * @param useBaseModelSerializer "true" means the legacy serializer will be used (weights will be copied), "false" means
- * the optimized one is used instead (weights pointers are stored instead).
+ * @param config Configuration object that is used to determine which version of the model marshalling algorithm will be
+ * used. This is determined based on the presence & value of the "ov::intel_npu::ModelSerializerVersion" config option,
+ * as well as the support offered by the driver-compiler adapter.
  * @param computeModelHash If true, a hash of the model will also be returned.
  * @param storeWeightlessCacheAttribute If true, the returned serialized model will also contain within its runtime
  * information the WeightlessCacheAttributes stored using a custom format. This format can be interpreted by the
@@ -42,12 +43,14 @@ namespace compiler_utils {
  *
  * @returns The serialized model, along with its size and hash
  */
-SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
-                         ze_graph_compiler_version_info_t compilerVersion,
-                         const uint32_t supportedOpsetVersion = 11,
-                         const bool useBaseModelSerializer = true,
-                         const bool computeModelHash = false,
-                         const bool storeWeightlessCacheAttribute = false);
+SerializedIR serializeIR(
+    const std::shared_ptr<const ov::Model>& model,
+    ze_graph_compiler_version_info_t compilerVersion,
+    const uint32_t supportedOpsetVersion,
+    const ov::intel_npu::ModelSerializerVersion serializerVersion,
+    const std::function<bool(std::string, std::optional<std::string>)>& isOptionSupportedByCompiler = nullptr,
+    const bool computeModelHash = false,
+    const bool storeWeightlessCacheAttribute = false);
 
 /**
  * @brief Serialize input / output information to string format.

@@ -660,7 +660,7 @@ bool VCLCompilerImpl::get_supported_options(std::vector<char>& options) const {
     return false;
 }
 
-bool VCLCompilerImpl::is_option_supported(const std::string& option, std::optional<std::string> optValue) const {
+bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std::string> optValue) const {
     try {
         const char* optname_ch = option.c_str();
         const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
