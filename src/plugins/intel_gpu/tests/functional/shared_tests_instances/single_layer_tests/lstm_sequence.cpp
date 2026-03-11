@@ -5,6 +5,7 @@
 #include "single_op_tests/lstm_sequence.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
@@ -131,7 +132,28 @@ std::vector<std::vector<std::string>> activations_cm = {{"sigmoid", "tanh", "tan
 std::vector<float> clip_cm{0};
 std::vector<ov::element::Type> netPrecisions_cm = {ov::element::f16};
 
-INSTANTIATE_TEST_SUITE_P(LSTMSequenceCM, LSTMSequenceGPUTest,
+class LSTMSequenceGPUTestCM : public LSTMSequenceTest {
+     void SetUp() override {
+        const auto params = this->GetParam();
+        const auto device_name = std::get<10>(params);
+        const auto arch = core->get_property("GPU", ov::intel_gpu::uarch_version);
+        const auto pos = arch.find('.');
+        const auto major_version = arch.substr(0, pos);
+        if (major_version != "20") { //only xe2
+            GTEST_SKIP();
+        }
+        LSTMSequenceTest::SetUp();
+        rel_threshold = 0.03f;
+        abs_threshold = 0.0025f;
+        convert_precisions[ov::element::f16] = ov::element::f32;
+     }
+};
+
+TEST_P(LSTMSequenceGPUTestCM, Inference) {
+    run();
+};
+
+INSTANTIATE_TEST_SUITE_P(LSTMSequenceCM, LSTMSequenceGPUTestCM,
                         ::testing::Combine(
                                 ::testing::Values(ov::test::utils::SequenceTestsMode::PURE_SEQ),
                                 ::testing::ValuesIn(seq_lengths_cm),
