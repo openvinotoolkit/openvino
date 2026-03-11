@@ -213,7 +213,9 @@ void ZeroDynamicInferRequest::predict_shapes(std::vector<IDynamicGraph::MemRefTy
             auto& userTensor = get_user_input(i);
             if (userTensor != nullptr) {
                 // If userTensor is set, use userTensor to update memref handle
-                inputPros[i].set(get_tensor_data_ptr(userTensor._ptr), 0, userTensor._ptr);
+                const auto userTensorPtr = userTensor._ptr;
+                OPENVINO_ASSERT(userTensorPtr != nullptr, "Input user tensor pointer is null");
+                inputPros[i].set(get_tensor_data_ptr(userTensorPtr), 0, userTensorPtr);
             } else if (levelZeroTensor != nullptr) {
                 // If userTensor is not set, use levelZeroTensor to update memref handle
                 inputPros[i].set(get_tensor_data_ptr(levelZeroTensor), 0, levelZeroTensor);
@@ -233,7 +235,9 @@ void ZeroDynamicInferRequest::predict_shapes(std::vector<IDynamicGraph::MemRefTy
             auto& userTensor = _userOutputTensors.at(i);
             if (userTensor != nullptr) {
                 // If userTensor is set, use userTensor to update memref handle
-                outputProps[i].set(get_tensor_data_ptr(userTensor._ptr), 0, userTensor._ptr);
+                const auto userTensorPtr = userTensor._ptr;
+                OPENVINO_ASSERT(userTensorPtr != nullptr, "Output user tensor pointer is null");
+                outputProps[i].set(get_tensor_data_ptr(userTensorPtr), 0, userTensorPtr);
             } else if (levelZeroTensor != nullptr) {
                 // If userTensor is not set, use levelZeroTensor to update memref handle
                 outputProps[i].set(get_tensor_data_ptr(levelZeroTensor), 0, levelZeroTensor);
