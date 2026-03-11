@@ -97,7 +97,7 @@ The relative order of equivalent elements is only preserved if the ``stable`` at
 
 **NaN Handling**
 
-For floating-point types, NaN values are treated as smaller than any valid number (consistent with NumPy behavior). In ``max`` mode, NaN values will not appear in top-K results unless fewer than K valid numbers exist. Note that this differs from PyTorch, which treats NaN as larger than all valid numbers.
+For floating-point types, the ordering of NaN values in the output is implementation-defined. Per IEEE 754, NaN fails all ordered comparisons, so there is no single correct placement for NaN in a sorted result. Different frameworks (e.g., NumPy, PyTorch) handle NaN differently, and the TopK implementation does not guarantee a specific NaN ordering. If deterministic behavior is required, NaN values should be sanitized before the TopK operation (e.g., replaced with ``-inf`` or ``+inf`` depending on the desired placement).
 
 The "by index" order means that the input tensor's elements are still sorted by value but their order in the output tensor is additionally determined by the indices of those elements in the input tensor. This might yield multiple correct results though. For example if the input tensor contains the following elements:
 
