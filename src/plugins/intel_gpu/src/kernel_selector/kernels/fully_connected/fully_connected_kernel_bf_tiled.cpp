@@ -961,8 +961,12 @@ void FullyConnected_bf_tiled::SetDispatchDataFunc(KernelData& kd, const Dispatch
 
 // Reconstruct DispatchIndices for deserialization path (load()).
 // At build time, GetMultiKernelsData returns indices explicitly.
-// Layout: quantize(0) | default(1) | [optional:slm] | [optional:dyn_b]
-// dyn_b is identified by having no INTERNAL_BUFFER arguments (it reads the original F16 input).
+// Layout:
+//   dyn-quantize path: quantize(0) | default(1) | [optional:slm] | [optional:dyn_b]
+//   non-dyn-quantize:  default(0) | [optional:slm] | [optional:dyn_b]
+// dyn_b is the last kernel when it has no INTERNAL_BUFFER args but the default_fc kernel does
+// (only possible in dyn-quantize path where default_fc uses quantized internal buffers).
+// In non-dyn-quantize path, no kernel has INTERNAL_BUFFER, so extra kernels are SLM only.
 void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
     if (kd.kernels.size() == 1) {
         Parent::GetUpdateDispatchDataFunc(kd);
@@ -975,20 +979,39 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
     int32_t total = static_cast<int32_t>(kd.kernels.size());
     if (total > idx.default_fc + 1) {
-        int32_t last = total - 1;
-        bool last_has_internal_buffer = false;
-        for (const auto& arg : kd.kernels[last].params.arguments) {
+        // Check if default_fc kernel uses INTERNAL_BUFFER (dyn-quantize path)
+        bool default_has_internal_buffer = false;
+        for (const auto& arg : kd.kernels[idx.default_fc].params.arguments) {
             if (arg.t == ArgumentDescriptor::Types::INTERNAL_BUFFER) {
-                last_has_internal_buffer = true;
+                default_has_internal_buffer = true;
                 break;
             }
         }
-        if (!last_has_internal_buffer && !kd.internalBuffers.empty()) {
-            idx.dyn_b = last;
-            if (last > idx.default_fc + 1)
+
+        if (default_has_internal_buffer) {
+            // dyn-quantize path: last kernel without INTERNAL_BUFFER is dyn_b
+            int32_t last = total - 1;
+            bool last_has_internal_buffer = false;
+            for (const auto& arg : kd.kernels[last].params.arguments) {
+                if (arg.t == ArgumentDescriptor::Types::INTERNAL_BUFFER) {
+                    last_has_internal_buffer = true;
+                    break;
+                }
+            }
+            if (!last_has_internal_buffer) {
+                idx.dyn_b = last;
+                if (last > idx.default_fc + 1)
+                    idx.slm = idx.default_fc + 1;
+            } else {
                 idx.slm = idx.default_fc + 1;
+            }
         } else {
+            // non-dyn-quantize path: extra kernels are SLM only (dyn_b never has INTERNAL_BUFFER
+            // and neither do other kernels, so we cannot distinguish — but dyn_b is always last
+            // and is only added when SLM is also present in this path)
             idx.slm = idx.default_fc + 1;
+            if (total > idx.default_fc + 2)
+                idx.dyn_b = total - 1;
         }
     }
 
@@ -1076,12 +1099,18 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
                 }
             }
 
-            // Try to add dyn_b kernel for batch-optimal runtime dispatch
-            FullyConnected_bf_tiled_dyn_b dyn_b_impl;
-            auto dyn_b_kd = dyn_b_impl.GetKernelsData(params);
-            if (!dyn_b_kd.empty() && !dyn_b_kd[0].kernels.empty()) {
-                kernels_data[0].kernels.push_back(dyn_b_kd[0].kernels.back());
-                idx.dyn_b = static_cast<int32_t>(kernels_data[0].kernels.size()) - 1;
+            // Try to add dyn_b kernel for batch-optimal runtime dispatch.
+            // Only add when SLM is present — deserialization relies on default_fc having
+            // INTERNAL_BUFFER args (dyn-quantize path) to distinguish dyn_b from SLM.
+            // In non-dyn-quantize path, no kernel has INTERNAL_BUFFER, so dyn_b is only
+            // identifiable when it follows an SLM kernel (3-kernel layout: default|slm|dyn_b).
+            if (idx.slm >= 0) {
+                FullyConnected_bf_tiled_dyn_b dyn_b_impl;
+                auto dyn_b_kd = dyn_b_impl.GetKernelsData(params);
+                if (!dyn_b_kd.empty() && !dyn_b_kd[0].kernels.empty()) {
+                    kernels_data[0].kernels.push_back(dyn_b_kd[0].kernels.back());
+                    idx.dyn_b = static_cast<int32_t>(kernels_data[0].kernels.size()) - 1;
+                }
             }
 
             // Update default update_dispatch_data_func function
