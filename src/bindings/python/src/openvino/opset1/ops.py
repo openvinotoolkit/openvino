@@ -333,7 +333,7 @@ def concat(nodes: list[NodeInput], axis: int, name: Optional[str] = None) -> Nod
 
 @nameable_op
 def constant(
-    value: Union[NumericData, np.number, bool, np.bool_, list],
+    value: Union[NumericData, np.number, bool, np.bool_, list, tuple],
     dtype: Union[NumericType, Type] = None,
     name: Optional[str] = None,
 ) -> Constant:
