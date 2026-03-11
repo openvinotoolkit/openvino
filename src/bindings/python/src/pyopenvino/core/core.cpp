@@ -520,7 +520,7 @@ void regclass_Core(py::module m) {
             GIL is released while running this function.
 
             :param model: A path to a model in IR / ONNX / PDPD / TF and TFLite format or a model itself wrapped in io.ByesIO format.
-            :type model: Union[ pathlib.Path, io.BytesIO]
+            :type model: Union[pathlib.Path, io.BytesIO]
             :param weights: A path to a data file For IR format (*.bin): if path is empty,
                             it tries to read a bin file with the same name as xml and if the bin
                             file with the same name was not found, loads IR without weights.
@@ -528,7 +528,7 @@ void regclass_Core(py::module m) {
                             For PDPD format (*.pdmodel) weights parameter is not used.
                             For TF format (*.pb): weights parameter is not used.
                             For TFLite format (*.tflite) weights parameter is not used.
-            :type weights: Union[ pathlib.Path, io.BytesIO]
+            :type weights: Union[pathlib.Path, io.BytesIO]
             :param config: Optional map of pairs: (property name, property value) relevant only for this read operation.
             :type config: dict[str, typing.Any], optional
             :return: A model.
@@ -714,9 +714,9 @@ void regclass_Core(py::module m) {
             R"(
                 Registers an extension to a Core object.
 
-            :param library_path: Path to library with ov::Extension
-            :type library_path: str
-        )");
+                :param library_path: Path to library with ov::Extension
+                :type library_path: str
+            )");
 
     cls.def("add_extension",
             static_cast<void (ov::Core::*)(const std::shared_ptr<ov::Extension>&)>(&ov::Core::add_extension),
@@ -742,8 +742,7 @@ void regclass_Core(py::module m) {
     cls.def(
         "add_extension",
         [](ov::Core& self, py::object dtype) {
-            if (py::isinstance(dtype, py::module_::import("pathlib").attr("Path")) ||
-                py::isinstance<py::bytes>(dtype)) {
+            if (py::isinstance(dtype, py::module_::import("pathlib").attr("Path"))) {
                 self.add_extension(Common::utils::to_fs_path(dtype));
             } else {
                 self.add_extension(PyOpExtension(dtype));

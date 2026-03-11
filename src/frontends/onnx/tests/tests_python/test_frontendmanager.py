@@ -66,6 +66,8 @@ def test_register_front_end_with_pathlib_path():
     assert fe is not None
     assert fe.get_name() == MOCK_PY_FRONTEND_NAME
 
+    del fe
+
 
 def test_load_by_unknown_framework():
     frontends = fem.get_available_front_ends()
