@@ -28,5 +28,6 @@ INSTANTIATE_TEST_SUITE_P(
         // Simulate PV driver having 1.5 graph extension version and no mutable command list extension version
         ::testing::ValuesIn(std::vector<std::pair<uint32_t, uint32_t>>{
             {ZE_GRAPH_EXT_VERSION_1_5, ZE_MAKE_VERSION(0, 0)},
-            {TARGET_ZE_GRAPH_NPU_EXT_VERSION, TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION}})),
+            {intel_npu::test_constants::TARGET_ZE_GRAPH_NPU_EXT_VERSION,
+             intel_npu::test_constants::TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION}})),
     ZeroInferRequestTests::getTestCaseName);

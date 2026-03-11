@@ -41,8 +41,7 @@ public:
      * @param init_structs Shared pointer to ZeroInitStructsHolder
      * @param user_tensor Tensor to create ZeroTensor from
      */
-    ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-               const ov::SoPtr<ov::ITensor>& user_tensor);
+    ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const ov::SoPtr<ov::ITensor>& user_tensor);
 
     void* data() override;
     void* data(const ov::element::Type& type) override;
@@ -55,6 +54,14 @@ public:
 
     const ov::element::Type& get_element_type() const override;
 
+    /**
+     * @brief Special-purpose override for the tensor element type.
+     *
+     * This API is intended only for the narrow boolean/u8 handling case used by
+     * the Zero inference pipeline. It must not be used as a general-purpose
+     * element type mutator. The implementation asserts that only the supported
+     * conversion(s) are requested and may fail if used with other element types.
+     */
     void set_element_type(const ov::element::Type& element_type);
 
     const ov::Shape& get_shape() const override;

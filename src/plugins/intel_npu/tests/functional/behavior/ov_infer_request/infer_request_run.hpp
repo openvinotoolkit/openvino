@@ -18,7 +18,6 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
-#include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 #include "openvino/core/any.hpp"
@@ -28,7 +27,6 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
-#include "openvino/runtime/make_tensor.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
@@ -196,72 +194,6 @@ protected:
         return model;
     }
 
-    auto allocate_tensors() -> std::tuple</* importMemoryBatched */ ov::Tensor,
-                                          /* importMemoryTensor_1 */ ov::Tensor,
-                                          /* importMemoryTensor_2 */ ov::Tensor,
-                                          /* unalignedBatchedTensor */ ov::Tensor,
-                                          /* unalignedTensor_1 */ ov::Tensor,
-                                          /* unalignedTensor_2 */ ov::Tensor> {
-        auto model_shape = ov_model->get_parameters()[0]->get_shape();
-        ov::Coordinate start_coordinate{model_shape};
-        ov::Coordinate stop_coordinate{model_shape};
-        start_coordinate[0] = 1;
-        stop_coordinate[0] = 2;
-        ov::Allocator alignedAllocator{::intel_npu::utils::AlignedAllocator{::intel_npu::utils::STANDARD_PAGE_SIZE}};
-        ov::Tensor importMemoryBatchedTensor(ov::element::boolean, model_shape, alignedAllocator);
-        ov::Tensor importMemoryTensor_1(importMemoryBatchedTensor, ov::Coordinate{0, 0, 0, 0}, start_coordinate);
-        ov::Tensor importMemoryTensor_2(importMemoryBatchedTensor, ov::Coordinate{1, 0, 0, 0}, stop_coordinate);
-        void* alignedAddr = ::operator new(ov::element::boolean.size() * ov::shape_size(model_shape) + 1,
-                                           std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
-        void* unalignedAddr = static_cast<uint8_t*>(alignedAddr) + 1;
-        std::shared_ptr<void> deallocateAddressCallback(alignedAddr, [](void* ptr) {
-            ::operator delete(ptr, std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
-        });
-        auto unalignedBatchedTensorImpl =
-            ov::get_tensor_impl(ov::Tensor(ov::element::boolean, model_shape, unalignedAddr));
-        unalignedBatchedTensorImpl._so = deallocateAddressCallback;
-        ov::Tensor unalignedBatchedTensor = ov::make_tensor(unalignedBatchedTensorImpl);
-        ov::Tensor unalignedTensor_1(unalignedBatchedTensor, ov::Coordinate{0, 0, 0, 0}, start_coordinate);
-        ov::Tensor unalignedTensor_2(unalignedBatchedTensor, ov::Coordinate{1, 0, 0, 0}, stop_coordinate);
-
-        return {importMemoryBatchedTensor,
-                importMemoryTensor_1,
-                importMemoryTensor_2,
-                unalignedBatchedTensor,
-                unalignedTensor_1,
-                unalignedTensor_2};
-    };
-
-    auto set_tensor_and_infer(ov::InferRequest& infer_request,
-                              const bool should_infer,
-                              const ov::Output<const ov::Node>& port,
-                              const ov::Tensor& tensor,
-                              const std::function<void(void)>& reset_cb) -> void {
-        infer_request.set_tensor(port, tensor);
-        if (should_infer) {
-            infer_request.infer();
-        }
-
-        if (withResetInferRequest) {
-            reset_cb();
-        }
-    };
-
-    auto set_tensors_and_infer(ov::InferRequest& infer_request,
-                               const bool should_infer,
-                               const ov::Output<const ov::Node>& port,
-                               const std::vector<ov::Tensor>& tensors,
-                               const std::function<void(void)>& reset_cb) -> void {
-        infer_request.set_tensors(port, tensors);
-        if (should_infer) {
-            infer_request.infer();
-        }
-
-        if (withResetInferRequest) {
-            reset_cb();
-        }
-    };
-
 public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
@@ -341,7 +273,7 @@ TEST_P(BooleanPrecisionInferRequestRunTests, BooleanTensorDataTypesForBooleanMod
     // TODO: Also test createTwoInputLessEqualModel model when we have compiler support
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::CompiledModel compiled_model_boolean, compiled_model_boolean_imported;
-    ov::InferRequest infer_request_boolean, infer_request_boolean_imported;
+    std::shared_ptr<ov::InferRequest> infer_request_boolean, infer_request_boolean_imported;
 
     try {
         (void)core->get_property(target_device, ov::intel_npu::batch_mode);
@@ -367,18 +299,20 @@ TEST_P(BooleanPrecisionInferRequestRunTests, BooleanTensorDataTypesForBooleanMod
         std::stringstream ss;
         compiled_model_boolean.export_model(ss);
         OV_ASSERT_NO_THROW(compiled_model_boolean_imported = core->import_model(ss, target_device, configuration));
-        infer_request_boolean_imported = compiled_model_boolean_imported.create_infer_request();
+        infer_request_boolean_imported =
+            std::make_shared<ov::InferRequest>(compiled_model_boolean_imported.create_infer_request());
     }
-    infer_request_boolean = compiled_model_boolean.create_infer_request();
+    infer_request_boolean = std::make_shared<ov::InferRequest>(compiled_model_boolean.create_infer_request());
 
     const auto infer_requests =
-        (isPVDriver ? std::vector<ov::InferRequest>{infer_request_boolean}
-                    : std::vector<ov::InferRequest>{infer_request_boolean, infer_request_boolean_imported});
+        (isPVDriver
+             ? std::vector<std::shared_ptr<ov::InferRequest>>{infer_request_boolean}
+             : std::vector<std::shared_ptr<ov::InferRequest>>{infer_request_boolean, infer_request_boolean_imported});
 
     for (auto infer_request : infer_requests) {
         auto reset_infer_request_cb = [&infer_request]() {
-            auto compiled_model = infer_request.get_compiled_model();
-            infer_request = compiled_model.create_infer_request();
+            auto compiled_model = infer_request->get_compiled_model();
+            infer_request = std::make_shared<ov::InferRequest>(compiled_model.create_infer_request());
         };
 
         auto [importMemoryBatchedTensor,
@@ -386,46 +320,56 @@ TEST_P(BooleanPrecisionInferRequestRunTests, BooleanTensorDataTypesForBooleanMod
               importMemoryTensor_2,
               unalignedBatchedTensor,
               unalignedTensor_1,
-              unalignedTensor_2] = allocate_tensors();
+              unalignedTensor_2] = ov::test::utils::allocate_tensors(ov_model, ov::element::boolean);
 
         if (withWarmUpInfer) {
-            infer_request.infer();
+            infer_request->infer();
         }
 
-        const auto& compiled_model = infer_request.get_compiled_model();
+        const auto& compiled_model = infer_request->get_compiled_model();
 
-        OV_ASSERT_NO_THROW(set_tensors_and_infer(infer_request,
-                                                 /* should_infer = */ false,
-                                                 compiled_model.input(0),
-                                                 {importMemoryTensor_1, unalignedTensor_2},
-                                                 reset_infer_request_cb));
-        OV_ASSERT_NO_THROW(set_tensors_and_infer(infer_request,
-                                                 /* should_infer = */ true,
-                                                 compiled_model.input(1),
-                                                 {importMemoryTensor_2, unalignedTensor_1},
-                                                 reset_infer_request_cb));
+        OV_ASSERT_NO_THROW(
+            ov::test::utils::set_tensors_and_infer(infer_request,
+                                                   /* should_infer = */ false,
+                                                   withResetInferRequest,
+                                                   compiled_model.input(0),
+                                                   std::vector<ov::Tensor>{importMemoryTensor_1, unalignedTensor_2},
+                                                   reset_infer_request_cb));
+        OV_ASSERT_NO_THROW(
+            ov::test::utils::set_tensors_and_infer(infer_request,
+                                                   /* should_infer = */ true,
+                                                   withResetInferRequest,
+                                                   compiled_model.input(1),
+                                                   std::vector<ov::Tensor>{importMemoryTensor_2, unalignedTensor_1},
+                                                   reset_infer_request_cb));
 
-        OV_ASSERT_NO_THROW(set_tensor_and_infer(infer_request,
-                                                /* should_infer = */ false,
-                                                compiled_model.input(0),
-                                                importMemoryBatchedTensor,
-                                                reset_infer_request_cb));
-        OV_ASSERT_NO_THROW(set_tensor_and_infer(infer_request,
-                                                /* should_infer = */ true,
-                                                compiled_model.input(1),
-                                                unalignedBatchedTensor,
-                                                reset_infer_request_cb));
+        OV_ASSERT_NO_THROW(ov::test::utils::set_tensor_and_infer(infer_request,
+                                                                 /* should_infer = */ false,
+                                                                 withResetInferRequest,
+                                                                 compiled_model.input(0),
+                                                                 importMemoryBatchedTensor,
+                                                                 reset_infer_request_cb));
+        OV_ASSERT_NO_THROW(ov::test::utils::set_tensor_and_infer(infer_request,
+                                                                 /* should_infer = */ true,
+                                                                 withResetInferRequest,
+                                                                 compiled_model.input(1),
+                                                                 unalignedBatchedTensor,
+                                                                 reset_infer_request_cb));
 
-        OV_ASSERT_NO_THROW(set_tensors_and_infer(infer_request,
-                                                 /* should_infer = */ false,
-                                                 compiled_model.input(0),
-                                                 {unalignedTensor_1, importMemoryTensor_1},
-                                                 reset_infer_request_cb));
-        OV_ASSERT_NO_THROW(set_tensors_and_infer(infer_request,
-                                                 /* should_infer = */ true,
-                                                 compiled_model.input(1),
-                                                 {unalignedTensor_2, importMemoryTensor_2},
-                                                 reset_infer_request_cb));
+        OV_ASSERT_NO_THROW(
+            ov::test::utils::set_tensors_and_infer(infer_request,
+                                                   /* should_infer = */ false,
+                                                   withResetInferRequest,
+                                                   compiled_model.input(0),
+                                                   std::vector<ov::Tensor>{unalignedTensor_1, importMemoryTensor_1},
+                                                   reset_infer_request_cb));
+        OV_ASSERT_NO_THROW(
+            ov::test::utils::set_tensors_and_infer(infer_request,
+                                                   /* should_infer = */ true,
+                                                   withResetInferRequest,
+                                                   compiled_model.input(1),
+                                                   std::vector<ov::Tensor>{unalignedTensor_2, importMemoryTensor_2},
+                                                   reset_infer_request_cb));
     }  // for infer_request
 }
 

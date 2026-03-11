@@ -86,7 +86,8 @@ protected:
         blob = nullptr;
 
         std::shared_ptr<ZeroInitStructsMock> zeroInitMock =
-            std::make_shared<ZeroInitStructsMock>(TARGET_ZE_DRIVER_NPU_EXT_VERSION, zeGraphNpuExtVersion);
+            std::make_shared<ZeroInitStructsMock>(::intel_npu::test_constants::TARGET_ZE_DRIVER_NPU_EXT_VERSION,
+                                                  zeGraphNpuExtVersion);
         zeroInitStruct = std::reinterpret_pointer_cast<ZeroInitStructsHolder>(zeroInitMock);
         zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
     }

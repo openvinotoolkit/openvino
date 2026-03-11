@@ -7,10 +7,12 @@
 #include <string>
 
 #include "intel_npu/npu_private_properties.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 std::string getBackendName(const ov::Core& core) {
     return core.get_property("NPU", ov::intel_npu::backend_name.name()).as<std::string>();
@@ -132,3 +134,41 @@ std::shared_ptr<ov::Model> createModelWithStates(ov::element::Type type, const o
     auto function = std::make_shared<ov::Model>(ov::OutputVector{sigm}, ov::ParameterVector{input}, "add_output");
     return function;
 }
+namespace ov {
+
+namespace test {
+
+namespace utils {
+
+std::tuple<ov::Tensor, ov::Tensor, ov::Tensor, ov::Tensor, ov::Tensor, ov::Tensor> allocate_tensors(
+    const std::shared_ptr<ov::Model>& model,
+    const ov::element::Type& element_type) {
+    auto model_shape = model->get_parameters()[0]->get_shape();
+    ov::Coordinate start_coordinate{model_shape};
+    ov::Coordinate stop_coordinate{model_shape};
+    start_coordinate[0] = 1;
+    stop_coordinate[0] = 2;
+
+    ov::Allocator alignedAllocator{::intel_npu::utils::AlignedAllocator{::intel_npu::utils::STANDARD_PAGE_SIZE}};
+    ov::Tensor importMemoryBatchedTensor(element_type, model_shape, alignedAllocator);
+    ov::Tensor importMemoryTensor_1(importMemoryBatchedTensor, ov::Coordinate{0, 0, 0, 0}, start_coordinate);
+    ov::Tensor importMemoryTensor_2(importMemoryBatchedTensor, ov::Coordinate{1, 0, 0, 0}, stop_coordinate);
+
+    ov::Allocator unAlignedAllocator{DefaultAllocatorNotAligned{}};
+    ov::Tensor unalignedBatchedTensor(element_type, model_shape, unAlignedAllocator);
+    ov::Tensor unalignedTensor_1(unalignedBatchedTensor, ov::Coordinate{0, 0, 0, 0}, start_coordinate);
+    ov::Tensor unalignedTensor_2(unalignedBatchedTensor, ov::Coordinate{1, 0, 0, 0}, stop_coordinate);
+
+    return {importMemoryBatchedTensor,
+            importMemoryTensor_1,
+            importMemoryTensor_2,
+            unalignedBatchedTensor,
+            unalignedTensor_1,
+            unalignedTensor_2};
+};
+
+}  // namespace utils
+
+}  // namespace test
+
+}  // namespace ov
