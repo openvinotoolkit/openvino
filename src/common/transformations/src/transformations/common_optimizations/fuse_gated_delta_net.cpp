@@ -52,7 +52,8 @@ namespace v1 = ov::op::v1;
 
 namespace {
 
-bool matches_linear_attention_loop(const std::shared_ptr<ov::op::v5::Loop>& loop) {
+bool matches_linear_attention_loop(const std::shared_ptr<ov::Node>& node) {
+    auto loop = ov::as_type_ptr<ov::op::v5::Loop>(node);
     if (!loop) {
         return false;
     }
@@ -166,10 +167,10 @@ ov::pass::RemoveConcatSliceAfterLoop::RemoveConcatSliceAfterLoop() {
     auto reshape_core_state = pattern::wrap_type<v1::Reshape>({loop_output1, {-1}});
     auto concat_loop = makeOP<v0::Concat>({reshape_core_attn, reshape_core_state}, {{"axis", 0}});
     auto slice_attn = pattern::wrap_type<ov::op::v8::Slice>({concat_loop, {0}, any_input(), {1}, {0}});
-    auto reshape_attn = pattern::wrap_type<opset1::Reshape>({slice_attn, any_input()},
-                                                            pattern::shape_matches("[?, head_num, ?, v_head_size]"));
+    auto reshape_attn = pattern::wrap_type<v1::Reshape>({slice_attn, any_input()},
+                                                        pattern::shape_matches("[?, head_num, ?, v_head_size]"));
     auto slice_state = pattern::wrap_type<ov::op::v8::Slice>({concat_loop, any_input(), {LLONG_MAX}, {1}, {0}});
-    auto reshape_state = pattern::wrap_type<opset1::Reshape>({slice_state, any_input()});
+    auto reshape_state = pattern::wrap_type<v1::Reshape>({slice_state, any_input()});
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         bool changed = false;
@@ -223,8 +224,7 @@ ov::pass::FuseGDNLoop::FuseGDNLoop() {
                      init_state,
                      any_input()},
         pattern::output_index_matches(0) && [](std::shared_ptr<ov::Node> node) -> bool {
-            auto loop = ov::as_type_ptr<ov::op::v5::Loop>(node);
-            return matches_linear_attention_loop(loop);
+            return matches_linear_attention_loop(node);
         });
 
     auto transpose_loop_out = pattern::wrap_type<v1::Transpose>({loop_output0, {0, 2, 1, 3}});
