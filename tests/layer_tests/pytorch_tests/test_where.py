@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class Testwhere(PytorchLayerTest):
@@ -14,10 +14,10 @@ class Testwhere(PytorchLayerTest):
         if mask_fill == 'ones':
             mask = np.ones(input_shape).astype(mask_dtype)
         if mask_fill == 'random':
-            idx = np.random.choice(10, 5)
+            idx = self.random.choice(10, 5)
             mask[:, idx] = 1
-        x = np.random.randn(*input_shape).astype(x_dtype)
-        y = np.random.randn(*input_shape).astype(y_dtype or x_dtype)
+        x = self.random.randn(*input_shape, dtype=x_dtype)
+        y = self.random.randn(*input_shape, dtype=y_dtype or x_dtype)
         return (mask,) if not return_x_y else (mask, x, y)
 
     def create_model(self, as_non_zero, dtypes=None):
@@ -46,19 +46,19 @@ class Testwhere(PytorchLayerTest):
             def forward(self, cond):
                 return torch.where(cond)
 
-        ref_net = None
 
         if as_non_zero:
-            return aten_where_as_nonzero(), ref_net, "aten::where"
-        return aten_where(torch_dtypes), ref_net, "aten::where"
+            return aten_where_as_nonzero(), "aten::where"
+        return aten_where(torch_dtypes), "aten::where"
 
     @pytest.mark.parametrize(
         "mask_fill", ['zeros', 'ones', 'random'])
-    @pytest.mark.parametrize("mask_dtype", [np.uint8, bool])  # np.float32 incorrectly casted to bool
+    @pytest.mark.parametrize("mask_dtype", [skip_if_export(np.uint8, reason="torch.export requires bool predicate for where"), bool])
     @pytest.mark.parametrize("x_dtype", ["float32", "int32"])
     @pytest.mark.parametrize("y_dtype", ["float32", "int32"])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_where(self, mask_fill, mask_dtype, x_dtype, y_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(False, dtypes=(x_dtype, y_dtype)),
                    ie_device, precision, ir_version,

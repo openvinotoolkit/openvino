@@ -75,8 +75,9 @@ class BaseFXDecoder(Decoder):
         elif isinstance(arg, float):
             return make_constant(OVType.f32, Shape([]), [arg])
         elif isinstance(arg, str):
-            u8_tensor = torch.frombuffer(str.encode(arg), dtype=torch.uint8)
-            return torch_tensor_to_ov_const(u8_tensor, shared_memory=True)
+            buf = bytearray(arg, "utf-8")
+            u8_tensor = torch.frombuffer(buf, dtype=torch.uint8)
+            return torch_tensor_to_ov_const(u8_tensor, shared_memory=False)
         return None
 
     @staticmethod
@@ -262,7 +263,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                     self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
 
     @classmethod
-    def from_exported_program(cls, exported_program: torch.export.ExportedProgram) -> "TorchFXPythonDecoder":
+    def from_exported_program(
+        cls, exported_program: torch.export.ExportedProgram, dynamic_shapes=True
+    ) -> "TorchFXPythonDecoder":
         """Create a TorchFXPythonDecoder instance from an exported PyTorch program."""
         from packaging import version
         if version.parse(torch.__version__) >= version.parse("2.6"):
@@ -283,7 +286,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             exported_program = exported_program.run_decompositions(decomp_table=decomp)
         gm = exported_program.module()
         logger.debug(gm.code)
-        return cls(gm, dynamic_shapes=True)
+        return cls(gm, dynamic_shapes=dynamic_shapes)
 
     @staticmethod
     def get_found_shape(value) -> str:

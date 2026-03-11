@@ -123,6 +123,7 @@ DEFINE_OPT(NPUW_MOE_POOL_SIZE, std::size_t, 8, npuw::partitioning::moe_pool_size
 DEFINE_OPT(NPUW_ATTN, std::string, "STATIC", npuw::partitioning::attn, RunTime);
 DEFINE_OPT(NPUW_ATTN_DYN, bool, true, npuw::partitioning::attn_dyn, RunTime);
 DEFINE_OPT(NPUW_ATTN_NO_COPY, bool, false, npuw::partitioning::attn_no_copy, RunTime);
+DEFINE_OPT(NPUW_ATTN_HFA_FUSED, bool, false, npuw::partitioning::attn_hfa_fused, RunTime);
 DEFINE_OPT(NPUW_DCOFF_TYPE, std::string, "", npuw::partitioning::dcoff_type, RunTime);
 DEFINE_OPT(NPUW_DCOFF_SCALE, bool, false, npuw::partitioning::dcoff_with_scale, RunTime);
 DEFINE_OPT(NPUW_FUNCALL_FOR_ALL, bool, false, npuw::partitioning::funcall_for_all, RunTime);
@@ -162,6 +163,7 @@ DEFINE_OPT(NPUW_LLM_ENABLE_PREFIX_CACHING, bool, false, npuw::llm::enable_prefix
 DEFINE_OPT(NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE, uint64_t, 256, npuw::llm::prefix_caching_block_size, RunTime);
 DEFINE_OPT(NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS, uint64_t, 128, npuw::llm::prefix_caching_max_num_blocks, RunTime);
 DEFINE_OPT(NPUW_WHISPER, bool, false, npuw::whisper::enabled, RunTime);
+DEFINE_OPT(NPUW_WHISPER_EOS_TOKEN, uint64_t, 50257, npuw::whisper::whisper_eos_token, RunTime);
 DEFINE_OPT(NPUW_EAGLE, bool, false, npuw::eagle::enabled, RunTime);
 DEFINE_OPT(NPUW_TEXT_EMBED, bool, false, npuw::text_embed::enabled, RunTime);
 DEFINE_ANYMAP_OPT(NPUW_LLM_PREFILL_CONFIG, npuw::llm::prefill_config);

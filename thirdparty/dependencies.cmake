@@ -51,6 +51,10 @@ if(NOT ENABLE_PROFILING_ITT STREQUAL "OFF")
         endif()
     else()
         add_subdirectory(thirdparty/ittapi)
+        ov_developer_package_export_targets(
+            TARGET ittapi::ittnotify
+            INSTALL_INCLUDE_DIRECTORIES
+                $<TARGET_PROPERTY:ittapi::ittnotify,INTERFACE_INCLUDE_DIRECTORIES>/)
     endif()
     add_subdirectory(thirdparty/itt_collector)
 endif()
@@ -68,7 +72,7 @@ endif()
 # LevelZero
 #
 
-if(ENABLE_INTEL_NPU)
+if(ENABLE_INTEL_GPU OR ENABLE_INTEL_NPU)
     if(ENABLE_SYSTEM_LEVEL_ZERO)
         pkg_search_module(level_zero QUIET
                           IMPORTED_TARGET
