@@ -775,6 +775,10 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                 }
                 break;  // output node without ext_block — stop probing
             }
+            // Stop at runtime-skippable nodes: their can_be_optimized() is
+            // tentative and may flip to false once their prepare_primitive runs.
+            if (next->get_node().is_runtime_skippable())
+                break;
             cursor = next;
         }
     }

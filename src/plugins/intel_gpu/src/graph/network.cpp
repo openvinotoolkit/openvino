@@ -692,15 +692,23 @@ void network::invalidate_ext_block_compute_nodes(const primitive_id& output_id) 
     // Clear its _outputs[0] so that prepare_primitive's null-check triggers
     // realloc_if_needed, which will re-probe forward and pick up the new ext_block
     // buffer after a double-buffer flip.
+    //
+    // Stop at runtime-skippable nodes: they may have had can_be_optimized flipped
+    // to false by do_runtime_skip_*() and should not participate in the ext_block chain.
     auto cursor = find_primitive(output_id);
     while (cursor->can_be_optimized() && !cursor->dependencies().empty()) {
         cursor->clear_output_memory();
         GPU_DEBUG_TRACE_DETAIL << "[double-buffer] cleared output memory on optimized node " << cursor->id() << std::endl;
         auto dep_id = cursor->dependencies().front().first->id();
-        cursor = find_primitive(dep_id);
+        auto dep = find_primitive(dep_id);
+        // Stop before runtime-skippable nodes: their can_be_optimized() may
+        // have been re-evaluated at runtime — they are the compute boundary.
+        if (dep->get_node().is_runtime_skippable())
+            break;
+        cursor = dep;
     }
     // cursor is now the compute node — clear its output so it re-acquires from ext_block
-    if (!cursor->has_inner_networks()) {
+    if (!cursor->has_inner_networks() && !cursor->can_be_optimized()) {
         cursor->clear_output_memory();
         GPU_DEBUG_TRACE_DETAIL << "[double-buffer] cleared output memory on compute node " << cursor->id() << std::endl;
     }
