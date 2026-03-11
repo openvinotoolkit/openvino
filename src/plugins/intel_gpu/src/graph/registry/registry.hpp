@@ -9,49 +9,48 @@
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#    define OV_GPU_WITH_ONEDNN 1
+    #define OV_GPU_WITH_ONEDNN 1
 #else
-#    define OV_GPU_WITH_ONEDNN 0
+    #define OV_GPU_WITH_ONEDNN 0
 #endif
 
 #if !defined(OV_GPU_WITH_SYCL)
-#    define OV_GPU_WITH_SYCL 0
+    #define OV_GPU_WITH_SYCL 0
 #endif
 
-#define OV_GPU_WITH_OCL    1
+#define OV_GPU_WITH_OCL 1
 #define OV_GPU_WITH_COMMON 1
-#define OV_GPU_WITH_CPU    1
-#define OV_GPU_WITH_CM     1
+#define OV_GPU_WITH_CPU 1
+#define OV_GPU_WITH_CM 1
 
 #define COUNT_N(_1, _2, _3, _4, _5, N, ...) N
-#define COUNT(...)                          EXPAND(COUNT_N(__VA_ARGS__, 5, 4, 3, 2, 1))
-#define CAT(a, b)                           a##b
+#define COUNT(...) EXPAND(COUNT_N(__VA_ARGS__, 5, 4, 3, 2, 1))
+#define CAT(a, b) a ## b
 
 #define EXPAND(N) N
 
-#define IMPL_TYPE_CPU_D    impl_types::cpu, cldnn::shape_types::dynamic_shape
-#define IMPL_TYPE_CPU_S    impl_types::cpu, cldnn::shape_types::static_shape
-#define IMPL_TYPE_OCL_D    impl_types::ocl, cldnn::shape_types::dynamic_shape
-#define IMPL_TYPE_OCL_S    impl_types::ocl, cldnn::shape_types::static_shape
+#define IMPL_TYPE_CPU_D impl_types::cpu, cldnn::shape_types::dynamic_shape
+#define IMPL_TYPE_CPU_S impl_types::cpu, cldnn::shape_types::static_shape
+#define IMPL_TYPE_OCL_D impl_types::ocl, cldnn::shape_types::dynamic_shape
+#define IMPL_TYPE_OCL_S impl_types::ocl, cldnn::shape_types::static_shape
 #define IMPL_TYPE_COMMON_D impl_types::common, cldnn::shape_types::dynamic_shape
 #define IMPL_TYPE_COMMON_S impl_types::common, cldnn::shape_types::static_shape
 
-#define INSTANTIATE_1(prim, suffix)      cldnn::implementation_map<cldnn::prim>::get(cldnn::CAT(IMPL_TYPE_, suffix))
+#define INSTANTIATE_1(prim, suffix) cldnn::implementation_map<cldnn::prim>::get(cldnn::CAT(IMPL_TYPE_, suffix))
 #define INSTANTIATE_2(prim, suffix, ...) INSTANTIATE_1(prim, suffix), INSTANTIATE_1(prim, __VA_ARGS__)
 #define INSTANTIATE_3(prim, suffix, ...) INSTANTIATE_1(prim, suffix), INSTANTIATE_2(prim, __VA_ARGS__)
 #define INSTANTIATE_4(prim, suffix, ...) INSTANTIATE_1(prim, suffix), INSTANTIATE_3(prim, __VA_ARGS__)
 
 #define FOR_EACH_(N, prim, ...) EXPAND(CAT(INSTANTIATE_, N)(prim, __VA_ARGS__))
-#define INSTANTIATE(prim, ...)  EXPAND(FOR_EACH_(COUNT(__VA_ARGS__), prim, __VA_ARGS__))
+#define INSTANTIATE(prim, ...) EXPAND(FOR_EACH_(COUNT(__VA_ARGS__), prim, __VA_ARGS__))
 
 #define CREATE_INSTANCE(Type, ...) std::make_shared<Type>(__VA_ARGS__),
-#define GET_INSTANCE(Type, ...)    cldnn::implementation_map<cldnn::Type>::get(__VA_ARGS__)
+#define GET_INSTANCE(Type, ...) cldnn::implementation_map<cldnn::Type>::get(__VA_ARGS__)
 
 #define OV_GPU_GET_INSTANCE_1(prim, impl_type, shape_types) GET_INSTANCE(prim, impl_type, shape_types),
-#define OV_GPU_GET_INSTANCE_2(prim, impl_type, shape_types, verify_callback)                                                          \
-    std::make_shared<cldnn::ImplementationManagerLegacy<cldnn::prim>>(                                                                \
-        std::dynamic_pointer_cast<cldnn::ImplementationManagerLegacy<cldnn::prim>>(GET_INSTANCE(prim, impl_type, shape_types)).get(), \
-        verify_callback),
+#define OV_GPU_GET_INSTANCE_2(prim, impl_type, shape_types, verify_callback) \
+    std::make_shared<cldnn::ImplementationManagerLegacy<cldnn::prim>>( \
+    std::dynamic_pointer_cast<cldnn::ImplementationManagerLegacy<cldnn::prim>>(GET_INSTANCE(prim, impl_type, shape_types)).get(), verify_callback),
 
 #define SELECT(N, ...) EXPAND(CAT(OV_GPU_GET_INSTANCE_, N)(__VA_ARGS__))
 
@@ -74,7 +73,7 @@
 #endif
 
 #if OV_GPU_WITH_OCL
-#    define OV_GPU_CREATE_INSTANCE_OCL(...)    EXPAND(CREATE_INSTANCE(__VA_ARGS__))
+#    define OV_GPU_CREATE_INSTANCE_OCL(...) EXPAND(CREATE_INSTANCE(__VA_ARGS__))
 #    define OV_GPU_GET_INSTANCE_OCL(prim, ...) EXPAND(SELECT(COUNT(__VA_ARGS__), prim, impl_types::ocl, __VA_ARGS__))
 #else
 #    define OV_GPU_CREATE_INSTANCE_OCL(...)
@@ -82,7 +81,7 @@
 #endif
 
 #if OV_GPU_WITH_COMMON
-#    define OV_GPU_CREATE_INSTANCE_COMMON(...)    EXPAND(CREATE_INSTANCE(__VA_ARGS__))
+#    define OV_GPU_CREATE_INSTANCE_COMMON(...) EXPAND(CREATE_INSTANCE(__VA_ARGS__))
 #    define OV_GPU_GET_INSTANCE_COMMON(prim, ...) EXPAND(SELECT(COUNT(__VA_ARGS__), prim, impl_types::ocl, __VA_ARGS__))
 #else
 #    define OV_GPU_CREATE_INSTANCE_COMMON(...)
@@ -95,24 +94,20 @@
 #    define OV_GPU_GET_INSTANCE_CPU(...)
 #endif
 
-#define REGISTER_DEFAULT_IMPLS(prim, ...)                                                                                     \
-    namespace cldnn {                                                                                                         \
-    struct prim;                                                                                                              \
-    }                                                                                                                         \
-    template <>                                                                                                               \
-    struct ov::intel_gpu::Registry<cldnn::prim> {                                                                             \
-        static const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& get_implementations() {                      \
-            static const std::vector<std::shared_ptr<cldnn::ImplementationManager>> impls = {INSTANTIATE(prim, __VA_ARGS__)}; \
-            return impls;                                                                                                     \
-        }                                                                                                                     \
+#define REGISTER_DEFAULT_IMPLS(prim, ...)  \
+    namespace cldnn { struct prim; } \
+    template<> struct ov::intel_gpu::Registry<cldnn::prim> { \
+        static const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& get_implementations() { \
+            static const std::vector<std::shared_ptr<cldnn::ImplementationManager>> impls = { \
+                INSTANTIATE(prim, __VA_ARGS__)  \
+            }; \
+            return impls; \
+        } \
     }
 
-#define REGISTER_IMPLS(prim)                                                                            \
-    namespace cldnn {                                                                                   \
-    struct prim;                                                                                        \
-    }                                                                                                   \
-    template <>                                                                                         \
-    struct ov::intel_gpu::Registry<cldnn::prim> {                                                       \
+#define REGISTER_IMPLS(prim)  \
+    namespace cldnn { struct prim; } \
+    template<> struct ov::intel_gpu::Registry<cldnn::prim> { \
         static const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& get_implementations(); \
     }
 
@@ -121,7 +116,7 @@ namespace ov::intel_gpu {
 // Global list of implementations for given primitive type
 // List must be sorted by priority of implementations
 // Same impls may repeat multiple times with different configurations
-template <typename PrimitiveType>
+template<typename PrimitiveType>
 struct Registry {
     static const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& get_implementations() {
         static_assert(cldnn::meta::always_false<PrimitiveType>::value, "Only specialization instantiations are allowed");
@@ -165,6 +160,7 @@ REGISTER_IMPLS(scaled_dot_product_attention);
 REGISTER_IMPLS(scatter_update);
 REGISTER_IMPLS(scatter_elements_update);
 REGISTER_IMPLS(scatter_nd_update);
+REGISTER_IMPLS(slice_scatter);
 REGISTER_IMPLS(softmax);
 REGISTER_IMPLS(shape_of);
 REGISTER_IMPLS(strided_slice);
@@ -224,7 +220,6 @@ REGISTER_DEFAULT_IMPLS(roi_pooling, OCL_S);
 REGISTER_DEFAULT_IMPLS(roll, OCL_S);
 REGISTER_DEFAULT_IMPLS(shuffle_channels, OCL_S);
 REGISTER_DEFAULT_IMPLS(slice, OCL_S, OCL_D);
-REGISTER_IMPLS(slice_scatter);
 REGISTER_DEFAULT_IMPLS(space_to_batch, OCL_S);
 REGISTER_DEFAULT_IMPLS(space_to_depth, OCL_S);
 REGISTER_DEFAULT_IMPLS(swiglu, OCL_S, OCL_D);
