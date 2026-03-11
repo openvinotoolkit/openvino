@@ -12,7 +12,6 @@
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "node.h"
-#include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
@@ -48,7 +47,8 @@ private:
     MemoryPtr m_tmpInpBuffer = nullptr;
     bool m_fuse_qk_l2norm = false;
     bool m_fuse_q_scale = false;
-    float m_eps = 1e-6F;
+    float m_q_l2_norm_eps = 1e-6F;
+    float m_k_l2_norm_eps = 1e-6F;
 };
 
 }  // namespace ov::intel_cpu::node

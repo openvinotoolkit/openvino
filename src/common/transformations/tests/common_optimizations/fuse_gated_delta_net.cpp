@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <climits>
 #include <memory>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -32,6 +33,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "transformations/convert_precision.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -42,23 +44,13 @@ std::shared_ptr<ov::Model> build_looped_gdn(int32_t batch,
                                             int32_t seq_len,
                                             int32_t qk_head_num,
                                             int32_t v_head_num,
-                                            int32_t head_size) {
+                                            int32_t qk_head_size,
+                                            int32_t v_head_size) {
     const auto dtype = ov::element::f32;
-    const ov::Shape qk_shape{static_cast<size_t>(batch),
-                             static_cast<size_t>(seq_len),
-                             static_cast<size_t>(qk_head_num),
-                             static_cast<size_t>(head_size)};
-    const ov::Shape v_tensor_shape{static_cast<size_t>(batch),
-                                   static_cast<size_t>(seq_len),
-                                   static_cast<size_t>(v_head_num),
-                                   static_cast<size_t>(head_size)};
-    const ov::Shape gv_shape{static_cast<size_t>(batch),
-                             static_cast<size_t>(seq_len),
-                             static_cast<size_t>(qk_head_num)};
-    const ov::Shape h_shape{static_cast<size_t>(batch),
-                            static_cast<size_t>(qk_head_num),
-                            static_cast<size_t>(head_size),
-                            static_cast<size_t>(head_size)};
+    const ov::PartialShape qk_shape{batch, seq_len, qk_head_num, qk_head_size};
+    const ov::PartialShape v_tensor_shape{batch, seq_len, v_head_num, v_head_size};
+    const ov::PartialShape gv_shape{batch, seq_len, qk_head_num};
+    const ov::PartialShape h_shape{batch, qk_head_num, qk_head_size, v_head_size};
 
     auto q = std::make_shared<ov::op::v0::Parameter>(dtype, qk_shape);
     auto k = std::make_shared<ov::op::v0::Parameter>(dtype, qk_shape);
@@ -178,16 +170,15 @@ std::shared_ptr<ov::Model> build_looped_gdn(int32_t batch,
     auto reduce_axis0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
     auto core_numel = std::make_shared<ov::op::v1::ReduceProd>(core_shape, reduce_axis0, true);
     auto state_shape = std::make_shared<ov::op::v3::ShapeOf>(h0);
-    auto state_numel = std::make_shared<ov::op::v1::ReduceProd>(state_shape, reduce_axis0, true);
-    auto state_slice_end = std::make_shared<ov::op::v1::Add>(core_numel, state_numel);
     auto slice_start = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
     auto slice_step = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
     auto slice_axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+    auto slice_end_inf = ov::op::v0::Constant::create(ov::element::i64, {1}, {LLONG_MAX});
 
     auto core_slice =
         std::make_shared<ov::op::v8::Slice>(packed_loop_outputs, slice_start, core_numel, slice_step, slice_axis);
     auto state_slice =
-        std::make_shared<ov::op::v8::Slice>(packed_loop_outputs, core_numel, state_slice_end, slice_step, slice_axis);
+        std::make_shared<ov::op::v8::Slice>(packed_loop_outputs, core_numel, slice_end_inf, slice_step, slice_axis);
 
     auto core_restored = std::make_shared<ov::op::v1::Reshape>(core_slice, core_shape, false);
     auto state_restored = std::make_shared<ov::op::v1::Reshape>(state_slice, state_shape, false);
@@ -204,23 +195,13 @@ std::shared_ptr<ov::Model> build_fused_gdn_ref(int32_t batch,
                                                int32_t seq_len,
                                                int32_t qk_head_num,
                                                int32_t v_head_num,
-                                               int32_t head_size) {
-    const auto dtype = ov::element::f32;
-    const ov::Shape qk_shape{static_cast<size_t>(batch),
-                             static_cast<size_t>(seq_len),
-                             static_cast<size_t>(qk_head_num),
-                             static_cast<size_t>(head_size)};
-    const ov::Shape v_tensor_shape{static_cast<size_t>(batch),
-                                   static_cast<size_t>(seq_len),
-                                   static_cast<size_t>(v_head_num),
-                                   static_cast<size_t>(head_size)};
-    const ov::Shape gv_shape{static_cast<size_t>(batch),
-                             static_cast<size_t>(seq_len),
-                             static_cast<size_t>(qk_head_num)};
-    const ov::Shape h_shape{static_cast<size_t>(batch),
-                            static_cast<size_t>(qk_head_num),
-                            static_cast<size_t>(head_size),
-                            static_cast<size_t>(head_size)};
+                                               int32_t qk_head_size,
+                                               int32_t v_head_size,
+                                               ov::element::Type dtype = ov::element::f32) {
+    const ov::PartialShape qk_shape{batch, seq_len, qk_head_num, qk_head_size};
+    const ov::PartialShape v_tensor_shape{batch, seq_len, v_head_num, v_head_size};
+    const ov::PartialShape gv_shape{batch, seq_len, qk_head_num};
+    const ov::PartialShape h_shape{batch, qk_head_num, qk_head_size, v_head_size};
 
     auto q = std::make_shared<ov::op::v0::Parameter>(dtype, qk_shape);
     auto k = std::make_shared<ov::op::v0::Parameter>(dtype, qk_shape);
@@ -233,7 +214,8 @@ std::shared_ptr<ov::Model> build_fused_gdn_ref(int32_t batch,
     ov::op::GatedDeltaNet::Config cfg;
     cfg.fuse_qk_l2norm = true;
     cfg.fuse_q_scale = true;
-    cfg.l2_norm_eps = 1e-6F;
+    cfg.q_l2_norm_eps = 1e-6F;
+    cfg.k_l2_norm_eps = 1e-6F;
     gdn->set_config(cfg);
 
     return std::make_shared<ov::Model>(ov::OutputVector{gdn->output(0), gdn->output(1)},
@@ -245,14 +227,36 @@ std::shared_ptr<ov::Model> build_fused_gdn_ref(int32_t batch,
 TEST_F(TransformationTestsF, GatedDeltaNetFusion_BuildLoopedGDNMode) {
     disable_rt_info_check();
     disable_result_friendly_names_check();
-    constexpr int32_t batch = 2;
-    constexpr int32_t seq_len = 5;
+    constexpr int32_t batch = -1;
+    constexpr int32_t seq_len = -1;
     constexpr int32_t qk_head_num = 4;
     constexpr int32_t v_head_num = 4;
-    constexpr int32_t head_size = 8;
+    constexpr int32_t qk_head_size = 8;
+    constexpr int32_t v_head_size = 16;
 
-    model = build_looped_gdn(batch, seq_len, qk_head_num, v_head_num, head_size);
+    model = build_looped_gdn(batch, seq_len, qk_head_num, v_head_num, qk_head_size, v_head_size);
     manager.register_pass<ov::pass::GatedDeltaNetFusion>();
+    model_ref = build_fused_gdn_ref(batch, seq_len, qk_head_num, v_head_num, qk_head_size, v_head_size);
+}
 
-    model_ref = build_fused_gdn_ref(batch, seq_len, qk_head_num, v_head_num, head_size);
+TEST_F(TransformationTestsF, GatedDeltaNetFusion_BuildLoopedGDNMode_F16) {
+    disable_rt_info_check();
+    disable_result_friendly_names_check();
+    constexpr int32_t batch = -1;
+    constexpr int32_t seq_len = -1;
+    constexpr int32_t qk_head_num = 4;
+    constexpr int32_t v_head_num = 4;
+    constexpr int32_t qk_head_size = 8;
+    constexpr int32_t v_head_size = 16;
+
+    model = build_looped_gdn(batch, seq_len, qk_head_num, v_head_num, qk_head_size, v_head_size);
+    manager.register_pass<pass::ConvertPrecision>(ov::element::f32,
+                                                  ov::element::f16,
+                                                  type_to_fuse_map{},
+                                                  true,
+                                                  true,
+                                                  false);
+    manager.register_pass<ov::pass::GatedDeltaNetFusion>();
+    model_ref =
+        build_fused_gdn_ref(batch, seq_len, qk_head_num, v_head_num, qk_head_size, v_head_size, ov::element::f16);
 }

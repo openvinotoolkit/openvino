@@ -12,8 +12,6 @@
 namespace {
 
 // Validates input rank and type for a node input.
-// We consider that dynamic rank/type are always valid case.
-// Empty {} means any rank/type
 inline void input_check(const ov::Node* node,
                         size_t idx,
                         const std::string_view input_name,
@@ -90,19 +88,20 @@ void GatedDeltaNet::validate_and_infer_types() {
     const auto v_head_num = value_ps[2];
 
     const auto k_head_size = key_ps[3];
+    const auto q_head_size = query_ps[3];
     const auto v_head_size = value_ps[3];
 
     NODE_VALIDATION_CHECK(this,
-                          q_head_num.compatible(k_head_num),
-                          "The number of heads in query and key should be the same, but got ",
+                          q_head_num.compatible(k_head_num) && q_head_num.compatible(v_head_num),
+                          "The number of heads in query key and value should be the same, but got ",
                           q_head_num,
                           " and ",
                           k_head_num,
                           ".");
 
     NODE_VALIDATION_CHECK(this,
-                          k_head_size.compatible(v_head_size),
-                          "The head size in key and value should be the same, but got ",
+                          k_head_size.compatible(q_head_size),
+                          "The head size in key and query should be the same, but got ",
                           k_head_size,
                           " and ",
                           v_head_size,
@@ -112,8 +111,8 @@ void GatedDeltaNet::validate_and_infer_types() {
     const auto beta_head_num = beta_ps[2];
 
     NODE_VALIDATION_CHECK(this,
-                          gate_head_num.compatible(beta_head_num),
-                          "The number of heads in gate and beta should be the same, but got ",
+                          gate_head_num.compatible(beta_head_num) && gate_head_num.compatible(q_head_num),
+                          "The number of heads in gate, beta, and query should be the same, but got ",
                           gate_head_num,
                           " and ",
                           beta_head_num,
@@ -155,7 +154,8 @@ bool GatedDeltaNet::visit_attributes(AttributeVisitor& visitor) {
     visitor.start_structure("config");
     visitor.on_attribute("fuse_qk_l2norm", m_config.fuse_qk_l2norm);
     visitor.on_attribute("fuse_q_scale", m_config.fuse_q_scale);
-    visitor.on_attribute("l2_norm_eps", m_config.l2_norm_eps);
+    visitor.on_attribute("q_l2_norm_eps", m_config.q_l2_norm_eps);
+    visitor.on_attribute("k_l2_norm_eps", m_config.k_l2_norm_eps);
     visitor.finish_structure();
     return true;
 }

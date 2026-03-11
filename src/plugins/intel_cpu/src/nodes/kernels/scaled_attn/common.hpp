@@ -1193,7 +1193,7 @@ inline void multiply_scalar_f32(ov::float16* a, ov::float16* a_dst, const ov::fl
     }
     auto val_f32 = static_cast<float>(val);
     for (; i < size; ++i) {
-        auto _a_f32 = static_cast<float>(a_dst[i]);
+        auto _a_f32 = static_cast<float>(a[i]);
         auto _a_dst_f32 = val_f32 * _a_f32;
         a_dst[i] = static_cast<ov::float16>(_a_dst_f32);
     }

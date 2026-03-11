@@ -42,23 +42,24 @@ std::shared_ptr<ov::Model> GatedDeltaNet::buildLoopedGDN(int32_t batch,
                                                          int32_t seq_len,
                                                          int32_t qk_head_num,
                                                          int32_t v_head_num,
-                                                         int32_t head_size) {
+                                                         int32_t qk_head_size,
+                                                         int32_t v_head_size) {
     constexpr auto dtype = ov::element::f32;
     const ov::Shape qk_shape{static_cast<size_t>(batch),
                              static_cast<size_t>(seq_len),
                              static_cast<size_t>(qk_head_num),
-                             static_cast<size_t>(head_size)};
+                             static_cast<size_t>(qk_head_size)};
     const ov::Shape v_tensor_shape{static_cast<size_t>(batch),
                                    static_cast<size_t>(seq_len),
                                    static_cast<size_t>(v_head_num),
-                                   static_cast<size_t>(head_size)};
+                                   static_cast<size_t>(v_head_size)};
     const ov::Shape gv_shape{static_cast<size_t>(batch),
                              static_cast<size_t>(seq_len),
                              static_cast<size_t>(qk_head_num)};
     const ov::Shape h_shape{static_cast<size_t>(batch),
                             static_cast<size_t>(qk_head_num),
-                            static_cast<size_t>(head_size),
-                            static_cast<size_t>(head_size)};
+                            static_cast<size_t>(qk_head_size),
+                            static_cast<size_t>(v_head_size)};
 
     auto q = std::make_shared<ov::op::v0::Parameter>(dtype, qk_shape);
     auto k = std::make_shared<ov::op::v0::Parameter>(dtype, qk_shape);
@@ -213,13 +214,14 @@ std::shared_ptr<ov::Model> GatedDeltaNet::buildLoopedGDN(int32_t batch,
 }
 
 std::string GatedDeltaNet::getTestCaseName(const testing::TestParamInfo<gated_delta_net_params>& obj) {
-    const auto& [batch, seq_len, qk_head_num, v_head_num, head_size, prec, device] = obj.param;
+    const auto& [batch, seq_len, qk_head_num, v_head_num, qk_head_size, v_head_size, prec, device] = obj.param;
     std::ostringstream result;
     result << "batch=" << batch;
     result << ",seq_len=" << seq_len;
     result << ",qk_head_num=" << qk_head_num;
     result << ",v_head_num=" << v_head_num;
-    result << ",head_size=" << head_size;
+    result << ",qk_head_size=" << qk_head_size;
+    result << ",v_head_size=" << v_head_size;
     result << ",prec=" << prec;
     result << ",device=" << device;
     return result.str();
@@ -251,12 +253,13 @@ void GatedDeltaNet::generate_inputs(const std::vector<ov::Shape>& targetInputSta
 
 void GatedDeltaNet::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
     ASSERT_EQ(expected.size(), actual.size());
+    abs_threshold = 1e-6f;
     ov::test::utils::compare(expected[0], actual[0], abs_threshold, rel_threshold);
     ov::test::utils::compare(expected[1], actual[1], abs_threshold, rel_threshold);
 }
 
 void GatedDeltaNet::SetUp() {
-    const auto& [batch, seq_len, qk_head_num, v_head_num, head_size, prec, device] = GetParam();
+    const auto& [batch, seq_len, qk_head_num, v_head_num, qk_head_size, v_head_size, prec, device] = GetParam();
 
     targetDevice = device;
     inType = prec;
@@ -265,20 +268,20 @@ void GatedDeltaNet::SetUp() {
     const ov::Shape q_shape{static_cast<size_t>(batch),
                             static_cast<size_t>(seq_len),
                             static_cast<size_t>(qk_head_num),
-                            static_cast<size_t>(head_size)};
+                            static_cast<size_t>(qk_head_size)};
     const ov::Shape v_shape{static_cast<size_t>(batch),
                             static_cast<size_t>(seq_len),
                             static_cast<size_t>(v_head_num),
-                            static_cast<size_t>(head_size)};
+                            static_cast<size_t>(v_head_size)};
     const ov::Shape h_shape{static_cast<size_t>(batch),
                             static_cast<size_t>(qk_head_num),
-                            static_cast<size_t>(head_size),
-                            static_cast<size_t>(head_size)};
+                            static_cast<size_t>(qk_head_size),
+                            static_cast<size_t>(v_head_size)};
     const ov::Shape g_shape{static_cast<size_t>(batch), static_cast<size_t>(seq_len), static_cast<size_t>(qk_head_num)};
 
     init_input_shapes(static_shapes_to_test_representation({q_shape, q_shape, v_shape, h_shape, g_shape, g_shape}));
 
-    function = buildLoopedGDN(batch, seq_len, qk_head_num, v_head_num, head_size);
+    function = buildLoopedGDN(batch, seq_len, qk_head_num, v_head_num, qk_head_size, v_head_size);
 }
 
 }  // namespace test

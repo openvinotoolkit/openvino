@@ -14,7 +14,6 @@
 #include "graph_context.h"
 #include "kernels/linear_attn/recurrent_linear_attn.hpp"
 #include "memory_desc/cpu_blocked_memory_desc.h"
-#include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
@@ -26,8 +25,6 @@
 #include "utils/plain_tensor.hpp"
 
 using namespace ov::Extensions::Cpu;
-using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 using namespace ov::Extensions::Cpu::XARCH;
 
 namespace ov::intel_cpu::node {
@@ -41,7 +38,8 @@ GatedDeltaNet::GatedDeltaNet(const std::shared_ptr<ov::Node>& op, const GraphCon
     const auto& gdn = ov::as_type_ptr<ov::op::GatedDeltaNet>(op);
     m_fuse_q_scale = gdn->get_config().fuse_q_scale;
     m_fuse_qk_l2norm = gdn->get_config().fuse_qk_l2norm;
-    m_eps = gdn->get_config().l2_norm_eps;
+    m_q_l2_norm_eps = gdn->get_config().q_l2_norm_eps;
+    m_k_l2_norm_eps = gdn->get_config().k_l2_norm_eps;
 }
 
 void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
@@ -87,7 +85,7 @@ void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
     PlainTensor beta(inputs[5]);
     PlainTensor output_attn(outputs[0]);
     PlainTensor output_recurrent_state(outputs[1]);
-    // q, k, h per (B, H, V)
+
     auto* temp_buffer = m_tmpInpBuffer->getDataAs<float>();
     recurrent_linear_attn(query,
                           key,
@@ -95,7 +93,8 @@ void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
                           recurrent_state,
                           gate,
                           beta,
-                          m_eps,
+                          m_q_l2_norm_eps,
+                          m_k_l2_norm_eps,
                           m_fuse_qk_l2norm,
                           m_fuse_q_scale,
                           output_attn,

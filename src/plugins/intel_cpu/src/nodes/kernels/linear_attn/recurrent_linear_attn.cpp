@@ -84,7 +84,8 @@ void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
                            const ov::intel_cpu::PlainTensor& recurrent_state,
                            const ov::intel_cpu::PlainTensor& gate,
                            const ov::intel_cpu::PlainTensor& beta,
-                           float eps,
+                           float q_l2_norm_eps,
+                           float k_l2_norm_eps,
                            bool fuse_qk_l2norm,
                            bool fuse_q_scale,
                            ov::intel_cpu::PlainTensor& output_attn,
@@ -123,8 +124,8 @@ void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
                 b_q[j] = q_ptr[i * H * K_HEAD_DIMS + j];
             }
             if (fuse_qk_l2norm) {
-                l2norm(b_k, K_HEAD_DIMS, eps);
-                l2norm(b_q, K_HEAD_DIMS, eps);
+                l2norm(b_k, K_HEAD_DIMS, k_l2_norm_eps);
+                l2norm(b_q, K_HEAD_DIMS, q_l2_norm_eps);
             }
             if (fuse_q_scale) {
                 multiply_scalar(b_q, b_q, q_scale, K_HEAD_DIMS);
