@@ -2310,6 +2310,115 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroTensorMultipleTime
     }
 }
 
+TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroHostTensorMultipleTimes) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    if (!zeroInit->isExternalMemoryStandardAllocationSupported()) {
+        GTEST_SKIP() << "External memory standard allocation is not supported on this platform.";
+    }
+
+    ov::Core internal_core;
+    auto context = internal_core.get_default_context(target_device);
+    ov::InferRequest inference_request;
+    std::string logs;
+    std::mutex logs_mutex;
+    auto shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(ov::element::f32, shape, "N...");
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    ov::Tensor input_tensor = context.create_host_tensor(ov::element::f32, shape);
+    ov::Tensor output_tensor = context.create_host_tensor(ov::element::f32, shape);
+    float* input_data = input_tensor.data<float>();
+    float* output_data = output_tensor.data<float>();
+
+    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
+    {
+        // don't flood console with messages from model compilation
+        LogCallbackGuard log_callback_guard(log_cb);
+        ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
+        inference_request = compiled_model.create_infer_request();
+        inference_request.set_input_tensor(input_tensor);
+        inference_request.set_output_tensor(output_tensor);
+    }
+    logs.clear();
+
+    for (size_t i = 0; i < 10; ++i) {
+        for (size_t j = 0; j < shape_size; ++j) {
+            input_data[j] = static_cast<float>(i);
+        }
+
+        {
+            LogCallbackGuard log_callback_guard(log_cb);
+            inference_request.infer();
+        }
+
+        ASSERT_EQ(logs.find("import the tensor data"), std::string::npos);
+        ASSERT_EQ(logs.find("deallocate the tensor data"), std::string::npos);
+
+        logs.clear();
+
+        for (size_t j = 0; j < shape_size; ++j) {
+            EXPECT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
+                << "Run " << i << ": Expected=" << input_data[j] + 1.0f << ", actual=" << output_data[j]
+                << " for index " << j;
+        }
+    }
+}
+
+TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimesAllocatingRandomZeroMemoryInBetween) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    if (!zeroInit->isExternalMemoryStandardAllocationSupported()) {
+        GTEST_SKIP() << "External memory standard allocation is not supported on this platform.";
+    }
+
+    ov::Core internal_core;
+    auto context = internal_core.get_default_context(target_device);
+    auto shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(ov::element::f32, shape, "N...");
+    std::vector<ov::Tensor> input_tensor;
+
+    float* input_data = static_cast<float*>(::operator new(shape_size * sizeof(float), std::align_val_t(4096)));
+    float* output_data = static_cast<float*>(::operator new(shape_size * sizeof(float), std::align_val_t(4096)));
+
+    ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
+    auto inference_request = compiled_model.create_infer_request();
+    inference_request.set_input_tensor(ov::Tensor{ov::element::f32, shape, input_data});
+    inference_request.set_output_tensor(ov::Tensor{ov::element::f32, shape, output_data});
+
+    for (size_t i = 0; i < 5; ++i) {
+        for (size_t j = 0; j < shape_size; ++j) {
+            input_data[j] = static_cast<float>(i);
+        }
+
+        input_tensor.push_back(context.create_host_tensor(ov::element::f32, shape));
+        input_tensor.push_back(context.create_host_tensor(ov::element::f32, shape));
+        input_tensor.push_back(context.create_host_tensor(ov::element::f32, shape));
+        input_tensor.push_back(context.create_host_tensor(ov::element::f32, shape));
+
+        OV_ASSERT_NO_THROW(inference_request.infer());
+
+        for (size_t j = 0; j < shape_size; ++j) {
+            EXPECT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
+                << "Run " << i << ": Expected=" << input_data[j] + 1.0f << ", actual=" << output_data[j]
+                << " for index " << j;
+        }
+    }
+
+    ::operator delete(input_data, std::align_val_t(4096));
+    ::operator delete(output_data, std::align_val_t(4096));
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

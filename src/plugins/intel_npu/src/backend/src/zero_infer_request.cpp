@@ -756,6 +756,9 @@ void ZeroInferRequest::prepare_inputs() {
                     if (levelZeroBuffer == nullptr) {
                         levelZeroTensor->allocate_data();
                         levelZeroBuffer = levelZeroTensor->data();
+                        _pipeline->update_graph_arguments(_metadata.inputs.at(inputIndex).indexUsedByDriver,
+                                                          levelZeroTensor,
+                                                          i);
                     }
 
                     if (userBuffer != levelZeroBuffer) {
@@ -811,6 +814,7 @@ void ZeroInferRequest::prepare_inputs() {
         if (levelZeroBuffer == nullptr) {
             levelZeroTensor->allocate_data();
             levelZeroBuffer = levelZeroTensor->data();
+            _pipeline->update_graph_arguments(_metadata.inputs.at(inputIndex).indexUsedByDriver, levelZeroTensor);
         }
 
         if (userBuffer != levelZeroBuffer) {
@@ -833,6 +837,7 @@ void ZeroInferRequest::prepare_outputs() {
 
         if (levelZeroTensor->data() == nullptr) {
             levelZeroTensor->allocate_data();
+            _pipeline->update_graph_arguments(_metadata.outputs.at(outputIndex).indexUsedByDriver, levelZeroTensor);
         }
     }
 }

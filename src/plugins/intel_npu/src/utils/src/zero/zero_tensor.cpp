@@ -6,6 +6,7 @@
 
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
@@ -84,7 +85,8 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
             _ptr = static_cast<uint8_t*>(mem_handle_object.value()) + ov::get_tensor_data_offset(*remote_tensor);
         }
     } else {
-        if (std::dynamic_pointer_cast<ZeroTensor>(_user_tensor._ptr) == nullptr) {
+        if (std::dynamic_pointer_cast<ZeroTensor>(_user_tensor._ptr) == nullptr &&
+            std::dynamic_pointer_cast<ZeroHostTensor>(_user_tensor._ptr) == nullptr) {
             _is_custom_user_tensor = true;
         }
 
