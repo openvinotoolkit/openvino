@@ -694,8 +694,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             ov::npuw::util::fill_tensor_bytes(input_ids_in_tensor, 0u);
             std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()) + prefilled_bytes,
                         current_prefill_bytes,
-                        reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) +
-                            input_ids_in_tensor->get_byte_size() - current_prefill_bytes);
+                        reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) + input_ids_in_tensor->get_byte_size() -
+                            current_prefill_bytes);
 
             // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni uses 3D position_ids [3,
             // BATCH, SEQ_LEN]
@@ -803,20 +803,17 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
                     reinterpret_cast<uint8_t*>(padded_input->data()) + padded_input->get_byte_size() -
                         input_ids->get_byte_size());
 
-        auto padded_attention_mask =
-            m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
-        std::copy_n(attention_mask->data<int64_t>(),
-                    attention_mask->get_size(),
-                    padded_attention_mask->data<int64_t>() + padded_attention_mask->get_size() -
-                        attention_mask->get_size());
+        auto padded_attention_mask = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
+        std::copy_n(
+            attention_mask->data<int64_t>(),
+            attention_mask->get_size(),
+            padded_attention_mask->data<int64_t>() + padded_attention_mask->get_size() - attention_mask->get_size());
 
         if (token_type_ids) {
             auto padded_token_type_ids =
                 m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::token_type_ids));
 
-            std::fill_n(reinterpret_cast<uint8_t*>(padded_token_type_ids->data()),
-                        token_type_ids->get_byte_size(),
-                        0);
+            std::fill_n(reinterpret_cast<uint8_t*>(padded_token_type_ids->data()), token_type_ids->get_byte_size(), 0);
             util::copy_to_right(token_type_ids, padded_token_type_ids);
         }
 
