@@ -11,6 +11,7 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "zero_backend.hpp"
 
 using namespace ov::intel_npu;
 using namespace ov::test::utils;
@@ -45,4 +46,14 @@ TEST_F(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalled) {
 
     std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
     OV_ASSERT_NO_THROW(core.compile_model(model, DEVICE_NPU, config));
+}
+
+using UnavailableDeviceTests = ::testing::Test;
+
+TEST_F(UnavailableDeviceTests, GetDeviceNotAvailable) {
+    ov::Core core;
+    OV_ASSERT_NO_THROW(
+        core.set_property("NPU", {{ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::DRIVER}}));
+
+    ASSERT_ANY_THROW(std::make_shared<intel_npu::ZeroEngineBackend>());
 }
