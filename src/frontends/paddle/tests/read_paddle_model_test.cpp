@@ -175,6 +175,6 @@ TEST(Paddle_Reader_Tests, LoadModelWithPartialOpsInsufficientInputs) {
         FAIL() << "Expected load to fail due to insufficient X inputs for partial_sum";
     } catch (const std::exception& ex) {
         const std::string msg = ex.what();
-        ASSERT_NE(msg.find("partial ops require exactly 2 inputs in X."), std::string::npos) << msg;
+        ASSERT_NE(msg.find("partial_ops requires exactly 2 inputs in X."), std::string::npos) << msg;
     }
 }
