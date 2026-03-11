@@ -45,7 +45,7 @@ void ZeroDynamicInferRequest::update_command_list_for_tensor(SyncInferRequest::F
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "create zero tensor");
             // Try to use the user tensor directly if its underlying data is already allocated in the same Level Zero
             // context.
-            levelZeroTensor = std::make_shared<ZeroTensor>(_initStructs, _config, tensor);
+            levelZeroTensor = std::make_shared<ZeroTensor>(_initStructs, tensor);
         } catch (const ZeroMemException& exception) {
             _logger.debug("set_tensor - exception caught while trying to create a Level Zero tensor "
                           "from the user tensor: %s",
@@ -109,8 +109,7 @@ void ZeroDynamicInferRequest::update_command_list_for_tensors(SyncInferRequest::
             try {
                 _logger.debug("set_tensors - create zero tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "create zero tensor");
-                get_level_zero_input(foundPort.idx, i) =
-                    std::make_shared<ZeroTensor>(_initStructs, _config, tensors.at(i));
+                get_level_zero_input(foundPort.idx, i) = std::make_shared<ZeroTensor>(_initStructs, tensors.at(i));
             } catch (const ZeroMemException& exception) {
                 _logger.debug("set_tensors - exception caught while trying to create a Level "
                               "Zero tensor "
@@ -165,8 +164,7 @@ std::shared_ptr<ZeroTensor> ZeroDynamicInferRequest::allocate_tensor(const size_
         allocatedTensorShape[utils::BATCH_AXIS] = *batchSize;
     }
 
-    auto tensor =
-        std::make_shared<ZeroTensor>(_initStructs, _config, descriptor.precision, allocatedTensorShape, isInput);
+    auto tensor = std::make_shared<ZeroTensor>(_initStructs, descriptor.precision, allocatedTensorShape, isInput);
 
     if (isInput) {
         if (get_user_input(index) == nullptr) {
