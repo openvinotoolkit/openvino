@@ -471,13 +471,9 @@ TEST_P(PartialMappingTest, compare_id) {
     const auto& [offset_1, size_1, offset_2, size_2] = GetParam();
 
     std::filesystem::path the_other_file_path = ov::test::utils::generateTestFilePrefix() + "_partial_mapping";
-    {
-        std::vector<char> buffer(offset_2 + size_2, '_');
-        std::ofstream s(the_other_file_path, std::ios::binary);
-        ASSERT_TRUE(s.is_open());
-        s.write(buffer.data(), buffer.size());
-        ASSERT_TRUE(s.good());
-    }
+    std::error_code ec;
+    std::filesystem::copy_file(m_file_path, the_other_file_path, ec);
+    ASSERT_FALSE(ec) << "Failed to copy file \"" << m_file_path << "\" for test setup: " << ec.message();
 
     const auto mm_1 = ov::load_mmap_object(m_file_path, offset_1, size_1);
     const auto mm_2 = ov::load_mmap_object(m_file_path, offset_2, size_2);

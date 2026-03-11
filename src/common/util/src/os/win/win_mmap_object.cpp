@@ -66,21 +66,21 @@ public:
     MapHolder() = default;
 
     ~MapHolder() {
-        if (m_data) {
-            ::UnmapViewOfFile(m_data);
+        if (m_mapped_view) {
+            ::UnmapViewOfFile(m_mapped_view);
         }
     }
 
-    void set(const std::filesystem::path& path) {
+    void set(const std::filesystem::path& path, size_t offset = 0, size_t size = 0) {
         // Note that file can't be changed (renamed/deleted) until it's unmapped. FILE_SHARE_DELETE flag allow
         // rename/deletion, but it doesn't work with FAT32 filesystem (works on NTFS)
         auto h = ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-        map(path, h);
-        m_id = std::hash<std::wstring>{}(path.native());
+        map(path, h, offset, size);
+        m_id = std::hash<std::wstring>{}(path.native()) ^ std::hash<size_t>{}(offset) ^ std::hash<size_t>{}(size);
     }
 
-    void set_from_handle(HANDLE h) {
-        map("<external_handle>", h);
+    void set_from_handle(HANDLE h, size_t offset = 0, size_t size = 0) {
+        map("<external_handle>", h, offset, size);
     }
 
     char* data() noexcept override {
@@ -95,43 +95,60 @@ public:
     }
 
 private:
-    void map(const std::filesystem::path& path, HANDLE h) {
+    void map(const std::filesystem::path& path, HANDLE h, size_t offset, size_t size) {
         if (h == INVALID_HANDLE_VALUE) {
             throw std::runtime_error("Can not open file " + util::path_to_string(path) +
                                      " for mapping. Ensure that file exists and has appropriate permissions");
         }
         m_handle = HandleHolder(h);
 
-        DWORD map_mode = FILE_MAP_READ;
-        DWORD access = PAGE_READONLY;
+        const DWORD map_mode = FILE_MAP_READ;
+        const DWORD access = PAGE_READONLY;
 
         LARGE_INTEGER file_size_large;
         if (::GetFileSizeEx(m_handle.get(), &file_size_large) == 0) {
-            throw std::runtime_error("Can not get file size for " + util::path_to_string(path));
+            throw std::runtime_error("Can not get file size for " + util::path_to_string(path) + ". Error " +
+                                     std::to_string(::GetLastError()));
+        }
+        const auto file_size = static_cast<size_t>(file_size_large.QuadPart);
+        if (size) {
+            m_size = size;
+        } else {
+            m_size = file_size;
+        }
+        if (offset + m_size > file_size) {
+            throw std::runtime_error("Requested mapping range exceeds file size for " + util::path_to_string(path));
         }
 
-        m_size = static_cast<uint64_t>(file_size_large.QuadPart);
         if (m_size > 0) {
-            m_mapping =
-                HandleHolder(::CreateFileMapping(m_handle.get(), 0, access, m_size >> 32, m_size & 0xffffffff, 0));
+            m_mapping = HandleHolder(::CreateFileMapping(m_handle.get(), 0, access, 0, 0, 0));
             if (m_mapping.get() == INVALID_HANDLE_VALUE) {
                 throw std::runtime_error("Can not create file mapping for " + util::path_to_string(path));
             }
 
-            m_data = ::MapViewOfFile(m_mapping.get(),
-                                     map_mode,
-                                     0,  // offset_align >> 32,
-                                     0,  // offset_align & 0xffffffff,
-                                     m_size);
-            if (!m_data) {
-                throw std::runtime_error("Can not create map view for " + util::path_to_string(path));
+            SYSTEM_INFO system_info;
+            ::GetSystemInfo(&system_info);
+            const auto aligned_offset =
+                (offset / system_info.dwAllocationGranularity) * system_info.dwAllocationGranularity;
+            const auto aligned_size = offset + size - aligned_offset;
+            m_mapped_view = ::MapViewOfFile(m_mapping.get(),
+                                            map_mode,
+                                            aligned_offset >> 32,
+                                            aligned_offset & 0xffffffff,
+                                            aligned_size);
+            if (!m_mapped_view) {
+                throw std::runtime_error("Can not create map view for " + util::path_to_string(path) + ". Error " +
+                                         std::to_string(::GetLastError()));
             }
+            m_data = reinterpret_cast<void*>(reinterpret_cast<std::ptrdiff_t>(m_mapped_view) + offset - aligned_offset);
         } else {
+            m_mapped_view = nullptr;
             m_data = nullptr;
         }
     }
 
 private:
+    void* m_mapped_view = nullptr;
     void* m_data = nullptr;
     size_t m_size = 0;
     uint64_t m_id = std::numeric_limits<uint64_t>::max();
@@ -142,6 +159,12 @@ private:
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path) {
     auto holder = std::make_shared<MapHolder>();
     holder->set(path);
+    return holder;
+}
+
+std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path, size_t offset, size_t size) {
+    auto holder = std::make_shared<MapHolder>();
+    holder->set(path, offset, size);
     return holder;
 }
 
@@ -156,68 +179,4 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle
     holder->set_from_handle(h);
     return holder;
 }
-
-class PartialMapHolder final : public MappedMemory {
-    void* m_data = nullptr;
-    size_t m_size = 0;
-    uint64_t m_id = std::numeric_limits<uint64_t>::max();
-    HandleHolder m_handle;
-    HandleHolder m_mapping;
-
-    void map(const std::filesystem::path& path, HANDLE h, size_t pos, size_t size) {
-        if (h == INVALID_HANDLE_VALUE) {
-            throw std::runtime_error("Can not open file " + util::path_to_string(path) +
-                                     " for mapping. Ensure that file exists and has appropriate permissions");
-        }
-        m_handle = HandleHolder(h);
-
-        LARGE_INTEGER file_size_large;
-        if (::GetFileSizeEx(m_handle.get(), &file_size_large) == 0) {
-            throw std::runtime_error("Can not get file size for " + util::path_to_string(path));
-        }
-
-        const uint64_t file_size = static_cast<uint64_t>(file_size_large.QuadPart);
-        if (pos + size > file_size) {
-            throw std::runtime_error("Requested mapping range exceeds file size for " + util::path_to_string(path));
-        }
-
-        m_mapping = HandleHolder(
-            ::CreateFileMapping(m_handle.get(), 0, PAGE_READONLY, (pos + size) >> 32, (pos + size) & 0xffffffff, 0));
-        if (m_mapping.get() == INVALID_HANDLE_VALUE) {
-            throw std::runtime_error("Can not create file mapping for " + util::path_to_string(path));
-        }
-
-        m_data = ::MapViewOfFile(m_mapping.get(), FILE_MAP_READ, pos >> 32, pos & 0xffffffff, size);
-        if (!m_data) {
-            throw std::runtime_error("Can not create map view for " + util::path_to_string(path));
-        }
-
-    public:
-        PartialMapHolder(const std::filesystem::path& path, size_t pos, size_t size) {
-            const auto h =
-                ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-            map(path, h, pos, size);
-            m_id = std::hash<std::filesystem::path::string_type>{}(path.native()) ^ std::hash<size_t>{}(pos) ^
-                   std::hash<size_t>{}(size);
-        }
-        ~PartialMapHolder() {
-            if (m_data != MAP_FAILED) {
-                munmap(m_data, m_size);
-            }
-        }
-
-        char* data() noexcept override {
-            return static_cast<char*>(m_data);
-        }
-        size_t size() const noexcept override {
-            return m_size;
-        }
-        uint64_t get_id() const noexcept override {
-            return m_id;
-        }
-    };
-
-    std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path, size_t pos, size_t size) {
-        return std::make_shared<PartialMapHolder>(path, pos, size);
-    }
 }  // namespace ov
