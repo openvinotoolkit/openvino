@@ -14,6 +14,7 @@
 #include <functional>
 #include <memory>
 #include <numeric>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <utility>
@@ -98,6 +99,13 @@ static void nullifyUndefinedDims(VectorDims& dims) {
     });
 }
 
+static bool hasEmptyDims(const dnnl::memory& mem) {
+    const auto& dims = mem.get_desc().get_dims();
+    return std::any_of(dims.begin(), dims.end(), [](const dnnl::memory::dim dim) {
+        return dim == 0;
+    });
+}
+
 class PortIteratorHelper : public PortMapHelper {
 public:
     PortIteratorHelper(const MultiCachePtr& cache,
@@ -153,6 +161,10 @@ public:
     void execute(const dnnl::stream& strm, int iter) override {
         OPENVINO_ASSERT(iter >= 0 && iter < iter_count);
 
+        if (hasEmptyDims(mem_holder_src) || hasEmptyDims(mem_holder_dst)) {
+            return;
+        }
+
         auto& chunk_mem = sliced_src ? mem_holder_src : mem_holder_dst;
         chunk_mem.set_data_handle(static_cast<uint8_t*>(full_mem.get_data_handle()) + chunk_offset_in_byte +
                                   chunk_stride_in_byte * iter);
@@ -181,6 +193,10 @@ public:
 
     void execute(const dnnl::stream& strm, int iter) override {
         if (iter != 0) {
+            if (hasEmptyDims(mem_holder_src) || hasEmptyDims(mem_holder_dst)) {
+                return;
+            }
+
             reorder.execute(strm, {{DNNL_ARG_FROM, mem_holder_src}, {DNNL_ARG_TO, mem_holder_dst}});
         }
     }
