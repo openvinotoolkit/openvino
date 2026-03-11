@@ -1400,7 +1400,7 @@ public:
                 res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
             else
 #endif
-            if (desc->has_token_type_ids) {
+                if (desc->has_token_type_ids) {
                 res_event = {execute_stage(res_event, instance, pa_multi_token)};
                 if (rt_params->num_of_partitions > 1)
                     res_event = {execute_stage(res_event, instance, pa_multi_token_finalization)};
