@@ -1984,9 +1984,9 @@ PreserveConstDictMatMulFP8::PreserveConstDictMatMulFP8(Context::Ref ctx, Preserv
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
-    auto optional_kvt = opp::optional<ov::op::v0::Convert>({qmuls});
+    auto optional_cvt = opp::optional<ov::op::v0::Convert>({qmuls});
     auto qmmi = opp::any_input();
-    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, optional_kvt});
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, optional_cvt});
     std::shared_ptr<Node> qres;
     // // MatMul -> Divide -> Tanh -> Multiply -> Result
     if (ctx.get().mm_gate) {

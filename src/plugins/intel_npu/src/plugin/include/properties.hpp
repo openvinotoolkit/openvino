@@ -156,6 +156,7 @@ private:
         ov::intel_npu::npuw::partitioning::dyn_quant.name(),
         ov::intel_npu::npuw::partitioning::dyn_quant_full.name(),
         ov::intel_npu::npuw::partitioning::par_matmul_merge_dims.name(),
+        ov::intel_npu::npuw::partitioning::matmul_gate_preserve_constants.name(),
         ov::intel_npu::npuw::partitioning::slice_out.name(),
         ov::intel_npu::npuw::partitioning::spatial.name(),
         ov::intel_npu::npuw::partitioning::spatial_nway.name(),
