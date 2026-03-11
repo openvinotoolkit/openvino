@@ -71,7 +71,7 @@ public:
         }
     }
 
-    void set(const std::filesystem::path& path, size_t offset = 0, size_t size = 0) {
+    void set(const std::filesystem::path& path, size_t offset, size_t size) {
         // Note that file can't be changed (renamed/deleted) until it's unmapped. FILE_SHARE_DELETE flag allow
         // rename/deletion, but it doesn't work with FAT32 filesystem (works on NTFS)
         auto h = ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
@@ -79,7 +79,7 @@ public:
         m_id = std::hash<std::wstring>{}(path.native()) ^ std::hash<size_t>{}(offset) ^ std::hash<size_t>{}(size);
     }
 
-    void set_from_handle(HANDLE h, size_t offset = 0, size_t size = 0) {
+    void set_from_handle(HANDLE h, size_t offset, size_t size) {
         map("<external_handle>", h, offset, size);
     }
 
@@ -111,10 +111,10 @@ private:
                                      std::to_string(::GetLastError()));
         }
         const auto file_size = static_cast<size_t>(file_size_large.QuadPart);
-        if (size) {
+        if (size > 0) {
             m_size = size;
         } else {
-            m_size = file_size;
+            m_size = file_size - offset;
         }
         if (offset + m_size > file_size) {
             throw std::runtime_error("Requested mapping range exceeds file size for " + util::path_to_string(path));
@@ -156,27 +156,18 @@ private:
     HandleHolder m_mapping;
 };
 
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path) {
-    auto holder = std::make_shared<MapHolder>();
-    holder->set(path);
-    return holder;
-}
-
 std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path, size_t offset, size_t size) {
     auto holder = std::make_shared<MapHolder>();
     holder->set(path, offset, size);
     return holder;
 }
 
-std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle) {
-    // On Windows, FileHandle is void* (HANDLE)
-    HANDLE h = static_cast<HANDLE>(handle);
-    if (h == INVALID_HANDLE_VALUE || h == nullptr) {
+std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle, size_t offset, size_t size) {
+    if (handle == INVALID_HANDLE_VALUE || handle == nullptr) {
         throw std::runtime_error("Invalid handle provided to load_mmap_object");
     }
-
     auto holder = std::make_shared<MapHolder>();
-    holder->set_from_handle(h);
+    holder->set_from_handle(handle, offset, size);
     return holder;
 }
 }  // namespace ov

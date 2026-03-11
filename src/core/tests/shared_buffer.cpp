@@ -8,12 +8,24 @@
 #include <fstream>
 #include <sstream>
 
+#ifdef _WIN32
+// clang-format-off
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <windows.h>
+// clang-format-on
+#else
+#    include <fcntl.h>
+#    include <unistd.h>
+#endif
+
 #include "common_test_utils/common_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/util/mmap_object.hpp"
 
 using ov::SharedStreamBuffer;
-
+namespace ov::test {
 TEST(shared_stream_buffer, basic_read) {
     const char test_data[] = "Hello, World!";
     SharedStreamBuffer buffer(const_cast<char*>(test_data), sizeof(test_data) - 1);
@@ -345,7 +357,7 @@ TEST_F(SharedBufferTest, aligned_buffer_interface) {
     EXPECT_EQ(aligned->get_ptr(), test_data);
 }
 
-// ==================== MappedMemory get_id Tests ====================
+// ==================== MappedMemory Tests ====================
 
 TEST(MappedMemory, get_id_unique_per_file) {
     // Create two temporary files
@@ -404,8 +416,10 @@ TEST(MappedMemory, get_id_same_for_same_file) {
     std::filesystem::remove(file_path);
 }
 
-using PartialMappingTestParams =  // offset_1, size_1, offset_2, size_2
+using PartialMappingTestRegions =  // offset_1, size_1, offset_2, size_2
     std::tuple<size_t, size_t, size_t, size_t>;
+using PartialMappingTestParams =  // offset-size pairs, use file path (true) or file handle (false)
+    std::tuple<PartialMappingTestRegions, bool>;
 
 class PartialMappingTest : public ::testing::TestWithParam<PartialMappingTestParams> {
 protected:
@@ -413,8 +427,10 @@ protected:
     std::vector<char> m_data_1, m_data_2;
 
     void SetUp() override {
-        const auto& [offset_1, size_1, offset_2, size_2] = GetParam();
-        ASSERT_GE(offset_2, offset_1 + size_1);
+        const auto& [regions, use_file_path] = GetParam();
+        const auto& [offset_1, size_1, offset_2, size_2] = regions;
+        // todo - add test with overlapping regions when it's supported by implementation
+        ASSERT_TRUE(offset_2 >= offset_1 + size_1 || (offset_2 == 0 && size_2 == 0));
 
         m_data_1.resize(size_1);
         m_data_2.resize(size_2);
@@ -433,7 +449,7 @@ protected:
             buffer[offset_2 + i] = m_data_2[i];
         }
 
-        m_file_path = ov::test::utils::generateTestFilePrefix() + "_partial_mapping";
+        m_file_path = utils::generateTestFilePrefix() + "_partial_mapping";
         std::ofstream s(m_file_path, std::ios::binary);
         ASSERT_TRUE(s.is_open());
         s.write(buffer.data(), buffer.size());
@@ -446,21 +462,53 @@ protected:
 
 public:
     static std::string test_name(const testing::TestParamInfo<PartialMappingTestParams>& info) {
-        const auto& [offset_1, size_1, offset_2, size_2] = info.param;
+        const auto& [regions, use_file_path] = info.param;
+        const auto& [offset_1, size_1, offset_2, size_2] = regions;
         std::ostringstream ss;
-        ss << "offset1_" << offset_1 << "_size1_" << size_1 << "_offset2_" << offset_2 << "_size2_" << size_2;
+        ss << "offset1_" << offset_1 << "_size1_" << size_1 << "_offset2_" << offset_2 << "_size2_" << size_2
+           << (use_file_path ? "_file_path" : "_file_handle");
         return ss.str();
     }
 };
 
+namespace {
+FileHandle open_file(const std::filesystem::path& path) {
+#ifdef _WIN32
+    return ::CreateFileA(path.string().c_str(),
+                         GENERIC_READ,
+                         FILE_SHARE_READ,
+                         nullptr,
+                         OPEN_EXISTING,
+                         FILE_ATTRIBUTE_NORMAL,
+                         nullptr);
+#else
+    return ::open(path.c_str(), O_RDONLY);
+#endif
+}
+#ifdef _WIN32
+#    define OV_ASSERT_FILE_HANDLE_VALID(handle) ASSERT_NE(handle, INVALID_HANDLE_VALUE)
+#else
+#    define OV_ASSERT_FILE_HANDLE_VALID(handle) ASSERT_NE(handle, -1)
+#endif
+}  // namespace
+
 TEST_P(PartialMappingTest, compare_data) {
-    const auto& [offset_1, size_1, offset_2, size_2] = GetParam();
+    const auto& [regions, use_file_path] = GetParam();
+    const auto& [offset_1, size_1, offset_2, size_2] = regions;
+    std::shared_ptr<MappedMemory> mm_1, mm_2;
 
-    const auto mm_1 = ov::load_mmap_object(m_file_path, offset_1, size_1);
-    const auto mm_2 = ov::load_mmap_object(m_file_path, offset_2, size_2);
-
+    if (use_file_path) {
+        mm_1 = load_mmap_object(m_file_path, offset_1, size_1);
+        mm_2 = load_mmap_object(m_file_path, offset_2, size_2);
+    } else {
+        const auto handle = open_file(m_file_path);
+        OV_ASSERT_FILE_HANDLE_VALID(handle);
+        mm_1 = load_mmap_object_from_handle(handle, offset_1, size_1);
+        mm_2 = load_mmap_object_from_handle(handle, offset_2, size_2);
+    }
     ASSERT_NE(mm_1, nullptr);
     ASSERT_NE(mm_2, nullptr);
+
     EXPECT_EQ(mm_1->size(), size_1);
     EXPECT_EQ(mm_2->size(), size_2);
     EXPECT_EQ(m_data_1, std::vector<char>(mm_1->data(), mm_1->data() + mm_1->size()));
@@ -468,37 +516,57 @@ TEST_P(PartialMappingTest, compare_data) {
 }
 
 TEST_P(PartialMappingTest, compare_id) {
-    const auto& [offset_1, size_1, offset_2, size_2] = GetParam();
+    const auto& [regions, use_file_path] = GetParam();
+    if (!use_file_path) {
+        GTEST_SKIP();  // CVS-182260
+    }
+    const auto& [offset_1, size_1, offset_2, size_2] = regions;
 
-    std::filesystem::path the_other_file_path = ov::test::utils::generateTestFilePrefix() + "_partial_mapping";
+    std::filesystem::path other_file_path = utils::generateTestFilePrefix() + "_partial_mapping";
     std::error_code ec;
-    std::filesystem::copy_file(m_file_path, the_other_file_path, ec);
+    std::filesystem::copy_file(m_file_path, other_file_path, ec);
     ASSERT_FALSE(ec) << "Failed to copy file \"" << m_file_path << "\" for test setup: " << ec.message();
 
-    const auto mm_1 = ov::load_mmap_object(m_file_path, offset_1, size_1);
-    const auto mm_2 = ov::load_mmap_object(m_file_path, offset_2, size_2);
-    const auto the_other_mm_1 = ov::load_mmap_object(the_other_file_path, offset_1, size_1);
-    const auto the_other_mm_2 = ov::load_mmap_object(the_other_file_path, offset_2, size_2);
-    const auto mm_1_ = ov::load_mmap_object(m_file_path, offset_1, size_1);
+    std::shared_ptr<MappedMemory> mm_1, mm_2, other_mm_1, other_mm_2, mm_1_;
+    if (use_file_path) {
+        mm_1 = load_mmap_object(m_file_path, offset_1, size_1);
+        mm_2 = load_mmap_object(m_file_path, offset_2, size_2);
+        other_mm_1 = load_mmap_object(other_file_path, offset_1, size_1);
+        other_mm_2 = load_mmap_object(other_file_path, offset_2, size_2);
+        mm_1_ = load_mmap_object(m_file_path, offset_1, size_1);
+    } else {
+        const auto handle = open_file(m_file_path);
+        OV_ASSERT_FILE_HANDLE_VALID(handle);
+        const auto other_handle = open_file(other_file_path);
+        OV_ASSERT_FILE_HANDLE_VALID(other_handle);
+        mm_1 = load_mmap_object_from_handle(handle, offset_1, size_1);
+        mm_2 = load_mmap_object_from_handle(handle, offset_2, size_2);
+        other_mm_1 = load_mmap_object_from_handle(other_handle, offset_1, size_1);
+        other_mm_2 = load_mmap_object_from_handle(other_handle, offset_2, size_2);
+        mm_1_ = load_mmap_object_from_handle(handle, offset_1, size_1);
+    }
 
     ASSERT_NE(mm_1, nullptr);
     ASSERT_NE(mm_2, nullptr);
-    ASSERT_NE(the_other_mm_1, nullptr);
-    ASSERT_NE(the_other_mm_2, nullptr);
+    ASSERT_NE(other_mm_1, nullptr);
+    ASSERT_NE(other_mm_2, nullptr);
     ASSERT_NE(mm_1_, nullptr);
 
     EXPECT_NE(mm_1->get_id(), mm_2->get_id());
-    EXPECT_NE(mm_1->get_id(), the_other_mm_1->get_id());
-    EXPECT_NE(mm_2->get_id(), the_other_mm_2->get_id());
+    EXPECT_NE(mm_1->get_id(), other_mm_1->get_id());
+    EXPECT_NE(mm_2->get_id(), other_mm_2->get_id());
     EXPECT_EQ(mm_1->get_id(), mm_1_->get_id());
 }
 
-static auto pg_sz = ov::util::get_system_page_size();
+static auto pg_sz = util::get_system_page_size();
 INSTANTIATE_TEST_SUITE_P(MappedMemory,
                          PartialMappingTest,
-                         ::testing::Values(PartialMappingTestParams{pg_sz, 127, 2 * pg_sz, 101},
-                                           PartialMappingTestParams{0, 3 * pg_sz, 7 * pg_sz, 1024},
-                                           PartialMappingTestParams{0, pg_sz, pg_sz, pg_sz}),
+                         ::testing::Combine(::testing::ValuesIn(std::vector<PartialMappingTestRegions>{
+                                                // {pg_sz, pg_sz / 2, 0, 0},
+                                                {pg_sz, 127, 2 * pg_sz, 101},
+                                                {0, 3 * pg_sz, 7 * pg_sz, 1024},
+                                                {0, pg_sz, pg_sz, pg_sz}}),
+                                            ::testing::ValuesIn(std::vector<bool>{true, false})),
                          PartialMappingTest::test_name);
 
 // ==================== SharedBuffer with explicit descriptor Tests ====================
@@ -569,3 +637,4 @@ TEST_F(SharedBufferTest, mmap_with_offset) {
     ASSERT_NE(parent_desc, nullptr);
     EXPECT_EQ(parent_desc->get_offset(), offset);
 }
+}  // namespace ov::test

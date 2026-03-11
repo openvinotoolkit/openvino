@@ -70,27 +70,39 @@ class MapHolder final : public MappedMemory {
 public:
     MapHolder() = default;
 
-    void set(const std::filesystem::path& path) {
+    void set(const std::filesystem::path& path, size_t offset, size_t size) {
         int mode = O_RDONLY;
         int fd = open(path.c_str(), mode);
         if (fd == -1) {
             throw std::runtime_error("Can not open file " + util::path_to_string(path) +
-                                     " for mapping. Ensure that file exists and has appropriate permissions");
+                                     " for mapping. Ensure that file exists and has appropriate permissions.");
         }
-        set_from_fd(fd);
-        m_id = std::hash<std::string>{}(path.native());
+        set_from_fd(fd, offset, size);
+        m_id = std::hash<std::filesystem::path::string_type>{}(path.native()) ^ std::hash<size_t>{}(offset) ^
+               std::hash<size_t>{}(size);
     }
 
-    void set_from_fd(const int fd) {
-        int prot = PROT_READ;
-        struct stat sb = {};
+    void set_from_fd(const int fd, size_t offset, size_t size) {
+        if (fd == -1) {
+            throw std::runtime_error("Invalid file descriptor provided for mapping.");
+        }
         m_handle = HandleHolder(fd);
+
+        struct stat sb = {};
         if (fstat(fd, &sb) == -1) {
             throw std::runtime_error("Can not get file size for fd=" + std::to_string(fd));
         }
-        m_size = sb.st_size;
+        if (size == 0) {
+            m_size = sb.st_size - offset;
+        } else {
+            m_size = size;
+        }
+        if (offset + m_size > static_cast<size_t>(sb.st_size)) {
+            throw std::runtime_error("Requested mapping range exceeds file size for fd=" + std::to_string(fd));
+        }
+
         if (m_size > 0) {
-            m_data = mmap(nullptr, m_size, prot, MAP_SHARED, fd, 0);
+            m_data = mmap(nullptr, m_size, PROT_READ, MAP_SHARED, fd, offset);
             if (m_data == MAP_FAILED) {
                 throw std::runtime_error("Can not create file mapping for " + std::to_string(fd) +
                                          ", err=" + std::strerror(errno));
@@ -119,66 +131,15 @@ public:
     }
 };
 
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path) {
+std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path, size_t offset, size_t size) {
     auto holder = std::make_shared<MapHolder>();
-    holder->set(path);
+    holder->set(path, offset, size);
     return holder;
 }
 
-std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle) {
-    // On Linux, FileHandle is int (file descriptor)
+std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle, size_t offset, size_t size) {
     auto holder = std::make_shared<MapHolder>();
-    holder->set_from_fd(static_cast<int>(handle));
+    holder->set_from_fd(handle, offset, size);
     return holder;
-}
-
-class PartialMapHolder final : public MappedMemory {
-    void* m_data = MAP_FAILED;
-    size_t m_size = 0;
-    uint64_t m_id = std::numeric_limits<uint64_t>::max();
-    HandleHolder m_handle;
-
-    void setup_mapping(const int fd, size_t pos, size_t size) {
-        if (size > 0) {
-            m_data = mmap(nullptr, size, PROT_READ, MAP_PRIVATE, fd, pos);
-            if (m_data == MAP_FAILED) {
-                throw std::runtime_error("Can not create file mapping for " + std::to_string(fd) +
-                                         ", err=" + std::strerror(errno));
-            }
-            m_handle = HandleHolder(fd);
-            m_size = size;
-        }
-    }
-
-public:
-    PartialMapHolder(const std::filesystem::path& path, size_t pos, size_t size) {
-        if (int fd = open(path.c_str(), O_RDONLY); fd != -1) {
-            setup_mapping(fd, pos, size);
-            m_id = std::hash<std::filesystem::path::string_type>{}(path.native()) ^ std::hash<size_t>{}(pos) ^
-                   std::hash<size_t>{}(size);
-        } else {
-            throw std::runtime_error("Can not open file " + util::path_to_string(path) +
-                                     " for mapping. Ensure that file exists and has appropriate permissions");
-        }
-    }
-    ~PartialMapHolder() {
-        if (m_data != MAP_FAILED) {
-            munmap(m_data, m_size);
-        }
-    }
-
-    char* data() noexcept override {
-        return static_cast<char*>(m_data);
-    }
-    size_t size() const noexcept override {
-        return m_size;
-    }
-    uint64_t get_id() const noexcept override {
-        return m_id;
-    }
-};
-
-std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path, size_t pos, size_t size) {
-    return std::make_shared<PartialMapHolder>(path, pos, size);
 }
 }  // namespace ov
