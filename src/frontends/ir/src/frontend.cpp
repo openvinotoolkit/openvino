@@ -12,6 +12,7 @@
 #include "input_model.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/so_extension.hpp"
+#include "openvino/frontend/common/path_util.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
@@ -92,20 +93,6 @@ size_t get_ir_version(std::istream& model) {
     return ir_version;
 }
 
-std::optional<std::filesystem::path> get_path_from_any(const ov::Any& param) {
-    if (param.is<std::filesystem::path>()) {
-        return std::make_optional(param.as<std::filesystem::path>());
-    } else if (param.is<std::string>()) {
-        return std::make_optional(ov::util::make_path(param.as<std::string>()));
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-    } else if (param.is<std::wstring>()) {
-        return std::make_optional(ov::util::make_path(param.as<std::wstring>()));
-#endif
-    } else {
-        return std::nullopt;
-    }
-}
-
 }  // namespace
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
@@ -125,9 +112,9 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         provided_model_stream = model_variant.as<std::istringstream*>();
     } else if (model_variant.is<std::shared_ptr<AlignedBuffer>>()) {
         model_buffer = model_variant.as<std::shared_ptr<AlignedBuffer>>();
-    } else if (const auto path = get_path_from_any(model_variant); path) {
-        validate_path(*path);
-        local_model_stream.open(*path, std::ios::in | std::ifstream::binary);
+    } else if (const auto path = get_path_from_any(model_variant)) {
+        validate_path(path.value());
+        local_model_stream.open(path.value(), std::ios::in | std::ifstream::binary);
     }
 
     if (provided_model_stream && local_model_stream.is_open()) {
@@ -203,7 +190,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         provided_model_stream = model_variant.as<std::istringstream*>();
     } else if (model_variant.is<std::shared_ptr<AlignedBuffer>>()) {
         model_buf = model_variant.as<std::shared_ptr<AlignedBuffer>>();
-    } else if (auto path = get_path_from_any(model_variant); path) {
+    } else if (auto path = get_path_from_any(model_variant)) {
         model_path = std::move(*path);
         validate_path(model_path);
         local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
@@ -213,7 +200,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     for (size_t variant_id = 1; variant_id < variants.size(); ++variant_id) {
         if (const auto& variant = variants.at(variant_id); variant.is<std::shared_ptr<ov::AlignedBuffer>>()) {
             weights = variant.as<std::shared_ptr<ov::AlignedBuffer>>();
-        } else if (auto path = get_path_from_any(variant); path) {
+        } else if (auto path = get_path_from_any(variant)) {
             weights_path = std::move(*path);
         }
     }
@@ -222,7 +209,6 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     if (weights_path.empty()) {
         weights_path = model_path;
         weights_path.replace_extension(".bin");
-
         if (!ov::util::file_exists(weights_path)) {
             weights_path.clear();
         }
