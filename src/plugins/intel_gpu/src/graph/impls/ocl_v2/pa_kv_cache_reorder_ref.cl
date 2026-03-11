@@ -230,7 +230,7 @@ KERNEL(pa_kv_cache_reorder)(
             // Handle leftovers
             for (; v < (uint)V_HEAD_SIZE; v += SUBGROUP_SIZE) {
                 uint src_off = val_src_base + src_slot * V_HEAD_SIZE + v;
-                uint dst_off = val_src_base + dst_slot * V_HEAD_SIZE + v;
+                uint dst_off = val_dst_base + dst_slot * V_HEAD_SIZE + v;
                 value_cache[dst_off] = value_cache[src_off];
             }
 
