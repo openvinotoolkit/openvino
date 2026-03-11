@@ -17,6 +17,7 @@
 #include "partitioning/online/snapshot.hpp"
 
 using ov::test::npuw::ModelBuilder;
+using ov::test::npuw::ModelConfig;
 
 namespace {
 
@@ -656,3 +657,41 @@ INSTANTIATE_TEST_SUITE_P(OnlinePartitioningTest,
                              std::make_tuple(std::vector<std::size_t>{5}, /*irregular_io=*/true),
                              // No blocks have an additional ov::Parameter producers
                              std::make_tuple(std::vector<std::size_t>{}, /*irregular_io=*/false)));
+
+// Regression test for the isRegularParameterCase iteration-order bug.
+//
+// In a prefill-style model built with use_inputs_embeds=true, the first transformer
+// layer's residual Add reads inputs_embeds (ov::Parameter) as its ONLY external
+// producer -- the other input (o_proj/MatMul) is internal to the same partitioned
+// group. Because isOp(Parameter)=false, updateInputLayers() excludes that Add from
+// group 0's getInputs(). The old code used gset.begin() (hash-order-dependent) as
+// the sole reference group: if it landed on group 0, the mismatch between layer 0's
+// producers mask [true, false] and layers 1+'s mask [false, false] was invisible,
+// so irregular_io was incorrectly set to false and F16IC was wrongly enabled,
+// leading to a 26!=27 sanityCheck assertion failure at runtime.
+//
+// The fix iterates ALL groups in gset so that at least one sibling group (layers 1+)
+// always exposes its boundary Add in getInputs(), detects the mask mismatch, and
+// correctly sets irregular_io=true regardless of hash order.
+TEST(OnlinePartitioningTest, IsRegularParameterCase_PrefillModel_InputsEmbeds) {
+    ModelConfig config;
+    config.num_layers = 4;
+    config.hidden_size = 32;
+    config.num_heads = 2;
+    config.head_dim = 16;
+    config.intermediate_size = 64;
+    config.vocab_size = 100;
+    config.use_inputs_embeds = true;  // layer 0's residual Add reads inputs_embeds (ov::Parameter)
+    config.use_kv_cache = false;      // keep model simple; KV-cache symmetry is orthogonal to this bug
+
+    ModelBuilder mb;
+    auto model = mb.build_model(config);
+
+    auto cfg = createConfigWithKeepBlockSize(4);
+    auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+    EXPECT_GE(ens.repeated.size(), 1u);  // sanity: transformer layers must form a repeated block
+    // Layer 0 reads inputs_embeds (ov::Parameter); layers 1+ read from prior computation.
+    // isRegularParameterCase must detect this structural asymmetry and set irregular_io=true.
+    EXPECT_TRUE(ens.irregular_io);
+}
