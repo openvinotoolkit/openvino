@@ -382,6 +382,9 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
     const std::shared_ptr<ZeroTensor> initInputsAllocatedTensor =
         std::make_shared<ZeroTensor>(_zeroInitStruct, ov::element::Type_t::u8, ov::Shape({initInputsByteSize}), true);
 
+    std::vector<size_t> noLongerRequiredIds;
+    noLongerRequiredIds.reserve(_initsMetadata.at(initIndex).inputs.size());
+
     size_t offset = 0;
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).inputs) {
         auto currentInputBufferLocation =
@@ -416,8 +419,15 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
             ov::make_tensor(descriptor.precision, tensorShapeFromCompiler, currentInputBufferLocation));
         offset += currentInputSize;
 
+        // Note: One cannot immediately delete the constant, because there might
+        // be a duplicate. The deletion should happen once the input data for
+        // init schedule is fully set.
+        noLongerRequiredIds.push_back(id);
+    }
+
+    for (size_t id : noLongerRequiredIds) {
         // Note: By construction of the weight schedule, every constant from OV
-        // model appears exactly once across all schedules. Thus, one can delete
+        // model appears in exactly one schedule. Thus, one can delete
         // the handle to the constant memory early.
         constants.erase(id);
     }
