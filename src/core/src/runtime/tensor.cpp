@@ -8,6 +8,7 @@
 #include <numeric>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/shape_util.hpp"
@@ -141,8 +142,14 @@ ov::Shape calc_static_shape_for_file(size_t file_size,
                                      size_t offset) {
     if (partial_shape.is_static()) {
         auto static_shape = partial_shape.get_shape();
-        OPENVINO_ASSERT((ov::shape_size(static_shape)) * element_type.bitwidth() + offset * 8 == file_size * 8,
-                        "Cannot fit file size into requested static PartialShape");
+        const auto memory_size = ov::util::get_memory_size_safe(element_type, static_shape);
+        OPENVINO_ASSERT(memory_size && *memory_size + offset <= file_size,
+                        "Requested space exceeds file bounds: file size=",
+                        file_size,
+                        " offset=",
+                        offset,
+                        " requested size=",
+                        memory_size ? std::to_string(*memory_size) : "uncountable");
         return static_shape;
     }
     auto partial_shape_copy = partial_shape;
