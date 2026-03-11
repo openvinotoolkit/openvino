@@ -549,7 +549,28 @@ void jit_uni_eltwise_generic<isa>::load_vector(Vmm vmm_src,
     if (src_prc == dst_prc) {
         if (broadcast) {
             load_scalar(xmm_src, op, src_prc, dst_prc);
-            uni_vbroadcastss(vmm_src, xmm_src);
+            switch (src_prc.size()) {
+            case 1:
+                if (isa == x64::sse41) {
+                    punpcklbw(xmm_src, xmm_src);
+                    punpcklbw(xmm_src, xmm_src);
+                    pshufd(xmm_src, xmm_src, 0);
+                } else {
+                    vpbroadcastb(vmm_src, xmm_src);
+                }
+                break;
+            case 2:
+                if (isa == x64::sse41) {
+                    punpcklwd(xmm_src, xmm_src);
+                    pshufd(xmm_src, xmm_src, 0);
+                } else {
+                    vpbroadcastw(vmm_src, xmm_src);
+                }
+                break;
+            default:
+                uni_vbroadcastss(vmm_src, xmm_src);
+                break;
+            }
         } else {
             uni_vmovups(vmm_src, op);
         }
