@@ -8,7 +8,7 @@
 #     release: npu_cip_ud_2026_08_rc2
 #     storage localtion: https://storage.openvinotoolkit.org/dependencies/thirdparty
 #     WINDOWS: npu_compiler_vcl_windows_2022-7_6_0-c74b126.zip
-#     LINUX: 
+#     LINUX:
 #         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_6_0-c74b126.tar.gz
 #         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_6_0-c74b126.tar.gz
 function(download_and_extract url zip_file extracted_dir)
@@ -19,11 +19,24 @@ function(download_and_extract url zip_file extracted_dir)
         if(NOT "${url}" STREQUAL "")
             message(STATUS "${url} is not empty")
             message(STATUS "Downloading prebuilt Plugin compiler libraries from ${url}")
+            # This helps to track where the download is happening from, for analytics purposes
+            set(_download_referer_header "")
+            if(DEFINED ENV{CI} AND "$ENV{CI}" STREQUAL "true")
+                set(_download_referer "generic-ci-cmake")
+                if(DEFINED ENV{GITHUB_ACTIONS} AND "$ENV{GITHUB_ACTIONS}" STREQUAL "true")
+                    set(_download_referer "generic-github-actions-cmake")
+                    if(DEFINED ENV{GITHUB_REPOSITORY_OWNER} AND "$ENV{GITHUB_REPOSITORY_OWNER}" STREQUAL "openvinotoolkit")
+                        set(_download_referer "openvino-gha-ci-cmake")
+                    endif()
+                endif()
+                set(_download_referer_header HTTPHEADER "Referer: ${_download_referer}")
+            endif()
             file(DOWNLOAD "${url}" "${zip_file}"
                 TIMEOUT 3600
                 LOG log_output
                 STATUS download_status
-                SHOW_PROGRESS)
+                SHOW_PROGRESS
+                ${_download_referer_header})
 
             list(GET download_status 0 download_result)
             if(NOT download_result EQUAL 0)
@@ -68,7 +81,7 @@ function(download_and_extract url zip_file extracted_dir)
                 execute_process(
                     COMMAND "${WINRAR_EXECUTABLE}" x -y -o+ "${zip_file}" "${extracted_dir}"
                     RESULT_VARIABLE result
-                    OUTPUT_VARIABLE output 
+                    OUTPUT_VARIABLE output
                     ERROR_VARIABLE error
                 )
 
