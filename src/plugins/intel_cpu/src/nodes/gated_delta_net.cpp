@@ -14,6 +14,7 @@
 #include "graph_context.h"
 #include "kernels/linear_attn/recurrent_linear_attn.hpp"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"

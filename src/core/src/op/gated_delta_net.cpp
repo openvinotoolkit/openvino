@@ -104,7 +104,7 @@ void GatedDeltaNet::validate_and_infer_types() {
                           "The head size in key and query should be the same, but got ",
                           k_head_size,
                           " and ",
-                          v_head_size,
+                          q_head_size,
                           ".");
 
     const auto gate_head_num = gate_ps[2];

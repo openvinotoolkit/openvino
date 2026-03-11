@@ -71,7 +71,6 @@ bool matches_linear_attention_loop(const std::shared_ptr<ov::Node>& node) {
     auto step_index = any_input();
 
     auto step_index_unsqueeze = wrap_type<v0::Unsqueeze>({step_index, 0});
-    // auto recurrent_state_f32 = pattern::optional<v0::Convert>({recurrent_state});
     auto gate_f32 = pattern::optional<v0::Convert>({gate});
 
     auto exp_gate = wrap_type<v0::Exp>({gate_f32});
@@ -169,8 +168,11 @@ ov::pass::RemoveConcatSliceAfterLoop::RemoveConcatSliceAfterLoop() {
     auto slice_attn = pattern::wrap_type<ov::op::v8::Slice>({concat_loop, {0}, any_input(), {1}, {0}});
     auto reshape_attn = pattern::wrap_type<v1::Reshape>({slice_attn, any_input()},
                                                         pattern::shape_matches("[?, head_num, ?, v_head_size]"));
-    auto slice_state = pattern::wrap_type<ov::op::v8::Slice>({concat_loop, any_input(), {LLONG_MAX}, {1}, {0}});
-    auto reshape_state = pattern::wrap_type<v1::Reshape>({slice_state, any_input()});
+    auto state_end = pattern::wrap_type<v0::Constant>(value_matches("LLONG_MAX") || value_matches("-1"));
+    auto slice_state = pattern::wrap_type<ov::op::v8::Slice>({concat_loop, any_input(), state_end, {1}, {0}});
+    auto reshape_state =
+        pattern::wrap_type<v1::Reshape>({slice_state, any_input()},
+                                        pattern::shape_matches("[?, head_num, k_head_size, v_head_size]"));
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         bool changed = false;

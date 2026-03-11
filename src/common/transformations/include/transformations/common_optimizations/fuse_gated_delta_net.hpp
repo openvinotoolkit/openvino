@@ -22,6 +22,14 @@ public:
 /**
  * @ingroup ov_transformation_common_api
  * @brief Fuses a loop-based gated delta net sub-graph into an internal GatedDeltaNet operation.
+ *
+ * Expected Loop body semantics per step:
+ * 1) Decay recurrent state: `h_decay = h * exp(g)`
+ * 2) Compute projection and delta: `delta = v - reduce_sum(h_decay * k, axis=-2)`
+ * 3) Apply beta and update state: `h_new = h_decay + k * unsqueeze(delta * beta, axis=-2)`
+ * 4) Compute per-step output: `o = reduce_sum(h_new * q, axis=-2, keep_dims=true)` and scatter to time index
+ *
+ * The matcher validates this body shape/operation pattern before replacing the Loop with `GatedDeltaNet`.
  */
 
 class TRANSFORMATIONS_API FuseGDNLoop : public ov::pass::MatcherPass {

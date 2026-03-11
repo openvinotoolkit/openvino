@@ -38,7 +38,7 @@ public:
                                                                          : parallel_get_max_threads() * m_multiplier;
         return num;
     }
-    [[nodiscard]] int get_num_worker_threads() const {
+    [[nodiscard]] static int get_num_worker_threads() {
         return parallel_get_max_threads();
     }
     void activate() const {
