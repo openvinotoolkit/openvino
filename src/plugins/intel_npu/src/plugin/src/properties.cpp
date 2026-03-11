@@ -586,6 +586,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::online::keep_block_size,
                                  NPUW_ONLINE_KEEP_BLOCK_SIZE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::attn, NPUW_ATTN);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::attn_hfa_fused, NPUW_ATTN_HFA_FUSED);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::fold, NPUW_FOLD);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::cwai, NPUW_CWAI);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::dyn_quant, NPUW_DQ);
@@ -1141,11 +1142,22 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
     std::map<std::string, std::string> cfgsToSet;
     for (const auto& [key, value] : rawConfig) {
-        if ((updatedConfig.hasOpt(key) && updatedConfig.getOpt(key).mode() == OptionMode::CompileTime)) {
-            _logger.info(
-                "Config key '%s' is recognized as a compiler option, will not be used for current configuration.",
-                key.c_str());
-            continue;
+        if (updatedConfig.hasOpt(key)) {
+            const auto optionMode = updatedConfig.getOpt(key).mode();
+
+            if (optionMode == OptionMode::CompileTime) {
+                _logger.info(
+                    "Config key '%s' is recognized as a compiler option, will not be used for current configuration.",
+                    key.c_str());
+                continue;
+            }
+
+            if (optionMode == OptionMode::Both && !updatedConfig.isAvailable(key)) {
+                _logger.info(
+                    "Config key '%s' is not enabled by the plugin, will not be used for current configuration.",
+                    key.c_str());
+                continue;
+            }
         }
 
         cfgsToSet.emplace(key, value);

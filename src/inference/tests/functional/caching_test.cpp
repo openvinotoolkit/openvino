@@ -84,7 +84,7 @@ public:
     MockCachingIPluginBase() = default;
     ~MockCachingIPluginBase() = default;
 
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::filesystem::path& model_path,
                                                       const ov::AnyMap& config) const override {
         // In GTEST, it is not possible to call base implementation inside of mocked class
         // Thus, we define a proxy callback and will use
@@ -2394,7 +2394,7 @@ TEST_P(CachingTest, LoadAUTO_OneDevice) {
             .Times(TEST_COUNT - index - 1);
         EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(index);
         OV_ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
-            core.set_property(ov::cache_dir(cacheDir));
+            core.set_property(ov::cache_path(cacheDir));
             m_testFunction(core);
         }));
     }
@@ -2436,7 +2436,7 @@ TEST_P(CachingTest, LoadAUTOWithConfig) {
             .Times(TEST_COUNT - index - 1);
         EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(index);
         OV_ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
-            m_testFunctionWithCfg(core, {{ov::cache_dir.name(), cacheDir}});
+            m_testFunctionWithCfg(core, {{ov::cache_path.name(), cacheDir}});
         }));
     }
     std::cout << "Caching LoadAuto Test completed. Tried " << index << " times" << std::endl;
@@ -2970,8 +2970,8 @@ TEST_P(CachingTest, Load_mmap_is_not_supported_by_plugin_local_cfg) {
     EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);
     EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
     testLoad([&](ov::Core& core) {
-        core.set_property(ov::cache_dir(new_cache_dir));
-        const auto config = ov::AnyMap{{ov::cache_dir(m_cacheDir)}, {ov::enable_mmap(false)}};
+        core.set_property(ov::cache_path(new_cache_dir));
+        const auto config = ov::AnyMap{{ov::cache_path(m_cacheDir)}, {ov::enable_mmap(false)}};
         m_testFunctionWithCfg(core, config);
         m_testFunctionWithCfg(core, config);
     });
@@ -3061,7 +3061,7 @@ TEST_P(CachingTest, import_from_cache_model_and_weights_path_properties_are_supp
     EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);
     EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
     testLoad([&](ov::Core& core) {
-        const auto config = ov::AnyMap{{ov::cache_dir(m_cacheDir)}};
+        const auto config = ov::AnyMap{{ov::cache_path(m_cacheDir)}};
         m_testFunctionWithCfg(core, config);
         // load from cache
         m_testFunctionWithCfg(core, config);

@@ -171,6 +171,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
                 k_aligned_4byte = "(" + k_size + "*" + bytes_per_element + " % 4 == 0)";
             }
         }
+        const std::string n_aligned_with_simd_tile = "(" + leftover_n + "==0)";
 
         jit.AddConstants({
             MakeJitConstant("M", m_size),
@@ -180,6 +181,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("N_PADDED", n_padded_size),
             MakeJitConstant("K_IS_ALIGNED_4BYTE", k_aligned_4byte),
             MakeJitConstant("N_IS_ALIGNED_4BYTE", n_aligned_4byte),
+            MakeJitConstant("N_IS_ALIGNED_WITH_SIMD_TILE", n_aligned_with_simd_tile),
             MakeJitConstant("SIMD_WIDTH", tuning_data.simd_size),
             MakeJitConstant("TILE_M", tuning_data.tile_m_size),
             MakeJitConstant("TILE_K", tuning_data.tile_k_size),
@@ -255,6 +257,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         auto leftover_k = k_size % tuning_data.tile_k_size;
         auto n_aligned_4byte = (n_size * BytesPerElement(params.inputs[0].GetDType())) % 4 == 0;
         auto k_aligned_4byte = (k_size * BytesPerElement(params.inputs[0].GetDType())) % 4 == 0;
+        auto n_aligned_with_simd_tile = leftover_n == 0;
 
         jit.AddConstants({
             MakeJitConstant("M", m_size),
@@ -264,6 +267,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("N_PADDED", n_size),
             MakeJitConstant("K_IS_ALIGNED_4BYTE", k_aligned_4byte),
             MakeJitConstant("N_IS_ALIGNED_4BYTE", n_aligned_4byte),
+            MakeJitConstant("N_IS_ALIGNED_WITH_SIMD_TILE", n_aligned_with_simd_tile),
             MakeJitConstant("SIMD_WIDTH", tuning_data.simd_size),
             MakeJitConstant("TILE_M", tuning_data.tile_m_size),
             MakeJitConstant("TILE_K", tuning_data.tile_k_size),
@@ -400,18 +404,23 @@ KernelsData GemmKernelTiledOpt::GetKernelsData(const Params& params) const {
         if (params.is_shape_agnostic) {
             cldnn_jit.RemoveConstant("TILE_K_NOT_DIVISIBLE");
             cldnn_jit.RemoveConstant("TILE_N_NOT_DIVISIBLE");
+            cldnn_jit.RemoveConstant("N_IS_ALIGNED_WITH_SIMD_TILE");
             if (i == 0) {
                 cldnn_jit.AddConstant(MakeJitConstant("TILE_K_NOT_DIVISIBLE", "0"));
                 cldnn_jit.AddConstant(MakeJitConstant("TILE_N_NOT_DIVISIBLE", "0"));
+                cldnn_jit.AddConstant(MakeJitConstant("N_IS_ALIGNED_WITH_SIMD_TILE", "1"));
             } else if (i == 1) {
                 cldnn_jit.AddConstant(MakeJitConstant("TILE_K_NOT_DIVISIBLE", "0"));
                 cldnn_jit.AddConstant(MakeJitConstant("TILE_N_NOT_DIVISIBLE", "1"));
+                cldnn_jit.AddConstant(MakeJitConstant("N_IS_ALIGNED_WITH_SIMD_TILE", "0"));
             } else if (i == 2) {
                 cldnn_jit.AddConstant(MakeJitConstant("TILE_K_NOT_DIVISIBLE", "1"));
                 cldnn_jit.AddConstant(MakeJitConstant("TILE_N_NOT_DIVISIBLE", "0"));
+                cldnn_jit.AddConstant(MakeJitConstant("N_IS_ALIGNED_WITH_SIMD_TILE", "1"));
             } else if (i == 3) {
                 cldnn_jit.AddConstant(MakeJitConstant("TILE_K_NOT_DIVISIBLE", "1"));
                 cldnn_jit.AddConstant(MakeJitConstant("TILE_N_NOT_DIVISIBLE", "1"));
+                cldnn_jit.AddConstant(MakeJitConstant("N_IS_ALIGNED_WITH_SIMD_TILE", "0"));
             }
         }
         auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, i);

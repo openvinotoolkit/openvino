@@ -5,6 +5,7 @@
 #include "core_impl.hpp"
 
 #include <memory>
+#include <optional>
 #include <variant>
 
 #include "check_network_batchable.hpp"
@@ -73,16 +74,16 @@ void stripDeviceName(std::string& device, const std::string& substr) {
 /**
  * @brief Converts / flattens ov::device::properties from
  * @code
- * core.compile_model(model, "GPU", ov::device::properties("GPU", ov::cache_dir("/tmp")));
+ * core.compile_model(model, "GPU", ov::device::properties("GPU", ov::cache_path("/tmp")));
  * // or
  * core.compile_model(model, "GPU", ov::device::properties({
- *   { "GPU", ov::cache_dir("/tmp") },
- *   { "CPU", ov::cache_dir("") }
+ *   { "GPU", ov::cache_path("/tmp") },
+ *   { "CPU", ov::cache_path("") }
  * }));
  * @endcode
  * To the form:
  * @code
- * core.compile_model(model, "GPU", ov::cache_dir("/tmp"));
+ * core.compile_model(model, "GPU", ov::cache_path("/tmp"));
  * @endcode
  *
  * @param user_device_name A device name for which properties flattening is performed
@@ -208,9 +209,11 @@ void clean_batch_properties(const std::string& device_name, ov::AnyMap& config, 
 }
 
 static const auto core_properties_names = ov::util::make_array(ov::cache_dir.name(),
+                                                               ov::cache_path.name(),
+                                                               ov::cache_model_path.name(),
+                                                               ov::cache_blob_id.name(),
                                                                ov::enable_mmap.name(),
-                                                               ov::force_tbb_terminate.name(),
-                                                               ov::cache_model_path.name());
+                                                               ov::force_tbb_terminate.name());
 
 static const auto auto_batch_properties_names =
     ov::util::make_array(ov::auto_batch_timeout.name(), ov::hint::allow_auto_batching.name());
@@ -279,6 +282,14 @@ std::vector<ov::Extension::Ptr> try_get_extensions(std::shared_ptr<void>& so) {
         return ov::detail::load_extensions(so);
     } catch (const std::runtime_error&) {
         return {};
+    }
+}
+
+std::string get_blob_id_or_compute(const ov::AnyMap& user_config, std::function<std::string()>&& calculate_blob_id) {
+    if (auto blob_id_hint = user_config.find(ov::cache_blob_id.name()); blob_id_hint != user_config.end()) {
+        return blob_id_hint->second.as<std::string>();
+    } else {
+        return calculate_blob_id();
     }
 }
 }  // namespace
@@ -393,6 +404,25 @@ ov::Parsed parse_device_config(const std::string& device_name,
         }
     }
     return parsed;
+}
+
+std::optional<std::filesystem::path> get_cache_path_from_config(const ov::AnyMap& config) {
+    const auto cache_dir_it = config.find(ov::cache_dir.name());
+    const auto cache_path_it = config.find(ov::cache_path.name());
+
+    if (cache_dir_it != config.end() && cache_path_it != config.end()) {
+        OPENVINO_THROW("Set cache path by '",
+                       ov::cache_path.name(),
+                       "' or '",
+                       ov::cache_dir.name(),
+                       "' property. Both set in configuration.");
+    } else if (cache_dir_it != config.end()) {
+        return std::make_optional(ov::util::make_path(cache_dir_it->second.as<std::string>()));
+    } else if (cache_path_it != config.end()) {
+        return std::make_optional(cache_path_it->second.as<std::filesystem::path>());
+    } else {
+        return std::nullopt;
+    }
 }
 
 void emplace_cache_dir_if_supported(ov::AnyMap& config,
@@ -841,7 +871,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), get_cache_model_path(config)};
         const auto compiled_config = create_compile_config(plugin, parsed.m_config);
-        cache_content.m_blob_id = ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
+        cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
+            return ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
+        });
         cache_content.model = model;
 
         const auto& cache_mode_it = config.find(cache_mode.name());
@@ -886,7 +918,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), get_cache_model_path(config)};
         const auto compiled_config = create_compile_config(plugin, parsed.m_config);
-        cache_content.m_blob_id = ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
+        cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
+            return ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
+        });
         cache_content.model = model;
 
         const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);
@@ -916,8 +950,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::filesystem:
         CoreConfig::remove_core(parsed.m_config);
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), model_path};
-        cache_content.m_blob_id =
-            ov::ModelCache::compute_hash(cache_content.m_model_path, create_compile_config(plugin, parsed.m_config));
+        cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
+            return ModelCache::compute_hash(cache_content.m_model_path, create_compile_config(plugin, parsed.m_config));
+        });
         const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);
         compiled_model = load_model_from_cache(cache_content, plugin, parsed.m_config, {}, [&]() {
             const auto model =
@@ -945,9 +980,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     } else if (cache_manager && device_supports_model_caching(plugin, parsed.m_config) && !is_proxy_device(plugin)) {
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap()};
-        const auto compiled_config = create_compile_config(plugin, parsed.m_config);
-        cache_content.m_blob_id = ModelCache::compute_hash(model_str, weights, compiled_config);
-
+        cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
+            return ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed.m_config));
+        });
         const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);
         compiled_model = load_model_from_cache(cache_content, plugin, parsed.m_config, {}, [&]() {
             const auto model = read_model(model_str, weights);
@@ -1251,6 +1286,8 @@ ov::Any ov::CoreImpl::get_property_for_core(const std::string& name) const {
         return decltype(ov::force_tbb_terminate)::value_type(flag);
     } else if (name == ov::cache_dir.name()) {
         return ov::Any(util::path_to_string(m_core_config.get_cache_dir()));
+    } else if (name == ov::cache_path.name()) {
+        return {m_core_config.get_cache_dir()};
     } else if (name == ov::enable_mmap.name()) {
         const auto flag = m_core_config.get_enable_mmap();
         return decltype(ov::enable_mmap)::value_type(flag);
@@ -1282,6 +1319,8 @@ ov::Any ov::CoreImpl::get_property(const std::string& device_name,
     } else if (name == ov::cache_dir.name()) {
         return util::path_to_string(
             m_core_config.get_cache_config_for_device(get_plugin(parsed.m_device_name)).m_cache_dir);
+    } else if (name == ov::cache_path.name()) {
+        return {m_core_config.get_cache_config_for_device(get_plugin(parsed.m_device_name)).m_cache_dir};
     }
     return get_plugin(parsed.m_device_name).get_property(name, parsed.m_config);
 }
@@ -1296,7 +1335,7 @@ void ov::CoreImpl::unload_plugin(const std::string& device_name) {
     m_plugins.erase(device_name);
 }
 
-void ov::CoreImpl::register_plugin(const std::string& plugin,
+void ov::CoreImpl::register_plugin(const std::filesystem::path& plugin,
                                    const std::string& device_name,
                                    const ov::AnyMap& properties) {
     std::lock_guard<std::mutex> lock(get_mutex());
@@ -1311,7 +1350,7 @@ void ov::CoreImpl::register_plugin(const std::string& plugin,
         OPENVINO_THROW("Device name must not contain dot '.' symbol");
     }
 
-    PluginDescriptor desc{ov::util::get_plugin_path(ov::util::make_path(plugin)), properties};
+    PluginDescriptor desc{ov::util::get_plugin_path(plugin), properties};
     register_plugin_in_registry_unsafe(device_name, desc);
 }
 
@@ -1675,17 +1714,16 @@ ov::CoreConfig::CoreConfig(const CoreConfig& other) {
 }
 
 void ov::CoreConfig::set(const ov::AnyMap& config, const std::string& device_name) {
-    if (const auto cfg_entry = config.find(ov::cache_dir.name()); cfg_entry != config.end()) {
-        const auto cache_dir = util::make_path(cfg_entry->second.as<std::string>());
+    if (const auto cache_path = get_cache_path_from_config(config); cache_path.has_value()) {
         if (std::lock_guard<std::mutex> lock(m_cache_config_mutex); device_name.empty()) {
             // fill global cache config
-            m_cache_config = CoreConfig::CacheConfig::create(cache_dir);
+            m_cache_config = CoreConfig::CacheConfig::create(*cache_path);
             // sets cache config per-device if it's not set explicitly before
             for (auto& device_cfg : m_devices_cache_config) {
-                device_cfg.second = CoreConfig::CacheConfig::create(cache_dir);
+                device_cfg.second = CoreConfig::CacheConfig::create(*cache_path);
             }
         } else {
-            m_devices_cache_config[device_name] = CoreConfig::CacheConfig::create(cache_dir);
+            m_devices_cache_config[device_name] = CoreConfig::CacheConfig::create(*cache_path);
         }
     }
 
@@ -1726,9 +1764,10 @@ ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov
 
 ov::CoreConfig::CacheConfig ov::CoreConfig::CacheConfig::create(const std::filesystem::path& dir) {
     auto cfg = CacheConfig{dir, nullptr};
-    if (dir.has_extension()) {
+    if (dir.extension() == ".bin") {
         cfg.m_cache_manager = std::make_shared<SingleFileStorageCacheManager>(dir);
     } else if (!dir.empty()) {
+        ov::util::create_directory_recursive(dir);
         cfg.m_cache_manager = std::make_shared<FileStorageCacheManager>(dir);
     }
     return cfg;
