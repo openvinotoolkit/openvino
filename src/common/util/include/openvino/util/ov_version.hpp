@@ -57,6 +57,13 @@ struct Version {
 
     explicit Version(std::string_view version_str) : Version(version_str.data()) {}
 
+    explicit constexpr Version(size_t major, size_t minor, size_t patch, size_t tweak = 0, size_t build = 0)
+        : major{major},
+          minor{minor},
+          patch{patch},
+          tweak{tweak},
+          build{build} {}
+
     // Comparison operators
     bool operator==(const Version& other) const {
         return std::tie(major, minor, patch, tweak, build) ==
