@@ -837,8 +837,9 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     namespace pp = ov::npuw::perf;
 
-    m_llm_profile["1/prefill:1.prepare"] += pp::ms_to_run([&]() {
-        process_longrope(m_prefill_request, m_prefill_in_ports, position_ids);
+    process_longrope(m_prefill_request, m_prefill_in_ports, position_ids);
+
+    m_llm_profile["1/prefill:1.prepare_for_new_conversation"] += pp::ms_to_run([&]() {
         prepare_for_new_conversation(prompt_length);
     });
 
