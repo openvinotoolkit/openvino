@@ -11,9 +11,9 @@
 #include "intel_npu/common/sync_infer_request.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
+#include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "zero_pipeline.hpp"
-#include "zero_tensor.hpp"
 
 namespace intel_npu {
 

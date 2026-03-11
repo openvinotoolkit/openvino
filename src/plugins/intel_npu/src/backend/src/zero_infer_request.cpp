@@ -355,7 +355,7 @@ void ZeroInferRequest::update_command_list_for_tensor(SyncInferRequest::FoundPor
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "create zero tensor");
             // Try to use the user tensor directly if its underlying data is already allocated in the same Level Zero
             // context.
-            levelZeroTensor = std::make_shared<ZeroTensor>(_initStructs, _config, tensor);
+            levelZeroTensor = std::make_shared<ZeroTensor>(_initStructs, tensor);
             updateCommandListArg = true;
         } catch (const ZeroMemException& exception) {
             _logger.debug("ZeroInferRequest::set_tensor - exception caught while trying to create a Level Zero tensor "
@@ -456,8 +456,7 @@ void ZeroInferRequest::update_command_list_for_tensors(SyncInferRequest::FoundPo
                 try {
                     _logger.debug("ZeroInferRequest::set_tensors - create zero tensor");
                     OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "create zero tensor");
-                    get_level_zero_input(foundPort.idx, i) =
-                        std::make_shared<ZeroTensor>(_initStructs, _config, tensors.at(i));
+                    get_level_zero_input(foundPort.idx, i) = std::make_shared<ZeroTensor>(_initStructs, tensors.at(i));
                 } catch (const ZeroMemException& exception) {
                     _logger.debug(
                         "ZeroInferRequest::set_tensors - exception caught while trying to create a Level Zero tensor "
@@ -580,8 +579,7 @@ std::shared_ptr<ZeroTensor> ZeroInferRequest::allocate_tensor(const size_t index
         allocatedTensorShape[utils::BATCH_AXIS] = *batchSize;
     }
 
-    auto tensor =
-        std::make_shared<ZeroTensor>(_initStructs, _config, descriptor.precision, allocatedTensorShape, isInput);
+    auto tensor = std::make_shared<ZeroTensor>(_initStructs, descriptor.precision, allocatedTensorShape, isInput);
 
     if (isInput) {
         if (get_user_input(index) == nullptr) {
@@ -884,7 +882,9 @@ void ZeroInferRequest::get_result() {
 
     for (size_t inputIndex = 0; inputIndex < _levelZeroInputTensors.size(); ++inputIndex) {
         for (const auto& levelZeroTensor : get_level_zero_inputs(inputIndex)) {
-            levelZeroTensor->detach_imported_allocation_for_custom_tensor();
+            if (levelZeroTensor != nullptr) {
+                levelZeroTensor->detach_imported_allocation_for_custom_tensor();
+            }
         }
     }
 
@@ -958,8 +958,7 @@ void ZeroInferRequest::add_state(const IODescriptor& descriptor, size_t tensorIn
                                                                   descriptor.nameFromCompiler,
                                                                   get_level_zero_input(tensorIndex),
                                                                   tensorIndex,
-                                                                  descriptor.relatedDescriptorIndex.value(),
-                                                                  _config));
+                                                                  descriptor.relatedDescriptorIndex.value()));
 }
 
 std::shared_ptr<ZeroTensor>& ZeroInferRequest::get_level_zero_input(size_t index, size_t tensorNo) const {
