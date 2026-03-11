@@ -221,7 +221,7 @@ bool evaluate_strided_slice(const Tensor& data,
                              reinterpret_cast<char*>(output.data()),
                              data_shape,
                              slice_plan,
-                             data.get_element_type());
+                             data.get_element_type().size());
     return true;
 }
 }  // namespace
@@ -247,7 +247,7 @@ bool StridedSlice::evaluate(TensorVector& outputs, const TensorVector& inputs) c
 bool StridedSlice::has_evaluate() const {
     OV_OP_SCOPE(v1_StridedSlice_has_evaluate);
     // CVS-169883: 4th input is optional
-    return get_input_size() == 4 && get_input_element_type(0).bitwidth() >= 8;
+    return get_input_size() == 4;
 }
 
 bool StridedSlice::indices_input_has_and_set_bounds(const size_t port, const std::vector<int64_t>& mask) const {

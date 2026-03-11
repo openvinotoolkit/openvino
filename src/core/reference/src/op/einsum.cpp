@@ -288,8 +288,12 @@ ov::Tensor unsqueeze_input(const ov::Tensor& input, std::vector<int64_t>& unsque
     }
 
     auto output = ov::Tensor(input.get_element_type(), output_shape);
+    const auto element_type = input.get_element_type();
 
-    reshape(static_cast<const char*>(input.data()), static_cast<char*>(output.data()), input.get_byte_size());
+    reshape(static_cast<const char*>(input.data()),
+            static_cast<char*>(output.data()),
+            input_shape,
+            element_type.size());
 
     return output;
 }
@@ -637,9 +641,13 @@ ov::Tensor reshape_input_for_matmul(const ov::Tensor& input,
     }
 
     const auto element_type = input.get_element_type();
+    const auto& input_shape = input.get_shape();
     auto output = ov::Tensor(element_type, new_shape);
 
-    reshape(static_cast<const char*>(input.data()), static_cast<char*>(output.data()), input.get_byte_size());
+    reshape(static_cast<const char*>(input.data()),
+            static_cast<char*>(output.data()),
+            input_shape,
+            element_type.size());
     return output;
 }
 
@@ -961,7 +969,8 @@ void contract_two_inputs(ov::TensorVector& inputs,
     auto contract_output = ov::Tensor(matmul_output.get_element_type(), back_shape);
     reshape(static_cast<const char*>(matmul_output.data()),
             static_cast<char*>(contract_output.data()),
-            matmul_output.get_byte_size());
+            matmul_output.get_shape(),
+            matmul_output.get_element_type().size());
 
     update_operands(inputs, input_subscripts, input_ind1, input_ind2, contract_output, resultant_subscript);
 }

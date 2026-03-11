@@ -162,11 +162,7 @@ bool batch_to_space_evaluate(TensorVector& outputs, const TensorVector& inputs) 
                                                           AxisSet(),
                                                           AxisSet(),
                                                           AxisSet());
-    ov::reference::strided_slice(flat_data,
-                                 static_cast<char*>(outputs[0].data()),
-                                 data_shape,
-                                 slice_plan,
-                                 in.get_element_type());
+    ov::reference::strided_slice(flat_data, static_cast<char*>(outputs[0].data()), data_shape, slice_plan, elem_size);
     return true;
 }
 }  // namespace
@@ -189,7 +185,7 @@ bool BatchToSpace::evaluate(TensorVector& outputs, const TensorVector& inputs) c
 bool BatchToSpace::has_evaluate() const {
     OV_OP_SCOPE(v1_BatchToSpace_has_evaluate);
     return !get_input_partial_shape(0).is_dynamic() && get_input_shape(0).size() >= 2 &&
-           get_input_element_type(0).bitwidth() >= 8 && get_input_shape(0).size() <= shape_size(get_input_shape(1));
+           get_input_shape(0).size() <= shape_size(get_input_shape(1));
 }
 }  // namespace v1
 }  // namespace op
