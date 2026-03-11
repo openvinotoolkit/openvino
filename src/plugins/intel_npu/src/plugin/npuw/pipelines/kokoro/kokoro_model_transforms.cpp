@@ -83,8 +83,8 @@ void guard_angle_divide(std::shared_ptr<ov::Model>& model) {
         // Replace Divide's denominator input with the guarded version
         divide_node->input(1).replace_source_output(guarded_real);
 
-        LOG_DEBUG("guard_angle_divide: patched '" << divide_node->get_friendly_name()
-                                                  << "' (elem_type=" << elem_type << ", eps=" << eps_val << ")");
+        LOG_DEBUG("guard_angle_divide: patched '" << divide_node->get_friendly_name() << "' (elem_type=" << elem_type
+                                                  << ", eps=" << eps_val << ")");
     }
 
     model->validate_nodes_and_infer_types();
