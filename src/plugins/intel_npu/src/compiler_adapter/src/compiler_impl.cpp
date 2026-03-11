@@ -37,29 +37,6 @@ UsedVersion getUsedVclVersion(uint16_t pluginMajor, uint16_t pluginMinor, const 
     return {usedMajor, usedMinor};
 }
 
-bool isUseBaseModelSerializer(UsedVersion useVersion, const intel_npu::FilteredConfig& config) {
-    // vcl serializer(No copy) is only support for vcl version >= 7.5
-    if (useVersion.Major < 7 || (useVersion.Major == 7 && useVersion.Minor < 5)) {
-        return true;
-    }
-
-    // user pass use_base_model_serializer config
-    if (config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) &&
-        config.has(ov::intel_npu::use_base_model_serializer.name())) {
-        return config.get<intel_npu::USE_BASE_MODEL_SERIALIZER>();
-    }
-
-    // user pass model_serializer_version config
-    if (config.isAvailable(ov::intel_npu::model_serializer_version.name()) &&
-        config.has(ov::intel_npu::model_serializer_version.name())) {
-        return (config.get<intel_npu::MODEL_SERIALIZER_VERSION>() ==
-                ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
-    }
-
-    // No VCL serializer was chosen explicitly, will default to the "no weights copy" implementation
-    return false;
-}
-
 struct vcl_allocator : vcl_allocator2_t {
     vcl_allocator() : vcl_allocator2_t{allocate, deallocate} {}
 
