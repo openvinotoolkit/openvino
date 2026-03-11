@@ -894,11 +894,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
     // Note: m_kvcache_request, m_kvcache_in_ports, and m_kvcache_out_ports are selected in
     // prepare_for_new_conversation()
+    namespace pp = ov::npuw::perf;
+    m_llm_profile["N/generate:1.prepare"] += pp::ms_to_run([&]() {
+        if (!m_generate_initialized) {
 
-    if (!m_generate_initialized) {
-        namespace pp = ov::npuw::perf;
-
-        m_llm_profile["N/generate:1.prepare"] += pp::ms_to_run([&]() {
             LOG_DEBUG("Copy kv-cache from prefill to generate model.");
             if (kvcache_desc.num_stored_tokens > 0) {
                 copy_kvcache();
@@ -916,19 +915,15 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                     m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids)),
                     0);
             }
-        });
+    
+            m_generate_initialized = true;
+        }
 
-        m_generate_initialized = true;
-    }
+        // NB: KV-cache is full, further generation is impossible
+        if (kvcache_desc.num_stored_tokens + input_tokens_len > kvcache_desc.total_size) {
+            OPENVINO_THROW("KV-Cache is full.");
+        }
 
-    // NB: KV-cache is full, further generation is impossible
-    if (kvcache_desc.num_stored_tokens + input_tokens_len > kvcache_desc.total_size) {
-        OPENVINO_THROW("KV-Cache is full.");
-    }
-
-    namespace pp = ov::npuw::perf;
-
-    m_llm_profile["N/generate:2.prepare"] += pp::ms_to_run([&]() {
         process_longrope(m_kvcache_request, m_kvcache_in_ports, position_ids);
         // FIXME: these tensors should be shared between the parent & child models
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
@@ -971,7 +966,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         }
     });
 
-    m_llm_profile["N/generate:3.infer"] += pp::ms_to_run([&]() {
+    m_llm_profile["N/generate:2.infer"] += pp::ms_to_run([&]() {
         m_kvcache_request->infer();
     });
     kvcache_desc.num_stored_tokens += input_tokens_len;
@@ -981,7 +976,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         m_lm_head_request->start_async();
     }
 
-    m_llm_profile["N/generate:4.update_kvcache"] += pp::ms_to_run([&]() {
+    m_llm_profile["N/generate:3.update_kvcache"] += pp::ms_to_run([&]() {
         if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
             update_kvcache_for(m_kvcache_request,
                                m_kvcache_in_ports,
@@ -991,7 +986,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         }
     });
 
-    m_llm_profile["N/generate:5.lm_head"] += pp::ms_to_run([&]() {
+    m_llm_profile["N/generate:4.lm_head"] += pp::ms_to_run([&]() {
         if (m_lm_head_request) {
             m_lm_head_request->wait();
             LOG_DEBUG("Calling inference for LM head model -- done.");
