@@ -977,7 +977,28 @@ void InputModel::InputModelONNXImpl::override_all_inputs(const std::vector<ov::f
 }
 
 void InputModel::InputModelONNXImpl::override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs) {
-    FRONT_END_NOT_IMPLEMENTED(override_all_outputs);
+    // Only support reducing the number of outputs or changing their order.
+    // Graph editing (e.g. promoting intermediate tensors to outputs) is not supported.
+    FRONT_END_GENERAL_CHECK(!outputs.empty(), "override_all_outputs: at least one output place must be provided");
+    std::vector<ov::frontend::Place::Ptr> new_outputs;
+    new_outputs.reserve(outputs.size());
+    for (const auto& output : outputs) {
+        FRONT_END_GENERAL_CHECK(output, "override_all_outputs: null place provided");
+        auto it = std::find_if(m_outputs.begin(), m_outputs.end(), [&output](const ov::frontend::Place::Ptr& existing) {
+            return existing->is_equal(output);
+        });
+        if (it != m_outputs.end()) {
+            new_outputs.push_back(*it);
+            continue;
+        }
+        // The place is not an existing model output — model editing is not supported.
+        const auto& names = output->get_names();
+        FRONT_END_NOT_IMPLEMENTED("override_all_outputs: place '" +
+                                  (names.empty() ? std::string("<unnamed>") : names[0]) +
+                                  "' is not an existing model output. "
+                                  "Only reducing or reordering existing model outputs is supported");
+    }
+    m_outputs = std::move(new_outputs);
 }
 
 void InputModel::InputModelONNXImpl::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
