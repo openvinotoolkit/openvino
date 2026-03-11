@@ -30,16 +30,16 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                                                 {ov::intel_npu::defer_weights_load(false)}})),
                          ov::test::utils::appendPlatformTypeTestName<OVCompileAndInferRequestTurbo>);
 
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
-                         OVCompileAndInferRequestSerializers,
-                         ::testing::Combine(::testing::Values(createModelContainingSubgraph()),
-                                            ::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(std::vector<ov::AnyMap>{
-    {ov::intel_npu::model_serializer_version(ov::intel_npu::ModelSerializerVersion::AUTO)},
-        {ov::intel_npu::model_serializer_version(ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY)}, {
-        ov::intel_npu::model_serializer_version(ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY)
-    }}
-})),
-                         ov::test::utils::appendPlatformTypeTestName<OVCompileAndInferRequestSerializers>);
+INSTANTIATE_TEST_SUITE_P(
+    compatibility_smoke_BehaviorTests,
+    OVCompileAndInferRequestSerializers,
+    ::testing::Combine(
+        ::testing::Values(createModelContainingSubgraph()),
+        ::testing::Values(ov::test::utils::DEVICE_NPU),
+        ::testing::ValuesIn(std::vector<ov::AnyMap>{
+            {ov::intel_npu::model_serializer_version(ov::intel_npu::ModelSerializerVersion::AUTO)},
+            {ov::intel_npu::model_serializer_version(ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY)},
+            {ov::intel_npu::model_serializer_version(ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY)}})),
+    ov::test::utils::appendPlatformTypeTestName<OVCompileAndInferRequestSerializers>);
 
 }  // namespace

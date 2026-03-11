@@ -684,7 +684,7 @@ std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const
 
 std::string serializeConfig(const FilteredConfig& config,
                             const ze_graph_compiler_version_info_t& compilerVersion,
-                            const std::function<bool(std::string)>& isOptionSupportedByCompiler) {
+                            const std::function<bool(const std::string&)>& isOptionSupportedByCompiler) {
     Logger logger("serializeConfig", Logger::global().level());
 
     std::string content = {};

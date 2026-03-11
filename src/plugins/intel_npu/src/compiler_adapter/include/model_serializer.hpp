@@ -10,6 +10,7 @@
 #include <string>
 
 #include "intel_npu/common/filtered_config.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/pass/manager.hpp"

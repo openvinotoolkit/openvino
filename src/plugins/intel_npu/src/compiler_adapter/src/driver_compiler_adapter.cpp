@@ -48,10 +48,15 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 
     _logger.debug("serialize IR");
 
+    const auto isOptionValueSupportedByCompiler = [this](std::string optionName,
+                                                         std::optional<std::string> optionValue) {
+        return is_option_supported(optionName, optionValue);
+    };
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
-                                                    useBaseModelSerializer(config),
+                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    isOptionValueSupportedByCompiler,
                                                     _zeGraphExt->isPluginModelHashSupported());
 
     std::string buildFlags;
@@ -111,10 +116,15 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     }
 
     _logger.debug("serialize IR");
+    const auto isOptionValueSupportedByCompiler = [this](std::string optionName,
+                                                         std::optional<std::string> optionValue) {
+        return is_option_supported(optionName, optionValue);
+    };
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
-                                                    useBaseModelSerializer(updatedConfig),
+                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    isOptionValueSupportedByCompiler,
                                                     _zeGraphExt->isPluginModelHashSupported(),
                                                     true);
 
@@ -204,8 +214,15 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
-    auto serializedIR =
-        compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
+    const auto isOptionValueSupportedByCompiler = [this](std::string optionName,
+                                                         std::optional<std::string> optionValue) {
+        return is_option_supported(optionName, optionValue);
+    };
+    auto serializedIR = compiler_utils::serializeIR(model,
+                                                    compilerVersion,
+                                                    maxOpsetVersion,
+                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    isOptionValueSupportedByCompiler);
     const auto isOptionSupportedByCompiler = std::bind(&DriverCompilerAdapter::isCompilerOptionSupported,
                                                        this,
                                                        std::cref(config),

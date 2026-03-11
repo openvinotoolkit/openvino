@@ -382,14 +382,15 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
 
-    bool useBaseModelSerializer = true;
-    useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, config);
-    _logger.debug("serialize IR method is %s",
-                  useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
+    const auto isOptionValueSupportedByCompiler = [this](std::string optionName,
+                                                         std::optional<std::string> optionValue) {
+        return is_option_supported(optionName, optionValue);
+    };
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
-                                                    useBaseModelSerializer,
+                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    isOptionValueSupportedByCompiler,
                                                     false,
                                                     storeWeightlessCacheAttributeFlag);
 
@@ -466,12 +467,17 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
 
-    bool useBaseModelSerializer = true;
-    useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, config);
-    _logger.debug("serialize IR method is %s",
-                  useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
-    auto serializedIR =
-        compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer, false, true);
+    const auto isOptionValueSupportedByCompiler = [this](std::string optionName,
+                                                         std::optional<std::string> optionValue) {
+        return is_option_supported(optionName, optionValue);
+    };
+    auto serializedIR = compiler_utils::serializeIR(model,
+                                                    compilerVersion,
+                                                    maxOpsetVersion,
+                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    isOptionValueSupportedByCompiler,
+                                                    false,
+                                                    true);
 
     std::string buildFlags;
     const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
@@ -590,11 +596,15 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     ze_graph_compiler_version_info_t compilerVersion;
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
-    bool useBaseModelSerializer = true;
-    useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, config);
-    _logger.debug("serialize IR method is %s",
-                  useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
-    auto serializedIR = compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
+    const auto isOptionValueSupportedByCompiler = [this](std::string optionName,
+                                                         std::optional<std::string> optionValue) {
+        return is_option_supported(optionName, optionValue);
+    };
+    auto serializedIR = compiler_utils::serializeIR(model,
+                                                    compilerVersion,
+                                                    maxOpsetVersion,
+                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    isOptionValueSupportedByCompiler);
 
     std::string buildFlags;
     const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
