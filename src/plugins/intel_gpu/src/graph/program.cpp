@@ -236,7 +236,7 @@ void program::init_program() {
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
 
-    if (_engine.backend_type() == backend_types::ocl) {
+    if (_engine.runtime_type() != runtime_types::sycl) {
         _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
                                                                           kernel_selector::KernelBase::get_db().get_batch_headers()));
 
@@ -1905,7 +1905,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
     processing_order.save(ob);
 
-    if (_engine.backend_type() == backend_types::ocl) {
+    if (_engine.runtime_type() != runtime_types::sycl) {
         auto& kernels_cache = get_kernels_cache();
         std::vector<primitive_id> impl_ids;
         for (auto& node : processing_order) {
@@ -2052,7 +2052,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
 
     processing_order.load(ib, *this);
 
-    if (_engine.backend_type() == backend_types::ocl) {
+    if (_engine.runtime_type() != runtime_types::sycl) {
         auto& kernels_cache = get_kernels_cache();
         ib >> kernels_cache;
 
