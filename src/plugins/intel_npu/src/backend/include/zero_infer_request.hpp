@@ -73,6 +73,8 @@ private:
 
     bool _pipelineIsCreated = false;
     bool _dynamicBatchValueChanged = false;
+
+    std::chrono::steady_clock::time_point m_infer_start_time;
 };
 
 }  //  namespace intel_npu

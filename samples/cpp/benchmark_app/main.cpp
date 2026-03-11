@@ -327,6 +327,104 @@ void fuse_mean_scale(ov::preprocess::PrePostProcessor& preproc, const benchmark_
         }
     }
 }
+
+static inline bool starts_with(const std::string& s, const std::string& prefix) {
+    return s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0;
+}
+static inline bool contains(const std::string& s, const std::string& sub) {
+    return s.find(sub) != std::string::npos;
+}
+
+// ========== 4-way: 1/3 -> CPU, 2/4 -> NPU ==========
+static inline const char* dev_for_part(int part) {
+    return (part == 1 || part == 3) ? "CPU" : "NPU";
+}
+
+// ========== 2-graph: graph1 -> CPU, graph2 -> NPU ==========
+static inline const char* dev_for_graph(int graph_id) {
+    return (graph_id == 1) ? "CPU" : "NPU";
+}
+
+// 你现有的 4-way 分段逻辑（原样保留）
+static int alexnet_part_of_node(const std::string& name) {
+    if (starts_with(name, "__module.features.0/") ||
+        starts_with(name, "__module.features.1/") ||
+        starts_with(name, "__module.features.2/") ||
+        starts_with(name, "self.features.0.weight") ||
+        starts_with(name, "x") ||
+        starts_with(name, "Convert_130") ||
+        starts_with(name, "__module.features.0/aten::_convolution/Reshape")) {
+        return 1;
+    }
+
+    if (starts_with(name, "__module.features.3/") ||
+        starts_with(name, "__module.features.4/") ||
+        starts_with(name, "__module.features.5/") ||
+        starts_with(name, "self.features.3.weight") ||
+        starts_with(name, "__module.features.3/aten::_convolution/Reshape")) {
+        return 2;
+    }
+
+    if (starts_with(name, "__module.features.6/") ||
+        starts_with(name, "__module.features.7/") ||
+        starts_with(name, "__module.features.8/") ||
+        starts_with(name, "__module.features.9/") ||
+        starts_with(name, "__module.features.10/") ||
+        starts_with(name, "__module.features.11/") ||
+        starts_with(name, "__module.features.12/") ||
+        starts_with(name, "__module.avgpool/") ||
+        starts_with(name, "aten::flatten/Reshape") ||
+        starts_with(name, "self.features.6.weight") ||
+        starts_with(name, "self.features.8.weight") ||
+        starts_with(name, "self.features.10.weight") ||
+        starts_with(name, "__module.features.6/aten::_convolution/Reshape") ||
+        starts_with(name, "__module.features.8/aten::_convolution/Reshape") ||
+        starts_with(name, "__module.features.10/aten::_convolution/Reshape")) {
+        return 3;
+    }
+
+    if (starts_with(name, "__module.classifier.") ||
+        starts_with(name, "self.classifier.") ||
+        starts_with(name, "Constant_4929") ||
+        starts_with(name, "Constant_4930") ||
+        starts_with(name, "Constant_4931") ||
+        starts_with(name, "Result_")) {
+        return 4;
+    }
+
+    return 4;
+}
+
+static int alexnet_4graph_of_node(const std::string& name) {
+    const int part = alexnet_part_of_node(name);
+
+    return (part == 1 || part == 3) ? 1 : 2;
+}
+
+static int alexnet_2graph_of_node(const std::string& name) {
+    const int part = alexnet_part_of_node(name);
+
+    return (part == 1 || part == 2) ? 1 : 2;
+}
+
+// ========== 使用：按 2-graph 来设置 affinity ==========
+void set_affinity_alexnet_2graphs(const std::shared_ptr<ov::Model>& model) {
+    for (auto&& node : model->get_ops()) {
+        const auto name = node->get_friendly_name();
+        const int gid = alexnet_2graph_of_node(name);
+        node->get_rt_info()["affinity"] = dev_for_graph(gid);
+    }
+}
+
+void set_affinity_alexnet_4graphs(const std::shared_ptr<ov::Model>& model) {
+    for (auto&& node : model->get_ops()) {
+        const auto name = node->get_friendly_name();
+        const int gid = alexnet_4graph_of_node(name);
+        node->get_rt_info()["affinity"] = dev_for_graph(gid);
+    }
+}
+
+
 }  // namespace
 
 /**
@@ -838,6 +936,11 @@ int main(int argc, char* argv[]) {
             // --------------------------------------------------------
             next_step();
             auto compile_model_mem_start = get_peak_memory_usage();
+            if (FLAGS_split == 4) {
+                set_affinity_alexnet_4graphs(model);
+            } else if (FLAGS_split == 2) {
+                set_affinity_alexnet_2graphs(model);
+            }
             startTime = Time::now();
             compiledModel = core.compile_model(model, device_name, device_config);
             duration_ms = get_duration_ms_till_now(startTime);

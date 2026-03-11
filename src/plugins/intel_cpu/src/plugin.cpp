@@ -333,7 +333,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                           const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::ov_intel_cpu, "Plugin::compile_model");
     CREATE_DEBUG_TIMER(debugLoadTimer);
-
+    auto startTime = std::chrono::steady_clock::now();
     // verification of supported input
     for (const auto& ii : model->inputs()) {
         auto input_precision = ii.get_element_type();
@@ -412,7 +412,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             denormals_as_zero(false);
         }
     }
-    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, false);
+    auto compiled_model = std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, false);
+    auto compiledTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - startTime).count();
+    std::cout << "*** " << model->get_name() << " in CPU Plugin is compiled in " << compiledTime / 1000.0 << " ms" << std::endl;
+    return compiled_model;
 }
 
 void Plugin::set_property(const ov::AnyMap& config) {

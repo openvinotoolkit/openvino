@@ -25,6 +25,7 @@ public:
     }
 
     [[nodiscard]] uint64_t avg() const {
+        std::cout << "***** total_duration: " << total_duration << " us, num: " << num << " avg: " << ((num == 0) ? 0 : total_duration / num) << std::endl;
         return (num == 0) ? 0 : total_duration / num;
     }
     [[nodiscard]] uint32_t count() const {

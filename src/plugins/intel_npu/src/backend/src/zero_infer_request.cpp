@@ -14,6 +14,9 @@
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "zero_variable_state.hpp"
+#include <fstream>
+#include <atomic>
+#include <cstdlib>
 
 using namespace intel_npu;
 
@@ -672,6 +675,8 @@ void ZeroInferRequest::infer_async() {
     _logger.debug("InferRequest::infer_async started");
     OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
 
+    m_infer_start_time = std::chrono::steady_clock::now();
+
     {
         std::lock_guard<std::mutex> lock(_graph->get_mutex());
 
@@ -730,6 +735,8 @@ void ZeroInferRequest::infer_async() {
                             get_level_zero_input(inputIndex, i)->get_byte_size());
                         OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
                         userTensor.at(i)->copy_to(get_level_zero_input(inputIndex, i));
+                        std::cout << "**** Copying get_level_zero_input " << i << " to Level Zero buffer with offset: " << (i * userTensor.at(i)->get_byte_size())
+                                  << std::endl;
                     }
                 }
             } else {
@@ -746,6 +753,8 @@ void ZeroInferRequest::infer_async() {
                                         static_cast<unsigned char*>(get_level_zero_input(inputIndex)->data()) +
                                             (i * userTensor.at(i)->get_byte_size()));
 
+                    std::cout << "**** Copying viewTensor " << i << " to Level Zero buffer with offset: " << (i * userTensor.at(i)->get_byte_size())
+                              << std::endl;
                     userTensor.at(i)->copy_to(viewTensor);
                     copied_bytes_from_user += userTensor.at(i)->get_byte_size();
                 }
@@ -824,6 +833,42 @@ void ZeroInferRequest::get_result() {
 
     OV_ITT_TASK_NEXT(ZERO_RESULT, "reset");
     _pipeline->reset();
+    auto inferTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - m_infer_start_time).count();
+    std::string npu_output_log = "npu_" + _graph->get_metadata().name + "_infer_time.log";
+    static std::atomic<long long> npu_total_infer_time_us{0};
+    struct TotalInferTimeWriter {
+        std::string _npu_output_log;
+        ~TotalInferTimeWriter() {
+            std::ofstream ofs(_npu_output_log, std::ios::app);
+            if (ofs.is_open()) {
+                ofs << "TOTAL infer time(ms): " << std::fixed << std::setprecision(3) << (npu_total_infer_time_us.load() / 1000.0) << std::endl;
+            }
+        }
+
+        TotalInferTimeWriter(std::string npu_output_log) {
+            _npu_output_log = npu_output_log;
+        }
+    };
+    static TotalInferTimeWriter npu_total_writer(npu_output_log);
+    // Output inferTime to file, file opened only once, clear file at program start
+    static bool npu_file_initialized = false;
+    static std::ofstream npu_infer_time_ofs;
+    if (!npu_file_initialized) {
+        npu_infer_time_ofs.open(npu_output_log, std::ios::out | std::ios::trunc); // clear file
+        npu_file_initialized = true;
+        npu_infer_time_ofs.close();
+        npu_infer_time_ofs.open(npu_output_log, std::ios::app); // reopen for append
+    }
+    if (npu_infer_time_ofs.is_open()) {
+        npu_infer_time_ofs << std::fixed << std::setprecision(3)
+                       << _graph->get_metadata().name << " infer time(ms): " << inferTime / 1000.0 << std::endl;
+    }
+    static bool npu_is_first_infer = true;
+    if (npu_is_first_infer) {
+        npu_is_first_infer = false;
+    } else {
+        npu_total_infer_time_us += inferTime;
+    }
     _logger.debug("InferRequest::get_result finished");
 }
 

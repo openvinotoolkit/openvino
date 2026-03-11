@@ -46,6 +46,9 @@
 #include "proxy_mem_blk.h"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#include <fstream>
+#include <atomic>
+#include <cstdlib>
 
 using OvString = ov::element_type_traits<ov::element::string>::value_type;
 
@@ -105,6 +108,7 @@ void SyncInferRequest::update_external_tensor_ptrs() {
 void SyncInferRequest::infer() {
     OV_ITT_SCOPED_TASK_BASE(itt::domains::ov_cpu_inference,
                             std::string("SyncInferenceCPU::infer::") + m_compiled_model.name());
+    auto startTime = std::chrono::steady_clock::now();
     auto graphLock = m_compiled_model.lock();
     auto&& graph = graphLock._graph;
     auto message = ov::threading::message_manager();
@@ -149,6 +153,44 @@ void SyncInferRequest::infer() {
     }
 
     graph.PullOutputData(m_outputs);
+    auto inferTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - startTime).count();
+
+    // Output inferTime to file, file opened only once, clear file at program start
+    static bool cpu_file_initialized = false;
+    static std::ofstream cpu_infer_time_ofs;
+    static std::atomic<long long> cpu_total_infer_time_us{0};
+    std::string cpu_output_log = "cpu_" + graph.GetName() + "_infer_time.log";
+    struct TotalInferTimeWriter {
+        std::string _cpu_output_log;
+        ~TotalInferTimeWriter() {
+            std::ofstream ofs(_cpu_output_log, std::ios::app);
+            if (ofs.is_open()) {
+                ofs << "TOTAL infer time(ms): " << std::fixed << std::setprecision(3) << (cpu_total_infer_time_us.load() / 1000.0) << std::endl;
+            }
+        }
+
+        TotalInferTimeWriter(std::string cpu_output_log) {
+            _cpu_output_log = cpu_output_log;
+        }
+    };
+    static TotalInferTimeWriter cpu_total_writer(cpu_output_log);
+
+    if (!cpu_file_initialized) {
+        cpu_infer_time_ofs.open(cpu_output_log, std::ios::out | std::ios::trunc); // clear file
+        cpu_file_initialized = true;
+        cpu_infer_time_ofs.close();
+        cpu_infer_time_ofs.open(cpu_output_log, std::ios::app); // reopen for append
+    }
+    if (cpu_infer_time_ofs.is_open()) {
+        cpu_infer_time_ofs << std::fixed << std::setprecision(3)
+                       << graph.GetName() << " infer time(ms): " << inferTime / 1000.0 << std::endl;
+    }
+    static bool cpu_is_first_infer = true;
+    if (cpu_is_first_infer) {
+        cpu_is_first_infer = false;
+    } else {
+        cpu_total_infer_time_us += inferTime;
+    }
 }
 
 std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {

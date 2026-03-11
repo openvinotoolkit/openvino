@@ -16,6 +16,9 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "plugin.hpp"
 #include "remote_tensor.hpp"
+#include <fstream>
+#include <atomic>
+#include <cstdlib>
 
 ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::CompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model) {
@@ -23,7 +26,7 @@ ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::C
         auto& comp_model = comp_model_desc.compiled_model;
         m_subrequests.push_back({comp_model->create_infer_request(), comp_model._so});
     }
-
+ 
     for (size_t i = 0; i < compiled_model->inputs().size(); i++) {
         const auto& port = compiled_model->inputs()[i];
         const auto& submodel_idx = compiled_model->m_mapping_info._inputs_to_submodels_inputs[i].first;
@@ -34,24 +37,39 @@ ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::C
         const auto& submodel_idx = compiled_model->m_mapping_info._outputs_to_submodels_outputs[i].first;
         m_port_to_subrequest_idx[port] = submodel_idx;
     }
-
-    std::map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>> temp_tensor_map;
+ 
     for (const auto& kvp : compiled_model->m_mapping_info._submodels_input_to_prev_output) {
         const auto& submodel_idx_in = kvp.first.first;
         const auto& port_idx_in = kvp.first.second;
         const auto& submodel_idx_out = kvp.second.first;
         const auto& port_idx_out = kvp.second.second;
-
-        const auto& output_port = m_subrequests[submodel_idx_out]->get_compiled_model()->outputs()[port_idx_out];
-        const auto& output_tensor = m_subrequests[submodel_idx_out]->get_tensor(output_port);
-        if (temp_tensor_map.find(output_port) == temp_tensor_map.end()) {
-            temp_tensor_map[output_port] = {
-                ov::make_tensor(output_tensor->get_element_type(), output_tensor->get_shape()),
-                nullptr};
+ 
+        auto& subreq_in  = m_subrequests[submodel_idx_in];
+        auto& subreq_out = m_subrequests[submodel_idx_out];
+ 
+        const auto& comp_model_in  = subreq_in->get_compiled_model();
+        const auto& comp_model_out = subreq_out->get_compiled_model();
+ 
+        const auto& dev_in = compiled_model->m_compiled_submodels.at(submodel_idx_in).device;
+        const auto& dev_out = compiled_model->m_compiled_submodels.at(submodel_idx_out).device;
+ 
+        std::cout << "dev_in: " << dev_in << ", dev_out: " << dev_out << std::endl;
+        const auto& input_port  = comp_model_in->inputs()[port_idx_in];
+        const auto& output_port = comp_model_out->outputs()[port_idx_out];
+ 
+        // ----------- CPU -> NPU -----------
+        if (dev_out.find("CPU") != std::string::npos &&
+            dev_in.find("NPU") != std::string::npos) {
+ 
+            const auto& input_tensor = subreq_in->get_tensor(input_port);
+ 
+            subreq_out->set_tensor(output_port, input_tensor);
         }
-        m_subrequests[submodel_idx_out]->set_tensor(output_port, temp_tensor_map[output_port]);
-        const auto& input_port = m_subrequests[submodel_idx_in]->get_compiled_model()->inputs()[port_idx_in];
-        m_subrequests[submodel_idx_in]->set_tensor(input_port, temp_tensor_map[output_port]);
+        // ----------- NPU -> CPU -----------
+        else {
+            const auto& output_tensor = subreq_out->get_tensor(output_port);
+            subreq_in->set_tensor(input_port, output_tensor);
+        }
     }
 }
 
@@ -127,7 +145,22 @@ std::vector<ov::SoPtr<ov::IVariableState>> ov::hetero::InferRequest::query_state
 void ov::hetero::InferRequest::infer() {
     for (auto&& request : m_subrequests) {
         OPENVINO_ASSERT(request);
+        auto startTime = std::chrono::steady_clock::now();
         request->infer();
+        auto inferTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - startTime).count();
+        std::string hetero_output_log = "hetero_infer_time.log";
+        // Output inferTime to file, file opened only once, clear file at program start
+        static bool hetero_file_initialized = false;
+        static std::ofstream hetero_infer_time_ofs;
+        if (!hetero_file_initialized) {
+            hetero_infer_time_ofs.open(hetero_output_log, std::ios::out | std::ios::trunc); // clear file
+            hetero_file_initialized = true;
+            hetero_infer_time_ofs.close();
+            hetero_infer_time_ofs.open(hetero_output_log, std::ios::app); // reopen for append
+        }
+        if (hetero_infer_time_ofs.is_open()) {
+            hetero_infer_time_ofs << std::fixed << std::setprecision(3) << "hetero infer time(ms): " << inferTime / 1000.0 << std::endl;
+        }
     }
 }
 

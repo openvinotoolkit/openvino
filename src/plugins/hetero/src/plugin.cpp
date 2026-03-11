@@ -59,7 +59,7 @@ std::pair<ov::hetero::SubgraphsMappingInfo, std::vector<ov::hetero::SubmodelInfo
         submodels.resize(ordered_subgraphs.size());
         for (size_t i = 0; i < ordered_subgraphs.size(); ++i) {
             const auto& subgraph = ordered_subgraphs[i];
-            submodels[i].first = subgraph._affinity;
+            submodels[i].first = subgraph._affinity; //"CPU";
             submodels[i].second = std::make_shared<ov::Model>(subgraph._results,
                                                               subgraph._sinks,
                                                               subgraph._parameters,

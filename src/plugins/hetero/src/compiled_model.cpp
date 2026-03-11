@@ -5,6 +5,7 @@
 #include "compiled_model.hpp"
 
 #include <memory>
+#include <chrono>
 
 #include "async_infer_request.hpp"
 #include "graph_debug_dump.hpp"
@@ -71,7 +72,11 @@ void ov::hetero::CompiledModel::compile_model(const std::vector<ov::hetero::Subm
         CompiledModelDesc desc;
         desc.device = device;
         desc.model = sub_model;
+        auto startTime = std::chrono::steady_clock::now();
         desc.compiled_model = core->compile_model(sub_model, device, device_config);
+        auto compiledTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - startTime).count();
+        std::cout << "*** Submodel:" <<  sub_model->get_name() << " for device " << device << " is compiled in " << compiledTime / 1000.0 << " ms" << std::endl;
+
         m_compiled_submodels.emplace_back(std::move(desc));
     }
     set_inputs_and_outputs();

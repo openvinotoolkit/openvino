@@ -74,6 +74,12 @@ static const char maximum_inference_rate_message[] =
 /// @brief message for execution time
 static const char execution_time_message[] = "Optional. Time in seconds to execute topology.";
 
+/// @brief message for split option
+static const char split_message[] =
+    "Optional. Split AlexNet model into multiple graphs for affinity settings. "
+    "Supported values: 2 or 4. "
+    "If not specified or set to 0, no split is applied.";
+
 static const char batch_size_message[] =
     "Optional. Batch size value. If not specified, the batch size value is determined from "
     "Intermediate Representation.";
@@ -280,6 +286,9 @@ DEFINE_uint64(niter, 0, iterations_count_message);
 
 /// @brief Time to execute topology in seconds
 DEFINE_uint64(t, 0, execution_time_message);
+
+/// @brief Define parameter for split graphs (AlexNet affinity)
+DEFINE_uint64(split, 0, split_message);
 
 /// @brief Define parameter for batch size <br>
 /// Default is 0 (that means don't specify)
