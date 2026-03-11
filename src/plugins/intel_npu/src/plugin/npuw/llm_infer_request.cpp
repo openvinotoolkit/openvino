@@ -897,7 +897,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     namespace pp = ov::npuw::perf;
     m_llm_profile["N/generate:1.prepare"] += pp::ms_to_run([&]() {
         if (!m_generate_initialized) {
-
             LOG_DEBUG("Copy kv-cache from prefill to generate model.");
             if (kvcache_desc.num_stored_tokens > 0) {
                 copy_kvcache();
@@ -915,7 +914,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                     m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids)),
                     0);
             }
-    
+
             m_generate_initialized = true;
         }
 
