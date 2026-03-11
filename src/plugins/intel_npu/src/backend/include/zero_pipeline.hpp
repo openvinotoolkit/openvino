@@ -73,6 +73,7 @@ protected:
     bool _sync_output_with_fences = true;
     uint32_t _extension_version;
     Logger _logger;
+    size_t _infer_count = 0;
 
 private:
     void enable_profiling();

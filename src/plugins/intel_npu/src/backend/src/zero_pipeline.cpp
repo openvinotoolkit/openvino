@@ -7,6 +7,9 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
+#include <chrono>
+#include <cstdio>
+
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -110,6 +113,8 @@ Pipeline::Pipeline(const Config& config,
         }
     }
 
+    const auto t_cmdlist_start = std::chrono::steady_clock::now();
+
     _command_lists.reserve(_number_of_command_lists);
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         _command_lists.emplace_back(
@@ -123,6 +128,10 @@ Pipeline::Pipeline(const Config& config,
             _fences.emplace_back(std::make_unique<Fence>(_graph->get_command_queue()));
         }
     }
+
+    const auto t_cmdlist_end = std::chrono::steady_clock::now();
+    const auto t_setargs_start = std::chrono::steady_clock::now();
+    size_t total_set_argument_calls = 0;
 
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         _logger.debug("Pipeline - set args for command list number: %zu", i);
@@ -146,6 +155,7 @@ Pipeline::Pipeline(const Config& config,
                         tensor->data(),
                         get_strides(tensor->get_strides(), tensor->get_element_type().size()));
                 }
+                ++total_set_argument_calls;
                 ++io_index;
                 continue;
             }
@@ -162,6 +172,7 @@ Pipeline::Pipeline(const Config& config,
                     get_strides(tensor->get_strides(), tensor->get_element_type().size()));
             }
 
+            ++total_set_argument_calls;
             ++io_index;
         }
 
@@ -178,6 +189,7 @@ Pipeline::Pipeline(const Config& config,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
                     get_strides(tensor->get_strides(), tensor->get_element_type().size()));
             }
+            ++total_set_argument_calls;
             ++io_index;
         }
 
@@ -217,6 +229,18 @@ Pipeline::Pipeline(const Config& config,
             _events.at(i)->AppendSignalEvent(*_command_lists.at(i));
         }
     }
+
+    const auto t_setargs_end = std::chrono::steady_clock::now();
+    const auto cmdlist_us =
+        std::chrono::duration_cast<std::chrono::microseconds>(t_cmdlist_end - t_cmdlist_start).count();
+    const auto setargs_us =
+        std::chrono::duration_cast<std::chrono::microseconds>(t_setargs_end - t_setargs_start).count();
+    fprintf(stderr, "[Pipeline] Pipeline() breakdown: command_list_create=%.3f ms, "
+                    "set_argument_values=%.3f ms (%zu calls)\n",
+            cmdlist_us / 1000.0,
+            setargs_us / 1000.0,
+            total_set_argument_calls);
+
     _logger.debug("Pipeline - initialize completed");
 }
 
@@ -249,6 +273,8 @@ void Pipeline::push() {
         _graph->set_last_submitted_id(_id);
     }
 
+    const auto t_push_start = std::chrono::steady_clock::now();
+
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         _command_lists.at(i)->close();
 
@@ -260,12 +286,22 @@ void Pipeline::push() {
         }
     }
 
+    if (_infer_count < 2) {
+        const auto t_push_end = std::chrono::steady_clock::now();
+        const auto push_us =
+            std::chrono::duration_cast<std::chrono::microseconds>(t_push_end - t_push_start).count();
+        fprintf(stderr, "[Pipeline] push() #%zu: %.3f ms (close+execute)\n",
+                _infer_count, push_us / 1000.0);
+    }
+
     _logger.debug("Pipeline - push() completed");
 };
 
 void Pipeline::pull() {
     _logger.debug("Pipeline - pull() started");
     OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PULL, itt::domains::LevelZeroBackend, "Pipeline", "pull");
+
+    const auto t_pull_start = std::chrono::steady_clock::now();
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         if (_sync_output_with_fences) {
@@ -278,6 +314,16 @@ void Pipeline::pull() {
             _npu_profiling->sampleNpuTimestamps();
         }
     }
+
+    if (_infer_count < 2) {
+        const auto t_pull_end = std::chrono::steady_clock::now();
+        const auto pull_us =
+            std::chrono::duration_cast<std::chrono::microseconds>(t_pull_end - t_pull_start).count();
+        fprintf(stderr, "[Pipeline] pull() #%zu: %.3f ms (hostSynchronize)\n",
+                _infer_count, pull_us / 1000.0);
+    }
+
+    ++_infer_count;
 
     _logger.debug("Pipeline - pull() completed");
 };

@@ -4,6 +4,9 @@
 
 #include "zero_infer_request.hpp"
 
+#include <chrono>
+#include <cstdio>
+
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
@@ -709,7 +712,15 @@ void ZeroInferRequest::prepare_inputs() {
 
         if (!_pipelineIsCreated || _dynamicBatchValueChanged) {
             OV_ITT_TASK_NEXT(ZERO_INFER, "create_pipeline");
+            const auto pipeline_start = std::chrono::steady_clock::now();
             create_pipeline();  // Reallocate pipeline if necessary
+            const auto pipeline_end = std::chrono::steady_clock::now();
+            const auto pipeline_duration_us =
+                std::chrono::duration_cast<std::chrono::microseconds>(pipeline_end - pipeline_start).count();
+            fprintf(stderr, "[ZeroInferRequest] create_pipeline() took %.3f ms (first_creation=%d, dynamic_batch_changed=%d)\n",
+                    pipeline_duration_us / 1000.0,
+                    !_pipelineIsCreated,
+                    _dynamicBatchValueChanged);
             _pipelineIsCreated = true;
             _dynamicBatchValueChanged = false;  // Reset reallocation flag
         } else {

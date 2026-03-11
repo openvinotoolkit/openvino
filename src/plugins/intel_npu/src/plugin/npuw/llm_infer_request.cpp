@@ -653,91 +653,102 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         m_eagle3_ext.reset_chunked_prefill_state();
     }
 
+    namespace pp = ov::npuw::perf;
+
     while (remaining_prompts > 0) {
-        // NB: input_ids can be either fp32(VLM) or i64(LLM)
-        // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
-        // the chunk size
+        m_llm_profile["1/prefill:3a.prepare_chunk"] += pp::ms_to_run([&]() {
+            // NB: input_ids can be either fp32(VLM) or i64(LLM)
+            // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible
+            // by the chunk size
+            auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
+
+            // Handle first chunk with prefix caching: populate attention mask for restored cache
+            if (enable_prefix_caching && cache_context.restore_prefix_cache) {
+                m_prefix_caching_helper->populate_attention_mask_for_restored_cache(attention_mask,
+                                                                                    attn_mask_in_tensor,
+                                                                                    kvcache_desc.num_stored_tokens);
+                cache_context.restore_prefix_cache = false;
+            }
+
+            // Populate the attention mask for the present chunk
+            // For the already processed tokens, they will be added into the attention mask after inference call
+            size_t last_chunk_offset = attn_mask_in_tensor->get_size() - chunk_prompt_len;
+            if (current_prompts_len < chunk_prompt_len) {
+                // We will populate current_prompts_len on the right side of attention mask for the processing tokens
+                // If the current prompt length is smaller than the chunk prompt length,
+                // clear the last chunk of the attention mask to ensure non-relevant tokens are masked
+                ov::npuw::util::fill_tensor<int64_t>(attn_mask_in_tensor, 0, last_chunk_offset);
+            }
+
+            std::copy_n(attention_mask->data<int64_t>() + kvcache_desc.num_stored_tokens,
+                        current_prompts_len,
+                        attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len);
+
+            auto current_prefill_bytes = current_prompts_len * input_ids_elem_size;
+            auto prefilled_bytes = kvcache_desc.num_stored_tokens * input_ids_elem_size;
+            if (is_input_embeds) {
+                current_prefill_bytes *= input_ids->get_shape().back();
+                prefilled_bytes *= input_ids->get_shape().back();
+            }
+
+            ov::npuw::util::fill_tensor_bytes(input_ids_in_tensor, 0u);
+            std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()) + prefilled_bytes,
+                        current_prefill_bytes,
+                        reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) +
+                            input_ids_in_tensor->get_byte_size() - current_prefill_bytes);
+
+            // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni uses 3D position_ids [3,
+            // BATCH, SEQ_LEN]
+            // Copy postion ids with considering the 3D position_ids
+            auto last_dim = position_ids->get_shape().size() - 1;
+            auto actual_position_ids_slice = ov::npuw::util::make_tensor_slice(
+                position_ids,
+                static_cast<uint32_t>(last_dim),
+                kvcache_desc.num_stored_tokens,
+                kvcache_desc.num_stored_tokens + static_cast<uint32_t>(current_prompts_len));
+
+            auto pos_ids_slice =
+                ov::npuw::util::make_tensor_slice(pos_ids_in_tensor,
+                                                  static_cast<uint32_t>(last_dim),
+                                                  static_cast<uint32_t>(chunk_prompt_len - current_prompts_len),
+                                                  static_cast<uint32_t>(chunk_prompt_len));
+
+            // Copy with proper stride handling
+            actual_position_ids_slice->copy_to(pos_ids_slice._ptr);
+
+            if (m_eagle3_ext.is_eagle3_model()) {
+                m_eagle3_ext.prepare_inputs_for_chunk(m_prefill_request,
+                                                      m_prefill_in_ports,
+                                                      kvcache_desc.num_stored_tokens,
+                                                      static_cast<uint32_t>(current_prompts_len));
+            }
+
+            // Update history size for dynamic context:
+            // dynamic attention selector needs history size to determin the past KV shape and attention mask shape
+            m_prefill_base_request->update_history_size(kvcache_desc.num_stored_tokens);
+        });
+
         auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
 
-        // Handle first chunk with prefix caching: populate attention mask for restored cache
-        if (enable_prefix_caching && cache_context.restore_prefix_cache) {
-            m_prefix_caching_helper->populate_attention_mask_for_restored_cache(attention_mask,
-                                                                                attn_mask_in_tensor,
-                                                                                kvcache_desc.num_stored_tokens);
-            cache_context.restore_prefix_cache = false;
-        }
+        m_llm_profile["1/prefill:3b.infer"] += pp::ms_to_run([&]() {
+            m_prefill_request->infer();
+        });
 
-        // Populate the attention mask for the present chunk
-        // For the already processed tokens, they will be added into the attention mask after inference call
-        size_t last_chunk_offset = attn_mask_in_tensor->get_size() - chunk_prompt_len;
-        if (current_prompts_len < chunk_prompt_len) {
-            // We will populate current_prompts_len on the right side of attention mask for the processing tokens
-            // If the current prompt length is smaller than the chunk prompt length,
-            // clear the last chunk of the attention mask to ensure non-relevant tokens are masked
-            ov::npuw::util::fill_tensor<int64_t>(attn_mask_in_tensor, 0, last_chunk_offset);
-        }
+        m_llm_profile["1/prefill:3c.post_chunk"] += pp::ms_to_run([&]() {
+            // Accumulate Eagle3 last_hidden_state from this chunk
+            if (m_eagle3_ext.is_eagle3_model()) {
+                m_eagle3_ext.accumulate_chunk_last_hidden_state(m_prefill_request,
+                                                                m_prefill_out_ports,
+                                                                static_cast<uint32_t>(current_prompts_len),
+                                                                static_cast<uint32_t>(input_prompt_len));
+            }
 
-        std::copy_n(attention_mask->data<int64_t>() + kvcache_desc.num_stored_tokens,
-                    current_prompts_len,
-                    attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len);
-
-        auto current_prefill_bytes = current_prompts_len * input_ids_elem_size;
-        auto prefilled_bytes = kvcache_desc.num_stored_tokens * input_ids_elem_size;
-        if (is_input_embeds) {
-            current_prefill_bytes *= input_ids->get_shape().back();
-            prefilled_bytes *= input_ids->get_shape().back();
-        }
-
-        ov::npuw::util::fill_tensor_bytes(input_ids_in_tensor, 0u);
-        std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()) + prefilled_bytes,
-                    current_prefill_bytes,
-                    reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) + input_ids_in_tensor->get_byte_size() -
-                        current_prefill_bytes);
-
-        // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni uses 3D position_ids [3, BATCH,
-        // SEQ_LEN]
-        // Copy postion ids with considering the 3D position_ids
-        auto last_dim = position_ids->get_shape().size() - 1;
-        auto actual_position_ids_slice = ov::npuw::util::make_tensor_slice(
-            position_ids,
-            static_cast<uint32_t>(last_dim),
-            kvcache_desc.num_stored_tokens,
-            kvcache_desc.num_stored_tokens + static_cast<uint32_t>(current_prompts_len));
-
-        auto pos_ids_slice =
-            ov::npuw::util::make_tensor_slice(pos_ids_in_tensor,
-                                              static_cast<uint32_t>(last_dim),
-                                              static_cast<uint32_t>(chunk_prompt_len - current_prompts_len),
-                                              static_cast<uint32_t>(chunk_prompt_len));
-
-        // Copy with proper stride handling
-        actual_position_ids_slice->copy_to(pos_ids_slice._ptr);
-
-        if (m_eagle3_ext.is_eagle3_model()) {
-            m_eagle3_ext.prepare_inputs_for_chunk(m_prefill_request,
-                                                  m_prefill_in_ports,
-                                                  kvcache_desc.num_stored_tokens,
-                                                  static_cast<uint32_t>(current_prompts_len));
-        }
-
-        // Update history size for dynamic context:
-        // dynamic attention selector needs history size to determin the past KV shape and attention mask shape
-        m_prefill_base_request->update_history_size(kvcache_desc.num_stored_tokens);
-        m_prefill_request->infer();
-
-        // Accumulate Eagle3 last_hidden_state from this chunk
-        if (m_eagle3_ext.is_eagle3_model()) {
-            m_eagle3_ext.accumulate_chunk_last_hidden_state(m_prefill_request,
-                                                            m_prefill_out_ports,
-                                                            static_cast<uint32_t>(current_prompts_len),
-                                                            static_cast<uint32_t>(input_prompt_len));
-        }
-
-        if (enable_prefix_caching) {
-            m_prefix_caching_helper->store_computed_blocks(current_prompts_len,
-                                                           cache_context.prompt_hashes,
-                                                           cache_context.token_idx);
-        }
+            if (enable_prefix_caching) {
+                m_prefix_caching_helper->store_computed_blocks(current_prompts_len,
+                                                               cache_context.prompt_hashes,
+                                                               cache_context.token_idx);
+            }
+        });
 
         remaining_prompts -= current_prompts_len;
         kvcache_desc.num_stored_tokens += static_cast<uint32_t>(current_prompts_len);
@@ -749,17 +760,19 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             return;
         }
 
-        // Copy calculated key/values chunk from present k/v layer to past k/v layer for storage
-        update_kvcache_for(m_prefill_request,
-                           m_prefill_in_ports,
-                           m_prefill_out_ports,
-                           static_cast<uint32_t>(current_prompts_len),
-                           kvcache_desc.v_tensors_transposed_pre);
+        m_llm_profile["1/prefill:3d.update_kvcache"] += pp::ms_to_run([&]() {
+            // Copy calculated key/values chunk from present k/v layer to past k/v layer for storage
+            update_kvcache_for(m_prefill_request,
+                               m_prefill_in_ports,
+                               m_prefill_out_ports,
+                               static_cast<uint32_t>(current_prompts_len),
+                               kvcache_desc.v_tensors_transposed_pre);
 
-        // Update attention mask for the next iteration
-        std::copy_n(attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len,
-                    current_prompts_len,
-                    attn_mask_in_tensor->data<int64_t>() + kvcache_desc.num_stored_tokens - current_prompts_len);
+            // Update attention mask for the next iteration
+            std::copy_n(attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len,
+                        current_prompts_len,
+                        attn_mask_in_tensor->data<int64_t>() + kvcache_desc.num_stored_tokens - current_prompts_len);
+        });
 
         if (remaining_prompts <= 0) {
             break;
@@ -780,34 +793,45 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
     LOG_DEBUG("Calling inference for prefill model in a single launch.");
     LOG_BLOCK();
 
-    // NB: padded_input can be either fp32(VLM) or i64(LLM)
-    auto padded_input = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
-    std::copy_n(
-        reinterpret_cast<uint8_t*>(input_ids->data()),
-        input_ids->get_byte_size(),
-        reinterpret_cast<uint8_t*>(padded_input->data()) + padded_input->get_byte_size() - input_ids->get_byte_size());
+    namespace pp = ov::npuw::perf;
 
-    auto padded_attention_mask = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
-    std::copy_n(
-        attention_mask->data<int64_t>(),
-        attention_mask->get_size(),
-        padded_attention_mask->data<int64_t>() + padded_attention_mask->get_size() - attention_mask->get_size());
+    m_llm_profile["1/prefill:3a.prepare"] += pp::ms_to_run([&]() {
+        // NB: padded_input can be either fp32(VLM) or i64(LLM)
+        auto padded_input = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
+        std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()),
+                    input_ids->get_byte_size(),
+                    reinterpret_cast<uint8_t*>(padded_input->data()) + padded_input->get_byte_size() -
+                        input_ids->get_byte_size());
 
-    if (token_type_ids) {
-        auto padded_token_type_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::token_type_ids));
+        auto padded_attention_mask =
+            m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
+        std::copy_n(attention_mask->data<int64_t>(),
+                    attention_mask->get_size(),
+                    padded_attention_mask->data<int64_t>() + padded_attention_mask->get_size() -
+                        attention_mask->get_size());
 
-        std::fill_n(reinterpret_cast<uint8_t*>(padded_token_type_ids->data()), token_type_ids->get_byte_size(), 0);
-        util::copy_to_right(token_type_ids, padded_token_type_ids);
-    }
+        if (token_type_ids) {
+            auto padded_token_type_ids =
+                m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::token_type_ids));
 
-    auto padded_position_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
-    ov::npuw::util::pad_position_ids(padded_position_ids, position_ids);
+            std::fill_n(reinterpret_cast<uint8_t*>(padded_token_type_ids->data()),
+                        token_type_ids->get_byte_size(),
+                        0);
+            util::copy_to_right(token_type_ids, padded_token_type_ids);
+        }
 
-    if (m_eagle3_ext.is_eagle3_model()) {
-        m_eagle3_ext.prepare_inputs(m_prefill_request, m_prefill_in_ports);
-    }
+        auto padded_position_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
+        ov::npuw::util::pad_position_ids(padded_position_ids, position_ids);
 
-    m_prefill_request->infer();
+        if (m_eagle3_ext.is_eagle3_model()) {
+            m_eagle3_ext.prepare_inputs(m_prefill_request, m_prefill_in_ports);
+        }
+    });
+
+    m_llm_profile["1/prefill:3b.infer"] += pp::ms_to_run([&]() {
+        m_prefill_request->infer();
+    });
+
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     kvcache_desc.num_stored_tokens += static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
 
