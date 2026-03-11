@@ -27,8 +27,6 @@
 #endif
 
 
-#include "sycl_ext.hpp"
-
 // Restore specific diagnostics.
 #if defined __INTEL_COMPILER
     #pragma warning pop
