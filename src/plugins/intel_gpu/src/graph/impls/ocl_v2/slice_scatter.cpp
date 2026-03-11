@@ -52,10 +52,14 @@ std::vector<int64_t> extractTypedIntegerData(const data_node& node, const stream
 std::vector<int64_t> extractIntegerData(const data_node& node, const stream& stream) {
     auto dt = node.get_output_layout().data_type;
     switch (dt) {
-    case data_types::u8:  return extractTypedIntegerData<uint8_t>(node, stream);
-    case data_types::i8:  return extractTypedIntegerData<int8_t>(node, stream);
-    case data_types::i32: return extractTypedIntegerData<int32_t>(node, stream);
-    case data_types::i64: return extractTypedIntegerData<int64_t>(node, stream);
+    case data_types::u8:
+        return extractTypedIntegerData<uint8_t>(node, stream);
+    case data_types::i8:
+        return extractTypedIntegerData<int8_t>(node, stream);
+    case data_types::i32:
+        return extractTypedIntegerData<int32_t>(node, stream);
+    case data_types::i64:
+        return extractTypedIntegerData<int64_t>(node, stream);
     default:
         OPENVINO_THROW("[GPU] SliceScatter parameters should be of integral type, got ", dt);
     }
@@ -65,7 +69,7 @@ std::vector<int64_t> extractIntegerData(const data_node& node, const stream& str
 // --- Configuration for compile-time vs runtime parameters ---
 
 struct ParamConfig {
-    std::vector<int64_t> compile_time_start;   // empty => dynamic (buffer passed at runtime)
+    std::vector<int64_t> compile_time_start;  // empty => dynamic (buffer passed at runtime)
     std::vector<int64_t> compile_time_step;
     std::vector<int64_t> compile_time_axes;
     ov::element::Type start_data_type = ov::element::i64;
@@ -128,21 +132,18 @@ void addJitConstantsForParam(JitConstants& jit,
     if (compile_time_param.empty()) {
         // Dynamic: generate buffer pointer declaration for kernel signature
         const std::string type_str = to_ocl_type(data_type);
-        jit.add(make_jit_constant(BUFF_CONST_NAME,
-                                  "__global const " + type_str + "* restrict " + BUFF_PTR_NAME + ","));
+        jit.add(make_jit_constant(BUFF_CONST_NAME, "__global const " + type_str + "* restrict " + BUFF_PTR_NAME + ","));
 
         for (size_t i = 0; i < MAX_SUPPORTED_DIM; ++i) {
             const std::string i_str = std::to_string(i);
             const std::string jit_name = name + "_VAL" + i_str;
             std::string access_str;
             if (is_axes) {
-                access_str = BUFF_PTR_NAME + "[" + i_str + "] < 0 ? INPUT0_DIMS + " +
-                             BUFF_PTR_NAME + "[" + i_str + "] : " + BUFF_PTR_NAME + "[" + i_str + "]";
+                access_str = BUFF_PTR_NAME + "[" + i_str + "] < 0 ? INPUT0_DIMS + " + BUFF_PTR_NAME + "[" + i_str + "] : " + BUFF_PTR_NAME + "[" + i_str + "]";
             } else {
                 access_str = BUFF_PTR_NAME + "[" + i_str + "]";
             }
-            jit.add(make_jit_constant(jit_name,
-                                      i_str + " < AXES_BUFFER_SIZE ? (" + access_str + ") : -1"));
+            jit.add(make_jit_constant(jit_name, i_str + " < AXES_BUFFER_SIZE ? (" + access_str + ") : -1"));
         }
     } else {
         // Static: embed values directly as JIT constants
@@ -159,8 +160,7 @@ void addJitConstantsForParam(JitConstants& jit,
 
 class SliceScatterBase : public KernelGenerator {
 public:
-    explicit SliceScatterBase(std::string_view name, const ParamConfig* config)
-        : KernelGenerator(name), m_config(config) {}
+    explicit SliceScatterBase(std::string_view name, const ParamConfig* config) : KernelGenerator(name), m_config(config) {}
 
 protected:
     const ParamConfig* m_config;
@@ -174,8 +174,7 @@ protected:
             // Axes is a 1D tensor, so batch dimension holds the element count in bfyx format
             jit.add(make_jit_constant("AXES_BUFFER_SIZE", "INPUT5_BATCH_NUM"));
         } else {
-            jit.add(make_jit_constant("AXES_BUFFER_SIZE",
-                                      static_cast<int64_t>(m_config->compile_time_axes.size())));
+            jit.add(make_jit_constant("AXES_BUFFER_SIZE", static_cast<int64_t>(m_config->compile_time_axes.size())));
         }
 
         addJitConstantsForParam(jit, "START", m_config->compile_time_start, m_config->start_data_type, false);
@@ -216,13 +215,14 @@ protected:
         return args;
     }
 
-    virtual bool include_step_arg() const { return true; }
+    virtual bool include_step_arg() const {
+        return true;
+    }
 };
 
 class SliceScatterRef : public SliceScatterBase {
 public:
-    explicit SliceScatterRef(const ParamConfig* config)
-        : SliceScatterBase("slice_scatter_ref", config) {}
+    explicit SliceScatterRef(const ParamConfig* config) : SliceScatterBase("slice_scatter_ref", config) {}
 
 protected:
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
@@ -243,12 +243,13 @@ protected:
 
 class SliceScatterOpt : public SliceScatterBase {
 public:
-    explicit SliceScatterOpt(const ParamConfig* config)
-        : SliceScatterBase("slice_scatter_opt", config) {}
+    explicit SliceScatterOpt(const ParamConfig* config) : SliceScatterBase("slice_scatter_opt", config) {}
 
 protected:
     // Opt kernel has step=1 hardcoded, so step buffer is never a kernel argument
-    bool include_step_arg() const override { return false; }
+    bool include_step_arg() const override {
+        return false;
+    }
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
@@ -260,8 +261,7 @@ protected:
         if (m_config->compile_time_axes.empty()) {
             jit.add(make_jit_constant("AXES_BUFFER_SIZE", "INPUT5_BATCH_NUM"));
         } else {
-            jit.add(make_jit_constant("AXES_BUFFER_SIZE",
-                                      static_cast<int64_t>(m_config->compile_time_axes.size())));
+            jit.add(make_jit_constant("AXES_BUFFER_SIZE", static_cast<int64_t>(m_config->compile_time_axes.size())));
         }
 
         // START and AXES follow the config

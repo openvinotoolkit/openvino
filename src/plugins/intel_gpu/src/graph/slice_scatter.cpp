@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <slice_scatter_inst.h>
-#include "primitive_type_base.h"
 #include "openvino/op/slice_scatter.hpp"
-#include "slice_scatter_shape_inference.hpp"
-#include <sstream>
+
 #include <json_object.h>
+#include <slice_scatter_inst.h>
+
+#include <sstream>
+
+#include "primitive_type_base.h"
+#include "slice_scatter_shape_inference.hpp"
 
 namespace cldnn {
 
@@ -22,8 +25,7 @@ SliceScatterKernelRefNeededInputs SliceScatterKernelRefNeededInputs::Create(cons
 
     const bool start_in_runtime = !node_inputs[InputIndices::kStart].first->is_constant();
     const bool step_in_runtime = !node_inputs[InputIndices::kStep].first->is_constant();
-    const bool axes_in_runtime =
-        ((node_inputs.size() > InputIndices::kAxes) && !node_inputs[InputIndices::kAxes].first->is_constant());
+    const bool axes_in_runtime = ((node_inputs.size() > InputIndices::kAxes) && !node_inputs[InputIndices::kAxes].first->is_constant());
 
     if (start_in_runtime)
         inputs.neededIndexes.push_back(InputIndices::kStart);
@@ -47,7 +49,7 @@ bool SliceScatterKernelRefNeededInputs::IsInputNeededInRuntime(InputIndices type
 
 GPU_DEFINE_PRIMITIVE_TYPE_ID(slice_scatter)
 
-slice_scatter_inst::typed_primitive_inst(network& network, slice_scatter_node const& node) : parent(network, node) {
+slice_scatter_inst::typed_primitive_inst(network& network, const slice_scatter_node& node) : parent(network, node) {
     update_output_memory();
 }
 
@@ -65,21 +67,19 @@ void slice_scatter_inst::update_output_memory() {
     if (!can_be_optimized() || _impl_params->is_dynamic())
         return;
 
-    if (_outputs.size() > 0 && static_cast<bool>(_outputs[0])
-        && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (_outputs.size() > 0 && static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
     build_deps();
 
-    if (static_cast<bool>(_outputs[0]) &&
-        get_node().get_program().get_config().get_enable_memory_pool()) {
+    if (static_cast<bool>(_outputs[0]) && get_node().get_program().get_config().get_enable_memory_pool()) {
         _network.get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), get_node().id(), _network.get_id());
     }
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
     _mem_allocated = false;
 }
 
-layout slice_scatter_inst::calc_output_layout(slice_scatter_node const& node, kernel_impl_params const& impl_param) {
+layout slice_scatter_inst::calc_output_layout(const slice_scatter_node& node, const kernel_impl_params& impl_param) {
     return calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
 }
 
@@ -96,10 +96,7 @@ inline std::vector<layout> slice_scatter_inst::calc_output_layouts(const slice_s
                 auto gpu_mem = impl_param.memory_deps.at(i);
                 input_shape = {static_cast<ov::Dimension::value_type>(gpu_mem->count())};
                 cldnn::mem_lock<uint8_t, mem_lock_type::read> gpu_mem_lock(gpu_mem, impl_param.get_stream());
-                const_data.emplace(
-                    i,
-                    make_tensor(layout{input_shape, gpu_mem->get_layout().data_type, gpu_mem->get_layout().format},
-                                gpu_mem_lock.data()));
+                const_data.emplace(i, make_tensor(layout{input_shape, gpu_mem->get_layout().data_type, gpu_mem->get_layout().format}, gpu_mem_lock.data()));
             }
             input_shapes.push_back(input_shape);
         } else {
@@ -117,7 +114,7 @@ inline std::vector<layout> slice_scatter_inst::calc_output_layouts(const slice_s
     return output_layouts;
 }
 
-std::string slice_scatter_inst::to_string(slice_scatter_node const& node) {
+std::string slice_scatter_inst::to_string(const slice_scatter_node& node) {
     auto node_info = node.desc_to_json();
     json_composite slice_scatter_info;
     slice_scatter_info.add("data", node.input(0).id());

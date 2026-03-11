@@ -31,10 +31,12 @@
 #include "intel_gpu/primitives/gemm.hpp"
 #include "intel_gpu/primitives/grid_sample.hpp"
 #include "intel_gpu/primitives/grn.hpp"
+#include "intel_gpu/primitives/kv_cache.hpp"
 #include "intel_gpu/primitives/lrn.hpp"
-#include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/multinomial.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/mvn.hpp"
+#include "intel_gpu/primitives/non_zero.hpp"
 #include "intel_gpu/primitives/normalize.hpp"
 #include "intel_gpu/primitives/one_hot.hpp"
 #include "intel_gpu/primitives/permute.hpp"
@@ -60,10 +62,7 @@
 #include "intel_gpu/primitives/strided_slice.hpp"
 #include "intel_gpu/primitives/swiglu.hpp"
 #include "intel_gpu/primitives/tile.hpp"
-#include "intel_gpu/primitives/non_zero.hpp"
-#include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/unique.hpp"
-#include "intel_gpu/primitives/kv_cache.hpp"
 
 namespace cldnn {
 namespace ocl {

@@ -1,15 +1,14 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "test_utils.h"
-
+#include <chrono>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/slice_scatter.hpp>
-#include <intel_gpu/primitives/data.hpp>
-
-#include <vector>
 #include <numeric>
-#include <chrono>
+#include <vector>
+
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -18,19 +17,25 @@ namespace {
 
 namespace helpers {
 
-template<typename T>
+template <typename T>
 data_types ToDataType();
 
-template<>
-data_types ToDataType<float>() { return data_types::f32; }
+template <>
+data_types ToDataType<float>() {
+    return data_types::f32;
+}
 
-template<>
-data_types ToDataType<int32_t>() { return data_types::i32; }
+template <>
+data_types ToDataType<int32_t>() {
+    return data_types::i32;
+}
 
-template<>
-data_types ToDataType<int64_t>() { return data_types::i64; }
+template <>
+data_types ToDataType<int64_t>() {
+    return data_types::i64;
+}
 
-template<typename T>
+template <typename T>
 std::vector<T> GenInput(const ov::PartialShape& shape) {
     const size_t size = ov::shape_size(shape.get_shape());
     std::vector<T> result(size);
@@ -38,7 +43,7 @@ std::vector<T> GenInput(const ov::PartialShape& shape) {
     return result;
 }
 
-} // namespace helpers
+}  // namespace helpers
 
 struct SliceScatterTestParams {
     memory::ptr data;
@@ -57,16 +62,15 @@ struct SliceScatterTestParams {
     bool is_caching_test = false;
 };
 
-template<typename T>
+template <typename T>
 class SliceScatterTest : public ::testing::Test {
 public:
     void RunAllTestCasesForParams(const SliceScatterTestParams& params) {
         RunTestCase(params);
     }
 
-    template<typename TDataType>
-    memory::ptr AllocateTensor(ov::PartialShape shape, cldnn::format fmt,
-                                const std::vector<TDataType>& data) {
+    template <typename TDataType>
+    memory::ptr AllocateTensor(ov::PartialShape shape, cldnn::format fmt, const std::vector<TDataType>& data) {
         const layout lo = {shape, helpers::ToDataType<TDataType>(), fmt};
         EXPECT_EQ(lo.get_linear_size(), data.size());
         memory::ptr tensor = this->engine_.allocate_memory(lo);
@@ -80,23 +84,16 @@ public:
     // start=[0,0,0,1], stop=[1,1,2,3], step=[1,1,1,1]
     // Slice region: b[0:1],f[0:1],y[0:2],x[1:3]
     // Expected: [0,20,21,3, 4,22,23,7, 8,9,10,11]
-    template<typename TypeParam>
+    template <typename TypeParam>
     void FillWithBasicBfyxData(SliceScatterTestParams& params) {
         const ov::PartialShape data_shape{1, 1, 3, 4};
-        params.data = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
-        params.updates = this->template AllocateTensor<TypeParam>(
-            ov::PartialShape{1, 1, 2, 2}, format::bfyx,
-            std::vector<TypeParam>{20, 21, 22, 23});
-        params.start = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{4}, format::bfyx, {0, 0, 0, 1});
-        params.stop = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{4}, format::bfyx, {1, 1, 2, 3});
-        params.step = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{4}, format::bfyx, {1, 1, 1, 1});
-        params.wanted_output = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx,
-            std::vector<TypeParam>{0, 20, 21, 3, 4, 22, 23, 7, 8, 9, 10, 11});
+        params.data = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
+        params.updates = this->template AllocateTensor<TypeParam>(ov::PartialShape{1, 1, 2, 2}, format::bfyx, std::vector<TypeParam>{20, 21, 22, 23});
+        params.start = this->template AllocateTensor<int64_t>(ov::PartialShape{4}, format::bfyx, {0, 0, 0, 1});
+        params.stop = this->template AllocateTensor<int64_t>(ov::PartialShape{4}, format::bfyx, {1, 1, 2, 3});
+        params.step = this->template AllocateTensor<int64_t>(ov::PartialShape{4}, format::bfyx, {1, 1, 1, 1});
+        params.wanted_output =
+            this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, std::vector<TypeParam>{0, 20, 21, 3, 4, 22, 23, 7, 8, 9, 10, 11});
     }
 
     // Test case: with explicit axes parameter
@@ -105,26 +102,21 @@ public:
     // start=[1], stop=[3], step=[1], axes=[2]
     // Slice axis 2 (y): y[1:3], all other axes full
     // Expected: [0,1,2,3, 100,101,102,103, 104,105,106,107, 12,13,14,15]
-    template<typename TypeParam>
+    template <typename TypeParam>
     void FillWithAxesData(SliceScatterTestParams& params) {
         const ov::PartialShape data_shape{1, 1, 4, 4};
-        params.data = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
-        params.updates = this->template AllocateTensor<TypeParam>(
-            ov::PartialShape{1, 1, 2, 4}, format::bfyx,
-            std::vector<TypeParam>{100, 101, 102, 103, 104, 105, 106, 107});
-        params.start = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {1});
-        params.stop = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {3});
-        params.step = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {1});
-        params.axes = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {2});
-        params.wanted_output = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx,
-            std::vector<TypeParam>{0, 1, 2, 3, 100, 101, 102, 103,
-                                   104, 105, 106, 107, 12, 13, 14, 15});
+        params.data = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
+        params.updates = this->template AllocateTensor<TypeParam>(ov::PartialShape{1, 1, 2, 4},
+                                                                  format::bfyx,
+                                                                  std::vector<TypeParam>{100, 101, 102, 103, 104, 105, 106, 107});
+        params.start = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {1});
+        params.stop = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {3});
+        params.step = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {1});
+        params.axes = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {2});
+        params.wanted_output =
+            this->template AllocateTensor<TypeParam>(data_shape,
+                                                     format::bfyx,
+                                                     std::vector<TypeParam>{0, 1, 2, 3, 100, 101, 102, 103, 104, 105, 106, 107, 12, 13, 14, 15});
     }
 
     // Test case: step > 1
@@ -133,25 +125,16 @@ public:
     // start=[0], stop=[8], step=[2], axes=[3]
     // Scatter at x=0,2,4,6
     // Expected: [10,1,11,3,12,5,13,7]
-    template<typename TypeParam>
+    template <typename TypeParam>
     void FillWithStepData(SliceScatterTestParams& params) {
         const ov::PartialShape data_shape{1, 1, 1, 8};
-        params.data = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
-        params.updates = this->template AllocateTensor<TypeParam>(
-            ov::PartialShape{1, 1, 1, 4}, format::bfyx,
-            std::vector<TypeParam>{10, 11, 12, 13});
-        params.start = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {0});
-        params.stop = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {8});
-        params.step = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {2});
-        params.axes = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {3});
-        params.wanted_output = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx,
-            std::vector<TypeParam>{10, 1, 11, 3, 12, 5, 13, 7});
+        params.data = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
+        params.updates = this->template AllocateTensor<TypeParam>(ov::PartialShape{1, 1, 1, 4}, format::bfyx, std::vector<TypeParam>{10, 11, 12, 13});
+        params.start = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {0});
+        params.stop = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {8});
+        params.step = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {2});
+        params.axes = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {3});
+        params.wanted_output = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, std::vector<TypeParam>{10, 1, 11, 3, 12, 5, 13, 7});
     }
 
     // Test case: negative indices
@@ -160,25 +143,16 @@ public:
     // start=[-3], stop=[-1], step=[1], axes=[3]
     // start=-3 -> 5, stop=-1 -> 7: x[5:7] = [10,11]
     // Expected: [0,1,2,3,4,10,11,7]
-    template<typename TypeParam>
+    template <typename TypeParam>
     void FillWithNegativeIndicesData(SliceScatterTestParams& params) {
         const ov::PartialShape data_shape{1, 1, 1, 8};
-        params.data = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
-        params.updates = this->template AllocateTensor<TypeParam>(
-            ov::PartialShape{1, 1, 1, 2}, format::bfyx,
-            std::vector<TypeParam>{10, 11});
-        params.start = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {-3});
-        params.stop = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {-1});
-        params.step = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {1});
-        params.axes = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {3});
-        params.wanted_output = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx,
-            std::vector<TypeParam>{0, 1, 2, 3, 4, 10, 11, 7});
+        params.data = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
+        params.updates = this->template AllocateTensor<TypeParam>(ov::PartialShape{1, 1, 1, 2}, format::bfyx, std::vector<TypeParam>{10, 11});
+        params.start = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {-3});
+        params.stop = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {-1});
+        params.step = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {1});
+        params.axes = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {3});
+        params.wanted_output = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, std::vector<TypeParam>{0, 1, 2, 3, 4, 10, 11, 7});
     }
 
     // Test case: 5D bfzyx
@@ -187,26 +161,18 @@ public:
     // start=[0,0,0,0,0], stop=[1,1,1,2,3], step=[1,1,1,1,1]
     // Replace b=0,f=0,z=0 region
     // Expected: [100,101,102,103,104,105, 6..23]
-    template<typename TypeParam>
+    template <typename TypeParam>
     void FillWithBfzyxData(SliceScatterTestParams& params) {
         const ov::PartialShape data_shape{1, 2, 2, 2, 3};
-        params.data = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfzyx, helpers::GenInput<TypeParam>(data_shape));
-        params.updates = this->template AllocateTensor<TypeParam>(
-            ov::PartialShape{1, 1, 1, 2, 3}, format::bfzyx,
-            std::vector<TypeParam>{100, 101, 102, 103, 104, 105});
-        params.start = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{5}, format::bfzyx, {0, 0, 0, 0, 0});
-        params.stop = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{5}, format::bfzyx, {1, 1, 1, 2, 3});
-        params.step = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{5}, format::bfzyx, {1, 1, 1, 1, 1});
-        params.wanted_output = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfzyx,
-            std::vector<TypeParam>{100, 101, 102, 103, 104, 105,
-                                   6, 7, 8, 9, 10, 11,
-                                   12, 13, 14, 15, 16, 17,
-                                   18, 19, 20, 21, 22, 23});
+        params.data = this->template AllocateTensor<TypeParam>(data_shape, format::bfzyx, helpers::GenInput<TypeParam>(data_shape));
+        params.updates =
+            this->template AllocateTensor<TypeParam>(ov::PartialShape{1, 1, 1, 2, 3}, format::bfzyx, std::vector<TypeParam>{100, 101, 102, 103, 104, 105});
+        params.start = this->template AllocateTensor<int64_t>(ov::PartialShape{5}, format::bfzyx, {0, 0, 0, 0, 0});
+        params.stop = this->template AllocateTensor<int64_t>(ov::PartialShape{5}, format::bfzyx, {1, 1, 1, 2, 3});
+        params.step = this->template AllocateTensor<int64_t>(ov::PartialShape{5}, format::bfzyx, {1, 1, 1, 1, 1});
+        params.wanted_output =
+            this->template AllocateTensor<TypeParam>(data_shape, format::bfzyx, std::vector<TypeParam>{100, 101, 102, 103, 104, 105, 6,  7,  8,  9,  10, 11,
+                                                                                                       12,  13,  14,  15,  16,  17,  18, 19, 20, 21, 22, 23});
     }
 
     // Test case: negative step (backward slicing)
@@ -215,25 +181,16 @@ public:
     // start=[6], stop=[0], step=[-2], axes=[3]
     // Backward: x=6,4,2 => positions 6,4,2
     // Expected: [0,1,12,3,11,5,10,7]
-    template<typename TypeParam>
+    template <typename TypeParam>
     void FillWithNegativeStepData(SliceScatterTestParams& params) {
         const ov::PartialShape data_shape{1, 1, 1, 8};
-        params.data = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
-        params.updates = this->template AllocateTensor<TypeParam>(
-            ov::PartialShape{1, 1, 1, 3}, format::bfyx,
-            std::vector<TypeParam>{10, 11, 12});
-        params.start = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {6});
-        params.stop = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {0});
-        params.step = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {-2});
-        params.axes = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {3});
-        params.wanted_output = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx,
-            std::vector<TypeParam>{0, 1, 12, 3, 11, 5, 10, 7});
+        params.data = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
+        params.updates = this->template AllocateTensor<TypeParam>(ov::PartialShape{1, 1, 1, 3}, format::bfyx, std::vector<TypeParam>{10, 11, 12});
+        params.start = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {6});
+        params.stop = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {0});
+        params.step = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {-2});
+        params.axes = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {3});
+        params.wanted_output = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, std::vector<TypeParam>{0, 1, 12, 3, 11, 5, 10, 7});
     }
 
     // Test case: start/stop clamping
@@ -244,25 +201,16 @@ public:
     // start=-25 clamped to 0, stop=25 clamped to 5 => x=0,2,4
     // Expected: [[10,1,20,3,30],[40,6,50,8,60]]
     // This matches Spec Example 2 pattern (clamping + step=2)
-    template<typename TypeParam>
+    template <typename TypeParam>
     void FillWithClampingData(SliceScatterTestParams& params) {
         const ov::PartialShape data_shape{1, 1, 2, 5};
-        params.data = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
-        params.updates = this->template AllocateTensor<TypeParam>(
-            ov::PartialShape{1, 1, 2, 3}, format::bfyx,
-            std::vector<TypeParam>{10, 20, 30, 40, 50, 60});
-        params.start = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {-25});
-        params.stop = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {25});
-        params.step = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {2});
-        params.axes = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {3});
-        params.wanted_output = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx,
-            std::vector<TypeParam>{10, 1, 20, 3, 30, 40, 6, 50, 8, 60});
+        params.data = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
+        params.updates = this->template AllocateTensor<TypeParam>(ov::PartialShape{1, 1, 2, 3}, format::bfyx, std::vector<TypeParam>{10, 20, 30, 40, 50, 60});
+        params.start = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {-25});
+        params.stop = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {25});
+        params.step = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {2});
+        params.axes = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {3});
+        params.wanted_output = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, std::vector<TypeParam>{10, 1, 20, 3, 30, 40, 6, 50, 8, 60});
     }
 
     // Test case: negative axes
@@ -272,26 +220,21 @@ public:
     // axes=-2 with rank=4 => axis 2 (y dimension)
     // Same result as with_axes (axis=2), y[1:3]
     // Expected: [0,1,2,3, 100,101,102,103, 104,105,106,107, 12,13,14,15]
-    template<typename TypeParam>
+    template <typename TypeParam>
     void FillWithNegativeAxesData(SliceScatterTestParams& params) {
         const ov::PartialShape data_shape{1, 1, 4, 4};
-        params.data = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
-        params.updates = this->template AllocateTensor<TypeParam>(
-            ov::PartialShape{1, 1, 2, 4}, format::bfyx,
-            std::vector<TypeParam>{100, 101, 102, 103, 104, 105, 106, 107});
-        params.start = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {1});
-        params.stop = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {3});
-        params.step = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {1});
-        params.axes = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {-2});
-        params.wanted_output = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx,
-            std::vector<TypeParam>{0, 1, 2, 3, 100, 101, 102, 103,
-                                   104, 105, 106, 107, 12, 13, 14, 15});
+        params.data = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
+        params.updates = this->template AllocateTensor<TypeParam>(ov::PartialShape{1, 1, 2, 4},
+                                                                  format::bfyx,
+                                                                  std::vector<TypeParam>{100, 101, 102, 103, 104, 105, 106, 107});
+        params.start = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {1});
+        params.stop = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {3});
+        params.step = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {1});
+        params.axes = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {-2});
+        params.wanted_output =
+            this->template AllocateTensor<TypeParam>(data_shape,
+                                                     format::bfyx,
+                                                     std::vector<TypeParam>{0, 1, 2, 3, 100, 101, 102, 103, 104, 105, 106, 107, 12, 13, 14, 15});
     }
 
     // Test case: Spec Example 1 - fill slice over axis==0
@@ -300,26 +243,16 @@ public:
     // start=[0], stop=[1], step=[1], axes=[2]  (axis 0 in spec = axis 2 in bfyx)
     // y[0:1] replaced
     // Expected: [[10,20,30,40,50],[5,6,7,8,9]]
-    template<typename TypeParam>
+    template <typename TypeParam>
     void FillWithSpecExample1Data(SliceScatterTestParams& params) {
         const ov::PartialShape data_shape{1, 1, 2, 5};
-        params.data = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx,
-            std::vector<TypeParam>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
-        params.updates = this->template AllocateTensor<TypeParam>(
-            ov::PartialShape{1, 1, 1, 5}, format::bfyx,
-            std::vector<TypeParam>{10, 20, 30, 40, 50});
-        params.start = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {0});
-        params.stop = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {1});
-        params.step = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {1});
-        params.axes = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {2});
-        params.wanted_output = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx,
-            std::vector<TypeParam>{10, 20, 30, 40, 50, 5, 6, 7, 8, 9});
+        params.data = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, std::vector<TypeParam>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+        params.updates = this->template AllocateTensor<TypeParam>(ov::PartialShape{1, 1, 1, 5}, format::bfyx, std::vector<TypeParam>{10, 20, 30, 40, 50});
+        params.start = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {0});
+        params.stop = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {1});
+        params.step = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {1});
+        params.axes = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {2});
+        params.wanted_output = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, std::vector<TypeParam>{10, 20, 30, 40, 50, 5, 6, 7, 8, 9});
     }
 
     // Test case: Spec Example 3 - multi-axis step=2 without explicit axes
@@ -328,24 +261,17 @@ public:
     // start=[0,0,0,1], stop=[1,1,3,5], step=[1,1,2,2]
     // axis 2 (y): y=0,2  axis 3 (x): x=1,3
     // Expected: [[0,50,2,60,4],[5,6,7,8,9],[10,70,12,80,14]]
-    template<typename TypeParam>
+    template <typename TypeParam>
     void FillWithSpecExample3Data(SliceScatterTestParams& params) {
         const ov::PartialShape data_shape{1, 1, 3, 5};
-        params.data = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx,
-            std::vector<TypeParam>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14});
-        params.updates = this->template AllocateTensor<TypeParam>(
-            ov::PartialShape{1, 1, 2, 2}, format::bfyx,
-            std::vector<TypeParam>{50, 60, 70, 80});
-        params.start = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{4}, format::bfyx, {0, 0, 0, 1});
-        params.stop = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{4}, format::bfyx, {1, 1, 3, 5});
-        params.step = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{4}, format::bfyx, {1, 1, 2, 2});
-        params.wanted_output = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx,
-            std::vector<TypeParam>{0, 50, 2, 60, 4, 5, 6, 7, 8, 9, 10, 70, 12, 80, 14});
+        params.data =
+            this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, std::vector<TypeParam>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14});
+        params.updates = this->template AllocateTensor<TypeParam>(ov::PartialShape{1, 1, 2, 2}, format::bfyx, std::vector<TypeParam>{50, 60, 70, 80});
+        params.start = this->template AllocateTensor<int64_t>(ov::PartialShape{4}, format::bfyx, {0, 0, 0, 1});
+        params.stop = this->template AllocateTensor<int64_t>(ov::PartialShape{4}, format::bfyx, {1, 1, 3, 5});
+        params.step = this->template AllocateTensor<int64_t>(ov::PartialShape{4}, format::bfyx, {1, 1, 2, 2});
+        params.wanted_output =
+            this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, std::vector<TypeParam>{0, 50, 2, 60, 4, 5, 6, 7, 8, 9, 10, 70, 12, 80, 14});
     }
 
     // Test case: 1D tensor
@@ -354,25 +280,16 @@ public:
     // start=[2], stop=[5], step=[1], axes=[0]
     // x[2:5] = [10,20,30]
     // Expected: [0,1,10,20,30,5,6,7]
-    template<typename TypeParam>
+    template <typename TypeParam>
     void FillWith1DData(SliceScatterTestParams& params) {
         const ov::PartialShape data_shape{8};
-        params.data = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
-        params.updates = this->template AllocateTensor<TypeParam>(
-            ov::PartialShape{3}, format::bfyx,
-            std::vector<TypeParam>{10, 20, 30});
-        params.start = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {2});
-        params.stop = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {5});
-        params.step = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {1});
-        params.axes = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {0});
-        params.wanted_output = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx,
-            std::vector<TypeParam>{0, 1, 10, 20, 30, 5, 6, 7});
+        params.data = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
+        params.updates = this->template AllocateTensor<TypeParam>(ov::PartialShape{3}, format::bfyx, std::vector<TypeParam>{10, 20, 30});
+        params.start = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {2});
+        params.stop = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {5});
+        params.step = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {1});
+        params.axes = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {0});
+        params.wanted_output = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, std::vector<TypeParam>{0, 1, 10, 20, 30, 5, 6, 7});
     }
 
     // Test case: 2D tensor
@@ -381,25 +298,17 @@ public:
     // start=[1], stop=[3], step=[1], axes=[1]
     // x[1:3] on each row
     // Expected: [[0,100,101,3],[4,102,103,7],[8,104,105,11]]
-    template<typename TypeParam>
+    template <typename TypeParam>
     void FillWith2DData(SliceScatterTestParams& params) {
         const ov::PartialShape data_shape{3, 4};
-        params.data = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
-        params.updates = this->template AllocateTensor<TypeParam>(
-            ov::PartialShape{3, 2}, format::bfyx,
-            std::vector<TypeParam>{100, 101, 102, 103, 104, 105});
-        params.start = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {1});
-        params.stop = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {3});
-        params.step = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {1});
-        params.axes = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {1});
-        params.wanted_output = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx,
-            std::vector<TypeParam>{0, 100, 101, 3, 4, 102, 103, 7, 8, 104, 105, 11});
+        params.data = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
+        params.updates = this->template AllocateTensor<TypeParam>(ov::PartialShape{3, 2}, format::bfyx, std::vector<TypeParam>{100, 101, 102, 103, 104, 105});
+        params.start = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {1});
+        params.stop = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {3});
+        params.step = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {1});
+        params.axes = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {1});
+        params.wanted_output =
+            this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, std::vector<TypeParam>{0, 100, 101, 3, 4, 102, 103, 7, 8, 104, 105, 11});
     }
 
     // Test case: INT_MAX stop (slice to end of dimension)
@@ -408,25 +317,16 @@ public:
     // start=[6], stop=[INT_MAX], step=[1], axes=[3]
     // x[6:10] = [50,51,52,53]
     // Expected: [0,1,2,3,4,5,50,51,52,53]
-    template<typename TypeParam>
+    template <typename TypeParam>
     void FillWithIntMaxStopData(SliceScatterTestParams& params) {
         const ov::PartialShape data_shape{1, 1, 1, 10};
-        params.data = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
-        params.updates = this->template AllocateTensor<TypeParam>(
-            ov::PartialShape{1, 1, 1, 4}, format::bfyx,
-            std::vector<TypeParam>{50, 51, 52, 53});
-        params.start = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {6});
-        params.stop = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {std::numeric_limits<int64_t>::max()});
-        params.step = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {1});
-        params.axes = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {3});
-        params.wanted_output = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx,
-            std::vector<TypeParam>{0, 1, 2, 3, 4, 5, 50, 51, 52, 53});
+        params.data = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
+        params.updates = this->template AllocateTensor<TypeParam>(ov::PartialShape{1, 1, 1, 4}, format::bfyx, std::vector<TypeParam>{50, 51, 52, 53});
+        params.start = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {6});
+        params.stop = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {std::numeric_limits<int64_t>::max()});
+        params.step = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {1});
+        params.axes = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {3});
+        params.wanted_output = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, std::vector<TypeParam>{0, 1, 2, 3, 4, 5, 50, 51, 52, 53});
     }
 
     // Test case: negative step=-1 (full reverse on one axis)
@@ -435,30 +335,20 @@ public:
     // start=[5], stop=[2], step=[-1], axes=[3]
     // Backward: x=5,4,3 => positions 5,4,3
     // Expected: [0,1,2,12,11,10]
-    template<typename TypeParam>
+    template <typename TypeParam>
     void FillWithNegativeStepReverseData(SliceScatterTestParams& params) {
         const ov::PartialShape data_shape{1, 1, 1, 6};
-        params.data = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
-        params.updates = this->template AllocateTensor<TypeParam>(
-            ov::PartialShape{1, 1, 1, 3}, format::bfyx,
-            std::vector<TypeParam>{10, 11, 12});
-        params.start = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {5});
-        params.stop = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {2});
-        params.step = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {-1});
-        params.axes = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{1}, format::bfyx, {3});
-        params.wanted_output = this->template AllocateTensor<TypeParam>(
-            data_shape, format::bfyx,
-            std::vector<TypeParam>{0, 1, 2, 12, 11, 10});
+        params.data = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, helpers::GenInput<TypeParam>(data_shape));
+        params.updates = this->template AllocateTensor<TypeParam>(ov::PartialShape{1, 1, 1, 3}, format::bfyx, std::vector<TypeParam>{10, 11, 12});
+        params.start = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {5});
+        params.stop = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {2});
+        params.step = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {-1});
+        params.axes = this->template AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {3});
+        params.wanted_output = this->template AllocateTensor<TypeParam>(data_shape, format::bfyx, std::vector<TypeParam>{0, 1, 2, 12, 11, 10});
     }
 
 private:
-    void SetParameterInput(const std::string& name, topology& topo,
-                           const memory::ptr& data_ptr, bool is_dynamic) {
+    void SetParameterInput(const std::string& name, topology& topo, const memory::ptr& data_ptr, bool is_dynamic) {
         if (is_dynamic) {
             auto dynamic_shape = data_ptr->get_layout();
             dynamic_shape.set_partial_shape(ov::PartialShape::dynamic(dynamic_shape.get_rank()));
@@ -494,13 +384,7 @@ private:
             SetParameterInput("axes", topo, params.axes, params.is_axes_dynamic);
         }
 
-        std::vector<input_info> inputs{
-            input_info("data"),
-            input_info("updates"),
-            input_info("start"),
-            input_info("stop"),
-            input_info("step")
-        };
+        std::vector<input_info> inputs{input_info("data"), input_info("updates"), input_info("start"), input_info("stop"), input_info("step")};
         if (params.axes) {
             inputs.push_back(input_info("axes"));
         }
@@ -509,8 +393,7 @@ private:
         ExecutionConfig config = get_test_default_config(engine_);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
-        cldnn::network::ptr network =
-            get_network(engine_, topo, config, get_test_stream_ptr(), params.is_caching_test);
+        cldnn::network::ptr network = get_network(engine_, topo, config, get_test_stream_ptr(), params.is_caching_test);
 
         network->set_input_data("data", params.data);
         network->set_input_data("updates", params.updates);
@@ -777,7 +660,7 @@ TYPED_TEST(SliceScatterTest, tensor_1d_all_dynamic) {
     this->RunAllTestCasesForParams(params);
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
 // ===== Performance benchmark (large tensors, opt-eligible: step=1, X>=8) =====
 namespace {
@@ -792,7 +675,8 @@ protected:
                                  const std::vector<int64_t>& start_vals,
                                  const std::vector<int64_t>& stop_vals,
                                  const std::vector<int64_t>& step_vals,
-                                 int warmup_iters, int measure_iters) {
+                                 int warmup_iters,
+                                 int measure_iters) {
         // Allocate data
         auto data_size = ov::shape_size(data_shape.get_shape());
         auto updates_size = ov::shape_size(updates_shape.get_shape());
@@ -823,9 +707,7 @@ protected:
         topo.add(data("start", start_mem));
         topo.add(data("stop", stop_mem));
         topo.add(data("step", step_mem));
-        topo.add(slice_scatter("slice_scatter",
-                               {input_info("data"), input_info("updates"),
-                                input_info("start"), input_info("stop"), input_info("step")}));
+        topo.add(slice_scatter("slice_scatter", {input_info("data"), input_info("updates"), input_info("start"), input_info("stop"), input_info("step")}));
 
         ExecutionConfig config = get_test_default_config(engine_);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -870,11 +752,8 @@ TEST_F(SliceScatterPerfTest, DISABLED_large_tensor_perf) {
     const int warmup = 10;
     const int iters = 50;
 
-    double avg_us = BenchmarkSliceScatter(data_shape, updates_shape,
-                                          start_vals, stop_vals, step_vals,
-                                          warmup, iters);
-    std::cout << "[PERF] SliceScatter large tensor (4x64x128x256, step=1): "
-              << avg_us << " us/iter (" << iters << " iters)" << std::endl;
+    double avg_us = BenchmarkSliceScatter(data_shape, updates_shape, start_vals, stop_vals, step_vals, warmup, iters);
+    std::cout << "[PERF] SliceScatter large tensor (4x64x128x256, step=1): " << avg_us << " us/iter (" << iters << " iters)" << std::endl;
     ASSERT_GT(avg_us, 0.0);
 }
 
@@ -889,12 +768,9 @@ TEST_F(SliceScatterPerfTest, DISABLED_medium_tensor_perf) {
     const int warmup = 10;
     const int iters = 100;
 
-    double avg_us = BenchmarkSliceScatter(data_shape, updates_shape,
-                                          start_vals, stop_vals, step_vals,
-                                          warmup, iters);
-    std::cout << "[PERF] SliceScatter medium tensor (8x32x64x64, step=1): "
-              << avg_us << " us/iter (" << iters << " iters)" << std::endl;
+    double avg_us = BenchmarkSliceScatter(data_shape, updates_shape, start_vals, stop_vals, step_vals, warmup, iters);
+    std::cout << "[PERF] SliceScatter medium tensor (8x32x64x64, step=1): " << avg_us << " us/iter (" << iters << " iters)" << std::endl;
     ASSERT_GT(avg_us, 0.0);
 }
 
-} // anonymous namespace
+}  // anonymous namespace
