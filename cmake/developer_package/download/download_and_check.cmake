@@ -22,11 +22,24 @@ function (DownloadAndCheck from to fatal result sha256)
           Download(${from} ${to} ${fatal} ${result} output ${sha256})
           list(GET output 0 status_code)
         else()
+          # This helps to track where the download is happening from, for analytics purposes
+          set(_wget_referer_args "")
+          if(DEFINED ENV{CI} AND "$ENV{CI}" STREQUAL "true")
+            set(_wget_referer "generic-ci")
+            if(DEFINED ENV{GITHUB_ACTIONS} AND "$ENV{GITHUB_ACTIONS}" STREQUAL "true")
+              set(_wget_referer "generic-github-actions")
+              if(DEFINED ENV{GITHUB_REPOSITORY_OWNER} AND "$ENV{GITHUB_REPOSITORY_OWNER}" STREQUAL "openvinotoolkit")
+                set(_wget_referer "openvino-gha-ci")
+              endif()
+            endif()
+            set(_wget_referer_args "--header=Referer: ${_wget_referer}")
+          endif()
           foreach(index RANGE 5)
             message(STATUS "${WGET_EXECUTABLE} --no-cache
-              --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 --tries=5 ${from}")
+              --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 --tries=5 ${_wget_referer_args} ${from} -O ${to}")
             execute_process(COMMAND ${WGET_EXECUTABLE} "--no-cache"
               "--retry-connrefused" "--waitretry=1" "--read-timeout=20" "--timeout=15" "--tries=5"
+              ${_wget_referer_args}
               "${from}" "-O" "${to}"
               TIMEOUT 2000
               RESULT_VARIABLE status_code)
