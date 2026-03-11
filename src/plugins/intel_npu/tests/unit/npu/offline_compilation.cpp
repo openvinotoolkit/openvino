@@ -55,5 +55,6 @@ TEST_F(UnavailableDeviceTests, GetDeviceNotAvailable) {
     OV_ASSERT_NO_THROW(
         core.set_property("NPU", {{ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::DRIVER}}));
 
-    ASSERT_ANY_THROW(std::make_shared<intel_npu::ZeroEngineBackend>());
+    std::shared_ptr<intel_npu::ZeroEngineBackend> backend;
+    ASSERT_ANY_THROW(backend = std::make_shared<intel_npu::ZeroEngineBackend>());
 }
