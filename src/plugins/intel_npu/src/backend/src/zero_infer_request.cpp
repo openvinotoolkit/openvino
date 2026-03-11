@@ -140,16 +140,17 @@ void ZeroInferRequest::create_pipeline() {
                 _logger.debug("ZeroInferRequest::create_pipeline - tensors %s were already allocated",
                               _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str());
             } else {
-                get_level_zero_input(inputIndex) =
-                    allocate_tensor(inputIndex, INPUT, get_user_inputs(inputIndex).size());
+                if (get_level_zero_input(inputIndex) == nullptr) {
+                    get_level_zero_input(inputIndex) =
+                        allocate_tensor(inputIndex, INPUT, get_user_inputs(inputIndex).size());
+                }
             }
             continue;
         }
 
-        auto& levelZeroTensor = get_level_zero_input(inputIndex);
-        if (levelZeroTensor) {
+        if (get_level_zero_input(inputIndex)) {
             if (_dynamicBatchValueChanged && batchSize.has_value() &&
-                levelZeroTensor->get_shape()[utils::BATCH_AXIS] != batchSize.value()) {
+                get_level_zero_input(inputIndex)->get_shape()[utils::BATCH_AXIS] != batchSize.value()) {
                 OPENVINO_THROW("Input tensor ",
                                _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str(),
                                " has different batch size than other tensors.");
@@ -157,27 +158,12 @@ void ZeroInferRequest::create_pipeline() {
 
             _logger.debug("ZeroInferRequest::create_pipeline - tensor %s was already allocated and has size: %zu",
                           _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str(),
-                          levelZeroTensor->get_byte_size());
+                          get_level_zero_input(inputIndex)->get_byte_size());
 
-            // corner case for boolean inputs as compiler maps them to u8
-            const auto& userTensorElementType = get_user_input(inputIndex)->get_element_type();
-            if (userTensorElementType == ov::element::boolean &&
-                levelZeroTensor->get_element_type() == ov::element::u8) {
-                levelZeroTensor->set_element_type(userTensorElementType);
-            }
             continue;
         }
 
-        const bool userTensorWasSet = get_user_input(inputIndex) != nullptr;
-        levelZeroTensor = allocate_tensor(inputIndex, INPUT, batchSize);
-        if (userTensorWasSet) {
-            // corner case for boolean inputs as compiler maps them to u8
-            const auto& userTensorElementType = get_user_input(inputIndex)->get_element_type();
-            if (userTensorElementType == ov::element::boolean &&
-                levelZeroTensor->get_element_type() == ov::element::u8) {
-                levelZeroTensor->set_element_type(userTensorElementType);
-            }
-        }
+        get_level_zero_input(inputIndex) = allocate_tensor(inputIndex, INPUT, batchSize);
         _logger.debug("ZeroInferRequest::create_pipeline - new input tensor %s allocated, size: %zu",
                       _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str(),
                       get_level_zero_input(inputIndex)->get_byte_size());
@@ -360,10 +346,11 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 void ZeroInferRequest::update_command_list_for_tensor(SyncInferRequest::FoundPort& foundPort,
                                                       const ov::SoPtr<ov::ITensor>& tensor) {
     OV_ITT_TASK_CHAIN(ZERO_SET_TENSOR, itt::domains::LevelZeroBackend, "set_tensor", "update_command_list_for_tensor");
-    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
-        auto& levelZeroTensor =
-            foundPort.is_input() ? get_level_zero_input(foundPort.idx) : _levelZeroOutputTensors.at(foundPort.idx);
+    const bool isMutableCommandListSupported = _initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0);
+    auto& levelZeroTensor =
+        foundPort.is_input() ? get_level_zero_input(foundPort.idx) : _levelZeroOutputTensors.at(foundPort.idx);
 
+    if (isMutableCommandListSupported || levelZeroTensor == nullptr) {
         bool updateCommandListArg = false;
 
         try {
@@ -393,7 +380,7 @@ void ZeroInferRequest::update_command_list_for_tensor(SyncInferRequest::FoundPor
             }
         }
 
-        if (_pipelineIsCreated && updateCommandListArg && !_dynamicBatchValueChanged) {
+        if (isMutableCommandListSupported && _pipelineIsCreated && updateCommandListArg && !_dynamicBatchValueChanged) {
             _logger.debug("ZeroInferRequest::infer_async - update command list");
 
             OPENVINO_ASSERT(levelZeroTensor->data(), "Empty buffer");
@@ -404,13 +391,13 @@ void ZeroInferRequest::update_command_list_for_tensor(SyncInferRequest::FoundPor
                                                   : _metadata.outputs.at(foundPort.idx).indexUsedByDriver,
                                               levelZeroTensor);
         }
+    }
 
-        OPENVINO_ASSERT(levelZeroTensor, "Zero tensor is not allocated.");
-        // corner case for boolean inputs as compiler maps them to u8
-        const auto& userTensorElementType = tensor->get_element_type();
-        if (userTensorElementType == ov::element::boolean && levelZeroTensor->get_element_type() == ov::element::u8) {
-            levelZeroTensor->set_element_type(userTensorElementType);
-        }
+    OPENVINO_ASSERT(levelZeroTensor, "Zero tensor is not allocated.");
+    // corner case for boolean inputs as compiler maps them to u8
+    const auto& userTensorElementType = tensor->get_element_type();
+    if (userTensorElementType == ov::element::boolean && levelZeroTensor->get_element_type() == ov::element::u8) {
+        levelZeroTensor->set_element_type(userTensorElementType);
     }
     // If command list updates are not supported, fallback to copying tensors every time.
 }
@@ -471,71 +458,70 @@ void ZeroInferRequest::update_command_list_for_tensors(SyncInferRequest::FoundPo
                       itt::domains::LevelZeroBackend,
                       "set_tensors",
                       "update_command_list_for_tensors");
-    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
-        if (batchSizeCandidate.has_value()) {
-            get_level_zero_inputs(foundPort.idx).resize(tensors.size());
 
-            for (size_t i = 0; i < tensors.size(); i++) {
-                try {
-                    _logger.debug("ZeroInferRequest::set_tensors - create zero tensor");
-                    OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "create zero tensor");
-                    get_level_zero_input(foundPort.idx, i) = std::make_shared<ZeroTensor>(_initStructs, tensors.at(i));
-                } catch (const ZeroMemException& exception) {
-                    _logger.debug(
-                        "ZeroInferRequest::set_tensors - exception caught while trying to create a Level Zero tensor "
-                        "from the user tensor: %s",
-                        exception.what());
+    const bool isMutableCommandListSupported = _initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0);
+    if (isMutableCommandListSupported && batchSizeCandidate.has_value()) {
+        get_level_zero_inputs(foundPort.idx).resize(tensors.size());
 
-                    _logger.debug("ZeroInferRequest::set_tensors - allocate locally L0 tensor");
-                    OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "allocate tensor");
-                    get_level_zero_input(foundPort.idx, i) = allocate_tensor(foundPort.idx, INPUT, batchSizeCandidate);
-                }
+        for (size_t i = 0; i < tensors.size(); i++) {
+            try {
+                _logger.debug("ZeroInferRequest::set_tensors - create zero tensor");
+                OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "create zero tensor");
+                get_level_zero_input(foundPort.idx, i) = std::make_shared<ZeroTensor>(_initStructs, tensors.at(i));
+            } catch (const ZeroMemException& exception) {
+                _logger.debug(
+                    "ZeroInferRequest::set_tensors - exception caught while trying to create a Level Zero tensor "
+                    "from the user tensor: %s",
+                    exception.what());
 
-                if (_pipelineIsCreated && !_dynamicBatchValueChanged) {
-                    OPENVINO_ASSERT(get_level_zero_input(foundPort.idx, i)->data(), "Empty buffer");
-                    OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "updateCommandList");
-                    _pipeline->update_graph_arguments(_metadata.inputs.at(foundPort.idx).indexUsedByDriver,
-                                                      get_level_zero_input(foundPort.idx, i),
-                                                      i);
-                }
-
-                auto& levelZeroTensor = get_level_zero_input(foundPort.idx, i);
-                OPENVINO_ASSERT(levelZeroTensor, "Zero tensor is not allocated.");
-                // corner case for boolean inputs as compiler maps them to u8
-                const auto& userTensorElementType = tensors.at(i)->get_element_type();
-                if (userTensorElementType == ov::element::boolean &&
-                    levelZeroTensor->get_element_type() == ov::element::u8) {
-                    levelZeroTensor->set_element_type(userTensorElementType);
-                }
-            }
-        } else {
-            auto& levelZeroTensor = get_level_zero_input(foundPort.idx);
-            // Check if the current Level Zero tensor was previously shared with the user. If so, it cannot be reused;
-            // allocate a new tensor to back up the user tensor (which cannot be imported or used directly).
-            if (levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused()) {
                 _logger.debug("ZeroInferRequest::set_tensors - allocate locally L0 tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "allocate tensor");
-
-                levelZeroTensor = allocate_tensor(foundPort.idx, INPUT);
-
-                if (_pipelineIsCreated && !_dynamicBatchValueChanged) {
-                    OPENVINO_ASSERT(levelZeroTensor->data(), "Empty buffer");
-                    OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "updateCommandList");
-                    _pipeline->update_graph_arguments(_metadata.inputs.at(foundPort.idx).indexUsedByDriver,
-                                                      levelZeroTensor);
-                }
-            } else {
-                _logger.debug("ZeroInferRequest::set_tensors - reusing the level zero tensor since it is not shared "
-                              "with the user");
+                get_level_zero_input(foundPort.idx, i) = allocate_tensor(foundPort.idx, INPUT, batchSizeCandidate);
             }
 
+            if (_pipelineIsCreated && !_dynamicBatchValueChanged) {
+                OPENVINO_ASSERT(get_level_zero_input(foundPort.idx, i)->data(), "Empty buffer");
+                OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "updateCommandList");
+                _pipeline->update_graph_arguments(_metadata.inputs.at(foundPort.idx).indexUsedByDriver,
+                                                  get_level_zero_input(foundPort.idx, i),
+                                                  i);
+            }
+
+            auto& levelZeroTensor = get_level_zero_input(foundPort.idx, i);
             OPENVINO_ASSERT(levelZeroTensor, "Zero tensor is not allocated.");
             // corner case for boolean inputs as compiler maps them to u8
-            const auto& userTensorElementType = tensors.at(SINGLE_TENSOR)->get_element_type();
+            const auto& userTensorElementType = tensors.at(i)->get_element_type();
             if (userTensorElementType == ov::element::boolean &&
                 levelZeroTensor->get_element_type() == ov::element::u8) {
                 levelZeroTensor->set_element_type(userTensorElementType);
             }
+        }
+    } else {
+        auto& levelZeroTensor = get_level_zero_input(foundPort.idx);
+        // Check if the current Level Zero tensor was previously shared with the user. If so, it cannot be reused;
+        // allocate a new tensor to back up the user tensor (which cannot be imported or used directly).
+        if (levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused()) {
+            _logger.debug("ZeroInferRequest::set_tensors - allocate locally L0 tensor");
+            OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "allocate tensor");
+
+            levelZeroTensor = allocate_tensor(foundPort.idx, INPUT, tensors.size());
+
+            if (isMutableCommandListSupported && _pipelineIsCreated && !_dynamicBatchValueChanged) {
+                OPENVINO_ASSERT(levelZeroTensor->data(), "Empty buffer");
+                OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "updateCommandList");
+                _pipeline->update_graph_arguments(_metadata.inputs.at(foundPort.idx).indexUsedByDriver,
+                                                  levelZeroTensor);
+            }
+        } else {
+            _logger.debug("ZeroInferRequest::set_tensors - reusing the level zero tensor since it is not shared "
+                          "with the user");
+        }
+
+        OPENVINO_ASSERT(levelZeroTensor, "Zero tensor is not allocated.");
+        // corner case for boolean inputs as compiler maps them to u8
+        const auto& userTensorElementType = tensors.at(SINGLE_TENSOR)->get_element_type();
+        if (userTensorElementType == ov::element::boolean && levelZeroTensor->get_element_type() == ov::element::u8) {
+            levelZeroTensor->set_element_type(userTensorElementType);
         }
     }
     // If command list updates are not supported, fallback to copying tensors every time.
