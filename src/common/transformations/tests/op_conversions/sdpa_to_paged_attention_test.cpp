@@ -5151,7 +5151,8 @@ TEST_F(SDPAToPATest, SDPATOPATest_Qwen2_5_VL_General) {
         auto adaptive_rkv_evictable_sizes = v0::Constant::create(element::i32, Shape{0}, {});
         auto adaptive_rkv_diversity_block_set_indices = v0::Constant::create(element::i32, Shape{0}, {});
         auto adaptive_rkv_diversity_block_set_indices_begins = v0::Constant::create(element::i32, Shape{0}, {});
-
+        auto qq_bias = v0::Constant::create(element::u8, Shape{0}, {});
+        auto qq_bias_begins = v0::Constant::create(element::i32, Shape{0}, {});
         auto PagedAttentionExtension0 =
             make_shared<ov::op::PagedAttentionExtension>(OutputVector{Reshape1,
                                                                       Reshape4,
@@ -5177,7 +5178,9 @@ TEST_F(SDPAToPATest, SDPATOPATest_Qwen2_5_VL_General) {
                                                                       adaptive_rkv_start_size,
                                                                       adaptive_rkv_evictable_sizes,
                                                                       adaptive_rkv_diversity_block_set_indices,
-                                                                      adaptive_rkv_diversity_block_set_indices_begins});
+                                                                      adaptive_rkv_diversity_block_set_indices_begins,
+                                                                      qq_bias,
+                                                                      qq_bias_begins});
 
         auto ShapeOf1 = makeOP<opset3::ShapeOf>({Transpose4}, {{"output_type", "i64"}});
         auto Gather13 = makeOP<opset8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
