@@ -11503,6 +11503,104 @@ TEST(export_import_convolution_f32_gpu, convolution_gpu_bfyx_f16_depthwise_x_blo
     test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_block_size_1<ov::float16>(true);
 }
 
+TEST(convolution_f32_fw_gpu, convolution_gpu_f32_convolution_gpu_bfyx_f16_depthwise) {
+    auto& engine = get_test_engine();
+
+    if (engine.get_device_info().supports_immad) {
+        return;
+    }
+
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    // Tail case for X-blocked path (8 + tail)
+    constexpr int b = 1;
+    constexpr int f = 16;
+    constexpr int y = 1;
+    constexpr int x = 9;
+    constexpr int filter_size = 3;
+
+    auto input_data = rg.generate_random_4d<float>(b, f, y, x, -1, 1);
+    auto weights_data = rg.generate_random_4d<float>(f, 1, filter_size, filter_size, -1, 1);
+
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{b, f, x, y}});
+    auto weights = engine.allocate_memory({
+        data_types::f32,
+        format::goiyx,
+        tensor{group(f), batch(1), feature(1), spatial(filter_size, filter_size)}
+    });
+
+    set_values(input, flatten_4d<float>(format::bfyx, input_data));
+    set_values(weights, flatten_4d<float>(format::bfyx, weights_data));
+
+    auto run_depthwise = [&]() -> std::vector<float> {
+        topology topology(
+            input_layout("input", input->get_layout()),
+            reorder("input_fsv16", input_info("input"), {data_types::f32, format::b_fs_yx_fsv16, tensor{b, f, x, y}}),
+            data("weights", weights),
+            convolution("conv",
+                        input_info("input_fsv16"),
+                        "weights",
+                        no_bias,
+                        f,        // groups
+                        {1, 1},   // stride
+                        {1, 1},   // dilation
+                        {1, 1},   // pad begin
+                        {1, 1},   // pad end
+                        true),    // grouped
+            reorder("out", input_info("conv"), {data_types::f32, format::bfyx, tensor{b, f, x, y}})
+        );
+
+        ExecutionConfig cfg = get_test_default_config(engine);
+        cfg.set_property(ov::intel_gpu::optimize_data(true));
+        cfg.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{
+                {"conv", {format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise", impl_types::ocl}}
+            }));
+
+        network net(engine, topology, cfg);
+        net.set_input_data("input", input);
+
+        auto outputs = net.execute();
+        auto out_mem = outputs.at("out").get_memory();
+        cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+
+        std::vector<float> out(out_mem->count());
+        for (size_t i = 0; i < out.size(); ++i) {
+            out[i] = out_ptr[i];
+        }
+        return out;
+    };
+
+    auto run_ref = [&]() -> std::vector<float> {
+        VVVVF<float> ref(b, VVVF<float>(f));
+        for (int bi = 0; bi < b; ++bi) {
+            for (int ofi = 0; ofi < f; ++ofi) {
+                ref[bi][ofi] = reference_convolve<float, float, float>(
+                    input_data[bi],        // [ifm][y][x]
+                    weights_data[ofi],     // [1][ky][kx] for depthwise
+                    1, 1,                  // stride y, x
+                    0.0f,                  // bias
+                    1, 1,                  // dilation y, x
+                    1, 1,                  // input padding y, x
+                    0, 0,                  // output padding y, x
+                    ofi, ofi + 1,          // f_begin, f_end
+                    true,                  // depthwise
+                    false                  // grouped
+                );
+            }
+        }
+        return flatten_4d<float>(format::bfyx, ref);
+    };
+
+    std::vector<float> out_depthwise, out_ref;
+    ASSERT_NO_THROW(out_depthwise = run_depthwise());
+    ASSERT_NO_THROW(out_ref = run_ref());
+
+    ASSERT_EQ(out_depthwise.size(), out_ref.size());
+    for (size_t i = 0; i < out_depthwise.size(); ++i) {
+        ASSERT_EQ(out_depthwise[i], out_ref[i]);
+    }
+}
 
 TEST(convolution_f32_fw_gpu, basic_convolution_no_bias_swap_xy) {
     //  Filter : 2x2x1x3
