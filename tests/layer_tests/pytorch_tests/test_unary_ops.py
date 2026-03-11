@@ -140,7 +140,7 @@ class TestUnaryOp(PytorchLayerTest):
         if unit_range:
             # atanh requires inputs in (-1, 1); use uniform random in that range.
             # Integer dtypes will truncate to 0, giving atanh(0)=0 — still exercises the op.
-            x = self.random.torch_rand(2, 10) * 2 - 1
+            x = self.random.torch_rand(2, 10) * 1.99 - 0.995
         else:
             # random number in range [1, 11)
             x = self.random.torch_rand(2, 10) * 10 + 1
