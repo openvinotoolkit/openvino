@@ -1611,12 +1611,11 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
                 ov::AnyMap update_config = config;
                 update_config[ov::loaded_from_cache.name()] = true;
-                const auto& dev_supported_props = plugin.get_property(ov::supported_properties);
-                if (cache_content.model && util::contains(dev_supported_props, ov::hint::model)) {
+                if (cache_content.model && plugin.is_property_supported(ov::hint::model.name())) {
                     update_config[ov::hint::model.name()] = cache_content.model;
                 }
 
-                if (util::contains(dev_supported_props, ov::weights_path)) {
+                if (plugin.is_property_supported(ov::weights_path.name())) {
                     std::filesystem::path weights_path;
 
                     if (auto&& path_hint = update_config.find(ov::weights_path.name());
