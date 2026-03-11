@@ -8,6 +8,7 @@
 #include <numeric>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/shape_util.hpp"
@@ -141,8 +142,14 @@ ov::Shape calc_static_shape_for_file(size_t file_size,
                                      size_t offset) {
     if (partial_shape.is_static()) {
         auto static_shape = partial_shape.get_shape();
-        OPENVINO_ASSERT((ov::shape_size(static_shape)) * element_type.bitwidth() + offset * 8 == file_size * 8,
-                        "Cannot fit file size into requested static PartialShape");
+        const auto memory_size = ov::util::get_memory_size_safe(element_type, static_shape);
+        OPENVINO_ASSERT(memory_size && *memory_size + offset <= file_size,
+                        "Requested space exceeds file bounds: file size=",
+                        file_size,
+                        " offset=",
+                        offset,
+                        " requested size=",
+                        memory_size ? std::to_string(*memory_size) : "uncountable");
         return static_shape;
     }
     auto partial_shape_copy = partial_shape;
@@ -222,8 +229,10 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
                         bool mmap) {
     OPENVINO_ASSERT(element_type != ov::element::string);
     if (mmap) {
-        auto mapped_memory = ov::load_mmap_object(file_name);
-        return read_tensor_data_mmap_impl(mapped_memory, element_type, partial_shape, offset_in_bytes);
+        return read_tensor_data_mmap_impl(ov::load_mmap_object(file_name),
+                                          element_type,
+                                          partial_shape,
+                                          offset_in_bytes);
     } else {
         auto file_size = std::filesystem::file_size(file_name);
         auto static_shape = calc_static_shape_for_file(file_size, element_type, partial_shape, offset_in_bytes);
@@ -238,7 +247,6 @@ Tensor read_tensor_data(ov::FileHandle file_handle,
                         const ov::PartialShape& partial_shape,
                         size_t offset_in_bytes) {
     OPENVINO_ASSERT(element_type != ov::element::string);
-    auto mapped_memory = ov::load_mmap_object(file_handle);
-    return read_tensor_data_mmap_impl(mapped_memory, element_type, partial_shape, offset_in_bytes);
+    return read_tensor_data_mmap_impl(ov::load_mmap_object(file_handle), element_type, partial_shape, offset_in_bytes);
 }
 }  // namespace ov

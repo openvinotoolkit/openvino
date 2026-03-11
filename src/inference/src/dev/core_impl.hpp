@@ -213,7 +213,6 @@ private:
 
     bool device_supports_model_caching(const ov::Plugin& plugin, const ov::AnyMap& orig_config = {}) const;
 
-    bool device_supports_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
     bool device_supports_internal_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
 
     ov::AnyMap create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& orig_config) const;
@@ -273,7 +272,7 @@ public:
      * @param device_name A name of device
      * @param properties Plugin configuration
      */
-    void register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& properties);
+    void register_plugin(const std::filesystem::path& plugin, const std::string& device_name, const ov::AnyMap& properties);
 
     /**
      * @brief Provides a list of plugin names in registry; physically such plugins may not be created
@@ -302,9 +301,9 @@ public:
     std::shared_ptr<ov::Model> read_model(const std::shared_ptr<AlignedBuffer>& model,
                                           const std::shared_ptr<AlignedBuffer>& weights) const override;
 
-    std::shared_ptr<ov::Model> read_model(const std::string& model_path,
-                                          const std::string& bin_path,
-                                          const AnyMap& properties) const override;
+    std::shared_ptr<ov::Model> read_model(const std::filesystem::path& model_path,
+                                          const std::filesystem::path& bin_path,
+                                          const ov::AnyMap& properties) const override;
 
     ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                 const std::string& device_name,

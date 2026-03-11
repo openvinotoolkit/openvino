@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import pytest
 import torch
 
@@ -10,7 +9,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestNarrow(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randn(*self.input_shape).astype(np.float32),)
+        return (self.random.randn(*self.input_shape),)
 
     def create_model(self, dim, start, length):
 
@@ -24,7 +23,7 @@ class TestNarrow(PytorchLayerTest):
             def forward(self, input_tensor):
                 return torch.narrow(input_tensor, dim=self.dim, start=self.start, length=self.length)
 
-        return aten_narrow(dim, start, length), None, "aten::narrow"
+        return aten_narrow(dim, start, length), "aten::narrow"
 
     @pytest.mark.parametrize("input_shape", [
         [3, 3], [3, 4, 5]

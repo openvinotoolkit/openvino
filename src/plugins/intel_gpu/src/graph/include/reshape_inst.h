@@ -7,8 +7,8 @@
 #include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "crop_inst.h"
-#include "rope_inst.h"
 #include "mvn_inst.h"
+#include "vl_sdpa_inst.h"
 #include "primitive_inst.h"
 
 #include <string>
@@ -58,12 +58,23 @@ public:
         if (!has_outer_padding_offset() && get_users().size() == 1 && get_users().front()->get_preferred_impl_type() == impl_types::onednn)
             return false;
 
-        // TODO: If user is RoPE or MVN and dynamic padding exists, ouput padding propagation is not supported in the base mode
-        if (get_users().size() == 1 && get_users().front()->is_type<mvn>())
+        // TODO: If user is mvn or vl_sdpa and dynamic padding exists, output padding propagation is not supported in the base mode
+        // vl_sdpa uses raw SVM pointers (CM kernel) without shape_info support, so it cannot apply dynamic padding offsets
+        if (get_users().size() == 1 && (get_users().front()->is_type<mvn>() || get_users().front()->is_type<vl_sdpa>()))
             return false;
 
         auto axis = input().as<crop>().get_primitive()->axis;
         const auto& input_pshape = input().get_output_layout(false).get_partial_shape();
+
+        // directly to the reshape's leading axis when the cropped batch size is exactly 1.
+        // Keep the same safeguard as for inner-axis crops: if the reshape output pattern is
+        // not known at model loading time, do not enable runtime padding propagation.
+        if (axis == 0 && !input_pshape[0].is_dynamic()) {
+            if (prim->output_pattern.empty())
+                return false;
+            return input_pshape[0].get_length() == 1;
+        }
+
         auto input_rank = input_pshape.size();
         auto input_last_dim = static_cast<int64_t>(input_rank - 1);
         if (axis != input_last_dim || input_pshape[input_last_dim].is_dynamic())
@@ -112,7 +123,8 @@ public:
 
         // Expected a padded input of only batch axis with 'bxxx' format
         if (input_layout.format.dims_order()[0] != 0 ||
-            input_pad._lower_size[1] != 0)
+            input_pad._lower_size[1] != 0 ||
+            input_pad._upper_size[1] != 0)
             return false;
 
         if (format::is_multi_blocked(input_layout.format))
