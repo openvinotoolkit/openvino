@@ -662,10 +662,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             kv_cache_config.keyCacheQuantBychannel = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL);
             kv_cache_config.keyCacheGroupSize = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
             if (use_xattention) {
-                if (kv_cache_config.keyCacheQuantBychannel &&
-                    ((kv_cache_precision == ov::element::i8 || kv_cache_precision == ov::element::u8)) )
-                    OPENVINO_THROW("[GPU] XAttention does not currently support per-channel quantized key cache.");
-
                 kv_cache_config.valueCacheBlockSize = cldnn::paged_attention::block_size_xattn;
                 kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
             } else {
