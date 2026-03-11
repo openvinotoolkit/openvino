@@ -18,8 +18,8 @@ struct Context;
 }
 
 namespace ov {
+
 namespace internal {
-using WeightSharingCtxPtr = std::shared_ptr<const weight_sharing::Context>;
 /**
  * @brief Read-only property to get a std::vector<PropertyName> of supported internal properties.
  * @ingroup ov_runtime_cpp_prop_api

@@ -1767,7 +1767,6 @@ ov::CoreConfig::CacheConfig ov::CoreConfig::CacheConfig::create(const std::files
     if (dir.extension() == ".bin") {
         cfg.m_cache_manager = std::make_shared<runtime::SingleFileStorage>(dir);
     } else if (!dir.empty()) {
-        ov::util::create_directory_recursive(dir);
         cfg.m_cache_manager = std::make_shared<FileStorageCacheManager>(dir);
     }
     return cfg;

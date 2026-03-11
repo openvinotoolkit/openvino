@@ -613,14 +613,6 @@ static constexpr Property<float, PropertyMutability::RW> activations_scale_facto
  *
  * The property is used pass compiled blob as ov::Tensor.
  * The blob can be regular or weightless model. The `weights_path` property is hint where to look for weights.
- *
- * The property can be used to read blob from cache when using cache file e.g.:
- *
- * @code
- * // try gets blobs ID "746352" from cache file "cache_file.bin"
- * ie.get_property("", ov::hint::compiled_blob.name(), ov::AnyMap{ov::cache_blob_id("746352"),
- * ov::cache_dir("cache_file.bin")});
- * @endcode
  */
 inline constexpr Property<Tensor, PropertyMutability::RW> compiled_blob{"COMPILED_BLOB"};
 }  // namespace hint
