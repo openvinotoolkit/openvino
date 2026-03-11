@@ -72,7 +72,7 @@ public:
     RemoveEmptyKVTensors(Context::Ref ctx) {
         auto param = opp::wrap_type<ov::op::v0::Parameter>();
         auto param_or =
-             std::make_shared<opp::op::Or>(ov::OutputVector{param, match_down_up_convert_subgraph_after_lpt(param)});
+            std::make_shared<opp::op::Or>(ov::OutputVector{param, match_down_up_convert_subgraph_after_lpt(param)});
 
         auto concat = opp::wrap_type<ov::op::v0::Concat>({param_or, opp::any_input()});
 
