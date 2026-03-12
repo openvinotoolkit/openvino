@@ -607,6 +607,23 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(0.2f),
                        ::testing::Values(false)),
     MatmulWeightsDecompression::get_test_case_name);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_MatMulCompressedWeights_dyn_quan_f4e2m1_f4e2m1,
+    MatmulWeightsDecompression,
+    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 128}, {{2, 1, 128}, {1, 1, 128}, {2, 1, 128}}}, {128, 16}, 128}),  // shape
+                       ::testing::Values(ov::element::f4e2m1),
+                       ::testing::Values(ov::element::f16),
+                       ::testing::Values(true),
+                       ::testing::Values(false),
+                       ::testing::Values(false),
+                       ::testing::Values(true),
+                       ::testing::Values(false),
+                       ::testing::Values(std::numeric_limits<uint64_t>::max()),
+                       ::testing::Values(0.2f),
+                       ::testing::Values(false)),
+    MatmulWeightsDecompression::get_test_case_name);
+
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan_scalar_wzp,
                          MatmulWeightsDecompressionScalarWeightZp,
                          ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 1024}, {{1024, 1, 1024}}}, {1024, 1024}, 128}),

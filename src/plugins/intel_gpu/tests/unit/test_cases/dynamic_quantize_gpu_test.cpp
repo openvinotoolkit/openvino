@@ -506,3 +506,15 @@ TEST_F(dynamic_quantization_gpu_tests, dynamic_quantization_f8e5m2) {
                                     data_types::dynamic,
                                     OutputStorageType::Planar);
 }
+
+TEST_F(dynamic_quantization_gpu_tests, dynamic_quantization_f4e2m1) {
+    this->test_dynamic_quantization(false,
+                                    {1, 1, 4096},
+                                    {1, 1, 4096},
+                                    QuantizationType::Symmetric,
+                                    UINT64_MAX,
+                                    data_types::f4e2m1,
+                                    data_types::f16,
+                                    data_types::dynamic,
+                                    OutputStorageType::Planar);
+}

@@ -3,9 +3,10 @@
 //
 
 #define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT)
+#define IS_F8_F4 (IS_F8 || F4E2M1_OUTPUT)
 
 #include "include/batch_headers/fetch_data.cl"
-#if IS_MXFP
+#if IS_F8_F4
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/f8_utils.cl"
 #include "include/batch_headers/f4_utils.cl"
@@ -13,7 +14,7 @@
 
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFF
 
-#if IS_MXFP
+#if IS_F8_F4
     #define SCALE_TYPE float
     #define TO_SCALE_TYPE(x) _convert_float(x)
     #define TO_SCALE_TYPE_8(x) _convert_float8(x)
