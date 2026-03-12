@@ -542,7 +542,7 @@ public:
                             "Sliding window size constant must be of size 1, but got " +
                                 std::to_string(matched_neg_window_size->get_output_size()));
 
-            // 1.(K range > (Q_pos range - sliding window).T) & (K range <= Q range.T)
+            // 1.(K range <= (Q_pos range - sliding window).T) | (K range > Q range.T)
             auto query_range_as_pos_ids =
                 std::make_shared<ov::op::v0::Convert>(matched_pos_ids_input, ov::element::f32);
             std::vector<int64_t> vector_shape{-1, 1};
@@ -556,7 +556,7 @@ public:
                 std::make_shared<ov::op::v1::LessEqual>(matched_key_range_f32, query_range_as_pos_left_bound);
             matched_bitwise_or->input(1).replace_source_output(forget_left_mask_for_right_padding);
 
-            // 2. (K range > (Q range - sliding window).T) | (K range < shape(past_key_values, 2))
+            // 2. (K range <= (Q range - sliding window).T) & (K range >= shape(past_key_values, 2))
             auto past_kv_len_f32 = std::make_shared<ov::op::v0::Convert>(matched_past_kv_len, ov::element::f32);
             auto only_present_tokens_mask =
                 std::make_shared<ov::op::v1::GreaterEqual>(matched_key_range_f32, past_kv_len_f32);
