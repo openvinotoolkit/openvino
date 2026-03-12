@@ -689,7 +689,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         auto modelToCompile = successfullyDebatched ? batchedModel : model->clone();
 
         if (successfullyDebatched && localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY) {
-            _logger.info("Override performance mode to THROUGHPUT for compilation");
+            _logger.warning("Plugin batching is enabled. Overriding performance mode to THROUGHPUT for compilation.");
 
             auto modifiedConfig = localConfig;  // Copy only when needed
             std::stringstream strStream;
