@@ -25,14 +25,14 @@ function (extract archive_path unpacked_path folder files_to_extract result)
     endif()
 
     string(REGEX REPLACE ";" " " list_files_to_extract "${${files_to_extract}}")
-    message(STATUS "extracting... [tar xfz] ${list_files_to_extract}")
+    message(VERBOSE "extracting... [tar xfz] ${list_files_to_extract}")
     execute_process(COMMAND ${CMAKE_COMMAND} -E tar xfz ${archive_path} ${${files_to_extract}}
       WORKING_DIRECTORY ${unpacked_dir}
       RESULT_VARIABLE rv
       ERROR_VARIABLE err)
 
     if (NOT (rv EQUAL 0))
-      message(STATUS "error: extract of '${archive_path}' failed: ${err}")
+      message(FATAL_ERROR "Extract of '${archive_path}' failed: ${err}")
       #invalid archive
       file(REMOVE_RECURSE "${unpacked_path}")
       file(REMOVE_RECURSE "${archive_path}")

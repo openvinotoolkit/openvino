@@ -58,7 +58,7 @@ bool Multinomial::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
     try {
         if (op->get_type_info() != op::v13::Multinomial::get_type_info_static()) {
             errorMessage = "Only Multinomial operation from the opset13 is supported by the CPU plugin.";
-            return false;
+            return 0;
         }
     } catch (...) {
         return false;
@@ -67,7 +67,7 @@ bool Multinomial::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
 }
 
 void Multinomial::getSupportedDescriptors() {
-    if (getParentEdges().size() != 2) {
+    if (getParentEdgese().size() != 2) {
         CPU_NODE_THROW("has incorrect number of input edges.");
     }
     if (getChildEdges().size() != 1) {
