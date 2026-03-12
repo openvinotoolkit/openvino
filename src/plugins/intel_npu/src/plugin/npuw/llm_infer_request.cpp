@@ -963,31 +963,36 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     if (m_lm_head_request) {
         LOG_DEBUG("Calling inference for LM head model asynchronously");
         m_lm_head_request->start_async();
+        m_llm_profile["N/generate:3.update_kvcache"].record([&]() {
+            if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
+                update_kvcache_for(m_kvcache_request,
+                                   m_kvcache_in_ports,
+                                   m_kvcache_out_ports,
+                                   input_tokens_len,
+                                   kvcache_desc.v_tensors_transposed_gen);
+            }
+        });
+        m_lm_head_request->wait();
+        LOG_DEBUG("Calling inference for LM head model -- done.");
+
+        m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
+    } else {
+        m_llm_profile["N/generate:3.update_kvcache"].record([&]() {
+            if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
+                update_kvcache_for(m_kvcache_request,
+                                   m_kvcache_in_ports,
+                                   m_kvcache_out_ports,
+                                   input_tokens_len,
+                                   kvcache_desc.v_tensors_transposed_gen);
+            }
+        });
+
+        m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(layer_names::logits));
     }
 
-    m_llm_profile["N/generate:3.update_kvcache"].record([&]() {
-        if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
-            update_kvcache_for(m_kvcache_request,
-                               m_kvcache_in_ports,
-                               m_kvcache_out_ports,
-                               input_tokens_len,
-                               kvcache_desc.v_tensors_transposed_gen);
-        }
-    });
-
-    m_llm_profile["N/generate:4.lm_head"].record([&]() {
-        if (m_lm_head_request) {
-            m_lm_head_request->wait();
-            LOG_DEBUG("Calling inference for LM head model -- done.");
-            m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
-        } else {
-            m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(layer_names::logits));
-        }
-
-        if (m_eagle3_ext.is_eagle3_model()) {
-            m_eagle3_ext.update_last_hidden_state(m_kvcache_request, m_kvcache_out_ports);
-        }
-    });
+    if (m_eagle3_ext.is_eagle3_model()) {
+        m_eagle3_ext.update_last_hidden_state(m_kvcache_request, m_kvcache_out_ports);
+    }
 
     LOG_DEBUG("Done");
 }
