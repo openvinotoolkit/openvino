@@ -285,8 +285,7 @@ private:
         const auto& input_mem = params.memory_deps;
         const auto it = input_mem.find(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE);
         if (it == input_mem.end() || it->second == nullptr) {
-            OPENVINO_THROW("XAttention block size input is required at index ",
-                           static_cast<size_t>(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE));
+            OPENVINO_THROW("XAttention block size input is required at index ", static_cast<size_t>(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE));
         }
 
         mem_lock<int32_t, mem_lock_type::read> lock(it->second, *params.strm);

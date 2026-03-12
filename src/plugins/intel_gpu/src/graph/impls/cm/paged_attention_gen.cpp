@@ -80,8 +80,7 @@ float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
     const auto& input_mem = params.memory_deps;
     const auto it = input_mem.find(PagedAttentionInputIdx::XATTENTION_THRESHOLD);
     if (it == input_mem.end() || it->second == nullptr) {
-        OPENVINO_THROW("XAttention threshold input is required at index ",
-                       static_cast<size_t>(PagedAttentionInputIdx::XATTENTION_THRESHOLD));
+        OPENVINO_THROW("XAttention threshold input is required at index ", static_cast<size_t>(PagedAttentionInputIdx::XATTENTION_THRESHOLD));
     }
 
     mem_lock<float16, mem_lock_type::read> lock(it->second, *params.strm);  // converted
