@@ -27,7 +27,9 @@ std::string backendToString(const AvailableBackends& backend) {
 
 namespace intel_npu {
 
-BackendsRegistry::BackendsRegistry() : _logger("BackendsRegistry", Logger::global().level()) {
+BackendsRegistry::BackendsRegistry(bool forceRecreateInitStruct)
+    : _forceRecreateInitStruct(forceRecreateInitStruct),
+      _logger("BackendsRegistry", Logger::global().level()) {
 #if defined(OPENVINO_STATIC_LIBRARY)
     registerBackend(AvailableBackends::LEVEL_ZERO);
 #else
@@ -43,7 +45,9 @@ ov::SoPtr<IEngineBackend> BackendsRegistry::initializeBackend(const AvailableBac
     try {
         switch (backendName) {
         case AvailableBackends::LEVEL_ZERO: {
-            return ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
+            std::cout << "Trying to initialize '" << backendNameToString
+                      << "' backend _forceRecreateInitStruct:" << _forceRecreateInitStruct << std::endl;
+            return ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>(_forceRecreateInitStruct));
         }
         default:
             _logger.warning("Invalid backend '%s'", backendNameToString.c_str());

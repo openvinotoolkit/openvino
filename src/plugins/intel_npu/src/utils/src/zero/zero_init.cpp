@@ -408,17 +408,40 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     }
 }
 
-const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance() {
+const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance(bool forceRecreate) {
     static std::mutex mutex;
     static std::weak_ptr<ZeroInitStructsHolder> weak_instance;
 
     std::lock_guard<std::mutex> lock(mutex);
     auto instance = weak_instance.lock();
-    if (!instance) {
+
+    if (!instance || forceRecreate) {
+        if (instance && forceRecreate) {
+            instance->destroyZeroContext();
+            weak_instance.reset();
+            instance.reset();
+        }
+
         instance = std::make_shared<ZeroInitStructsHolder>();
         weak_instance = instance;
     }
     return instance;
+}
+
+void ZeroInitStructsHolder::destroyZeroContext() {
+    if (_context) {
+        _log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
+        auto result = zeContextDestroy(_context);
+        _context = nullptr;
+        if (result != ZE_RESULT_SUCCESS) {
+            if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
+                _log.warning(
+                    "zeContextDestroy failed to destroy the context; Level zero context was already destroyed");
+            } else {
+                _log.error("zeContextDestroy failed %#X", uint64_t(result));
+            }
+        }
+    }
 }
 
 ze_device_graph_properties_t ZeroInitStructsHolder::getCompilerProperties() {

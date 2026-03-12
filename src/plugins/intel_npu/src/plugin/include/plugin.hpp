@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include "backends_registry.hpp"
@@ -80,14 +81,15 @@ private:
                                               std::unique_ptr<MetadataBase> metadata,
                                               const ov::AnyMap& properties) const;
 
-    std::unique_ptr<BackendsRegistry> _backendsRegistry;
+    mutable std::unique_ptr<BackendsRegistry> _backendsRegistry;
 
     //  _backend might not be set by the plugin; certain actions, such as offline compilation, might be supported.
     //  Appropriate checks are needed in plugin/metrics/properties when actions depend on a backend.
-    ov::SoPtr<IEngineBackend> _backend;
+    mutable ov::SoPtr<IEngineBackend> _backend;
 
     mutable Logger _logger;
     std::unique_ptr<Properties> _propertiesManager;
+    mutable std::mutex _backendMutex;
 
     static std::atomic<int> _compiledModelLoadCounter;
 };

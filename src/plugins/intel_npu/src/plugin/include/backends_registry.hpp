@@ -21,7 +21,7 @@ enum class AvailableBackends { LEVEL_ZERO };
 
 class BackendsRegistry final {
 public:
-    BackendsRegistry();
+    BackendsRegistry(bool forceRecreateInitStruct = false);
 
     BackendsRegistry(const BackendsRegistry& other) = delete;
     BackendsRegistry(BackendsRegistry&& other) = delete;
@@ -37,6 +37,8 @@ private:
     void registerBackend(const AvailableBackends& backendName);
 
     std::unordered_map<AvailableBackends, ov::SoPtr<IEngineBackend>> _registeredBackends;
+
+    bool _forceRecreateInitStruct;
 
     Logger _logger;
 };

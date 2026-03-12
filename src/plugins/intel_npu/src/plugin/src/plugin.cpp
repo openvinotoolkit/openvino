@@ -525,28 +525,42 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         modelSerializerChosenExplicitly = true;
     }
 
-    if (_backend != nullptr) {
-        _backend->updateInfo(localProperties);
-    }
-
     // Resolving the requested compiler type based on local and global properties.
     // It can still remain PREFER_PLUGIN even after this point
     ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
 
     auto deviceId = _propertiesManager->determineDeviceId(localProperties);
+    ov::SoPtr<IEngineBackend> backend;
     // DEVICE_ID can be passed both as an index and as a platform name.
     // Identify the right device object to be taken into account when the target compilation platform is determined
-    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId);
+    std::shared_ptr<IDevice> device;
+    {
+        std::lock_guard<std::mutex> lock(_backendMutex);
+        device = utils::getDeviceById(_backend, deviceId);
+
+        if (_backend != nullptr && device == nullptr) {
+            // try again to initialize backend
+            _backendsRegistry = std::make_unique<BackendsRegistry>(true);
+            _backend = _backendsRegistry->getEngineBackend();
+            device = utils::getDeviceById(_backend, deviceId);
+        }
+
+        backend = _backend;
+    }
+
+    if (backend != nullptr) {
+        backend->updateInfo(localProperties);
+    }
 
     // Determine the final compilation target based on NPU_PLATFORM, determined device name (if any) and the list of
     // available devices (if any)
     const auto compilationPlatform =
         utils::getCompilationPlatform(_propertiesManager->determinePlatform(localProperties),
                                       device == nullptr ? deviceId : device->getName(),
-                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+                                      backend == nullptr ? std::vector<std::string>() : backend->getDeviceNames());
 
     CompilerAdapterFactory factory;
-    auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+    auto compiler = factory.getCompiler(backend, compilerType, compilationPlatform);
 
     localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     if (!compilationPlatform.empty()) {
@@ -674,7 +688,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::shared_ptr<intel_npu::IGraph> graph;
 
     auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
-        if (!localConfig.get<WEIGHTLESS_BLOB>() && !localConfig.get<ENABLE_WEIGHTLESS>() ) {
+        if (!localConfig.get<WEIGHTLESS_BLOB>() && !localConfig.get<ENABLE_WEIGHTLESS>()) {
             return compiler->compile(modelToCompile, config);
         } else {
             check_weightless_cache_attribute_occurrence(model);
@@ -770,10 +784,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         return compiledModel;
     }
 
-    if (_backend != nullptr) {
-        _backend->updateInfo(npuPluginProperties);
-    }
-
     try {
         const bool skipCompatibility =
             (npuPluginProperties.find(DISABLE_VERSION_CHECK::key().data()) != npuPluginProperties.end())
@@ -834,10 +844,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     auto compiledModel = import_model_npuw(stream, npuPluginProperties, shared_from_this());
     if (compiledModel) {
         return compiledModel;
-    }
-
-    if (_backend != nullptr) {
-        _backend->updateInfo(npuPluginProperties);
     }
 
     try {
@@ -984,12 +990,24 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     // list of properties
     auto originalModel = exclude_model_ptr_from_map(localProperties);
 
-    std::shared_ptr<IDevice> device =
-        utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(localProperties));
+    ov::SoPtr<IEngineBackend> backend;
+    std::shared_ptr<IDevice> device;
+    {
+        std::lock_guard<std::mutex> lock(_backendMutex);
+        OPENVINO_ASSERT(_backend != nullptr, "Backend not found.");
 
-    if (_backend == nullptr || device == nullptr) {
-        OPENVINO_THROW("Device not found.");
+        device = utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(localProperties));
+        if (device == nullptr) {
+            // try again to initialize backend
+            _backendsRegistry = std::make_unique<BackendsRegistry>(true);
+            _backend = _backendsRegistry->getEngineBackend();
+            device = utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(localProperties));
+        }
+
+        backend = _backend;
     }
+
+    backend->updateInfo(localProperties);
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
     FilteredConfig localConfig = _propertiesManager->getConfigWithCompilerPropertiesDisabled(localProperties);
@@ -1074,17 +1092,35 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         localConfig.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
         ov::intel_npu::CompilerType compilerType = localConfig.get<COMPILER_TYPE>();
         CompilerAdapterFactory factory;
-        (void)factory.getCompiler(_backend, compilerType, device->getName());
+        (void)factory.getCompiler(backend, compilerType, device->getName());
 
         localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
     }
 
     ParserFactory parserFactory;
-    auto parser = parserFactory.getParser(_backend->getInitStructs());
-    auto graph = parser->parse(tensorMain,
-                               localConfig,
-                               initBlobs,
-                               weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt);
+    std::shared_ptr<IGraph> graph = nullptr;
+    try {
+        auto parser = parserFactory.getParser(backend->getInitStructs());
+        graph = parser->parse(tensorMain,
+                              localConfig,
+                              initBlobs,
+                              weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt);
+
+    } catch (...) {
+        std::lock_guard<std::mutex> lock(_backendMutex);
+
+        // try again to initialize backend
+        _backendsRegistry = std::make_unique<BackendsRegistry>(true);
+        _backend = _backendsRegistry->getEngineBackend();
+        OPENVINO_ASSERT(_backend != nullptr, "Backend not initialized.");
+        device = utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(localProperties));
+
+        auto parser = parserFactory.getParser(_backend->getInitStructs());
+        graph = parser->parse(tensorMain,
+                              localConfig,
+                              initBlobs,
+                              weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt);
+    }
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =

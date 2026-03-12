@@ -75,7 +75,8 @@ public:
     void setContextOptions(const uint32_t options);
     void clearContextOptions(const uint32_t options);
 
-    static const std::shared_ptr<ZeroInitStructsHolder> getInstance();
+    static const std::shared_ptr<ZeroInitStructsHolder> getInstance(bool forceRecreate = false);
+    void destroyZeroContext();
 
     ze_device_graph_properties_t getCompilerProperties();
 

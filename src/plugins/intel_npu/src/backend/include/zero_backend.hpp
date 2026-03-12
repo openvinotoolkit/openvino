@@ -14,7 +14,7 @@
 namespace intel_npu {
 class ZeroEngineBackend final : public IEngineBackend {
 public:
-    ZeroEngineBackend();
+    ZeroEngineBackend(bool forceRecreateInitStruct = false);
     ~ZeroEngineBackend() override = default;
 
     const std::shared_ptr<IDevice> getDevice() const override;
