@@ -336,6 +336,13 @@ jobs:
     needs: [Smart_CI, Docker, Build]
     timeout-minutes: 120
     runs-on: aks-linux-4-cores-16gb
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Android emulator runner on Linux is practical for x86_64; keep this explicit.
+          - arch: x64
+            android_arch: x86_64
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_android }}
       volumes:
@@ -344,7 +351,7 @@ jobs:
     env:
       ANDROID_API_LEVEL: 30
       ANDROID_TARGET: google_apis
-      ANDROID_ARCH: x86_64
+      ANDROID_ARCH: ${{ matrix.android_arch }}
       INSTALL_DIR: android_package
       INSTALL_TEST_DIR: android_tests
     steps:
@@ -355,13 +362,13 @@ jobs:
       - name: Download CPU test binaries
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: ov_cpu_tests_android_x64
+          name: ov_cpu_tests_android_${{ matrix.arch }}
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Download OpenVINO runtime package (Android)
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: ov_android_package_x64
+          name: ov_android_package_${{ matrix.arch }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Setup KVM permissions
@@ -429,6 +436,12 @@ jobs:
     needs: [Smart_CI, Docker, Build]
     timeout-minutes: 20
     runs-on: aks-linux-4-cores-16gb
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            android_arch: x86_64
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_android }}
       volumes:
@@ -437,7 +450,7 @@ jobs:
     env:
       ANDROID_API_LEVEL: 30
       ANDROID_TARGET: google_apis
-      ANDROID_ARCH: x86_64
+      ANDROID_ARCH: ${{ matrix.android_arch }}
       INSTALL_DIR: android_package
       INSTALL_TEST_DIR: android_tests
       GTEST_FILTER: '*EltwiseLayer*'
@@ -449,13 +462,13 @@ jobs:
       - name: Download CPU test binaries
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: ov_cpu_tests_android_x64
+          name: ov_cpu_tests_android_${{ matrix.arch }}
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Download OpenVINO runtime package (Android)
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: ov_android_package_x64
+          name: ov_android_package_${{ matrix.arch }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Setup KVM permissions
