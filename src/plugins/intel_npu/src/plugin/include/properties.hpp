@@ -75,6 +75,22 @@ public:
     ov::intel_npu::CompilerType determineCompilerType(const ov::AnyMap& properties) const;
 
 private:
+    struct CopyState {
+        PropertiesType pType;
+        FilteredConfig config;
+        std::shared_ptr<Metrics> metrics;
+        ov::SoPtr<IEngineBackend> backend;
+        Logger logger;
+        ov::intel_npu::CompilerType currentlyUsedCompiler;
+        std::string currentlyUsedPlatform;
+        bool compilerConfigsFilteredByCompiler;
+        std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>>
+            properties;
+        std::vector<ov::PropertyName> supportedProperties;
+    };
+
+    explicit Properties(CopyState&& state);
+
     PropertiesType _pType;
     FilteredConfig _config;
     std::shared_ptr<Metrics> _metrics;
@@ -200,7 +216,7 @@ private:
                                                                         ov::internal::caching_with_mmap.name(),
                                                                         ov::internal::cache_header_alignment.name()};
 
-    std::mutex _mutex;
+    mutable std::mutex _mutex;
 };
 
 }  // namespace intel_npu

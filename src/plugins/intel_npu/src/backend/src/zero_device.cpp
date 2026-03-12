@@ -64,7 +64,10 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
 }
 
 std::string ZeroDevice::getName() const {
-//    KMD is setting usDeviceID from VpuFamilyID.h
+// Blacklisted deviceIDs
+#define LEGACY_NPU_3000_DEVICE_ID 0x6240
+
+// KMD is setting usDeviceID from VpuFamilyID.h
 #define NPU_3720_P_DEVICE_ID 0x7D1D
 #define NPU_3720_S_DEVICE_ID 0xAD1D
 #define NPU_4000_DEVICE_ID   0x643E
@@ -82,6 +85,8 @@ std::string ZeroDevice::getName() const {
     case NPU_5010_DEVICE_ID:
         name = ov::intel_npu::Platform::NPU5010;
         break;
+    case LEGACY_NPU_3000_DEVICE_ID:
+        OPENVINO_THROW("[LEGACY] NPU device ID 0x", std::hex, _device_properties.deviceId, " is not supported!");
     default:
         name = ov::intel_npu::Platform::AUTO_DETECT;
     }
