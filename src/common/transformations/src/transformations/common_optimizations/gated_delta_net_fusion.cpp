@@ -108,106 +108,153 @@ struct LoopMatch {
     Output<Node> recurrent_state;
 };
 
+struct LoopBodyMatch {
+    std::shared_ptr<v0::Parameter> timestep_param;
+    std::shared_ptr<v0::Parameter> query_param;
+    std::shared_ptr<v0::Parameter> key_param;
+    std::shared_ptr<v0::Parameter> value_param;
+    std::shared_ptr<v0::Parameter> gate_param;
+    std::shared_ptr<v0::Parameter> beta_param;
+    std::shared_ptr<v0::Parameter> recurrent_state_param;
+    std::shared_ptr<v0::Parameter> core_attn_state_param;
+    std::shared_ptr<v1::Add> state_out;
+    std::shared_ptr<v3::ScatterUpdate> scatter;
+};
+
 bool is_expected_sliced_input(const std::shared_ptr<SlicedD>& desc) {
     return desc && desc->m_axis == 2 && desc->m_start == 0 && desc->m_stride == 1 && desc->m_part_size == 1 &&
            desc->m_end == -1;
 }
 
+bool match_loop_signature(const std::shared_ptr<v5::Loop>& loop) {
+    auto loop_pattern = pattern::wrap_type<v5::Loop>([](const Output<Node>& out) {
+        const auto loop_node = ov::as_type_ptr<v5::Loop>(out.get_node_shared_ptr());
+        if (!loop_node) {
+            return false;
+        }
+
+        const auto& body = loop_node->get_function();
+        if (!body) {
+            return false;
+        }
+
+        const auto& body_parameters = body->get_parameters();
+        const auto& body_results = body->get_results();
+        const auto& special_ports = loop_node->get_special_body_ports();
+        return body_parameters.size() == 8 && body_results.size() == 3 && special_ports.current_iteration_input_idx == 0 &&
+               special_ports.body_condition_output_idx == 0;
+    });
+
+    pattern::Matcher loop_matcher(loop_pattern, "GatedDeltaNetFusionLoopMatcher");
+    return loop_matcher.match(std::static_pointer_cast<Node>(loop));
+}
+
+std::shared_ptr<Node> make_const_pattern(const std::vector<int64_t>& values) {
+    return pattern::wrap_type<v0::Constant>([values](const Output<Node>& out) {
+        return is_constant_vector(out.get_node_shared_ptr(), values);
+    });
+}
+
+bool match_loop_body_pattern(const std::shared_ptr<v5::Loop>& loop, LoopBodyMatch& body_match) {
+    const auto& body = loop->get_function();
+    const auto& body_results = body->get_results();
+    if (body_results.size() != 3 || !is_true_constant(body_results[0]->get_input_node_shared_ptr(0))) {
+        return false;
+    }
+
+    auto c_m1 = make_const_pattern({-1});
+    auto c_m2 = make_const_pattern({-2});
+    auto c_0 = make_const_pattern({0});
+    auto c_2 = make_const_pattern({2});
+
+    auto timestep_param = pattern::wrap_type<v0::Parameter>();
+    auto query_param = pattern::wrap_type<v0::Parameter>();
+    auto key_param = pattern::wrap_type<v0::Parameter>();
+    auto value_param = pattern::wrap_type<v0::Parameter>();
+    auto gate_param = pattern::wrap_type<v0::Parameter>();
+    auto beta_param = pattern::wrap_type<v0::Parameter>();
+    auto recurrent_state_param = pattern::wrap_type<v0::Parameter>();
+    auto core_attn_state_param = pattern::wrap_type<v0::Parameter>();
+
+    auto gate_exp = pattern::wrap_type<v0::Exp>({gate_param});
+    auto gate_unsqueeze = pattern::wrap_type<v0::Unsqueeze>({gate_exp, c_m1});
+    auto state_decay = pattern::wrap_type<v1::Multiply>({recurrent_state_param, gate_unsqueeze});
+
+    auto key_squeeze = pattern::wrap_type<v0::Squeeze>({key_param, c_2});
+    auto key_unsqueeze_inner = pattern::wrap_type<v0::Unsqueeze>({key_squeeze, c_m1});
+    auto kv_mul = pattern::wrap_type<v1::Multiply>({state_decay, key_unsqueeze_inner});
+    auto kv_reduce = pattern::wrap_type<v1::ReduceSum>({kv_mul, c_m2});
+
+    auto value_squeeze = pattern::wrap_type<v0::Squeeze>({value_param, c_2});
+    auto value_minus_kv = pattern::wrap_type<v1::Subtract>({value_squeeze, kv_reduce});
+    auto delta = pattern::wrap_type<v1::Multiply>({value_minus_kv, beta_param});
+    auto delta_unsqueeze = pattern::wrap_type<v0::Unsqueeze>({delta, c_m2});
+    auto key_unsqueeze_outer = pattern::wrap_type<v0::Unsqueeze>({key_squeeze, c_m1});
+    auto state_delta = pattern::wrap_type<v1::Multiply>({key_unsqueeze_outer, delta_unsqueeze});
+    auto state_out = pattern::wrap_type<v1::Add>({state_decay, state_delta});
+
+    auto query_squeeze = pattern::wrap_type<v0::Squeeze>({query_param, c_2});
+    auto query_unsqueeze = pattern::wrap_type<v0::Unsqueeze>({query_squeeze, c_m1});
+    auto core_attn_mul = pattern::wrap_type<v1::Multiply>({state_out, query_unsqueeze});
+    auto core_attn_update = pattern::wrap_type<v1::ReduceSum>({core_attn_mul, c_m2});
+    auto timestep_unsqueeze = pattern::wrap_type<v0::Unsqueeze>({timestep_param, c_0});
+    auto scatter = pattern::wrap_type<v3::ScatterUpdate>({core_attn_state_param, timestep_unsqueeze, core_attn_update, c_2});
+
+    pattern::Matcher body_matcher(scatter, "GatedDeltaNetFusionBodyMatcher");
+    if (!body_matcher.match(body_results[2]->input_value(0))) {
+        return false;
+    }
+
+    const auto& p_map = body_matcher.get_pattern_value_map();
+    auto matched_scatter = ov::as_type_ptr<v3::ScatterUpdate>(p_map.at(scatter).get_node_shared_ptr());
+    auto matched_state_out = ov::as_type_ptr<v1::Add>(p_map.at(state_out).get_node_shared_ptr());
+    auto matched_core_attn_update = ov::as_type_ptr<v1::ReduceSum>(p_map.at(core_attn_update).get_node_shared_ptr());
+    auto matched_kv_reduce = ov::as_type_ptr<v1::ReduceSum>(p_map.at(kv_reduce).get_node_shared_ptr());
+
+    if (!matched_scatter || !matched_state_out || !matched_core_attn_update || !matched_kv_reduce) {
+        return false;
+    }
+
+    if (body_results[1]->input_value(0).get_node_shared_ptr() != matched_state_out ||
+        body_results[2]->input_value(0).get_node_shared_ptr() != matched_scatter) {
+        return false;
+    }
+
+    if (matched_scatter->input_value(2).get_node_shared_ptr() != matched_core_attn_update || !is_reduce_sum(matched_core_attn_update, -2, true) ||
+        !is_reduce_sum(matched_kv_reduce, -2, false)) {
+        return false;
+    }
+
+    if (matched_state_out->output(0) != matched_core_attn_update->get_input_node_shared_ptr(0)->input_value(0)) {
+        return false;
+    }
+
+    body_match.timestep_param = ov::as_type_ptr<v0::Parameter>(p_map.at(timestep_param).get_node_shared_ptr());
+    body_match.query_param = ov::as_type_ptr<v0::Parameter>(p_map.at(query_param).get_node_shared_ptr());
+    body_match.key_param = ov::as_type_ptr<v0::Parameter>(p_map.at(key_param).get_node_shared_ptr());
+    body_match.value_param = ov::as_type_ptr<v0::Parameter>(p_map.at(value_param).get_node_shared_ptr());
+    body_match.gate_param = ov::as_type_ptr<v0::Parameter>(p_map.at(gate_param).get_node_shared_ptr());
+    body_match.beta_param = ov::as_type_ptr<v0::Parameter>(p_map.at(beta_param).get_node_shared_ptr());
+    body_match.recurrent_state_param = ov::as_type_ptr<v0::Parameter>(p_map.at(recurrent_state_param).get_node_shared_ptr());
+    body_match.core_attn_state_param = ov::as_type_ptr<v0::Parameter>(p_map.at(core_attn_state_param).get_node_shared_ptr());
+    body_match.state_out = matched_state_out;
+    body_match.scatter = matched_scatter;
+
+    return body_match.timestep_param && body_match.query_param && body_match.key_param && body_match.value_param && body_match.gate_param &&
+           body_match.beta_param && body_match.recurrent_state_param && body_match.core_attn_state_param;
+}
+
 bool match_recurrent_attention_loop(const std::shared_ptr<v5::Loop>& loop, LoopMatch& match) {
-    if (!loop) {
+    if (!match_loop_signature(loop)) {
         return false;
     }
 
     const auto& body = loop->get_function();
     const auto& body_parameters = body->get_parameters();
-    const auto& body_results = body->get_results();
-    const auto& special_ports = loop->get_special_body_ports();
     const auto& input_descs = loop->get_input_descriptions();
 
-    if (!body || body_parameters.size() != 8 || body_results.size() != 3 || special_ports.current_iteration_input_idx != 0 ||
-        special_ports.body_condition_output_idx != 0) {
-        return false;
-    }
-
-    if (!is_true_constant(body_results[0]->get_input_node_shared_ptr(0))) {
-        return false;
-    }
-
-    const auto state_out = ov::as_type_ptr<v1::Add>(body_results[1]->get_input_node_shared_ptr(0));
-    const auto scatter = ov::as_type_ptr<v3::ScatterUpdate>(body_results[2]->get_input_node_shared_ptr(0));
-    if (!state_out || !scatter || !is_constant_vector(scatter->get_input_node_shared_ptr(3), {2})) {
-        return false;
-    }
-
-    const auto timestep_unsqueeze = ov::as_type_ptr<v0::Unsqueeze>(scatter->get_input_node_shared_ptr(1));
-    const auto core_attn_update = ov::as_type_ptr<v1::ReduceSum>(scatter->get_input_node_shared_ptr(2));
-    if (!timestep_unsqueeze || !core_attn_update || !is_constant_vector(timestep_unsqueeze->get_input_node_shared_ptr(1), {0}) ||
-        !is_reduce_sum(core_attn_update, -2, true)) {
-        return false;
-    }
-
-    const auto timestep_param = ov::as_type_ptr<v0::Parameter>(timestep_unsqueeze->get_input_node_shared_ptr(0));
-    const auto core_attn_state_param = ov::as_type_ptr<v0::Parameter>(scatter->get_input_node_shared_ptr(0));
-    if (!timestep_param || !core_attn_state_param) {
-        return false;
-    }
-
-    const auto core_attn_mul = ov::as_type_ptr<v1::Multiply>(core_attn_update->get_input_node_shared_ptr(0));
-    const auto query_unsqueeze = ov::as_type_ptr<v0::Unsqueeze>(core_attn_mul ? core_attn_mul->get_input_node_shared_ptr(1) : nullptr);
-    const auto query_squeeze = ov::as_type_ptr<v0::Squeeze>(query_unsqueeze ? query_unsqueeze->get_input_node_shared_ptr(0) : nullptr);
-    const auto query_param = ov::as_type_ptr<v0::Parameter>(query_squeeze ? query_squeeze->get_input_node_shared_ptr(0) : nullptr);
-    if (!core_attn_mul || !query_unsqueeze || !query_squeeze || !query_param ||
-        core_attn_mul->input_value(0) != state_out->output(0) || !is_constant_vector(query_unsqueeze->get_input_node_shared_ptr(1), {-1}) ||
-        !is_constant_vector(query_squeeze->get_input_node_shared_ptr(1), {2})) {
-        return false;
-    }
-
-    const auto state_decay = ov::as_type_ptr<v1::Multiply>(state_out->get_input_node_shared_ptr(0));
-    const auto state_delta = ov::as_type_ptr<v1::Multiply>(state_out->get_input_node_shared_ptr(1));
-    if (!state_decay || !state_delta) {
-        return false;
-    }
-
-    const auto recurrent_state_param = ov::as_type_ptr<v0::Parameter>(state_decay->get_input_node_shared_ptr(0));
-    const auto gate_unsqueeze = ov::as_type_ptr<v0::Unsqueeze>(state_decay->get_input_node_shared_ptr(1));
-    const auto gate_exp = ov::as_type_ptr<v0::Exp>(gate_unsqueeze ? gate_unsqueeze->get_input_node_shared_ptr(0) : nullptr);
-    const auto gate_param = ov::as_type_ptr<v0::Parameter>(gate_exp ? gate_exp->get_input_node_shared_ptr(0) : nullptr);
-    if (!recurrent_state_param || !gate_unsqueeze || !gate_exp || !gate_param ||
-        !is_constant_vector(gate_unsqueeze->get_input_node_shared_ptr(1), {-1})) {
-        return false;
-    }
-
-    const auto key_unsqueeze_outer = ov::as_type_ptr<v0::Unsqueeze>(state_delta->get_input_node_shared_ptr(0));
-    const auto delta_unsqueeze = ov::as_type_ptr<v0::Unsqueeze>(state_delta->get_input_node_shared_ptr(1));
-    const auto key_squeeze = ov::as_type_ptr<v0::Squeeze>(key_unsqueeze_outer ? key_unsqueeze_outer->get_input_node_shared_ptr(0) : nullptr);
-    const auto key_param = ov::as_type_ptr<v0::Parameter>(key_squeeze ? key_squeeze->get_input_node_shared_ptr(0) : nullptr);
-    const auto delta = ov::as_type_ptr<v1::Multiply>(delta_unsqueeze ? delta_unsqueeze->get_input_node_shared_ptr(0) : nullptr);
-    const auto beta_param = ov::as_type_ptr<v0::Parameter>(delta ? delta->get_input_node_shared_ptr(1) : nullptr);
-    if (!key_unsqueeze_outer || !delta_unsqueeze || !key_squeeze || !key_param || !delta || !beta_param ||
-        !is_constant_vector(key_unsqueeze_outer->get_input_node_shared_ptr(1), {-1}) ||
-        !is_constant_vector(key_squeeze->get_input_node_shared_ptr(1), {2}) ||
-        !is_constant_vector(delta_unsqueeze->get_input_node_shared_ptr(1), {-2})) {
-        return false;
-    }
-
-    const auto value_minus_kv = ov::as_type_ptr<v1::Subtract>(delta->get_input_node_shared_ptr(0));
-    const auto value_squeeze = ov::as_type_ptr<v0::Squeeze>(value_minus_kv ? value_minus_kv->get_input_node_shared_ptr(0) : nullptr);
-    const auto value_param = ov::as_type_ptr<v0::Parameter>(value_squeeze ? value_squeeze->get_input_node_shared_ptr(0) : nullptr);
-    const auto kv_mem = value_minus_kv ? value_minus_kv->get_input_node_shared_ptr(1) : nullptr;
-    if (!value_minus_kv || !value_squeeze || !value_param || !is_constant_vector(value_squeeze->get_input_node_shared_ptr(1), {2})) {
-        return false;
-    }
-
-    const auto kv_reduce = ov::as_type_ptr<v1::ReduceSum>(kv_mem);
-    const auto kv_mul = ov::as_type_ptr<v1::Multiply>(kv_reduce ? kv_reduce->get_input_node_shared_ptr(0) : nullptr);
-    const auto key_unsqueeze_inner = ov::as_type_ptr<v0::Unsqueeze>(kv_mul ? kv_mul->get_input_node_shared_ptr(1) : nullptr);
-    if (!kv_reduce || !kv_mul || !key_unsqueeze_inner || kv_mul->input_value(0) != state_decay->output(0) ||
-        !is_reduce_sum(kv_reduce, -2, false) || key_unsqueeze_inner->input_value(0) != key_squeeze->output(0) ||
-        !is_constant_vector(key_unsqueeze_inner->get_input_node_shared_ptr(1), {-1})) {
-        return false;
-    }
-
-    if (scatter->input_value(2).get_node_shared_ptr() != core_attn_update) {
+    LoopBodyMatch body_match;
+    if (!match_loop_body_pattern(loop, body_match)) {
         return false;
     }
 
@@ -233,56 +280,56 @@ bool match_recurrent_attention_loop(const std::shared_ptr<v5::Loop>& loop, LoopM
 
     for (const auto& desc : input_descs) {
         const auto& body_param = body_parameters[desc->m_body_parameter_index];
-        if (body_param == query_param) {
+        if (body_param == body_match.query_param) {
             const auto sliced = ov::as_type_ptr<SlicedD>(desc);
             if (!is_expected_sliced_input(sliced)) {
                 return false;
             }
             match.query = loop->input_value(desc->m_input_index);
             has_query = true;
-        } else if (body_param == key_param) {
+        } else if (body_param == body_match.key_param) {
             const auto sliced = ov::as_type_ptr<SlicedD>(desc);
             if (!is_expected_sliced_input(sliced)) {
                 return false;
             }
             match.key = loop->input_value(desc->m_input_index);
             has_key = true;
-        } else if (body_param == value_param) {
+        } else if (body_param == body_match.value_param) {
             const auto sliced = ov::as_type_ptr<SlicedD>(desc);
             if (!is_expected_sliced_input(sliced)) {
                 return false;
             }
             match.value = loop->input_value(desc->m_input_index);
             has_value = true;
-        } else if (body_param == gate_param) {
+        } else if (body_param == body_match.gate_param) {
             const auto sliced = ov::as_type_ptr<SlicedD>(desc);
             if (!is_expected_sliced_input(sliced)) {
                 return false;
             }
             match.gate = loop->input_value(desc->m_input_index);
             has_gate = true;
-        } else if (body_param == beta_param) {
+        } else if (body_param == body_match.beta_param) {
             const auto sliced = ov::as_type_ptr<SlicedD>(desc);
             if (!is_expected_sliced_input(sliced)) {
                 return false;
             }
             match.beta = loop->input_value(desc->m_input_index);
             has_beta = true;
-        } else if (body_param == recurrent_state_param) {
+        } else if (body_param == body_match.recurrent_state_param) {
             const auto merged = ov::as_type_ptr<MergedD>(desc);
-            if (!merged || body_results[merged->m_body_value_index]->input_value(0) != state_out->output(0)) {
+            if (!merged || body->get_results()[merged->m_body_value_index]->input_value(0) != body_match.state_out->output(0)) {
                 return false;
             }
             match.recurrent_state = loop->input_value(desc->m_input_index);
             has_state = true;
-        } else if (body_param == core_attn_state_param) {
+        } else if (body_param == body_match.core_attn_state_param) {
             const auto merged = ov::as_type_ptr<MergedD>(desc);
-            if (!merged || body_results[merged->m_body_value_index]->input_value(0) != scatter->output(0)) {
+            if (!merged || body->get_results()[merged->m_body_value_index]->input_value(0) != body_match.scatter->output(0)) {
                 return false;
             }
             core_attn_init = loop->input_value(desc->m_input_index);
             has_core_attn = true;
-        } else if (body_param == timestep_param) {
+        } else if (body_param == body_match.timestep_param) {
             if (!ov::as_type_ptr<MergedD>(desc)) {
                 return false;
             }
