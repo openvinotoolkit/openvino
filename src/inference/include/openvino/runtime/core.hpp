@@ -120,7 +120,18 @@ public:
     std::shared_ptr<ov::Model> read_model(const Path& model_path,
                                           const Path& bin_path = {},
                                           const ov::AnyMap& properties = {}) const {
-        if constexpr (std::is_constructible_v<std::string, Path>) {
+        if constexpr (std::is_pointer_v<Path>) {
+            // For pointer types (const char*, const wchar_t*), {} initializes to nullptr.
+            if constexpr (std::is_constructible_v<std::string, Path>) {
+                return read_model(std::string(model_path),
+                                  bin_path ? std::string(bin_path) : std::string{},
+                                  properties);
+            } else {
+                return read_model(std::wstring(model_path),
+                                  bin_path ? std::wstring(bin_path) : std::wstring{},
+                                  properties);
+            }
+        } else if constexpr (std::is_constructible_v<std::string, Path>) {
             return read_model(std::string(model_path), std::string(bin_path), properties);
         } else if constexpr (std::is_constructible_v<std::wstring, Path>) {
             return read_model(std::wstring(model_path), std::wstring(bin_path), properties);

@@ -206,6 +206,27 @@ TEST_F(CoreBaseTest, read_model_with_std_fs_path) {
     }
 }
 
+TEST_F(CoreBaseTest, read_model_with_const_char_path) {
+    generate_test_model_files("test-model");
+
+    ov::Core core;
+    const char* model_path = model_file_name.c_str();
+    const auto model = core.read_model(model_path);
+    EXPECT_NE(model, nullptr);
+}
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+TEST_F(CoreBaseTest, read_model_with_const_wchar_path) {
+    generate_test_model_files("test-model");
+
+    ov::Core core;
+    const std::wstring model_path_w = ov::util::string_to_wstring(model_file_name);
+    const wchar_t* model_path = model_path_w.c_str();
+    const auto model = core.read_model(model_path);
+    EXPECT_NE(model, nullptr);
+}
+#endif
+
 TEST_F(CoreBaseTest, read_model_variadic_properties_std_string) {
     generate_test_model_files("test-model-variadic");
 
