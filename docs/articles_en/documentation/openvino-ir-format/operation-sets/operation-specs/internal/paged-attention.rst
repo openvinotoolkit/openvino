@@ -823,6 +823,11 @@ configurations.
   output in the CPU plugin (see note 1 above for details).  Decode steps are not
   affected.
 
+* Bidirectional image attention (``token_type_ids``) is supported only by the CPU
+  plugin.  The GPU plugin and the reference (TEMPLATE) implementation
+  both ignore the ``token_type_ids`` input: the tensor is accepted without error but has
+  no effect on the attention computation, and all tokens use standard causal attention.
+
 
 **CPU plugin KV-cache quantization properties**
 
