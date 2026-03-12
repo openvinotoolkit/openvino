@@ -495,7 +495,7 @@ TEST(FrontEndGraphIteratorTest, override_all_outputs_invalid_place_throws) {
     auto foreign_place = input_model2->get_place_by_tensor_name("Y");
     ASSERT_NE(foreign_place, nullptr);
 
-    EXPECT_THROW(input_model->override_all_outputs({foreign_place}), ov::frontend::NotImplementedFailure);
+    EXPECT_THROW(input_model->override_all_outputs({foreign_place}), ov::frontend::GeneralFailure);
 }
 
 // Passing an empty output list should throw a general check failure.
