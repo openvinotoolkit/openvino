@@ -72,6 +72,14 @@ real key positions uniformly.
 computing pairwise key-vector diversity within the eviction zone.  Output 2 carries the
 resulting diversity scores so the caller can rank blocks for eviction.
 
+**Bidirectional image attention** - when a Vision-Language Model (VLM) encodes a block
+of image tokens, all tokens within the same contiguous image group should attend to each
+other regardless of their position order.  Input ``token_type_ids`` marks each new token
+as either text (``0``) or image (``1``).  For image tokens the causal upper bound of the
+attention window is extended to the exclusive end of the contiguous image group, so every
+image token in the group can read keys from every other token in the group.  Text tokens
+retain standard causal attention unchanged.
+
 
 **Detailed description**:
 
@@ -109,6 +117,7 @@ storage across multiple inference calls.
        adaptive_rkv_evictable_sizes,            # input 22  [B_seq] or empty  i32
        adaptive_rkv_diversity_block_set_indices,         # input 23  [Narkv] or empty  i32
        adaptive_rkv_diversity_block_set_indices_begins,  # input 24  [B_seq+1] or empty  i32
+       token_type_ids,                                   # input 25  [T] or [1,T] or empty  i32
    ):
        # ---------------------------------------------------------------
        # Phase 0 - cache initialization (runs once per op node lifetime)
@@ -189,12 +198,23 @@ storage across multiple inference calls.
                # The cache manager allocates a new block if needed.
                cache_manager.write_kv(s, qpos, key[token], value[token])
 
-               # Determine the causal attention window [start, qpos].
+               # Determine the causal attention window [start, ncausal).
                start = 0
                if max_ctx > 0:
                    start = max(start, qpos + 1 - max_ctx)
                if sw > 0:
                    start = max(start, qpos + 1 - sw)
+
+               # Bidirectional image attention: for image tokens (type == 1) extend
+               # the upper bound of the KV range to the exclusive end of the contiguous
+               # image group, capped by the total sequence length (past + new_len).
+               # For text tokens ncausal == qpos + 1 (standard causal attention).
+               ncausal = qpos + 1
+               if token_type_ids is not None and token_type_ids[token] == 1:
+                   ncausal = min(image_group_end(token_type_ids, token, t_end),
+                                 past + new_len)
+                   # image_group_end returns the exclusive end of the contiguous
+                   # run of type-1 tokens containing token within [t_begin, t_end).
 
                # Whether this query token's weights are aggregated into output 1.
                # win == 0: disabled - no accumulation, output 1 stays zero.
@@ -207,7 +227,7 @@ storage across multiple inference calls.
                    qvec  = query[token, h * S : (h+1) * S]
                    logits = []
 
-                   for kpos in range(start, qpos + 1):
+                   for kpos in range(start, ncausal):
                        k_vec = cache_manager.get_key(s, kpos, kvh)
                        if k_vec is None:   # evicted token - treat as -inf
                            logits.append(-inf)
@@ -253,14 +273,14 @@ storage across multiple inference calls.
                    weights  = softmax_with_optional_sink(logits, sink_val)
 
                    # Weighted sum over value vectors -> output 0
-                   for t, kpos in enumerate(range(start, qpos + 1)):
+                   for t, kpos in enumerate(range(start, ncausal)):
                        v_vec = cache_manager.get_value(s, kpos, kvh)
                        output[token, h * Sv : (h+1) * Sv] += weights[t] * v_vec
 
                    # Score accumulation -> output 1
                    if in_score_window:
                        offset = score_offset(s)   # sum of (past+new) for earlier sequences
-                       for t, kpos in enumerate(range(start, qpos + 1)):
+                       for t, kpos in enumerate(range(start, ncausal)):
                            scores_acc[offset + kpos] += weights[t]
 
        # ---------------------------------------------------------------
@@ -328,7 +348,7 @@ are used at the time the model is built or compiled.
 
    **Input ports are positional and cannot be skipped.**  OpenVINO does not support
    absent or null input ports: if port N were omitted, port N+1 would shift down to
-   position N, making all subsequent indices incorrect.  For this reason, all 25
+   position N, making all subsequent indices incorrect.  For this reason, all 26
    input ports must be present in the graph.  Features that are semantically
    optional (e.g. ALiBi, xattention, sinks) are **disabled by connecting an empty
    tensor** (zero elements) or a zero sentinel value, not by omitting the port.
@@ -456,6 +476,19 @@ are used at the time the model is built or compiled.
 * **24**: ``adaptive_rkv_diversity_block_set_indices_begins`` - 1D tensor of type ``i32``,
   shape ``[B_seq+1]``, or empty.  Per-sequence offsets into input 24.  **Optional.**
 
+* **25**: ``token_type_ids`` - 1D tensor of type ``i32``, shape ``[T]``, or 2D shape
+  ``[1, T]`` (flattened internally to ``[T]``), or an empty tensor (``size = 0``).
+  Per-token classification label for each new token in the batch.  Used to enable
+  bidirectional attention within contiguous groups of image tokens in VLMs (e.g.
+  Gemma3).  Value ``0`` denotes a text token; value ``1`` denotes an image token.
+  For an image token at position ``qpos``, the upper bound of the attention window is
+  extended from ``qpos + 1`` to the exclusive end of the contiguous run of type-1
+  tokens that contains it (capped by the full sequence length), so every image token
+  in the group can attend to all other tokens in the same group in both directions.
+  Text tokens (type ``0``) use standard causal attention unchanged.
+  Empty = bidirectional image attention disabled.
+  **Required (always present; empty tensor = disabled).**
+
 
 **Outputs**
 
@@ -578,6 +611,8 @@ reference.
 +-------------------------------------------------------------+-----+----------+
 | block_size == 32 assertion (kernel layout constraint)      | ✓   | ✗        |
 +-------------------------------------------------------------+-----+----------+
+| Bidirectional image attention (``token_type_ids``)         | ✓   | ✗        |
++-------------------------------------------------------------+-----+----------+
 
 \* CPU produces zero score output for prefill steps when the window value is negative
 (see note 1 below).  Decode steps are not affected.
@@ -635,7 +670,7 @@ configurations.
    semantics that rely on initial tokens being exempt from the eviction zone are not honored
    on the CPU path.
 
-4. **Xattention activation conditions**
+5. **Xattention activation conditions**
 
    Both the CPU kernel and the reference activate xattention only when **all** of the
    following are true: the current step is prefill (``new_len > 1``), and the batch
@@ -647,13 +682,13 @@ configurations.
    current new tokens only; previously cached tokens are always attended to at full
    density regardless of the mask.
 
-5. **Sinks (input 21) on non-x86_64 platforms**
+6. **Sinks (input 21) on non-x86_64 platforms**
 
    The CPU plugin rejects a model that contains a non-empty sinks tensor on non-x86_64
    platforms (ARM64, etc.) at ``isSupportedOperation`` time.  The reference has no platform
    restriction.
 
-6. **rotation_deltas (input 16) 2D form**
+7. **rotation_deltas (input 16) 2D form**
 
    The CPU executor requires ``rotation_deltas`` to have exactly 2 dimensions, with
    the second dimension being either ``1`` (per-block granularity) or ``Bs`` (per-token
@@ -671,7 +706,7 @@ configurations.
      last block.  The reference only re-rotates positions up to ``past_len``, leaving
      unoccupied slots untouched.
 
-7. **Cache statefulness and session lifetime**
+8. **Cache statefulness and session lifetime**
 
    The ``PagedCacheManager`` is a heap-allocated object owned through a ``shared_ptr``
    stored on the op node.  Its lifetime is therefore tied to the lifetime of the compiled
@@ -690,7 +725,7 @@ configurations.
    ``past_lens`` inputs are reset to their initial state (all zeros / empty blocks) so the
    first ``infer`` call re-initializes the cache through the normal Phase 0 code path.
 
-8. **Output 1 (score_aggregation) and internal eviction semantics**
+9. **Output 1 (score_aggregation) and internal eviction semantics**
 
    **CPU plugin:** The CPU plugin does not perform any internal eviction.  The scores
    written to output 1 are informational only: the CPU kernel does not modify the KV
@@ -915,9 +950,9 @@ are all disabled (empty inputs).  Score aggregation is enabled (``score_aggregat
    </layer>
 
    <!-- Const inputs for ports 5–13 and 18–19, 21 (non-empty scalar / vector values).
-        Ports 11, 14–17, 20, 22–24 feed 0-element Const nodes (ALiBi, RoPE trig LUT,
-        rotation deltas, xattention threshold, sinks, and adaptive-RKV fields are all
-        disabled for this example). -->
+        Ports 11, 14–17, 20, 22–25 feed 0-element Const nodes (ALiBi, RoPE trig LUT,
+        rotation deltas, xattention threshold, sinks, adaptive-RKV fields, and
+        token_type_ids are all disabled for this example). -->
 
    <!-- port 5: past_lens [B_seq=2] -->
    <layer id="5" name="past_lens/const" type="Const" version="opset1">
@@ -1064,7 +1099,13 @@ are all disabled (empty inputs).  Score aggregation is enabled (``score_aggregat
        <output><port id="0" precision="I32"/></output>
    </layer>
 
-   <layer id="25" name="paged_attn" type="PagedAttentionExtension" version="extension">
+   <!-- port 25: token_type_ids - empty (bidirectional image attention disabled) -->
+   <layer id="25" name="token_type_ids/const" type="Const" version="opset1">
+       <data element_type="i32" shape="0" offset="76" size="0"/>
+       <output><port id="0" precision="I32"/></output>
+   </layer>
+
+   <layer id="26" name="paged_attn" type="PagedAttentionExtension" version="extension">
        <input>
            <port id="0">   <!-- query [2, 512] -->
                <dim>2</dim>
@@ -1118,16 +1159,17 @@ are all disabled (empty inputs).  Score aggregation is enabled (``score_aggregat
            <port id="22"/>                 <!-- adaptive_rkv_evictable_sizes: empty -->
            <port id="23"/>                 <!-- adaptive_rkv_diversity_block_set_indices: empty -->
            <port id="24"/>                 <!-- adaptive_rkv_diversity_block_set_indices_begins: empty -->
+           <port id="25" precision="I32"/> <!-- token_type_ids: empty (bidirectional image attention disabled) -->
        </input>
        <output>
-           <port id="25" precision="FP32">  <!-- attention_output [T, Hq*Sv] -->
+           <port id="26" precision="FP32">  <!-- attention_output [T, Hq*Sv] -->
                <dim>2</dim>
                <dim>512</dim>
            </port>
-           <port id="26" precision="FP32">  <!-- score_aggregation [T + sum(past_lens)] = [2+32+63=97] -->
+           <port id="27" precision="FP32">  <!-- score_aggregation [T + sum(past_lens)] = [2+32+63=97] -->
                <dim>97</dim>
            </port>
-           <port id="27" precision="FP32">  <!-- diversity_scores: empty (eviction disabled) -->
+           <port id="28" precision="FP32">  <!-- diversity_scores: empty (eviction disabled) -->
            </port>
        </output>
    </layer>
