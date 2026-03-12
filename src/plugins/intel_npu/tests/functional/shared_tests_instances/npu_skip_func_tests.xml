@@ -783,14 +783,6 @@ Example:
         </filters>
     </skip_config>
 
-    <skip_config>
-        <message>Only "developer built" compilers support weights separation</message>
-        <filters>
-            <filter>.*WeightsSeparationTests.*</filter>
-            <filter>.*WeightsSeparationIterativeTests.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E#170977 -->
     <skip_config>
         <message>Data type u1/u2 not supported by NPU3720.</message>

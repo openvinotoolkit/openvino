@@ -259,10 +259,6 @@ ov::intel_npu::ModelSerializerVersion determineModelSerializerVersion(
                    ? serializerVersion
                    : ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY;
     }
-    if (!isOptionValueSupportedByCompiler(ov::intel_npu::model_serializer_version.name(), std::nullopt)) {
-        // The compiler doesn't know about this config option. Fallback to the safe version
-        return ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY;
-    }
 
     if (serializerVersion != ov::intel_npu::ModelSerializerVersion::AUTO) {
         // The user has chosen one explicit version. Attempt to use it, and throw if not successful
@@ -275,20 +271,13 @@ ov::intel_npu::ModelSerializerVersion determineModelSerializerVersion(
         return serializerVersion;
     }
 
-    // The "AUTO" value allows the plugin to pick the option it considers best
+    // The "AUTO" value allows the plugin to pick the option it considers best. Try the more performant version first
     if (isOptionValueSupportedByCompiler(
             ov::intel_npu::model_serializer_version.name(),
             intel_npu::MODEL_SERIALIZER_VERSION::toString(ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY))) {
         return ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY;
     }
-    if (isOptionValueSupportedByCompiler(
-            ov::intel_npu::model_serializer_version.name(),
-            intel_npu::MODEL_SERIALIZER_VERSION::toString(ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY))) {
-        return ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY;
-    }
-
-    OPENVINO_THROW("The model serializer version has been set to \"AUTO\", but the NPU plugin failed to find any "
-                   "compatible version supported by the compiler adapter");
+    return ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY;
 }
 
 }  // namespace
