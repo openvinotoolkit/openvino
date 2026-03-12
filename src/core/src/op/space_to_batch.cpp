@@ -11,6 +11,7 @@
 #include <numeric>
 
 #include "itt.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
@@ -121,7 +122,9 @@ bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
         padded_shape[i] = data_shape[i] + pb + pe;
     }
 
-    std::vector<char> padded_data(shape_size(padded_shape) * elem_size);
+    const auto padded_byte_size = ov::util::get_memory_size_safe(data.get_element_type(), padded_shape);
+    OPENVINO_ASSERT(padded_byte_size.has_value(), "SpaceToBatch: padded shape size overflows");
+    std::vector<char> padded_data(*padded_byte_size);
     reference::pad(static_cast<const char*>(data.data()),
                    pad_value,
                    padded_data.data(),
@@ -140,8 +143,8 @@ bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
     std::iota(plain_axes_order.begin(), plain_axes_order.end(), 0);
 
     std::vector<char> flat_data(padded_data.begin(), padded_data.end());
-    std::vector<char> dispersed_data(shape_size(data_shape) * elem_size);
-    std::vector<char> post_transpose_data(shape_size(data_shape) * elem_size);
+    std::vector<char> dispersed_data(*padded_byte_size);
+    std::vector<char> post_transpose_data(*padded_byte_size);
 
     for (int64_t block_idx = block_values_size - 1; block_idx >= 0; --block_idx) {
         int64_t sq_shape_idx = block_values_size - 1;
