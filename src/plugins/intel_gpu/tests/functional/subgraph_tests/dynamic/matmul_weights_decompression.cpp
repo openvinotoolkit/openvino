@@ -176,11 +176,8 @@ protected:
             transformed_weights_shape[in_channel_idx] = weights_shape[weights_rank - 2] / group_size;
             transformed_weights_shape.insert(transformed_weights_shape.begin() + in_channel_idx + 1, group_size);
         }
-        ov::test::utils::InputGenerateData wei_data;
-         wei_data.start_from = -5;
-        wei_data.range = 6;
-        wei_data.resolution = 16;
-        auto weights_tensor = ov::test::utils::create_and_fill_tensor(weights_precision, transformed_weights_shape, wei_data);
+
+        auto weights_tensor = ov::test::utils::create_and_fill_tensor(weights_precision, transformed_weights_shape);
         auto weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
         weights->set_friendly_name("Compressed_weights");
         auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, data_precision);

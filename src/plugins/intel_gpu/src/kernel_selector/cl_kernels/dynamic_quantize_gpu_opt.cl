@@ -108,10 +108,9 @@ KERNEL(dynamic_quantize_gpu_opt)(
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
 #if F4E2M1_OUTPUT
         float4 val_f = convert_float4(input_0[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, 4))quan_scale;
-        val_f = clamp(val_f, -6.0f, 6.0f);
+        val_f = clamp(val_f, -_convert_float(OUTPUT_VAL_MAX), _convert_float(OUTPUT_VAL_MAX));
         quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, val_f);
-        //vstore2(quantized_value[i].data, 0, (uchar*)(&output[output_offset + i * 2]));
-        vstore2(quantized_value[i].data, 0, ((uchar*)output) + output_offset + i * 2);
+        vstore2(quantized_value[i].data, 0, (uchar*)(&output[output_offset + i * 2]));
 #elif IS_F8
         quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, convert_float4(input_0[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, 4))quan_scale);
         vstore4(quantized_value[i].data, 0, (char*)(&output[output_offset + i * 4]));

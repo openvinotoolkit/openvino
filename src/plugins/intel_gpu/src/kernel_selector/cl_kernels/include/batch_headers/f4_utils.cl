@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,6 @@ uchar _intel_convert_f16_to_f4(half val) {
     const short exp_bias = 1;
     const ushort exp_size = 2;
     const ushort mant_size = 1;
-    const uchar  nan = 0x0;
     const uchar  max_val = 0x7;
 
     ushort src_sign = src >> (src_exp_size + src_mant_size);
