@@ -342,51 +342,63 @@ bool match_recurrent_attention_loop(const std::shared_ptr<v5::Loop>& loop, LoopM
 
     return trip_count_shape->input_value(0) == match.value && is_exporter_zero_broadcast(match.value, core_attn_init);
 }
+
+bool get_exporter_concat_context(const std::shared_ptr<v5::Loop>& loop,
+                                 std::shared_ptr<v1::Reshape>& attn_reshape,
+                                 std::shared_ptr<v1::Reshape>& state_reshape,
+                                 std::shared_ptr<v0::Concat>& concat) {
+    if (!loop || loop->get_output_size() < 2) {
+        return false;
+    }
+
+    const auto& out0_targets = loop->output(0).get_target_inputs();
+    const auto& out1_targets = loop->output(1).get_target_inputs();
+    if (out0_targets.size() != 1 || out1_targets.size() != 1) {
+        return false;
+    }
+
+    attn_reshape = ov::as_type_ptr<v1::Reshape>(out0_targets.begin()->get_node()->shared_from_this());
+    state_reshape = ov::as_type_ptr<v1::Reshape>(out1_targets.begin()->get_node()->shared_from_this());
+    if (!is_flatten_reshape(attn_reshape) || !is_flatten_reshape(state_reshape)) {
+        return false;
+    }
+
+    const auto& attn_targets = attn_reshape->output(0).get_target_inputs();
+    const auto& state_targets = state_reshape->output(0).get_target_inputs();
+    if (attn_targets.size() != 1 || state_targets.size() != 1) {
+        return false;
+    }
+
+    concat = ov::as_type_ptr<v0::Concat>(attn_targets.begin()->get_node()->shared_from_this());
+    auto concat_from_state = ov::as_type_ptr<v0::Concat>(state_targets.begin()->get_node()->shared_from_this());
+    if (!concat || !concat_from_state || concat != concat_from_state || concat->get_axis() != 0 || concat->inputs().size() != 2) {
+        return false;
+    }
+
+    return concat->input_value(0).get_node_shared_ptr() == attn_reshape &&
+           concat->input_value(1).get_node_shared_ptr() == state_reshape;
+}
 }  // namespace
 
-/// Matches the graph emitted by optimum-intel's RecurrentAttentionCell conversion:
-///
-///   Concat(
-///       Reshape(Loop(...).output(0), [-1]),
-///       Reshape(Loop(...).output(1), [-1]),
-///       axis=0)
-///
-/// where Loop iterates over sequence axis 2 of head-first inputs [B, H, S, D].
-/// The loop body implements one recurrent attention step and accumulates the full
-/// attention tensor with ScatterUpdate. The fused replacement inserts GatedDeltaNet
-/// in seq-first layout [B, S, H, D], then transposes outputs back and rebuilds the
-/// original flat concat so downstream consumers remain unchanged.
-
-GatedDeltaNetFusion::GatedDeltaNetFusion() {
-    MATCHER_SCOPE(GatedDeltaNetFusion);
+GatedDeltaNetLoopFusion::GatedDeltaNetLoopFusion() {
+    MATCHER_SCOPE(GatedDeltaNetLoopFusion);
 
     auto loop = pattern::wrap_type<v5::Loop>();
-    auto attn_flat = pattern::wrap_type<v1::Reshape>({loop, pattern::any_input()});
-    auto state_flat = pattern::wrap_type<v1::Reshape>({loop, pattern::any_input()});
-    auto concat = pattern::wrap_type<v0::Concat>({attn_flat, state_flat});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        auto concat_node = ov::as_type_ptr<v0::Concat>(m.get_match_root());
-        if (!concat_node || concat_node->get_axis() != 0 || concat_node->inputs().size() != 2) {
+        auto loop_node = ov::as_type_ptr<v5::Loop>(m.get_match_root());
+        if (!loop_node || transformation_callback(loop_node)) {
+            return false;
+        }
+
+        std::shared_ptr<v1::Reshape> attn_reshape;
+        std::shared_ptr<v1::Reshape> state_reshape;
+        std::shared_ptr<v0::Concat> concat_node;
+        if (!get_exporter_concat_context(loop_node, attn_reshape, state_reshape, concat_node)) {
             return false;
         }
 
         if (transformation_callback(concat_node)) {
-            return false;
-        }
-
-        auto attn_reshape = ov::as_type_ptr<v1::Reshape>(concat_node->get_input_node_shared_ptr(0));
-        auto state_reshape = ov::as_type_ptr<v1::Reshape>(concat_node->get_input_node_shared_ptr(1));
-        if (!is_flatten_reshape(attn_reshape) || !is_flatten_reshape(state_reshape)) {
-            return false;
-        }
-
-        if (attn_reshape->input_value(0).get_node() != state_reshape->input_value(0).get_node()) {
-            return false;
-        }
-
-        auto loop_node = ov::as_type_ptr<v5::Loop>(attn_reshape->get_input_node_shared_ptr(0));
-        if (!loop_node || loop_node->output(0).get_target_inputs().size() != 1 || loop_node->output(1).get_target_inputs().size() != 1) {
             return false;
         }
 
@@ -397,8 +409,6 @@ GatedDeltaNetFusion::GatedDeltaNetFusion() {
 
         const auto q_perm = v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3});
         const auto g_perm = v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
-        const auto q_back_perm = v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3});
-        const auto flatten_shape = v0::Constant::create(element::i32, Shape{1}, {-1});
 
         auto q_seq = std::make_shared<v1::Transpose>(match.query, q_perm);
         auto k_seq = std::make_shared<v1::Transpose>(match.key, q_perm);
@@ -412,22 +422,64 @@ GatedDeltaNetFusion::GatedDeltaNetFusion() {
                                                                      match.recurrent_state,
                                                                      g_seq,
                                                                      beta_seq);
+        gdn->set_friendly_name(loop_node->get_friendly_name());
 
-        auto attn_head_first = std::make_shared<v1::Transpose>(gdn->output(0), q_back_perm);
-        auto attn_flat_new = std::make_shared<v1::Reshape>(attn_head_first, flatten_shape, false);
-        auto state_flat_new = std::make_shared<v1::Reshape>(gdn->output(1), flatten_shape, false);
-        auto concat_new = std::make_shared<v0::Concat>(OutputVector{attn_flat_new, state_flat_new}, 0);
+        ov::copy_runtime_info(NodeVector{loop_node, attn_reshape, state_reshape, concat_node},
+                              NodeVector{q_seq, k_seq, v_seq, g_seq, beta_seq, gdn});
+        register_new_node(gdn);
+        ov::replace_node(loop_node, gdn);
+        return true;
+    };
+
+    auto matcher = std::make_shared<pattern::Matcher>(loop, matcher_name);
+    register_matcher(matcher, callback);
+}
+
+GatedDeltaNetOutputLayoutProcessing::GatedDeltaNetOutputLayoutProcessing() {
+    MATCHER_SCOPE(GatedDeltaNetOutputLayoutProcessing);
+
+    auto gdn = pattern::wrap_type<ov::op::internal::GatedDeltaNet>();
+    auto attn_flat = pattern::wrap_type<v1::Reshape>({gdn, pattern::any_input()});
+    auto state_flat = pattern::wrap_type<v1::Reshape>({gdn, pattern::any_input()});
+    auto concat = pattern::wrap_type<v0::Concat>({attn_flat, state_flat});
+
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+        auto concat_node = ov::as_type_ptr<v0::Concat>(m.get_match_root());
+        if (!concat_node || concat_node->get_axis() != 0 || concat_node->inputs().size() != 2 || transformation_callback(concat_node)) {
+            return false;
+        }
+
+        auto attn_reshape = ov::as_type_ptr<v1::Reshape>(concat_node->get_input_node_shared_ptr(0));
+        auto state_reshape = ov::as_type_ptr<v1::Reshape>(concat_node->get_input_node_shared_ptr(1));
+        if (!is_flatten_reshape(attn_reshape) || !is_flatten_reshape(state_reshape)) {
+            return false;
+        }
+
+        auto gdn_node = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(attn_reshape->get_input_node_shared_ptr(0));
+        if (!gdn_node || state_reshape->get_input_node_shared_ptr(0) != gdn_node || attn_reshape->input_value(0).get_index() != 0 ||
+            state_reshape->input_value(0).get_index() != 1) {
+            return false;
+        }
+
+        const auto q_back_perm = v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3});
+        auto attn_head_first = std::make_shared<v1::Transpose>(gdn_node->output(0), q_back_perm);
+        auto attn_flat_new = std::make_shared<v1::Reshape>(attn_head_first, attn_reshape->input_value(1), attn_reshape->get_special_zero());
+        auto concat_new = std::make_shared<v0::Concat>(OutputVector{attn_flat_new, state_reshape}, 0);
         concat_new->set_friendly_name(concat_node->get_friendly_name());
 
-        ov::copy_runtime_info(NodeVector{concat_node, attn_reshape, state_reshape, loop_node},
-                              NodeVector{q_seq, k_seq, v_seq, g_seq, beta_seq, gdn, attn_head_first, attn_flat_new, state_flat_new, concat_new});
-        register_new_node(gdn);
+        ov::copy_runtime_info(NodeVector{concat_node, attn_reshape, state_reshape, gdn_node},
+                              NodeVector{attn_head_first, attn_flat_new, concat_new});
         ov::replace_node(concat_node, concat_new);
         return true;
     };
 
     auto matcher = std::make_shared<pattern::Matcher>(concat, matcher_name);
     register_matcher(matcher, callback);
+}
+
+GatedDeltaNetFusion::GatedDeltaNetFusion() {
+    add_matcher<ov::pass::GatedDeltaNetLoopFusion>();
+    add_matcher<ov::pass::GatedDeltaNetOutputLayoutProcessing>();
 }
 
 }  // namespace ov::pass
