@@ -993,10 +993,9 @@ void InputModel::InputModelONNXImpl::override_all_outputs(const std::vector<ov::
         }
         // The place is not an existing model output — model editing is not supported.
         const auto& names = output->get_names();
-        FRONT_END_NOT_IMPLEMENTED("override_all_outputs: place '" +
-                                  (names.empty() ? std::string("<unnamed>") : names[0]) +
-                                  "' is not an existing model output. "
-                                  "Only reducing or reordering existing model outputs is supported");
+        FRONT_END_THROW("override_all_outputs: place '" + (names.empty() ? std::string("<unnamed>") : names[0]) +
+                        "' is not an existing model output. "
+                        "Only reducing or reordering existing model outputs is supported");
     }
     m_outputs = std::move(new_outputs);
 }
