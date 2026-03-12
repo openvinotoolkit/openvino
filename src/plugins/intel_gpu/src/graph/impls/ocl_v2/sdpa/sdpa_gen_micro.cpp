@@ -1501,7 +1501,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem_kq.A.layout = (is_paged_attention && !is_prefill) ? micro::MatrixLayout::N : micro::MatrixLayout::T;
 
     /* Set up microkernel options */
-    micro::GEMMProtocol::Options opts_kq;
+    micro::GEMMOptions opts_kq;
     opts_kq.localB = true;
     opts_kq.slmPtr = true;
 
@@ -1635,7 +1635,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     }
 
     /* Set up microkernel options */
-    micro::GEMMProtocol::Options opts_vs;
+    micro::GEMMOptions opts_vs;
     opts_vs.localB = true;
     opts_vs.slmPtr = true;
 
