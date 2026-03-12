@@ -121,7 +121,6 @@ public:
                                           const Path& bin_path = {},
                                           const ov::AnyMap& properties = {}) const {
         if constexpr (std::is_pointer_v<Path>) {
-            // For pointer types (const char*, const wchar_t*), {} initializes to nullptr.
             if constexpr (std::is_constructible_v<std::string, Path>) {
                 return read_model(std::string(model_path),
                                   bin_path ? std::string(bin_path) : std::string{},
