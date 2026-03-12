@@ -275,29 +275,30 @@ public:
     }
 
 private:
+    // Get XAttention block size from input tensor.
+    // If the input is not provided, throw exception.
+    // If the input is not valid, return default block size based on GPU architecture.
     size_t get_xattn_block_size(const kernel_impl_params& params, const size_t seq_idx = 0) {
         constexpr int32_t block_size_128 = 128;
         constexpr int32_t block_size_256 = 256;
 
-        // Fast path: pre-Xe2 supports only 128, no need to read optional runtime input.
-        if (params.get_device_info().arch < gpu_arch::xe2) {
-            return block_size_128;
-        }
-
-        int32_t xattn_block_size = block_size_256;  // default
-
         const auto& input_mem = params.memory_deps;
         const auto it = input_mem.find(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE);
-        if (it != input_mem.end() && it->second != nullptr) {
-            mem_lock<int32_t, mem_lock_type::read> lock(it->second, *params.strm);  // converted
-            if (lock.size() > seq_idx) {
-                xattn_block_size = static_cast<int32_t>(lock[seq_idx]);
-                GPU_DEBUG_TRACE_DETAIL << "XAttention block size from input: " << xattn_block_size << std::endl;
-            } else {
-                GPU_DEBUG_TRACE_DETAIL << "XAttention block size input is empty or out-of-range, fallback to default: " << xattn_block_size << std::endl;
-            }
-        } else {
-            GPU_DEBUG_TRACE_DETAIL << "XAttention block size input is missing, fallback to default: " << xattn_block_size << std::endl;
+        if (it == input_mem.end() || it->second == nullptr) {
+            OPENVINO_THROW("XAttention block size input is required at index ",
+                           static_cast<size_t>(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE));
+        }
+
+        mem_lock<int32_t, mem_lock_type::read> lock(it->second, *params.strm);
+        if (seq_idx >= lock.size()) {
+            OPENVINO_THROW("XAttention block size input index out of range: seq_idx=", seq_idx, ", input_size=", lock.size());
+        }
+
+        int32_t xattn_block_size = static_cast<int32_t>(lock[seq_idx]);
+        GPU_DEBUG_TRACE_DETAIL << "XAttention block size from input: " << xattn_block_size << std::endl;
+
+        if (params.get_device_info().arch < gpu_arch::xe2) {
+            return block_size_128;
         }
 
         xattn_block_size = (xattn_block_size == block_size_128 || xattn_block_size == block_size_256) ? xattn_block_size : block_size_256;

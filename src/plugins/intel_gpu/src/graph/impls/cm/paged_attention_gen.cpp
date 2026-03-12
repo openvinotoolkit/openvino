@@ -78,8 +78,17 @@ size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx) {
 // between parameter node "xattention_threshold.xxx" and paged_attention node.
 float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
     const auto& input_mem = params.memory_deps;
-    const auto threshold_mem = input_mem.at(PagedAttentionInputIdx::XATTENTION_THRESHOLD);
-    mem_lock<float16, mem_lock_type::read> lock(threshold_mem, *params.strm);  // converted
+    const auto it = input_mem.find(PagedAttentionInputIdx::XATTENTION_THRESHOLD);
+    if (it == input_mem.end() || it->second == nullptr) {
+        OPENVINO_THROW("XAttention threshold input is required at index ",
+                       static_cast<size_t>(PagedAttentionInputIdx::XATTENTION_THRESHOLD));
+    }
+
+    mem_lock<float16, mem_lock_type::read> lock(it->second, *params.strm);  // converted
+    if (seq_idx >= lock.size()) {
+        OPENVINO_THROW("XAttention threshold input index out of range: seq_idx=", seq_idx, ", input_size=", lock.size());
+    }
+
     const auto thresh = static_cast<float>(lock[seq_idx]);
     return thresh;
 }
@@ -544,7 +553,6 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     const uint32_t block_sg_n = get_block_sg_n(params);
     const uint32_t wg_k = get_block_wg_m(params);
     const uint32_t wg_q = get_block_wg_n(params);
-    // const size_t block_size = get_xattn_block_size(params);
     OPENVINO_ASSERT(wg_k % _xattn_block_size == 0, "wg_k should be multiple of block_size then there is no tails from block_size");
     OPENVINO_ASSERT(wg_q % _xattn_block_size == 0, "wg_q should be multiple of block_size then there is no tails from block_size");
 
