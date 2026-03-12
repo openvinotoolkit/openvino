@@ -97,7 +97,6 @@ public:
                 users.insert(users.end(), param_users.begin(), param_users.end());
             }
 
-            // Remove duplicates (concat itself will appear in users)
             // Find and replace ShapeOf nodes with constants
             for (auto& user : users) {
                 if (ov::is_type<ov::op::v3::ShapeOf>(user)) {
