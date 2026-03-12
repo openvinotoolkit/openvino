@@ -403,12 +403,12 @@ TEST(MLIRExecution, SimpleMatmulf16) {
 
 
     std::vector<cl::Buffer> keep_alive;
-    std::vector<ov::float16> matrix_a = broadcast_vector(std::vector<ov::float16>(1, 3.5f), 64 * 128);
-    std::vector<ov::float16> matrix_b = broadcast_vector(std::vector<ov::float16>(1, 1.5f), 128 * 128);
+    std::vector<ov::float16> matrix_a = broadcast_vector(std::vector<ov::float16>(1, 1.5), 64 * 128);
+    std::vector<ov::float16> matrix_b = broadcast_vector(std::vector<ov::float16>(1, 3.5), 128 * 128);
     // std::vector<ov::float16> matrix_b = read_float_array_from_binary_file<ov::float16>(model_full_path("matmul_64_128_f16.bin"), 2);
     std::map<size_t, std::vector<ov::float16>> input_values_map;
-    input_values_map.emplace(0, matrix_b);
-    input_values_map.emplace(1, matrix_a);
+    input_values_map.emplace(0, matrix_a);
+    input_values_map.emplace(1, matrix_b);
     auto input_tensors = allocate_input_tensors(compiled_model, input_values_map, true, keep_alive);
 
     auto infer_req = compiled_model.create_infer_request();
@@ -423,7 +423,7 @@ TEST(MLIRExecution, SimpleMatmulf16) {
     // compute reference result
     // ASSERT_EQ(matrix_b.size(), 128 * 128);
     std::vector<ov::float16> reference_result(64 * 128);
-    multiply_matrices(matrix_a, matrix_b, reference_result, 64, 128, 128);
+    multiply_matrices_and_add_a(matrix_a, matrix_b, reference_result, 64, 128, 128);
 
     // compare result with the reference
     for (size_t i = 0; i < reference_result.size(); ++i) {

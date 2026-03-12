@@ -11,7 +11,7 @@
 			</output>
 		</layer>
 		<layer id="1" name="b" type="Parameter" version="opset1">
-			<data element_type="f16" shape="128, 128"/>
+			<data element_type="f16" shape="128, 128" offset="0" size="32768" />
 			<output>
 				<port id="0" precision="FP16">
 					<dim>128</dim>
@@ -38,6 +38,25 @@
 				</port>
 			</output>
 		</layer>
+		<layer id="4" name="aten::linear/Add" type="Add" version="opset1">
+			<data auto_broadcast="numpy" />
+			<input>
+				<port id="0" precision="FP16">
+					<dim>64</dim>
+					<dim>128</dim>
+				</port>
+				<port id="1" precision="FP16">
+					<dim>64</dim>
+					<dim>128</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP16" names="6,input.5">
+					<dim>64</dim>
+					<dim>128</dim>
+				</port>
+			</output>
+		</layer>
 		<layer id="6" name="Result_14" type="Result" version="opset1">
 			<input>
 				<port id="0" precision="FP16">
@@ -50,7 +69,9 @@
 	<edges>
 		<edge from-layer="0" from-port="0" to-layer="2" to-port="0" />
 		<edge from-layer="1" from-port="0" to-layer="2" to-port="1" />
-		<edge from-layer="2" from-port="2" to-layer="6" to-port="0" />
+		<edge from-layer="2" from-port="2" to-layer="4" to-port="0" />
+		<edge from-layer="0" from-port="0" to-layer="4" to-port="1" />
+		<edge from-layer="4" from-port="2" to-layer="6" to-port="0" />
 	</edges>
 	<rt_info>
 		<Runtime_version value="2024.4.0-15645-f5a4471753c-mlir" />
