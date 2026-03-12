@@ -3,9 +3,11 @@
 
 from __future__ import annotations
 
+import csv
 import os
 from pathlib import Path
 import shlex
+import time
 
 from coverage_workflow import CoverageContext, env_from_assignments, load_python_tests, run_cmd, warn
 
@@ -61,23 +63,38 @@ def _find_openvino_wheel(wheels_dir: Path) -> Path:
     return candidates[0]
 
 
-def _run_pytest(test_name: str, target: str, args: str, env_assignments: str) -> int:
+def _write_duration_report(ctx: CoverageContext, rows: list[tuple[str, str, float]]) -> None:
+    report_path = ctx.workspace / "python-test-durations.csv"
+    with report_path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["test_name", "status", "duration_seconds", "duration_minutes"])
+        for test_name, status, duration_seconds in rows:
+            writer.writerow([test_name, status, f"{duration_seconds:.3f}", f"{duration_seconds / 60.0:.3f}"])
+
+    ctx.io.export_env("PY_TEST_DURATION_REPORT", str(report_path))
+
+
+def _run_pytest(test_name: str, target: str, args: str, env_assignments: str) -> tuple[int, float]:
     cmd = ["python3", "-m", "pytest", "-ra", "--durations=50", target]
     if args:
         cmd.extend(shlex.split(args))
     env = env_from_assignments(env_assignments)
 
     print(f"========== Running Python test: {test_name} ==========")
-    return run_cmd(cmd, env=env, check=False)
+    started_at = time.monotonic()
+    rc = run_cmd(cmd, env=env, check=False)
+    return rc, time.monotonic() - started_at
 
 
-def _run_python_command(test_name: str, command: str, env_assignments: str) -> int:
+def _run_python_command(test_name: str, command: str, env_assignments: str) -> tuple[int, float]:
     merged = command.strip()
     if env_assignments:
         merged = f"{env_assignments} {merged}"
 
     print(f"========== Running Python test: {test_name} ==========")
-    return run_cmd(["bash", "-lc", merged], check=False)
+    started_at = time.monotonic()
+    rc = run_cmd(["bash", "-lc", merged], check=False)
+    return rc, time.monotonic() - started_at
 
 
 def run(ctx: CoverageContext) -> None:
@@ -94,10 +111,12 @@ def run(ctx: CoverageContext) -> None:
 
     if not any(test.enabled for test in tests):
         skipped = [f"{test.name} ({test.skip_reason})" for test in tests]
+        _write_duration_report(ctx, [(test.name, "skipped", 0.0) for test in tests])
         ctx.io.export_env("PY_TESTS_TOTAL", str(len(skipped)))
         ctx.io.export_env("PY_TESTS_PASSED", "0")
         ctx.io.export_env("PY_TESTS_FAILED", "0")
         ctx.io.export_env("PY_TESTS_SKIPPED", str(len(skipped)))
+        ctx.io.export_env("PY_TESTS_NOT_RUN", "0")
 
         lines = [
             "",
@@ -150,10 +169,12 @@ def run(ctx: CoverageContext) -> None:
     executed = 0
     failed: list[str] = []
     skipped: list[str] = []
+    duration_rows: list[tuple[str, str, float]] = []
 
     for test in tests:
         if not test.enabled:
             skipped.append(f"{test.name} ({test.skip_reason})")
+            duration_rows.append((test.name, "skipped", 0.0))
             continue
 
         target = _expand(test.target)
@@ -163,28 +184,40 @@ def run(ctx: CoverageContext) -> None:
 
         if test.kind == "pytest":
             executed += 1
-            rc = _run_pytest(test.name, target, args, test_env)
+            rc, duration_seconds = _run_pytest(test.name, target, args, test_env)
             if rc != 0:
                 failed.append(f"{test.name} (exit {rc})")
+                duration_rows.append((test.name, "failed", duration_seconds))
+            else:
+                duration_rows.append((test.name, "passed", duration_seconds))
         elif test.kind == "pytest_if_dir":
             if not Path(target).is_dir():
                 warn(f"Skipping Python test group '{test.name}' (missing: {target})")
                 skipped.append(f"{test.name} (missing path)")
+                duration_rows.append((test.name, "skipped", 0.0))
                 continue
             executed += 1
-            rc = _run_pytest(test.name, target, args, test_env)
+            rc, duration_seconds = _run_pytest(test.name, target, args, test_env)
             if rc != 0:
                 failed.append(f"{test.name} (exit {rc})")
+                duration_rows.append((test.name, "failed", duration_seconds))
+            else:
+                duration_rows.append((test.name, "passed", duration_seconds))
         elif test.kind == "command":
             executed += 1
-            rc = _run_python_command(test.name, command, test_env)
+            rc, duration_seconds = _run_python_command(test.name, command, test_env)
             if rc != 0:
                 failed.append(f"{test.name} (exit {rc})")
+                duration_rows.append((test.name, "failed", duration_seconds))
+            else:
+                duration_rows.append((test.name, "passed", duration_seconds))
         else:
             warn(f"Unknown Python test kind '{test.kind}' for '{test.name}', skipping")
             skipped.append(f"{test.name} (unknown kind: {test.kind})")
+            duration_rows.append((test.name, "skipped", 0.0))
 
     run_cmd(["python3", "-m", "coverage", "xml", "-o", str(ctx.workspace / "python-coverage.xml")])
+    _write_duration_report(ctx, duration_rows)
 
     total_failed = len(failed)
     total_skipped = len(skipped)
@@ -194,6 +227,7 @@ def run(ctx: CoverageContext) -> None:
     ctx.io.export_env("PY_TESTS_PASSED", str(total_passed))
     ctx.io.export_env("PY_TESTS_FAILED", str(total_failed))
     ctx.io.export_env("PY_TESTS_SKIPPED", str(total_skipped))
+    ctx.io.export_env("PY_TESTS_NOT_RUN", "0")
 
     lines = [
         "",

@@ -68,7 +68,9 @@ python3 scripts/coverage/coverage.py list-tests --suite python --profile gpu
 Main artifacts in workspace root:
 - `coverage.info` (native C/C++ lcov)
 - `cpp-test-durations.csv` (per-run C++ test durations in seconds)
+- `python-test-durations.csv` (per-run Python test durations in seconds)
 - `python-coverage.xml` (Python coverage XML)
+- `js-test-durations.csv` (per-run JS test durations in seconds)
 - `js-lcov.info` (Node.js lcov)
 - `coverage-report/index.html` (HTML report)
 - `.tmp/coverage-local/step_summary.md` (local summary when not in GitHub Actions)
@@ -86,3 +88,5 @@ Main artifacts in workspace root:
 ## Step-specific Environment
 - `CXX_TEST_NAMES=name1,name2,...`: limit `run-cpp-tests` to the named config entries. This is used by the GitHub Actions workflow to shard C++ coverage jobs.
 - `PY_TEST_NAMES=name1,name2,...`: limit `run-python-tests` to the named config entries. This is used by the GitHub Actions workflow to shard Python coverage jobs.
+- `JS_TEST_NAMES=name1,name2,...`: limit `run-js-tests` to the named config entries. This is used by the GitHub Actions workflow to shard JS coverage jobs.
+- `COVERAGE_WRITE_STEP_SUMMARY=false`: suppress per-step summary output so only the final workflow summary is published in GitHub Actions.

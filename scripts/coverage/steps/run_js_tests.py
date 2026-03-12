@@ -3,9 +3,11 @@
 
 from __future__ import annotations
 
+import csv
 import os
 from pathlib import Path
 import shutil
+import time
 
 from coverage_workflow import CoverageContext, load_js_tests, run_cmd, warn
 
@@ -30,6 +32,24 @@ def _compose_runtime_ld_library_path(ctx: CoverageContext) -> str:
     return ":".join(str(p) for p in paths)
 
 
+def _selected_test_names() -> list[str]:
+    raw = os.environ.get("JS_TEST_NAMES", "").strip()
+    if not raw:
+        return []
+    return [name.strip() for name in raw.split(",") if name.strip()]
+
+
+def _write_duration_report(ctx: CoverageContext, rows: list[tuple[str, str, float]]) -> None:
+    report_path = ctx.workspace / "js-test-durations.csv"
+    with report_path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["test_name", "status", "duration_seconds", "duration_minutes"])
+        for test_name, status, duration_seconds in rows:
+            writer.writerow([test_name, status, f"{duration_seconds:.3f}", f"{duration_seconds / 60.0:.3f}"])
+
+    ctx.io.export_env("JS_TEST_DURATION_REPORT", str(report_path))
+
+
 def run(ctx: CoverageContext) -> None:
     if shutil.which("node") is None or shutil.which("npm") is None:
         raise RuntimeError(
@@ -39,17 +59,28 @@ def run(ctx: CoverageContext) -> None:
 
     config = ctx.workspace / "scripts" / "coverage" / "config" / "tests_js.yml"
     tests = load_js_tests(config, ctx.test_profile)
+    selected_names = _selected_test_names()
+    if selected_names:
+        selected_set = set(selected_names)
+        known_names = {test.name for test in tests}
+        missing_names = [name for name in selected_names if name not in known_names]
+        if missing_names:
+            warn("Requested JS tests were not found in config: " + ", ".join(missing_names))
+        tests = [test for test in tests if test.name in selected_set]
 
     if not any(test.enabled for test in tests):
         skipped = [f"{test.name} ({test.skip_reason})" for test in tests]
+        _write_duration_report(ctx, [(test.name, "skipped", 0.0) for test in tests])
         ctx.io.export_env("JS_TESTS_TOTAL", str(len(skipped)))
         ctx.io.export_env("JS_TESTS_PASSED", "0")
         ctx.io.export_env("JS_TESTS_FAILED", "0")
         ctx.io.export_env("JS_TESTS_SKIPPED", str(len(skipped)))
+        ctx.io.export_env("JS_TESTS_NOT_RUN", "0")
 
         lines = [
             "",
             "## JS coverage test execution summary",
+            f"JS test selection: {', '.join(selected_names) if selected_names else 'all enabled tests'}",
             "JS tests executed: 0",
             "JS tests passed: 0",
             "JS tests failed: 0",
@@ -79,29 +110,39 @@ def run(ctx: CoverageContext) -> None:
     skipped_count = 0
     failed: list[str] = []
     skipped: list[str] = []
+    duration_rows: list[tuple[str, str, float]] = []
 
     for test in tests:
         if not test.enabled:
             skipped_count += 1
             skipped.append(f"{test.name} ({test.skip_reason})")
+            duration_rows.append((test.name, "skipped", 0.0))
             continue
 
         if test.kind != "command":
             skipped_count += 1
             skipped.append(f"{test.name} (unknown kind: {test.kind})")
+            duration_rows.append((test.name, "skipped", 0.0))
             continue
 
         executed += 1
         print(f"========== Running JS test: {test.name} ==========")
         command = os.path.expandvars(test.command)
+        started_at = time.monotonic()
         rc = run_cmd(["bash", "-lc", command], cwd=ctx.paths.js_dir, check=False)
+        duration_seconds = time.monotonic() - started_at
         if rc != 0:
             failed.append(f"{test.name} (exit {rc})")
+            duration_rows.append((test.name, "failed", duration_seconds))
+        else:
+            duration_rows.append((test.name, "passed", duration_seconds))
 
     source = ctx.workspace / "js-coverage" / "lcov.info"
     target = ctx.workspace / "js-lcov.info"
     if source.exists():
         shutil.copyfile(source, target)
+
+    _write_duration_report(ctx, duration_rows)
 
     total_failed = len(failed)
     total_passed = executed - total_failed
@@ -110,10 +151,12 @@ def run(ctx: CoverageContext) -> None:
     ctx.io.export_env("JS_TESTS_PASSED", str(total_passed))
     ctx.io.export_env("JS_TESTS_FAILED", str(total_failed))
     ctx.io.export_env("JS_TESTS_SKIPPED", str(skipped_count))
+    ctx.io.export_env("JS_TESTS_NOT_RUN", "0")
 
     lines = [
         "",
         "## JS coverage test execution summary",
+        f"JS test selection: {', '.join(selected_names) if selected_names else 'all enabled tests'}",
         f"JS tests executed: {executed}",
         f"JS tests passed: {total_passed}",
         f"JS tests failed: {total_failed}",

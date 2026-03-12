@@ -261,6 +261,7 @@ jobs:
     env:
       TEST_PROFILE: ${{ matrix.test_profile }}
       CXX_TEST_NAMES: ${{ matrix.cpp_test_names }}
+      COVERAGE_WRITE_STEP_SUMMARY: 'false'
     steps:
       - name: Setup python
         if: ${{ matrix.lane != 'gpu' }}
@@ -278,15 +279,35 @@ jobs:
           python3 --version
           python3 -m pip --version
 
+      - name: Seed C++ shard duration report
+        run: |
+          mkdir -p "${{ github.workspace }}/.coverage-stats"
+          cat > "${{ github.workspace }}/cpp-test-durations.csv" <<'EOF'
+          test_name,status,duration_seconds,duration_minutes
+          EOF
+          total=0
+          IFS=',' read -r -a tests <<< "${CXX_TEST_NAMES}"
+          for test_name in "${tests[@]}"; do
+            [[ -n "${test_name}" ]] || continue
+            printf '%s,%s,%s,%s\n' "${test_name}" "not_run" "0.000" "0.000" >> "${{ github.workspace }}/cpp-test-durations.csv"
+            total=$((total + 1))
+          done
+          {
+            echo "CXX_TESTS_TOTAL=${total}"
+            echo "CXX_TESTS_EXECUTED=0"
+            echo "CXX_TESTS_PASSED=0"
+            echo "CXX_TESTS_FAILED=0"
+            echo "CXX_TESTS_SKIPPED=0"
+            echo "CXX_TESTS_NOT_RUN=${total}"
+          } >> "$GITHUB_ENV"
+
       - name: Checkout sources for path mapping
-        continue-on-error: true
         uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         with:
           fetch-depth: 0
           submodules: 'true'
 
       - name: Download reusable build artifact
-        continue-on-error: true
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -294,7 +315,6 @@ jobs:
 
       - name: Restore build artifact into workspace
         id: restore_artifact
-        continue-on-error: true
         run: |
           set -euo pipefail
           src="${{ github.workspace }}/_artifact/coverage-build-artifact"
@@ -318,8 +338,8 @@ jobs:
             echo "ready=true" >> "$GITHUB_OUTPUT"
             echo "Build artifact restored from: ${src}"
           else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "Build artifact is missing required directories"
+            exit 1
           fi
 
       - name: Restore executable bits for C++ test binaries
@@ -393,6 +413,7 @@ jobs:
           CXX_TESTS_PASSED=${CXX_TESTS_PASSED:-0}
           CXX_TESTS_FAILED=${CXX_TESTS_FAILED:-0}
           CXX_TESTS_SKIPPED=${CXX_TESTS_SKIPPED:-0}
+          CXX_TESTS_NOT_RUN=${CXX_TESTS_NOT_RUN:-0}
           EOF
 
       - name: Detect native coverage data (C++)
@@ -562,6 +583,7 @@ jobs:
     env:
       TEST_PROFILE: ${{ matrix.test_profile }}
       PY_TEST_NAMES: ${{ matrix.py_test_names }}
+      COVERAGE_WRITE_STEP_SUMMARY: 'false'
     steps:
       - name: Setup python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -569,15 +591,34 @@ jobs:
           python-version: '3.10.10'
           architecture: 'x64'
 
+      - name: Seed Python shard duration report
+        run: |
+          mkdir -p "${{ github.workspace }}/.coverage-stats"
+          cat > "${{ github.workspace }}/python-test-durations.csv" <<'EOF'
+          test_name,status,duration_seconds,duration_minutes
+          EOF
+          total=0
+          IFS=',' read -r -a tests <<< "${PY_TEST_NAMES}"
+          for test_name in "${tests[@]}"; do
+            [[ -n "${test_name}" ]] || continue
+            printf '%s,%s,%s,%s\n' "${test_name}" "not_run" "0.000" "0.000" >> "${{ github.workspace }}/python-test-durations.csv"
+            total=$((total + 1))
+          done
+          {
+            echo "PY_TESTS_TOTAL=${total}"
+            echo "PY_TESTS_PASSED=0"
+            echo "PY_TESTS_FAILED=0"
+            echo "PY_TESTS_SKIPPED=0"
+            echo "PY_TESTS_NOT_RUN=${total}"
+          } >> "$GITHUB_ENV"
+
       - name: Checkout sources for path mapping
-        continue-on-error: true
         uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         with:
           fetch-depth: 0
           submodules: 'true'
 
       - name: Download reusable build artifact
-        continue-on-error: true
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -585,7 +626,6 @@ jobs:
 
       - name: Restore build artifact into workspace
         id: restore_artifact
-        continue-on-error: true
         run: |
           set -euo pipefail
           src="${{ github.workspace }}/_artifact/coverage-build-artifact"
@@ -609,8 +649,8 @@ jobs:
             echo "ready=true" >> "$GITHUB_OUTPUT"
             echo "Build artifact restored from: ${src}"
           else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "Build artifact is missing required directories"
+            exit 1
           fi
 
       - name: Install GPU runtime stack
@@ -673,6 +713,7 @@ jobs:
           PY_TESTS_PASSED=${PY_TESTS_PASSED:-0}
           PY_TESTS_FAILED=${PY_TESTS_FAILED:-0}
           PY_TESTS_SKIPPED=${PY_TESTS_SKIPPED:-0}
+          PY_TESTS_NOT_RUN=${PY_TESTS_NOT_RUN:-0}
           EOF
 
       - name: Detect native coverage data (Python-driven)
@@ -742,6 +783,7 @@ jobs:
             python-coverage.xml
             coverage.info
             coverage-report
+            python-test-durations.csv
             .coverage-stats/python.env
           if-no-files-found: warn
           retention-days: 14
@@ -773,16 +815,89 @@ jobs:
           fail_ci_if_error: true
           verbose: true
 
-  CoverageJS:
-    name: Coverage JS (${{ matrix.lane }})
-    if: ${{ always() && needs.ResolveMatrix.result == 'success' }}
+  ResolveJsShards:
+    name: Resolve JS coverage shards
+    if: ${{ always() && needs.ResolveMatrix.result == 'success' && needs.BuildCoverageArtifacts.result == 'success' }}
     needs: [ResolveMatrix, BuildCoverageArtifacts]
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+      count: ${{ steps.resolve.outputs.count }}
+    steps:
+      - name: Checkout sources for JS shard discovery
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        with:
+          fetch-depth: 0
+          submodules: 'true'
+
+      - name: Setup python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.10.10'
+          architecture: 'x64'
+
+      - name: Install shard discovery prerequisites
+        run: python3 -m pip install pyyaml
+
+      - name: Resolve JS shard matrix
+        id: resolve
+        env:
+          BASE_MATRIX: ${{ needs.ResolveMatrix.outputs.matrix }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import csv
+          import io
+          import json
+          import os
+          import subprocess
+
+          base_matrix = json.loads(os.environ["BASE_MATRIX"])
+          include = []
+
+          for lane in base_matrix["include"]:
+              output = subprocess.check_output(
+                  [
+                      "python3",
+                      "scripts/coverage/coverage.py",
+                      "list-tests",
+                      "--suite",
+                      "js",
+                      "--profile",
+                      lane["test_profile"],
+                  ],
+                  text=True,
+              )
+              rows = csv.DictReader(io.StringIO(output), delimiter="\t")
+              enabled = [row["name"] for row in rows if row["enabled"] == "1"]
+              if not enabled:
+                  continue
+              include.append(
+                  {
+                      **lane,
+                      "js_shard_index": 1,
+                      "js_shard_count": 1,
+                      "js_shard_label": "01-of-01",
+                      "js_test_count": len(enabled),
+                      "js_test_names": ",".join(enabled),
+                  }
+              )
+
+          print(f"matrix={json.dumps({'include': include}, separators=(',', ':'))}")
+          print(f"count={len(include)}")
+          PY
+
+  CoverageJS:
+    name: Coverage JS (${{ matrix.lane }} / shard ${{ matrix.js_shard_index }}/${{ matrix.js_shard_count }})
+    if: ${{ always() && needs.ResolveMatrix.result == 'success' && needs.ResolveJsShards.result == 'success' }}
+    needs: [ResolveMatrix, BuildCoverageArtifacts, ResolveJsShards]
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.ResolveMatrix.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.ResolveJsShards.outputs.matrix) }}
     runs-on: ${{ fromJSON(matrix.js_runner) }}
     env:
       TEST_PROFILE: ${{ matrix.test_profile }}
+      JS_TEST_NAMES: ${{ matrix.js_test_names }}
+      COVERAGE_WRITE_STEP_SUMMARY: 'false'
     steps:
       - name: Setup python
         if: ${{ matrix.lane != 'gpu' }}
@@ -815,15 +930,34 @@ jobs:
           node --version
           npm --version
 
+      - name: Seed JS shard duration report
+        run: |
+          mkdir -p "${{ github.workspace }}/.coverage-stats"
+          cat > "${{ github.workspace }}/js-test-durations.csv" <<'EOF'
+          test_name,status,duration_seconds,duration_minutes
+          EOF
+          total=0
+          IFS=',' read -r -a tests <<< "${JS_TEST_NAMES}"
+          for test_name in "${tests[@]}"; do
+            [[ -n "${test_name}" ]] || continue
+            printf '%s,%s,%s,%s\n' "${test_name}" "not_run" "0.000" "0.000" >> "${{ github.workspace }}/js-test-durations.csv"
+            total=$((total + 1))
+          done
+          {
+            echo "JS_TESTS_TOTAL=${total}"
+            echo "JS_TESTS_PASSED=0"
+            echo "JS_TESTS_FAILED=0"
+            echo "JS_TESTS_SKIPPED=0"
+            echo "JS_TESTS_NOT_RUN=${total}"
+          } >> "$GITHUB_ENV"
+
       - name: Checkout sources for path mapping
-        continue-on-error: true
         uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         with:
           fetch-depth: 0
           submodules: 'true'
 
       - name: Download reusable build artifact
-        continue-on-error: true
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -831,7 +965,6 @@ jobs:
 
       - name: Restore build artifact into workspace
         id: restore_artifact
-        continue-on-error: true
         run: |
           set -euo pipefail
           src="${{ github.workspace }}/_artifact/coverage-build-artifact"
@@ -855,8 +988,8 @@ jobs:
             echo "ready=true" >> "$GITHUB_OUTPUT"
             echo "Build artifact restored from: ${src}"
           else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "Build artifact is missing required JS directories"
+            exit 1
           fi
 
       - name: Install GPU runtime stack
@@ -904,7 +1037,10 @@ jobs:
       - name: Run Node.js bindings unit/e2e tests with coverage
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
         continue-on-error: true
-        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-js-tests
+        run: |
+          echo "JS shard ${{ matrix.js_shard_index }}/${{ matrix.js_shard_count }} running ${{ matrix.js_test_count }} test(s)"
+          echo "Selected tests: ${{ matrix.js_test_names }}"
+          python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-js-tests
 
       - name: Persist JS suite stats
         if: ${{ always() }}
@@ -916,6 +1052,7 @@ jobs:
           JS_TESTS_PASSED=${JS_TESTS_PASSED:-0}
           JS_TESTS_FAILED=${JS_TESTS_FAILED:-0}
           JS_TESTS_SKIPPED=${JS_TESTS_SKIPPED:-0}
+          JS_TESTS_NOT_RUN=${JS_TESTS_NOT_RUN:-0}
           EOF
 
       - name: Detect native coverage data (JS-driven)
@@ -980,11 +1117,12 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: coverage-js-${{ matrix.lane }}
+          name: coverage-js-${{ matrix.lane }}-shard-${{ matrix.js_shard_label }}
           path: |
             js-lcov.info
             coverage.info
             coverage-report
+            js-test-durations.csv
             .coverage-stats/js.env
           if-no-files-found: warn
           retention-days: 14
@@ -997,7 +1135,7 @@ jobs:
           files: js-lcov.info
           disable_search: true
           plugins: noop
-          flags: nodejs-bindings-unit-e2e-${{ matrix.lane }}
+          flags: nodejs-bindings-unit-e2e-${{ matrix.lane }}-shard-${{ matrix.js_shard_label }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
@@ -1010,7 +1148,7 @@ jobs:
           files: coverage.info
           disable_search: true
           plugins: noop
-          flags: cpp-runtime-js-${{ matrix.lane }}
+          flags: cpp-runtime-js-${{ matrix.lane }}-shard-${{ matrix.js_shard_label }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
@@ -1018,210 +1156,298 @@ jobs:
 
   CoverageSummary:
     if: ${{ always() && needs.ResolveMatrix.result == 'success' }}
-    continue-on-error: true
-    needs: [ResolveMatrix, BuildCoverageArtifacts, ResolveCppShards, ResolvePythonShards, CoverageCpp, CoveragePython, CoverageJS]
+    needs: [ResolveMatrix, BuildCoverageArtifacts, ResolveCppShards, ResolvePythonShards, ResolveJsShards, CoverageCpp, CoveragePython, CoverageJS]
     runs-on: ubuntu-latest-4-cores
     steps:
       - name: Download C++ artifacts
-        continue-on-error: true
+        if: ${{ needs.ResolveCppShards.outputs.count != '0' }}
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: coverage-cpp-*
           path: ${{ github.workspace }}/artifacts/cpp
 
       - name: Download Python artifacts
-        continue-on-error: true
+        if: ${{ needs.ResolvePythonShards.outputs.count != '0' }}
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: coverage-python-*
           path: ${{ github.workspace }}/artifacts/python
 
       - name: Download JS artifacts
-        continue-on-error: true
+        if: ${{ needs.ResolveJsShards.outputs.count != '0' }}
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: coverage-js-*
           path: ${{ github.workspace }}/artifacts/js
 
       - name: Generate final summary
-        continue-on-error: true
         env:
           COVERAGE_SELECTION: ${{ env.COVERAGE_SELECTION }}
           SELECTED_LANES: ${{ needs.ResolveMatrix.outputs.lanes }}
         run: |
-          set +e
+          python3 - <<'PY'
+          import os
+          from collections import defaultdict
+          from pathlib import Path
 
-          read_stat() {
-            file="$1"
-            key="$2"
-            if [[ -f "${file}" ]]; then
-              grep -E "^${key}=" "${file}" | tail -n1 | cut -d= -f2-
-            else
-              echo "0"
-            fi
-          }
+          workspace = Path("${{ github.workspace }}")
+          summary_path = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          selection = os.environ["COVERAGE_SELECTION"]
+          selected_lanes = os.environ["SELECTED_LANES"]
 
-          file_size() {
-            file="$1"
-            if [[ -s "${file}" ]]; then
-              stat -c '%s' "${file}"
-            else
-              echo "0"
-            fi
-          }
+          suite_defs = [
+              {
+                  "suite": "C++",
+                  "root": workspace / "artifacts" / "cpp",
+                  "glob": "coverage-cpp-*",
+                  "prefix": "coverage-cpp-",
+                  "stats_file": ".coverage-stats/cpp.env",
+                  "report_file": "coverage.info",
+                  "total_key": "CXX_TESTS_TOTAL",
+                  "executed_key": "CXX_TESTS_EXECUTED",
+                  "passed_key": "CXX_TESTS_PASSED",
+                  "failed_key": "CXX_TESTS_FAILED",
+                  "skipped_key": "CXX_TESTS_SKIPPED",
+                  "not_run_key": "CXX_TESTS_NOT_RUN",
+                  "flag_patterns": lambda lane: [
+                      f"cpp-runtime-cpp-{lane}-shard-*",
+                  ],
+              },
+              {
+                  "suite": "Python",
+                  "root": workspace / "artifacts" / "python",
+                  "glob": "coverage-python-*",
+                  "prefix": "coverage-python-",
+                  "stats_file": ".coverage-stats/python.env",
+                  "report_file": "python-coverage.xml",
+                  "total_key": "PY_TESTS_TOTAL",
+                  "executed_key": None,
+                  "passed_key": "PY_TESTS_PASSED",
+                  "failed_key": "PY_TESTS_FAILED",
+                  "skipped_key": "PY_TESTS_SKIPPED",
+                  "not_run_key": "PY_TESTS_NOT_RUN",
+                  "flag_patterns": lambda lane: [
+                      f"python-api-frontend-layer-ovc-{lane}-shard-*",
+                      f"cpp-runtime-python-{lane}-shard-*",
+                  ],
+              },
+              {
+                  "suite": "JS",
+                  "root": workspace / "artifacts" / "js",
+                  "glob": "coverage-js-*",
+                  "prefix": "coverage-js-",
+                  "stats_file": ".coverage-stats/js.env",
+                  "report_file": "js-lcov.info",
+                  "total_key": "JS_TESTS_TOTAL",
+                  "executed_key": None,
+                  "passed_key": "JS_TESTS_PASSED",
+                  "failed_key": "JS_TESTS_FAILED",
+                  "skipped_key": "JS_TESTS_SKIPPED",
+                  "not_run_key": "JS_TESTS_NOT_RUN",
+                  "flag_patterns": lambda lane: [
+                      f"nodejs-bindings-unit-e2e-{lane}-shard-*",
+                      f"cpp-runtime-js-{lane}-shard-*",
+                  ],
+              },
+          ]
 
-          overall_total=0
-          overall_executed=0
-          overall_passed=0
-          overall_failed=0
-          overall_skipped=0
-          rows_file="$(mktemp)"
+          def read_env_file(path: Path) -> dict[str, str]:
+              values: dict[str, str] = {}
+              if not path.is_file():
+                  return values
+              for raw_line in path.read_text(encoding="utf-8").splitlines():
+                  if "=" not in raw_line:
+                      continue
+                  key, value = raw_line.split("=", 1)
+                  values[key.strip()] = value.strip()
+              return values
 
-          append_row() {
-            local suite="$1"
-            local lane="$2"
-            local total="$3"
-            local executed="$4"
-            local passed="$5"
-            local failed="$6"
-            local skipped="$7"
-            local size="$8"
-            local flag="$9"
+          def to_int(values: dict[str, str], key: str | None) -> int:
+              if not key:
+                  return 0
+              raw = values.get(key, "0").strip()
+              try:
+                  return int(raw)
+              except ValueError:
+                  return 0
 
-            overall_total=$((overall_total + total))
-            overall_executed=$((overall_executed + executed))
-            overall_passed=$((overall_passed + passed))
-            overall_failed=$((overall_failed + failed))
-            overall_skipped=$((overall_skipped + skipped))
+          rows: list[dict[str, object]] = []
+          overall = {"total": 0, "executed": 0, "passed": 0, "failed": 0, "skipped": 0, "not_run": 0, "shards": 0}
 
-            printf '| %s | %s | %s | %s | %s | %s | %s | %s | `%s` |\n' \
-              "${lane}" "${suite}" "${total}" "${executed}" "${passed}" "${failed}" "${skipped}" "${size}" "${flag}" >> "${rows_file}"
-          }
+          for suite_def in suite_defs:
+              grouped: dict[tuple[str, str], dict[str, object]] = defaultdict(
+                  lambda: {
+                      "shards": 0,
+                      "total": 0,
+                      "executed": 0,
+                      "passed": 0,
+                      "failed": 0,
+                      "skipped": 0,
+                      "not_run": 0,
+                      "report_size": 0,
+                  }
+              )
+              if suite_def["root"].exists():
+                  for artifact_dir in sorted(suite_def["root"].glob(suite_def["glob"])):
+                      if not artifact_dir.is_dir():
+                          continue
+                      artifact_name = artifact_dir.name
+                      suffix = artifact_name[len(suite_def["prefix"]) :]
+                      lane = suffix.split("-shard-", 1)[0]
+                      stats = read_env_file(artifact_dir / suite_def["stats_file"])
+                      total = to_int(stats, suite_def["total_key"])
+                      passed = to_int(stats, suite_def["passed_key"])
+                      failed = to_int(stats, suite_def["failed_key"])
+                      skipped = to_int(stats, suite_def["skipped_key"])
+                      not_run = to_int(stats, suite_def["not_run_key"])
+                      executed = (
+                          to_int(stats, suite_def["executed_key"])
+                          if suite_def["executed_key"]
+                          else max(0, total - skipped - not_run)
+                      )
+                      report_path = artifact_dir / suite_def["report_file"]
+                      report_size = report_path.stat().st_size if report_path.is_file() else 0
+                      group = grouped[(lane, suite_def["suite"])]
+                      group["shards"] += 1
+                      group["total"] += total
+                      group["executed"] += executed
+                      group["passed"] += passed
+                      group["failed"] += failed
+                      group["skipped"] += skipped
+                      group["not_run"] += not_run
+                      group["report_size"] += report_size
 
-          for dir in "${{ github.workspace }}/artifacts/cpp"/coverage-cpp-*; do
-            [[ -d "${dir}" ]] || continue
-            lane="$(basename "${dir}")"
-            lane="${lane#coverage-cpp-}"
-            stats="${dir}/.coverage-stats/cpp.env"
-            cov="${dir}/coverage.info"
-            total="$(read_stat "${stats}" CXX_TESTS_TOTAL)"
-            executed="$(read_stat "${stats}" CXX_TESTS_EXECUTED)"
-            passed="$(read_stat "${stats}" CXX_TESTS_PASSED)"
-            failed="$(read_stat "${stats}" CXX_TESTS_FAILED)"
-            skipped="$(read_stat "${stats}" CXX_TESTS_SKIPPED)"
-            append_row "C++" "${lane}" "${total}" "${executed}" "${passed}" "${failed}" "${skipped}" "$(file_size "${cov}")" "cpp-runtime-cpp-${lane}"
-          done
+              for (lane, suite), group in sorted(grouped.items()):
+                  rows.append(
+                      {
+                          "lane": lane,
+                          "suite": suite,
+                          "shards": group["shards"],
+                          "total": group["total"],
+                          "executed": group["executed"],
+                          "passed": group["passed"],
+                          "failed": group["failed"],
+                          "skipped": group["skipped"],
+                          "not_run": group["not_run"],
+                          "report_size": group["report_size"],
+                          "flags": ", ".join(f"`{flag}`" for flag in suite_def["flag_patterns"](lane)),
+                      }
+                  )
+                  overall["shards"] += int(group["shards"])
+                  overall["total"] += int(group["total"])
+                  overall["executed"] += int(group["executed"])
+                  overall["passed"] += int(group["passed"])
+                  overall["failed"] += int(group["failed"])
+                  overall["skipped"] += int(group["skipped"])
+                  overall["not_run"] += int(group["not_run"])
 
-          for dir in "${{ github.workspace }}/artifacts/python"/coverage-python-*; do
-            [[ -d "${dir}" ]] || continue
-            lane="$(basename "${dir}")"
-            lane="${lane#coverage-python-}"
-            stats="${dir}/.coverage-stats/python.env"
-            cov="${dir}/python-coverage.xml"
-            total="$(read_stat "${stats}" PY_TESTS_TOTAL)"
-            skipped="$(read_stat "${stats}" PY_TESTS_SKIPPED)"
-            passed="$(read_stat "${stats}" PY_TESTS_PASSED)"
-            failed="$(read_stat "${stats}" PY_TESTS_FAILED)"
-            executed=$((total - skipped))
-            append_row "Python" "${lane}" "${total}" "${executed}" "${passed}" "${failed}" "${skipped}" "$(file_size "${cov}")" "python-api-frontend-layer-ovc-${lane}"
-          done
+          denominator = max(1, overall["executed"])
+          pass_rate = (overall["passed"] * 100.0) / denominator if overall["executed"] else 0.0
 
-          for dir in "${{ github.workspace }}/artifacts/js"/coverage-js-*; do
-            [[ -d "${dir}" ]] || continue
-            lane="$(basename "${dir}")"
-            lane="${lane#coverage-js-}"
-            stats="${dir}/.coverage-stats/js.env"
-            cov="${dir}/js-lcov.info"
-            total="$(read_stat "${stats}" JS_TESTS_TOTAL)"
-            skipped="$(read_stat "${stats}" JS_TESTS_SKIPPED)"
-            passed="$(read_stat "${stats}" JS_TESTS_PASSED)"
-            failed="$(read_stat "${stats}" JS_TESTS_FAILED)"
-            executed=$((total - skipped))
-            append_row "JS" "${lane}" "${total}" "${executed}" "${passed}" "${failed}" "${skipped}" "$(file_size "${cov}")" "nodejs-bindings-unit-e2e-${lane}"
-          done
+          lines = [
+              "## Coverage Summary",
+              "",
+              f"**Selection:** `{selection}`",
+              "",
+              f"**Active lanes:** `{selected_lanes}`",
+              "",
+              f"**Executed pass rate:** `{pass_rate:.1f}%`",
+              "",
+              "### Overall",
+              "| Metric | Value |",
+              "| --- | ---: |",
+              f"| Total test units | {overall['total']} |",
+              f"| Executed | {overall['executed']} |",
+              f"| Passed | {overall['passed']} |",
+              f"| Failed | {overall['failed']} |",
+              f"| Skipped | {overall['skipped']} |",
+              f"| Not run | {overall['not_run']} |",
+              f"| Shards | {overall['shards']} |",
+              "",
+              "### By Lane And Suite",
+              "| Lane | Suite | Shards | Total | Executed | Passed | Failed | Skipped | Not run | Report Size (bytes) | Codecov Flags |",
+              "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+          ]
 
-          if [[ "${overall_total}" -gt 0 ]]; then
-            overall_rate="$(awk "BEGIN { printf \"%.1f\", (${overall_passed}*100.0)/${overall_total} }")"
-          else
-            overall_rate="0.0"
-          fi
+          if rows:
+              for row in rows:
+                  lines.append(
+                      f"| {row['lane']} | {row['suite']} | {row['shards']} | {row['total']} | {row['executed']} | "
+                      f"{row['passed']} | {row['failed']} | {row['skipped']} | {row['not_run']} | {row['report_size']} | {row['flags']} |"
+                  )
+          else:
+              lines.append("| - | - | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | - |")
 
-          {
-            echo "## Coverage Summary"
-            echo ""
-            echo "**Selection:** \`${COVERAGE_SELECTION}\`"
-            echo ""
-            echo "**Active lanes:** \`${SELECTED_LANES}\`"
-            echo ""
-            echo "**Overall pass rate:** \`${overall_rate}%\`"
-            echo ""
-            echo "### Overall"
-            echo "| Metric | Value |"
-            echo "| --- | ---: |"
-            echo "| Total test units | ${overall_total} |"
-            echo "| Executed | ${overall_executed} |"
-            echo "| Passed | ${overall_passed} |"
-            echo "| Failed | ${overall_failed} |"
-            echo "| Skipped | ${overall_skipped} |"
-            echo ""
-            echo "### By Lane And Suite"
-            echo "| Lane | Suite | Total | Executed | Passed | Failed | Skipped | Report Size (bytes) | Codecov Flag |"
-            echo "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |"
-            cat "${rows_file}"
-            echo ""
-            echo "### Native C++ Runtime Flags By Suite"
-            for lane in ${SELECTED_LANES//,/ }; do
-              echo "- \`cpp-runtime-cpp-${lane}\`"
-              echo "- \`cpp-runtime-python-${lane}\`"
-              echo "- \`cpp-runtime-js-${lane}\`"
-            done
-          } >> "${GITHUB_STEP_SUMMARY}"
+          lines.extend(
+              [
+                  "",
+                  "Merged duration artifact: `coverage-test-durations` (`coverage-test-durations-all.csv`)",
+                  "",
+              ]
+          )
+          summary_path.write_text("\n".join(lines), encoding="utf-8")
+          PY
 
-          rm -f "${rows_file}"
-
-      - name: Merge C++ duration reports
-        continue-on-error: true
+      - name: Merge duration reports
         run: |
           python3 - <<'PY'
           import csv
           from pathlib import Path
 
-          root = Path("${{ github.workspace }}/artifacts/cpp")
-          output = Path("${{ github.workspace }}/cpp-test-durations-all.csv")
+          workspace = Path("${{ github.workspace }}")
+          output = workspace / "coverage-test-durations-all.csv"
           rows = []
 
-          if root.exists():
-              for report in sorted(root.glob("coverage-cpp-*/cpp-test-durations.csv")):
-                  shard = report.parent.name
+          suite_roots = [
+              ("cpp", workspace / "artifacts" / "cpp", "coverage-cpp-*", "cpp-test-durations.csv", "coverage-cpp-"),
+              ("python", workspace / "artifacts" / "python", "coverage-python-*", "python-test-durations.csv", "coverage-python-"),
+              ("js", workspace / "artifacts" / "js", "coverage-js-*", "js-test-durations.csv", "coverage-js-"),
+          ]
+
+          for suite, root, artifact_glob, report_name, prefix in suite_roots:
+              if not root.exists():
+                  continue
+              for artifact_dir in sorted(root.glob(artifact_glob)):
+                  report = artifact_dir / report_name
+                  if not report.is_file():
+                      continue
+                  artifact = artifact_dir.name
+                  suffix = artifact[len(prefix):]
+                  lane = suffix.split("-shard-", 1)[0]
                   with report.open(encoding="utf-8", newline="") as f:
                       reader = csv.DictReader(f)
                       for row in reader:
                           rows.append(
                               {
-                                  "artifact": shard,
+                                  "suite": suite,
+                                  "lane": lane,
+                                  "artifact": artifact,
                                   "test_name": row.get("test_name", ""),
                                   "status": row.get("status", ""),
                                   "duration_seconds": row.get("duration_seconds", "0"),
+                                  "duration_minutes": row.get("duration_minutes", "0"),
                               }
                           )
 
-          rows.sort(key=lambda row: (-float(row["duration_seconds"] or 0), row["test_name"]))
+          rows.sort(key=lambda row: (-float(row["duration_seconds"] or 0), row["suite"], row["test_name"]))
 
           with output.open("w", encoding="utf-8", newline="") as f:
-              writer = csv.DictWriter(f, fieldnames=["artifact", "test_name", "status", "duration_seconds"])
+              writer = csv.DictWriter(
+                  f,
+                  fieldnames=["suite", "lane", "artifact", "test_name", "status", "duration_seconds", "duration_minutes"],
+              )
               writer.writeheader()
               writer.writerows(rows)
 
-          print(f"Wrote {len(rows)} C++ duration row(s) to {output}")
+          print(f"Wrote {len(rows)} duration row(s) to {output}")
           PY
 
-      - name: Upload merged C++ duration artifact
+      - name: Upload merged duration artifact
         if: ${{ always() }}
-        continue-on-error: true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: coverage-cpp-durations
-          path: cpp-test-durations-all.csv
+          name: coverage-test-durations
+          path: coverage-test-durations-all.csv
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0

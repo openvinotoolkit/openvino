@@ -90,6 +90,7 @@ class GithubIO:
         self.workspace = workspace
         self._github_env = os.environ.get("GITHUB_ENV", "").strip()
         self._github_summary = os.environ.get("GITHUB_STEP_SUMMARY", "").strip()
+        self._summary_enabled = os.environ.get("COVERAGE_WRITE_STEP_SUMMARY", "true").strip().lower() != "false"
 
         self.local_state_dir = workspace / ".tmp" / "coverage-local"
         self.local_env_file = self.local_state_dir / "github_env"
@@ -137,6 +138,8 @@ class GithubIO:
         os.environ[key] = value
 
     def append_summary(self, text: str) -> None:
+        if not self._summary_enabled:
+            return
         with self.summary_file.open("a", encoding="utf-8") as f:
             f.write(text)
             if not text.endswith("\n"):

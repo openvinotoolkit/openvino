@@ -156,9 +156,9 @@ def _write_duration_report(ctx: CoverageContext, results: list[_CppTestRunResult
     report_path = ctx.workspace / "cpp-test-durations.csv"
     with report_path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["test_name", "status", "duration_seconds"])
+        writer.writerow(["test_name", "status", "duration_seconds", "duration_minutes"])
         for result in results:
-            writer.writerow([result.name, result.status, f"{result.duration_seconds:.3f}"])
+            writer.writerow([result.name, result.status, f"{result.duration_seconds:.3f}", f"{result.duration_seconds / 60.0:.3f}"])
 
     total_duration = sum(result.duration_seconds for result in results)
     ctx.io.export_env("CXX_TEST_DURATION_REPORT", str(report_path))
@@ -317,6 +317,7 @@ def run(ctx: CoverageContext) -> None:
     ctx.io.export_env("CXX_TESTS_PASSED", str(total_passed))
     ctx.io.export_env("CXX_TESTS_FAILED", str(total_failed))
     ctx.io.export_env("CXX_TESTS_SKIPPED", str(total_skipped))
+    ctx.io.export_env("CXX_TESTS_NOT_RUN", "0")
 
     lines = [
         "## C++ coverage test execution summary",
