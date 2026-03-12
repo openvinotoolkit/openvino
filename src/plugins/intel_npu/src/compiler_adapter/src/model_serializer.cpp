@@ -260,8 +260,22 @@ ov::intel_npu::ModelSerializerVersion determineModelSerializerVersion(
                    : ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY;
     }
 
-    if (serializerVersion != ov::intel_npu::ModelSerializerVersion::AUTO) {
-        // The user has chosen one explicit version. Attempt to use it, and throw if not successful
+    switch (serializerVersion) {
+    case ov::intel_npu::ModelSerializerVersion::AUTO:
+        // The "AUTO" value allows the plugin to pick the option it considers best. Try the more performant version
+        // first
+        if (isOptionValueSupportedByCompiler(ov::intel_npu::model_serializer_version.name(),
+                                             intel_npu::MODEL_SERIALIZER_VERSION::toString(
+                                                 ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY))) {
+            return ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY;
+        }
+        return ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY;
+    case ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY:
+        // We assume this version is always supported
+        return serializerVersion;
+    default:
+        // The user has chosen one explicit version, other than "all-weights-copy". Attempt to use it, and throw if not
+        // successful
         if (!isOptionValueSupportedByCompiler(ov::intel_npu::model_serializer_version.name(),
                                               intel_npu::MODEL_SERIALIZER_VERSION::toString(serializerVersion))) {
             OPENVINO_THROW("The NPU plugin was requested to use the model serializer version \"",
@@ -270,14 +284,6 @@ ov::intel_npu::ModelSerializerVersion determineModelSerializerVersion(
         }
         return serializerVersion;
     }
-
-    // The "AUTO" value allows the plugin to pick the option it considers best. Try the more performant version first
-    if (isOptionValueSupportedByCompiler(
-            ov::intel_npu::model_serializer_version.name(),
-            intel_npu::MODEL_SERIALIZER_VERSION::toString(ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY))) {
-        return ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY;
-    }
-    return ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY;
 }
 
 }  // namespace
