@@ -74,6 +74,31 @@ def _write_duration_report(ctx: CoverageContext, rows: list[tuple[str, str, floa
     ctx.io.export_env("PY_TEST_DURATION_REPORT", str(report_path))
 
 
+def _write_stats_report(
+    ctx: CoverageContext,
+    *,
+    total: int,
+    passed: int,
+    failed: int,
+    skipped: int,
+    not_run: int = 0,
+) -> None:
+    report_path = ctx.workspace / "python-coverage-stats.env"
+    report_path.write_text(
+        "\n".join(
+            [
+                f"PY_TESTS_TOTAL={total}",
+                f"PY_TESTS_PASSED={passed}",
+                f"PY_TESTS_FAILED={failed}",
+                f"PY_TESTS_SKIPPED={skipped}",
+                f"PY_TESTS_NOT_RUN={not_run}",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
 def _run_pytest(test_name: str, target: str, args: str, env_assignments: str) -> tuple[int, float]:
     cmd = ["python3", "-m", "pytest", "-ra", "--durations=50", target]
     if args:
@@ -117,6 +142,7 @@ def run(ctx: CoverageContext) -> None:
         ctx.io.export_env("PY_TESTS_FAILED", "0")
         ctx.io.export_env("PY_TESTS_SKIPPED", str(len(skipped)))
         ctx.io.export_env("PY_TESTS_NOT_RUN", "0")
+        _write_stats_report(ctx, total=len(skipped), passed=0, failed=0, skipped=len(skipped), not_run=0)
 
         lines = [
             "",
@@ -228,6 +254,14 @@ def run(ctx: CoverageContext) -> None:
     ctx.io.export_env("PY_TESTS_FAILED", str(total_failed))
     ctx.io.export_env("PY_TESTS_SKIPPED", str(total_skipped))
     ctx.io.export_env("PY_TESTS_NOT_RUN", "0")
+    _write_stats_report(
+        ctx,
+        total=executed + total_skipped,
+        passed=total_passed,
+        failed=total_failed,
+        skipped=total_skipped,
+        not_run=0,
+    )
 
     lines = [
         "",

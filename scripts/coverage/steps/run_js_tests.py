@@ -50,6 +50,31 @@ def _write_duration_report(ctx: CoverageContext, rows: list[tuple[str, str, floa
     ctx.io.export_env("JS_TEST_DURATION_REPORT", str(report_path))
 
 
+def _write_stats_report(
+    ctx: CoverageContext,
+    *,
+    total: int,
+    passed: int,
+    failed: int,
+    skipped: int,
+    not_run: int = 0,
+) -> None:
+    report_path = ctx.workspace / "js-coverage-stats.env"
+    report_path.write_text(
+        "\n".join(
+            [
+                f"JS_TESTS_TOTAL={total}",
+                f"JS_TESTS_PASSED={passed}",
+                f"JS_TESTS_FAILED={failed}",
+                f"JS_TESTS_SKIPPED={skipped}",
+                f"JS_TESTS_NOT_RUN={not_run}",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
 def run(ctx: CoverageContext) -> None:
     if shutil.which("node") is None or shutil.which("npm") is None:
         raise RuntimeError(
@@ -76,6 +101,7 @@ def run(ctx: CoverageContext) -> None:
         ctx.io.export_env("JS_TESTS_FAILED", "0")
         ctx.io.export_env("JS_TESTS_SKIPPED", str(len(skipped)))
         ctx.io.export_env("JS_TESTS_NOT_RUN", "0")
+        _write_stats_report(ctx, total=len(skipped), passed=0, failed=0, skipped=len(skipped), not_run=0)
 
         lines = [
             "",
@@ -152,6 +178,14 @@ def run(ctx: CoverageContext) -> None:
     ctx.io.export_env("JS_TESTS_FAILED", str(total_failed))
     ctx.io.export_env("JS_TESTS_SKIPPED", str(skipped_count))
     ctx.io.export_env("JS_TESTS_NOT_RUN", "0")
+    _write_stats_report(
+        ctx,
+        total=executed + skipped_count,
+        passed=total_passed,
+        failed=total_failed,
+        skipped=skipped_count,
+        not_run=0,
+    )
 
     lines = [
         "",

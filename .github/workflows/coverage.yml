@@ -281,7 +281,6 @@ jobs:
 
       - name: Seed C++ shard duration report
         run: |
-          mkdir -p "${{ github.workspace }}/.coverage-stats"
           cat > "${{ github.workspace }}/cpp-test-durations.csv" <<'EOF'
           test_name,status,duration_seconds,duration_minutes
           EOF
@@ -292,14 +291,14 @@ jobs:
             printf '%s,%s,%s,%s\n' "${test_name}" "not_run" "0.000" "0.000" >> "${{ github.workspace }}/cpp-test-durations.csv"
             total=$((total + 1))
           done
-          {
-            echo "CXX_TESTS_TOTAL=${total}"
-            echo "CXX_TESTS_EXECUTED=0"
-            echo "CXX_TESTS_PASSED=0"
-            echo "CXX_TESTS_FAILED=0"
-            echo "CXX_TESTS_SKIPPED=0"
-            echo "CXX_TESTS_NOT_RUN=${total}"
-          } >> "$GITHUB_ENV"
+          cat > "${{ github.workspace }}/cpp-coverage-stats.env" <<EOF
+          CXX_TESTS_TOTAL=${total}
+          CXX_TESTS_EXECUTED=0
+          CXX_TESTS_PASSED=0
+          CXX_TESTS_FAILED=0
+          CXX_TESTS_SKIPPED=0
+          CXX_TESTS_NOT_RUN=${total}
+          EOF
 
       - name: Checkout sources for path mapping
         uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
@@ -402,20 +401,6 @@ jobs:
           echo "Selected tests: ${{ matrix.cpp_test_names }}"
           python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-cpp-tests
 
-      - name: Persist C++ suite stats
-        if: ${{ always() }}
-        continue-on-error: true
-        run: |
-          mkdir -p "${{ github.workspace }}/.coverage-stats"
-          cat > "${{ github.workspace }}/.coverage-stats/cpp.env" <<EOF
-          CXX_TESTS_TOTAL=${CXX_TESTS_TOTAL:-0}
-          CXX_TESTS_EXECUTED=${CXX_TESTS_EXECUTED:-0}
-          CXX_TESTS_PASSED=${CXX_TESTS_PASSED:-0}
-          CXX_TESTS_FAILED=${CXX_TESTS_FAILED:-0}
-          CXX_TESTS_SKIPPED=${CXX_TESTS_SKIPPED:-0}
-          CXX_TESTS_NOT_RUN=${CXX_TESTS_NOT_RUN:-0}
-          EOF
-
       - name: Detect native coverage data (C++)
         id: detect_gcda
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
@@ -477,7 +462,7 @@ jobs:
             coverage.info
             coverage-report
             cpp-test-durations.csv
-            .coverage-stats/cpp.env
+            cpp-coverage-stats.env
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
@@ -593,7 +578,6 @@ jobs:
 
       - name: Seed Python shard duration report
         run: |
-          mkdir -p "${{ github.workspace }}/.coverage-stats"
           cat > "${{ github.workspace }}/python-test-durations.csv" <<'EOF'
           test_name,status,duration_seconds,duration_minutes
           EOF
@@ -604,13 +588,13 @@ jobs:
             printf '%s,%s,%s,%s\n' "${test_name}" "not_run" "0.000" "0.000" >> "${{ github.workspace }}/python-test-durations.csv"
             total=$((total + 1))
           done
-          {
-            echo "PY_TESTS_TOTAL=${total}"
-            echo "PY_TESTS_PASSED=0"
-            echo "PY_TESTS_FAILED=0"
-            echo "PY_TESTS_SKIPPED=0"
-            echo "PY_TESTS_NOT_RUN=${total}"
-          } >> "$GITHUB_ENV"
+          cat > "${{ github.workspace }}/python-coverage-stats.env" <<EOF
+          PY_TESTS_TOTAL=${total}
+          PY_TESTS_PASSED=0
+          PY_TESTS_FAILED=0
+          PY_TESTS_SKIPPED=0
+          PY_TESTS_NOT_RUN=${total}
+          EOF
 
       - name: Checkout sources for path mapping
         uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
@@ -703,19 +687,6 @@ jobs:
           echo "Selected tests: ${{ matrix.py_test_names }}"
           python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-python-tests
 
-      - name: Persist Python suite stats
-        if: ${{ always() }}
-        continue-on-error: true
-        run: |
-          mkdir -p "${{ github.workspace }}/.coverage-stats"
-          cat > "${{ github.workspace }}/.coverage-stats/python.env" <<EOF
-          PY_TESTS_TOTAL=${PY_TESTS_TOTAL:-0}
-          PY_TESTS_PASSED=${PY_TESTS_PASSED:-0}
-          PY_TESTS_FAILED=${PY_TESTS_FAILED:-0}
-          PY_TESTS_SKIPPED=${PY_TESTS_SKIPPED:-0}
-          PY_TESTS_NOT_RUN=${PY_TESTS_NOT_RUN:-0}
-          EOF
-
       - name: Detect native coverage data (Python-driven)
         id: detect_gcda
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
@@ -784,7 +755,7 @@ jobs:
             coverage.info
             coverage-report
             python-test-durations.csv
-            .coverage-stats/python.env
+            python-coverage-stats.env
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
@@ -932,7 +903,6 @@ jobs:
 
       - name: Seed JS shard duration report
         run: |
-          mkdir -p "${{ github.workspace }}/.coverage-stats"
           cat > "${{ github.workspace }}/js-test-durations.csv" <<'EOF'
           test_name,status,duration_seconds,duration_minutes
           EOF
@@ -943,13 +913,13 @@ jobs:
             printf '%s,%s,%s,%s\n' "${test_name}" "not_run" "0.000" "0.000" >> "${{ github.workspace }}/js-test-durations.csv"
             total=$((total + 1))
           done
-          {
-            echo "JS_TESTS_TOTAL=${total}"
-            echo "JS_TESTS_PASSED=0"
-            echo "JS_TESTS_FAILED=0"
-            echo "JS_TESTS_SKIPPED=0"
-            echo "JS_TESTS_NOT_RUN=${total}"
-          } >> "$GITHUB_ENV"
+          cat > "${{ github.workspace }}/js-coverage-stats.env" <<EOF
+          JS_TESTS_TOTAL=${total}
+          JS_TESTS_PASSED=0
+          JS_TESTS_FAILED=0
+          JS_TESTS_SKIPPED=0
+          JS_TESTS_NOT_RUN=${total}
+          EOF
 
       - name: Checkout sources for path mapping
         uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
@@ -1042,19 +1012,6 @@ jobs:
           echo "Selected tests: ${{ matrix.js_test_names }}"
           python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-js-tests
 
-      - name: Persist JS suite stats
-        if: ${{ always() }}
-        continue-on-error: true
-        run: |
-          mkdir -p "${{ github.workspace }}/.coverage-stats"
-          cat > "${{ github.workspace }}/.coverage-stats/js.env" <<EOF
-          JS_TESTS_TOTAL=${JS_TESTS_TOTAL:-0}
-          JS_TESTS_PASSED=${JS_TESTS_PASSED:-0}
-          JS_TESTS_FAILED=${JS_TESTS_FAILED:-0}
-          JS_TESTS_SKIPPED=${JS_TESTS_SKIPPED:-0}
-          JS_TESTS_NOT_RUN=${JS_TESTS_NOT_RUN:-0}
-          EOF
-
       - name: Detect native coverage data (JS-driven)
         id: detect_gcda
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
@@ -1123,7 +1080,7 @@ jobs:
             coverage.info
             coverage-report
             js-test-durations.csv
-            .coverage-stats/js.env
+            js-coverage-stats.env
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
@@ -1159,6 +1116,18 @@ jobs:
     needs: [ResolveMatrix, BuildCoverageArtifacts, ResolveCppShards, ResolvePythonShards, ResolveJsShards, CoverageCpp, CoveragePython, CoverageJS]
     runs-on: ubuntu-latest-4-cores
     steps:
+      - name: Checkout sources for summary tools
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        with:
+          fetch-depth: 0
+          submodules: 'true'
+
+      - name: Setup python for summary tools
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.10.10'
+          architecture: 'x64'
+
       - name: Download C++ artifacts
         if: ${{ needs.ResolveCppShards.outputs.count != '0' }}
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
@@ -1185,262 +1154,17 @@ jobs:
           COVERAGE_SELECTION: ${{ env.COVERAGE_SELECTION }}
           SELECTED_LANES: ${{ needs.ResolveMatrix.outputs.lanes }}
         run: |
-          python3 - <<'PY'
-          import os
-          from collections import defaultdict
-          from pathlib import Path
-
-          workspace = Path("${{ github.workspace }}")
-          summary_path = Path(os.environ["GITHUB_STEP_SUMMARY"])
-          selection = os.environ["COVERAGE_SELECTION"]
-          selected_lanes = os.environ["SELECTED_LANES"]
-
-          suite_defs = [
-              {
-                  "suite": "C++",
-                  "root": workspace / "artifacts" / "cpp",
-                  "glob": "coverage-cpp-*",
-                  "prefix": "coverage-cpp-",
-                  "stats_file": ".coverage-stats/cpp.env",
-                  "report_file": "coverage.info",
-                  "total_key": "CXX_TESTS_TOTAL",
-                  "executed_key": "CXX_TESTS_EXECUTED",
-                  "passed_key": "CXX_TESTS_PASSED",
-                  "failed_key": "CXX_TESTS_FAILED",
-                  "skipped_key": "CXX_TESTS_SKIPPED",
-                  "not_run_key": "CXX_TESTS_NOT_RUN",
-                  "flag_patterns": lambda lane: [
-                      f"cpp-runtime-cpp-{lane}-shard-*",
-                  ],
-              },
-              {
-                  "suite": "Python",
-                  "root": workspace / "artifacts" / "python",
-                  "glob": "coverage-python-*",
-                  "prefix": "coverage-python-",
-                  "stats_file": ".coverage-stats/python.env",
-                  "report_file": "python-coverage.xml",
-                  "total_key": "PY_TESTS_TOTAL",
-                  "executed_key": None,
-                  "passed_key": "PY_TESTS_PASSED",
-                  "failed_key": "PY_TESTS_FAILED",
-                  "skipped_key": "PY_TESTS_SKIPPED",
-                  "not_run_key": "PY_TESTS_NOT_RUN",
-                  "flag_patterns": lambda lane: [
-                      f"python-api-frontend-layer-ovc-{lane}-shard-*",
-                      f"cpp-runtime-python-{lane}-shard-*",
-                  ],
-              },
-              {
-                  "suite": "JS",
-                  "root": workspace / "artifacts" / "js",
-                  "glob": "coverage-js-*",
-                  "prefix": "coverage-js-",
-                  "stats_file": ".coverage-stats/js.env",
-                  "report_file": "js-lcov.info",
-                  "total_key": "JS_TESTS_TOTAL",
-                  "executed_key": None,
-                  "passed_key": "JS_TESTS_PASSED",
-                  "failed_key": "JS_TESTS_FAILED",
-                  "skipped_key": "JS_TESTS_SKIPPED",
-                  "not_run_key": "JS_TESTS_NOT_RUN",
-                  "flag_patterns": lambda lane: [
-                      f"nodejs-bindings-unit-e2e-{lane}-shard-*",
-                      f"cpp-runtime-js-{lane}-shard-*",
-                  ],
-              },
-          ]
-
-          def read_env_file(path: Path) -> dict[str, str]:
-              values: dict[str, str] = {}
-              if not path.is_file():
-                  return values
-              for raw_line in path.read_text(encoding="utf-8").splitlines():
-                  if "=" not in raw_line:
-                      continue
-                  key, value = raw_line.split("=", 1)
-                  values[key.strip()] = value.strip()
-              return values
-
-          def to_int(values: dict[str, str], key: str | None) -> int:
-              if not key:
-                  return 0
-              raw = values.get(key, "0").strip()
-              try:
-                  return int(raw)
-              except ValueError:
-                  return 0
-
-          rows: list[dict[str, object]] = []
-          overall = {"total": 0, "executed": 0, "passed": 0, "failed": 0, "skipped": 0, "not_run": 0, "shards": 0}
-
-          for suite_def in suite_defs:
-              grouped: dict[tuple[str, str], dict[str, object]] = defaultdict(
-                  lambda: {
-                      "shards": 0,
-                      "total": 0,
-                      "executed": 0,
-                      "passed": 0,
-                      "failed": 0,
-                      "skipped": 0,
-                      "not_run": 0,
-                      "report_size": 0,
-                  }
-              )
-              if suite_def["root"].exists():
-                  for artifact_dir in sorted(suite_def["root"].glob(suite_def["glob"])):
-                      if not artifact_dir.is_dir():
-                          continue
-                      artifact_name = artifact_dir.name
-                      suffix = artifact_name[len(suite_def["prefix"]) :]
-                      lane = suffix.split("-shard-", 1)[0]
-                      stats = read_env_file(artifact_dir / suite_def["stats_file"])
-                      total = to_int(stats, suite_def["total_key"])
-                      passed = to_int(stats, suite_def["passed_key"])
-                      failed = to_int(stats, suite_def["failed_key"])
-                      skipped = to_int(stats, suite_def["skipped_key"])
-                      not_run = to_int(stats, suite_def["not_run_key"])
-                      executed = (
-                          to_int(stats, suite_def["executed_key"])
-                          if suite_def["executed_key"]
-                          else max(0, total - skipped - not_run)
-                      )
-                      report_path = artifact_dir / suite_def["report_file"]
-                      report_size = report_path.stat().st_size if report_path.is_file() else 0
-                      group = grouped[(lane, suite_def["suite"])]
-                      group["shards"] += 1
-                      group["total"] += total
-                      group["executed"] += executed
-                      group["passed"] += passed
-                      group["failed"] += failed
-                      group["skipped"] += skipped
-                      group["not_run"] += not_run
-                      group["report_size"] += report_size
-
-              for (lane, suite), group in sorted(grouped.items()):
-                  rows.append(
-                      {
-                          "lane": lane,
-                          "suite": suite,
-                          "shards": group["shards"],
-                          "total": group["total"],
-                          "executed": group["executed"],
-                          "passed": group["passed"],
-                          "failed": group["failed"],
-                          "skipped": group["skipped"],
-                          "not_run": group["not_run"],
-                          "report_size": group["report_size"],
-                          "flags": ", ".join(f"`{flag}`" for flag in suite_def["flag_patterns"](lane)),
-                      }
-                  )
-                  overall["shards"] += int(group["shards"])
-                  overall["total"] += int(group["total"])
-                  overall["executed"] += int(group["executed"])
-                  overall["passed"] += int(group["passed"])
-                  overall["failed"] += int(group["failed"])
-                  overall["skipped"] += int(group["skipped"])
-                  overall["not_run"] += int(group["not_run"])
-
-          denominator = max(1, overall["executed"])
-          pass_rate = (overall["passed"] * 100.0) / denominator if overall["executed"] else 0.0
-
-          lines = [
-              "## Coverage Summary",
-              "",
-              f"**Selection:** `{selection}`",
-              "",
-              f"**Active lanes:** `{selected_lanes}`",
-              "",
-              f"**Executed pass rate:** `{pass_rate:.1f}%`",
-              "",
-              "### Overall",
-              "| Metric | Value |",
-              "| --- | ---: |",
-              f"| Total test units | {overall['total']} |",
-              f"| Executed | {overall['executed']} |",
-              f"| Passed | {overall['passed']} |",
-              f"| Failed | {overall['failed']} |",
-              f"| Skipped | {overall['skipped']} |",
-              f"| Not run | {overall['not_run']} |",
-              f"| Shards | {overall['shards']} |",
-              "",
-              "### By Lane And Suite",
-              "| Lane | Suite | Shards | Total | Executed | Passed | Failed | Skipped | Not run | Report Size (bytes) | Codecov Flags |",
-              "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
-          ]
-
-          if rows:
-              for row in rows:
-                  lines.append(
-                      f"| {row['lane']} | {row['suite']} | {row['shards']} | {row['total']} | {row['executed']} | "
-                      f"{row['passed']} | {row['failed']} | {row['skipped']} | {row['not_run']} | {row['report_size']} | {row['flags']} |"
-                  )
-          else:
-              lines.append("| - | - | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | - |")
-
-          lines.extend(
-              [
-                  "",
-                  "Merged duration artifact: `coverage-test-durations` (`coverage-test-durations-all.csv`)",
-                  "",
-              ]
-          )
-          summary_path.write_text("\n".join(lines), encoding="utf-8")
-          PY
+          python3 scripts/coverage/ci_reports.py render-summary \
+            --workspace "${{ github.workspace }}" \
+            --summary-file "${GITHUB_STEP_SUMMARY}" \
+            --selection "${COVERAGE_SELECTION}" \
+            --selected-lanes "${SELECTED_LANES}"
 
       - name: Merge duration reports
         run: |
-          python3 - <<'PY'
-          import csv
-          from pathlib import Path
-
-          workspace = Path("${{ github.workspace }}")
-          output = workspace / "coverage-test-durations-all.csv"
-          rows = []
-
-          suite_roots = [
-              ("cpp", workspace / "artifacts" / "cpp", "coverage-cpp-*", "cpp-test-durations.csv", "coverage-cpp-"),
-              ("python", workspace / "artifacts" / "python", "coverage-python-*", "python-test-durations.csv", "coverage-python-"),
-              ("js", workspace / "artifacts" / "js", "coverage-js-*", "js-test-durations.csv", "coverage-js-"),
-          ]
-
-          for suite, root, artifact_glob, report_name, prefix in suite_roots:
-              if not root.exists():
-                  continue
-              for artifact_dir in sorted(root.glob(artifact_glob)):
-                  report = artifact_dir / report_name
-                  if not report.is_file():
-                      continue
-                  artifact = artifact_dir.name
-                  suffix = artifact[len(prefix):]
-                  lane = suffix.split("-shard-", 1)[0]
-                  with report.open(encoding="utf-8", newline="") as f:
-                      reader = csv.DictReader(f)
-                      for row in reader:
-                          rows.append(
-                              {
-                                  "suite": suite,
-                                  "lane": lane,
-                                  "artifact": artifact,
-                                  "test_name": row.get("test_name", ""),
-                                  "status": row.get("status", ""),
-                                  "duration_seconds": row.get("duration_seconds", "0"),
-                                  "duration_minutes": row.get("duration_minutes", "0"),
-                              }
-                          )
-
-          rows.sort(key=lambda row: (-float(row["duration_seconds"] or 0), row["suite"], row["test_name"]))
-
-          with output.open("w", encoding="utf-8", newline="") as f:
-              writer = csv.DictWriter(
-                  f,
-                  fieldnames=["suite", "lane", "artifact", "test_name", "status", "duration_seconds", "duration_minutes"],
-              )
-              writer.writeheader()
-              writer.writerows(rows)
-
-          print(f"Wrote {len(rows)} duration row(s) to {output}")
-          PY
+          python3 scripts/coverage/ci_reports.py merge-durations \
+            --workspace "${{ github.workspace }}" \
+            --output "${{ github.workspace }}/coverage-test-durations-all.csv"
 
       - name: Upload merged duration artifact
         if: ${{ always() }}

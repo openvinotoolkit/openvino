@@ -1,6 +1,7 @@
 # Coverage Scripts
 
 Coverage workflow orchestration is implemented in Python and is used by `.github/workflows/coverage.yml`.
+GitHub artifact aggregation helpers live in `scripts/coverage/ci_reports.py`.
 
 ## Entrypoint
 ```bash
@@ -67,9 +68,12 @@ python3 scripts/coverage/coverage.py list-tests --suite python --profile gpu
 ## Outputs
 Main artifacts in workspace root:
 - `coverage.info` (native C/C++ lcov)
+- `cpp-coverage-stats.env` (per-run C++ shard stats)
 - `cpp-test-durations.csv` (per-run C++ test durations in seconds)
+- `python-coverage-stats.env` (per-run Python shard stats)
 - `python-test-durations.csv` (per-run Python test durations in seconds)
 - `python-coverage.xml` (Python coverage XML)
+- `js-coverage-stats.env` (per-run JS shard stats)
 - `js-test-durations.csv` (per-run JS test durations in seconds)
 - `js-lcov.info` (Node.js lcov)
 - `coverage-report/index.html` (HTML report)

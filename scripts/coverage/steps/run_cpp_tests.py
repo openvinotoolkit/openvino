@@ -165,6 +165,33 @@ def _write_duration_report(ctx: CoverageContext, results: list[_CppTestRunResult
     ctx.io.export_env("CXX_TEST_DURATION_TOTAL_SECONDS", f"{total_duration:.3f}")
 
 
+def _write_stats_report(
+    ctx: CoverageContext,
+    *,
+    total: int,
+    executed: int,
+    passed: int,
+    failed: int,
+    skipped: int,
+    not_run: int = 0,
+) -> None:
+    report_path = ctx.workspace / "cpp-coverage-stats.env"
+    report_path.write_text(
+        "\n".join(
+            [
+                f"CXX_TESTS_TOTAL={total}",
+                f"CXX_TESTS_EXECUTED={executed}",
+                f"CXX_TESTS_PASSED={passed}",
+                f"CXX_TESTS_FAILED={failed}",
+                f"CXX_TESTS_SKIPPED={skipped}",
+                f"CXX_TESTS_NOT_RUN={not_run}",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
 def _run_tests_serial(
     ctx: CoverageContext,
     tests: list[tuple[CppTestCase, str]],
@@ -318,6 +345,15 @@ def run(ctx: CoverageContext) -> None:
     ctx.io.export_env("CXX_TESTS_FAILED", str(total_failed))
     ctx.io.export_env("CXX_TESTS_SKIPPED", str(total_skipped))
     ctx.io.export_env("CXX_TESTS_NOT_RUN", "0")
+    _write_stats_report(
+        ctx,
+        total=total_planned,
+        executed=total_executed,
+        passed=total_passed,
+        failed=total_failed,
+        skipped=total_skipped,
+        not_run=0,
+    )
 
     lines = [
         "## C++ coverage test execution summary",
