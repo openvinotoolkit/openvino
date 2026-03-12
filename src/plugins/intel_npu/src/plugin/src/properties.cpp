@@ -434,16 +434,31 @@ Properties::Properties(const PropertiesType pType,
 }
 
 Properties::Properties(const Properties& other)
-    : _pType(other._pType),
-      _config(other._config),
-      _metrics(other._metrics),
-      _backend(other._backend),
-      _logger("Properties", _config.get<LOG_LEVEL>()),
-      _currentlyUsedCompiler(other._currentlyUsedCompiler),
-      _currentlyUsedPlatform(other._currentlyUsedPlatform),
-      _compilerConfigsFilteredByCompiler(other._compilerConfigsFilteredByCompiler),
-      _properties(other._properties),
-      _supportedProperties(other._supportedProperties) {}
+    : Properties([&other]() {
+          std::lock_guard<std::mutex> lock(other._mutex);
+          return CopyState{other._pType,
+                           other._config,
+                           other._metrics,
+                           other._backend,
+                           other._logger,
+                           other._currentlyUsedCompiler,
+                           other._currentlyUsedPlatform,
+                           other._compilerConfigsFilteredByCompiler,
+                           other._properties,
+                           other._supportedProperties};
+      }()) {}
+
+Properties::Properties(CopyState&& state)
+    : _pType(state.pType),
+      _config(std::move(state.config)),
+      _metrics(std::move(state.metrics)),
+      _backend(std::move(state.backend)),
+      _logger(std::move(state.logger)),
+      _currentlyUsedCompiler(state.currentlyUsedCompiler),
+      _currentlyUsedPlatform(std::move(state.currentlyUsedPlatform)),
+      _compilerConfigsFilteredByCompiler(state.compilerConfigsFilteredByCompiler),
+      _properties(std::move(state.properties)),
+      _supportedProperties(std::move(state.supportedProperties)) {}
 
 void Properties::registerProperties() {
     // Reset
@@ -912,12 +927,13 @@ ov::Any Properties::getProperty(const std::string& name) {
 }
 
 void Properties::setProperty(const ov::AnyMap& properties) {
+    std::lock_guard<std::mutex> lock(_mutex);
+
     if (properties.count(ov::log::level.name()) != 0) {
         _logger.setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
     }
 
     std::unique_ptr<ICompilerAdapter> compiler = nullptr;
-    std::lock_guard<std::mutex> lock(_mutex);
     if (_pType == PropertiesType::PLUGIN) {
         bool propertyIsCompilerConfig = false;
         bool propertyIsRegistered = true;

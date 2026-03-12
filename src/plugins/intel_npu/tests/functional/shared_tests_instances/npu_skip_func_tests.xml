@@ -876,4 +876,15 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>PV driver cannot create infer request for models with boolean inputs</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
+        </enable_rules>
+        <filters>
+            <filter>.*BooleanPrecisionInferRequestRunTests.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
