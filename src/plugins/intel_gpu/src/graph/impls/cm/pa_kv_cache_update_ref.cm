@@ -79,7 +79,7 @@ CM_INLINE void quantize_and_store(vector_ref<half, HEAD_SIZE> data, uchar* out, 
         half min_val = cm_reduced_min<half>(data);
 
         half qrange = max_val - min_val;
-        float scale_val = qrange == (half)0.0 ? 1.0f : 255.0f / qrange;
+        float scale_val = qrange == (half)0.0f ? 1.0f : 255.0f / qrange;
         half zp_val = (0.0f - min_val) * scale_val;
 
         vector<half, HEAD_SIZE>  dequant_data = cm_mul<half>(data, scale_val) + zp_val;
