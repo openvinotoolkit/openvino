@@ -241,7 +241,7 @@ int get_ir_version(const std::shared_ptr<const ov::Model>& model, const intel_np
  */
 ov::intel_npu::ModelSerializerVersion determineModelSerializerVersion(
     const ov::intel_npu::ModelSerializerVersion serializerVersion,
-    const std::function<bool(std::string, std::optional<std::string>)>& isOptionValueSupportedByCompiler,
+    const std::function<bool(const std::string&, const std::optional<std::string>&)>& isOptionValueSupportedByCompiler,
     const std::shared_ptr<ov::Model>& model,
     const intel_npu::Logger& logger) {
     if (get_ir_version(model, logger) < 11) {
@@ -569,7 +569,7 @@ SerializedIR serializeIR(
     const ze_graph_compiler_version_info_t compilerVersion,
     const uint32_t supportedOpsetVersion,
     const ov::intel_npu::ModelSerializerVersion serializerVersion,
-    const std::function<bool(std::string, std::optional<std::string>)>& isOptionValueSupportedByCompiler,
+    const std::function<bool(const std::string&, const std::optional<std::string>&)>& isOptionValueSupportedByCompiler,
     const bool computeModelHash,
     const bool storeWeightlessCacheAttributeFlag) {
     // The current instance is already a clone (or should be one), we are not modifying the original model

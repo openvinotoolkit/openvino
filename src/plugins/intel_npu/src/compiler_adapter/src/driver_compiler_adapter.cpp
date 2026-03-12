@@ -48,8 +48,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 
     _logger.debug("serialize IR");
 
-    const auto isOptionValueSupportedByCompiler = [this](std::string optionName,
-                                                         std::optional<std::string> optionValue) {
+    const auto isOptionValueSupportedByCompiler = [this](const std::string& optionName,
+                                                         const std::optional<std::string>& optionValue) {
         return is_option_supported(optionName, optionValue);
     };
     auto serializedIR = compiler_utils::serializeIR(model,
@@ -109,8 +109,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                        compilerVersion.minor);
     }
 
-    FilteredConfig updatedConfig = config;
-
     const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
@@ -121,8 +119,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     }
 
     _logger.debug("serialize IR");
-    const auto isOptionValueSupportedByCompiler = [this](std::string optionName,
-                                                         std::optional<std::string> optionValue) {
+    const auto isOptionValueSupportedByCompiler = [this](const std::string& optionName,
+                                                         const std::optional<std::string>& optionValue) {
         return is_option_supported(optionName, optionValue);
     };
     auto serializedIR = compiler_utils::serializeIR(model,
@@ -132,6 +130,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                                     isOptionValueSupportedByCompiler,
                                                     _zeGraphExt->isPluginModelHashSupported(),
                                                     true);
+    FilteredConfig updatedConfig = config;
     if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
         updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
                                MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
@@ -223,8 +222,8 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
-    const auto isOptionValueSupportedByCompiler = [this](std::string optionName,
-                                                         std::optional<std::string> optionValue) {
+    const auto isOptionValueSupportedByCompiler = [this](const std::string& optionName,
+                                                         const std::optional<std::string>& optionValue) {
         return is_option_supported(optionName, optionValue);
     };
     auto serializedIR = compiler_utils::serializeIR(model,

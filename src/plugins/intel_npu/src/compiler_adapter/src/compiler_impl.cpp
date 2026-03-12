@@ -382,8 +382,8 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
 
-    const auto isOptionValueSupportedByCompiler = [this](std::string optionName,
-                                                         std::optional<std::string> optionValue) {
+    const auto isOptionValueSupportedByCompiler = [this](const std::string& optionName,
+                                                         const std::optional<std::string>& optionValue) {
         return is_option_supported(optionName, optionValue);
     };
     auto serializedIR = compiler_utils::serializeIR(model,
@@ -472,8 +472,8 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
 
-    const auto isOptionValueSupportedByCompiler = [this](std::string optionName,
-                                                         std::optional<std::string> optionValue) {
+    const auto isOptionValueSupportedByCompiler = [this](const std::string& optionName,
+                                                         const std::optional<std::string>& optionValue) {
         return is_option_supported(optionName, optionValue);
     };
     auto serializedIR = compiler_utils::serializeIR(model,
@@ -607,8 +607,8 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
     FilteredConfig updatedConfig = config;
-    const auto isOptionValueSupportedByCompiler = [this](std::string optionName,
-                                                         std::optional<std::string> optionValue) {
+    const auto isOptionValueSupportedByCompiler = [this](const std::string& optionName,
+                                                         const std::optional<std::string>& optionValue) {
         return is_option_supported(optionName, optionValue);
     };
     auto serializedIR = compiler_utils::serializeIR(model,
