@@ -45,6 +45,8 @@ TEST(type_prop, paged_attention_static_eviction_per_block) {
     const auto adaptive_rkv_diversity_block_set_indices_begins =
         std::make_shared<op::v0::Parameter>(element::i32, PartialShape{5});
 
+    const auto token_type_ids = std::make_shared<op::v0::Parameter>(ov::element::i32, ov::Shape{0});
+
     ov::OutputVector args = {query,
                              key,
                              value,
@@ -69,7 +71,8 @@ TEST(type_prop, paged_attention_static_eviction_per_block) {
                              adaptive_rkv_start_size,
                              adaptive_rkv_evictable_sizes,
                              adaptive_rkv_diversity_block_set_indices,
-                             adaptive_rkv_diversity_block_set_indices_begins};
+                             adaptive_rkv_diversity_block_set_indices_begins,
+                             token_type_ids};
 
     const auto op = std::make_shared<op::PagedAttentionExtension>(args);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
@@ -109,6 +112,8 @@ TEST(type_prop, paged_attention_static_eviction_per_token) {
     const auto adaptive_rkv_diversity_block_set_indices_begins =
         std::make_shared<op::v0::Parameter>(element::i32, PartialShape{5});
 
+    const auto token_type_ids = std::make_shared<op::v0::Parameter>(ov::element::i32, ov::Shape{0});
+
     ov::OutputVector args = {query,
                              key,
                              value,
@@ -133,7 +138,8 @@ TEST(type_prop, paged_attention_static_eviction_per_token) {
                              adaptive_rkv_start_size,
                              adaptive_rkv_evictable_sizes,
                              adaptive_rkv_diversity_block_set_indices,
-                             adaptive_rkv_diversity_block_set_indices_begins};
+                             adaptive_rkv_diversity_block_set_indices_begins,
+                             token_type_ids};
 
     const auto op = std::make_shared<op::PagedAttentionExtension>(args);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
@@ -174,6 +180,8 @@ TEST(type_prop, paged_attention_dynamic_ranks_and_types) {
     const auto adaptive_rkv_diversity_block_set_indices_begins =
         std::make_shared<op::v0::Parameter>(element::dynamic, dyn);
 
+    const auto token_type_ids = std::make_shared<op::v0::Parameter>(ov::element::i32, ov::Shape{0});
+
     ov::OutputVector args = {query,
                              key,
                              value,
@@ -198,7 +206,8 @@ TEST(type_prop, paged_attention_dynamic_ranks_and_types) {
                              adaptive_rkv_start_size,
                              adaptive_rkv_evictable_sizes,
                              adaptive_rkv_diversity_block_set_indices,
-                             adaptive_rkv_diversity_block_set_indices_begins};
+                             adaptive_rkv_diversity_block_set_indices_begins,
+                             token_type_ids};
 
     EXPECT_NO_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args));
 }
