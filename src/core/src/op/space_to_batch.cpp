@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <memory>
 #include <numeric>
 
@@ -100,7 +101,24 @@ bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
 
     Shape padded_shape(data_shape.size());
     for (size_t i = 0; i < data_shape.size(); ++i) {
-        padded_shape[i] = data_shape[i] + pads_begin_vec[i] + pads_end_vec[i];
+        OPENVINO_ASSERT(pads_begin_vec[i] >= 0,
+                        "SpaceToBatch: pads_begin[",
+                        i,
+                        "] must be non-negative, got ",
+                        pads_begin_vec[i]);
+        OPENVINO_ASSERT(pads_end_vec[i] >= 0,
+                        "SpaceToBatch: pads_end[",
+                        i,
+                        "] must be non-negative, got ",
+                        pads_end_vec[i]);
+        const auto pb = static_cast<size_t>(pads_begin_vec[i]);
+        const auto pe = static_cast<size_t>(pads_end_vec[i]);
+        OPENVINO_ASSERT(data_shape[i] <= std::numeric_limits<size_t>::max() - pb &&
+                            data_shape[i] + pb <= std::numeric_limits<size_t>::max() - pe,
+                        "SpaceToBatch: padded dimension ",
+                        i,
+                        " overflows");
+        padded_shape[i] = data_shape[i] + pb + pe;
     }
 
     std::vector<char> padded_data(shape_size(padded_shape) * elem_size);
