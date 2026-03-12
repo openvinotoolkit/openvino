@@ -27,6 +27,9 @@
 #define OV_GPU_WITH_CPU 1
 #define OV_GPU_WITH_CM 1
 
+#ifdef EXPAND
+#undef EXPAND
+#endif
 #define COUNT_N(_1, _2, _3, _4, _5, N, ...) N
 #define COUNT(...) EXPAND(COUNT_N(__VA_ARGS__, 5, 4, 3, 2, 1))
 #define CAT(a, b) a ## b
