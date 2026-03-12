@@ -72,15 +72,13 @@ public:
     RemoveEmptyKVTensors(Context::Ref ctx) {
         auto param = opp::wrap_type<ov::op::v0::Parameter>();
         auto param_or =
-            std::make_shared<opp::op::Or>(ov::OutputVector{param,
-                match_down_up_convert_subgraph_after_lpt(param)});
+            std::make_shared<opp::op::Or>(ov::OutputVector{param, match_down_up_convert_subgraph_after_lpt(param)});
 
         auto concat = opp::wrap_type<ov::op::v0::Concat>({param_or, opp::any_input()});
 
         auto callback = [=](opp::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
-            auto matched_param =
-                ov::as_type_ptr<ov::op::v0::Parameter>(node_to_output.at(param).get_node_shared_ptr());
+            auto matched_param = ov::as_type_ptr<ov::op::v0::Parameter>(node_to_output.at(param).get_node_shared_ptr());
             auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
 
             ctx.get().old_params.push_back(matched_param);
@@ -89,8 +87,7 @@ public:
             // This works universally for both plain parameter and down_up_convert subgraph cases,
             // because in the subgraph case matched_param->get_users() would return the Convert
             // node (first node of the subgraph), not the ShapeOf.
-            auto concat_input0_node =
-                matched_node_concat->input(0).get_source_output().get_node_shared_ptr();
+            auto concat_input0_node = matched_node_concat->input(0).get_source_output().get_node_shared_ptr();
             auto users = concat_input0_node->get_users();
 
             // In subgraph case the parameter itself may also have a ShapeOf user,
