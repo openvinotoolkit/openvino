@@ -207,6 +207,9 @@ DynamicPipeline::DynamicPipeline(const Config& config,
 void DynamicPipeline::push() {
     _logger.debug("DynamicPipeline - push() started");
 
+    auto* dynamicGraph = dynamic_cast<IDynamicGraph*>(_graph.get());
+    OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
+
     if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
         _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         if (_id) {
@@ -246,14 +249,13 @@ void DynamicPipeline::push() {
         // L0 wrapper handle closed command list
         command_lists->resetCommandList();
 
-        dynamic_cast<IDynamicGraph*>(_graph.get())
-            ->execute(_init_structs,
-                      command_lists->getBinding(),
-                      command_lists->getHandles(),
-                      commandQueueHandle,
-                      fence,
-                      event,
-                      nullptr);
+        dynamicGraph->execute(_init_structs,
+                              command_lists->getBinding(),
+                              command_lists->getHandles(),
+                              commandQueueHandle,
+                              fence,
+                              event,
+                              nullptr);
     }
 
     _logger.debug("DynamicPipeline - push() completed");

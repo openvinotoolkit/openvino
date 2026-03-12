@@ -876,15 +876,14 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- C#182232 -->
     <skip_config>
-        <message>ROI Tensor tests fail since UD2026.08 CiP update.</message>
+        <message>PV driver cannot create infer request for models with boolean inputs</message>
         <enable_rules>
-            <device>4000</device>
-            <device>5010</device>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
         </enable_rules>
         <filters>
-            <filter>.*RoiTensorsTestsRun.*</filter>
+            <filter>.*BooleanPrecisionInferRequestRunTests.*</filter>
         </filters>
     </skip_config>
 

@@ -5,12 +5,12 @@
 # Function to download and extract files
 # download vcl prebuilt package info:
 #     vcl version: 7.6.0
-#     release: npu_cip_ud_2026_08_rc2
+#     release: releases/unified/2026/12_cip
 #     storage localtion: https://storage.openvinotoolkit.org/dependencies/thirdparty
-#     WINDOWS: npu_compiler_vcl_windows_2022-7_6_0-c74b126.zip
+#     WINDOWS: npu_compiler_vcl_windows_2022-7_6_0-42d25a6.zip
 #     LINUX: 
-#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_6_0-c74b126.tar.gz
-#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_6_0-c74b126.tar.gz
+#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_6_0-42d25a6.tar.gz
+#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_6_0-42d25a6.tar.gz
 function(download_and_extract url zip_file extracted_dir)
     # Check if the prebuilt Plugin compiler libraries not exist
     if(NOT EXISTS "${extracted_dir}")
@@ -105,7 +105,7 @@ if(ENABLE_INTEL_NPU_COMPILER)
     set(PLUGIN_COMPILER_VERSION_MAJOR 7)
     set(PLUGIN_COMPILER_VERSION_MINOR 6)
     set(PLUGIN_COMPILER_VERSION_PATCH 0)
-    set(PLUGIN_COMPILER_COMMIT_SHA c74b126)
+    set(PLUGIN_COMPILER_COMMIT_SHA 42d25a6)
     set(PLUGIN_COMPILER_VERSION "${PLUGIN_COMPILER_VERSION_MAJOR}_${PLUGIN_COMPILER_VERSION_MINOR}_${PLUGIN_COMPILER_VERSION_PATCH}")
     message(STATUS "The prebuilt compiler version is ${PLUGIN_COMPILER_VERSION_MAJOR}.${PLUGIN_COMPILER_VERSION_MINOR}.${PLUGIN_COMPILER_VERSION_PATCH}")
     # The destinations are the same. CMAKE_BUILD_TYPE is added based on the option USE_BUILD_TYPE_SUBFOLDER
@@ -120,10 +120,10 @@ if(ENABLE_INTEL_NPU_COMPILER)
         set(PLUGIN_COMPILER_LIBS_ZIP "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_windows_2022-${PLUGIN_COMPILER_VERSION}-${PLUGIN_COMPILER_COMMIT_SHA}.zip")
         set(PLUGIN_COMPILER_LIBS_DIR_UNZIPPED "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_windows_2022-${PLUGIN_COMPILER_VERSION}-${PLUGIN_COMPILER_COMMIT_SHA}")
 
-        download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_ZIP}" "${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}")
+        download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_ZIP}" "${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}")s
         print_build_manifest("${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}/build_manifest.json")
 
-        set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}/cid/lib")
+        set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}/lib")
         configure_file(
             ${PLUGIN_COMPILER_LIB_PATH}/npu_driver_compiler.dll
             ${PLUGIN_COMPILER_LIB_PATH}/openvino_intel_npu_compiler.dll
@@ -150,8 +150,8 @@ if(ENABLE_INTEL_NPU_COMPILER)
 
                     download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_TAR}" "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}")
                     print_build_manifest("${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/build_manifest.json")
-
-                    set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/cid/lib/")
+                    
+                    set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/lib/")
                     configure_file(
                         ${PLUGIN_COMPILER_LIB_PATH}/libnpu_driver_compiler.so
                         ${PLUGIN_COMPILER_LIB_PATH}/libopenvino_intel_npu_compiler.so
@@ -170,7 +170,7 @@ if(ENABLE_INTEL_NPU_COMPILER)
                     download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_TAR}" "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}")
                     print_build_manifest("${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/build_manifest.json")
                     
-                    set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/cid/lib/")
+                    set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/lib/")
                     configure_file(
                         ${PLUGIN_COMPILER_LIB_PATH}/libnpu_driver_compiler.so
                         ${PLUGIN_COMPILER_LIB_PATH}/libopenvino_intel_npu_compiler.so
