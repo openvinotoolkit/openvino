@@ -614,12 +614,16 @@ public:
         };
 
         auto past_kv_len = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
-        auto full_ctx_len = opp::wrap_type<ov::op::v1::Add>({past_kv_len, opp::any_input()});
-        auto query_range = opp::wrap_type<ov::op::v4::Range>({past_kv_len, full_ctx_len, opp::any_input()});
+        // TODO: ov::op::v0::Squeeze may accept or not accept optional axes input, so we need to cover both cases in
+        // pattern If Squeeze accepts axes it doesn't match with pattern without axes, and if it doesn't accept axes it
+        // doesn't match with pattern with axes. So we need to add two branches in pattern to cover both cases.
+        auto past_kv_len_squeeze = opp::optional<ov::op::v0::Squeeze>({past_kv_len});
+        auto full_ctx_len = opp::wrap_type<ov::op::v1::Add>({past_kv_len_squeeze, opp::any_input()});
+        auto query_range = opp::wrap_type<ov::op::v4::Range>({past_kv_len_squeeze, full_ctx_len, opp::any_input()});
         auto query_range_column = unsqueeze_sequence(query_range);
 
         auto zero_const = opp::wrap_type<ov::op::v0::Constant>();
-        auto full_ctx_len_2 = opp::wrap_type<ov::op::v1::Add>({opp::any_input(), past_kv_len});
+        auto full_ctx_len_2 = opp::wrap_type<ov::op::v1::Add>({opp::any_input(), past_kv_len_squeeze});
         auto key_range = opp::wrap_type<ov::op::v4::Range>({zero_const, full_ctx_len_2, opp::any_input()});
         auto key_range_row = unsqueeze_sequence(key_range);
         auto opt_key_range_row_f32 = opp::optional<ov::op::v0::Convert>({key_range_row->output(0)});
@@ -638,26 +642,20 @@ public:
             LOG_INFO("Found (4.53) pattern for Phi-3 Sliding Window Attention, will be replaced with custom for static "
                      "shapes.");
             auto& node_to_output = m.get_pattern_value_map();
-            auto node_past_kv_len = node_to_output.at(past_kv_len).get_node_shared_ptr();
-            auto node_full_ctx_len = node_to_output.at(full_ctx_len).get_node_shared_ptr();
+            auto optional_squeeze = node_to_output.find(past_kv_len_squeeze);
+            auto matched_past_kv_len = optional_squeeze != node_to_output.end()
+                                           ? optional_squeeze->second.get_node_shared_ptr()
+                                           : node_to_output.at(past_kv_len).get_node_shared_ptr();
+            auto matched_full_ctx_len = node_to_output.at(full_ctx_len).get_node_shared_ptr();
             auto node_neg_window_size = node_to_output.at(neg_window_size).get_node_shared_ptr();
-            auto node_sliding_mask = node_to_output.at(sliding_mask).get_node_shared_ptr();
-            auto node_sliding_and_causal_mask = node_to_output.at(sliding_and_causal_mask).get_node_shared_ptr();
+            auto matched_sliding_mask = node_to_output.at(sliding_mask).get_node_shared_ptr();
+            auto matched_sliding_and_causal_mask = node_to_output.at(sliding_and_causal_mask).get_node_shared_ptr();
 
-            auto matched_past_kv_len = std::static_pointer_cast<ov::op::v8::Gather>(node_past_kv_len);
-            auto matched_full_ctx_len = std::static_pointer_cast<ov::op::v1::Add>(node_full_ctx_len);
-            std::shared_ptr<ov::Node> matched_key_range_row = nullptr;
-            if (node_to_output.count(opt_key_range_row_f32)) {
-                auto node_key_range_row_f32 = node_to_output[opt_key_range_row_f32].get_node_shared_ptr();
-                matched_key_range_row = std::static_pointer_cast<ov::op::v0::Convert>(node_key_range_row_f32);
-            } else {
-                auto node_key_range_row = node_to_output.at(key_range_row).get_node_shared_ptr();
-                matched_key_range_row = std::static_pointer_cast<ov::op::v0::Unsqueeze>(node_key_range_row);
-            }
+            auto optional_convert = node_to_output.find(opt_key_range_row_f32);
+            std::shared_ptr<ov::Node> matched_key_range_row =
+                optional_convert != node_to_output.end() ? optional_convert->second.get_node_shared_ptr()
+                                                         : node_to_output.at(key_range_row).get_node_shared_ptr();
             auto matched_neg_window_size = std::static_pointer_cast<ov::op::v0::Constant>(node_neg_window_size);
-            auto matched_sliding_mask = std::static_pointer_cast<ov::op::v1::Greater>(node_sliding_mask);
-            auto matched_sliding_and_causal_mask =
-                std::static_pointer_cast<ov::op::v13::BitwiseAnd>(node_sliding_and_causal_mask);
             OPENVINO_ASSERT(matched_neg_window_size->get_output_size() == 1,
                             "Sliding window size constant must be of size 1, but got " +
                                 std::to_string(matched_neg_window_size->get_output_size()));
@@ -1165,9 +1163,11 @@ struct NPUDesc {
     int64_t max_tiles = 0;
     bool compiler_dq = false;
     int64_t compiler_ver = 0;
+    bool support_flash_attention_tile = false;
 };
 
-std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
+std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
+                                              const ov::AnyMap& config) {
     const auto all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
     if (all_devices.empty()) {
         return std::nullopt;
@@ -1185,7 +1185,25 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         desc.compiler_dq = true;
     }
 
-    desc.compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
+    // Get compiler version based on NPU_COMPILER_TYPE configuration
+    // If NPU_COMPILER_TYPE is not specified in config, use default compiler version
+    auto compiler_type_it = config.find(ov::intel_npu::compiler_type.name());
+    if (compiler_type_it == config.end()) {
+        // NPU_COMPILER_TYPE is not specified in config, use default compiler version
+        desc.compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
+    } else {
+        // NPU_COMPILER_TYPE is specified in config, get compiler version for the specified compiler type
+        auto target_compiler_type = compiler_type_it->second.as<std::string>();
+        desc.compiler_ver = plugin
+                                ->get_property(ov::intel_npu::compiler_version.name(),
+                                               ov::AnyMap{{ov::intel_npu::compiler_type.name(), target_compiler_type}})
+                                .as<int64_t>();
+    }
+
+    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
+        // Flash attention tile is supported starting from compiler version 7.29 on NPU5010
+        desc.support_flash_attention_tile = true;
+    }
 
     return std::make_optional(std::move(desc));
 }
@@ -1565,12 +1583,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
 
-    const auto npudesc = extract_npu_descriptor(plugin);
-
     ov::AnyMap npuw_llm_props;
     ov::AnyMap other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
+    const auto npudesc = extract_npu_descriptor(plugin, other_props);
     auto use_whisper_key = pop_option(other_props, std::string("NPUW_WHISPER"));
+    auto whisper_eos_token = pop_option(other_props, std::string("NPUW_WHISPER_EOS_TOKEN"));
     auto use_eagle_key = pop_option(other_props, std::string("NPUW_EAGLE"));
     auto kv_cache_precision_hint = pop_option(other_props, ov::hint::kv_cache_precision.name());
 
@@ -1607,12 +1625,25 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
+    // Decide on using fused flash attention tile based on provided option and NPU capabilities.
+    // If hardware supports and attention hint is set to HFA, then we can use fused flash attention implementation
+    // automatically, unless user explicitly disables it via NPUW_ATTN_HFA_FUSED=NO option.
+    const auto is_hfa =
+        m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>() == ::intel_npu::npuw::llm::AttentionHint::HFA;
+    const auto hfa_fused_npu_supported = npudesc.has_value() && npudesc->support_flash_attention_tile;
+    if (other_props.count("NPUW_ATTN_HFA_FUSED") == 0 && is_hfa && hfa_fused_npu_supported) {
+        other_props["NPUW_ATTN_HFA_FUSED"] = "YES";
+        LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
+    }
+
     m_is_whisper = use_whisper_key.value_or(false).as<bool>() == true;
     if (m_is_whisper) {
         m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
         m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
         m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
         m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
+
+        m_eos_token_id = whisper_eos_token.value_or(50257).as<uint64_t>();
     }
 
     m_is_eagle = use_eagle_key.value_or(false).as<bool>() == true;
@@ -1629,6 +1660,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
         if (npuw_llm_props.find("NPUW_LLM_GENERATE_HINT") == npuw_llm_props.end()) {
             m_cfg.update({{"NPUW_LLM_GENERATE_HINT", "BEST_PERF"}});
+        }
+
+        // Enable DEVICE_ROUTED mode by default for MoE models on newer compiler versions, as it's more efficient than
+        // HOST_ROUTED
+        if (npuw_llm_props.find("NPUW_LLM_GENERATE_MOE_HINT") == npuw_llm_props.end() && npudesc->arch == "5010" &&
+            npudesc->compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
+            m_cfg.update({{"NPUW_LLM_GENERATE_MOE_HINT", "DEVICE_ROUTED"}});
         }
     }
 
@@ -1952,7 +1990,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
         if (!is_best || (max_prompt_len >= CACHE_ROPE_START)) {
             LOG_DEBUG("Enable RoPE Cache for prefill");
-            ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(max_prompt_len);
+            ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(
+                max_prompt_len,
+                ov::npuw::LLMInferRequest::layer_names::longrope_input);
             rope_prefill_cacher.run_on_model(prefill_model);
         }
 
@@ -1961,7 +2001,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             const uint32_t kv_size = m_kvcache_sizes[i];
             if (!is_best || (kv_size >= CACHE_ROPE_START)) {
                 LOG_DEBUG("Enable RoPE Cache for generate variant with size: " << kv_size);
-                ov::npuw::patterns::pre_compute::RopeCache rope_cacher(kv_size);
+                ov::npuw::patterns::pre_compute::RopeCache rope_cacher(
+                    kv_size,
+                    ov::npuw::LLMInferRequest::layer_names::longrope_input);
                 rope_cacher.run_on_model(generate_model_variants[i]);
             }
         }
@@ -2122,6 +2164,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_prefix_caching_block_size);
         write(model_stream, m_prefix_caching_max_num_blocks);
         write(model_stream, m_is_whisper);
+        write(model_stream, m_eos_token_id);
         write(model_stream, m_is_eagle);
         write(model_stream, m_is_embedding);
 
@@ -2347,6 +2390,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_prefix_caching_block_size);
         read(model_stream, compiled->m_prefix_caching_max_num_blocks);
         read(model_stream, compiled->m_is_whisper);
+        read(model_stream, compiled->m_eos_token_id);
         read(model_stream, compiled->m_is_eagle);
         read(model_stream, compiled->m_is_embedding);
 
@@ -2480,6 +2524,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::generate_attn_hint, NPUW_LLM_GENERATE_ATTENTION_HINT, getString),
                           BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get),
                           BIND(npuw::whisper::enabled, NPUW_WHISPER, get),
+                          BIND(npuw::whisper::whisper_eos_token, NPUW_WHISPER_EOS_TOKEN, get),
                           BIND(npuw::eagle::enabled, NPUW_EAGLE, get),
                           BIND(npuw::text_embed::enabled, NPUW_TEXT_EMBED, get)});
 #undef BIND
