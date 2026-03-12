@@ -826,8 +826,6 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        "\"NPUW_LLM_MAX_PROMPT_LEN\" or shorten the prompt.");
     }
 
-    process_longrope(m_prefill_request, m_prefill_in_ports, position_ids);
-
     m_llm_profile["1/prefill:1.prepare_for_new_conversation"].record([&]() {
         prepare_for_new_conversation(prompt_length);
     });
@@ -835,6 +833,8 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     m_llm_profile["1/prefill:2.apply_lora"].record([&]() {
         apply_lora();
     });
+
+    process_longrope(m_prefill_request, m_prefill_in_ports, position_ids);
 
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     m_llm_profile["1/prefill:3.infer"].record([&]() {
