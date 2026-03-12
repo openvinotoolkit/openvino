@@ -746,7 +746,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         if (remaining_prompts <= 0) {
             LOG_DEBUG("All prompts have been prefilled in chunks");
             m_tokens_in_present_chunk = current_prompts_len;
-            return;
+            break;
         }
 
         // Copy calculated key/values chunk from present k/v layer to past k/v layer for storage
@@ -760,10 +760,6 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         std::copy_n(attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len,
                     current_prompts_len,
                     attn_mask_in_tensor->data<int64_t>() + kvcache_desc.num_stored_tokens - current_prompts_len);
-
-        if (remaining_prompts <= 0) {
-            break;
-        }
     }
 
     LOG_DEBUG("Done.");
