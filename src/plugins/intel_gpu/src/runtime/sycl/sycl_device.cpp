@@ -321,6 +321,7 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
 
 memory_capabilities init_memory_caps(const ::sycl::device& device, const device_info& info) {
     std::vector<allocation_type> memory_caps;
+    memory_caps.push_back(allocation_type::sycl_buffer);
     if (info.supports_usm) {
         if (device.has(::sycl::aspect::usm_host_allocations)) {
             memory_caps.push_back(allocation_type::usm_host);
