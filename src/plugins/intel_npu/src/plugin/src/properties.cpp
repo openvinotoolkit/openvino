@@ -607,6 +607,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::dyn_quant, NPUW_DQ);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::dyn_quant_full, NPUW_DQ_FULL);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::par_matmul_merge_dims, NPUW_PMM);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::matmul_gate_preserve_constants, NPUW_MM_GATED);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::slice_out, NPUW_SLICE_OUT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::spatial, NPUW_SPATIAL);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::spatial_nway, NPUW_SPATIAL_NWAY);
