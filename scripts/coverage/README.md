@@ -1,6 +1,7 @@
 # Coverage Scripts
 
 Coverage workflow orchestration is implemented in Python and is used by `.github/workflows/coverage.yml`.
+GitHub matrix helpers live in `scripts/coverage/ci_matrix.py`.
 GitHub artifact aggregation helpers live in `scripts/coverage/ci_reports.py`.
 
 ## Entrypoint

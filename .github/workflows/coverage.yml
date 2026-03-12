@@ -42,51 +42,8 @@ jobs:
         env:
           COVERAGE_SELECTION: ${{ env.COVERAGE_SELECTION }}
         run: |
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import json
-          import os
-
-          selection = os.environ["COVERAGE_SELECTION"]
-          selection_map = {
-              "cpu": ["cpu"],
-              "cpu_gpu": ["cpu", "gpu"],
-              "cpu_gpu_npu": ["cpu", "gpu", "npu"],
-          }
-          lane_defs = {
-              "cpu": {
-                  "lane": "cpu",
-                  "test_profile": "cpu",
-                  "cpp_runner": '["ubuntu-latest-64-cores"]',
-                  "python_runner": '["ubuntu-latest-8-cores"]',
-                  "js_runner": '["ubuntu-latest-8-cores"]',
-                  "requires_gpu_runtime": False,
-                  "requires_npu_runtime": False,
-              },
-              "gpu": {
-                  "lane": "gpu",
-                  "test_profile": "gpu",
-                  "cpp_runner": '["self-hosted","Linux","dgpu"]',
-                  "python_runner": '["self-hosted","Linux","dgpu"]',
-                  "js_runner": '["self-hosted","Linux","dgpu"]',
-                  "requires_gpu_runtime": True,
-                  "requires_npu_runtime": False,
-              },
-              "npu": {
-                  "lane": "npu",
-                  "test_profile": "npu",
-                  "cpp_runner": '["self-hosted","Linux","npu"]',
-                  "python_runner": '["self-hosted","Linux","npu"]',
-                  "js_runner": '["self-hosted","Linux","npu"]',
-                  "requires_gpu_runtime": False,
-                  "requires_npu_runtime": True,
-              },
-          }
-
-          lanes = selection_map[selection]
-          matrix = {"include": [lane_defs[lane] for lane in lanes]}
-          print(f"matrix={json.dumps(matrix, separators=(',', ':'))}")
-          print(f"lanes={','.join(lanes)}")
-          PY
+          python3 scripts/coverage/ci_matrix.py resolve-lanes \
+            --selection "${COVERAGE_SELECTION}" >> "$GITHUB_OUTPUT"
 
   BuildCoverageArtifacts:
     name: Build coverage artifact (${{ matrix.lane }})
@@ -203,52 +160,10 @@ jobs:
           BASE_MATRIX: ${{ needs.ResolveMatrix.outputs.matrix }}
           CPP_TESTS_PER_JOB: ${{ env.CPP_TESTS_PER_JOB }}
         run: |
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import csv
-          import io
-          import json
-          import os
-          import subprocess
-
-          base_matrix = json.loads(os.environ["BASE_MATRIX"])
-          tests_per_job = max(1, int(os.environ.get("CPP_TESTS_PER_JOB", "4")))
-          include = []
-
-          for lane in base_matrix["include"]:
-              output = subprocess.check_output(
-                  [
-                      "python3",
-                      "scripts/coverage/coverage.py",
-                      "list-tests",
-                      "--suite",
-                      "cpp",
-                      "--profile",
-                      lane["test_profile"],
-                  ],
-                  text=True,
-              )
-              rows = csv.DictReader(io.StringIO(output), delimiter="\t")
-              enabled = [row["name"] for row in rows if row["enabled"] == "1"]
-              if not enabled:
-                  continue
-              shard_count = max(1, (len(enabled) + tests_per_job - 1) // tests_per_job)
-
-              for shard_index in range(shard_count):
-                  shard_tests = enabled[shard_index * tests_per_job : (shard_index + 1) * tests_per_job]
-                  include.append(
-                      {
-                          **lane,
-                          "cpp_shard_index": shard_index + 1,
-                          "cpp_shard_count": shard_count,
-                          "cpp_shard_label": f"{shard_index + 1:02d}-of-{shard_count:02d}",
-                          "cpp_test_count": len(shard_tests),
-                          "cpp_test_names": ",".join(shard_tests),
-                      }
-                  )
-
-          print(f"matrix={json.dumps({'include': include}, separators=(',', ':'))}")
-          print(f"count={len(include)}")
-          PY
+          python3 scripts/coverage/ci_matrix.py resolve-shards \
+            --suite cpp \
+            --base-matrix-json "${BASE_MATRIX}" \
+            --tests-per-job "${CPP_TESTS_PER_JOB}" >> "$GITHUB_OUTPUT"
 
   CoverageCpp:
     name: Coverage C++ (${{ matrix.lane }} / shard ${{ matrix.cpp_shard_index }}/${{ matrix.cpp_shard_count }})
@@ -510,52 +425,10 @@ jobs:
           BASE_MATRIX: ${{ needs.ResolveMatrix.outputs.matrix }}
           PY_TESTS_PER_JOB: ${{ env.PY_TESTS_PER_JOB }}
         run: |
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import csv
-          import io
-          import json
-          import os
-          import subprocess
-
-          base_matrix = json.loads(os.environ["BASE_MATRIX"])
-          tests_per_job = max(1, int(os.environ.get("PY_TESTS_PER_JOB", "4")))
-          include = []
-
-          for lane in base_matrix["include"]:
-              output = subprocess.check_output(
-                  [
-                      "python3",
-                      "scripts/coverage/coverage.py",
-                      "list-tests",
-                      "--suite",
-                      "python",
-                      "--profile",
-                      lane["test_profile"],
-                  ],
-                  text=True,
-              )
-              rows = csv.DictReader(io.StringIO(output), delimiter="\t")
-              enabled = [row["name"] for row in rows if row["enabled"] == "1"]
-              if not enabled:
-                  continue
-              shard_count = max(1, (len(enabled) + tests_per_job - 1) // tests_per_job)
-
-              for shard_index in range(shard_count):
-                  shard_tests = enabled[shard_index * tests_per_job : (shard_index + 1) * tests_per_job]
-                  include.append(
-                      {
-                          **lane,
-                          "py_shard_index": shard_index + 1,
-                          "py_shard_count": shard_count,
-                          "py_shard_label": f"{shard_index + 1:02d}-of-{shard_count:02d}",
-                          "py_test_count": len(shard_tests),
-                          "py_test_names": ",".join(shard_tests),
-                      }
-                  )
-
-          print(f"matrix={json.dumps({'include': include}, separators=(',', ':'))}")
-          print(f"count={len(include)}")
-          PY
+          python3 scripts/coverage/ci_matrix.py resolve-shards \
+            --suite python \
+            --base-matrix-json "${BASE_MATRIX}" \
+            --tests-per-job "${PY_TESTS_PER_JOB}" >> "$GITHUB_OUTPUT"
 
   CoveragePython:
     name: Coverage Python (${{ matrix.lane }} / shard ${{ matrix.py_shard_index }}/${{ matrix.py_shard_count }})
@@ -815,47 +688,10 @@ jobs:
         env:
           BASE_MATRIX: ${{ needs.ResolveMatrix.outputs.matrix }}
         run: |
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import csv
-          import io
-          import json
-          import os
-          import subprocess
-
-          base_matrix = json.loads(os.environ["BASE_MATRIX"])
-          include = []
-
-          for lane in base_matrix["include"]:
-              output = subprocess.check_output(
-                  [
-                      "python3",
-                      "scripts/coverage/coverage.py",
-                      "list-tests",
-                      "--suite",
-                      "js",
-                      "--profile",
-                      lane["test_profile"],
-                  ],
-                  text=True,
-              )
-              rows = csv.DictReader(io.StringIO(output), delimiter="\t")
-              enabled = [row["name"] for row in rows if row["enabled"] == "1"]
-              if not enabled:
-                  continue
-              include.append(
-                  {
-                      **lane,
-                      "js_shard_index": 1,
-                      "js_shard_count": 1,
-                      "js_shard_label": "01-of-01",
-                      "js_test_count": len(enabled),
-                      "js_test_names": ",".join(enabled),
-                  }
-              )
-
-          print(f"matrix={json.dumps({'include': include}, separators=(',', ':'))}")
-          print(f"count={len(include)}")
-          PY
+          python3 scripts/coverage/ci_matrix.py resolve-shards \
+            --suite js \
+            --base-matrix-json "${BASE_MATRIX}" \
+            --tests-per-job 1 >> "$GITHUB_OUTPUT"
 
   CoverageJS:
     name: Coverage JS (${{ matrix.lane }} / shard ${{ matrix.js_shard_index }}/${{ matrix.js_shard_count }})
