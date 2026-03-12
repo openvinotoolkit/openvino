@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -15,21 +14,15 @@
 
 class ConfigNode {
 public:
-    ConfigNode(YAML::Node node, bool isRoot = false): _node(std::move(node)), _isRoot(isRoot) {
-        std::cout << "\nConstructor, " << _isRoot << "\n";
-        if (isRoot) {
-        // Print stack trace or marker
-        std::cout << " <--- ROOT CREATED HERE\n";
-    }
+    ConfigNode(YAML::Node&& node, bool isRoot = false): _node(std::move(node)), _isRoot(isRoot) {
         collectKeys();
     }
 
     ~ConfigNode() {
         if (_isRoot && hasUnusedKeys()) {
-            std::cout << "Destructor, isRoot=" << _isRoot << std::endl;
             std::cout << "\n------Unused keys:\n";
             for (const auto& key : getUnusedKeys()) {
-                std::cout << "  " << key << "\n";
+                std::cout << key << " ";
             }
             std::cout << "\n";
         }
@@ -66,10 +59,7 @@ public:
             return _node.as<T>();
         } else {
             T result;
-            // This passes *this by reference - should be fine
-            std::cout << "Calling decode" << std::endl;  // Add debug
             YAML::convert<T>::decode(*this, result);
-            std::cout << "Decode complete" << std::endl;  // Add debug
             return result;
         }
     }
@@ -172,9 +162,8 @@ private:
     std::vector<std::string> getUnusedKeys() const {
         std::vector<std::string> unused(_keys.begin(), _keys.end());
         for (const auto& [key, child] : _children) {
-            for (const auto& childKey : child->getUnusedKeys()) {
-                unused.push_back(key + "." + childKey);
-            }
+            auto childUnused = child->getUnusedKeys();
+            unused.insert(unused.end(), childUnused.begin(), childUnused.end());
         }
         return unused;
     }
@@ -202,17 +191,16 @@ ConfigNode& ConfigNode::operator[](const Key& key) {
         keyStr = std::to_string(key);
     }
 
-    if (_node[key].IsDefined()) {
-        _keys.erase(keyStr);
+    _keys.erase(keyStr);
+
+    auto it = _children.find(keyStr);
+    if (it == _children.end()) {
+        auto child = std::make_unique<ConfigNode>(YAML::Clone(_node[key]), false);
+        auto [inserted_it, success] = _children.emplace(keyStr, std::move(child));
+        return *inserted_it->second;
     }
 
-    if (_children.find(keyStr) == _children.end()) {
-        auto child = std::make_unique<ConfigNode>(_node[key]);
-        child->setRoot(false);
-        _children[keyStr] = std::move(child);
-    }
-
-    return *_children[keyStr];
+    return *it->second;
 }
 
 template <typename Key>
@@ -226,11 +214,12 @@ const ConfigNode& ConfigNode::operator[](const Key& key) const {
 
     _keys.erase(keyStr);
 
-    if (_children.find(keyStr) == _children.end()) {
-        auto child = std::make_unique<ConfigNode>(_node[key]);
-        child->setRoot(false);
-        _children[keyStr] = std::move(child);
+    auto it = _children.find(keyStr);
+    if (it == _children.end()) {
+        auto child = std::make_unique<ConfigNode>(YAML::Clone(_node[key]), false);
+        auto [inserted_it, success] = _children.emplace(keyStr, std::move(child));
+        return *inserted_it->second;
     }
 
-    return *_children[keyStr];
+    return *it->second;
 }

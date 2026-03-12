@@ -288,13 +288,10 @@ struct convert<GlobalOptions> {
         }
 
         if (node["blob_dir"]) {
-            std::cout << "Este true\n";
             if (!node["blob_dir"]["local"]) {
                 THROW_ERROR("\"blob_dir\" must contain \"local\" key!");
             }
             opts.blob_dir = node["blob_dir"]["local"].as<std::string>();
-        } else {
-            std::cout << "Este false\n";
         }
 
         if (node["device_name"]) {
