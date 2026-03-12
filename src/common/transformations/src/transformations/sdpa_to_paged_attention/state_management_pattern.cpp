@@ -441,9 +441,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     // Shared flag to track whether the model is Gemma3, set when any layer matches
     // the gptoss_gemma3 sliding window pattern. Combined with the token_type_ids check,
     // this uniquely identifies Gemma3 (gpt-oss shares the pattern but lacks token_type_ids).
-    auto is_gptoss_gemma3 = std::make_shared<bool>(false);
+    bool is_gemma3 = false;
 
     ov::matcher_pass_callback callback = [=,
+                                          &is_gemma3,
                                           &kv_parameters,
                                           &model_wide_params,
                                           &block_indices_inputs_for_each_layer,
@@ -621,7 +622,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             }
             sliding_window = std::make_shared<v1::Subtract>(v0::Constant::create(element::i32, Shape{}, {2}), offset);
         } else if (pattern_map.count(gptoss_gemma3_offset)) {
-            *is_gptoss_gemma3 = true;
+            is_gemma3 = optional_model_wide_params.count("token_type_ids");
             auto offset = pattern_map.at(gptoss_gemma3_offset).get_node_shared_ptr();
             if (pattern_map.at(gptoss_gemma3_offset).get_partial_shape().rank() != 0) {
                 offset = std::make_shared<v15::Squeeze>(offset);
@@ -756,7 +757,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
         OPENVINO_ASSERT(pa_arguments.size() == 25);
 
-        if (*is_gptoss_gemma3) {
+        if (is_gemma3) {
             pa_arguments.insert(pa_arguments.begin() + 25, handle_gemma3_token_type_ids(optional_model_wide_params));
         } else {
             pa_arguments.insert(pa_arguments.begin() + 25, v0::Constant::create(element::i32, Shape{0}, {}));
