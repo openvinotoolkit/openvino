@@ -826,20 +826,18 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        "\"NPUW_LLM_MAX_PROMPT_LEN\" or shorten the prompt.");
     }
 
-    namespace pp = ov::npuw::perf;
-
     process_longrope(m_prefill_request, m_prefill_in_ports, position_ids);
 
-    m_llm_profile["1/prefill:1.prepare_for_new_conversation"] += pp::ms_to_run([&]() {
+    m_llm_profile["1/prefill:1.prepare_for_new_conversation"].record([&]() {
         prepare_for_new_conversation(prompt_length);
     });
 
-    m_llm_profile["1/prefill:2.apply_lora"] += pp::ms_to_run([&]() {
+    m_llm_profile["1/prefill:2.apply_lora"].record([&]() {
         apply_lora();
     });
 
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
-    m_llm_profile["1/prefill:3.infer"] += ov::npuw::perf::ms_to_run([&]() {
+    m_llm_profile["1/prefill:3.infer"].record([&]() {
         if (use_chunk_prefill) {
             OPENVINO_ASSERT(!token_type_ids,
                             "Chunking is not implemented for Gemma model family yet. "
@@ -850,7 +848,7 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         }
     });
 
-    m_llm_profile["1/prefill:4.lm_head"] += pp::ms_to_run([&]() {
+    m_llm_profile["1/prefill:4.lm_head"].record([&]() {
         if (m_lm_head_request) {
             LOG_DEBUG("Calling inference for LM head model.");
             m_lm_head_request->infer();
@@ -887,8 +885,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
     // Note: m_kvcache_request, m_kvcache_in_ports, and m_kvcache_out_ports are selected in
     // prepare_for_new_conversation()
-    namespace pp = ov::npuw::perf;
-    m_llm_profile["N/generate:1.prepare"] += pp::ms_to_run([&]() {
+    m_llm_profile["N/generate:1.prepare"].record([&]() {
         if (!m_generate_initialized) {
             LOG_DEBUG("Copy kv-cache from prefill to generate model.");
             if (kvcache_desc.num_stored_tokens > 0) {
@@ -958,7 +955,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         }
     });
 
-    m_llm_profile["N/generate:2.infer"] += pp::ms_to_run([&]() {
+    m_llm_profile["N/generate:2.infer"].record([&]() {
         m_kvcache_request->infer();
     });
     kvcache_desc.num_stored_tokens += input_tokens_len;
@@ -968,7 +965,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         m_lm_head_request->start_async();
     }
 
-    m_llm_profile["N/generate:3.update_kvcache"] += pp::ms_to_run([&]() {
+    m_llm_profile["N/generate:3.update_kvcache"].record([&]() {
         if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
             update_kvcache_for(m_kvcache_request,
                                m_kvcache_in_ports,
@@ -978,7 +975,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         }
     });
 
-    m_llm_profile["N/generate:4.lm_head"] += pp::ms_to_run([&]() {
+    m_llm_profile["N/generate:4.lm_head"].record([&]() {
         if (m_lm_head_request) {
             m_lm_head_request->wait();
             LOG_DEBUG("Calling inference for LM head model -- done.");
