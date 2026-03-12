@@ -86,8 +86,28 @@ if(TBB_FOUND)
     if(NOT TBB_LIB_INSTALL_DIR)
         message(FATAL_ERROR "Internal error: variable 'TBB_LIB_INSTALL_DIR' is not defined")
     endif()
-    # set RPATH / LC_RPATH to TBB library directory
-    ov_set_install_rpath(${TARGET_NAME} ${OV_CPACK_RUNTIMEDIR} ${TBB_LIB_INSTALL_DIR})
+
+    if(WIN32 AND BUILD_SHARED_LIBS)
+        # On Windows, DLLs must reside next to the consuming binary (no RPATH).
+        # Copy all TBB DLLs to the openvino output directory as a POST_BUILD step.
+        _ov_get_tbb_location(TBB::tbb _ov_tbb_dll_location)
+        cmake_path(GET _ov_tbb_dll_location PARENT_PATH _ov_tbb_dll_dir)
+        file(GLOB _ov_tbb_dlls "${_ov_tbb_dll_dir}/*.dll")
+        if(_ov_tbb_dlls)
+            add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    ${_ov_tbb_dlls}
+                    $<TARGET_FILE_DIR:${TARGET_NAME}>
+                COMMENT "Copying TBB DLLs to ${TARGET_NAME} output directory"
+                VERBATIM)
+        endif()
+        unset(_ov_tbb_dll_location)
+        unset(_ov_tbb_dll_dir)
+        unset(_ov_tbb_dlls)
+    else()
+        # set RPATH / LC_RPATH to TBB library directory
+        ov_set_install_rpath(${TARGET_NAME} ${OV_CPACK_RUNTIMEDIR} ${TBB_LIB_INSTALL_DIR})
+    endif()
 endif()
 
 # must be called after all target_link_libraries
