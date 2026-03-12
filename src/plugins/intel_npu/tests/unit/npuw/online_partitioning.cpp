@@ -12,6 +12,7 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/pass/stateful_to_stateless.hpp"
 #include "partitioning/online/compiler.hpp"
 #include "partitioning/online/group.hpp"
 #include "partitioning/online/snapshot.hpp"
@@ -676,16 +677,53 @@ INSTANTIATE_TEST_SUITE_P(OnlinePartitioningTest,
 TEST(OnlinePartitioningTest, IsRegularParameterCase_PrefillModel_InputsEmbeds) {
     ModelConfig config;
     config.num_layers = 4;
-    config.hidden_size = 32;
-    config.num_heads = 2;
-    config.head_dim = 16;
-    config.intermediate_size = 64;
-    config.vocab_size = 100;
+    config.hidden_size = 64;
     config.use_inputs_embeds = true;  // layer 0's residual Add reads inputs_embeds (ov::Parameter)
-    config.use_kv_cache = false;      // keep model simple; KV-cache symmetry is orthogonal to this bug
+    config.use_kv_cache = true;
 
     ModelBuilder mb;
     auto model = mb.build_model(config);
+
+    // Partitioning requires a static-shape stateless model, matching the real
+    // production path in LLMCompiledModel before getPartitioning() is called.
+    ov::pass::StatefulToStateless().run_on_model(model);
+    // StatefulToStateless removes Assign nodes from model sinks but does NOT sever
+    // their incoming edges (Concat → Assign).  clone() rebuilds the model from
+    // get_ordered_ops(), which no longer includes the dangling Assigns, producing a
+    // clean graph.  This mirrors LLMCompiledModel's kvcache_model->clone() → prefill_model.
+    model = model->clone();
+
+    // Resolve dynamic dimensions using the same name-aware logic as the production
+    // LLMCompiledModel::reshape_to_static():
+    //   - inputs_embeds   -> [1, seq_len, hidden_size]   (hidden_size stays static)
+    //   - attention_mask  -> [1, kvcache_size]            (covers full past + current)
+    //   - position_ids    -> [1, seq_len]
+    //   - past KV tensors -> [1, kv_heads, past_kv_len, head_dim]
+    //                        (axes 1 and 3 are already static in the model builder)
+    const int64_t seq_len = 8;
+    const int64_t past_kv_len = 8;
+    const int64_t kvcache_size = seq_len + past_kv_len;
+    std::map<std::string, ov::PartialShape> new_shapes;
+    for (const auto& input : model->inputs()) {
+        const auto& name = input.get_any_name();
+        const auto& pshape = input.get_partial_shape();
+        ov::PartialShape new_shape;
+        if (name.find("inputs_embeds") != std::string::npos) {
+            new_shape = {1, seq_len, pshape[2]};  // hidden_size is static
+        } else if (name.find("attention_mask") != std::string::npos) {
+            new_shape = {1, kvcache_size};
+        } else if (name.find("position_ids") != std::string::npos) {
+            new_shape = {1, seq_len};
+        } else {
+            // Past KV tensors: [batch, kv_heads, past_kv_len, head_dim]
+            // (axes 1 and 3 are already static; set batch=1 and past_kv_len)
+            new_shape = pshape;
+            new_shape[0] = 1;
+            new_shape[2] = past_kv_len;
+        }
+        new_shapes[name] = new_shape;
+    }
+    model->reshape(new_shapes);
 
     auto cfg = createConfigWithKeepBlockSize(4);
     auto ens = ov::npuw::online::buildPartitioning(model, cfg);
