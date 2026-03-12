@@ -28,24 +28,32 @@ protected:
 };
 
 TEST_F(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalledSetProperty) {
-    ov::AnyMap config;
+    const std::vector<std::string_view> platforms = {ov::intel_npu::Platform::NPU5010,
+                                                     ov::intel_npu::Platform::NPU5020};
 
-    config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
-    config[ov::intel_npu::platform.name()] = ov::intel_npu::Platform::NPU5010;
-    core.set_property(DEVICE_NPU, config);
+    for (const auto& platform : platforms) {
+        ov::AnyMap config;
+        config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
+        config[ov::intel_npu::platform.name()] = platform;
+        core.set_property(DEVICE_NPU, config);
 
-    std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
-    OV_ASSERT_NO_THROW(core.compile_model(model, DEVICE_NPU));
+        std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
+        OV_ASSERT_NO_THROW(core.compile_model(model, DEVICE_NPU));
+    }
 }
 
 TEST_F(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalled) {
-    ov::AnyMap config;
+    const std::vector<std::string_view> platforms = {ov::intel_npu::Platform::NPU5010,
+                                                     ov::intel_npu::Platform::NPU5020};
 
-    config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
-    config[ov::intel_npu::platform.name()] = ov::intel_npu::Platform::NPU5010;
+    for (const auto& platform : platforms) {
+        ov::AnyMap config;
+        config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
+        config[ov::intel_npu::platform.name()] = platform;
 
-    std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
-    OV_ASSERT_NO_THROW(core.compile_model(model, DEVICE_NPU, config));
+        std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
+        OV_ASSERT_NO_THROW(core.compile_model(model, DEVICE_NPU, config));
+    }
 }
 
 using UnavailableDeviceTests = ::testing::Test;
