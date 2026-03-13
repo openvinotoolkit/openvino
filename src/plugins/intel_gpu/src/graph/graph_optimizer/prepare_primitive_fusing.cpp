@@ -1201,6 +1201,24 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto fused_node = parents[fused_idx].first;
             auto peer_node = parents[peer_idx].first;
 
+            // Avoid using reduce oneDNN when onednn tensors dst and bin_po src have inconsistent number of dimensions
+            if (fused_node->is_type<reduce>()) {
+                // ReduceOneDNN always uses onednn blocked memory
+                size_t reduce_dst_dims_for_onednn = cldnn::format::dimension(fused_node->get_output_layout().format);
+                size_t bin_po_src_dims_for_onednn = 0;
+                auto eltw_in_size = peer_node->get_output_layout();
+                if (cldnn::format::is_blocked(eltw_in_size.format) ) {
+                    bin_po_src_dims_for_onednn = cldnn::format::dimension(eltw_in_size.format);
+                } else {
+                    bin_po_src_dims_for_onednn = eltw_in_size.is_dynamic() ?
+                        static_cast<size_t>(eltw_in_size.get_partial_shape().rank().get_length()) : eltw_in_size.get_shape().size();
+                }
+                if (reduce_dst_dims_for_onednn != bin_po_src_dims_for_onednn) {
+                    // oneDNN doesn't support inconsistent number of dimensions
+                    fused_node->set_forced_impl_type(impl_types::ocl);
+                }
+            }
+
             // Avoid fusing with GEMM from the LoRA pattern, that can be optimized in case of empty adapters
             if (fused_node->is_type<gemm>()) {
                 bool is_fc_lora = peer_node->is_type<fully_connected>() ||
