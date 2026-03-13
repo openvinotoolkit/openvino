@@ -420,40 +420,6 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "read_model",
-        [](ov::Core& self,
-           const std::string& model_path,
-           const std::string& weight_path,
-           const std::map<std::string, py::object>& config) {
-            const auto any_map = Common::utils::properties_to_any_map(config);
-            py::gil_scoped_release release;
-            return self.read_model(model_path, weight_path, any_map);
-        },
-        py::arg("model"),
-        py::arg("weights") = "",
-        py::arg("config") = py::dict(),
-        R"(
-            Reads models from IR / ONNX / PDPD / TF and TFLite formats.
-
-            GIL is released while running this function.
-
-            :param model: A path to a model in IR / ONNX / PDPD / TF and TFLite format.
-            :type model: str
-            :param weights: A path to a data file For IR format (*.bin): if path is empty,
-                            it tries to read a bin file with the same name as xml and if the bin
-                            file with the same name was not found, loads IR without weights.
-                            For ONNX format (*.onnx): weights parameter is not used.
-                            For PDPD format (*.pdmodel) weights parameter is not used.
-                            For TF format (*.pb) weights parameter is not used.
-                            For TFLite format (*.tflite) weights parameter is not used.
-            :type weights: str
-            :param config: Optional map of pairs: (property name, property value) relevant only for this read operation.
-            :type config: dict[str, typing.Any], optional
-            :return: A model.
-            :rtype: openvino.Model
-        )");
-
-    cls.def(
-        "read_model",
         (std::shared_ptr<ov::Model>(ov::Core::*)(const std::string&, const ov::Tensor&) const) & ov::Core::read_model,
         py::call_guard<py::gil_scoped_release>(),
         py::arg("model"),
@@ -519,8 +485,8 @@ void regclass_Core(py::module m) {
 
             GIL is released while running this function.
 
-            :param model: A path to a model in IR / ONNX / PDPD / TF and TFLite format or a model itself wrapped in io.ByesIO format.
-            :type model: Union[pathlib.Path, io.BytesIO]
+            :param model: A path to a model in IR / ONNX / PDPD / TF and TFLite format or a model itself wrapped in io.BytesIO format.
+            :type model: Union[str, pathlib.Path, io.BytesIO]
             :param weights: A path to a data file For IR format (*.bin): if path is empty,
                             it tries to read a bin file with the same name as xml and if the bin
                             file with the same name was not found, loads IR without weights.
@@ -528,7 +494,7 @@ void regclass_Core(py::module m) {
                             For PDPD format (*.pdmodel) weights parameter is not used.
                             For TF format (*.pb): weights parameter is not used.
                             For TFLite format (*.tflite) weights parameter is not used.
-            :type weights: Union[pathlib.Path, io.BytesIO]
+            :type weights: Union[str, pathlib.Path, io.BytesIO]
             :param config: Optional map of pairs: (property name, property value) relevant only for this read operation.
             :type config: dict[str, typing.Any], optional
             :return: A model.
