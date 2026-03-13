@@ -73,9 +73,6 @@ KERNEL(pa_sdpa_opt)(
 #if HAS_SINK_INPUT
     const __global SINK_DATA_T* sink_ptr,
 #endif
-#if HAS_TOKEN_TYPE_IDS && MULTI_TOKENS_PROCESSING
-    const __global int* token_type_ids,
-#endif
     __global OUTPUT_TYPE* output,
 #if PAGED_ATTENTION_SCORES_OUTPUT
     __global SOFTMAX_ACCUMULATOR_TYPE* softmax_results,
@@ -151,20 +148,7 @@ KERNEL(pa_sdpa_opt)(
     const int subsequence_idx = gws_subseq_mapping[seq_idx];
     const int subsequence_begin = subsequence_begins[subsequence_idx];
     const int subsequence_end = subsequence_begins[subsequence_idx + 1];
-    uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
-#if HAS_TOKEN_TYPE_IDS
-    // Bidirectional attention for image token groups (e.g. Gemma3 VLM):
-    // Extend seq_len so image tokens can attend to all tokens in their contiguous image group
-    if (token_type_ids[seq_idx] == 1) {
-        int group_end = seq_idx + 1;
-        while (group_end < subsequence_end && token_type_ids[group_end] == 1) {
-            group_end++;
-        }
-        // Extend seq_len to cover the full image group
-        // seq_len + (group_end - seq_idx - 1) = past_len + (group_end - subsequence_begin)
-        seq_len = max(seq_len, seq_len + (uint)(group_end - seq_idx) - 1);
-    }
-#endif
+    const uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
 #else
     const uint subsequence_idx = seq_idx;
     const uint seq_len = past_lens[seq_idx] + 1;
@@ -849,9 +833,6 @@ KERNEL(pa_sdpa_finalization_stage)(
 #if MULTI_TOKENS_PROCESSING
     const __global int* gws_subseq_mapping,
 #endif
-#if HAS_TOKEN_TYPE_IDS && MULTI_TOKENS_PROCESSING
-    const __global int* token_type_ids,
-#endif
     const uint total_partitions_num) {
     const uint seq_idx = get_global_id(0);
     const uint head_num_idx = get_global_id(1);
@@ -861,18 +842,7 @@ KERNEL(pa_sdpa_finalization_stage)(
 #if MULTI_TOKENS_PROCESSING
     const int subsequence_idx = gws_subseq_mapping[seq_idx];
     const int subsequence_begin = subsequence_begins[subsequence_idx];
-    const int subsequence_end = subsequence_begins[subsequence_idx + 1];
-    uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
-#if HAS_TOKEN_TYPE_IDS
-    // Bidirectional attention: extend seq_len for image tokens (consistent with SDPA_STAGE_0)
-    if (token_type_ids[seq_idx] == 1) {
-        int group_end = seq_idx + 1;
-        while (group_end < subsequence_end && token_type_ids[group_end] == 1) {
-            group_end++;
-        }
-        seq_len = max(seq_len, seq_len + (uint)(group_end - seq_idx) - 1);
-    }
-#endif
+    const uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
 #else
     const uint seq_len = past_lens[seq_idx] + 1;
 #endif

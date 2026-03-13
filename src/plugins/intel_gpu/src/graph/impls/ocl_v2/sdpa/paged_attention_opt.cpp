@@ -347,10 +347,6 @@ public:
             jit.make("HAS_ROTATED_BLOCKS", 1);
         }
 
-        if (desc->has_token_type_ids) {
-            jit.make("HAS_TOKEN_TYPE_IDS", 1);
-        }
-
         jit.add(make_type_jit_constants("SOFTMAX_ACCUMULATOR", softmax_accumulator_type));
         return jit;
     }
@@ -642,10 +638,6 @@ public:
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
         }
 
-        if (desc->has_token_type_ids) {
-            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
-        }
-
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         add_intermediate_inputs(args, has_scores_output, true, desc->has_score_aggregation);
         return args;
@@ -698,10 +690,6 @@ public:
 
         const auto has_scores_output = desc->has_scores_output();
         add_intermediate_inputs(args, has_scores_output, true, desc->has_score_aggregation);
-
-        if (desc->has_token_type_ids) {
-            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
-        }
 
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // total_partitions_num
 
