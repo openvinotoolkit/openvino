@@ -72,6 +72,7 @@ std::string ZeroDevice::getName() const {
 #define NPU_3720_S_DEVICE_ID 0xAD1D
 #define NPU_4000_DEVICE_ID   0x643E
 #define NPU_5010_DEVICE_ID   0xB03E
+#define NPU_5020_DEVICE_ID   0xFD3E
 
     std::string name;
     switch (_device_properties.deviceId) {
@@ -84,6 +85,9 @@ std::string ZeroDevice::getName() const {
         break;
     case NPU_5010_DEVICE_ID:
         name = ov::intel_npu::Platform::NPU5010;
+        break;
+    case NPU_5020_DEVICE_ID:
+        name = ov::intel_npu::Platform::NPU5020;
         break;
     case LEGACY_NPU_3000_DEVICE_ID:
         OPENVINO_THROW("[LEGACY] NPU device ID 0x", std::hex, _device_properties.deviceId, " is not supported!");
