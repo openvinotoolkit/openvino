@@ -1685,7 +1685,7 @@ public:
         }
 
         const auto multi_tokens_mode = stage == PagedAttentionStage::MIXED;
-        if (!can_use_micro_sdpa && multi_tokens_mode) {
+        if (multi_tokens_mode && !can_use_micro_sdpa) {
             internal_buffers.emplace_back(total_tokens, softmax_accumulator_type, lockable);  // 9
         }
 
@@ -1898,7 +1898,7 @@ public:
                 }
             }
 
-            if (!use_micro_sdpa && stage == PagedAttentionStage::MIXED) {
+            if (stage == PagedAttentionStage::MIXED && !use_micro_sdpa) {
                 for (int32_t idx = seq_start; idx < seq_end; idx++) {
                     sequential_gws_subseq_mapping_lock->operator[](idx) = static_cast<int32_t>(i);
                 }
