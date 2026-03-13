@@ -326,6 +326,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     bool allow_score_aggregation,
     bool allow_xattention,
     bool allow_adaptive_rkv,
+    bool allow_qq_bias,
     ParameterVector& rotated_block_indices_inputs_for_each_layer,
     ParameterVector& rotation_deltas_inputs_for_each_layer,
     ParameterVector& xattention_threshold_inputs_for_each_layer,
@@ -719,8 +720,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                 v0::Constant::create(real_q.get_element_type(), Shape{0, 0, 0, 0}, {}));
         }
 
-        OPENVINO_ASSERT(pa_arguments.size() == 21);
-
         if (allow_adaptive_rkv) {
             OPENVINO_ASSERT(
                 optional_model_wide_params.count("adaptive_rkv_start_size"),
@@ -754,7 +753,18 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             pa_arguments.insert(pa_arguments.begin() + 23, v0::Constant::create(element::i32, Shape{0}, {}));
             pa_arguments.insert(pa_arguments.begin() + 24, v0::Constant::create(element::i32, Shape{0}, {}));
         }
-        OPENVINO_ASSERT(pa_arguments.size() == 25);
+
+        if (allow_qq_bias) {
+            OPENVINO_ASSERT(optional_model_wide_params.find("qq_bias") != optional_model_wide_params.end(),
+                            "No qq_bias input found. For using QQ bias, the model have to contain "
+                            "an additional input (Parameter) called qq_bias.");
+            pa_arguments.insert(pa_arguments.begin() + 25, optional_model_wide_params.at("qq_bias"));
+            pa_arguments.insert(pa_arguments.begin() + 26, optional_model_wide_params.at("qq_bias_begins"));
+        } else {
+            pa_arguments.insert(pa_arguments.begin() + 25, v0::Constant::create(element::u8, Shape{0}, {}));
+            pa_arguments.insert(pa_arguments.begin() + 26, v0::Constant::create(element::i32, Shape{0}, {}));
+        }
+        OPENVINO_ASSERT(pa_arguments.size() == 27);
 
         if (*is_gptoss_gemma3) {
             pa_arguments.insert(pa_arguments.begin() + 25, handle_gemma3_token_type_ids(optional_model_wide_params));
