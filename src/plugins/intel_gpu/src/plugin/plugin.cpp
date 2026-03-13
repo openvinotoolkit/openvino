@@ -38,6 +38,7 @@
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/parallel_mem_streambuf.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/weights_path.hpp"
@@ -459,8 +460,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const{
-    SharedStreamBuffer buf{model.data(), model.get_byte_size()};
-    std::istream stream(&buf);
+    ov::util::ParallelMemStreamBuf par_buf(model.data(), model.get_byte_size());
+    std::istream stream(&par_buf);
     return import_model(stream, context, config);
 }
 
