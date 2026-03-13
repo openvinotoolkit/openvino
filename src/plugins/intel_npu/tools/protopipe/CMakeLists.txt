@@ -66,8 +66,9 @@ ov_add_target(TYPE EXECUTABLE
               INCLUDES ${PROTOPIPE_SOURCE_DIR} "${CMAKE_CURRENT_BINARY_DIR}/version"
               LINK_LIBRARIES PRIVATE ${DEPENDENCIES})
 
+file(RELATIVE_PATH _folder "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}")
 set_target_properties(${TARGET_NAME} PROPERTIES
-                          FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
+                          FOLDER "${_folder}"
                           CXX_STANDARD 17)
 
 if (WIN32)

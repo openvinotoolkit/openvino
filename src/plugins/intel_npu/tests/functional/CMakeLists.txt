@@ -67,8 +67,9 @@ if(WIN32)
     target_link_libraries(${TARGET_NAME} PRIVATE d3d12)
 endif()
 
+file(RELATIVE_PATH _folder "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}")
 set_target_properties(
-  ${TARGET_NAME} PROPERTIES FOLDER ${CMAKE_CURRENT_SOURCE_DIR} CXX_STANDARD 17)
+  ${TARGET_NAME} PROPERTIES FOLDER "${_folder}" CXX_STANDARD 17)
 
 if(MSVC)
   # Enforce standards conformance on MSVC

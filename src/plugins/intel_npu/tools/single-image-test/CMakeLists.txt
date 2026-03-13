@@ -52,8 +52,9 @@ ov_add_target(TYPE EXECUTABLE
 
 ov_set_threading_interface_for(${TARGET_NAME})
 
+file(RELATIVE_PATH _folder "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}")
 set_target_properties(${TARGET_NAME} PROPERTIES
-                          FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
+                          FOLDER "${_folder}"
                           CXX_STANDARD 17)
 
 # TODO: fix warnings and remove this exception
