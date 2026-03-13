@@ -11,6 +11,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -567,6 +568,89 @@ void Reorder::reorderData(const IMemory& input,
             cpu_memcpy(dstPtr, srcPtr, copySize);
         }
     } else {
+        auto tryReorderAcbAbc3d = [&]() {
+            const auto inputPrc = input.getDesc().getPrecision();
+            const auto outputPrc = output.getDesc().getPrecision();
+            if (inputPrc != outputPrc) {
+                return false;
+            }
+
+            const auto inFormat = input.getDesc().serializeFormat();
+            const auto outFormat = output.getDesc().serializeFormat();
+            const bool acbToAbc = inFormat == "acb" && outFormat == "abc";
+            const bool abcToAcb = inFormat == "abc" && outFormat == "acb";
+            if (!acbToAbc && !abcToAcb) {
+                return false;
+            }
+
+            const auto inDims = input.getShape().getStaticDims();
+            const auto outDims = output.getShape().getStaticDims();
+            if (inDims.size() != 3 || inDims != outDims) {
+                return false;
+            }
+
+            const size_t A = inDims[0];
+            const size_t B = inDims[1];
+            const size_t C = inDims[2];
+
+            const auto* src = static_cast<const uint8_t*>(input.getData());
+            auto* dst = static_cast<uint8_t*>(output.getData());
+
+            if (any_of(inputPrc, ov::element::i4, ov::element::u4)) {
+                auto getNibble = [](const uint8_t* ptr, size_t idx) {
+                    const auto byte = ptr[idx / 2];
+                    return static_cast<uint8_t>((idx % 2 == 0) ? (byte & 0x0F) : (byte >> 4));
+                };
+                auto setNibble = [](uint8_t* ptr, size_t idx, uint8_t val) {
+                    auto& byte = ptr[idx / 2];
+                    const auto nibble = static_cast<uint8_t>(val & 0x0F);
+                    if (idx % 2 == 0) {
+                        byte = static_cast<uint8_t>((byte & 0xF0) | nibble);
+                    } else {
+                        byte = static_cast<uint8_t>((byte & 0x0F) | (nibble << 4));
+                    }
+                };
+
+                std::fill(dst, dst + output.getSize(), 0);
+
+                for (size_t a = 0; a < A; ++a) {
+                    for (size_t b = 0; b < B; ++b) {
+                        for (size_t c = 0; c < C; ++c) {
+                            const size_t abcIndex = (a * B + b) * C + c;
+                            const size_t acbIndex = (a * C + c) * B + b;
+                            const size_t srcIndex = acbToAbc ? acbIndex : abcIndex;
+                            const size_t dstIndex = acbToAbc ? abcIndex : acbIndex;
+                            setNibble(dst, dstIndex, getNibble(src, srcIndex));
+                        }
+                    }
+                }
+                return true;
+            }
+
+            const size_t elemSize = inputPrc.size();
+            if (elemSize == 0) {
+                return false;
+            }
+
+            for (size_t a = 0; a < A; ++a) {
+                for (size_t b = 0; b < B; ++b) {
+                    for (size_t c = 0; c < C; ++c) {
+                        const size_t abcIndex = (a * B + b) * C + c;
+                        const size_t acbIndex = (a * C + c) * B + b;
+                        const size_t srcIndex = acbToAbc ? acbIndex : abcIndex;
+                        const size_t dstIndex = acbToAbc ? abcIndex : acbIndex;
+                        std::memcpy(dst + dstIndex * elemSize, src + srcIndex * elemSize, elemSize);
+                    }
+                }
+            }
+
+            return true;
+        };
+
+        if (tryReorderAcbAbc3d()) {
+            return;
+        }
+
         dnnl::reorder reorder;
         std::vector<uint8_t> tmpBuff;
 

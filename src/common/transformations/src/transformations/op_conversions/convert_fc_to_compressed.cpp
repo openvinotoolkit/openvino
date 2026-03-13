@@ -131,7 +131,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
     SupportsPredicate supports_config,
     bool convert_u4zp_to_u8) {
     auto weights_block =
-        std::make_shared<pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{2});
+        std::make_shared<pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{2, 3});
     auto activation = pattern::any_input(pattern::type_matches_any(supported_activation_types));
     auto bias = pattern::any_input();
     auto fully_connected = pattern::wrap_type<ov::op::internal::FullyConnected>({activation, weights_block, bias});
