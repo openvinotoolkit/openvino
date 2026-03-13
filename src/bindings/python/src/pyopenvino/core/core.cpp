@@ -5,8 +5,10 @@
 #include "pyopenvino/core/core.hpp"
 
 #include <pybind11/stl.h>
+#include <pybind11/stl/filesystem.h>
 #include <pybind11/typing.h>
 
+#include <filesystem>
 #include <fstream>
 #include <openvino/core/any.hpp>
 #include <openvino/runtime/core.hpp>
@@ -675,7 +677,7 @@ void regclass_Core(py::module m) {
         )");
 
     cls.def("add_extension",
-            static_cast<void (ov::Core::*)(const std::string&)>(&ov::Core::add_extension),
+            static_cast<void (ov::Core::*)(const std::filesystem::path&)>(&ov::Core::add_extension),
             py::arg("library_path"),
             R"(
                 Registers an extension to a Core object.
@@ -708,11 +710,7 @@ void regclass_Core(py::module m) {
     cls.def(
         "add_extension",
         [](ov::Core& self, py::object dtype) {
-            if (py::isinstance(dtype, py::module_::import("pathlib").attr("Path"))) {
-                self.add_extension(Common::utils::to_fs_path(dtype));
-            } else {
-                self.add_extension(PyOpExtension(dtype));
-            }
+            self.add_extension(PyOpExtension(dtype));
         },
         py::arg("custom_op"),
         R"(

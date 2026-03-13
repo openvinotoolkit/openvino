@@ -59,7 +59,7 @@ def test_pickle():
 
 
 @mock_needed
-def test_register_front_end_with_pathlib_path():
+def test_register_front_end_path():
     fem2 = FrontEndManager()
     fem2.register_front_end(MOCK_PY_FRONTEND_NAME, Path(mock_py_fe_path_l[0]))
     fe = fem2.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)

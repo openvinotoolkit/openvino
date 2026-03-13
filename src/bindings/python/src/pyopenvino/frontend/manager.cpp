@@ -59,7 +59,7 @@ void regclass_frontend_FrontEndManager(py::module m) {
                 :param library_path: Path (absolute or relative) or name of a frontend library. If name is
                 provided, depending on platform, it will be wrapped with shared library suffix and prefix
                 to identify library full name.
-                :type library_path: Union[str, bytes, pathlib.Path]
+                :type library_path: Union[str, pathlib.Path]
 
                 :return: None
              )");
