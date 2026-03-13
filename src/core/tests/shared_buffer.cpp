@@ -4,6 +4,7 @@
 
 #include "openvino/runtime/shared_buffer.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -416,40 +417,48 @@ TEST(MappedMemory, get_id_same_for_same_file) {
     std::filesystem::remove(file_path);
 }
 
-using PartialMappingTestRegions =  // offset_1, size_1, offset_2, size_2
-    std::tuple<size_t, size_t, size_t, size_t>;
-using PartialMappingTestParams =  // offset-size pairs, use file path (true) or file handle (false)
-    std::tuple<PartialMappingTestRegions, bool>;
+using RangedMappingTestRegions =  // offset_1, size_1, offset_2, size_2, file_size (0 means auto-calculate)
+    std::tuple<size_t, size_t, size_t, size_t, size_t>;
+using RangedMappingTestParams =  // offset-size pairs, use file path (true) or file handle (false)
+    std::tuple<RangedMappingTestRegions, bool>;
 
-class PartialMappingTest : public ::testing::TestWithParam<PartialMappingTestParams> {
+class RangedMappingTest : public ::testing::TestWithParam<RangedMappingTestParams> {
 protected:
     std::filesystem::path m_file_path;
     std::vector<char> m_data_1, m_data_2;
 
     void SetUp() override {
         const auto& [regions, use_file_path] = GetParam();
-        const auto& [offset_1, size_1, offset_2, size_2] = regions;
-        // todo - add test with overlapping regions when it's supported by implementation
-        ASSERT_TRUE(offset_2 >= offset_1 + size_1 || (offset_2 == 0 && size_2 == 0));
+        const auto& [offset_1, size_1, offset_2, size_2, file_size] = regions;
 
-        m_data_1.resize(size_1);
-        m_data_2.resize(size_2);
-        for (size_t i = 0; i < size_1; ++i) {
+        const auto actual_file_size = file_size ? file_size : std::max(offset_1 + size_1, offset_2 + size_2);
+        const auto actual_size_1 = size_1 ? size_1 : actual_file_size - offset_1;
+        const auto actual_size_2 = size_2 ? size_2 : actual_file_size - offset_2;
+        ASSERT_LE(offset_1 + actual_size_1, actual_file_size);
+        ASSERT_LE(offset_2 + actual_size_2, actual_file_size);
+
+        m_data_1.resize(actual_size_1);
+        m_data_2.resize(actual_size_2);
+        for (size_t i = 0; i < actual_size_1; ++i) {
             m_data_1[i] = static_cast<char>('A' + i % 26);
         }
-        for (size_t i = 0; i < size_2; ++i) {
+        for (size_t i = 0; i < actual_size_2; ++i) {
             m_data_2[i] = static_cast<char>('a' + i % 26);
         }
 
-        std::vector<char> buffer(offset_2 + size_2, '_');
-        for (size_t i = 0; i < size_1; ++i) {
+        std::vector<char> buffer(actual_file_size, '_');
+        for (size_t i = 0; i < actual_size_1; ++i) {
             buffer[offset_1 + i] = m_data_1[i];
         }
-        for (size_t i = 0; i < size_2; ++i) {
+        for (size_t i = 0; i < actual_size_2; ++i) {
             buffer[offset_2 + i] = m_data_2[i];
         }
+        // In case the ranges overlap
+        for (size_t i = 0; i < actual_size_1; ++i) {
+            m_data_1[i] = buffer[offset_1 + i];
+        }
 
-        m_file_path = utils::generateTestFilePrefix() + "_partial_mapping";
+        m_file_path = utils::generateTestFilePrefix();
         std::ofstream s(m_file_path, std::ios::binary);
         ASSERT_TRUE(s.is_open());
         s.write(buffer.data(), buffer.size());
@@ -461,12 +470,12 @@ protected:
     }
 
 public:
-    static std::string test_name(const testing::TestParamInfo<PartialMappingTestParams>& info) {
+    static std::string test_name(const testing::TestParamInfo<RangedMappingTestParams>& info) {
         const auto& [regions, use_file_path] = info.param;
-        const auto& [offset_1, size_1, offset_2, size_2] = regions;
+        const auto& [offset_1, size_1, offset_2, size_2, file_size] = regions;
         std::ostringstream ss;
         ss << "offset1_" << offset_1 << "_size1_" << size_1 << "_offset2_" << offset_2 << "_size2_" << size_2
-           << (use_file_path ? "_file_path" : "_file_handle");
+           << "_file_size_" << file_size << (use_file_path ? "_file_path" : "_file_handle");
         return ss.str();
     }
 };
@@ -492,9 +501,9 @@ FileHandle open_file(const std::filesystem::path& path) {
 #endif
 }  // namespace
 
-TEST_P(PartialMappingTest, compare_data) {
+TEST_P(RangedMappingTest, compare_data) {
     const auto& [regions, use_file_path] = GetParam();
-    const auto& [offset_1, size_1, offset_2, size_2] = regions;
+    const auto& [offset_1, size_1, offset_2, size_2, file_size] = regions;
     std::shared_ptr<MappedMemory> mm_1, mm_2;
 
     if (use_file_path) {
@@ -509,20 +518,20 @@ TEST_P(PartialMappingTest, compare_data) {
     ASSERT_NE(mm_1, nullptr);
     ASSERT_NE(mm_2, nullptr);
 
-    EXPECT_EQ(mm_1->size(), size_1);
-    EXPECT_EQ(mm_2->size(), size_2);
+    EXPECT_EQ(mm_1->size(), m_data_1.size());
+    EXPECT_EQ(mm_2->size(), m_data_2.size());
     EXPECT_EQ(m_data_1, std::vector<char>(mm_1->data(), mm_1->data() + mm_1->size()));
     EXPECT_EQ(m_data_2, std::vector<char>(mm_2->data(), mm_2->data() + mm_2->size()));
 }
 
-TEST_P(PartialMappingTest, compare_id) {
+TEST_P(RangedMappingTest, compare_id) {
     const auto& [regions, use_file_path] = GetParam();
     if (!use_file_path) {
         GTEST_SKIP();  // CVS-182260
     }
-    const auto& [offset_1, size_1, offset_2, size_2] = regions;
+    const auto& [offset_1, size_1, offset_2, size_2, file_size] = regions;
 
-    std::filesystem::path other_file_path = utils::generateTestFilePrefix() + "_partial_mapping";
+    std::filesystem::path other_file_path = utils::generateTestFilePrefix();
     std::error_code ec;
     std::filesystem::copy_file(m_file_path, other_file_path, ec);
     ASSERT_FALSE(ec) << "Failed to copy file \"" << m_file_path << "\" for test setup: " << ec.message();
@@ -560,14 +569,18 @@ TEST_P(PartialMappingTest, compare_id) {
 
 static auto pg_sz = util::get_system_page_size();
 INSTANTIATE_TEST_SUITE_P(MappedMemory,
-                         PartialMappingTest,
-                         ::testing::Combine(::testing::ValuesIn(std::vector<PartialMappingTestRegions>{
-                                                // {pg_sz, pg_sz / 2, 0, 0},
-                                                {pg_sz, 127, 2 * pg_sz, 101},
-                                                {0, 3 * pg_sz, 7 * pg_sz, 1024},
-                                                {0, pg_sz, pg_sz, pg_sz}}),
+                         RangedMappingTest,
+                         ::testing::Combine(::testing::ValuesIn(std::vector<RangedMappingTestRegions>{
+                                                {pg_sz, 127, 2 * pg_sz, 101, 0},
+                                                {0, 3 * pg_sz, 7 * pg_sz, 1024, 0},
+                                                {0, pg_sz, pg_sz, pg_sz, 0},
+                                                {100, 50, 150, 30, 180},
+                                                {1, 0, 0, 0, pg_sz},
+                                                {0, 40, 0, 41, 42},
+                                                {11, 0, 17, 80, 101},
+                                                {10, 0, 0, 90, 100}}),
                                             ::testing::ValuesIn(std::vector<bool>{true, false})),
-                         PartialMappingTest::test_name);
+                         RangedMappingTest::test_name);
 
 // ==================== SharedBuffer with explicit descriptor Tests ====================
 
