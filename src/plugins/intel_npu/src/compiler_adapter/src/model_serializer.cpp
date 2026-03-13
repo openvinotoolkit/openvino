@@ -249,17 +249,6 @@ ov::intel_npu::ModelSerializerVersion determineModelSerializerVersion(
         // Models that use a version < 11 cannot be marshalled using the "no_weights_copy" algorithm. See C#179944.
         return ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY;
     }
-    if (isOptionValueSupportedByCompiler == nullptr) {
-        // Can't query the support offered by the compiler. This is considered a test scenario, therefore the version
-        // given as argument will be used.
-        logger.warning(
-            "No function has been provided to the model serializer that allows querying the options supported by the "
-            "compiler. The provided model serializer version will be used without checking the compiler support. This "
-            "is acceptable to happen only if the current run is a test.");
-        return serializerVersion != ov::intel_npu::ModelSerializerVersion::AUTO
-                   ? serializerVersion
-                   : ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY;
-    }
 
     switch (serializerVersion) {
     case ov::intel_npu::ModelSerializerVersion::AUTO:
@@ -579,6 +568,11 @@ SerializedIR serializeIR(
     const std::function<bool(const std::string&, const std::optional<std::string>&)>& isOptionValueSupportedByCompiler,
     const bool computeModelHash,
     const bool storeWeightlessCacheAttributeFlag) {
+    OPENVINO_ASSERT(model, "nullptr passed as model to the NPU model serializer");
+    OPENVINO_ASSERT(isOptionValueSupportedByCompiler,
+                    "The NPU model serializer was called without providing a function for querying the config options "
+                    "support offered by the compiler-adapter");
+
     const Logger& logger = Logger("serializeIR", Logger::global().level());
     std::chrono::steady_clock::time_point start_time;
     if (logger.level() >= ov::log::Level::INFO) {
