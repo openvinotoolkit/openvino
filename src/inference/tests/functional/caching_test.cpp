@@ -26,6 +26,7 @@
 #ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/properties.hpp"
 #endif
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
@@ -38,6 +39,12 @@
 #include "unit_test_utils/mocks/openvino/runtime/mock_iasync_infer_request.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icompiled_model.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_iplugin.hpp"
+
+namespace ov::weight_sharing {
+inline bool operator==(const ov::wsh::WeightMetaData& lhs, const ov::wsh::WeightMetaData& rhs) {
+    return std::tie(lhs.m_offset, lhs.m_size) == std::tie(rhs.m_offset, rhs.m_size);
+}
+}  // namespace ov::weight_sharing
 
 using namespace ::testing;
 using namespace std::placeholders;
@@ -225,6 +232,9 @@ public:
             .WillRepeatedly(Return(std::vector<ov::PropertyName>{ov::supported_properties.name(),
                                                                  ov::optimal_number_of_infer_requests.name(),
                                                                  ov::model_name.name()}));
+        EXPECT_CALL(*mock, get_property(ov::internal::model_sharing_context.name()))
+            .Times(AnyNumber())
+            .WillRepeatedly(Return(ov::Any{std::make_shared<const ov::wsh::Context>()}));
         ON_CALL(*mock, export_model(_)).WillByDefault(Invoke([model](std::ostream& s) {
             s << model->get_friendly_name();
             s << ' ';
@@ -255,6 +265,7 @@ public:
         m_model.reset();
         mockPlugin.reset();
         ov::test::utils::removeIRFiles(modelName, weightsName);
+        std::filesystem::remove_all(ov::util::make_path(m_cacheDir));
     }
 
     void testLoad(const std::function<void(ov::Core& core)>& func) {
@@ -3151,62 +3162,267 @@ TEST_P(CachingTest, import_from_cache_model_by_custom_model_rt_info) {
     });
 }
 
-TEST_P(CachingTest, compile_and_import_from_cache_model_by_custom_id) {
-    ON_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _))
-        .WillByDefault(Invoke([&](const ov::Tensor& itensor, const ov::AnyMap& config) {
-            if (m_checkConfigCb) {
-                m_checkConfigCb(config);
-            }
-            EXPECT_EQ(config.count(ov::hint::compiled_blob.name()), 0);
-            EXPECT_EQ(config.count(ov::hint::model.name()), 0);
-            EXPECT_EQ(config.count(ov::weights_path.name()), 0);
-
-            size_t pos = 0;
-            auto name = getline_from_buffer(itensor.data<const char>(), itensor.get_byte_size(), pos);
-            std::lock_guard<std::mutex> lock(mock_creation_mutex);
-            return create_mock_compiled_model(m_models[name], mockPlugin);
-        }));
-    EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
-    if (m_remoteContext) {
-        return;  // skip the remote Context test for Multi plugin
+MATCHER_P(IsAnyShCtx, other, "") {
+    if (arg.first == ov::internal::model_sharing_context.name()) {
+        const auto& map = arg.second.template as<ov::internal::WeightSharingCtxPtr>();
+        if (map) {
+            return map->m_weight_registry == other.m_weight_registry;
+        } else if (!map && other.m_weight_registry.empty()) {
+            return true;
+        }
     }
-    m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
-        EXPECT_CALL(net, export_model(_)).Times(1);
-    });
-    MkDirGuard guard(m_cacheDir);
-    EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
-    EXPECT_CALL(
-        *mockPlugin,
-        compile_model(A<const std::shared_ptr<const ov::Model>&>(), Not(Contains(Key(ov::cache_blob_id.name())))))
-        .Times(1);
-    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(1);
-    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(2);
-    EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);
-    EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
-    testLoad([&](ov::Core& core) {
-        const auto config = ov::AnyMap{{ov::cache_dir(m_cacheDir)}, ov::cache_blob_id(100)};
-
-        // read and load model with custom ID
-        performReadAndLoad(core, config);
-
-        // import model with custom ID
-        performReadAndLoadWithContext(core, config);
-
-        // import model with custom ID
-        performReadAndLoad(core, config);
-
-        // import model with custom ID and empty model
-        auto empty_model = std::make_shared<ov::Model>(ov::ResultVector{}, ov::ParameterVector{}, "empty");
-        auto compiled_model = core.compile_model(empty_model, deviceToLoad, config);
-        EXPECT_TRUE(compiled_model);
-    });
+    return false;
 }
 
-TEST_P(CachingTest, test_cache_path_as_file) {
-    GTEST_SKIP() << "Not implemented yet";
+TEST_P(CachingTest, test_share_weight_create_ctx_single_core) {
+    ov::Core core;
+    m_cacheDir += ".bin";
+    core.set_property(ov::cache_dir(m_cacheDir));
+    injectPlugin(mockPlugin.get());
+    core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                                            std::string("mock_engine") + OV_BUILD_POSTFIX),
+                         deviceName);
+    const auto empty_ctx = ov::wsh::Context();
+    const auto ctx1 = [] {
+        auto constants_meta = ov::wsh::WeightMetaMap{{0, ov::wsh::WeightMetaData{0, 100, ov::element::u8}}};
+        auto tmp = ov::wsh::WeightRegistry{{1, std::move(constants_meta)}};
+        return ov::wsh::Context{tmp, {}};
+    }();
+
+    EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capability::EXPORT_IMPORT, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _))
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(std::vector<ov::PropertyName>{ov::internal::caching_properties.name(),
+                                                             ov::internal::model_sharing_context.name()}));
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capabilities.name(), _)).Times(AnyNumber());
+    {
+        // 1st compile
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _, _))
+            .Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin,
+                    compile_model(A<const std::shared_ptr<const ov::Model>&>(), Contains(IsAnyShCtx(empty_ctx))))
+            .Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
+        m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+            EXPECT_CALL(net, export_model(_)).Times(1);
+            EXPECT_CALL(net, get_property(ov::internal::model_sharing_context.name()))
+                .WillOnce(Return(ov::Any(std::make_shared<const ov::wsh::Context>(ctx1))));
+        });
+        m_testFunction(core);
+    }
+    EXPECT_EQ(comp_models.size(), 1);
+    m_post_mock_net_callbacks.pop_back();
+    {
+        // 2nd compile try (use import)
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, Contains(IsAnyShCtx(ctx1))))
+            .Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), Contains(IsAnyShCtx(ctx1))))
+            .Times(!m_remoteContext ? 1 : 0);
+
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
+
+        EXPECT_CALL(*comp_models.back(), get_property(ov::internal::model_sharing_context.name()))
+            .WillRepeatedly(Return(std::make_shared<const ov::wsh::Context>(empty_ctx)));
+
+        m_testFunction(core);
+        EXPECT_EQ(comp_models.size(), 1);
+    }
+    core.unload_plugin(deviceName);
+}
+
+TEST_P(CachingTest, test_share_weight_create_ctx) {
+    m_cacheDir += ".bin";
+
+    const auto empty_ctx = ov::wsh::Context();
+    const auto ctx1 = [] {
+        auto constants_meta = ov::wsh::WeightMetaMap{{0, ov::wsh::WeightMetaData{0, 200, ov::element::u8}}};
+        // auto c = std::make_shared<ov::wsh::Context>();
+        // c->m_constants_meta_data = {{1, std::move(constants_meta)}};
+        // return c;
+        return ov::wsh::Context{ov::wsh::WeightRegistry{{1, std::move(constants_meta)}}, {}};
+    }();
+
+    EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capability::EXPORT_IMPORT, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _))
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(std::vector<ov::PropertyName>{ov::internal::caching_properties.name(),
+                                                             ov::internal::model_sharing_context.name()}));
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capabilities.name(), _)).Times(AnyNumber());
+    {
+        // 1st compile
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _, _))
+            .Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin,
+                    compile_model(A<const std::shared_ptr<const ov::Model>&>(), Contains(IsAnyShCtx(empty_ctx))))
+            .Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
+        m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+            EXPECT_CALL(net, export_model(_)).Times(1);
+            EXPECT_CALL(net, get_property(ov::internal::model_sharing_context.name()))
+                .WillOnce(Return(ov::Any(std::make_shared<const ov::wsh::Context>(ctx1))));
+        });
+        testLoad([&](ov::Core& core) {
+            core.set_property(ov::cache_dir(m_cacheDir));
+            m_testFunction(core);
+        });
+    }
+    EXPECT_EQ(comp_models.size(), 1);
+    m_post_mock_net_callbacks.pop_back();
+    {
+        // 2nd import
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, Contains(IsAnyShCtx(ctx1))))
+            .Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), Contains(IsAnyShCtx(ctx1))))
+            .Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
+
+        EXPECT_CALL(*comp_models.back(), get_property(ov::internal::model_sharing_context.name()))
+            .WillRepeatedly(Return(ov::Any(std::make_shared<const ov::wsh::Context>(empty_ctx))));
+
+        testLoad([&](ov::Core& core) {
+            core.set_property(ov::cache_dir(m_cacheDir));
+            m_testFunction(core);
+        });
+        EXPECT_EQ(comp_models.size(), 1);
+    }
+}
+
+TEST_P(CachingTest, test_share_weight_create_ctx_multiple_compilation) {
+    // use ov::weight path as cache property to force different blob id for same model
+    m_cacheDir += ".bin";
+    const auto empty_ctx = ov::wsh::Context();
+    auto cm1 = ov::wsh::WeightMetaMap{{1, ov::wsh::WeightMetaData{0, 200, ov::element::u8}},
+                                      {2, ov::wsh::WeightMetaData{200, 200, ov::element::u8}}};
+    auto wt_c1 = ov::wsh::WeightRegistry{{10, cm1}};
+    auto ctx1 = ov::wsh::Context();
+    ctx1.m_weight_registry = wt_c1;
+
+    auto cm2 = ov::wsh::WeightMetaMap{{1, ov::wsh::WeightMetaData{0, 300, ov::element::u8}},
+                                      {2, ov::wsh::WeightMetaData{300, 300, ov::element::u8}}};
+    auto wt_c2 = ov::wsh::WeightRegistry{{20, cm2}};
+    auto ctx2 = ov::wsh::Context();
+    ctx2.m_weight_registry = wt_c2;
+
+    auto final_ctx = ov::wsh::Context();
+    final_ctx.m_weight_registry = {{10, cm1}, {20, cm2}};
+    EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _))
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(std::vector<ov::PropertyName>{ov::supported_properties.name(),
+                                                             ov::device::capabilities.name(),
+                                                             ov::device::architecture.name(),
+                                                             ov::weights_path.name(),
+                                                             ov::hint::model.name()}));
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capability::EXPORT_IMPORT, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _))
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(std::vector<ov::PropertyName>{ov::internal::caching_properties.name(),
+                                                             ov::internal::model_sharing_context.name()}));
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _))
+        .Times(AnyNumber())
+        .WillRepeatedly(
+            Return(std::vector<ov::PropertyName>{ov::weights_path.name(), ov::device::architecture.name()}));
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capabilities.name(), _)).Times(AnyNumber());
+    {
+        // 1st compile
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _, _))
+            .Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin,
+                    compile_model(A<const std::shared_ptr<const ov::Model>&>(), Contains(IsAnyShCtx(empty_ctx))))
+            .Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
+        EXPECT_CALL(*mockPlugin, get_property(ov::weights_path.name(), _)).WillOnce(Return(""));
+        m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+            EXPECT_CALL(net, export_model(_)).Times(1);
+            EXPECT_CALL(net, get_property(ov::internal::model_sharing_context.name()))
+                .WillOnce(Return(ov::Any(std::make_shared<const ov::wsh::Context>(ctx1))));
+        });
+        testLoad([&](ov::Core& core) {
+            core.set_property(ov::cache_dir(m_cacheDir));
+            m_testFunction(core);
+        });
+        EXPECT_EQ(comp_models.size(), 1);
+        m_post_mock_net_callbacks.pop_back();
+    }
+    {
+        // 2nd compile
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _, _))
+            .Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin,
+                    compile_model(A<const std::shared_ptr<const ov::Model>&>(), Contains(IsAnyShCtx(ctx1))))
+            .Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
+
+        m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+            EXPECT_CALL(net, export_model(_)).Times(1);
+            EXPECT_CALL(net, get_property(ov::internal::model_sharing_context.name()))
+                .WillOnce(Return(ov::Any(std::make_shared<const ov::wsh::Context>(ctx2))));
+        });
+
+        testLoad([&](ov::Core& core) {
+            core.set_property(ov::cache_dir(m_cacheDir));
+            const auto config = ov::AnyMap{{ov::weights_path("test_path")}};
+            m_testFunctionWithCfg(core, config);
+        });
+        EXPECT_EQ(comp_models.size(), 2);
+        m_post_mock_net_callbacks.pop_back();
+    }
+    {
+        // import 2nd model
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), Contains(IsAnyShCtx(final_ctx))))
+            .Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
+        testLoad([&](ov::Core& core) {
+            core.set_property(ov::cache_dir(m_cacheDir));
+            const auto config = ov::AnyMap{{ov::weights_path("test_path")}};
+            m_testFunctionWithCfg(core, config);
+        });
+        EXPECT_EQ(comp_models.size(), 2);
+    }
+    {
+        // import 1st model
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), Contains(IsAnyShCtx(final_ctx))))
+            .Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
+        EXPECT_CALL(*mockPlugin, get_property(ov::weights_path.name(), _)).WillOnce(Return(""));
+        testLoad([&](ov::Core& core) {
+            core.set_property(ov::cache_dir(m_cacheDir));
+            m_testFunction(core);
+        });
+        EXPECT_EQ(comp_models.size(), 2);
+    }
 }
 
 #if defined(ENABLE_OV_IR_FRONTEND)

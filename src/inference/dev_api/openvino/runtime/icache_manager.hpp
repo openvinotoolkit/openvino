@@ -87,7 +87,7 @@ public:
      * @brief Gets context from the storage
      * @return The stored context
      */
-    virtual ov::weight_sharing::Context get_context() const = 0;
+    virtual std::shared_ptr<ov::wsh::Context> get_context() const = 0;
 };
 
 /**
