@@ -57,6 +57,7 @@
 #include "intel_gpu/runtime/tensor_accessor.hpp"
 
 #include "json_object.h"
+#include <set>
 #include <string>
 #include <vector>
 #include <memory>
@@ -3194,6 +3195,13 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::create_impl_for_type(pri
             continue;
         if ((impl_manager->get_shape_type() & shape_types::static_shape) != shape_types::static_shape)
             continue;
+        // validate() uses the program_node's format-propagated layouts to check whether
+        // this manager was actually selected (or would be selected) for this node.
+        // For legacy managers this checks (dtype, format) key pairs for input[0]/output[0].
+        // For OneDNN managers this checks hardware support, dtype combos, and fused ops.
+        // This gate was previously missing from create_impl_for_type.
+        if (!impl_manager->validate(*node))
+            continue;
         if (!impl_manager->support_shapes(params))
             continue;
 
@@ -3323,44 +3331,213 @@ impl_types primitive_inst::parse_manual_impl_for_current_primitive() const {
 }
 
 // enable_multi_impl_mode
+//
+// Strategy for populating the impl pool:
+//
+//  1. DISCOVERY — Collect every distinct static-shape-capable impl_type registered in
+//     _impls_factory->m_available_impls.  The factory holds all ImplementationManager
+//     objects that were compiled into this build for this primitive type, so it is the
+//     authoritative source of what the GPU plugin supports.
+//
+//  2. COMPATIBILITY GATE — create_impl_for_type() internally calls
+//     impl_manager->support_shapes(*_impl_params) before compiling, which checks
+//     dtype, format, shape constraints for that specific manager.  Because every
+//     successful call uses the same kernel_impl_params object, all impls added to the
+//     pool are guaranteed to accept the same input dtype/layout — safe to switch at
+//     runtime without re-allocation.
+//
+//  3. POPULATION — add_impl_to_pool() is called for each compatible alternative.
+//     The primary (currently active) impl is reused directly; alternatives are freshly
+//     compiled.  Only GPU-native backends (onednn/ocl/sycl/cm) are considered;
+//     cpu/common are skipped as they are not valid for GPU inference paths.
+//
 void primitive_inst::enable_multi_impl_mode(ImplSwitchingPolicy policy) {
     if (_switching_policy != ImplSwitchingPolicy::NONE)
         return;  // already initialised
-    if (!_impls_factory)
-        return;
-    if (!_impl || !_impl->is_onednn())
-        return;  // current impl is not OneDNN; nothing to switch from
-
-    // We need at least OCL as an alternative; OneDNN must also be available.
-    if (!_impls_factory->has(impl_types::onednn) || !_impls_factory->has(impl_types::ocl))
+    if (!_impls_factory || !_impl)
         return;
 
-    // Build the OCL (Generate-phase) static impl.
-    auto ocl_impl = _impls_factory->create_impl_for_type(*this, *_impl_params, impl_types::ocl);
-    if (!ocl_impl) {
-        GPU_DEBUG_TRACE_DETAIL << id() << ": multi-impl pool: no static OCL impl available, skipping" << std::endl;
+    // --- Step 1: Identify the primary impl type via the manager pointer. ---
+    // primitive_impl::m_manager is set by ImplementationManager::create() and points back
+    // to the manager that built this impl.  If unavailable, fall back to is_onednn().
+    impl_types primary_type = impl_types::any;
+    if (_impl->m_manager) {
+        primary_type = _impl->m_manager->get_impl_type();
+    } else if (_impl->is_onednn()) {
+        primary_type = impl_types::onednn;
+    } else {
+        primary_type = impl_types::ocl;  // best-effort
+    }
+
+    // Only GPU-native backends are eligible as the primary for runtime switching.
+    if (primary_type != impl_types::onednn &&
+        primary_type != impl_types::ocl   &&
+        primary_type != impl_types::sycl  &&
+        primary_type != impl_types::cm) {
         return;
     }
 
+    // --- Step 2: Collect candidate GPU impl types via the canonical has_impl_for() API.
+    //
+    // has_impl_for(node, t, static_shape) is the SAME validation gate the graph optimizer
+    // uses when selecting the primary impl.  It runs every manager's validate() +
+    // ValidateFunc predicate for type t, plus OneDNN-specific attributes.  Calling it
+    // here ensures we only consider types the optimizer itself considers valid for this
+    // node — rather than parsing m_available_impls ourselves with ad-hoc filters.
+    //
+    // We still explicitly exclude non-GPU backends (cpu/common) since this pool is
+    // exclusively for GPU runtime switching within a single GPU execution context.
+    std::vector<impl_types> candidate_types;
+    {
+        const auto* node = _impls_factory->m_node;
+        static const std::array<impl_types, 4> gpu_native = {
+            impl_types::onednn, impl_types::ocl, impl_types::sycl, impl_types::cm
+        };
+        std::set<impl_types> seen = {primary_type};
+        // Preserve registry ordering (first registered = highest priority) so the
+        // pool reflects the intended primary/fallback hierarchy.
+        for (const auto& mgr : _impls_factory->m_available_impls) {
+            const auto t = mgr->get_impl_type();
+            // Only GPU-native backends that haven't been seen yet.
+            if (!std::count(gpu_native.begin(), gpu_native.end(), t))
+                continue;
+            if (!seen.insert(t).second)
+                continue;
+            // Canonical optimizer-level check: validate() + ValidateFuncs + OneDNN attrs.
+            if (node->type()->has_impl_for(*node, t, shape_types::static_shape))
+                candidate_types.push_back(t);
+        }
+    }
+
+    if (candidate_types.empty())
+        return;  // no alternatives beyond the primary
+
+    // --- MANUAL policy: require an explicit node-level mapping before going further. ---
     _manual_target_impl = impl_types::any;
     if (policy == ImplSwitchingPolicy::MANUAL) {
         _manual_target_impl = parse_manual_impl_for_current_primitive();
         if (_manual_target_impl == impl_types::any) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": MANUAL policy has no mapping for this primitive, skip multi-impl" << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << id()
+                << ": MANUAL policy: no mapping for this primitive, skip multi-impl" << std::endl;
             return;
         }
     }
 
-    _impl_pool = std::make_unique<ImplPool>();
-    // Register OneDNN as the primary (active) impl.
-    _impl_pool->impls[impl_types::onednn] = _impl;
-    _impl_pool->active_impl_type = impl_types::onednn;
-    // Register OCL as the alternative.
-    _impl_pool->impls[impl_types::ocl] = std::move(ocl_impl);
+    // --- Compatibility pre-check: OneDNN-specific fused post-ops. ---
+    // has_impl_for() does not check kernel_impl_params fields like fused_desc_onednn
+    // because it operates on program_node only (build-time information).  If the
+    // primary OneDNN impl has OneDNN-specific post-ops (bias, eltwise, quantize fused
+    // into the primitive), non-OneDNN alternatives cannot process them → discard pool.
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    if (primary_type == impl_types::onednn && !_impl_params->fused_desc_onednn.empty()) {
+        std::cout << id()
+            << ": multi-impl pool: primary has "
+            << _impl_params->fused_desc_onednn.size()
+            << " OneDNN-specific fused post-ops; no compatible alternatives, skipping"
+            << std::endl;
+        return;
+    }
+#endif
+
+    // --- Step 3: Populate the pool. ---
+    // Register the primary impl (reuse the already-compiled instance).
+    add_impl_to_pool(primary_type, _impl);
+    _impl_pool->active_impl_type = primary_type;
+
+    // Weight IO contract compatibility check.
+    //
+    // Two impls can share the same GPU weight buffer IFF they have an identical
+    // "weight IO contract" — meaning they consume weight bytes in exactly the same
+    // way.  Three rules derive from this single invariant:
+    //
+    //   Rule 1 (reorder flag must match):
+    //     A primary that skips reorder has weights already in the "native" layout for
+    //     that backend.  An alt that DOES reorder would read the same bytes expecting
+    //     a different starting format.  If both reorder, they must start from the same
+    //     source layout (Rule 2).
+    //
+    //   Rule 2 (reorder source layout must match):
+    //     When both impls reorder, they both prepare a backend-specific format from
+    //     the raw weight.  They MUST start from the same raw layout (same dtype +
+    //     format) so they are reading the same bytes.
+    //
+    //   Rule 3 (sub-byte dtypes require same backend):
+    //     When neither impl reorders, both read raw weight bytes directly.  For
+    //     ≥8-bit types (f16, i8, f32 ...) the byte representation is a well-defined
+    //     standard (IEEE754, two's-complement) — every backend agrees.  For sub-byte
+    //     types (u4/i4/nf4/...) the bit-packing convention is backend-private: OneDNN
+    //     and OCL may pack nibbles differently.  Cross-backend sharing of sub-byte
+    //     weight memory is therefore always unsafe.
+    //
+    // These three rules are universal: they apply to any primitive type, any backend
+    // combination, and any future sub-byte dtype, without dtype-specific special cases.
+    const bool   primary_reorders      = _impl->need_weights_reorder();
+    const size_t n_inputs              = _impl_params->input_layouts.size();
+    const layout* primary_weight_layout =
+        (n_inputs > 1) ? &_impl_params->input_layouts[1] : nullptr;
+
+    // Precompute sub-byte predicate once (covers all current and future narrow types).
+    // ov::element::Type::bitwidth() is the canonical way to detect sub-byte dtypes
+    // without enumerating each specific type by name.
+    const bool weight_is_sub_byte = primary_weight_layout &&
+        ov::element::Type(primary_weight_layout->data_type).bitwidth() < 8;
+
+    size_t alt_count = 0;
+    for (auto t : candidate_types) {
+        auto alt_impl = _impls_factory->create_impl_for_type(*this, *_impl_params, t);
+        if (!alt_impl) {
+            std::cout << id()
+                << ": multi-impl pool: type=" << t
+                << " rejected (no compatible static impl for current params)" << std::endl;
+            continue;
+        }
+
+        // Unified weight IO contract check (Rules 1–3).
+        const bool alt_reorders = alt_impl->need_weights_reorder();
+        const char* reject_reason = nullptr;
+
+        if (primary_reorders != alt_reorders) {
+            reject_reason = "rule1: reorder flag mismatch";
+        } else if (primary_reorders) {
+            // Rule 2: both reorder — verify same source layout.
+            if (primary_weight_layout) {
+                auto wf = alt_impl->get_weights_reorder_params();
+                if (wf) {
+                    const auto& src = wf->get_input_layout();
+                    if (src.data_type != primary_weight_layout->data_type ||
+                        src.format    != primary_weight_layout->format)
+                        reject_reason = "rule2: reorder source layout mismatch";
+                }
+            }
+        } else if (weight_is_sub_byte && t != primary_type) {
+            // Rule 3: no reorder + sub-byte dtype → cross-backend packing unsafe.
+            reject_reason = "rule3: sub-byte weight cross-backend packing incompatible";
+        }
+
+        if (reject_reason) {
+            std::cout << id()
+                << ": multi-impl pool: type=" << t
+                << " rejected (weight IO contract: " << reject_reason << ")" << std::endl;
+            continue;
+        }
+
+        add_impl_to_pool(t, std::move(alt_impl));
+        ++alt_count;
+        std::cout << id()
+            << ": multi-impl pool: registered alt impl type=" << t << std::endl;
+    }
+
+    if (alt_count == 0) {
+        // No usable alternatives — discard the partially built pool.
+        _impl_pool = nullptr;
+        return;
+    }
 
     _switching_policy = policy;
-    GPU_DEBUG_TRACE << id() << ": multi-impl pool enabled (primary=onednn, alt=ocl, policy="
-                   << static_cast<int>(policy) << ")" << std::endl;
+    std::cout << id() << ": multi-impl pool enabled ("
+                   << "primary=" << primary_type
+                   << ", alts=" << alt_count
+                   << ", policy=" << static_cast<int>(policy) << ")" << std::endl;
 }
 
 // add_impl_to_pool
@@ -3368,7 +3545,7 @@ void primitive_inst::add_impl_to_pool(impl_types type, std::shared_ptr<primitive
     if (!_impl_pool)
         _impl_pool = std::make_unique<ImplPool>();
     _impl_pool->impls[type] = std::move(impl);
-    GPU_DEBUG_TRACE_DETAIL << id() << ": add_impl_to_pool(" << type << ")" << std::endl;
+    std::cout << id() << ": add_impl_to_pool(" << type << ")" << std::endl;
 }
 
 // switch_impl_to
@@ -3389,7 +3566,7 @@ bool primitive_inst::switch_impl_to(impl_types target_type) {
     set_flag(ExecutionFlags::ARG_UPDATE_REQUIRED);
     set_arguments();
 
-    GPU_DEBUG_TRACE << id() << ": impl switch " << prev_type << " → " << target_type << std::endl;
+    std::cout << id() << ": impl switch " << prev_type << " → " << target_type << std::endl;
     return true;
 }
 
