@@ -660,7 +660,6 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
 
         m_llm_profile["1/prefill:3a.prepare_chunk"].record([&]() {
-
             // Handle first chunk with prefix caching: populate attention mask for restored cache
             if (enable_prefix_caching && cache_context.restore_prefix_cache) {
                 m_prefix_caching_helper->populate_attention_mask_for_restored_cache(attention_mask,
