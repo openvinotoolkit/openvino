@@ -61,6 +61,9 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
+#include <chrono>
+#include <cctype>
+#include <limits>
 #include "utils.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -1359,6 +1362,14 @@ void primitive_inst::update_impl(bool use_async_compilation) {
 
         _impl = _impls_factory->get_primitive_impl_for_params(*this, *_impl_params, use_async_compilation);
         GPU_DEBUG_TRACE_DETAIL << id() << " impl update: was: " << prev_impl_str << " now: " << _impl->get_kernel_name() << std::endl;
+
+        // Auto-arm multi-impl pool on first successful impl selection when config requests it.
+        // Guard: _impl_pool == nullptr ensures we only initialise once (re-shape must not re-build).
+        const auto configured_policy = parse_switching_policy_from_config();
+        if (_switching_policy == ImplSwitchingPolicy::NONE && !_impl_pool &&
+            configured_policy != ImplSwitchingPolicy::NONE) {
+            enable_multi_impl_mode(configured_policy);
+        }
     }
 
     set_flag(ExecutionFlags::IMPL_CHANGED);
@@ -2227,7 +2238,30 @@ void primitive_inst::execute() {
         return;
     }
 
+    // Runtime impl switching: evaluate the best impl type for the current inputs
+    // and switch when the pool is active and a better candidate is available.
+    if (_switching_policy != ImplSwitchingPolicy::NONE && _impl_pool && !can_be_optimized()) {
+        if (should_switch_impl(*_impl_params)) {
+            const auto best = select_best_impl_for_inputs(*_impl_params);
+            if (best != impl_types::any) {
+                switch_impl_to(best);
+            }
+        }
+    }
+
+    const auto t_exec_start = std::chrono::steady_clock::now();
     set_out_event(_impl->execute(_impl_params->dep_events, *this));
+
+    // Record the submission-side duration as a lightweight relative performance indicator.
+    if (_switching_policy != ImplSwitchingPolicy::NONE && _impl_pool) {
+        const auto t_exec_end = std::chrono::steady_clock::now();
+        const float elapsed_ms = std::chrono::duration<float, std::milli>(t_exec_end - t_exec_start).count();
+        update_impl_statistics(_impl_pool->active_impl_type, elapsed_ms);
+        // Keep a rolling history of which impl was used for phase-change prediction.
+        _workload_predictor.impl_history.push_back(_impl_pool->active_impl_type);
+        if (_workload_predictor.impl_history.size() > WorkloadPredictor::HISTORY_SIZE)
+            _workload_predictor.impl_history.pop_front();
+    }
 
     GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty()) {
         auto ev = _impl_params->out_event;
@@ -3140,6 +3174,415 @@ bool ImplementationsFactory::has(impl_types impl_type) const {
     return std::any_of(m_available_impls.begin(), m_available_impls.end(), [&impl_type](const std::shared_ptr<ImplementationManager>& m) {
         return m->get_impl_type() == impl_type;
     });
+}
+
+std::shared_ptr<primitive_impl> ImplementationsFactory::create_impl_for_type(primitive_inst& inst,
+                                                                              const kernel_impl_params& params,
+                                                                              impl_types requested_type) {
+    const auto node = &inst.get_node();
+    auto& prog = *inst.get_network().get_program();
+    auto& kernels_cache = prog.get_kernels_cache();
+
+    auto updated_params = inst.get_fake_aligned_params_if_possible(*node, params);
+    for (auto& i : updated_params.input_layouts)
+        i.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
+    for (auto& o : updated_params.output_layouts)
+        o.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
+
+    for (auto& impl_manager : m_available_impls) {
+        if (impl_manager->get_impl_type() != requested_type)
+            continue;
+        if ((impl_manager->get_shape_type() & shape_types::static_shape) != shape_types::static_shape)
+            continue;
+        if (!impl_manager->support_shapes(params))
+            continue;
+
+        auto impl = impl_manager->create(*node, updated_params);
+        if (!impl)
+            continue;
+
+        if (!inst.can_be_optimized() && !impl->get_kernels_source().empty()) {
+            auto kernels = kernels_cache.compile(updated_params, impl->get_kernels_source());
+            impl->set_kernels(std::move(kernels));
+        }
+        GPU_DEBUG_TRACE_DETAIL << inst.id() << ": create_impl_for_type(" << requested_type << ") -> "
+                               << impl->get_kernel_name() << std::endl;
+        return impl;
+    }
+    return nullptr;
+}
+
+}  // namespace cldnn
+
+// primitive_inst multi-impl pool (Runtime Implementation Switching)
+//
+// Design follows PRIMITIVE_SCHEDULER_OPTIMIZATION_CN.md §2.
+// Key structures are defined as nested types of primitive_inst (see primitive_inst.h).
+//
+// Heuristic rules applied by evaluate_best_impl_type():
+//   Rule 1 (Stage):   Prefill + large matrix  → OneDNN
+//                     Generate (small batch)  → OCL
+//   Rule 2 (Size):    Very large matrix       → OneDNN
+//   Rule 3 (History): If both impls have ≥5 samples, pick the faster one.
+//
+
+namespace cldnn {
+
+// WorkloadPredictor
+
+bool primitive_inst::WorkloadPredictor::detect_phase_change() const {
+    if (seq_length_history.size() < 2)
+        return false;
+    const float prev = seq_length_history[seq_length_history.size() - 2];
+    const float curr = seq_length_history.back();
+    if (prev == 0.0f && curr == 0.0f)
+        return false;
+    const float denom = std::max(std::abs(prev), std::abs(curr));
+    return (std::abs(curr - prev) / denom) > 0.5f;
+}
+
+impl_types primitive_inst::WorkloadPredictor::predict_next_impl() const {
+    if (impl_history.size() < 3)
+        return impl_types::any;
+    const auto last = impl_history.back();
+    // If the last 3 entries are the same, predict continuation.
+    if (impl_history[impl_history.size() - 2] == last &&
+        impl_history[impl_history.size() - 3] == last)
+        return last;
+    return impl_types::any;
+}
+
+primitive_inst::ImplSwitchingPolicy primitive_inst::parse_switching_policy_from_config() const {
+    auto policy = get_config().get_multi_impl_switching_policy();
+    std::transform(policy.begin(), policy.end(), policy.begin(), [](unsigned char c) {
+        return static_cast<char>(std::toupper(c));
+    });
+
+    if (policy.empty() || policy == "AUTO" || policy == "AUTO_HEURISTIC")
+        return ImplSwitchingPolicy::AUTO_HEURISTIC;
+    if (policy == "NONE")
+        return ImplSwitchingPolicy::NONE;
+    if (policy == "MANUAL")
+        return ImplSwitchingPolicy::MANUAL;
+    if (policy == "PROFILING")
+        return ImplSwitchingPolicy::PROFILING;
+
+    GPU_DEBUG_TRACE_DETAIL << id() << ": unknown multi_impl_switching_policy='" << policy
+                           << "', fallback to AUTO_HEURISTIC" << std::endl;
+    return ImplSwitchingPolicy::AUTO_HEURISTIC;
+}
+
+impl_types primitive_inst::parse_manual_impl_for_current_primitive() const {
+    const auto raw_map = get_config().get_multi_impl_manual_impl_map();
+    if (raw_map.empty())
+        return impl_types::any;
+
+    auto normalize = [](std::string s) {
+        s.erase(std::remove_if(s.begin(), s.end(), [](unsigned char c) { return std::isspace(c); }), s.end());
+        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return s;
+    };
+    auto parse_impl = [](const std::string& s) {
+        if (s == "onednn") return impl_types::onednn;
+        if (s == "ocl") return impl_types::ocl;
+        return impl_types::any;
+    };
+
+    const auto current_id = normalize(id());
+    impl_types global_target = impl_types::any;
+
+    size_t pos = 0;
+    while (pos < raw_map.size()) {
+        const auto next = raw_map.find_first_of(";,", pos);
+        auto token = raw_map.substr(pos, next == std::string::npos ? std::string::npos : next - pos);
+        pos = (next == std::string::npos) ? raw_map.size() : (next + 1);
+
+        if (token.empty())
+            continue;
+
+        auto sep = token.find(':');
+        if (sep == std::string::npos)
+            sep = token.find('=');
+        if (sep == std::string::npos)
+            continue;
+
+        auto key = normalize(token.substr(0, sep));
+        auto val = normalize(token.substr(sep + 1));
+        const auto impl = parse_impl(val);
+        if (impl == impl_types::any)
+            continue;
+
+        if (key == "all") {
+            global_target = impl;
+        } else if (key == current_id) {
+            return impl;
+        }
+    }
+
+    return global_target;
+}
+
+// enable_multi_impl_mode
+void primitive_inst::enable_multi_impl_mode(ImplSwitchingPolicy policy) {
+    if (_switching_policy != ImplSwitchingPolicy::NONE)
+        return;  // already initialised
+    if (!_impls_factory)
+        return;
+    if (!_impl || !_impl->is_onednn())
+        return;  // current impl is not OneDNN; nothing to switch from
+
+    // We need at least OCL as an alternative; OneDNN must also be available.
+    if (!_impls_factory->has(impl_types::onednn) || !_impls_factory->has(impl_types::ocl))
+        return;
+
+    // Build the OCL (Generate-phase) static impl.
+    auto ocl_impl = _impls_factory->create_impl_for_type(*this, *_impl_params, impl_types::ocl);
+    if (!ocl_impl) {
+        GPU_DEBUG_TRACE_DETAIL << id() << ": multi-impl pool: no static OCL impl available, skipping" << std::endl;
+        return;
+    }
+
+    _manual_target_impl = impl_types::any;
+    if (policy == ImplSwitchingPolicy::MANUAL) {
+        _manual_target_impl = parse_manual_impl_for_current_primitive();
+        if (_manual_target_impl == impl_types::any) {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": MANUAL policy has no mapping for this primitive, skip multi-impl" << std::endl;
+            return;
+        }
+    }
+
+    _impl_pool = std::make_unique<ImplPool>();
+    // Register OneDNN as the primary (active) impl.
+    _impl_pool->impls[impl_types::onednn] = _impl;
+    _impl_pool->active_impl_type = impl_types::onednn;
+    // Register OCL as the alternative.
+    _impl_pool->impls[impl_types::ocl] = std::move(ocl_impl);
+
+    _switching_policy = policy;
+    GPU_DEBUG_TRACE << id() << ": multi-impl pool enabled (primary=onednn, alt=ocl, policy="
+                   << static_cast<int>(policy) << ")" << std::endl;
+}
+
+// add_impl_to_pool
+void primitive_inst::add_impl_to_pool(impl_types type, std::shared_ptr<primitive_impl> impl) {
+    if (!_impl_pool)
+        _impl_pool = std::make_unique<ImplPool>();
+    _impl_pool->impls[type] = std::move(impl);
+    GPU_DEBUG_TRACE_DETAIL << id() << ": add_impl_to_pool(" << type << ")" << std::endl;
+}
+
+// switch_impl_to
+bool primitive_inst::switch_impl_to(impl_types target_type) {
+    if (!_impl_pool)
+        return false;
+    auto it = _impl_pool->impls.find(target_type);
+    if (it == _impl_pool->impls.end())
+        return false;
+    if (_impl_pool->active_impl_type == target_type)
+        return true;  // already active
+
+    const auto prev_type = _impl_pool->active_impl_type;
+    _impl = it->second;
+    _impl_pool->active_impl_type = target_type;
+
+    // Rebind kernel arguments to the newly active impl.
+    set_flag(ExecutionFlags::ARG_UPDATE_REQUIRED);
+    set_arguments();
+
+    GPU_DEBUG_TRACE << id() << ": impl switch " << prev_type << " → " << target_type << std::endl;
+    return true;
+}
+
+// extract_selection_criteria
+primitive_inst::ImplSelectionCriteria
+primitive_inst::extract_selection_criteria(const kernel_impl_params& params) const {
+    ImplSelectionCriteria c;
+
+    const auto& in_layout = params.get_input_layout(0);
+    const auto& ps = in_layout.get_partial_shape();
+    if (ps.is_dynamic())
+        return c;
+
+    const int64_t rank = static_cast<int64_t>(ps.size());
+
+    // batch_size: outermost dimension
+    if (rank >= 1 && ps[0].is_static())
+        c.batch_size = static_cast<size_t>(ps[0].get_length());
+
+    // seq_length: second dimension when rank >= 3 (typical [B, S, K]/[B, S, H])
+    // For rank-2 GEMM input [M, K], dim1 is K, not sequence length.
+    if (rank >= 3 && ps[1].is_static())
+        c.seq_length = static_cast<size_t>(ps[1].get_length());
+    else
+        c.seq_length = 1;
+
+    // M dimension for switching heuristic:
+    //   Prefer LLM semantic M = batch_size * seq_length (for prefill/generate),
+    //   and fall back to generic GEMM M = product(all dims except K) when needed.
+    if (rank >= 3 && ps[0].is_static() && ps[1].is_static()) {
+        c.m_dimension = static_cast<size_t>(ps[0].get_length()) * static_cast<size_t>(ps[1].get_length());
+    } else if (rank >= 2 && ps[0].is_static()) {
+        c.m_dimension = static_cast<size_t>(ps[0].get_length());
+    } else {
+        size_t m_size = 1;
+        for (int64_t i = 0; i + 1 < rank; ++i) {
+            if (ps[i].is_static())
+                m_size *= static_cast<size_t>(ps[i].get_length());
+        }
+        c.m_dimension = m_size;
+    }
+
+    // K dimension: use the last input dim when static.
+    if (rank >= 1 && ps[rank - 1].is_static())
+        c.k_dimension = static_cast<size_t>(ps[rank - 1].get_length());
+
+    // Effective compute workload proxy used by runtime switching gate.
+    // We intentionally use M*K to represent required compute footprint while
+    // keeping the threshold easy to tune across LLM prefill/generate workloads.
+    if (c.m_dimension == 0 || c.k_dimension == 0) {
+        c.compute_workload = c.m_dimension;
+    } else if (c.m_dimension > (std::numeric_limits<size_t>::max() / c.k_dimension)) {
+        c.compute_workload = std::numeric_limits<size_t>::max();
+    } else {
+        c.compute_workload = c.m_dimension * c.k_dimension;
+    }
+
+    // Classify as Prefill when seq_length is larger than a single token.
+    c.is_prefill = (c.seq_length > 1);
+
+    // Update seq-length history for phase-change detection (const-cast: mutable predictor).
+    auto& predictor = const_cast<WorkloadPredictor&>(_workload_predictor);
+    predictor.seq_length_history.push_back(c.seq_length);
+    if (predictor.seq_length_history.size() > WorkloadPredictor::HISTORY_SIZE)
+        predictor.seq_length_history.pop_front();
+
+    return c;
+}
+
+// evaluate_best_impl_type
+impl_types
+primitive_inst::evaluate_best_impl_type(const ImplSelectionCriteria& c) const {
+    if (!_impl_pool)
+        return impl_types::any;
+
+    if (_switching_policy == ImplSwitchingPolicy::MANUAL) {
+        return _impl_pool->impls.count(_manual_target_impl) ? _manual_target_impl : impl_types::any;
+    }
+
+    // Resolve the compute-workload threshold based on the configured value:
+    //   -1 (or any negative): threshold disabled — threshold-based rules (Rule 1/2)
+    //                         are skipped entirely; other policies (PROFILING) still
+    //                         apply; fallback prefers OneDNN.
+    //    0 (default):         auto-detect from GPU peak FP16 GFLOPS.
+    //                         formula: threshold = gflops * 10, which linearly scales
+    //                         with device capability and naturally separates generate
+    //                         (M*K ~ 4K) from prefill (M*K > threshold).
+    //   positive:             use the value directly (user-tunable).
+    const int64_t raw_threshold = get_config().get_multi_impl_compute_threshold();
+    const bool has_onednn = _impl_pool->impls.count(impl_types::onednn) > 0;
+    const bool has_ocl    = _impl_pool->impls.count(impl_types::ocl)    > 0;
+
+    // When threshold is disabled (-1), skip only the threshold comparison rules;
+    // all other selection logic (PROFILING, fallback) continues to run.
+    const bool threshold_disabled = (raw_threshold < 0);
+
+    size_t compute_threshold = 0;
+    if (!threshold_disabled) {
+        if (raw_threshold == 0) {
+            // Auto-detect: derive from peak FP16 GFLOPS reported by the device.
+            // threshold = gflops * 10 keeps generate (M*K << 10K) below the gate and
+            // large prefill sequences above it for all typical Intel GPU classes.
+            const float gflops = get_network().get_engine().get_device()->get_gops(data_types::f16);
+            compute_threshold = (gflops > 0.0f)
+                ? static_cast<size_t>(gflops * 10.0f)
+                : /* non-Intel / undetectable fallback */ size_t(131072); // 128K
+        } else {
+            compute_threshold = static_cast<size_t>(raw_threshold);
+        }
+    }
+
+    // PROFILING mode: once both impls have enough samples, pick the measured faster one.
+    // Before that, fall back to AUTO_HEURISTIC rules to gather data.
+    if (_switching_policy == ImplSwitchingPolicy::PROFILING && has_onednn && has_ocl) {
+        const auto& s_onednn = _impl_pool->stats.count(impl_types::onednn)
+                                   ? _impl_pool->stats.at(impl_types::onednn)
+                                   : ImplStats{};
+        const auto& s_ocl    = _impl_pool->stats.count(impl_types::ocl)
+                                   ? _impl_pool->stats.at(impl_types::ocl)
+                                   : ImplStats{};
+        if (s_onednn.execution_count >= 5 && s_ocl.execution_count >= 5) {
+            return (s_onednn.avg_execution_time_ms <= s_ocl.avg_execution_time_ms)
+                       ? impl_types::onednn
+                       : impl_types::ocl;
+        }
+    }
+
+    if (!threshold_disabled) {
+        // Rule 1: Compute-threshold gate
+        //   This threshold is treated as the required-compute boundary:
+        //   high workload prefers OneDNN throughput path, low workload prefers OCL
+        //   to reduce launch/dispatch overhead.
+        const size_t workload = (c.compute_workload > 0) ? c.compute_workload : c.m_dimension;
+
+        if (has_onednn && c.is_prefill && workload > compute_threshold)
+            return impl_types::onednn;
+        if (has_ocl && !c.is_prefill && workload <= compute_threshold)
+            return impl_types::ocl;
+
+        // Rule 2: Strong preference for OneDNN once workload is clearly over threshold.
+        if (has_onednn && workload > (compute_threshold * 2))
+            return impl_types::onednn;
+    }
+
+    // Fallback: OneDNN is generally the higher-throughput path and preferred when
+    // no specific rule fired (includes the threshold_disabled=-1 case).
+    impl_types auto_heuristic = impl_types::any;
+    if (has_onednn)
+        auto_heuristic = impl_types::onednn;
+    else if (has_ocl)
+        auto_heuristic = impl_types::ocl;
+
+    return auto_heuristic;
+}
+
+// select_best_impl_for_inputs
+impl_types
+primitive_inst::select_best_impl_for_inputs(const kernel_impl_params& params) const {
+    if (_switching_policy == ImplSwitchingPolicy::MANUAL)
+        return _manual_target_impl;
+
+    // Fast-path: predictor may already know the answer from recent history.
+    const auto predicted = _workload_predictor.predict_next_impl();
+    if (_switching_policy == ImplSwitchingPolicy::AUTO_HEURISTIC &&
+        predicted != impl_types::any && _impl_pool && _impl_pool->impls.count(predicted))
+        return predicted;
+
+    const auto criteria = extract_selection_criteria(params);
+    return evaluate_best_impl_type(criteria);
+}
+
+//  should_switch_impl
+bool primitive_inst::should_switch_impl(const kernel_impl_params& params) const {
+    if (!_impl_pool || _switching_policy == ImplSwitchingPolicy::NONE)
+        return false;
+    const auto best = select_best_impl_for_inputs(params);
+    return best != impl_types::any && best != _impl_pool->active_impl_type;
+}
+
+// update_impl_statistics
+void primitive_inst::update_impl_statistics(impl_types type, float duration_ms) {
+    if (!_impl_pool)
+        return;
+    auto& stats = _impl_pool->stats[type];
+    // Exponential moving average: α = 0.1 for the first stable estimate.
+    if (stats.execution_count == 0) {
+        stats.avg_execution_time_ms = duration_ms;
+    } else {
+        constexpr float alpha = 0.1f;
+        stats.avg_execution_time_ms =
+            (1.0f - alpha) * stats.avg_execution_time_ms + alpha * duration_ms;
+    }
+    ++stats.execution_count;
 }
 
 }  // namespace cldnn
