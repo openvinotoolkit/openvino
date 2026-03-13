@@ -20,10 +20,6 @@
         "ticket": 131657
     },
     {
-        "error_text": "Could not resolve host: github.com",
-        "ticket": 131546
-    },
-    {
         "error_text": "retrieving gpg key timed out",
         "ticket": 131538
     },
@@ -190,5 +186,13 @@
     {
         "error_text": "unable to resolve host",
         "ticket": 182238
+    },
+    {
+        "error_text": "Could not resolve host:",
+        "ticket": 182238
+    },
+    {
+        "error_text": "SSL connect error",
+        "ticket": 182850
     }
 ]
