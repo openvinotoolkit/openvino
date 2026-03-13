@@ -46,7 +46,12 @@ class Testwhere(PytorchLayerTest):
             def forward(self, cond):
                 return torch.where(cond)
 
+        class aten_where_as_nonzero_getitem(torch.nn.Module):
+            def forward(self, cond: torch.Tensor):
+                return torch.where(cond)[0]
 
+        if as_non_zero == 'scripted':
+            return aten_where_as_nonzero_getitem(), "aten::where"
         if as_non_zero:
             return aten_where_as_nonzero(), "aten::where"
         return aten_where(torch_dtypes), "aten::where"
@@ -93,6 +98,24 @@ class Testwhere(PytorchLayerTest):
 
     @pytest.mark.parametrize(
         "mask_fill", ['zeros', 'ones', 'random'])
+    @pytest.mark.parametrize("cond_dtype", [np.float32, np.int32])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_where_as_nonzero_nonbool_cond(self, mask_fill, cond_dtype, ie_device, precision, ir_version):
+        # aten::where(cond) must accept non-boolean condition tensors (float32, int32).
+        # NonZero treats zero as False and any nonzero value as True, matching PyTorch semantics.
+        self._test(*self.create_model(True),
+                   ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={
+                       'mask_fill': mask_fill,
+                       'mask_dtype': cond_dtype,
+                       'return_x_y': False,
+                       'x_dtype': "float32",
+                       },
+                   trace_model=True)
+
+    @pytest.mark.parametrize(
+        "mask_fill", ['zeros', 'ones', 'random'])
     @pytest.mark.parametrize("mask_dtype", [bool])
     @pytest.mark.parametrize("x_dtype", ["float32", "int32"])
     @pytest.mark.nightly
@@ -108,3 +131,24 @@ class Testwhere(PytorchLayerTest):
                        'return_x_y': False,
                        "x_dtype": x_dtype,
                        })
+
+    @pytest.mark.parametrize("mask_fill", ['zeros', 'ones', 'random'])
+    @pytest.mark.parametrize("x_dtype", ["float32", "int32"])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_where_as_nonzero_scripted(self, mask_fill, x_dtype, ie_device, precision, ir_version):
+        # Tests translate_where's input_is_none(1) branch via torch.jit.script.
+        # The model returns torch.where(cond)[0], producing aten::where → aten::__getitem__
+        self._test(*self.create_model('scripted'),
+                   ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={
+                       'mask_fill': mask_fill,
+                       'mask_dtype': bool,
+                       'return_x_y': False,
+                       'x_dtype': x_dtype,
+                   },
+                   trace_model=False,
+                   dynamic_shapes=False,
+                   use_convert_model=True,
+                   freeze_model=False)
+

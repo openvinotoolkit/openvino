@@ -33,7 +33,7 @@ OutputVector translate_where(const NodeContext& context) {
         OutputVector result;
         if (ndim > 0) {
             auto split = context.mark_node(std::make_shared<v1::Split>(non_zero, axis, ndim));
-            for (size_t i = 0; i < ndim; ++i) {
+            for (int64_t i = 0; i < ndim; ++i) {
                 result.push_back(context.mark_node(std::make_shared<v0::Squeeze>(split->output(i), axis)));
             }
         }
