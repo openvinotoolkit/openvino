@@ -21,7 +21,7 @@ using namespace ov::op;
 OutputVector translate_where(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
     auto cond = context.get_input(0);
-    if (context.input_is_none(1)) {
+    if (context.input_is_none(1) && context.input_is_none(2)) {
         // aten::where(cond) is equivalent to torch.nonzero(cond, as_tuple=True):
         // returns a tuple of 1D index tensors, one per dimension of cond.
         const auto& cond_shape = cond.get_partial_shape();
