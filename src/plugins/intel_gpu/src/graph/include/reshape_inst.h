@@ -72,7 +72,14 @@ public:
         if (axis == 0 && !input_pshape[0].is_dynamic()) {
             if (prim->output_pattern.empty())
                 return false;
-            return input_pshape[0].get_length() == 1;
+            if (input_pshape[0].get_length() != 1)
+                return false;
+            // Reject if the reshape just flattens spatial dims while keeping batch=1
+            // (e.g. [1,C,H,W] -> [1,C,H*W]).  Only allow when the batch dim is truly squeezed.
+            auto& out_ps = prim->output_partial_shape;
+            if (!out_ps[0].is_dynamic() && out_ps[0].get_length() == 1)
+                return false;
+            return true;
         }
 
         auto input_rank = input_pshape.size();
