@@ -132,7 +132,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_"${TYPE}"_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel or TestLLMModel)"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_"${TYPE}"_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel or TestLLMModel or TestDetectron2ConvertModel or TestTorchbenchmarkConvertModel)"
         env:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
@@ -151,6 +151,28 @@ jobs:
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/test_llm.py -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_llm_"${TYPE}"_tests.html --self-contained-html -v
         env:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
+          TEST_DEVICE: CPU
+          OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
+
+      # Detectron2 and Torchbench install packages at runtime via subprocess,
+      # so they run after model tests and before transformation tests to avoid
+      # polluting the environment for other model tests.
+      - name: PyTorch Detectron2 Tests
+        if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/test_detectron2.py -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_detectron2_"${TYPE}"_tests.html --self-contained-html -v
+        env:
+          TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
+          TEST_DEVICE: CPU
+          OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
+
+      - name: PyTorch Torchbench Tests
+        if: ${{ inputs.model_scope == 'nightly_scope2' }}
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/test_torchbench.py -m nightly --html=${INSTALL_TEST_DIR}/TEST-torch_model_torchbench_nightly_tests.html --self-contained-html -v
+        env:
           TEST_DEVICE: CPU
           OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
 
