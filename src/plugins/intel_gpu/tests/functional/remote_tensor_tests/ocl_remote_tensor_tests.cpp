@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#ifdef OV_GPU_WITH_OCL_RT
+
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -2945,3 +2947,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensorDataType, OVRemoteTensorDataType_Test
                                                               ov::element::Type_t::u16,
                                                               ov::element::Type_t::u32)),
                          OVRemoteTensorDataType_Test::getTestCaseName);
+#endif  // OV_GPU_WITH_OCL_RT

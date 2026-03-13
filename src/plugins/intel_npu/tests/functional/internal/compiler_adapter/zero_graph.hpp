@@ -37,8 +37,8 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<CompilationParamsAndExtensionVersion>& obj) {
         std::string targetDevice;
         ov::AnyMap configuration;
-        int graphExtVersion;
-        std::tie(targetDevice, configuration, graphExtVersion) = obj.param;
+        uint32_t zeGraphNpuExtVersion;
+        std::tie(targetDevice, configuration, zeGraphNpuExtVersion) = obj.param;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
 
         std::ostringstream result;
@@ -50,8 +50,8 @@ public:
                 configItem.second.print(result);
             }
         }
-        result << "graphExtVersion=" + std::to_string(ZE_MAJOR_VERSION(graphExtVersion)) + "." +
-                      std::to_string(ZE_MINOR_VERSION(graphExtVersion));
+        result << "zeGraphNpuExtVersion=" + std::to_string(ZE_MAJOR_VERSION(zeGraphNpuExtVersion)) + "." +
+                      std::to_string(ZE_MINOR_VERSION(zeGraphNpuExtVersion));
 
         return result.str();
     }
@@ -80,12 +80,14 @@ protected:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-        std::tie(targetDevice, configuration, graphExtVersion) = this->GetParam();
+        std::tie(targetDevice, configuration, zeGraphNpuExtVersion) = this->GetParam();
 
         model = ov::test::utils::make_multi_single_conv();
         blob = nullptr;
 
-        std::shared_ptr<ZeroInitStructsMock> zeroInitMock = std::make_shared<ZeroInitStructsMock>(graphExtVersion);
+        std::shared_ptr<ZeroInitStructsMock> zeroInitMock =
+            std::make_shared<ZeroInitStructsMock>(::intel_npu::test_constants::TARGET_ZE_DRIVER_NPU_EXT_VERSION,
+                                                  zeGraphNpuExtVersion);
         zeroInitStruct = std::reinterpret_pointer_cast<ZeroInitStructsHolder>(zeroInitMock);
         zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
     }
@@ -100,8 +102,13 @@ protected:
     void serializeIR() {
         auto compilerProperties = zeroInitStruct->getCompilerProperties();
         const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
+        // The test is not concerned with validating the serialization algorithm. Choose the "all-weights-copy" as the
+        // safest version.
         serializedIR =
-            ::intel_npu::compiler_utils::serializeIR(model, compilerProperties.compilerVersion, maxOpsetVersion, true);
+            ::intel_npu::compiler_utils::serializeIR(model,
+                                                     compilerProperties.compilerVersion,
+                                                     maxOpsetVersion,
+                                                     ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
     }
 
     bool bypassUmdCache() {
@@ -136,7 +143,7 @@ protected:
 
     std::string targetDevice;
     std::string blobPath;
-    int graphExtVersion;
+    uint32_t zeGraphNpuExtVersion;
 };
 
 using ZeroGraphCompilationTests = ZeroGraphTest;
