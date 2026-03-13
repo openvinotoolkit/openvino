@@ -8,14 +8,17 @@ from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class Testwhere(PytorchLayerTest):
-    def _prepare_input(self, mask_fill='ones', mask_dtype=bool, return_x_y=False, x_dtype="float32", y_dtype=None):
+    def _prepare_input(self, mask_fill='ones', mask_dtype=bool, return_x_y=False, x_dtype="float32", y_dtype=None, scalar_cond=False):
         input_shape = [2, 10]
-        mask = np.zeros(input_shape).astype(mask_dtype)
-        if mask_fill == 'ones':
-            mask = np.ones(input_shape).astype(mask_dtype)
-        if mask_fill == 'random':
-            idx = self.random.choice(10, 5)
-            mask[:, idx] = 1
+        if scalar_cond:
+            mask = np.array(0 if mask_fill == 'zeros' else 1).astype(mask_dtype)
+        else:
+            mask = np.zeros(input_shape).astype(mask_dtype)
+            if mask_fill == 'ones':
+                mask = np.ones(input_shape).astype(mask_dtype)
+            if mask_fill == 'random':
+                idx = self.random.choice(10, 5)
+                mask[:, idx] = 1
         x = self.random.randn(*input_shape, dtype=x_dtype)
         y = self.random.randn(*input_shape, dtype=y_dtype or x_dtype)
         return (mask,) if not return_x_y else (mask, x, y)
@@ -131,6 +134,22 @@ class Testwhere(PytorchLayerTest):
                        'return_x_y': False,
                        "x_dtype": x_dtype,
                        })
+
+    @pytest.mark.parametrize("cond_val", ['zeros', 'ones'])
+    @pytest.mark.parametrize("x_dtype", ["float32", "int32"])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_where_scalar_cond(self, cond_val, x_dtype, ie_device, precision, ir_version):
+        self._test(*self.create_model(False, dtypes=(x_dtype, x_dtype)),
+                   ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={
+                       'mask_fill': cond_val,
+                       'mask_dtype': bool,
+                       'return_x_y': True,
+                       'x_dtype': x_dtype,
+                       'scalar_cond': True,
+                   })
 
     @pytest.mark.parametrize("mask_fill", ['zeros', 'ones', 'random'])
     @pytest.mark.parametrize("x_dtype", ["float32", "int32"])
