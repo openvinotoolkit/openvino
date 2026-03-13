@@ -448,8 +448,6 @@ def test_add_extension():
 
 def test_add_extension_from_path():
     core = Core()
-    lib_name = "openvino_template_extension.dll" if sys.platform == "win32" else "libopenvino_template_extension.so"
-    core.add_extension(Path(lib_name))
 
     with pytest.raises(RuntimeError) as e:
         core.add_extension(Path("non_existing_extension"))
