@@ -41,7 +41,17 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
         const auto& weightlessCacheAttrIt = runtimeInfoMap.find(ov::WeightlessCacheAttribute::get_type_info_static());
         if (weightlessCacheAttrIt != runtimeInfoMap.end()) {
             auto& weightlessCacheAttr = weightlessCacheAttrIt->second.as<ov::WeightlessCacheAttribute>();
-            constants[weightlessCacheAttr.bin_offset] = constantNode;
+
+            auto& constant = constants[weightlessCacheAttr.bin_offset];
+            if (constant != nullptr) {
+                // if multiple constants point to the same buffer, ensure that
+                // their binary sizes are the same
+                OPENVINO_ASSERT(constant->get_byte_size() == constantNode->get_byte_size(),
+                                "Found ov::Constant that points to the common buffer but has mismatching byte size. "
+                                "This may indicate a bug in OV model compression.");
+                continue;
+            }
+            constant = constantNode;
         }
     }
 
@@ -156,9 +166,8 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
                                  std::vector<NetworkMetadata> initMetadata,
                                  std::optional<std::vector<ov::Tensor>> initBlobs,
                                  std::shared_ptr<const ov::Model>&& model,
-                                 const Config& config,
-                                 const bool blobIsPersistent,
-                                 const ov::SoPtr<VCLCompilerImpl>& compiler)
+                                 const FilteredConfig& config,
+                                 const bool blobIsPersistent)
     : Graph(zeGraphExt,
             zeroInitStruct,
             mainGraphDesc,
@@ -166,7 +175,6 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
             std::move(mainBlob),
             config,
             blobIsPersistent,
-            compiler,
             true),
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
@@ -275,7 +283,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
     return std::make_pair(totalBlobSize, initSizes);
 }
 
-void WeightlessGraph::initialize(const Config& config) {
+void WeightlessGraph::initialize(const FilteredConfig& config) {
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
         // To ensure that does not throw an issue when subsequently calling `_zeroInitStruct->getDevice()`
         return;
@@ -371,39 +379,55 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
 
     // Due to the large number of init inputs, allocating a single buffer for all of them is more efficient. "View
     // tensors" are used for separating them.
-    const ov::SoPtr<ZeroHostTensor> initInputsAllocatedTensor = {
-        std::make_shared<ZeroHostTensor>(nullptr,
-                                         _zeroInitStruct,
-                                         ov::element::Type_t::u8,
-                                         ov::Shape({initInputsByteSize}),
-                                         ov::intel_npu::TensorType::INPUT)};
+    const std::shared_ptr<ZeroTensor> initInputsAllocatedTensor =
+        std::make_shared<ZeroTensor>(_zeroInitStruct, ov::element::Type_t::u8, ov::Shape({initInputsByteSize}), true);
+
+    std::vector<size_t> noLongerRequiredIds;
+    noLongerRequiredIds.reserve(_initsMetadata.at(initIndex).inputs.size());
 
     size_t offset = 0;
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).inputs) {
         auto currentInputBufferLocation =
             static_cast<unsigned char*>(const_cast<void*>(initInputsAllocatedTensor->data(ov::element::Type_t::u8))) +
             offset;
+        const auto tensorShapeFromCompiler = descriptor.shapeFromCompiler.to_shape();
         const size_t currentInputSize =
-            ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+            ov::util::get_memory_size(descriptor.precision, shape_size(tensorShapeFromCompiler));
 
-        std::shared_ptr<ov::op::v0::Constant> constant;
         const size_t id = std::stoi(descriptor.nameFromCompiler);
-        OPENVINO_ASSERT(constants.count(id) > 0,
+        auto constantIt = constants.find(id);
+        OPENVINO_ASSERT(constantIt != constants.end(),
                         "Weights ID ",
                         id,
                         " not found in the model constants. This may indicate a mismatch between the model and the "
                         "metadata of the compiled model.");
 
-        constant = constants.at(id);
-
+        const auto constant = constantIt->second;
+        OPENVINO_ASSERT(constant->get_byte_size() == currentInputSize,
+                        "Binary size mismatch found for weights ID ",
+                        id,
+                        " between the model and compiled metadata.");
         std::memcpy(currentInputBufferLocation, constant->get_data_ptr(), currentInputSize);
 
+        // Note: Use compiler-provided precision and shape, because duplicates -
+        // constants that point to the same binary data - can in theory have
+        // different shape or even type (OV model compression only guarantees
+        // that the data is the same). In order to avoid any potential issues
+        // due to shape/type mismatches, init tensors should align with
+        // compiler's expectations.
         initInputsViewTensors.push_back(
-            ov::make_tensor(constant->get_element_type(), constant->get_shape(), currentInputBufferLocation));
+            ov::make_tensor(descriptor.precision, tensorShapeFromCompiler, currentInputBufferLocation));
         offset += currentInputSize;
 
+        // Note: One cannot immediately delete the constant, because there might
+        // be a duplicate. The deletion should happen once the input data for
+        // init schedule is fully set.
+        noLongerRequiredIds.push_back(id);
+    }
+
+    for (size_t id : noLongerRequiredIds) {
         // Note: By construction of the weight schedule, every constant from OV
-        // model appears exactly once across all schedules. Thus, one can delete
+        // model appears in exactly one schedule. Thus, one can delete
         // the handle to the constant memory early.
         constants.erase(id);
     }
@@ -421,12 +445,8 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
             ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
-    const ov::SoPtr<ZeroHostTensor> initOutputsAllocatedTensor = {
-        std::make_shared<ZeroHostTensor>(nullptr,
-                                         _zeroInitStruct,
-                                         ov::element::Type_t::u8,
-                                         ov::Shape({initOutputsByteSize}),
-                                         ov::intel_npu::TensorType::BINDED)};
+    const std::shared_ptr<ZeroTensor> initOutputsAllocatedTensor =
+        std::make_shared<ZeroTensor>(_zeroInitStruct, ov::element::Type_t::u8, ov::Shape({initOutputsByteSize}), false);
 
     size_t offset = 0;
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).outputs) {
@@ -434,11 +454,11 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
             static_cast<unsigned char*>(const_cast<void*>(initOutputsAllocatedTensor->data(ov::element::Type_t::u8))) +
             offset;
 
-        const ov::SoPtr<ov::ITensor> hostTensor =
+        const std::shared_ptr<ov::ITensor> hostTensor =
             ov::make_tensor(descriptor.precision, descriptor.shapeFromCompiler.to_shape(), currentOutputBufferLocation);
 
-        initOutputsViewTensorsVector.push_back(hostTensor._ptr);
-        initOutputsViewTensorsMap.emplace(descriptor.nameFromCompiler, hostTensor._ptr);
+        initOutputsViewTensorsVector.push_back(hostTensor);
+        initOutputsViewTensorsMap.emplace(descriptor.nameFromCompiler, hostTensor);
         offset += ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
@@ -473,9 +493,6 @@ void WeightlessGraph::run_init_multi_threaded() {
         run_init_single_threaded();
         return;
     }
-
-    std::unordered_map<std::string, std::shared_ptr<ZeroHostTensor>> weightsInputs;
-    std::vector<ov::SoPtr<ZeroHostTensor>> initTensors;
 
     // the pipeline:
     // allocate I/O -> create Pipeline -> run Pipeline

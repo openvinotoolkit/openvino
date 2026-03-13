@@ -24,11 +24,13 @@ public:
                     const std::vector<std::string>& names,
                     std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo> quantization,
                     std::shared_ptr<ov::frontend::tensorflow_lite::SparsityInfo> sparsity,
-                    const void* data)
+                    const void* data,
+                    size_t data_size = 0)
         : ov::frontend::tensorflow::TensorPlace(input_model, pshape, type, names),
           m_quantization(quantization),
           m_sparsity(sparsity),
-          m_data(m_sparsity == nullptr || m_sparsity->is_disabled() ? data : m_sparsity->dense_data()) {};
+          m_data(m_sparsity == nullptr || m_sparsity->is_disabled() ? data : m_sparsity->dense_data()),
+          m_data_size(m_sparsity == nullptr || m_sparsity->is_disabled() ? data_size : 0) {};
 
     void translate(ov::Output<ov::Node>& output, bool convert_tensor_attrs_to_nodes = false);
 
@@ -57,11 +59,16 @@ public:
         return m_data;
     }
 
+    size_t get_data_size() const {
+        return m_data_size;
+    }
+
 protected:
     std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo> m_quantization;
     std::shared_ptr<ov::frontend::tensorflow_lite::SparsityInfo> m_sparsity;
     int64_t m_input_idx = -1, m_output_idx = -1;
     const void* m_data;
+    size_t m_data_size = 0;
 };
 
 }  // namespace tensorflow_lite

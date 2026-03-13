@@ -15,8 +15,8 @@
 #include "intel_npu/utils/zero/zero_mem.hpp"
 #include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "model_serializer.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
-#include "vcl_serializer.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 #include "zero_init_mock.hpp"
 
@@ -37,8 +37,8 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<CompilationParamsAndExtensionVersion>& obj) {
         std::string targetDevice;
         ov::AnyMap configuration;
-        int graphExtVersion;
-        std::tie(targetDevice, configuration, graphExtVersion) = obj.param;
+        uint32_t zeGraphNpuExtVersion;
+        std::tie(targetDevice, configuration, zeGraphNpuExtVersion) = obj.param;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
 
         std::ostringstream result;
@@ -50,8 +50,8 @@ public:
                 configItem.second.print(result);
             }
         }
-        result << "graphExtVersion=" + std::to_string(ZE_MAJOR_VERSION(graphExtVersion)) + "." +
-                      std::to_string(ZE_MINOR_VERSION(graphExtVersion));
+        result << "zeGraphNpuExtVersion=" + std::to_string(ZE_MAJOR_VERSION(zeGraphNpuExtVersion)) + "." +
+                      std::to_string(ZE_MINOR_VERSION(zeGraphNpuExtVersion));
 
         return result.str();
     }
@@ -78,16 +78,16 @@ public:
 
 protected:
     void SetUp() override {
-        using namespace ::driver_compiler_utils;
-
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-        std::tie(targetDevice, configuration, graphExtVersion) = this->GetParam();
+        std::tie(targetDevice, configuration, zeGraphNpuExtVersion) = this->GetParam();
 
         model = ov::test::utils::make_multi_single_conv();
         blob = nullptr;
 
-        std::shared_ptr<ZeroInitStructsMock> zeroInitMock = std::make_shared<ZeroInitStructsMock>(graphExtVersion);
+        std::shared_ptr<ZeroInitStructsMock> zeroInitMock =
+            std::make_shared<ZeroInitStructsMock>(::intel_npu::test_constants::TARGET_ZE_DRIVER_NPU_EXT_VERSION,
+                                                  zeGraphNpuExtVersion);
         zeroInitStruct = std::reinterpret_pointer_cast<ZeroInitStructsHolder>(zeroInitMock);
         zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
     }
@@ -102,8 +102,13 @@ protected:
     void serializeIR() {
         auto compilerProperties = zeroInitStruct->getCompilerProperties();
         const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
+        // The test is not concerned with validating the serialization algorithm. Choose the "all-weights-copy" as the
+        // safest version.
         serializedIR =
-            driver_compiler_utils::serializeIR(model, compilerProperties.compilerVersion, maxOpsetVersion, true);
+            ::intel_npu::compiler_utils::serializeIR(model,
+                                                     compilerProperties.compilerVersion,
+                                                     maxOpsetVersion,
+                                                     ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
     }
 
     bool bypassUmdCache() {
@@ -130,7 +135,7 @@ protected:
     std::shared_ptr<ZeGraphExtWrappers> zeGraphExt;
     ov::AnyMap configuration;
 
-    SerializedIR serializedIR;
+    ::intel_npu::SerializedIR serializedIR;
     GraphDescriptor graphDescriptor;
 
     std::shared_ptr<ov::Model> model;
@@ -138,7 +143,7 @@ protected:
 
     std::string targetDevice;
     std::string blobPath;
-    int graphExtVersion;
+    uint32_t zeGraphNpuExtVersion;
 };
 
 using ZeroGraphCompilationTests = ZeroGraphTest;
@@ -371,5 +376,39 @@ TEST_P(ZeroGraphTest, CheckNoThrowOnUnsupportedFeature) {
     }
 }
 #endif
+
+using IsOptionSupported = ZeroGraphTest;
+
+TEST_P(IsOptionSupported, GetCompilerSupportedOptions) {
+    std::optional<std::string> compilerSupportedOptions;
+    OV_ASSERT_NO_THROW(compilerSupportedOptions = zeGraphExt->getCompilerSupportedOptions());
+    if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 11)) {
+        ASSERT_FALSE(compilerSupportedOptions.has_value());
+    } else {
+        ASSERT_TRUE(compilerSupportedOptions.has_value());
+    }
+}
+
+TEST_P(IsOptionSupported, PropertyNotSupportedByDriver) {
+    std::optional<bool> isOptionSupportedResult;
+    OV_ASSERT_NO_THROW(isOptionSupportedResult = zeGraphExt->isOptionSupported("FAKE_OPTION"));
+    if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 11)) {
+        ASSERT_FALSE(isOptionSupportedResult.has_value());
+    } else {
+        ASSERT_TRUE(isOptionSupportedResult.has_value());
+        ASSERT_FALSE(isOptionSupportedResult.value());
+    }
+}
+
+TEST_P(IsOptionSupported, PropertySupportedByDriver) {
+    std::optional<bool> isOptionSupportedResult;
+    OV_ASSERT_NO_THROW(isOptionSupportedResult = zeGraphExt->isOptionSupported("PERFORMANCE_HINT"));
+    if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 11)) {
+        ASSERT_FALSE(isOptionSupportedResult.has_value());
+    } else {
+        ASSERT_TRUE(isOptionSupportedResult.has_value());
+        ASSERT_TRUE(isOptionSupportedResult.value());
+    }
+}
 
 }  // namespace ov::test::behavior
