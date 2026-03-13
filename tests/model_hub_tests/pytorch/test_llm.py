@@ -32,6 +32,18 @@ def patch_gptq():
     torch.cuda.is_bf16_supported = lambda: False
     torch.cuda.get_device_capability = lambda n: (9, 1)
 
+    # Fix optimum/auto-gptq compatibility: latest optimum imports
+    # QuantizeConfig from auto_gptq, but auto-gptq 0.7.1 only exports
+    # BaseQuantizeConfig.  Inject the alias so optimum.gptq.quantizer
+    # can find it.
+    try:
+        import optimum.gptq.quantizer as _gptq_mod
+        if not hasattr(_gptq_mod, 'QuantizeConfig'):
+            from auto_gptq import BaseQuantizeConfig
+            _gptq_mod.QuantizeConfig = BaseQuantizeConfig
+    except ImportError:
+        pass
+
     try:
         # Patch at the transformers level to avoid GPU-only post_init_model
         # from optimum.gptq.  transformers' GptqHfQuantizer delegates to
