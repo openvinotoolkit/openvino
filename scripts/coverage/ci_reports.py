@@ -8,7 +8,11 @@ from __future__ import annotations
 import argparse
 import csv
 from collections import defaultdict
+import json
 from pathlib import Path
+
+
+METADATA_FILE = "coverage-artifact-metadata.json"
 
 
 SUITE_DEFS = {
@@ -60,6 +64,12 @@ SUITE_DEFS = {
 }
 
 
+def _read_json_file(path: Path) -> dict[str, object]:
+    if not path.is_file():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def _read_env_file(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
     if not path.is_file():
@@ -85,6 +95,51 @@ def _to_int(values: dict[str, str], key: str | None) -> int:
 def _artifact_lane(artifact_name: str, prefix: str) -> str:
     suffix = artifact_name[len(prefix) :]
     return suffix.split("-shard-", 1)[0]
+
+
+def _collect_artifacts(*, workspace: Path, suite_key: str) -> list[dict[str, object]]:
+    suite_def = SUITE_DEFS[suite_key]
+    root = workspace / "artifacts" / suite_def["artifacts_dir"]
+    if not root.exists():
+        return []
+
+    artifacts: list[dict[str, object]] = []
+    seen_dirs: set[Path] = set()
+
+    for metadata_path in sorted(root.rglob(METADATA_FILE)):
+        artifact_dir = metadata_path.parent
+        metadata = _read_json_file(metadata_path)
+        if not metadata:
+            continue
+        if str(metadata.get("suite", "")).strip() != suite_key:
+            continue
+        seen_dirs.add(artifact_dir.resolve())
+        artifacts.append(
+            {
+                "artifact_dir": artifact_dir,
+                "artifact_name": str(metadata.get("artifact_name", "")).strip() or artifact_dir.name,
+                "lane": str(metadata.get("lane", "")).strip(),
+            }
+        )
+
+    if artifacts:
+        return artifacts
+
+    for artifact_dir in sorted(root.glob(suite_def["artifact_glob"])):
+        if not artifact_dir.is_dir():
+            continue
+        resolved = artifact_dir.resolve()
+        if resolved in seen_dirs:
+            continue
+        artifacts.append(
+            {
+                "artifact_dir": artifact_dir,
+                "artifact_name": artifact_dir.name,
+                "lane": _artifact_lane(artifact_dir.name, suite_def["artifact_prefix"]),
+            }
+        )
+
+    return artifacts
 
 
 def _flag_patterns(suite: str, lane: str) -> list[str]:
@@ -120,15 +175,10 @@ def render_summary(*, workspace: Path, summary_file: Path, selection: str, selec
                 "report_size": 0,
             }
         )
-        root = workspace / "artifacts" / suite_def["artifacts_dir"]
-        if not root.exists():
-            continue
-
-        for artifact_dir in sorted(root.glob(suite_def["artifact_glob"])):
-            if not artifact_dir.is_dir():
-                continue
-            artifact_name = artifact_dir.name
-            lane = _artifact_lane(artifact_name, suite_def["artifact_prefix"])
+        for artifact in _collect_artifacts(workspace=workspace, suite_key=suite_key):
+            artifact_dir = Path(artifact["artifact_dir"])
+            artifact_name = str(artifact["artifact_name"])
+            lane = str(artifact["lane"])
             stats = _read_env_file(artifact_dir / suite_def["stats_file"])
             total = _to_int(stats, suite_def["total_key"])
             passed = _to_int(stats, suite_def["passed_key"])
@@ -227,18 +277,13 @@ def merge_durations(*, workspace: Path, output: Path) -> None:
     rows: list[dict[str, str]] = []
 
     for suite_key, suite_def in SUITE_DEFS.items():
-        root = workspace / "artifacts" / suite_def["artifacts_dir"]
-        if not root.exists():
-            continue
-
-        for artifact_dir in sorted(root.glob(suite_def["artifact_glob"])):
-            if not artifact_dir.is_dir():
-                continue
+        for artifact in _collect_artifacts(workspace=workspace, suite_key=suite_key):
+            artifact_dir = Path(artifact["artifact_dir"])
             report = artifact_dir / suite_def["duration_file"]
             if not report.is_file():
                 continue
-            artifact_name = artifact_dir.name
-            lane = _artifact_lane(artifact_name, suite_def["artifact_prefix"])
+            artifact_name = str(artifact["artifact_name"])
+            lane = str(artifact["lane"])
             with report.open(encoding="utf-8", newline="") as handle:
                 reader = csv.DictReader(handle)
                 for row in reader:

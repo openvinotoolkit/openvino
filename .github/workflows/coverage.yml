@@ -220,6 +220,9 @@ jobs:
           CXX_TESTS_SKIPPED=0
           CXX_TESTS_NOT_RUN=${total}
           EOF
+          cat > "${{ github.workspace }}/coverage-artifact-metadata.json" <<EOF
+          {"suite":"cpp","lane":"${{ matrix.lane }}","artifact_name":"coverage-cpp-${{ matrix.lane }}-shard-${{ matrix.cpp_shard_label }}","shard_label":"${{ matrix.cpp_shard_label }}","shard_index":${{ matrix.cpp_shard_index }},"shard_count":${{ matrix.cpp_shard_count }}}
+          EOF
 
       - name: Checkout sources for path mapping
         uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
@@ -384,6 +387,7 @@ jobs:
             coverage-report
             cpp-test-durations.csv
             cpp-coverage-stats.env
+            coverage-artifact-metadata.json
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
@@ -473,6 +477,9 @@ jobs:
           PY_TESTS_FAILED=0
           PY_TESTS_SKIPPED=0
           PY_TESTS_NOT_RUN=${total}
+          EOF
+          cat > "${{ github.workspace }}/coverage-artifact-metadata.json" <<EOF
+          {"suite":"python","lane":"${{ matrix.lane }}","artifact_name":"coverage-python-${{ matrix.lane }}-shard-${{ matrix.py_shard_label }}","shard_label":"${{ matrix.py_shard_label }}","shard_index":${{ matrix.py_shard_index }},"shard_count":${{ matrix.py_shard_count }}}
           EOF
 
       - name: Checkout sources for path mapping
@@ -635,6 +642,7 @@ jobs:
             coverage-report
             python-test-durations.csv
             python-coverage-stats.env
+            coverage-artifact-metadata.json
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
@@ -761,6 +769,9 @@ jobs:
           JS_TESTS_FAILED=0
           JS_TESTS_SKIPPED=0
           JS_TESTS_NOT_RUN=${total}
+          EOF
+          cat > "${{ github.workspace }}/coverage-artifact-metadata.json" <<EOF
+          {"suite":"js","lane":"${{ matrix.lane }}","artifact_name":"coverage-js-${{ matrix.lane }}-shard-${{ matrix.js_shard_label }}","shard_label":"${{ matrix.js_shard_label }}","shard_index":${{ matrix.js_shard_index }},"shard_count":${{ matrix.js_shard_count }}}
           EOF
 
       - name: Checkout sources for path mapping
@@ -923,6 +934,7 @@ jobs:
             coverage-report
             js-test-durations.csv
             js-coverage-stats.env
+            coverage-artifact-metadata.json
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
