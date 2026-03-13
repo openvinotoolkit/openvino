@@ -62,7 +62,8 @@ public:
 };
 
 class MapHolder final : public MappedMemory {
-    void* m_data = MAP_FAILED;
+    void* m_mapped_view = MAP_FAILED;
+    void* m_data = nullptr;
     size_t m_size = 0;
     uint64_t m_id = std::numeric_limits<uint64_t>::max();
     HandleHolder m_handle;
@@ -92,23 +93,26 @@ public:
         if (fstat(fd, &sb) == -1) {
             throw std::runtime_error("Can not get file size for fd=" + std::to_string(fd));
         }
-        if (size == 0) {
-            m_size = sb.st_size - offset;
-        } else {
+        const auto file_size = static_cast<size_t>(sb.st_size);
+        if (size > 0) {
             m_size = size;
+        } else {
+            m_size = file_size - offset;
         }
-        if (offset + m_size > static_cast<size_t>(sb.st_size)) {
+        if (offset + m_size > file_size) {
             throw std::runtime_error("Requested mapping range exceeds file size for fd=" + std::to_string(fd));
         }
 
         if (m_size > 0) {
-            m_data = mmap(nullptr, m_size, PROT_READ, MAP_SHARED, fd, offset);
-            if (m_data == MAP_FAILED) {
+            const auto page_size = util::get_system_page_size();
+            const auto aligned_offset = (offset / page_size) * page_size;
+            const auto aligned_size = offset + m_size - aligned_offset;
+            m_mapped_view = mmap(nullptr, aligned_size, PROT_READ, MAP_SHARED, fd, aligned_offset);
+            if (m_mapped_view == MAP_FAILED) {
                 throw std::runtime_error("Can not create file mapping for " + std::to_string(fd) +
                                          ", err=" + std::strerror(errno));
             }
-        } else {
-            m_data = MAP_FAILED;
+            m_data = static_cast<char*>(m_mapped_view) + (offset - aligned_offset);
         }
     }
 
@@ -117,8 +121,8 @@ public:
     }
 
     ~MapHolder() {
-        if (m_data != MAP_FAILED) {
-            munmap(m_data, m_size);
+        if (m_mapped_view != MAP_FAILED) {
+            munmap(m_mapped_view, m_size);
         }
     }
 

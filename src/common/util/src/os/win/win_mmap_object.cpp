@@ -140,10 +140,7 @@ private:
                 throw std::runtime_error("Can not create map view for " + util::path_to_string(path) + ". Error " +
                                          std::to_string(::GetLastError()));
             }
-            m_data = reinterpret_cast<void*>(reinterpret_cast<std::ptrdiff_t>(m_mapped_view) + offset - aligned_offset);
-        } else {
-            m_mapped_view = nullptr;
-            m_data = nullptr;
+            m_data = reinterpret_cast<char*>(m_mapped_view) + (offset - aligned_offset);
         }
     }
 
