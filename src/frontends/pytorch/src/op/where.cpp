@@ -27,13 +27,13 @@ OutputVector translate_where(const NodeContext& context) {
         const auto& cond_shape = cond.get_partial_shape();
         PYTORCH_OP_CONVERSION_CHECK(cond_shape.rank().is_static(),
                                     "aten::where(cond) with input of dynamic rank is not supported");
-        const auto ndim = static_cast<int>(cond_shape.rank().get_length());
+        const auto ndim = cond_shape.rank().get_length();
         auto non_zero = context.mark_node(std::make_shared<v3::NonZero>(cond));
         auto axis = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
         OutputVector result;
         if (ndim > 0) {
             auto split = context.mark_node(std::make_shared<v1::Split>(non_zero, axis, ndim));
-            for (int i = 0; i < ndim; ++i) {
+            for (size_t i = 0; i < ndim; ++i) {
                 result.push_back(context.mark_node(std::make_shared<v0::Squeeze>(split->output(i), axis)));
             }
         }
