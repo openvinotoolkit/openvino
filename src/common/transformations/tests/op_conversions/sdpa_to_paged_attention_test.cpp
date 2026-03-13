@@ -5450,7 +5450,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Gemma3_TokenTypeIds) {
         auto sinks = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
 
         auto token_type_ids_i32 = makeOP<v0::Convert>({token_type_ids_param}, {{"destination_type", "i32"}});
-
+        auto qq_bias = v0::Constant::create(element::u8, Shape{0}, {});
+        auto qq_bias_begins = v0::Constant::create(element::i32, Shape{0}, {});
         auto PA = std::make_shared<ov::op::PagedAttentionExtension>(
             OutputVector{Q_flat,
                          K_flat,
@@ -5477,7 +5478,9 @@ TEST_F(SDPAToPATest, SDPAToPA_Gemma3_TokenTypeIds) {
                          adaptive_rkv_evictable_sizes,
                          adaptive_rkv_diversity_block_set_indices,
                          adaptive_rkv_diversity_block_set_indices_begins,
-                         token_type_ids_i32});
+                         token_type_ids_i32,
+                         qq_bias,
+                         qq_bias_begins});
 
         auto ShapeOf_v = makeOP<v3::ShapeOf>({Transpose_v2}, {{"output_type", "i64"}});
         auto Gather_dim = makeOP<v8::Gather>({ShapeOf_v, -1, 0}, {{"batch_dims", 0}});
