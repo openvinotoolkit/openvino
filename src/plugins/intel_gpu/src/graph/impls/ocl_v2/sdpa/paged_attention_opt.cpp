@@ -1243,7 +1243,7 @@ public:
             return pa_sdpa_micro->kd.micro_kernels.size() > 0;
         else if (stage == PagedAttentionStage::MIXED)
             return pa_sdpa_micro_mixed->kd.micro_kernels.size() > 0;
-        else if (stage == PagedAttentionStage::GQA_SINGLE_TOKEN)
+        else if (stage == PagedAttentionStage::GENERATE)
             return pa_sdpa_micro_gqa_single_token->kd.micro_kernels.size() > 0;
         return false;
     }
