@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -270,7 +270,7 @@ public:
 // inject DynamicQuantize/Dynamic dequantize ops on kv-cache passes before matmuls
 void ov::npuw::run_kv_cache_dynamic_qantization_passes(const std::shared_ptr<ov::Model>& model, ov::element::Type kv_cache_precision_hint) {
 
-    auto pattern_nodes_list = ov::npuw::function::find_all_sdpa_pattern_nodes(model);
+    auto pattern_nodes_list = ov::npuw::util::find_all_sdpa_pattern_nodes(model);
 
     // TODO: should this be parametrized?
     const auto qt_type = ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;

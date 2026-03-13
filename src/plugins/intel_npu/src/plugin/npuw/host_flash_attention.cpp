@@ -705,7 +705,7 @@ static std::shared_ptr<ov::Node> skip_convert_nodes(const std::shared_ptr<ov::No
 // ============================================================================
 static void build_sdpa_param_mapping(HostFlashAttention& hfa,
                                      const std::shared_ptr<ov::Model>& model,
-                                     const SDPAPatternNodes& pattern_nodes) {
+                                     const ov::npuw::util::SDPAPatternNodes& pattern_nodes) {
     LOG_INFO("Building SDPA input parameter index mapping...");
 
     // Helper lambda to safely extract parameter from node (skipping Convert ops)
@@ -885,7 +885,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // ========================================================================
     // Step 1: Validate SDPA pattern and extract key nodes
     // ========================================================================
-    auto pattern_nodes = find_sdpa_pattern_nodes(model);
+    auto pattern_nodes = ov::npuw::util::find_sdpa_pattern_nodes(model);
     if (!pattern_nodes.is_valid()) {
         LOG_WARN("Failed to re-find SDPA pattern nodes");
         return std::nullopt;
