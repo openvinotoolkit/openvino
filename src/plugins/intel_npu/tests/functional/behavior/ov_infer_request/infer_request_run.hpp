@@ -202,6 +202,8 @@ public:
         std::tie(target_device, configuration, withWarmUpInfer, withResetInferRequest) = this->GetParam();
         OVPluginTestBase::SetUp();
         ov_model = createTwoInputNonZeroAddModel();
+        configuration[ov::intel_npu::platform.name()] =
+            ov::intel_npu::Platform::standardize(ov::test::utils::getTestsPlatformFromEnvironmentOr(target_device));
     }
 };
 
