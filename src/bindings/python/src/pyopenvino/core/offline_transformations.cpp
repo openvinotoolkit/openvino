@@ -158,7 +158,6 @@ void regmodule_offline_transformations(py::module m) {
                                                                   allow_score_aggregation,
                                                                   allow_cache_rotation,
                                                                   allow_xattention,
-                                                                  allow_adaptive_rkv);
                                                                   allow_adaptive_rkv,
                                                                   allow_qq_bias);
             manager.run_passes(model);
