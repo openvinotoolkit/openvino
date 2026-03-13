@@ -327,7 +327,7 @@ ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
 
         auto get_eps = [&](std::shared_ptr<ov::Node> eps_pattern, float* eps) -> bool {
             std::shared_ptr<ov::Node> eps_node = nullptr;
-            if (!(eps_node = get_scalar(eps_pattern, m))) {
+            if ((eps_node = get_scalar(eps_pattern, m))) {
                 *eps = ov::as_type_ptr<v0::Constant>(eps_node)->cast_vector<float>()[0];
                 return true;
             } else {
