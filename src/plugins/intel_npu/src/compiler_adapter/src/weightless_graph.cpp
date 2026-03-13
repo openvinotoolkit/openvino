@@ -379,12 +379,11 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
 
     // Due to the large number of init inputs, allocating a single buffer for all of them is more efficient. "View
     // tensors" are used for separating them.
-    const ov::SoPtr<ZeroHostTensor> initInputsAllocatedTensor = {
-        std::make_shared<ZeroHostTensor>(nullptr,
-                                         _zeroInitStruct,
-                                         ov::element::Type_t::u8,
-                                         ov::Shape({initInputsByteSize}),
-                                         ov::intel_npu::TensorType::INPUT)};
+    const std::shared_ptr<ZeroTensor> initInputsAllocatedTensor =
+        std::make_shared<ZeroTensor>(_zeroInitStruct, ov::element::Type_t::u8, ov::Shape({initInputsByteSize}), true);
+
+    std::vector<size_t> noLongerRequiredIds;
+    noLongerRequiredIds.reserve(_initsMetadata.at(initIndex).inputs.size());
 
     size_t offset = 0;
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).inputs) {
@@ -420,8 +419,15 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
             ov::make_tensor(descriptor.precision, tensorShapeFromCompiler, currentInputBufferLocation));
         offset += currentInputSize;
 
+        // Note: One cannot immediately delete the constant, because there might
+        // be a duplicate. The deletion should happen once the input data for
+        // init schedule is fully set.
+        noLongerRequiredIds.push_back(id);
+    }
+
+    for (size_t id : noLongerRequiredIds) {
         // Note: By construction of the weight schedule, every constant from OV
-        // model appears exactly once across all schedules. Thus, one can delete
+        // model appears in exactly one schedule. Thus, one can delete
         // the handle to the constant memory early.
         constants.erase(id);
     }
@@ -439,12 +445,8 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
             ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
-    const ov::SoPtr<ZeroHostTensor> initOutputsAllocatedTensor = {
-        std::make_shared<ZeroHostTensor>(nullptr,
-                                         _zeroInitStruct,
-                                         ov::element::Type_t::u8,
-                                         ov::Shape({initOutputsByteSize}),
-                                         ov::intel_npu::TensorType::BINDED)};
+    const std::shared_ptr<ZeroTensor> initOutputsAllocatedTensor =
+        std::make_shared<ZeroTensor>(_zeroInitStruct, ov::element::Type_t::u8, ov::Shape({initOutputsByteSize}), false);
 
     size_t offset = 0;
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).outputs) {
@@ -452,11 +454,11 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
             static_cast<unsigned char*>(const_cast<void*>(initOutputsAllocatedTensor->data(ov::element::Type_t::u8))) +
             offset;
 
-        const ov::SoPtr<ov::ITensor> hostTensor =
+        const std::shared_ptr<ov::ITensor> hostTensor =
             ov::make_tensor(descriptor.precision, descriptor.shapeFromCompiler.to_shape(), currentOutputBufferLocation);
 
-        initOutputsViewTensorsVector.push_back(hostTensor._ptr);
-        initOutputsViewTensorsMap.emplace(descriptor.nameFromCompiler, hostTensor._ptr);
+        initOutputsViewTensorsVector.push_back(hostTensor);
+        initOutputsViewTensorsMap.emplace(descriptor.nameFromCompiler, hostTensor);
         offset += ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
@@ -491,9 +493,6 @@ void WeightlessGraph::run_init_multi_threaded() {
         run_init_single_threaded();
         return;
     }
-
-    std::unordered_map<std::string, std::shared_ptr<ZeroHostTensor>> weightsInputs;
-    std::vector<ov::SoPtr<ZeroHostTensor>> initTensors;
 
     // the pipeline:
     // allocate I/O -> create Pipeline -> run Pipeline
