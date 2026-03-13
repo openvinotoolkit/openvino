@@ -1157,6 +1157,10 @@ public:
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::ALIBI});  // alibi
         }
 
+        if (desc->has_token_type_ids) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
+        }
+
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
@@ -1224,6 +1228,10 @@ public:
         // }
         // jit.make("TARGET_SEQ_LEN", target_seq_len);
         jit.make("IS_KV_COMPRESSED", 0);
+
+        if (desc->has_token_type_ids) {
+            jit.make("HAS_TOKEN_TYPE_IDS", 1);
+        }
 
         return jit;
     }
@@ -1421,7 +1429,7 @@ public:
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        rt_params->use_micro_sdpa = supports_micro_sdpa(params) && pa_sdpa_micro->kd.micro_kernels.size() > 0;
+        rt_params->use_micro_sdpa = supports_micro_sdpa(params) && desc->has_token_type_ids == false;
 #else
         rt_params->use_micro_sdpa = false;
 #endif
@@ -1480,13 +1488,7 @@ public:
                 res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
             else
 #endif
-                if (desc->has_token_type_ids) {
-                res_event = {execute_stage(res_event, instance, pa_multi_token)};
-                if (rt_params->num_of_partitions > 1)
-                    res_event = {execute_stage(res_event, instance, pa_multi_token_finalization)};
-            } else {
                 res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
-            }
         } else if (rt_params->stage == PagedAttentionStage::GENERATE || rt_params->stage == PagedAttentionStage::MIXED) {
             const auto multi_tokens_mode = rt_params->stage == PagedAttentionStage::MIXED;
             auto num_of_partitions = rt_params->num_of_partitions;
@@ -1688,16 +1690,14 @@ public:
 
         // PREFILL stage without scores_output doesn't require additional buffers for softmax, exp_sums and max_logits.
         // GENERATE/MIXED stages require additional buffers for softmax, exp_sums and max_logits.
-        // When has_token_type_ids is set, PREFILL uses multi-token kernel which requires these buffers.
-        const bool prefill_needs_multi_token = stage == PagedAttentionStage::PREFILL && desc->has_token_type_ids;
-        if (!can_use_micro_sdpa && (stage != PagedAttentionStage::PREFILL || has_scores_output || prefill_needs_multi_token)) {
+        if (!can_use_micro_sdpa && (stage != PagedAttentionStage::PREFILL || has_scores_output)) {
             internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 5: softmax exp_sums
             internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 6: softmax max_logits
             internal_buffers.emplace_back(tmp_out_elements_count * element_size, indexes_dt);  // 7: intermediate output
         }
 
         const auto multi_tokens_mode = stage == PagedAttentionStage::MIXED;
-        if (!can_use_micro_sdpa && (multi_tokens_mode || prefill_needs_multi_token)) {
+        if (!can_use_micro_sdpa && multi_tokens_mode) {
             internal_buffers.emplace_back(total_tokens, softmax_accumulator_type, lockable);  // 9
         }
 
@@ -1837,8 +1837,7 @@ public:
         std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> sequential_gws_subseq_mapping_lock = nullptr;
         std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> micro_sdpa_block_starts_and_gws_mapping_lock = nullptr;
 
-        const bool prefill_needs_multi_token = stage == PagedAttentionStage::PREFILL && desc->has_token_type_ids;
-        if (!use_micro_sdpa && (stage == PagedAttentionStage::MIXED || prefill_needs_multi_token)) {
+        if (stage == PagedAttentionStage::MIXED && !use_micro_sdpa) {
             // Calculate the index dynamically based on what buffers were actually allocated
             // Base: 0, 1, 2 (3 buffers)
             size_t sequential_gws_subseq_mapping_idx = 3;
@@ -1911,7 +1910,7 @@ public:
                 }
             }
 
-            if (!use_micro_sdpa && (stage == PagedAttentionStage::MIXED || prefill_needs_multi_token)) {
+            if (!use_micro_sdpa && stage == PagedAttentionStage::MIXED) {
                 for (int32_t idx = seq_start; idx < seq_end; idx++) {
                     sequential_gws_subseq_mapping_lock->operator[](idx) = static_cast<int32_t>(i);
                 }
