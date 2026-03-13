@@ -1660,6 +1660,7 @@ public:
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         convert_stateful_lora_to_stateless(model);
+
         return true;
     }
 };
@@ -2115,13 +2116,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         apply_moe_config(generate_config, generate_moe_hint, "GENERATE");
 
         // Apply model transformations only to GENERATE stage (PREFILL doesn't support DEVICE_ROUTED transformations)
-        LOG_INFO("Applying DEVICE_ROUTED MoE transformations to " << generate_model_variants.size() << " variants");
         if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
+            LOG_INFO("Applying DEVICE_ROUTED MoE transformations to " << generate_model_variants.size() << " variants");
             for (auto&& model_variant : generate_model_variants) {
                 ApplyMoEDeviceRoutedTransforms().run_on_model(model_variant);
             }
+            LOG_INFO("DEVICE_ROUTED MoE transformations completed");
         }
-        LOG_INFO("DEVICE_ROUTED MoE transformations completed");
     }
 
     // Note: with dynamic attention in EITHER STAGE, we have to
