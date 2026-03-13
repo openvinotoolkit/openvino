@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/subgraph/gated_delta_net.hpp"
 
+#include <climits>
 #include <cmath>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -192,7 +193,8 @@ std::shared_ptr<ov::Model> GatedDeltaNet::buildLoopedGDN(int32_t batch,
     auto core_numel = std::make_shared<ov::op::v1::ReduceProd>(core_shape, reduce_axis0, true);
     auto state_shape = std::make_shared<ov::op::v3::ShapeOf>(h0);
     auto state_numel = std::make_shared<ov::op::v1::ReduceProd>(state_shape, reduce_axis0, true);
-    auto state_slice_end = std::make_shared<ov::op::v1::Add>(core_numel, state_numel);
+
+    auto slice_end_inf = ov::op::v0::Constant::create(ov::element::i64, {1}, {LLONG_MAX});
     auto slice_start = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
     auto slice_step = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
     auto slice_axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
@@ -200,7 +202,7 @@ std::shared_ptr<ov::Model> GatedDeltaNet::buildLoopedGDN(int32_t batch,
     auto core_slice =
         std::make_shared<ov::op::v8::Slice>(packed_loop_outputs, slice_start, core_numel, slice_step, slice_axis);
     auto state_slice =
-        std::make_shared<ov::op::v8::Slice>(packed_loop_outputs, core_numel, state_slice_end, slice_step, slice_axis);
+        std::make_shared<ov::op::v8::Slice>(packed_loop_outputs, core_numel, slice_end_inf, slice_step, slice_axis);
 
     auto core_restored = std::make_shared<ov::op::v1::Reshape>(core_slice, core_shape, false);
     auto state_restored = std::make_shared<ov::op::v1::Reshape>(state_slice, state_shape, false);
@@ -209,7 +211,9 @@ std::shared_ptr<ov::Model> GatedDeltaNet::buildLoopedGDN(int32_t batch,
         std::make_shared<ov::op::v1::Transpose>(core_restored,
                                                 ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3}));
 
-    return std::make_shared<ov::Model>(ov::OutputVector{core_attn_final, state_restored},
+    auto final_shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {-1, v_head_size});
+    auto reshaped = std::make_shared<ov::op::v1::Reshape>(core_attn_final, final_shape, false);
+    return std::make_shared<ov::Model>(ov::OutputVector{reshaped, state_restored},
                                        ov::ParameterVector{q, k, v, h0, g, beta});
 }
 

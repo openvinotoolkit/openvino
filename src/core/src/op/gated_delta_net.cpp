@@ -131,14 +131,14 @@ void GatedDeltaNet::validate_and_infer_types() {
                           ".");
     NODE_VALIDATION_CHECK(this,
                           state_hidden_size_0.compatible(k_head_size),
-                          "The [-2] dim in shape of recurrent_state and key should be the same, but got ",
+                          "The dim at shape[-2] of recurrent_state and head size of key should be the same, but got ",
                           state_hidden_size_0,
                           " and ",
                           k_head_size,
                           ".");
     NODE_VALIDATION_CHECK(this,
                           state_hidden_size_1.compatible(v_head_size),
-                          "The [-1] dim in shape of recurrent_state and value should be the same, but got ",
+                          "The dim at shape[-1] of recurrent_state and head size of value should be the same, but got ",
                           state_hidden_size_1,
                           " and ",
                           v_head_size,
@@ -153,7 +153,6 @@ bool GatedDeltaNet::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(GatedDeltaNet_visit_attributes);
     visitor.start_structure("config");
     visitor.on_attribute("fuse_qk_l2norm", m_config.fuse_qk_l2norm);
-    visitor.on_attribute("fuse_q_scale", m_config.fuse_q_scale);
     visitor.on_attribute("q_l2_norm_eps", m_config.q_l2_norm_eps);
     visitor.on_attribute("k_l2_norm_eps", m_config.k_l2_norm_eps);
     visitor.finish_structure();

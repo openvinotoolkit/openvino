@@ -37,7 +37,6 @@ GatedDeltaNet::GatedDeltaNet(const std::shared_ptr<ov::Node>& op, const GraphCon
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto& gdn = ov::as_type_ptr<ov::op::GatedDeltaNet>(op);
-    m_fuse_q_scale = gdn->get_config().fuse_q_scale;
     m_fuse_qk_l2norm = gdn->get_config().fuse_qk_l2norm;
     m_q_l2_norm_eps = gdn->get_config().q_l2_norm_eps;
     m_k_l2_norm_eps = gdn->get_config().k_l2_norm_eps;
@@ -97,7 +96,6 @@ void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
                           m_q_l2_norm_eps,
                           m_k_l2_norm_eps,
                           m_fuse_qk_l2norm,
-                          m_fuse_q_scale,
                           output_attn,
                           output_recurrent_state,
                           temp_buffer,

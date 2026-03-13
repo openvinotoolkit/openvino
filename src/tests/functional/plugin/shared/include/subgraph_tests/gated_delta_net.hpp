@@ -29,6 +29,11 @@ TEST_P(GatedDeltaNet, CompareWithRefs) {
     run();
     auto function = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(function, {"GatedDeltaNet"}, 1);
+    CheckNumberOfNodesWithType(function, {"Transpose"}, 0);
+    CheckNumberOfNodesWithType(function, {"Concat"}, 0);
+    CheckNumberOfNodesWithType(function, {"ReduceSum"}, 0);
+    CheckNumberOfNodesWithType(function, {"Multiply"}, 0);
+    CheckNumberOfNodesWithType(function, {"Divide"}, 0);
 };
 }  // namespace test
 }  // namespace ov

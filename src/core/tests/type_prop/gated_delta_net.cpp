@@ -152,13 +152,14 @@ TEST(type_prop, gated_delta_net_gate_beta_head_num_mismatch) {
 }
 
 TEST(type_prop, gated_delta_net_state_shape_mismatch) {
-    OV_EXPECT_THROW(std::ignore = make_gdn(element::f32,
-                                           Shape{2, 5, 4, 8},
-                                           Shape{2, 5, 4, 8},
-                                           Shape{2, 5, 4, 16},
-                                           Shape{2, 4, 8, 32},
-                                           Shape{2, 5, 4},
-                                           Shape{2, 5, 4}),
-                    NodeValidationFailure,
-                    HasSubstr("The [-1] dim in shape of recurrent_state and value should be the same"));
+    OV_EXPECT_THROW(
+        std::ignore = make_gdn(element::f32,
+                               Shape{2, 5, 4, 8},
+                               Shape{2, 5, 4, 8},
+                               Shape{2, 5, 4, 16},
+                               Shape{2, 4, 8, 32},
+                               Shape{2, 5, 4},
+                               Shape{2, 5, 4}),
+        NodeValidationFailure,
+        HasSubstr("The dim at shape[-1] of recurrent_state and head size of value should be the same, but got"));
 }

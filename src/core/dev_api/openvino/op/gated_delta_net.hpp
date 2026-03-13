@@ -17,7 +17,6 @@ public:
     GatedDeltaNet() = default;
     struct Config {
         bool fuse_qk_l2norm = false;
-        bool fuse_q_scale = false;
         float q_l2_norm_eps = 1e-6F;
         float k_l2_norm_eps = 1e-6F;
     };

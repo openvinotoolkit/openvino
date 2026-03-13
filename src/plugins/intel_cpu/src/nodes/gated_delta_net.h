@@ -46,7 +46,6 @@ public:
 private:
     MemoryPtr m_tmpInpBuffer = nullptr;
     bool m_fuse_qk_l2norm = false;
-    bool m_fuse_q_scale = false;
     float m_q_l2_norm_eps = 1e-6F;
     float m_k_l2_norm_eps = 1e-6F;
 };
