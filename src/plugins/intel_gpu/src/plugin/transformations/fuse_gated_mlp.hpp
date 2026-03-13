@@ -8,10 +8,10 @@
 
 namespace ov::intel_gpu {
 
-class FuseFCSwiGLUToGatedMLP : public ov::pass::MatcherPass {
+class FuseGatedMLP : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("FuseFCSwiGLUToGatedMLP");
-    FuseFCSwiGLUToGatedMLP();
+    OPENVINO_MATCHER_PASS_RTTI("FuseGatedMLP");
+    FuseGatedMLP();
 };
 
 }  // namespace ov::intel_gpu

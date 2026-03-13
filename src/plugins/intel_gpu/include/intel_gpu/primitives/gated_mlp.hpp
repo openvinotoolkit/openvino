@@ -149,20 +149,28 @@ protected:
     std::map<size_t, const input_info*> get_dependencies_map() const override {
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();
+
+        OPENVINO_ASSERT(weights_gate.is_valid());
+        OPENVINO_ASSERT(weights_up.is_valid());
+        OPENVINO_ASSERT(weights_down.is_valid());
         ret[idx++] = &weights_gate;
         ret[idx++] = &weights_up;
         ret[idx++] = &weights_down;
-        if (compressed_weights) {
+
+        if (decompression_scale_gate.is_valid())
             ret[idx++] = &decompression_scale_gate;
+        if (decompression_scale_up.is_valid())
             ret[idx++] = &decompression_scale_up;
+        if (decompression_scale_down.is_valid())
             ret[idx++] = &decompression_scale_down;
 
-            if (has_decompression_zero_points) {
-                ret[idx++] = &decompression_zero_point_gate;
-                ret[idx++] = &decompression_zero_point_up;
-                ret[idx++] = &decompression_zero_point_down;
-            }
-        }
+        if (decompression_zero_point_gate.is_valid())
+            ret[idx++] = &decompression_zero_point_gate;
+        if (decompression_zero_point_up.is_valid())
+            ret[idx++] = &decompression_zero_point_up;
+        if (decompression_zero_point_down.is_valid())
+            ret[idx++] = &decompression_zero_point_down;
+
         return ret;
     }
 };

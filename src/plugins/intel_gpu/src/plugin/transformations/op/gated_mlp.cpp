@@ -67,7 +67,7 @@ bool GatedMLP::visit_attributes(ov::AttributeVisitor& visitor) {
 
 void GatedMLP::validate_and_infer_types() {
         const auto input_size = get_input_size();
-    NODE_VALIDATION_CHECK(this,
+        NODE_VALIDATION_CHECK(this,
                                                     input_size == 4 || input_size == 7 || input_size == 10,
                                                     "GatedMLP expects 4, 7 or 10 inputs, got ",
                                                     input_size);

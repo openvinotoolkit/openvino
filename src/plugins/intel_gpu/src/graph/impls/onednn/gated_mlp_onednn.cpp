@@ -5,6 +5,7 @@
 #include "gated_mlp_onednn.hpp"
 
 #include "primitive_onednn_base.h"
+#include "utils.hpp"
 #include "common/gated_mlp_iface.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
@@ -31,18 +32,6 @@ static dnnl_alg_kind_t to_dnnl_alg(ov::op::internal::GLU::GluType type) {
         case ov::op::internal::GLU::GluType::Gelu: return dnnl_eltwise_gelu_erf;
         case ov::op::internal::GLU::GluType::Gelu_Tanh: return dnnl_eltwise_gelu_tanh;
         default: return dnnl_eltwise_swish;
-    }
-}
-
-static const char* to_status_string(dnnl_status_t status) {
-    switch (status) {
-        case dnnl_success: return "dnnl_success";
-        case dnnl_out_of_memory: return "dnnl_out_of_memory";
-        case dnnl_invalid_arguments: return "dnnl_invalid_arguments";
-        case dnnl_unimplemented: return "dnnl_unimplemented";
-        case dnnl_runtime_error: return "dnnl_runtime_error";
-        case dnnl_not_required: return "dnnl_not_required";
-        default: return "dnnl_status_unknown";
     }
 }
 
@@ -224,7 +213,7 @@ protected:
             std::ostringstream failure_msg;
             failure_msg << "[GPU] Failed to create oneDNN gated_mlp primitive descriptor"
                 << " status=" << static_cast<int>(status)
-                << " (" << to_status_string(status) << ")"
+                << " (" << onednn::dnnl_status_to_string(status) << ")"
                 << " c_pd=" << c_pd
                 << " activation=" << static_cast<int>(activation)
                 << " compressed_weights=" << prim->compressed_weights

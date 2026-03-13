@@ -10,6 +10,7 @@
 #include "test_utils.h"
 #include <cmath>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -211,38 +212,48 @@ std::shared_ptr<network> create_compressed_network(engine& engine,
 
 }  // namespace
 
-TEST(gated_mlp_gpu, fp16_basic_small) {
+// ============================================================
+// FP16 Parameterized Tests
+// ============================================================
+struct FP16Params {
+	int batch;
+	int ifm;
+	int hidden;
+};
+
+class GatedMlpGPU_FP16 : public ::testing::TestWithParam<FP16Params> {};
+
+TEST_P(GatedMlpGPU_FP16, basic) {
 	auto& engine = get_test_engine();
 	skip_if_no_immad(engine);
-	const int batch = 2;
-	const int ifm = 4;
-	const int hidden = 3;
+	const auto& p = GetParam();
+	const int batch = p.batch, ifm = p.ifm, hidden = p.hidden;
 
 	auto src_mem = engine.allocate_memory({{batch, 1, 1, ifm}, data_types::f16, format::bfyx});
 	auto gate_mem = engine.allocate_memory({{ifm, hidden}, data_types::f16, format::bfyx});
 	auto up_mem = engine.allocate_memory({{ifm, hidden}, data_types::f16, format::bfyx});
 	auto down_mem = engine.allocate_memory({{hidden, ifm}, data_types::f16, format::bfyx});
 
-	std::vector<float> src = {0.5f, -0.2f, 1.0f, 0.7f,
-							  -0.8f, 0.3f, 0.1f, 0.9f};
-	std::vector<float> gate = {0.2f, -0.3f, 0.5f,
-							   0.1f, 0.4f, -0.2f,
-							   -0.6f, 0.7f, 0.8f,
-							   0.9f, -0.1f, 0.3f};
-	std::vector<float> up = {0.4f, 0.2f, -0.5f,
-							 -0.3f, 0.6f, 0.1f,
-							 0.8f, -0.4f, 0.2f,
-							 0.7f, 0.5f, -0.6f};
-	std::vector<float> down = {0.1f, -0.2f, 0.3f, 0.4f,
-							   -0.5f, 0.6f, -0.7f, 0.8f,
-							   0.9f, 0.1f, -0.2f, 0.3f};
+	std::vector<float> src(batch * ifm);
+	std::vector<float> gate_w(ifm * hidden);
+	std::vector<float> up_w(ifm * hidden);
+	std::vector<float> down_w(hidden * ifm);
+
+	for (size_t i = 0; i < src.size(); i++)
+		src[i] = 0.1f * static_cast<float>(static_cast<int>(i % 7) - 3);
+	for (size_t i = 0; i < gate_w.size(); i++)
+		gate_w[i] = 0.1f * static_cast<float>(static_cast<int>(i % 11) - 5);
+	for (size_t i = 0; i < up_w.size(); i++)
+		up_w[i] = 0.1f * static_cast<float>(static_cast<int>(i % 9) - 4);
+	for (size_t i = 0; i < down_w.size(); i++)
+		down_w[i] = 0.1f * static_cast<float>(static_cast<int>(i % 13) - 6);
 
 	set_values(src_mem, to_f16(src));
-	set_values(gate_mem, to_f16(gate));
-	set_values(up_mem, to_f16(up));
-	set_values(down_mem, to_f16(down));
+	set_values(gate_mem, to_f16(gate_w));
+	set_values(up_mem, to_f16(up_w));
+	set_values(down_mem, to_f16(down_w));
 
-	auto ref = gated_mlp_reference(src, gate, up, down, batch, ifm, hidden);
+	auto ref = gated_mlp_reference(src, gate_w, up_w, down_w, batch, ifm, hidden);
 	auto net = create_fp16_network(engine, batch, ifm, hidden, src_mem, gate_mem, up_mem, down_mem);
 	auto outputs = net->execute();
 
@@ -251,515 +262,289 @@ TEST(gated_mlp_gpu, fp16_basic_small) {
 	check_output(outputs.at("gmlp").get_memory(), ref);
 }
 
-TEST(gated_mlp_gpu, fp16_basic_medium) {
-	auto& engine = get_test_engine();
-	skip_if_no_immad(engine);
-	const int batch = 1;
-	const int ifm = 3;
-	const int hidden = 4;
+INSTANTIATE_TEST_SUITE_P(
+	gated_mlp_gpu,
+	GatedMlpGPU_FP16,
+	::testing::Values(
+		FP16Params{2, 4, 3},
+		FP16Params{1, 3, 4}
+	),
+	[](const ::testing::TestParamInfo<FP16Params>& info) {
+		const auto& p = info.param;
+		return "batch" + std::to_string(p.batch) + "_ifm" + std::to_string(p.ifm) + "_hidden" + std::to_string(p.hidden);
+	}
+);
 
-	auto src_mem = engine.allocate_memory({{batch, 1, 1, ifm}, data_types::f16, format::bfyx});
-	auto gate_mem = engine.allocate_memory({{ifm, hidden}, data_types::f16, format::bfyx});
-	auto up_mem = engine.allocate_memory({{ifm, hidden}, data_types::f16, format::bfyx});
-	auto down_mem = engine.allocate_memory({{hidden, ifm}, data_types::f16, format::bfyx});
+// ============================================================
+// Compressed Parameterized Tests
+// ============================================================
+enum class ScaleConfig { PerTensor, Grouped, PerOC };
+enum class VerifyMode { Reference, Zero, Finite };
 
-	std::vector<float> src = {1.0f, -1.5f, 0.25f};
-	std::vector<float> gate = {0.3f, -0.4f, 0.8f, -0.2f,
-							   -0.7f, 0.5f, 0.1f, 0.6f,
-							   0.2f, -0.9f, 0.4f, 0.3f};
-	std::vector<float> up = {-0.1f, 0.2f, 0.3f, -0.4f,
-							 0.5f, 0.6f, -0.7f, 0.8f,
-							 0.9f, -0.2f, 0.1f, -0.3f};
-	std::vector<float> down = {0.2f, -0.3f, 0.4f,
-							   -0.5f, 0.6f, -0.7f,
-							   0.8f, 0.1f, -0.2f,
-							   -0.4f, 0.5f, 0.6f};
+struct CompressedParams {
+	int batch;
+	int ifm;
+	int hidden;
+	data_types weight_dt;
+	data_types zp_dt;
+	ScaleConfig scale_config;
+	int scale_groups;
+	bool zero_scale;
+	float tolerance;
+	VerifyMode verify;
+};
 
-	set_values(src_mem, to_f16(src));
-	set_values(gate_mem, to_f16(gate));
-	set_values(up_mem, to_f16(up));
-	set_values(down_mem, to_f16(down));
-
-	auto ref = gated_mlp_reference(src, gate, up, down, batch, ifm, hidden);
-	auto net = create_fp16_network(engine, batch, ifm, hidden, src_mem, gate_mem, up_mem, down_mem);
-	auto outputs = net->execute();
-
-	ASSERT_EQ(outputs.size(), size_t(1));
-	ASSERT_EQ(outputs.begin()->first, "gmlp");
-	check_output(outputs.at("gmlp").get_memory(), ref);
-}
-
-TEST(gated_mlp_gpu, compressed_u8_per_tensor_zp) {
-	auto& engine = get_test_engine();
-	skip_if_no_immad(engine);
-	const int batch = 2;
-	const int ifm = 4;
-	const int hidden = 3;
-
-	auto src_mem = engine.allocate_memory({{batch, 1, 1, ifm}, data_types::f16, format::bfyx});
-	auto gate_mem = engine.allocate_memory({{ifm, hidden}, data_types::u8, format::bfyx});
-	auto up_mem = engine.allocate_memory({{ifm, hidden}, data_types::u8, format::bfyx});
-	auto down_mem = engine.allocate_memory({{hidden, ifm}, data_types::u8, format::bfyx});
-
-	auto s_gate_mem = engine.allocate_memory({{1, 1}, data_types::f16, format::bfyx});
-	auto s_up_mem = engine.allocate_memory({{1, 1}, data_types::f16, format::bfyx});
-	auto s_down_mem = engine.allocate_memory({{1, 1}, data_types::f16, format::bfyx});
-
-	auto zp_gate_mem = engine.allocate_memory({{1, 1}, data_types::u8, format::bfyx});
-	auto zp_up_mem = engine.allocate_memory({{1, 1}, data_types::u8, format::bfyx});
-	auto zp_down_mem = engine.allocate_memory({{1, 1}, data_types::u8, format::bfyx});
-
-	std::vector<float> src = {0.25f, -0.5f, 0.75f, 1.0f,
-							  -1.0f, 0.5f, 0.0f, 0.2f};
-	std::vector<uint8_t> gate_q = {130, 129, 128, 127, 131, 132, 126, 125, 128, 129, 130, 127};
-	std::vector<uint8_t> up_q = {129, 128, 127, 130, 131, 126, 125, 124, 129, 130, 128, 127};
-	std::vector<uint8_t> down_q = {127, 128, 129, 130, 131, 132, 126, 125, 124, 128, 129, 130};
-
-	std::vector<float> s_gate = {0.10f};
-	std::vector<float> s_up = {0.08f};
-	std::vector<float> s_down = {0.05f};
-	std::vector<uint8_t> zp_gate = {128};
-	std::vector<uint8_t> zp_up = {127};
-	std::vector<uint8_t> zp_down = {126};
-
-	set_values(src_mem, to_f16(src));
-	set_values(gate_mem, gate_q);
-	set_values(up_mem, up_q);
-	set_values(down_mem, down_q);
-	set_values(s_gate_mem, to_f16(s_gate));
-	set_values(s_up_mem, to_f16(s_up));
-	set_values(s_down_mem, to_f16(s_down));
-	set_values(zp_gate_mem, zp_gate);
-	set_values(zp_up_mem, zp_up);
-	set_values(zp_down_mem, zp_down);
-
-	auto gate = dequantize_weights<uint8_t, uint8_t>(gate_q, ifm, hidden, s_gate, 1, 1, zp_gate, 1, 1);
-	auto up = dequantize_weights<uint8_t, uint8_t>(up_q, ifm, hidden, s_up, 1, 1, zp_up, 1, 1);
-	auto down = dequantize_weights<uint8_t, uint8_t>(down_q, hidden, ifm, s_down, 1, 1, zp_down, 1, 1);
-	auto ref = gated_mlp_reference(src, gate, up, down, batch, ifm, hidden);
-
-	auto net = create_compressed_network(engine, batch, ifm, hidden,
-                                         src_mem, gate_mem, up_mem, down_mem, s_gate_mem, s_up_mem, s_down_mem, zp_gate_mem, zp_up_mem, zp_down_mem);
-	auto outputs = net->execute();
-
-	ASSERT_EQ(outputs.size(), size_t(1));
-	ASSERT_EQ(outputs.begin()->first, "gmlp");
-	check_output(outputs.at("gmlp").get_memory(), ref, 2e-2f);
-}
-
-TEST(gated_mlp_gpu, compressed_u8_grouped_zp) {
-	auto& engine = get_test_engine();
-	skip_if_no_immad(engine);
-	const int batch = 32;
-	const int ifm = 32;
-	const int hidden = 32;
-
-	auto src_mem = engine.allocate_memory({{batch, 1, 1, ifm}, data_types::f16, format::bfyx});
-	auto gate_mem = engine.allocate_memory({{ifm, hidden}, data_types::u8, format::bfyx});
-	auto up_mem = engine.allocate_memory({{ifm, hidden}, data_types::u8, format::bfyx});
-	auto down_mem = engine.allocate_memory({{hidden, ifm}, data_types::u8, format::bfyx});
-
-	auto s_gate_mem = engine.allocate_memory({{2, 1}, data_types::f16, format::bfyx});
-	auto s_up_mem = engine.allocate_memory({{2, 1}, data_types::f16, format::bfyx});
-	auto s_down_mem = engine.allocate_memory({{2, 1}, data_types::f16, format::bfyx});
-
-	auto zp_gate_mem = engine.allocate_memory({{2, 1}, data_types::u8, format::bfyx});
-	auto zp_up_mem = engine.allocate_memory({{2, 1}, data_types::u8, format::bfyx});
-	auto zp_down_mem = engine.allocate_memory({{2, 1}, data_types::u8, format::bfyx});
-
-	std::vector<float> src(batch * ifm, 0.0f);
-	for (size_t i = 0; i < src.size(); i++) {
-		src[i] = (i % 5 == 0) ? -0.5f : 0.25f;
+class GatedMlpGPU_Compressed : public ::testing::TestWithParam<CompressedParams> {
+protected:
+	std::pair<int, int> get_scale_dims(const CompressedParams& p, int oc) const {
+		switch (p.scale_config) {
+			case ScaleConfig::PerTensor: return {1, 1};
+			case ScaleConfig::Grouped: return {p.scale_groups, 1};
+			case ScaleConfig::PerOC: return {1, oc};
+		}
+		return {1, 1};
 	}
 
-	std::vector<uint8_t> gate_q(ifm * hidden, 129);
-	std::vector<uint8_t> up_q(ifm * hidden, 127);
-	std::vector<uint8_t> down_q(hidden * ifm, 130);
-	for (size_t i = 0; i < gate_q.size(); i++) {
-		gate_q[i] = static_cast<uint8_t>(126 + (i % 7));
-		up_q[i] = static_cast<uint8_t>(124 + (i % 9));
-		down_q[i] = static_cast<uint8_t>(123 + (i % 11));
+	template <typename QType, typename ZpType>
+	void run_8bit_test(engine& engine, const CompressedParams& p) {
+		const int batch = p.batch, ifm = p.ifm, hidden = p.hidden;
+
+		auto src_mem = engine.allocate_memory({{batch, 1, 1, ifm}, data_types::f16, format::bfyx});
+		std::vector<float> src(batch * ifm);
+		for (size_t i = 0; i < src.size(); i++)
+			src[i] = 0.1f * static_cast<float>(static_cast<int>(i % 7) - 3);
+		set_values(src_mem, to_f16(src));
+
+		auto gate_mem = engine.allocate_memory({{ifm, hidden}, p.weight_dt, format::bfyx});
+		auto up_mem = engine.allocate_memory({{ifm, hidden}, p.weight_dt, format::bfyx});
+		auto down_mem = engine.allocate_memory({{hidden, ifm}, p.weight_dt, format::bfyx});
+
+		std::vector<QType> gate_q(ifm * hidden), up_q(ifm * hidden), down_q(hidden * ifm);
+		if constexpr (std::is_unsigned_v<QType>) {
+			for (size_t i = 0; i < gate_q.size(); i++)
+				gate_q[i] = static_cast<QType>(126 + (i % 7));
+			for (size_t i = 0; i < up_q.size(); i++)
+				up_q[i] = static_cast<QType>(124 + (i % 9));
+			for (size_t i = 0; i < down_q.size(); i++)
+				down_q[i] = static_cast<QType>(123 + (i % 11));
+		} else {
+			for (size_t i = 0; i < gate_q.size(); i++)
+				gate_q[i] = static_cast<QType>(-3 + static_cast<int>(i % 7));
+			for (size_t i = 0; i < up_q.size(); i++)
+				up_q[i] = static_cast<QType>(-4 + static_cast<int>(i % 9));
+			for (size_t i = 0; i < down_q.size(); i++)
+				down_q[i] = static_cast<QType>(-5 + static_cast<int>(i % 11));
+		}
+		set_values(gate_mem, gate_q);
+		set_values(up_mem, up_q);
+		set_values(down_mem, down_q);
+
+		auto [sr_gu, sc_gu] = get_scale_dims(p, hidden);
+		auto [sr_d, sc_d] = get_scale_dims(p, ifm);
+
+		auto s_gate_mem = engine.allocate_memory({{sr_gu, sc_gu}, data_types::f16, format::bfyx});
+		auto s_up_mem = engine.allocate_memory({{sr_gu, sc_gu}, data_types::f16, format::bfyx});
+		auto s_down_mem = engine.allocate_memory({{sr_d, sc_d}, data_types::f16, format::bfyx});
+
+		int s_gu_count = sr_gu * sc_gu;
+		int s_d_count = sr_d * sc_d;
+		std::vector<float> s_gate(s_gu_count), s_up(s_gu_count), s_down(s_d_count);
+		for (int i = 0; i < s_gu_count; i++) {
+			s_gate[i] = 0.02f + 0.01f * i;
+			s_up[i] = 0.025f + 0.01f * i;
+		}
+		for (int i = 0; i < s_d_count; i++)
+			s_down[i] = 0.03f + 0.01f * i;
+		set_values(s_gate_mem, to_f16(s_gate));
+		set_values(s_up_mem, to_f16(s_up));
+		set_values(s_down_mem, to_f16(s_down));
+
+		auto zp_gate_mem = engine.allocate_memory({{sr_gu, sc_gu}, p.zp_dt, format::bfyx});
+		auto zp_up_mem = engine.allocate_memory({{sr_gu, sc_gu}, p.zp_dt, format::bfyx});
+		auto zp_down_mem = engine.allocate_memory({{sr_d, sc_d}, p.zp_dt, format::bfyx});
+
+		std::vector<ZpType> zp_gate(s_gu_count), zp_up(s_gu_count), zp_down(s_d_count);
+		if constexpr (std::is_unsigned_v<ZpType>) {
+			for (int i = 0; i < s_gu_count; i++) {
+				zp_gate[i] = static_cast<ZpType>(127 + (i % 3));
+				zp_up[i] = static_cast<ZpType>(126 + (i % 3));
+			}
+			for (int i = 0; i < s_d_count; i++)
+				zp_down[i] = static_cast<ZpType>(125 + (i % 3));
+		} else {
+			for (int i = 0; i < s_gu_count; i++) {
+				zp_gate[i] = static_cast<ZpType>(i % 3);
+				zp_up[i] = static_cast<ZpType>(1 + (i % 3));
+			}
+			for (int i = 0; i < s_d_count; i++)
+				zp_down[i] = static_cast<ZpType>(-1 + (i % 3));
+		}
+		set_values(zp_gate_mem, zp_gate);
+		set_values(zp_up_mem, zp_up);
+		set_values(zp_down_mem, zp_down);
+
+		auto gate = dequantize_weights<QType, ZpType>(gate_q, ifm, hidden, s_gate, sr_gu, sc_gu, zp_gate, sr_gu, sc_gu);
+		auto up = dequantize_weights<QType, ZpType>(up_q, ifm, hidden, s_up, sr_gu, sc_gu, zp_up, sr_gu, sc_gu);
+		auto down = dequantize_weights<QType, ZpType>(down_q, hidden, ifm, s_down, sr_d, sc_d, zp_down, sr_d, sc_d);
+		auto ref = gated_mlp_reference(src, gate, up, down, batch, ifm, hidden);
+
+		auto net = create_compressed_network(engine, batch, ifm, hidden,
+											 src_mem, gate_mem, up_mem, down_mem,
+											 s_gate_mem, s_up_mem, s_down_mem,
+											 zp_gate_mem, zp_up_mem, zp_down_mem);
+		auto outputs = net->execute();
+
+		ASSERT_EQ(outputs.size(), size_t(1));
+		ASSERT_EQ(outputs.begin()->first, "gmlp");
+		check_output(outputs.at("gmlp").get_memory(), ref, p.tolerance);
 	}
 
-	std::vector<float> s_gate = {0.02f, 0.03f};
-	std::vector<float> s_up = {0.025f, 0.035f};
-	std::vector<float> s_down = {0.03f, 0.04f};
-	std::vector<uint8_t> zp_gate = {127, 128};
-	std::vector<uint8_t> zp_up = {126, 127};
-	std::vector<uint8_t> zp_down = {125, 126};
+	void run_4bit_test(engine& engine, const CompressedParams& p) {
+		const int batch = p.batch, ifm = p.ifm, hidden = p.hidden;
 
-	set_values(src_mem, to_f16(src));
-	set_values(gate_mem, gate_q);
-	set_values(up_mem, up_q);
-	set_values(down_mem, down_q);
-	set_values(s_gate_mem, to_f16(s_gate));
-	set_values(s_up_mem, to_f16(s_up));
-	set_values(s_down_mem, to_f16(s_down));
-	set_values(zp_gate_mem, zp_gate);
-	set_values(zp_up_mem, zp_up);
-	set_values(zp_down_mem, zp_down);
+		auto src_mem = engine.allocate_memory({{batch, 1, 1, ifm}, data_types::f16, format::bfyx});
+		std::vector<float> src(batch * ifm);
+		for (size_t i = 0; i < src.size(); i++)
+			src[i] = 0.1f * static_cast<float>(static_cast<int>(i % 7) - 3);
+		set_values(src_mem, to_f16(src));
 
-	auto gate = dequantize_weights<uint8_t, uint8_t>(gate_q, ifm, hidden, s_gate, 2, 1, zp_gate, 2, 1);
-	auto up = dequantize_weights<uint8_t, uint8_t>(up_q, ifm, hidden, s_up, 2, 1, zp_up, 2, 1);
-	auto down = dequantize_weights<uint8_t, uint8_t>(down_q, hidden, ifm, s_down, 2, 1, zp_down, 2, 1);
-	auto ref = gated_mlp_reference(src, gate, up, down, batch, ifm, hidden);
+		auto gate_mem = engine.allocate_memory({{ifm, hidden}, p.weight_dt, format::bfyx});
+		auto up_mem = engine.allocate_memory({{ifm, hidden}, p.weight_dt, format::bfyx});
+		auto down_mem = engine.allocate_memory({{hidden, ifm}, p.weight_dt, format::bfyx});
 
-	auto net = create_compressed_network(engine, batch, ifm, hidden,
-                                         src_mem, gate_mem, up_mem, down_mem, s_gate_mem, s_up_mem, s_down_mem, zp_gate_mem, zp_up_mem, zp_down_mem);
-	auto outputs = net->execute();
+		uint8_t gate_val = (p.weight_dt == data_types::u4) ? 0x77 : 0x11;
+		uint8_t up_val = (p.weight_dt == data_types::u4) ? 0x66 : 0x22;
+		uint8_t down_val = (p.weight_dt == data_types::u4) ? 0x55 : 0x33;
 
-	ASSERT_EQ(outputs.size(), size_t(1));
-	ASSERT_EQ(outputs.begin()->first, "gmlp");
-	check_output(outputs.at("gmlp").get_memory(), ref, 5e-2f);
-}
+		std::vector<uint8_t> gate_q(ifm * hidden / 2, gate_val);
+		std::vector<uint8_t> up_q(ifm * hidden / 2, up_val);
+		std::vector<uint8_t> down_q(hidden * ifm / 2, down_val);
+		set_values(gate_mem, gate_q);
+		set_values(up_mem, up_q);
+		set_values(down_mem, down_q);
 
-TEST(gated_mlp_gpu, compressed_u8_per_oc_zp) {
-	auto& engine = get_test_engine();
-	skip_if_no_immad(engine);
-	const int batch = 1;
-	const int ifm = 4;
-	const int hidden = 3;
+		auto [sr_gu, sc_gu] = get_scale_dims(p, hidden);
+		auto [sr_d, sc_d] = get_scale_dims(p, ifm);
 
-	auto src_mem = engine.allocate_memory({{batch, 1, 1, ifm}, data_types::f16, format::bfyx});
-	auto gate_mem = engine.allocate_memory({{ifm, hidden}, data_types::u8, format::bfyx});
-	auto up_mem = engine.allocate_memory({{ifm, hidden}, data_types::u8, format::bfyx});
-	auto down_mem = engine.allocate_memory({{hidden, ifm}, data_types::u8, format::bfyx});
+		auto s_gate_mem = engine.allocate_memory({{sr_gu, sc_gu}, data_types::f16, format::bfyx});
+		auto s_up_mem = engine.allocate_memory({{sr_gu, sc_gu}, data_types::f16, format::bfyx});
+		auto s_down_mem = engine.allocate_memory({{sr_d, sc_d}, data_types::f16, format::bfyx});
 
-	auto s_gate_mem = engine.allocate_memory({{1, hidden}, data_types::f16, format::bfyx});
-	auto s_up_mem = engine.allocate_memory({{1, hidden}, data_types::f16, format::bfyx});
-	auto s_down_mem = engine.allocate_memory({{1, ifm}, data_types::f16, format::bfyx});
+		int s_gu_count = sr_gu * sc_gu;
+		int s_d_count = sr_d * sc_d;
+		std::vector<float> s_gate(s_gu_count), s_up(s_gu_count), s_down(s_d_count);
+		if (p.zero_scale) {
+			std::fill(s_gate.begin(), s_gate.end(), 0.0f);
+			std::fill(s_up.begin(), s_up.end(), 0.0f);
+			std::fill(s_down.begin(), s_down.end(), 0.0f);
+		} else {
+			for (int i = 0; i < s_gu_count; i++) {
+				s_gate[i] = 0.02f + 0.01f * i;
+				s_up[i] = 0.03f + 0.01f * i;
+			}
+			for (int i = 0; i < s_d_count; i++)
+				s_down[i] = 0.04f + 0.01f * i;
+		}
+		set_values(s_gate_mem, to_f16(s_gate));
+		set_values(s_up_mem, to_f16(s_up));
+		set_values(s_down_mem, to_f16(s_down));
 
-	auto zp_gate_mem = engine.allocate_memory({{1, hidden}, data_types::u8, format::bfyx});
-	auto zp_up_mem = engine.allocate_memory({{1, hidden}, data_types::u8, format::bfyx});
-	auto zp_down_mem = engine.allocate_memory({{1, ifm}, data_types::u8, format::bfyx});
+		bool is_unsigned_zp = (p.zp_dt == data_types::u8);
+		auto zp_gate_mem = engine.allocate_memory({{sr_gu, sc_gu}, p.zp_dt, format::bfyx});
+		auto zp_up_mem = engine.allocate_memory({{sr_gu, sc_gu}, p.zp_dt, format::bfyx});
+		auto zp_down_mem = engine.allocate_memory({{sr_d, sc_d}, p.zp_dt, format::bfyx});
 
-	std::vector<float> src = {0.6f, -0.4f, 0.2f, 1.0f};
-	std::vector<uint8_t> gate_q = {121, 129, 132, 130, 131, 126, 127, 124, 128, 129, 126, 130};
-	std::vector<uint8_t> up_q = {125, 128, 129, 130, 127, 126, 124, 131, 132, 128, 129, 127};
-	std::vector<uint8_t> down_q = {130, 131, 132, 133, 129, 128, 127, 126, 125, 124, 123, 122};
+		if (is_unsigned_zp) {
+			auto make_zp = [](int count, uint8_t base) {
+				std::vector<uint8_t> zp(count);
+				for (int i = 0; i < count; i++)
+					zp[i] = static_cast<uint8_t>(base + (i % 3));
+				return zp;
+			};
+			set_values(zp_gate_mem, make_zp(s_gu_count, 7));
+			set_values(zp_up_mem, make_zp(s_gu_count, 6));
+			set_values(zp_down_mem, make_zp(s_d_count, 5));
+		} else {
+			auto make_zp = [](int count, int8_t base) {
+				std::vector<int8_t> zp(count);
+				for (int i = 0; i < count; i++)
+					zp[i] = static_cast<int8_t>(base + (i % 3));
+				return zp;
+			};
+			set_values(zp_gate_mem, make_zp(s_gu_count, 1));
+			set_values(zp_up_mem, make_zp(s_gu_count, 2));
+			set_values(zp_down_mem, make_zp(s_d_count, 3));
+		}
 
-	std::vector<float> s_gate = {0.05f, 0.10f, 0.15f};
-	std::vector<float> s_up = {0.12f, 0.08f, 0.04f};
-	std::vector<float> s_down = {0.03f, 0.06f, 0.09f, 0.12f};
-	std::vector<uint8_t> zp_gate = {128, 127, 126};
-	std::vector<uint8_t> zp_up = {127, 128, 129};
-	std::vector<uint8_t> zp_down = {126, 127, 128, 129};
+		auto net = create_compressed_network(engine, batch, ifm, hidden,
+											 src_mem, gate_mem, up_mem, down_mem,
+											 s_gate_mem, s_up_mem, s_down_mem,
+											 zp_gate_mem, zp_up_mem, zp_down_mem);
+		auto outputs = net->execute();
 
-	set_values(src_mem, to_f16(src));
-	set_values(gate_mem, gate_q);
-	set_values(up_mem, up_q);
-	set_values(down_mem, down_q);
-	set_values(s_gate_mem, to_f16(s_gate));
-	set_values(s_up_mem, to_f16(s_up));
-	set_values(s_down_mem, to_f16(s_down));
-	set_values(zp_gate_mem, zp_gate);
-	set_values(zp_up_mem, zp_up);
-	set_values(zp_down_mem, zp_down);
+		ASSERT_EQ(outputs.size(), size_t(1));
+		ASSERT_EQ(outputs.begin()->first, "gmlp");
 
-	auto gate = dequantize_weights<uint8_t, uint8_t>(gate_q, ifm, hidden, s_gate, 1, hidden, zp_gate, 1, hidden);
-	auto up = dequantize_weights<uint8_t, uint8_t>(up_q, ifm, hidden, s_up, 1, hidden, zp_up, 1, hidden);
-	auto down = dequantize_weights<uint8_t, uint8_t>(down_q, hidden, ifm, s_down, 1, ifm, zp_down, 1, ifm);
-	auto ref = gated_mlp_reference(src, gate, up, down, batch, ifm, hidden);
-
-	auto net = create_compressed_network(engine, batch, ifm, hidden,
-                                         src_mem, gate_mem, up_mem, down_mem, s_gate_mem, s_up_mem, s_down_mem, zp_gate_mem, zp_up_mem, zp_down_mem);
-	auto outputs = net->execute();
-
-	ASSERT_EQ(outputs.size(), size_t(1));
-	ASSERT_EQ(outputs.begin()->first, "gmlp");
-	check_output(outputs.at("gmlp").get_memory(), ref, 3e-2f);
-}
-
-TEST(gated_mlp_gpu, compressed_i8_per_tensor_zp) {
-	auto& engine = get_test_engine();
-	skip_if_no_immad(engine);
-	const int batch = 2;
-	const int ifm = 4;
-	const int hidden = 4;
-
-	auto src_mem = engine.allocate_memory({{batch, 1, 1, ifm}, data_types::f16, format::bfyx});
-	auto gate_mem = engine.allocate_memory({{ifm, hidden}, data_types::i8, format::bfyx});
-	auto up_mem = engine.allocate_memory({{ifm, hidden}, data_types::i8, format::bfyx});
-	auto down_mem = engine.allocate_memory({{hidden, ifm}, data_types::i8, format::bfyx});
-
-	auto s_gate_mem = engine.allocate_memory({{1, 1}, data_types::f16, format::bfyx});
-	auto s_up_mem = engine.allocate_memory({{1, 1}, data_types::f16, format::bfyx});
-	auto s_down_mem = engine.allocate_memory({{1, 1}, data_types::f16, format::bfyx});
-
-	std::vector<float> src = {0.1f, 0.2f, -0.3f, 0.4f,
-							  -0.6f, 0.5f, 0.7f, -0.8f};
-	std::vector<int8_t> gate_q = {2, 5, -3, 1,
-								  4, -2, 6, 3,
-								  -1, 2, 0, 5,
-								  3, -4, 1, 2};
-	std::vector<int8_t> up_q = {1, -2, 3, 4,
-								5, 0, -1, 2,
-								-3, 4, 1, -2,
-								2, 3, -4, 0};
-	std::vector<int8_t> down_q = {3, 2, 1, 0,
-								  -1, -2, 4, 5,
-								  2, -3, 1, -4,
-								  0, 1, 2, 3};
-
-	std::vector<float> s_gate = {0.2f};
-	std::vector<float> s_up = {0.3f};
-	std::vector<float> s_down = {0.25f};
-
-	auto zp_gate_mem = engine.allocate_memory({{1, 1}, data_types::i8, format::bfyx});
-	auto zp_up_mem = engine.allocate_memory({{1, 1}, data_types::i8, format::bfyx});
-	auto zp_down_mem = engine.allocate_memory({{1, 1}, data_types::i8, format::bfyx});
-	std::vector<int8_t> zp_gate = {0};
-	std::vector<int8_t> zp_up = {1};
-	std::vector<int8_t> zp_down = {-1};
-
-	set_values(src_mem, to_f16(src));
-	set_values(gate_mem, gate_q);
-	set_values(up_mem, up_q);
-	set_values(down_mem, down_q);
-	set_values(s_gate_mem, to_f16(s_gate));
-	set_values(s_up_mem, to_f16(s_up));
-	set_values(s_down_mem, to_f16(s_down));
-	set_values(zp_gate_mem, zp_gate);
-	set_values(zp_up_mem, zp_up);
-	set_values(zp_down_mem, zp_down);
-
-	auto gate = dequantize_weights<int8_t, int8_t>(gate_q, ifm, hidden, s_gate, 1, 1, zp_gate, 1, 1);
-	auto up = dequantize_weights<int8_t, int8_t>(up_q, ifm, hidden, s_up, 1, 1, zp_up, 1, 1);
-	auto down = dequantize_weights<int8_t, int8_t>(down_q, hidden, ifm, s_down, 1, 1, zp_down, 1, 1);
-	auto ref = gated_mlp_reference(src, gate, up, down, batch, ifm, hidden);
-
-	auto net = create_compressed_network(engine, batch, ifm, hidden,
-                                         src_mem, gate_mem, up_mem, down_mem, s_gate_mem, s_up_mem, s_down_mem, zp_gate_mem, zp_up_mem, zp_down_mem);
-	auto outputs = net->execute();
-
-	ASSERT_EQ(outputs.size(), size_t(1));
-	ASSERT_EQ(outputs.begin()->first, "gmlp");
-	check_output(outputs.at("gmlp").get_memory(), ref, 5e-2f);
-}
-
-TEST(gated_mlp_gpu, compressed_u4_per_tensor_zp_zero_scale) {
-	auto& engine = get_test_engine();
-	skip_if_no_immad(engine);
-	const int batch = 2;
-	const int ifm = 32;
-	const int hidden = 32;
-
-	auto src_mem = engine.allocate_memory({{batch, 1, 1, ifm}, data_types::f16, format::bfyx});
-	auto gate_mem = engine.allocate_memory({{ifm, hidden}, data_types::u4, format::bfyx});
-	auto up_mem = engine.allocate_memory({{ifm, hidden}, data_types::u4, format::bfyx});
-	auto down_mem = engine.allocate_memory({{hidden, ifm}, data_types::u4, format::bfyx});
-
-	auto s_gate_mem = engine.allocate_memory({{1, 1}, data_types::f16, format::bfyx});
-	auto s_up_mem = engine.allocate_memory({{1, 1}, data_types::f16, format::bfyx});
-	auto s_down_mem = engine.allocate_memory({{1, 1}, data_types::f16, format::bfyx});
-
-	auto zp_gate_mem = engine.allocate_memory({{1, 1}, data_types::u8, format::bfyx});
-	auto zp_up_mem = engine.allocate_memory({{1, 1}, data_types::u8, format::bfyx});
-	auto zp_down_mem = engine.allocate_memory({{1, 1}, data_types::u8, format::bfyx});
-
-	std::vector<float> src(batch * ifm, 0.0f);
-	for (size_t i = 0; i < src.size(); ++i) {
-		src[i] = (i % 3 == 0) ? -0.25f : 0.5f;
+		if (p.verify == VerifyMode::Zero) {
+			std::vector<float> ref(batch * ifm, 0.0f);
+			check_output(outputs.at("gmlp").get_memory(), ref, p.tolerance);
+		} else {
+			check_output_finite(outputs.at("gmlp").get_memory());
+		}
 	}
+};
 
-	std::vector<uint8_t> gate_q(ifm * hidden / 2, 0x77);
-	std::vector<uint8_t> up_q(ifm * hidden / 2, 0x66);
-	std::vector<uint8_t> down_q(hidden * ifm / 2, 0x55);
-
-	std::vector<float> s_gate = {0.0f};
-	std::vector<float> s_up = {0.0f};
-	std::vector<float> s_down = {0.0f};
-	std::vector<uint8_t> zp_gate = {7};
-	std::vector<uint8_t> zp_up = {6};
-	std::vector<uint8_t> zp_down = {5};
-
-	set_values(src_mem, to_f16(src));
-	set_values(gate_mem, gate_q);
-	set_values(up_mem, up_q);
-	set_values(down_mem, down_q);
-	set_values(s_gate_mem, to_f16(s_gate));
-	set_values(s_up_mem, to_f16(s_up));
-	set_values(s_down_mem, to_f16(s_down));
-	set_values(zp_gate_mem, zp_gate);
-	set_values(zp_up_mem, zp_up);
-	set_values(zp_down_mem, zp_down);
-
-	std::vector<float> ref(batch * ifm, 0.0f);
-	auto net = create_compressed_network(engine, batch, ifm, hidden,
-                                         src_mem, gate_mem, up_mem, down_mem, s_gate_mem, s_up_mem, s_down_mem, zp_gate_mem, zp_up_mem, zp_down_mem);
-	auto outputs = net->execute();
-
-	ASSERT_EQ(outputs.size(), size_t(1));
-	ASSERT_EQ(outputs.begin()->first, "gmlp");
-	check_output(outputs.at("gmlp").get_memory(), ref, 1e-3f);
-}
-
-TEST(gated_mlp_gpu, compressed_i4_per_tensor_zp_zero_scale) {
+TEST_P(GatedMlpGPU_Compressed, basic) {
 	auto& engine = get_test_engine();
 	skip_if_no_immad(engine);
-	const int batch = 2;
-	const int ifm = 32;
-	const int hidden = 32;
+	const auto& p = GetParam();
 
-	auto src_mem = engine.allocate_memory({{batch, 1, 1, ifm}, data_types::f16, format::bfyx});
-	auto gate_mem = engine.allocate_memory({{ifm, hidden}, data_types::i4, format::bfyx});
-	auto up_mem = engine.allocate_memory({{ifm, hidden}, data_types::i4, format::bfyx});
-	auto down_mem = engine.allocate_memory({{hidden, ifm}, data_types::i4, format::bfyx});
-
-	auto s_gate_mem = engine.allocate_memory({{1, 1}, data_types::f16, format::bfyx});
-	auto s_up_mem = engine.allocate_memory({{1, 1}, data_types::f16, format::bfyx});
-	auto s_down_mem = engine.allocate_memory({{1, 1}, data_types::f16, format::bfyx});
-
-	auto zp_gate_mem = engine.allocate_memory({{1, 1}, data_types::i8, format::bfyx});
-	auto zp_up_mem = engine.allocate_memory({{1, 1}, data_types::i8, format::bfyx});
-	auto zp_down_mem = engine.allocate_memory({{1, 1}, data_types::i8, format::bfyx});
-
-	std::vector<float> src(batch * ifm, 0.0f);
-	for (size_t i = 0; i < src.size(); ++i) {
-		src[i] = (i % 4 == 0) ? 0.125f : -0.375f;
+	if (p.weight_dt == data_types::u8) {
+		run_8bit_test<uint8_t, uint8_t>(engine, p);
+	} else if (p.weight_dt == data_types::i8) {
+		run_8bit_test<int8_t, int8_t>(engine, p);
+	} else {
+		run_4bit_test(engine, p);
 	}
-
-	std::vector<uint8_t> gate_q(ifm * hidden / 2, 0x11);
-	std::vector<uint8_t> up_q(ifm * hidden / 2, 0x22);
-	std::vector<uint8_t> down_q(hidden * ifm / 2, 0x33);
-
-	std::vector<float> s_gate = {0.0f};
-	std::vector<float> s_up = {0.0f};
-	std::vector<float> s_down = {0.0f};
-	std::vector<int8_t> zp_gate = {1};
-	std::vector<int8_t> zp_up = {2};
-	std::vector<int8_t> zp_down = {3};
-
-	set_values(src_mem, to_f16(src));
-	set_values(gate_mem, gate_q);
-	set_values(up_mem, up_q);
-	set_values(down_mem, down_q);
-	set_values(s_gate_mem, to_f16(s_gate));
-	set_values(s_up_mem, to_f16(s_up));
-	set_values(s_down_mem, to_f16(s_down));
-	set_values(zp_gate_mem, zp_gate);
-	set_values(zp_up_mem, zp_up);
-	set_values(zp_down_mem, zp_down);
-
-	std::vector<float> ref(batch * ifm, 0.0f);
-	auto net = create_compressed_network(engine, batch, ifm, hidden,
-                                         src_mem, gate_mem, up_mem, down_mem, s_gate_mem, s_up_mem, s_down_mem, zp_gate_mem, zp_up_mem, zp_down_mem);
-	auto outputs = net->execute();
-
-	ASSERT_EQ(outputs.size(), size_t(1));
-	ASSERT_EQ(outputs.begin()->first, "gmlp");
-	check_output(outputs.at("gmlp").get_memory(), ref, 1e-3f);
 }
 
-TEST(gated_mlp_gpu, compressed_u4_grouped_zp_zero_scale) {
-	auto& engine = get_test_engine();
-	skip_if_no_immad(engine);
-	const int batch = 8;
-	const int ifm = 48;
-	const int hidden = 48;
-
-	auto src_mem = engine.allocate_memory({{batch, 1, 1, ifm}, data_types::f16, format::bfyx});
-	auto gate_mem = engine.allocate_memory({{ifm, hidden}, data_types::u4, format::bfyx});
-	auto up_mem = engine.allocate_memory({{ifm, hidden}, data_types::u4, format::bfyx});
-	auto down_mem = engine.allocate_memory({{hidden, ifm}, data_types::u4, format::bfyx});
-
-	auto s_gate_mem = engine.allocate_memory({{2, 1}, data_types::f16, format::bfyx});
-	auto s_up_mem = engine.allocate_memory({{2, 1}, data_types::f16, format::bfyx});
-	auto s_down_mem = engine.allocate_memory({{2, 1}, data_types::f16, format::bfyx});
-
-	auto zp_gate_mem = engine.allocate_memory({{2, 1}, data_types::u8, format::bfyx});
-	auto zp_up_mem = engine.allocate_memory({{2, 1}, data_types::u8, format::bfyx});
-	auto zp_down_mem = engine.allocate_memory({{2, 1}, data_types::u8, format::bfyx});
-
-	std::vector<float> src(batch * ifm, 0.0f);
-	for (size_t i = 0; i < src.size(); ++i) {
-		src[i] = (i % 6 == 0) ? -0.2f : 0.4f;
+INSTANTIATE_TEST_SUITE_P(
+	gated_mlp_gpu,
+	GatedMlpGPU_Compressed,
+	::testing::Values(
+		// 8-bit with reference check
+		CompressedParams{2, 4, 3, data_types::u8, data_types::u8, ScaleConfig::PerTensor, 1, false, 2e-2f, VerifyMode::Reference},
+		CompressedParams{32, 32, 32, data_types::u8, data_types::u8, ScaleConfig::Grouped, 2, false, 5e-2f, VerifyMode::Reference},
+		CompressedParams{1, 4, 3, data_types::u8, data_types::u8, ScaleConfig::PerOC, 1, false, 3e-2f, VerifyMode::Reference},
+		CompressedParams{2, 4, 4, data_types::i8, data_types::i8, ScaleConfig::PerTensor, 1, false, 5e-2f, VerifyMode::Reference},
+		// 4-bit zero-scale
+		CompressedParams{2, 32, 32, data_types::u4, data_types::u8, ScaleConfig::PerTensor, 1, true, 1e-3f, VerifyMode::Zero},
+		CompressedParams{2, 32, 32, data_types::i4, data_types::i8, ScaleConfig::PerTensor, 1, true, 1e-3f, VerifyMode::Zero},
+		// 4-bit grouped
+		CompressedParams{8, 48, 48, data_types::u4, data_types::u8, ScaleConfig::Grouped, 2, false, 0.0f, VerifyMode::Finite},
+		CompressedParams{8, 48, 48, data_types::i4, data_types::i8, ScaleConfig::Grouped, 2, false, 0.0f, VerifyMode::Finite}
+	),
+	[](const ::testing::TestParamInfo<CompressedParams>& info) {
+		const auto& p = info.param;
+		std::string dt_name;
+		switch (p.weight_dt) {
+			case data_types::u8: dt_name = "u8"; break;
+			case data_types::i8: dt_name = "i8"; break;
+			case data_types::u4: dt_name = "u4"; break;
+			case data_types::i4: dt_name = "i4"; break;
+			default: dt_name = "unknown"; break;
+		}
+		std::string sc_name;
+		switch (p.scale_config) {
+			case ScaleConfig::PerTensor: sc_name = "per_tensor"; break;
+			case ScaleConfig::Grouped: sc_name = "grouped"; break;
+			case ScaleConfig::PerOC: sc_name = "per_oc"; break;
+		}
+		std::string name = dt_name + "_" + sc_name;
+		if (p.zero_scale) name += "_zero_scale";
+		name += "_batch" + std::to_string(p.batch);
+		return name;
 	}
+);
 
-	std::vector<uint8_t> gate_q(ifm * hidden / 2, 0x78);
-	std::vector<uint8_t> up_q(ifm * hidden / 2, 0x67);
-	std::vector<uint8_t> down_q(hidden * ifm / 2, 0x56);
-
-	std::vector<float> s_gate = {0.02f, 0.03f};
-	std::vector<float> s_up = {0.03f, 0.04f};
-	std::vector<float> s_down = {0.04f, 0.05f};
-	std::vector<uint8_t> zp_gate = {7, 8};
-	std::vector<uint8_t> zp_up = {6, 7};
-	std::vector<uint8_t> zp_down = {5, 6};
-
-	set_values(src_mem, to_f16(src));
-	set_values(gate_mem, gate_q);
-	set_values(up_mem, up_q);
-	set_values(down_mem, down_q);
-	set_values(s_gate_mem, to_f16(s_gate));
-	set_values(s_up_mem, to_f16(s_up));
-	set_values(s_down_mem, to_f16(s_down));
-	set_values(zp_gate_mem, zp_gate);
-	set_values(zp_up_mem, zp_up);
-	set_values(zp_down_mem, zp_down);
-
-	auto net = create_compressed_network(engine, batch, ifm, hidden,
-                                         src_mem, gate_mem, up_mem, down_mem, s_gate_mem, s_up_mem, s_down_mem, zp_gate_mem, zp_up_mem, zp_down_mem, "gmlp_u4_grouped");
-	auto outputs = net->execute();
-
-	ASSERT_EQ(outputs.size(), size_t(1));
-	ASSERT_EQ(outputs.begin()->first, "gmlp_u4_grouped");
-	check_output_finite(outputs.at("gmlp_u4_grouped").get_memory());
-}
-
-TEST(gated_mlp_gpu, compressed_i4_grouped_zp_zero_scale) {
-	auto& engine = get_test_engine();
-	skip_if_no_immad(engine);
-	const int batch = 8;
-	const int ifm = 48;
-	const int hidden = 48;
-
-	auto src_mem = engine.allocate_memory({{batch, 1, 1, ifm}, data_types::f16, format::bfyx});
-	auto gate_mem = engine.allocate_memory({{ifm, hidden}, data_types::i4, format::bfyx});
-	auto up_mem = engine.allocate_memory({{ifm, hidden}, data_types::i4, format::bfyx});
-	auto down_mem = engine.allocate_memory({{hidden, ifm}, data_types::i4, format::bfyx});
-
-	auto s_gate_mem = engine.allocate_memory({{2, 1}, data_types::f16, format::bfyx});
-	auto s_up_mem = engine.allocate_memory({{2, 1}, data_types::f16, format::bfyx});
-	auto s_down_mem = engine.allocate_memory({{2, 1}, data_types::f16, format::bfyx});
-
-	auto zp_gate_mem = engine.allocate_memory({{2, 1}, data_types::i8, format::bfyx});
-	auto zp_up_mem = engine.allocate_memory({{2, 1}, data_types::i8, format::bfyx});
-	auto zp_down_mem = engine.allocate_memory({{2, 1}, data_types::i8, format::bfyx});
-
-	std::vector<float> src(batch * ifm, 0.0f);
-	for (size_t i = 0; i < src.size(); ++i) {
-		src[i] = (i % 7 == 0) ? 0.35f : -0.15f;
-	}
-
-	std::vector<uint8_t> gate_q(ifm * hidden / 2, 0x12);
-	std::vector<uint8_t> up_q(ifm * hidden / 2, 0x23);
-	std::vector<uint8_t> down_q(hidden * ifm / 2, 0x34);
-
-	std::vector<float> s_gate = {0.02f, 0.03f};
-	std::vector<float> s_up = {0.03f, 0.04f};
-	std::vector<float> s_down = {0.04f, 0.05f};
-	std::vector<int8_t> zp_gate = {1, 2};
-	std::vector<int8_t> zp_up = {2, 3};
-	std::vector<int8_t> zp_down = {3, 4};
-
-	set_values(src_mem, to_f16(src));
-	set_values(gate_mem, gate_q);
-	set_values(up_mem, up_q);
-	set_values(down_mem, down_q);
-	set_values(s_gate_mem, to_f16(s_gate));
-	set_values(s_up_mem, to_f16(s_up));
-	set_values(s_down_mem, to_f16(s_down));
-	set_values(zp_gate_mem, zp_gate);
-	set_values(zp_up_mem, zp_up);
-	set_values(zp_down_mem, zp_down);
-
-	auto net = create_compressed_network(engine, batch, ifm, hidden,
-                                         src_mem, gate_mem, up_mem, down_mem, s_gate_mem, s_up_mem, s_down_mem, zp_gate_mem, zp_up_mem, zp_down_mem, "gmlp_i4_grouped");
-	auto outputs = net->execute();
-
-	ASSERT_EQ(outputs.size(), size_t(1));
-	ASSERT_EQ(outputs.begin()->first, "gmlp_i4_grouped");
-	check_output_finite(outputs.at("gmlp_i4_grouped").get_memory());
-}
 #endif

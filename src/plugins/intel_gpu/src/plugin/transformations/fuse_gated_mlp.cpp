@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "fuse_fc_swiglu_to_gated_mlp.hpp"
+#include "fuse_gated_mlp.hpp"
 
 #include "intel_gpu/op/gated_mlp.hpp"
 
@@ -24,7 +24,7 @@
 
 namespace ov::intel_gpu {
 
-FuseFCSwiGLUToGatedMLP::FuseFCSwiGLUToGatedMLP() {
+FuseGatedMLP::FuseGatedMLP() {
     using namespace ov::pass::pattern;
 
     auto src = any_input();
@@ -50,17 +50,6 @@ FuseFCSwiGLUToGatedMLP::FuseFCSwiGLUToGatedMLP() {
 
         if (!down || !up || !gate || !sw || transformation_callback(down))
             return false;
-
-        // const auto is_mlp1 = [](const std::shared_ptr<ov::Node>& node) {
-        //     if (!node)
-        //         return false;
-        //     const auto& name = node->get_friendly_name();
-        //     return name.find("layers.1.mlp") != std::string::npos ||
-        //            name.find("layers/1/mlp") != std::string::npos;
-        // };
-
-        // if (!is_mlp1(down) || !is_mlp1(up) || !is_mlp1(gate))
-        //     return false;
 
         if (down->get_transpose_a() || up->get_transpose_a() || gate->get_transpose_a())
             return false;
@@ -327,7 +316,7 @@ FuseFCSwiGLUToGatedMLP::FuseFCSwiGLUToGatedMLP() {
         return true;
     };
 
-    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(mm_down, "FuseFCSwiGLUToGatedMLP");
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(mm_down, "FuseGatedMLP");
     register_matcher(matcher, callback);
 }
 
