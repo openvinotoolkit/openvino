@@ -379,19 +379,19 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
     uint max_block_idx = (uint)(N * STRIDE + KV_BLOCK_SIZE - 1) / KV_BLOCK_SIZE - 1;
     block_idx = MYMIN(block_idx, max_block_idx);
 #if (KV_CACHE_COMPRESSION != 0)
-    uint offset = block_indices_p[block_idx] * (HK * ADJUSTED_KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
+    uint offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
     lsc::block_2d_desc<int, 1, KEY_LINES_PER_LOAD, 8> desc_b0{ key_cache + offset, KEY_LINES_PER_LOAD - 1, (uint)(K * sizeof(char) - 1), (uint)(K * sizeof(char) - 1),
         0, 0 };
     uint scale_offset0 = offset + KV_BLOCK_SIZE * HEAD_SIZE;
     block_idx = MYMIN(block_idx + 1, max_block_idx);
-    offset = block_indices_p[block_idx] * (HK * ADJUSTED_KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
+    offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
     lsc::block_2d_desc<int, 1, KEY_LINES_PER_LOAD, 8> desc_b1{ key_cache + offset, KEY_LINES_PER_LOAD - 1, (uint)(K * sizeof(char) - 1), (uint)(K * sizeof(char) - 1),
         0, 0 };
     uint scale_offset1 = offset + KV_BLOCK_SIZE * HEAD_SIZE;
     // prefetch B
     block_idx = (uint)(id_wg_n * BLOCK_WG_N + id_sg_mn * (BLOCK_WG_N / SG_MN)) * STRIDE / KV_BLOCK_SIZE;
     block_idx = MYMIN(block_idx, max_block_idx);
-    offset = block_indices_p[block_idx] * (HK * ADJUSTED_KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
+    offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
     static_assert(BLOCK_WG_N / SG_MN <= KEY_LINES_PER_LOAD, "prefetch lines should be inside one block");
     lsc::block_2d_desc<uchar, 1, BLOCK_WG_N / SG_MN, PHASE_SIZE> desc_prefetch_b{ key_cache + offset, BLOCK_WG_N / SG_MN - 1, (uint)(K * sizeof(char) - 1), (uint)(K * sizeof(char) - 1),
         0, 0 };
@@ -406,17 +406,17 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
     matrix<half, 2, 16 * 16> scales_block, zps_block;
     #endif
 #else
-    uint offset = block_indices_p[block_idx] * (HK * ADJUSTED_KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(half));
+    uint offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE * (uint)sizeof(half));
     lsc::block_2d_desc<int, 1, KEY_LINES_PER_LOAD, 8> desc_b0{ key_cache + offset, KEY_LINES_PER_LOAD - 1, (uint)(K * sizeof(half) - 1), (uint)(K * sizeof(half) - 1),
         0, 0 };
     block_idx = MYMIN(block_idx + 1, max_block_idx);
-    offset = block_indices_p[block_idx] * (HK * ADJUSTED_KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(half));
+    offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE * (uint)sizeof(half));
     lsc::block_2d_desc<int, 1, KEY_LINES_PER_LOAD, 8> desc_b1{ key_cache + offset, KEY_LINES_PER_LOAD - 1, (uint)(K * sizeof(half) - 1), (uint)(K * sizeof(half) - 1),
         0, 0 };
     // prefetch B
     block_idx = (uint)(id_wg_n * BLOCK_WG_N + id_sg_mn * (BLOCK_WG_N / SG_MN)) * STRIDE / KV_BLOCK_SIZE;
     block_idx = MYMIN(block_idx, max_block_idx);
-    offset = block_indices_p[block_idx] * (HK * ADJUSTED_KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(half));
+    offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE * (uint)sizeof(half));
     static_assert(BLOCK_WG_N / SG_MN <= KEY_LINES_PER_LOAD, "prefetch lines should be inside one block");
     lsc::block_2d_desc<half, 1, BLOCK_WG_N / SG_MN, PHASE_SIZE> desc_prefetch_b{ key_cache + offset, BLOCK_WG_N / SG_MN - 1, (uint)(K * sizeof(half) - 1), (uint)(K * sizeof(half) - 1),
         0, 0 };

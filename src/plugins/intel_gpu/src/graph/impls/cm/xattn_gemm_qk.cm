@@ -85,9 +85,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
     // key cache: [block, HQ, KV_BLOCK_SIZE, HEAD_SIZE_KEY]
 #if KV_CACHE_COMPRESSION
-    key_cache += hk * (ADJUSTED_KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
+    key_cache += hk * (KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
 #else
-    key_cache += hk * (ADJUSTED_KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(half));
+    key_cache += hk * (KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(half));
 #endif
     // query: [l_q, HQ * HEAD_SIZE]
     query += hq * HEAD_SIZE * (uint)sizeof(half);

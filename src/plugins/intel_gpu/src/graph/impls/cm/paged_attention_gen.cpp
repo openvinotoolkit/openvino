@@ -617,7 +617,6 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     jit.make("BLOCK_WG_K", desc->k_head_size % 64 == 0 ? 64 : 32);  // GEMM QK kernel unrolls HEAD_SIZE with a step of BLOCK_WG_K
     jit.make("BLOCK_SIZE", _xattn_block_size);
     jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
-    jit.make("ADJUSTED_KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
     jit.add(make_jit_constant("INV_S", scale_factor_i));
     jit.make("BLOCK_SHARE_MAX", BLOCK_WG_N);
     //# loop order walks HQ first and the step is WALK_HQ, 1 means not walk HQ, 2 means walks 2 heads first. Valid value: 1, 2, 4...
@@ -626,14 +625,10 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     if (get_kv_compressed(params)) {
         if (desc->is_key_by_channel) {
             jit.make("KV_CACHE_COMPRESSION", 2);
-            // BY_CHANNEL appends scale/zp along block dimension.
-            jit.make("ADJUSTED_KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN + PA_KV_CACHE_BLOCK_SIZE_XATTN / KV_SUB_BLOCK_SIZE * 4);
-            jit.make("HEAD_SIZE_KEY", desc->k_head_size);
         } else {
             jit.make("KV_CACHE_COMPRESSION", 1);
-            // BY_TOKEN appends scale/zp per token along head dimension.
-            jit.make("HEAD_SIZE_KEY", desc->k_head_size + 2 * 2);
         }
+        jit.make("HEAD_SIZE_KEY", desc->k_head_size + 2 * 2);
     } else {
         jit.make("KV_CACHE_COMPRESSION", 0);
         jit.make("HEAD_SIZE_KEY", desc->k_head_size);
