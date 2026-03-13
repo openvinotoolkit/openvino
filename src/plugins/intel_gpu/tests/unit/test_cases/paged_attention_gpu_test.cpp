@@ -801,11 +801,11 @@ struct PagedAttentionManager {
         return get_memory_from_vec(adaptive_rkv_diversity_block_set_indices_begins);
     }
 
-<<<<<<< HEAD
     memory::ptr get_token_type_ids_memory() {
         std::vector<int> token_type_ids = { 0 };
         return get_memory_from_vec(token_type_ids);
-=======
+    }
+
     memory::ptr get_qq_bias_memory() {
         std::vector<uint8_t> flat_qq_bias;
         for (const auto& matrix : qq_bias) {
@@ -818,7 +818,6 @@ struct PagedAttentionManager {
 
     memory::ptr get_qq_bias_begins_memory() {
         return get_memory_from_vec(qq_bias_begins);
->>>>>>> 4e155ca09b (split tree mask PR)
     }
 
     float get_default_scale() {
@@ -1850,13 +1849,10 @@ public:
         auto adaptive_rkv_evictable_sizes_mem = pam.get_adaptive_rkv_evictable_sizes_memory();
         auto adaptive_rkv_diversity_block_set_indices_mem = pam.get_adaptive_rkv_diversity_block_set_indices_memory();
         auto adaptive_rkv_diversity_block_set_indices_begins_mem = pam.get_adaptive_rkv_diversity_block_set_indices_begins_memory();
-<<<<<<< HEAD
         auto token_type_ids_mem = pam.get_token_type_ids_memory();
 
-=======
         auto qq_bias = pam.get_qq_bias_memory();
         auto qq_bias_begins = pam.get_qq_bias_begins_memory();
->>>>>>> 4e155ca09b (split tree mask PR)
         auto query_layout = query_mem->get_layout();
         auto key_layout = key_mem->get_layout();
         auto value_layout = value_mem->get_layout();
@@ -1882,12 +1878,9 @@ public:
         auto adaptive_rkv_evictable_sizes_layout = adaptive_rkv_evictable_sizes_mem->get_layout();
         auto adaptive_rkv_diversity_block_set_indices_layout = adaptive_rkv_diversity_block_set_indices_mem->get_layout();
         auto adaptive_rkv_diversity_block_set_indices_begins_layout = adaptive_rkv_diversity_block_set_indices_begins_mem->get_layout();
-<<<<<<< HEAD
         auto token_type_ids_layout = token_type_ids_mem->get_layout();
-=======
         auto qq_bias_layout = qq_bias->get_layout();
         auto qq_bias_begins_layout = qq_bias_begins->get_layout();
->>>>>>> 4e155ca09b (split tree mask PR)
 
         // make layouts dynamic
         query_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.k_head_size });
@@ -1977,12 +1970,9 @@ public:
             input_info("adaptive_rkv_evictable_sizes"),
             input_info("adaptive_rkv_diversity_block_set_indices"),
             input_info("adaptive_rkv_diversity_block_set_indices_begins"),
-<<<<<<< HEAD
             input_info("token_type_ids"),
-=======
             input_info("qq_bias"),
             input_info("qq_bias_begins")
->>>>>>> 4e155ca09b (split tree mask PR)
         };
 
         auto pa_prim = paged_attention("paged_attention", pa_inputs);
@@ -2056,12 +2046,9 @@ public:
             topology.add(input_layout("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_layout));
             topology.add(input_layout("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_layout));
             topology.add(input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_layout));
-<<<<<<< HEAD
             topology.add(input_layout("token_type_ids", token_type_ids_layout));
-=======
             topology.add(input_layout("qq_bias", qq_bias_layout));
             topology.add(input_layout("qq_bias_begins", qq_bias_begins_layout));
->>>>>>> 4e155ca09b (split tree mask PR)
         }
 
         ExecutionConfig config = get_test_default_config(get_test_engine());
@@ -2099,12 +2086,9 @@ public:
         network->set_input_data("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_mem);
         network->set_input_data("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem);
         network->set_input_data("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem);
-<<<<<<< HEAD
         network->set_input_data("token_type_ids", token_type_ids_mem);
-=======
         network->set_input_data("qq_bias", qq_bias);
         network->set_input_data("qq_bias_begins", qq_bias_begins);
->>>>>>> 4e155ca09b (split tree mask PR)
 
         auto outputs = network->execute();
 
@@ -2208,14 +2192,11 @@ struct paged_attention_test_params {
     bool has_adaptive_rkv = false;
     int start_size = 0;                // Common start_size for all sequences
     std::vector<int> evictable_sizes;  // Per-sequence evictable sizes
-<<<<<<< HEAD
     ov::element::Type kv_cache_precision = ov::element::dynamic;
-=======
 
     // test query-to-query attention bias
     bool has_qq_bias = false;
     QueryToQueryAttentionDescriptor qq_bias_config;
->>>>>>> 4e155ca09b (split tree mask PR)
 };
 
 class paged_attention_test : public PagedAttentionTest<paged_attention_test_params> {};
@@ -2502,12 +2483,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_rkv, adaptive_rkv_diversity_test, ::test
 
 INSTANTIATE_TEST_SUITE_P(smoke_qq_bias, qq_bias_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     // basic tests with 1 sequence
-    paged_attention_test_params{ {{4, 32}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, ENABLE_QQ_BIAS },
-    paged_attention_test_params{ {{4, 32}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, ENABLE_QQ_BIAS },
-    paged_attention_test_params{ {{4, 32}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, ENABLE_QQ_BIAS },
+    paged_attention_test_params{ {{4, 32}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, ov::element::dynamic, true, ENABLE_QQ_BIAS },
+    paged_attention_test_params{ {{4, 32}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, ov::element::dynamic, true, ENABLE_QQ_BIAS },
+    paged_attention_test_params{ {{4, 32}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, ov::element::dynamic, true, ENABLE_QQ_BIAS },
 
     // multi sequences tests
-    paged_attention_test_params{ {{4, 32}, {128, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 4, 4}} },
-    paged_attention_test_params{ {{128, 0}, {4, 32}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 0, 4}} },
-    paged_attention_test_params{ {{4, 20}, {4, 32}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}, {1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 4, 8}} },
+    paged_attention_test_params{ {{4, 32}, {128, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 4, 4}} },
+    paged_attention_test_params{ {{128, 0}, {4, 32}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 0, 4}} },
+    paged_attention_test_params{ {{4, 20}, {4, 32}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}, {1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 4, 8}} },
 }));

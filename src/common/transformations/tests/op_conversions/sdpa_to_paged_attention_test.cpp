@@ -4754,8 +4754,8 @@ TEST_F(SDPAToPATest, SDPAToPA_jais_13b_General) {
         auto Constant22 = makeConst(element::i32, ov::Shape({0}), {0});
         auto Constant23 = makeConst(element::i32, ov::Shape({0}), {0});
         auto Constant24 = v0::Constant::create(element::i32, Shape{0}, {});
-        auto Constant24 = makeConst(element::u8, ov::Shape({0}), {0});
-        auto Constant25 = makeConst(element::i32, ov::Shape({0}), {0});
+        auto Constant25 = makeConst(element::u8, ov::Shape({0}), {0});
+        auto Constant26 = makeConst(element::i32, ov::Shape({0}), {0});
         auto PagedAttentionExtension0 =
             make_shared<ov::op::PagedAttentionExtension>(OutputVector{Reshape4,
                                                                       Reshape6,
@@ -4783,8 +4783,8 @@ TEST_F(SDPAToPATest, SDPAToPA_jais_13b_General) {
                                                                       Constant22,
                                                                       Constant23,
                                                                       Constant24,
-                                                                      Constant24,
-                                                                      Constant25});
+                                                                      Constant25,
+                                                                      Constant26});
         auto ShapeOf1 = makeOP<v3::ShapeOf>({Transpose5}, {{"output_type", "i64"}});
         auto Gather2 = makeOP<v8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze1 = makeOP<v0::Unsqueeze>({Gather2, 0});

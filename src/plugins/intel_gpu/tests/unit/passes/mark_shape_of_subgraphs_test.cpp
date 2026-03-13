@@ -500,7 +500,7 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
                                          input_info("adaptive_rkv_evictable_sizes"),
                                          input_info("adaptive_rkv_diversity_block_set_indices"),
                                          input_info("adaptive_rkv_diversity_block_set_indices_begins"),
-                                         input_info("token_type_ids")
+                                         input_info("token_type_ids"),
                                          input_info("qq_bias"),
                                          input_info("qq_bias_begins")
     };
