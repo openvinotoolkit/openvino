@@ -1228,6 +1228,7 @@ struct NPUDesc {
     int64_t max_tiles = 0;
     bool compiler_dq = false;
     int64_t compiler_ver = 0;
+    bool support_flash_attention_tile = false;
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -1262,6 +1263,11 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
                                 ->get_property(ov::intel_npu::compiler_version.name(),
                                                ov::AnyMap{{ov::intel_npu::compiler_type.name(), target_compiler_type}})
                                 .as<int64_t>();
+    }
+
+    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
+        // Flash attention tile is supported starting from compiler version 7.29 on NPU5010
+        desc.support_flash_attention_tile = true;
     }
 
     return std::make_optional(std::move(desc));
@@ -1788,6 +1794,17 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto lm_head_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_SHARED_HEAD_CONFIG"));
     refine_dynamic_props(npuw_llm_props, npudesc);
     m_cfg.update(any_copy(npuw_llm_props));
+
+    // Decide on using fused flash attention tile based on provided option and NPU capabilities.
+    // If hardware supports and attention hint is set to HFA, then we can use fused flash attention implementation
+    // automatically, unless user explicitly disables it via NPUW_ATTN_HFA_FUSED=NO option.
+    const auto is_hfa =
+        m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>() == ::intel_npu::npuw::llm::AttentionHint::HFA;
+    const auto hfa_fused_npu_supported = npudesc.has_value() && npudesc->support_flash_attention_tile;
+    if (other_props.count("NPUW_ATTN_HFA_FUSED") == 0 && is_hfa && hfa_fused_npu_supported) {
+        other_props["NPUW_ATTN_HFA_FUSED"] = "YES";
+        LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
+    }
 
     m_is_whisper = use_whisper_key.value_or(false).as<bool>() == true;
     if (m_is_whisper) {
