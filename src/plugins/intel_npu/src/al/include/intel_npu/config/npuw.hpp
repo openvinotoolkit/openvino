@@ -112,6 +112,7 @@ DEFINE_OPT(NPUW_CWAI, bool, false, npuw::partitioning::cwai, RunTime);
 DEFINE_OPT(NPUW_DQ, bool, false, npuw::partitioning::dyn_quant, RunTime);
 DEFINE_OPT(NPUW_DQ_FULL, bool, true, npuw::partitioning::dyn_quant_full, RunTime);
 DEFINE_OPT(NPUW_PMM, std::string, "2", npuw::partitioning::par_matmul_merge_dims, RunTime);
+DEFINE_OPT(NPUW_MM_GATED, bool, true, npuw::partitioning::matmul_gate_preserve_constants, RunTime);
 DEFINE_OPT(NPUW_SLICE_OUT, bool, false, npuw::partitioning::slice_out, RunTime);
 DEFINE_OPT(NPUW_HOST_GATHER, bool, true, npuw::partitioning::host_gather, RunTime);
 DEFINE_OPT(NPUW_SPATIAL, bool, false, npuw::partitioning::spatial, RunTime);

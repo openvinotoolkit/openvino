@@ -280,15 +280,21 @@ using CheckCompilerTypeProperty = ClassExecutableNetworkGetPropertiesTestNPU;
 
 TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyFromCompiledModel) {
     std::string platform = ov::test::utils::getTestsPlatformFromEnvironmentOr(deviceName);
-    size_t pos0 = platform.find("5010");
-    size_t pos1 = platform.find("4000");
+    const std::vector<std::string> plugin_compiler_platforms = {"4000", "5010", "5020"};
+    bool is_plugin_compiler_platform = false;
+    for (const auto& p : plugin_compiler_platforms) {
+        if (platform.find(p) != std::string::npos) {
+            is_plugin_compiler_platform = true;
+            break;
+        }
+    }
     ov::Core core;
 
     ov::CompiledModel compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
     auto compiler_type = compiled_model.get_property(ov::intel_npu::compiler_type);
 
-    if (pos0 != std::string::npos || pos1 != std::string::npos) {
+    if (is_plugin_compiler_platform) {
         ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::PLUGIN);
     } else {
         ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
@@ -300,7 +306,7 @@ TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyFromCompiledModel) {
     compiler_type = compiled_model.get_property(ov::intel_npu::compiler_type);
     ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
 
-    if (pos0 != std::string::npos || pos1 != std::string::npos) {
+    if (is_plugin_compiler_platform) {
         OV_ASSERT_NO_THROW(compiled_model =
                                core.compile_model(model,
                                                   deviceName,
@@ -312,8 +318,14 @@ TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyFromCompiledModel) {
 
 TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyAfterSettingExtraConfigToGetProperty) {
     std::string platform = ov::test::utils::getTestsPlatformFromEnvironmentOr(deviceName);
-    size_t pos0 = platform.find("5010");
-    size_t pos1 = platform.find("4000");
+    const std::vector<std::string> plugin_compiler_platforms = {"4000", "5010", "5020"};
+    bool is_plugin_compiler_platform = false;
+    for (const auto& p : plugin_compiler_platforms) {
+        if (platform.find(p) != std::string::npos) {
+            is_plugin_compiler_platform = true;
+            break;
+        }
+    }
     ov::Core core;
 
     auto test_custom_compiler_type =
@@ -323,7 +335,7 @@ TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyAfterSettingExtraConf
     ASSERT_TRUE(test_custom_compiler_type == ov::intel_npu::CompilerType::DRIVER);
 
     test_custom_compiler_type = core.get_property(deviceName, ov::intel_npu::compiler_type);
-    if (pos0 != std::string::npos || pos1 != std::string::npos) {
+    if (is_plugin_compiler_platform) {
         ASSERT_TRUE(test_custom_compiler_type == ov::intel_npu::CompilerType::PREFER_PLUGIN);
     } else {
         ASSERT_TRUE(test_custom_compiler_type == ov::intel_npu::CompilerType::DRIVER);
@@ -333,7 +345,7 @@ TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyAfterSettingExtraConf
     OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
     auto compiler_type = compiled_model.get_property(ov::intel_npu::compiler_type);
 
-    if (pos0 != std::string::npos || pos1 != std::string::npos) {
+    if (is_plugin_compiler_platform) {
         ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::PLUGIN);
     } else {
         ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
