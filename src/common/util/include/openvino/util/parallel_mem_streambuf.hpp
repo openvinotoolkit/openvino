@@ -5,6 +5,7 @@
 #pragma once
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <stdexcept>
 #include <streambuf>
@@ -20,6 +21,7 @@
 #endif
 
 #include "openvino/core/parallel.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace util {
@@ -102,9 +104,7 @@ protected:
     // -----------------------------------------------------------------------
     // Seek support
     // -----------------------------------------------------------------------
-    pos_type seekoff(off_type off,
-                     std::ios_base::seekdir way,
-                     std::ios_base::openmode /* which */) override {
+    pos_type seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode /* which */) override {
         const char* new_pos = nullptr;
         if (way == std::ios_base::beg) {
             new_pos = m_begin + off;
@@ -143,25 +143,43 @@ private:
         PrefetchVirtualMemory(GetCurrentProcess(), 1, &prefetch_range, 0);
 #endif
 
+#ifdef ENABLE_OPENVINO_DEBUG
+        const auto t0 = std::chrono::steady_clock::now();
+#endif
+
         ov::parallel_for(num_chunks, [&](size_t i) {
             const size_t offset = i * chunk_size;
             const size_t copy_size = (i + 1 == num_chunks) ? (size - offset) : chunk_size;
             std::memcpy(dst + offset, src + offset, copy_size);
         });
 
+#ifdef ENABLE_OPENVINO_DEBUG
+        {
+            const auto t1 = std::chrono::steady_clock::now();
+            const double elapsed_s = std::chrono::duration<double>(t1 - t0).count();
+            const double bw_gbs =
+                (elapsed_s > 0.0) ? (static_cast<double>(size) / elapsed_s / (1024.0 * 1024.0 * 1024.0)) : 0.0;
+            OPENVINO_DEBUG("[ParallelMemStreamBuf] parallel_copy: ",
+                           size / 1024.0 / 1024.0,
+                           " MB, ",
+                           num_chunks,
+                           " chunks, ",
+                           elapsed_s * 1e3,
+                           " ms, ",
+                           bw_gbs,
+                           " GB/s");
+        }
+#endif
+
 #ifdef _WIN32
         // Release consumed mmap pages from the working-set to avoid RAM pressure
         // when loading multi-GB models. MEM_RESET marks pages as no longer needed;
         // the kernel may reclaim them without writing to the page file.
         constexpr uintptr_t PAGE_MASK = ~static_cast<uintptr_t>(4095u);
-        const char* reset_begin =
-            reinterpret_cast<const char*>(reinterpret_cast<uintptr_t>(src) & PAGE_MASK);
-        const char* reset_end = reinterpret_cast<const char*>(
-            (reinterpret_cast<uintptr_t>(src) + size) & PAGE_MASK);
+        const char* reset_begin = reinterpret_cast<const char*>(reinterpret_cast<uintptr_t>(src) & PAGE_MASK);
+        const char* reset_end = reinterpret_cast<const char*>((reinterpret_cast<uintptr_t>(src) + size) & PAGE_MASK);
         if (reset_begin < reset_end) {
-            VirtualFree(const_cast<char*>(reset_begin),
-                        static_cast<SIZE_T>(reset_end - reset_begin),
-                        MEM_RESET);
+            VirtualFree(const_cast<char*>(reset_begin), static_cast<SIZE_T>(reset_end - reset_begin), MEM_RESET);
         }
 #endif
     }

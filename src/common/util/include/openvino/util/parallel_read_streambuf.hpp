@@ -22,6 +22,12 @@
 #        define WIN32_LEAN_AND_MEAN
 #    endif
 #    include <windows.h>
+#    ifdef min
+#        undef min
+#    endif
+#    ifdef max
+#        undef max
+#    endif
 #else
 #    include <fcntl.h>
 #    include <sys/stat.h>
@@ -163,9 +169,7 @@ protected:
     // -----------------------------------------------------------------------
     // Seek support
     // -----------------------------------------------------------------------
-    pos_type seekoff(off_type off,
-                     std::ios_base::seekdir way,
-                     std::ios_base::openmode /* which */) override {
+    pos_type seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode /* which */) override {
         std::streamoff new_pos = 0;
         if (way == std::ios_base::beg) {
             new_pos = off;
@@ -260,6 +264,10 @@ private:
         std::vector<std::future<void>> futures;
         futures.reserve(num_threads);
 
+#ifdef ENABLE_OPENVINO_DEBUG
+        const auto t0 = std::chrono::steady_clock::now();
+#endif
+
         size_t cur_offset = 0;
         for (size_t i = 0; i < num_threads; ++i) {
             const size_t read_size = (i == num_threads - 1u) ? (size - cur_offset) : chunk_size;
@@ -336,7 +344,23 @@ private:
         for (auto& f : futures) {
             f.get();
         }
-
+#ifdef ENABLE_OPENVINO_DEBUG
+        {
+            const auto t1 = std::chrono::steady_clock::now();
+            const double elapsed_s = std::chrono::duration<double>(t1 - t0).count();
+            const double bw_gbs =
+                (elapsed_s > 0.0) ? (static_cast<double>(size) / elapsed_s / (1024.0 * 1024.0 * 1024.0)) : 0.0;
+            OPENVINO_DEBUG("[ParallelReadStreamBuf] parallel_read: ",
+                           size / 1024.0 / 1024.0,
+                           " MB, ",
+                           num_chunks,
+                           " chunks, ",
+                           elapsed_s * 1e3,
+                           " ms, ",
+                           bw_gbs,
+                           " GB/s");
+        }
+#endif
         return success.load();
     }
 

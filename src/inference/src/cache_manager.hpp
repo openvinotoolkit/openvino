@@ -18,6 +18,7 @@
 
 #include "openvino/runtime/icache_manager.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/parallel_read_streambuf.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -67,7 +68,8 @@ private:
                 CompiledBlobVariant compiled_blob{std::in_place_index<0>, ov::read_tensor_data(blob_path)};
                 reader(compiled_blob);
             } else {
-                std::ifstream stream(blob_path, std::ios_base::binary);
+                ov::util::ParallelReadStreamBuf par_buf(blob_path);
+                std::istream stream(&par_buf);
                 CompiledBlobVariant compiled_blob{std::in_place_index<1>, std::ref(stream)};
                 reader(compiled_blob);
             }
