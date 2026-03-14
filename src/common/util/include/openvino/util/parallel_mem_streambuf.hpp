@@ -7,6 +7,10 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <memory>
+#include <sstream>
 #include <stdexcept>
 #include <streambuf>
 
@@ -18,12 +22,16 @@
 #        define WIN32_LEAN_AND_MEAN
 #    endif
 #    include <windows.h>
+#    include <psapi.h>
 #else
 #    include <sys/mman.h>
 #endif
 
 #include "openvino/core/parallel.hpp"
 #include "openvino/util/log.hpp"
+#include "openvino/util/parallel_read_streambuf.hpp"
+
+#define ENABLE_OPENVINO_DEBUG 0
 
 namespace ov {
 namespace util {
@@ -58,7 +66,63 @@ public:
         : m_begin(static_cast<const char*>(data)),
           m_end(static_cast<const char*>(data) + size),
           m_current(static_cast<const char*>(data)),
-          m_threshold(threshold) {}
+          m_threshold(threshold) {
+#ifdef _WIN32
+        // On Windows, detect whether this memory is a file-backed mmap region.
+        // If so, build a ParallelReadStreamBuf over the same file+offset so
+        // ReadFile is used instead of mmap+memcpy. This avoids the 2x RAM
+        // pressure (mmap working-set + destination buffer) that causes
+        // catastrophic working-set thrashing for multi-GB models, and
+        // eliminates per-page PFN database lock contention.
+        if (size >= threshold) {
+            MEMORY_BASIC_INFORMATION mbi{};
+            if (VirtualQuery(data, &mbi, sizeof(mbi)) && mbi.Type == MEM_MAPPED) {
+                wchar_t dev_path[MAX_PATH] = {};
+                if (GetMappedFileNameW(GetCurrentProcess(),
+                                       const_cast<void*>(data),
+                                       dev_path,
+                                       MAX_PATH) > 0) {
+                    // Convert device path (\Device\HarddiskVolume3\...) to Win32 path.
+                    wchar_t win32_path[MAX_PATH] = {};
+                    if (resolve_device_path(dev_path, win32_path, MAX_PATH)) {
+                        // Compute the file offset: the region base may be at a
+                        // different page boundary than the pointer we received.
+                        // AllocationBase is the start of the mapped view.
+                        const std::streamoff file_offset =
+                            reinterpret_cast<const char*>(data) -
+                            reinterpret_cast<const char*>(mbi.AllocationBase);
+                        m_file_buf = std::make_unique<ParallelReadStreamBuf>(
+                            std::filesystem::path(win32_path), file_offset, threshold);
+                    }
+                }
+            }
+        }
+        // Fallback (non-file-backed memory, e.g. anonymous mmap or small
+        // allocations): issue an upfront async prefetch for the entire region
+        // so pages start arriving while the blob header is being parsed.
+        if (!m_file_buf) {
+            WIN32_MEMORY_RANGE_ENTRY prefetch_range{const_cast<void*>(data), size};
+            PrefetchVirtualMemory(GetCurrentProcess(), 1, &prefetch_range, 0);
+        }
+#else
+        // On Linux, detect file-backed mmap via /proc/self/maps.
+        // If the pointer falls inside a file mapping, build a ParallelReadStreamBuf
+        // (pread-based) to avoid mmap Working Set residency pressure and page fault
+        // overhead that degrades throughput on multi-GB models.
+        if (size >= threshold) {
+            std::filesystem::path file_path;
+            std::streamoff file_off = 0;
+            if (get_mmap_file_info(data, file_path, file_off)) {
+                m_file_buf = std::make_unique<ParallelReadStreamBuf>(file_path, file_off, threshold);
+            }
+        }
+        // For non-file-backed memory (anonymous mmap, USM host buffers, etc.)
+        // fall back to async prefetch + parallel memcpy.
+        if (!m_file_buf) {
+            madvise(const_cast<void*>(data), size, MADV_WILLNEED);
+        }
+#endif
+    }
 
     ~ParallelMemStreamBuf() override = default;
 
@@ -70,6 +134,11 @@ protected:
     // xsgetn: hot path — called by sgetn() for all bulk reads
     // -----------------------------------------------------------------------
     std::streamsize xsgetn(char_type* dst, std::streamsize n) override {
+        // If we detected a file-backed mmap on Windows, delegate to the
+        // ReadFile-based streambuf which avoids PFN contention and 2x RAM pressure.
+        if (m_file_buf) {
+            return m_file_buf->sgetn(dst, n);
+        }
         if (m_current >= m_end) {
             return 0;
         }
@@ -90,6 +159,9 @@ protected:
     // underflow: single-char peek path
     // -----------------------------------------------------------------------
     int_type underflow() override {
+        if (m_file_buf) {
+            return m_file_buf->sgetc();
+        }
         if (m_current >= m_end) {
             return traits_type::eof();
         }
@@ -97,6 +169,9 @@ protected:
     }
 
     int_type uflow() override {
+        if (m_file_buf) {
+            return m_file_buf->sbumpc();
+        }
         if (m_current >= m_end) {
             return traits_type::eof();
         }
@@ -106,7 +181,10 @@ protected:
     // -----------------------------------------------------------------------
     // Seek support
     // -----------------------------------------------------------------------
-    pos_type seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode /* which */) override {
+    pos_type seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which) override {
+        if (m_file_buf) {
+            return m_file_buf->pubseekoff(off, way, which);
+        }
         const char* new_pos = nullptr;
         if (way == std::ios_base::beg) {
             new_pos = m_begin + off;
@@ -124,11 +202,17 @@ protected:
         return pos_type(static_cast<off_type>(m_current - m_begin));
     }
 
-    pos_type seekpos(pos_type pos, std::ios_base::openmode /* which */) override {
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
+        if (m_file_buf) {
+            return m_file_buf->pubseekpos(pos, which);
+        }
         return seekoff(off_type(pos), std::ios_base::beg, std::ios_base::in);
     }
 
     std::streamsize showmanyc() override {
+        if (m_file_buf) {
+            return m_file_buf->in_avail();
+        }
         const std::streamsize avail = static_cast<std::streamsize>(m_end - m_current);
         return avail > 0 ? avail : -1;
     }
@@ -136,7 +220,16 @@ protected:
 private:
     void parallel_copy(char* dst, const char* src, size_t size) {
         constexpr size_t MIN_CHUNK = 2UL * 1024 * 1024;  // 2 MB minimum per thread
+#ifdef _WIN32
+        // On Windows, mmap page faults require acquiring the PFN database lock
+        // once per page.  Too many concurrent threads cause severe kernel-level
+        // serialization.  Cap at 16 threads so PFN-lock contention is bounded
+        // while still saturating NVMe queue depth via PrefetchVirtualMemory.
+        constexpr size_t MAX_CHUNKS = 16;
+        const size_t num_chunks = std::max(size_t{1}, std::min(size / MIN_CHUNK, MAX_CHUNKS));
+#else
         const size_t num_chunks = std::max(size_t{1}, size / MIN_CHUNK);
+#endif
         const size_t chunk_size = (size + num_chunks - 1) / num_chunks;
 
 #ifdef _WIN32
@@ -165,8 +258,8 @@ private:
             const double elapsed_s = std::chrono::duration<double>(t1 - t0).count();
             const double bw_gbs =
                 (elapsed_s > 0.0) ? (static_cast<double>(size) / elapsed_s / (1024.0 * 1024.0 * 1024.0)) : 0.0;
-            OPENVINO_DEBUG("[ParallelMemStreamBuf] parallel_copy: ", size / 1024.0 / 1024.0, " MB, ", num_chunks,
-                           " chunks, ", elapsed_s * 1e3, " ms, ", bw_gbs, " GB/s");
+            std::cout << "[ParallelMemStreamBuf] parallel_copy: " << size / 1024.0 / 1024.0 << " MB, " << num_chunks
+                      << " chunks, " << elapsed_s * 1e3 << " ms, " << bw_gbs << " GB/s" << std::endl;
         }
 #endif
 
@@ -174,12 +267,18 @@ private:
         // Release consumed mmap pages from the working-set to avoid RAM pressure
         // when loading multi-GB models. MEM_RESET marks pages as no longer needed;
         // the kernel may reclaim them without writing to the page file.
-        constexpr uintptr_t PAGE_MASK = ~static_cast<uintptr_t>(4095u);
-        const char* reset_begin = reinterpret_cast<const char*>(reinterpret_cast<uintptr_t>(src) & PAGE_MASK);
-        const char* reset_end = reinterpret_cast<const char*>((reinterpret_cast<uintptr_t>(src) + size) & PAGE_MASK);
-        if (reset_begin < reset_end) {
-            VirtualFree(const_cast<char*>(reset_begin), static_cast<SIZE_T>(reset_end - reset_begin), MEM_RESET);
-        }
+        // constexpr uintptr_t PAGE_MASK = ~static_cast<uintptr_t>(4095u);
+        // const char* reset_begin = reinterpret_cast<const char*>(reinterpret_cast<uintptr_t>(src) & PAGE_MASK);
+        // const char* reset_end = reinterpret_cast<const char*>((reinterpret_cast<uintptr_t>(src) + size) & PAGE_MASK);
+        // if (reset_begin < reset_end) {
+        //     VirtualFree(const_cast<char*>(reset_begin), static_cast<SIZE_T>(reset_end - reset_begin), MEM_RESET);
+        // }
+        // NOTE: MEM_RESET is intentionally omitted here.  Releasing pages
+        // immediately after copying races with PrefetchVirtualMemory for the
+        // next chunk: if the standby entry is evicted before the next chunk's
+        // copy begins, a Hard Page Fault against NVMe causes 1000+ ms stalls
+        // (as observed in profiling).  The OS will reclaim pages under its
+        // normal working-set trimming policy without requiring explicit hints.
 #endif
     }
 
@@ -187,6 +286,74 @@ private:
     const char* m_end;
     const char* m_current;
     size_t m_threshold;
+    // Non-null when source is a file-backed mmap: delegates all I/O to
+    // ReadFile (Windows) / pread (Linux) parallel reads, bypassing the
+    // 2x RAM pressure and page-fault overhead of mmap+memcpy.
+    std::unique_ptr<ParallelReadStreamBuf> m_file_buf;
+
+#ifdef _WIN32
+    // Convert a kernel device path (\Device\HarddiskVolume3\foo\bar) to a
+    // Win32 drive path (C:\foo\bar).
+    static bool resolve_device_path(const wchar_t* dev_path, wchar_t* out, DWORD out_len) {
+        wchar_t drives[512] = {};
+        if (!GetLogicalDriveStringsW(512, drives))
+            return false;
+        for (const wchar_t* d = drives; *d; d += wcslen(d) + 1) {
+            wchar_t drive[3] = {d[0], d[1], L'\0'};
+            wchar_t dev_name[MAX_PATH] = {};
+            if (!QueryDosDeviceW(drive, dev_name, MAX_PATH))
+                continue;
+            const size_t dev_name_len = wcslen(dev_name);
+            if (wcsncmp(dev_path, dev_name, dev_name_len) == 0 &&
+                (dev_path[dev_name_len] == L'\\' || dev_path[dev_name_len] == L'\0')) {
+                swprintf_s(out, out_len, L"%s%s", drive, dev_path + dev_name_len);
+                return true;
+            }
+        }
+        return false;
+    }
+#else
+    // Parse /proc/self/maps to find the file backing an mmap address.
+    // Returns true and fills out_path/out_offset if the address is inside
+    // a named file mapping (i.e. not anonymous / [stack] / [heap]).
+    static bool get_mmap_file_info(const void* addr,
+                                   std::filesystem::path& out_path,
+                                   std::streamoff& out_offset) {
+        std::ifstream maps_file("/proc/self/maps");
+        if (!maps_file.is_open())
+            return false;
+        const auto addr_val = reinterpret_cast<uintptr_t>(addr);
+        std::string line;
+        while (std::getline(maps_file, line)) {
+            // Format: start-end perms offset dev inode [pathname]
+            std::istringstream iss(line);
+            std::string addr_range, perms, offset_str, dev, inode_str;
+            if (!(iss >> addr_range >> perms >> offset_str >> dev >> inode_str))
+                continue;
+            // Parse start-end
+            const auto dash = addr_range.find('-');
+            if (dash == std::string::npos)
+                continue;
+            const auto range_start =
+                static_cast<uintptr_t>(std::stoull(addr_range.substr(0, dash), nullptr, 16));
+            const auto range_end =
+                static_cast<uintptr_t>(std::stoull(addr_range.substr(dash + 1), nullptr, 16));
+            if (addr_val < range_start || addr_val >= range_end)
+                continue;
+            // Read optional pathname
+            std::string path;
+            if (!(iss >> path) || path.empty() || path[0] != '/')
+                return false;  // anonymous or special region, no benefit
+            out_path = path;
+            const auto map_offset =
+                static_cast<std::streamoff>(std::stoull(offset_str, nullptr, 16));
+            out_offset = map_offset +
+                         static_cast<std::streamoff>(addr_val - range_start);
+            return true;
+        }
+        return false;
+    }
+#endif
 };
 
 }  // namespace util

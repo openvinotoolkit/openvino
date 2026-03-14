@@ -10,6 +10,7 @@
 #include <cstring>
 #include <filesystem>
 #include <future>
+#include <iostream>
 #include <stdexcept>
 #include <streambuf>
 #include <thread>
@@ -35,7 +36,7 @@
 #    include <unistd.h>
 #endif
 
-#define ENABLE_BD_PROFILING_LOG 1
+#define ENABLE_BD_PROFILING_LOG 0
 
 namespace ov {
 namespace util {
