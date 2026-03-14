@@ -5,6 +5,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cstring>
 #include <filesystem>
@@ -33,6 +34,8 @@
 #    include <sys/stat.h>
 #    include <unistd.h>
 #endif
+
+#define ENABLE_BD_PROFILING_LOG 1
 
 namespace ov {
 namespace util {
@@ -119,13 +122,14 @@ protected:
     std::streamsize xsgetn(char_type* dst, std::streamsize n) override {
         std::streamsize total = 0;
 
-        // Drain any single char previously buffered by underflow()
+        // Drain any chars previously buffered by underflow()
         if (gptr() < egptr()) {
             const std::streamsize avail = static_cast<std::streamsize>(egptr() - gptr());
             const std::streamsize from_buf = std::min(n, avail);
             std::memcpy(dst, gptr(), static_cast<size_t>(from_buf));
             gbump(static_cast<int>(from_buf));
-            m_file_offset += from_buf;
+            // NOTE: m_file_offset was already advanced past egptr() in underflow().
+            // Do NOT advance it again here.
             total += from_buf;
             dst += from_buf;
             n -= from_buf;
@@ -153,17 +157,26 @@ protected:
     }
 
     // -----------------------------------------------------------------------
-    // underflow: called for single-char peek / non-bulk reads
+    // underflow: called for single-char peek / non-bulk reads (e.g. std::getline)
     // -----------------------------------------------------------------------
     int_type underflow() override {
         if (m_file_offset >= m_file_size) {
             return traits_type::eof();
         }
-        if (!single_read(&m_char_buf, 1, static_cast<size_t>(m_file_offset))) {
+        // Read a batch of up to UNDERFLOW_BUF bytes so that character-by-character
+        // consumers (std::getline, operator>>) don't issue one pread per char.
+        const size_t to_read = static_cast<size_t>(
+            std::min(static_cast<std::streamoff>(UNDERFLOW_BUF),
+                     m_file_size - m_file_offset));
+        if (!single_read(m_underflow_buf.data(), to_read, static_cast<size_t>(m_file_offset))) {
             return traits_type::eof();
         }
-        setg(&m_char_buf, &m_char_buf, &m_char_buf + 1);
-        return traits_type::to_int_type(m_char_buf);
+        // Advance m_file_offset past the bytes we just read into the get area.
+        // m_file_offset now points to the byte after egptr(), consistent with
+        // the seekoff(0, cur) formula: logical_pos = m_file_offset - (egptr - gptr).
+        m_file_offset += static_cast<std::streamoff>(to_read);
+        setg(m_underflow_buf.data(), m_underflow_buf.data(), m_underflow_buf.data() + to_read);
+        return traits_type::to_int_type(m_underflow_buf[0]);
     }
 
     // -----------------------------------------------------------------------
@@ -264,7 +277,7 @@ private:
         std::vector<std::future<void>> futures;
         futures.reserve(num_threads);
 
-#ifdef ENABLE_OPENVINO_DEBUG
+#ifdef ENABLE_BD_PROFILING_LOG
         const auto t0 = std::chrono::steady_clock::now();
 #endif
 
@@ -344,21 +357,14 @@ private:
         for (auto& f : futures) {
             f.get();
         }
-#ifdef ENABLE_OPENVINO_DEBUG
+#ifdef ENABLE_BD_PROFILING_LOG
         {
             const auto t1 = std::chrono::steady_clock::now();
             const double elapsed_s = std::chrono::duration<double>(t1 - t0).count();
             const double bw_gbs =
                 (elapsed_s > 0.0) ? (static_cast<double>(size) / elapsed_s / (1024.0 * 1024.0 * 1024.0)) : 0.0;
-            OPENVINO_DEBUG("[ParallelReadStreamBuf] parallel_read: ",
-                           size / 1024.0 / 1024.0,
-                           " MB, ",
-                           num_chunks,
-                           " chunks, ",
-                           elapsed_s * 1e3,
-                           " ms, ",
-                           bw_gbs,
-                           " GB/s");
+            std::cout << "[ParallelReadStreamBuf] parallel_read: " << size / 1024.0 / 1024.0 << " MB, " << num_threads
+                      << " threads, " << elapsed_s * 1e3 << " ms, " << bw_gbs << " GB/s" << std::endl;
         }
 #endif
         return success.load();
@@ -367,6 +373,8 @@ private:
     // -----------------------------------------------------------------------
     // Members
     // -----------------------------------------------------------------------
+    static constexpr size_t UNDERFLOW_BUF = 8192;  // batch size for char-by-char reads
+
     std::filesystem::path m_path;
 #ifdef _WIN32
     HANDLE m_handle = INVALID_HANDLE_VALUE;
@@ -377,7 +385,7 @@ private:
     std::streamoff m_file_offset;
     std::streamoff m_file_size = 0;
     size_t m_threshold;
-    char_type m_char_buf = 0;  // single-char buffer for underflow()
+    std::array<char_type, UNDERFLOW_BUF> m_underflow_buf{};  // buffer for underflow()
 };
 
 }  // namespace util

@@ -159,15 +159,8 @@ private:
             const double elapsed_s = std::chrono::duration<double>(t1 - t0).count();
             const double bw_gbs =
                 (elapsed_s > 0.0) ? (static_cast<double>(size) / elapsed_s / (1024.0 * 1024.0 * 1024.0)) : 0.0;
-            OPENVINO_DEBUG("[ParallelMemStreamBuf] parallel_copy: ",
-                           size / 1024.0 / 1024.0,
-                           " MB, ",
-                           num_chunks,
-                           " chunks, ",
-                           elapsed_s * 1e3,
-                           " ms, ",
-                           bw_gbs,
-                           " GB/s");
+            OPENVINO_DEBUG("[ParallelMemStreamBuf] parallel_copy: ", size / 1024.0 / 1024.0, " MB, ", num_chunks,
+                           " chunks, ", elapsed_s * 1e3, " ms, ", bw_gbs, " GB/s");
         }
 #endif
 
