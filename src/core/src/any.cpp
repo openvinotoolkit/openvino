@@ -74,14 +74,16 @@ bool Any::Base::visit_attributes(AttributeVisitor& visitor) const {
     return const_cast<Any::Base*>(this)->visit_attributes(visitor);
 }
 
-void Any::Base::read_to(Base& other) const {
+void Any::Base::read_from(const Base& other) {
+    if (is<std::string>()) {
+        OPENVINO_THROW("Any::Base::read_from does not handle std::string type. ",
+                       "std::string must be processed by the derived specialization.");
+    }
+
     std::stringstream strm;
-    print(strm);
-    if (other.is<std::string>()) {
-        *static_cast<std::string*>(other.addressof()) = strm.str();
-    } else {
-        if (!strm.str().empty())
-            other.read(strm);
+    other.print(strm);
+    if (strm.peek() != std::char_traits<char>::eof()) {
+        read(strm);
     }
 }
 
