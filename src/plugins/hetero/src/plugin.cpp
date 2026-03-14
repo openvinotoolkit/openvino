@@ -248,23 +248,42 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
                         total_ops_size += op->get_element_type().size() * shape_size(op->get_shape());
                     }
                 }
+                size_t discrete_device_count = 0;
                 for (auto& device_mem_info : available_device_mem_map) {
-                    if (device_mem_info.first.find("CPU") != 0)
+                    if (device_mem_info.first.find("CPU") != 0) {
                         available_discrete_device_memory += device_mem_info.second;
+                        discrete_device_count++;
+                    }
                 }
                 // Estimate the memory size required for the model is 1.2 * total_ops_size
-                // 1. Check if current device that can take the entire model
+                // 1. Check if current device can take the entire model
+                //    BUT when multiple discrete devices are present, we must split
+                //    proportionally even if one device could fit the whole model.
+                //    Otherwise ratio=1.0 causes the first device to claim all ops
+                //    and the second device gets nothing.
                 // 2. Check if all left devices can take the entire model
-                if (available_device_mem_map[device_name] >= 1.2 * total_ops_size || device_name.find("CPU") == 0) {
+                if (device_name.find("CPU") == 0) {
+                    device_config[ov::internal::query_model_ratio.name()] = 1.0f;
+                } else if (discrete_device_count <= 1 &&
+                           available_device_mem_map[device_name] >= 1.2 * total_ops_size) {
                     device_config[ov::internal::query_model_ratio.name()] = 1.0f;
                 } else if (available_discrete_device_memory >= 1.2 * total_ops_size ||
                            available_device_mem_map.count("CPU")) {
-                    float model_ratio =
-                        total_ops_size > 0
-                            ? static_cast<float>(available_device_mem_map[device_name] * 1.0 / (1.2 * total_ops_size))
+                    float model_ratio;
+                    if (discrete_device_count > 1) {
+                        // Multiple discrete devices: split proportionally by memory share
+                        model_ratio = available_discrete_device_memory > 0
+                            ? static_cast<float>(available_device_mem_map[device_name] * 1.0 /
+                                                 available_discrete_device_memory)
                             : 1.0f;
-                    if (total_ops_size < available_device_mem_map[device_name]) {
-                        model_ratio = 1.0f;
+                    } else {
+                        model_ratio =
+                            total_ops_size > 0
+                                ? static_cast<float>(available_device_mem_map[device_name] * 1.0 / (1.2 * total_ops_size))
+                                : 1.0f;
+                        if (total_ops_size < available_device_mem_map[device_name]) {
+                            model_ratio = 1.0f;
+                        }
                     }
                     device_config[ov::internal::query_model_ratio.name()] = model_ratio;
                 } else {
