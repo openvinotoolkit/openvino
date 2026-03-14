@@ -116,6 +116,10 @@ private:
             if (!m_data) {
                 throw std::runtime_error("Can not create map view for " + util::path_to_string(path));
             }
+            // Hint the OS to start async prefetch of all mapped pages so
+            // they are (mostly) resident by the time constants are accessed.
+            WIN32_MEMORY_RANGE_ENTRY prefetch_range{m_data, m_size};
+            PrefetchVirtualMemory(GetCurrentProcess(), 1, &prefetch_range, 0);
         } else {
             m_data = nullptr;
         }

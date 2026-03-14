@@ -18,6 +18,8 @@
 #        define WIN32_LEAN_AND_MEAN
 #    endif
 #    include <windows.h>
+#else
+#    include <sys/mman.h>
 #endif
 
 #include "openvino/core/parallel.hpp"
@@ -141,6 +143,10 @@ private:
         // Prefetch: trigger page faults up-front to maximise NVMe queue depth.
         WIN32_MEMORY_RANGE_ENTRY prefetch_range{const_cast<char*>(src), size};
         PrefetchVirtualMemory(GetCurrentProcess(), 1, &prefetch_range, 0);
+#else
+        // Ask the kernel to start async I/O for these mmap pages so they are
+        // resident before the parallel memcpy threads access them.
+        madvise(const_cast<char*>(src), size, MADV_WILLNEED);
 #endif
 
 #ifdef ENABLE_OPENVINO_DEBUG
