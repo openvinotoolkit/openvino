@@ -229,6 +229,15 @@ bool evaluate_interpolate(const std::shared_ptr<ov::op::v11::Interpolate>& op,
                                           out_shape,
                                           m_attrs);
         break;
+    case element::f64:
+        ov::reference::interpolate<double>(reinterpret_cast<double*>(padded_data_ptr),
+                                           padded_input_shape,
+                                           scales,
+                                           axes,
+                                           outputs[0].data<double>(),
+                                           out_shape,
+                                           m_attrs);
+        break;
     case element::bf16:
         ov::reference::interpolate<bfloat16>(reinterpret_cast<bfloat16*>(padded_data_ptr),
                                              padded_input_shape,
