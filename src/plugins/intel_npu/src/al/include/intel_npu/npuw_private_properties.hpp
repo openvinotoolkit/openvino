@@ -219,6 +219,15 @@ static constexpr ov::Property<std::string> par_matmul_merge_dims{"NPUW_PMM"};
 /**
  * @brief
  * Type: bool.
+ * whether to preserve constants for gated version of matmul
+ * on some version of compiler - might produce incorrect results when enabled
+ * Default value: YES
+ */
+static constexpr ov::Property<bool> matmul_gate_preserve_constants{"NPUW_MM_GATED"};
+
+/**
+ * @brief
+ * Type: bool.
  * Add Slice before the last MatMul reducing output's dimention.
  * Default value: false.
  */
@@ -305,6 +314,14 @@ static constexpr ov::Property<bool> attn_dyn{"NPUW_ATTN_DYN"};
  * Default value: false
  */
 static constexpr ov::Property<bool> attn_no_copy{"NPUW_ATTN_NO_COPY"};
+
+/**
+ * @brief
+ * Type: boolean.
+ * Use flash attention implementation from the compiler for the attention block, if attn set to HFA
+ * Default value: true
+ */
+static constexpr ov::Property<bool> attn_hfa_fused{"NPUW_ATTN_HFA_FUSED"};
 
 /**
  * @brief
@@ -748,6 +765,14 @@ namespace whisper {
  * Default value: false.
  */
 static constexpr ov::Property<bool> enabled{"NPUW_WHISPER"};
+
+/**
+ * @brief
+ * Type: uint64_t.
+ * Provide eos_token for Whisper model (WA).
+ * Default value: 50257.
+ */
+static constexpr ov::Property<uint64_t> whisper_eos_token{"NPUW_WHISPER_EOS_TOKEN"};
 }  // namespace whisper
 
 namespace eagle {
