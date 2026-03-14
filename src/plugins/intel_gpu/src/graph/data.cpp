@@ -6,9 +6,11 @@
 #include "intel_gpu/runtime/memory.hpp"
 
 #include "json_object.h"
-#include <string>
-#include <memory>
 #include <algorithm>
+#include <cstring>
+#include <memory>
+#include <string>
+#include "openvino/core/parallel.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(data)
@@ -22,7 +24,22 @@ memory::ptr attach_or_copy_data(network& network, memory::ptr mem) {
     memory::ptr result = engine.allocate_memory(mem->get_layout(), false);
     mem_lock<char, mem_lock_type::read> src(mem, network.get_stream());
     mem_lock<char, mem_lock_type::write> dst(result, network.get_stream());
-    std::copy(src.begin(), src.end(), dst.begin());
+    const size_t data_size = src.size();
+    constexpr size_t PARALLEL_THRESHOLD = 4UL * 1024 * 1024;  // 4 MB
+    if (data_size >= PARALLEL_THRESHOLD) {
+        char* src_ptr = src.data();
+        char* dst_ptr = dst.data();
+        constexpr size_t MIN_CHUNK = 2UL * 1024 * 1024;
+        const size_t num_chunks = std::max(size_t{1}, data_size / MIN_CHUNK);
+        const size_t chunk_size = (data_size + num_chunks - 1) / num_chunks;
+        ov::parallel_for(num_chunks, [src_ptr, dst_ptr, chunk_size, data_size, num_chunks](size_t i) {
+            const size_t offset = i * chunk_size;
+            const size_t copy_size = (i + 1 == num_chunks) ? (data_size - offset) : chunk_size;
+            std::memcpy(dst_ptr + offset, src_ptr + offset, copy_size);
+        });
+    } else {
+        std::copy(src.begin(), src.end(), dst.begin());
+    }
     return result;
 }
 }  // namespace
