@@ -14,6 +14,7 @@
 #include "metadata.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "openvino/runtime/weightless_properties_utils.hpp"
 #include "properties.hpp"
 
 namespace intel_npu {

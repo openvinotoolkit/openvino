@@ -1371,20 +1371,6 @@ struct ENABLE_WEIGHTLESS final : OptionBase<ENABLE_WEIGHTLESS, bool> {
     }
 };
 
-struct WEIGHTLESS_BLOB final : OptionBase<WEIGHTLESS_BLOB, bool> {
-    static std::string_view key() {
-        return ov::intel_npu::weightless_blob.name();
-    }
-
-    static bool defaultValue() {
-        return false;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
 struct SEPARATE_WEIGHTS_VERSION final : OptionBase<SEPARATE_WEIGHTS_VERSION, ov::intel_npu::WSVersion> {
     static std::string_view key() {
         return ov::intel_npu::separate_weights_version.name();
