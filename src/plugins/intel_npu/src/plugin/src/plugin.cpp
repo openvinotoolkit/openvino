@@ -352,6 +352,8 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(NPUW_KOKORO);
     REGISTER_OPTION(NPUW_KOKORO_BLOCK_SIZE);
     REGISTER_OPTION(NPUW_KOKORO_OVERLAP_SIZE);
+    REGISTER_OPTION(NPUW_MOE_TOKEN_CHUNK_SIZE);
+    REGISTER_OPTION(NPUW_MOE_POOL_SIZE);
 
     config.enableRuntimeOptions();
 
