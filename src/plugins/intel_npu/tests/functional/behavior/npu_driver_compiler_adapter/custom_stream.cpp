@@ -34,7 +34,8 @@ std::function<bool(const std::string&, const std::optional<std::string>&)> makeC
     const bool optionSupported,
     const bool noWeightsCopySupported,
     const bool allWeightsCopySupported) {
-    return [&](const std::string& optionName, const std::optional<std::string>& value) {
+    return [optionSupported, noWeightsCopySupported, allWeightsCopySupported](const std::string& optionName,
+                                                                              const std::optional<std::string>& value) {
         if (optionName == ov::intel_npu::model_serializer_version.name() && !optionSupported) {
             return false;
         }
