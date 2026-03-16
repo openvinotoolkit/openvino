@@ -8,4 +8,5 @@ auto-gptq==0.7.1; platform_system == "Linux" and platform_machine == "x86_64" an
 peft==0.17.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
 
 # optimum (required by transformers' GptqHfQuantizer for GPTQ model loading)
-optimum; python_version < "3.12"
+# Pinned to 1.24.0 for compatibility with auto-gptq 0.7.1
+optimum==1.24.0; python_version < "3.12"
