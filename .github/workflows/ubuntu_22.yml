@@ -624,7 +624,7 @@ jobs:
     with:
       device: 'dgpu'
       test_type: ${{ matrix.TEST_TYPE }}
-      runner: "[ 'self-hosted', 'dgpu']"
+      runner: "[ 'self-hosted', 'dgpu' ]"
       runner-group: 'Intel-GPU'
       image: ubuntu:22.04
       options: "--group-add 44 --group-add 993 --device /dev/dri"
