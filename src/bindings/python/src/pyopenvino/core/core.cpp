@@ -715,10 +715,9 @@ void regclass_Core(py::module m) {
         py::arg("custom_op"),
         R"(
             Registers custom Op to a Core object.
-            Note: If pathlib.Path object is provided, it will be treated as a path to extension library.
 
             :param custom_op: type of custom Op
-            :type custom_op: Union[type[openvino.Op], pathlib.Path]
+            :type custom_op: type[openvino.Op]
         )");
 
     cls.def("get_available_devices",
