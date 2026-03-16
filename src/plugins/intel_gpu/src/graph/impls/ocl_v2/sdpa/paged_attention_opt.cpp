@@ -917,7 +917,6 @@ protected:
             const size_t tensor_id = input_ids.at(i);
             jit.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
         }
-        const auto desc = params.typed_desc<paged_attention>();
 
         constexpr size_t key_cache_id = PagedAttentionInputIdx::KEY_CACHE;
         constexpr size_t value_cache_id = PagedAttentionInputIdx::VALUE_CACHE;
