@@ -31,12 +31,10 @@
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 namespace {
-const std::filesystem::path valid_xml_path(const std::filesystem::path& path) {
+const void validate_xml_path(const std::filesystem::path& path) {
     OPENVINO_ASSERT(path.extension() == ".xml",
-                    "Path for xml file doesn't contains file name with 'xml' extension: \"",
-                    path,
-                    "\"");
-    return path;
+                    "Path for xml file doesn't contains file name with 'xml' extension: ",
+                    path);
 }
 
 std::filesystem::path provide_bin_path(const std::filesystem::path& xml_path, const std::filesystem::path& bin_path) {
@@ -46,6 +44,17 @@ std::filesystem::path provide_bin_path(const std::filesystem::path& xml_path, co
         return path;
     } else {
         return bin_path;
+    }
+}
+
+void convert_py_rt_info(const ov::Model& model) {
+    // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
+    //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
+    // ['precise_0'] = '' into => rt_info['precise_0'] = DisableFP16Compression{}
+    for (auto& node : model.get_ops()) {
+        if (fp16_compression_is_disabled(node)) {
+            disable_fp16_compression(node);
+        }
     }
 }
 
@@ -99,25 +108,19 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(Serialize);
 
     model->validate_nodes_and_infer_types();
+    convert_py_rt_info(*model);
 
-    // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
-    //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
-    // ['precise_0'] = '' into => rt_info['precise_0'] = DisableFP16Compression{}
-    for (auto& node : model->get_ops())
-        if (fp16_compression_is_disabled(node))
-            disable_fp16_compression(node);
-
-    if (m_xmlFile && m_binFile) {
-        serialize_func(*m_xmlFile, *m_binFile, model, m_version);
+    if (m_xml_file && m_bin_file) {
+        serialize_func(*m_xml_file, *m_bin_file, model, m_version);
     } else {
-        ov::util::create_directory_recursive(m_xmlPath.parent_path());
+        ov::util::create_directory_recursive(m_xml_path.parent_path());
 
-        std::ofstream bin_file(m_binPath, std::ios::binary);
-        OPENVINO_ASSERT(bin_file, "Can't open bin file: \"", m_binPath, "\"");
+        std::ofstream bin_file(m_bin_path, std::ios::binary);
+        OPENVINO_ASSERT(bin_file, "Can't open bin file: ", m_bin_path);
 
         // create xml file
-        std::ofstream xml_file(m_xmlPath);
-        OPENVINO_ASSERT(xml_file, "Can't open xml file: \"", m_xmlPath, "\"");
+        std::ofstream xml_file(m_xml_path);
+        OPENVINO_ASSERT(xml_file, "Can't open xml file: ", m_xml_path);
 
         try {
             serialize_func(xml_file, bin_file, model, m_version);
@@ -127,8 +130,8 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             // hence we need to delete it here in case of failure
             xml_file.close();
             bin_file.close();
-            std::ignore = std::filesystem::remove(m_xmlPath);
-            std::ignore = std::filesystem::remove(m_binPath);
+            std::ignore = std::filesystem::remove(m_xml_path);
+            std::ignore = std::filesystem::remove(m_bin_path);
             throw;
         }
     }
@@ -137,19 +140,23 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
-pass::Serialize::Serialize(std::ostream& xmlFile, std::ostream& binFile, pass::Serialize::Version version)
-    : m_xmlFile{&xmlFile},
-      m_binFile{&binFile},
-      m_xmlPath{},
-      m_binPath{},
+pass::Serialize::Serialize(std::ostream& xml_file, std::ostream& bin_file, pass::Serialize::Version version)
+    : m_xml_file{&xml_file},
+      m_bin_file{&bin_file},
+      m_xml_path{},
+      m_bin_path{},
       m_version{version} {}
 
-pass::Serialize::Serialize(const std::filesystem::path& xmlPath, const std::filesystem::path& binPath, Version version)
-    : m_xmlFile{nullptr},
-      m_binFile{nullptr},
-      m_xmlPath{valid_xml_path(xmlPath)},
-      m_binPath{provide_bin_path(xmlPath, binPath)},
-      m_version{version} {}
+pass::Serialize::Serialize(const std::filesystem::path& xml_path,
+                           const std::filesystem::path& bin_path,
+                           Version version)
+    : m_xml_file{nullptr},
+      m_bin_file{nullptr},
+      m_xml_path{xml_path},
+      m_bin_path{provide_bin_path(xml_path, bin_path)},
+      m_version{version} {
+    validate_xml_path(m_xml_path);
+}
 
 pass::StreamSerialize::StreamSerialize(std::ostream& stream,
                                        const std::function<void(std::ostream&)>& custom_data_serializer,
