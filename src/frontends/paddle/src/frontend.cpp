@@ -382,8 +382,24 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     // Validating first path, it must contain a model
     if (variants[0].is<std::string>()) {
         std::string suffix = ".pdmodel";
+        std::string json_suffix = ".json";
         std::string model_path = variants[0].as<std::string>();
         FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: \"", model_path, '"');
+        if (ov::util::ends_with(model_path, json_suffix)) {
+            std::ifstream model_str(model_path, std::ios::binary);
+            if (!model_str.is_open())
+                return false;
+
+            std::string header(2048, '\0');
+            model_str.read(&header[0], 2048);
+
+            if (header.find("\"program\":") != std::string::npos) {
+                return true;
+            }
+            return false;
+        }
+
+        // For pdmodel or directory-based models
         if (!ov::util::ends_with(model_path, suffix)) {
             model_path += paddle::get_path_sep<char>() + "__model__";
         }
@@ -395,11 +411,28 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (variants[0].is<std::wstring>()) {
         std::wstring suffix = L".pdmodel";
+        std::wstring json_suffix = L".json";
         std::wstring model_path = variants[0].as<std::wstring>();
         FRONT_END_GENERAL_CHECK(util::file_exists(model_path),
                                 "Could not open the file: \"",
                                 util::path_to_string(model_path),
                                 '"');
+
+        if (ov::util::ends_with(model_path, json_suffix)) {
+            std::ifstream model_str(model_path.c_str(), std::ios::binary);
+            if (!model_str.is_open())
+                return false;
+
+            std::string header(2048, '\0');
+            model_str.read(&header[0], 2048);
+
+            if (header.find("\"program\":") != std::string::npos) {
+                return true;
+            }
+            return false;
+        }
+
+        // For pdmodel or directory-based models
         if (!ov::util::ends_with(model_path, suffix)) {
             model_path += paddle::get_path_sep<wchar_t>() + L"__model__";
         }
