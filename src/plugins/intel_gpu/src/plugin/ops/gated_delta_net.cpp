@@ -25,7 +25,7 @@ static void CreateGatedDeltaNetOp(ProgramBuilder& p, const std::shared_ptr<ov::o
     auto inputs = p.GetInputInfo(op);
 
     const std::string layerName = layer_type_name_ID(op);
-    cldnn::gated_delta_net gated_delta_net_prim(layerName, inputs);
+    cldnn::gated_delta_net gated_delta_net_prim(layerName, inputs, op->get_config());
 
     const auto query_ps = op->get_input_partial_shape(0);
     const auto key_ps = op->get_input_partial_shape(1);

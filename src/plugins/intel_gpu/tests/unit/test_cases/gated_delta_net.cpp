@@ -2,25 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "random_generator.hpp"
-#include "openvino/util/file_util.hpp"
-
-#include <intel_gpu/runtime/debug_configuration.hpp>
-#include <intel_gpu/primitives/input_layout.hpp>
-
-#include <intel_gpu/primitives/gated_delta_net.hpp>
-#include "gated_delta_net_inst.h"
-
-#include <cstddef>
-#include <vector>
 #include <cmath>
+#include <cstddef>
+#include <intel_gpu/primitives/gated_delta_net.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/runtime/debug_configuration.hpp>
 #include <numeric>
-#include <iostream>
+#include <vector>
+
+#include "gated_delta_net_inst.h"
+#include "openvino/util/file_util.hpp"
+#include "random_generator.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
-namespace  {
+namespace {
 struct gated_delta_net_test_params {
     int32_t batch;
     int32_t t;
@@ -30,7 +27,12 @@ struct gated_delta_net_test_params {
     ov::element::Type precision;
 
     gated_delta_net_test_params(int batch, int t, int num_heads, int value_num_heads, int head_size, ov::element::Type precision)
-        : batch(batch), t(t), num_heads(num_heads), value_num_heads(value_num_heads), head_size(head_size), precision(precision) {}
+        : batch(batch),
+          t(t),
+          num_heads(num_heads),
+          value_num_heads(value_num_heads),
+          head_size(head_size),
+          precision(precision) {}
 };
 
 struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_net_test_params> {
@@ -50,12 +52,12 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         H = params.value_num_heads;
         K = params.head_size;
         V = params.head_size;
-        const std::string seed = "gated_delta_net_" + std::to_string(B) + "_" + std::to_string(T) + "_" +
-                                 std::to_string(H) + "_" + std::to_string(K) + "_" + params.precision.to_string();
+        const std::string seed = "gated_delta_net_" + std::to_string(B) + "_" + std::to_string(T) + "_" + std::to_string(H) + "_" + std::to_string(K) + "_" +
+                                 params.precision.to_string();
         rg.set_seed(seed);
     }
 
-    template<typename T>
+    template <typename T>
     void load_input(cldnn::memory::ptr mem, size_t idx, std::vector<T>& input_data) {
         set_values(mem, input_data);
     }
@@ -68,13 +70,13 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         return result;
     }
 
-    void scale(float *a, float scale, size_t n) {
+    void scale(float* a, float scale, size_t n) {
         for (size_t i = 0; i < n; i++) {
             a[i] = a[i] * scale;
         }
     }
 
-    void add(float *a, float* b, size_t n) {
+    void add(float* a, float* b, size_t n) {
         for (size_t i = 0; i < n; i++) {
             a[i] += b[i];
         }
@@ -132,7 +134,7 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
                             b_k[j] = k_ptr[i * this->K * this->HK + j];
                             b_q[j] = q_ptr[i * this->K * this->HK + j];
                         }
-                        
+
                         l2norm(b_k, this->K);
                         l2norm(b_q, this->K);
 
@@ -148,7 +150,7 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
                         scale(b_k, b_v, this->K);
                         // h = h0 + update
                         add(init_state, b_k, this->K);
-                        float b_output  = dot_product(init_state, b_q, this->K);
+                        float b_output = dot_product(init_state, b_q, this->K);
                         // B, T, H, V
                         output[i_b * this->T * this->H * this->V + i * this->H * this->V + i_h * this->V + i_v] = b_output;
                     }
@@ -161,13 +163,8 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         }
     }
 
-    topology create_topology(layout q_layout,
-                             layout k_layout,
-                             layout v_layout,
-                             layout g_layout,
-                             layout beta_layout,
-                             layout state_layout,
-                             data_types output_dt) {
+    topology
+    create_topology(layout q_layout, layout k_layout, layout v_layout, layout g_layout, layout beta_layout, layout state_layout, data_types output_dt) {
         topology topo;
         topo.add(input_layout("q", q_layout));
         topo.add(input_layout("k", k_layout));
@@ -175,23 +172,27 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         topo.add(input_layout("state", state_layout));
         topo.add(input_layout("g", g_layout));
         topo.add(input_layout("beta", beta_layout));
-
-        auto linear_attn_prim =
-            gated_delta_net("gated_delta_net", {input_info("q"), input_info("k"), input_info("v"), input_info("state"), input_info("g"), input_info("beta")});
+        ov::op::GatedDeltaNet::Config config;
+        config.fuse_qk_l2norm = true;
+        config.q_l2_norm_eps = 1e-6f;
+        config.k_l2_norm_eps = 1e-6f;
+        auto linear_attn_prim = gated_delta_net("gated_delta_net",
+                                                {input_info("q"), input_info("k"), input_info("v"), input_info("state"), input_info("g"), input_info("beta")},
+                                                config);
         topo.add(linear_attn_prim);
         topo.add(reorder("output", input_info("gated_delta_net", 0), format::bfyx, output_dt));
         // topo.add(reorder("states", input_info("gated_delta_net", 1), format::bfyx, data_types::f16));
         return topo;
     }
 
-    std::tuple<cldnn::memory::ptr, cldnn::network::ptr> run_network(topology &topo,
-            cldnn::memory::ptr q_mem,
-            cldnn::memory::ptr k_mem,
-            cldnn::memory::ptr v_mem,
-            cldnn::memory::ptr state_mem,
-            cldnn::memory::ptr g_mem,
-            cldnn::memory::ptr beta_mem,
-            const bool is_caching_test) {
+    std::tuple<cldnn::memory::ptr, cldnn::network::ptr> run_network(topology& topo,
+                                                                    cldnn::memory::ptr q_mem,
+                                                                    cldnn::memory::ptr k_mem,
+                                                                    cldnn::memory::ptr v_mem,
+                                                                    cldnn::memory::ptr state_mem,
+                                                                    cldnn::memory::ptr g_mem,
+                                                                    cldnn::memory::ptr beta_mem,
+                                                                    const bool is_caching_test) {
         auto& engine = get_test_engine();
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -212,10 +213,7 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
     }
 
     template <typename T>
-    void execute_t(gated_delta_net_test_params& p,
-                   data_types data_type,
-                   float tolerance,
-                   const bool is_caching_test = false) {
+    void execute_t(gated_delta_net_test_params& p, data_types data_type, float tolerance, const bool is_caching_test = false) {
         const auto batch = p.batch;
         const auto t = p.t;
         const auto qk_num_heads = p.num_heads;
@@ -263,11 +261,9 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         load_input(g_mem, 4, input_g);
         load_input(beta_mem, 5, input_beta);
         // execute networks
-        auto [mem_opt_ptr, net_opt_ptr] = run_network(opt_topo,
-                                        q_mem, k_mem, v_mem, state_mem, g_mem, beta_mem,
-                                        is_caching_test);
-        std::vector<T> ref_output(batch*t*v_num_heads*head_size);
-        run_reference<T>(input_q, input_k, input_v, input_g, input_beta, 1/sqrt(this->K), input_state, ref_output);
+        auto [mem_opt_ptr, net_opt_ptr] = run_network(opt_topo, q_mem, k_mem, v_mem, state_mem, g_mem, beta_mem, is_caching_test);
+        std::vector<T> ref_output(batch * t * v_num_heads * head_size);
+        run_reference<T>(input_q, input_k, input_v, input_g, input_beta, 1 / sqrt(this->K), input_state, ref_output);
         // validate results
         if (mem_opt_ptr) {
             cldnn::mem_lock<T, mem_lock_type::read> opt_data(mem_opt_ptr, get_test_stream());
@@ -303,12 +299,10 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         FAIL() << "Unsupported precision for linear attention test";
     }
 
-    static std::string
-    PrintToStringParamName(const testing::TestParamInfo<gated_delta_net_test_params>& info) {
-         std::string result = "gated_delta_net_gpu_test_" + info.param.precision.to_string() + "_" + std::to_string(info.param.batch) + "_" +
-             std::to_string(info.param.t) + "_" + std::to_string(info.param.num_heads) + "_" +
-             std::to_string(info.param.value_num_heads) + "_" +
-             std::to_string(info.param.head_size);
+    static std::string PrintToStringParamName(const testing::TestParamInfo<gated_delta_net_test_params>& info) {
+        std::string result = "gated_delta_net_gpu_test_" + info.param.precision.to_string() + "_" + std::to_string(info.param.batch) + "_" +
+                             std::to_string(info.param.t) + "_" + std::to_string(info.param.num_heads) + "_" + std::to_string(info.param.value_num_heads) +
+                             "_" + std::to_string(info.param.head_size);
 
         return result;
     }
@@ -330,31 +324,29 @@ TEST_P(gated_delta_net_gpu_test, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_gated_delta_net_gpu_test,
-    gated_delta_net_gpu_test,
-    ::testing::Values(
-        // B, T, H_QK, H, K, precision
-        gated_delta_net_test_params{1, 1, 2, 2, 16, ov::element::f16},
-        gated_delta_net_test_params{1, 8, 2, 2, 16, ov::element::f16},
-        gated_delta_net_test_params{2, 8, 2, 2, 16, ov::element::f16},
-        gated_delta_net_test_params{1, 8, 2, 2, 128, ov::element::f16},
-        gated_delta_net_test_params{2, 8, 2, 2, 128, ov::element::f16},
-        gated_delta_net_test_params{1, 8, 2, 4, 16, ov::element::f16},
-        gated_delta_net_test_params{2, 8, 2, 4, 16, ov::element::f16},
-        gated_delta_net_test_params{1, 8, 2, 8, 16, ov::element::f16},
-        gated_delta_net_test_params{1, 8, 4, 8, 16, ov::element::f16},
-        gated_delta_net_test_params{1, 8, 2, 4, 128, ov::element::f16},
-        gated_delta_net_test_params{1, 1, 2, 2, 16, ov::element::f32},
-        gated_delta_net_test_params{1, 8, 2, 2, 16, ov::element::f32},
-        gated_delta_net_test_params{2, 8, 2, 2, 16, ov::element::f32},
-        gated_delta_net_test_params{1, 8, 2, 2, 128, ov::element::f32},
-        gated_delta_net_test_params{2, 8, 2, 2, 128, ov::element::f32},
-        gated_delta_net_test_params{1, 8, 2, 4, 16, ov::element::f32},
-        gated_delta_net_test_params{2, 8, 2, 4, 16, ov::element::f32},
-        gated_delta_net_test_params{1, 8, 2, 8, 16, ov::element::f32},
-        gated_delta_net_test_params{1, 8, 4, 8, 16, ov::element::f32},
-        gated_delta_net_test_params{1, 8, 2, 4, 128, ov::element::f32}
-    ),
-    gated_delta_net_gpu_test::PrintToStringParamName
-);
+                         gated_delta_net_gpu_test,
+                         ::testing::Values(
+                             // B, T, H_QK, H, K, precision
+                             gated_delta_net_test_params{1, 1, 2, 2, 16, ov::element::f16},
+                             gated_delta_net_test_params{1, 8, 2, 2, 16, ov::element::f16},
+                             gated_delta_net_test_params{2, 8, 2, 2, 16, ov::element::f16},
+                             gated_delta_net_test_params{1, 8, 2, 2, 128, ov::element::f16},
+                             gated_delta_net_test_params{2, 8, 2, 2, 128, ov::element::f16},
+                             gated_delta_net_test_params{1, 8, 2, 4, 16, ov::element::f16},
+                             gated_delta_net_test_params{2, 8, 2, 4, 16, ov::element::f16},
+                             gated_delta_net_test_params{1, 8, 2, 8, 16, ov::element::f16},
+                             gated_delta_net_test_params{1, 8, 4, 8, 16, ov::element::f16},
+                             gated_delta_net_test_params{1, 8, 2, 4, 128, ov::element::f16},
+                             gated_delta_net_test_params{1, 1, 2, 2, 16, ov::element::f32},
+                             gated_delta_net_test_params{1, 8, 2, 2, 16, ov::element::f32},
+                             gated_delta_net_test_params{2, 8, 2, 2, 16, ov::element::f32},
+                             gated_delta_net_test_params{1, 8, 2, 2, 128, ov::element::f32},
+                             gated_delta_net_test_params{2, 8, 2, 2, 128, ov::element::f32},
+                             gated_delta_net_test_params{1, 8, 2, 4, 16, ov::element::f32},
+                             gated_delta_net_test_params{2, 8, 2, 4, 16, ov::element::f32},
+                             gated_delta_net_test_params{1, 8, 2, 8, 16, ov::element::f32},
+                             gated_delta_net_test_params{1, 8, 4, 8, 16, ov::element::f32},
+                             gated_delta_net_test_params{1, 8, 2, 4, 128, ov::element::f32}),
+                         gated_delta_net_gpu_test::PrintToStringParamName);
 
-} // namespace
+}  // namespace

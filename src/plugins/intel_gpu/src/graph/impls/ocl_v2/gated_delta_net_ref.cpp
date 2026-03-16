@@ -37,13 +37,12 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-
+        auto desc = params.typed_desc<gated_delta_net>();
         const auto& q_shape = params.get_input_layout(0).get_partial_shape();
         const size_t q_head_nums = q_shape[2].get_length();
         const size_t k_head_dims = q_shape[3].get_length();
         const auto& v_shape = params.get_input_layout(2).get_partial_shape();
         const size_t v_head_nums = v_shape[2].get_length();
-        const auto io_type = params.get_input_layout(0).data_type == data_types::f16 ? 0 : 1;
         const float scale_factor = 1.0f / std::sqrt(static_cast<double>(k_head_dims));
         const auto output_state = params.output_layouts.size() > 1 ? 1 : 0;
 
@@ -51,7 +50,9 @@ protected:
         jit.make("V_HEAD_NUM", v_head_nums);
         jit.make("K_HEAD_DIM", k_head_dims);
         jit.make("SUBGROUP_SIZE", get_subgroup_size(params.get_device_info().arch));
-        jit.make("IO_TYPE", io_type);
+        jit.make("FUSE_QK_L2NORM", desc->config.fuse_qk_l2norm ? 1 : 0);
+        jit.make("Q_L2_NORM_EPS", desc->config.q_l2_norm_eps);
+        jit.make("K_L2_NORM_EPS", desc->config.k_l2_norm_eps);
         jit.make("SCALE_FACTOR", scale_factor);
         jit.make("OUTPUT_STATE", output_state);
 

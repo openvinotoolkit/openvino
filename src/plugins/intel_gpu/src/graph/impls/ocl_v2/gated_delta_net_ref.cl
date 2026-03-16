@@ -1,20 +1,94 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/sub_group_shuffle.cl"
 #define V_BLOCK_SIZE 4
-#define EPSILON 1e-6f
 
-inline float l2norm_scale(float sum, float extra_scale) {
+inline float FUNC(l2norm_scale)(float sum, float extra_scale, float eps) {
     sum = sub_group_reduce_add(sum);
     sum = sub_group_broadcast(sum, 0);
-    return rsqrt(sum + EPSILON) * extra_scale;
+    return rsqrt(sum + eps) * extra_scale;
 }
 
-inline float sum8(float8 v) {
+inline float FUNC(sum8)(float8 v) {
     return v.s0 + v.s1 + v.s2 + v.s3 + v.s4 + v.s5 + v.s6 + v.s7;
 }
+
+#if (K_HEAD_DIM == 128)
+inline void FUNC(prepare_qk)(__global INPUT0_TYPE* q, __global INPUT1_TYPE* k, int q_offset, int k_offset, int lane_k_base, float8* b_q, float8* b_k) {
+    const int K_CHUNKS = K_HEAD_DIM / (SUBGROUP_SIZE * 8);
+#    if FUSE_QK_L2NORM
+    // normalize k and q (l2norm + q scale)
+    float k_sum = 0.0f;
+#        pragma unroll
+    for (int c = 0; c < K_CHUNKS; c++) {
+        float8 lane_k = (float8)(0.0f);
+#        pragma unroll
+        for (int j = 0; j < 8; j++) {
+            int k_idx = lane_k_base + c * 8 + j;
+            lane_k[j] = convert_float(k[k_offset + k_idx]);
+            k_sum += lane_k[j] * lane_k[j];
+        }
+        b_k[c] = lane_k;
+    }
+    float k_scale = FUNC(l2norm_scale)(k_sum, 1.0f, K_L2_NORM_EPS);
+    for (int c = 0; c < K_CHUNKS; c++)
+        b_k[c] *= (float8)(k_scale);
+
+    float q_sum = 0.0f;
+#        pragma unroll
+    for (int c = 0; c < K_CHUNKS; c++) {
+        float8 lane_q = (float8)(0.0f);
+#        pragma unroll
+        for (int j = 0; j < 8; j++) {
+            int q_idx = lane_k_base + c * 8 + j;
+            lane_q[j] = convert_float(q[q_offset + q_idx]);
+            q_sum += lane_q[j] * lane_q[j];
+        }
+        b_q[c] = lane_q;
+    }
+    float q_scale = FUNC(l2norm_scale)(q_sum, SCALE_FACTOR, Q_L2_NORM_EPS);
+    for (int c = 0; c < K_CHUNKS; c++)
+        b_q[c] *= (float8)(q_scale);
+#    else
+#        pragma unroll
+    for (int c = 0; c < K_CHUNKS; c++) {
+        float8 lane_k = (float8)(0.0f);
+        float8 lane_q = (float8)(0.0f);
+#        pragma unroll
+        for (int j = 0; j < 8; j++) {
+            int idx = lane_k_base + c * 8 + j;
+            lane_k[j] = convert_float(k[k_offset + idx]);
+            lane_q[j] = convert_float(q[q_offset + idx]) * SCALE_FACTOR;
+        }
+        b_k[c] = lane_k;
+        b_q[c] = lane_q;
+    }
+#    endif
+}
+#else
+inline void FUNC(prepare_qk)(__global INPUT0_TYPE* q, __global INPUT1_TYPE* k, int q_offset, int k_offset, float* k_scale, float* q_scale) {
+    *k_scale = 1.0f;
+    *q_scale = SCALE_FACTOR;
+#    if FUSE_QK_L2NORM
+    float k_sum = 0.0f;
+    float q_sum = 0.0f;
+    for (int k_idx = 0; k_idx < K_HEAD_DIM; k_idx++) {
+        float k_val = convert_float(k[k_offset + k_idx]);
+        float q_val = convert_float(q[q_offset + k_idx]);
+        k_sum += k_val * k_val;
+        q_sum += q_val * q_val;
+    }
+    *k_scale = rsqrt(k_sum + K_L2_NORM_EPS);
+    *q_scale = rsqrt(q_sum + Q_L2_NORM_EPS) * SCALE_FACTOR;
+#    endif
+}
+#endif
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(gated_delta_net_ref)
@@ -102,38 +176,7 @@ KERNEL(gated_delta_net_ref)
         float8 b_k[K_CHUNKS];
         float8 b_q[K_CHUNKS];
 
-        // normalize k and q (l2norm + q scale)
-        float k_sum = 0.0f;
-#    pragma unroll
-        for (int c = 0; c < K_CHUNKS; c++) {
-            float8 lane_k = (float8)(0.0f);
-#    pragma unroll
-            for (int j = 0; j < 8; j++) {
-                int k_idx = lane_k_base + c * 8 + j;
-                lane_k[j] = convert_float(k[k_offset + k_idx]);
-                k_sum += lane_k[j] * lane_k[j];
-            }
-            b_k[c] = lane_k;
-        }
-        float k_scale = l2norm_scale(k_sum, 1.0f);
-        for (int c = 0; c < K_CHUNKS; c++)
-            b_k[c] *= (float8)(k_scale);
-
-        float q_sum = 0.0f;
-#    pragma unroll
-        for (int c = 0; c < K_CHUNKS; c++) {
-            float8 lane_q = (float8)(0.0f);
-#    pragma unroll
-            for (int j = 0; j < 8; j++) {
-                int q_idx = lane_k_base + c * 8 + j;
-                lane_q[j] = convert_float(q[q_offset + q_idx]);
-                q_sum += lane_q[j] * lane_q[j];
-            }
-            b_q[c] = lane_q;
-        }
-        float q_scale = l2norm_scale(q_sum, SCALE_FACTOR);
-        for (int c = 0; c < K_CHUNKS; c++)
-            b_q[c] *= (float8)(q_scale);
+        FUNC(prepare_qk)(q, k, q_offset, k_offset, lane_k_base, b_q, b_k);
 
         // V load
         float4 b_v_vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
@@ -156,7 +199,7 @@ KERNEL(gated_delta_net_ref)
             float dot_part_k = 0.0f;
 #    pragma unroll
             for (int c = 0; c < K_CHUNKS; c++)
-                dot_part_k += sum8(h_state[v_idx][c] * b_k[c]);
+                dot_part_k += FUNC(sum8)(fma(h_state[v_idx][c], b_k[c], (float8)(0.0f)));
             float h_k = sub_group_reduce_add(dot_part_k);
 
             float update_val = (b_v_vec[v_idx] - h_k) * b_beta;
@@ -166,7 +209,7 @@ KERNEL(gated_delta_net_ref)
             float dot_part_q = 0.0f;
 #    pragma unroll
             for (int c = 0; c < K_CHUNKS; c++)
-                dot_part_q += sum8(h_state[v_idx][c] * b_q[c]);
+                dot_part_q += FUNC(sum8)(fma(h_state[v_idx][c], b_q[c], (float8)(0.0f)));
             float b_output = sub_group_reduce_add(dot_part_q);
 
             if (lid == 0) {
@@ -184,16 +227,9 @@ KERNEL(gated_delta_net_ref)
             int v_offset = b * V_B_STRIDE + t * V_T_STRIDE + (h + value_offset) * V_len;
             int out_offset = out_bh_base + t * H_len * V_len;
 
-            float k_sum = 0.0f;
-            float q_sum = 0.0f;
-            for (int k_idx = 0; k_idx < K_len; k_idx++) {
-                float k_val = convert_float(k[k_offset + k_idx]);
-                float q_val = convert_float(q[q_offset + k_idx]);
-                k_sum += k_val * k_val;
-                q_sum += q_val * q_val;
-            }
-            float k_scale = rsqrt(k_sum + EPSILON);
-            float q_scale = rsqrt(q_sum + EPSILON) * SCALE_FACTOR;
+            float k_scale = 1.0f;
+            float q_scale = SCALE_FACTOR;
+            FUNC(prepare_qk)(q, k, q_offset, k_offset, &k_scale, &q_scale);
 
             float k_norm[K_HEAD_DIM];
             float q_norm[K_HEAD_DIM];
@@ -218,7 +254,7 @@ KERNEL(gated_delta_net_ref)
                 float h_k = 0.0f;
                 for (int k_idx = 0; k_idx < K_len; k_idx++) {
                     h_state_f[v_idx][k_idx] *= b_g;
-                    h_k += h_state_f[v_idx][k_idx] * k_norm[k_idx];
+                    h_k = fma(h_state_f[v_idx][k_idx], k_norm[k_idx], h_k);
                 }
 
                 float update_val = (b_v_vec[v_idx] - h_k) * b_beta;
@@ -226,7 +262,7 @@ KERNEL(gated_delta_net_ref)
                 float b_output = 0.0f;
                 for (int k_idx = 0; k_idx < K_len; k_idx++) {
                     h_state_f[v_idx][k_idx] += k_norm[k_idx] * update_val;
-                    b_output += h_state_f[v_idx][k_idx] * q_norm[k_idx];
+                    b_output = fma(h_state_f[v_idx][k_idx], q_norm[k_idx], b_output);
                 }
 
                 output[out_offset + curr_iv] = TO_OUTPUT_TYPE(b_output);
@@ -247,11 +283,11 @@ KERNEL(gated_delta_net_ref)
 #    pragma unroll
             for (int j = 0; j < 8; j++) {
                 int row_idx = lid * (K_HEAD_DIM / SUBGROUP_SIZE) + row_chunk * 8 + j;
-#if OUTPUT_STATE
+#    if OUTPUT_STATE
                 output_state[STATE_BASE + row_idx * V_len + curr_iv] = (OUTPUT1_TYPE)(h_state[v_idx][row_chunk][j]);
-#else
+#    else
                 initial_state[STATE_BASE + row_idx * V_len + curr_iv] = (INPUT3_TYPE)(h_state[v_idx][row_chunk][j]);
-#endif
+#    endif
             }
         }
     }
@@ -262,11 +298,11 @@ KERNEL(gated_delta_net_ref)
                 int curr_iv = start_iv + v_idx;
                 if (curr_iv >= V_len)
                     continue;
-#if OUTPUT_STATE
+#    if OUTPUT_STATE
                 output_state[STATE_BASE + k_idx * V_len + curr_iv] = (OUTPUT1_TYPE)(h_state_f[v_idx][k_idx]);
-#else
+#    else
                 initial_state[STATE_BASE + k_idx * V_len + curr_iv] = (INPUT3_TYPE)(h_state_f[v_idx][k_idx]);
-#endif
+#    endif
             }
         }
     }
