@@ -7,7 +7,7 @@ import subprocess
 import platform
 import pytest
 import torch
-from models_hub_common.utils import get_models_list, compare_two_tensors
+from models_hub_common.utils import get_models_list, compare_two_tensors, retry
 
 from torch_utils import TestTorchConvertModel, process_pytest_marks
 
@@ -27,6 +27,7 @@ class TestDetectron2ConvertModel(TestTorchConvertModel):
                               "setuptools<78",  # detectron2 needs pkg_resources, removed in setuptools>=78
                               "git+https://github.com/facebookresearch/detectron2.git@017abbfa5f2c2a2afa045200c2af9ccf2fc6227f"])
 
+    @retry(3, exceptions=(OSError,), delay=10, exponential_backoff=True, backoff_multiplier=2, max_delay=120)
     def load_model(self, model_name, model_link):
         from detectron2 import model_zoo, export
         from detectron2.modeling import build_model, PanopticFPN

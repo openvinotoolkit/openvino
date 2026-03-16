@@ -182,6 +182,8 @@ private:
         ov::intel_npu::npuw::partitioning::dcoff_type.name(),
         ov::intel_npu::npuw::partitioning::dcoff_with_scale.name(),
         ov::intel_npu::npuw::partitioning::funcall_for_all.name(),
+        ov::intel_npu::npuw::partitioning::moe_token_chunk_size.name(),
+        ov::intel_npu::npuw::partitioning::moe_pool_size.name(),
         ov::intel_npu::npuw::funcall_async.name(),
         ov::intel_npu::npuw::unfold_ireqs.name(),
         ov::intel_npu::npuw::fallback_exec.name(),
@@ -211,7 +213,9 @@ private:
         ov::intel_npu::npuw::llm::shared_lm_head_config.name(),
         ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name(),
         ov::intel_npu::npuw::llm::optimize_fp8.name(),
-        ov::intel_npu::npuw::eagle::enabled.name()};
+        ov::intel_npu::npuw::eagle::enabled.name(),
+        ov::intel_npu::npuw::llm::prefill_moe_hint.name(),
+        ov::intel_npu::npuw::llm::generate_moe_hint.name()};
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
                                                                         ov::internal::caching_with_mmap.name(),
