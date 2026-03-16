@@ -54,6 +54,6 @@ ov_gpu_add_backend_target(
 
 ov_build_target_faster(${TARGET_NAME} PCH)
 
-if(OV_GPU_WITH_SYCL)
+if(GPU_RT_TYPE STREQUAL "SYCL")
     add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES)
 endif()

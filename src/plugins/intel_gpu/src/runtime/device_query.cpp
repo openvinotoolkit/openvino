@@ -75,7 +75,7 @@ device_query::device_query(engine_types engine_type,
         break;
     }
 #endif
-#ifdef OV_GPU_WITH_SYCL
+#ifdef OV_GPU_WITH_SYCL_RT
     case runtime_types::sycl: {
         OPENVINO_ASSERT(engine_type == engine_types::sycl);
         sycl::sycl_device_detector sycl_detector;
