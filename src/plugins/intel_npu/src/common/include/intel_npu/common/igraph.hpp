@@ -8,6 +8,7 @@
 #include <mutex>
 #include <vector>
 
+#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/itensor.hpp"
@@ -30,15 +31,14 @@ public:
      */
     virtual std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const;
 
-    virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
-                                                                    const Config& config) const;
+    virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const;
 
     virtual void set_argument_value(uint32_t id, const void* data) const;
     virtual void set_argument_value_with_strides(uint32_t id,
                                                  const void* data,
                                                  const std::vector<size_t>& strides) const;
 
-    virtual void initialize(const Config& config);
+    virtual void initialize(const FilteredConfig& config);
 
     virtual ~IGraph() = default;
 
