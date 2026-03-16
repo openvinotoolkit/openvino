@@ -143,6 +143,7 @@ OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_inverse);
 OP_CONVERTER(translate_istft);
 OP_CONVERTER(translate_is_nonzero);
+OP_CONVERTER(translate_items);
 OP_CONVERTER(translate_kthvalue);
 OP_CONVERTER(translate_layer_norm);
 OP_CONVERTER(translate_len);
@@ -574,6 +575,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::is_grad_enabled", op::return_false_scalar},
         {"aten::istft", op::translate_istft},
         {"aten::is_nonzero", op::translate_is_nonzero},
+        {"aten::items", op::translate_items},
         {"aten::kthvalue", op::translate_kthvalue},
         {"aten::isfinite", op::translate_1to1_match_1_inputs<opset10::IsFinite>},
         {"aten::isinf", op::translate_1to1_match_1_inputs<opset10::IsInf>},
