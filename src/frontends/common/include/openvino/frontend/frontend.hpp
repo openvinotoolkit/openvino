@@ -46,7 +46,7 @@ public:
     /// Same parameters should be used to load model.
     /// \param vars Any number of parameters of any type. What kind of parameters
     /// are accepted is determined by each FrontEnd individually, typically it is
-    /// std::string containing path to the model file. For more information please
+    /// system path to the model file. For more information please
     /// refer to specific FrontEnd documentation.
     /// \return true if model recognized, false - otherwise.
     template <typename... Types>
@@ -61,7 +61,7 @@ public:
     /// defines what arguments it can accept.
     /// \param vars Any number of parameters of any type. What kind of parameters
     /// are accepted is determined by each FrontEnd individually, typically it is
-    /// std::string containing path to the model file. For more information please
+    /// system path to the model file. For more information please
     /// refer to specific FrontEnd documentation.
     /// \return Loaded input model.
     template <typename... Types>
@@ -122,18 +122,22 @@ public:
     /// \{
     void add_extension(const std::string& library_path);
 
-    void add_extension(const std::filesystem::path& library_path) {
-        add_extension(library_path.string());
+    template <class TPath, std::enable_if_t<std::is_constructible_v<std::string, TPath>>* = nullptr>
+    void add_extension(const TPath& library_path) {
+        add_extension(std::string(library_path));
     }
-    /// \}
+
+    void add_extension(const std::filesystem::path& library_path);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
-    /// \brief Registers extension
-    /// \param library_path path to library with ov::Extension
     void add_extension(const std::wstring& library_path);
 
+    template <class TPath, std::enable_if_t<std::is_constructible_v<std::wstring, TPath>>* = nullptr>
+    void add_extension(const TPath& library_path) {
+        add_extension(std::wstring(library_path));
+    }
 #endif
+    /// \}
 
     /// @brief Registers extension
     /// @param extension Extension class which is inherited from ov::BaseOpExtension class
