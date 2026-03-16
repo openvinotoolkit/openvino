@@ -95,8 +95,6 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
     if (allow_qq_bias):
         interesting_input_patterns["qq_bias"] = r'^qq_bias$';
         interesting_input_patterns["qq_bias_begins"] = r'^qq_bias_begins$';
-        interesting_input_patterns["block_update_indices"] = r'^block_update_indices$';
-        interesting_input_patterns["block_update_indices_begins"] = r'^block_update_indices_begins$';
 
     input_counters = {k: 0 for k in interesting_input_patterns}
     output_counters = {k: 0 for k in interesting_output_patterns}
@@ -136,10 +134,6 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
         input_counters.pop("qq_bias")
         assert input_counters["qq_bias_begins"] == 1
         input_counters.pop("qq_bias_begins")
-        assert input_counters["block_update_indices"] == 1
-        input_counters.pop("block_update_indices")
-        assert input_counters["block_update_indices_begins"] == 1
-        input_counters.pop("block_update_indices_begins")
 
     for input_id, count in input_counters.items():
         assert count == resulting_map["PagedAttentionExtension"], \

@@ -159,6 +159,7 @@ public:
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
         auto adaptive_rkv_diversity_block_set_indices_begins =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+        auto token_type_ids = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{});
 
         auto qq_bias = std::make_shared<ov::op::v0::Constant>(ov::element::u8, Shape{0}, std::vector<uint8_t>{0});
         auto qq_bias_begins = std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
@@ -189,6 +190,7 @@ public:
                                           adaptive_rkv_evictable_sizes,
                                           adaptive_rkv_diversity_block_set_indices,
                                           adaptive_rkv_diversity_block_set_indices_begins,
+                                          token_type_ids,
                                           qq_bias,
                                           qq_bias_begins};
 

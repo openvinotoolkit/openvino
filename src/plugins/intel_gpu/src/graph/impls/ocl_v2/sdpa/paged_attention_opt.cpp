@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "../primitive_ocl_base.hpp"
+#include "common_tools.h"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "kv_cache_inst.h"
@@ -23,6 +24,7 @@
 #include "primitive_inst.h"
 #include "sdpa_base.hpp"
 #include "sdpa_gen_opt.hpp"
+
 namespace ov::intel_gpu::ocl {
 namespace {
 
@@ -30,10 +32,11 @@ constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
 constexpr size_t paged_attention_block_size = 16;
 constexpr size_t seq_len_partition_size = 256;
 constexpr size_t subgroup_size = 16;
+constexpr size_t u4_elems_per_byte = 2;
 
 inline bool get_kv_compressed(const RuntimeParams& params) {
     auto key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
-    if (data_type_traits::is_i8_u8(key_cache_layout.data_type)) {
+    if (data_type_traits::is_i8_u8(key_cache_layout.data_type) || data_type_traits::is_i4_u4(key_cache_layout.data_type)) {
         return true;
     } else {
         return false;
@@ -235,6 +238,32 @@ PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_par
     return PagedAttentionStage::UNKNOWN;
 }
 
+JitConstants make_uint4_kv_cache_jit_constants(const kernel_impl_params& params) {
+    ov::intel_gpu::JitConstants jit;
+    const auto desc = params.typed_desc<paged_attention>();
+    const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+    const auto is_key_by_channel = desc->is_key_by_channel;
+    auto& kv_dt = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;
+
+    if (data_type_traits::is_i4_u4(kv_cache_dt)) {
+        // INT4 compression is packing elements along groups in head which has different scalea and zp
+        const auto scales_zp_size = get_element_size(kv_dt) * 4;
+        jit.make("IS_INT4_COMPRESSED", true);
+        jit.make("PACKED_K_HEAD_SIZE", kernel_selector::Align(desc->k_head_size / u4_elems_per_byte, subgroup_size));
+        jit.make("PACKED_ADJUSTED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size / u4_elems_per_byte, subgroup_size)) + scales_zp_size);
+        jit.make("PACKED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size / u4_elems_per_byte, subgroup_size)));
+        if (is_key_by_channel) {
+            jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size / u4_elems_per_byte, subgroup_size)));
+        } else {
+            jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size / u4_elems_per_byte, subgroup_size)) + scales_zp_size);
+        }
+    } else {
+        jit.make("IS_INT4_COMPRESSED", false);
+    }
+
+    return jit;
+}
+
 class PagedAttentionGeneratorBase : public KernelGenerator {
 public:
     explicit PagedAttentionGeneratorBase(std::string_view stage_suffix) : KernelGenerator("paged_attention_opt", stage_suffix) {}
@@ -242,6 +271,7 @@ public:
         auto jit = make_base_jit_constants(params);
         auto desc = params.typed_desc<paged_attention>();
         const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
+        jit.make("U4_ELEMS_PER_BYTE", u4_elems_per_byte);
         jit.make("K_HEAD_SIZE", desc->k_head_size);
         jit.make("V_HEAD_SIZE", desc->v_head_size);
         jit.make("HEADS_NUM", desc->heads_num);
@@ -252,7 +282,8 @@ public:
         jit.make("SUBGROUP_SIZE", subgroup_size);
         jit.make("SLIDING_WINDOW_SIZE", desc->sliding_window);
 
-        bool is_kv_compressed = get_kv_compressed(params);
+        const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+        const bool is_kv_compressed = get_kv_compressed(params);
         jit.make("IS_KV_COMPRESSED", is_kv_compressed);
         jit.make("XE2_QK_MULTIPLICATION", params.get_device_info().arch == gpu_arch::xe2);
         jit.make("SG_SCALE_FACTOR", get_pa_sg_number_scale_factor(params.get_device_info(), desc->k_head_size, SDPAStage::SINGLE_TOKEN, is_kv_compressed));
@@ -261,7 +292,12 @@ public:
         if (is_kv_compressed) {
             auto& kv_dt = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;
             auto scales_zp_size = get_element_size(kv_dt) * 2;  // scale + zp
-            // jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
+            if (data_type_traits::is_i4_u4(kv_cache_dt))
+                scales_zp_size = get_element_size(kv_dt) * 4;
+
+            jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
+            jit.add(make_uint4_kv_cache_jit_constants(params));
+
             if (is_key_by_channel) {
                 jit.make("IS_KEY_BY_CHANNEL", 1);
                 jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
@@ -605,6 +641,11 @@ public:
         if (has_alibi) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::ALIBI});  // alibi
         }
+
+        if (desc->has_sink_input) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
+        }
+
         if (has_qq_bias) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});         // qq_bias
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins
@@ -884,6 +925,8 @@ protected:
         jit.add(make_layout_jit_constants("OUTPUT", params.input_layouts[key_cache_id], in_offsets_map.at(key_cache_id)));
         jit.add(make_layout_jit_constants("OUTPUT" + to_code_string(1), params.input_layouts[value_cache_id], in_offsets_map.at(value_cache_id)));
 
+        const auto desc = params.typed_desc<paged_attention>();
+        const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
         const auto is_key_by_channel = desc->is_key_by_channel;
         OPENVINO_ASSERT(is_key_by_channel == (params.get_program().get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL),
                         "[GPU] Paged Attention key cache quantization mode mismatch: prim.key_cache_by_channel : ",
@@ -892,6 +935,7 @@ protected:
                         params.get_program().get_config().get_key_cache_quant_mode());
 
         // const auto pa_block_size = static_cast<int32_t>(paged_attention::block_size);
+        jit.make("U4_ELEMS_PER_BYTE", u4_elems_per_byte);
         jit.make("K_HEAD_SIZE", desc->k_head_size);
         jit.make("V_HEAD_SIZE", desc->v_head_size);
         jit.make("HEADS_NUM", desc->heads_num);
@@ -906,7 +950,12 @@ protected:
         if (is_kv_compressed) {
             auto data_type = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;  // key tensor data size
             auto scales_zp_size = get_element_size(data_type) * 2;                         // scale + zp
-            // jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
+            if (data_type_traits::is_i4_u4(kv_cache_dt))
+                scales_zp_size = get_element_size(data_type) * 4;
+
+            jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
+            jit.add(make_uint4_kv_cache_jit_constants(params));
+
             if (is_key_by_channel) {
                 jit.make("IS_KEY_BY_CHANNEL", 1);
                 jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
@@ -975,7 +1024,13 @@ protected:
                 const auto& key_input = params.input_layouts[0];
                 const auto sequences_number = key_input.get_partial_shape()[0].get_length();
                 size_t head_size_partition = get_num_k_head_size_partitions(desc->is_key_by_channel, desc->k_head_size);
-                wgs.global = {static_cast<size_t>(sequences_number), heads_number, subgroup_size * head_size_partition};
+                const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+                if (data_type_traits::is_i4_u4(kv_cache_dt) && head_size_partition > 1)
+                    wgs.global = {static_cast<size_t>(sequences_number),
+                                  heads_number,
+                                  kernel_selector::Align(subgroup_size * head_size_partition / u4_elems_per_byte, subgroup_size)};
+                else
+                    wgs.global = {static_cast<size_t>(sequences_number), heads_number, subgroup_size * head_size_partition};
                 wgs.local = {1, 1, subgroup_size};
             }
 
@@ -1020,7 +1075,13 @@ protected:
         const auto is_key_by_channel = desc->is_key_by_channel;
         jit.make("IS_KEY_BY_CHANNEL", (is_kv_compressed && is_key_by_channel) ? 1 : 0);
         if (is_kv_compressed) {
+            jit.add(make_uint4_kv_cache_jit_constants(params));
             auto scales_zp_size = get_element_size(original_cache_dt) * 2;  // scale + zp;
+            const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+            if (data_type_traits::is_i4_u4(kv_cache_dt)) {
+                scales_zp_size = get_element_size(original_cache_dt) * 4;
+            }
+
             jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
             if (is_key_by_channel) {
                 jit.make("ADJUSTED_HEAD_SIZE", desc->k_head_size);
@@ -1283,6 +1344,19 @@ public:
         if (desc->has_alibi) {
             return false;
         }
+
+        // micro_sdpa does not support 4-bit (u4/i4) KV-cache quantization.
+        // In MIXED stage, the prefill and generate iterations share the same kernel path;
+        // because the generate iteration must read the already-quantized KV-cache that was
+        // written during prefill, every kernel in this stage must be able to dequantize 4-bit
+        // entries. micro_sdpa currently lacks this dequantization logic, so we fall back to
+        // the standard paged-attention kernel (pa_multi_tokens / pa_single_token) which does
+        // support INT4 KV-cache.
+        if (data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision()) &&
+            get_paged_attention_stage(params) == PagedAttentionStage::MIXED) {
+            return false;
+        }
+
         return true;
     }
 
@@ -1328,6 +1402,7 @@ public:
 
         if ((rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) && !params.is_dynamic())
             rt_params->paged_attention_aligned_seq_len = static_cast<size_t>(get_aligned_seq_len(params, rt_params->stage));
+
         rt_params->sdpa_opt_seq_len_partition_size = get_seq_len_partition_size(params.get_device_info(), desc->v_head_size, SDPAStage::MULTI_TOKENS);
 
         if (desc->has_score_aggregation) {
@@ -1349,9 +1424,16 @@ public:
 #else
         rt_params->use_micro_sdpa = false;
 #endif
+
         rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
 
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
+            if (data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision())) {
+                rt_params->use_gqa_kernel = false;
+                rt_params->use_micro_sdpa = false;
+                return;
+            }
+
             if (rt_params->use_micro_sdpa) {
                 size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
                 rt_params->use_gqa_kernel = (kv_group_size == 8 && desc->k_head_size == 64);
@@ -1524,6 +1606,11 @@ public:
         can_use_micro_sdpa = has_stage(pa_sdpa_micro);
         if (stage == PagedAttentionStage::GENERATE && (rt_params == nullptr || (rt_params != nullptr && rt_params->use_gqa_kernel == false)))
             can_use_micro_sdpa = false;
+
+        if (data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision()) &&
+            get_paged_attention_stage(params) == PagedAttentionStage::MIXED) {
+            can_use_micro_sdpa = false;
+        }
 #endif
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
         int64_t paged_attention_aligned_seq_len = -1;
@@ -1743,11 +1830,17 @@ public:
         std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> micro_sdpa_block_starts_and_gws_mapping_lock = nullptr;
 
         if (stage == PagedAttentionStage::MIXED && !use_micro_sdpa) {
-            size_t sequential_gws_subseq_mapping_idx = 6;
-            if (has_score_aggregation && has_scores_output) {
-                sequential_gws_subseq_mapping_idx = 9;
-            } else if (has_scores_output) {
-                sequential_gws_subseq_mapping_idx = 8;
+            // Calculate the index dynamically based on what buffers were actually allocated
+            // Base: 0, 1, 2 (3 buffers)
+            size_t sequential_gws_subseq_mapping_idx = 3;
+
+            // exp_sums, max_logits, tmp_out (3 buffers)
+            sequential_gws_subseq_mapping_idx += 3;
+            if (has_scores_output) {
+                sequential_gws_subseq_mapping_idx += 2;  // buffers 3, 4
+                if (has_score_aggregation) {
+                    sequential_gws_subseq_mapping_idx += 1;  // buffer 5
+                }
             }
 
             OPENVINO_ASSERT(intermediates_memories.size() > sequential_gws_subseq_mapping_idx,
