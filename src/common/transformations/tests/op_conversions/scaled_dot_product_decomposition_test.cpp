@@ -403,8 +403,13 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_PreScaledQue
 
     {
         // Expected: scale applied to K^T (Q is pre-scaled)
-        auto ref =
-            scaled_dot_product_attention_decomposition(query_prescaled, key, value, attention_mask, sdpa_scale, casual, true);
+        auto ref = scaled_dot_product_attention_decomposition(query_prescaled,
+                                                              key,
+                                                              value,
+                                                              attention_mask,
+                                                              sdpa_scale,
+                                                              casual,
+                                                              true);
         model_ref =
             std::make_shared<ov::Model>(OutputVector{ref}, ParameterVector{raw_query, key, value, attention_mask});
     }
@@ -436,7 +441,15 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_Sinks) {
     }
 
     {
-        auto ref = scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, false, false, sinks);
+        auto ref = scaled_dot_product_attention_decomposition(query,
+                                                              key,
+                                                              value,
+                                                              attention_mask,
+                                                              scale,
+                                                              casual,
+                                                              false,
+                                                              false,
+                                                              sinks);
         model_ref = std::make_shared<ov::Model>(OutputVector{ref},
                                                 ParameterVector{query, key, value, attention_mask, scale, sinks});
     }
