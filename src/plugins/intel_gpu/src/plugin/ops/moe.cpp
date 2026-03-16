@@ -53,7 +53,7 @@ static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared
     ///                  shape [num_experts, hidden_size, group_num, 1]
     ///   10: w2_zp - expert zp for final projection for compressed experts,
     ///                  shape [num_experts, hidden_size, group_num, 1]
-    const size_t expected_inputs = config.routing_type == op::MOECompressed::RoutingType::SIGMOID_BIAS ? 13 : 11;
+    const size_t expected_inputs = config.routing_type == op::MOECompressed::RoutingType::SIGMOID_BIAS ? 7 : 5;
     validate_inputs_count(op, {expected_inputs});
 
     const std::string layerName = layer_type_name_ID(op);

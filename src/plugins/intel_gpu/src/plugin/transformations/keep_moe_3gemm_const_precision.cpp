@@ -17,20 +17,16 @@ namespace ov::intel_gpu {
 using namespace ov::pass::pattern;
 
 KeepMOE3GemmConstPrecision::KeepMOE3GemmConstPrecision() {
-    auto wei_0_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto wei_1_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto wei_2_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto zp_0_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto zp_1_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto zp_2_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
+    auto wei_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
+    auto zp_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
 
     // Softmax routing: 11 inputs (no routing_bias)
     auto moe_softmax_m = wrap_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(
-        {any_input(), any_input(), wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(), zp_2_m});
+        {any_input(), any_input(), wei_m, any_input(), zp_m});
 
     // SigmoidBias routing: 13 inputs (routing_bias at index 11, routing_eps at index 12)
     auto moe_sigmoid_m = wrap_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(
-        {any_input(), any_input(), wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(), zp_2_m, any_input(), any_input()});
+        {any_input(), any_input(), wei_m, any_input(), zp_m, any_input(), any_input()});
 
     auto moe_3gemm_fused_compressed_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{moe_softmax_m, moe_sigmoid_m});
 
@@ -41,12 +37,8 @@ KeepMOE3GemmConstPrecision::KeepMOE3GemmConstPrecision() {
             return false;
         }
 
-        ov::enable_keep_const_precision(pattern_map.at(wei_0_m).get_node_shared_ptr());
-        ov::enable_keep_const_precision(pattern_map.at(wei_1_m).get_node_shared_ptr());
-        ov::enable_keep_const_precision(pattern_map.at(wei_2_m).get_node_shared_ptr());
-        ov::enable_keep_const_precision(pattern_map.at(zp_0_m).get_node_shared_ptr());
-        ov::enable_keep_const_precision(pattern_map.at(zp_1_m).get_node_shared_ptr());
-        ov::enable_keep_const_precision(pattern_map.at(zp_2_m).get_node_shared_ptr());
+        ov::enable_keep_const_precision(pattern_map.at(wei_m).get_node_shared_ptr());
+        ov::enable_keep_const_precision(pattern_map.at(zp_m).get_node_shared_ptr());
 
         return true;
     };

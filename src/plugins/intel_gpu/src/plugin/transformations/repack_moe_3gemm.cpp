@@ -132,10 +132,12 @@ RepackMoE3Gemm::RepackMoE3Gemm() {
         auto fused_zp = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{z1_reshaped, z0_reshaped, z2_reshaped}, 1);
 
         auto new_inputs = moe->input_values();
+        auto old_params_num = new_inputs.size();
         new_inputs[2] = fused_w;
         new_inputs[3] = fused_s;
         new_inputs[4] = fused_zp;
-        new_inputs.erase(new_inputs.begin() + 5, new_inputs.end());
+        // 9 experts params are fused to 3. 2 params for RoutingType::SIGMOID_BIAS should be kept if exist
+        new_inputs.erase(new_inputs.begin() + 5, new_inputs.begin() + 5 + 6);
 
         auto new_moe = ov::as_type_ptr<ov::intel_gpu::op::MOE3GemmFusedCompressed>(moe->clone_with_new_inputs(new_inputs));
         if (!new_moe)
