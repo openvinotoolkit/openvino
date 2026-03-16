@@ -507,10 +507,12 @@ TEST_P(RangedMappingTest, compare_data) {
         mm_1 = load_mmap_object(m_file_path, offset_1, size_1);
         mm_2 = load_mmap_object(m_file_path, offset_2, size_2);
     } else {
-        const auto handle = open_file(m_file_path);
-        OV_ASSERT_FILE_HANDLE_VALID(handle);
-        mm_1 = load_mmap_object_from_handle(handle, offset_1, size_1);
-        mm_2 = load_mmap_object_from_handle(handle, offset_2, size_2);
+        const auto handle_1 = open_file(m_file_path);
+        const auto handle_2 = open_file(m_file_path);
+        OV_ASSERT_FILE_HANDLE_VALID(handle_1);
+        OV_ASSERT_FILE_HANDLE_VALID(handle_2);
+        mm_1 = load_mmap_object_from_handle(handle_1, offset_1, size_1);
+        mm_2 = load_mmap_object_from_handle(handle_2, offset_2, size_2);
     }
     ASSERT_NE(mm_1, nullptr);
     ASSERT_NE(mm_2, nullptr);
@@ -541,15 +543,17 @@ TEST_P(RangedMappingTest, compare_id) {
         other_mm_2 = load_mmap_object(other_file_path, offset_2, size_2);
         mm_1_ = load_mmap_object(m_file_path, offset_1, size_1);
     } else {
-        const auto handle = open_file(m_file_path);
-        OV_ASSERT_FILE_HANDLE_VALID(handle);
+        const auto handle_1 = open_file(m_file_path);
+        const auto handle_2 = open_file(m_file_path);
         const auto other_handle = open_file(other_file_path);
+        OV_ASSERT_FILE_HANDLE_VALID(handle_1);
+        OV_ASSERT_FILE_HANDLE_VALID(handle_2);
         OV_ASSERT_FILE_HANDLE_VALID(other_handle);
-        mm_1 = load_mmap_object_from_handle(handle, offset_1, size_1);
-        mm_2 = load_mmap_object_from_handle(handle, offset_2, size_2);
+        mm_1 = load_mmap_object_from_handle(handle_1, offset_1, size_1);
+        mm_2 = load_mmap_object_from_handle(handle_2, offset_2, size_2);
         other_mm_1 = load_mmap_object_from_handle(other_handle, offset_1, size_1);
         other_mm_2 = load_mmap_object_from_handle(other_handle, offset_2, size_2);
-        mm_1_ = load_mmap_object_from_handle(handle, offset_1, size_1);
+        mm_1_ = load_mmap_object_from_handle(handle_1, offset_1, size_1);
     }
 
     ASSERT_NE(mm_1, nullptr);
