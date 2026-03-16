@@ -41,10 +41,10 @@ tests:
       gpu: "*IE_GPU*"
       default: ""
 
-  # - name: ov_cpu_func_tests
-  #   binary: ov_cpu_func_tests
-  #   mode: gtest_single
-  #   args: "*smoke*"
+  - name: ov_cpu_func_tests
+    binary: ov_cpu_func_tests
+    mode: gtest_single
+    args: "*smoke*"
 
   - name: ov_cpu_unit_tests
     binary: ov_cpu_unit_tests
