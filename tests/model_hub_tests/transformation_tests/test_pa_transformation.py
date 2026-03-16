@@ -134,10 +134,6 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
         input_counters.pop("qq_bias")
         assert input_counters["qq_bias_begins"] == 1
         input_counters.pop("qq_bias_begins")
-        assert input_counters["block_update_indices"] == 1
-        input_counters.pop("block_update_indices")
-        assert input_counters["block_update_indices_begins"] == 1
-        input_counters.pop("block_update_indices_begins")
 
     for input_id, count in input_counters.items():
         assert count == resulting_map["PagedAttentionExtension"], \
