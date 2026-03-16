@@ -172,20 +172,12 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         register_new_node<v0::Concat>(OutputVector{k_dims_before_transpose, k_last_dim, k_next_dim}, 0);
     auto k_transposed = register_new_node<v1::Transpose>(key, transpose_dims);
 
-    ov::Output<Node> scaled_atten;
-    if (is_query_prescaled(query)) {
-        // Q is already pre-scaled (e.g., Multiply(Q, scalar_constant)).
-        // Apply scale to K^T to preserve the original computation order
-        // and minimize FP rounding divergence across transformer layers.
-        auto k_scaled = register_new_node<v1::Multiply>(k_transposed, scale);
-        scaled_atten = register_new_node<v0::MatMul>(query, k_scaled)->output(0);
-    } else if (can_move_scale_after_matmul(query, k_transposed, scale)) {
-        auto atten = register_new_node<v0::MatMul>(query, k_transposed)->output(0);
-        scaled_atten = register_new_node<v1::Multiply>(atten, scale)->output(0);
-    } else {
-        auto q_scaled = register_new_node<v1::Multiply>(query, scale);
-        scaled_atten = register_new_node<v0::MatMul>(q_scaled, k_transposed)->output(0);
-    }
+    // Apply scale after MatMul(Q, K^T) per SDPA specification:
+    //   attn_weight = Q @ K^T * scale
+    // Scale is always scalar, so Multiply broadcasts safely over [S_q, S_kv].
+    // Post-MatMul Multiply fuses into oneDNN MatMul primitive.
+    auto atten = register_new_node<v0::MatMul>(query, k_transposed)->output(0);
+    auto scaled_atten = register_new_node<v1::Multiply>(atten, scale)->output(0);
 
     minus_inf = register_new_node<v1::ConvertLike>(minus_inf, scaled_atten);
 

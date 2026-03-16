@@ -74,7 +74,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionStaticBasic) 
 
     {
         const auto scaled_dot_product_attention =
-            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual);
+            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, false, true);
         model_ref = std::make_shared<ov::Model>(OutputVector{scaled_dot_product_attention},
                                                 ParameterVector{query, key, value, attention_mask, scale});
     }
@@ -104,7 +104,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionStaticBroadca
 
     {
         const auto scaled_dot_product_attention =
-            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual);
+            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, false, true);
         model_ref = std::make_shared<ov::Model>(OutputVector{scaled_dot_product_attention},
                                                 ParameterVector{query, key, value, attention_mask, scale});
     }
@@ -162,7 +162,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionCasualPartiallyDynamic) {
 
     {
         const auto scaled_dot_product_attention =
-            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, nullptr, casual);
+            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, nullptr, casual, false, true);
         model_ref = std::make_shared<ov::Model>(OutputVector{scaled_dot_product_attention},
                                                 ParameterVector{query, key, value, attention_mask});
     }
@@ -250,7 +250,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_DynamicScale
     }
 
     {
-        auto ref = scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual);
+        auto ref = scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, false, true);
         model_ref =
             std::make_shared<ov::Model>(OutputVector{ref}, ParameterVector{query, key, value, attention_mask, scale});
     }
@@ -367,10 +367,10 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
     return result;
 }
 
-TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_PreScaledQuery_MultiplyOnK) {
-    // When query input is Multiply(raw_Q, scalar_constant), the decomposition should apply
-    // scale to K^T instead of Q to restore the original computation order.
-    // This matches the pattern created by SDPAFusion when absorbing K-side scale.
+TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_PreScaledQuery_MultiplyAfterMatMul) {
+    // Scale is always applied after MatMul(Q, K^T) per SDPA specification,
+    // regardless of whether Q is pre-scaled.
+    // This produces: (Q_prescaled @ K^T) * scale.
     const PartialShape raw_query_shape{1, 6, 101, 64};
     const PartialShape key_shape{1, 6, 101, 64};
     const PartialShape value_shape{1, 6, 101, 64};
@@ -402,13 +402,14 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_PreScaledQue
     }
 
     {
-        // Expected: scale applied to K^T (Q is pre-scaled)
+        // Expected: scale applied after MatMul(Q, K^T) per SDPA spec
         auto ref = scaled_dot_product_attention_decomposition(query_prescaled,
                                                               key,
                                                               value,
                                                               attention_mask,
                                                               sdpa_scale,
                                                               casual,
+                                                              false,
                                                               true);
         model_ref =
             std::make_shared<ov::Model>(OutputVector{ref}, ParameterVector{raw_query, key, value, attention_mask});
@@ -448,7 +449,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_Sinks) {
                                                               scale,
                                                               casual,
                                                               false,
-                                                              false,
+                                                              true,
                                                               sinks);
         model_ref = std::make_shared<ov::Model>(OutputVector{ref},
                                                 ParameterVector{query, key, value, attention_mask, scale, sinks});
