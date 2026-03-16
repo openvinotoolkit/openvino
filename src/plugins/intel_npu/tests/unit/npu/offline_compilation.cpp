@@ -16,7 +16,7 @@
 using namespace ov::intel_npu;
 using namespace ov::test::utils;
 
-class OfflineCompilationUnitTests : public ::testing::Test {
+class OfflineCompilationUnitTests : public ::testing::TestWithParam<std::string_view> {
 protected:
     void SetUp() override {
         std::vector<std::string> availableDevices = core.get_available_devices();
@@ -27,34 +27,30 @@ protected:
     ov::Core core;
 };
 
-TEST_F(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalledSetProperty) {
-    const std::vector<std::string_view> platforms = {ov::intel_npu::Platform::NPU5010,
-                                                     ov::intel_npu::Platform::NPU5020};
+TEST_P(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalledSetProperty) {
+    const auto platform = GetParam();
 
-    for (const auto& platform : platforms) {
-        ov::AnyMap config;
-        config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
-        config[ov::intel_npu::platform.name()] = platform;
-        core.set_property(DEVICE_NPU, config);
+    ov::AnyMap config;
+    config[ov::intel_npu::platform.name()] = platform;
+    core.set_property(DEVICE_NPU, config);
 
-        std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
-        OV_ASSERT_NO_THROW(core.compile_model(model, DEVICE_NPU));
-    }
+    std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
+    OV_ASSERT_NO_THROW(core.compile_model(model, DEVICE_NPU));
 }
 
-TEST_F(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalled) {
-    const std::vector<std::string_view> platforms = {ov::intel_npu::Platform::NPU5010,
-                                                     ov::intel_npu::Platform::NPU5020};
+TEST_P(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalled) {
+    const auto platform = GetParam();
 
-    for (const auto& platform : platforms) {
-        ov::AnyMap config;
-        config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
-        config[ov::intel_npu::platform.name()] = platform;
+    ov::AnyMap config;
+    config[ov::intel_npu::platform.name()] = platform;
 
-        std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
-        OV_ASSERT_NO_THROW(core.compile_model(model, DEVICE_NPU, config));
-    }
+    std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
+    OV_ASSERT_NO_THROW(core.compile_model(model, DEVICE_NPU, config));
 }
+
+INSTANTIATE_TEST_SUITE_P(OfflineCompilationPlatforms,
+                         OfflineCompilationUnitTests,
+                         ::testing::Values(ov::intel_npu::Platform::NPU5010, ov::intel_npu::Platform::NPU5020));
 
 using UnavailableDeviceTests = ::testing::Test;
 
