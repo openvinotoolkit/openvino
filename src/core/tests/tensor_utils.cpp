@@ -152,7 +152,7 @@ TEST_F(FunctionalOffloadTensorTest, read_small_file) {
                         ::testing::HasSubstr("Requested mapping range exceeds"));
         OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, new_shape, 0, false),
                         AssertFailure,
-                        ::testing::HasSubstr("Requested space exceeds file bounds: file size="));
+                        ::testing::HasSubstr("Requested space exceeds available bounds"));
     }
 }
 
@@ -164,21 +164,21 @@ TEST_F(FunctionalOffloadTensorTest, read_too_big_offset) {
                         ::testing::HasSubstr("Requested mapping range exceeds"));
         OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, 1, false),
                         AssertFailure,
-                        ::testing::HasSubstr("Requested space exceeds file bounds: file size="));
+                        ::testing::HasSubstr("Requested space exceeds available bounds"));
         // offset == file_size
         OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size),
                         std::runtime_error,
                         ::testing::HasSubstr("Requested mapping range exceeds"));
         OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size, false),
                         AssertFailure,
-                        ::testing::HasSubstr("Requested space exceeds file bounds: file size="));
+                        ::testing::HasSubstr("Requested space exceeds available bounds"));
         // offset > file_size
         OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size + 1),
                         std::runtime_error,
                         ::testing::HasSubstr("Requested mapping range exceeds"));
         OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size + 1, false),
                         AssertFailure,
-                        ::testing::HasSubstr("Requested space exceeds file bounds: file size="));
+                        ::testing::HasSubstr("Requested space exceeds available bounds"));
     }
 }
 
