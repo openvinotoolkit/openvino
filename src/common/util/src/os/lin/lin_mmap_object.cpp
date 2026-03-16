@@ -89,11 +89,6 @@ public:
                 throw std::runtime_error("Can not create file mapping for " + std::to_string(fd) +
                                          ", err=" + std::strerror(errno));
             }
-            // Hint the kernel to read pages sequentially and start async
-            // prefetch immediately.  MADV_SEQUENTIAL doubles the readahead
-            // window; MADV_WILLNEED initiates I/O in the background so pages
-            // are resident before compile_model accesses individual constants.
-            madvise(m_data, m_size, MADV_SEQUENTIAL | MADV_WILLNEED);
         } else {
             m_data = MAP_FAILED;
         }

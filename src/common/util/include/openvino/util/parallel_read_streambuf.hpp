@@ -278,7 +278,7 @@ private:
         std::vector<std::future<void>> futures;
         futures.reserve(num_threads);
 
-#ifdef ENABLE_BD_PROFILING_LOG
+#if ENABLE_BD_PROFILING_LOG
         const auto t0 = std::chrono::steady_clock::now();
 #endif
 
@@ -358,7 +358,7 @@ private:
         for (auto& f : futures) {
             f.get();
         }
-#ifdef ENABLE_BD_PROFILING_LOG
+#if ENABLE_BD_PROFILING_LOG
         {
             const auto t1 = std::chrono::steady_clock::now();
             const double elapsed_s = std::chrono::duration<double>(t1 - t0).count();

@@ -31,7 +31,7 @@
 #include "openvino/util/log.hpp"
 #include "openvino/util/parallel_read_streambuf.hpp"
 
-#define ENABLE_OPENVINO_DEBUG 0
+#define ENABLE_BD_PROFILING_LOG 0
 
 namespace ov {
 namespace util {
@@ -242,7 +242,7 @@ private:
         madvise(const_cast<char*>(src), size, MADV_WILLNEED);
 #endif
 
-#ifdef ENABLE_OPENVINO_DEBUG
+#if ENABLE_BD_PROFILING_LOG
         const auto t0 = std::chrono::steady_clock::now();
 #endif
 
@@ -252,7 +252,7 @@ private:
             std::memcpy(dst + offset, src + offset, copy_size);
         });
 
-#ifdef ENABLE_OPENVINO_DEBUG
+#if ENABLE_BD_PROFILING_LOG
         {
             const auto t1 = std::chrono::steady_clock::now();
             const double elapsed_s = std::chrono::duration<double>(t1 - t0).count();
