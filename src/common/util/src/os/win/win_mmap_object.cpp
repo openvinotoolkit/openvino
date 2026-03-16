@@ -95,7 +95,7 @@ public:
     }
 
 private:
-    void map(const std::filesystem::path& path, HANDLE h, size_t offset, size_t size) {
+    void map(const std::filesystem::path& path, HANDLE h, const size_t offset, const size_t size) {
         if (h == INVALID_HANDLE_VALUE) {
             throw std::runtime_error("Can not open file " + util::path_to_string(path) +
                                      " for mapping. Ensure that file exists and has appropriate permissions");
@@ -111,13 +111,13 @@ private:
                                      std::to_string(::GetLastError()));
         }
         const auto file_size = static_cast<size_t>(file_size_large.QuadPart);
+        if (offset + size > file_size) {
+            throw std::runtime_error("Requested mapping range exceeds file size for " + util::path_to_string(path));
+        }
         if (size > 0) {
             m_size = size;
         } else {
             m_size = file_size - offset;
-        }
-        if (offset + m_size > file_size) {
-            throw std::runtime_error("Requested mapping range exceeds file size for " + util::path_to_string(path));
         }
 
         if (m_size > 0) {
@@ -130,7 +130,7 @@ private:
             ::GetSystemInfo(&system_info);
             const auto aligned_offset =
                 (offset / system_info.dwAllocationGranularity) * system_info.dwAllocationGranularity;
-            const auto aligned_size = offset + size - aligned_offset;
+            const auto aligned_size = offset + m_size - aligned_offset;
             m_mapped_view = ::MapViewOfFile(m_mapping.get(),
                                             map_mode,
                                             aligned_offset >> 32,

@@ -63,6 +63,7 @@ public:
 
 class MapHolder final : public MappedMemory {
     void* m_mapped_view = MAP_FAILED;
+    size_t m_mapped_view_size = 0;
     void* m_data = nullptr;
     size_t m_size = 0;
     uint64_t m_id = std::numeric_limits<uint64_t>::max();
@@ -71,7 +72,7 @@ class MapHolder final : public MappedMemory {
 public:
     MapHolder() = default;
 
-    void set(const std::filesystem::path& path, size_t offset, size_t size) {
+    void set(const std::filesystem::path& path, const size_t offset, const size_t size) {
         int mode = O_RDONLY;
         int fd = open(path.c_str(), mode);
         if (fd == -1) {
@@ -83,7 +84,7 @@ public:
                std::hash<size_t>{}(size);
     }
 
-    void set_from_fd(const int fd, size_t offset, size_t size) {
+    void set_from_fd(const int fd, const size_t offset, const size_t size) {
         if (fd == -1) {
             throw std::runtime_error("Invalid file descriptor provided for mapping.");
         }
@@ -94,20 +95,20 @@ public:
             throw std::runtime_error("Can not get file size for fd=" + std::to_string(fd));
         }
         const auto file_size = static_cast<size_t>(sb.st_size);
+        if (offset + size > file_size) {
+            throw std::runtime_error("Requested mapping range exceeds file size for fd=" + std::to_string(fd));
+        }
         if (size > 0) {
             m_size = size;
         } else {
             m_size = file_size - offset;
         }
-        if (offset + m_size > file_size) {
-            throw std::runtime_error("Requested mapping range exceeds file size for fd=" + std::to_string(fd));
-        }
 
         if (m_size > 0) {
             const auto page_size = util::get_system_page_size();
             const auto aligned_offset = (offset / page_size) * page_size;
-            const auto aligned_size = offset + m_size - aligned_offset;
-            m_mapped_view = mmap(nullptr, aligned_size, PROT_READ, MAP_SHARED, fd, aligned_offset);
+            m_mapped_view_size = offset + m_size - aligned_offset;
+            m_mapped_view = mmap(nullptr, m_mapped_view_size, PROT_READ, MAP_SHARED, fd, aligned_offset);
             if (m_mapped_view == MAP_FAILED) {
                 throw std::runtime_error("Can not create file mapping for " + std::to_string(fd) +
                                          ", err=" + std::strerror(errno));
@@ -122,7 +123,7 @@ public:
 
     ~MapHolder() {
         if (m_mapped_view != MAP_FAILED) {
-            munmap(m_mapped_view, m_size);
+            munmap(m_mapped_view, m_mapped_view_size);
         }
     }
 
