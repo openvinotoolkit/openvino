@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// #define ENABLE_ONEDNN_FOR_GPU
 #ifdef ENABLE_ONEDNN_FOR_GPU
 // clang-format off
 // Put this file at first to avoid incorrect header files includes order.

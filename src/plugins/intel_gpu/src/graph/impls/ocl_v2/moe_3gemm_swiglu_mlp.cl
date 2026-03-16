@@ -273,12 +273,9 @@ inline void gate_up_gemv_n2x_f16(const __global half* weight, __global half* y, 
 }
 
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(const __global int* expert_list,
-                                                                              const __global MOE_WEI_DT* gate_weight_addr,
-                                                                              const __global MOE_SCALE_DT* gate_scale_addr,
-                                                                              const __global MOE_ZP_DT* gate_zp_addr,
-                                                                              const __global MOE_WEI_DT* up_weight_addr,
-                                                                              const __global MOE_SCALE_DT* up_scale_addr,
-                                                                              const __global MOE_ZP_DT* up_zp_addr,
+                                                                              const __global MOE_WEI_DT* weight_addr,
+                                                                              const __global MOE_SCALE_DT* scale_addr,
+                                                                              const __global MOE_ZP_DT* zp_addr,
                                                                               __global MOE_DTYPE* x,    // [1, HIDDEN_SIZE]
                                                                               __global MOE_DTYPE* y) {  // [MAX_TOPK, INTERMEDIATE_SIZE]
     // global: [expert, SUBGROUP_SIZE, N//N_BLOCK],[1, SUBGROUP_SIZE, SUBGROUP_NUM]
@@ -286,26 +283,36 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(co
     y += expert_no * INTERMEDIATE_SIZE;
 
 #    if WEIGHT_COMPRESSEION_DT == 0
-    const int expert_wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / 2;
-    const int expert_scale_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE;
-    const int expert_zp_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / 2 / GATE_UP_GROUP_SIZE;
+    const int wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / 2;
+    const int expert_wei_size = wei_size * 3;
+    const int scale_gate_up_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE;
+    const int scale_down_size = HIDDEN_SIZE * INTERMEDIATE_SIZE / DOWN_GROUP_SIZE;
+    const int expert_scale_size = scale_gate_up_size * 2 + scale_down_size;
+    const int zp_gate_up_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE / 2;
+    const int zp_down_size = HIDDEN_SIZE * INTERMEDIATE_SIZE / DOWN_GROUP_SIZE / 2;
+    const int expert_zp_size = zp_gate_up_size * 2 + zp_down_size;
 #    else
-    const int expert_wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE;
-    const int expert_scale_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE;
-    const int expert_zp_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE;
+    const int wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE;
+    const int expert_wei_size = wei_size * 3;
+    const int scale_gate_up_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE;
+    const int scale_down_size = HIDDEN_SIZE * INTERMEDIATE_SIZE / DOWN_GROUP_SIZE;
+    const int expert_scale_size = scale_gate_up_size * 2 + scale_down_size;
+    const int zp_gate_up_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE;
+    const int zp_down_size = HIDDEN_SIZE * INTERMEDIATE_SIZE / DOWN_GROUP_SIZE;
+    const int expert_zp_size = zp_gate_up_size * 2 + zp_down_size;
 #    endif
 
     int expert_id = expert_list[expert_no];
 
     // gate, [HIDDEN_SIZE, INTERMEDIATE_SIZE]
-    __global MOE_WEI_DT* gate_weight = (__global MOE_WEI_DT*)(gate_weight_addr + expert_id * expert_wei_size);
-    __global MOE_SCALE_DT* gate_scale = (__global MOE_SCALE_DT*)(gate_scale_addr + expert_id * expert_scale_size);
-    __global MOE_ZP_DT* gate_zp = (__global MOE_ZP_DT*)(gate_zp_addr + expert_id * expert_zp_size);
+    __global MOE_WEI_DT* gate_weight = (__global MOE_WEI_DT*)(weight_addr + expert_id * expert_wei_size + wei_size);
+    __global MOE_SCALE_DT* gate_scale = (__global MOE_SCALE_DT*)(scale_addr + expert_id * expert_scale_size + scale_gate_up_size);
+    __global MOE_ZP_DT* gate_zp = (__global MOE_ZP_DT*)(zp_addr + expert_id * expert_zp_size + zp_gate_up_size);
 
     // up, [HIDDEN_SIZE, INTERMEDIATE_SIZE]
-    __global MOE_WEI_DT* up_weight = (__global MOE_WEI_DT*)(up_weight_addr + expert_id * expert_wei_size);
-    __global MOE_SCALE_DT* up_scale = (__global MOE_SCALE_DT*)(up_scale_addr + expert_id * expert_scale_size);
-    __global MOE_ZP_DT* up_zp = (__global MOE_ZP_DT*)(up_zp_addr + expert_id * expert_zp_size);
+    __global MOE_WEI_DT* up_weight = (__global MOE_WEI_DT*)(weight_addr + expert_id * expert_wei_size);
+    __global MOE_SCALE_DT* up_scale = (__global MOE_SCALE_DT*)(scale_addr + expert_id * expert_scale_size);
+    __global MOE_ZP_DT* up_zp = (__global MOE_ZP_DT*)(zp_addr + expert_id * expert_zp_size);
 
 #    if GATE_UP_GROUP_SIZE % FAKE_GROUP_SIZE != 0
     if (get_sub_group_id() == 0 && get_sub_group_local_id() == 0) {
@@ -364,6 +371,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(co
     barrier(CLK_LOCAL_MEM_FENCE);
 
 #    if WEIGHT_COMPRESSEION_DT == 0
+    // up + gate call
     gate_up_gemv_n2x_u4(up_weight, up_scale, up_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, false);
     gate_up_gemv_n2x_u4(gate_weight, gate_scale, gate_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, true);
 #    elif WEIGHT_COMPRESSEION_DT == 1
@@ -636,20 +644,31 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     y += expert_no * HIDDEN_SIZE;
 
 #    if WEIGHT_COMPRESSEION_DT == 0
-    const int expert_wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / 2;
-    const int expert_scale_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / DOWN_GROUP_SIZE;
-    const int expert_zp_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / 2 / DOWN_GROUP_SIZE;
+    const int wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / 2;
+    const int expert_wei_size = wei_size * 3;
+    const int scale_gate_up_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE;
+    const int scale_down_size = HIDDEN_SIZE * INTERMEDIATE_SIZE / DOWN_GROUP_SIZE;
+    const int expert_scale_size = scale_gate_up_size * 2 + scale_down_size;
+    const int zp_gate_up_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE / 2;
+    const int zp_down_size = HIDDEN_SIZE * INTERMEDIATE_SIZE / DOWN_GROUP_SIZE / 2;
+    const int expert_zp_size = zp_gate_up_size * 2 + zp_down_size;
 #    else
-    const int expert_wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE;
-    const int expert_scale_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / DOWN_GROUP_SIZE;
-    const int expert_zp_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / DOWN_GROUP_SIZE;
+    const int wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE;
+    const int expert_wei_size = wei_size * 3;
+    const int scale_gate_up_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE;
+    const int scale_down_size = HIDDEN_SIZE * INTERMEDIATE_SIZE / DOWN_GROUP_SIZE;
+    const int expert_scale_size = scale_gate_up_size * 2 + scale_down_size;
+    const int zp_gate_up_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE;
+    const int zp_down_size = HIDDEN_SIZE * INTERMEDIATE_SIZE / DOWN_GROUP_SIZE;
+    const int expert_zp_size = zp_gate_up_size * 2 + zp_down_size;
 #    endif
+
     int expert_id = expert_list[expert_no];
 
     // down, [INTERMEDIATE_SIZE, HIDDEN_SIZE]
-    __global MOE_WEI_DT* weight = (__global MOE_WEI_DT*)(down_weight_addr + expert_id * expert_wei_size);
-    __global MOE_SCALE_DT* scales = (__global MOE_SCALE_DT*)(down_scale_addr + expert_id * expert_scale_size);
-    __global MOE_ZP_DT* zps = (__global MOE_ZP_DT*)(down_zp_addr + expert_id * expert_zp_size);
+    __global MOE_WEI_DT* weight = (__global MOE_WEI_DT*)(down_weight_addr + expert_id * expert_wei_size + wei_size * 2);
+    __global MOE_SCALE_DT* scales = (__global MOE_SCALE_DT*)(down_scale_addr + expert_id * expert_scale_size + scale_gate_up_size * 2);
+    __global MOE_ZP_DT* zps = (__global MOE_ZP_DT*)(down_zp_addr + expert_id * expert_zp_size + zp_gate_up_size * 2);
 
     int N = HIDDEN_SIZE;
     int K = INTERMEDIATE_SIZE;

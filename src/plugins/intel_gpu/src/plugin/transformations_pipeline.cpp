@@ -96,6 +96,7 @@
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
+#include "plugin/transformations/repack_moe_3gemm.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
@@ -497,6 +498,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
             manager.register_pass<ov::intel_gpu::ConvertMOEToMOECompressed>(is_pa);
             manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
+            manager.register_pass<ov::intel_gpu::RepackMoE3Gemm>();
         }
 
         manager.register_pass<ov::pass::InitNodeInfo>();
