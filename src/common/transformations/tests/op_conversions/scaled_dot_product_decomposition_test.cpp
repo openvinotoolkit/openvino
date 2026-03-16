@@ -250,7 +250,8 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_DynamicScale
     }
 
     {
-        auto ref = scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, false, true);
+        auto ref =
+            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, false, true);
         model_ref =
             std::make_shared<ov::Model>(OutputVector{ref}, ParameterVector{query, key, value, attention_mask, scale});
     }
