@@ -6,7 +6,6 @@
 
 using namespace ov::test::behavior;
 
-const std::vector<ov::AnyMap> emptyConfig = {{}};
 const std::vector<ov::AnyMap> cipConfig = {
     {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
      ov::intel_npu::platform(ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU))}};
@@ -18,7 +17,7 @@ const std::vector<ov::AnyMap> bothConfig = {
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          WeightsSeparationTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(emptyConfig)),
+                                            ::testing::ValuesIn(cipConfig)),
                          WeightsSeparationTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
