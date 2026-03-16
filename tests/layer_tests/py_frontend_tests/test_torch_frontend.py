@@ -1791,3 +1791,146 @@ class TestConvertModelDynamo:
             inp = np.random.randn(batch, 3, 32, 32).astype(np.float32)
             res = cm([inp])
             assert res[0].shape[0] == batch
+
+# ──────────────────────────────────────────────────────────────────────
+#  Tests for torch.export path with ov_ext custom ops
+# ──────────────────────────────────────────────────────────────────────
+
+def test_16bit_export_fp16_linear_embedding():
+    """Patch a fp16 model with __make_16bit_exportable, export, convert, verify."""
+    from openvino.frontend.pytorch import patch_model
+    from openvino import convert_model, compile_model
+    import copy
+
+    class ModelWithLinear(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.emb = torch.nn.Embedding(10, 64)
+            self.linear = torch.nn.Linear(64, 32)
+
+        def forward(self, x):
+            return self.linear(self.emb(x))
+
+    example = (torch.randint(0, 10, [4, 8]),)
+    model_ref = ModelWithLinear()
+    with torch.no_grad():
+        res_ref = model_ref(*example)
+
+    model_fp16 = copy.deepcopy(model_ref).half()
+    patch_model.__make_16bit_exportable(model_fp16)
+    try:
+        with torch.no_grad():
+            ep = torch.export.export(model_fp16, example)
+        # Verify custom ops in graph
+        ops = [str(n.target) for n in ep.module().graph.nodes if n.op == "call_function"]
+        assert "ov_ext.embedding.default" in ops
+        assert "ov_ext.linear.default" in ops
+
+        ov_model = convert_model(ep)
+        assert ov_model
+        cm = compile_model(ov_model, "CPU", default_cfg)
+        res = cm([x.numpy() for x in example])
+        np.testing.assert_allclose(res[0], res_ref.numpy(), atol=1e-2)
+    finally:
+        from openvino.frontend.pytorch.patch_model import unpatch_model
+        unpatch_model(model_fp16, "_openvino_module_extension_patch_orig_forward")
+
+
+def test_16bit_export_bf16_linear():
+    """Patch a bf16 model with __make_16bit_exportable, export, convert, verify."""
+    from openvino.frontend.pytorch import patch_model
+    from openvino import convert_model, compile_model
+    import copy
+
+    class SimpleLinear(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.linear = torch.nn.Linear(16, 8)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    example = (torch.randn(2, 16),)
+    model_ref = SimpleLinear()
+    with torch.no_grad():
+        res_ref = model_ref(*example)
+
+    model_bf16 = copy.deepcopy(model_ref).bfloat16()
+    patch_model.__make_16bit_exportable(model_bf16)
+    try:
+        with torch.no_grad():
+            ep = torch.export.export(model_bf16, example)
+        ov_model = convert_model(ep)
+        assert ov_model
+        cm = compile_model(ov_model, "CPU", default_cfg)
+        res = cm([x.numpy() for x in example])
+        np.testing.assert_allclose(res[0], res_ref.numpy(), atol=5e-2)
+    finally:
+        from openvino.frontend.pytorch.patch_model import unpatch_model
+        unpatch_model(model_bf16, "_openvino_module_extension_patch_orig_forward")
+
+
+def test_16bit_export_with_convert_preserves_types():
+    """Verify that ov_ext.linear produces MatMul in f32 for 16-bit model."""
+    from openvino.frontend.pytorch import patch_model
+    from openvino import convert_model, Type
+
+    class ModelWithLinear(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.l1 = torch.nn.Linear(32, 64, dtype=torch.float16)
+            self.l2 = torch.nn.Linear(64, 32, dtype=torch.float16)
+
+        def forward(self, x):
+            x = self.l1(x)
+            x = x.to(self.l1.weight.dtype)
+            x = self.l2(x)
+            return x
+
+    example = (torch.randint(0, 10, [16, 32]),)
+    model = ModelWithLinear()
+    patch_model.__make_16bit_exportable(model)
+    try:
+        with torch.no_grad():
+            ep = torch.export.export(model, example)
+        ov_model = convert_model(ep)
+        assert ov_model
+        mm_num = 0
+        for node in ov_model.get_ordered_ops():
+            if node.get_type_name() == "MatMul":
+                mm_num += 1
+                assert node.get_input_element_type(0) == Type.f32
+                assert node.get_input_element_type(1) == Type.f32
+                assert node.get_output_element_type(0) == Type.f32
+        assert mm_num == 2
+    finally:
+        from openvino.frontend.pytorch.patch_model import unpatch_model
+        unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
+
+
+def test_export_unpatch_restores_original_forward():
+    """Verify that unpatch_model restores original forward after export patching."""
+    from openvino.frontend.pytorch import patch_model
+    from openvino.frontend.pytorch.patch_model import unpatch_model
+
+    class SimpleLinear(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.linear = torch.nn.Linear(4, 2, dtype=torch.float16)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = SimpleLinear()
+    # Capture original forward as stored on the instance (unbound) before patching
+    orig_forward_fn = model.linear.forward.__func__ if hasattr(model.linear.forward, "__func__") else model.linear.forward
+    patch_model.__make_16bit_exportable(model)
+    assert hasattr(model.linear, "_openvino_module_extension_patch_orig_forward")
+    # After patching, forward should be different
+    patched_fn = model.linear.forward.__func__ if hasattr(model.linear.forward, "__func__") else model.linear.forward
+    assert patched_fn is not orig_forward_fn
+
+    unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
+    assert not hasattr(model.linear, "_openvino_module_extension_patch_orig_forward")
+    restored_fn = model.linear.forward.__func__ if hasattr(model.linear.forward, "__func__") else model.linear.forward
+    assert restored_fn is orig_forward_fn

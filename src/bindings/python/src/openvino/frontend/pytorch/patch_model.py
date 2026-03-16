@@ -169,19 +169,60 @@ def _unpatch_torch_functions():
             del _patched_torch_functions[key]
 
 
-def __make_16bit_traceable(model: torch.nn.Module,
-                           orig_forward_name: str = "_openvino_module_extension_patch_orig_forward",
-                           patch_condition=None):
-    """Prepare a 16-bit PyTorch model for tracing with OpenVINO.
+def patch_model_for_export(model, module_extensions, orig_forward_name):
+    """Patch model modules for ``torch.export`` by replacing forwards with ``torch.ops.ov_ext.*`` calls.
 
-    - Replace known list of modules with ModuleExtension.
-    - Patch torch functions (bmm, baddbmm, etc.) for MoE and similar models.
-    - Convert other modules with weights to FP32.
+    Unlike :func:`patch_model` (which uses ``torch.autograd.Function`` / ``torch.jit.ignore``
+    for TorchScript tracing), this function creates forwards that call registered
+    ``torch.library`` custom ops so that ``torch.export`` captures them as
+    ``call_function`` nodes in the FX graph.
     """
-    supported = {torch.float16, torch.bfloat16, torch.float8_e4m3fn, torch.float8_e5m2}
+    import openvino.frontend.pytorch.ov_custom_ops  # noqa: F401 – triggers registration
 
-    # Patch torch functions for operations like bmm used in MoE models
-    _patch_torch_functions()
+    def _resolve_target_op(extension):
+        """Map an ``ov_ext::*`` target-op name to the corresponding ``torch.ops.ov_ext.*`` callable."""
+        # extension.target_op is e.g. "ov_ext::linear"
+        parts = extension.target_op.split("::")
+        if len(parts) == 2 and parts[0] == "ov_ext":
+            op_fn = getattr(torch.ops.ov_ext, parts[1], None)
+            if op_fn is not None:
+                return op_fn
+        raise RuntimeError(
+            f"Cannot resolve torch.library op for target_op='{extension.target_op}'. "
+            "Make sure it is registered in openvino.frontend.pytorch.ov_custom_ops.")
+
+    def module_patcher(module, name):
+        extension = None
+        if module in module_extensions:
+            extension = module_extensions[module]
+        elif module.__class__ in module_extensions:
+            extension = module_extensions[module.__class__]
+        elif name in module_extensions:
+            extension = module_extensions[name]
+
+        if extension and extension.condition(module):
+            log.debug("Patching module %s for torch.export", module)
+            target_op = _resolve_target_op(extension)
+
+            def new_forward(*args, **kwargs):
+                return extension.convert(module, target_op, *args, **kwargs)
+
+            new_forward = functools.wraps(module.forward)(new_forward)
+            setattr(module, orig_forward_name, module.forward)
+            module.forward = new_forward
+
+    for name, module in model.named_modules():
+        if hasattr(module, orig_forward_name):
+            log.debug("Unexpectedly found already patched module %s while applying "
+                      "ModuleExtension for torch.export during PyTorch model conversion. "
+                      "Result of the conversion maybe broken.", name)
+            continue
+        module_patcher(module, name)
+
+
+def _get_16bit_extensions(patch_condition=None):
+    """Return a dict of ModuleExtension entries for known 16-bit module types."""
+    supported = {torch.float16, torch.bfloat16, torch.float8_e4m3fn, torch.float8_e5m2}
 
     if patch_condition is None:
         def patch_condition(module):
@@ -221,7 +262,42 @@ def __make_16bit_traceable(model: torch.nn.Module,
             condition=patch_condition)
     except ImportError:
         pass
+    return extensions, supported
+
+
+def __make_16bit_traceable(model: torch.nn.Module,
+                           orig_forward_name: str = "_openvino_module_extension_patch_orig_forward",
+                           patch_condition=None):
+    """Prepare a 16-bit PyTorch model for tracing with OpenVINO.
+
+    - Replace known list of modules with ModuleExtension.
+    - Patch torch functions (bmm, baddbmm, etc.) for MoE and similar models.
+    - Convert other modules with weights to FP32.
+    """
+    # Patch torch functions for operations like bmm used in MoE models
+    _patch_torch_functions()
+
+    extensions, supported = _get_16bit_extensions(patch_condition)
     patch_model(model, extensions, orig_forward_name)
+    for _, module in model.named_modules():
+        if (module.__class__ not in extensions
+            and (any(p.dtype in supported for p in module.parameters(False))
+                 or any(b.dtype in supported for b in module.buffers(False)))):
+            log.debug("Casting module %s to float32", module)
+            module.float()
+
+
+def __make_16bit_exportable(model: torch.nn.Module,
+                            orig_forward_name: str = "_openvino_module_extension_patch_orig_forward",
+                            patch_condition=None):
+    """Prepare a 16-bit PyTorch model for ``torch.export`` with OpenVINO.
+
+    Same purpose as :func:`__make_16bit_traceable` but uses
+    ``torch.library`` custom ops instead of ``torch.autograd.Function``
+    so the model can be exported via ``torch.export.export``.
+    """
+    extensions, supported = _get_16bit_extensions(patch_condition)
+    patch_model_for_export(model, extensions, orig_forward_name)
     for _, module in model.named_modules():
         if (module.__class__ not in extensions
             and (any(p.dtype in supported for p in module.parameters(False))

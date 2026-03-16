@@ -1158,6 +1158,13 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"quantized_decomposed.dequantize_per_channel.default", op::skip_node},
         {"inlined.constant.default", op::translate_constant},    // this is a custom ov type
         {"inlined.list.default", op::translate_list_construct},  // this is a custom list type
+        // OpenVINO extension ops registered via torch.library for torch.export
+        {"ov_ext.awq_gemm.default", op::translate_linear_awq},
+        {"ov_ext.bit_linear.default", op::translate_linear_bitnet},
+        {"ov_ext.bmm.default", op::translate_bmm_ext},
+        {"ov_ext.conv1d.default", op::translate_conv1d_ext},
+        {"ov_ext.embedding.default", op::translate_embedding_ext},
+        {"ov_ext.linear.default", op::translate_linear_ext},
         // Higher-order operations from torch.export (torch.cond, torch.while_loop, etc.)
         {"cond", op::translate_cond_fx},
         {"while_loop", op::translate_while_loop_fx},
