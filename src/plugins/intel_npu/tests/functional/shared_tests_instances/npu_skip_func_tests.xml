@@ -866,4 +866,25 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>Skip test-cases failing with Win Drv UD48</message>
+        <enable_rules>
+            <operating_system>windows</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*DX12RemoteRunTests.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>PV driver cannot create infer request for models with boolean inputs</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
+        </enable_rules>
+        <filters>
+            <filter>.*BooleanPrecisionInferRequestRunTests.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>

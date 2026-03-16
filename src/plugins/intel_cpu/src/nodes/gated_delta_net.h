@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,6 @@
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "node.h"
-#include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
@@ -27,7 +26,6 @@ public:
         return getType() == Type::GatedDeltaNet;
     }
 
-    // pastkv may have zero dimension
     bool isExecutable() const override {
         return true;
     }
@@ -35,13 +33,21 @@ public:
     bool needPrepareParams() const override {
         return false;
     }
+
+    void createPrimitive() override;
+
     void executeDynamicImpl(const dnnl::stream& strm) override {
         execute(strm);
     }
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
-    void createPrimitive() override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+
+private:
+    MemoryPtr m_tmpInpBuffer = nullptr;
+    bool m_fuse_qk_l2norm = false;
+    float m_q_l2_norm_eps = 1e-6F;
+    float m_k_l2_norm_eps = 1e-6F;
 };
 
 }  // namespace ov::intel_cpu::node

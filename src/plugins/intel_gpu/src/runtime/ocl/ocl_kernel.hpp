@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,16 @@ public:
 
         return std::make_shared<ocl_kernel>(get_handle().clone(), _kernel_id);
     }
+    bool is_same(const kernel &other) const override {
+        auto other_ptr = dynamic_cast<const ocl_kernel*>(&other);
+        if (other_ptr == nullptr) {
+            return false;
+        }
+        return get_handle().get() == other_ptr->get_handle().get();
+    }
+
+    std::vector<uint8_t> get_binary() const override;
+    std::string get_build_log() const override;
 };
 
 }  // namespace ocl
