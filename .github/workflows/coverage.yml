@@ -183,7 +183,6 @@ jobs:
       TEST_PROFILE: ${{ matrix.test_profile }}
       CXX_TEST_NAMES: ${{ matrix.cpp_test_names }}
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
-      ARTIFACT_STAGING_DIR: ${{ github.workspace }}/../coverage-cpp-${{ matrix.lane }}-shard-${{ matrix.cpp_shard_label }}
     steps:
       - name: Setup python
         if: ${{ matrix.lane != 'gpu' }}
@@ -200,6 +199,14 @@ jobs:
           sudo apt --assume-yes install python3 python3-pip python3-venv
           python3 --version
           python3 -m pip --version
+
+      - name: Prepare C++ artifact staging directory
+        id: artifact_staging
+        run: |
+          dir="${RUNNER_TEMP}/coverage-cpp-${{ matrix.lane }}-shard-${{ matrix.cpp_shard_label }}"
+          mkdir -p "${dir}"
+          echo "ARTIFACT_STAGING_DIR=${dir}" >> "$GITHUB_ENV"
+          echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
       - name: Seed C++ shard duration report
         run: |
@@ -403,7 +410,7 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: coverage-cpp-${{ matrix.lane }}-shard-${{ matrix.cpp_shard_label }}
-          path: ${{ env.ARTIFACT_STAGING_DIR }}
+          path: ${{ steps.artifact_staging.outputs.dir }}
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
@@ -468,13 +475,20 @@ jobs:
       TEST_PROFILE: ${{ matrix.test_profile }}
       PY_TEST_NAMES: ${{ matrix.py_test_names }}
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
-      ARTIFACT_STAGING_DIR: ${{ github.workspace }}/../coverage-python-${{ matrix.lane }}-shard-${{ matrix.py_shard_label }}
     steps:
       - name: Setup python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.10.10'
           architecture: 'x64'
+
+      - name: Prepare Python artifact staging directory
+        id: artifact_staging
+        run: |
+          dir="${RUNNER_TEMP}/coverage-python-${{ matrix.lane }}-shard-${{ matrix.py_shard_label }}"
+          mkdir -p "${dir}"
+          echo "ARTIFACT_STAGING_DIR=${dir}" >> "$GITHUB_ENV"
+          echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
       - name: Seed Python shard duration report
         run: |
@@ -669,7 +683,7 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: coverage-python-${{ matrix.lane }}-shard-${{ matrix.py_shard_label }}
-          path: ${{ env.ARTIFACT_STAGING_DIR }}
+          path: ${{ steps.artifact_staging.outputs.dir }}
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
@@ -746,7 +760,6 @@ jobs:
       TEST_PROFILE: ${{ matrix.test_profile }}
       JS_TEST_NAMES: ${{ matrix.js_test_names }}
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
-      ARTIFACT_STAGING_DIR: ${{ github.workspace }}/../coverage-js-${{ matrix.lane }}-shard-${{ matrix.js_shard_label }}
     steps:
       - name: Setup python
         if: ${{ matrix.lane != 'gpu' }}
@@ -778,6 +791,14 @@ jobs:
           sudo apt --assume-yes install nodejs npm
           node --version
           npm --version
+
+      - name: Prepare JS artifact staging directory
+        id: artifact_staging
+        run: |
+          dir="${RUNNER_TEMP}/coverage-js-${{ matrix.lane }}-shard-${{ matrix.js_shard_label }}"
+          mkdir -p "${dir}"
+          echo "ARTIFACT_STAGING_DIR=${dir}" >> "$GITHUB_ENV"
+          echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
       - name: Seed JS shard duration report
         run: |
@@ -972,7 +993,7 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: coverage-js-${{ matrix.lane }}-shard-${{ matrix.js_shard_label }}
-          path: ${{ env.ARTIFACT_STAGING_DIR }}
+          path: ${{ steps.artifact_staging.outputs.dir }}
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
