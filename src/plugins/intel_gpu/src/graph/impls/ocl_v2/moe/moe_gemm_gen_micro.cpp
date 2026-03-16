@@ -151,7 +151,7 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params, 
     micro::GEMMProblem problem_moe;
     micro::GEMMProtocol::Options opts_moe;
     opts_moe.slmPtr = true;
-    opts_moe.kParallelLocal = !is_prefill;
+    // opts_moe.kParallelLocal = !is_prefill;
     enum class MICRO_DIMENSIONALITY { NONE = -1, SCALAR = 0, VECTOR = 1, MATRIX = 2 };
 
     if (moe_cfg.is_weight_quantized) {
