@@ -192,9 +192,7 @@ void CommandList::updateMutableCommandListWithStrides(uint32_t index,
                                 zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t));
 }
 
-CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                           const ze_command_queue_priority_t& priority,
-                           const uint32_t command_queue_options)
+CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const CommandQueueDesc& desc)
     : _init_structs(init_structs),
       _log("CommandQueue", Logger::global().level()) {
     ze_command_queue_desc_t queue_desc = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC,
@@ -203,20 +201,18 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
                                           0,
                                           0,
                                           ZE_COMMAND_QUEUE_MODE_DEFAULT,
-                                          priority};
+                                          desc.priority};
     ze_command_queue_desc_npu_ext_t turbo_cfg = {};
     ze_command_queue_desc_npu_ext_2_t command_queue_desc = {};
 
-    if (command_queue_options) {
+    if (desc.options) {
         if (_init_structs->getCommandQueueDdiTable().version() == ZE_MAKE_VERSION(1, 0)) {
             turbo_cfg.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT;
-            turbo_cfg.turbo = command_queue_options & ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
-
+            turbo_cfg.turbo = desc.options & ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
             queue_desc.pNext = &turbo_cfg;
         } else if (_init_structs->getCommandQueueDdiTable().version() > ZE_MAKE_VERSION(1, 0)) {
             command_queue_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT_2;
-            command_queue_desc.options = command_queue_options;
-
+            command_queue_desc.options = desc.options;
             queue_desc.pNext = &command_queue_desc;
         }
     }
@@ -224,6 +220,14 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeCommandQueueCreate",
         zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &queue_desc, &_handle));
+
+    if (_init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
+        THROW_ON_FAIL_FOR_LEVELZERO(
+            "zeSetWorkloadType",
+            _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, desc.workload));
+    } else if (desc.workload != ZE_WORKLOAD_TYPE_DEFAULT) {
+        OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
+    }
 }
 void CommandQueue::executeCommandList(CommandList& command_list) const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueExecuteCommandLists",
@@ -233,16 +237,6 @@ void CommandQueue::executeCommandList(CommandList& command_list, Fence& fence) c
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueExecuteCommandLists",
                                 zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, fence.handle()));
 }
-
-void CommandQueue::setWorkloadType(ze_command_queue_workload_type_t workloadType) const {
-    if (_init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
-        THROW_ON_FAIL_FOR_LEVELZERO("zeSetWorkloadType",
-                                    _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, workloadType));
-    } else {
-        OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
-    }
-}
-
 CommandQueue::~CommandQueue() {
     auto result = zeCommandQueueDestroy(_handle);
     if (ZE_RESULT_SUCCESS != result) {

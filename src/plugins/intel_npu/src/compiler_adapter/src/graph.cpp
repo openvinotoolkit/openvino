@@ -49,29 +49,19 @@ void Graph::update_network_name(std::string_view name) {
     _metadata.name = name;
 }
 
-const std::shared_ptr<CommandQueue>& Graph::get_command_queue() const {
-    return _commandQueue;
+CommandQueueDesc Graph::get_command_queue_desc() const {
+    std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+    return _commandQueueDesc;
 }
 
-void Graph::set_workload_type(const ov::WorkloadType workloadType) const {
-    std::lock_guard<std::mutex> lock(_commandQueueMutex);
-    if (_commandQueue == nullptr) {
-        return;
-    }
+uint64_t Graph::get_command_queue_desc_version() const {
+    return _commandQueueDescVersion.load(std::memory_order_acquire);
+}
 
-    ze_command_queue_workload_type_t zeWorkloadType;
-    switch (workloadType) {
-    case ov::WorkloadType::DEFAULT:
-        zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_DEFAULT;
-        break;
-    case ov::WorkloadType::EFFICIENT:
-        zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_BACKGROUND;
-        break;
-    default:
-        OPENVINO_THROW("Unknown value for WorkloadType!");
-    }
-
-    _commandQueue->setWorkloadType(zeWorkloadType);
+void Graph::set_workload_type(const ov::WorkloadType workloadType) {
+    std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+    _commandQueueDesc.workload = zeroUtils::toZeQueueWorkloadType(std::optional<ov::WorkloadType>{workloadType});
+    _commandQueueDescVersion.fetch_add(1, std::memory_order_release);
 }
 
 ze_graph_handle_t Graph::get_handle() const {
@@ -180,14 +170,15 @@ void Graph::initialize_impl(const FilteredConfig& config) {
     }
 
     {
-        std::lock_guard<std::mutex> lock(_commandQueueMutex);
-        _commandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                       zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                       commandQueueOptions);
-    }
-
-    if (config.has<WORKLOAD_TYPE>()) {
-        set_workload_type(config.get<WORKLOAD_TYPE>());
+        std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+        _commandQueueDesc = CommandQueueDesc{
+            zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+            zeroUtils::toZeQueueWorkloadType(config.has<WORKLOAD_TYPE>()
+                                                 ? std::optional<ov::WorkloadType>{config.get<WORKLOAD_TYPE>()}
+                                                 : std::nullopt),
+            commandQueueOptions,
+            this};
+        _commandQueueDescVersion.fetch_add(1, std::memory_order_release);
     }
 
     _zeGraphExt->initializeGraph(_graphDesc);
@@ -339,10 +330,6 @@ Graph::~Graph() {
 
     if (!_lastSubmittedEvent.empty()) {
         _lastSubmittedEvent.clear();
-    }
-
-    if (_commandQueue != nullptr) {
-        _commandQueue.reset();
     }
 }
 

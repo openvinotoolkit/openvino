@@ -10,6 +10,7 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 
 namespace {
@@ -56,6 +57,10 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                    _config.get<RUN_INFERENCES_SEQUENTIALLY>()),
       _pipeline_unique_id_per_graph(get_graph_unique_id_or_throw(graph)),
       _logger(logName, _config.get<LOG_LEVEL>()) {
+    const auto command_queue_state = get_command_queue_state_snapshot();
+    _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_state.desc);
+    _command_queue_version = command_queue_state.version;
+
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
     std::optional<bool> compiled_with_profiling = _graph->is_profiling_blob();
 
@@ -94,6 +99,18 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
         }  // else appendGraphExecute will fail in case the model was compiled with profiling enabled
     }
 };
+
+IPipeline::CommandQueueStateSnapshot IPipeline::get_command_queue_state_snapshot() {
+    while (true) {
+        const auto version_before = _graph->get_command_queue_desc_version();
+        auto desc = _graph->get_command_queue_desc();
+        const auto version_after = _graph->get_command_queue_desc_version();
+
+        if (version_before == version_after) {
+            return {desc, version_after};
+        }
+    }
+}
 
 std::vector<ov::ProfilingInfo> IPipeline::get_profiling_info() const {
     _logger.debug("get_profiling_info - started");
@@ -159,17 +176,16 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
         }
     }
 
+    if (_sync_output_with_fences) {
+        _fences.reserve(_batch_size);
+        for (size_t i = 0; i < _batch_size; i++) {
+            _fences.emplace_back(std::make_unique<Fence>(_command_queue));
+        }
+    }
+
     _command_lists.reserve(_batch_size);
     for (size_t i = 0; i < _batch_size; i++) {
         _command_lists.emplace_back(std::make_unique<CommandList>(_init_structs));
-    }
-
-    if (_sync_output_with_fences) {
-        _fences.reserve(_batch_size);
-
-        for (size_t i = 0; i < _batch_size; i++) {
-            _fences.emplace_back(std::make_unique<Fence>(_graph->get_command_queue()));
-        }
     }
 
     for (size_t i = 0; i < _batch_size; i++) {
@@ -283,6 +299,22 @@ void Pipeline::push() {
         _graph->set_last_submitted_id(_pipeline_unique_id_per_graph);
     }
 
+    const auto command_queue_version = _graph->get_command_queue_desc_version();
+    const bool command_queue_changed = (command_queue_version != _command_queue_version);
+    if (command_queue_changed) {
+        const auto command_queue_state = get_command_queue_state_snapshot();
+        if (command_queue_state.version != _command_queue_version) {
+            _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_state.desc);
+            _command_queue_version = command_queue_state.version;
+
+            if (_sync_output_with_fences) {
+                for (size_t i = 0; i < _fences.size(); i++) {
+                    _fences[i] = std::make_unique<Fence>(_command_queue);
+                }
+            }
+        }
+    }
+
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         _command_lists.at(i)->close();
         // Emit a marker for pipeline::push() with the command list handle as the metadata
@@ -292,9 +324,9 @@ void Pipeline::push() {
                                 (uintptr_t)_command_lists.at(i)->handle());
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
         if (_sync_output_with_fences) {
-            _graph->get_command_queue()->executeCommandList(*_command_lists.at(i), *_fences.at(i));
+            _command_queue->executeCommandList(*_command_lists.at(i), *_fences.at(i));
         } else {
-            _graph->get_command_queue()->executeCommandList(*_command_lists.at(i));
+            _command_queue->executeCommandList(*_command_lists.at(i));
         }
     }
 

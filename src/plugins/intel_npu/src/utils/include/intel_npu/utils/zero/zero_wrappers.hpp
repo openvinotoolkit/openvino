@@ -15,6 +15,13 @@ namespace intel_npu {
 class CommandList;
 class CommandQueue;
 
+struct CommandQueueDesc {
+    ze_command_queue_priority_t priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
+    ze_command_queue_workload_type_t workload = ZE_WORKLOAD_TYPE_DEFAULT;
+    uint32_t options = 0;
+    const void* owner_tag = nullptr;
+};
+
 class EventPool {
 public:
     EventPool() = delete;
@@ -121,9 +128,7 @@ private:
 class CommandQueue {
 public:
     CommandQueue() = delete;
-    CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                 const ze_command_queue_priority_t& priority,
-                 const uint32_t command_queue_options = 0);
+    CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const CommandQueueDesc& desc);
     CommandQueue(const CommandQueue&) = delete;
     CommandQueue(CommandQueue&&) = delete;
     CommandQueue& operator=(const CommandQueue&) = delete;
@@ -131,7 +136,6 @@ public:
 
     void executeCommandList(CommandList& command_list) const;
     void executeCommandList(CommandList& command_list, Fence& fence) const;
-    void setWorkloadType(ze_command_queue_workload_type_t workloadType) const;
     ~CommandQueue();
     inline ze_command_queue_handle_t handle() const {
         return _handle;

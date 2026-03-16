@@ -6,6 +6,9 @@
 
 #pragma once
 
+#include <atomic>
+#include <mutex>
+
 #include <ze_graph_ext.h>
 
 #include "intel_npu/common/igraph.hpp"
@@ -40,9 +43,9 @@ public:
 
     void update_network_name(std::string_view name) override;
 
-    const std::shared_ptr<CommandQueue>& get_command_queue() const override;
-
-    void set_workload_type(const ov::WorkloadType workloadType) const override;
+    CommandQueueDesc get_command_queue_desc() const override;
+    uint64_t get_command_queue_desc_version() const override;
+    void set_workload_type(const ov::WorkloadType workloadType) override;
 
     void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) override;
     const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const override;
@@ -72,8 +75,9 @@ protected:
     GraphDescriptor _graphDesc;
     NetworkMetadata _metadata;
 
-    mutable std::mutex _commandQueueMutex;
-    std::shared_ptr<CommandQueue> _commandQueue;
+    mutable std::mutex _commandQueueDescMutex;
+    std::atomic<uint64_t> _commandQueueDescVersion{0};
+    CommandQueueDesc _commandQueueDesc;
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 
     std::optional<ov::Tensor> _blob;

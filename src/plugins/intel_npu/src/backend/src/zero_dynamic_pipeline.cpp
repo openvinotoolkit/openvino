@@ -14,6 +14,7 @@
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 
@@ -77,9 +78,8 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 
     if (_sync_output_with_fences) {
         _fences.reserve(_batch_size);
-
         for (size_t i = 0; i < _batch_size; i++) {
-            _fences.emplace_back(std::make_unique<Fence>(_graph->get_command_queue()));
+            _fences.emplace_back(std::make_unique<Fence>(_command_queue));
         }
     }
 
@@ -181,7 +181,23 @@ void DynamicPipeline::push() {
     auto* dynamicGraph = dynamic_cast<IDynamicGraph*>(_graph.get());
     OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
 
-    auto commandQueueHandle = _graph->get_command_queue()->handle();
+    const auto command_queue_version = _graph->get_command_queue_desc_version();
+    const bool command_queue_changed = (command_queue_version != _command_queue_version);
+    if (command_queue_changed) {
+        const auto command_queue_state = get_command_queue_state_snapshot();
+        if (command_queue_state.version != _command_queue_version) {
+            _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_state.desc);
+            _command_queue_version = command_queue_state.version;
+
+            if (_sync_output_with_fences) {
+                for (size_t i = 0; i < _fences.size(); i++) {
+                    _fences[i] = std::make_unique<Fence>(_command_queue);
+                }
+            }
+        }
+    }
+
+    auto commandQueueHandle = _command_queue->handle();
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
 

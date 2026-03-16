@@ -12,8 +12,9 @@ namespace intel_npu {
 ZeroMemPool::ZeroMemPool() {}
 
 ZeroMemPool& ZeroMemPool::get_instance() {
-    static ZeroMemPool instance;
-    return instance;
+    // Allocate the singleton on the heap to avoid static destruction order issues
+    static ZeroMemPool* instance = new ZeroMemPool();
+    return *instance;
 }
 
 std::shared_ptr<ZeroMem> ZeroMemPool::allocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
