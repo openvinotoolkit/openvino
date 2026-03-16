@@ -64,6 +64,10 @@ OutputVector translate_atan2_util(const NodeContext& context, const Output<Node>
     auto special_case_condition =
         context.mark_node(make_shared<v1::LogicalOr>(half_pi_condition, neg_half_pi_condition));
 
+    // x = 0 and y = 0, result is 0 (IEEE 754)
+    auto y_equal_zero = context.mark_node(make_shared<v1::Equal>(lhs, zero));
+    auto both_zero_condition = context.mark_node(make_shared<v1::LogicalAnd>(x_equal_zero, y_equal_zero));
+
     // do adjustment
     auto atan_plus_pi = context.mark_node(make_shared<v1::Add>(atan, pi));
     auto atan_minus_pi = context.mark_node(make_shared<v1::Subtract>(atan, pi));
@@ -73,6 +77,7 @@ OutputVector translate_atan2_util(const NodeContext& context, const Output<Node>
     auto special_case = context.mark_node(make_shared<v1::Select>(half_pi_condition, half_pi, neg_half_pi));
     auto adjusted_atan = context.mark_node(make_shared<v1::Select>(x_greater_than_zero, atan, ajusted_case));
     auto result = context.mark_node(make_shared<v1::Select>(special_case_condition, special_case, adjusted_atan));
+    result = context.mark_node(make_shared<v1::Select>(both_zero_condition, zero, result));
 
     return {result};
 }
