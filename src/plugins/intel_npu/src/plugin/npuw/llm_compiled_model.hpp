@@ -47,10 +47,10 @@ public:
     // The default builds an ov::npuw::CompiledModel via ICompiledModel::create().
     // Tests may inject a custom factory to inspect the transformed IR or stub the
     // compilation stage entirely.
-    using CompiledModelFactory = std::function<std::shared_ptr<ov::npuw::ICompiledModel_v0>(
-        const std::shared_ptr<ov::Model>&,
-        const std::shared_ptr<const ov::IPlugin>&,
-        const ov::AnyMap&)>;
+    using CompiledModelFactory =
+        std::function<std::shared_ptr<ov::npuw::ICompiledModel_v0>(const std::shared_ptr<ov::Model>&,
+                                                                   const std::shared_ptr<const ov::IPlugin>&,
+                                                                   const ov::AnyMap&)>;
 
     static std::shared_ptr<ov::npuw::ICompiledModel_v0> make_compiled_model(
         const std::shared_ptr<ov::Model>& model,
