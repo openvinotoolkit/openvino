@@ -209,12 +209,12 @@ TEST_F(SingleFileStorageTest, ContextMetaWriteRead) {
 
     const auto meta_read_test = [&](SingleFileStorage& storage) {
         auto got_context = storage.get_context();
-        EXPECT_EQ(got_context.m_weight_registry.size(), 2);
+        EXPECT_EQ(got_context->m_weight_registry.size(), 2);
 
         for (const auto& [source_id, const_meta] : test_context.m_weight_registry) {
-            auto& got_meta_data = got_context.m_weight_registry;
+            auto& got_meta_data = got_context->m_weight_registry;
             ASSERT_EQ(got_meta_data.count(source_id), 1);
-            EXPECT_EQ(got_context.m_weight_registry[source_id].size(),
+            EXPECT_EQ(got_context->m_weight_registry[source_id].size(),
                       test_context.m_weight_registry[source_id].size());
             for (const auto& [const_id, expected_props] : const_meta) {
                 ASSERT_EQ(got_meta_data[source_id].count(const_id), 1);
@@ -244,9 +244,9 @@ TEST_F(SingleFileStorageTest, ContextMetaAppendDelta) {
     m_storage->write_context(test_context);
 
     auto got_context = m_storage->get_context();
-    EXPECT_EQ(got_context.m_weight_registry.size(), 2);
-    EXPECT_EQ(got_context.m_weight_registry[1].size(), 2);
-    EXPECT_EQ(got_context.m_weight_registry[2].size(), 1);
+    EXPECT_EQ(got_context->m_weight_registry.size(), 2);
+    EXPECT_EQ(got_context->m_weight_registry[1].size(), 2);
+    EXPECT_EQ(got_context->m_weight_registry[2].size(), 1);
     m_storage.reset();
     const auto file_size_after_first_write = test::utils::fileSize(m_file_path.string());
 
@@ -312,7 +312,7 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceAppendDelta) {
     test_context.m_cache_sources[11].m_weights = buffer_2;
     m_storage->write_context(test_context);
 
-    EXPECT_EQ(m_storage->get_context().m_cache_sources.size(), 2);
+    EXPECT_EQ(m_storage->get_context()->m_cache_sources.size(), 2);
     m_storage.reset();
     const auto file_size_after_first_write = test::utils::fileSize(m_file_path.string());
 
