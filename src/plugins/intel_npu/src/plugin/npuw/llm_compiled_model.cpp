@@ -1198,6 +1198,9 @@ struct NPUDesc {
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
                                               const ov::AnyMap& config) {
+    if (!plugin->get_core()) {
+        return std::nullopt;
+    }
     const auto all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
     if (all_devices.empty()) {
         return std::nullopt;
@@ -1598,6 +1601,14 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
     return generate_model_variants;
 }
 
+std::shared_ptr<ov::npuw::ICompiledModel_v0> ov::npuw::LLMCompiledModel::make_compiled_model(
+    const std::shared_ptr<ov::Model>& model,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
+    return std::dynamic_pointer_cast<ov::npuw::ICompiledModel_v0>(
+        ov::npuw::ICompiledModel::create(model, plugin, properties));
+}
+
 void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
     const std::vector<std::shared_ptr<ov::Model>>& generate_model_variants,
     const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -1615,8 +1626,7 @@ void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
         auto& generate_variant = generate_model_variants[i];
 
         // Compile the variant
-        auto compiled_variant = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
-            ov::npuw::ICompiledModel::create(generate_variant, plugin, generate_config));
+        auto compiled_variant = m_compiled_model_factory(generate_variant, plugin, generate_config);
         NPUW_ASSERT(compiled_variant && "Can't create ov::npuw::CompiledModel for generate variant!");
 
         m_generate_compiled_variants.push_back(compiled_variant);
@@ -1629,11 +1639,13 @@ void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
 
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
-                                             const ov::AnyMap& properties)
+                                             const ov::AnyMap& properties,
+                                             CompiledModelFactory factory)
     : ov::npuw::ICompiledModel(model, plugin),
       m_name(model->get_friendly_name()),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
-      m_cfg(m_options_desc) {
+      m_cfg(m_options_desc),
+      m_compiled_model_factory(std::move(factory)) {
     LOG_DEBUG("Creating LLMCompiledModel");
     LOG_BLOCK();
 
@@ -2098,8 +2110,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Compile multiple generate model variants with different sizes
     compile_generate_model_variants(generate_model_variants, plugin, generate_config);
 
-    m_prefill_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
-        ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
+    m_prefill_compiled = m_compiled_model_factory(prefill_model, plugin, prefill_config);
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
                                       "model and its config, please check passed config.");
     if (lm_head_model) {
@@ -2110,8 +2121,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
         apply_weights_bank_name(lm_head_config, weights_bank_name);
 
-        m_lm_head_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
-            ov::npuw::ICompiledModel::create(lm_head_model, plugin, lm_head_config));
+        m_lm_head_compiled = m_compiled_model_factory(lm_head_model, plugin, lm_head_config);
         NPUW_ASSERT(m_lm_head_compiled);
     }
 
@@ -2264,8 +2274,8 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
     }
 
     // Serialize bank name
-    const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
-    const auto& p_bank = m_prefill_compiled->m_weights_bank;
+    const auto& kv_bank = m_kvcache_compiled->get_weights_bank();
+    const auto& p_bank = m_prefill_compiled->get_weights_bank();
     NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
     write(stream, kv_bank->get_name());
 
@@ -2341,32 +2351,32 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
             auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
 
             for (const auto& compiled_variant : compiled->m_generate_compiled_variants) {
-                compiled_variant->m_weights_bank = bank;
+                compiled_variant->set_weights_bank(bank);
                 compiled_variant->finalize_weights_bank();
             }
 
-            compiled->m_prefill_compiled->m_weights_bank = bank;
+            compiled->m_prefill_compiled->set_weights_bank(bank);
             compiled->m_prefill_compiled->finalize_weights_bank();
 
             if (compiled->m_lm_head_compiled) {
-                compiled->m_lm_head_compiled->m_weights_bank = bank;
+                compiled->m_lm_head_compiled->set_weights_bank(bank);
                 compiled->m_lm_head_compiled->finalize_weights_bank();
             }
         } else {
             auto bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
 
-            compiled->m_kvcache_compiled->m_weights_bank = bank;
+            compiled->m_kvcache_compiled->set_weights_bank(bank);
             for (const auto& compiled_variant : compiled->m_generate_compiled_variants) {
-                compiled_variant->m_weights_bank = bank;
+                compiled_variant->set_weights_bank(bank);
                 compiled_variant->reconstruct_closure();
             }
 
-            compiled->m_prefill_compiled->m_weights_bank = bank;
+            compiled->m_prefill_compiled->set_weights_bank(bank);
             compiled->m_prefill_compiled->reconstruct_closure();
 
             if (compiled->m_lm_head_compiled) {
-                compiled->m_lm_head_compiled->m_weights_bank = bank;
+                compiled->m_lm_head_compiled->set_weights_bank(bank);
                 compiled->m_lm_head_compiled->reconstruct_closure();
             }
         }

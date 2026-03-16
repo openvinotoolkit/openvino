@@ -43,9 +43,24 @@ public:
         bool v_tensors_transposed_gen = false;  // generate
     };
 
+    // Factory type for creating sub-compiled-models (prefill / generate / lm_head).
+    // The default builds an ov::npuw::CompiledModel via ICompiledModel::create().
+    // Tests may inject a custom factory to inspect the transformed IR or stub the
+    // compilation stage entirely.
+    using CompiledModelFactory = std::function<std::shared_ptr<ov::npuw::ICompiledModel_v0>(
+        const std::shared_ptr<ov::Model>&,
+        const std::shared_ptr<const ov::IPlugin>&,
+        const ov::AnyMap&)>;
+
+    static std::shared_ptr<ov::npuw::ICompiledModel_v0> make_compiled_model(
+        const std::shared_ptr<ov::Model>& model,
+        const std::shared_ptr<const ov::IPlugin>& plugin,
+        const ov::AnyMap& properties);
+
     LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                      const std::shared_ptr<const ov::IPlugin>& plugin,
-                     const ov::AnyMap& properties);
+                     const ov::AnyMap& properties,
+                     CompiledModelFactory factory = make_compiled_model);
     LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                      const std::shared_ptr<const ov::IPlugin>& plugin,
                      const bool serialized);
@@ -91,13 +106,15 @@ private:
     KVCacheDesc m_kvcache_desc;
     uint64_t m_prefill_chunk_size = 0;
     bool m_use_chunk_prefill = false;
-    std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
-    std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
+    std::shared_ptr<ov::npuw::ICompiledModel_v0> m_kvcache_compiled;
+    std::shared_ptr<ov::npuw::ICompiledModel_v0> m_prefill_compiled;
     // This model is optional, so can be null.
-    std::shared_ptr<ov::npuw::CompiledModel> m_lm_head_compiled;
+    std::shared_ptr<ov::npuw::ICompiledModel_v0> m_lm_head_compiled;
+
+    CompiledModelFactory m_compiled_model_factory;
 
     // Multiple generate models with different static KV cache shapes (1K, 2K, 4K, 8K stepping)
-    std::vector<std::shared_ptr<ov::npuw::CompiledModel>> m_generate_compiled_variants;
+    std::vector<std::shared_ptr<ov::npuw::ICompiledModel_v0>> m_generate_compiled_variants;
     std::vector<uint32_t> m_kvcache_sizes;  // Corresponding KV cache sizes for each variant
 
     // Support LoRA
