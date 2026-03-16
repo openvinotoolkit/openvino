@@ -183,6 +183,7 @@ jobs:
       TEST_PROFILE: ${{ matrix.test_profile }}
       CXX_TEST_NAMES: ${{ matrix.cpp_test_names }}
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
+      ARTIFACT_STAGING_DIR: ${{ runner.temp }}/coverage-cpp-${{ matrix.lane }}-shard-${{ matrix.cpp_shard_label }}
     steps:
       - name: Setup python
         if: ${{ matrix.lane != 'gpu' }}
@@ -202,17 +203,18 @@ jobs:
 
       - name: Seed C++ shard duration report
         run: |
-          cat > "${{ github.workspace }}/cpp-test-durations.csv" <<'EOF'
+          mkdir -p "${ARTIFACT_STAGING_DIR}"
+          cat > "${ARTIFACT_STAGING_DIR}/cpp-test-durations.csv" <<'EOF'
           test_name,status,duration_seconds,duration_minutes
           EOF
           total=0
           IFS=',' read -r -a tests <<< "${CXX_TEST_NAMES}"
           for test_name in "${tests[@]}"; do
             [[ -n "${test_name}" ]] || continue
-            printf '%s,%s,%s,%s\n' "${test_name}" "not_run" "0.000" "0.000" >> "${{ github.workspace }}/cpp-test-durations.csv"
+            printf '%s,%s,%s,%s\n' "${test_name}" "not_run" "0.000" "0.000" >> "${ARTIFACT_STAGING_DIR}/cpp-test-durations.csv"
             total=$((total + 1))
           done
-          cat > "${{ github.workspace }}/cpp-coverage-stats.env" <<EOF
+          cat > "${ARTIFACT_STAGING_DIR}/cpp-coverage-stats.env" <<EOF
           CXX_TESTS_TOTAL=${total}
           CXX_TESTS_EXECUTED=0
           CXX_TESTS_PASSED=0
@@ -220,7 +222,7 @@ jobs:
           CXX_TESTS_SKIPPED=0
           CXX_TESTS_NOT_RUN=${total}
           EOF
-          cat > "${{ github.workspace }}/coverage-artifact-metadata.json" <<EOF
+          cat > "${ARTIFACT_STAGING_DIR}/coverage-artifact-metadata.json" <<EOF
           {"suite":"cpp","lane":"${{ matrix.lane }}","artifact_name":"coverage-cpp-${{ matrix.lane }}-shard-${{ matrix.cpp_shard_label }}","shard_label":"${{ matrix.cpp_shard_label }}","shard_index":${{ matrix.cpp_shard_index }},"shard_count":${{ matrix.cpp_shard_count }}}
           EOF
 
@@ -376,18 +378,32 @@ jobs:
             fi
           done
 
+      - name: Refresh C++ artifact staging directory
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          mkdir -p "${ARTIFACT_STAGING_DIR}"
+          if [[ -f "${{ github.workspace }}/coverage.info" ]]; then
+            cp "${{ github.workspace }}/coverage.info" "${ARTIFACT_STAGING_DIR}/coverage.info"
+          fi
+          if [[ -f "${{ github.workspace }}/cpp-test-durations.csv" ]]; then
+            cp "${{ github.workspace }}/cpp-test-durations.csv" "${ARTIFACT_STAGING_DIR}/cpp-test-durations.csv"
+          fi
+          if [[ -f "${{ github.workspace }}/cpp-coverage-stats.env" ]]; then
+            cp "${{ github.workspace }}/cpp-coverage-stats.env" "${ARTIFACT_STAGING_DIR}/cpp-coverage-stats.env"
+          fi
+          if [[ -d "${{ github.workspace }}/coverage-report" ]]; then
+            rm -rf "${ARTIFACT_STAGING_DIR}/coverage-report"
+            rsync -a "${{ github.workspace }}/coverage-report/" "${ARTIFACT_STAGING_DIR}/coverage-report/"
+          fi
+
       - name: Upload C++ coverage artifact
         if: ${{ always() }}
         continue-on-error: true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: coverage-cpp-${{ matrix.lane }}-shard-${{ matrix.cpp_shard_label }}
-          path: |
-            coverage.info
-            coverage-report
-            cpp-test-durations.csv
-            cpp-coverage-stats.env
-            coverage-artifact-metadata.json
+          path: ${{ env.ARTIFACT_STAGING_DIR }}
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
@@ -452,6 +468,7 @@ jobs:
       TEST_PROFILE: ${{ matrix.test_profile }}
       PY_TEST_NAMES: ${{ matrix.py_test_names }}
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
+      ARTIFACT_STAGING_DIR: ${{ runner.temp }}/coverage-python-${{ matrix.lane }}-shard-${{ matrix.py_shard_label }}
     steps:
       - name: Setup python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -461,24 +478,25 @@ jobs:
 
       - name: Seed Python shard duration report
         run: |
-          cat > "${{ github.workspace }}/python-test-durations.csv" <<'EOF'
+          mkdir -p "${ARTIFACT_STAGING_DIR}"
+          cat > "${ARTIFACT_STAGING_DIR}/python-test-durations.csv" <<'EOF'
           test_name,status,duration_seconds,duration_minutes
           EOF
           total=0
           IFS=',' read -r -a tests <<< "${PY_TEST_NAMES}"
           for test_name in "${tests[@]}"; do
             [[ -n "${test_name}" ]] || continue
-            printf '%s,%s,%s,%s\n' "${test_name}" "not_run" "0.000" "0.000" >> "${{ github.workspace }}/python-test-durations.csv"
+            printf '%s,%s,%s,%s\n' "${test_name}" "not_run" "0.000" "0.000" >> "${ARTIFACT_STAGING_DIR}/python-test-durations.csv"
             total=$((total + 1))
           done
-          cat > "${{ github.workspace }}/python-coverage-stats.env" <<EOF
+          cat > "${ARTIFACT_STAGING_DIR}/python-coverage-stats.env" <<EOF
           PY_TESTS_TOTAL=${total}
           PY_TESTS_PASSED=0
           PY_TESTS_FAILED=0
           PY_TESTS_SKIPPED=0
           PY_TESTS_NOT_RUN=${total}
           EOF
-          cat > "${{ github.workspace }}/coverage-artifact-metadata.json" <<EOF
+          cat > "${ARTIFACT_STAGING_DIR}/coverage-artifact-metadata.json" <<EOF
           {"suite":"python","lane":"${{ matrix.lane }}","artifact_name":"coverage-python-${{ matrix.lane }}-shard-${{ matrix.py_shard_label }}","shard_label":"${{ matrix.py_shard_label }}","shard_index":${{ matrix.py_shard_index }},"shard_count":${{ matrix.py_shard_count }}}
           EOF
 
@@ -630,19 +648,28 @@ jobs:
             fi
           done
 
+      - name: Refresh Python artifact staging directory
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          mkdir -p "${ARTIFACT_STAGING_DIR}"
+          for file in python-coverage.xml coverage.info python-test-durations.csv python-coverage-stats.env; do
+            if [[ -f "${{ github.workspace }}/${file}" ]]; then
+              cp "${{ github.workspace }}/${file}" "${ARTIFACT_STAGING_DIR}/${file}"
+            fi
+          done
+          if [[ -d "${{ github.workspace }}/coverage-report" ]]; then
+            rm -rf "${ARTIFACT_STAGING_DIR}/coverage-report"
+            rsync -a "${{ github.workspace }}/coverage-report/" "${ARTIFACT_STAGING_DIR}/coverage-report/"
+          fi
+
       - name: Upload Python coverage artifact
         if: ${{ always() }}
         continue-on-error: true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: coverage-python-${{ matrix.lane }}-shard-${{ matrix.py_shard_label }}
-          path: |
-            python-coverage.xml
-            coverage.info
-            coverage-report
-            python-test-durations.csv
-            python-coverage-stats.env
-            coverage-artifact-metadata.json
+          path: ${{ env.ARTIFACT_STAGING_DIR }}
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
@@ -719,6 +746,7 @@ jobs:
       TEST_PROFILE: ${{ matrix.test_profile }}
       JS_TEST_NAMES: ${{ matrix.js_test_names }}
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
+      ARTIFACT_STAGING_DIR: ${{ runner.temp }}/coverage-js-${{ matrix.lane }}-shard-${{ matrix.js_shard_label }}
     steps:
       - name: Setup python
         if: ${{ matrix.lane != 'gpu' }}
@@ -753,24 +781,25 @@ jobs:
 
       - name: Seed JS shard duration report
         run: |
-          cat > "${{ github.workspace }}/js-test-durations.csv" <<'EOF'
+          mkdir -p "${ARTIFACT_STAGING_DIR}"
+          cat > "${ARTIFACT_STAGING_DIR}/js-test-durations.csv" <<'EOF'
           test_name,status,duration_seconds,duration_minutes
           EOF
           total=0
           IFS=',' read -r -a tests <<< "${JS_TEST_NAMES}"
           for test_name in "${tests[@]}"; do
             [[ -n "${test_name}" ]] || continue
-            printf '%s,%s,%s,%s\n' "${test_name}" "not_run" "0.000" "0.000" >> "${{ github.workspace }}/js-test-durations.csv"
+            printf '%s,%s,%s,%s\n' "${test_name}" "not_run" "0.000" "0.000" >> "${ARTIFACT_STAGING_DIR}/js-test-durations.csv"
             total=$((total + 1))
           done
-          cat > "${{ github.workspace }}/js-coverage-stats.env" <<EOF
+          cat > "${ARTIFACT_STAGING_DIR}/js-coverage-stats.env" <<EOF
           JS_TESTS_TOTAL=${total}
           JS_TESTS_PASSED=0
           JS_TESTS_FAILED=0
           JS_TESTS_SKIPPED=0
           JS_TESTS_NOT_RUN=${total}
           EOF
-          cat > "${{ github.workspace }}/coverage-artifact-metadata.json" <<EOF
+          cat > "${ARTIFACT_STAGING_DIR}/coverage-artifact-metadata.json" <<EOF
           {"suite":"js","lane":"${{ matrix.lane }}","artifact_name":"coverage-js-${{ matrix.lane }}-shard-${{ matrix.js_shard_label }}","shard_label":"${{ matrix.js_shard_label }}","shard_index":${{ matrix.js_shard_index }},"shard_count":${{ matrix.js_shard_count }}}
           EOF
 
@@ -922,19 +951,28 @@ jobs:
             fi
           done
 
+      - name: Refresh JS artifact staging directory
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          mkdir -p "${ARTIFACT_STAGING_DIR}"
+          for file in js-lcov.info coverage.info js-test-durations.csv js-coverage-stats.env; do
+            if [[ -f "${{ github.workspace }}/${file}" ]]; then
+              cp "${{ github.workspace }}/${file}" "${ARTIFACT_STAGING_DIR}/${file}"
+            fi
+          done
+          if [[ -d "${{ github.workspace }}/coverage-report" ]]; then
+            rm -rf "${ARTIFACT_STAGING_DIR}/coverage-report"
+            rsync -a "${{ github.workspace }}/coverage-report/" "${ARTIFACT_STAGING_DIR}/coverage-report/"
+          fi
+
       - name: Upload JS coverage artifact
         if: ${{ always() }}
         continue-on-error: true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: coverage-js-${{ matrix.lane }}-shard-${{ matrix.js_shard_label }}
-          path: |
-            js-lcov.info
-            coverage.info
-            coverage-report
-            js-test-durations.csv
-            js-coverage-stats.env
-            coverage-artifact-metadata.json
+          path: ${{ env.ARTIFACT_STAGING_DIR }}
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0

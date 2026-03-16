@@ -69,7 +69,7 @@ python3 scripts/coverage/coverage.py list-tests --suite python --profile gpu
 ## Outputs
 Main artifacts in workspace root:
 - `coverage.info` (native C/C++ lcov)
-- `coverage-artifact-metadata.json` (CI artifact identity for summary aggregation)
+- `coverage-artifact-metadata.json` (CI shard-artifact identity file used for summary aggregation)
 - `cpp-coverage-stats.env` (per-run C++ shard stats)
 - `cpp-test-durations.csv` (per-run C++ test durations in seconds)
 - `python-coverage-stats.env` (per-run Python shard stats)
