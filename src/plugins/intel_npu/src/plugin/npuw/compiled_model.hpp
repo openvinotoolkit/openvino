@@ -45,8 +45,7 @@ public:
 // actually needs.
 class ICompiledModel_v0 : public ov::npuw::ICompiledModel {
 public:
-    ICompiledModel_v0(const std::shared_ptr<ov::Model>& model,
-                      const std::shared_ptr<const ov::IPlugin>& plugin)
+    ICompiledModel_v0(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
         : ov::npuw::ICompiledModel(model, plugin) {}
 
     // Infer-request lifecycle
