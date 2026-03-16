@@ -10,6 +10,7 @@
 #include "openvino/frontend/manager.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
@@ -88,7 +89,7 @@ std::shared_ptr<ov::Model> Core::read_model(const std::filesystem::path& model_p
 std::shared_ptr<ov::Model> Core::read_model(const std::wstring& model_path,
                                             const std::wstring& bin_path,
                                             const ov::AnyMap& properties) const {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Read model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Read model");
     return read_model(ov::util::make_path(model_path), ov::util::make_path(bin_path), properties);
 }
 #endif
@@ -96,24 +97,24 @@ std::shared_ptr<ov::Model> Core::read_model(const std::wstring& model_path,
 std::shared_ptr<ov::Model> Core::read_model(const std::string& model_path,
                                             const std::string& bin_path,
                                             const AnyMap& properties) const {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Read model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Read model");
     return read_model(ov::util::make_path(model_path), ov::util::make_path(bin_path), properties);
 }
 
 std::shared_ptr<ov::Model> Core::read_model(const std::string& model, const ov::Tensor& weights) const {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Read model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Read model");
     OV_CORE_CALL_STATEMENT(return _impl->read_model(model, weights););
 }
 
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model, const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
     return compile_model(model, ov::default_device_name, config);
 }
 
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& device_name,
                                   const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model, device_name, config);
         return {exec._ptr, exec._so};
@@ -121,14 +122,14 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
 }
 
 CompiledModel Core::compile_model(const std::filesystem::path& model_path, const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
     return compile_model(model_path, ov::default_device_name, config);
 }
 
 CompiledModel Core::compile_model(const std::filesystem::path& model_path,
                                   const std::string& device_name,
                                   const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model_path, device_name, config);
         return {exec._ptr, exec._so};
@@ -136,19 +137,19 @@ CompiledModel Core::compile_model(const std::filesystem::path& model_path,
 }
 
 CompiledModel Core::compile_model(const std::string& model_path, const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
     return compile_model(ov::util::make_path(model_path), ov::default_device_name, config);
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 CompiledModel Core::compile_model(const std::wstring& model_path, const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
     return compile_model(ov::util::make_path(model_path), config);
 }
 #endif
 
 CompiledModel Core::compile_model(const std::string& model_path, const std::string& device_name, const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
     return compile_model(ov::util::make_path(model_path), device_name, config);
 }
 
@@ -156,7 +157,7 @@ CompiledModel Core::compile_model(const std::string& model_path, const std::stri
 CompiledModel Core::compile_model(const std::wstring& model_path,
                                   const std::string& device_name,
                                   const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
     return compile_model(ov::util::make_path(model_path), device_name, config);
 }
 #endif
@@ -165,7 +166,7 @@ CompiledModel Core::compile_model(const std::string& model,
                                   const ov::Tensor& weights,
                                   const std::string& device_name,
                                   const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model, weights, device_name, config);
         return {exec._ptr, exec._so};
@@ -175,7 +176,7 @@ CompiledModel Core::compile_model(const std::string& model,
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const RemoteContext& context,
                                   const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model, ov::SoPtr<ov::IRemoteContext>{context._impl, context._so}, config);
         return {exec._ptr, exec._so};
@@ -211,7 +212,7 @@ void Core::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& exte
 }
 
 CompiledModel Core::import_model(std::istream& modelStream, const std::string& device_name, const AnyMap& config) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Import Model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->import_model(modelStream, device_name, config);
         return {exec._ptr, exec._so};
@@ -219,7 +220,7 @@ CompiledModel Core::import_model(std::istream& modelStream, const std::string& d
 }
 
 CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext& context, const AnyMap& config) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Import Model");
 
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->import_model(modelStream, ov::SoPtr<ov::IRemoteContext>{context._impl, context._so}, config);
@@ -228,7 +229,7 @@ CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext&
 }
 
 CompiledModel Core::import_model(const ov::Tensor& model, const std::string& device_name, const AnyMap& config) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Import Model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->import_model(model, device_name, config);
         return {exec._ptr, exec._so};
@@ -236,7 +237,7 @@ CompiledModel Core::import_model(const ov::Tensor& model, const std::string& dev
 }
 
 CompiledModel Core::import_model(const ov::Tensor& model, const RemoteContext& context, const AnyMap& config) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Import Model");
 
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->import_model(model, ov::SoPtr<ov::IRemoteContext>{context._impl, context._so}, config);
@@ -271,13 +272,13 @@ std::vector<std::string> Core::get_available_devices() const {
 }
 
 void Core::register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& properties) {
-    OV_CORE_CALL_STATEMENT(_impl->register_plugin(plugin, device_name, properties););
+    register_plugin(ov::util::make_path(plugin), device_name, properties);
 }
 
 void Core::register_plugin(const std::filesystem::path& plugin_path,
                            const std::string& device_name,
                            const ov::AnyMap& properties) {
-    register_plugin(ov::util::path_to_string(plugin_path), device_name, properties);
+    OV_CORE_CALL_STATEMENT(_impl->register_plugin(plugin_path, device_name, properties););
 }
 
 void Core::unload_plugin(const std::string& device_name) {
@@ -325,6 +326,7 @@ RemoteContext Core::get_default_context(const std::string& device_name) {
 
 void shutdown() {
     frontend::FrontEndManager::shutdown();
+    ov::threading::executor_manager()->clear();
 }
 
 }  // namespace ov

@@ -13,6 +13,8 @@ set(MANDATORY_UNIT_TESTS_LIBS
         "openvino::reference"
         "openvino::npu_al"
         "openvino::npu_logger_utils"
+        "openvino_npu_common"
+        "openvino::npu_ops"
 )
 
 ov_add_test_target(
@@ -20,16 +22,20 @@ ov_add_test_target(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         ADDITIONAL_SOURCE_DIRS
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/partitioning
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/backend/src
         DEPENDENCIES
             openvino::runtime
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${CMAKE_CURRENT_SOURCE_DIR}/npuw
-            ${CMAKE_CURRENT_SOURCE_DIR}/npuw/model_generator
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/utils/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/al/include
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/behavior/npuw/test_engine/models
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/backend/include/
+            ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero
+            ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero/include
         OBJECT_FILES
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_compiled_model_utils.cpp
@@ -47,6 +53,8 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/moe_transformations/moe_unroll_patterns.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/moe_transformations/device_routed_moe_transform.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/moe_transformations/gather_to_2d_gather.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/pipelines/kokoro/kokoro_utils.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/behavior/npuw/test_engine/models/model_builder.cpp
         LINK_LIBRARIES
             ${MANDATORY_UNIT_TESTS_LIBS}
         LABELS
