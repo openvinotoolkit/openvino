@@ -7,6 +7,6 @@ ov_add_frontend(NAME paddle
                 PROTOBUF_REQUIRED
                 PROTOBUF_LITE
                 FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format"
-                LINK_LIBRARIES openvino::util openvino::core::dev)
+                LINK_LIBRARIES openvino::util openvino::core::dev nlohmann_json::nlohmann_json)
 
 ov_build_target_faster(openvino_paddle_frontend PCH)

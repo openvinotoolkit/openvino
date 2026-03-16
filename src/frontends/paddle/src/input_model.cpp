@@ -13,6 +13,7 @@
 #include "decoder_proto.hpp"
 #include "framework.pb.h"
 #include "input_model.hpp"
+#include "json_to_proto.hpp"
 #include "openvino/core/log_util.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
@@ -20,6 +21,7 @@
 #include "openvino/util/file_util.hpp"
 #include "paddle_utils.hpp"
 #include "place.hpp"
+
 
 namespace ov {
 namespace frontend {
@@ -182,10 +184,22 @@ bool is_pdmodel(const std::basic_string<T>& path) {
     return ov::util::ends_with(path, ext);
 }
 
+template <typename T>
+bool is_json_model(const std::basic_string<T>& path) {
+    std::string ext = ".json";
+    return ov::util::ends_with(path, ext);
+}
+
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 template <>
 bool is_pdmodel(const std::basic_string<wchar_t>& path) {
     std::wstring ext = L".pdmodel";
+    return ov::util::ends_with(path, ext);
+}
+
+template <>
+bool is_json_model(const std::basic_string<wchar_t>& path) {
+    std::wstring ext = L".json";
     return ov::util::ends_with(path, ext);
 }
 #endif
@@ -193,14 +207,20 @@ bool is_pdmodel(const std::basic_string<wchar_t>& path) {
 template <typename T>
 std::basic_string<T> get_model_path(const std::basic_string<T>& path, std::ifstream* weights_stream) {
     std::string model_file{path};
-    std::string ext = ".pdmodel";
-    if (ov::util::ends_with(model_file, ext)) {
+    std::string pdmodel_ext = ".pdmodel";
+    std::string json_ext = ".json";
+    if (ov::util::ends_with(model_file, pdmodel_ext)) {
         std::string params_ext = ".pdiparams";
         std::string weights_file{path};
-        weights_file.replace(weights_file.size() - ext.size(), ext.size(), params_ext);
+        weights_file.replace(weights_file.size() - pdmodel_ext.size(), pdmodel_ext.size(), params_ext);
         weights_stream->open(weights_file, std::ios::binary);
         // Don't throw error if file isn't opened
         // It may mean that model don't have constants
+    } else if (ov::util::ends_with(model_file, json_ext)) {
+        std::string params_ext = ".pdiparams";
+        std::string weights_file{path};
+        weights_file.replace(weights_file.size() - json_ext.size(), json_ext.size(), params_ext);
+        weights_stream->open(weights_file, std::ios::binary);
     } else {
         model_file += paddle::get_path_sep<T>() + "__model__";
     }
@@ -211,14 +231,20 @@ std::basic_string<T> get_model_path(const std::basic_string<T>& path, std::ifstr
 template <>
 std::basic_string<wchar_t> get_model_path(const std::basic_string<wchar_t>& path, std::ifstream* weights_stream) {
     std::wstring model_file{path};
-    std::wstring ext = L".pdmodel";
-    if (ov::util::ends_with(model_file, ext)) {
+    std::wstring pdmodel_ext = L".pdmodel";
+    std::wstring json_ext = L".json";
+    if (ov::util::ends_with(model_file, pdmodel_ext)) {
         std::wstring params_ext = L".pdiparams";
         std::wstring weights_file{path};
-        weights_file.replace(weights_file.size() - ext.size(), ext.size(), params_ext);
+        weights_file.replace(weights_file.size() - pdmodel_ext.size(), pdmodel_ext.size(), params_ext);
         weights_stream->open(weights_file.c_str(), std::ios::binary);
         // Don't throw error if file isn't opened
         // It may mean that model don't have constants
+    } else if (ov::util::ends_with(model_file, json_ext)) {
+        std::wstring params_ext = L".pdiparams";
+        std::wstring weights_file{path};
+        weights_file.replace(weights_file.size() - json_ext.size(), json_ext.size(), params_ext);
+        weights_stream->open(weights_file.c_str(), std::ios::binary);
     } else {
         model_file += paddle::get_path_sep<wchar_t>() + L"__model__";
     }
@@ -398,13 +424,26 @@ InputModel::InputModelImpl::InputModelImpl(const std::basic_string<T>& path,
       m_input_model(input_model),
       m_telemetry(telemetry) {
     std::ifstream weights_stream;
-    std::ifstream pb_stream(get_model_path<T>(path, &weights_stream).c_str(), std::ios::in | std::ifstream::binary);
 
-    FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(),
-                            "Could not open the file: \"",
-                            util::path_to_string(path),
-                            '"');
-    FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(&pb_stream), "Model can't be parsed");
+    if (is_json_model(path)) {
+        // PP-OCRv5 / PIR JSON format: convert JSON → ProgramDesc in memory
+        // get_model_path handles opening the weights stream for .json paths
+        auto model_path = get_model_path<T>(path, &weights_stream);
+        std::ifstream json_stream(model_path.c_str(), std::ios::in);
+        FRONT_END_GENERAL_CHECK(json_stream && json_stream.is_open(),
+                                "Could not open the JSON model file: \"",
+                                util::path_to_string(path),
+                                '"');
+        m_fw_ptr = paddle::json_to_program_desc(json_stream);
+    } else {
+        std::ifstream pb_stream(get_model_path<T>(path, &weights_stream).c_str(), std::ios::in | std::ifstream::binary);
+        FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(),
+                                "Could not open the file: \"",
+                                util::path_to_string(path),
+                                '"');
+        FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(&pb_stream), "Model can't be parsed");
+    }
+
     // According to Paddle, the saved model has the framework version
     // For example Paddle 2.1.0 is encoded as 2001000. 0 means the latest framework.
     // https://github.com/paddle/Paddle/blob/develop/cmake/version.cmake
@@ -414,7 +453,7 @@ InputModel::InputModelImpl::InputModelImpl(const std::basic_string<T>& path,
         version >= 2000000 || version == 0,
         "[Frontend]Only Support Paddle greater than 2.0.0, current version " + std::to_string(version));
     load_places();
-    if (is_pdmodel(path)) {
+    if (is_pdmodel(path) || is_json_model(path)) {
         load_consts(&weights_stream);
     } else {
         load_consts(path);
