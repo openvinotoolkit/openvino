@@ -18,10 +18,10 @@
 
 #include "openvino/runtime/icache_manager.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
-#include "openvino/util/parallel_read_streambuf.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "openvino/util/parallel_read_streambuf.hpp"
 
 namespace ov {
 

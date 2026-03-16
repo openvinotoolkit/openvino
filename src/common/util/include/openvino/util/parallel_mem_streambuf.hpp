@@ -21,8 +21,8 @@
 #    ifndef WIN32_LEAN_AND_MEAN
 #        define WIN32_LEAN_AND_MEAN
 #    endif
-#    include <windows.h>
 #    include <psapi.h>
+#    include <windows.h>
 #else
 #    include <sys/mman.h>
 #endif
@@ -78,10 +78,7 @@ public:
             MEMORY_BASIC_INFORMATION mbi{};
             if (VirtualQuery(data, &mbi, sizeof(mbi)) && mbi.Type == MEM_MAPPED) {
                 wchar_t dev_path[MAX_PATH] = {};
-                if (GetMappedFileNameW(GetCurrentProcess(),
-                                       const_cast<void*>(data),
-                                       dev_path,
-                                       MAX_PATH) > 0) {
+                if (GetMappedFileNameW(GetCurrentProcess(), const_cast<void*>(data), dev_path, MAX_PATH) > 0) {
                     // Convert device path (\Device\HarddiskVolume3\...) to Win32 path.
                     wchar_t win32_path[MAX_PATH] = {};
                     if (resolve_device_path(dev_path, win32_path, MAX_PATH)) {
@@ -89,10 +86,10 @@ public:
                         // different page boundary than the pointer we received.
                         // AllocationBase is the start of the mapped view.
                         const std::streamoff file_offset =
-                            reinterpret_cast<const char*>(data) -
-                            reinterpret_cast<const char*>(mbi.AllocationBase);
-                        m_file_buf = std::make_unique<ParallelReadStreamBuf>(
-                            std::filesystem::path(win32_path), file_offset, threshold);
+                            reinterpret_cast<const char*>(data) - reinterpret_cast<const char*>(mbi.AllocationBase);
+                        m_file_buf = std::make_unique<ParallelReadStreamBuf>(std::filesystem::path(win32_path),
+                                                                             file_offset,
+                                                                             threshold);
                     }
                 }
             }
@@ -298,9 +295,7 @@ private:
     // Parse /proc/self/maps to find the file backing an mmap address.
     // Returns true and fills out_path/out_offset if the address is inside
     // a named file mapping (i.e. not anonymous / [stack] / [heap]).
-    static bool get_mmap_file_info(const void* addr,
-                                   std::filesystem::path& out_path,
-                                   std::streamoff& out_offset) {
+    static bool get_mmap_file_info(const void* addr, std::filesystem::path& out_path, std::streamoff& out_offset) {
         std::ifstream maps_file("/proc/self/maps");
         if (!maps_file.is_open())
             return false;
@@ -316,10 +311,8 @@ private:
             const auto dash = addr_range.find('-');
             if (dash == std::string::npos)
                 continue;
-            const auto range_start =
-                static_cast<uintptr_t>(std::stoull(addr_range.substr(0, dash), nullptr, 16));
-            const auto range_end =
-                static_cast<uintptr_t>(std::stoull(addr_range.substr(dash + 1), nullptr, 16));
+            const auto range_start = static_cast<uintptr_t>(std::stoull(addr_range.substr(0, dash), nullptr, 16));
+            const auto range_end = static_cast<uintptr_t>(std::stoull(addr_range.substr(dash + 1), nullptr, 16));
             if (addr_val < range_start || addr_val >= range_end)
                 continue;
             // Read optional pathname
@@ -327,10 +320,8 @@ private:
             if (!(iss >> path) || path.empty() || path[0] != '/')
                 return false;  // anonymous or special region, no benefit
             out_path = path;
-            const auto map_offset =
-                static_cast<std::streamoff>(std::stoull(offset_str, nullptr, 16));
-            out_offset = map_offset +
-                         static_cast<std::streamoff>(addr_val - range_start);
+            const auto map_offset = static_cast<std::streamoff>(std::stoull(offset_str, nullptr, 16));
+            out_offset = map_offset + static_cast<std::streamoff>(addr_val - range_start);
             return true;
         }
         return false;

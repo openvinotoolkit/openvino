@@ -422,13 +422,65 @@ struct data : public primitive_base<data> {
             if (is_alloc_host_accessible(_allocation_type)) {
                 ib >> make_data(mem->buffer_ptr(), data_size);
             } else {
-                const size_t DATA_BLOCK_SIZE = 2 * 1024 * 1024;
-                auto& strm = ib.get_engine().get_service_stream();
+                const size_t DATA_BLOCK_SIZE = 4 * 1024 * 1024;
+                auto& eng = ib.get_engine();
+                auto& strm = eng.get_service_stream();
                 if (data_size < DATA_BLOCK_SIZE || output_layout.format.is_image_2d()) {
                     std::vector<uint8_t> _buf(data_size);
                     ib >> make_data(_buf.data(), data_size);
                     mem->copy_from(strm, _buf.data());
+                } else if (eng.supports_allocation(allocation_type::usm_host)) {
+                    // Use USM host staging buffers so the driver can DMA directly
+                    // from pinned host memory to device, avoiding the hidden
+                    // pageable-to-pinned bounce copy that std::vector staging incurs.
+                    // The pipeline is the same ping-pong as the fallback below:
+                    //   CPU reads into host_bufA  while  GPU copies from host_bufB
+                    // Safety: each staging buffer is reused every other iteration;
+                    // the wait() before re-submitting a copy ensures the previous
+                    // GPU read from that buffer has finished before the CPU writes
+                    // new data into it (the OTHER buffer's event is waited, but that
+                    // event was submitted after waiting for THIS buffer's previous
+                    // event, so THIS buffer is always free by the time we reuse it).
+                    const layout staging_layout{{static_cast<int64_t>(DATA_BLOCK_SIZE)},
+                                                data_types::u8, format::bfyx};
+                    auto host_buf1 = eng.allocate_memory(staging_layout, allocation_type::usm_host, false);
+                    auto host_buf2 = eng.allocate_memory(staging_layout, allocation_type::usm_host, false);
+                    bool buf_flag = true;
+                    event::ptr ev1, ev2;
+                    ev1 = ev2 = nullptr;
+                    size_t dst_offset = 0;
+                    while (dst_offset < data_size) {
+                        const bool is_blocking = false;
+                        const size_t src_offset = 0;
+                        size_t copy_size =
+                            (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
+                        if (buf_flag) {
+                            ib >> make_data(static_cast<uint8_t*>(host_buf1->buffer_ptr()), copy_size);
+                            if (ev2 != nullptr) {
+                                ev2->wait();
+                                ev2 = nullptr;
+                            }
+                            ev1 = mem->copy_from(strm, *host_buf1, src_offset, dst_offset, copy_size, is_blocking);
+                        } else {
+                            ib >> make_data(static_cast<uint8_t*>(host_buf2->buffer_ptr()), copy_size);
+                            if (ev1 != nullptr) {
+                                ev1->wait();
+                                ev1 = nullptr;
+                            }
+                            ev2 = mem->copy_from(strm, *host_buf2, src_offset, dst_offset, copy_size, is_blocking);
+                        }
+                        dst_offset += DATA_BLOCK_SIZE;
+                        buf_flag = !buf_flag;
+                    }
+                    if (ev2 != nullptr) {
+                        ev2->wait();
+                    }
+                    if (ev1 != nullptr) {
+                        ev1->wait();
+                    }
                 } else {
+                    // Fallback for devices that do not support USM host allocation:
+                    // use pageable std::vector staging buffers (original behaviour).
                     std::vector<uint8_t> _buf1(DATA_BLOCK_SIZE);
                     std::vector<uint8_t> _buf2(DATA_BLOCK_SIZE);
                     bool buf_flag = true;

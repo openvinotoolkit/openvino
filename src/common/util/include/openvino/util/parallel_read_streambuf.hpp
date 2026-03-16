@@ -9,6 +9,7 @@
 #include <atomic>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <future>
 #include <iostream>
 #include <stdexcept>
@@ -166,9 +167,8 @@ protected:
         }
         // Read a batch of up to UNDERFLOW_BUF bytes so that character-by-character
         // consumers (std::getline, operator>>) don't issue one pread per char.
-        const size_t to_read = static_cast<size_t>(
-            std::min(static_cast<std::streamoff>(UNDERFLOW_BUF),
-                     m_file_size - m_file_offset));
+        const size_t to_read =
+            static_cast<size_t>(std::min(static_cast<std::streamoff>(UNDERFLOW_BUF), m_file_size - m_file_offset));
         if (!single_read(m_underflow_buf.data(), to_read, static_cast<size_t>(m_file_offset))) {
             return traits_type::eof();
         }
@@ -335,20 +335,22 @@ private:
                 CloseHandle(t_handle);
             }));
 #else
-            const int fd = m_fd;
-            futures.emplace_back(std::async(std::launch::async, [fd, thread_file_offset, ptr, read_size, &success] {
-                char* cur = ptr;
-                size_t remaining = read_size;
-                off_t cur_file_offset = static_cast<off_t>(thread_file_offset);
-                while (remaining > 0 && success) {
-                    const ssize_t n = ::pread(fd, cur, remaining, cur_file_offset);
-                    if (n <= 0) {
-                        success = false;
-                        break;
-                    }
-                    cur += n;
-                    cur_file_offset += n;
-                    remaining -= static_cast<size_t>(n);
+            // Each worker opens its own std::ifstream so that Linux's per-file-
+            // description readahead state (file_ra_state / f_ra) is independent
+            // per thread. Sharing a single fd causes concurrent pread() calls to
+            // corrupt each other's sequential readahead prediction, collapsing
+            // throughput from ~3.5 GB/s sequential to ~0.5 GB/s.
+            const std::filesystem::path t_path = m_path;
+            futures.emplace_back(std::async(std::launch::async, [t_path, thread_file_offset, ptr, read_size, &success] {
+                std::ifstream t_ifs(t_path, std::ios::binary);
+                if (!t_ifs.is_open()) {
+                    success = false;
+                    return;
+                }
+                t_ifs.seekg(static_cast<std::streamoff>(thread_file_offset), std::ios::beg);
+                t_ifs.read(ptr, static_cast<std::streamsize>(read_size));
+                if (!t_ifs.good()) {
+                    success = false;
                 }
             }));
 #endif
