@@ -11,7 +11,6 @@ namespace intel_npu {
 
 class IDynamicGraph : public IGraph {
 public:
-    typedef void* execution_context_handle_t;
     struct MemRefType {
         const void* _basePtr;
         const void* _data;
@@ -20,6 +19,9 @@ public:
         std::vector<int64_t> _strides;
         int64_t _dimsCount;
         std::shared_ptr<void> _impl;
+        bool _ptrUpdated = false;
+        bool _shapeUpdated = false;
+        bool _strideUpdated = false;
 
         MemRefType() : _basePtr(nullptr), _data(nullptr), _offset(0), _sizes(), _strides(), _dimsCount(0) {}
 
@@ -38,6 +40,7 @@ public:
 
         void setArg(const void* arg);
         void setSize(const ov::Shape& shape);
+        void setStrides(const ov::Strides& strides);
         void set(const void* basePtr, int64_t offset, std::shared_ptr<ov::ITensor> tensor);
         void updateStride();
         bool compare(const MemRefType& memref);
@@ -66,8 +69,7 @@ public:
                          ze_command_queue_handle_t commandQueue,
                          ze_fence_handle_t inferenceFence,
                          ze_event_handle_t event,
-                         ze_graph_profiling_pool_handle_t profiling,
-                         execution_context_handle_t executionContext);
+                         ze_graph_profiling_pool_handle_t profiling);
 
     virtual void getBinding(GraphArguments& args);
 
@@ -75,12 +77,6 @@ public:
 
     virtual void predict_output_shape(std::vector<MemRefType>& inputDescriptors,
                                       std::vector<MemRefType>& outputDescriptors);
-
-    virtual execution_context_handle_t create_execution_context();
-    virtual void destroy_execution_context(execution_context_handle_t);
-    virtual void update_mutable_commandlist(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                            GraphArguments& args,
-                                            const std::vector<uint64_t>& argIndexArray);
 };
 
 }  // namespace intel_npu

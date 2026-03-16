@@ -19,6 +19,58 @@
 
 namespace intel_npu {
 
+void DynamicGraph::GraphArgumentsImpl::prepareCommandListIndexArray(GraphArguments& args,
+                                                                    std::vector<uint64_t>& argIndexArray,
+                                                                    bool& noTensorChange) {
+    argIndexArray.clear();
+    noTensorChange = true;
+    Logger::global().debug("Prepare command list index array for graph execution, input size: %d, output size: %d",
+                           args._inputs.size(),
+                           args._outputs.size());
+    for (size_t i = 0; i < args._inputs.size(); ++i) {
+        auto& input = args._inputs[i];
+        Logger::global().debug("Prepare command list index for input %d , info: %s", i, input.toString().c_str());
+        // Only check shape now, strides not checked
+        if (!input._shapeUpdated) {
+            argIndexArray.push_back(i);
+            if (input._ptrUpdated || input._strideUpdated) {
+                noTensorChange = false;
+            }
+        } else {
+            Logger::global().debug("Input %d has new shape, can not reuse commandlist with update", i);
+        }
+        input._ptrUpdated = false;
+        input._shapeUpdated = false;
+        input._strideUpdated = false;
+    }
+    for (size_t j = 0; j < args._outputs.size(); ++j) {
+        auto& output = args._outputs[j];
+        Logger::global().debug("Prepare command list index for output %d , info: %s", j, output.toString().c_str());
+        // Only check shape now, strides not checked
+        if (!output._shapeUpdated) {
+            argIndexArray.push_back(j + args._inputs.size());
+            if (output._ptrUpdated || output._strideUpdated) {
+                noTensorChange = false;
+            }
+        } else {
+            Logger::global().debug("Output %d has new shape, can not reuse commandlist with update", j);
+        }
+        output._ptrUpdated = false;
+        output._shapeUpdated = false;
+        output._strideUpdated = false;
+    }
+    if (argIndexArray.size() != args._inputs.size() + args._outputs.size()) {
+        // There are tensor that has new shape, can not reuse commandlist with update
+        Logger::global().debug(
+            "There are %d tensors with old shape, need %d tensors, can not reuse commandlist with update",
+            argIndexArray.size(),
+            args._inputs.size() + args._outputs.size());
+        argIndexArray.clear();
+    } else {
+        Logger::global().debug("All tensors have old shape, can reuse commandlist with update");
+    }
+}
+
 class DynamicGraphImpl : public DynamicGraph::Impl {
 public:
     using MemRefType = DynamicGraph::MemRefType;
@@ -40,13 +92,9 @@ public:
                       ze_command_queue_handle_t commandQueue,
                       ze_fence_handle_t inferenceFence,
                       ze_event_handle_t event,
-                      ze_graph_profiling_pool_handle_t profiling,
-                      npu_mlir_runtime_execution_context_handle_t executionContext) override;
+                      ze_graph_profiling_pool_handle_t profiling) override;
     void getBinding(DynamicGraph::GraphArguments& binding) override;
 
-    void updateMutableCommandList(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                  IDynamicGraph::GraphArguments& args,
-                                  const std::vector<uint64_t>& argIndexArray);
     virtual ~DynamicGraphImpl() {
         destroy();
     }
@@ -60,9 +108,6 @@ public:
 
     void predictOutputShape(std::vector<DynamicGraph::MemRefType>& inputDescriptors,
                             std::vector<DynamicGraph::MemRefType>& outputDescriptors) override;
-
-    npu_mlir_runtime_execution_context_handle_t createExecutionContext() override;
-    void destroyExecutionContext(npu_mlir_runtime_execution_context_handle_t) override;
 
 public:
     npu_vm_runtime_handle_t _engine = nullptr;
@@ -288,20 +333,14 @@ void DynamicGraphImpl::setArgumentValueWithStrides(uint32_t argi,
     if (argi < inputs.size()) {
         _logger.debug("setArgumentValueWithStrides for index %d (input %d)", argi, argi);
         inputs[argi].setArg(argv);
-
-        for (int64_t i = 0; i < inputs[argi]._dimsCount; i++) {
-            inputs[argi]._strides[i] = strides[i];
-        }
+        inputs[argi].setStrides(strides);
     } else {
         auto& outputs = _binding._outputs;
         auto idx = argi - inputs.size();
         _logger.debug("setArgumentValueWithStrides for index %d (output %d)", argi, idx);
         if (idx < outputs.size()) {
             outputs[idx].setArg(argv);
-
-            for (int64_t i = 0; i < outputs[idx]._dimsCount; i++) {
-                outputs[idx]._strides[i] = strides[i];
-            }
+            outputs[idx].setStrides(strides);
         }
     }
 }
@@ -312,8 +351,7 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
                                     ze_command_queue_handle_t commandQueue,
                                     ze_fence_handle_t fence,
                                     ze_event_handle_t event,
-                                    ze_graph_profiling_pool_handle_t profiling,
-                                    npu_mlir_runtime_execution_context_handle_t executionContext) {
+                                    ze_graph_profiling_pool_handle_t profiling) {
     std::shared_ptr<DynamicGraph::GraphArgumentsImpl> argsImpl =
         args._impl ? std::static_pointer_cast<DynamicGraph::GraphArgumentsImpl>(args._impl)
                    : std::make_shared<DynamicGraph::GraphArgumentsImpl>();
@@ -321,6 +359,7 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
     npu_vm_runtime_execute_params_t* params = &argsImpl->_executeParams;
 
     for (auto& in : args._inputs) {
+        _logger.debug("Prepare input argument for graph execution, info: %s", in.toString().c_str());
         std::shared_ptr<DynamicGraph::MemRefTypeImpl> inImpl =
             std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(in._impl);
         if (inImpl == nullptr) {
@@ -333,6 +372,7 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
         }
     }
     for (auto& out : args._outputs) {
+        _logger.debug("Prepare output argument for graph execution, info: %s", out.toString().c_str());
         std::shared_ptr<DynamicGraph::MemRefTypeImpl> outImpl =
             std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(out._impl);
         if (outImpl == nullptr) {
@@ -342,6 +382,96 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
         outImpl->UpdateMemRefHandleStatus(out);
         if (args._impl == nullptr) {
             argsImpl->_outputMemRefs.push_back(outImpl->_memRef);
+        }
+    }
+
+    enum ReuseCmdListMode {
+        ENABLE_EXECUTION_CONTEXT_CREATION,  // Create execution context
+        ENABLE_REUSE_WITH_MUTABLE_COMMANDLIST,
+        ENABLE_REUSE_WITHOUT_MUTATING_COMMANDLIST,
+        DISABLE_EXECUTION_CONTEXT_CREATION
+    };
+    ReuseCmdListMode reuseCmdListMode = ENABLE_REUSE_WITH_MUTABLE_COMMANDLIST;
+    _logger.debug("Default reuse command list mode: %d", reuseCmdListMode);
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    auto reuseCmdList = getenv("ENABLED_HOST_COMPILE_REUSE_CMDLIST");
+
+    if (reuseCmdList != nullptr) {
+        if (std::string(reuseCmdList) == "0") {
+            reuseCmdListMode = ENABLE_EXECUTION_CONTEXT_CREATION;
+            _logger.debug("Create execution context, do not reuse command list");
+        } else if (std::string(reuseCmdList) == "1") {
+            reuseCmdListMode = ENABLE_REUSE_WITH_MUTABLE_COMMANDLIST;
+            _logger.debug("Create execution context, reuse and update commandlist if tensor shape keep unchanged, "
+                          "otherwise reuse command list only if no tensor change detected");
+        } else if (std::string(reuseCmdList) == "2") {
+            reuseCmdListMode = ENABLE_REUSE_WITHOUT_MUTATING_COMMANDLIST;
+            _logger.debug("Create execution context, reuse command list only if no tensor change detected");
+        } else if (std::string(reuseCmdList) == "3") {
+            reuseCmdListMode = DISABLE_EXECUTION_CONTEXT_CREATION;
+            _logger.debug("Keep execution context be empty, do not reuse command list");
+        }
+    }
+#endif
+
+    std::vector<uint64_t> commandListIndexArray;
+    bool noTensorChange = true;
+    // Prepare command list index array for UpdateMutableCommandList API
+    // Empty means some tensor has new shape, can not reuse commandlist
+    argsImpl->prepareCommandListIndexArray(args, commandListIndexArray, noTensorChange);
+
+    if (args._impl == nullptr || commandListIndexArray.empty() ||
+        reuseCmdListMode == DISABLE_EXECUTION_CONTEXT_CREATION ||
+        reuseCmdListMode == ENABLE_EXECUTION_CONTEXT_CREATION) {
+        _logger.debug("There are tensor shape changes or it is the first execution, can not reuse command list, need "
+                      "to reset command list");
+        // Reset commandLists since there are tensor with new shapes or it is the first execution, can not reuse command
+        // list with update
+        for (auto& cmdList : commandLists) {
+            zeCommandListReset(cmdList);
+        }
+    } else {
+        if (reuseCmdListMode == ENABLE_REUSE_WITH_MUTABLE_COMMANDLIST && !noTensorChange) {
+            _logger.debug("There are tensor pointer or stride changes, even there is no shape change, can reuse "
+                          "command list but need to update command list with UpdateMutableCommandList API");
+            if (params->executionContext == nullptr) {
+                OPENVINO_THROW(
+                    "Execution context is not created, can not reuse command list with UpdateMutableCommandList API");
+            }
+
+            if (npuVMRuntimeUpdateMutableCommandList(_engine,
+                                                     params,
+                                                     const_cast<uint64_t*>(commandListIndexArray.data()),
+                                                     commandListIndexArray.size()) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+                OPENVINO_THROW("Failed to execute VM runtime engine to update commandlist");
+            }
+
+            // according to spec, CloseCommandList should be called after
+            // UpdateMutableCommandList is called.
+            for (auto& cmdList : commandLists) {
+                zeCommandListClose(cmdList);
+            }
+        } else {
+            _logger.debug("All tensor shape, pointer and stride keep unchanged, can reuse command list directly "
+                          "without UpdateMutableCommandList API");
+        }
+
+        auto result = zeCommandQueueExecuteCommandLists(commandQueue,
+                                                        static_cast<uint32_t>(commandLists.size()),
+                                                        commandLists.data(),
+                                                        fence);
+        if (result != ZE_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to submit command lists");
+        }
+        return;
+    }
+
+    // Prepare execution context for each graph arguments
+    if (reuseCmdListMode != DISABLE_EXECUTION_CONTEXT_CREATION && params->executionContext == nullptr) {
+        if (npuVMRuntimeCreateExecutionContext(_engine, &params->executionContext) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to create a VM execution context");
+        } else {
+            _logger.debug("Execution context is created successfully.");
         }
     }
 
@@ -357,28 +487,20 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
     params->commandQueue = commandQueue;
     params->inferenceFence = fence;
     params->event = event;
-    params->executionContext = executionContext;
 
+    if (params->executionContext) {
+        _logger.debug("Execution context is created, try to set execution context for VM  runtime engine");
+    } else {
+        _logger.debug("Execution context is not created, VM  runtime engine will execute without execution context");
+    }
+
+    _logger.debug("Execute graph with runtime engine");
     if (npuVMRuntimeExecute(_engine, params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to execute VM runtime engine");
     }
 
     if (args._impl == nullptr) {
         args._impl = argsImpl;
-    }
-}
-
-void DynamicGraphImpl::updateMutableCommandList(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                                IDynamicGraph::GraphArguments& args,
-                                                const std::vector<uint64_t>& argIndexArray) {
-    std::shared_ptr<DynamicGraph::GraphArgumentsImpl> argsImpl =
-        std::static_pointer_cast<DynamicGraph::GraphArgumentsImpl>(args._impl);
-    npu_mlir_runtime_execute_params_t* params = &argsImpl->_executeParams;
-    if (npuMLIRRuntimeUpdateMutableCommandList(_engine,
-                                               params,
-                                               const_cast<uint64_t*>(argIndexArray.data()),
-                                               argIndexArray.size()) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
-        OPENVINO_THROW("Failed to execute MLIR runtime engine");
     }
 }
 
@@ -428,24 +550,6 @@ void DynamicGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescript
     }
 }
 
-npu_mlir_runtime_execution_context_handle_t DynamicGraphImpl::createExecutionContext() {
-    npu_mlir_runtime_execution_context_handle_t handle = nullptr;
-    if (npuMLIRRuntimeCreateExecutionContext(_engine, &handle) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
-        OPENVINO_THROW("Failed to create an MLIR execution context");
-    } else {
-        _logger.debug("Output shape prediction is done successfully.");
-    }
-    return handle;
-}
-
-void DynamicGraphImpl::destroyExecutionContext(npu_mlir_runtime_execution_context_handle_t handle) {
-    if (npuMLIRRuntimeDestroyExecutionContext(handle) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
-        OPENVINO_THROW("Failed to destroy an MLIR execution context");
-    } else {
-        _logger.debug("Output shape prediction is done successfully.");
-    }
-}
-
 DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                            ov::Tensor blob,
                            bool blobAllocatedByPlugin,
@@ -460,6 +564,7 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
     }
 
     _impl = std::make_unique<DynamicGraphImpl>();
+
     // TODO: metadata needs to be parsed even when CREATE_EXECUTOR is 0 or DEFER_WEIGHTS_LOAD is YES, keep here to
     // support pure compilation without vm runtime initialize VM execution engine, metadata, input&output
     // descriptors
@@ -726,32 +831,13 @@ void DynamicGraph::execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
                            ze_command_queue_handle_t commandQueue,
                            ze_fence_handle_t inferenceFence,
                            ze_event_handle_t event,
-                           ze_graph_profiling_pool_handle_t profiling,
-                           execution_context_handle_t executionContext) {
-    auto impl = reinterpret_cast<DynamicGraphImpl*>(_impl.get());
-    auto mlirExecContext = reinterpret_cast<npu_mlir_runtime_execution_context_handle_t>(executionContext);
-    if (impl == nullptr)
-        return;
-
-    impl->executeGraph(zeroInitStruct,
-                       args,
-                       commandLists,
-                       commandQueue,
-                       inferenceFence,
-                       event,
-                       profiling,
-                       mlirExecContext);
-}
-
-void DynamicGraph::update_mutable_commandlist(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                              GraphArguments& args,
-                                              const std::vector<uint64_t>& argIndexArray) {
+                           ze_graph_profiling_pool_handle_t profiling) {
     auto impl = reinterpret_cast<DynamicGraphImpl*>(_impl.get());
 
     if (impl == nullptr)
         return;
 
-    impl->updateMutableCommandList(zeroInitStruct, args, argIndexArray);
+    impl->executeGraph(zeroInitStruct, args, commandLists, commandQueue, inferenceFence, event, profiling);
 }
 
 void DynamicGraph::getBinding(GraphArguments& args) {
@@ -780,24 +866,6 @@ void DynamicGraph::predict_output_shape(std::vector<MemRefType>& inputDescriptor
 std::optional<bool> DynamicGraph::is_profiling_blob() const {
     _logger.warning("Profiling is not supported for DynamicGraph");
     return std::nullopt;
-}
-
-DynamicGraph::execution_context_handle_t DynamicGraph::create_execution_context() {
-    auto impl = reinterpret_cast<DynamicGraphImpl*>(_impl.get());
-
-    if (impl == nullptr)
-        return nullptr;
-
-    return impl->createExecutionContext();
-}
-
-void DynamicGraph::destroy_execution_context(execution_context_handle_t handle) {
-    auto impl = reinterpret_cast<DynamicGraphImpl*>(_impl.get());
-    auto context_handle = reinterpret_cast<npu_mlir_runtime_execution_context_handle_t>(handle);
-    if (impl == nullptr)
-        return;
-
-    impl->destroyExecutionContext(context_handle);
 }
 
 }  // namespace intel_npu

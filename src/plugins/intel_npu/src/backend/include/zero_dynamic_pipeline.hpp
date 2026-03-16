@@ -10,13 +10,6 @@
 namespace intel_npu {
 
 class DynamicPipeline final : public IPipeline {
-    enum ReuseCmdListMode {
-        ENABLE_EXECUTION_CONTEXT_CREATION,
-        ENABLE_REUSE_WITH_MUTABLE_COMMANDLIST,
-        ENABLE_REUSE_WITHOUT_MUTATING_COMMANDLIST,
-        DISABLE_EXECUTION_CONTEXT_CREATION
-    };
-
     struct PipelinedCommandLists {
         mutable IDynamicGraph::GraphArguments _binding;
 
@@ -61,37 +54,14 @@ class DynamicPipeline final : public IPipeline {
                                       const ov::Shape& shapes) {
             if (arg_index < _binding._inputs.size()) {
                 _binding._inputs[arg_index].setArg(arg_value);
-                // Only store the valid shape dimensions
-                for (int64_t i = 0; i < _binding._inputs[arg_index]._dimsCount; i++) {
-                    _binding._inputs[arg_index]._sizes[i] = shapes[i];
-                }
-
-                if (!strides.empty()) {
-                    for (int64_t i = 0; i < _binding._inputs[arg_index]._dimsCount; i++) {
-                        _binding._inputs[arg_index]._strides[i] = strides[i];
-                    }
-                } else {
-                    // Need stride based on element but not byte, calc from shape
-                    _binding._inputs[arg_index].updateStride();
-                }
+                _binding._inputs[arg_index].setSize(shapes);
+                _binding._inputs[arg_index].setStrides(strides);
             } else {
                 size_t output_index = static_cast<size_t>(arg_index) - _binding._inputs.size();
                 if (output_index < _binding._outputs.size()) {
                     _binding._outputs[output_index].setArg(arg_value);
-
-                    // Only store the valid shape dimensions
-                    for (int64_t i = 0; i < _binding._outputs[output_index]._dimsCount; i++) {
-                        _binding._outputs[output_index]._sizes[i] = shapes[i];
-                    }
-
-                    if (!strides.empty()) {
-                        for (int64_t i = 0; i < _binding._outputs[output_index]._dimsCount; i++) {
-                            _binding._outputs[output_index]._strides[i] = strides[i];
-                        }
-                    } else {
-                        // Need stride based on element but not byte, calc from shape
-                        _binding._outputs[output_index].updateStride();
-                    }
+                    _binding._outputs[output_index].setSize(shapes);
+                    _binding._outputs[output_index].setStrides(strides);
                 }
             }
         }
@@ -99,12 +69,6 @@ class DynamicPipeline final : public IPipeline {
         void resetCommandList() {
             for (auto& cmd_list : _commandLists) {
                 cmd_list->reset();
-            }
-        }
-
-        void closeCommandList() {
-            for (auto& cmd_list : _commandLists) {
-                cmd_list->close();
             }
         }
     };
@@ -119,7 +83,7 @@ public:
 
     DynamicPipeline(const DynamicPipeline&) = delete;
     DynamicPipeline& operator=(const DynamicPipeline&) = delete;
-    ~DynamicPipeline() override;
+    ~DynamicPipeline() override = default;
 
     void push() override;
     void pull() override;
@@ -134,8 +98,6 @@ public:
 
 private:
     std::vector<std::unique_ptr<PipelinedCommandLists>> _command_lists;
-    std::vector<void*> _executionContexts;
-    ReuseCmdListMode _reuseCmdListMode = ENABLE_EXECUTION_CONTEXT_CREATION;
 };
 
 }  // namespace intel_npu

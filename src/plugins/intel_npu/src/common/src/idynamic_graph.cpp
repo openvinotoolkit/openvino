@@ -10,33 +10,89 @@
 namespace intel_npu {
 
 void IDynamicGraph::MemRefType::setArg(const void* arg) {
-    _basePtr = _data = arg;
+    Logger::global().debug("Set argument with pointer: %p", arg);
+    if (_basePtr != arg) {
+        Logger::global().debug("Base pointer is updated from %p to %p", _basePtr, arg);
+        _basePtr = _data = arg;
+        _ptrUpdated = true;
+    }
 }
 
 void IDynamicGraph::MemRefType::setSize(const ov::Shape& shape) {
     // Note: check difference between shape from compiler and shape from IR.
-    _sizes.resize(shape.size());
-    _strides.resize(shape.size());
-    _dimsCount = static_cast<uint32_t>(shape.size());
-    for (size_t i = 0; i < shape.size(); ++i) {
-        _sizes[i] = shape[i];
-        _strides[i] = 0;  // Strides are not set yet, will be updated
+    if (_dimsCount == 0) {
+        Logger::global().debug("Dimension count is updated from 0 to %d", shape.size());
+        _dimsCount = static_cast<uint32_t>(shape.size());
+        _sizes.resize(shape.size());
+        _strides.resize(shape.size());
+        _shapeUpdated = true;
+    } else if (_dimsCount != static_cast<int64_t>(shape.size())) {
+        OPENVINO_THROW("Dimension count mismatch. Current dimension count: ",
+                       _dimsCount,
+                       ", new dimension count: ",
+                       shape.size());
+    }
+
+    for (int64_t i = 0; i < _dimsCount; ++i) {
+        if (_sizes[i] != static_cast<int64_t>(shape[i])) {
+            Logger::global().debug("Dimension %d is updated from %d to %d", i, _sizes[i], shape[i]);
+            _sizes[i] = static_cast<int64_t>(shape[i]);
+            _shapeUpdated = true;
+        }
+    }
+}
+
+void IDynamicGraph::MemRefType::setStrides(const ov::Strides& strides) {
+    if (_dimsCount == 0) {
+        OPENVINO_THROW("Dimension count is zero, shall call setSize before setStrides");
+    } else if (_dimsCount != static_cast<int64_t>(strides.size())) {
+        OPENVINO_THROW("Dimension count mismatch. Current dimension count: ",
+                       _dimsCount,
+                       ", new dimension count: ",
+                       strides.size());
+    }
+
+    for (int64_t i = 0; i < _dimsCount; ++i) {
+        if (_strides[i] != static_cast<int64_t>(strides[i])) {
+            if (_strides[i] != 0) {
+                Logger::global().debug("Stride %d is updated from %d to %d", i, _strides[i], strides[i]);
+                _strideUpdated = true;
+            }
+            _strides[i] = static_cast<int64_t>(strides[i]);
+        }
     }
 }
 
 void IDynamicGraph::MemRefType::set(const void* arg, int64_t offset, std::shared_ptr<ov::ITensor> tensor) {
-    _basePtr = _data = arg;
+    if (_basePtr != arg) {
+        _basePtr = _data = arg;
+        _ptrUpdated = true;
+    }
     _offset = offset;
+    if (_dimsCount == 0) {
+        _dimsCount = static_cast<uint32_t>(tensor->get_shape().size());
+        _sizes.resize(tensor->get_shape().size());
+        _strides.resize(tensor->get_shape().size());
+        _shapeUpdated = true;
+    } else if (_dimsCount != static_cast<int64_t>(tensor->get_shape().size())) {
+        OPENVINO_THROW("Dimension count mismatch. Current dimension count: ",
+                       _dimsCount,
+                       ", new dimension count: ",
+                       tensor->get_shape().size());
+    }
+
     auto& shape = tensor->get_shape();
-    for (size_t j = 0; j < shape.size(); j++) {
-        _sizes[j] = shape[j];
+    for (int64_t j = 0; j < _dimsCount; j++) {
+        if (_sizes[j] != static_cast<int64_t>(shape[j])) {
+            _sizes[j] = static_cast<int64_t>(shape[j]);
+            _shapeUpdated = true;
+        }
     }
     auto& strides = tensor->get_strides();
     size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
-    for (size_t j = 0; j < strides.size(); j++) {
-        _strides[j] = strides[j] / elementSize;
+    for (int64_t j = 0; j < _dimsCount; j++) {
+        _strides[j] = static_cast<int64_t>(strides[j] / elementSize);
     }
-    _dimsCount = shape.size();
 }
 
 void IDynamicGraph::MemRefType::updateStride() {
@@ -75,6 +131,9 @@ std::ostream& operator<<(std::ostream& os, const IDynamicGraph::MemRefType& memR
         os << stride << " ";
     }
     os << "]";
+    os << "_ptrChanged: " << memRef._ptrUpdated << ", _shapeChanged: " << memRef._shapeUpdated
+       << ", _strideChanged: " << memRef._strideUpdated;
+
     return os;
 }
 
@@ -123,8 +182,7 @@ void IDynamicGraph::execute(const std::shared_ptr<ZeroInitStructsHolder>&,
                             ze_command_queue_handle_t,
                             ze_fence_handle_t,
                             ze_event_handle_t,
-                            ze_graph_profiling_pool_handle_t,
-                            execution_context_handle_t) {
+                            ze_graph_profiling_pool_handle_t) {
     OPENVINO_THROW("execute not implemented");
 }
 
@@ -138,19 +196,6 @@ uint64_t IDynamicGraph::get_num_subgraphs() const {
 
 void IDynamicGraph::predict_output_shape(std::vector<MemRefType>&, std::vector<MemRefType>&) {
     OPENVINO_THROW("predict_output_shape not implemented");
-}
-void IDynamicGraph::update_mutable_commandlist(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                               GraphArguments& args,
-                                               const std::vector<uint64_t>& argIndexArray) {
-    OPENVINO_THROW("update_mutable_commandlist not implemented");
-}
-
-IDynamicGraph::execution_context_handle_t IDynamicGraph::create_execution_context() {
-    OPENVINO_THROW("create_execution_context not implemented");
-}
-
-void IDynamicGraph::destroy_execution_context(execution_context_handle_t handle) {
-    OPENVINO_THROW("destroy_execution_context not implemented");
 }
 
 }  // namespace intel_npu
