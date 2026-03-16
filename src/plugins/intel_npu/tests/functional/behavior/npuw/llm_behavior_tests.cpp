@@ -33,16 +33,16 @@ using namespace ov::intel_npu::npuw;
 
 #define EXPECT_FACTORY_MODEL_CREATE_INFER_REQ(model_idx, times, ...)                                 \
     mock_npuw_factory->set_expectations_to_comp_models(model_idx, [](MockNpuwCompiledModel& model) { \
-        EXPECT_CALL(model, create_sync_infer_request())                                              \
+        EXPECT_CALL(model, create_infer_request())                                                   \
         .Times(times)                                                                                \
         __VA_ARGS__;                                                                                 \
     })
 
-#define EXPECT_FACTORY_MODEL_INFER(model_idx, times, ...)                                               \
-    mock_npuw_factory->set_expectations_to_infer_reqs(model_idx, 0, [](MockNpuwInferRequest& request) { \
-        EXPECT_CALL(request, infer())                                                                   \
-        .Times(times)                                                                                   \
-        __VA_ARGS__;                                                                                    \
+#define EXPECT_FACTORY_MODEL_INFER(model_idx, times, ...)                                                   \
+    mock_npuw_factory->set_expectations_to_infer_reqs(model_idx, 0, [](MockNpuwBaseInferRequest& request) { \
+        EXPECT_CALL(request, infer())                                                                       \
+        .Times(times)                                                                                       \
+        __VA_ARGS__;                                                                                        \
     });
 
 
@@ -66,7 +66,7 @@ using namespace ov::intel_npu::npuw;
         __VA_ARGS__;                                                                              \
     });
 
-#define EXPECT_PLUGIN_MODEL_INFER_FOR(device, model_idx, req_idx, times, ...)                            \
+#define EXPECT_PLUGIN_MODEL_INFER_FOR(device, model_idx, req_idx, times, ...)                           \
     device##_plugin->set_expectations_to_infer_reqs(model_idx, req_idx, [](MockInferRequest& request) { \
         EXPECT_CALL(request, infer())                                                                   \
         .Times(times)                                                                                   \
@@ -111,35 +111,39 @@ private:
 }  // namespace npuw
 }  // namespace ov
 
+using Factory = ov::npuw::tests::MockNpuwCompiledModelFactory;
 TEST_F(LLMBehaviorTestsNPUW, LLMBehaviorNPUW) {
     // Set expectations first:
     EXPECT_FACTORY_CREATE_MODEL(TIMES(3));
 
-    // 1. Infer request for prefill model:
-    EXPECT_FACTORY_MODEL_CREATE_INFER_REQ(MODEL(0), TIMES(1));
-    // 2. Infer request for generate model:
-    EXPECT_FACTORY_MODEL_CREATE_INFER_REQ(MODEL(1), TIMES(1));
+    // 1. Infer request(s) for generate model:
+    EXPECT_FACTORY_MODEL_CREATE_INFER_REQ(MODEL(Factory::kGENERATE_IDX), TIMES(1));
+    // 2. Infer request for prefill model is done via another methods: create_base_infer_request()
+    //    and wrap_async_infer_request():
+    mock_npuw_factory->set_expectations_to_comp_models(Factory::kPREFILL_IDX, [](MockNpuwCompiledModel& model) {
+        EXPECT_CALL(model, create_base_infer_request()).Times(1);
+        EXPECT_CALL(model, wrap_async_infer_request(_)).Times(1);
+    });
     // 3. Infer request for LM head model:
-    EXPECT_FACTORY_MODEL_CREATE_INFER_REQ(MODEL(2), TIMES(1));
+    EXPECT_FACTORY_MODEL_CREATE_INFER_REQ(MODEL(Factory::kLM_HEAD_IDX), TIMES(1));
 
     // 1. Infer of prefill model:
-    EXPECT_FACTORY_MODEL_INFER(MODEL(0), TIMES(1));
+    EXPECT_FACTORY_MODEL_INFER(MODEL(Factory::kPREFILL_IDX), TIMES(1));
     // 2. Infer of generate model:
-    EXPECT_FACTORY_MODEL_INFER(MODEL(1), TIMES(1));
+    EXPECT_FACTORY_MODEL_INFER(MODEL(Factory::kGENERATE_IDX), TIMES(1));
     // 3. Infer of LM head model:
-    EXPECT_FACTORY_MODEL_INFER(MODEL(2), TIMES(1));
-
+    EXPECT_FACTORY_MODEL_INFER(MODEL(Factory::kLM_HEAD_IDX), TIMES(2));
     // Do the actual test:
     simple_llm.initialize(ov_model, core, config); 
     EXPECT_NO_THROW(simple_llm.generate(What_is_OpenVINO));
 
     // Make non-GMock related checks:
     EXPECT_EQ(3u, mock_npuw_factory->m_ov_models.size());
-    std::shared_ptr<ov::Model> ov_prefill_model = mock_npuw_factory->m_ov_models[0];
+    std::shared_ptr<ov::Model> ov_prefill_model = mock_npuw_factory->m_ov_models[Factory::kPREFILL_IDX];
     auto prefill_input_ids_shape = ov_prefill_model->inputs()[0].get_shape();
     auto prefill_attention_mask_shape = ov_prefill_model->inputs()[1].get_shape();
-    EXPECT_EQ(ov::Shape(1, 128), prefill_input_ids_shape);
-    EXPECT_EQ(ov::Shape(1, 128), prefill_attention_mask_shape);
+    EXPECT_EQ(ov::Shape({1, 1024}), prefill_input_ids_shape);
+    EXPECT_EQ(ov::Shape({1, 1024}), prefill_attention_mask_shape);
     {
         bool npuw_output_embed_found {false};
         for (auto output : ov_prefill_model->outputs()) {
@@ -152,11 +156,11 @@ TEST_F(LLMBehaviorTestsNPUW, LLMBehaviorNPUW) {
         EXPECT_TRUE(npuw_output_embed_found);
     }
 
-    std::shared_ptr<ov::Model> ov_generate_model = mock_npuw_factory->m_ov_models[1];
+    std::shared_ptr<ov::Model> ov_generate_model = mock_npuw_factory->m_ov_models[Factory::kGENERATE_IDX];
     auto generate_input_ids_shape = ov_generate_model->inputs()[0].get_shape();
     auto generate_attention_mask_shape = ov_generate_model->inputs()[1].get_shape();
-    EXPECT_EQ(ov::Shape(1, 1), generate_input_ids_shape);
-    EXPECT_EQ(ov::Shape(1, 132), generate_attention_mask_shape);
+    EXPECT_EQ(ov::Shape({1, 1}), generate_input_ids_shape);
+    EXPECT_EQ(ov::Shape({1, 1}), generate_attention_mask_shape);
     {
         bool npuw_output_embed_found {false};
         for (auto output : ov_generate_model->outputs()) {

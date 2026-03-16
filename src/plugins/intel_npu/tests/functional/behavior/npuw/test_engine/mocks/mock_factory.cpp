@@ -4,22 +4,23 @@
 #pragma once
 
 #include "mock_factory.hpp"
+#include "openvino/core/except.hpp"
+#include "intel_npu/npuw_private_properties.hpp"
 
 namespace ov {
 namespace npuw {
 namespace tests {
-// Need to also mock async infer request or use infer() call to indicate that start_async() was called.
-MockNpuwInferRequestBase::MockNpuwInferRequestBase(const std::shared_ptr<const MockNpuwCompiledModel>& compiled_model)
-    : ov::ISyncInferRequest(compiled_model) {
+
+MockNpuwBaseInferRequestBase::MockNpuwBaseInferRequestBase(const std::shared_ptr<const MockNpuwCompiledModel>& compiled_model)
+    : ov::npuw::IBaseInferRequest(std::const_pointer_cast<MockNpuwCompiledModel>(compiled_model)) {
     OPENVINO_ASSERT(compiled_model);
 }
 
-void MockNpuwInferRequestBase::create_implementation() {
+void MockNpuwBaseInferRequestBase::create_implementation() {
     auto inputs = get_compiled_model()->inputs();
     auto outputs = get_compiled_model()->outputs();
     auto in_tensors = create_tensors(inputs);
     auto out_tensors = create_tensors(outputs);
-
     for (std::size_t i = 0; i < inputs.size(); ++i) {
         set_tensor(inputs[i], ov::get_tensor_impl(in_tensors[i]));
     }
@@ -40,7 +41,7 @@ MockNpuwCompiledModelBase::MockNpuwCompiledModelBase(
     const std::shared_ptr<const ov::Model>& model,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& config,
-    std::shared_ptr<std::map<int, std::pair<std::function<void(MockNpuwInferRequest&)>, bool>>>
+    std::shared_ptr<std::map<int, std::pair<std::function<void(MockNpuwBaseInferRequest&)>, bool>>>
         infer_reqs_to_expectations_ptr)
     : ov::npuw::ICompiledModel(
         std::const_pointer_cast<ov::Model>(const_cast<std::shared_ptr<const ov::Model>&>(model)),
@@ -53,8 +54,7 @@ void MockNpuwCompiledModelBase::create_implementation() {
     ON_CALL(*this, inputs()).WillByDefault(testing::ReturnRefOfCopy(m_model->inputs()));
     ON_CALL(*this, outputs()).WillByDefault(testing::ReturnRefOfCopy(m_model->outputs()));
     ON_CALL(*this, create_infer_request).WillByDefault([this]() {
-        auto syncRequestImpl = create_sync_infer_request();
-        return std::make_shared<ov::IAsyncInferRequest>(syncRequestImpl, get_task_executor(), get_callback_executor());
+        return wrap_async_infer_request(create_base_infer_request());
     });
     ON_CALL(*this, export_model(testing::_)).WillByDefault([](std::ostream& s) {
         OPENVINO_NOT_IMPLEMENTED;
@@ -79,26 +79,36 @@ void MockNpuwCompiledModelBase::create_implementation() {
                                                                 : ov::streams::Num(1);
         } else if (name == ov::enable_profiling) {
             return this->m_config.count(ov::enable_profiling.name()) ? m_config.at(ov::enable_profiling.name()) : false;
+        } else if (name == ov::intel_npu::npuw::weights_bank_alloc) {
+            return "CPU";
         } else {
             OPENVINO_THROW("get property: " + name);
         }
     });
     ON_CALL(*this, create_sync_infer_request).WillByDefault([this]() {
+        return create_base_infer_request();
+    });
+    ON_CALL(*this, create_base_infer_request).WillByDefault([this]() {
         std::lock_guard<std::mutex> lock(m_mock_creation_mutex);
-        auto mock_npuw_sync_infer_request =
-            std::make_shared<MockNpuwInferRequest>(std::dynamic_pointer_cast<const MockNpuwCompiledModel>(shared_from_this()));
-        mock_npuw_sync_infer_request->create_implementation();
+        auto mock_npuw_base_infer_request =
+            std::make_shared<MockNpuwBaseInferRequest>(std::dynamic_pointer_cast<const MockNpuwCompiledModel>(shared_from_this()));
+        mock_npuw_base_infer_request->create_implementation();
         if (m_infer_reqs_to_expectations_ptr && m_infer_reqs_to_expectations_ptr->count(m_num_created_infer_requests)) {
             auto& expectation_and_status = (*m_infer_reqs_to_expectations_ptr)[m_num_created_infer_requests];
             auto& expectation = expectation_and_status.first;
             auto& status = expectation_and_status.second;
-            expectation(*mock_npuw_sync_infer_request);
+            expectation(*mock_npuw_base_infer_request);
             status = true;  // Expectation will be checked
         }
 
         ++m_num_created_infer_requests;
 
-        return mock_npuw_sync_infer_request;
+        return mock_npuw_base_infer_request;
+    });
+    ON_CALL(*this, wrap_async_infer_request).WillByDefault([this](
+        std::shared_ptr<ov::npuw::IBaseInferRequest> internal_request) {
+
+        return std::make_shared<ov::IAsyncInferRequest>(internal_request, get_task_executor(), get_callback_executor());
     });
 }
 
@@ -110,7 +120,7 @@ void MockNpuwCompiledModelFactoryBase::create_implementation() {
 
             m_ov_models.push_back(model);
 
-            std::shared_ptr<std::map<int, std::pair<std::function<void(MockNpuwInferRequest&)>, bool>>>
+            std::shared_ptr<std::map<int, std::pair<std::function<void(MockNpuwBaseInferRequest&)>, bool>>>
                 infer_reqs_to_expectations;
             if (m_models_to_reqs_to_expectations.count(m_num_compiled_models)) {
                 infer_reqs_to_expectations = m_models_to_reqs_to_expectations[m_num_compiled_models];
@@ -142,13 +152,13 @@ void MockNpuwCompiledModelFactoryBase::set_expectations_to_comp_models(int model
 
 void MockNpuwCompiledModelFactoryBase::set_expectations_to_infer_reqs(int model_idx,
                                                                       int req_idx,
-                                                                      std::function<void(MockNpuwInferRequest&)> expectations) {
+                                                                      std::function<void(MockNpuwBaseInferRequest&)> expectations) {
     if (!m_models_to_reqs_to_expectations.count(model_idx)) {
         m_models_to_reqs_to_expectations[model_idx] =
-            std::make_shared<std::map<int, std::pair<std::function<void(MockNpuwInferRequest&)>, bool>>>();
+            std::make_shared<std::map<int, std::pair<std::function<void(MockNpuwBaseInferRequest&)>, bool>>>();
     }
     m_models_to_reqs_to_expectations[model_idx]->insert(
-        {req_idx, std::pair<std::function<void(MockNpuwInferRequest&)>, bool>(expectations, false)});
+        {req_idx, std::pair<std::function<void(MockNpuwBaseInferRequest&)>, bool>(expectations, false)});
 }
 
 MockNpuwCompiledModelFactoryBase::~MockNpuwCompiledModelFactoryBase() {

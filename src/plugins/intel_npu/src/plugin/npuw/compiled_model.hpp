@@ -7,7 +7,6 @@
 #include <optional>
 
 #include "attention.hpp"
-#include "base_sync_infer_request.hpp"
 #include "common.hpp"
 #include "host_flash_attention.hpp"
 #include "intel_npu/config/config.hpp"
@@ -124,10 +123,29 @@ struct CompiledModelDesc {
                         const ov::npuw::s11n::SubmodelDeserializeCtx& submodel_ctx);
 };
 
+class IBaseInferRequest;
 class ICompiledModel : public ov::ICompiledModel {
 public:
+    using ToSubmodel = std::pair<size_t /* submodel_idx */
+                                 ,
+                                 size_t /* port_idx     */
+                                 >;
+    using SubmodelInsToPrevOuts =
+        std::map<std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>,   // input ("to")
+                 std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>>;  // output ("from")
+
     ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
         : ov::ICompiledModel(model, plugin) {}
+
+    virtual std::string get_name() const = 0;
+
+    const std::shared_ptr<const ov::IPlugin>& get_plugin() const {
+        return ov::ICompiledModel::get_plugin();
+    }
+
+    virtual bool compile_for_success(std::size_t id) = 0;
+
+    virtual bool is_fallback_possible(std::size_t id) const = 0;
 
     // API for easily create and manage NPUW infer-requests
     virtual std::shared_ptr<ov::npuw::IBaseInferRequest> create_base_infer_request() const = 0;
@@ -138,6 +156,20 @@ public:
     virtual std::string submodel_device(const std::size_t idx) const = 0;
 
     virtual std::vector<CompiledModelDesc> get_compiled_submodels() const = 0;
+    
+    virtual std::vector<ToSubmodel> get_inputs_to_submodels_inputs() const = 0;
+
+    virtual std::vector<ToSubmodel> get_outputs_to_submodels_outputs() const = 0;
+
+    virtual std::map<std::size_t, std::vector<ToSubmodel>> get_param_subscribers() const = 0;
+
+    virtual SubmodelInsToPrevOuts get_submodels_input_to_prev_output() const = 0;
+
+    virtual bool is_gather_closure(const std::size_t idx, const std::size_t cidx) const = 0;
+
+    virtual bool unpack_required(const std::size_t idx) const = 0;
+
+    virtual bool unpack_required(const std::size_t idx, const std::size_t cidx) const = 0;
 
     virtual void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const = 0;
 
@@ -148,6 +180,18 @@ public:
     virtual void finalize_weights_bank() = 0;
 
     virtual void reconstruct_closure() = 0;
+
+    virtual std::string global_mem_device() const = 0;
+
+    virtual std::string funcall_mem_device(const std::size_t idx) const = 0;
+
+    virtual bool acc_check_enabled() const = 0;
+
+    virtual std::string get_acc_ref_device() const = 0;
+
+    virtual bool is_accurate(const ov::SoPtr<ov::ITensor>& actual, const ov::SoPtr<ov::ITensor>& reference) const = 0;
+
+    virtual void log_device_dist() const = 0;
 };
 
 // Forward declarations
@@ -186,7 +230,7 @@ public:
 
 private:
     // FIXME: This class has many friends..
-    friend class IBaseInferRequest;
+    friend class BaseInferRequest;
     friend class JustInferRequest;
     friend class UnfoldInferRequest;
     friend class MemAccessSim;
@@ -195,10 +239,12 @@ private:
     friend class LLMInferRequest;
     friend class moe::MoEExecutor;
 
-    bool compile_for_success(std::size_t id);
+    std::string get_name() const override;
+    bool compile_for_success(std::size_t id) override;
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
                                                    const std::string& device);
+    bool is_fallback_possible(std::size_t id) const override;
     void compile_main_model(std::size_t id, const std::string& device);
     void compile_moe_models(std::size_t id, const std::string& device);
     void compile_pyramid_attention_models(std::size_t id, const std::string& device);
@@ -232,11 +278,18 @@ private:
         std::shared_ptr<ov::npuw::IBaseInferRequest> internal_request) const override;
 
     std::string submodel_device(const std::size_t idx) const override;
-    bool is_gather_closure(const std::size_t idx, const std::size_t cidx) const;
-    bool unpack_required(const std::size_t idx) const;
-    bool unpack_required(const std::size_t idx, const std::size_t cidx) const;
 
-    void log_device_dist() const;
+    std::vector<CompiledModelDesc> get_compiled_submodels() const override;
+    std::vector<ToSubmodel> get_inputs_to_submodels_inputs() const override;
+    std::vector<ToSubmodel> get_outputs_to_submodels_outputs() const override;
+    std::map<std::size_t, std::vector<ToSubmodel>> get_param_subscribers() const override;
+    SubmodelInsToPrevOuts get_submodels_input_to_prev_output() const override;
+
+    bool is_gather_closure(const std::size_t idx, const std::size_t cidx) const override;
+    bool unpack_required(const std::size_t idx) const override;
+    bool unpack_required(const std::size_t idx, const std::size_t cidx) const override;
+
+    void log_device_dist() const override;
     void implement_properties();
 
     bool should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) const;
@@ -250,10 +303,12 @@ private:
     void set_weights_bank(std::shared_ptr<weights::Bank> bank) override;
     void finalize_weights_bank() override;
     void detach_memory();
-    std::string global_mem_device() const;
-    std::string funcall_mem_device(const std::size_t idx) const;
+    std::string global_mem_device() const override;
+    std::string funcall_mem_device(const std::size_t idx) const override;
 
-    std::vector<CompiledModelDesc> get_compiled_submodels() const override;
+    bool acc_check_enabled() const override;
+    std::string get_acc_ref_device() const override;
+    bool is_accurate(const ov::SoPtr<ov::ITensor>& actual, const ov::SoPtr<ov::ITensor>& reference) const override;
 
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
@@ -276,9 +331,7 @@ private:
 
     std::map<std::size_t, std::vector<ToSubmodel>> m_param_subscribers;
 
-    std::map<std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>,  // input ("to")
-             std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>>  // output ("from")
-        m_submodels_input_to_prev_output;
+    SubmodelInsToPrevOuts m_submodels_input_to_prev_output;
 
     DeviceProperties m_meta_devices;
 

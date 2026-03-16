@@ -1560,6 +1560,7 @@ std::shared_ptr<ov::npuw::ICompiledModel>
 ov::npuw::DefaultNPUWCompiledModelFactory::create(const std::shared_ptr<ov::Model>& model,
                                                   const std::shared_ptr<const ov::IPlugin>& plugin,
                                                   const ov::AnyMap& properties) {
+    LOG_INFO("ov::npuw::CompiledModel will be created.");
     return std::make_shared<ov::npuw::CompiledModel>(model, plugin, properties);
 }
 
@@ -1568,7 +1569,7 @@ ov::npuw::DefaultNPUWCompiledModelFactory::deserialize(std::istream& stream,
                                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                                        const ov::AnyMap& properties,
                                                        const ov::npuw::s11n::CompiledContext& enc_ctx) {
-    
+    LOG_INFO("ov::npuw::CompiledModel will be deserialized.");
     return ov::npuw::CompiledModel::deserialize(stream, plugin, properties, enc_ctx);
 }
 
@@ -2310,7 +2311,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
 
     if (!encrypted) {
         CompiledContext ctx(false, nullptr, nullptr);
-        auto compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, npuw_cm_factory,plugin, properties, ctx);
+        auto compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, npuw_cm_factory, plugin, properties, ctx);
         NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
         read_and_finalize_banks(stream, compiled_model);
         LOG_INFO("Done.");

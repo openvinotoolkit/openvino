@@ -496,6 +496,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // block in the same chunk
     std::vector<std::size_t> idx_subgraph_to_compile;
     for (std::size_t i = 0u; i < orderedSubgraphs.size(); i++) {
+        // FIXME: device_it got unitialized here
         if (orderedSubgraphs[i]._optimized_out || m_compiled_submodels[i].replaced_by.value_or(i) != i) {
             continue;  // do nothing here
         } else {
@@ -1645,8 +1646,18 @@ std::string ov::npuw::CompiledModel::funcall_mem_device(const std::size_t idx) c
     return *comp_model_desc.device_it;
 }
 
-std::vector<ov::npuw::CompiledModelDesc> ov::npuw::CompiledModel::get_compiled_submodels() const {
-    return m_compiled_submodels;
+bool ov::npuw::CompiledModel::acc_check_enabled() const {
+    return m_acc_check != nullptr;
+}
+
+std::string ov::npuw::CompiledModel::get_acc_ref_device() const {
+    return m_ref_device;
+}
+
+bool ov::npuw::CompiledModel::is_accurate(const ov::SoPtr<ov::ITensor>& actual,
+                                          const ov::SoPtr<ov::ITensor>& reference) const {
+    OPENVINO_ASSERT(m_acc_check != nullptr, "Accuracy check function is not set!");
+    return m_acc_check(actual, reference);
 }
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
@@ -1711,6 +1722,10 @@ void ov::npuw::CompiledModel::report_io() const {
         LOG_VERB("Output (Result) " << outputs()[idx_out] << " from Subgraph[" << submodel_idx << "]/" << output_idx);
         idx_out++;
     }
+}
+
+std::string ov::npuw::CompiledModel::get_name() const {
+    return m_name;
 }
 
 bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
@@ -1798,6 +1813,12 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
     // Reached this point - all ok, stop the search
     LOG_INFO("Done (" << device_to_try << ")");
     return true;
+}
+
+bool ov::npuw::CompiledModel::is_fallback_possible(std::size_t real_idx) const {
+    OPENVINO_ASSERT(real_idx == m_compiled_submodels[real_idx].replaced_by.value_or(real_idx),
+                    "is_fallback_possible() should be called with the real idx of the submodel");
+    return m_dev_list.cend() != m_compiled_submodels[real_idx].device_it;
 }
 
 void ov::npuw::CompiledModel::compile_main_model(std::size_t id, const std::string& device) {
@@ -2323,6 +2344,27 @@ std::string ov::npuw::CompiledModel::submodel_device(const std::size_t idx) cons
 
     NPUW_ASSERT(comp_subm_desc.device_it != m_dev_list.end());
     return *comp_subm_desc.device_it;
+}
+
+std::vector<ov::npuw::CompiledModelDesc> ov::npuw::CompiledModel::get_compiled_submodels() const {
+    return m_compiled_submodels;
+}
+
+std::vector<ov::npuw::ICompiledModel::ToSubmodel> ov::npuw::CompiledModel::get_inputs_to_submodels_inputs() const {
+    return m_inputs_to_submodels_inputs;
+}
+
+std::vector<ov::npuw::ICompiledModel::ToSubmodel> ov::npuw::CompiledModel::get_outputs_to_submodels_outputs() const {
+    return m_outputs_to_submodels_outputs;
+}
+
+std::map<std::size_t, std::vector<ov::npuw::ICompiledModel::ToSubmodel>> ov::npuw::CompiledModel::get_param_subscribers() const {
+    return m_param_subscribers;
+}
+
+ov::npuw::ICompiledModel::SubmodelInsToPrevOuts
+ov::npuw::CompiledModel::get_submodels_input_to_prev_output() const {
+    return m_submodels_input_to_prev_output;
 }
 
 bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx) const {

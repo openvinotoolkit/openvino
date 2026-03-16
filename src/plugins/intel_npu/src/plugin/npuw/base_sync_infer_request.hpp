@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "attention.hpp"
+#include "compiled_model.hpp"
 #include "host_flash_attention.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
@@ -24,9 +25,9 @@
 namespace ov {
 namespace npuw {
 
-using namespace ov::npuw::util;
+class ICompiledModel;
 
-class CompiledModel;
+using namespace ov::npuw::util;
 
 using LinkFrom = std::pair<std::size_t /* Subrequest index */
                            ,
@@ -35,9 +36,64 @@ using LinkFrom = std::pair<std::size_t /* Subrequest index */
 
 // This interface is provided to npuw::AsyncInferRequest to manage the
 // individual subrequests' execution
-class IBaseInferRequest : public ov::ISyncInferRequest {
+class  IBaseInferRequest : public ov::ISyncInferRequest {
 public:
-    explicit IBaseInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>&);
+    explicit IBaseInferRequest(const std::shared_ptr<ov::npuw::ICompiledModel>& compiled_model)
+        : ov::ISyncInferRequest(compiled_model) { }
+
+    virtual void handle_set_remote_input(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) = 0;
+
+    using Completed = std::function<void(std::exception_ptr)>;
+
+    virtual void prepare_for_infer() = 0;
+    virtual bool valid_subrequest(std::size_t idx) const = 0;  // FIXME: Get rid of this!
+    virtual void start_subrequest(std::size_t idx) = 0;
+    virtual void subscribe_subrequest(std::size_t idx, Completed cb) = 0;
+    virtual void run_subrequest_for_success(std::size_t idx, bool& failover) = 0;
+    virtual void complete_subrequest(std::size_t idx) = 0;
+    virtual void cancel_subrequest(std::size_t idx) = 0;
+    virtual std::size_t total_subrequests() const = 0;
+    virtual bool supports_async_pipeline() const = 0;
+
+    virtual void update_history_size(int64_t history_size) = 0;
+    virtual int64_t get_history_size() const = 0;
+
+    using RqPtr = ov::SoPtr<ov::IAsyncInferRequest>;
+    using RqPtrs = std::vector<RqPtr>;
+
+    virtual RqPtrs create_infer_requests(std::size_t id, size_t nireq = 1, bool* recompiled = nullptr) = 0;
+    virtual void ensure_subrequest_is_accurate(std::size_t idx, bool& failover) = 0;
+    virtual void update_subrequest_links(std::size_t idx) = 0;
+
+    virtual TensorPtr alloc_global_out(std::size_t out_idx) const = 0;
+    virtual void bind_global_params(std::size_t idx, RqPtr request) = 0;
+    virtual void bind_global_results(std::size_t idx, RqPtr request) = 0;
+    virtual bool needs_copy(std::size_t idx) const = 0;
+    virtual bool needs_copy(std::size_t idx, std::size_t cidx) const = 0;
+};
+
+
+class BaseInferRequest : public IBaseInferRequest {
+public:
+    explicit BaseInferRequest(const std::shared_ptr<ov::npuw::ICompiledModel>& compiled_model) 
+    : IBaseInferRequest(compiled_model),
+      m_npuw_model(compiled_model),
+      m_num_submodels(m_npuw_model->get_compiled_submodels().size()) {
+    m_subrequests.resize(m_num_submodels, {});
+    m_subrequest_devices.resize(m_num_submodels, {});
+    m_completion_cbs.resize(m_num_submodels, {});
+    if (m_npuw_model->acc_check_enabled()) {
+        m_ref_subrequests.resize(m_num_submodels);
+    }
+
+    // Initialize profiling
+    m_profile.report_on_die = ov::npuw::profiling_enabled();
+    m_profile.area = m_npuw_model->get_name() + "/performance";
+
+    m_footprint.report_on_die = ov::npuw::profiling_enabled();
+    m_footprint.area = m_npuw_model->get_name() + "/memory";
+}
+
 
     // Execution API - explicitly "finalize" the infer() here
     void infer() override;  // final - not final yet
@@ -52,14 +108,11 @@ public:
 
     void check_tensors() const override;
 
-    void handle_set_remote_input(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor);
+    void handle_set_remote_input(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
 
     // Query APIs - some default implementations here
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
-
-    using sptr = std::shared_ptr<IBaseInferRequest>;
-    using Completed = std::function<void(std::exception_ptr)>;
 
     virtual void prepare_for_infer() = 0;
     virtual bool valid_subrequest(std::size_t idx) const = 0;  // FIXME: Get rid of this!
@@ -68,32 +121,29 @@ public:
     virtual void run_subrequest_for_success(std::size_t idx, bool& failover) = 0;
     virtual void complete_subrequest(std::size_t idx) = 0;
     virtual void cancel_subrequest(std::size_t idx) = 0;
-    virtual std::size_t total_subrequests() const;
+    virtual std::size_t total_subrequests() const override;
     virtual bool supports_async_pipeline() const = 0;
 
-    void update_history_size(int64_t history_size) {
+    void update_history_size(int64_t history_size) override {
         m_history_size = history_size;
     }
 
-    int64_t get_history_size() const {
+    int64_t get_history_size() const override {
         return m_history_size;
     }
 
 protected:
     int64_t m_history_size = 0;
 
-    using RqPtr = ov::SoPtr<ov::IAsyncInferRequest>;
-    using RqPtrs = std::vector<RqPtr>;
-
     // This method can only be called for regular subgraphs or
     // function bodies. Function calls are not allowed to have
     // their inference requests anymore - they must be stored
     // only once in the subrequests list
-    RqPtrs create_infer_requests(std::size_t id, size_t nireq = 1, bool* recompiled = nullptr);
-    void ensure_subrequest_is_accurate(std::size_t idx, bool& failover);
+    RqPtrs create_infer_requests(std::size_t id, size_t nireq = 1, bool* recompiled = nullptr) override;
+    void ensure_subrequest_is_accurate(std::size_t idx, bool& failover) override;
     virtual void update_subrequest_links(std::size_t idx) = 0;
 
-    std::shared_ptr<ov::npuw::CompiledModel> m_npuw_model;
+    std::shared_ptr<ov::npuw::ICompiledModel> m_npuw_model;
     std::vector<IBaseInferRequest::Completed> m_completion_cbs;
     RqPtrs m_subrequests;
 
@@ -188,15 +238,15 @@ protected:
     TensorPtr allocMem(const ov::element::Type type, const ov::Shape& shape, const std::string& device) const;
     TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device) const;
     virtual void alloc_quant_gather();
-    virtual TensorPtr alloc_global_out(std::size_t out_idx) const;
+    virtual TensorPtr alloc_global_out(std::size_t out_idx) const override;
 
     std::string global_input_mem_device(std::size_t idx) const;
     std::string global_output_mem_device(std::size_t idx) const;
 
     virtual void init_gio();
     void unpack_closure(std::size_t idx, RqPtr request);
-    virtual void bind_global_params(std::size_t idx, RqPtr request);
-    virtual void bind_global_results(std::size_t idx, RqPtr request);
+    void bind_global_params(std::size_t idx, RqPtr request) override;
+    void bind_global_results(std::size_t idx, RqPtr request) override;
     void alloc_quant_gather_tensors(std::size_t idx, RqPtr request);
     void handle_quant_host_gather(std::size_t idx, RqPtr request);
 
@@ -227,8 +277,8 @@ protected:
     mutable std::optional<bool> m_iter_suffix_required;
     std::size_t m_run_iter = 0u;
 
-    bool needs_copy(std::size_t idx) const;
-    bool needs_copy(std::size_t idx, std::size_t cidx) const;
+    bool needs_copy(std::size_t idx) const override;
+    bool needs_copy(std::size_t idx, std::size_t cidx) const override;
     std::size_t next(std::size_t idx_base) const;
     std::size_t real(std::size_t idx) const;
 

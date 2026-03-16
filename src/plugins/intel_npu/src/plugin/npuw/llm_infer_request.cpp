@@ -203,7 +203,6 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
             ov::npuw::util::fill_tensor<ov::float16>(kvcache_in_tensor, 0);
         }
     }
-
     m_generate_initialized = false;
 }
 

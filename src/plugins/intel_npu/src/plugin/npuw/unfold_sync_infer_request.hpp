@@ -15,12 +15,12 @@
 namespace ov {
 namespace npuw {
 
-class UnfoldInferRequest final : public IBaseInferRequest {
+class UnfoldInferRequest final : public BaseInferRequest {
 public:
     explicit UnfoldInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
 
     ////////////////////////////////////
-    // implement IBaseInferRequest - nether of these are required here
+    // implement BaseInferRequest - nether of these are required here
     // this hierarchy needs revew
     void prepare_for_infer() override {}
     bool valid_subrequest(std::size_t idx) const override;

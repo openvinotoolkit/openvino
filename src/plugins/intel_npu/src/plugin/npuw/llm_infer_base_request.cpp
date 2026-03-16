@@ -7,6 +7,7 @@
 #include <regex>
 
 #include "infer_request_utils.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
 
 void ov::npuw::LLMInferBaseRequest::update_kvcache_for(
     std::shared_ptr<ov::IAsyncInferRequest> request,

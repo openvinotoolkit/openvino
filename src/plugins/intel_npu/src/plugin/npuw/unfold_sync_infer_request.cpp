@@ -9,13 +9,13 @@
 #include "openvino/core/parallel.hpp"
 
 ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
-    : ov::npuw::IBaseInferRequest(compiled_model) {
+    : ov::npuw::BaseInferRequest(compiled_model) {
     // Create infer requests
     // Preallocate funcall tensors & substitute function call requests
     for (std::size_t i = 0; i < m_num_submodels; i++) {
         LOG_INFO("Creating infer request for Subgraph[" << i << "]...");
         LOG_BLOCK();
-        auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
+        auto& comp_model_desc = m_npuw_model->get_compiled_submodels()[i];
 
         if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
             // no model & no funcall - optimized out, do nothing
@@ -26,7 +26,8 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
         if (comp_model_desc.replaced_by) {
             // Pre-allocate output tensors for this function call
             const auto real_idx = comp_model_desc.replaced_by.value();
-            auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+            auto& compiled_submodels = m_npuw_model->get_compiled_submodels();
+            auto& proto_comp_model_desc = compiled_submodels[real_idx];
             if (proto_comp_model_desc.spatial) {
                 NPUW_ASSERT(false && "Spatial is not supported in unfold");
             }
@@ -36,7 +37,8 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
         }  // if(replaced_by)
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(i);
-        auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+        auto& compiled_submodels = m_npuw_model->get_compiled_submodels();
+        auto& proto_comp_model_desc = compiled_submodels[real_idx];
         // NB: UnfoldInferRequest is _NOT_ fail-safe! Fail means fail here
         m_subrequests[i] = proto_comp_model_desc.compiled_model->create_infer_request();
         m_subrequest_devices[i] = *proto_comp_model_desc.device_it;
@@ -47,7 +49,8 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
 
     LOG_INFO("Connecting subrequests...");
     LOG_BLOCK();
-    for (const auto& kvp : m_npuw_model->m_submodels_input_to_prev_output) {
+    const auto& submodels_input_to_prev_output = m_npuw_model->get_submodels_input_to_prev_output();
+    for (const auto& kvp : submodels_input_to_prev_output) {
         const auto& subm_idx_to = kvp.first.first;
         const auto& port_idx_to = kvp.first.second;
         const auto& subm_idx_from = kvp.second.first;
@@ -69,10 +72,11 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
 
     init_gio();
 
+    auto& compiled_submodels = m_npuw_model->get_compiled_submodels();
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_VERB("Trying to preemptively set tensors for Subgraph[" << i << "]...");
         LOG_BLOCK();
-        auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
+        auto& comp_model_desc = compiled_submodels[i];
         if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
             continue;  // Optimized out
         }
@@ -88,7 +92,8 @@ bool ov::npuw::UnfoldInferRequest::valid_subrequest(std::size_t idx) const {
 }
 
 void ov::npuw::UnfoldInferRequest::infer() {
-    const bool do_async = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_ASYNC>();
+    const auto& npuw_funcall_async_any = m_npuw_model->get_property(ov::intel_npu::npuw::funcall_async.name());
+    const bool do_async = npuw_funcall_async_any.as<bool>();
 
     auto prepare = [&](std::size_t idx) {
         if (idx >= m_subrequests.size()) {
@@ -109,13 +114,14 @@ void ov::npuw::UnfoldInferRequest::infer() {
         RqPtrs previous_requests;
 
         prepare(0);
+        auto& compiled_submodels = m_npuw_model->get_compiled_submodels();
         for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
             auto& subr = m_subrequests[idx];
             if (!subr) {
                 prepare(idx + 1);
                 continue;
             }
-            auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+            auto& comp_model_desc = compiled_submodels[idx];
             const auto this_repl_id = comp_model_desc.replaced_by.value_or(idx);
             if (this_repl_id != past_repl_id) {
                 // For non-repeating blocks, the above value_or returns idx
