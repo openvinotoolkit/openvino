@@ -12,7 +12,9 @@
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_not.hpp"
 #include "openvino/op/logical_or.hpp"
+#include "openvino/op/negative.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
@@ -64,9 +66,40 @@ OutputVector translate_atan2_util(const NodeContext& context, const Output<Node>
     auto special_case_condition =
         context.mark_node(make_shared<v1::LogicalOr>(half_pi_condition, neg_half_pi_condition));
 
-    // x = 0 and y = 0, result is 0 (IEEE 754)
+    // x = 0 and y = 0: with IEEE 754 signed-zero handling.
+    // IEEE 754 definations:
+    //      atan2(+0,+0)=+0,
+    //      atan2(-0,+0)=-0,
+    //      atan2(+0,-0)=+π,
+    //      atan2(-0,-0)=-π
+    // Standard comparison ops cannot distinguish ±0 (-0 == +0 is true, and -0 < 0 is false).
+    // Detect sign via reciprocal: 1/(+0)=+inf, 1/(-0)=-inf, then Less(recip, 0) detects negative sign.
     auto y_equal_zero = context.mark_node(make_shared<v1::Equal>(lhs, zero));
     auto both_zero_condition = context.mark_node(make_shared<v1::LogicalAnd>(x_equal_zero, y_equal_zero));
+
+    auto one = context.mark_node(v0::Constant::create(ov::element::f64, Shape{}, {1.0}));
+    one = context.mark_node(make_shared<v1::ConvertLike>(one, rhs));
+    auto recip_x = context.mark_node(make_shared<v1::Divide>(one, rhs));  // +inf for +0, -inf for -0
+    auto recip_y = context.mark_node(make_shared<v1::Divide>(one, lhs));
+    auto x_sign_negative = context.mark_node(make_shared<v1::Less>(recip_x, zero));
+    auto y_sign_negative = context.mark_node(make_shared<v1::Less>(recip_y, zero));
+    auto x_sign_positive = context.mark_node(make_shared<v1::LogicalNot>(x_sign_negative));
+    auto y_sign_positive = context.mark_node(make_shared<v1::LogicalNot>(y_sign_negative));
+
+    auto neg_pi = context.mark_node(make_shared<v0::Negative>(pi));
+    auto neg_zero = context.mark_node(make_shared<v0::Negative>(zero));
+
+    // atan2(-0, -0) = -π
+    auto case_nn = context.mark_node(make_shared<v1::LogicalAnd>(x_sign_negative, y_sign_negative));
+    // atan2(+0, -0) = +π
+    auto case_pn = context.mark_node(make_shared<v1::LogicalAnd>(x_sign_negative, y_sign_positive));
+    // atan2(-0, +0) = -0
+    auto case_np = context.mark_node(make_shared<v1::LogicalAnd>(x_sign_positive, y_sign_negative));
+    // atan2(+0, +0) = +0 (default fallback)
+
+    auto signed_zero_result = context.mark_node(make_shared<v1::Select>(case_nn, neg_pi, zero));
+    signed_zero_result = context.mark_node(make_shared<v1::Select>(case_pn, pi, signed_zero_result));
+    signed_zero_result = context.mark_node(make_shared<v1::Select>(case_np, neg_zero, signed_zero_result));
 
     // do adjustment
     auto atan_plus_pi = context.mark_node(make_shared<v1::Add>(atan, pi));
@@ -77,7 +110,7 @@ OutputVector translate_atan2_util(const NodeContext& context, const Output<Node>
     auto special_case = context.mark_node(make_shared<v1::Select>(half_pi_condition, half_pi, neg_half_pi));
     auto adjusted_atan = context.mark_node(make_shared<v1::Select>(x_greater_than_zero, atan, ajusted_case));
     auto result = context.mark_node(make_shared<v1::Select>(special_case_condition, special_case, adjusted_atan));
-    result = context.mark_node(make_shared<v1::Select>(both_zero_condition, zero, result));
+    result = context.mark_node(make_shared<v1::Select>(both_zero_condition, signed_zero_result, result));
 
     return {result};
 }
