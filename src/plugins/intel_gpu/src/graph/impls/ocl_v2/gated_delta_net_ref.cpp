@@ -1,6 +1,7 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "gated_delta_net_ref.hpp"
 
 #include "intel_gpu/primitives/gated_delta_net.hpp"
@@ -138,7 +139,7 @@ public:
 }  // namespace
 
 std::unique_ptr<primitive_impl> GatedDeltaNetRef::create_impl(const program_node& node, const RuntimeParams& params) const {
-    assert(node.is_type<linear_attention>());
+    assert(node.is_type<gated_delta_net>());
     return std::make_unique<GatedDeltaNetRefImpl>(node, params);
 }
 

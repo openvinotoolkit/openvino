@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -325,20 +325,9 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
 };
 
 TEST_P(gated_delta_net_gpu_test, basic) {
-    if (!check_cm_available())
-        GTEST_SKIP();
-
     auto p = GetParam();
     execute(p);
 }
-
-// TEST_P(gated_delta_net_gpu_test, basic_caching) {
-//     if (!check_cm_available())
-//         GTEST_SKIP();
-
-//     auto p = GetParam();
-//     execute(p, true);
-// }
 
 INSTANTIATE_TEST_SUITE_P(smoke_gated_delta_net_gpu_test,
     gated_delta_net_gpu_test,

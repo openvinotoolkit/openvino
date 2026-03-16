@@ -1,4 +1,7 @@
-//# CM kernel for flash attn, reference
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include <cm/cm.h>
 #include <cm/cmtl.h>
 

@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <intel_gpu/primitives/gated_delta_net.hpp>
 #include "openvino/op/gated_delta_net.hpp"
+
+#include <intel_gpu/primitives/gated_delta_net.hpp>
+
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/primitives/mutable_data.hpp"
 
 namespace ov {
 namespace op {
@@ -25,6 +26,33 @@ static void CreateGatedDeltaNetOp(ProgramBuilder& p, const std::shared_ptr<ov::o
 
     const std::string layerName = layer_type_name_ID(op);
     cldnn::gated_delta_net gated_delta_net_prim(layerName, inputs);
+
+    const auto query_ps = op->get_input_partial_shape(0);
+    const auto key_ps = op->get_input_partial_shape(1);
+    const auto value_ps = op->get_input_partial_shape(2);
+
+    if (query_ps.rank().is_static() && key_ps.rank().is_static() && value_ps.rank().is_static()) {
+        const auto query_rank = query_ps.rank().get_length();
+        const auto key_rank = key_ps.rank().get_length();
+        const auto value_rank = value_ps.rank().get_length();
+
+        if (query_rank >= 2 && key_rank >= 1 && value_rank >= 2) {
+            const auto k_head_size_dim = key_ps[key_rank - 1];
+            const auto v_head_size_dim = value_ps[value_rank - 1];
+            const auto k_heads_num_dim = query_ps[query_rank - 2];
+            const auto v_heads_num_dim = value_ps[value_rank - 2];
+
+            if (k_head_size_dim.is_static())
+                gated_delta_net_prim.k_head_size = k_head_size_dim.get_length();
+            if (v_head_size_dim.is_static())
+                gated_delta_net_prim.v_head_size = v_head_size_dim.get_length();
+            if (k_heads_num_dim.is_static())
+                gated_delta_net_prim.k_heads_num = k_heads_num_dim.get_length();
+            if (v_heads_num_dim.is_static())
+                gated_delta_net_prim.v_heads_num = v_heads_num_dim.get_length();
+        }
+    }
+
     gated_delta_net_prim.num_outputs = op->get_output_size();
     p.add_primitive(*op, gated_delta_net_prim);
 }
