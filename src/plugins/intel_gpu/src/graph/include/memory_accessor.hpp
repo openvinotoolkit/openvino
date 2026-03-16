@@ -57,7 +57,8 @@ struct MemoryAccessor : public ov::ITensorAccessor {
         m_accessed_data = nullptr;
 
         const auto t_iter = m_ptrs->find(port);
-        if (t_iter != m_ptrs->cend() && t_iter->second) {
+        if (t_iter != m_ptrs->cend()) {
+            OPENVINO_ASSERT(t_iter->second, "memory pointer is null for port ", port);
             m_accessed_data = t_iter->second;
             return {m_accessed_data->get_layout().data_type,
                     m_accessed_data->get_layout().get_shape(),
