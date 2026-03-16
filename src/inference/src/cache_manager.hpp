@@ -42,13 +42,9 @@ public:
      * @brief Constructor
      *
      */
-    FileStorageCacheManager(std::filesystem::path cache_path) : m_cache_path(std::move(cache_path)) {}
-
-    /**
-     * @brief Destructor
-     *
-     */
-    ~FileStorageCacheManager() override = default;
+    FileStorageCacheManager(std::filesystem::path cache_path) : m_cache_path(std::move(cache_path)) {
+        util::create_directory_recursive(m_cache_path);
+    }
 
 private:
     void write_cache_entry(const std::string& id, StreamWriter writer) override {
@@ -86,5 +82,4 @@ private:
         }
     }
 };
-
 }  // namespace ov
