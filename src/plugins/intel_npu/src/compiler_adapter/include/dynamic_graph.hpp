@@ -6,11 +6,10 @@
 
 #include <ze_graph_ext.h>
 
-#include "compiler_impl.hpp"
 #include "intel_npu/common/idynamic_graph.hpp"
 #include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "npu_mlir_runtime_api.hpp"
+#include "npu_vm_runtime_api.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
@@ -106,14 +105,11 @@ public:
     };
 
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                 std::optional<ov::Tensor> blob,
+                 ov::Tensor blob,
                  bool blobAllocatedByPlugin,
-                 const FilteredConfig& config,
-                 const ov::SoPtr<VCLCompilerImpl>& compiler = {nullptr});
+                 const FilteredConfig& config);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
-
-    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const override;
 
     void set_argument_value(uint32_t argi, const void* argv) const override;
 
@@ -184,7 +180,6 @@ private:
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported
     bool _blobIsReleased = false;
-    bool _blobAllocatedByPlugin = false;
 
     uint32_t _uniqueId = 0;
     uint32_t _lastSubmittedId = 0;
@@ -195,7 +190,6 @@ private:
      */
     std::optional<std::size_t> _batchSize = std::nullopt;
 
-    const ov::SoPtr<VCLCompilerImpl> _compiler;
     Logger _logger;
 
     std::unique_ptr<Impl> _impl;
