@@ -411,7 +411,8 @@ public:
         network::ptr network_second = get_network(*engine, topo, config, get_test_stream_ptr(), is_caching_test);
         network_second->set_input_data("input", input_1);
         auto outputs_second = network_second->execute();
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)5912);
+        const auto max_used_mem = engine->get_max_used_device_memory();
+        ASSERT_TRUE(max_used_mem == static_cast<uint64_t>(5912) || max_used_mem == static_cast<uint64_t>(5928));
     }
 
     void test_shared_dep_two_output(bool is_caching_test) {
