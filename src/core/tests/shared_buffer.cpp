@@ -425,7 +425,7 @@ using RangedMappingTestParams =  // offset-size pairs, use file path (true) or f
 class RangedMappingTest : public ::testing::TestWithParam<RangedMappingTestParams> {
 protected:
     std::filesystem::path m_file_path;
-    std::vector<char> m_data_1, m_data_2;
+    std::vector<char> m_sector_1, m_sector_2;
 
     void SetUp() override {
         const auto& [regions, use_file_path] = GetParam();
@@ -437,31 +437,28 @@ protected:
         ASSERT_LE(offset_1 + actual_size_1, actual_file_size);
         ASSERT_LE(offset_2 + actual_size_2, actual_file_size);
 
-        m_data_1.resize(actual_size_1);
-        m_data_2.resize(actual_size_2);
-        for (size_t i = 0; i < actual_size_1; ++i) {
-            m_data_1[i] = static_cast<char>('A' + i % 26);
-        }
-        for (size_t i = 0; i < actual_size_2; ++i) {
-            m_data_2[i] = static_cast<char>('a' + i % 26);
-        }
-
-        std::vector<char> buffer(actual_file_size, '_');
-        for (size_t i = 0; i < actual_size_1; ++i) {
-            buffer[offset_1 + i] = m_data_1[i];
-        }
-        for (size_t i = 0; i < actual_size_2; ++i) {
-            buffer[offset_2 + i] = m_data_2[i];
-        }
-        // In case the ranges overlap
-        for (size_t i = 0; i < actual_size_1; ++i) {
-            m_data_1[i] = buffer[offset_1 + i];
-        }
-
         m_file_path = utils::generateTestFilePrefix();
-        std::ofstream s(m_file_path, std::ios::binary);
+        std::fstream s(m_file_path, std::ios::binary | std::ios::in | std::ios::out | std::ios::trunc);
         ASSERT_TRUE(s.is_open());
-        s.write(buffer.data(), buffer.size());
+        for (size_t i = 0; i < actual_file_size; ++i) {
+            s.put('_');
+        }
+        ASSERT_TRUE(s.good());
+        s.seekp(offset_1);
+        for (size_t i = 0; i < actual_size_1; ++i) {
+            s.put('A' + i % 26);
+        }
+        s.seekp(offset_2);
+        for (size_t i = 0; i < actual_size_2; ++i) {
+            s.put('a' + i % 26);
+        }
+        // sectors may overlap, so read these after all
+        m_sector_1.resize(actual_size_1);
+        m_sector_2.resize(actual_size_2);
+        s.seekg(offset_1);
+        s.read(m_sector_1.data(), actual_size_1);
+        s.seekg(offset_2);
+        s.read(m_sector_2.data(), actual_size_2);
         ASSERT_TRUE(s.good());
     }
 
@@ -518,10 +515,10 @@ TEST_P(RangedMappingTest, compare_data) {
     ASSERT_NE(mm_1, nullptr);
     ASSERT_NE(mm_2, nullptr);
 
-    EXPECT_EQ(mm_1->size(), m_data_1.size());
-    EXPECT_EQ(mm_2->size(), m_data_2.size());
-    EXPECT_EQ(m_data_1, std::vector<char>(mm_1->data(), mm_1->data() + mm_1->size()));
-    EXPECT_EQ(m_data_2, std::vector<char>(mm_2->data(), mm_2->data() + mm_2->size()));
+    EXPECT_EQ(mm_1->size(), m_sector_1.size());
+    EXPECT_EQ(mm_2->size(), m_sector_2.size());
+    EXPECT_EQ(m_sector_1, std::vector<char>(mm_1->data(), mm_1->data() + mm_1->size()));
+    EXPECT_EQ(m_sector_2, std::vector<char>(mm_2->data(), mm_2->data() + mm_2->size()));
 }
 
 TEST_P(RangedMappingTest, compare_id) {
