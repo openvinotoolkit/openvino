@@ -289,8 +289,10 @@ ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
     auto init_state = ov::pass::pattern::any_input(has_static_rank());
     auto gate = ov::pass::pattern::any_input(has_static_rank());
     auto beta = ov::pass::pattern::any_input(has_static_rank());
-    auto eps_q = any_input();
-    auto eps_k = any_input();
+    auto eps_q_const = pattern::wrap_type<v0::Constant>();
+    auto eps_q = pattern::optional<v0::Convert>({eps_q_const});
+    auto eps_k_const = pattern::wrap_type<v0::Constant>();
+    auto eps_k = pattern::optional<v0::Convert>({eps_k_const});
 
     auto l2_norm = [](const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& eps) {
         auto input_convert = pattern::optional<v0::Convert>({data});
@@ -325,23 +327,11 @@ ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
         auto config = gdn_node->get_config();
         config.fuse_qk_l2norm = true;
 
-        auto get_eps = [&](std::shared_ptr<ov::Node> eps_pattern, float* eps) -> bool {
-            std::shared_ptr<ov::Node> eps_node = nullptr;
-            if ((eps_node = get_scalar(eps_pattern, m))) {
-                *eps = ov::as_type_ptr<v0::Constant>(eps_node)->cast_vector<float>()[0];
-                return true;
-            } else {
-                return false;
-            }
-        };
+        auto l2_norm_q_eps_node = pattern_map.at(eps_q_const).get_node_shared_ptr();
+        auto l2_norm_k_eps_node = pattern_map.at(eps_k_const).get_node_shared_ptr();
 
-        if (!get_eps(eps_q, &config.q_l2_norm_eps)) {
-            return false;
-        }
-
-        if (!get_eps(eps_k, &config.k_l2_norm_eps)) {
-            return false;
-        }
+        config.q_l2_norm_eps = ov::as_type_ptr<v0::Constant>(l2_norm_q_eps_node)->cast_vector<float>()[0];
+        config.k_l2_norm_eps = ov::as_type_ptr<v0::Constant>(l2_norm_k_eps_node)->cast_vector<float>()[0];
 
         ov::Output<ov::Node> gdn_input_query = pattern_map.at(query);
         ov::Output<ov::Node> gdn_input_key = pattern_map.at(key);
