@@ -4,17 +4,13 @@
 
 #pragma once
 
-#include <cstring>
-#include <iostream>
+#include <sstream>
 #include <stdexcept>
-#include <string>
 #include <type_traits>
 #include <vector>
 #include "buffer.hpp"
 #include "helpers.hpp"
 #include "bind.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-
 
 namespace cldnn {
 struct memory;
@@ -54,12 +50,11 @@ public:
     virtual ~BinaryInputBuffer() = default;
 
     virtual void read(void* const data, std::streamsize size) {
-        // Large-read parallelism is handled transparently by the streambuf layer
-        // (ParallelMemStreamBuf for mmap tensors, ParallelReadStreamBuf for file streams).
         auto const read_size = _stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
         OPENVINO_ASSERT(read_size == size,
             "[GPU] Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
     }
+
     void setKernelImplParams(void* impl_params) { _impl_params = impl_params; }
     void* getKernelImplParams() const { return _impl_params; }
 

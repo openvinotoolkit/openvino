@@ -118,9 +118,6 @@ public:
     explicit SharedStreamBuffer(const void* data, size_t size)
         : SharedStreamBuffer(reinterpret_cast<const char*>(data), size) {}
 
-    const char* get_ptr() const { return m_data; }
-    size_t get_size() const { return m_size; }
-
 protected:
     // override std::streambuf methods
     std::streamsize xsgetn(char* s, std::streamsize count) override {

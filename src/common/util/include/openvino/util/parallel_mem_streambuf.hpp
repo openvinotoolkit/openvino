@@ -262,24 +262,6 @@ private:
                       << " chunks, " << elapsed_s * 1e3 << " ms, " << bw_gbs << " GB/s" << std::endl;
         }
 #endif
-
-#ifdef _WIN32
-        // Release consumed mmap pages from the working-set to avoid RAM pressure
-        // when loading multi-GB models. MEM_RESET marks pages as no longer needed;
-        // the kernel may reclaim them without writing to the page file.
-        // constexpr uintptr_t PAGE_MASK = ~static_cast<uintptr_t>(4095u);
-        // const char* reset_begin = reinterpret_cast<const char*>(reinterpret_cast<uintptr_t>(src) & PAGE_MASK);
-        // const char* reset_end = reinterpret_cast<const char*>((reinterpret_cast<uintptr_t>(src) + size) & PAGE_MASK);
-        // if (reset_begin < reset_end) {
-        //     VirtualFree(const_cast<char*>(reset_begin), static_cast<SIZE_T>(reset_end - reset_begin), MEM_RESET);
-        // }
-        // NOTE: MEM_RESET is intentionally omitted here.  Releasing pages
-        // immediately after copying races with PrefetchVirtualMemory for the
-        // next chunk: if the standby entry is evicted before the next chunk's
-        // copy begins, a Hard Page Fault against NVMe causes 1000+ ms stalls
-        // (as observed in profiling).  The OS will reclaim pages under its
-        // normal working-set trimming policy without requiring explicit hints.
-#endif
     }
 
     const char* m_begin;
