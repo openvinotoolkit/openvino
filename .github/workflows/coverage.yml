@@ -10,7 +10,6 @@ on:
         options:
           - cpu
           - cpu_gpu
-          - cpu_gpu_npu
   pull_request:
 
 concurrency:
@@ -23,8 +22,8 @@ env:
   CMAKE_BUILD_TYPE: 'Release'
   PARALLEL_JOBS: '64'
   CPP_TEST_CONCURRENCY: '1'
-  CPP_TESTS_PER_JOB: '4'
-  PY_TESTS_PER_JOB: '4'
+  CPP_TESTS_PER_JOB: '5'
+  PY_TESTS_PER_JOB: '5'
   PYTEST_XDIST_WORKERS: '4'
   JS_TEST_CONCURRENCY: '1'
   COVERAGE_SELECTION: ${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'cpu' }}
@@ -48,7 +47,7 @@ jobs:
         env:
           COVERAGE_SELECTION: ${{ env.COVERAGE_SELECTION }}
         run: |
-          python3 scripts/coverage/ci_matrix.py resolve-lanes \
+          python3 tools/coverage/ci_matrix.py resolve-lanes \
             --selection "${COVERAGE_SELECTION}" >> "$GITHUB_OUTPUT"
 
   BuildCoverageArtifacts:
@@ -94,16 +93,16 @@ jobs:
           submodules: 'true'
 
       - name: Install dependencies
-        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step install-deps
+        run: python3 ${{ github.workspace }}/tools/coverage/coverage.py step install-deps
 
       - name: Configure OpenVINO with CMake
         env:
           CC: gcc
           CXX: g++
-        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step configure
+        run: python3 ${{ github.workspace }}/tools/coverage/coverage.py step configure
 
       - name: Build and install
-        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step build-install
+        run: python3 ${{ github.workspace }}/tools/coverage/coverage.py step build-install
 
       - name: Prepare reusable build artifact
         run: |
@@ -166,7 +165,7 @@ jobs:
           BASE_MATRIX: ${{ needs.ResolveMatrix.outputs.matrix }}
           CPP_TESTS_PER_JOB: ${{ env.CPP_TESTS_PER_JOB }}
         run: |
-          python3 scripts/coverage/ci_matrix.py resolve-shards \
+          python3 tools/coverage/ci_matrix.py resolve-shards \
             --suite cpp \
             --base-matrix-json "${BASE_MATRIX}" \
             --tests-per-job "${CPP_TESTS_PER_JOB}" >> "$GITHUB_OUTPUT"
@@ -332,7 +331,7 @@ jobs:
         run: |
           echo "C++ shard ${{ matrix.cpp_shard_index }}/${{ matrix.cpp_shard_count }} running ${{ matrix.cpp_test_count }} test(s)"
           echo "Selected tests: ${{ matrix.cpp_test_names }}"
-          python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-cpp-tests
+          python3 ${{ github.workspace }}/tools/coverage/coverage.py step run-cpp-tests
 
       - name: Detect native coverage data (C++)
         id: detect_gcda
@@ -357,7 +356,7 @@ jobs:
       - name: Generate native C/C++ coverage report (C++ tests)
         if: ${{ steps.restore_artifact.outputs.ready == 'true' && steps.detect_gcda.outputs.exists == 'true' }}
         continue-on-error: true
-        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step collect-cpp-coverage
+        run: python3 ${{ github.workspace }}/tools/coverage/coverage.py step collect-cpp-coverage
 
       - name: Verify C++ coverage file
         id: verify_cpp_cov
@@ -458,7 +457,7 @@ jobs:
           BASE_MATRIX: ${{ needs.ResolveMatrix.outputs.matrix }}
           PY_TESTS_PER_JOB: ${{ env.PY_TESTS_PER_JOB }}
         run: |
-          python3 scripts/coverage/ci_matrix.py resolve-shards \
+          python3 tools/coverage/ci_matrix.py resolve-shards \
             --suite python \
             --base-matrix-json "${BASE_MATRIX}" \
             --tests-per-job "${PY_TESTS_PER_JOB}" >> "$GITHUB_OUTPUT"
@@ -603,7 +602,7 @@ jobs:
         run: |
           echo "Python shard ${{ matrix.py_shard_index }}/${{ matrix.py_shard_count }} running ${{ matrix.py_test_count }} test(s)"
           echo "Selected tests: ${{ matrix.py_test_names }}"
-          python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-python-tests
+          python3 ${{ github.workspace }}/tools/coverage/coverage.py step run-python-tests
 
       - name: Detect native coverage data (Python-driven)
         id: detect_gcda
@@ -619,7 +618,7 @@ jobs:
       - name: Generate native C/C++ coverage report (Python-driven)
         if: ${{ steps.restore_artifact.outputs.ready == 'true' && steps.detect_gcda.outputs.exists == 'true' }}
         continue-on-error: true
-        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step collect-cpp-coverage
+        run: python3 ${{ github.workspace }}/tools/coverage/coverage.py step collect-cpp-coverage
 
       - name: Verify Python coverage file
         id: verify_py_cov
@@ -743,7 +742,7 @@ jobs:
         env:
           BASE_MATRIX: ${{ needs.ResolveMatrix.outputs.matrix }}
         run: |
-          python3 scripts/coverage/ci_matrix.py resolve-shards \
+          python3 tools/coverage/ci_matrix.py resolve-shards \
             --suite js \
             --base-matrix-json "${BASE_MATRIX}" \
             --tests-per-job 1 >> "$GITHUB_OUTPUT"
@@ -913,7 +912,7 @@ jobs:
         run: |
           echo "JS shard ${{ matrix.js_shard_index }}/${{ matrix.js_shard_count }} running ${{ matrix.js_test_count }} test(s)"
           echo "Selected tests: ${{ matrix.js_test_names }}"
-          python3 ${{ github.workspace }}/scripts/coverage/coverage.py step run-js-tests
+          python3 ${{ github.workspace }}/tools/coverage/coverage.py step run-js-tests
 
       - name: Detect native coverage data (JS-driven)
         id: detect_gcda
@@ -929,7 +928,7 @@ jobs:
       - name: Generate native C/C++ coverage report (JS-driven)
         if: ${{ steps.restore_artifact.outputs.ready == 'true' && steps.detect_gcda.outputs.exists == 'true' }}
         continue-on-error: true
-        run: python3 ${{ github.workspace }}/scripts/coverage/coverage.py step collect-cpp-coverage
+        run: python3 ${{ github.workspace }}/tools/coverage/coverage.py step collect-cpp-coverage
 
       - name: Verify JS coverage file
         id: verify_js_cov
@@ -1067,7 +1066,7 @@ jobs:
           COVERAGE_SELECTION: ${{ env.COVERAGE_SELECTION }}
           SELECTED_LANES: ${{ needs.ResolveMatrix.outputs.lanes }}
         run: |
-          python3 scripts/coverage/ci_reports.py render-summary \
+          python3 tools/coverage/ci_reports.py render-summary \
             --workspace "${{ github.workspace }}" \
             --summary-file "${GITHUB_STEP_SUMMARY}" \
             --selection "${COVERAGE_SELECTION}" \
@@ -1075,7 +1074,7 @@ jobs:
 
       - name: Merge duration reports
         run: |
-          python3 scripts/coverage/ci_reports.py merge-durations \
+          python3 tools/coverage/ci_reports.py merge-durations \
             --workspace "${{ github.workspace }}" \
             --output "${{ github.workspace }}/coverage-test-durations-all.csv"
 

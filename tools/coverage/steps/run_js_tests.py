@@ -79,10 +79,10 @@ def run(ctx: CoverageContext) -> None:
     if shutil.which("node") is None or shutil.which("npm") is None:
         raise RuntimeError(
             "Node.js/npm are not available. Install them first, for example via: "
-            "`python3 scripts/coverage/coverage.py step install-deps --install-nodejs --nodejs-version 22`"
+            "`python3 tools/coverage/coverage.py step install-deps --install-nodejs --nodejs-version 22`"
         )
 
-    config = ctx.workspace / "scripts" / "coverage" / "config" / "tests_js.yml"
+    config = ctx.workspace / "tools" / "coverage" / "config" / "tests_js.yml"
     tests = load_js_tests(config, ctx.test_profile)
     selected_names = _selected_test_names()
     if selected_names:

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -15,7 +13,7 @@ import subprocess
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 WORKSPACE = SCRIPT_DIR.parents[1]
-LIST_TESTS_CMD = ["python3", str(WORKSPACE / "scripts" / "coverage" / "coverage.py"), "list-tests"]
+LIST_TESTS_CMD = ["python3", str(WORKSPACE / "tools" / "coverage" / "coverage.py"), "list-tests"]
 
 
 LANE_DEFS = {
@@ -37,21 +35,21 @@ LANE_DEFS = {
         "requires_gpu_runtime": True,
         "requires_npu_runtime": False,
     },
-    "npu": {
-        "lane": "npu",
-        "test_profile": "npu",
-        "cpp_runner": '["self-hosted","Linux","npu"]',
-        "python_runner": '["self-hosted","Linux","npu"]',
-        "js_runner": '["self-hosted","Linux","npu"]',
-        "requires_gpu_runtime": False,
-        "requires_npu_runtime": True,
-    },
+    # "npu": {
+    #     "lane": "npu",
+    #     "test_profile": "npu",
+    #     "cpp_runner": '["self-hosted","Linux","npu"]',
+    #     "python_runner": '["self-hosted","Linux","npu"]',
+    #     "js_runner": '["self-hosted","Linux","npu"]',
+    #     "requires_gpu_runtime": False,
+    #     "requires_npu_runtime": True,
+    # },
 }
 
 SELECTION_MAP = {
     "cpu": ["cpu"],
     "cpu_gpu": ["cpu", "gpu"],
-    "cpu_gpu_npu": ["cpu", "gpu", "npu"],
+    # "cpu_gpu_npu": ["cpu", "gpu", "npu"],
 }
 
 SUITE_CONFIG = {

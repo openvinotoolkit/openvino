@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -657,7 +655,7 @@ def _command_run_all(args: argparse.Namespace) -> int:
 def _command_list_tests(args: argparse.Namespace) -> int:
     _apply_common_env(args)
     workspace = Path(os.environ.get("OV_WORKSPACE") or os.environ.get("GITHUB_WORKSPACE") or Path.cwd()).resolve()
-    config_dir = workspace / "scripts" / "coverage" / "config"
+    config_dir = workspace / "tools" / "coverage" / "config"
 
     if args.suite == "cpp":
         tests = load_cpp_tests(config_dir / "tests_cpp.yml", args.profile)
@@ -716,7 +714,7 @@ def _command_list_tests(args: argparse.Namespace) -> int:
 def _command_validate_config(args: argparse.Namespace) -> int:
     _apply_common_env(args)
     workspace = Path(os.environ.get("OV_WORKSPACE") or os.environ.get("GITHUB_WORKSPACE") or Path.cwd()).resolve()
-    issues = validate_configs(workspace / "scripts" / "coverage" / "config")
+    issues = validate_configs(workspace / "tools" / "coverage" / "config")
 
     if issues:
         for issue in issues:

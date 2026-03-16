@@ -123,7 +123,7 @@ def _run_python_command(test_name: str, command: str, env_assignments: str) -> t
 
 
 def run(ctx: CoverageContext) -> None:
-    config = ctx.workspace / "scripts" / "coverage" / "config" / "tests_python.yml"
+    config = ctx.workspace / "tools" / "coverage" / "config" / "tests_python.yml"
     tests = load_python_tests(config, ctx.test_profile)
     selected_names = _selected_test_names()
     if selected_names:

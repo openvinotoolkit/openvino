@@ -284,7 +284,7 @@ def _run_tests_parallel(
 
 
 def run(ctx: CoverageContext) -> None:
-    config = ctx.workspace / "scripts" / "coverage" / "config" / "tests_cpp.yml"
+    config = ctx.workspace / "tools" / "coverage" / "config" / "tests_cpp.yml"
     tests = load_cpp_tests(config, ctx.test_profile)
     selected_names = _selected_test_names()
     if selected_names:
