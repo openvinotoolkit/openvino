@@ -72,9 +72,8 @@ static void optimize_permute_conv(program_node& node) {
     // Dependency must be a Permute node (not network output)
     if (!dep.is_type<permute>() || dep.is_output())
         return;
-    //if (dep.get_users().size() != 2)
-    //    return;
-    if (node.get_output_layout().get_rank() != 4)
+
+    if ((node.get_users().size() != 1) || (node.get_output_layout().get_rank() != 4))
         return;
 
     auto& pnode = dep.as<permute>();
