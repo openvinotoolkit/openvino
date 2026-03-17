@@ -3486,64 +3486,94 @@ void primitive_inst::enable_multi_impl_mode(ImplSwitchingPolicy policy) {
     for (auto t : candidate_types) {
         auto alt_impl = _impls_factory->create_impl_for_type(*this, *_impl_params, t);
 
-        // Sub-byte WOQ decode-path retry.
+        // Sub-byte WOQ decode-path impl creation.
         //
-        // Problem: the multi-impl pool may be built during the PREFILL phase (M >> 1).
-        // Our GEMV OCL kernel (FCCompressedGenerateOpt) requires M == 1 in support_shapes(),
-        // so create_impl_for_type() either returns nullptr (no static impl found) or falls
-        // through to a generic OCL FC impl that lacks raw_sub_byte_weight_compatible().
-        // In both cases Rule 3 would fire and the GEMV kernel never reaches the pool,
-        // preventing decode-phase switching to OCL.
+        // Problem: create_impl_for_type() applies fake alignment to params before calling
+        // support_shapes().  For FCCompressedGenerateOpt (GEMV WOQ kernel), support_shapes()
+        // requires M==1 (decode/generate phase).  Fake alignment inflates M=1 → M=16 or
+        // similar, so the check always fails and the generic OCL FC is selected instead.
+        // The generic OCL FC sets _weights_reorder_params (alt_reorders=true), causing
+        // Rule 1 to fire.  Similarly, when the pool is built during prefill (M >> 1),
+        // FCCompressedGenerateOpt's support_shapes(M>1) also fails.
         //
-        // Fix: when dealing with sub-byte weights and the initially selected alt_impl
-        // would fail Rule 3, synthesise M=1 params by collapsing the M dimension
-        // (second-to-last dim of the activation layout) to 1.  This allows the GEMV
-        // kernel's support_shapes check to pass and produces a correctly-compiled kernel
-        // for decode-time execution.  The pool is then built at prefill time but contains
-        // the decode-ready OCL kernel that will be used when the scheduler switches to OCL.
+        // Fix: when the initial alt_impl would fail Rule 3 (or is wrong), bypass fake
+        // alignment entirely and directly iterate m_available_impls with exact M=1 params,
+        // finding and compiling FCCompressedGenerateOpt for decode-phase use.
         if (weight_is_sub_byte && t != primary_type) {
             const bool need_retry =
                 !alt_impl ||
                 (alt_impl->m_manager && !alt_impl->m_manager->raw_sub_byte_weight_compatible());
-            if (need_retry && !_impl_params->input_layouts.empty()) {
-                auto m1_ps = _impl_params->input_layouts[0].get_partial_shape();
-                const size_t arank = m1_ps.size();
-                // Only synthesise when M > 1 (there is actually something to collapse).
-                if (arank >= 2 && m1_ps[arank - 2].is_static() &&
-                    m1_ps[arank - 2].get_length() > 1) {
-                    kernel_impl_params m1_params = *_impl_params;
-                    m1_ps[arank - 2] = 1;
-                    m1_params.input_layouts[0].set_partial_shape(m1_ps);
-                    // Mirror the M=1 collapse on the output layout so JIT N_SIZE / dispatch
-                    // batch dimensions are computed from the same consistent geometry.
-                    if (!m1_params.output_layouts.empty()) {
-                        auto ops = m1_params.output_layouts[0].get_partial_shape();
-                        if (ops.size() >= 2) {
-                            ops[ops.size() - 2] = 1;
-                            m1_params.output_layouts[0].set_partial_shape(ops);
-                        }
+            if (need_retry) {
+                // Direct M=1 impl creation that bypasses get_fake_aligned_params_if_possible.
+                //
+                // Motivation: create_impl_for_type() internally inflates M via fake alignment
+                // (e.g. M=1 → M=16) before calling support_shapes().  FCCompressedGenerateOpt::
+                // support_shapes() requires M==1, so it always fails when M is fake-aligned — even
+                // when the real activation M is 1 (pure generate-phase token).  The generic OCL FC
+                // then wins the impl race, sets _weights_reorder_params (alt_reorders=true), and
+                // Rule 1 fires.
+                //
+                // Fix: iterate m_available_impls directly with exact M=1 params, entirely skipping
+                // fake alignment.  This lets FCCompressedGenerateOpt pass support_shapes and be
+                // compiled as the decode-path alt impl in the pool.
+                kernel_impl_params m1_params = *_impl_params;
+                if (!m1_params.input_layouts.empty()) {
+                    auto m1_ps = m1_params.input_layouts[0].get_partial_shape();
+                    const size_t arank = m1_ps.size();
+                    if (arank >= 2) {
+                        m1_ps[arank - 2] = 1;
+                        m1_params.input_layouts[0].set_partial_shape(m1_ps);
                     }
-                    auto m1_impl = _impls_factory->create_impl_for_type(*this, m1_params, t);
-                    // Only adopt the synthesised impl if it is genuinely raw-sub-byte-
-                    // compatible (i.e. it is our GEMV WOQ kernel, not another fallback).
-                    if (m1_impl) {
-                        const bool m1_raw_ok = m1_impl->m_manager &&
-                            m1_impl->m_manager->raw_sub_byte_weight_compatible();
-                        std::cout << id()
-                            << ": multi-impl pool: M=1 retry got impl="
-                            << m1_impl->get_kernel_name()
-                            << " raw_ok=" << m1_raw_ok << std::endl;
-                        if (m1_raw_ok) {
-                            alt_impl = std::move(m1_impl);
-                            std::cout << id()
-                                << ": multi-impl pool: type=" << t
-                                << " using M=1 decode-synthesised impl for sub-byte WOQ" << std::endl;
-                        }
-                    } else {
-                        std::cout << id()
-                            << ": multi-impl pool: M=1 retry for type=" << t
-                            << " returned nullptr (validate_impl failed)" << std::endl;
+                }
+                if (!m1_params.output_layouts.empty()) {
+                    auto ops = m1_params.output_layouts[0].get_partial_shape();
+                    if (ops.size() >= 2) {
+                        ops[ops.size() - 2] = 1;
+                        m1_params.output_layouts[0].set_partial_shape(ops);
                     }
+                }
+                for (auto& il : m1_params.input_layouts)
+                    il.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
+                for (auto& ol : m1_params.output_layouts)
+                    ol.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
+
+                const auto* m1_node = _impls_factory->m_node;
+                auto& kc = get_network().get_program()->get_kernels_cache();
+
+                for (const auto& mgr : _impls_factory->m_available_impls) {
+                    if (mgr->get_impl_type() != t)
+                        continue;
+                    if ((mgr->get_shape_type() & shape_types::static_shape) != shape_types::static_shape)
+                        continue;
+                    if (!mgr->validate(*m1_node))
+                        continue;
+                    if (!mgr->support_shapes(m1_params))
+                        continue;
+
+                    auto m1_impl = mgr->create(*m1_node, m1_params);
+                    if (!m1_impl)
+                        continue;
+
+                    const bool m1_raw_ok = m1_impl->m_manager &&
+                        m1_impl->m_manager->raw_sub_byte_weight_compatible();
+                    std::cout << id()
+                        << ": multi-impl pool: M=1 retry got impl="
+                        << m1_impl->get_kernel_name()
+                        << " raw_ok=" << m1_raw_ok << std::endl;
+
+                    if (!m1_raw_ok)
+                        continue;   // not the GEMV kernel — try next manager
+
+                    m1_impl->set_node_params(*m1_node);
+                    if (!can_be_optimized()) {
+                        auto kernels = kc.compile(m1_params, m1_impl->get_kernels_source());
+                        m1_impl->set_kernels(std::move(kernels));
+                    }
+                    alt_impl = std::move(m1_impl);
+                    std::cout << id()
+                        << ": multi-impl pool: type=" << t
+                        << " using M=1 decode-synthesised impl for sub-byte WOQ" << std::endl;
+                    break;
                 }
             }
         }
@@ -3577,8 +3607,25 @@ void primitive_inst::enable_multi_impl_mode(ImplSwitchingPolicy policy) {
             // UNLESS both implementation managers explicitly declare they use the
             // same standard low-nibble-first raw packing convention (e.g. OneDNN WOQ
             // FC + our OCL GEMV kernel both reading u4 bytes identically).
-            const bool primary_raw_ok = _impl->m_manager &&
-                _impl->m_manager->raw_sub_byte_weight_compatible();
+            //
+            // Note: _impl->m_manager may be nullptr when the primary impl was created
+            // via a legacy path (e.g. selected by the graph optimizer before
+            // ImplementationManager::update_impl was wired in).  In that case we fall
+            // back to scanning m_available_impls for primary_type — the same fallback
+            // used in Step 1 above for determining primary_type itself.  Without this
+            // the primary_raw_ok check would incorrectly evaluate to false and block a
+            // fully-compatible alt (e.g. FCCompressedGenerateOpt paired with OneDNN).
+            auto find_first_manager_of_type = [&](impl_types type) -> const ImplementationManager* {
+                for (const auto& mgr : _impls_factory->m_available_impls) {
+                    if (mgr->get_impl_type() == type)
+                        return mgr.get();
+                }
+                return nullptr;
+            };
+            const ImplementationManager* primary_mgr =
+                _impl->m_manager ? _impl->m_manager : find_first_manager_of_type(primary_type);
+            const bool primary_raw_ok = primary_mgr &&
+                primary_mgr->raw_sub_byte_weight_compatible();
             const bool alt_raw_ok = alt_impl->m_manager &&
                 alt_impl->m_manager->raw_sub_byte_weight_compatible();
             if (!(primary_raw_ok && alt_raw_ok)) {

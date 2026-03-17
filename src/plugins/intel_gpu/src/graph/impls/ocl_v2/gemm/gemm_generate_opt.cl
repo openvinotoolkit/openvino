@@ -14,14 +14,18 @@
 //
 //  IS_WEIGHT_INT4 == 1  →  f16-activation + int4-weight GEMV with WOQ
 //    Inputs:
-//      INPUT0 A[B,K]         f16  activations
-//      INPUT1 W[B,N,K/2]     uchar u4/i4-packed weights (low nibble = even K)
-//      INPUT2 S[B,NG,N]      half  per-group per-output-channel scale
-//      INPUT3 ZP[B,NG,N/2]   uchar per-group ZP (optional, u4 packed)
+//      INPUT0 A[B,K]              f16  activations
+//      INPUT1 W[N,K/2]            uchar u4/i4-packed weights (low nibble = even K)
+//      INPUT2 S, fbyx:[f=N, b=NG]  half  per-group per-output-channel scale
+//      INPUT3 ZP, fbyx (optional, present only if HAS_ZP):
+//               u8: [f=N, b=NG]    1 byte/entry
+//               u4: [f=N, b=NG/2]  2 nibbles/byte along group dim
 //        where NG = K / GROUP_SIZE = NUM_GROUPS
+//    Scale/ZP use fbyx memory format: f(=N=6144) is outer, b(=NG=32) is inner.
+//      scale(n, gk) = Scale[n * NUM_GROUPS + gk]
 //    Dequant formula per group gk:
 //      acc += scale[gk,n] * Σ_{k in group} A[k] * (w_int4[n,k] − ZP[gk,n])
-//    ZP defaults to 8 (for symmetric u4 where range is 0–15 centred at 8).
+//    ZP defaults to 0 when no explicit ZP tensor is provided (HAS_ZP=0).
 //    For i4 weights (WEIGHT_IS_SIGNED=1) nibbles are sign-extended before subtract.
 
 #include "include/batch_headers/common.cl"
@@ -104,22 +108,67 @@ KERNEL(gemm_generate_opt)(
 
 // Input tensor flat-index helpers.
 // After update_impl_params the layouts are:
-//   INPUT0: activation [B, K]      (INPUT0_TYPE = half)
+//   INPUT0: activation [B, K]      (f16 for W4A16, char/i8 for W4A8)
 //   INPUT1: weight     [N, K/2]    bytes  (data_type u4/i4, B folded into B dim above M)
 //   INPUT2: scale      [NG, N]     (INPUT2_TYPE = half)  NG = NUM_GROUPS
-//   INPUT3: ZP         [NG, N/2]   bytes  (optional, present only if HAS_ZP)
+//   INPUT3: ZP         [N, NG/2]   bytes  (optional, present only if HAS_ZP)
+//   (W4A8 only) next input: ActScale [B]  half per-token activation scale
 //
 // Note: after update_impl_params the B batch dim is already folded into M=1, so
 // for a single-query batch B==1 and the weight row-offset simplifies to n*K_HALF_SIZE.
 #define K_HALF_SIZE (K_SIZE / 2)
 
+// -----------------------------------------------------------------------
+// Shared ZP dequant helper macro used by both the f16 and i8 activation paths.
+// Emits a 'float zp' variable for the given group index gk and output channel n.
+// -----------------------------------------------------------------------
+#if HAS_ZP
+// Scale and ZP tensors use fbyx memory format.
+// Tensor shape printed as "fbyx:6144x32" means:
+//   f = 6144 = N (output channels) — OUTERMOST dim (slowest in memory)
+//   b = 32  = NUM_GROUPS           — INNER dim (fastest in memory)
+// Physical stride for f: NUM_GROUPS (=32);  stride for b: 1.
+// So element at (output_channel=n, group=gk):
+//   scale(n, gk)  = Scale[n * NUM_GROUPS + gk]   f16, 1 element/entry
+//   zp_u8(n, gk)  = ZP   [n * NUM_GROUPS + gk]   u8,  1 byte/entry
+//   zp_u4(n, gk): nibbles packed along the b (group) dimension:
+//                  byte = ZP[n * (NUM_GROUPS/2) + gk/2],  nibble = gk%2
+#if ZP_IS_U8
+// u8 ZP: one byte per (output-channel n, group gk), fbyx → n * NUM_GROUPS + gk.
+#define LOAD_ZP(gk, n, ZP, zp_var)  (zp_var) = (float)ZP[(n) * NUM_GROUPS + (gk)]
+#else
+// u4 ZP: 2 nibbles per byte, packed along the group dimension (b in fbyx),
+// so two consecutive gk values share one byte for the same output channel n.
+//   byte  = ZP[n * (NUM_GROUPS/2) + gk/2]
+//   nibble= gk % 2  (low nibble = even gk, high nibble = odd gk)
+#define LOAD_ZP(gk, n, ZP, zp_var)                                         \
+    do {                                                                    \
+        uchar zp_byte_ = ZP[(n) * (NUM_GROUPS / 2) + (gk) / 2];           \
+        (zp_var) = ((gk) % 2 == 0) ? (float)(zp_byte_ & 0xF)              \
+                                    : (float)(zp_byte_ >> 4);              \
+    } while (0)
+#endif  // ZP_IS_U8
+#else
+// When no explicit ZP tensor is present, use ZP=0 for both u4 and i4.
+// This matches OneDNN's default behaviour: when no DNNL_ARG_ATTR_ZERO_POINTS
+// attribute is set, OneDNN applies no zero-point adjustment (ZP=0).
+// Note: if the model uses asymmetric u4 with an implicit ZP offset, it MUST
+// supply an explicit ZP tensor so that HAS_ZP=1 and the branch above is taken.
+#define LOAD_ZP(gk, n, ZP, zp_var)  (zp_var) = 0.0f
+#endif  // HAS_ZP
+
+// ============================================================
+// Branch B1: f16-activation + int4-weight WOQ GEMV  (W4A16)
+// ============================================================
+#if !defined(IS_ACT_INT8) || (IS_ACT_INT8 == 0)
+
 KERNEL(gemm_generate_opt)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE*  A,         // f16 activation [B, K]
     const __global uchar*        W,         // u4/i4 packed weight [N, K/2]
-    const __global INPUT2_TYPE*  Scale,     // f16 scale [NUM_GROUPS, N]
+    const __global INPUT2_TYPE*  Scale,     // f16 scale, fbyx: [NUM_GROUPS, N]
 #if HAS_ZP
-    const __global uchar*        ZP,        // u4 packed ZP [NUM_GROUPS, N/2]
+    const __global uchar*        ZP,        // ZP fbyx: u8=[NUM_GROUPS,N] or u4=[NUM_GROUPS,N/2]
 #endif
     __global OUTPUT_TYPE*        C          // f16 output [B, N]
 )
@@ -139,29 +188,23 @@ KERNEL(gemm_generate_opt)(
 
     // Outer loop: iterate over quantisation groups.
     for (int gk = 0; gk < NUM_GROUPS; gk++) {
-        // Load per-group dequantisation scale (one per output channel per group).
-        float scale = (float)Scale[gk * N_SIZE + n];
+        // Scale fbyx[f=N, b=NG]: physical = n * NUM_GROUPS + gk
+        float scale = (float)Scale[n * NUM_GROUPS + gk];
 
-        // Load per-group ZP (one per output channel per group).
-#if HAS_ZP
-        // ZP is packed u4: 2 values per byte. Channel n: even→low nibble, odd→high nibble.
-        uchar zp_byte = ZP[gk * (N_SIZE / 2) + n / 2];
-        float zp = (n % 2 == 0) ? (float)(zp_byte & 0xF) : (float)(zp_byte >> 4);
-#else
-        // Default ZP for unsigned 4-bit: 8 (centres the range 0-15 around zero).
-#if WEIGHT_IS_SIGNED
-        float zp = 0.0f;  // i4 symmetric: ZP=0
-#else
-        float zp = 8.0f;  // u4 asymmetric: ZP=8
+        float zp;
+        LOAD_ZP(gk, n, ZP, zp);
+
+#if defined(DEBUG_FCCmpOpt) && (DEBUG_FCCmpOpt >= 1)
+        if (b == 0 && n == 0)
+            printf("[FCCmpOpt-W4A16] gk=%d scale=%.6f zp=%.2f k_start=%d\n",
+                   gk, scale, zp, gk * GROUP_SIZE);
 #endif
-#endif  // HAS_ZP
 
         // Inner loop: vectorised dot product over one group of GROUP_SIZE K-elements.
         const int k_start = gk * GROUP_SIZE;
-        const int k_end   = k_start + GROUP_SIZE;  // GROUP_SIZE must equal SG_SIZE * VEC_SIZE
 
         float8 group_acc = (float8)(0.f);
-        for (int k = k_start; k < k_end; k += VEC_SIZE) {
+        for (int k = k_start; k < k_start + GROUP_SIZE; k += VEC_SIZE) {
             // Load VEC_SIZE=8 f16 activation elements.
             half8 a_vec = vload8(0, A + a_base + k);
 
@@ -184,8 +227,100 @@ KERNEL(gemm_generate_opt)(
     }
 
     // Write output (convert float → f16).
+#if defined(DEBUG_FCCmpOpt) && (DEBUG_FCCmpOpt >= 1)
+    if (b == 0 && n < 4)
+        printf("[FCCmpOpt-W4A16] b=0 n=%d acc=%.6f out=%.6f\n", n, acc, (float)TO_OUTPUT_TYPE(acc));
+#endif
     C[b * N_SIZE + n] = TO_OUTPUT_TYPE(acc);
 }
+
+// ============================================================
+// Branch B2: i8-activation + int4-weight WOQ GEMV  (W4A8)
+//
+// Kernel inputs (positional, matching FCCompressedOptGenerator::get_arguments_desc):
+//   INPUT0: i8/char activation  [B, K]
+//   INPUT1: u4/i4 packed weight [N, K/2]
+//   INPUT2: f16 weight scale    fbyx [f=N, b=NG]       physical: n*NG + gk
+//   INPUT3: ZP                  fbyx (only if HAS_ZP):
+//                                u8:  [f=N, b=NG]       1 byte/entry,   n*NG + gk
+//                                u4:  [f=N, b=NG/2]     2 nibbles/byte, n*(NG/2) + gk/2, nibble=gk%2
+//   next  : f16 act scale       [B]                      (per-token, always present in W4A8)
+//   OUTPUT: f16 output          [B, N]
+//
+// Math: output[b,n] = act_scale[b] *
+//         Σ_{gk} scale_w[gk,n] * Σ_{k in gk} act[b,k] * (w4[n,k] − zp_w[gk,n])
+// ============================================================
+#else  // IS_ACT_INT8 == 1
+
+KERNEL(gemm_generate_opt)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE*  A,         // i8/char activation [B, K]
+    const __global uchar*        W,         // u4/i4 packed weight [N, K/2]
+    const __global INPUT2_TYPE*  Scale,     // f16 weight scale, fbyx: [NUM_GROUPS, N]
+#if HAS_ZP
+    const __global uchar*        ZP,        // ZP fbyx: u8=[NUM_GROUPS,N] or u4=[NUM_GROUPS,N/2]
+#endif
+    const __global half*         ActScale,  // f16 per-token activation scale [B]
+    __global OUTPUT_TYPE*        C          // f16 output [B, N]
+)
+{
+    const int n = (int)get_global_id(0);   // output feature index
+    const int b = (int)get_global_id(1);   // batch index
+
+    if (n >= N_SIZE)
+        return;
+
+    const int a_base = b * K_SIZE;
+    const int w_base = n * K_HALF_SIZE;
+
+    float acc = 0.0f;
+
+    for (int gk = 0; gk < NUM_GROUPS; gk++) {
+        // Scale fbyx[f=N, b=NG]: physical = n * NUM_GROUPS + gk
+        float scale = (float)Scale[n * NUM_GROUPS + gk];
+
+        float zp;
+        LOAD_ZP(gk, n, ZP, zp);
+
+#if defined(DEBUG_FCCmpOpt) && (DEBUG_FCCmpOpt >= 1)
+        if (b == 0 && n == 0)
+            printf("[FCCmpOpt-W4A8] gk=%d scale=%.6f zp=%.2f k_start=%d\n",
+                   gk, scale, zp, gk * GROUP_SIZE);
+#endif
+
+        const int k_start = gk * GROUP_SIZE;
+
+        float8 group_acc = (float8)(0.f);
+        for (int k = k_start; k < k_start + GROUP_SIZE; k += VEC_SIZE) {
+            // Load VEC_SIZE=8 i8 activation elements (INPUT0_TYPE = char for i8).
+            char8 a_vec = vload8(0, A + a_base + k);
+
+            uchar4 w_packed = vload4(0, W + w_base + k / 2);
+            float8 w_f;
+            UNPACK8(w_packed, w_f);
+
+            w_f = w_f - zp;
+
+            group_acc = mad(convert_float8(a_vec), w_f, group_acc);
+        }
+
+        acc += HSUM8(group_acc) * scale;
+    }
+
+    // Apply per-token activation scale and write output.
+    float act_scale = (float)ActScale[b];
+    float result = acc * act_scale;
+
+#if defined(DEBUG_FCCmpOpt) && (DEBUG_FCCmpOpt >= 1)
+    if (b == 0 && n < 4)
+        printf("[FCCmpOpt-W4A8] b=0 n=%d acc=%.6f act_scale=%.6f out=%.6f\n",
+               n, acc, act_scale, result);
+#endif
+
+    C[b * N_SIZE + n] = TO_OUTPUT_TYPE(result);
+}
+
+#endif  // IS_ACT_INT8
 
 #endif  // IS_WEIGHT_INT4
 

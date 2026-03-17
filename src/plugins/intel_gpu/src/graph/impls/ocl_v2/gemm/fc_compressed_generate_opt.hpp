@@ -16,31 +16,45 @@ using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::ocl {
 
-// GEMV-optimised kernel for LLM token-generation with INT4 weight-only quantisation (WOQ).
+// GEMV-optimised kernel for LLM token-generation with INT4 weight-only quantisation (WOQ)
+// and dynamic-quantised activations (W4A8).
+//
+// Supports two activation modes selected at JIT-compile time via IS_ACT_INT8:
+//
+//   IS_ACT_INT8 == 0  (W4A16): f16 activations + u4/i4 weights + f16 weight scale [+ u4 ZP]
+//   IS_ACT_INT8 == 1  (W4A8):  i8 activations + u4/i4 weights + f16 weight scale [+ u4 ZP]
+//                               + f16 per-token activation scale  (dynamic_quantized_activation)
 //
 // Targets the `fully_connected` cldnn primitive configured with:
-//   - f16 activations [B, M=1, K]
+//   - f16 or i8 activations [B, M=1, K]
 //   - u4 or i4 packed weights [N, K] (2 elements per byte, low-nibble first)
 //   - f16 per-group weight decompression scale [K/GROUP_SIZE, N]
 //   - (optional) u4 packed per-group zero point [K/GROUP_SIZE, N/2]
+//   - (W4A8 only) f16 per-token activation scale [B]
 //
 // After `fully_connected_impl::update_impl_params` the runtime `kernel_impl_params`
 // input_layouts are ordered as:
-//   [0] activation (f16)
+//   [0] activation (f16 or i8)
 //   [1] weight     (u4/i4 packed as uchar bytes)
 //   [2] scale      (f16, per-group per-output-channel)
 //   [3] ZP         (u4 packed as uchar bytes, optional)
+//   [3 or 4] activation scale (f16, per-token, W4A8 only)
 //
 // Any bias is treated as a fused element-wise add and is handled transparently by
 // the PrimitiveImplOCL framework.
 //
 // Dequantisation formula (applied per K-group):
-//   C[n] += scale[gk, n] * Σ_{k∈group} A[k] * (w_int4[n,k] − ZP[gk,n])
-// where ZP defaults to 2^3 = 8 for u4 (zero-centred asymmetric quantisation).
+//   W4A16: C[n] += scale_w[gk,n] * Σ_{k∈gk} A[k]    * (w4[n,k] − ZP[gk,n])
+//   W4A8:  C[n] += act_scale[b] *
+//                  Σ_{gk} scale_w[gk,n] * Σ_{k∈gk} A[b,k] * (w4[n,k] − ZP[gk,n])
+// where ZP defaults to 8 for u4 (zero-centred asymmetric) and 0 for i4 (symmetric).
 //
 // Constraints enforced in validate_impl / support_shapes:
-//   - Both primitive type is `fully_connected` with `compressed_weights == true`.
-//   - Activation dtype: f16.  Weight dtype: u4 or i4.  Scale dtype: f16.
+//   - Primitive type is `fully_connected` with `compressed_weights == true`.
+//   - W4A16: activation dtype f16; dynamic_quantized_activation must be false.
+//   - W4A8:  activation dtype i8;  dynamic_quantized_activation must be true;
+//            activation_scale must be valid and f16; activation_zero_point unsupported.
+//   - Weight dtype: u4 or i4.  Weight scale dtype: f16.
 //   - M dimension (second-to-last of activation) == 1  → generate-phase only.
 //   - K must be divisible by GROUP_SIZE = 128 (= SG_SIZE × VEC_SIZE = 16 × 8).
 struct FCCompressedGenerateOpt : public ImplementationManager {
@@ -81,8 +95,10 @@ struct FCCompressedGenerateOpt : public ImplementationManager {
         const auto& in0 = node.get_input_layout(0);   // activation
         const auto& in1 = node.get_input_layout(1);   // weight
 
-        // Activation type: f16.
-        if (in0.data_type != data_types::f16) {
+        // Activation type: f16 (W4A16 / WOQ) or i8 (W4A8 / dynamic-quantised).
+        const bool act_is_f16 = (in0.data_type == data_types::f16);
+        const bool act_is_i8  = (in0.data_type == data_types::i8);
+        if (!act_is_f16 && !act_is_i8) {
             std::cout << "[FCCmpOpt] " << node.id() << " FAIL: act dtype=" << in0.data_type << "\n";
             return false;
         }
@@ -93,7 +109,7 @@ struct FCCompressedGenerateOpt : public ImplementationManager {
             return false;
         }
 
-        // Scale dtype: f16.
+        // Weight scale dtype: f16.
         const bool has_bias = desc.bias.is_valid();
         const size_t scale_idx = has_bias ? 3 : 2;
         if (scale_idx >= node.get_input_layouts().size()) {
@@ -112,10 +128,43 @@ struct FCCompressedGenerateOpt : public ImplementationManager {
         // bfyx after update_impl_params reshape-to-2D).  Runtime suitability is checked
         // by support_shapes() which operates on the actual kernel_impl_params.
 
-        // Dynamic quantisation activations are a separate, more complex path.
-        if (desc.dynamic_quantized_activation) {
-            std::cout << "[FCCmpOpt] " << node.id() << " FAIL: dynamic_quantized_activation\n";
-            return false;
+        if (act_is_f16) {
+            // W4A16 path: no dynamic quantisation expected.
+            if (desc.dynamic_quantized_activation) {
+                std::cout << "[FCCmpOpt] " << node.id()
+                    << " FAIL: f16 act but dynamic_quantized_activation set\n";
+                return false;
+            }
+        } else {
+            // W4A8 path: requires a per-token activation scale; no activation ZP (not yet supported).
+            if (!desc.dynamic_quantized_activation) {
+                std::cout << "[FCCmpOpt] " << node.id()
+                    << " FAIL: i8 act but !dynamic_quantized_activation\n";
+                return false;
+            }
+            if (!desc.activation_scale.is_valid()) {
+                std::cout << "[FCCmpOpt] " << node.id()
+                    << " FAIL: i8 act but activation_scale not valid\n";
+                return false;
+            }
+            if (desc.activation_zero_point.is_valid()) {
+                std::cout << "[FCCmpOpt] " << node.id()
+                    << " FAIL: i8 act with activation_zero_point (unsupported)\n";
+                return false;
+            }
+            // Validate activation scale input dtype: must be f16.
+            const bool has_weight_zp = desc.decompression_zero_point.is_valid();
+            const size_t act_scale_idx = scale_idx + 1 + (has_weight_zp ? 1 : 0);
+            if (act_scale_idx >= node.get_input_layouts().size()) {
+                std::cout << "[FCCmpOpt] " << node.id() << " FAIL: act_scale_idx=" << act_scale_idx
+                    << " >= input_layouts.size()=" << node.get_input_layouts().size() << "\n";
+                return false;
+            }
+            if (node.get_input_layout(act_scale_idx).data_type != data_types::f16) {
+                std::cout << "[FCCmpOpt] " << node.id() << " FAIL: act_scale dtype="
+                    << node.get_input_layout(act_scale_idx).data_type << "\n";
+                return false;
+            }
         }
 
         std::cout << "[FCCmpOpt] " << node.id() << " validate_impl PASS\n";
@@ -128,23 +177,48 @@ struct FCCompressedGenerateOpt : public ImplementationManager {
     //       is the 2-D reshaped activation [batch, K] or [M, K].
     [[nodiscard]] bool support_shapes(const kernel_impl_params& params) const override {
         const auto& in0 = params.get_input_layout(0);
-        if (in0.is_dynamic())
+        if (in0.is_dynamic()) {
+            std::cout << "[FCCmpOpt] support_shapes FAIL: in0 is_dynamic\n";
             return false;
+        }
 
         const auto& shape = in0.get_shape();
         const size_t rank = shape.size();
-        if (rank < 2)
+        if (rank < 2) {
+            std::cout << "[FCCmpOpt] support_shapes FAIL: rank=" << rank << " < 2\n";
             return false;
+        }
 
         // M = second-to-last dimension (sequence length in an LLM).
         const size_t M = shape[rank - 2];
-        if (M != 1)
+        if (M != 1) {
+            std::cout << "[FCCmpOpt] support_shapes FAIL: M=" << M << " != 1\n";
             return false;
+        }
 
-        // K must be divisible by 128 (GROUP_SIZE = SG_SIZE × VEC_SIZE).
+        // Derive actual quantisation group size from the weight-scale tensor shape.
+        // Scale shape is [N, K/group_size] — i.e. shape[0]=N (output channels),
+        // shape[last]=K/group_size (num_groups).  This matches OneDNN's convention:
+        //   ngroups = scale_layout.get_dim(weight_rank - 1)  (last dim)
+        //   group_size = K / ngroups
+        // K must be divisible by group_size, and group_size must be divisible by
+        // VEC_SIZE=8 so the inner loop can use vload8.
         const size_t K = shape[rank - 1];
-        constexpr size_t K_ALIGN = 128;
-        if (K % K_ALIGN != 0)
+        if (params.input_layouts.size() < 3)
+            return false;
+        const auto& scale_layout = params.input_layouts[2];
+        if (scale_layout.is_dynamic())
+            return false;
+        const auto& scale_shape = scale_layout.get_shape();
+        if (scale_shape.size() < 2)
+            return false;
+        // Last dim of scale = K/group_size = num_groups (consistent with OneDNN).
+        const size_t num_groups = scale_shape[scale_shape.size() - 1];
+        if (num_groups == 0 || K % num_groups != 0)
+            return false;
+        const size_t group_size = K / num_groups;
+        constexpr size_t VEC_SIZE_CHECK = 8;  // matches global VEC_SIZE constant
+        if (group_size % VEC_SIZE_CHECK != 0)
             return false;
 
         return true;

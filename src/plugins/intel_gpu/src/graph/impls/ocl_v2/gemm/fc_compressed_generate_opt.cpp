@@ -1,7 +1,3 @@
-// Copyright (C) 2018-2026 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-//
-
 #include "fc_compressed_generate_opt.hpp"
 
 #include "../common_utils/dispatch_utils.hpp"
@@ -21,10 +17,45 @@ static constexpr int VEC_SIZE = 8;    // half8 / u4-nibble-vec per lane
 static constexpr int GROUP_SIZE = SG_SIZE * VEC_SIZE;  // 128 → matches typical per-channel group size
 
 // -----------------------------------------------------------------------
+// Helper: derive the packed-layout input index ordering from kernel_impl_params.
+//
+// At kernel_impl_params time (after update_impl_params / fused-op folding),
+// the input_layouts are ordered as:
+//   [0] activation  (f16 for W4A16, i8 for W4A8)
+//   [1] weight      (u4/i4)
+//   [2] weight scale (f16)                          ← always present
+//   [3] weight ZP   (u4/i4, optional)
+//   [3 or 4] activation scale (f16, W4A8 only)
+//
+// Bias is folded into fused ops and does NOT appear in input_layouts here.
+// -----------------------------------------------------------------------
+static bool detect_has_zp(const RuntimeParams& params) {
+    if (params.input_layouts.size() <= 3)
+        return false;
+    const auto dt = params.input_layouts[3].data_type;
+    return dt == data_types::u4 || dt == data_types::i4 || dt == data_types::u8;
+}
+
+static bool detect_zp_is_u8(const RuntimeParams& params) {
+    return detect_has_zp(params) &&
+           params.input_layouts[3].data_type == data_types::u8;
+}
+
+// Returns the input_layouts index of the activation scale, or SIZE_MAX if not present.
+static size_t act_scale_index(const RuntimeParams& params) {
+    const bool act_is_i8 = (params.input_layouts[0].data_type == data_types::i8);
+    if (!act_is_i8)
+        return SIZE_MAX;
+    return detect_has_zp(params) ? 4 : 3;
+}
+
+// -----------------------------------------------------------------------
 // Kernel generator
 // Reuses the "gemm_generate_opt" .cl template, but emits `IS_WEIGHT_INT4=1`
 // together with WOQ-specific constants so the `#if IS_WEIGHT_INT4` branch
 // inside the template gets compiled.
+// When the activation is i8 (W4A8), also emits `IS_ACT_INT8=1` to select
+// the inner branch that reads char activation and multiplies by act_scale.
 // -----------------------------------------------------------------------
 class FCCompressedOptGenerator : public KernelGenerator {
 public:
@@ -35,32 +66,49 @@ protected:
         auto jit = KernelGenerator::get_jit_constants(params);
 
         // After update_impl_params, input_layouts are reordered to:
-        //   [0] activation (f16)  [1] weight (u4/i4)  [2] scale (f16)  [3] ZP(opt, u4)
-        const auto& in0  = params.input_layouts[0];  // activation
-        const auto& in1  = params.input_layouts[1];  // weight
+        //   [0] activation (f16 or i8)  [1] weight (u4/i4)  [2] scale (f16)  [3] ZP(opt, u4)
+        //   [3 or 4] act_scale (f16, W4A8 only)
+        const auto& in0   = params.input_layouts[0];  // activation
+        const auto& in1   = params.input_layouts[1];  // weight
+        const auto& in_sc = params.input_layouts[2];  // weight scale [N, NUM_GROUPS]
 
-        const auto& shape_a = in0.get_shape();
-        const auto& shape_w = in1.get_shape();        // [N, K] after reshape
+        const auto& shape_a  = in0.get_shape();
+        const auto& shape_w  = in1.get_shape();   // [N, K] after reshape
+        const auto& shape_sc = in_sc.get_shape(); // [N, K/group_size] = [N, NUM_GROUPS]
 
         // Derive tensor dimensions from (updated) activation and weight layouts.
         const size_t rank = shape_a.size();
-        const size_t K    = shape_a[rank - 1];        // reduction dimension
-        const size_t N    = shape_w[0];               // weight rows = output features
+        const size_t K    = shape_a[rank - 1];    // reduction dimension
+        const size_t N    = shape_w[0];           // weight rows = output features
         // Batch: product of all leading dims of activation above K.
         size_t B = 1;
         for (size_t i = 0; i + 1 < rank; ++i)
             B *= shape_a[i];
 
-        const size_t num_groups = K / GROUP_SIZE;
+        // -----------------------------------------------------------------------
+        // Derive group size from the weight-scale tensor shape.
+        //
+        // Scale shape is [N, NUM_GROUPS] where:
+        //   shape_sc[0]      = N        (output channels)
+        //   shape_sc[last]   = NUM_GROUPS = K / group_size
+        //
+        // This matches OneDNN's convention:
+        //   ngroups    = scale_layout.get_dim(weight_rank - 1)  // last dim
+        //   group_size = K / ngroups
+        //
+        // Do NOT hardcode 128 — group sizes of 64, 32, … are also valid.
+        // -----------------------------------------------------------------------
+        const size_t actual_num_groups = shape_sc[shape_sc.size() - 1];
+        const size_t actual_group_size = (actual_num_groups > 0) ? (K / actual_num_groups) : K;
 
         // Determine u4 vs i4.
         const bool weight_is_signed = (in1.data_type == data_types::i4);
 
-        // Detect optional ZP — it is present when num_inputs > 2 and the 4th layout
-        // exists and its dtype is u4/i4.
-        const bool has_zp = (params.input_layouts.size() > 3) &&
-                            (params.input_layouts[3].data_type == data_types::u4 ||
-                             params.input_layouts[3].data_type == data_types::i4);
+        // Detect optional weight ZP — it is present when input[3] is u4/i4.
+        const bool has_zp = detect_has_zp(params);
+
+        // Detect W4A8 mode.
+        const bool act_is_i8 = (in0.data_type == data_types::i8);
 
         // Dispatch/size constants (mirrors GemmGenerateOptGenerator).
         jit.add({
@@ -73,18 +121,64 @@ protected:
         });
 
         // WOQ-specific constants.
+        const bool zp_is_u8 = detect_zp_is_u8(params);
         jit.add({
             make_jit_constant("IS_WEIGHT_INT4",   1),
+            make_jit_constant("IS_ACT_INT8",      act_is_i8 ? 1 : 0),
             make_jit_constant("WEIGHT_IS_SIGNED", weight_is_signed ? 1 : 0),
             make_jit_constant("HAS_ZP",           has_zp ? 1 : 0),
-            make_jit_constant("GROUP_SIZE",       GROUP_SIZE),
-            make_jit_constant("NUM_GROUPS",       static_cast<int>(num_groups)),
+            make_jit_constant("ZP_IS_U8",         zp_is_u8 ? 1 : 0),
+            make_jit_constant("GROUP_SIZE",       static_cast<int>(actual_group_size)),
+            make_jit_constant("NUM_GROUPS",       static_cast<int>(actual_num_groups)),
         });
 
         // Float32 accumulator for numerical stability.
         jit.add(make_type_jit_constants("ACCUMULATOR", data_types::f32));
 
+        // Set to 1 to enable kernel-side printf diagnostics.
+        jit.add(make_jit_constant("DEBUG_FCCmpOpt", 1));
+
+        // Diagnostic: log JIT constants at kernel-compile time (compile-time params/shapes).
+        std::cout << "[FCCmpOpt][JIT] node compile: K=" << K << " N=" << N << " B=" << B
+                  << " NUM_GROUPS=" << actual_num_groups << " GROUP_SIZE=" << actual_group_size
+                  << " IS_ACT_INT8=" << act_is_i8 << " HAS_ZP=" << has_zp
+                  << " ZP_IS_U8=" << detect_zp_is_u8(params)
+                  << "\n";
+        std::cout << "[FCCmpOpt][JIT] scale shape:";
+        for (auto d : shape_sc) std::cout << " " << d;
+        std::cout << " fmt=" << in_sc.format << "\n";
+
         return jit;
+    }
+
+    // Override argument descriptor to explicitly select only the kernel's inputs,
+    // skipping any trailing inputs not used by this kernel (e.g. activation_precomputed_reduction).
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+
+        // arg[0]: activation (f16 or i8)
+        args.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        // arg[1]: weight (u4/i4 packed)
+        args.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        // arg[2]: weight scale (f16)
+        args.push_back({ArgumentDescriptor::Types::INPUT, 2});
+
+        // arg[3]: weight ZP (u4, optional)
+        const bool has_zp = detect_has_zp(params);
+        if (has_zp) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, 3});
+        }
+
+        // For W4A8: arg[3 or 4]: per-token activation scale (f16)
+        const size_t as_idx = act_scale_index(params);
+        if (as_idx != SIZE_MAX) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(as_idx)});
+        }
+
+        // output
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+
+        return args;
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
@@ -102,6 +196,22 @@ protected:
                 B *= shape_a[i];
 
             const size_t n_groups = (N + SG_SIZE - 1) / SG_SIZE;
+
+            // Diagnostic: log runtime dispatch dimensions.
+            std::cout << "[FCCmpOpt][DISPATCH] B=" << B << " K=" << K << " N=" << N
+                      << " global=[" << (n_groups * SG_SIZE) << "," << B << ",1]\n";
+            if (params.input_layouts.size() > 2) {
+                const auto& sc_shape = params.input_layouts[2].get_shape();
+                std::cout << "[FCCmpOpt][DISPATCH] scale shape:";
+                for (auto d : sc_shape) std::cout << " " << d;
+                std::cout << " fmt=" << params.input_layouts[2].format << "\n";
+            }
+            if (params.input_layouts.size() > 4) {
+                const auto& as_shape = params.input_layouts[4].get_shape();
+                std::cout << "[FCCmpOpt][DISPATCH] act_scale shape:";
+                for (auto d : as_shape) std::cout << " " << d;
+                std::cout << "\n";
+            }
 
             auto& wgs = kd.params.workGroups;
             wgs.global = {n_groups * SG_SIZE, B, 1};
