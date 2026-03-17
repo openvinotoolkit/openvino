@@ -126,8 +126,7 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
 
     // Apply scale after MatMul(Q, K^T) per SDPA specification:
     //   attn_weight = Q @ K^T * scale
-    // Scale is always scalar, so Multiply broadcasts safely over [S_q, S_kv].
-    // Post-MatMul Multiply fuses into oneDNN MatMul primitive.
+    // Scale is scalar or single-element tensor, so Multiply broadcasts safely over [S_q, S_kv].
     auto atten = register_new_node<v0::MatMul>(query, k_transposed)->output(0);
     auto scaled_atten = register_new_node<v1::Multiply>(atten, scale)->output(0);
 
