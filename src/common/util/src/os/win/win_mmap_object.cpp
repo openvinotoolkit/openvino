@@ -111,13 +111,13 @@ private:
                                      std::to_string(::GetLastError()));
         }
         const auto file_size = static_cast<size_t>(file_size_large.QuadPart);
-        if (offset + size > file_size) {
-            throw std::runtime_error("Requested mapping range exceeds file size for " + util::path_to_string(path));
-        }
-        if (size > 0) {
-            m_size = size;
-        } else {
+        if (size == auto_file_size) {
             m_size = file_size - offset;
+        } else {
+            m_size = size;
+        }
+        if (offset + m_size > file_size) {
+            throw std::runtime_error("Requested mapping range exceeds file size for " + util::path_to_string(path));
         }
 
         if (m_size > 0) {
