@@ -67,7 +67,7 @@ OutputVector translate_atan2_util(const NodeContext& context, const Output<Node>
         context.mark_node(make_shared<v1::LogicalOr>(half_pi_condition, neg_half_pi_condition));
 
     // x = 0 and y = 0: with IEEE 754 signed-zero handling.
-    // IEEE 754 definations:
+    // IEEE 754 definitions:
     //      atan2(+0,+0)=+0,
     //      atan2(-0,+0)=-0,
     //      atan2(+0,-0)=+π,
