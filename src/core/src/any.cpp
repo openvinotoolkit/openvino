@@ -76,10 +76,11 @@ bool Any::Base::visit_attributes(AttributeVisitor& visitor) const {
 
 void Any::Base::read_from(const Base& other) {
     if (is<std::string>()) {
-        OPENVINO_ASSERT(!is<std::string>(),
-                        "Any::Base::read_from does not handle std::string type. std::string must be processed by the "
-                        "derived specialization.");
+        std::cout << "===========This is a string only for debug CI issue=================" << std::endl;
     }
+    OPENVINO_ASSERT(!is<std::string>(),
+                    "Any::Base::read_from does not handle std::string type. std::string must be processed by the "
+                    "derived specialization.");
 
     std::stringstream strm;
     other.print(strm);
