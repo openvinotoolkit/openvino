@@ -43,12 +43,14 @@ protected:
         const size_t k_head_dims = q_shape[3].get_length();
         const auto& v_shape = params.get_input_layout(2).get_partial_shape();
         const size_t v_head_nums = v_shape[2].get_length();
+        const size_t v_head_dims = v_shape[3].get_length();
         const float scale_factor = 1.0f / std::sqrt(static_cast<double>(k_head_dims));
         const auto output_state = params.output_layouts.size() > 1 ? 1 : 0;
 
         jit.make("K_HEAD_NUM", q_head_nums);
         jit.make("V_HEAD_NUM", v_head_nums);
         jit.make("K_HEAD_DIM", k_head_dims);
+        jit.make("V_HEAD_DIM", v_head_dims);
         jit.make("SUBGROUP_SIZE", get_subgroup_size(params.get_device_info().arch));
         jit.make("FUSE_QK_L2NORM", desc->config.fuse_qk_l2norm ? 1 : 0);
         jit.make("Q_L2_NORM_EPS", desc->config.q_l2_norm_eps);
@@ -87,7 +89,8 @@ protected:
             const size_t seq_len = q_shape[1].get_length();
             const size_t head_nums = v_shape[2].get_length();
             const size_t k_head_dims = q_shape[3].get_length();
-            const size_t v_blocks = (k_head_dims + v_block_size - 1) / v_block_size;
+            const size_t v_head_dims = v_shape[3].get_length();
+            const size_t v_blocks = (v_head_dims + v_block_size - 1) / v_block_size;
             const size_t subgroup_size = get_subgroup_size(params.get_device_info().arch);
 
             auto get_simple_offset = [](const cldnn::layout& layout) {

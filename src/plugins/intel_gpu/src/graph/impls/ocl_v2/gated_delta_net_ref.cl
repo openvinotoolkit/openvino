@@ -109,7 +109,7 @@ KERNEL(gated_delta_net_ref)
     const int H_len = V_HEAD_NUM;
     const int HK_len = K_HEAD_NUM;
     const int K_len = K_HEAD_DIM;
-    const int V_len = K_HEAD_DIM;
+    const int V_len = V_HEAD_DIM;
 
     const int start_iv = get_group_id(2) * V_BLOCK_SIZE;
     const int b = get_global_id(0);
