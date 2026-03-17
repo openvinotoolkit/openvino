@@ -108,7 +108,10 @@ protected:
             ::intel_npu::compiler_utils::serializeIR(model,
                                                      compilerProperties.compilerVersion,
                                                      maxOpsetVersion,
-                                                     ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
+                                                     ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY,
+                                                     [](const std::string&, const std::optional<std::string>&) {
+                                                         return true;
+                                                     });
     }
 
     bool bypassUmdCache() {
