@@ -23,7 +23,7 @@ void aux_unpack_string_tensor(const char* const data,
     using header_element_t = int32_t;  // Type of a single element in the header (strings_count and offsets)
 
     static_assert(sizeof(header_element_t) <= sizeof(size_t),
-                  "Header element type must be able to represent offsets and number of strings as size_t");
+                  "size_t must be at least as wide as header_element_t for safe casting of header values")
 
     OPENVINO_ASSERT(size >= sizeof(header_element_t),
                     "Incorrect packed string tensor format: no strings count in the packed string tensor");
