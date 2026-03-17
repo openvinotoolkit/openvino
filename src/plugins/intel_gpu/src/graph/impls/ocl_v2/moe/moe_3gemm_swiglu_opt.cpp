@@ -879,6 +879,7 @@ public:
             // micro_gemm is better than gemm, default to use it
             use_micro_gemm_prefill = true;
         }
+        use_micro_gemm_prefill = false;
 
         auto use_gpu_mask_gen_prefill_str = std::getenv("MOE_USE_GPU_MASK_PREFILL");
         if (use_gpu_mask_gen_prefill_str) {

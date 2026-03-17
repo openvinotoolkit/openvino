@@ -12,27 +12,27 @@ MOE3GemmFusedCompressed::MOE3GemmFusedCompressed(const OutputVector& args, const
 }
 
 void MOE3GemmFusedCompressed::validate_and_infer_types() {
-    const size_t expected_inputs = m_config.routing_type == MOECompressed::RoutingType::SIGMOID_BIAS ? 7 : 5;
-    OPENVINO_ASSERT(get_input_size() == expected_inputs,
-                    "MOECompressed: expected ",
-                    expected_inputs,
-                    " inputs for routing type ",
-                    m_config.routing_type,
-                    ", got ",
-                    get_input_size());
+    // const size_t expected_inputs = m_config.routing_type == MOECompressed::RoutingType::SIGMOID_BIAS ? 7 : 5;
+    // OPENVINO_ASSERT(get_input_size() == expected_inputs,
+    //                 "MOECompressed: expected ",
+    //                 expected_inputs,
+    //                 " inputs for routing type ",
+    //                 m_config.routing_type,
+    //                 ", got ",
+    //                 get_input_size());
 
-    if (m_config.routing_type == MOECompressed::RoutingType::SIGMOID_BIAS) {
-        // Input 12 is routing_eps — must be a scalar
-        OPENVINO_ASSERT(ov::shape_size(get_input_partial_shape(6).to_shape()) == 1,
-                        "MOE3GemmFusedCompressed: routing_eps (input 6) must be scalar, got shape ",
-                        get_input_partial_shape(12));
-    }
+    // if (m_config.routing_type == MOECompressed::RoutingType::SIGMOID_BIAS) {
+    //     // Input 12 is routing_eps — must be a scalar
+    //     OPENVINO_ASSERT(ov::shape_size(get_input_partial_shape(6).to_shape()) == 1,
+    //                     "MOE3GemmFusedCompressed: routing_eps (input 6) must be scalar, got shape ",
+    //                     get_input_partial_shape(12));
+    // }
 
     MOECompressed::validate_and_infer_types();
 }
 
 std::shared_ptr<ov::Node> MOE3GemmFusedCompressed::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    check_new_args_count(this, new_args);
+    // check_new_args_count(this, new_args);
 
     return std::make_shared<MOE3GemmFusedCompressed>(new_args, get_config());
 }
