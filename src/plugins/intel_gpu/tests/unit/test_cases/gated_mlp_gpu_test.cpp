@@ -117,11 +117,7 @@ void check_output_finite(memory::ptr output_mem) {
     }
 }
 
-void skip_if_no_immad(engine& engine) {
-    if (!engine.get_device_info().supports_immad) {
-        GTEST_SKIP() << "gated_mlp oneDNN implementation requires IMMAD support";
-    }
-}
+
 
 std::shared_ptr<network> create_fp16_network(engine& engine,
                                              int batch,
@@ -225,7 +221,9 @@ class GatedMlpGPU_FP16 : public ::testing::TestWithParam<FP16Params> {};
 
 TEST_P(GatedMlpGPU_FP16, basic) {
     auto& engine = get_test_engine();
-    skip_if_no_immad(engine);
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "gated_mlp oneDNN implementation requires IMMAD support";
+    }
     const auto& p = GetParam();
     const int batch = p.batch, ifm = p.ifm, hidden = p.hidden;
 
@@ -496,7 +494,9 @@ protected:
 
 TEST_P(GatedMlpGPU_Compressed, basic) {
     auto& engine = get_test_engine();
-    skip_if_no_immad(engine);
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "gated_mlp oneDNN implementation requires IMMAD support";
+    }
     const auto& p = GetParam();
 
     if (p.weight_dt == data_types::u8) {
