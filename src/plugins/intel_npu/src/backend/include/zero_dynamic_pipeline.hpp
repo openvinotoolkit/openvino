@@ -106,18 +106,18 @@ public:
 
     DynamicPipeline(const DynamicPipeline&) = delete;
     DynamicPipeline& operator=(const DynamicPipeline&) = delete;
-    ~DynamicPipeline() = default;
+    ~DynamicPipeline() override = default;
 
-    void push();
-    void pull();
-    void reset() const;
+    void push() override;
+    void pull() override;
+    void reset() const override;
     void update_graph_arguments(uint32_t index,
                                 const std::shared_ptr<ZeroTensor>& tensor,
-                                const std::shared_ptr<ov::ITensor>& userTensor = nullptr);
+                                const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
     void update_graph_arguments(uint32_t index,
                                 const std::shared_ptr<ZeroTensor>& tensor,
                                 size_t batch_index,
-                                const std::shared_ptr<ov::ITensor>& userTensor = nullptr);
+                                const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
 
 private:
     std::vector<std::unique_ptr<PipelinedCommandLists>> _command_lists;
