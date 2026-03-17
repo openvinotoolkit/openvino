@@ -424,7 +424,7 @@ using RangedMappingTestParams =  // offset-size pairs, use file path (true) or f
 
 namespace {
 size_t calc_sector_actual_size(size_t offset, size_t size, size_t file_actual_size) {
-    return size == auto_file_size ? file_actual_size - offset : size;
+    return size == auto_size<size_t> ? file_actual_size - offset : size;
 }
 }  // namespace
 
@@ -500,11 +500,6 @@ FileHandle open_file(const std::filesystem::path& path) {
     return ::open(path.c_str(), O_RDONLY);
 #endif
 }
-#ifdef _WIN32
-#    define OV_ASSERT_FILE_HANDLE_VALID(handle) ASSERT_NE(handle, INVALID_HANDLE_VALUE)
-#else
-#    define OV_ASSERT_FILE_HANDLE_VALID(handle) ASSERT_NE(handle, -1)
-#endif
 }  // namespace
 
 TEST_P(RangedMappingTest, compare_data) {
@@ -518,8 +513,6 @@ TEST_P(RangedMappingTest, compare_data) {
     } else {
         const auto handle_1 = open_file(m_file_path);
         const auto handle_2 = open_file(m_file_path);
-        OV_ASSERT_FILE_HANDLE_VALID(handle_1);
-        OV_ASSERT_FILE_HANDLE_VALID(handle_2);
         mm_1 = load_mmap_object_from_handle(handle_1, offset_1, size_1);
         mm_2 = load_mmap_object_from_handle(handle_2, offset_2, size_2);
     }
@@ -555,9 +548,6 @@ TEST_P(RangedMappingTest, compare_id) {
         const auto handle_1 = open_file(m_file_path);
         const auto handle_2 = open_file(m_file_path);
         const auto other_handle = open_file(other_file_path);
-        OV_ASSERT_FILE_HANDLE_VALID(handle_1);
-        OV_ASSERT_FILE_HANDLE_VALID(handle_2);
-        OV_ASSERT_FILE_HANDLE_VALID(other_handle);
         mm_1 = load_mmap_object_from_handle(handle_1, offset_1, size_1);
         mm_2 = load_mmap_object_from_handle(handle_2, offset_2, size_2);
         other_mm_1 = load_mmap_object_from_handle(other_handle, offset_1, size_1);
@@ -585,10 +575,10 @@ INSTANTIATE_TEST_SUITE_P(MappedMemory,
                                                 {0, 3 * pg_sz, 7 * pg_sz, 1024, (7 * pg_sz + 1024)},
                                                 {0, pg_sz, pg_sz, pg_sz, (2 * pg_sz)},
                                                 {100, 50, 150, 30, 180},
-                                                {1, auto_file_size, 0, auto_file_size, pg_sz},
+                                                {1, auto_size<size_t>, 0, auto_size<size_t>, pg_sz},
                                                 {0, 40, 0, 41, 42},
-                                                {11, auto_file_size, 17, 80, 101},
-                                                {10, auto_file_size, 0, 90, 100}}),
+                                                {11, auto_size<size_t>, 17, 80, 101},
+                                                {10, auto_size<size_t>, 0, 90, 100}}),
                                             ::testing::ValuesIn(std::vector<bool>{true, false})),
                          RangedMappingTest::test_name);
 

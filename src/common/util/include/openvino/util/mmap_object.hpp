@@ -41,7 +41,11 @@ public:
     virtual ~MappedMemory() = default;
 };
 
-inline constexpr auto auto_file_size = std::numeric_limits<size_t>::max();
+/**
+ * @brief Generic constant to indicate automatic size calculation is required.
+ */
+template <typename T>
+inline constexpr auto auto_size = std::numeric_limits<T>::max();
 
 /**
  * @brief Returns mapped memory for a file from provided path.
@@ -55,7 +59,7 @@ inline constexpr auto auto_file_size = std::numeric_limits<size_t>::max();
  */
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path,
                                                    size_t offset = 0,
-                                                   size_t size = auto_file_size);
+                                                   size_t size = auto_size<size_t>);
 
 /**
  * @brief Returns mapped memory for a file from provided file handle (cross-platform).
@@ -70,10 +74,10 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& 
  */
 std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle,
                                                                size_t offset = 0,
-                                                               size_t size = auto_file_size);
+                                                               size_t size = auto_size<size_t>);
 
 template <typename T, std::enable_if_t<std::is_same<T, FileHandle>::value, int> = 0>
-std::shared_ptr<ov::MappedMemory> load_mmap_object(T handle, size_t offset = 0, size_t size = auto_file_size) {
+std::shared_ptr<ov::MappedMemory> load_mmap_object(T handle, size_t offset = 0, size_t size = auto_size<size_t>) {
     return load_mmap_object_from_handle(static_cast<FileHandle>(handle), offset, size);
 }
 }  // namespace ov

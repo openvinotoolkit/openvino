@@ -102,26 +102,19 @@ private:
         }
         m_handle = HandleHolder(h);
 
-        const DWORD map_mode = FILE_MAP_READ;
-        const DWORD access = PAGE_READONLY;
-
         LARGE_INTEGER file_size_large;
         if (::GetFileSizeEx(m_handle.get(), &file_size_large) == 0) {
             throw std::runtime_error("Can not get file size for " + util::path_to_string(path) + ". Error " +
                                      std::to_string(::GetLastError()));
         }
         const auto file_size = static_cast<size_t>(file_size_large.QuadPart);
-        if (size == auto_file_size) {
-            m_size = file_size - offset;
-        } else {
-            m_size = size;
-        }
+        m_size = (size == auto_size<size_t>) ? file_size - offset : size;
         if (offset + m_size > file_size) {
             throw std::runtime_error("Requested mapping range exceeds file size for " + util::path_to_string(path));
         }
 
         if (m_size > 0) {
-            m_mapping = HandleHolder(::CreateFileMapping(m_handle.get(), 0, access, 0, 0, 0));
+            m_mapping = HandleHolder(::CreateFileMapping(m_handle.get(), 0, PAGE_READONLY, 0, 0, 0));
             if (m_mapping.get() == INVALID_HANDLE_VALUE) {
                 throw std::runtime_error("Can not create file mapping for " + util::path_to_string(path));
             }
@@ -132,7 +125,7 @@ private:
                 (offset / system_info.dwAllocationGranularity) * system_info.dwAllocationGranularity;
             const auto aligned_size = offset + m_size - aligned_offset;
             m_mapped_view = ::MapViewOfFile(m_mapping.get(),
-                                            map_mode,
+                                            FILE_MAP_READ,
                                             aligned_offset >> 32,
                                             aligned_offset & 0xffffffff,
                                             aligned_size);
