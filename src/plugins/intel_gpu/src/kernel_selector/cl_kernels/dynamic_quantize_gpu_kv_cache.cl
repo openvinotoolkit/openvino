@@ -3,12 +3,14 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/common.cl"
+#include "include/batch_headers/int4_utils.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/sub_group_shuffle.cl"
 
+
+#define UINT4_RANGE 15
 
 #if OUTPUT_DIMS != 4
 #error "dynamic_quantize_gpu_kv_cache.cl: Unsupported output dimension"
@@ -73,16 +75,52 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
     const uint input_offset = INPUT0_GET_INDEX(b, f, y, x);
     unroll_for (uint i = 0; i < INNERMOST_DIM_VALUE / SUBGROUP_SIZE; i++) {
         val[i] = INPUT_BLOCK_READ(input, input_offset + i * SUBGROUP_SIZE);
-#if ASYMMETRIC_QUANTIZATION
+#if ASYMMETRIC_QUANTIZATION || IS_INT4_COMPRESSED
         max_value = fmax(max_value, val[i]);
         min_value = fmin(min_value, val[i]);
 #else
         max_value = fmax(max_value, fabs(val[i]));
 #endif
     }
-#if !ASYMMETRIC_QUANTIZATION
+#if !ASYMMETRIC_QUANTIZATION && !IS_INT4_COMPRESSED
     max_value = fmax(max_value, grp_max);
 #endif
+
+#ifdef APPEND_MODE
+    APPEND_AXIS_NAME += axis_offset;
+#endif
+
+#if IS_INT4_COMPRESSED
+    // 4-bit unsigned asymmetric quantization: map [min, max] to [0, 15].
+    // Two INT4 values are packed per byte using SUBGROUP_SIZE-stride grouping:
+    //   output byte at physical offset (k * SUBGROUP_SIZE + sglid) holds:
+    //     lo nibble = quantized val[(2k)   * SUBGROUP_SIZE + sglid]
+    //     hi nibble = quantized val[(2k+1) * SUBGROUP_SIZE + sglid]
+    min_value = work_group_reduce_min(min_value);
+    max_value = work_group_reduce_max(max_value);
+
+    ACCUMULATOR_TYPE diff_value = max_value == min_value ? (ACCUMULATOR_TYPE)(grp_max)
+                                                         : (ACCUMULATOR_TYPE)(max_value - min_value);
+    ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((UINT4_RANGE) / diff_value);
+    ACCUMULATOR_TYPE zp_tmp    = (ACCUMULATOR_TYPE)(-min_value * scale_tmp); // maps min -> 0, max -> UINT4_RANGE
+
+    const uint output_offset = OUTPUT_GET_INDEX(b, f, y, x);
+    // Pairs of consecutive SUBGROUP_SIZE blocks are packed together.
+    unroll_for (uint i = 0; i < INNERMOST_DIM_VALUE / SUBGROUP_SIZE; i += 2) {
+        uchar q0 = (uchar)clamp(convert_int_rte((float)val[i]     * scale_tmp + zp_tmp), 0, UINT4_RANGE);
+        uchar q1 = (uchar)clamp(convert_int_rte((float)val[i + 1] * scale_tmp + zp_tmp), 0, UINT4_RANGE);
+        // Pack: lo nibble = q0, hi nibble = q1
+        char packed = cvt_uint8x2_to_uint4x2((uchar2)(q0, q1));
+        OUTPUT_BLOCK_WRITE(output, output_offset + (i / 2) * SUBGROUP_SIZE, packed);
+    }
+
+    const uint scale_idx = FUNC_CALL(get_scales_offset)(OPTIONAL_SHAPE_INFO_TENSOR b, f, y, x);
+    if (grouped_indexes == 0 && sglid == 0) {
+        output_scale[scale_idx]     = (OUTPUT1_TYPE)(1.0f / scale_tmp); // dequant scale
+        output_scale[scale_idx + 1] = (OUTPUT1_TYPE)(zp_tmp);           // zero-point
+    }
+
+#else  // !IS_INT4_COMPRESSED — original INT8 path
 
 #if ASYMMETRIC_QUANTIZATION
     min_value = work_group_reduce_min(min_value);
@@ -98,10 +136,6 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
 #else
     max_value = work_group_reduce_max(max_value);
     OUTPUT1_TYPE scale = 127.0h / max_value;
-#endif
-
-#ifdef APPEND_MODE
-    APPEND_AXIS_NAME += axis_offset;
 #endif
 
     const uint output_offset = OUTPUT_GET_INDEX(b, f, y, x);
@@ -134,4 +168,6 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
         output_scale[scale_idx] = 1.0h / scale;
 #endif
     }
+
+#endif  // IS_INT4_COMPRESSED
 }
