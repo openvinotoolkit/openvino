@@ -124,7 +124,12 @@ protected:
 
             const bool is_kv_compressed = desc->is_kv_compressed;
 
-            auto wg_heads_number = std::min(heads_number, static_cast<size_t>((params.get_device_info().max_work_group_size) / heads_number));
+            const auto max_wg_size = params.get_device_info().max_work_group_size;
+            size_t max_heads_per_wg = static_cast<size_t>(max_wg_size / subgroup_size);
+            if (max_heads_per_wg == 0) {
+                max_heads_per_wg = 1;
+            }
+            auto wg_heads_number = std::min(heads_number, max_heads_per_wg);
             wgs.global = {sequences_number, heads_number, subgroup_size};
             wgs.local = {1, is_kv_compressed ? 1 : wg_heads_number, subgroup_size};
         }};

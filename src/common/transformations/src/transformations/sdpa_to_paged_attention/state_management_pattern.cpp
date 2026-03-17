@@ -723,11 +723,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         if (allow_adaptive_rkv) {
             OPENVINO_ASSERT(
                 optional_model_wide_params.count("adaptive_rkv_start_size"),
-                "No adaptive_rkv_start_size input found. For using Adaptive R-KV, the model have to contain "
+                "No adaptive_rkv_start_size input found. For using Adaptive R-KV, the model has to contain "
                 "an additional input (Parameter) called adaptive_rkv_start_size.");
             OPENVINO_ASSERT(
                 optional_model_wide_params.count("adaptive_rkv_evictable_sizes"),
-                "No adaptive_rkv_evictable_sizes input found. For using Adaptive R-KV, the model have to contain "
+                "No adaptive_rkv_evictable_sizes input found. For using Adaptive R-KV, the model has to contain "
                 "an additional input (Parameter) called adaptive_rkv_evictable_sizes.");
             pa_arguments.insert(pa_arguments.begin() + 21, optional_model_wide_params.at("adaptive_rkv_start_size"));
             pa_arguments.insert(pa_arguments.begin() + 22,
@@ -762,7 +762,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         if (allow_qq_bias) {
             OPENVINO_ASSERT(optional_model_wide_params.find("qq_bias") != optional_model_wide_params.end(),
-                            "No qq_bias input found. For using QQ bias, the model have to contain "
+                            "No qq_bias input found. For using QQ bias, the model has to contain "
                             "an additional input (Parameter) called qq_bias.");
             pa_arguments.insert(pa_arguments.begin() + 26, optional_model_wide_params.at("qq_bias"));
             pa_arguments.insert(pa_arguments.begin() + 27, optional_model_wide_params.at("qq_bias_begins"));

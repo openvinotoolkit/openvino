@@ -56,7 +56,7 @@ inline void FUNC(requantize_and_store_by_channel_block)(__global OUTPUT_TYPE* ke
         key_cache[dst_base + token] = quantized;
     }
 
-    UNCOMPRESSED_TYPE* comp_ptr = key_cache + (dst_base + PAGED_ATTENTION_BLOCK_SIZE);
+    UNCOMPRESSED_TYPE* comp_ptr = (UNCOMPRESSED_TYPE*)(key_cache + (dst_base + PAGED_ATTENTION_BLOCK_SIZE));
     comp_ptr[0] = 1.0f / scale;
     comp_ptr[1] = zp;
 }
