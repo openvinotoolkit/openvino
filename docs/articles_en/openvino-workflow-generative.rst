@@ -38,7 +38,7 @@ options:
       text generation loop, tokenization, and scheduling, offering ease of use and high
       performance.
 
-      `Check out the OpenVINO GenAI Quick-start Guide [PDF] <https://docs.openvino.ai/2025/_static/download/GenAI_Quick_Start_Guide.pdf>`__
+      `Check out the OpenVINO GenAI Quick-start Guide [PDF] <https://docs.openvino.ai/2026/_static/download/GenAI_Quick_Start_Guide.pdf>`__
 
    .. tab-item:: Optimum Intel (Hugging Face integration)
 
