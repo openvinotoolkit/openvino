@@ -7,7 +7,6 @@
 #include <memory>
 #include <mutex>
 
-#include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_mem.hpp"
 #include "openvino/runtime/common.hpp"
@@ -26,13 +25,11 @@ public:
      * @brief Constructs a ZeroTensor with the specified element type and shape. Allocates internal storage in the given
      * level zero context.
      * @param init_structs Shared pointer to the ZeroInitStructHolder instance that will provide the level zero context.
-     * @param config NPU plugin configuration
      * @param type Data type of tensor elements
      * @param shape Tensor shape
      * @param is_input Indicates if the tensor is used as a network input ( true) or output (false)
      */
     ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-               const Config& config,
                const ov::element::Type element_type,
                const ov::Shape& shape,
                const bool is_input);
@@ -42,12 +39,9 @@ public:
      * is not allocated in the level zero context specified through init_structs or in case the memory cannot be
      * imported in that context ( to be implemented). ZeroTensor will keep a reference to the source tensor.
      * @param init_structs Shared pointer to ZeroInitStructsHolder
-     * @param config NPU plugin configuration
      * @param user_tensor Tensor to create ZeroTensor from
      */
-    ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-               const Config& config,
-               const ov::SoPtr<ov::ITensor>& user_tensor);
+    ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const ov::SoPtr<ov::ITensor>& user_tensor);
 
     void* data() override;
     void* data(const ov::element::Type& type) override;
@@ -60,6 +54,16 @@ public:
 
     const ov::element::Type& get_element_type() const override;
 
+    /**
+     * @brief Special-purpose override for the tensor element type.
+     *
+     * This API is intended only for the narrow boolean/u8 handling case used by
+     * the Zero inference pipeline. It must not be used as a general-purpose
+     * element type mutator. The implementation asserts that only the supported
+     * conversion(s) are requested and may fail if used with other element types.
+     */
+    void set_element_type(const ov::element::Type& element_type);
+
     const ov::Shape& get_shape() const override;
 
     void set_shape(ov::Shape new_shape) override;
@@ -71,6 +75,9 @@ public:
 
     void prevent_reuse();
     bool can_be_reused();
+
+    void allocate_data();
+    void detach_imported_allocation_for_custom_tensor();
 
     ~ZeroTensor() override;
 
@@ -94,6 +101,7 @@ private:
     bool _can_be_reused = false;
 
     std::shared_ptr<ZeroMem> _mem_ref;
+    bool _is_custom_user_tensor = false;
 };
 
 }  // namespace intel_npu

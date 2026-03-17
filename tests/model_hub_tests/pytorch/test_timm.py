@@ -121,8 +121,11 @@ class TestTimmConvertModel(TestTorchConvertModel):
         self.example = (torch.randn([2] + shape),)
         self.inputs = (torch.randn([3] + shape),)
         if getattr(self, "mode", None) == "export":
-            batch = torch.export.Dim("batch", min=1, max=3)
-            self.export_kwargs = {"dynamic_shapes": {"x": {0: batch}}}
+            from openvino import PartialShape
+            self.dynamo_input = (PartialShape([-1] + shape),)
+            # Use same batch as example because the FX decoder does not
+            # fully propagate symbolic batch through reshape ops yet.
+            self.inputs = (torch.randn([2] + shape),)
         return m
 
     def infer_fw_model(self, model_obj, inputs):

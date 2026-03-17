@@ -7,6 +7,7 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
 #include "kokoro_infer_request.hpp"
+#include "kokoro_model_transforms.hpp"
 #include "kokoro_split.hpp"
 #include "npuw/logging.hpp"
 #include "plugin.hpp"
@@ -87,6 +88,9 @@ ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Mod
 
     // Decompose kokoro model into two static models
     KokoroSplitResult split_result = KokoroSplit::split_model(model, m_kokoro_cfg);
+
+    // Guard aten::angle Divide(0,0)->NaN in Model B before NPUW partitioning
+    ov::npuw::kokoro::guard_angle_divide(split_result.model_b);
 
     LOG_DEBUG("Compiling kokoro model A...");
     // Model A doesn't require decomposition, so it should be handled by CPU or NPU plugin
