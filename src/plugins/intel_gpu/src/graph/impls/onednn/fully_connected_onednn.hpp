@@ -24,6 +24,11 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
     FullyConnectedImplementationManager(shape_types shape_type) : ImplementationManager(impl_types::onednn, shape_type) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
 
+    // OneDNN WOQ FC reads raw packed u4/i4 bytes directly from the weight tensor
+    // (no backend-specific reorder).  Declare compatibility with OCL kernels that
+    // use the same low-nibble-first convention so both can coexist in an impl pool.
+    bool raw_sub_byte_weight_compatible() const noexcept override { return true; }
+
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<fully_connected>());
         const auto& config = node.get_program().get_config();

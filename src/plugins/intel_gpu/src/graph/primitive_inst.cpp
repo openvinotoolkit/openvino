@@ -3510,8 +3510,17 @@ void primitive_inst::enable_multi_impl_mode(ImplSwitchingPolicy policy) {
                 }
             }
         } else if (weight_is_sub_byte && t != primary_type) {
-            // Rule 3: no reorder + sub-byte dtype → cross-backend packing unsafe.
-            reject_reason = "rule3: sub-byte weight cross-backend packing incompatible";
+            // Rule 3: no reorder + sub-byte dtype → cross-backend packing unsafe,
+            // UNLESS both implementation managers explicitly declare they use the
+            // same standard low-nibble-first raw packing convention (e.g. OneDNN WOQ
+            // FC + our OCL GEMV kernel both reading u4 bytes identically).
+            const bool primary_raw_ok = _impl->m_manager &&
+                _impl->m_manager->raw_sub_byte_weight_compatible();
+            const bool alt_raw_ok = alt_impl->m_manager &&
+                alt_impl->m_manager->raw_sub_byte_weight_compatible();
+            if (!(primary_raw_ok && alt_raw_ok)) {
+                reject_reason = "rule3: sub-byte weight cross-backend packing incompatible";
+            }
         }
 
         if (reject_reason) {

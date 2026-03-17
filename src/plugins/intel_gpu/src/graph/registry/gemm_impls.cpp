@@ -5,6 +5,7 @@
 #include "registry.hpp"
 #include "intel_gpu/primitives/gemm.hpp"
 #include "primitive_inst.h"
+#include "impls/ocl_v2/gemm/gemm_generate_opt.hpp"
 
 #if OV_GPU_WITH_ONEDNN
     #include "impls/onednn/gemm_onednn.hpp"
@@ -17,6 +18,11 @@ using namespace cldnn;
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<gemm>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
         OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::GemmImplementationManager, shape_types::static_shape)
+        // Optimised GEMV for LLM generate phase (M=1, static shape, f16).
+        // validate_impl gates on f16 / no-bias / alpha=1 / beta=0.
+        // support_shapes additionally checks M==1 at runtime so the pool builder
+        // can correctly enable / disable this impl as sequence length changes.
+        OV_GPU_CREATE_INSTANCE_OCL(ocl::GemmGenerateOpt, shape_types::static_shape)
         OV_GPU_GET_INSTANCE_OCL(gemm, shape_types::static_shape)
         OV_GPU_GET_INSTANCE_OCL(gemm, shape_types::dynamic_shape,
             [](const program_node& node) {
