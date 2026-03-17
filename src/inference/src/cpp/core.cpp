@@ -10,6 +10,7 @@
 #include "openvino/frontend/manager.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
@@ -271,13 +272,13 @@ std::vector<std::string> Core::get_available_devices() const {
 }
 
 void Core::register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& properties) {
-    OV_CORE_CALL_STATEMENT(_impl->register_plugin(plugin, device_name, properties););
+    register_plugin(ov::util::make_path(plugin), device_name, properties);
 }
 
 void Core::register_plugin(const std::filesystem::path& plugin_path,
                            const std::string& device_name,
                            const ov::AnyMap& properties) {
-    register_plugin(ov::util::path_to_string(plugin_path), device_name, properties);
+    OV_CORE_CALL_STATEMENT(_impl->register_plugin(plugin_path, device_name, properties););
 }
 
 void Core::unload_plugin(const std::string& device_name) {
@@ -325,6 +326,7 @@ RemoteContext Core::get_default_context(const std::string& device_name) {
 
 void shutdown() {
     frontend::FrontEndManager::shutdown();
+    ov::threading::executor_manager()->clear();
 }
 
 }  // namespace ov

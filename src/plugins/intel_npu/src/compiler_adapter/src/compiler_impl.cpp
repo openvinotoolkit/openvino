@@ -37,29 +37,6 @@ UsedVersion getUsedVclVersion(uint16_t pluginMajor, uint16_t pluginMinor, const 
     return {usedMajor, usedMinor};
 }
 
-bool isUseBaseModelSerializer(UsedVersion useVersion, const intel_npu::FilteredConfig& config) {
-    // vcl serializer(No copy) is only support for vcl version >= 7.5
-    if (useVersion.Major < 7 || (useVersion.Major == 7 && useVersion.Minor < 5)) {
-        return true;
-    }
-
-    // user pass use_base_model_serializer config
-    if (config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) &&
-        config.has(ov::intel_npu::use_base_model_serializer.name())) {
-        return config.get<intel_npu::USE_BASE_MODEL_SERIALIZER>();
-    }
-
-    // user pass model_serializer_version config
-    if (config.isAvailable(ov::intel_npu::model_serializer_version.name()) &&
-        config.has(ov::intel_npu::model_serializer_version.name())) {
-        return (config.get<intel_npu::MODEL_SERIALIZER_VERSION>() ==
-                ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
-    }
-
-    // No VCL serializer was chosen explicitly, will default to the "no weights copy" implementation
-    return false;
-}
-
 struct vcl_allocator : vcl_allocator2_t {
     vcl_allocator() : vcl_allocator2_t{allocate, deallocate} {}
 
@@ -417,16 +394,22 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
 
-    bool useBaseModelSerializer = true;
-    useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, config);
-    _logger.debug("serialize IR method is %s",
-                  useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
+    const auto isOptionValueSupportedByCompiler = [this](const std::string& optionName,
+                                                         const std::optional<std::string>& optionValue) {
+        return is_option_supported(optionName, optionValue);
+    };
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
-                                                    useBaseModelSerializer,
+                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    isOptionValueSupportedByCompiler,
                                                     false,
                                                     storeWeightlessCacheAttributeFlag);
+    FilteredConfig updatedConfig = config;
+    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                               MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
+    }
 
     std::string buildFlags;
     const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
@@ -436,7 +419,7 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     _logger.debug("create build flags");
     buildFlags += compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
+    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
 
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
@@ -489,6 +472,10 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     const FilteredConfig& config) const {
     _logger.debug("compileWsOneShot start");
 
+    /// Check the linked vcl version whether supported in plugin
+    UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
+    _logger.debug("the finally used compiler vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
+
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
@@ -497,12 +484,22 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
 
-    bool useBaseModelSerializer = true;
-    useBaseModelSerializer = isUseBaseModelSerializer({7, 5}, config);
-    _logger.debug("serialize IR method is %s",
-                  useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
-    auto serializedIR =
-        compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer, false, true);
+    const auto isOptionValueSupportedByCompiler = [this](const std::string& optionName,
+                                                         const std::optional<std::string>& optionValue) {
+        return is_option_supported(optionName, optionValue);
+    };
+    auto serializedIR = compiler_utils::serializeIR(model,
+                                                    compilerVersion,
+                                                    maxOpsetVersion,
+                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    isOptionValueSupportedByCompiler,
+                                                    false,
+                                                    true);
+    FilteredConfig updatedConfig = config;
+    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                               MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
+    }
 
     std::string buildFlags;
     const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
@@ -512,7 +509,7 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     _logger.debug("create build flags");
     buildFlags += compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
+    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
     vcl_executable_desc_t exeDesc = {serializedIR.buffer.get(),
@@ -621,17 +618,26 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     ze_graph_compiler_version_info_t compilerVersion;
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
-    bool useBaseModelSerializer = true;
-    useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, config);
-    _logger.debug("serialize IR method is %s",
-                  useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
-    auto serializedIR = compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
+    FilteredConfig updatedConfig = config;
+    const auto isOptionValueSupportedByCompiler = [this](const std::string& optionName,
+                                                         const std::optional<std::string>& optionValue) {
+        return is_option_supported(optionName, optionValue);
+    };
+    auto serializedIR = compiler_utils::serializeIR(model,
+                                                    compilerVersion,
+                                                    maxOpsetVersion,
+                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    isOptionValueSupportedByCompiler);
+    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                               MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
+    }
 
     std::string buildFlags;
     const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
         return is_option_supported(optionName);
     };
-    buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
+    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     vcl_query_handle_t queryHandle;
@@ -691,7 +697,7 @@ bool VCLCompilerImpl::get_supported_options(std::vector<char>& options) const {
     return false;
 }
 
-bool VCLCompilerImpl::is_option_supported(const std::string& option, std::optional<std::string> optValue) const {
+bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std::string> optValue) const {
     try {
         const char* optname_ch = option.c_str();
         const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
