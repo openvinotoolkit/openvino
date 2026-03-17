@@ -9,18 +9,16 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/openvino.hpp"
 
-using namespace ov;
-using namespace testing;
-
+namespace ov::test {
 namespace {
 
-std::shared_ptr<op::GatedDeltaNet> make_gdn(const element::Type& et,
-                                            const PartialShape& q,
-                                            const PartialShape& k,
-                                            const PartialShape& v,
-                                            const PartialShape& state,
-                                            const PartialShape& gate,
-                                            const PartialShape& beta) {
+std::shared_ptr<op::internal::GatedDeltaNet> make_gdn(const element::Type& et,
+                                                      const PartialShape& q,
+                                                      const PartialShape& k,
+                                                      const PartialShape& v,
+                                                      const PartialShape& state,
+                                                      const PartialShape& gate,
+                                                      const PartialShape& beta) {
     auto query = std::make_shared<op::v0::Parameter>(et, q);
     auto key = std::make_shared<op::v0::Parameter>(et, k);
     auto value = std::make_shared<op::v0::Parameter>(et, v);
@@ -28,7 +26,8 @@ std::shared_ptr<op::GatedDeltaNet> make_gdn(const element::Type& et,
     auto gate_p = std::make_shared<op::v0::Parameter>(et, gate);
     auto beta_p = std::make_shared<op::v0::Parameter>(et, beta);
 
-    return std::make_shared<op::GatedDeltaNet>(OutputVector{query, key, value, recurrent_state, gate_p, beta_p});
+    return std::make_shared<op::internal::GatedDeltaNet>(
+        OutputVector{query, key, value, recurrent_state, gate_p, beta_p});
 }
 
 }  // namespace
@@ -88,7 +87,7 @@ TEST(type_prop, gated_delta_net_invalid_query_rank) {
                                            Shape{2, 5, 4},
                                            Shape{2, 5, 4}),
                     NodeValidationFailure,
-                    HasSubstr("Rank of `query` input should be in [4] list"));
+                    testing::HasSubstr("Rank of `query` input should be in [4] list"));
 }
 
 TEST(type_prop, gated_delta_net_invalid_gate_rank) {
@@ -100,7 +99,7 @@ TEST(type_prop, gated_delta_net_invalid_gate_rank) {
                                            Shape{2, 5, 4, 1},
                                            Shape{2, 5, 4}),
                     NodeValidationFailure,
-                    HasSubstr("Rank of `gate` input should be in [3] list"));
+                    testing::HasSubstr("Rank of `gate` input should be in [3] list"));
 }
 
 TEST(type_prop, gated_delta_net_invalid_type) {
@@ -112,7 +111,7 @@ TEST(type_prop, gated_delta_net_invalid_type) {
                                            Shape{2, 5, 4},
                                            Shape{2, 5, 4}),
                     NodeValidationFailure,
-                    HasSubstr("Element type of `query` input should be in"));
+                    testing::HasSubstr("Element type of `query` input should be in"));
 }
 
 TEST(type_prop, gated_delta_net_head_num_mismatch_qkv) {
@@ -124,7 +123,7 @@ TEST(type_prop, gated_delta_net_head_num_mismatch_qkv) {
                                            Shape{2, 5, 4},
                                            Shape{2, 5, 4}),
                     NodeValidationFailure,
-                    HasSubstr("The number of heads in query key and value should be the same"));
+                    testing::HasSubstr("The number of heads in query key and value should be the same"));
 }
 
 TEST(type_prop, gated_delta_net_head_size_mismatch_qk) {
@@ -136,7 +135,7 @@ TEST(type_prop, gated_delta_net_head_size_mismatch_qk) {
                                            Shape{2, 5, 4},
                                            Shape{2, 5, 4}),
                     NodeValidationFailure,
-                    HasSubstr("The head size in key and query should be the same"));
+                    testing::HasSubstr("The head size in key and query should be the same"));
 }
 
 TEST(type_prop, gated_delta_net_gate_beta_head_num_mismatch) {
@@ -148,18 +147,19 @@ TEST(type_prop, gated_delta_net_gate_beta_head_num_mismatch) {
                                            Shape{2, 5, 6},
                                            Shape{2, 5, 4}),
                     NodeValidationFailure,
-                    HasSubstr("The number of heads in gate, beta, and query should be the same"));
+                    testing::HasSubstr("The number of heads in gate, beta, and query should be the same"));
 }
 
 TEST(type_prop, gated_delta_net_state_shape_mismatch) {
-    OV_EXPECT_THROW(
-        std::ignore = make_gdn(element::f32,
-                               Shape{2, 5, 4, 8},
-                               Shape{2, 5, 4, 8},
-                               Shape{2, 5, 4, 16},
-                               Shape{2, 4, 8, 32},
-                               Shape{2, 5, 4},
-                               Shape{2, 5, 4}),
-        NodeValidationFailure,
-        HasSubstr("The dim at shape[-1] of recurrent_state and head size of value should be the same, but got"));
+    OV_EXPECT_THROW(std::ignore = make_gdn(element::f32,
+                                           Shape{2, 5, 4, 8},
+                                           Shape{2, 5, 4, 8},
+                                           Shape{2, 5, 4, 16},
+                                           Shape{2, 4, 8, 32},
+                                           Shape{2, 5, 4},
+                                           Shape{2, 5, 4}),
+                    NodeValidationFailure,
+                    testing::HasSubstr(
+                        "The dim at shape[-1] of recurrent_state and head size of value should be the same, but got"));
 }
+}  // namespace ov::test

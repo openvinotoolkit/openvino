@@ -6,8 +6,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 using gated_delta_net_params = std::tuple<int32_t,            // B
                                           int32_t,            // T
@@ -37,5 +36,4 @@ protected:
     void SetUp() override;
 };
 
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test

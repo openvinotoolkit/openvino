@@ -44,9 +44,8 @@
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov::pass;
-using namespace ov::gen_pattern;
-using namespace ov::pass::pattern;
+namespace pattern = ov::pass::pattern;
+namespace gen_pattern = ov::gen_pattern;
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 
@@ -62,48 +61,48 @@ bool matches_linear_attention_loop(const std::shared_ptr<ov::Node>& node) {
         return false;
     }
 
-    auto output_attn_buffer = any_input(shape_matches("[?, head_num, ?, v_head_size]"));
-    auto recurrent_state = any_input(shape_matches("[?, head_num, k_head_size, v_head_size]"));
-    auto beta = any_input(shape_matches("[?, head_num, 1]"));
-    auto gate = any_input(shape_matches("[?, head_num, 1]"));
-    auto value = any_input(shape_matches("[?, head_num, 1, value_head_size]"));
-    auto key = any_input(shape_matches("[?, head_num, 1, k_head_size]"));
-    auto query = any_input(shape_matches("[?, head_num, 1, k_head_size]"));
-    auto step_index = any_input();
+    auto output_attn_buffer = pattern::any_input(pattern::shape_matches("[?, head_num, ?, v_head_size]"));
+    auto recurrent_state = pattern::any_input(pattern::shape_matches("[?, head_num, k_head_size, v_head_size]"));
+    auto beta = pattern::any_input(pattern::shape_matches("[?, head_num, 1]"));
+    auto gate = pattern::any_input(pattern::shape_matches("[?, head_num, 1]"));
+    auto value = pattern::any_input(pattern::shape_matches("[?, head_num, 1, value_head_size]"));
+    auto key = pattern::any_input(pattern::shape_matches("[?, head_num, 1, k_head_size]"));
+    auto query = pattern::any_input(pattern::shape_matches("[?, head_num, 1, k_head_size]"));
+    auto step_index = pattern::any_input();
 
-    auto step_index_unsqueeze = wrap_type<v0::Unsqueeze>({step_index, 0});
+    auto step_index_unsqueeze = pattern::wrap_type<v0::Unsqueeze>({step_index, 0});
     auto gate_f32 = pattern::optional<v0::Convert>({gate});
 
-    auto exp_gate = wrap_type<v0::Exp>({gate_f32});
-    auto exp_gate_unsqueeze = wrap_type<v0::Unsqueeze>({exp_gate, {-1}});
-    auto gated_state = wrap_type<v1::Multiply>({recurrent_state, exp_gate_unsqueeze});
+    auto exp_gate = pattern::wrap_type<v0::Exp>({gate_f32});
+    auto exp_gate_unsqueeze = pattern::wrap_type<v0::Unsqueeze>({exp_gate, {-1}});
+    auto gated_state = pattern::wrap_type<v1::Multiply>({recurrent_state, exp_gate_unsqueeze});
 
-    auto key_squeezed = wrap_type<v0::Squeeze>({key, {2}});
-    auto key_unsqueeze = wrap_type<v0::Unsqueeze>({key_squeezed, {-1}});
+    auto key_squeezed = pattern::wrap_type<v0::Squeeze>({key, {2}});
+    auto key_unsqueeze = pattern::wrap_type<v0::Unsqueeze>({key_squeezed, {-1}});
 
-    auto value_squeezed = wrap_type<v0::Squeeze>({value, {2}});
+    auto value_squeezed = pattern::wrap_type<v0::Squeeze>({value, {2}});
 
-    auto projected_value = wrap_type<v1::Multiply>({gated_state, key_unsqueeze});
-    auto projected_sum = wrap_type<v1::ReduceSum>({projected_value, {-2}}, {{"keep_dims", false}});
-    auto delta = wrap_type<v1::Subtract>({value_squeezed, projected_sum});
+    auto projected_value = pattern::wrap_type<v1::Multiply>({gated_state, key_unsqueeze});
+    auto projected_sum = pattern::wrap_type<v1::ReduceSum>({projected_value, {-2}}, {{"keep_dims", false}});
+    auto delta = pattern::wrap_type<v1::Subtract>({value_squeezed, projected_sum});
 
-    auto scaled_delta = wrap_type<v1::Multiply>({delta, beta});
-    auto scaled_delta_unsqueeze = wrap_type<v0::Unsqueeze>({scaled_delta, {-2}});
-    auto outer_update = wrap_type<v1::Multiply>({key_unsqueeze, scaled_delta_unsqueeze});
-    auto updated_state = wrap_type<v1::Add>({gated_state, outer_update});
+    auto scaled_delta = pattern::wrap_type<v1::Multiply>({delta, beta});
+    auto scaled_delta_unsqueeze = pattern::wrap_type<v0::Unsqueeze>({scaled_delta, {-2}});
+    auto outer_update = pattern::wrap_type<v1::Multiply>({key_unsqueeze, scaled_delta_unsqueeze});
+    auto updated_state = pattern::wrap_type<v1::Add>({gated_state, outer_update});
 
-    auto query_squeezed = wrap_type<v0::Squeeze>({query, 2});
-    auto query_unsqueeze = wrap_type<v0::Unsqueeze>({query_squeezed, {-1}});
-    auto weighted_output = wrap_type<v1::Multiply>({updated_state, query_unsqueeze});
+    auto query_squeezed = pattern::wrap_type<v0::Squeeze>({query, 2});
+    auto query_unsqueeze = pattern::wrap_type<v0::Unsqueeze>({query_squeezed, {-1}});
+    auto weighted_output = pattern::wrap_type<v1::Multiply>({updated_state, query_unsqueeze});
 
-    auto output_reduce_sum = wrap_type<v1::ReduceSum>({weighted_output, {-2}}, {{"keep_dims", true}});
+    auto output_reduce_sum = pattern::wrap_type<v1::ReduceSum>({weighted_output, {-2}}, {{"keep_dims", true}});
     auto output_reduce_sum_fp16 = pattern::optional<v0::Convert>({output_reduce_sum});
-    auto scatter_update_output =
-        wrap_type<ov::op::v3::ScatterUpdate>({output_attn_buffer, step_index_unsqueeze, output_reduce_sum_fp16, 2});
-    auto output_result = wrap_type<v0::Result>({scatter_update_output});
+    auto scatter_update_output = pattern::wrap_type<ov::op::v3::ScatterUpdate>(
+        {output_attn_buffer, step_index_unsqueeze, output_reduce_sum_fp16, 2});
+    auto output_result = pattern::wrap_type<v0::Result>({scatter_update_output});
 
     auto updated_state_fp16 = pattern::optional<v0::Convert>({updated_state});
-    auto state_result = wrap_type<v0::Result>({updated_state_fp16});
+    auto state_result = pattern::wrap_type<v0::Result>({updated_state_fp16});
 
     ov::pass::pattern::Matcher loop_output_matcher(output_result);
     ov::pass::pattern::Matcher loop_state_matcher(state_result);
@@ -124,34 +123,34 @@ bool matches_linear_attention_loop(const std::shared_ptr<ov::Node>& node) {
 }  // namespace
 
 ov::pass::RemoveConcatSliceAfterLoop::RemoveConcatSliceAfterLoop() {
-    auto value = any_input(shape_matches("[?, head_num, ?, v_head_size]"));
-    auto init_state = any_input(rank_equals((4)));
+    auto value = pattern::any_input(pattern::shape_matches("[?, head_num, ?, v_head_size]"));
+    auto init_state = pattern::any_input(pattern::rank_equals((4)));
 
-    auto loop_inputs = OutputVector{any_input(),
-                                    any_input(),
-                                    any_input(),
-                                    any_input(),
-                                    value,
-                                    any_input(),
-                                    any_input(),
-                                    init_state,
-                                    any_input()};
+    auto loop_inputs = ov::OutputVector{pattern::any_input(),
+                                        pattern::any_input(),
+                                        pattern::any_input(),
+                                        pattern::any_input(),
+                                        value,
+                                        pattern::any_input(),
+                                        pattern::any_input(),
+                                        init_state,
+                                        pattern::any_input()};
 
-    auto loop_output0 = wrap_type<ov::op::v5::Loop>(loop_inputs, pattern::output_index_matches(0));
-    auto loop_output1 = wrap_type<ov::op::v5::Loop>(loop_inputs, pattern::output_index_matches(1));
+    auto loop_output0 = pattern::wrap_type<ov::op::v5::Loop>(loop_inputs, pattern::output_index_matches(0));
+    auto loop_output1 = pattern::wrap_type<ov::op::v5::Loop>(loop_inputs, pattern::output_index_matches(1));
 
     auto reshape_core_attn = pattern::wrap_type<v1::Reshape>({loop_output0, {-1}});
     auto reshape_core_state = pattern::wrap_type<v1::Reshape>({loop_output1, {-1}});
-    auto concat_loop = makeOP<v0::Concat>({reshape_core_attn, reshape_core_state}, {{"axis", 0}});
-    auto out_numel = any_input(has_static_shape());
+    auto concat_loop = gen_pattern::makeOP<v0::Concat>({reshape_core_attn, reshape_core_state}, {{"axis", 0}});
+    auto out_numel = pattern::any_input(pattern::has_static_shape());
     auto slice_attn = pattern::wrap_type<ov::op::v8::Slice>({concat_loop, {0}, out_numel, {1}, {0}});
-    auto reshape_attn = pattern::wrap_type<v1::Reshape>({slice_attn, any_input()},
+    auto reshape_attn = pattern::wrap_type<v1::Reshape>({slice_attn, pattern::any_input()},
                                                         pattern::shape_matches("[?, head_num, ?, v_head_size]"));
-    auto slice_state = pattern::wrap_type<ov::op::v8::Slice>({concat_loop, out_numel, any_input(), {1}, {0}});
+    auto slice_state = pattern::wrap_type<ov::op::v8::Slice>({concat_loop, out_numel, pattern::any_input(), {1}, {0}});
     auto reshape_state =
-        pattern::wrap_type<v1::Reshape>({slice_state, any_input()},
+        pattern::wrap_type<v1::Reshape>({slice_state, pattern::any_input()},
                                         pattern::shape_matches("[?, head_num, k_head_size, v_head_size]"));
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         bool changed = false;
         auto loop_node = pattern_map.at(loop_output0).get_node_shared_ptr();
@@ -179,36 +178,44 @@ ov::pass::RemoveConcatSliceAfterLoop::RemoveConcatSliceAfterLoop() {
 
 ov::pass::FuseGDNLoop::FuseGDNLoop() {
     // fuse standalone loop into a single GatedDeltaNet op
-    auto query = ov::pass::pattern::any_input(shape_matches("[?, head_num, ?, qk_head_size]"));
-    auto key = ov::pass::pattern::any_input(shape_matches("[?, head_num, ?, qk_head_size]"));
-    auto value = ov::pass::pattern::any_input(shape_matches("[?, head_num, ?, v_head_size]"));
-    auto init_state = ov::pass::pattern::any_input(rank_equals(4));
-    auto gate = ov::pass::pattern::any_input(shape_matches("[?, head_num, ?]"));
-    auto beta = ov::pass::pattern::any_input(shape_matches("[?, head_num, ?]"));
+    auto query = pattern::any_input(pattern::shape_matches("[?, head_num, ?, qk_head_size]"));
+    auto key = pattern::any_input(pattern::shape_matches("[?, head_num, ?, qk_head_size]"));
+    auto value = pattern::any_input(pattern::shape_matches("[?, head_num, ?, v_head_size]"));
+    auto init_state = pattern::any_input(pattern::rank_equals(4));
+    auto gate = pattern::any_input(pattern::shape_matches("[?, head_num, ?]"));
+    auto beta = pattern::any_input(pattern::shape_matches("[?, head_num, ?]"));
 
-    auto shape_head_size = any_input(shape_matches("[?, ?, ?, qk_head_size]"));
+    auto shape_head_size = pattern::any_input(pattern::shape_matches("[?, ?, ?, qk_head_size]"));
     auto shape_of_head_size = pattern::wrap_type<op::v3::ShapeOf>({shape_head_size});
     auto gather_index = pattern::optional<op::v8::Gather>({shape_of_head_size, {0, 2, 1, 3}, 0}, {{"batch_dims", 0}});
     auto gather = pattern::wrap_type<op::v8::Gather>({gather_index, 3, 0}, {{"batch_dims", 0}});
 
     auto head_size_f32 = pattern::optional<v0::Convert>({gather});
 
-    auto const_half = pattern::wrap_type<v0::Constant>(value_matches("0.5"));
+    auto const_half = pattern::wrap_type<v0::Constant>(pattern::value_matches("0.5"));
     auto convert_half = pattern::optional<v0::Convert>({const_half});
 
-    auto attn_scale = pattern::wrap_type<v1::Power>({head_size_f32, convert_half});
+    auto power_head_size = pattern::wrap_type<v1::Power>({head_size_f32, convert_half});
+    auto attn_scale = power_head_size;
 
     auto q_scale = pattern::wrap_type<v1::Divide>({query, attn_scale});
     // optional convert after q_scale for fp16
     auto q_convert = pattern::optional<v0::Convert>({q_scale});
 
-    auto loop_output = ov::pass::pattern::wrap_type<ov::op::v5::Loop>(
-        OutputVector{any_input(), any_input(), q_convert, key, value, gate, beta, init_state, any_input()},
-        [](std::shared_ptr<ov::Node> node) -> bool {
-            return matches_linear_attention_loop(node);
-        });
+    auto loop_output = ov::pass::pattern::wrap_type<ov::op::v5::Loop>(ov::OutputVector{pattern::any_input(),
+                                                                                       pattern::any_input(),
+                                                                                       q_convert,
+                                                                                       key,
+                                                                                       value,
+                                                                                       gate,
+                                                                                       beta,
+                                                                                       init_state,
+                                                                                       pattern::any_input()},
+                                                                      [](std::shared_ptr<ov::Node> node) -> bool {
+                                                                          return matches_linear_attention_loop(node);
+                                                                      });
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto loop_node = pattern_map.at(loop_output).get_node_shared_ptr();
 
@@ -242,11 +249,11 @@ ov::pass::FuseGDNLoop::FuseGDNLoop() {
             beta_blh                     // beta
         };
 
-        auto linear_attn = std::make_shared<ov::op::GatedDeltaNet>(inputs);
+        auto linear_attn = std::make_shared<ov::op::internal::GatedDeltaNet>(inputs);
 
         linear_attn->set_friendly_name(loop_node->get_friendly_name());
 
-        ov::op::GatedDeltaNet::Config config;
+        ov::op::internal::GatedDeltaNet::Config config;
         config.fuse_qk_l2norm = false;
         linear_attn->set_config(config);
         ov::copy_runtime_info(loop_node, linear_attn);
@@ -268,12 +275,12 @@ ov::pass::FuseGDNLoop::FuseGDNLoop() {
 }
 
 ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
-    auto query = ov::pass::pattern::any_input(has_static_rank());
-    auto key = ov::pass::pattern::any_input(has_static_rank());
-    auto value = ov::pass::pattern::any_input(has_static_rank());
-    auto init_state = ov::pass::pattern::any_input(has_static_rank());
-    auto gate = ov::pass::pattern::any_input(has_static_rank());
-    auto beta = ov::pass::pattern::any_input(has_static_rank());
+    auto query = pattern::any_input(pattern::has_static_rank());
+    auto key = pattern::any_input(pattern::has_static_rank());
+    auto value = pattern::any_input(pattern::has_static_rank());
+    auto init_state = pattern::any_input(pattern::has_static_rank());
+    auto gate = pattern::any_input(pattern::has_static_rank());
+    auto beta = pattern::any_input(pattern::has_static_rank());
     auto eps_q_const = pattern::wrap_type<v0::Constant>();
     auto eps_q = pattern::optional<v0::Convert>({eps_q_const});
     auto eps_k_const = pattern::wrap_type<v0::Constant>();
@@ -282,12 +289,12 @@ ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
     auto l2_norm = [](const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& eps) {
         auto input_convert = pattern::optional<v0::Convert>({data});
         auto mul = pattern::wrap_type<v1::Multiply>({input_convert, input_convert});
-        auto axis_const = pattern::wrap_type<v0::Constant>(value_matches("-1") || value_matches("3"));
+        auto axis_const = pattern::wrap_type<v0::Constant>(pattern::value_matches("-1") || pattern::value_matches("3"));
         auto axis = pattern::optional<v0::Convert>({axis_const});
         auto reduce_sum = pattern::wrap_type<v1::ReduceSum>({mul, axis}, {{"keep_dims", true}});
         auto add = pattern::wrap_type<v1::Add>({reduce_sum, eps});
         auto sqrt = pattern::wrap_type<v0::Sqrt>({add});
-        auto const_one = pattern::wrap_type<v0::Constant>(value_matches("1"));
+        auto const_one = pattern::wrap_type<v0::Constant>(pattern::value_matches("1"));
         auto convert_one = pattern::optional<v0::Convert>({const_one});
         auto div = pattern::wrap_type<v1::Divide>({convert_one, sqrt});
         auto multiply = pattern::wrap_type<v1::Multiply>({input_convert, div});
@@ -299,16 +306,15 @@ ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
     // optional transpose maybe inserted by FuseGDNLoop
     auto input_query = pattern::optional<v0::Convert>({normalized_query});
     auto input_key = pattern::optional<v0::Convert>({normalized_key});
-    auto transpose_query = pattern::optional<v1::Transpose>({input_query, any_input()});
-    auto transpose_key = pattern::optional<v1::Transpose>({input_key, any_input()});
+    auto transpose_query = pattern::optional<v1::Transpose>({input_query, pattern::any_input()});
+    auto transpose_key = pattern::optional<v1::Transpose>({input_key, pattern::any_input()});
 
-    auto gdn =
-        pattern::wrap_type<ov::op::GatedDeltaNet>({transpose_query, transpose_key, value, init_state, gate, beta});
+    auto gdn = pattern::wrap_type<ov::op::internal::GatedDeltaNet>(
+        {transpose_query, transpose_key, value, init_state, gate, beta});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto gdn_node = ov::as_type_ptr<ov::op::GatedDeltaNet>(pattern_map.at(gdn).get_node_shared_ptr());
-
+        auto gdn_node = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(pattern_map.at(gdn).get_node_shared_ptr());
         auto config = gdn_node->get_config();
         config.fuse_qk_l2norm = true;
 
@@ -360,7 +366,6 @@ bool ov::pass::GatedDeltaNetFusion::run_on_model(const std::shared_ptr<ov::Model
     RUN_ON_MODEL_SCOPE(GatedDeltaNetFusion);
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
-    // TODO: CVS-183090 use common transformation to remove concat->slice
     symbolic_ctx_manager->register_pass<ov::pass::RemoveConcatSliceAfterLoop>();
     symbolic_ctx_manager->register_pass<ov::pass::FuseGDNLoop>();
     // remove redundant transpose after loop fusion, which are inserted by FuseGDNLoop

@@ -5,6 +5,7 @@
 #include "openvino/op/gated_delta_net.hpp"
 
 #include "dimension_util.hpp"
+#include "gated_delta_net_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/op.hpp"
@@ -55,8 +56,17 @@ inline void input_check(const ov::Node* node,
 }
 }  // namespace
 
-namespace ov {
-namespace op {
+namespace ov::op::internal {
+
+GatedDeltaNet::GatedDeltaNet(const Output<Node>& query,
+                             const Output<Node>& key,
+                             const Output<Node>& value,
+                             const Output<Node>& recurrent_state,
+                             const Output<Node>& gate,
+                             const Output<Node>& beta)
+    : Op({query, key, value, recurrent_state, gate, beta}) {
+    constructor_validate_and_infer_types();
+}
 
 GatedDeltaNet::GatedDeltaNet(const ov::OutputVector& args) : ov::op::Op(args) {
     constructor_validate_and_infer_types();
@@ -74,79 +84,9 @@ void GatedDeltaNet::validate_and_infer_types() {
     input_check(this, 3, "recurrent_state", {4}, {ov::element::f32, ov::element::f16, ov::element::bf16});
     input_check(this, 4, "gate", {3}, {ov::element::f32, ov::element::f16, ov::element::bf16});
     input_check(this, 5, "beta", {3}, {ov::element::f32, ov::element::f16, ov::element::bf16});
-
-    // batch, seq_len, head_num, head_size
-    const auto& query_ps = get_input_partial_shape(0);
-    const auto& key_ps = get_input_partial_shape(1);
-    const auto& value_ps = get_input_partial_shape(2);
-    const auto& state_ps = get_input_partial_shape(3);
-    const auto& gate_ps = get_input_partial_shape(4);
-    const auto& beta_ps = get_input_partial_shape(5);
-
-    const auto q_head_num = query_ps[2];
-    const auto k_head_num = key_ps[2];
-    const auto v_head_num = value_ps[2];
-
-    const auto k_head_size = key_ps[3];
-    const auto q_head_size = query_ps[3];
-    const auto v_head_size = value_ps[3];
-
-    NODE_VALIDATION_CHECK(this,
-                          q_head_num.compatible(k_head_num) && q_head_num.compatible(v_head_num),
-                          "The number of heads in query key and value should be the same, but got ",
-                          q_head_num,
-                          " and ",
-                          k_head_num,
-                          ".");
-
-    NODE_VALIDATION_CHECK(this,
-                          k_head_size.compatible(q_head_size),
-                          "The head size in key and query should be the same, but got ",
-                          k_head_size,
-                          " and ",
-                          q_head_size,
-                          ".");
-
-    const auto gate_head_num = gate_ps[2];
-    const auto beta_head_num = beta_ps[2];
-
-    NODE_VALIDATION_CHECK(this,
-                          gate_head_num.compatible(beta_head_num) && gate_head_num.compatible(q_head_num),
-                          "The number of heads in gate, beta, and query should be the same, but got ",
-                          gate_head_num,
-                          " and ",
-                          beta_head_num,
-                          ".");
-
-    // [batch, v_head_nums, k_head_size, v_head_size]
-    const auto state_head_num = state_ps[1];
-    const auto state_hidden_size_0 = state_ps[2];
-    const auto state_hidden_size_1 = state_ps[3];
-    NODE_VALIDATION_CHECK(this,
-                          state_head_num.compatible(v_head_num),
-                          "The number of heads in recurrent_state and value should be the same, but got ",
-                          state_head_num,
-                          " and ",
-                          v_head_num,
-                          ".");
-    NODE_VALIDATION_CHECK(this,
-                          state_hidden_size_0.compatible(k_head_size),
-                          "The dim at shape[-2] of recurrent_state and head size of key should be the same, but got ",
-                          state_hidden_size_0,
-                          " and ",
-                          k_head_size,
-                          ".");
-    NODE_VALIDATION_CHECK(this,
-                          state_hidden_size_1.compatible(v_head_size),
-                          "The dim at shape[-1] of recurrent_state and head size of value should be the same, but got ",
-                          state_hidden_size_1,
-                          " and ",
-                          v_head_size,
-                          ".");
-    // output has the same shape and type as input value, output state has the same shape and type as input
-    // recurrent_state
-    set_output_type(0, get_input_element_type(2), value_ps);
-    set_output_type(1, get_input_element_type(3), state_ps);
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    set_output_type(1, get_input_element_type(3), output_shapes[1]);
 }
 
 bool GatedDeltaNet::visit_attributes(AttributeVisitor& visitor) {
@@ -165,5 +105,4 @@ std::shared_ptr<ov::Node> GatedDeltaNet::clone_with_new_inputs(const ov::OutputV
     return cloned;
 }
 
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::internal

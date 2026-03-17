@@ -5,16 +5,22 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace op {
-
-// This is an experimental operation that is implemented in the plugins.
-// Do not use in user applications, backward compatibility is not guaranteed in future releases.
+namespace ov::op::internal {
+/// \note GatedDeltaNet op class is under development and subject to change
+///
+/// \brief Operator performing Gated Delta Net computation
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API GatedDeltaNet : public ov::op::Op {
 public:
     OPENVINO_OP("GatedDeltaNet");
 
     GatedDeltaNet() = default;
+    GatedDeltaNet(const Output<Node>& query,
+                  const Output<Node>& key,
+                  const Output<Node>& value,
+                  const Output<Node>& recurrent_state,
+                  const Output<Node>& gate,
+                  const Output<Node>& beta);
     struct Config {
         bool fuse_qk_l2norm = false;
         float q_l2_norm_eps = 1e-6F;
@@ -35,5 +41,4 @@ protected:
     Config m_config;
 };
 
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::internal

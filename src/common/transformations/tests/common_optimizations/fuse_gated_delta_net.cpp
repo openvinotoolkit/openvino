@@ -35,12 +35,10 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "transformations/convert_precision.hpp"
 
-using namespace testing;
-using namespace ov;
+namespace ov::test {
 
 namespace {
-
-static bool is_ordered(const std::vector<size_t>& order) {
+bool is_ordered(const std::vector<size_t>& order) {
     for (size_t i = 0; i < order.size(); ++i) {
         if (order[i] != i) {
             return false;
@@ -60,6 +58,7 @@ ov::PartialShape adjust_input_shape(const ov::PartialShape& shape, const std::ve
         return adjusted_shape;
     }
 };
+}  // namespace
 std::shared_ptr<ov::Model> build_looped_gdn(int32_t batch,
                                             int32_t seq_len,
                                             int32_t qk_head_num,
@@ -69,7 +68,7 @@ std::shared_ptr<ov::Model> build_looped_gdn(int32_t batch,
                                             ov::element::Type dtype,
                                             std::vector<size_t>& input_order) {
     // 0, 1, 2, 3 for B, H, L, S
-    bool is_ordered = ::is_ordered(input_order);
+    bool ordered = is_ordered(input_order);
 
     ov::PartialShape qk_shape{batch, qk_head_num, seq_len, qk_head_size};
     ov::PartialShape v_tensor_shape{batch, v_head_num, seq_len, v_head_size};
@@ -110,7 +109,7 @@ std::shared_ptr<ov::Model> build_looped_gdn(int32_t batch,
     std::shared_ptr<ov::Node> v_in = v;
     std::shared_ptr<ov::Node> g_in = g;
     std::shared_ptr<ov::Node> beta_in = beta;
-    if (!is_ordered) {
+    if (!ordered) {
         q_in = std::make_shared<ov::op::v1::Transpose>(q_norm, perm_bhsd);
         k_in = std::make_shared<ov::op::v1::Transpose>(k_norm, perm_bhsd);
         v_in = std::make_shared<ov::op::v1::Transpose>(v, perm_bhsd);
@@ -221,7 +220,7 @@ std::shared_ptr<ov::Model> build_looped_gdn(int32_t batch,
     auto core_restored = std::make_shared<ov::op::v1::Reshape>(core_slice, core_shape, false);
     auto state_restored = std::make_shared<ov::op::v1::Reshape>(state_slice, state_shape, false);
     std::shared_ptr<ov::Node> core_attn_final = core_restored;
-    if (!is_ordered) {
+    if (!ordered) {
         core_attn_final =
             std::make_shared<ov::op::v1::Transpose>(core_restored,
                                                     ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3}));
@@ -243,7 +242,7 @@ std::shared_ptr<ov::Model> build_fused_gdn_ref(int32_t batch,
                                                int32_t v_head_size,
                                                ov::element::Type dtype = ov::element::f32,
                                                std::vector<size_t> input_order = {0, 2, 1, 3}) {
-    bool is_ordered = ::is_ordered(input_order);
+    bool ordered = is_ordered(input_order);
     ov::PartialShape qk_shape{batch, qk_head_num, seq_len, qk_head_size};
     ov::PartialShape v_tensor_shape{batch, v_head_num, seq_len, v_head_size};
     ov::PartialShape gv_shape{batch, qk_head_num, seq_len};
@@ -272,7 +271,7 @@ std::shared_ptr<ov::Model> build_fused_gdn_ref(int32_t batch,
     std::shared_ptr<ov::Node> v_in = v;
     std::shared_ptr<ov::Node> g_in = g;
     std::shared_ptr<ov::Node> beta_in = beta;
-    if (is_ordered) {
+    if (ordered) {
         q_in = std::make_shared<ov::op::v1::Transpose>(q, perm_bshd);
         k_in = std::make_shared<ov::op::v1::Transpose>(k, perm_bshd);
         v_in = std::make_shared<ov::op::v1::Transpose>(v, perm_bshd);
@@ -280,14 +279,14 @@ std::shared_ptr<ov::Model> build_fused_gdn_ref(int32_t batch,
         beta_in = std::make_shared<ov::op::v1::Transpose>(beta, perm_bsh);
     }
 
-    auto gdn = std::make_shared<ov::op::GatedDeltaNet>(ov::OutputVector{q_in, k_in, v_in, h0, g_in, beta_in});
-    ov::op::GatedDeltaNet::Config cfg;
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(ov::OutputVector{q_in, k_in, v_in, h0, g_in, beta_in});
+    ov::op::internal::GatedDeltaNet::Config cfg;
     cfg.fuse_qk_l2norm = true;
     cfg.q_l2_norm_eps = 1e-6F;
     cfg.k_l2_norm_eps = 1e-6F;
     gdn->set_config(cfg);
     ov::Output<ov::Node> gdn_core_output = gdn->output(0);
-    if (is_ordered) {
+    if (ordered) {
         gdn_core_output = std::make_shared<ov::op::v1::Transpose>(gdn->output(0), perm_bshd);
     }
 
@@ -296,8 +295,6 @@ std::shared_ptr<ov::Model> build_fused_gdn_ref(int32_t batch,
     return std::make_shared<ov::Model>(ov::OutputVector{reshaped, gdn->output(1)},
                                        ov::ParameterVector{q, k, v, h0, g, beta});
 }
-
-}  // namespace
 
 TEST_F(TransformationTestsF, GatedDeltaNetFusion_BuildBHLSLoopedGDNMode) {
     disable_rt_info_check();
@@ -413,3 +410,4 @@ TEST_F(TransformationTestsF, GatedDeltaNetFusion_BuildBLHSLoopedGDNMode_F16) {
     model_ref =
         build_fused_gdn_ref(batch, seq_len, qk_head_num, v_head_num, qk_head_size, v_head_size, ov::element::f16);
 }
+}  // namespace ov::test
