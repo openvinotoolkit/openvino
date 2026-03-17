@@ -16,8 +16,25 @@
 
 namespace intel_npu {
 
+namespace test_constants {
+inline constexpr uint32_t TARGET_ZE_DRIVER_NPU_EXT_VERSION = ZE_DRIVER_NPU_EXT_VERSION_1_0;
+inline constexpr uint32_t TARGET_ZE_GRAPH_NPU_EXT_VERSION = ZE_GRAPH_EXT_VERSION_1_16;
+inline constexpr uint32_t TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION = ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_1;
+inline constexpr uint32_t TARGET_ZE_PROFILING_NPU_EXT_VERSION = ZE_PROFILING_DATA_EXT_VERSION_1_0;
+inline constexpr uint32_t TARGET_ZE_CONTEXT_NPU_EXT_VERSION = ZE_CONTEXT_NPU_EXT_VERSION_1_0;
+inline constexpr uint32_t TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION = ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_1;
+inline constexpr uint32_t TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION = ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION_1_0;
+}  // namespace test_constants
 struct ZeroInitStructsMock {
-    ZeroInitStructsMock(int extVersion);
+    ZeroInitStructsMock(
+        uint32_t zeDriverNpuExtVersion = intel_npu::test_constants::TARGET_ZE_DRIVER_NPU_EXT_VERSION,
+        uint32_t zeGraphNpuExtVersion = intel_npu::test_constants::TARGET_ZE_GRAPH_NPU_EXT_VERSION,
+        uint32_t zeCommandQueueNpuExtVersion = intel_npu::test_constants::TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION,
+        uint32_t zeProfilingNpuExtVersion = intel_npu::test_constants::TARGET_ZE_PROFILING_NPU_EXT_VERSION,
+        uint32_t zeContextNpuExtVersion = intel_npu::test_constants::TARGET_ZE_CONTEXT_NPU_EXT_VERSION,
+        uint32_t zeMutableCommandListExtVersion = intel_npu::test_constants::TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION,
+        uint32_t zeExternalMemMapSysMemExtVersion =
+            intel_npu::test_constants::TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION);
 
     ~ZeroInitStructsMock();
 

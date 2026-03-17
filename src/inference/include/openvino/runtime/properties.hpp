@@ -749,6 +749,30 @@ static constexpr Property<Level> level{"LOG_LEVEL"};
 static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
 
 /**
+ * @brief This property defines the path which will be used to store any data cached by plugins.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * The underlying cache structure is not defined and might differ between OpenVINO releases
+ * Cached data might be platform / device specific and might be invalid after OpenVINO version change
+ *
+ * If the path is a directory, it has the same effect as the `cache_dir` property. Regular caching is used in this case.
+ *
+ * If this property is not specified or value is empty string, then caching is disabled.
+ * The property might enable caching for the plugin using the following code:
+ *
+ * @code
+ * ie.set_property("GPU", ov::cache_path("cache/")); // enables cache for GPU plugin
+ * @endcode
+ *
+ * The following code enables caching of compiled network blobs for devices where import/export is supported
+ *
+ * @code
+ * ie.set_property(ov::cache_path("cache/")); // enables models cache
+ * @endcode
+ */
+inline constexpr Property<std::filesystem::path> cache_path{"CACHE_PATH"};
+
+/**
  * @brief Read-only property to notify user that compiled model was loaded from the cache
  * @ingroup ov_runtime_cpp_prop_api
  */
@@ -762,6 +786,26 @@ static constexpr Property<bool, PropertyMutability::RO> loaded_from_cache{"LOADE
  * cache feature is enabled.
  */
 static inline constexpr Property<std::filesystem::path, PropertyMutability::WO> cache_model_path{"CACHE_MODEL_PATH"};
+
+/**
+ * @brief The property allows setting a user ID for a cache entry.
+ *
+ * This overrides the internal ID generation mechanism and the user must manage the ID. If defined by the user, the
+ * same ID must be used to restore the model from the cache; otherwise, the model will be compiled.
+ * The custom ID can allow importing a model from the cache file without the original model.
+ *
+ * The following code allows to compile a model with a custom ID.
+ * @code
+ * // store compiled model to cache with ID "746352"
+ * core.compile_model(model, "NPU", ov::AnyMap{ov::cache_blob_id("746352"), ov::cache_path("cache_dir")});
+ * @endcode
+ *
+ * The following code allows to import a model from the cache if the original model is not available.
+ * @code
+ * core.compile_model(empty_model, "NPU", ov::AnyMap{ov::cache_blob_id("746352"), ov::cache_path("cache_dir")});
+ * @endcode
+ */
+inline constexpr Property<uint64_t, PropertyMutability::RW> cache_blob_id{"CACHE_BLOB_ID"};
 
 /**
  * @brief Enum to define possible workload types
