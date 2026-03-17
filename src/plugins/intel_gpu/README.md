@@ -35,7 +35,7 @@ This contents explain the internal implementation of dynamic shape support in th
 
 * [Overall flow for dynamic shape execution](./docs/dynamic_shape/overall_flow.md)
 * Implementation details
-  * Preprocessing: Shape inference / update weight / realloc memory
+  * [Preprocessing: Shape inference / update weight / realloc memory](./docs/dynamic_shape/preprocessing.md)
   * [dynamic impl of kernels](./docs/dynamic_shape/dynamic_impl.md)
   * [in-memory kernel cache](./docs/dynamic_shape/in_memory_cache.md)
   * [async kernel compilation](./docs/dynamic_shape/async_compilation.md)
