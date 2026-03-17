@@ -169,7 +169,7 @@ class Property : public util::BaseProperty<T, mutability_> {
                     OPENVINO_THROW("Cannot assign negative value ", value, " to unsigned property");
                 }
                 if constexpr (sizeof(VType) > sizeof(UType)) {
-                    if (value > static_cast<VType>(std::numeric_limits<UType>::max())) {
+                    if (value > static_cast<VType>((std::numeric_limits<UType>::max)())) {
                         OPENVINO_THROW("Value ", value, " exceeds maximum for target unsigned type");
                     }
                 }
