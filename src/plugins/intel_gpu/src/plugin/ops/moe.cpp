@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/op/constant.hpp"
@@ -53,7 +53,8 @@ static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared
     ///                  shape [num_experts, hidden_size, group_num, 1]
     ///   10: w2_zp - expert zp for final projection for compressed experts,
     ///                  shape [num_experts, hidden_size, group_num, 1]
-    validate_inputs_count(op, {11});
+    const size_t expected_inputs = config.routing_type == op::MOECompressed::RoutingType::SIGMOID_BIAS ? 13 : 11;
+    validate_inputs_count(op, {expected_inputs});
 
     const std::string layerName = layer_type_name_ID(op);
     const cldnn::moe_3gemm_fused_compressed moe(layerName, inputs, config);

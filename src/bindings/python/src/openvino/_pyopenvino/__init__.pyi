@@ -21,14 +21,14 @@ class AsyncInferQueue:
     """
     openvino.AsyncInferQueue represents a helper that creates a pool of asynchronousInferRequests and provides synchronization functions to control flow of a simple pipeline.
     """
-    def __getitem__(self, arg0: typing.SupportsInt) -> InferRequest:
+    def __getitem__(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> InferRequest:
         """
                 :param i: InferRequest id
                 :type i: int
                 :return: InferRequests from the pool with given id.
                 :rtype: openvino.InferRequest
         """
-    def __init__(self, model: CompiledModel, jobs: typing.SupportsInt = 0) -> None:
+    def __init__(self, model: CompiledModel, jobs: typing.SupportsInt | typing.SupportsIndex = 0) -> None:
         """
                         Creates AsyncInferQueue.
         
@@ -140,10 +140,10 @@ class AxisSet:
     openvino.AxisSet wraps ov::AxisSet
     """
     @typing.overload
-    def __init__(self, axes: collections.abc.Set[typing.SupportsInt]) -> None:
+    def __init__(self, axes: collections.abc.Set[typing.SupportsInt | typing.SupportsIndex]) -> None:
         ...
     @typing.overload
-    def __init__(self, axes: collections.abc.Sequence[typing.SupportsInt]) -> None:
+    def __init__(self, axes: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> None:
         ...
     @typing.overload
     def __init__(self, axes: AxisSet) -> None:
@@ -158,10 +158,10 @@ class AxisVector:
     """
     openvino.AxisVector wraps ov::AxisVector
     """
-    def __getitem__(self, arg0: typing.SupportsInt) -> int:
+    def __getitem__(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> int:
         ...
     @typing.overload
-    def __init__(self, axes: collections.abc.Sequence[typing.SupportsInt]) -> None:
+    def __init__(self, axes: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> None:
         ...
     @typing.overload
     def __init__(self, axes: AxisVector) -> None:
@@ -172,7 +172,7 @@ class AxisVector:
         ...
     def __repr__(self) -> str:
         ...
-    def __setitem__(self, arg0: typing.SupportsInt, arg1: typing.SupportsInt) -> None:
+    def __setitem__(self, arg0: typing.SupportsInt | typing.SupportsIndex, arg1: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
 class CompiledModel:
     """
@@ -270,7 +270,7 @@ class CompiledModel:
                         :rtype: openvino.ConstOutput
         """
     @typing.overload
-    def input(self, index: typing.SupportsInt) -> ConstOutput:
+    def input(self, index: typing.SupportsInt | typing.SupportsIndex) -> ConstOutput:
         """
                         Gets input of a compiled model identified by an index.
                         If the input with given index is not found, this method throws an exception.
@@ -301,7 +301,7 @@ class CompiledModel:
                         :rtype: openvino.ConstOutput
         """
     @typing.overload
-    def output(self, index: typing.SupportsInt) -> ConstOutput:
+    def output(self, index: typing.SupportsInt | typing.SupportsIndex) -> ConstOutput:
         """
                         Gets output of a compiled model identified by an index.
                         If the output with given index is not found, this method throws an exception.
@@ -503,13 +503,13 @@ class Coordinate:
     """
     openvino.Coordinate wraps ov::Coordinate
     """
-    def __getitem__(self, arg0: typing.SupportsInt) -> int:
+    def __getitem__(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> int:
         ...
     @typing.overload
     def __init__(self, arg0: Shape) -> None:
         ...
     @typing.overload
-    def __init__(self, arg0: collections.abc.Sequence[typing.SupportsInt]) -> None:
+    def __init__(self, arg0: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> None:
         ...
     @typing.overload
     def __init__(self, arg0: Coordinate) -> None:
@@ -520,16 +520,16 @@ class Coordinate:
         ...
     def __repr__(self) -> str:
         ...
-    def __setitem__(self, arg0: typing.SupportsInt, arg1: typing.SupportsInt) -> None:
+    def __setitem__(self, arg0: typing.SupportsInt | typing.SupportsIndex, arg1: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
 class CoordinateDiff:
     """
     openvino.CoordinateDiff wraps ov::CoordinateDiff
     """
-    def __getitem__(self, arg0: typing.SupportsInt) -> int:
+    def __getitem__(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> int:
         ...
     @typing.overload
-    def __init__(self, arg0: collections.abc.Sequence[typing.SupportsInt]) -> None:
+    def __init__(self, arg0: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> None:
         ...
     @typing.overload
     def __init__(self, arg0: CoordinateDiff) -> None:
@@ -540,13 +540,13 @@ class CoordinateDiff:
         ...
     def __repr__(self) -> str:
         ...
-    def __setitem__(self, arg0: typing.SupportsInt, arg1: typing.SupportsInt) -> None:
+    def __setitem__(self, arg0: typing.SupportsInt | typing.SupportsIndex, arg1: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def __str__(self) -> str:
         ...
 class Core:
     """
-    openvino.Core class represents OpenVINO runtime Core entity. User applications can create several Core class instances, but in this case, the underlying plugins are created multiple times and not shared between several Core instances. The recommended way is to have a single Core instance per application.
+    openvino.Core class represents OpenVINO runtime Core entity. User applications can create several Core class instances. In that case the device plugins will still share underlying resources (such as OCL context) in per-device singleton.
     """
     def __init__(self, xml_config_file: typing.Any = '') -> None:
         ...
@@ -1127,13 +1127,13 @@ class Dimension:
     def __eq__(self, arg0: Dimension) -> bool:
         ...
     @typing.overload
-    def __eq__(self, arg0: typing.SupportsInt) -> bool:
+    def __eq__(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> bool:
         ...
     @typing.overload
     def __init__(self) -> None:
         ...
     @typing.overload
-    def __init__(self, dimension: typing.SupportsInt) -> None:
+    def __init__(self, dimension: typing.SupportsInt | typing.SupportsIndex) -> None:
         """
                         Construct a static dimension.
         
@@ -1141,7 +1141,7 @@ class Dimension:
                         :type dimension: int
         """
     @typing.overload
-    def __init__(self, min_dimension: typing.SupportsInt, max_dimension: typing.SupportsInt) -> None:
+    def __init__(self, min_dimension: typing.SupportsInt | typing.SupportsIndex, max_dimension: typing.SupportsInt | typing.SupportsIndex) -> None:
         """
                         Construct a dynamic dimension with bounded range.
         
@@ -1173,7 +1173,7 @@ class Dimension:
         """
                         Return this dimension as integer.
                         This dimension must be static and non-negative.
-                        
+        
                         :return: Value of the dimension.
                         :rtype: int
         """
@@ -1446,7 +1446,7 @@ class FrontEndManager:
     """
     openvino.frontend.FrontEndManager wraps ov::frontend::FrontEndManager
     """
-    def __getstate__(self) -> tuple:
+    def __getstate__(self) -> tuple[int]:
         ...
     def __init__(self) -> None:
         ...
@@ -1515,7 +1515,7 @@ class InferRequest:
                     :rtype: openvino.CompiledModel
         """
     @typing.overload
-    def get_input_tensor(self, index: typing.SupportsInt) -> Tensor:
+    def get_input_tensor(self, index: typing.SupportsInt | typing.SupportsIndex) -> Tensor:
         """
                     Gets input tensor of InferRequest.
         
@@ -1536,7 +1536,7 @@ class InferRequest:
                     :rtype: openvino.Tensor
         """
     @typing.overload
-    def get_output_tensor(self, index: typing.SupportsInt) -> Tensor:
+    def get_output_tensor(self, index: typing.SupportsInt | typing.SupportsIndex) -> Tensor:
         """
                     Gets output tensor of InferRequest.
         
@@ -1648,7 +1648,7 @@ class InferRequest:
                     :type userdata: Any
         """
     @typing.overload
-    def set_input_tensor(self, index: typing.SupportsInt, tensor: Tensor) -> None:
+    def set_input_tensor(self, index: typing.SupportsInt | typing.SupportsIndex, tensor: Tensor) -> None:
         """
                     Sets input tensor of InferRequest.
         
@@ -1702,7 +1702,7 @@ class InferRequest:
                     :type tensors: list[openvino.Tensor]
         """
     @typing.overload
-    def set_input_tensors(self, idx: typing.SupportsInt, tensors: TensorVector) -> None:
+    def set_input_tensors(self, idx: typing.SupportsInt | typing.SupportsIndex, tensors: TensorVector) -> None:
         """
                     Sets batch of tensors for single input data to infer by index.
                     Model input needs to have batch dimension and the number of `tensors`
@@ -1716,7 +1716,7 @@ class InferRequest:
                     :type tensors: openvino.TensorVector
         """
     @typing.overload
-    def set_input_tensors(self, idx: typing.SupportsInt, tensors: list) -> None:
+    def set_input_tensors(self, idx: typing.SupportsInt | typing.SupportsIndex, tensors: list) -> None:
         """
                     Sets batch of tensors for single input data to infer by index.
                     Model input needs to have batch dimension and the number of `tensors`
@@ -1730,7 +1730,7 @@ class InferRequest:
                     :type tensors: list[openvino.Tensor]
         """
     @typing.overload
-    def set_output_tensor(self, index: typing.SupportsInt, tensor: Tensor) -> None:
+    def set_output_tensor(self, index: typing.SupportsInt | typing.SupportsIndex, tensor: Tensor) -> None:
         """
                     Sets output tensor of InferRequest.
         
@@ -1916,7 +1916,7 @@ class InferRequest:
         
                     GIL is released while running this function.
         """
-    def wait_for(self, timeout: typing.SupportsInt) -> bool:
+    def wait_for(self, timeout: typing.SupportsInt | typing.SupportsIndex) -> bool:
         """
                     Waits for the result to become available.
                     Blocks until specified timeout has elapsed or
@@ -1933,7 +1933,7 @@ class InferRequest:
     def input_tensors(self) -> list:
         """
                     Gets all input tensors of this InferRequest.
-                                        
+        
                     :rtype: list[openvino.Tensor]
         """
     @property
@@ -1961,7 +1961,7 @@ class InferRequest:
     def output_tensors(self) -> list:
         """
                     Gets all output tensors of this InferRequest.
-                                        
+        
                     :rtype: list[openvino.Tensor]
         """
     @property
@@ -1971,7 +1971,7 @@ class InferRequest:
                     Not all plugins provide meaningful data!
         
                     GIL is released while running this function.
-                    
+        
                     :return: Inference time.
                     :rtype: list[openvino.ProfilingInfo]
         """
@@ -2170,7 +2170,7 @@ class InputModel:
                         :return: Partial shape for this place.
                         :rtype: openvino.PartialShape
         """
-    def get_place_by_input_index(self, input_idx: typing.SupportsInt) -> Place:
+    def get_place_by_input_index(self, input_idx: typing.SupportsInt | typing.SupportsIndex) -> Place:
         """
                         Returns a tensor place by an input index.
         
@@ -2189,7 +2189,7 @@ class InputModel:
                         :return: Place representing operation.
                         :rtype: openvino.frontend.Place
         """
-    def get_place_by_operation_name_and_input_port(self, operation_name: str, input_port_index: typing.SupportsInt) -> Place:
+    def get_place_by_operation_name_and_input_port(self, operation_name: str, input_port_index: typing.SupportsInt | typing.SupportsIndex) -> Place:
         """
                         Returns an input port place by operation name and appropriate port index.
         
@@ -2200,7 +2200,7 @@ class InputModel:
                         :return: Place representing input port of operation.
                         :rtype: openvino.frontend.Place
         """
-    def get_place_by_operation_name_and_output_port(self, operation_name: str, output_port_index: typing.SupportsInt) -> Place:
+    def get_place_by_operation_name_and_output_port(self, operation_name: str, output_port_index: typing.SupportsInt | typing.SupportsIndex) -> Place:
         """
                         Returns an output port place by operation name and appropriate port index.
         
@@ -2254,7 +2254,7 @@ class InputModel:
                         :param type: New element type.
                         :type type: openvino.Type
         """
-    def set_name_for_dimension(self, place: Place, dim_index: typing.SupportsInt, dim_name: str) -> None:
+    def set_name_for_dimension(self, place: Place, dim_index: typing.SupportsInt | typing.SupportsIndex, dim_name: str) -> None:
         """
                         Set name for a particular dimension of a place (e.g. batch dimension).
         
@@ -2652,7 +2652,7 @@ class Model:
                             :return: list of sorted Nodes representing ops used in model.
                             :rtype: list[openvino.Node]
         """
-    def get_output_element_type(self, index: typing.SupportsInt) -> Type:
+    def get_output_element_type(self, index: typing.SupportsInt | typing.SupportsIndex) -> Type:
         """
                             Return the element type of output i
         
@@ -2661,7 +2661,7 @@ class Model:
                             :return: Type object of output i
                             :rtype: openvino.Type
         """
-    def get_output_op(self, index: typing.SupportsInt) -> Node:
+    def get_output_op(self, index: typing.SupportsInt | typing.SupportsIndex) -> Node:
         """
                             Return the op that generates output i
         
@@ -2670,7 +2670,7 @@ class Model:
                             :return: Node object that generates output i
                             :rtype: openvino.Node
         """
-    def get_output_partial_shape(self, index: typing.SupportsInt) -> PartialShape:
+    def get_output_partial_shape(self, index: typing.SupportsInt | typing.SupportsIndex) -> PartialShape:
         """
                             Return the partial shape of element i
         
@@ -2679,7 +2679,7 @@ class Model:
                             :return: PartialShape object of element i
                             :rtype: openvino.PartialShape
         """
-    def get_output_shape(self, index: typing.SupportsInt) -> Shape:
+    def get_output_shape(self, index: typing.SupportsInt | typing.SupportsIndex) -> Shape:
         """
                             Return the shape of element i
         
@@ -2709,7 +2709,7 @@ class Model:
     def get_parameters(self) -> list[op.Parameter]:
         """
                             Return the model parameters.
-                            
+        
                             :return: a list of model's parameters.
                             :rtype: list[op.Parameter]
         """
@@ -2848,7 +2848,7 @@ class Model:
     def get_variables(self) -> list[op.util.Variable]:
         """
                             Return a list of model's variables.
-                            
+        
                             :return: a list of model's variables.
                             :rtype: list[op.util.Variable]
         """
@@ -2878,7 +2878,7 @@ class Model:
     def input(self) -> Output:
         ...
     @typing.overload
-    def input(self, index: typing.SupportsInt) -> Output:
+    def input(self, index: typing.SupportsInt | typing.SupportsIndex) -> Output:
         ...
     @typing.overload
     def input(self, tensor_name: str) -> Output:
@@ -2887,7 +2887,7 @@ class Model:
     def input(self) -> ConstOutput:
         ...
     @typing.overload
-    def input(self, index: typing.SupportsInt) -> ConstOutput:
+    def input(self, index: typing.SupportsInt | typing.SupportsIndex) -> ConstOutput:
         ...
     @typing.overload
     def input(self, tensor_name: str) -> ConstOutput:
@@ -2903,7 +2903,7 @@ class Model:
     def output(self) -> Output:
         ...
     @typing.overload
-    def output(self, index: typing.SupportsInt) -> Output:
+    def output(self, index: typing.SupportsInt | typing.SupportsIndex) -> Output:
         ...
     @typing.overload
     def output(self, tensor_name: str) -> Output:
@@ -2912,7 +2912,7 @@ class Model:
     def output(self) -> ConstOutput:
         ...
     @typing.overload
-    def output(self, index: typing.SupportsInt) -> ConstOutput:
+    def output(self, index: typing.SupportsInt | typing.SupportsIndex) -> ConstOutput:
         ...
     @typing.overload
     def output(self, tensor_name: str) -> ConstOutput:
@@ -2955,7 +2955,7 @@ class Model:
                             :param variable:  Variable to delete.
                             :type variable: op.util.Variable
         """
-    def replace_parameter(self, parameter_index: typing.SupportsInt, parameter: op.Parameter) -> None:
+    def replace_parameter(self, parameter_index: typing.SupportsInt | typing.SupportsIndex, parameter: op.Parameter) -> None:
         """
                             Replace the `parameter_index` parameter of the model with `parameter`
         
@@ -3213,7 +3213,7 @@ class Model:
     def parameters(self) -> list[op.Parameter]:
         """
                                                 Return the model parameters.
-                                                
+        
                                                 :return: a list of model's parameters.
                                                 :rtype: list[op.Parameter]
         """
@@ -3248,7 +3248,7 @@ class Model:
     def variables(self) -> list[op.util.Variable]:
         """
                                             Return a list of model's variables.
-                                            
+        
                                             :return: a list of model's variables.
                                             :rtype: list[op.util.Variable]
         """
@@ -3257,7 +3257,7 @@ class Node:
     openvino.Node wraps ov::Node
     """
     friendly_name: str
-    def __add__(self, right: openvino._pyopenvino.Node | typing.SupportsInt | typing.SupportsFloat | numpy.ndarray) -> Node:
+    def __add__(self, right: openvino._pyopenvino.Node | typing.SupportsInt | typing.SupportsIndex | typing.SupportsFloat | typing.SupportsIndex | numpy.ndarray) -> Node:
         """
                     Return node which applies f(A,B) = A+B to the input nodes element-wise.
         
@@ -3270,7 +3270,7 @@ class Node:
         ...
     def __getattr__(self, arg0: str) -> collections.abc.Callable:
         ...
-    def __mul__(self, right: openvino._pyopenvino.Node | typing.SupportsInt | typing.SupportsFloat | numpy.ndarray) -> Node:
+    def __mul__(self, right: openvino._pyopenvino.Node | typing.SupportsInt | typing.SupportsIndex | typing.SupportsFloat | typing.SupportsIndex | numpy.ndarray) -> Node:
         """
                     Return node which applies f(A,B) = A*B to the input nodes element-wise.
         
@@ -3279,17 +3279,17 @@ class Node:
                     :return: The node performing element-wise multiplication.
                     :rtype: openvino.Node
         """
-    def __radd__(self, arg0: openvino._pyopenvino.Node | typing.SupportsInt | typing.SupportsFloat | numpy.ndarray) -> Node:
+    def __radd__(self, arg0: openvino._pyopenvino.Node | typing.SupportsInt | typing.SupportsIndex | typing.SupportsFloat | typing.SupportsIndex | numpy.ndarray) -> Node:
         ...
     def __repr__(self) -> str:
         ...
-    def __rmul__(self, arg0: openvino._pyopenvino.Node | typing.SupportsInt | typing.SupportsFloat | numpy.ndarray) -> Node:
+    def __rmul__(self, arg0: openvino._pyopenvino.Node | typing.SupportsInt | typing.SupportsIndex | typing.SupportsFloat | typing.SupportsIndex | numpy.ndarray) -> Node:
         ...
-    def __rsub__(self, arg0: openvino._pyopenvino.Node | typing.SupportsInt | typing.SupportsFloat | numpy.ndarray) -> Node:
+    def __rsub__(self, arg0: openvino._pyopenvino.Node | typing.SupportsInt | typing.SupportsIndex | typing.SupportsFloat | typing.SupportsIndex | numpy.ndarray) -> Node:
         ...
-    def __rtruediv__(self, arg0: openvino._pyopenvino.Node | typing.SupportsInt | typing.SupportsFloat | numpy.ndarray) -> Node:
+    def __rtruediv__(self, arg0: openvino._pyopenvino.Node | typing.SupportsInt | typing.SupportsIndex | typing.SupportsFloat | typing.SupportsIndex | numpy.ndarray) -> Node:
         ...
-    def __sub__(self, right: openvino._pyopenvino.Node | typing.SupportsInt | typing.SupportsFloat | numpy.ndarray) -> Node:
+    def __sub__(self, right: openvino._pyopenvino.Node | typing.SupportsInt | typing.SupportsIndex | typing.SupportsFloat | typing.SupportsIndex | numpy.ndarray) -> Node:
         """
                     Return node which applies f(A,B) = A-B to the input nodes element-wise.
         
@@ -3298,7 +3298,7 @@ class Node:
                     :return: The node performing element-wise subtraction.
                     :rtype: openvino.Node
         """
-    def __truediv__(self, right: openvino._pyopenvino.Node | typing.SupportsInt | typing.SupportsFloat | numpy.ndarray) -> Node:
+    def __truediv__(self, right: openvino._pyopenvino.Node | typing.SupportsInt | typing.SupportsIndex | typing.SupportsFloat | typing.SupportsIndex | numpy.ndarray) -> Node:
         """
                     Return node which applies f(A,B) = A/B to the input nodes element-wise.
         
@@ -3313,7 +3313,7 @@ class Node:
     def evaluate(self, output_values: TensorVector, input_values: TensorVector, evaluationContext: RTMap = ...) -> bool:
         """
                         Evaluate the node on inputs, putting results in outputs
-                        
+        
                         :param output_tensors: Tensors for the outputs to compute. One for each result.
                         :type output_tensors: openvino.TensorVector
                         :param input_tensors: Tensors for the inputs. One for each inputs.
@@ -3327,7 +3327,7 @@ class Node:
     def evaluate(self, output_values: list, input_values: list, evaluationContext: RTMap = ...) -> bool:
         """
                         Evaluate the node on inputs, putting results in outputs
-                        
+        
                         :param output_tensors: Tensors for the outputs to compute. One for each result.
                         :type output_tensors: openvino.TensorVector
                         :param input_tensors: Tensors for the inputs. One for each inputs.
@@ -3355,7 +3355,7 @@ class Node:
                         :return: Friendly name of the node.
                         :rtype: str
         """
-    def get_input_element_type(self, index: typing.SupportsInt) -> Type:
+    def get_input_element_type(self, index: typing.SupportsInt | typing.SupportsIndex) -> Type:
         """
                         Returns the element type for input index
         
@@ -3364,7 +3364,7 @@ class Node:
                         :return: Type of the input index
                         :rtype: openvino.Type
         """
-    def get_input_partial_shape(self, index: typing.SupportsInt) -> PartialShape:
+    def get_input_partial_shape(self, index: typing.SupportsInt | typing.SupportsIndex) -> PartialShape:
         """
                         Returns the partial shape for input index
         
@@ -3373,7 +3373,7 @@ class Node:
                         :return: PartialShape of the input index
                         :rtype: openvino.PartialShape
         """
-    def get_input_shape(self, index: typing.SupportsInt) -> Shape:
+    def get_input_shape(self, index: typing.SupportsInt | typing.SupportsIndex) -> Shape:
         """
                         Returns the shape for input index
         
@@ -3389,7 +3389,7 @@ class Node:
                         :return: Number of inputs.
                         :rtype: int
         """
-    def get_input_tensor(self, index: typing.SupportsInt) -> DescriptorTensor:
+    def get_input_tensor(self, index: typing.SupportsInt | typing.SupportsIndex) -> DescriptorTensor:
         """
                         Returns the tensor for the node's input with index i
         
@@ -3413,7 +3413,7 @@ class Node:
                         :return: Unique name of the node.
                         :rtype: str
         """
-    def get_output_element_type(self, index: typing.SupportsInt) -> Type:
+    def get_output_element_type(self, index: typing.SupportsInt | typing.SupportsIndex) -> Type:
         """
                         Returns the element type for output index
         
@@ -3422,7 +3422,7 @@ class Node:
                         :return: Type of the output index
                         :rtype: openvino.Type
         """
-    def get_output_partial_shape(self, index: typing.SupportsInt) -> PartialShape:
+    def get_output_partial_shape(self, index: typing.SupportsInt | typing.SupportsIndex) -> PartialShape:
         """
                         Returns the partial shape for output index
         
@@ -3431,7 +3431,7 @@ class Node:
                         :return: PartialShape of the output index
                         :rtype: openvino.PartialShape
         """
-    def get_output_shape(self, index: typing.SupportsInt) -> Shape:
+    def get_output_shape(self, index: typing.SupportsInt | typing.SupportsIndex) -> Shape:
         """
                         Returns the shape for output index
         
@@ -3447,7 +3447,7 @@ class Node:
                         :return: Number of outputs.
                         :rtype: int
         """
-    def get_output_tensor(self, index: typing.SupportsInt) -> DescriptorTensor:
+    def get_output_tensor(self, index: typing.SupportsInt | typing.SupportsIndex) -> DescriptorTensor:
         """
                         Returns the tensor for output index
         
@@ -3472,7 +3472,7 @@ class Node:
                         :return: String representing Type's name.
                         :rtype: str
         """
-    def input(self, input_index: typing.SupportsInt) -> Input:
+    def input(self, input_index: typing.SupportsInt | typing.SupportsIndex) -> Input:
         """
                         A handle to the input_index input of this node.
         
@@ -3481,7 +3481,7 @@ class Node:
                         :return: Input of this node.
                         :rtype: openvino.Input
         """
-    def input_value(self, index: typing.SupportsInt) -> Output:
+    def input_value(self, index: typing.SupportsInt | typing.SupportsIndex) -> Output:
         """
                         Returns input of the node with index i
         
@@ -3504,7 +3504,7 @@ class Node:
                         :return: list of node's inputs.
                         :rtype: list[openvino.Input]
         """
-    def output(self, output_index: typing.SupportsInt) -> Output:
+    def output(self, output_index: typing.SupportsInt | typing.SupportsIndex) -> Output:
         """
                         A handle to the output_index output of this node.
         
@@ -3520,7 +3520,7 @@ class Node:
                         :return: list of node's outputs.
                         :rtype: list[openvino.Output]
         """
-    def set_argument(self, arg0: typing.SupportsInt, arg1: Output) -> None:
+    def set_argument(self, arg0: typing.SupportsInt | typing.SupportsIndex, arg1: Output) -> None:
         ...
     @typing.overload
     def set_arguments(self, arg0: collections.abc.Sequence[Node]) -> None:
@@ -3539,14 +3539,14 @@ class Node:
                         :param name: Friendly name to set.
                         :type name: str
         """
-    def set_output_size(self, size: typing.SupportsInt) -> None:
+    def set_output_size(self, size: typing.SupportsInt | typing.SupportsIndex) -> None:
         """
                         Sets the number of outputs
         
                         :param size: number of outputs.
                         :type size: int
         """
-    def set_output_type(self, index: typing.SupportsInt, element_type: Type, shape: PartialShape) -> None:
+    def set_output_type(self, index: typing.SupportsInt | typing.SupportsIndex, element_type: Type, shape: PartialShape) -> None:
         """
                         Sets output's element type and shape.
         
@@ -3570,7 +3570,7 @@ class Node:
         """
                 Verifies that attributes and inputs are consistent and computes output shapes and element types.
                 Must be implemented by concrete child classes so that it can be run any number of times.
-                
+        
                 Throws if the node is invalid.
         """
     def visit_attributes(self, arg0: AttributeVisitor) -> bool:
@@ -3591,13 +3591,13 @@ class NodeContext:
     def get_attribute(self, name: str, default_value: typing.Any = None, dtype: typing.Any = None) -> typing.Any:
         ...
     @typing.overload
-    def get_input(self, arg0: typing.SupportsInt) -> Output:
+    def get_input(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> Output:
         ...
     @typing.overload
     def get_input(self, arg0: str) -> Output:
         ...
     @typing.overload
-    def get_input(self, arg0: str, arg1: typing.SupportsInt) -> Output:
+    def get_input(self, arg0: str, arg1: typing.SupportsInt | typing.SupportsIndex) -> Output:
         ...
     @typing.overload
     def get_input_size(self) -> int:
@@ -3607,7 +3607,7 @@ class NodeContext:
         ...
     def get_op_type(self, arg0: str) -> str:
         ...
-    def get_values_from_const_input(self, idx: typing.SupportsInt, default_value: typing.Any = None, dtype: typing.Any = None) -> typing.Any:
+    def get_values_from_const_input(self, idx: typing.SupportsInt | typing.SupportsIndex, default_value: typing.Any = None, dtype: typing.Any = None) -> typing.Any:
         ...
     def has_attribute(self, arg0: str) -> bool:
         ...
@@ -3668,7 +3668,7 @@ class OVAny:
     def __setitem__(self, arg0: typing.Any, arg1: str) -> None:
         ...
     @typing.overload
-    def __setitem__(self, arg0: typing.Any, arg1: typing.SupportsInt) -> None:
+    def __setitem__(self, arg0: typing.Any, arg1: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def aslist(self, dtype: typing.Any = None) -> typing.Any:
         """
@@ -3905,7 +3905,7 @@ class PartialShape:
         """
     @staticmethod
     @typing.overload
-    def dynamic(rank: typing.SupportsInt) -> PartialShape:
+    def dynamic(rank: typing.SupportsInt | typing.SupportsIndex) -> PartialShape:
         """
                     Construct a PartialShape with the given rank and all dimensions are dynamic.
         
@@ -3932,7 +3932,7 @@ class PartialShape:
     def __eq__(self, arg0: list) -> bool:
         ...
     @typing.overload
-    def __getitem__(self, arg0: typing.SupportsInt) -> Dimension:
+    def __getitem__(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> Dimension:
         ...
     @typing.overload
     def __getitem__(self, arg0: slice) -> PartialShape:
@@ -3959,10 +3959,10 @@ class PartialShape:
     def __repr__(self) -> str:
         ...
     @typing.overload
-    def __setitem__(self, arg0: typing.SupportsInt, arg1: typing.SupportsInt) -> None:
+    def __setitem__(self, arg0: typing.SupportsInt | typing.SupportsIndex, arg1: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     @typing.overload
-    def __setitem__(self, arg0: typing.SupportsInt, arg1: Dimension) -> None:
+    def __setitem__(self, arg0: typing.SupportsInt | typing.SupportsIndex, arg1: Dimension) -> None:
         ...
     def __str__(self) -> str:
         ...
@@ -3976,12 +3976,12 @@ class PartialShape:
                         :return: True if this shape is compatible with s, else False.
                         :rtype: bool
         """
-    def get_dimension(self, index: typing.SupportsInt) -> Dimension:
+    def get_dimension(self, index: typing.SupportsInt | typing.SupportsIndex) -> Dimension:
         """
                     Get the dimension at specified index of a partial shape.
         
                     :param index: The index of dimension.
-                    :type index: int 
+                    :type index: int
                     :return: Get the particular dimension of a partial shape.
                     :rtype: openvino.Dimension
         """
@@ -4217,7 +4217,7 @@ class ProfilingInfo:
             ...
         def __index__(self) -> int:
             ...
-        def __init__(self, value: typing.SupportsInt) -> None:
+        def __init__(self, value: typing.SupportsInt | typing.SupportsIndex) -> None:
             ...
         def __int__(self) -> int:
             ...
@@ -4225,7 +4225,7 @@ class ProfilingInfo:
             ...
         def __repr__(self) -> str:
             ...
-        def __setstate__(self, state: typing.SupportsInt) -> None:
+        def __setstate__(self, state: typing.SupportsInt | typing.SupportsIndex) -> None:
             ...
         def __str__(self) -> str:
             ...
@@ -4259,12 +4259,12 @@ class ProgressReporterExtension(Extension):
     def __init__(self, arg0: collections.abc.Callable) -> None:
         ...
     @typing.overload
-    def __init__(self, arg0: collections.abc.Callable[[typing.SupportsFloat, typing.SupportsInt, typing.SupportsInt], None]) -> None:
+    def __init__(self, arg0: collections.abc.Callable[[typing.SupportsFloat | typing.SupportsIndex, typing.SupportsInt | typing.SupportsIndex, typing.SupportsInt | typing.SupportsIndex], None]) -> None:
         ...
     @typing.overload
-    def __init__(self, arg0: collections.abc.Callable[[typing.SupportsFloat, typing.SupportsInt, typing.SupportsInt], None]) -> None:
+    def __init__(self, arg0: collections.abc.Callable[[typing.SupportsFloat | typing.SupportsIndex, typing.SupportsInt | typing.SupportsIndex, typing.SupportsInt | typing.SupportsIndex], None]) -> None:
         ...
-    def report_progress(self, arg0: typing.SupportsFloat, arg1: typing.SupportsInt, arg2: typing.SupportsInt) -> None:
+    def report_progress(self, arg0: typing.SupportsFloat | typing.SupportsIndex, arg1: typing.SupportsInt | typing.SupportsIndex, arg2: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
 class RTMap:
     """
@@ -4292,7 +4292,7 @@ class RTMap:
     def __setitem__(self, arg0: str, arg1: str) -> None:
         ...
     @typing.overload
-    def __setitem__(self, arg0: str, arg1: typing.SupportsInt) -> None:
+    def __setitem__(self, arg0: str, arg1: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def items(self) -> typing.Iterator:
         ...
@@ -4468,7 +4468,7 @@ class Shape:
     def __eq__(self, arg0: list) -> bool:
         ...
     @typing.overload
-    def __getitem__(self, arg0: typing.SupportsInt) -> int:
+    def __getitem__(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> int:
         ...
     @typing.overload
     def __getitem__(self, arg0: slice) -> Shape:
@@ -4477,7 +4477,7 @@ class Shape:
     def __init__(self) -> None:
         ...
     @typing.overload
-    def __init__(self, axis_lengths: collections.abc.Sequence[typing.SupportsInt]) -> None:
+    def __init__(self, axis_lengths: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> None:
         ...
     @typing.overload
     def __init__(self, axis_lengths: Shape) -> None:
@@ -4492,10 +4492,10 @@ class Shape:
     def __repr__(self) -> str:
         ...
     @typing.overload
-    def __setitem__(self, arg0: typing.SupportsInt, arg1: typing.SupportsInt) -> None:
+    def __setitem__(self, arg0: typing.SupportsInt | typing.SupportsIndex, arg1: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     @typing.overload
-    def __setitem__(self, arg0: typing.SupportsInt, arg1: Dimension) -> None:
+    def __setitem__(self, arg0: typing.SupportsInt | typing.SupportsIndex, arg1: Dimension) -> None:
         ...
     def __str__(self) -> str:
         ...
@@ -4515,10 +4515,10 @@ class Strides:
     @typing.overload
     def __eq__(self, arg0: list) -> bool:
         ...
-    def __getitem__(self, arg0: typing.SupportsInt) -> int:
+    def __getitem__(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> int:
         ...
     @typing.overload
-    def __init__(self, axis_strides: collections.abc.Sequence[typing.SupportsInt]) -> None:
+    def __init__(self, axis_strides: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> None:
         ...
     @typing.overload
     def __init__(self, axis_strides: Strides) -> None:
@@ -4529,7 +4529,7 @@ class Strides:
         ...
     def __repr__(self) -> str:
         ...
-    def __setitem__(self, arg0: typing.SupportsInt, arg1: typing.SupportsInt) -> None:
+    def __setitem__(self, arg0: typing.SupportsInt | typing.SupportsIndex, arg1: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def __str__(self) -> str:
         ...
@@ -4552,11 +4552,11 @@ class TelemetryExtension(Extension):
     def __init__(self, arg0: str, arg1: collections.abc.Callable, arg2: collections.abc.Callable, arg3: collections.abc.Callable) -> None:
         ...
     @typing.overload
-    def __init__(self, arg0: str, arg1: collections.abc.Callable[[str, str, str, typing.SupportsInt], None], arg2: collections.abc.Callable[[str, str], None], arg3: collections.abc.Callable[[str, str], None]) -> None:
+    def __init__(self, arg0: str, arg1: collections.abc.Callable[[str, str, str, typing.SupportsInt | typing.SupportsIndex], None], arg2: collections.abc.Callable[[str, str], None], arg3: collections.abc.Callable[[str, str], None]) -> None:
         ...
     def send_error(self, arg0: str) -> None:
         ...
-    def send_event(self, arg0: str, arg1: str, arg2: typing.SupportsInt) -> None:
+    def send_event(self, arg0: str, arg1: str, arg2: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def send_stack_trace(self, arg0: str) -> None:
         ...
@@ -4611,7 +4611,7 @@ class Tensor:
                             t = ov.Tensor(arr, ov.Shape([100, 8]), ov.Type.u1)
         """
     @typing.overload
-    def __init__(self, array: numpy.ndarray[typing.Any, numpy.dtype[typing.Any]], shape: collections.abc.Sequence[typing.SupportsInt], type: Type = ...) -> None:
+    def __init__(self, array: numpy.ndarray[typing.Any, numpy.dtype[typing.Any]], shape: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex], type: Type = ...) -> None:
         """
                          Another Tensor's special constructor.
         
@@ -4653,13 +4653,13 @@ class Tensor:
     def __init__(self, type: Type, shape: Shape) -> None:
         ...
     @typing.overload
-    def __init__(self, type: Type, shape: collections.abc.Sequence[typing.SupportsInt]) -> None:
+    def __init__(self, type: Type, shape: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> None:
         ...
     @typing.overload
-    def __init__(self, type: numpy.dtype[typing.Any], shape: collections.abc.Sequence[typing.SupportsInt]) -> None:
+    def __init__(self, type: numpy.dtype[typing.Any], shape: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> None:
         ...
     @typing.overload
-    def __init__(self, type: typing.Any, shape: collections.abc.Sequence[typing.SupportsInt]) -> None:
+    def __init__(self, type: typing.Any, shape: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> None:
         ...
     @typing.overload
     def __init__(self, type: numpy.dtype[typing.Any], shape: Shape) -> None:
@@ -4715,7 +4715,7 @@ class Tensor:
     def __init__(self, other: Tensor, begin: Coordinate, end: Coordinate) -> None:
         ...
     @typing.overload
-    def __init__(self, other: Tensor, begin: collections.abc.Sequence[typing.SupportsInt], end: collections.abc.Sequence[typing.SupportsInt]) -> None:
+    def __init__(self, other: Tensor, begin: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex], end: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> None:
         ...
     @typing.overload
     def __init__(self, image: typing.Any) -> None:
@@ -4823,7 +4823,7 @@ class Tensor:
                     Sets Tensor's shape.
         """
     @typing.overload
-    def set_shape(self, arg0: collections.abc.Sequence[typing.SupportsInt]) -> None:
+    def set_shape(self, arg0: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> None:
         """
                     Sets Tensor's shape.
         """
@@ -4856,7 +4856,7 @@ class Tensor:
         
                     Returns numpy array with corresponding shape and dtype.
         
-                    For tensors with OpenVINO specific element type, such as u1, u2, u4 or i4
+                    For tensors with OpenVINO specific element type, such as u1, u2, u3, u4, u6 or i4
                     it returns linear array, with uint8 / int8 numpy dtype.
         
                     For tensors with string element type, returns a numpy array of bytes
@@ -4880,7 +4880,7 @@ class Tensor:
                     Tensor's shape get/set.
         """
     @shape.setter
-    def shape(self, arg1: collections.abc.Sequence[typing.SupportsInt]) -> None:
+    def shape(self, arg1: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> None:
         ...
     @property
     def size(self) -> int:
@@ -4917,7 +4917,7 @@ class TensorVector:
         Check whether the list is nonempty
         """
     @typing.overload
-    def __delitem__(self, arg0: typing.SupportsInt) -> None:
+    def __delitem__(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
         """
         Delete the list elements at index ``i``
         """
@@ -4932,7 +4932,7 @@ class TensorVector:
         Retrieve list elements using a slice object
         """
     @typing.overload
-    def __getitem__(self, arg0: typing.SupportsInt) -> Tensor:
+    def __getitem__(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> Tensor:
         ...
     @typing.overload
     def __init__(self) -> None:
@@ -4950,7 +4950,7 @@ class TensorVector:
     def __len__(self) -> int:
         ...
     @typing.overload
-    def __setitem__(self, arg0: typing.SupportsInt, arg1: Tensor) -> None:
+    def __setitem__(self, arg0: typing.SupportsInt | typing.SupportsIndex, arg1: Tensor) -> None:
         ...
     @typing.overload
     def __setitem__(self, arg0: slice, arg1: TensorVector) -> None:
@@ -4975,7 +4975,7 @@ class TensorVector:
         """
         Extend the list by appending all the items in the given list
         """
-    def insert(self, i: typing.SupportsInt, x: Tensor) -> None:
+    def insert(self, i: typing.SupportsInt | typing.SupportsIndex, x: Tensor) -> None:
         """
         Insert an item at a given position.
         """
@@ -4985,7 +4985,7 @@ class TensorVector:
         Remove and return the last item
         """
     @typing.overload
-    def pop(self, i: typing.SupportsInt) -> Tensor:
+    def pop(self, i: typing.SupportsInt | typing.SupportsIndex) -> Tensor:
         """
         Remove and return the item at index ``i``
         """
@@ -5013,8 +5013,10 @@ class Type:
     u1: typing.ClassVar[Type]  # value = <Type: 'uint1_t'>
     u16: typing.ClassVar[Type]  # value = <Type: 'uint16_t'>
     u2: typing.ClassVar[Type]  # value = <Type: 'uint2_t'>
+    u3: typing.ClassVar[Type]  # value = <Type: 'uint3_t'>
     u32: typing.ClassVar[Type]  # value = <Type: 'uint32_t'>
     u4: typing.ClassVar[Type]  # value = <Type: 'uint4_t'>
+    u6: typing.ClassVar[Type]  # value = <Type: 'uint6_t'>
     u64: typing.ClassVar[Type]  # value = <Type: 'uint64_t'>
     u8: typing.ClassVar[Type]  # value = <Type: 'uint8_t'>
     def __eq__(self, arg0: Type) -> bool:
@@ -5107,7 +5109,7 @@ class Type:
     def type_name(self) -> str:
         ...
 class VAContext(RemoteContext):
-    def __init__(self, core: Core, display: typing_extensions.CapsuleType, target_tile_id: typing.SupportsInt = -1) -> None:
+    def __init__(self, core: Core, display: typing_extensions.CapsuleType, target_tile_id: typing.SupportsInt | typing.SupportsIndex = -1) -> None:
         """
                     Constructs remote context object from valid VA display handle.
         
@@ -5121,7 +5123,7 @@ class VAContext(RemoteContext):
                     :return: A context instance.
                     :rtype: openvino.VAContext
         """
-    def create_tensor(self, type: Type, shape: Shape, surface: typing.SupportsInt, plane: typing.SupportsInt = 0) -> VASurfaceTensorWrapper:
+    def create_tensor(self, type: Type, shape: Shape, surface: typing.SupportsInt | typing.SupportsIndex, plane: typing.SupportsInt | typing.SupportsIndex = 0) -> VASurfaceTensorWrapper:
         """
                     Create remote tensor from VA surface handle.
         
@@ -5138,7 +5140,7 @@ class VAContext(RemoteContext):
                     :return: A remote tensor instance wrapping `VASurfaceID`.
                     :rtype: openvino.VASurfaceTensor
         """
-    def create_tensor_nv12(self, height: typing.SupportsInt, width: typing.SupportsInt, nv12_surface: typing.SupportsInt) -> tuple:
+    def create_tensor_nv12(self, height: typing.SupportsInt | typing.SupportsIndex, width: typing.SupportsInt | typing.SupportsIndex, nv12_surface: typing.SupportsInt | typing.SupportsIndex) -> tuple[VASurfaceTensorWrapper, VASurfaceTensorWrapper]:
         """
                     This function is used to obtain a NV12 tensor from NV12 VA decoder output.
                     The result contains two remote tensors for Y and UV planes of the surface.
@@ -5327,7 +5329,7 @@ def serialize(model: typing.Any, xml_path: typing.Any, bin_path: typing.Any = ''
 def set_batch(model: typing.Any, dimension: Dimension) -> None:
     ...
 @typing.overload
-def set_batch(model: typing.Any, batch_size: typing.SupportsInt = -1) -> None:
+def set_batch(model: typing.Any, batch_size: typing.SupportsInt | typing.SupportsIndex = -1) -> None:
     ...
 def shutdown() -> None:
     """

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -232,6 +232,7 @@ public:
     void mark_if_constant(program_node& node);
     // mark if the node is in data flow assuming that all dependencies are marked properly
     void mark_if_data_flow(program_node& node);
+    void mark_if_gemm_data_flow();
     // Reverses connection - user becomes dependency.
 
     void remove_nodes(std::vector<program_node*>& to_remove);
@@ -292,7 +293,7 @@ public:
     void save(cldnn::BinaryOutputBuffer& ob) const;
     void load(cldnn::BinaryInputBuffer& ib, std::shared_ptr<const ov::Model> model_ptr = nullptr,
               std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map = nullptr);
-    
+
     bool is_loaded_from_cache() const { return _loaded_from_cache; }
 
     bool is_new_shape_infer() const { return new_shape_infer; }

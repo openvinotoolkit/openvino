@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -127,7 +127,7 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
         entity_name = "api_list"
     else:
         raise Exception(f"Error to create aggregated report. Incorrect report type: {report_type}")
-    
+
     entity_list = SubElement(summary, entity_name)
 
     for folder_path in input_folder_paths:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -136,5 +136,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassExecutableNetworkInvalidDevice
                          ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
                                             ::testing::ValuesIn(invalid_device_ids)),
                          ClassExecutableNetworkInvalidDeviceIDTestSuite::getTestCaseName);
+
+std::vector<std::pair<std::string, ov::Any>> valid_device_ids = {
+    {ov::device::id.name(), "NPU"},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckCompilerType,
+                         CheckCompilerTypeProperty,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(valid_device_ids)),
+                         CheckCompilerTypeProperty::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckCompilerType,
+                         CheckCompilerPropertyWhenImporting,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(valid_device_ids)),
+                         CheckCompilerTypeProperty::getTestCaseName);
 
 }  // namespace

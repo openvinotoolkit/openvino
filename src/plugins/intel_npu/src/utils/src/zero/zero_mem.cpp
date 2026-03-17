@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_npu/utils/zero/zero_mem.hpp"
-
-#include <ze_mem_import_system_memory_ext.h>
 
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -62,11 +60,10 @@ ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
         if (is_input) {
             zero_memory_flag = ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
         }
-        _ze_external_memory_import_system_memory_t memory_import = {
-            ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_SYSTEM_MEMORY,
-            nullptr,
-            const_cast<void*>(data),
-            _size};
+        ze_external_memmap_sysmem_ext_desc_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMMAP_SYSMEM_EXT_DESC,
+                                                              nullptr,
+                                                              const_cast<void*>(data),
+                                                              _size};
         ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, &memory_import, zero_memory_flag};
         auto result = zeMemAllocHost(_init_structs->getContext(), &desc, _size, utils::STANDARD_PAGE_SIZE, &_ptr);
 
@@ -80,33 +77,21 @@ ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
 
         OPENVINO_ASSERT(data != nullptr, "Data pointer for importing memory can't be null");
 #ifdef _WIN32
-        // in the case of the Windows platform memory is locked by the D3D12 memory management - using
-        // zeMemAllocDevice to import memory
         ze_external_memory_import_win32_handle_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_WIN32,
                                                                   nullptr,
                                                                   ZE_EXTERNAL_MEMORY_TYPE_FLAG_OPAQUE_WIN32,
                                                                   const_cast<void*>(data),
                                                                   nullptr};
-        ze_device_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, &memory_import, 0, 0};
-        THROW_ON_FAIL_FOR_LEVELZERO("zeMemAllocDevice",
-                                    zeMemAllocDevice(_init_structs->getContext(),
-                                                     &desc,
-                                                     _size,
-                                                     utils::STANDARD_PAGE_SIZE,
-                                                     _init_structs->getDevice(),
-                                                     &_ptr));
 #else
-        // in the case of Linux platforms memory could be changed after allocation - using zeMemAllocHost for
-        // importing memory
         ze_external_memory_import_fd_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_FD,
                                                         nullptr,
                                                         ZE_EXTERNAL_MEMORY_TYPE_FLAG_DMA_BUF,
                                                         static_cast<int>(reinterpret_cast<intptr_t>(data))};
+#endif
         ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, &memory_import, 0};
         THROW_ON_FAIL_FOR_LEVELZERO(
             "zeMemAllocHost",
             zeMemAllocHost(_init_structs->getContext(), &desc, _size, utils::STANDARD_PAGE_SIZE, &_ptr));
-#endif
     }
 
     _id = zeroUtils::get_l0_context_memory_allocation_id(_init_structs->getContext(), _ptr);

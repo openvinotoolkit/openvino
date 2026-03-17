@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,6 +87,11 @@ void copy_row_as_column(const ov::SoPtr<ov::ITensor>& from, const ov::SoPtr<ov::
 void transpose_i4(const uint8_t* src, uint8_t* dst, size_t rows, size_t cols);
 void transpose_f16(const uint16_t* src, uint16_t* dst, size_t rows, size_t cols);
 void transpose_f32(const float* src, float* dst, size_t rows, size_t cols);
+
+void unpack_f8f16_scale(const ov::SoPtr<ov::ITensor>& from,
+                        const ov::SoPtr<ov::ITensor>& scale,
+                        const ov::SoPtr<ov::ITensor>& to,
+                        const ov::npuw::util::UnpackOptions& unpack_options);
 
 }  // namespace XARCH
 }  // namespace util

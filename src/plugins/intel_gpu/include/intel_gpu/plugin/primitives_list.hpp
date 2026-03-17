@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -285,6 +285,7 @@ REGISTER_FACTORY(v16, SparseFillEmptyRows);
 REGISTER_FACTORY(v16, AvgPool);
 REGISTER_FACTORY(v16, OneHot);
 REGISTER_FACTORY(v16, Identity);
+REGISTER_FACTORY(v16, SegmentMax);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ typedef float2 cfloat;
 // Unoptimized, the most obvious stft impl from the definition.
 KERNEL(stft_ref)(
     OPTIONAL_SHAPE_INFO_ARG
-    const __global INPUT0_TYPE* restrict signal, 
+    const __global INPUT0_TYPE* restrict signal,
     const __global INPUT1_TYPE* restrict window,
     const __global INPUT2_TYPE* restrict frame_size_buff,
     const __global INPUT3_TYPE* restrict frame_step_buff,

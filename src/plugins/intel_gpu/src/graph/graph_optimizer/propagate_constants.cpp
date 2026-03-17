@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,9 @@
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "data_inst.h"
+#include "mutable_data_inst.h"
 #include "intel_gpu/runtime/itt.hpp"
+#include "registry/implementation_manager.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "reorder_inst.h"
 #include "graph/impls/onednn/utils.hpp"
@@ -19,8 +21,72 @@
 #include <list>
 #include <memory>
 #include <utility>
+#include <unordered_set>
+#include <queue>
 
 using namespace cldnn;
+
+namespace {
+// Attempts to reselect an appropriate implementation for a node after
+// propagate_constants transforms dynamic inputs into static data.
+// Refreshes stale output layouts before building kernel params to avoid
+// incorrect shape_type classification.
+void try_reselect_impl_for_node(program_node* node) {
+    bool can_select_impl = !node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty());
+    if (!can_select_impl)
+        return;
+
+    auto selected_impl = node->get_selected_impl();
+    bool has_selected_impl = selected_impl != nullptr;
+    bool need_new_impl_selection = !has_selected_impl;
+
+    if (has_selected_impl && !node->is_valid_output_layout()) {
+        bool is_node_dynamic = node->get_output_layout(false).is_dynamic();
+        bool is_impl_dynamic = selected_impl->is_dynamic();
+        need_new_impl_selection = (is_node_dynamic != is_impl_dynamic);
+    }
+
+    if (!need_new_impl_selection)
+        return;
+
+    // Refresh stale output layouts before building kernel params.
+    // After invalidate_users(), cached output_layouts may still reflect
+    // the old dynamic shape. Recomputing ensures get_kernel_impl_params()
+    // uses up-to-date layouts for accurate shape_type determination.
+    if (!node->is_all_valid_output_layouts()) {
+        node->get_output_layouts(false);
+    }
+
+    auto params = node->get_kernel_impl_params();
+    auto shape_type = ImplementationManager::get_shape_type(*params);
+    if (shape_type == shape_types::dynamic_shape)
+        return;
+
+    auto selected_impl_manager = node->type()->choose_impl(*node, shape_type);
+    std::string fail_reason;
+    try {
+        if (selected_impl_manager) {
+            node->set_selected_impl(selected_impl_manager->create(*node, *params));
+        } else {
+            fail_reason = "choose_impl returned nullptr (no matching implementation found)";
+        }
+    } catch (const std::exception& e) {
+        fail_reason = e.what();
+    }
+
+    OPENVINO_ASSERT(node->get_selected_impl() != nullptr,
+                    "[GPU] Failed to select implementation after propagate_constants"
+                    "\nname:",
+                    node->id(),
+                    "\ntype: ",
+                    node->get_primitive()->type_string(),
+                    "\noriginal_type: ",
+                    node->get_primitive()->origin_op_type_name,
+                    " ",
+                    fail_reason);
+}
+
+}  // namespace
 
 // ToDo remove friendship relation from  program_node and program
 void propagate_constants::run(program& p) {
@@ -74,10 +140,11 @@ void propagate_constants::run(program& p) {
 
     // replace all constant nodes which are relevant for inference (either used by non-const user or marked as output)
     // with recomputed cldnn::data
-    for (auto& cout : to_replace) {
-        auto& id_to_replace = std::get<0>(cout);
-        auto mem_impl = std::get<1>(cout);
-        auto cache_info = std::get<2>(cout);
+    std::unordered_set<program_node*> reselection_targets;
+    for (auto& entry : to_replace) {
+        auto& id_to_replace = std::get<0>(entry);
+        auto mem_impl = std::get<1>(entry);
+        auto cache_info = std::get<2>(entry);
         auto cache_manager = std::get<0>(cache_info);
         auto in_layout = std::get<1>(cache_info);
         auto reorder = std::get<2>(cache_info);
@@ -109,8 +176,37 @@ void propagate_constants::run(program& p) {
                                              curr_node.users.end(),
                                              [](program_node* node) { return node->is_constant(); }),
                               curr_node.users.end());
+        bool was_dynamic = curr_node.get_output_layout().is_dynamic();
         p.replace(curr_node, new_node);
-        new_node.recalc_output_layout(false);
+        new_node.recalc_output_layout(was_dynamic);
+
+        // Collect transitively affected user nodes when dynamic → static transition occurs.
+        // Only users of constants that transitioned from dynamic to static need impl reselection.
+        if (was_dynamic && !new_node.get_output_layout(false).is_dynamic()) {
+            std::queue<program_node*> queue;
+            for (auto& user : new_node.get_users()) {
+                queue.push(user);
+            }
+            while (!queue.empty()) {
+                auto* n = queue.front();
+                queue.pop();
+                if (reselection_targets.count(n) > 0)
+                    continue;
+                reselection_targets.insert(n);
+                if (!n->is_all_valid_output_layouts()) {
+                    for (auto& user : n->get_users()) {
+                        queue.push(user);
+                    }
+                }
+            }
+        }
+    }
+
+    // propagate_constants is executed after compile_graph pass.
+    // If some users become static due to propagated constants, they can end up without selected_impl.
+    // Re-select implementation for affected nodes to avoid runtime _impl-nullptr validation failure.
+    for (auto* node : reselection_targets) {
+        try_reselect_impl_for_node(node);
     }
 }
 

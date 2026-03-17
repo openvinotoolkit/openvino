@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,12 +27,23 @@ using namespace ov::intel_gpu;
 namespace ov {
 namespace test {
 namespace intel_gpu {
-TEST_F(TransformationTestsF, ConvertMOEToMOE3GemmCompressedTest) {
+class ConvertMOEToMOE3GemmCompressedTest : public TransformationTestsF, public WithParamInterface<ov::element::Type> {
+public:
+    static std::string get_test_case_name(testing::TestParamInfo<ov::element::Type> obj) {
+        ov::element::Type element_type = obj.param;
+        std::ostringstream result;
+        result << "ElementType=" << element_type.get_type_name();
+        return result.str();
+    }
+};
+
+TEST_P(ConvertMOEToMOE3GemmCompressedTest, GEMM3_SwiGLU) {
     disable_rt_info_check();
+    const auto& data_type = GetParam();
     {
         // tokens:32, hidden_size:2048, iter_size:768, experts:128, topk:8
-        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
-        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(data_type, Shape{32, 2048});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(data_type, Shape{128, 1, 32, 1});
         auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
 
         // Gate projection
@@ -84,8 +95,8 @@ TEST_F(TransformationTestsF, ConvertMOEToMOE3GemmCompressedTest) {
     }
     {
         // Inputs
-        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
-        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(data_type, Shape{32, 2048});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(data_type, Shape{128, 1, 32, 1});
         auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
 
         // Gate and up projection
@@ -126,14 +137,22 @@ TEST_F(TransformationTestsF, ConvertMOEToMOE3GemmCompressedTest) {
         config.top_k = 8;
         config.group_size = 128;
         config.out_type = ov::element::f16;
-        auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(
+        std::shared_ptr<ov::Node> moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(
             ov::OutputVector{hidden_states, routing_weights, routing_idx,
                 wei_gate, scale_transpose_gate, zp_transpose_gate,
                 wei_up, scale_transpose_up, zp_transpose_up,
                 wei_down, scale_transpose_down, zp_transpose_down}, config);
+        if (config.out_type != data_type) {
+            moe_compressed = std::make_shared<ov::op::v0::Convert>(moe_compressed, data_type);
+        }
         model_ref = std::make_shared<ov::Model>(moe_compressed, ov::ParameterVector{hidden_states, routing_weights, routing_idx});
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         ConvertMOEToMOE3GemmCompressedTest,
+                         Values(element::f16, element::f32),
+                         ConvertMOEToMOE3GemmCompressedTest::get_test_case_name);
 }  // namespace intel_gpu
 }  // namespace test
 }  // namespace ov

@@ -23,7 +23,7 @@ First, install the required dependencies for the model conversion:
          python3 -m venv npu-env
          source npu-env/bin/activate
          pip install nncf==2.18.0 onnx==1.18.0 optimum-intel==1.25.2 transformers==4.51.3
-         pip install openvino==2025.3 openvino-tokenizers==2025.3 openvino-genai==2025.3
+         pip install openvino==2026.0 openvino-tokenizers==2026.0 openvino-genai==2026.0
 
 
       For the pre-production version, use the following line, instead:
@@ -40,7 +40,7 @@ First, install the required dependencies for the model conversion:
          python -m venv npu-env
          npu-env\Scripts\activate
          pip install nncf==2.18.0 onnx==1.18.0 optimum-intel==1.25.2 transformers==4.51.3
-         pip install openvino==2025.3 openvino-tokenizers==2025.3 openvino-genai==2025.3
+         pip install openvino==2026.0 openvino-tokenizers==2026.0 openvino-genai==2026.0
 
 
       For the pre-production version, use the following line, instead:
@@ -51,7 +51,7 @@ First, install the required dependencies for the model conversion:
 
 .. note::
 
-    With OpenVINO 2025.3, it is highly recommended to use ``transformers==4.51.3`` to
+    With OpenVINO 2026.0, it is highly recommended to use ``transformers==4.51.3`` to
     generate models for Intel NPU. Newer Transformers versions will be supported in upcoming releases.
 
 .. note::
@@ -473,6 +473,127 @@ model weights is encrypted.
                encryption_callbacks.decrypt = [](const std::string& s) { return s; };
                ov::AnyMap pipeline_config = { { "BLOB_PATH", ".npucache\\compiled_model.blob" }, { "WEIGHTS_PATH", "path\\to\\original\\model.bin" }, { "CACHE_ENCRYPTION_CALLBACKS", encryption_callbacks } };
                ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
+
+
+
+VLM Inference on NPU
+###############################################################################################
+VLMs are supported on NPU and can be inferenced in the same way as LLms with GenAI API:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+
+         import numpy as np
+         from PIL import Image
+         from openvino import Tensor
+         import openvino_genai as ov_genai
+
+         model_path = "Google-Gemma-3-4B-it"
+         image_path = "cat.png"
+         image = Tensor(np.array(Image.open(image_path).convert("RGB")))
+
+         pipe = ov_genai.VLMPipeline(model_path, "NPU")
+         print(pipe.generate("Describe the image",  images=image, max_new_tokens=100))
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. code-block:: cpp
+
+         #include "load_image.hpp"
+         #include <openvino/genai/visual_language/pipeline.hpp>
+         #include <iostream>
+
+         bool print_subword(std::string&& subword) {
+            return !(std::cout << subword << std::flush);
+         }
+
+         int main(int argc, char* argv[]) {
+            std::string model_path = "Google-Gemma-3-4B-it";
+            std::string image_path = "cat.png";
+
+            std::vector<ov::Tensor> rgbs = utils::load_images(image_path);
+
+            ov::genai::VLMPipeline pipe(model_path, "NPU");
+            ov::genai::GenerationConfig config;
+            config.max_new_tokens=100;
+            std::cout << pipe.generate("Describe the image",
+               ov::genai::images(rgbs),
+               ov::genai::generation_config(config),
+               ov::genai::streamer(print_subword));
+         }
+
+Passing config to VLMs
+***********************************************************************************************
+All the parameters described above (like ``MAX_PROMPT_LEN``, ``MIN_RESPONSE_LEN``, ``CACHE_DIR``, etc.) are also applicable to VLMs.
+However, these parameters must be provided in a slightly different way. They should be placed in {"DEVICE_PROPERTIES": {"NPU" : ... } } section of config:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+
+         import numpy as np
+         from PIL import Image
+         from openvino import Tensor
+         import openvino_genai as ov_genai
+
+         model_path = "Phi-4-multimodal-instruct"
+         image_path = "cat.png"
+         image = Tensor(np.array(Image.open(image_path).convert("RGB")))
+         pipeline_config = {
+            "DEVICE_PROPERTIES": {
+               "NPU": {
+                  "MAX_PROMPT_LEN": 2048,
+                  "MIN_RESPONSE_LEN": 512
+               },
+            }
+         }
+
+         pipe = ov_genai.VLMPipeline(model_path, "NPU", config=pipeline_config)
+         print(pipe.generate("Describe the image",  images=image, max_new_tokens=100))
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. code-block:: cpp
+
+         #include "load_image.hpp"
+         #include <openvino/genai/visual_language/pipeline.hpp>
+         #include <iostream>
+
+         bool print_subword(std::string&& subword) {
+            return !(std::cout << subword << std::flush);
+         }
+
+         int main(int argc, char* argv[]) {
+            std::string model_path = "Phi-4-multimodal-instruct";
+            std::string image_path = "cat.png";
+
+            std::vector<ov::Tensor> rgbs = utils::load_images(image_path);
+            ov::AnyMap pipeline_config = {
+               {"DEVICE_PROPERTIES", ov::AnyMap{
+                  {"NPU", ov::AnyMap{
+                     {"MAX_PROMPT_LEN", 2048},
+                     {"MIN_RESPONSE_LEN", 512}
+                  }}
+               }}
+            };
+
+            ov::genai::VLMPipeline pipe(model_path, "NPU", pipeline_config);
+            ov::genai::GenerationConfig config;
+            config.max_new_tokens=100;
+            std::cout << pipe.generate("Describe the image",
+               ov::genai::images(rgbs),
+               ov::genai::generation_config(config),
+               ov::genai::streamer(print_subword));
+         }
 
 
 

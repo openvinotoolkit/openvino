@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,10 +83,6 @@ void Any::Base::read_to(Base& other) const {
         if (!strm.str().empty())
             other.read(strm);
     }
-}
-
-bool Any::Base::is_base_type_info(const std::type_info& user_type) const {
-    return contains_type_index(base_type_info(), user_type);
 }
 
 bool Any::Base::is_signed_integral() const {

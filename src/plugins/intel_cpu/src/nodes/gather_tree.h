@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,7 +46,8 @@ private:
                   const MemoryPtr& parentIdxMemPtr,
                   const MemoryPtr& maxSeqLenMemPtr,
                   const MemoryPtr& endTokenMemPtr,
-                  const MemoryPtr& dstMemPtr);
+                  const MemoryPtr& dstMemPtr,
+                  const std::shared_ptr<CpuParallel>& cpuParallel);
 
     private:
         const int32_t maxTime;

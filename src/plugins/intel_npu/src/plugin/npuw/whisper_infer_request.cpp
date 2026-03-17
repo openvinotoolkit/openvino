@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -155,6 +155,11 @@ void ov::npuw::WhisperInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_
     kvcache_desc.num_stored_tokens += 1;
 
     if (kvcache_desc.num_stored_tokens == kvcache_desc.total_size) {
+        // KV-cache is full, but it's not expected, so force eos_token as WA
+        std::cout << "[WARNING] Whisper model stuck (KVcache is full), not full audio chunk could be processed !"
+                  << std::endl;
+        float* logits_data = m_logits->data<float>();  // logits for generate model has shape [1, 1, vocab_size]
+        logits_data[m_npuw_llm_compiled_model->m_eos_token_id] = std::numeric_limits<float>::infinity();
         return;
     }
 

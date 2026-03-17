@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,43 +10,41 @@
 #include "openvino/frontend/manager.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
 
 namespace {
 
-std::string find_plugins_xml(const std::string& xml_file) {
-    std::string xml_file_name = xml_file;
-    if (xml_file_name.empty()) {
-        // Default plugin xml file name, will search in OV folder.
-        xml_file_name = "plugins.xml";
-    } else {
+std::filesystem::path find_plugins_xml(const std::filesystem::path& xml_file) {
+    if (xml_file.has_parent_path()) {
         // If file path contains file separator, return file path;
         // Otherwise search it in OV folder with no restriction on file name and extension.
-        if (xml_file_name.find(util::FileTraits<char>().file_separator) != xml_file_name.npos) {
-            return xml_file_name;
-        }
+        return xml_file;
     }
+
+    // Default plugin xml file name, will search in OV folder.
+    const auto& xml_file_name = xml_file.empty() ? std::filesystem::path("plugins.xml") : xml_file;
     const auto ov_library_path = ov::util::get_ov_lib_path();
 
     // plugins xml can be found in either:
     // 1. openvino-X.Y.Z relative to libopenvino.so folder
-    std::ostringstream str;
-    str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
-    const auto sub_folder = str.str();
-
-    // register plugins from default openvino-<openvino version>/plugins.xml config
-    auto xmlConfigFileDefault = ov::util::path_join({ov_library_path, sub_folder, xml_file_name}).string();
-    if (ov::util::file_exists(xmlConfigFileDefault))
-        return xmlConfigFileDefault;
-
     // 2. in folder with libopenvino.so
-    xmlConfigFileDefault = ov::util::path_join({std::move(ov_library_path), std::move(xml_file_name)}).string();
-    if (ov::util::file_exists(xmlConfigFileDefault))
-        return xmlConfigFileDefault;
+    const auto ov_version_folder = [] {
+        std::ostringstream str;
+        str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
+        return std::filesystem::path(str.str());
+    }();
 
-    return xml_file;
+    if (auto xml_path = ov_library_path / ov_version_folder / xml_file_name; ov::util::file_exists(xml_path)) {
+        // register plugins from default openvino-<openvino version>/plugins.xml config
+        return xml_path;
+    } else if (xml_path = ov_library_path / xml_file_name; ov::util::file_exists(xml_path)) {
+        return xml_path;
+    } else {
+        return xml_file;
+    }
 }
 
 }  // namespace
@@ -65,86 +63,102 @@ public:
     Impl() : ov::CoreImpl() {}
 };
 
-Core::Core(const std::string& xml_config_file) {
-    _impl = std::make_shared<Impl>();
+Core::Core(const std::string& xml_config_file) : Core(ov::util::make_path(xml_config_file)) {}
 
-    std::string xmlConfigFile = find_plugins_xml(xml_config_file);
-    if (!xmlConfigFile.empty())
-        OV_CORE_CALL_STATEMENT(
-            // If XML is default, load default plugins by absolute paths
-            _impl->register_plugins_in_registry(xmlConfigFile, xml_config_file.empty());)
+Core::Core(const std::filesystem::path& xml_config_file) : _impl(std::make_shared<Impl>()) {
+    if (const auto xml_path = find_plugins_xml(xml_config_file); !xml_path.empty()) {
+        // If XML is default, load default plugins by absolute paths
+        OV_CORE_CALL_STATEMENT(_impl->register_plugins_in_registry(xml_path, xml_config_file.empty());)
+    }
     // Load plugins from the pre-compiled list
     OV_CORE_CALL_STATEMENT(_impl->register_compile_time_plugins();)
 }
 
-Core::Core(const std::filesystem::path& xml_config_file) : Core(ov::util::path_to_string(xml_config_file)) {}
-
 std::map<std::string, Version> Core::get_versions(const std::string& device_name) const {
-    OV_CORE_CALL_STATEMENT({ return _impl->get_versions(device_name); })}
+    OV_CORE_CALL_STATEMENT(return _impl->get_versions(device_name););
+}
+
+std::shared_ptr<ov::Model> Core::read_model(const std::filesystem::path& model_path,
+                                            const std::filesystem::path& bin_path,
+                                            const ov::AnyMap& properties) const {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Read model");
+    OV_CORE_CALL_STATEMENT(return _impl->read_model(model_path, bin_path, properties););
+}
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<ov::Model> Core::read_model(const std::wstring& model_path,
                                             const std::wstring& bin_path,
                                             const ov::AnyMap& properties) const {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Read model");
-    OV_CORE_CALL_STATEMENT(return _impl->read_model(ov::util::wstring_to_string(model_path),
-                                                    ov::util::wstring_to_string(bin_path),
-                                                    properties););
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Read model");
+    return read_model(ov::util::make_path(model_path), ov::util::make_path(bin_path), properties);
 }
 #endif
 
 std::shared_ptr<ov::Model> Core::read_model(const std::string& model_path,
                                             const std::string& bin_path,
                                             const AnyMap& properties) const {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Read model");
-    OV_CORE_CALL_STATEMENT(return _impl->read_model(model_path, bin_path, properties););
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Read model");
+    return read_model(ov::util::make_path(model_path), ov::util::make_path(bin_path), properties);
 }
 
 std::shared_ptr<ov::Model> Core::read_model(const std::string& model, const ov::Tensor& weights) const {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Read model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Read model");
     OV_CORE_CALL_STATEMENT(return _impl->read_model(model, weights););
 }
 
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model, const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
     return compile_model(model, ov::default_device_name, config);
 }
 
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& device_name,
                                   const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model, device_name, config);
         return {exec._ptr, exec._so};
     });
 }
 
-CompiledModel Core::compile_model(const std::string& model_path, const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
+CompiledModel Core::compile_model(const std::filesystem::path& model_path, const AnyMap& config) {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
     return compile_model(model_path, ov::default_device_name, config);
 }
 
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-CompiledModel Core::compile_model(const std::wstring& model_path, const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
-    return compile_model(ov::util::wstring_to_string(model_path), config);
-}
-#endif
-
-CompiledModel Core::compile_model(const std::string& model_path, const std::string& device_name, const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
+CompiledModel Core::compile_model(const std::filesystem::path& model_path,
+                                  const std::string& device_name,
+                                  const AnyMap& config) {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model_path, device_name, config);
         return {exec._ptr, exec._so};
     });
 }
 
+CompiledModel Core::compile_model(const std::string& model_path, const AnyMap& config) {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
+    return compile_model(ov::util::make_path(model_path), ov::default_device_name, config);
+}
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+CompiledModel Core::compile_model(const std::wstring& model_path, const AnyMap& config) {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
+    return compile_model(ov::util::make_path(model_path), config);
+}
+#endif
+
+CompiledModel Core::compile_model(const std::string& model_path, const std::string& device_name, const AnyMap& config) {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
+    return compile_model(ov::util::make_path(model_path), device_name, config);
+}
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 CompiledModel Core::compile_model(const std::wstring& model_path,
                                   const std::string& device_name,
                                   const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
-    return compile_model(ov::util::wstring_to_string(model_path), device_name, config);
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
+    return compile_model(ov::util::make_path(model_path), device_name, config);
 }
 #endif
 
@@ -152,7 +166,7 @@ CompiledModel Core::compile_model(const std::string& model,
                                   const ov::Tensor& weights,
                                   const std::string& device_name,
                                   const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model, weights, device_name, config);
         return {exec._ptr, exec._so};
@@ -162,7 +176,7 @@ CompiledModel Core::compile_model(const std::string& model,
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const RemoteContext& context,
                                   const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model, ov::SoPtr<ov::IRemoteContext>{context._impl, context._so}, config);
         return {exec._ptr, exec._so};
@@ -198,6 +212,8 @@ void Core::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& exte
 }
 
 CompiledModel Core::import_model(std::istream& modelStream, const std::string& device_name, const AnyMap& config) {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Import Model");
+    // Preserving the old task for conditional compilation and not on by default
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->import_model(modelStream, device_name, config);
@@ -206,8 +222,9 @@ CompiledModel Core::import_model(std::istream& modelStream, const std::string& d
 }
 
 CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext& context, const AnyMap& config) {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Import Model");
+    // Preserving the old task for conditional compilation and not on by default
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
-
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->import_model(modelStream, ov::SoPtr<ov::IRemoteContext>{context._impl, context._so}, config);
         return {exec._ptr, exec._so};
@@ -215,6 +232,8 @@ CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext&
 }
 
 CompiledModel Core::import_model(const ov::Tensor& model, const std::string& device_name, const AnyMap& config) {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Import Model");
+    // Preserving the old task for conditional compilation and not on by default
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->import_model(model, device_name, config);
@@ -223,8 +242,9 @@ CompiledModel Core::import_model(const ov::Tensor& model, const std::string& dev
 }
 
 CompiledModel Core::import_model(const ov::Tensor& model, const RemoteContext& context, const AnyMap& config) {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Import Model");
+    // Preserving the old task for conditional compilation and not on by default
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
-
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->import_model(model, ov::SoPtr<ov::IRemoteContext>{context._impl, context._so}, config);
         return {exec._ptr, exec._so};
@@ -258,13 +278,13 @@ std::vector<std::string> Core::get_available_devices() const {
 }
 
 void Core::register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& properties) {
-    OV_CORE_CALL_STATEMENT(_impl->register_plugin(plugin, device_name, properties););
+    register_plugin(ov::util::make_path(plugin), device_name, properties);
 }
 
 void Core::register_plugin(const std::filesystem::path& plugin_path,
                            const std::string& device_name,
                            const ov::AnyMap& properties) {
-    register_plugin(ov::util::path_to_string(plugin_path), device_name, properties);
+    OV_CORE_CALL_STATEMENT(_impl->register_plugin(plugin_path, device_name, properties););
 }
 
 void Core::unload_plugin(const std::string& device_name) {
@@ -277,11 +297,11 @@ void Core::unload_plugin(const std::string& device_name) {
 }
 
 void Core::register_plugins(const std::string& xml_config_file) {
-    OV_CORE_CALL_STATEMENT(_impl->register_plugins_in_registry(xml_config_file););
+    register_plugins(ov::util::make_path(xml_config_file));
 }
 
 void Core::register_plugins(const std::filesystem::path& xml_config_file) {
-    register_plugins(ov::util::path_to_string(xml_config_file));
+    OV_CORE_CALL_STATEMENT(_impl->register_plugins_in_registry(xml_config_file););
 }
 
 RemoteContext Core::create_context(const std::string& device_name, const AnyMap& params) {
@@ -312,6 +332,7 @@ RemoteContext Core::get_default_context(const std::string& device_name) {
 
 void shutdown() {
     frontend::FrontEndManager::shutdown();
+    ov::threading::executor_manager()->clear();
 }
 
 }  // namespace ov

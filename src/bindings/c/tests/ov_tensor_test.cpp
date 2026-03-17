@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "ov_test.hpp"
@@ -28,6 +28,15 @@ TEST(ov_tensor, ov_tensor_create_from_host_ptr) {
     OV_EXPECT_OK(ov_tensor_create_from_host_ptr(type, shape, &host_ptr, &tensor));
     EXPECT_NE(nullptr, tensor);
     ov_tensor_free(tensor);
+    ov_shape_free(&shape);
+}
+
+TEST(ov_tensor, ov_tensor_create_with_shape_overflow) {
+    ov_tensor_t* tensor = nullptr;
+    ov_shape_t shape;
+    const int64_t dims[2] = {std::numeric_limits<int64_t>::max(), 100};
+    ov_shape_create(2, dims, &shape);
+    OV_EXPECT_NOT_OK(ov_tensor_create(ov_element_type_e::U8, shape, &tensor));
     ov_shape_free(&shape);
 }
 

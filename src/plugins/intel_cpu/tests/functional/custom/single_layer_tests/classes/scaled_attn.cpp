@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,7 +93,7 @@ void ScaledAttnLayerCPUTest::SetUp() {
     }
     auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputs, is_causal);
     sdp->set_friendly_name("mha");
-    function = makeNgraphFunction(inType, inputParams, sdp, "SDP");
+    function = create_ov_model(inType, inputParams, sdp, "SDP");
 }
 
 void ScaledAttnLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
