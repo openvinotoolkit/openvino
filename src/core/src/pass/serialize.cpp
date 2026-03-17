@@ -37,14 +37,10 @@ const void validate_xml_path(const std::filesystem::path& path) {
                     path);
 }
 
-std::filesystem::path provide_bin_path(const std::filesystem::path& xml_path, const std::filesystem::path& bin_path) {
-    if (bin_path.empty()) {
-        auto path = xml_path;
-        path.replace_extension(".bin");
-        return path;
-    } else {
-        return bin_path;
-    }
+std::filesystem::path provide_bin_path(const std::filesystem::path& xml_path) {
+    auto bin_path = xml_path;
+    bin_path.replace_extension(".bin");
+    return bin_path;
 }
 
 void convert_py_rt_info(const ov::Model& model) {
@@ -106,6 +102,7 @@ void serialize_func(std::ostream& xml_file,
 namespace ov {
 bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(Serialize);
+    OPENVINO_ASSERT(model, "ov::Model not provided");
 
     model->validate_nodes_and_infer_types();
     convert_py_rt_info(*model);
@@ -153,7 +150,7 @@ pass::Serialize::Serialize(const std::filesystem::path& xml_path,
     : m_xml_file{nullptr},
       m_bin_file{nullptr},
       m_xml_path{xml_path},
-      m_bin_path{provide_bin_path(xml_path, bin_path)},
+      m_bin_path{bin_path.empty() ? provide_bin_path(xml_path) : bin_path},
       m_version{version} {
     validate_xml_path(m_xml_path);
 }
