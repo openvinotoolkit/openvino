@@ -20,7 +20,6 @@ ov_add_test_target(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         ADDITIONAL_SOURCE_DIRS
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/partitioning
-            # ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/common/src
         DEPENDENCIES
             openvino::runtime
         INCLUDES
@@ -32,7 +31,6 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/al/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/include
-            # ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/common/include
         OBJECT_FILES
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/batch_size_section.cpp
