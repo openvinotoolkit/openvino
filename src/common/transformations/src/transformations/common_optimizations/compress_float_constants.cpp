@@ -157,6 +157,32 @@ bool scalar_has_high_f16_error(const ov::op::v0::Constant& const_node) {
     return false;
 }
 
+// Returns true if any in-range element in the constant has absolute FP16 roundtrip error
+// exceeding the threshold. Protects constants like RoPE frequency tables where
+// large values (>1024) lose significant precision in FP16.
+// Out-of-range values (beyond FP16 representable range) are skipped here because
+// they are already handled by the separate 75% out-of-range threshold with clamping.
+template <typename T>
+bool has_high_f16_abs_error(const ov::op::v0::Constant& const_node, double max_abs_error) {
+    static_assert(sizeof(T) >= 4);
+    const auto size = ov::shape_size(const_node.get_shape());
+    const T* data = const_node.get_data_ptr<T>();
+    const double f16_max = static_cast<double>(std::numeric_limits<ov::float16>::max());
+    for (size_t i = 0; i < size; ++i) {
+        const double val = static_cast<double>(data[i]);
+        // Only check finite, non-zero values within FP16 representable range
+        if (!std::isfinite(data[i]) || data[i] == T{0} || std::abs(val) > f16_max) {
+            continue;
+        }
+        const ov::float16 f16_val = static_cast<ov::float16>(data[i]);
+        const double roundtripped = static_cast<double>(static_cast<T>(f16_val));
+        if (std::abs(val - roundtripped) > max_abs_error) {
+            return true;
+        }
+    }
+    return false;
+}
+
 }  // namespace
 
 CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
@@ -176,13 +202,21 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
 
         auto c_type = const_node->get_element_type();
 
-        // Skip FP16 compression for scalar constants with significant rounding error.
-        // Scalar constants often serve as mathematical scale factors (e.g., log(16) in attention
-        // bucketing) where FP16 rounding error cascades through every computation that uses them.
+        // Skip FP16 compression for constants with significant rounding error.
+        // Scalar: tight relative threshold (1e-4) — protects math scale factors (e.g. log(16)).
+        // Non-scalar: absolute threshold (1.0) — protects frequency tables (e.g. RoPE) where
+        // large values (>1024) lose significant precision in FP16 and the error compounds
+        // through iterative computations (e.g. 50-step denoising with CFG).
         if (ov::shape_size(const_node->get_shape()) == 1) {
             if (c_type == ov::element::f32 && scalar_has_high_f16_error<float>(*const_node))
                 return false;
             if (c_type == ov::element::f64 && scalar_has_high_f16_error<double>(*const_node))
+                return false;
+        } else {
+            constexpr double max_abs_error = 1.0;
+            if (c_type == ov::element::f32 && has_high_f16_abs_error<float>(*const_node, max_abs_error))
+                return false;
+            if (c_type == ov::element::f64 && has_high_f16_abs_error<double>(*const_node, max_abs_error))
                 return false;
         }
 
