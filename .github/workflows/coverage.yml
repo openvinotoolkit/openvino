@@ -129,11 +129,12 @@ jobs:
       - name: Upload reusable build artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}
           path: coverage-build-artifact
           if-no-files-found: error
           retention-days: 3
           compression-level: 0
+          overwrite: true
 
   ResolveCppShards:
     name: Resolve C++ coverage shards
@@ -241,7 +242,7 @@ jobs:
       - name: Download reusable build artifact
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}
           path: ${{ github.workspace }}/_artifact
 
       - name: Restore build artifact into workspace
@@ -413,6 +414,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
+          overwrite: true
 
       - name: Upload Codecov (C++ runtime, C++ suite)
         if: ${{ steps.verify_cpp_cov.outputs.exists == 'true' }}
@@ -522,7 +524,7 @@ jobs:
       - name: Download reusable build artifact
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}
           path: ${{ github.workspace }}/_artifact
 
       - name: Restore build artifact into workspace
@@ -686,6 +688,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
+          overwrite: true
 
       - name: Upload Codecov (Python API)
         if: ${{ steps.verify_py_cov.outputs.exists == 'true' }}
@@ -832,7 +835,7 @@ jobs:
       - name: Download reusable build artifact
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}
           path: ${{ github.workspace }}/_artifact
 
       - name: Restore build artifact into workspace
@@ -996,6 +999,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
+          overwrite: true
 
       - name: Upload Codecov (Node.js bindings)
         if: ${{ steps.verify_js_cov.outputs.exists == 'true' }}
@@ -1087,3 +1091,4 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
+          overwrite: true
