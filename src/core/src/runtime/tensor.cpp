@@ -230,9 +230,10 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
                         bool mmap) {
     OPENVINO_ASSERT(element_type != ov::element::string);
     if (mmap) {
-        const auto size = partial_shape.is_static()
-                              ? ov::util::get_memory_size_safe(element_type, partial_shape.get_shape()).value_or(0)
-                              : 0;
+        const auto size =
+            partial_shape.is_static()
+                ? ov::util::get_memory_size_safe(element_type, partial_shape.get_shape()).value_or(auto_file_size)
+                : auto_file_size;
         return read_tensor_data_mmap_impl(ov::load_mmap_object(file_name, offset_in_bytes, size),
                                           element_type,
                                           partial_shape,
@@ -251,9 +252,10 @@ Tensor read_tensor_data(ov::FileHandle file_handle,
                         const ov::PartialShape& partial_shape,
                         size_t offset_in_bytes) {
     OPENVINO_ASSERT(element_type != ov::element::string);
-    const auto size = partial_shape.is_static()
-                          ? ov::util::get_memory_size_safe(element_type, partial_shape.get_shape()).value_or(0)
-                          : 0;
+    const auto size =
+        partial_shape.is_static()
+            ? ov::util::get_memory_size_safe(element_type, partial_shape.get_shape()).value_or(auto_file_size)
+            : auto_file_size;
     return read_tensor_data_mmap_impl(ov::load_mmap_object(file_handle, offset_in_bytes, size),
                                       element_type,
                                       partial_shape,

@@ -41,6 +41,8 @@ public:
     virtual ~MappedMemory() = default;
 };
 
+inline constexpr auto auto_file_size = std::numeric_limits<size_t>::max();
+
 /**
  * @brief Returns mapped memory for a file from provided path.
  * Instead of reading files, we can map the memory via mmap for Linux
@@ -48,12 +50,12 @@ public:
  *
  * @param path Path to a file which memory will be mmaped.
  * @param offset Offset in the file where the mapping starts.
- * @param size Size of the mapping. If size is 0, the whole file from offset will be mapped.
+ * @param size Size of the mapping. If size is std::numeric_limits<size_t>::max(), maps from offset to EOF.
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path,
                                                    size_t offset = 0,
-                                                   size_t size = 0);
+                                                   size_t size = auto_file_size);
 
 /**
  * @brief Returns mapped memory for a file from provided file handle (cross-platform).
@@ -63,13 +65,15 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& 
  *
  * @param handle Platform-specific file handle (int fd on Linux, HANDLE on Windows).
  * @param offset Offset in the file where the mapping starts.
- * @param size Size of the mapping. If size is 0, the whole file from offset will be mapped.
+ * @param size Size of the mapping. If size is std::numeric_limits<size_t>::max(), maps from offset to EOF.
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
-std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle, size_t offset = 0, size_t size = 0);
+std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle,
+                                                               size_t offset = 0,
+                                                               size_t size = auto_file_size);
 
 template <typename T, std::enable_if_t<std::is_same<T, FileHandle>::value, int> = 0>
-std::shared_ptr<ov::MappedMemory> load_mmap_object(T handle, size_t offset = 0, size_t size = 0) {
+std::shared_ptr<ov::MappedMemory> load_mmap_object(T handle, size_t offset = 0, size_t size = auto_file_size) {
     return load_mmap_object_from_handle(static_cast<FileHandle>(handle), offset, size);
 }
 }  // namespace ov

@@ -422,6 +422,12 @@ using RangedMappingTestRegions =  // offset_1, size_1, offset_2, size_2, file_si
 using RangedMappingTestParams =  // offset-size pairs, use file path (true) or file handle (false)
     std::tuple<RangedMappingTestRegions, bool>;
 
+namespace {
+size_t calc_sector_actual_size(size_t offset, size_t size, size_t file_actual_size) {
+    return size == auto_file_size ? file_actual_size - offset : size;
+}
+}  // namespace
+
 class RangedMappingTest : public ::testing::TestWithParam<RangedMappingTestParams> {
 protected:
     std::filesystem::path m_file_path;
@@ -431,16 +437,16 @@ protected:
         const auto& [regions, use_file_path] = GetParam();
         const auto& [offset_1, size_1, offset_2, size_2, file_size] = regions;
 
-        const auto actual_file_size = file_size ? file_size : std::max(offset_1 + size_1, offset_2 + size_2);
-        const auto actual_size_1 = size_1 ? size_1 : actual_file_size - offset_1;
-        const auto actual_size_2 = size_2 ? size_2 : actual_file_size - offset_2;
-        ASSERT_LE(offset_1 + actual_size_1, actual_file_size);
-        ASSERT_LE(offset_2 + actual_size_2, actual_file_size);
+        const auto actual_size_1 = calc_sector_actual_size(offset_1, size_1, file_size);
+        const auto actual_size_2 = calc_sector_actual_size(offset_2, size_2, file_size);
+        ASSERT_GT(file_size, 0);
+        ASSERT_LE(offset_1 + actual_size_1, file_size);
+        ASSERT_LE(offset_2 + actual_size_2, file_size);
 
         m_file_path = utils::generateTestFilePrefix();
         std::fstream s(m_file_path, std::ios::binary | std::ios::in | std::ios::out | std::ios::trunc);
         ASSERT_TRUE(s.is_open());
-        for (size_t i = 0; i < actual_file_size; ++i) {
+        for (size_t i = 0; i < file_size; ++i) {
             s.put('_');
         }
         ASSERT_TRUE(s.good());
@@ -470,9 +476,12 @@ public:
     static std::string test_name(const testing::TestParamInfo<RangedMappingTestParams>& info) {
         const auto& [regions, use_file_path] = info.param;
         const auto& [offset_1, size_1, offset_2, size_2, file_size] = regions;
+        const auto actual_size_1 = calc_sector_actual_size(offset_1, size_1, file_size);
+        const auto actual_size_2 = calc_sector_actual_size(offset_2, size_2, file_size);
         std::ostringstream ss;
-        ss << "offset1_" << offset_1 << "_size1_" << size_1 << "_offset2_" << offset_2 << "_size2_" << size_2
-           << "_file_size_" << file_size << (use_file_path ? "_file_path" : "_file_handle");
+        ss << "offset1_" << offset_1 << "_size1_" << std::to_string(actual_size_1) << "_offset2_" << offset_2
+           << "_size2_" << std::to_string(actual_size_2) << "_file_size_" << std::to_string(file_size)
+           << (use_file_path ? "_file_path" : "_file_handle");
         return ss.str();
     }
 };
@@ -572,14 +581,14 @@ static auto pg_sz = util::get_system_page_size();
 INSTANTIATE_TEST_SUITE_P(MappedMemory,
                          RangedMappingTest,
                          ::testing::Combine(::testing::ValuesIn(std::vector<RangedMappingTestRegions>{
-                                                {pg_sz, 127, 2 * pg_sz, 101, 0},
-                                                {0, 3 * pg_sz, 7 * pg_sz, 1024, 0},
-                                                {0, pg_sz, pg_sz, pg_sz, 0},
+                                                {pg_sz, 127, 2 * pg_sz, 101, (2 * pg_sz + 101)},
+                                                {0, 3 * pg_sz, 7 * pg_sz, 1024, (7 * pg_sz + 1024)},
+                                                {0, pg_sz, pg_sz, pg_sz, (2 * pg_sz)},
                                                 {100, 50, 150, 30, 180},
-                                                {1, 0, 0, 0, pg_sz},
+                                                {1, auto_file_size, 0, auto_file_size, pg_sz},
                                                 {0, 40, 0, 41, 42},
-                                                {11, 0, 17, 80, 101},
-                                                {10, 0, 0, 90, 100}}),
+                                                {11, auto_file_size, 17, 80, 101},
+                                                {10, auto_file_size, 0, 90, 100}}),
                                             ::testing::ValuesIn(std::vector<bool>{true, false})),
                          RangedMappingTest::test_name);
 
