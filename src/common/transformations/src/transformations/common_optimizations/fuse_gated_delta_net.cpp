@@ -196,8 +196,7 @@ ov::pass::FuseGDNLoop::FuseGDNLoop() {
     auto const_half = pattern::wrap_type<v0::Constant>(value_matches("0.5"));
     auto convert_half = pattern::optional<v0::Convert>({const_half});
 
-    auto power_head_size = pattern::wrap_type<v1::Power>({head_size_f32, convert_half});
-    auto attn_scale = power_head_size;
+    auto attn_scale = pattern::wrap_type<v1::Power>({head_size_f32, convert_half});
 
     auto q_scale = pattern::wrap_type<v1::Divide>({query, attn_scale});
     // optional convert after q_scale for fp16
@@ -361,6 +360,7 @@ bool ov::pass::GatedDeltaNetFusion::run_on_model(const std::shared_ptr<ov::Model
     RUN_ON_MODEL_SCOPE(GatedDeltaNetFusion);
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
+    // TODO: CVS-183090 use common transformation to remove concat->slice
     symbolic_ctx_manager->register_pass<ov::pass::RemoveConcatSliceAfterLoop>();
     symbolic_ctx_manager->register_pass<ov::pass::FuseGDNLoop>();
     // remove redundant transpose after loop fusion, which are inserted by FuseGDNLoop
