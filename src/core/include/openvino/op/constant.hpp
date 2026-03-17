@@ -47,7 +47,7 @@ public:
     template <typename T>
     Constant(const element::Type& type, const Shape& shape, const std::vector<T>& values)
         : Constant(false, type, shape) {
-        const auto this_shape_size = shape_size(m_shape);
+        const auto this_shape_size = m_shape_size;
         const auto values_size = values.size();
         const auto has_single_value = (values_size == 1);
         NODE_VALIDATION_CHECK(this,
@@ -80,10 +80,10 @@ public:
     template <typename T>
     void fill_data(const element::Type& type, T value) {
         if constexpr (data::is_supported_type<T>) {
-            data::fill(m_element_type, get_data_ptr_nc(), shape_size(m_shape), value);
+            data::fill(m_element_type, get_data_ptr_nc(), m_shape_size, value);
         } else {
             proxy_type<T> proxy_value = value;
-            data::fill(m_element_type, get_data_ptr_nc(), shape_size(m_shape), proxy_value);
+            data::fill(m_element_type, get_data_ptr_nc(), m_shape_size, proxy_value);
         }
     }
 
@@ -262,7 +262,7 @@ public:
 
     template <typename T>
     const T* get_data_ptr() const {
-        OPENVINO_ASSERT(sizeof(T) <= m_element_type.size() || shape_size(m_shape) <= 0, "Buffer over-read");
+        OPENVINO_ASSERT(sizeof(T) <= m_element_type.size() || m_shape_size <= 0, "Buffer over-read");
 
         return static_cast<const T*>(get_data_ptr());
     }
@@ -313,7 +313,7 @@ private:
 
     template <typename T>
     void write_values(const std::vector<T>& source) {
-        OPENVINO_ASSERT(source.size() == shape_size(m_shape), "Constant initializer does not match shape");
+        OPENVINO_ASSERT(source.size() == m_shape_size, "Constant initializer does not match shape");
 
         if constexpr (!data::is_supported_type<T>) {
             std::vector<proxy_type<T>> temp{source.begin(), source.end()};
@@ -387,6 +387,7 @@ private:
 
     element::Type m_element_type{};
     Shape m_shape{};
+    size_t m_shape_size{0};
     Strides m_byte_strides{};
     std::shared_ptr<ov::AlignedBuffer> m_data{};
     mutable std::atomic_bool m_all_elements_bitwise_identical{false};
