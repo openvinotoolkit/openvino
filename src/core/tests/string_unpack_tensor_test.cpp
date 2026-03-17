@@ -161,7 +161,7 @@ TEST(StringUnpackTensorTest, DecreasingOffsetsFails) {
 
 /// @brief Test case for string offset exceeding buffer bounds in packed string tensor.
 /// Expecting AssertFailure with message about string offset exceeds buffer bounds.
-/// num_strings = 1, header: [1, 0, end0=10], but buffer too small
+/// num_strings = 2, header: [2, 0, end0=10, end1=20], but buffer too small
 TEST(StringUnpackTensorTest, OffsetBeyondBufferFails) {
     using testing::HasSubstr;
 
