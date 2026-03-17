@@ -131,7 +131,7 @@ public:
     void add_extension(const std::string& library_path);
 
     void add_extension(const std::filesystem::path& library_path) {
-        add_extension(library_path.string());
+        add_extension(library_path.native());
     }
     /// \}
 
