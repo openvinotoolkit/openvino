@@ -8,13 +8,17 @@
 
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
-#include "model_generator/model_generator.hpp"
+#include "model_builder.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/pass/stateful_to_stateless.hpp"
 #include "partitioning/online/compiler.hpp"
 #include "partitioning/online/group.hpp"
 #include "partitioning/online/snapshot.hpp"
+
+using ov::test::npuw::ModelBuilder;
+using ov::test::npuw::ModelConfig;
 
 namespace {
 
@@ -107,8 +111,8 @@ class IsRegularParameterCaseParametrized : public ::testing::TestWithParam<std::
 };  // namespace
 
 TEST(OnlinePartitioningTest, Partitioning_IsTheSame_SmallModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_without_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_without_repeated_blocks();
 
     auto cfg = createConfigWithKeepBlockSize(9);
     auto ens = ov::npuw::online::buildPartitioning(model, cfg);
@@ -120,8 +124,8 @@ TEST(OnlinePartitioningTest, Partitioning_IsTheSame_SmallModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_IsTheSame_RepeatedModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_with_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_with_repeated_blocks();
 
     auto cfg = createConfigWithKeepBlockSize(9);
     auto ens = ov::npuw::online::buildPartitioning(model, cfg);
@@ -133,8 +137,8 @@ TEST(OnlinePartitioningTest, Partitioning_IsTheSame_RepeatedModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_SingleGroup_SmallModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_without_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_without_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->singleGroup();
@@ -142,8 +146,8 @@ TEST(OnlinePartitioningTest, Partitioning_SingleGroup_SmallModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_SingleGroup_RepeatedModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_with_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_with_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->singleGroup();
@@ -151,8 +155,8 @@ TEST(OnlinePartitioningTest, Partitioning_SingleGroup_RepeatedModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_buildGraph_SmallModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_without_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_without_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
@@ -165,8 +169,8 @@ TEST(OnlinePartitioningTest, Partitioning_buildGraph_SmallModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_buildGraph_RepeatedModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_with_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_with_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
@@ -179,8 +183,8 @@ TEST(OnlinePartitioningTest, Partitioning_buildGraph_RepeatedModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_earlyAvoids_SmallModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_without_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_without_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     ov::npuw::online::PassContext ctx;
@@ -202,8 +206,8 @@ TEST(OnlinePartitioningTest, Partitioning_earlyAvoids_SmallModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_earlyAvoids_RepeatedModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_with_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_with_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     ov::npuw::online::PassContext ctx;
@@ -225,8 +229,8 @@ TEST(OnlinePartitioningTest, Partitioning_earlyAvoids_RepeatedModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_collectLHF_SmallModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_without_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_without_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
@@ -242,8 +246,8 @@ TEST(OnlinePartitioningTest, Partitioning_collectLHF_SmallModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_collectLHF_RepeatedModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_with_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_with_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
@@ -259,8 +263,8 @@ TEST(OnlinePartitioningTest, Partitioning_collectLHF_RepeatedModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_fuseRemnants_SmallModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_without_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_without_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
@@ -276,8 +280,8 @@ TEST(OnlinePartitioningTest, Partitioning_fuseRemnants_SmallModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_fuseRemnants_RepeatedModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_with_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_with_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
@@ -293,8 +297,8 @@ TEST(OnlinePartitioningTest, Partitioning_fuseRemnants_RepeatedModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_fuseRemnantsExtended_SmallModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_without_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_without_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
@@ -310,8 +314,8 @@ TEST(OnlinePartitioningTest, Partitioning_fuseRemnantsExtended_SmallModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_fuseRemnantsExtended_RepeatedModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_with_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_with_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
@@ -327,8 +331,8 @@ TEST(OnlinePartitioningTest, Partitioning_fuseRemnantsExtended_RepeatedModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_fuseInputs_SmallModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_without_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_without_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
@@ -344,8 +348,8 @@ TEST(OnlinePartitioningTest, Partitioning_fuseInputs_SmallModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_fuseInputs_RepeatedModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_with_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_with_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
@@ -361,8 +365,8 @@ TEST(OnlinePartitioningTest, Partitioning_fuseInputs_RepeatedModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_Compiler_Just_SmallModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_without_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_without_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
@@ -386,8 +390,8 @@ TEST(OnlinePartitioningTest, Partitioning_Compiler_Just_SmallModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_Compiler_Just_RepeatedModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_with_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_with_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
@@ -411,8 +415,8 @@ TEST(OnlinePartitioningTest, Partitioning_Compiler_Just_RepeatedModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_Compiler_RepeatedBlocks_SmallModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_without_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_without_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
@@ -436,8 +440,8 @@ TEST(OnlinePartitioningTest, Partitioning_Compiler_RepeatedBlocks_SmallModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_Compiler_RepeatedBlocks_RepeatedModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_with_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_with_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
@@ -468,8 +472,8 @@ TEST(OnlinePartitioningTest, Partitioning_Compiler_RepeatedBlocks_RepeatedModel)
 }
 
 TEST(OnlinePartitioningTest, Partitioning_Compiler_Compute_SmallModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_without_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_without_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
 
@@ -499,8 +503,8 @@ TEST(OnlinePartitioningTest, Partitioning_Compiler_Compute_SmallModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_Compiler_Compute_RepeatedModel) {
-    ModelGenerator mg;
-    auto model = mg.get_model_with_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_with_repeated_blocks();
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
 
@@ -575,9 +579,9 @@ TEST(OnlinePartitioningTest, Partitioning_Avoids_Pipeline_None) {
 TEST(OnlinePartitioningTest, IsRegularIOCaseWhenNoRB) {
     bool expected_result = false;
 
-    ModelGenerator mg;
-    std::vector<std::shared_ptr<ov::Model>> models = {mg.get_model_with_one_op(),
-                                                      mg.get_model_without_repeated_blocks()};
+    ModelBuilder mb;
+    std::vector<std::shared_ptr<ov::Model>> models = {mb.get_model_with_one_op(),
+                                                      mb.get_model_without_repeated_blocks()};
 
     for (auto model : models) {
         auto cfg = createConfigWithKeepBlockSize(9);
@@ -589,10 +593,10 @@ TEST(OnlinePartitioningTest, IsRegularIOCaseWhenNoRB) {
 }
 
 TEST(OnlinePartitioningTest, IsRegularResultCaseMultipleOutputs) {
-    ModelGenerator mg;
+    ModelBuilder mb;
     std::vector<std::pair<std::shared_ptr<ov::Model>, bool>> model_expected = {
-        {mg.get_model_with_multi_output_repeating_blocks(10, /*irregular_io=*/true), /*irregular_io=*/true},
-        {mg.get_model_with_multi_output_repeating_blocks(10, /*irregular_io=*/false),
+        {mb.get_model_with_multi_output_repeating_blocks(10, /*irregular_io=*/true), /*irregular_io=*/true},
+        {mb.get_model_with_multi_output_repeating_blocks(10, /*irregular_io=*/false),
          /*irregular_io=*/false}};
 
     for (auto [model, expected_result] : model_expected) {
@@ -607,8 +611,8 @@ TEST(OnlinePartitioningTest, IsRegularResultCaseMultipleOutputs) {
 TEST_P(IsRegularResultCaseParametrized, CheckForDifferentResultConfigs) {
     auto [block_indices, expected_result] = GetParam();
 
-    ModelGenerator mg;
-    auto model = mg.get_model_with_repeated_blocks_and_results(10, block_indices);
+    ModelBuilder mb;
+    auto model = mb.get_model_with_repeated_blocks_and_results(10, block_indices);
 
     auto cfg = createConfigWithKeepBlockSize(9);
     auto ens = ov::npuw::online::buildPartitioning(model, cfg);
@@ -633,8 +637,8 @@ INSTANTIATE_TEST_SUITE_P(OnlinePartitioningTest,
 TEST_P(IsRegularParameterCaseParametrized, CheckForDifferentParameterConfigs) {
     auto [block_indices, expected_result] = GetParam();
 
-    ModelGenerator mg;
-    auto model = mg.get_model_with_repeated_blocks_and_parameters(10, block_indices);
+    ModelBuilder mb;
+    auto model = mb.get_model_with_repeated_blocks_and_parameters(10, block_indices);
     auto cfg = createConfigWithKeepBlockSize(4);
     auto ens = ov::npuw::online::buildPartitioning(model, cfg);
 
@@ -654,3 +658,78 @@ INSTANTIATE_TEST_SUITE_P(OnlinePartitioningTest,
                              std::make_tuple(std::vector<std::size_t>{5}, /*irregular_io=*/true),
                              // No blocks have an additional ov::Parameter producers
                              std::make_tuple(std::vector<std::size_t>{}, /*irregular_io=*/false)));
+
+// Regression test for the isRegularParameterCase iteration-order bug.
+//
+// In a prefill-style model built with use_inputs_embeds=true, the first transformer
+// layer's residual Add reads inputs_embeds (ov::Parameter) as its ONLY external
+// producer -- the other input (o_proj/MatMul) is internal to the same partitioned
+// group. Because isOp(Parameter)=false, updateInputLayers() excludes that Add from
+// group 0's getInputs(). The old code used gset.begin() (hash-order-dependent) as
+// the sole reference group: if it landed on group 0, the mismatch between layer 0's
+// producers mask [true, false] and layers 1+'s mask [false, false] was invisible,
+// so irregular_io was incorrectly set to false and F16IC was wrongly enabled,
+// leading to a 26!=27 sanityCheck assertion failure at runtime.
+//
+// The fix iterates ALL groups in gset so that at least one sibling group (layers 1+)
+// always exposes its boundary Add in getInputs(), detects the mask mismatch, and
+// correctly sets irregular_io=true regardless of hash order.
+TEST(OnlinePartitioningTest, IsRegularParameterCase_PrefillModel_InputsEmbeds) {
+    ModelConfig config;
+    config.num_layers = 4;
+    config.hidden_size = 64;
+    config.use_inputs_embeds = true;  // layer 0's residual Add reads inputs_embeds (ov::Parameter)
+    config.use_kv_cache = true;
+
+    ModelBuilder mb;
+    auto model = mb.build_model(config);
+
+    // Partitioning requires a static-shape stateless model, matching the real
+    // production path in LLMCompiledModel before getPartitioning() is called.
+    ov::pass::StatefulToStateless().run_on_model(model);
+    // StatefulToStateless removes Assign nodes from model sinks but does NOT sever
+    // their incoming edges (Concat → Assign).  clone() rebuilds the model from
+    // get_ordered_ops(), which no longer includes the dangling Assigns, producing a
+    // clean graph.  This mirrors LLMCompiledModel's kvcache_model->clone() → prefill_model.
+    model = model->clone();
+
+    // Resolve dynamic dimensions using the same name-aware logic as the production
+    // LLMCompiledModel::reshape_to_static():
+    //   - inputs_embeds   -> [1, seq_len, hidden_size]   (hidden_size stays static)
+    //   - attention_mask  -> [1, kvcache_size]            (covers full past + current)
+    //   - position_ids    -> [1, seq_len]
+    //   - past KV tensors -> [1, kv_heads, past_kv_len, head_dim]
+    //                        (axes 1 and 3 are already static in the model builder)
+    const int64_t seq_len = 8;
+    const int64_t past_kv_len = 8;
+    const int64_t kvcache_size = seq_len + past_kv_len;
+    std::map<std::string, ov::PartialShape> new_shapes;
+    for (const auto& input : model->inputs()) {
+        const auto& name = input.get_any_name();
+        const auto& pshape = input.get_partial_shape();
+        ov::PartialShape new_shape;
+        if (name.find("inputs_embeds") != std::string::npos) {
+            new_shape = {1, seq_len, pshape[2]};  // hidden_size is static
+        } else if (name.find("attention_mask") != std::string::npos) {
+            new_shape = {1, kvcache_size};
+        } else if (name.find("position_ids") != std::string::npos) {
+            new_shape = {1, seq_len};
+        } else {
+            // Past KV tensors: [batch, kv_heads, past_kv_len, head_dim]
+            // (axes 1 and 3 are already static; set batch=1 and past_kv_len)
+            new_shape = pshape;
+            new_shape[0] = 1;
+            new_shape[2] = past_kv_len;
+        }
+        new_shapes[name] = new_shape;
+    }
+    model->reshape(new_shapes);
+
+    auto cfg = createConfigWithKeepBlockSize(4);
+    auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+    EXPECT_GE(ens.repeated.size(), 1u);  // sanity: transformer layers must form a repeated block
+    // Layer 0 reads inputs_embeds (ov::Parameter); layers 1+ read from prior computation.
+    // isRegularParameterCase must detect this structural asymmetry and set irregular_io=true.
+    EXPECT_TRUE(ens.irregular_io);
+}

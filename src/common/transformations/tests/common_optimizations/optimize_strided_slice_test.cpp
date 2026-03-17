@@ -484,6 +484,37 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_axes_const_sorted_full) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
+TEST_F(TransformationTestsF, SliceToStridedSlice_empty_axes) {
+    {
+        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 4, 3, 5});
+        auto begin = opset8::Constant::create(element::i64, Shape{0}, {});
+        auto end = opset8::Constant::create(element::i64, Shape{0}, {});
+        auto step = opset8::Constant::create(element::i64, Shape{0}, {});
+
+        auto axes = opset8::Constant::create(element::i64, Shape{0}, {});
+
+        auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
+
+        model = std::make_shared<ov::Model>(OutputVector{slice}, ParameterVector{data});
+        manager.register_pass<ov::pass::SliceToStridedSlice>(true);
+    }
+    {
+        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 4, 3, 5});
+        auto begin = opset8::Constant::create(element::i64, Shape{0}, {});
+        auto end = opset8::Constant::create(element::i64, Shape{0}, {});
+        auto stride = opset8::Constant::create(element::i64, Shape{0}, {});
+
+        std::vector<int64_t> begin_mask = {};
+        std::vector<int64_t> end_mask = {};
+
+        auto strided_slice = std::make_shared<opset1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
+
+        model_ref = std::make_shared<ov::Model>(OutputVector{strided_slice}, ParameterVector{data});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
 TEST_F(TransformationTestsF, SliceToStridedSlice_all_const) {
     {
         auto data = opset8::Constant::create(element::f32, Shape{4}, {2, 3, 4, 5});
