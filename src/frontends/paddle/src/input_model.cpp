@@ -8,12 +8,14 @@
 #if defined(__MINGW32__) || defined(__MINGW64__)
 #    include <filesystem>
 #endif
+#include <limits>
 #include <queue>
 
 #include "decoder_proto.hpp"
 #include "framework.pb.h"
 #include "input_model.hpp"
 #include "openvino/core/log_util.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/util/common_util.hpp"
@@ -160,8 +162,29 @@ void InputModel::InputModelImpl::load_places() {
 
 namespace {
 bool read_tensor(std::istream& is, char* data, size_t len) {
-    is.read(data, len);
-    return (size_t)is.gcount() == len;
+    if (len == 0) {
+        return true;
+    }
+    if (len > static_cast<size_t>(std::numeric_limits<std::streamsize>::max())) {
+        return false;
+    }
+    is.read(data, static_cast<std::streamsize>(len));
+    return is && (size_t)is.gcount() == len;
+}
+
+constexpr size_t kMaxTensorDescSize = 64 * 1024 * 1024;
+
+template <typename DimsT>
+ov::Shape make_shape_checked(const DimsT& dims) {
+    ov::Shape shape;
+    shape.reserve(dims.size());
+    for (const auto& dim : dims) {
+        FRONT_END_GENERAL_CHECK(dim >= 0, "Negative dimension in Paddle weight tensor.");
+        FRONT_END_GENERAL_CHECK(static_cast<unsigned long long>(dim) <= std::numeric_limits<size_t>::max(),
+                                "Dimension is too large for size_t in Paddle weight tensor.");
+        shape.push_back(static_cast<size_t>(dim));
+    }
+    return shape;
 }
 
 template <typename T>
@@ -288,10 +311,11 @@ void InputModel::InputModelImpl::load_consts(const std::basic_string<T>& folder_
 
         FRONT_END_GENERAL_CHECK(var_desc.type().type() == ::paddle::framework::proto::VarType::LOD_TENSOR);
         const auto& tensor = var_desc.type().lod_tensor().tensor();
-        Shape shape(tensor.dims().cbegin(), tensor.dims().cend());
+        Shape shape = make_shape_checked(tensor.dims());
         const auto& type = get_ov_type(tensor.data_type());
-        const auto& data_length = shape_size(shape) * type.size();
-        std::vector<uint8_t> tensor_data(data_length);
+        auto data_length = ov::util::get_memory_size_safe(type, shape);
+        FRONT_END_GENERAL_CHECK(data_length, "Weight tensor size overflow for constant ", name, ".");
+        std::vector<uint8_t> tensor_data(*data_length);
 
         bool read_succeed = false;
         if (!folder_with_weights.empty()) {
@@ -304,13 +328,20 @@ void InputModel::InputModelImpl::load_consts(const std::basic_string<T>& folder_
             FRONT_END_GENERAL_CHECK(is && is.is_open(), "Cannot open file for constant value.");
             const size_t header_size = 16;
             std::vector<char> header(header_size);
-            is.read(&header[0], header_size);
+            FRONT_END_GENERAL_CHECK(is.read(&header[0], header_size), "Failed to read constant header for ", name, ".");
 
             uint32_t dims_len = 0;
-            is.read(reinterpret_cast<char*>(&dims_len), 4);
+            FRONT_END_GENERAL_CHECK(is.read(reinterpret_cast<char*>(&dims_len), sizeof(dims_len)),
+                                    "Failed to read dims length for ",
+                                    name,
+                                    ".");
+            FRONT_END_GENERAL_CHECK(dims_len <= kMaxTensorDescSize, "Dims struct size too large for ", name, ".");
             std::vector<char> dims_struct(dims_len);
-            is.read(&dims_struct[0], dims_len);
-            read_succeed = read_tensor(is, reinterpret_cast<char*>(&tensor_data[0]), data_length);
+            FRONT_END_GENERAL_CHECK(is.read(dims_struct.data(), dims_len),
+                                    "Failed to read dims struct for ",
+                                    name,
+                                    ".");
+            read_succeed = read_tensor(is, reinterpret_cast<char*>(tensor_data.data()), *data_length);
         } else {
             FRONT_END_GENERAL_CHECK(false, "Folder with weights must be provided.");
         }
@@ -318,7 +349,7 @@ void InputModel::InputModelImpl::load_consts(const std::basic_string<T>& folder_
                                 "File containing constant with name ",
                                 name,
                                 " wasn't successfully read.");
-        auto const_node = opset7::Constant::create(type, shape, &tensor_data[0]);
+        auto const_node = opset7::Constant::create(type, shape, tensor_data.data());
         const_node->set_friendly_name(name);
         m_tensor_values[name] = const_node;
     }
@@ -353,30 +384,47 @@ void InputModel::InputModelImpl::load_consts(std::istream* weight_stream) {
         {
             const size_t header_size = 16;
             std::vector<char> header(header_size);
-            weight_stream->read(&header[0], header_size);
+            FRONT_END_GENERAL_CHECK(weight_stream->read(&header[0], header_size),
+                                    "Failed to read weight header for ",
+                                    name,
+                                    ".");
         }
 
         int32_t size;
-        weight_stream->read(reinterpret_cast<char*>(&size), sizeof(size));
+        FRONT_END_GENERAL_CHECK(weight_stream->read(reinterpret_cast<char*>(&size), sizeof(size)),
+                                "Failed to read TensorDesc size for ",
+                                name,
+                                ".");
+        FRONT_END_GENERAL_CHECK(size > 0 && static_cast<size_t>(size) <= kMaxTensorDescSize,
+                                "TensorDesc size is invalid for ",
+                                name,
+                                ".");
 
-        std::unique_ptr<char[]> buf(new char[size]);
-        weight_stream->read(reinterpret_cast<char*>(buf.get()), size);
+        std::vector<char> buf(static_cast<size_t>(size));
+        FRONT_END_GENERAL_CHECK(weight_stream->read(buf.data(), size),
+                                "Failed to read TensorDesc data for ",
+                                name,
+                                ".");
 
         std::unique_ptr<::paddle::framework::proto::VarType_TensorDesc> tensor_desc(
             new ::paddle::framework::proto::VarType_TensorDesc());
-        tensor_desc->ParseFromArray(buf.get(), size);
-        Shape shape(tensor_desc->dims().cbegin(), tensor_desc->dims().cend());
+        FRONT_END_GENERAL_CHECK(tensor_desc->ParseFromArray(buf.data(), size),
+                                "Failed to parse TensorDesc for ",
+                                name,
+                                ".");
+        Shape shape = make_shape_checked(tensor_desc->dims());
         const auto& type = get_ov_type(tensor_desc->data_type());
-        const auto& data_length = shape_size(shape) * type.size();
-        std::vector<uint8_t> tensor_data(data_length);
+        auto data_length = ov::util::get_memory_size_safe(type, shape);
+        FRONT_END_GENERAL_CHECK(data_length, "Weight tensor size overflow for constant ", name, ".");
+        std::vector<uint8_t> tensor_data(*data_length);
 
-        bool read_succeed = read_tensor(*weight_stream, reinterpret_cast<char*>(&tensor_data[0]), data_length);
+        bool read_succeed = read_tensor(*weight_stream, reinterpret_cast<char*>(tensor_data.data()), *data_length);
         FRONT_END_GENERAL_CHECK(read_succeed,
                                 "File containing constant with name ",
                                 name,
                                 " wasn't successfully read.");
 
-        auto const_node = opset7::Constant::create(type, shape, &tensor_data[0]);
+        auto const_node = opset7::Constant::create(type, shape, tensor_data.data());
         const_node->set_friendly_name(name);
         m_tensor_values[name] = const_node;
     }
@@ -434,9 +482,9 @@ void InputModel::InputModelImpl::create_temp_consts() {
         // as its output. e.g. the tensorarray is both the input and output of the same node.
         // So we have to create a fake empty node here.
         // Problem is, we have no idea which axis should be 0.
-        // Since the models (faster/mask rcnn) are either concating tensors in tensorarray along the dynamic
-        // dimension, or concating static shape tensors. So we make the dynamic dimension to be 0. In case of static
-        // shape, we simply the the first dimension be 0.
+        // Since the models (faster/mask rcnn) are either concatenating tensors in tensorarray along the dynamic
+        // dimension, or concatenating static shape tensors. So we make the dynamic dimension to be 0. In case of
+        // static shape, we simply set the first dimension to 0.
         if (var_desc.type().has_tensor_array()) {
             const auto& tensor = var_desc.type().tensor_array().tensor();
             const auto& type = get_ov_type(tensor.data_type());

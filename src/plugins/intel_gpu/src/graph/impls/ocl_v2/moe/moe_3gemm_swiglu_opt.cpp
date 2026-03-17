@@ -12,7 +12,6 @@
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <initializer_list>
 #    include <oneapi/dnnl/dnnl.hpp>
-#    include <oneapi/dnnl/dnnl_ocl.hpp>
 #    include <sstream>
 #    include <string_view>
 #    include <tuple>
@@ -366,6 +365,33 @@ protected:
     }
 };
 
+class MoE3GemmSwigluSigmoidBiasTopK : public KernelGenerator {
+public:
+    MoE3GemmSwigluSigmoidBiasTopK() : KernelGenerator("moe_3gemm_swiglu_fuse", "sigmoid_bias_topk") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+        jit.make("SIGMOID_BIAS_TOPK_ENABLE", 1);
+        jit.make("TOP_K", desc->_config.top_k);
+        jit.make("VALUE_NUM", desc->_config.num_expert);
+        jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
+        jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+    }
+};
+
 class MoE3GemmSwigluGather : public KernelGenerator {
 public:
     MoE3GemmSwigluGather() : KernelGenerator("moe_3gemm_swiglu_fuse", "gather") {}
@@ -432,7 +458,7 @@ protected:
 static size_t get_seq_len(cldnn::layout& layout) {
     auto shape = layout.get_shape();
     size_t seq_len = static_cast<size_t>(shape[0]);
-    if (shape.size() == 4) {
+    if (shape.size() >= 3) {
         seq_len = static_cast<size_t>(shape[0] * shape[1]);
     }
     return seq_len;
@@ -755,6 +781,7 @@ class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
     Stage::Ptr softmax_topk = make_stage<MoE3GemmSwigluSoftMaxTopK>();
+    Stage::Ptr sigmoid_bias_topk = make_stage<MoE3GemmSwigluSigmoidBiasTopK>();
     Stage::Ptr gather = make_stage<MoE3GemmSwigluGather>();
     Stage::Ptr scatter = make_stage<MoE3GemmSwigluScatter>();
     Stage::Ptr mlp_gate_up = make_stage<MoE3GemmSwigluMLPGateUp>();
@@ -855,7 +882,8 @@ public:
 
         auto& engine = params.prog->get_engine();
         const auto& info = engine.get_device_info();
-        if (info.arch < gpu_arch::xe2) {
+        // FIXME: CVS-182236 Prefill performance on discrete GPU is bad when using micro_gemm_prefill, need to investigate further, disable it for now.
+        if (info.arch < gpu_arch::xe2 || info.dev_type == cldnn::device_type::discrete_gpu) {
             use_micro_gemm_prefill = false;
             GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
                                    << ", arch=" << static_cast<int>(info.arch) << std::endl;
@@ -871,7 +899,14 @@ public:
         }
 
         // Don't change the order of stages
-        add_stage(softmax_topk, params);
+        auto routing_type = node.as<moe_3gemm_fused_compressed>().get_primitive()->_config.routing_type;
+        if (routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SOFTMAX) {
+            add_stage(softmax_topk, params);
+        } else if (routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS) {
+            add_stage(sigmoid_bias_topk, params);
+        } else {
+            OPENVINO_THROW("Unsupported routing type for moe_3gemm_swiglu_opt_impl: ", static_cast<int>(routing_type));
+        }
         add_stage(gather, params);
         add_stage(scatter, params);
         add_stage(mlp_gate_up, params);
@@ -1433,6 +1468,7 @@ public:
         //      8: wei_zp
         //  output:
         //      0: up/gate output, shape = [token_len * expert_topK, hidden_size]
+        // Note: If POST_PROC_SILU_MUL is enabled, silu_mul result will be involved in micro_gemm_gate, don't change kernel executor order.
         {
 #    if DEBUG_MOE_LOG
             GPU_DEBUG_TRACE_DETAIL << "\nstep 3: moe_gemm for up and gate" << std::endl;
@@ -1447,7 +1483,10 @@ public:
         //      1: gate  [token_len * expert_topK, hidden_size]
         // output
         //      0: gate_up  [token_len * expert_topK, hidden_size]
-        {
+        // Note: If POST_PROC_SILU_MUL is disabled, single silu_mul kernel will be submmited.
+        //       Otherwise, silu_mul has been involved in micro_gemm_gate kernel, skip here.
+        const bool enable_silu_mul = ENABLE_MOE_MICRO_GEMM_POST_PROC_SILU_MUL;
+        if (!enable_silu_mul) {
             auto token_size = token_num * max_topk;
 #    if DEBUG_MOE_LOG
             GPU_DEBUG_TRACE_DETAIL << "\nstep 4: prefill_swiglu token_size=" << token_size << ", hidden_size=" << _intermediate_size << std::endl;
@@ -1457,8 +1496,8 @@ public:
                                       *prefill_swiglu,
                                       {intermediates_memories[MOE_INTERNAL_BUFFER_UP_OUTPUT], intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT]},
                                       {intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT]},
-                                      {static_cast<size_t>(token_size), static_cast<size_t>(_intermediate_size), 1},
-                                      {1, subgroup_size, 1});
+                                      {static_cast<size_t>(_intermediate_size), static_cast<size_t>(token_size), 1},
+                                      {subgroup_size, 1, 1});
         }
 
         // step 5: moe_gemm for down
@@ -1648,7 +1687,7 @@ public:
             OPENVINO_THROW("hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
         };
         auto lws_size = get_best_lws(_hidden_size);
-        int max_topk = static_cast<int>(config.top_k);
+        auto max_topk = static_cast<int64_t>(config.top_k);
 
         // [batch, max_topk]
         auto topk_id_mem = scratch.topk_id;
@@ -1670,6 +1709,12 @@ public:
             copy_expert_mask_to_gpu(stream, expert_mask, expert_no, expert_mask_mem);
 
             auto n_token = static_cast<int>(expert_mask.batch[expert_no].size());
+
+            // Be careful about possible overflow
+            if (n_token > std::numeric_limits<int64_t>::max() / max_topk)
+                OPENVINO_THROW("n_token * max_topk overflow detected, n_token=", n_token, " max_topk=", max_topk);
+
+            int64_t routing_weights_size = static_cast<int64_t>(n_token * max_topk);
             onednn_kernel& kernel = get_kernel(n_token, static_cast<int>(expert_no), instance);
 
             // gather
@@ -1685,23 +1730,23 @@ public:
             // up
             kernel.up.forward(dnn_stream,
                               n_token,
-                              convert2dnnl(scratch.x, {static_cast<int>(n_token), dnnl_weights[1].ic}, dnnl::memory::format_tag::ab),
-                              convert2dnnl(scratch.up, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
+                              convert2dnnl(scratch.x, {static_cast<int64_t>(n_token), dnnl_weights[1].ic}, dnnl::memory::format_tag::ab),
+                              convert2dnnl(scratch.up, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
                               dnnl::memory());
 
             // gate
             kernel.gate.forward(dnn_stream,
                                 n_token,
-                                convert2dnnl(scratch.x, {static_cast<int>(n_token), dnnl_weights[0].ic}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.gate, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.up, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab));
+                                convert2dnnl(scratch.x, {static_cast<int64_t>(n_token), dnnl_weights[0].ic}, dnnl::memory::format_tag::ab),
+                                convert2dnnl(scratch.gate, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
+                                convert2dnnl(scratch.up, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab));
 
             // down
             kernel.down.forward(dnn_stream,
                                 n_token,
-                                convert2dnnl(scratch.gate, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.y, {static_cast<int>(n_token), _hidden_size}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.routing_weights, {static_cast<int>(n_token * max_topk)}, dnnl::memory::format_tag::a));
+                                convert2dnnl(scratch.gate, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
+                                convert2dnnl(scratch.y, {static_cast<int64_t>(n_token), _hidden_size}, dnnl::memory::format_tag::ab),
+                                convert2dnnl(scratch.routing_weights, {static_cast<int64_t>(routing_weights_size)}, dnnl::memory::format_tag::a));
 
             // index_add
             result_event = execute_stage({result_event},
@@ -1731,16 +1776,32 @@ public:
         scratch_buffers scratch;
         prepare_internal_buffers(instance, scratch, token_num);
 
-        // softmax+topk
+        // routing: softmax+topk or sigmoid+bias+topk
         auto lws_size = config.num_expert;
-        auto topk_event = execute_stage(events,
-                                        instance,
-                                        *softmax_topk,
-                                        {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS))},
-                                        {scratch.topk_id, scratch.topk_weights},
-                                        {static_cast<size_t>(token_num), lws_size},
-                                        {1, lws_size},
-                                        instance.needs_completion_event());
+        cldnn::event::ptr topk_event;
+        if (config.routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SOFTMAX) {
+            topk_event = execute_stage(events,
+                                       instance,
+                                       *softmax_topk,
+                                       {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS))},
+                                       {scratch.topk_id, scratch.topk_weights},
+                                       {static_cast<size_t>(token_num), lws_size},
+                                       {1, lws_size},
+                                       instance.needs_completion_event());
+        } else if (config.routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS) {
+            topk_event = execute_stage(events,
+                                       instance,
+                                       *sigmoid_bias_topk,
+                                       {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS)),
+                                        instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_BIAS)),
+                                        instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_EPS))},
+                                       {scratch.topk_id, scratch.topk_weights},
+                                       {static_cast<size_t>(token_num), lws_size},
+                                       {1, lws_size},
+                                       instance.needs_completion_event());
+        } else {
+            OPENVINO_THROW("Unsupported routing type ", static_cast<int>(config.routing_type));
+        }
 
         // Single token is a special case, we don't need to do gather/scatter,
         // and we can apply optimal kernels against memory bound to improve performance.

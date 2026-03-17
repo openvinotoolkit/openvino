@@ -8,11 +8,10 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestAddMM(PytorchLayerTest):
     def _prepare_input(self, input_shape=(2, 2), matrix1_shape=(2, 2), matrix2_shape=(2, 2)):
-        import numpy as np
         return (
-            np.random.randn(*input_shape).astype(np.float32),
-            np.random.randn(*matrix1_shape).astype(np.float32),
-            np.random.randn(*matrix2_shape).astype(np.float32)
+            self.random.randn(*input_shape),
+            self.random.randn(*matrix1_shape),
+            self.random.randn(*matrix2_shape)
         )
 
     def create_model(self, alpha, beta):
@@ -20,16 +19,15 @@ class TestAddMM(PytorchLayerTest):
 
         class aten_addmm(torch.nn.Module):
             def __init__(self, alpha, beta):
-                super(aten_addmm, self).__init__()
+                super().__init__()
                 self.alpha = alpha
                 self.beta = beta
 
             def forward(self, m0, m1, m2):
                 return torch.addmm(m0, m1, m2, alpha=self.alpha, beta=self.beta)
 
-        ref_net = None
 
-        return aten_addmm(alpha, beta), ref_net, 'aten::addmm'
+        return aten_addmm(alpha, beta), 'aten::addmm'
 
     @pytest.mark.parametrize("kwargs_to_prepare_input", [
         {"input_shape": (3, 3), 'matrix1_shape': (3, 3), 'matrix2_shape': (3, 3)},
@@ -52,11 +50,10 @@ class TestAddMM(PytorchLayerTest):
 
 class TestBAddBMM(PytorchLayerTest):
     def _prepare_input(self, input_shape=(2, 2), matrix1_shape=(2, 2), matrix2_shape=(2, 2)):
-        import numpy as np
         return (
-            np.random.randn(*input_shape).astype(np.float32),
-            np.random.randn(*matrix1_shape).astype(np.float32),
-            np.random.randn(*matrix2_shape).astype(np.float32)
+            self.random.randn(*input_shape),
+            self.random.randn(*matrix1_shape),
+            self.random.randn(*matrix2_shape)
         )
 
     def create_model(self, alpha, beta):
@@ -64,16 +61,15 @@ class TestBAddBMM(PytorchLayerTest):
 
         class aten_addmm(torch.nn.Module):
             def __init__(self, alpha, beta):
-                super(aten_addmm, self).__init__()
+                super().__init__()
                 self.alpha = alpha
                 self.beta = beta
 
             def forward(self, m0, m1, m2):
                 return torch.baddbmm(m0, m1, m2, alpha=self.alpha, beta=self.beta)
 
-        ref_net = None
 
-        return aten_addmm(alpha, beta), ref_net, 'aten::baddbmm'
+        return aten_addmm(alpha, beta), 'aten::baddbmm'
 
     @pytest.mark.parametrize("kwargs_to_prepare_input", [
         {"input_shape": (2, 3, 3), 'matrix1_shape': (2, 3, 3), 'matrix2_shape': (2, 3, 3)},

@@ -444,15 +444,37 @@ bool crop_in_place_optimization::can_crop_be_optimized_simple_data_format(const 
 }
 
 static bool can_read_value_be_optimize(const read_value_node& node) {
-    std::unordered_set<const cldnn::program_node*> unique_users(node.get_users().begin(), node.get_users().end());
-    if (unique_users.size() == 1)
+    std::unordered_set<const cldnn::program_node*> unique_users;
+    for (const auto user : node.get_users()) {
+        if (!user->is_type<shape_of>()) {
+            unique_users.insert(user);
+        }
+    }
+    if (unique_users.size() <= 1)
         return true;
 
-    const auto non_shape_of_users_count = std::count_if(unique_users.begin(), unique_users.end(), [](const program_node* user) {
-        return !user->is_type<shape_of>();
-    });
-    if (non_shape_of_users_count <= 1)
-        return true;
+    // following pattern should be optimized, otherwise it could lead to corruptted data.
+    // readvalue's users eventually need to pass kvcache before assign, which makes kvcache node the dominator of assign node, 
+    // it could be safely treated as if readvalue is directly connecting to kvcache.
+    // readvalue --> any
+    //       |         |
+    //       |         v
+    //       ------> kvcache
+    if (unique_users.size() == 2) {
+        const auto user0 = *unique_users.begin();
+        const auto user1 = *(++unique_users.begin());
+        const bool is_user0_kvcache = user0->is_type<kv_cache>();
+        const auto kvcache = is_user0_kvcache ? user0 : (user1->is_type<kv_cache>() ? user1 : nullptr);
+        if (kvcache) {
+            const auto other_user = is_user0_kvcache ? user1 : user0;
+            const bool only_used_by_kvcache = std::none_of(other_user->get_users().begin(), other_user->get_users().end(), [kvcache](const auto user) {
+                return user != kvcache && !user->template is_type<shape_of>();
+            });
+            if (only_used_by_kvcache) {
+                return true;
+            }
+        }
+    }
 
     return false;
 }
@@ -676,20 +698,27 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
             auto reshape_mode = reshape_desc->mode;
             auto reshape_axis = crop_axis;
             if (reshape_mode == reshape::reshape_mode::base) {
-                auto reshape_ps = user_info.second.get_partial_shape();
-                auto crop_dim_val = crop_layout.get_partial_shape()[crop_axis].get_length();
+                if (crop_axis == 0 && !crop_layout.get_partial_shape()[0].is_dynamic() &&
+                    crop_layout.get_partial_shape()[0].get_length() == 1 &&
+                    !(user_info.second.get_partial_shape()[0].is_static() &&
+                      user_info.second.get_partial_shape()[0].get_length() == 1)) {
+                    // The crop produces exactly batch=1 per slice and the reshape squeezes that dim.
+                    // The reshape absorbs that dim, so the padding axis in the output remains 0.
+                    reshape_axis = 0;
+                } else {
+                    auto mul = 1;
+                    auto reshape_ps = user_info.second.get_partial_shape();
+                    reshape_axis = reshape_ps.size() - 1;
+                    auto crop_dim_val = crop_layout.get_partial_shape()[crop_axis].get_length();
+                    for (size_t i = reshape_ps.size(); i > 1; i--) {
+                        if (reshape_ps[i - 1].is_dynamic() || mul == crop_dim_val)
+                            break;
 
-                auto mul = 1;
-                reshape_axis = reshape_ps.size() - 1;
-                for (size_t i = reshape_ps.size(); i > 1; i--) {
-                    if (reshape_ps[i - 1].is_dynamic() || mul == crop_dim_val)
-                        break;
-
-                    mul *= reshape_ps[i - 1].get_length();
-                    reshape_axis = i - 1;
+                        mul *= reshape_ps[i - 1].get_length();
+                        reshape_axis = i - 1;
+                    }
                 }
             } else if (reshape_mode == reshape::reshape_mode::unsqueeze || reshape_mode == reshape::reshape_mode::squeeze) {
-                auto reshape_ps = user_info.second.get_partial_shape();
                 auto output_pattern = reshape_desc->output_pattern;
 
                 for (size_t i = 0; i < output_pattern.size(); i++) {
@@ -732,31 +761,43 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                 auto reshape_ps = user_info.second.get_partial_shape();
                 auto crop_dim_val = crop_layout.get_partial_shape()[crop_axis].get_length();
 
-                auto divider = 1;
-                auto reshape_axis = reshape_ps.size();
-                for (size_t i = reshape_ps.size(); i > 1; i--) {
-                    const auto& dim_value = reshape_ps[i - 1].get_length();
-                    if (divider * dim_value == crop_dim_val)
-                        break;
-
-                    divider *= dim_value;
-                    reshape_axis = i - 1;
-                }
-                reshape_axis -= 1;
-
                 const auto output_rank = std::max(reshape_ps.size(), static_cast<size_t>(4));
                 std::vector<ov::Dimension::value_type> reshape_lower_sizes(output_rank, 0);
                 std::vector<ov::Dimension::value_type> reshape_upper_sizes(output_rank, 0);
                 padding::DynamicDimsMask reshape_dyn_pad_mask;
 
-                reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
-                reshape_upper_sizes[reshape_axis] = upper_sizes[crop_axis];
-                reshape_dyn_pad_mask[reshape_axis] = 1;
+                if (crop_axis == 0 && crop_dim_val == 1 &&
+                    !(reshape_ps[0].is_static() && reshape_ps[0].get_length() == 1)) {
+                    // The crop splits on the batch axis with exactly batch=1 per slice
+                    // and the reshape squeezes that batch=1 dim: [1, f, y, x] -> [f, y, x].
+                    // Padding offsets are in units of one 4D batch slice (= f*y*x elements),
+                    // but the 3D output counts elements at axis 0 directly, so multiply by f.
+                    const auto batch_stride_factor = reshape_ps[0].get_length();
+                    reshape_lower_sizes[0] = lower_sizes[0] * batch_stride_factor;
+                    reshape_upper_sizes[0] = upper_sizes[0] * batch_stride_factor;
+                    reshape_dyn_pad_mask[0] = 1;
+                } else {
+                    auto divider = 1;
+                    auto reshape_axis = reshape_ps.size();
+                    for (size_t i = reshape_ps.size(); i > 1; i--) {
+                        const auto& dim_value = reshape_ps[i - 1].get_length();
+                        if (divider * dim_value == crop_dim_val)
+                            break;
 
-                if (reshape_lower_sizes[reshape_axis])
-                    reshape_lower_sizes[reshape_axis] /= divider;
-                if (reshape_upper_sizes[reshape_axis])
-                    reshape_upper_sizes[reshape_axis] /= divider;
+                        divider *= dim_value;
+                        reshape_axis = i - 1;
+                    }
+                    reshape_axis -= 1;
+
+                    reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
+                    reshape_upper_sizes[reshape_axis] = upper_sizes[crop_axis];
+                    reshape_dyn_pad_mask[reshape_axis] = 1;
+
+                    if (reshape_lower_sizes[reshape_axis])
+                        reshape_lower_sizes[reshape_axis] /= divider;
+                    if (reshape_upper_sizes[reshape_axis])
+                        reshape_upper_sizes[reshape_axis] /= divider;
+                }
 
                 user_info.second.data_padding = padding(reshape_lower_sizes, reshape_upper_sizes, reshape_dyn_pad_mask);
             } else {

@@ -7,6 +7,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -35,7 +36,8 @@ using namespace ov::pass;
 using namespace ov::op;
 
 ListConstructReplacer::ListConstructReplacer() {
-    // Transformation for torch operators for cases where prim::ListConstruct can be replaced with Concat.
+    // Transformation for torch operators for cases where prim::ListConstruct or SequenceMark can be replaced with
+    // Concat.
     const auto& list = pattern::wrap_type<ov::op::util::FrameworkNode>();
 
     const auto& broadcast_op = pattern::wrap_type<v3::Broadcast>({pattern::any_input(), list});
@@ -75,7 +77,7 @@ ListConstructReplacer::ListConstructReplacer() {
             auto rank = input.get_partial_shape().rank();
             if (rank.is_static() && rank.get_length() > 1) {
                 // if list elements of rank higher then 1D we cannot resolve it
-                add_exception_to_fw_node(list, "unsupported list: all inputs must be 1D.");
+                add_exception_to_fw_node(list_out.get_node_shared_ptr(), "unsupported list: all inputs must be 1D.");
                 return false;
             }
             // reshape all elements to 1D

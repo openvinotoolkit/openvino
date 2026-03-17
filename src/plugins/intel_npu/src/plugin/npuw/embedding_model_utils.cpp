@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pass.hpp"
+#include "openvino/pass/pattern/multi_matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -117,8 +118,7 @@ public:
         const auto transpose_order = opp::wrap_type<ov::op::v0::Constant>();
         const std::regex layer_id_convertion = std::regex(R"(layers\.(\d+)\.self_attn)");
 
-        auto shape_concat = opp::wrap_type<ov::op::v0::Concat>(
-            {opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+        auto shape_concat = opp::wrap_type<ov::op::v0::Concat>();
 
         auto k_add = opp::wrap_type<ov::op::v1::Add>({opp::any_input(), opp::any_input()});
         auto k_unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({k_add, unsqueeze_axes});
@@ -188,7 +188,7 @@ public:
     }
 };
 
-class AddPositionIdsNode : public ov::pass::MatcherPass {
+class AddPositionIdsNode : public ov::pass::MultiMatcher {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::AddPositionIdsNode");
     explicit AddPositionIdsNode(std::vector<NodePair>& node_pair, ov::ParameterVector& new_params) {
@@ -199,28 +199,35 @@ public:
         auto unsqueeze1_axes = opp::wrap_type<ov::op::v0::Constant>();
         auto unsqueeze1 = opp::wrap_type<ov::op::v0::Unsqueeze>({unsqueeze, unsqueeze1_axes});
 
-        auto convert = opp::wrap_type<ov::op::v0::Convert>({unsqueeze1});
+        auto convert = opp::optional<ov::op::v0::Convert>({unsqueeze1});
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), convert});
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
 
         auto concat = opp::wrap_type<ov::op::v0::Concat>({transpose, transpose});
-        auto sin = opp::wrap_type<ov::op::v0::Sin>(concat);
         auto cos = opp::wrap_type<ov::op::v0::Cos>(concat);
+        auto sin = opp::wrap_type<ov::op::v0::Sin>(concat);
 
-        ov::matcher_pass_callback callback = [=, &node_pair, &new_params](ov::pass::pattern::Matcher& m) {
-            auto& pattern_to_output = m.get_pattern_value_map();
+        ov::pass::MultiMatcher::Callback callback = [=, &node_pair, &new_params](const auto& m) {
+            auto& pattern_to_output = m.at(cos).front();
+            const bool no_convert = pattern_to_output.find(convert) == pattern_to_output.end();
 
             auto unsqueeze1_node = pattern_to_output.at(unsqueeze1).get_node_shared_ptr();
             auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
             set_node_name(position_ids, "position_ids");
 
-            node_pair.push_back(std::pair{unsqueeze1_node, position_ids});
+            if (no_convert) {
+                auto unsqueeze1_type = unsqueeze1_node->get_output_element_type(0);
+                auto convert_i64 = std::make_shared<ov::op::v0::Convert>(position_ids, unsqueeze1_type);
+                node_pair.push_back(std::pair{unsqueeze1_node, convert_i64});
+            } else {
+                node_pair.push_back(std::pair{unsqueeze1_node, position_ids});
+            }
+
             new_params.push_back(position_ids);
             return true;
         };
 
-        auto m = std::make_shared<ov::pass::pattern::Matcher>(cos, "AddPositionIdsNode");
-        register_matcher(m, std::move(callback));
+        register_patterns({sin, cos}, std::move(callback));
     }
 };
 
@@ -286,6 +293,12 @@ public:
         if (!m_kv_concat.has_value()) {
             return false;
         }
+
+        auto input_size = m_kv_concat.value()->get_input_size();
+        if (input_size < 4) {
+            return false;
+        }
+
         auto minus_one =
             std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
         auto zero_i = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
@@ -294,8 +307,10 @@ public:
         auto mask_shapeof = std::make_shared<ov::op::v3::ShapeOf>(mask_node, ov::element::i64);
         auto s_len = std::make_shared<ov::op::v8::Gather>(mask_shapeof, minus_one, zero_i);
         auto s_len_reshape = std::make_shared<ov::op::v1::Reshape>(s_len, one_i, false);
+
         // Update the concat node shape input with seq_len of mask
-        m_kv_concat.value()->input(2).replace_source_output(s_len_reshape);
+        auto input_number = input_size - 2;
+        m_kv_concat.value()->input(input_number).replace_source_output(s_len_reshape);
 
         return true;
     }

@@ -179,6 +179,7 @@ protected:
  */
 TEST_P(WeightsSeparationTests, CheckOneShotVersionThrows) {
     model = createTestModel();
+    configuration[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::DRIVER;
     configuration.insert(ov::intel_npu::weightless_blob(true));
     configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ONE_SHOT));
     OV_EXPECT_THROW(compiled_model = core->compile_model(model, target_device, configuration), ov::Exception, _);
@@ -191,7 +192,6 @@ TEST_P(WeightsSeparationTests, CheckOneShotVersionThrows) {
 TEST_P(WeightsSeparationTests, CheckForFailureNoWeightlessCacheAttribute) {
     model = createTestModel(false);
     configuration.insert(ov::intel_npu::weightless_blob(true));
-    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
     OV_EXPECT_THROW(compiled_model = core->compile_model(model, target_device, configuration), ov::Exception, _);
 }
 
@@ -204,7 +204,6 @@ TEST_P(WeightsSeparationTests, CorrectInferenceResultIfCachingUsed) {
 
     model = createTestModel();
     configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
-    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ASSERT_TRUE(compiled_model);
