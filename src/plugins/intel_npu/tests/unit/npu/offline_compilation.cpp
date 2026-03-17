@@ -16,10 +16,14 @@
 using namespace ov::intel_npu;
 using namespace ov::test::utils;
 
-class OfflineCompilationUnitTests : public ::testing::TestWithParam<std::string_view> {
+class OfflineCompilationUnitTests : public ::testing::TestWithParam<ov::AnyMap> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ParamType>& info) {
-        return std::string(info.param);
+        std::string result;
+        for (const auto& [key, value] : info.param) {
+            result += value.as<std::string>();
+        }
+        return result;
     }
 
 protected:
@@ -33,10 +37,8 @@ protected:
 };
 
 TEST_P(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalledSetProperty) {
-    const auto platform = GetParam();
+    const auto config = GetParam();
 
-    ov::AnyMap config;
-    config[ov::intel_npu::platform.name()] = platform;
     core.set_property(DEVICE_NPU, config);
 
     std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
@@ -44,19 +46,18 @@ TEST_P(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalledSetPrope
 }
 
 TEST_P(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalled) {
-    const auto platform = GetParam();
-
-    ov::AnyMap config;
-    config[ov::intel_npu::platform.name()] = platform;
+    const auto config = GetParam();
 
     std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
     OV_ASSERT_NO_THROW(core.compile_model(model, DEVICE_NPU, config));
 }
 
-INSTANTIATE_TEST_SUITE_P(OfflineCompilationPlatforms,
-                         OfflineCompilationUnitTests,
-                         ::testing::Values(ov::intel_npu::Platform::NPU5010, ov::intel_npu::Platform::NPU5020),
-                         OfflineCompilationUnitTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    OfflineCompilationPlatforms,
+    OfflineCompilationUnitTests,
+    ::testing::Values(ov::AnyMap{{ov::intel_npu::platform.name(), ov::intel_npu::Platform::NPU5010}},
+                      ov::AnyMap{{ov::intel_npu::platform.name(), ov::intel_npu::Platform::NPU5020}}),
+    OfflineCompilationUnitTests::getTestCaseName);
 
 using UnavailableDeviceTests = ::testing::Test;
 
