@@ -16,7 +16,8 @@ public:
     IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
               const std::shared_ptr<IGraph>& graph,
               size_t batch_size,
-              const Config& config);
+              const Config& config,
+              const char* logName);
 
     IPipeline(const IPipeline&) = delete;
     IPipeline& operator=(const IPipeline&) = delete;
@@ -57,7 +58,7 @@ protected:
      * If batching is handled on compiler's side then a single command list shall be used, we don't do any
      * specific operation inside the plugin in this case.
      */
-    size_t _number_of_command_lists;
+    size_t _batch_size;
 
     std::vector<std::unique_ptr<Fence>> _fences;
     std::shared_ptr<EventPool> _event_pool;
