@@ -36,6 +36,9 @@ public:
     void parallel_for(int n, const std::function<void(int, int)>& fn) override {
         m_cpu_parallel.parallel_simple(n, fn);
     }
+    void wait() override {
+        // Do nothing - this threadpool is synchronous (flags == 0)
+    }
 
 private:
     const CpuParallel& m_cpu_parallel;
