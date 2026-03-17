@@ -10,7 +10,6 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "ze_api.h"
 #ifdef WIN32
 #    include <process.h>
 #endif
@@ -27,10 +26,11 @@ int main(int argc, char** argv, char** envp) {
     // register crashHandler for SIGSEGV signal
     signal(SIGSEGV, sigsegv_handler);
 
+    std::shared_ptr<intel_npu::ZeroApi> zeroApi;
     try {
-        const auto zeroApi = intel_npu::ZeroApi::getInstance();
+        zeroApi = intel_npu::ZeroApi::getInstance();
         if (zeroApi) {
-            intel_npu::zelSetDriverTeardown();
+            zeroApi->zelSetDriverTeardown();
         }
     } catch (...) {
         // ze_loader not present on the system, probably it is not an NPU host
