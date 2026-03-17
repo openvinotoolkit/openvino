@@ -9,7 +9,7 @@
 
 namespace intel_npu {
 
-struct DynamicPipeline : public Pipeline {
+class DynamicPipeline final : public IPipeline {
     struct PipelinedCommandLists {
         mutable IDynamicGraph::GraphArguments _binding;
 
@@ -99,31 +99,29 @@ struct DynamicPipeline : public Pipeline {
     };
 
 public:
-    DynamicPipeline(const Config& config,
-                    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+    DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                     const std::shared_ptr<IGraph>& graph,
+                    const Config& config,
                     const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
                     const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
                     size_t batch_size = 1);
 
     DynamicPipeline(const DynamicPipeline&) = delete;
     DynamicPipeline& operator=(const DynamicPipeline&) = delete;
-    virtual ~DynamicPipeline() = default;
+    ~DynamicPipeline() = default;
 
-    void push() override;
-    void pull() override;
-    void reset() const override;
-    virtual void update_graph_arguments(uint32_t index,
-                                        const std::shared_ptr<ZeroTensor>& tensor,
-                                        [[maybe_unused]] std::shared_ptr<ov::ITensor> userTensor = nullptr) override;
-    virtual void update_graph_arguments(uint32_t index,
-                                        const std::shared_ptr<ZeroTensor>& tensor,
-                                        size_t batch_index,
-                                        [[maybe_unused]] std::shared_ptr<ov::ITensor> userTensor = nullptr) override;
+    void push();
+    void pull();
+    void reset() const;
+    void update_graph_arguments(uint32_t index,
+                                const std::shared_ptr<ZeroTensor>& tensor,
+                                const std::shared_ptr<ov::ITensor>& userTensor = nullptr);
+    void update_graph_arguments(uint32_t index,
+                                const std::shared_ptr<ZeroTensor>& tensor,
+                                size_t batch_index,
+                                const std::shared_ptr<ov::ITensor>& userTensor = nullptr);
 
-    virtual std::vector<ov::ProfilingInfo> get_profiling_info() const override;
-
-protected:
+private:
     std::vector<std::unique_ptr<PipelinedCommandLists>> _command_lists;
 };
 

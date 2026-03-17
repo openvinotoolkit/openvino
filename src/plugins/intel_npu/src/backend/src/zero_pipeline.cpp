@@ -13,6 +13,7 @@
 #include "intel_npu/utils/zero/zero_types.hpp"
 
 namespace {
+
 std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes, size_t element_size) {
     std::vector<size_t> element_strides(strides_in_bytes.size());
     std::transform(strides_in_bytes.rbegin(),
@@ -35,30 +36,19 @@ std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes, siz
 }  // namespace
 
 namespace intel_npu {
-Pipeline::Pipeline(const Config& config,
-                   const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                   const std::shared_ptr<IGraph>& graph,
-                   const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
-                   const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
-                   size_t batch_size)
+
+IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                     const std::shared_ptr<IGraph>& graph,
+                     size_t batch_size,
+                     const Config& config)
     : _init_structs(init_structs),
       _graph(graph),
       _config(config),
-      _id(_graph->get_unique_id()),
       _number_of_command_lists(batch_size),
-      _logger("Pipeline", _config.get<LOG_LEVEL>()) {
-    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
-
-    _logger.debug("Pipeline - initialize started, number_of_command_lists %i", _number_of_command_lists);
-
-    _extension_version = _init_structs->getCommandQueueDdiTable().version();
-    if (_extension_version < ZE_MAKE_VERSION(1, 1) && _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        _graph->resize_last_submitted_event(_number_of_command_lists);
-    }
-
-    OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>() ||
-                        _extension_version >= ZE_MAKE_VERSION(1, 1),
-                    "In-order execution doesn't work in case synchronization of the inferences is done using events");
+      _extension_version(init_structs->getCommandQueueDdiTable().version()),
+      _run_inferences_sequentially(_config.get<RUN_INFERENCES_SEQUENTIALLY>()),
+      _logger("IPipeline", _config.get<LOG_LEVEL>()) {
+    OPENVINO_ASSERT(_graph != nullptr, "Failed to create pipeline: graph is null");
 
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
     std::optional<bool> compiled_with_profiling = graph->is_profiling_blob();
@@ -96,9 +86,63 @@ Pipeline::Pipeline(const Config& config,
             enable_profiling();
         }  // else appendGraphExecute will fail in case the model was compiled with profiling enabled
     }
+};
 
-    if (!_sync_output_with_fences ||
-        (_extension_version < ZE_MAKE_VERSION(1, 1) && _config.get<RUN_INFERENCES_SEQUENTIALLY>())) {
+std::vector<ov::ProfilingInfo> IPipeline::get_profiling_info() const {
+    _logger.debug("InferRequest::get_profiling_info started");
+    if (!_config.has<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
+        _logger.warning("InferRequest::get_profiling_info complete with empty {}.");
+        return {};
+    }
+
+    if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
+        _logger.debug("InferRequest::get_profiling_info complete with _npu_profiling->getNpuInferStatistics().");
+        return _npu_profiling->getNpuInferStatistics();
+    }
+    /// PROFILING_TYPE = MODEL or undefined = fallback to model profiling
+    if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER) {
+        _logger.debug("InferRequest::get_profiling_info complete with _profiling_query.getLayerStatistics().");
+        return _profiling_query->getLayerStatistics();
+    } else if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PLUGIN) {
+        // For plugin compiler retreive raw profiling data from backend and delegate
+        // processing to the compiler
+        _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
+        return _graph->process_profiling_output(_profiling_query->getData<uint8_t>());
+    } else {
+        OPENVINO_THROW("Cannot get profiling info, unknown compiler type");
+    }
+}
+
+void IPipeline::enable_profiling() {
+    auto profiling_pool =
+        std::make_shared<zeroProfiling::ProfilingPool>(_init_structs, _graph, zeroProfiling::POOL_SIZE);
+    _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(_init_structs, 0);
+
+    if (profiling_pool->create()) {
+        _profiling_query->create(profiling_pool);
+    }
+}
+
+Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                   const std::shared_ptr<IGraph>& graph,
+                   const Config& config,
+                   const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
+                   const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
+                   size_t batch_size)
+    : IPipeline(init_structs, graph, batch_size, config) {
+    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
+
+    _logger.debug("Pipeline - initialize started, number_of_command_lists %i", _number_of_command_lists);
+
+    if (_extension_version < ZE_MAKE_VERSION(1, 1) && _run_inferences_sequentially) {
+        _graph->resize_last_submitted_event(_number_of_command_lists);
+    }
+
+    OPENVINO_ASSERT(
+        _sync_output_with_fences || !_run_inferences_sequentially || _extension_version >= ZE_MAKE_VERSION(1, 1),
+        "In-order execution doesn't work in case synchronization of the inferences is done using events");
+
+    if (!_sync_output_with_fences || (_extension_version < ZE_MAKE_VERSION(1, 1) && _run_inferences_sequentially)) {
         _event_pool =
             std::make_shared<EventPool>(_init_structs->getDevice(),
                                         _init_structs->getContext(),
@@ -181,7 +225,7 @@ Pipeline::Pipeline(const Config& config,
             ++io_index;
         }
 
-        if (_extension_version < ZE_MAKE_VERSION(1, 1) && _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        if (_extension_version < ZE_MAKE_VERSION(1, 1) && _run_inferences_sequentially) {
             if (_graph->get_last_submitted_event(i)) {
                 _graph->get_last_submitted_event(i)->AppendWaitOnEvent(*_command_lists.at(i));
             }
@@ -202,7 +246,7 @@ Pipeline::Pipeline(const Config& config,
             _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_end));
         }
 
-        if (_extension_version < ZE_MAKE_VERSION(1, 1) && _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        if (_extension_version < ZE_MAKE_VERSION(1, 1) && _run_inferences_sequentially) {
             if (_graph->get_last_submitted_event(i)) {
                 _graph->get_last_submitted_event(i)->AppendEventReset(*_command_lists.at(i));
             }
@@ -220,33 +264,21 @@ Pipeline::Pipeline(const Config& config,
     _logger.debug("Pipeline - initialize completed");
 }
 
-Pipeline::Pipeline(const Config& config,
-                   const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                   const std::shared_ptr<IGraph>& graph,
-                   const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
-                   const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
-                   const char* logName,
-                   size_t batch_size)
-    : _init_structs(init_structs),
-      _graph(graph),
-      _config(config),
-      _id(_graph->get_unique_id()),
-      _number_of_command_lists(batch_size),
-      _logger(logName, _config.get<LOG_LEVEL>()) {}
-
 void Pipeline::push() {
     _logger.debug("Pipeline - push() started");
 
     if (_extension_version < ZE_MAKE_VERSION(1, 1) && _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        if (_id) {
+        const auto inference_unique_id = _graph->get_unique_id();
+
+        if (inference_unique_id) {
             auto previousIndex = _graph->get_last_submitted_id();
 
-            if (_id != ++previousIndex) {
+            if (inference_unique_id != ++previousIndex) {
                 OPENVINO_THROW("Inferences should be called in the same order they were called the first time!");
             }
         }
 
-        _graph->set_last_submitted_id(_id);
+        _graph->set_last_submitted_id(inference_unique_id);
     }
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
@@ -309,7 +341,7 @@ void Pipeline::reset() const {
 
 void Pipeline::update_graph_arguments(uint32_t index,
                                       const std::shared_ptr<ZeroTensor>& tensor,
-                                      std::shared_ptr<ov::ITensor> userTensor) {
+                                      const std::shared_ptr<ov::ITensor>&) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
     _logger.debug("Pipeline - updateCommandList");
 
@@ -332,7 +364,7 @@ void Pipeline::update_graph_arguments(uint32_t index,
 void Pipeline::update_graph_arguments(uint32_t index,
                                       const std::shared_ptr<ZeroTensor>& tensor,
                                       size_t batch_index,
-                                      std::shared_ptr<ov::ITensor> userTensor) {
+                                      const std::shared_ptr<ov::ITensor>&) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandListIndex");
     _logger.debug("Pipeline - updateCommandListIndex");
 
@@ -352,40 +384,5 @@ void Pipeline::update_graph_arguments(uint32_t index,
                 get_strides(tensor->get_strides(), tensor->get_element_type().size()));
     }
 };
-
-std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
-    _logger.debug("InferRequest::get_profiling_info started");
-    if (!_config.has<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
-        _logger.warning("InferRequest::get_profiling_info complete with empty {}.");
-        return {};
-    }
-
-    if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
-        _logger.debug("InferRequest::get_profiling_info complete with _npu_profiling->getNpuInferStatistics().");
-        return _npu_profiling->getNpuInferStatistics();
-    }
-    /// PROFILING_TYPE = MODEL or undefined = fallback to model profiling
-    if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER) {
-        _logger.debug("InferRequest::get_profiling_info complete with _profiling_query.getLayerStatistics().");
-        return _profiling_query->getLayerStatistics();
-    } else if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PLUGIN) {
-        // For plugin compiler retreive raw profiling data from backend and delegate
-        // processing to the compiler
-        _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
-        return _graph->process_profiling_output(_profiling_query->getData<uint8_t>());
-    } else {
-        OPENVINO_THROW("Cannot get profiling info, unknown compiler type");
-    }
-}
-
-void Pipeline::enable_profiling() {
-    auto profiling_pool =
-        std::make_shared<zeroProfiling::ProfilingPool>(_init_structs, _graph, zeroProfiling::POOL_SIZE);
-    _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(_init_structs, 0);
-
-    if (profiling_pool->create()) {
-        _profiling_query->create(profiling_pool);
-    }
-}
 
 }  // namespace intel_npu

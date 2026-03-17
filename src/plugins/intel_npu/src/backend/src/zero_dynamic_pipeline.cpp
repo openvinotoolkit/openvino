@@ -40,49 +40,29 @@ std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes, siz
 }  // namespace
 
 namespace intel_npu {
-DynamicPipeline::DynamicPipeline(const Config& config,
-                                 const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                  const std::shared_ptr<IGraph>& graph,
+                                 const Config& config,
                                  const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
                                  const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
                                  size_t batch_size)
-    : Pipeline(config, init_structs, graph, input_tensors, output_tensors, "DynamicPipeline", batch_size) {
+    : IPipeline(init_structs, graph, batch_size, config) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DynamicPipeline::DynamicPipeline");
 
     _logger.debug("DynamicPipeline - initialize started, number_of_command_lists %i", _number_of_command_lists);
 
     intel_npu::IDynamicGraph* dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(graph.get());
-    if (!dynamicGraph) {
-        OPENVINO_THROW("Failed to cast graph to IDynamicGraph");
-    }
+    OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
 
-    if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-        _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (_extension_version < ZE_MAKE_VERSION(1, 1) && _run_inferences_sequentially) {
         _graph->resize_last_submitted_event(_number_of_command_lists);
     }
 
-    OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>() ||
-                        _init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
-                    "In-order execution doesn't work in case synchronization of the inferences is done using events");
+    OPENVINO_ASSERT(
+        _sync_output_with_fences || !_run_inferences_sequentially || _extension_version >= ZE_MAKE_VERSION(1, 1),
+        "In-order execution doesn't work in case synchronization of the inferences is done using events");
 
-    if (_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) {
-        auto profiling_pool =
-            std::make_shared<zeroProfiling::ProfilingPool>(_init_structs, _graph, zeroProfiling::POOL_SIZE);
-        _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(_init_structs, 0);
-
-        if (profiling_pool->create()) {
-            _profiling_query->create(profiling_pool);
-        }
-
-        if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
-            _logger.debug("ZeroInferRequest::ZeroInferRequest - profiling type == ov::intel_npu::ProfilingType::INFER");
-            _npu_profiling =
-                std::make_shared<zeroProfiling::NpuInferProfiling>(_init_structs, _config.get<LOG_LEVEL>());
-        }
-    }
-
-    if (!_sync_output_with_fences || (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-                                      _config.get<RUN_INFERENCES_SEQUENTIALLY>())) {
+    if (!_sync_output_with_fences || (_extension_version < ZE_MAKE_VERSION(1, 1) && _run_inferences_sequentially)) {
         _event_pool =
             std::make_shared<EventPool>(_init_structs->getDevice(),
                                         _init_structs->getContext(),
@@ -210,17 +190,18 @@ void DynamicPipeline::push() {
     auto* dynamicGraph = dynamic_cast<IDynamicGraph*>(_graph.get());
     OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
 
-    if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-        _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        if (_id) {
+    if (_extension_version < ZE_MAKE_VERSION(1, 1) && _run_inferences_sequentially) {
+        const auto inference_unique_id = _graph->get_unique_id();
+
+        if (inference_unique_id) {
             auto previousIndex = _graph->get_last_submitted_id();
 
-            if (_id != ++previousIndex) {
+            if (inference_unique_id != ++previousIndex) {
                 OPENVINO_THROW("Inferences should be called in the same order they were called the first time!");
             }
         }
 
-        _graph->set_last_submitted_id(_id);
+        _graph->set_last_submitted_id(inference_unique_id);
     }
 
     auto commandQueueHandle = _graph->get_command_queue()->handle();
@@ -295,7 +276,7 @@ void DynamicPipeline::reset() const {
 
 void DynamicPipeline::update_graph_arguments(uint32_t index,
                                              const std::shared_ptr<ZeroTensor>& zeroTensor,
-                                             std::shared_ptr<ov::ITensor> userTensor) {
+                                             const std::shared_ptr<ov::ITensor>& userTensor) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "DynamicPipeline", "updateCommandList");
     _logger.debug("DynamicPipeline - updateCommandList");
     // This is the tensor with right shape and strides
@@ -324,7 +305,7 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
 void DynamicPipeline::update_graph_arguments(uint32_t index,
                                              const std::shared_ptr<ZeroTensor>& zeroTensor,
                                              size_t batch_index,
-                                             std::shared_ptr<ov::ITensor> userTensor) {
+                                             const std::shared_ptr<ov::ITensor>& userTensor) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL,
                       itt::domains::LevelZeroBackend,
                       "DynamicPipeline",
@@ -353,22 +334,6 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
                                        get_strides(tensor->get_strides(), elementSize),
                                        tensor->get_shape());
     }
-}
-
-std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
-    _logger.debug("InferRequest::get_profiling_info started");
-    if (!_config.has<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
-        _logger.warning("InferRequest::get_profiling_info complete with empty {}.");
-        return {};
-    }
-
-    if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
-        _logger.debug("InferRequest::get_profiling_info complete with _npu_profiling->getNpuInferStatistics().");
-        return _npu_profiling->getNpuInferStatistics();
-    }
-
-    _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
-    return _graph->process_profiling_output(_profiling_query->getData<uint8_t>());
 }
 
 }  // namespace intel_npu
