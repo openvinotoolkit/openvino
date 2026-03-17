@@ -88,6 +88,9 @@ ParamsKey DynamicQuantizeKernelKVCache::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT4);
+    k.EnableOutputDataType(Datatype::UINT4);
     k.EnableDifferentTypes();
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
@@ -141,6 +144,7 @@ JitConstants DynamicQuantizeKernelKVCache::GetJitConstants(const dynamic_quantiz
     jit.AddConstant(MakeJitConstant("ITERATIONS_NUMBER", iterations_number));
     jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
     jit.AddConstant(MakeJitConstant("GROUP_SCALES_WITH_ZP", params.combine_scales_and_zp));
+    jit.AddConstant(MakeJitConstant("IS_INT4_COMPRESSED", params.is_int4_compressed));
 
     // Use FP32 accumulator type for scale/zp calculation
     jit.Merge(MakeTypeJitConstants(Datatype::F32, "ACCUMULATOR"));
@@ -183,6 +187,19 @@ CommonDispatchData DynamicQuantizeKernelKVCache::SetDefault(const dynamic_quanti
     const auto total_batched_elements = get_elements_number_per_batch(params);
     const auto total_grouped_elements = get_elements_number_per_group(params);
     const auto total_subgroups_number = total_grouped_elements / input_dims.back().v;
+
+    // [DEBUG]
+    // {
+    //     size_t total_elements_number = 1;
+    //     const auto& group_sizes = params.group_sizes;
+    //     for (size_t i = 0; i < group_sizes.size(); i++) {
+    //         if (group_sizes[i] != UINT64_MAX) {
+    //             total_elements_number *= input_dims[i].v;
+    //         }
+    //     }
+    //     std::cout << "  >> group_sizes : " << group_sizes[0] << ", " << group_sizes[1] << ", " << group_sizes[2] << ", " << group_sizes[3]
+    //                 << " => total_elements_number : " << total_elements_number << ", total_batched_elements : " << total_batched_elements << std::endl;
+    // }
 
     dispatchData.gws = {subgroup_size, total_subgroups_number, total_batched_elements};
     dispatchData.lws = {subgroup_size, total_subgroups_number, 1};

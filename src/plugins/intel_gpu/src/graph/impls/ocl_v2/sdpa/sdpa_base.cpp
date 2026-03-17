@@ -212,6 +212,13 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
             jit.make("HAS_SINK_INPUT", 1);
         }
         jit.make("IS_KV_COMPRESSED", desc->is_kv_compressed);
+        {
+            // const bool is_int4 = ov::element::Type(desc->quantization_attributes.quantization_dt).bitwidth() == 4;
+            const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+            const bool is_int4 = ov::element::Type(kv_cache_dt).bitwidth() == 4;
+            // std::cout << ">> get_sdpa_jit_constants: is_int4_compressed = " << is_int4 << std::endl;
+            jit.make("IS_INT4_COMPRESSED", is_int4);
+        }
         GPU_DEBUG_TRACE_DETAIL << "desc->is_kv_compressed = " << desc->is_kv_compressed << std::endl;
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
