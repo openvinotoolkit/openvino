@@ -17,6 +17,11 @@ using namespace ov::intel_npu;
 using namespace ov::test::utils;
 
 class OfflineCompilationUnitTests : public ::testing::TestWithParam<std::string_view> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ParamType>& info) {
+        return std::string(info.param);
+    }
+
 protected:
     void SetUp() override {
         std::vector<std::string> availableDevices = core.get_available_devices();
@@ -50,7 +55,8 @@ TEST_P(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalled) {
 
 INSTANTIATE_TEST_SUITE_P(OfflineCompilationPlatforms,
                          OfflineCompilationUnitTests,
-                         ::testing::Values(ov::intel_npu::Platform::NPU5010, ov::intel_npu::Platform::NPU5020));
+                         ::testing::Values(ov::intel_npu::Platform::NPU5010, ov::intel_npu::Platform::NPU5020),
+                         OfflineCompilationUnitTests::getTestCaseName);
 
 using UnavailableDeviceTests = ::testing::Test;
 
