@@ -192,7 +192,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionDynamic) {
 
     {
         const auto scaled_dot_product_attention =
-            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual);
+            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, false, true);
         model_ref = std::make_shared<ov::Model>(OutputVector{scaled_dot_product_attention},
                                                 ParameterVector{query, key, value, attention_mask, scale});
     }
