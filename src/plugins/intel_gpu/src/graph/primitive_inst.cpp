@@ -3485,6 +3485,69 @@ void primitive_inst::enable_multi_impl_mode(ImplSwitchingPolicy policy) {
     size_t alt_count = 0;
     for (auto t : candidate_types) {
         auto alt_impl = _impls_factory->create_impl_for_type(*this, *_impl_params, t);
+
+        // Sub-byte WOQ decode-path retry.
+        //
+        // Problem: the multi-impl pool may be built during the PREFILL phase (M >> 1).
+        // Our GEMV OCL kernel (FCCompressedGenerateOpt) requires M == 1 in support_shapes(),
+        // so create_impl_for_type() either returns nullptr (no static impl found) or falls
+        // through to a generic OCL FC impl that lacks raw_sub_byte_weight_compatible().
+        // In both cases Rule 3 would fire and the GEMV kernel never reaches the pool,
+        // preventing decode-phase switching to OCL.
+        //
+        // Fix: when dealing with sub-byte weights and the initially selected alt_impl
+        // would fail Rule 3, synthesise M=1 params by collapsing the M dimension
+        // (second-to-last dim of the activation layout) to 1.  This allows the GEMV
+        // kernel's support_shapes check to pass and produces a correctly-compiled kernel
+        // for decode-time execution.  The pool is then built at prefill time but contains
+        // the decode-ready OCL kernel that will be used when the scheduler switches to OCL.
+        if (weight_is_sub_byte && t != primary_type) {
+            const bool need_retry =
+                !alt_impl ||
+                (alt_impl->m_manager && !alt_impl->m_manager->raw_sub_byte_weight_compatible());
+            if (need_retry && !_impl_params->input_layouts.empty()) {
+                auto m1_ps = _impl_params->input_layouts[0].get_partial_shape();
+                const size_t arank = m1_ps.size();
+                // Only synthesise when M > 1 (there is actually something to collapse).
+                if (arank >= 2 && m1_ps[arank - 2].is_static() &&
+                    m1_ps[arank - 2].get_length() > 1) {
+                    kernel_impl_params m1_params = *_impl_params;
+                    m1_ps[arank - 2] = 1;
+                    m1_params.input_layouts[0].set_partial_shape(m1_ps);
+                    // Mirror the M=1 collapse on the output layout so JIT N_SIZE / dispatch
+                    // batch dimensions are computed from the same consistent geometry.
+                    if (!m1_params.output_layouts.empty()) {
+                        auto ops = m1_params.output_layouts[0].get_partial_shape();
+                        if (ops.size() >= 2) {
+                            ops[ops.size() - 2] = 1;
+                            m1_params.output_layouts[0].set_partial_shape(ops);
+                        }
+                    }
+                    auto m1_impl = _impls_factory->create_impl_for_type(*this, m1_params, t);
+                    // Only adopt the synthesised impl if it is genuinely raw-sub-byte-
+                    // compatible (i.e. it is our GEMV WOQ kernel, not another fallback).
+                    if (m1_impl) {
+                        const bool m1_raw_ok = m1_impl->m_manager &&
+                            m1_impl->m_manager->raw_sub_byte_weight_compatible();
+                        std::cout << id()
+                            << ": multi-impl pool: M=1 retry got impl="
+                            << m1_impl->get_kernel_name()
+                            << " raw_ok=" << m1_raw_ok << std::endl;
+                        if (m1_raw_ok) {
+                            alt_impl = std::move(m1_impl);
+                            std::cout << id()
+                                << ": multi-impl pool: type=" << t
+                                << " using M=1 decode-synthesised impl for sub-byte WOQ" << std::endl;
+                        }
+                    } else {
+                        std::cout << id()
+                            << ": multi-impl pool: M=1 retry for type=" << t
+                            << " returned nullptr (validate_impl failed)" << std::endl;
+                    }
+                }
+            }
+        }
+
         if (!alt_impl) {
             std::cout << id()
                 << ": multi-impl pool: type=" << t

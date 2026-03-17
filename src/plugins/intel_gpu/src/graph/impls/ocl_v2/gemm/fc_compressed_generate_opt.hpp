@@ -67,41 +67,58 @@ struct FCCompressedGenerateOpt : public ImplementationManager {
         const auto& desc = *node.get_kernel_impl_params()->typed_desc<fully_connected>();
 
         // Must be a compressed (weight-quantised) FC node.
-        if (!desc.compressed_weights)
+        if (!desc.compressed_weights) {
+            std::cout << "[FCCmpOpt] " << node.id() << " FAIL: !compressed_weights\n";
             return false;
+        }
 
         // Scale is mandatory; ZP is optional.
-        if (!desc.decompression_scale.is_valid())
+        if (!desc.decompression_scale.is_valid()) {
+            std::cout << "[FCCmpOpt] " << node.id() << " FAIL: !decompression_scale.is_valid()\n";
             return false;
+        }
 
         const auto& in0 = node.get_input_layout(0);   // activation
         const auto& in1 = node.get_input_layout(1);   // weight
 
         // Activation type: f16.
-        if (in0.data_type != data_types::f16)
+        if (in0.data_type != data_types::f16) {
+            std::cout << "[FCCmpOpt] " << node.id() << " FAIL: act dtype=" << in0.data_type << "\n";
             return false;
+        }
 
         // Weight type: u4 or i4.
-        if (in1.data_type != data_types::u4 && in1.data_type != data_types::i4)
+        if (in1.data_type != data_types::u4 && in1.data_type != data_types::i4) {
+            std::cout << "[FCCmpOpt] " << node.id() << " FAIL: weight dtype=" << in1.data_type << "\n";
             return false;
+        }
 
         // Scale dtype: f16.
         const bool has_bias = desc.bias.is_valid();
         const size_t scale_idx = has_bias ? 3 : 2;
-        if (scale_idx >= node.get_input_layouts().size())
+        if (scale_idx >= node.get_input_layouts().size()) {
+            std::cout << "[FCCmpOpt] " << node.id() << " FAIL: scale_idx=" << scale_idx
+                << " >= input_layouts.size()=" << node.get_input_layouts().size() << "\n";
             return false;
-        if (node.get_input_layout(scale_idx).data_type != data_types::f16)
+        }
+        if (node.get_input_layout(scale_idx).data_type != data_types::f16) {
+            std::cout << "[FCCmpOpt] " << node.id() << " FAIL: scale dtype="
+                << node.get_input_layout(scale_idx).data_type << "\n";
             return false;
+        }
 
-        // Accept bfyx and format::any.
-        static constexpr std::array valid_fmts = {format::bfyx, format::any};
-        if (!one_of(in0.format, valid_fmts))
-            return false;
+        // Do not gate on activation format here — the format at program-node level may
+        // differ from the runtime layout (e.g. fs_b_yx_fsv32 during prefill becomes
+        // bfyx after update_impl_params reshape-to-2D).  Runtime suitability is checked
+        // by support_shapes() which operates on the actual kernel_impl_params.
 
         // Dynamic quantisation activations are a separate, more complex path.
-        if (desc.dynamic_quantized_activation)
+        if (desc.dynamic_quantized_activation) {
+            std::cout << "[FCCmpOpt] " << node.id() << " FAIL: dynamic_quantized_activation\n";
             return false;
+        }
 
+        std::cout << "[FCCmpOpt] " << node.id() << " validate_impl PASS\n";
         return true;
     }
 
