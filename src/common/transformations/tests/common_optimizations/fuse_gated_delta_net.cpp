@@ -66,10 +66,9 @@ std::shared_ptr<ov::Model> build_looped_gdn(int32_t batch,
                                             int32_t v_head_num,
                                             int32_t qk_head_size,
                                             int32_t v_head_size,
+                                            ov::element::Type dtype,
                                             std::vector<size_t>& input_order) {
     // 0, 1, 2, 3 for B, H, L, S
-    const auto dtype = ov::element::f32;
-
     bool is_ordered = ::is_ordered(input_order);
 
     ov::PartialShape qk_shape{batch, qk_head_num, seq_len, qk_head_size};
@@ -310,7 +309,14 @@ TEST_F(TransformationTestsF, GatedDeltaNetFusion_BuildBHLSLoopedGDNMode) {
     constexpr int32_t qk_head_size = 8;
     constexpr int32_t v_head_size = 16;
     std::vector<size_t> input_order{0, 1, 2, 3};
-    model = build_looped_gdn(batch, seq_len, qk_head_num, v_head_num, qk_head_size, v_head_size, input_order);
+    model = build_looped_gdn(batch,
+                             seq_len,
+                             qk_head_num,
+                             v_head_num,
+                             qk_head_size,
+                             v_head_size,
+                             ov::element::f32,
+                             input_order);
     manager.register_pass<ov::pass::GatedDeltaNetFusion>();
     model_ref = build_fused_gdn_ref(batch,
                                     seq_len,
@@ -332,7 +338,14 @@ TEST_F(TransformationTestsF, GatedDeltaNetFusion_BuildBLHSLoopedGDNMode) {
     constexpr int32_t qk_head_size = 8;
     constexpr int32_t v_head_size = 16;
     std::vector<size_t> input_order{0, 2, 1, 3};
-    model = build_looped_gdn(batch, seq_len, qk_head_num, v_head_num, qk_head_size, v_head_size, input_order);
+    model = build_looped_gdn(batch,
+                             seq_len,
+                             qk_head_num,
+                             v_head_num,
+                             qk_head_size,
+                             v_head_size,
+                             ov::element::f32,
+                             input_order);
     manager.register_pass<ov::pass::GatedDeltaNetFusion>();
     model_ref = build_fused_gdn_ref(batch, seq_len, qk_head_num, v_head_num, qk_head_size, v_head_size);
 }
@@ -347,7 +360,14 @@ TEST_F(TransformationTestsF, GatedDeltaNetFusion_BuildBHLSLoopedGDNMode_F16) {
     constexpr int32_t qk_head_size = 8;
     constexpr int32_t v_head_size = 16;
     std::vector<size_t> input_order{0, 1, 2, 3};
-    model = build_looped_gdn(batch, seq_len, qk_head_num, v_head_num, qk_head_size, v_head_size, input_order);
+    model = build_looped_gdn(batch,
+                             seq_len,
+                             qk_head_num,
+                             v_head_num,
+                             qk_head_size,
+                             v_head_size,
+                             ov::element::f16,
+                             input_order);
     manager.register_pass<pass::ConvertPrecision>(ov::element::f32,
                                                   ov::element::f16,
                                                   type_to_fuse_map{},
@@ -375,7 +395,14 @@ TEST_F(TransformationTestsF, GatedDeltaNetFusion_BuildBLHSLoopedGDNMode_F16) {
     constexpr int32_t qk_head_size = 8;
     constexpr int32_t v_head_size = 16;
     std::vector<size_t> input_order{0, 2, 1, 3};
-    model = build_looped_gdn(batch, seq_len, qk_head_num, v_head_num, qk_head_size, v_head_size, input_order);
+    model = build_looped_gdn(batch,
+                             seq_len,
+                             qk_head_num,
+                             v_head_num,
+                             qk_head_size,
+                             v_head_size,
+                             ov::element::f16,
+                             input_order);
     manager.register_pass<pass::ConvertPrecision>(ov::element::f32,
                                                   ov::element::f16,
                                                   type_to_fuse_map{},

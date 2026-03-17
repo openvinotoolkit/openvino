@@ -46,21 +46,10 @@ std::shared_ptr<ov::Model> GatedDeltaNet::buildLoopedGDN(int32_t batch,
                                                          int32_t qk_head_size,
                                                          int32_t v_head_size) {
     constexpr auto dtype = ov::element::f32;
-    const ov::Shape qk_shape{static_cast<size_t>(batch),
-                             static_cast<size_t>(seq_len),
-                             static_cast<size_t>(qk_head_num),
-                             static_cast<size_t>(qk_head_size)};
-    const ov::Shape v_tensor_shape{static_cast<size_t>(batch),
-                                   static_cast<size_t>(seq_len),
-                                   static_cast<size_t>(v_head_num),
-                                   static_cast<size_t>(v_head_size)};
-    const ov::Shape gv_shape{static_cast<size_t>(batch),
-                             static_cast<size_t>(seq_len),
-                             static_cast<size_t>(qk_head_num)};
-    const ov::Shape h_shape{static_cast<size_t>(batch),
-                            static_cast<size_t>(qk_head_num),
-                            static_cast<size_t>(qk_head_size),
-                            static_cast<size_t>(v_head_size)};
+    const ov::PartialShape qk_shape{batch, seq_len, qk_head_num, qk_head_size};
+    const ov::PartialShape v_tensor_shape{batch, seq_len, v_head_num, v_head_size};
+    const ov::PartialShape gv_shape{batch, seq_len, qk_head_num};
+    const ov::PartialShape h_shape{batch, qk_head_num, qk_head_size, v_head_size};
 
     auto q = std::make_shared<ov::op::v0::Parameter>(dtype, qk_shape);
     auto k = std::make_shared<ov::op::v0::Parameter>(dtype, qk_shape);
@@ -285,7 +274,7 @@ void GatedDeltaNet::SetUp() {
 
     init_input_shapes(static_shapes_to_test_representation({q_shape, q_shape, v_shape, h_shape, g_shape, g_shape}));
 
-    function = buildLoopedGDN(batch, seq_len, qk_head_num, v_head_num, qk_head_size, v_head_size);
+    function = buildLoopedGDN(-1, -1, qk_head_num, v_head_num, qk_head_size, v_head_size);
 }
 
 }  // namespace test
