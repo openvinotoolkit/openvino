@@ -17,44 +17,44 @@ GatedMLP::GatedMLP(const ov::Output<Node>& src,
     : Op({src, w_gate, w_up, w_down}),
       m_activation(activation),
       m_output_type(output_type) {
-      validate_and_infer_types();
+    validate_and_infer_types();
 }
 
 GatedMLP::GatedMLP(const ov::Output<Node>& src,
-                                     const ov::Output<Node>& w_gate,
-                                     const ov::Output<Node>& w_up,
-                                     const ov::Output<Node>& w_down,
-                                     const ov::Output<Node>& scale_gate,
-                                     const ov::Output<Node>& scale_up,
-                                     const ov::Output<Node>& scale_down,
-                                     ov::op::internal::GLU::GluType activation,
-                                     const ov::element::Type output_type)
+                   const ov::Output<Node>& w_gate,
+                   const ov::Output<Node>& w_up,
+                   const ov::Output<Node>& w_down,
+                   const ov::Output<Node>& scale_gate,
+                   const ov::Output<Node>& scale_up,
+                   const ov::Output<Node>& scale_down,
+                   ov::op::internal::GLU::GluType activation,
+                   const ov::element::Type output_type)
     : Op({src, w_gate, w_up, w_down, scale_gate, scale_up, scale_down}),
-        m_activation(activation),
-        m_output_type(output_type),
-        m_compressed_weights(true),
-        m_has_decompression_zero_points(false) {
-        validate_and_infer_types();
+      m_activation(activation),
+      m_output_type(output_type),
+      m_compressed_weights(true),
+      m_has_decompression_zero_points(false) {
+    validate_and_infer_types();
 }
 
 GatedMLP::GatedMLP(const ov::Output<Node>& src,
-                                     const ov::Output<Node>& w_gate,
-                                     const ov::Output<Node>& w_up,
-                                     const ov::Output<Node>& w_down,
-                                     const ov::Output<Node>& scale_gate,
-                                     const ov::Output<Node>& scale_up,
-                                     const ov::Output<Node>& scale_down,
-                                     const ov::Output<Node>& zp_gate,
-                                     const ov::Output<Node>& zp_up,
-                                     const ov::Output<Node>& zp_down,
-                                     ov::op::internal::GLU::GluType activation,
-                                     const ov::element::Type output_type)
+                   const ov::Output<Node>& w_gate,
+                   const ov::Output<Node>& w_up,
+                   const ov::Output<Node>& w_down,
+                   const ov::Output<Node>& scale_gate,
+                   const ov::Output<Node>& scale_up,
+                   const ov::Output<Node>& scale_down,
+                   const ov::Output<Node>& zp_gate,
+                   const ov::Output<Node>& zp_up,
+                   const ov::Output<Node>& zp_down,
+                   ov::op::internal::GLU::GluType activation,
+                   const ov::element::Type output_type)
     : Op({src, w_gate, w_up, w_down, scale_gate, scale_up, scale_down, zp_gate, zp_up, zp_down}),
-        m_activation(activation),
-        m_output_type(output_type),
-        m_compressed_weights(true),
-        m_has_decompression_zero_points(true) {
-        validate_and_infer_types();
+      m_activation(activation),
+      m_output_type(output_type),
+      m_compressed_weights(true),
+      m_has_decompression_zero_points(true) {
+    validate_and_infer_types();
 }
 
 bool GatedMLP::visit_attributes(ov::AttributeVisitor& visitor) {
@@ -66,19 +66,19 @@ bool GatedMLP::visit_attributes(ov::AttributeVisitor& visitor) {
 }
 
 void GatedMLP::validate_and_infer_types() {
-        const auto input_size = get_input_size();
-        NODE_VALIDATION_CHECK(this,
-                              input_size == 4 || input_size == 7 || input_size == 10,
-                              "GatedMLP expects 4, 7 or 10 inputs, got ",
-                              input_size);
+    const auto input_size = get_input_size();
+    NODE_VALIDATION_CHECK(this,
+                          input_size == 4 || input_size == 7 || input_size == 10,
+                          "GatedMLP expects 4, 7 or 10 inputs, got ",
+                          input_size);
 
-        NODE_VALIDATION_CHECK(this,
-                              m_compressed_weights == (input_size > 4),
-                              "GatedMLP compressed mode flag doesn't match input count.");
+    NODE_VALIDATION_CHECK(this,
+                          m_compressed_weights == (input_size > 4),
+                          "GatedMLP compressed mode flag doesn't match input count.");
 
-        NODE_VALIDATION_CHECK(this,
-                              m_has_decompression_zero_points == (input_size == 10),
-                              "GatedMLP zero-point flag doesn't match input count.");
+    NODE_VALIDATION_CHECK(this,
+                          m_has_decompression_zero_points == (input_size == 10),
+                          "GatedMLP zero-point flag doesn't match input count.");
 
     const auto& src_ps = get_input_partial_shape(0);
     const auto& w_gate_ps = get_input_partial_shape(1);
