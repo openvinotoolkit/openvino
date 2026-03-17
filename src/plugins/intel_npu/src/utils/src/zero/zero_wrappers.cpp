@@ -59,11 +59,14 @@ Event::~Event() {
     _handle = nullptr;
 }
 
-CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const uint32_t& group_ordinal)
+CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs)
     : _init_structs(init_structs),
       _log("CommandList", Logger::global().level()) {
     ze_mutable_command_list_exp_desc_t mutable_desc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_DESC, nullptr, 0};
-    ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, &mutable_desc, group_ordinal, 0};
+    ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC,
+                                   &mutable_desc,
+                                   _init_structs->getCommandQueueGroupFlag(),
+                                   0};
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeCommandListCreate",
         zeCommandListCreate(_init_structs->getContext(), _init_structs->getDevice(), &desc, &_handle));
@@ -191,12 +194,16 @@ void CommandList::updateMutableCommandListWithStrides(uint32_t index,
 
 CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                            const ze_command_queue_priority_t& priority,
-                           const uint32_t group_ordinal,
                            const uint32_t command_queue_options)
     : _init_structs(init_structs),
       _log("CommandQueue", Logger::global().level()) {
-    ze_command_queue_desc_t queue_desc =
-        {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, group_ordinal, 0, 0, ZE_COMMAND_QUEUE_MODE_DEFAULT, priority};
+    ze_command_queue_desc_t queue_desc = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC,
+                                          nullptr,
+                                          _init_structs->getCommandQueueGroupFlag(),
+                                          0,
+                                          0,
+                                          ZE_COMMAND_QUEUE_MODE_DEFAULT,
+                                          priority};
     ze_command_queue_desc_npu_ext_t turbo_cfg = {};
     ze_command_queue_desc_npu_ext_2_t command_queue_desc = {};
 

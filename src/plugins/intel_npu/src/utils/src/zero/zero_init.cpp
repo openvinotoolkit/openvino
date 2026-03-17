@@ -406,6 +406,9 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     if (external_memory_mapping_ext_version > 0) {
         _external_memory_standard_allocation_supported = true;
     }
+
+    _command_queue_group_flag =
+        zeroUtils::findCommandQueueGroupOrdinal(_device_handle, ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 }
 
 const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance() {

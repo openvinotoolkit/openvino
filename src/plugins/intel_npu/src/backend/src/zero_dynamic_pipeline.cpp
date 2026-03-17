@@ -79,9 +79,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 
     _command_lists.reserve(_number_of_command_lists);
     for (size_t i = 0; i < _number_of_command_lists; i++) {
-        _command_lists.emplace_back(std::make_unique<PipelinedCommandLists>(num_of_subgraphs,
-                                                                            _init_structs,
-                                                                            _graph->get_command_queue_group_ordinal()));
+        _command_lists.emplace_back(std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs));
     }
 
     if (_sync_output_with_fences) {

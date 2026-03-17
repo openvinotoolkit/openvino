@@ -17,12 +17,10 @@ class DynamicPipeline final : public IPipeline {
         // Store command list handles to pass it to ExecutionEngine
         std::vector<ze_command_list_handle_t> _commandListHandles;
 
-        PipelinedCommandLists(size_t numCommandLists,
-                              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                              const uint32_t& group_ordinal) {
+        PipelinedCommandLists(size_t numCommandLists, const std::shared_ptr<ZeroInitStructsHolder>& init_structs) {
             _commandLists.reserve(numCommandLists);
             for (size_t i = 0; i < numCommandLists; i++) {
-                _commandLists.emplace_back(std::make_unique<CommandList>(init_structs, group_ordinal));
+                _commandLists.emplace_back(std::make_unique<CommandList>(init_structs));
             }
 
             for (size_t i = 0; i < numCommandLists; i++) {

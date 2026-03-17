@@ -291,19 +291,12 @@ void WeightlessGraph::initialize(const FilteredConfig& config) {
 
     // Simplified version for init schedules
     const size_t numberOfInits = _initsGraphDesc.size();
-    _initsCommandQueueOrdinals.resize(numberOfInits);
     _initsCommandLists.resize(numberOfInits);
     _initsFences.resize(numberOfInits);
 
     for (size_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
         _wgLogger.debug("WeightlessGraph initialize start, init schedule ", initIndex);
-        uint32_t& initCommandQueueOrdinal = _initsCommandQueueOrdinals.at(initIndex);
-
-        // Code similar to "Graph::initialize"
-        initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
-                                                                          ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
-
-        _zeGraphExt->initializeGraph(_initsGraphDesc.at(initIndex), initCommandQueueOrdinal);
+        _zeGraphExt->initializeGraph(_initsGraphDesc.at(initIndex));
         _wgLogger.debug("WeightlessGraph initialize finish, init schedule ", initIndex);
 
         //  We are allowed to release the original blob because weights were loaded in NPU memory during
@@ -327,7 +320,6 @@ void WeightlessGraph::initialize(const FilteredConfig& config) {
 
     _initsCommandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
                                                         zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                        _initsCommandQueueGroupOrdinal,
                                                         commandQueueOptions);
 
     if (config.has<WORKLOAD_TYPE>()) {
@@ -354,7 +346,6 @@ void WeightlessGraph::initialize(const FilteredConfig& config) {
         release_graphs();
     }
 
-    _initsCommandQueueOrdinals.clear();
     _initsCommandLists.clear();
     _initsFences.clear();
     _initsMetadata.clear();
@@ -544,8 +535,7 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
         OPENVINO_THROW("Zero compiler adapter wasn't initialized");
     }
 
-    _initsCommandLists.at(initIndex) =
-        std::make_unique<CommandList>(_zeroInitStruct, _initsCommandQueueOrdinals.at(initIndex));
+    _initsCommandLists.at(initIndex) = std::make_unique<CommandList>(_zeroInitStruct);
     _initsFences.at(initIndex) = std::make_unique<Fence>(_initsCommandQueue);
 
     size_t io_index = 0;
