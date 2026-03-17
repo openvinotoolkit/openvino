@@ -189,17 +189,15 @@ void DynamicPipeline::push() {
     OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
 
     if (_extension_version < ZE_MAKE_VERSION(1, 1) && _run_inferences_sequentially) {
-        const auto inference_unique_id = _graph->get_unique_id();
-
-        if (inference_unique_id) {
+        if (_pipeline_unique_id_per_graph) {
             auto previousIndex = _graph->get_last_submitted_id();
 
-            if (inference_unique_id != ++previousIndex) {
+            if (_pipeline_unique_id_per_graph != ++previousIndex) {
                 OPENVINO_THROW("Inferences should be called in the same order they were called the first time!");
             }
         }
 
-        _graph->set_last_submitted_id(inference_unique_id);
+        _graph->set_last_submitted_id(_pipeline_unique_id_per_graph);
     }
 
     auto commandQueueHandle = _graph->get_command_queue()->handle();

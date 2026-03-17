@@ -68,7 +68,7 @@ struct ZeroInitStructsMock {
 
     uint32_t _context_options = 0;
 
-    uint32_t _command_queue_group_flag = 0;
+    uint32_t _command_queue_group_ordinal = 0;
 
     std::mutex _mutex;
 };

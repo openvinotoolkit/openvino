@@ -71,8 +71,8 @@ public:
     inline bool isExternalMemoryFdWin32Supported() const {
         return _external_memory_fd_win32_supported;
     }
-    inline uint32_t getCommandQueueGroupFlag() const {
-        return _command_queue_group_flag;
+    inline uint32_t getCommandQueueGroupOrdinal() const {
+        return _command_queue_group_ordinal;
     }
 
     void setContextOptions(const uint32_t options);
@@ -117,7 +117,7 @@ private:
 
     uint32_t _context_options = 0;
 
-    uint32_t _command_queue_group_flag = 0;
+    uint32_t _command_queue_group_ordinal = 0;
 
     std::mutex _mutex;
 };

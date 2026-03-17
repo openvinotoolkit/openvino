@@ -306,10 +306,6 @@ void WeightlessGraph::initialize(const FilteredConfig& config) {
     }
 
     // Create a single command queue for all weights initialization schedules
-    _initsCommandQueueGroupOrdinal =
-        zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
-                                                ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
-
     uint32_t commandQueueOptions = 0;
     if (config.has<TURBO>() && config.get<TURBO>()) {
         if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {

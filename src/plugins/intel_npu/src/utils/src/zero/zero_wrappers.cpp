@@ -65,7 +65,7 @@ CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_stru
     ze_mutable_command_list_exp_desc_t mutable_desc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_DESC, nullptr, 0};
     ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC,
                                    &mutable_desc,
-                                   _init_structs->getCommandQueueGroupFlag(),
+                                   _init_structs->getCommandQueueGroupOrdinal(),
                                    0};
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeCommandListCreate",
@@ -199,7 +199,7 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
       _log("CommandQueue", Logger::global().level()) {
     ze_command_queue_desc_t queue_desc = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC,
                                           nullptr,
-                                          _init_structs->getCommandQueueGroupFlag(),
+                                          _init_structs->getCommandQueueGroupOrdinal(),
                                           0,
                                           0,
                                           ZE_COMMAND_QUEUE_MODE_DEFAULT,

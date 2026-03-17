@@ -65,6 +65,7 @@ protected:
     bool _sync_output_with_fences = true;
     uint32_t _extension_version;
     bool _run_inferences_sequentially = false;
+    const uint32_t _pipeline_unique_id_per_graph;
 
     Logger _logger;
 };

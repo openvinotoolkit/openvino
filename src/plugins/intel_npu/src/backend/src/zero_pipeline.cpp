@@ -33,6 +33,11 @@ std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes, siz
     return element_strides;
 };
 
+uint32_t get_graph_unique_id_or_throw(const std::shared_ptr<intel_npu::IGraph>& graph) {
+    OPENVINO_ASSERT(graph != nullptr, "Failed to create pipeline: graph is null");
+    return graph->get_unique_id();
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -47,11 +52,10 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
       _number_of_command_lists(batch_size),
       _extension_version(init_structs->getCommandQueueDdiTable().version()),
       _run_inferences_sequentially(_config.get<RUN_INFERENCES_SEQUENTIALLY>()),
+      _pipeline_unique_id_per_graph(get_graph_unique_id_or_throw(graph)),
       _logger("IPipeline", _config.get<LOG_LEVEL>()) {
-    OPENVINO_ASSERT(_graph != nullptr, "Failed to create pipeline: graph is null");
-
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
-    std::optional<bool> compiled_with_profiling = graph->is_profiling_blob();
+    std::optional<bool> compiled_with_profiling = _graph->is_profiling_blob();
 
     if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
         if (perf_count_enabled) {
@@ -104,7 +108,7 @@ std::vector<ov::ProfilingInfo> IPipeline::get_profiling_info() const {
         _logger.debug("InferRequest::get_profiling_info complete with _profiling_query.getLayerStatistics().");
         return _profiling_query->getLayerStatistics();
     } else if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PLUGIN) {
-        // For plugin compiler retreive raw profiling data from backend and delegate
+        // For plugin compiler retrieve raw profiling data from backend and delegate
         // processing to the compiler
         _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
         return _graph->process_profiling_output(_profiling_query->getData<uint8_t>());
@@ -156,8 +160,7 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
 
     _command_lists.reserve(_number_of_command_lists);
     for (size_t i = 0; i < _number_of_command_lists; i++) {
-        _command_lists.emplace_back(
-            std::make_unique<CommandList>(_init_structs));
+        _command_lists.emplace_back(std::make_unique<CommandList>(_init_structs));
     }
 
     if (_sync_output_with_fences) {
@@ -267,18 +270,16 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
 void Pipeline::push() {
     _logger.debug("Pipeline - push() started");
 
-    if (_extension_version < ZE_MAKE_VERSION(1, 1) && _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        const auto inference_unique_id = _graph->get_unique_id();
-
-        if (inference_unique_id) {
+    if (_extension_version < ZE_MAKE_VERSION(1, 1) && _run_inferences_sequentially) {
+        if (_pipeline_unique_id_per_graph) {
             auto previousIndex = _graph->get_last_submitted_id();
 
-            if (inference_unique_id != ++previousIndex) {
+            if (_pipeline_unique_id_per_graph != ++previousIndex) {
                 OPENVINO_THROW("Inferences should be called in the same order they were called the first time!");
             }
         }
 
-        _graph->set_last_submitted_id(inference_unique_id);
+        _graph->set_last_submitted_id(_pipeline_unique_id_per_graph);
     }
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
