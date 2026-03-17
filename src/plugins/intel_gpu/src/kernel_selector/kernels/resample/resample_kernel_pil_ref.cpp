@@ -374,8 +374,10 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
                     idx_order = {"b", "f", "y", "x"};
                 } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
                     idx_order = {"b", "f", "z", "y", "x"};
+                } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 6) {
+                    idx_order = {"b", "f", "w", "z", "y", "x"};
                 }
-                FusedOpsConfiguration conf = {"", idx_order, "ss", GetUnitType(params), 1};
+                FusedOpsConfiguration conf = {"", idx_order, "ss", params.outputs[0].GetDType(), 1};
                 jit_constants.Merge(MakeFusedOpsJitConstants(params, {conf}));
             }
 

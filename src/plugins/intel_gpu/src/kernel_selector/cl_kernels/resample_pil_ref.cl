@@ -247,7 +247,7 @@ KERNEL (resample_vertical_gpu_ref)(  __global INPUT0_TYPE* input
         FUSED_OPS;
         output[out_idx] = FUSED_OPS_RESULT;
     #else
-        output[out_idx] = ss;
+        output[out_idx] = ACTIVATION(ss, ACTIVATION_PARAMS);
     #endif
 }
 

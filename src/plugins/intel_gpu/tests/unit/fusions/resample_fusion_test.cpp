@@ -372,3 +372,104 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_eltwise, ::testing::ValuesIn(std:
     resample_test_params{ CASE_RESAMPLE_FP16_7, RESAMPLE_QUANTIZE_CNT },
     resample_test_params{ CASE_RESAMPLE_FP16_11, RESAMPLE_QUANTIZE_CNT },
 }));
+
+/* ----------------------------------------------------------------------------------------------------- */
+/* -------------------------------- Resample BICUBIC_PILLOW with axes ----------------------------------- */
+/* ----------------------------------------------------------------------------------------------------- */
+
+namespace {
+struct resample_axes_test_params {
+    tensor in_shape;
+    tensor out_shape;
+    data_types data_type;
+    format input_format;
+    resample::InterpolateOp::InterpolateMode type;
+    data_types default_type;
+    format default_format;
+    std::vector<int64_t> axes;
+    size_t expected_fused_primitives;
+    size_t expected_not_fused_primitives;
+};
+
+class ResampleAxesPrimitiveFusingTest : public ::BaseFusingTest<resample_axes_test_params> {
+public:
+    void SetUp() override {
+        BaseFusingTest::SetUp();
+        // BICUBIC_PILLOW with partial axes requires v11 shape inference for correct output layout
+        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    }
+
+    void execute(resample_axes_test_params& p) {
+        auto input_prim = get_mem(get_input_layout(p));
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+        compare(network_not_fused, network_fused, p);
+    }
+
+    layout get_input_layout(resample_axes_test_params& p) {
+        return layout{ p.data_type, p.input_format, p.in_shape, padding{} };
+    }
+
+    layout get_per_channel_layout(resample_axes_test_params& p) {
+        return layout{ p.default_type, p.default_format, tensor{ 1, p.out_shape.feature[0], 1, 1 } };
+    }
+
+    // Build sizes vector from axes and out_shape (bfyx order: b=0,f=1,y=2,x=3)
+    std::vector<int64_t> get_sizes_for_axes(resample_axes_test_params& p) {
+        std::vector<int64_t> sizes;
+        const tensor& s = p.out_shape;
+        for (auto ax : p.axes) {
+            switch (ax) {
+                case 0: sizes.push_back(s.batch[0]); break;
+                case 1: sizes.push_back(s.feature[0]); break;
+                case 2: sizes.push_back(s.spatial[1]); break;  // height
+                case 3: sizes.push_back(s.spatial[0]); break;  // width
+                default: break;
+            }
+        }
+        return sizes;
+    }
+};
+}  // namespace
+
+// BICUBIC_PILLOW, f16, bfyx, spatial axes = {2,3} (Y and X, downscale)
+#define CASE_RESAMPLE_BICUBIC_PILLOW_AXES_1 \
+    { 1, 15, 4, 5 }, { 1, 15, 2, 3 }, data_types::f16, format::bfyx, \
+    resample::InterpolateOp::InterpolateMode::BICUBIC_PILLOW, data_types::f16, format::bfyx, \
+    std::vector<int64_t>{2, 3}
+
+// BICUBIC_PILLOW, f16, bfyx, spatial axes = {2,3} (Y and X, upscale)
+#define CASE_RESAMPLE_BICUBIC_PILLOW_AXES_2 \
+    { 1, 16, 4, 5 }, { 1, 16, 7, 8 }, data_types::f16, format::bfyx, \
+    resample::InterpolateOp::InterpolateMode::BICUBIC_PILLOW, data_types::f16, format::bfyx, \
+    std::vector<int64_t>{2, 3}
+
+class resample_bicubic_pillow_axes_scale_activation_eltwise : public ResampleAxesPrimitiveFusingTest {};
+TEST_P(resample_bicubic_pillow_axes_scale_activation_eltwise, basic) {
+    auto p = GetParam();
+    auto sizes = get_sizes_for_axes(p);
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
+        data("eltwise_data", get_mem(get_output_layout(p), -10, 10)),
+        resample("resample_prim", input_info("input"), sizes, {}, p.axes, {}, {}, 0, -0.75f,
+                 p.type, resample::InterpolateOp::ShapeCalcMode::SIZES),
+        eltwise("scale", { input_info("resample_prim"), input_info("scale_data") }, eltwise_mode::prod, data_types::f16),
+        activation("activation", input_info("scale"), activation_func::abs),
+        eltwise("eltwise", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-2f;
+    execute(p);
+}
+
+#define RESAMPLE_BICUBIC_PILLOW_AXES_SCALE_ACTIVATION_ELTWISE_CNT 2, 5
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_bicubic_pillow_axes_scale_activation_eltwise,
+    ::testing::ValuesIn(std::vector<resample_axes_test_params>{
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_1, RESAMPLE_BICUBIC_PILLOW_AXES_SCALE_ACTIVATION_ELTWISE_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_2, RESAMPLE_BICUBIC_PILLOW_AXES_SCALE_ACTIVATION_ELTWISE_CNT },
+}));
