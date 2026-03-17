@@ -43,9 +43,6 @@ namespace v3 = ov::op::v3;
 namespace v4 = ov::op::v4;
 namespace v8 = ov::op::v8;
 namespace v13 = ov::op::v13;
-namespace {
-
-}  // namespace
 
 ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecomposition() {
     MATCHER_SCOPE(ScaledDotProductAttentionDecomposition);

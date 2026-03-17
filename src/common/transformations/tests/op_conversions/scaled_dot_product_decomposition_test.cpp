@@ -46,7 +46,6 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
                                                                            std::shared_ptr<ov::Node> attention_mask,
                                                                            std::shared_ptr<ov::Node> scale,
                                                                            bool casual,
-                                                                           bool scale_on_k = false,
                                                                            bool scale_after_matmul = false,
                                                                            std::shared_ptr<ov::Node> sinks = nullptr);
 
@@ -74,7 +73,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionStaticBasic) 
 
     {
         const auto scaled_dot_product_attention =
-            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, false, true);
+            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, true);
         model_ref = std::make_shared<ov::Model>(OutputVector{scaled_dot_product_attention},
                                                 ParameterVector{query, key, value, attention_mask, scale});
     }
@@ -104,7 +103,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionStaticBroadca
 
     {
         const auto scaled_dot_product_attention =
-            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, false, true);
+            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, true);
         model_ref = std::make_shared<ov::Model>(OutputVector{scaled_dot_product_attention},
                                                 ParameterVector{query, key, value, attention_mask, scale});
     }
@@ -134,7 +133,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionStaticBroadca
 
     {
         const auto scaled_dot_product_attention =
-            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, false, true);
+            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, true);
         model_ref = std::make_shared<ov::Model>(OutputVector{scaled_dot_product_attention},
                                                 ParameterVector{query, key, value, attention_mask, scale});
     }
@@ -162,7 +161,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionCasualPartiallyDynamic) {
 
     {
         const auto scaled_dot_product_attention =
-            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, nullptr, casual, false, true);
+            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, nullptr, casual, true);
         model_ref = std::make_shared<ov::Model>(OutputVector{scaled_dot_product_attention},
                                                 ParameterVector{query, key, value, attention_mask});
     }
@@ -192,7 +191,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionDynamic) {
 
     {
         const auto scaled_dot_product_attention =
-            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, false, true);
+            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, true);
         model_ref = std::make_shared<ov::Model>(OutputVector{scaled_dot_product_attention},
                                                 ParameterVector{query, key, value, attention_mask, scale});
     }
@@ -222,12 +221,12 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_ScalarScale_
 
     {
         auto ref =
-            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, false, true);
+            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, true);
         model_ref = std::make_shared<ov::Model>(OutputVector{ref}, ParameterVector{query, key, value, attention_mask});
     }
 }
 
-TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_DynamicScale_MultiplyBeforeMatMul) {
+TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_DynamicScale_MultiplyAfterMatMul) {
     const PartialShape query_shape{-1, -1, 64};
     const PartialShape key_shape{-1, -1, 64};
     const PartialShape value_shape{-1, -1, 64};
@@ -251,7 +250,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_DynamicScale
 
     {
         auto ref =
-            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, false, true);
+            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, true);
         model_ref =
             std::make_shared<ov::Model>(OutputVector{ref}, ParameterVector{query, key, value, attention_mask, scale});
     }
@@ -263,7 +262,6 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
                                                                            std::shared_ptr<ov::Node> attention_mask,
                                                                            std::shared_ptr<ov::Node> scale,
                                                                            bool casual,
-                                                                           bool scale_on_k,
                                                                            bool scale_after_matmul,
                                                                            std::shared_ptr<ov::Node> sinks) {
     const auto q_shape = std::make_shared<v3::ShapeOf>(query, element::i32);
@@ -305,10 +303,7 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
     const auto k_transposed = std::make_shared<v1::Transpose>(key, transpose_dims);
 
     Output<Node> scaled_atten;
-    if (scale_on_k) {
-        const auto k_scaled = std::make_shared<v1::Multiply>(k_transposed, scale);
-        scaled_atten = std::make_shared<v0::MatMul>(query, k_scaled)->output(0);
-    } else if (scale_after_matmul) {
+    if (scale_after_matmul) {
         const auto atten = std::make_shared<v0::MatMul>(query, k_transposed)->output(0);
         scaled_atten = std::make_shared<v1::Multiply>(atten, scale);
     } else {
@@ -410,7 +405,6 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_PreScaledQue
                                                               attention_mask,
                                                               sdpa_scale,
                                                               casual,
-                                                              false,
                                                               true);
         model_ref =
             std::make_shared<ov::Model>(OutputVector{ref}, ParameterVector{raw_query, key, value, attention_mask});
@@ -449,7 +443,6 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_Sinks) {
                                                               attention_mask,
                                                               scale,
                                                               casual,
-                                                              false,
                                                               true,
                                                               sinks);
         model_ref = std::make_shared<ov::Model>(OutputVector{ref},
