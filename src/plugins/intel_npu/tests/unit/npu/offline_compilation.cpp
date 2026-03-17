@@ -28,17 +28,17 @@ public:
 
 protected:
     void SetUp() override {
+        config = GetParam();
         std::vector<std::string> availableDevices = core.get_available_devices();
         auto it = std::find(availableDevices.begin(), availableDevices.end(), DEVICE_NPU);
         ASSERT_TRUE(it == availableDevices.end());
     }
 
     ov::Core core;
+    ov::AnyMap config;
 };
 
 TEST_P(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalledSetProperty) {
-    const auto config = GetParam();
-
     core.set_property(DEVICE_NPU, config);
 
     std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
@@ -46,8 +46,6 @@ TEST_P(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalledSetPrope
 }
 
 TEST_P(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalled) {
-    const auto config = GetParam();
-
     std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
     OV_ASSERT_NO_THROW(core.compile_model(model, DEVICE_NPU, config));
 }
