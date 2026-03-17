@@ -850,14 +850,15 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
             ppp.output(tensor.get_any_name()).tensor().set_element_type(lptype);
         }
     }
+    auto new_model=ppp.build();
 
     // assume for I8 we dont have support in model - TODO: add check based on presence of quantization ops like scale/subtrat/clamp
     if (lptype == ov::element::i8) {
         LOG_DEBUG("Running KV-cache compression passes, transforming  kv-cache precision: FP16->i8 on model[" << model->get_friendly_name() <<"]");
-        ov::npuw::run_kv_cache_dynamic_qantization_passes(model, lptype);
+        ov::npuw::run_kv_cache_dynamic_qantization_passes(new_model, lptype);
     }
 
-    return ppp.build();
+    return new_model;
 }
 
 ov::element::Type optimize_kv_cache_storage(const std::shared_ptr<ov::Model>& model) {
@@ -913,6 +914,7 @@ bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
     RemoveEmptyKVTensors::Context ctx;
     rewr.add_matcher<RemoveEmptyKVTensors>(std::ref(ctx));
     rewr.run_on_model(model);
+    LOG_DEBUG("remove_empty_kv_inputs - removed " << ctx.old_params.size() << " empty KV inputs");
     for (auto old_param : ctx.old_params) {
         model->remove_parameter(old_param);
     }

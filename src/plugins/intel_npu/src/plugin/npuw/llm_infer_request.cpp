@@ -612,8 +612,11 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
 
         auto chunk_prefill_kvcache_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
 
-        ov::npuw::util::fill_tensor<ov::float16>(chunk_prefill_kvcache_in_tensor, 0);
-    }
+
+        // NB: Use fill_tensor_bytes to zero-fill regardless of element type.
+        // After KV cache compression, past KV inputs may be i8 precision, and
+        // fill_tensor<ov::float16> would fail with a type mismatch error.
+        ov::npuw::util::fill_tensor_bytes(chunk_prefill_kvcache_in_tensor, 0u);    }
 }
 
 void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,

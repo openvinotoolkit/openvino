@@ -373,15 +373,15 @@ void ov::npuw::run_kv_cache_dynamic_qantization_passes(const std::shared_ptr<ov:
 
                 fp_subtracted_zp = std::make_shared<ov::op::v1::Subtract>(start_node, converted_zp);
                 fp_subtracted_zp->set_friendly_name(make_dq_name("zp_sub"));
+            } else {
+                //  Convert INT8 -> FP32 - for now lots of convert existed before concat - so avoiding doing that
+                // fp_subtracted_zp = std::make_shared<ov::op::v0::Convert>(fp_subtracted_zp, ov::element::f32);
+                // fp_subtracted_zp->set_friendly_name(make_dq_name("convert"));
+                // fp_subtracted_zp->output(0).get_tensor().set_names({make_dq_name("convert")});
             }
 
-            //  Convert INT8 -> FP32 - for now lots of convert existed before concat - so avoiding doing that
-            auto fp_convert = std::make_shared<ov::op::v0::Convert>(fp_subtracted_zp, ov::element::f32);
-            fp_convert->set_friendly_name(make_dq_name("convert"));
-            fp_convert->output(0).get_tensor().set_names({make_dq_name("convert")});
-
             // Multiply by scale
-            auto fp_scale = create_parameter_with_name(ov::element::f32, clear_embedding_index(fp_convert, isKey), make_dq_param_name("scale"));
+            auto fp_scale = create_parameter_with_name(ov::element::f32, clear_embedding_index(fp_subtracted_zp, isKey), make_dq_param_name("scale"));
 
             auto dequantized = std::make_shared<ov::op::v1::Multiply>(fp_subtracted_zp, fp_scale);
             dequantized->set_friendly_name(make_dq_name("scale"));
@@ -447,7 +447,19 @@ void ov::npuw::run_kv_cache_dynamic_qantization_passes(const std::shared_ptr<ov:
         // replacing input to convert/results/etc node on redir chain
         LOG_DEBUG("Inserting DynamicQuantize after: "<< kv_result->input_value(0).get_node_shared_ptr()->get_friendly_name());
 
-        auto kv_dyn_quant = std::make_shared<ov::op::internal::DynamicQuantize>(kv_result->input_value(0), config);
+        // If PPP inserted a Convert node before the Result (e.g., f16→i8),
+        // we need to bypass it: DynamicQuantize should consume the original
+        // f16 data, not the already-converted i8 data.
+        auto dq_input_value = kv_result->input_value(0);
+        auto dq_input_node = dq_input_value.get_node_shared_ptr();
+        if (ov::is_type<ov::op::v0::Convert>(dq_input_node) && dq_input_node->get_users().size() == 1) {
+            LOG_DEBUG("Bypassing PPP-inserted Convert: " << dq_input_node->get_friendly_name()
+                      << " (" << dq_input_node->input_value(0).get_element_type()
+                      << " -> " << dq_input_node->get_element_type() << ")");
+            dq_input_value = dq_input_node->input_value(0);
+        }
+
+        auto kv_dyn_quant = std::make_shared<ov::op::internal::DynamicQuantize>(dq_input_value, config);
         kv_dyn_quant->set_friendly_name(make_name("DynamicQuantize") + "/" + kv_name);
 
         //  might be a convert layer - that substitute, if no just insert before it
