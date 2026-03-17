@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,9 @@
 #    include <unistd.h>
 #endif
 
-#define ENABLE_BD_PROFILING_LOG 0
+#ifndef ENABLE_BD_PROFILING_LOG
+#    define ENABLE_BD_PROFILING_LOG 0
+#endif
 
 namespace ov {
 namespace util {
@@ -61,14 +63,13 @@ public:
     static constexpr size_t DEFAULT_THRESHOLD = 4UL * 1024 * 1024;  // 4 MB
 
     /// @param path           Path to the file to read.
-    /// @param header_offset  Initial file position (seek-from-start value set at
-    ///                       construction; does not affect seekg semantics).
+    /// @param header_offset  Initial file position (absolute offset from the start
+    ///                       of the file; the stream starts reading from here).
     /// @param threshold      Minimum read size to trigger parallel I/O.
     explicit ParallelReadStreamBuf(const std::filesystem::path& path,
                                    std::streamoff header_offset = 0,
                                    size_t threshold = DEFAULT_THRESHOLD)
         : m_path(path),
-          m_header_offset(header_offset),
           m_file_offset(header_offset),
           m_threshold(threshold) {
 #ifdef _WIN32
@@ -130,8 +131,6 @@ protected:
             const std::streamsize from_buf = std::min(n, avail);
             std::memcpy(dst, gptr(), static_cast<size_t>(from_buf));
             gbump(static_cast<int>(from_buf));
-            // NOTE: m_file_offset was already advanced past egptr() in underflow().
-            // Do NOT advance it again here.
             total += from_buf;
             dst += from_buf;
             n -= from_buf;
@@ -373,9 +372,6 @@ private:
         return success.load();
     }
 
-    // -----------------------------------------------------------------------
-    // Members
-    // -----------------------------------------------------------------------
     static constexpr size_t UNDERFLOW_BUF = 8192;  // batch size for char-by-char reads
 
     std::filesystem::path m_path;
@@ -384,7 +380,6 @@ private:
 #else
     int m_fd = -1;
 #endif
-    std::streamoff m_header_offset;
     std::streamoff m_file_offset;
     std::streamoff m_file_size = 0;
     size_t m_threshold;

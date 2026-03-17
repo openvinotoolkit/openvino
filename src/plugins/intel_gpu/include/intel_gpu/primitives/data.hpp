@@ -440,7 +440,7 @@ struct data : public primitive_base<data> {
                     // GPU read from that buffer has finished before the CPU writes
                     // new data into it (the OTHER buffer's event is waited, but that
                     // event was submitted after waiting for THIS buffer's previous
-                    // event, so THIS buffer is always free by the time we reuse it).
+                    // event, so this buffer is always free by the time we reuse it).
                     const layout staging_layout{{static_cast<int64_t>(DATA_BLOCK_SIZE)},
                                                 data_types::u8, format::bfyx};
                     auto host_buf1 = eng.allocate_memory(staging_layout, allocation_type::usm_host, false);

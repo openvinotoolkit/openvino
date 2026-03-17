@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,9 @@
 #include "openvino/util/log.hpp"
 #include "openvino/util/parallel_read_streambuf.hpp"
 
-#define ENABLE_BD_PROFILING_LOG 0
+#ifndef ENABLE_BD_PROFILING_LOG
+#    define ENABLE_BD_PROFILING_LOG 0
+#endif
 
 namespace ov {
 namespace util {
@@ -175,9 +177,6 @@ protected:
         return traits_type::to_int_type(*m_current++);
     }
 
-    // -----------------------------------------------------------------------
-    // Seek support
-    // -----------------------------------------------------------------------
     pos_type seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which) override {
         if (m_file_buf) {
             return m_file_buf->pubseekoff(off, way, which);
