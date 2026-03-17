@@ -251,7 +251,11 @@ void Pipeline::push() {
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         _command_lists.at(i)->close();
-
+        // Emit a marker for pipeline::push() with the command list handle as the metadata
+        OV_ITT_SCOPED_TASK_BASE(itt::domains::InferenceNPU,
+                                "Pipeline::push",
+                                "CommandListID",
+                                (uintptr_t)_command_lists.at(i)->handle());
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
         if (_sync_output_with_fences) {
             _graph->get_command_queue()->executeCommandList(*_command_lists.at(i), *_fences.at(i));
@@ -268,6 +272,12 @@ void Pipeline::pull() {
     OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PULL, itt::domains::LevelZeroBackend, "Pipeline", "pull");
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
+        // Emit a marker for pipeline::pull() with the command list handle as the metadata
+        // so it can be correlated with the corresponding push() marker in the timeline
+        OV_ITT_SCOPED_TASK_BASE(itt::domains::InferenceNPU,
+                                "Pipeline::pull",
+                                "CommandListID",
+                                (uintptr_t)_command_lists.at(i)->handle());
         if (_sync_output_with_fences) {
             _fences.at(i)->hostSynchronize();
         } else {
@@ -283,6 +293,7 @@ void Pipeline::pull() {
 };
 
 void Pipeline::reset() const {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::InferenceNPU, "Pipeline::reset");
     _logger.debug("Pipeline - rest() started");
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
