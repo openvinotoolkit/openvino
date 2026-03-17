@@ -28,9 +28,8 @@ export LLVM_INST_PATH=/home/jovyan/llvm/build/
 
 ```
 # clone
-git clone https://github.com/intel/graph-compiler.git
+git clone https://github.com/intel-sandbox/graph-compiler.git
 cd graph-compiler
-git checkout AndreyPavlenko/ov
 mkdir build && cd build
 
 # install nanobind
@@ -70,3 +69,6 @@ cmake --build . -j16
 ```
 OV_MLIR_DEBUG=1 OV_MLIR_MODE=GC ./bin/intel64/Release/ov_gpu_func_tests --gtest_filter=MLIRExecution.SimpleMatmulf32
 ```
+
+### CI runner
+The CI runner is the X1 server - gcrun. When the session starts, it installs and starts itself automatically. The action scripts are located in the graph-compiler repository.
