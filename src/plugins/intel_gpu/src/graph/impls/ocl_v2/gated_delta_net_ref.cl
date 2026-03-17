@@ -19,7 +19,7 @@ inline float FUNC(sum8)(float8 v) {
     return v.s0 + v.s1 + v.s2 + v.s3 + v.s4 + v.s5 + v.s6 + v.s7;
 }
 
-#if (K_HEAD_DIM == 128)
+#if (K_HEAD_DIM == 128 && (V_HEAD_DIM % V_BLOCK_SIZE == 0))
 inline void FUNC(prepare_qk)(__global INPUT0_TYPE* q, __global INPUT1_TYPE* k, int q_offset, int k_offset, int lane_k_base, float8* b_q, float8* b_k) {
     const int K_CHUNKS = K_HEAD_DIM / (SUBGROUP_SIZE * 8);
 #    if FUSE_QK_L2NORM
@@ -127,14 +127,14 @@ KERNEL(gated_delta_net_ref)
     const int hk = h / group_size;
     const int out_bh_base = b * T_len * H_len * V_len + h * V_len;
 
-#if (K_HEAD_DIM == 128)
+#if (K_HEAD_DIM == 128 && (V_HEAD_DIM % V_BLOCK_SIZE == 0))
     const int K_CHUNKS = K_HEAD_DIM / (SUBGROUP_SIZE * 8);
     float8 h_state[V_BLOCK_SIZE][K_CHUNKS];
 #else
     float h_state_f[V_BLOCK_SIZE][K_HEAD_DIM];
 #endif
 
-#if (K_HEAD_DIM == 128)
+#if (K_HEAD_DIM == 128 && (V_HEAD_DIM % V_BLOCK_SIZE == 0))
 // 1. LOAD STATE BLOCK: 4 V-columns, 8 K-rows per lane
 #    pragma unroll
     for (int row_chunk = 0; row_chunk < K_CHUNKS; row_chunk++) {
@@ -155,14 +155,15 @@ KERNEL(gated_delta_net_ref)
         for (int k_idx = 0; k_idx < K_len; k_idx++) {
             for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
                 int curr_iv = start_iv + v_idx;
-                h_state_f[v_idx][k_idx] = convert_float(initial_state[STATE_BASE + k_idx * V_len + curr_iv]);
+                h_state_f[v_idx][k_idx] =
+                    (curr_iv < V_len) ? convert_float(initial_state[STATE_BASE + k_idx * V_len + curr_iv]) : 0.0f;
             }
         }
     }
 #endif
 
     for (int t = 0; t < T_len; t++) {
-#if (K_HEAD_DIM == 128)
+#if (K_HEAD_DIM == 128 && (V_HEAD_DIM % V_BLOCK_SIZE == 0))
         // 2. LOAD COMMON TIMESTEP DATA
         int g_idx = (b * T_len + t) * H_len + h;
         float b_g = exp(convert_float(g[g_idx]));
@@ -183,16 +184,15 @@ KERNEL(gated_delta_net_ref)
 #    pragma unroll
         for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
             int curr_iv = start_iv + v_idx;
-            if (curr_iv < V_len)
-                b_v_vec[v_idx] = convert_float(v[v_offset + curr_iv]);
+            b_v_vec[v_idx] = convert_float(v[v_offset + curr_iv]);
         }
 
         // 3. RECURRENT UPDATE
+        float4 dot_part_k_vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+        float4 dot_part_q_vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+
         for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
             int curr_iv = start_iv + v_idx;
-            if (curr_iv >= V_len)
-                continue;
-
             for (int c = 0; c < K_CHUNKS; c++)
                 h_state[v_idx][c] *= (float8)(b_g);
 
@@ -200,9 +200,17 @@ KERNEL(gated_delta_net_ref)
 #    pragma unroll
             for (int c = 0; c < K_CHUNKS; c++)
                 dot_part_k += FUNC(sum8)(fma(h_state[v_idx][c], b_k[c], (float8)(0.0f)));
-            float h_k = sub_group_reduce_add(dot_part_k);
+            dot_part_k_vec[v_idx] = dot_part_k;
+        }
 
-            float update_val = (b_v_vec[v_idx] - h_k) * b_beta;
+        float4 h_k_vec = (float4)(sub_group_reduce_add(dot_part_k_vec.s0),
+                      sub_group_reduce_add(dot_part_k_vec.s1),
+                      sub_group_reduce_add(dot_part_k_vec.s2),
+                      sub_group_reduce_add(dot_part_k_vec.s3));
+
+        for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
+            int curr_iv = start_iv + v_idx;
+            float update_val = (b_v_vec[v_idx] - h_k_vec[v_idx]) * b_beta;
             for (int c = 0; c < K_CHUNKS; c++)
                 h_state[v_idx][c] += (b_k[c] * (float8)(update_val));
 
@@ -210,10 +218,18 @@ KERNEL(gated_delta_net_ref)
 #    pragma unroll
             for (int c = 0; c < K_CHUNKS; c++)
                 dot_part_q += FUNC(sum8)(fma(h_state[v_idx][c], b_q[c], (float8)(0.0f)));
-            float b_output = sub_group_reduce_add(dot_part_q);
+            dot_part_q_vec[v_idx] = dot_part_q;
+        }
 
-            if (lid == 0) {
-                output[out_offset + curr_iv] = TO_OUTPUT_TYPE(b_output);
+        float4 b_output_vec = (float4)(sub_group_reduce_add(dot_part_q_vec.s0),
+                           sub_group_reduce_add(dot_part_q_vec.s1),
+                           sub_group_reduce_add(dot_part_q_vec.s2),
+                           sub_group_reduce_add(dot_part_q_vec.s3));
+
+        if (lid == 0) {
+            for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
+                int curr_iv = start_iv + v_idx;
+                output[out_offset + curr_iv] = TO_OUTPUT_TYPE(b_output_vec[v_idx]);
             }
         }
 #else
@@ -271,15 +287,13 @@ KERNEL(gated_delta_net_ref)
 #endif
     }
 
-#if (K_HEAD_DIM == 128)
+#if (K_HEAD_DIM == 128 && (V_HEAD_DIM % V_BLOCK_SIZE == 0))
 // 4. WRITE BACK STATE BLOCK
 #    pragma unroll
     for (int row_chunk = 0; row_chunk < K_CHUNKS; row_chunk++) {
 #    pragma unroll
         for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
             int curr_iv = start_iv + v_idx;
-            if (curr_iv >= V_len)
-                continue;
 #    pragma unroll
             for (int j = 0; j < 8; j++) {
                 int row_idx = lid * (K_HEAD_DIM / SUBGROUP_SIZE) + row_chunk * 8 + j;

@@ -26,7 +26,8 @@ private:
                                               int32_t qk_head_num,
                                               int32_t v_head_num,
                                               int32_t qk_head_size,
-                                              int32_t v_head_size);
+                                              int32_t v_head_size,
+                                              ov::element::Type dtype);
 
 public:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
