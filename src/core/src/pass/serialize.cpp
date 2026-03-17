@@ -133,7 +133,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
         try {
             serialize_func(xml_file, bin_file, model, m_version);
-        } catch (const ov::Exception&) {
+        } catch (const ov::AssertFailure&) {
             // optimization decision was made to create .bin file upfront and
             // write to it directly instead of buffering its content in memory,
             // hence we need to delete it here in case of failure
