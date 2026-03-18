@@ -631,24 +631,6 @@ jobs:
     # if: ${{ github.event_name == 'schedule' }}
     if: ${{ 'false' }} # Ticket: 143677
 
-  dGPU_Nightly:
-      name: dGPU BMG Tests Nightly
-      needs: [ Build, Smart_CI ]
-      uses: ./.github/workflows/job_gpu_tests.yml
-      strategy:
-        max-parallel: 2
-        fail-fast: false
-        matrix:
-          TEST_TYPE: ['unit', 'func']
-      with:
-        device: 'dgpu'
-        test_type: ${{ matrix.TEST_TYPE }}
-        runner: "[ 'self-hosted', 'dgpu', 'Battlemage' ]"
-        runner-group: 'Intel-GPU'
-        image: ubuntu:22.04
-        options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
-      if: ${{ github.event_name == 'schedule' }}
-
   # Ticket: CVS-182443 — iGPU runners cannot install pip packages from PyPI, need to whitelist pypi.org and download.pytorch.org
   # iGPU_RoPE_Tests:
   #   name: iGPU RoPE Tests
