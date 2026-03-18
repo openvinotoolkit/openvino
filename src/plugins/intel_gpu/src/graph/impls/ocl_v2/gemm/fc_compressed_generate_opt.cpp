@@ -42,11 +42,23 @@ static bool detect_zp_is_u8(const RuntimeParams& params) {
 }
 
 // Returns the input_layouts index of the activation scale, or SIZE_MAX if not present.
+// The activation scale is f16 dtype; weight ZP is u4/i4/u8.  We validate dtype to guard
+// against layout reordering edge-cases (e.g. activation_precomputed_reduction at [4]).
+// NOTE: do NOT check lay.count()==0 here — the layout may have a stale compile-time
+// shape {0,1,1} (dynamic dimension), while the actual runtime memory is non-empty.
+// Rely on dtype to identify the tensor type.
 static size_t act_scale_index(const RuntimeParams& params) {
     const bool act_is_i8 = (params.input_layouts[0].data_type == data_types::i8);
     if (!act_is_i8)
         return SIZE_MAX;
-    return detect_has_zp(params) ? 4 : 3;
+    const size_t candidate = detect_has_zp(params) ? 4 : 3;
+    // Validate dtype: the candidate layout must exist and be f16 (act_scale) not u4/u8 (ZP).
+    if (candidate >= params.input_layouts.size())
+        return SIZE_MAX;
+    const auto& lay = params.input_layouts[candidate];
+    if (lay.data_type != data_types::f16)
+        return SIZE_MAX;
+    return candidate;
 }
 
 // -----------------------------------------------------------------------
@@ -135,19 +147,11 @@ protected:
         // Float32 accumulator for numerical stability.
         jit.add(make_type_jit_constants("ACCUMULATOR", data_types::f32));
 
-        // 1 = summary per-group scale/ZP + final result.
-        // 2 = also dump raw tensor bytes (activation, weight nibbles, scale, ZP, act_scale).
-        jit.add(make_jit_constant("DEBUG_FCCmpOpt", 2));
-
-        // Diagnostic: log JIT constants at kernel-compile time (compile-time params/shapes).
-        std::cout << "[FCCmpOpt][JIT] node compile: K=" << K << " N=" << N << " B=" << B
-                  << " NUM_GROUPS=" << actual_num_groups << " GROUP_SIZE=" << actual_group_size
-                  << " IS_ACT_INT8=" << act_is_i8 << " HAS_ZP=" << has_zp
-                  << " ZP_IS_U8=" << detect_zp_is_u8(params)
-                  << "\n";
-        std::cout << "[FCCmpOpt][JIT] scale shape:";
-        for (auto d : shape_sc) std::cout << " " << d;
-        std::cout << " fmt=" << in_sc.format << "\n";
+        // DEBUG_FCCmpOpt levels:
+        // 0 = off (production)
+        // 1 = per-group scale/ZP + final result for n=0..7
+        // 2 = also dump raw tensor bytes (verbose, causes ~6x slowdown via GPU printf)
+        jit.add(make_jit_constant("DEBUG_FCCmpOpt", 0));
 
         return jit;
     }
@@ -198,22 +202,6 @@ protected:
 
             const size_t n_groups = (N + SG_SIZE - 1) / SG_SIZE;
 
-            // Diagnostic: log runtime dispatch dimensions.
-            std::cout << "[FCCmpOpt][DISPATCH] B=" << B << " N=" << N
-                      << " global=[" << (n_groups * SG_SIZE) << "," << B << ",1]\n";
-            if (params.input_layouts.size() > 2) {
-                const auto& sc_shape = params.input_layouts[2].get_shape();
-                std::cout << "[FCCmpOpt][DISPATCH] scale shape:";
-                for (auto d : sc_shape) std::cout << " " << d;
-                std::cout << " fmt=" << params.input_layouts[2].format << "\n";
-            }
-            if (params.input_layouts.size() > 4) {
-                const auto& as_shape = params.input_layouts[4].get_shape();
-                std::cout << "[FCCmpOpt][DISPATCH] act_scale shape:";
-                for (auto d : as_shape) std::cout << " " << d;
-                std::cout << "\n";
-            }
-
             auto& wgs = kd.params.workGroups;
             wgs.global = {n_groups * SG_SIZE, B, 1};
             wgs.local  = {static_cast<size_t>(SG_SIZE), 1, 1};
@@ -235,6 +223,45 @@ public:
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
         return make_deep_copy<FCCompressedOptImpl>(this);
+    }
+
+    // -----------------------------------------------------------------------
+    // For fully_connected, primitive::input only contains the activation tensor,
+    // so inputs_memory_count() == 1.  That means the default get_arguments() in
+    // PrimitiveImplOCL only places dep[0] (activation) in data.inputs, and any
+    // kernel arg index > 0 causes an assertion failure in set_arguments_impl.
+    //
+    // We override get_arguments() to populate data.inputs from the raw dependency
+    // memories corresponding to each entry in _impl_params->input_layouts.  After
+    // OCL update_impl_params the input_layouts order is:
+    //   [0] activation  [1] weight  [2] weight_scale  [3] weight_ZP (opt)
+    // plus any trailing entries (activation_scale, ...) that were not stripped.
+    // dep_memory_ptr(i) for i in [0, input_layouts.size()) correctly returns the
+    // memory for input_layouts[i] in the no-bias case (the only path FCCompressedOptImpl
+    // supports — validate_impl rejects nodes with bias).
+    // -----------------------------------------------------------------------
+    [[nodiscard]] cldnn::kernel_arguments_data get_arguments(const cldnn::primitive_inst& instance) const override {
+        cldnn::kernel_arguments_data data;
+        const auto& params = *instance.get_impl_params();
+        const size_t n = params.input_layouts.size();
+        const auto* fc_inst = dynamic_cast<const cldnn::fully_connected_inst*>(&instance);
+        for (size_t i = 0; i < n; ++i) {
+            if (i == 1 && fc_inst) {
+                // Use weights_memory() for index 1 (weights): handles dynamic-mode reordering.
+                // For static mode it falls back to dep_memory_ptr(1) automatically.
+                data.inputs.push_back(fc_inst->weights_memory());
+            } else {
+                data.inputs.push_back(instance.dep_memory_ptr(i));
+            }
+        }
+        for (size_t i = 0; i < instance.outputs_memory_count(); ++i)
+            data.outputs.push_back(instance.output_memory_ptr(i));
+        if (instance.has_fused_primitives()) {
+            for (size_t i = 0; i < instance.get_fused_mem_count(); ++i)
+                data.fused_op_inputs.push_back(instance.fused_memory(i));
+        }
+        data.shape_info = instance.shape_info_memory_ptr();
+        return data;
     }
 };
 

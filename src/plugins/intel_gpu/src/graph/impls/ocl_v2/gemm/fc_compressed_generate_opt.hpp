@@ -80,94 +80,47 @@ struct FCCompressedGenerateOpt : public ImplementationManager {
 
         const auto& desc = *node.get_kernel_impl_params()->typed_desc<fully_connected>();
 
-        // Must be a compressed (weight-quantised) FC node.
-        if (!desc.compressed_weights) {
-            std::cout << "[FCCmpOpt] " << node.id() << " FAIL: !compressed_weights\n";
+        if (!desc.compressed_weights)
             return false;
-        }
-
-        // Scale is mandatory; ZP is optional.
-        if (!desc.decompression_scale.is_valid()) {
-            std::cout << "[FCCmpOpt] " << node.id() << " FAIL: !decompression_scale.is_valid()\n";
+        if (!desc.decompression_scale.is_valid())
             return false;
-        }
 
         const auto& in0 = node.get_input_layout(0);   // activation
         const auto& in1 = node.get_input_layout(1);   // weight
 
-        // Activation type: f16 (W4A16 / WOQ) or i8 (W4A8 / dynamic-quantised).
         const bool act_is_f16 = (in0.data_type == data_types::f16);
         const bool act_is_i8  = (in0.data_type == data_types::i8);
-        if (!act_is_f16 && !act_is_i8) {
-            std::cout << "[FCCmpOpt] " << node.id() << " FAIL: act dtype=" << in0.data_type << "\n";
+        if (!act_is_f16 && !act_is_i8)
             return false;
-        }
 
-        // Weight type: u4 or i4.
-        if (in1.data_type != data_types::u4 && in1.data_type != data_types::i4) {
-            std::cout << "[FCCmpOpt] " << node.id() << " FAIL: weight dtype=" << in1.data_type << "\n";
+        if (in1.data_type != data_types::u4 && in1.data_type != data_types::i4)
             return false;
-        }
 
-        // Weight scale dtype: f16.
         const bool has_bias = desc.bias.is_valid();
         const size_t scale_idx = has_bias ? 3 : 2;
-        if (scale_idx >= node.get_input_layouts().size()) {
-            std::cout << "[FCCmpOpt] " << node.id() << " FAIL: scale_idx=" << scale_idx
-                << " >= input_layouts.size()=" << node.get_input_layouts().size() << "\n";
+        if (scale_idx >= node.get_input_layouts().size())
             return false;
-        }
-        if (node.get_input_layout(scale_idx).data_type != data_types::f16) {
-            std::cout << "[FCCmpOpt] " << node.id() << " FAIL: scale dtype="
-                << node.get_input_layout(scale_idx).data_type << "\n";
+        if (node.get_input_layout(scale_idx).data_type != data_types::f16)
             return false;
-        }
-
-        // Do not gate on activation format here — the format at program-node level may
-        // differ from the runtime layout (e.g. fs_b_yx_fsv32 during prefill becomes
-        // bfyx after update_impl_params reshape-to-2D).  Runtime suitability is checked
-        // by support_shapes() which operates on the actual kernel_impl_params.
 
         if (act_is_f16) {
-            // W4A16 path: no dynamic quantisation expected.
-            if (desc.dynamic_quantized_activation) {
-                std::cout << "[FCCmpOpt] " << node.id()
-                    << " FAIL: f16 act but dynamic_quantized_activation set\n";
+            if (desc.dynamic_quantized_activation)
                 return false;
-            }
         } else {
-            // W4A8 path: requires a per-token activation scale; no activation ZP (not yet supported).
-            if (!desc.dynamic_quantized_activation) {
-                std::cout << "[FCCmpOpt] " << node.id()
-                    << " FAIL: i8 act but !dynamic_quantized_activation\n";
+            if (!desc.dynamic_quantized_activation)
                 return false;
-            }
-            if (!desc.activation_scale.is_valid()) {
-                std::cout << "[FCCmpOpt] " << node.id()
-                    << " FAIL: i8 act but activation_scale not valid\n";
+            if (!desc.activation_scale.is_valid())
                 return false;
-            }
-            if (desc.activation_zero_point.is_valid()) {
-                std::cout << "[FCCmpOpt] " << node.id()
-                    << " FAIL: i8 act with activation_zero_point (unsupported)\n";
+            if (desc.activation_zero_point.is_valid())
                 return false;
-            }
-            // Validate activation scale input dtype: must be f16.
             const bool has_weight_zp = desc.decompression_zero_point.is_valid();
             const size_t act_scale_idx = scale_idx + 1 + (has_weight_zp ? 1 : 0);
-            if (act_scale_idx >= node.get_input_layouts().size()) {
-                std::cout << "[FCCmpOpt] " << node.id() << " FAIL: act_scale_idx=" << act_scale_idx
-                    << " >= input_layouts.size()=" << node.get_input_layouts().size() << "\n";
+            if (act_scale_idx >= node.get_input_layouts().size())
                 return false;
-            }
-            if (node.get_input_layout(act_scale_idx).data_type != data_types::f16) {
-                std::cout << "[FCCmpOpt] " << node.id() << " FAIL: act_scale dtype="
-                    << node.get_input_layout(act_scale_idx).data_type << "\n";
+            if (node.get_input_layout(act_scale_idx).data_type != data_types::f16)
                 return false;
-            }
         }
 
-        std::cout << "[FCCmpOpt] " << node.id() << " validate_impl PASS\n";
         return true;
     }
 
@@ -178,23 +131,18 @@ struct FCCompressedGenerateOpt : public ImplementationManager {
     [[nodiscard]] bool support_shapes(const kernel_impl_params& params) const override {
         const auto& in0 = params.get_input_layout(0);
         if (in0.is_dynamic()) {
-            std::cout << "[FCCmpOpt] support_shapes FAIL: in0 is_dynamic\n";
             return false;
         }
 
         const auto& shape = in0.get_shape();
         const size_t rank = shape.size();
-        if (rank < 2) {
-            std::cout << "[FCCmpOpt] support_shapes FAIL: rank=" << rank << " < 2\n";
+        if (rank < 2)
             return false;
-        }
 
         // M = second-to-last dimension (sequence length in an LLM).
         const size_t M = shape[rank - 2];
-        if (M != 1) {
-            std::cout << "[FCCmpOpt] support_shapes FAIL: M=" << M << " != 1\n";
+        if (M != 1)
             return false;
-        }
 
         // Derive actual quantisation group size from the weight-scale tensor shape.
         // Scale shape is [N, K/group_size] — i.e. shape[0]=N (output channels),
