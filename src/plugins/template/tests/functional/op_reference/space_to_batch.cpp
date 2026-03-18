@@ -6,8 +6,10 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
+
 #include "base_reference_test.hpp"
-#include "openvino/op/constant.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/op/parameter.hpp"
 
 using namespace reference_tests;
@@ -158,4 +160,37 @@ INSTANTIATE_TEST_SUITE_P(smoke_SpaceToBatch_With_Hardcoded_Refs,
                          ReferenceSpaceToBatchLayerTest,
                          testing::ValuesIn(generateCombinedParams()),
                          ReferenceSpaceToBatchLayerTest::getTestCaseName);
+
+class ReferenceSpaceToBatchLayerNegativeTest : public ReferenceSpaceToBatchLayerTest {};
+
+TEST_P(ReferenceSpaceToBatchLayerNegativeTest, InvalidPaddingThrows) {
+    EXPECT_THROW(Exec(), ov::Exception);
+}
+
+std::vector<SpaceToBatchParams> generateNegativeParams() {
+    constexpr auto I64_MAX = std::numeric_limits<int64_t>::max();
+    const reference_tests::Tensor dummyExpected({1}, element::f32, std::vector<float>{0});
+
+    return {
+        // INT64_MAX padding causes size_t overflow in padded_shape computation
+        SpaceToBatchParams(reference_tests::Tensor({1, 4, 4}, element::f32, std::vector<float>(16, 1.0f)),
+                           reference_tests::Tensor({3}, element::i64, std::vector<int64_t>{1, 1, 1}),
+                           reference_tests::Tensor({3}, element::i64, std::vector<int64_t>{0, I64_MAX, I64_MAX}),
+                           reference_tests::Tensor({3}, element::i64, std::vector<int64_t>{0, I64_MAX, I64_MAX}),
+                           dummyExpected,
+                           "padding_overflow"),
+        // Negative padding values
+        SpaceToBatchParams(reference_tests::Tensor({1, 1, 2, 2}, element::f32, std::vector<float>{1, 1, 1, 1}),
+                           reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 1, 1}),
+                           reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, -1, 0}),
+                           reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+                           dummyExpected,
+                           "negative_padding"),
+    };
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_SpaceToBatch_Negative,
+                         ReferenceSpaceToBatchLayerNegativeTest,
+                         testing::ValuesIn(generateNegativeParams()),
+                         ReferenceSpaceToBatchLayerNegativeTest::getTestCaseName);
 }  // namespace

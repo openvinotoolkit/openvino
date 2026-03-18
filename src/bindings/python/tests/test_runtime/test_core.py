@@ -446,6 +446,14 @@ def test_add_extension():
     assert isinstance(model, Model)
 
 
+def test_add_extension_from_path():
+    core = Core()
+
+    with pytest.raises(RuntimeError) as e:
+        core.add_extension(Path("non_existing_extension"))
+    assert "Cannot load library" in str(e.value)
+
+
 def test_read_model_from_buffer_no_weights():
     bytes_model = bytes(
         b"""<net name="add_model" version="10">
