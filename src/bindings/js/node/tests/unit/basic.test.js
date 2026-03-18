@@ -210,7 +210,7 @@ describe("ov basic tests.", () => {
     });
 
     it("compileModel(model:model_path, deviceName: string) ", async () => {
-      const cm = await compileModel(testModelFP32.xml, "CPU");
+      const cm = await core.compileModel(testModelFP32.xml, "CPU");
       assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
     });
 
