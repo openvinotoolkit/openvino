@@ -31,12 +31,34 @@ class Plugin;
 
 namespace ov {
 namespace npuw {
+std::shared_ptr<ov::ICompiledModel> create_compiled_model(const std::shared_ptr<ov::Model>& model,
+                                                          const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                          const ov::AnyMap& properties);
+
 class ICompiledModel : public ov::ICompiledModel {
 public:
-    static std::shared_ptr<ov::npuw::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
-                                                            const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                            const ov::AnyMap& properties);
-    ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin);
+    ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
+        : ov::ICompiledModel(model, plugin) {}
+
+    // API for easily create and manage NPUW infer-requests
+    virtual std::shared_ptr<ov::npuw::IBaseInferRequest> create_base_infer_request() const = 0;
+
+    virtual std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
+        std::shared_ptr<ov::npuw::IBaseInferRequest> internal_request) const = 0;
+
+    virtual std::string submodel_device(const std::size_t idx) const = 0;
+
+    virtual std::size_t num_compiled_submodels() const = 0;
+
+    virtual void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const = 0;
+
+    virtual std::shared_ptr<weights::Bank> get_weights_bank() const = 0;
+
+    virtual void set_weights_bank(std::shared_ptr<weights::Bank> bank) = 0;
+
+    virtual void finalize_weights_bank() = 0;
+
+    virtual void reconstruct_closure() = 0;
 };
 
 // Forward declarations
@@ -80,7 +102,7 @@ private:
     friend class UnfoldInferRequest;
     friend class MemAccessSim;
     friend class FuncMemMgr;
-    friend class LLMCompiledModel;
+    friend class DefaultNPUWCompiledModelFactory;
     friend class LLMInferRequest;
     friend class moe::MoEExecutor;
 
@@ -100,7 +122,7 @@ private:
 
     void report_io() const;
 
-    void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const;
+    void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const override;
     static std::shared_ptr<CompiledModel> deserialize(std::istream& stream,
                                                       const std::shared_ptr<const ov::IPlugin>& plugin,
                                                       const ov::AnyMap& properties,
@@ -116,11 +138,11 @@ private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
     // API for easily create and manage NPUW infer-requests
-    std::shared_ptr<ov::npuw::IBaseInferRequest> create_base_infer_request() const;
+    std::shared_ptr<ov::npuw::IBaseInferRequest> create_base_infer_request() const override;
     std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
-        std::shared_ptr<ov::npuw::IBaseInferRequest> internal_request) const;
+        std::shared_ptr<ov::npuw::IBaseInferRequest> internal_request) const override;
 
-    std::string submodel_device(const std::size_t idx) const;
+    std::string submodel_device(const std::size_t idx) const override;
     bool is_gather_closure(const std::size_t idx, const std::size_t cidx) const;
     bool unpack_required(const std::size_t idx) const;
     bool unpack_required(const std::size_t idx, const std::size_t cidx) const;
@@ -131,14 +153,18 @@ private:
     bool should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) const;
 
     // For full deserialization flow with weights
-    void reconstruct_closure();
+    void reconstruct_closure() override;
     // For weightless serialization flow
     void store_const_offsets(const std::shared_ptr<ov::Model>& model);
 
-    void finalize_weights_bank();
+    std::shared_ptr<weights::Bank> get_weights_bank() const override;
+    void set_weights_bank(std::shared_ptr<weights::Bank> bank) override;
+    void finalize_weights_bank() override;
     void detach_memory();
     std::string global_mem_device() const;
     std::string funcall_mem_device(const std::size_t idx) const;
+
+    std::size_t num_compiled_submodels() const override;
 
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;

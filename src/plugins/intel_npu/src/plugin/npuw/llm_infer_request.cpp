@@ -186,7 +186,10 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     // Unclear how it's related. Previously fill_tensor()
     // was in copy_kvcache() call. When it was removed, it broke the import accuracy.
     bool enable_cpu_wa = false;
-    const auto& kvcache_compiled = m_npuw_llm_compiled_model->m_kvcache_compiled;
+    const std::shared_ptr<ov::npuw::CompiledModel>& kvcache_compiled =
+        std::dynamic_pointer_cast<ov::npuw::CompiledModel>(m_npuw_llm_compiled_model->m_kvcache_compiled);
+    OPENVINO_ASSERT(kvcache_compiled,
+                    "LLMInferRequest can work only with ov::npuw:CompiledModel instances for generate model");
     for (std::size_t idx = 0; idx < kvcache_compiled->m_compiled_submodels.size(); ++idx) {
         if (kvcache_compiled->submodel_device(idx) == "CPU") {
             enable_cpu_wa = true;
@@ -227,7 +230,10 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 
 std::string ov::npuw::LLMInferRequest::init_pre_alloc_device() {
     bool pre_alloc_on_npu = true;
-    const auto& kvcache_compiled = m_npuw_llm_compiled_model->m_kvcache_compiled;
+    const std::shared_ptr<ov::npuw::CompiledModel>& kvcache_compiled =
+        std::dynamic_pointer_cast<ov::npuw::CompiledModel>(m_npuw_llm_compiled_model->m_kvcache_compiled);
+    OPENVINO_ASSERT(kvcache_compiled,
+                    "LLMInferRequest can work only with ov::npuw:CompiledModel instances for generate model");
     for (std::size_t idx = 0; idx < kvcache_compiled->m_compiled_submodels.size(); ++idx) {
         if (kvcache_compiled->submodel_device(idx) != "NPU") {
             pre_alloc_on_npu = false;

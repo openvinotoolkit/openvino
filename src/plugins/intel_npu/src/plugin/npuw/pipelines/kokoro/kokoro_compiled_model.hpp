@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ struct KokoroConfig {
     uint64_t overlap_size = 20;
 };
 
-class KokoroCompiledModel : public ov::npuw::ICompiledModel {
+class KokoroCompiledModel : public ov::ICompiledModel {
 public:
     KokoroCompiledModel(const std::shared_ptr<ov::Model>& model,
                         const std::shared_ptr<const ov::IPlugin>& plugin,
