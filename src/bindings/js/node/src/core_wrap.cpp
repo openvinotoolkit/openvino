@@ -212,6 +212,7 @@ void compileModelThreadPath(TsfnContextPath* context) {
         }
     };
 
+    context->tsfn.Abort();
     const auto status = context->tsfn.BlockingCall(context, callback);
     if (status != napi_ok) {
         std::cerr << "ThreadSafeFunction::BlockingCall failed in compileModelThreadPath\n";
