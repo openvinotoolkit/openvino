@@ -60,7 +60,6 @@ bool CRE::end_condition(const std::vector<Token>::const_iterator& expression_ite
     case Delimiter::SIZE:
         return expression_iterator == m_expression.end();
     default:
-        // Delimiter::NOT_CAPABILITY
         return RESERVED_TOKENS.count(*expression_iterator) || expression_iterator == m_expression.end();
     }
 }
@@ -68,6 +67,34 @@ bool CRE::end_condition(const std::vector<Token>::const_iterator& expression_ite
 bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
                    const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities,
                    const Delimiter end_delimiter) {
+    if (*expression_iterator == NOT) {
+        bool negate = false;
+        while (*expression_iterator == NOT) {
+            negate = !negate;
+            advance_iterator(expression_iterator);
+            OPENVINO_ASSERT(expression_iterator != m_expression.end(), "NOT operator is missing its operand");
+        }
+
+        bool operand;
+        if (*expression_iterator == OPEN) {
+            advance_iterator(expression_iterator);
+            operand = evaluate(expression_iterator, plugin_capabilities, Delimiter::PARRENTHESIS);
+            OPENVINO_ASSERT(*expression_iterator == CLOSE);
+            advance_iterator(expression_iterator);
+        } else if (*expression_iterator == CLOSE) {
+            OPENVINO_THROW_HELPER(InvalidCRE, ov::Exception::default_msg, "NOT operator is missing its operand");
+        } else if (OPERATORS.count(*expression_iterator)) {
+            operand = evaluate(expression_iterator, plugin_capabilities, end_delimiter);
+        } else {
+            operand = plugin_capabilities.count(*expression_iterator)
+                          ? plugin_capabilities.at(*expression_iterator)->check_support()
+                          : false;
+            advance_iterator(expression_iterator);
+        }
+
+        return negate ? !operand : operand;
+    }
+
     std::function<bool(bool, bool)> logical_function;
     bool base;
 
@@ -93,15 +120,24 @@ bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
 
     // Followed by n operands, n >= 1. One operand can be defined as:
     //   * The ID of a capability
+    //   * NOT operand (unary negation, may be chained: NOT NOT capability)
     //   * Open parrenthesis - subexpression - closed parrenthesis
     //   * Subexpression without parrenthesis (starts with an operator)
     bool no_operands = true;
     while (!end_condition(expression_iterator, end_delimiter)) {
         no_operands = false;
 
+        bool negate = false;
+        while (*expression_iterator == NOT) {
+            negate = !negate;
+            advance_iterator(expression_iterator);
+            OPENVINO_ASSERT(expression_iterator != m_expression.end(), "NOT operator is missing its operand");
+        }
+
+        bool operand;
         if (*expression_iterator == OPEN) {
             advance_iterator(expression_iterator);
-            base = logical_function(base, evaluate(expression_iterator, plugin_capabilities, Delimiter::PARRENTHESIS));
+            operand = evaluate(expression_iterator, plugin_capabilities, Delimiter::PARRENTHESIS);
             OPENVINO_ASSERT(*expression_iterator == CLOSE);
             advance_iterator(expression_iterator);
         } else if (*expression_iterator == CLOSE) {
@@ -109,16 +145,15 @@ bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
                                   ov::Exception::default_msg,
                                   "Found a closed parrenthesis without any matching open token");
         } else if (OPERATORS.count(*expression_iterator)) {
-            base = logical_function(base,
-                                    evaluate(expression_iterator, plugin_capabilities, Delimiter::NOT_CAPABILITY_ID));
+            operand = evaluate(expression_iterator, plugin_capabilities, Delimiter::NOT_CAPABILITY_ID);
         } else {
-            const bool has_capability = plugin_capabilities.count(*expression_iterator)
-                                            ? plugin_capabilities.at(*expression_iterator)->check_support()
-                                            : false;
-
-            base = logical_function(base, has_capability);
+            operand = plugin_capabilities.count(*expression_iterator)
+                          ? plugin_capabilities.at(*expression_iterator)->check_support()
+                          : false;
             advance_iterator(expression_iterator);
         }
+
+        base = logical_function(base, negate ? !operand : operand);
     }
 
     if (no_operands) {

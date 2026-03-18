@@ -17,13 +17,13 @@ class CRE final {
 public:
     using Token = uint16_t;
 
-    // TODO add the "NOT" operator as well
-    enum ReservedToken : Token { AND = 50000, OR = 50001, OPEN = 50002, CLOSE = 50003 };
+    enum ReservedToken : Token { AND = 50000, OR = 50001, OPEN = 50002, CLOSE = 50003, NOT = 50004 };
 
     static inline const std::unordered_set<Token> RESERVED_TOKENS{ReservedToken::AND,
                                                                   ReservedToken::OR,
                                                                   ReservedToken::OPEN,
-                                                                  ReservedToken::CLOSE};
+                                                                  ReservedToken::CLOSE,
+                                                                  ReservedToken::NOT};
 
     /**
      * @brief All capability codes known in advance. Past codes should be recorded here as well to help avoiding
