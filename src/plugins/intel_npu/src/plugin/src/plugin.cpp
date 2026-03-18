@@ -693,19 +693,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         const bool shouldWarnAboutLatency = successfullyDebatched && performanceHintSetByUser &&
                                             localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY;
 
-        std::optional<FilteredConfig> modifiedConfig;
-        const FilteredConfig* configToCompile = &localConfig;
-
-        if (shouldForceThroughput) {
-            _logger.info("Setting performance mode to THROUGHPUT for batched model compilation.");
-
-            modifiedConfig = localConfig;  // Copy only when needed
-            std::stringstream strStream;
-            strStream << ov::hint::PerformanceMode::THROUGHPUT;
-            modifiedConfig->update({{ov::hint::performance_mode.name(), strStream.str()}});
-            configToCompile = &modifiedConfig.value();
-        }
-
         if (shouldWarnAboutLatency) {
             _logger.warning("PERFORMANCE_HINT is explicitly set to LATENCY mode, but batch dimension (N) is "
                             "detected in the model. The NPU Plugin will reshape the model to batch size 1 and "
@@ -716,7 +703,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                             "configured properly.");
         }
 
-        graph = compileWithConfig(std::move(modelToCompile), *configToCompile);
+        if (shouldForceThroughput) {
+            _logger.info("Setting performance mode to THROUGHPUT for batched model compilation.");
+
+            auto modifiedConfig = localConfig;  // Copy only when needed
+            std::stringstream strStream;
+            strStream << ov::hint::PerformanceMode::THROUGHPUT;
+            modifiedConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
+            graph = compileWithConfig(std::move(modelToCompile), modifiedConfig);
+        } else {
+            graph = compileWithConfig(std::move(modelToCompile), localConfig);
+        }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
