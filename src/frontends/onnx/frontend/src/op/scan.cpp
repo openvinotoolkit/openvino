@@ -24,13 +24,22 @@ namespace {
 ov::OutputVector scan_to_tensor_iterator(const ov::OutputVector& node_inputs,
                                          ov::ParameterVector& body_inputs,
                                          ov::OutputVector& body_outputs,
-                                         int64_t num_scan_inputs,
+                                         size_t num_scan_inputs,
                                          const std::vector<int64_t>& scan_input_axes,
                                          const std::vector<int64_t>& scan_input_directions,
                                          const std::vector<int64_t>& scan_output_axes,
                                          const std::vector<int64_t>& scan_output_directions,
-                                         int64_t in_offset = 0,
+                                         size_t in_offset = 0,
                                          const std::string& node_description = "") {
+    FRONT_END_OP_CONVERSION_CHECK(
+        node_inputs.size() >= in_offset && node_inputs.size() - in_offset >= body_inputs.size(),
+        node_description,
+        " Number of Scan node inputs (",
+        node_inputs.size(),
+        ") is less than required (",
+        in_offset + body_inputs.size(),
+        ") based on body graph parameters and in_offset");
+
     const size_t num_initial_values = body_inputs.size() - num_scan_inputs;
     const size_t num_scan_outputs = body_outputs.size() - num_initial_values;
 
@@ -38,10 +47,10 @@ ov::OutputVector scan_to_tensor_iterator(const ov::OutputVector& node_inputs,
         if (r.is_static()) {
             axis = common::normalize_axis(node_description, axis, r);
         } else {
-            FRONT_END_GENERAL_CHECK(axis >= 0,
-                                    node_description,
-                                    " Rank must be static in order to normalize negative axis=",
-                                    axis);
+            FRONT_END_OP_CONVERSION_CHECK(axis >= 0,
+                                          node_description,
+                                          " Rank must be static in order to normalize negative axis=",
+                                          axis);
         }
         return axis;
     };
@@ -56,7 +65,7 @@ ov::OutputVector scan_to_tensor_iterator(const ov::OutputVector& node_inputs,
     // but in ONNX Scan the slice of input can has one dimension less,
     // so the parameter needs to have aligned rank with 1 at sliced axis,
     // and then squeezed to restore original shape.
-    for (int64_t i = 0; i < num_scan_inputs; ++i) {
+    for (size_t i = 0; i < num_scan_inputs; ++i) {
         const auto in_idx = num_initial_values + i;
         auto axis = scan_input_axes[i];
         const auto axis_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
@@ -65,10 +74,10 @@ ov::OutputVector scan_to_tensor_iterator(const ov::OutputVector& node_inputs,
             axis = try_normalize_axis_for_static_rank(axis, shape.rank());
             shape[axis] = 1;
         } else {
-            FRONT_END_GENERAL_CHECK(axis >= 0,
-                                    node_description,
-                                    " Rank must be static in order to normalize negative axis=",
-                                    axis);
+            FRONT_END_OP_CONVERSION_CHECK(axis >= 0,
+                                          node_description,
+                                          " Rank must be static in order to normalize negative axis=",
+                                          axis);
         }
         body_inputs[in_idx]->set_partial_shape(shape);
         body_inputs[in_idx]->validate_and_infer_types();
@@ -93,7 +102,7 @@ ov::OutputVector scan_to_tensor_iterator(const ov::OutputVector& node_inputs,
     tensor_iterator->set_function(ti_body);
 
     // Set slicing for Scan (TensorIterator) inputs
-    for (int64_t i = 0; i < num_scan_inputs; ++i) {
+    for (size_t i = 0; i < num_scan_inputs; ++i) {
         const auto in_idx = num_initial_values + i;
         const auto axis =
             try_normalize_axis_for_static_rank(scan_input_axes[i],
@@ -127,8 +136,8 @@ ov::OutputVector scan_to_tensor_iterator(const ov::OutputVector& node_inputs,
 }
 
 ov::OutputVector import_onnx_scan(const ov::frontend::onnx::Node& node,
-                                  int64_t default_axis,
-                                  int64_t in_offset,
+                                  size_t default_axis,
+                                  size_t in_offset,
                                   std::string&& in_directions_attr_name) {
     const auto& node_inputs = node.get_ov_inputs();
 
@@ -147,22 +156,76 @@ ov::OutputVector import_onnx_scan(const ov::frontend::onnx::Node& node,
         }
         body_inputs = body_graph->get_parameters();
     }
-    const int64_t num_scan_inputs = node.get_attribute_value<int64_t>("num_scan_inputs");
+
+    const int64_t num_scan_inputs_signed = node.get_attribute_value<int64_t>("num_scan_inputs");
+    FRONT_END_OP_CONVERSION_CHECK(num_scan_inputs_signed >= 0,
+                                  node.get_description(),
+                                  " num_scan_inputs attribute is negative: ",
+                                  num_scan_inputs_signed);
+    const size_t num_scan_inputs = static_cast<size_t>(num_scan_inputs_signed);
+
+    FRONT_END_OP_CONVERSION_CHECK(body_inputs.size() >= num_scan_inputs,
+                                  node.get_description(),
+                                  " num_scan_inputs (",
+                                  num_scan_inputs,
+                                  ") negative or exceeds the number of body graph inputs (",
+                                  body_inputs.size(),
+                                  ")");
+
     const size_t num_initial_values = body_inputs.size() - num_scan_inputs;
+    FRONT_END_OP_CONVERSION_CHECK(body_outputs.size() >= num_initial_values,
+                                  node.get_description(),
+                                  " num_scan_outputs can't be negative: body outputs (",
+                                  body_outputs.size(),
+                                  ") is less than num_initial_values (",
+                                  num_initial_values,
+                                  ")");
+
     const size_t num_scan_outputs = body_outputs.size() - num_initial_values;
 
     std::vector<int64_t> scan_input_axes =
         node.get_attribute_value<std::vector<int64_t>>("scan_input_axes",
                                                        std::vector<int64_t>(num_scan_inputs, default_axis));
+    FRONT_END_OP_CONVERSION_CHECK(scan_input_axes.size() >= num_scan_inputs,
+                                  node.get_description(),
+                                  " num_scan_inputs (",
+                                  num_scan_inputs,
+                                  ") exceeds the number of scan_input_axes (",
+                                  scan_input_axes.size(),
+                                  ")");
+
     std::vector<int64_t> scan_input_directions =
         node.get_attribute_value<std::vector<int64_t>>(in_directions_attr_name,
                                                        std::vector<int64_t>(num_scan_inputs, 0));
+    FRONT_END_OP_CONVERSION_CHECK(scan_input_directions.size() >= num_scan_inputs,
+                                  node.get_description(),
+                                  " num_scan_inputs (",
+                                  num_scan_inputs,
+                                  ") exceeds the number of scan_input_directions (",
+                                  scan_input_directions.size(),
+                                  ")");
+
     std::vector<int64_t> scan_output_axes =
         node.get_attribute_value<std::vector<int64_t>>("scan_output_axes",
                                                        std::vector<int64_t>(num_scan_outputs, default_axis));
+    FRONT_END_OP_CONVERSION_CHECK(scan_output_axes.size() >= num_scan_outputs,
+                                  node.get_description(),
+                                  " num_scan_outputs (",
+                                  num_scan_outputs,
+                                  ") exceeds the number of scan_output_axes (",
+                                  scan_output_axes.size(),
+                                  ")");
+
     std::vector<int64_t> scan_output_directions =
         node.get_attribute_value<std::vector<int64_t>>("scan_output_directions",
                                                        std::vector<int64_t>(num_scan_outputs, 0));
+    FRONT_END_OP_CONVERSION_CHECK(scan_output_directions.size() >= num_scan_outputs,
+                                  node.get_description(),
+                                  " num_scan_outputs (",
+                                  num_scan_outputs,
+                                  ") exceeds the number of scan_output_directions (",
+                                  scan_output_directions.size(),
+                                  ")");
 
     return scan_to_tensor_iterator(node_inputs,
                                    body_inputs,
