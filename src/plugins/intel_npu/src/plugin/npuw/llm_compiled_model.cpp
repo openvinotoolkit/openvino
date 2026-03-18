@@ -2165,7 +2165,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
         {"NPUW_UNFOLD_IREQS", "NO"},
     };
-    if (prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa) {
+    if ((prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa) && m_use_chunk_prefill) {
         merge_config_with(prefill_config, dyn_attn_opts);
     }
     if (generate_attn_dyn || generate_attn_pyramid || generate_attn_hfa) {
