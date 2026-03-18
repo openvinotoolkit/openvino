@@ -50,8 +50,7 @@ std::vector<std::pair<std::string, ov::Any>> compat_plugin_internal_mutable_prop
 };
 
 std::vector<std::pair<std::string, ov::Any>> plugin_internal_mutable_properties = {
-    {ov::intel_npu::max_tiles.name(), ov::Any(8)},
-    {ov::intel_npu::stepping.name(), ov::Any(4)},
+    {ov::intel_npu::stepping.name(), ov::Any(4)}
 };
 
 std::vector<std::pair<std::string, ov::Any>> plugin_public_immutable_properties = {
@@ -66,6 +65,7 @@ std::vector<std::pair<std::string, ov::Any>> plugin_public_immutable_properties 
     {ov::optimal_number_of_infer_requests.name(), ov::Any(4)},
     {ov::intel_npu::device_alloc_mem_size.name(), ov::Any(2)},
     {ov::intel_npu::device_total_mem_size.name(), ov::Any(2)},
+    {ov::intel_npu::max_tiles.name(), ov::Any(9999)}
 };
 
 std::vector<std::pair<std::string, ov::Any>> invalid_device_ids = {
