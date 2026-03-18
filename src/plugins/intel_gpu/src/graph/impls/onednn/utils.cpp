@@ -352,12 +352,12 @@ private:
         dnnl::memory::dims dims;
         auto fmt_tag = _target_fmt;
 
-        auto count_except = [this](size_t skip_idx) -> size_t {
-            auto raw = _layout.get_tensor().raw;
-            size_t result = 1;
+        auto count_except = [this](size_t skip_idx) -> int64_t {
+            const auto& raw = _layout.get_tensor().raw;
+            int64_t result = 1;
             for (size_t i = 0; i < raw.size(); ++i) {
                 if (i != skip_idx)
-                    result *= static_cast<size_t>(raw[i]);
+                    result *= static_cast<int64_t>(raw[i]);
             }
             return result;
         };
@@ -367,9 +367,7 @@ private:
             dims.insert(dims.begin(), 1);
         } else if (fmt_tag == dnnl::memory::format_tag::ab) {
             dims.push_back(_layout.batch());
-            dims.push_back(_layout.batch() != 0
-                ? _layout.get_tensor().count() / _layout.batch()
-                : count_except(0));
+            dims.push_back(count_except(0));
         } else if (fmt_tag == dnnl::memory::format_tag::abc) {
             dims.push_back(_layout.batch());
             dims.push_back(_layout.feature());
@@ -398,9 +396,7 @@ private:
             dims.push_back(_layout.spatial(1));
         } else if (fmt_tag == dnnl::memory::format_tag::ba) {
             dims.push_back(_layout.feature());
-            dims.push_back(_layout.feature() != 0
-                ? _layout.get_tensor().count() / _layout.feature()
-                : count_except(1));
+            dims.push_back(count_except(1));
         } else if (_flatten) {
             dims = flatten_tensor(_layout.get_tensor());
         } else {
