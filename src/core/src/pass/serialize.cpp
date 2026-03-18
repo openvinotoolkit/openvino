@@ -97,6 +97,16 @@ void serialize_func(std::ostream& xml_file,
     ov::util::ConstantWriter constant_write_handler(bin_file);
     serialize_func(xml_file, bin_file, std::move(model), ver, deterministic, constant_write_handler);
 }
+
+void handle_file_serialize_error(const std::filesystem::path& xml_path,
+                                 const std::filesystem::path& bin_path,
+                                 std::ofstream& xml,
+                                 std::ofstream& bin) {
+    xml.close();
+    bin.close();
+    std::ignore = std::filesystem::remove(xml_path);
+    std::ignore = std::filesystem::remove(bin_path);
+}
 }  // namespace
 
 namespace ov {
@@ -113,11 +123,13 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
         ov::util::create_directory_recursive(m_xml_path.parent_path());
 
         std::ofstream bin_file(m_bin_path, std::ios::binary);
-        OPENVINO_ASSERT(bin_file, "Can't open bin file: ", m_bin_path);
+        OPENVINO_ASSERT(bin_file, "Can't open bin file: \"", m_bin_path, "\"");
+        bin_file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
 
         // create xml file
         std::ofstream xml_file(m_xml_path);
-        OPENVINO_ASSERT(xml_file, "Can't open xml file: ", m_xml_path);
+        OPENVINO_ASSERT(xml_file, "Can't open xml file: \"", m_xml_path, "\"");
+        xml_file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
 
         try {
             serialize_func(xml_file, bin_file, model, m_version);
@@ -125,10 +137,10 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             // optimization decision was made to create .bin file upfront and
             // write to it directly instead of buffering its content in memory,
             // hence we need to delete it here in case of failure
-            xml_file.close();
-            bin_file.close();
-            std::ignore = std::filesystem::remove(m_xml_path);
-            std::ignore = std::filesystem::remove(m_bin_path);
+            handle_file_serialize_error(m_xml_path, m_bin_path, xml_file, bin_file);
+            throw;
+        } catch (const std::ios_base::failure&) {
+            handle_file_serialize_error(m_xml_path, m_bin_path, xml_file, bin_file);
             throw;
         }
     }
