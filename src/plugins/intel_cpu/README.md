@@ -2,7 +2,7 @@
 
 ## Key Contacts
 
-For assistance regarding CPU, open a [GitHub issue](https://github.com/openvinotoolkit/openvino/issues) and tag it with the `cpu` label, or reach out via the [OpenVINO Discussions](https://github.com/openvinotoolkit/openvino/discussions) page.
+For assistance regarding CPU, contact a member of **openvino-ie-cpu-maintainers** group, or reach out via the [OpenVINO Discussions](https://github.com/openvinotoolkit/openvino/discussions) page.
 
 ## Components
 
