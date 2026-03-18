@@ -42,13 +42,13 @@ public:
 
     virtual ~FrontEnd();
 
-    /// \brief Validates if FrontEnd can recognize model with parameters specified.
-    /// Same parameters should be used to load model.
+    /// \brief Validates whether the FrontEnd can recognize a model with the specified parameters.
+    /// The same parameters should be used to load the model.
     /// \param vars Any number of parameters of any type. What kind of parameters
-    /// are accepted is determined by each FrontEnd individually, typically it is
-    /// system path to the model file. For more information please
-    /// refer to specific FrontEnd documentation.
-    /// \return true if model recognized, false - otherwise.
+    /// are accepted is determined by each FrontEnd individually, typically this is
+    /// a path to the model file. For more information please
+    /// refer to the specific FrontEnd documentation.
+    /// \return true if the model is recognized, false otherwise.
     template <typename... Types>
     inline bool supported(const Types&... vars) const {
         return supported_impl({ov::Any(vars)...});
@@ -60,9 +60,9 @@ public:
     /// \brief Loads an input model by any specified arguments. Each FrontEnd separately
     /// defines what arguments it can accept.
     /// \param vars Any number of parameters of any type. What kind of parameters
-    /// are accepted is determined by each FrontEnd individually, typically it is
-    /// system path to the model file. For more information please
-    /// refer to specific FrontEnd documentation.
+    /// are accepted is determined by each FrontEnd individually, typically this is
+    /// a path to the model file. For more information please
+    /// refer to the specific FrontEnd documentation.
     /// \return Loaded input model.
     template <typename... Types>
     inline InputModel::Ptr load(const Types&... vars) const {
