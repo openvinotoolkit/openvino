@@ -5,19 +5,15 @@
 # mypy: ignore-errors
 
 
+
 import torch
-from torch.nn import Module
 from torch.fx import GraphModule, Node
 from torch.fx.passes.infra.partitioner import CapabilityBasedPartitioner, Partition
 
-from torch.fx.experimental.proxy_tensor import DecompositionInterpreter
-from torch._decomp import decomposition_table
 from torch.fx.experimental.proxy_tensor import make_fx
-from torch.utils._pytree import tree_flatten, tree_map, tree_unflatten
 from openvino.frontend.pytorch.torchdynamo.op_support import OperatorSupport
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _is_testing
 
-import typing as t
 import logging
 
 logger = logging.getLogger(__name__)
@@ -149,6 +145,8 @@ class Partitioner:
         num_partitions = 0
         num_non_partition_nodes = 0
         for node in fused_graph_module.graph.nodes:
+            # NOTE: Currently relying on naming convention "fused_" to identify fused nodes.
+            # This may need to be replaced with a more robust mechanism in future.
             if node.op == "call_module" and "fused_" in node.name:
                 num_partitions += 1
             elif node.op != "placeholder" and node.op != "output":
