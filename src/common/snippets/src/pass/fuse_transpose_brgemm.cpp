@@ -47,8 +47,8 @@ bool FuseTransposeBrgemm::is_supported_transpose_order(const std::vector<int32_t
 FuseTransposeBrgemm::FuseTransposeBrgemm() {
     MATCHER_SCOPE(FuseTransposeBrgemm);
 
-    using namespace ov::pass;
     using namespace ov::pass::pattern;
+    using ov::pass::operator|;
 
     auto m_constant = wrap_type<ov::op::v0::Constant>();
     auto m_transpose = wrap_type<ov::op::v1::Transpose>({any_input(), m_constant}, is_supported_transpose);

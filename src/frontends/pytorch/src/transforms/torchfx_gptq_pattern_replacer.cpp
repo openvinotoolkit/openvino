@@ -29,7 +29,6 @@ namespace pytorch {
 namespace pass {
 
 using namespace ov::op;
-using namespace ov::pass;
 using namespace ov::pass::pattern;
 
 uint32_t read_u4_data(const void* array, size_t index) {
@@ -43,6 +42,7 @@ uint32_t read_u4_data(const void* array, size_t index) {
 };
 
 GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
+    using ov::pass::operator|;
     const auto& const_1 = wrap_type<v0::Constant>();
     const auto& const_2 = wrap_type<v0::Constant>();
     const auto& unsqueeze_1 = wrap_type<v0::Unsqueeze>({const_1, const_2});
@@ -218,6 +218,7 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
 };
 
 GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
+    using ov::pass::operator|;
     const auto& const_1 = wrap_type<v0::Constant>();
     const auto& convert_1 = wrap_type<v0::Convert>({const_1});
     const auto& const_2 = wrap_type<v0::Constant>();
