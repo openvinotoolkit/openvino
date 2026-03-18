@@ -265,6 +265,15 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
         return this->get_attribute(&tflite::WhileOptions::cond_subgraph_index);
     } else if (name == "body_subgraph_index" && m_type == "WHILE") {
         return this->get_attribute(&tflite::WhileOptions::body_subgraph_index);
+    } else if (name == "composite_name" && m_type == "STABLEHLO_COMPOSITE") {
+        const auto opts = m_node_def->builtin_options_2_as<tflite::StableHLOCompositeOptions>();
+        FRONT_END_GENERAL_CHECK(opts != nullptr, "StableHLOCompositeOptions not found for STABLEHLO_COMPOSITE op");
+        FRONT_END_GENERAL_CHECK(opts->name() != nullptr, "composite_name is missing in STABLEHLO_COMPOSITE op");
+        return std::string(opts->name()->str());
+    } else if (name == "decomposition_subgraph_index" && m_type == "STABLEHLO_COMPOSITE") {
+        const auto opts = m_node_def->builtin_options_2_as<tflite::StableHLOCompositeOptions>();
+        FRONT_END_GENERAL_CHECK(opts != nullptr, "StableHLOCompositeOptions not found for STABLEHLO_COMPOSITE op");
+        return static_cast<int32_t>(opts->decomposition_subgraph_index());
     } else if (name == "strides" && m_type == "CONV_2D") {
         return std::vector<int64_t>{1,
                                     this->get_attribute(&tflite::Conv2DOptions::stride_h),
@@ -389,6 +398,22 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
         } else {
             return {};
         }
+    }
+
+    // For STABLEHLO_COMPOSITE, look up unknown attributes in composite_attributes FlexBuffer.
+    // Missing keys return empty ov::Any (not an error) — callers must use the two-argument
+    // get_attribute(name, default) overload for optional attributes, matching the custom_options
+    // contract below.
+    if (m_type == "STABLEHLO_COMPOSITE") {
+        const auto opts = m_node_def->builtin_options_2_as<tflite::StableHLOCompositeOptions>();
+        if (opts != nullptr) {
+            const auto attrs = opts->composite_attributes();
+            if (attrs != nullptr) {
+                const flexbuffers::Map& m = flexbuffers::GetRoot(attrs->Data(), attrs->size()).AsMap();
+                return get_value_as_ov_any(m[name]);
+            }
+        }
+        return {};
     }
 
     const auto opts = m_node_def->custom_options();
