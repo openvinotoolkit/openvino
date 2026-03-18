@@ -22,10 +22,8 @@
 #include "openvino/op/subtract.hpp"
 #include "shared_node_info.hpp"
 
-using ov::op::util::Variable;
-using ov::op::util::VariableInfo;
-using ov::op::v0::Parameter;
-using ov::op::v0::Result;
+using ov::op::util::Variable, ov::op::util::VariableInfo;
+using ov::op::v0::Parameter, ov::op::v0::Result, ov::op::v0::Relu;
 
 TEST(model, get_input_by_tensor_name) {
     auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
@@ -1541,13 +1539,13 @@ TEST(model, topological_sort_throws_if_loop_with_one_node) {
 }
 
 TEST(model, topological_sort_throws_if_loop_with_two_node) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
-    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
-    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    auto arg0 = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<Relu>(arg0);
+    auto relu2 = std::make_shared<Relu>(relu1);
     // Loop relu1->relu2->relu1
     relu1->input(0).replace_source_output(relu2->output(0));
 
-    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto result = std::make_shared<Result>(relu2);
     ASSERT_THROW(std::ignore = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{arg0}),
                  ov::Exception);
 }
