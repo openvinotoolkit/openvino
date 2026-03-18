@@ -9,6 +9,7 @@
 #include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "onnx_utils.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/multiply.hpp"
 
@@ -235,6 +236,23 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_access_to_body_sc
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
+}
+
+// Regression test: Loop body with too few inputs relative to loop-carried
+// dependencies must throw instead of accessing body_inputs out of bounds.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_too_few_body_inputs_exception) {
+    OV_EXPECT_THROW(convert_model("controlflow/loop_too_few_body_inputs.onnx"),
+                    ov::AssertFailure,
+                    testing::AllOf(testing::HasSubstr("loop body graph inputs size"),
+                                   testing::HasSubstr("is smaller than the sum of loop carried dependencies")));
+}
+
+// Regression test: Loop body with too few outputs relative to loop-carried
+// dependencies must throw instead of accessing body_outputs out of bounds.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_too_few_body_outputs_exception) {
+    OV_EXPECT_THROW(convert_model("controlflow/loop_too_few_body_outputs.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("loop body graph outputs size"));
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_the_same_node_from_parent_and_subgraph) {
