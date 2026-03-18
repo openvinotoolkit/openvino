@@ -1394,7 +1394,7 @@ std::shared_ptr<ov::Model> ModelBuilder::make_model(const ov::Output<ov::Node>& 
 
 std::shared_ptr<ov::Model> ModelBuilder::build_model(const ModelConfig& config_in) {
     OPENVINO_ASSERT(
-        (int)config_in.use_conv_features + (int)config_in.use_cross_attention + (int)config_in.use_token_type_embedding <= 1,
+        static_cast<int>(config_in.use_conv_features) + static_cast<int>(config_in.use_cross_attention) + static_cast<int>(config_in.use_token_type_embedding) <= 1,
         "At most one structural dispatch flag may be set");
 
     // Fill in norm/ffn defaults from actual config sizes when the caller left them empty.
