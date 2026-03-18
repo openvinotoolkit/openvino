@@ -202,14 +202,20 @@ void compileModelThreadPath(TsfnContextPath* context) {
         error_msg = e.what();
     }
     auto callback = [error_msg](Napi::Env env, Napi::Function, TsfnContextPath* context) {
-        if (!error_msg.empty()) {
-            context->deferred.Reject(Napi::Error::New(env, error_msg).Value());
-        } else {
+        try {
+            if (!error_msg.empty()) {
+                throw std::runtime_error(error_msg);
+            }
             context->deferred.Resolve(CompiledModelWrap::wrap(env, context->_compiled_model));
+        } catch (const std::exception& e) {
+            context->deferred.Reject(Napi::Error::New(env, e.what()).Value());
         }
     };
 
-    context->tsfn.BlockingCall(context, callback);
+    const auto status = context->tsfn.BlockingCall(context, callback);
+    if (status != napi_ok) {
+        std::cerr << "ThreadSafeFunction::BlockingCall failed in compileModelThreadPath\n";
+    }
     context->tsfn.Release();
 }
 

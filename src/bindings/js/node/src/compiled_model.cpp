@@ -29,9 +29,7 @@ Napi::Function CompiledModelWrap::get_class(Napi::Env env) {
 
 Napi::Object CompiledModelWrap::wrap(Napi::Env env, ov::CompiledModel compiled_model) {
     const auto& prototype = env.GetInstanceData<AddonData>()->compiled_model;
-    if (!prototype) {
-        OPENVINO_THROW("Invalid pointer to CompiledModel prototype.");
-    }
+    OPENVINO_ASSERT(prototype, "Invalid pointer to CompiledModel prototype.");
     auto obj = prototype.New({});
     const auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
     cm->_compiled_model = compiled_model;
