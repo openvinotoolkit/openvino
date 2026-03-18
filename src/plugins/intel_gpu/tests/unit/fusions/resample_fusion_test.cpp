@@ -379,8 +379,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_eltwise, ::testing::ValuesIn(std:
 
 namespace {
 struct resample_axes_test_params {
-    tensor in_shape;
-    tensor out_shape;
+    ov::PartialShape in_shape;
+    ov::PartialShape out_shape;
     data_types data_type;
     format input_format;
     resample::InterpolateOp::InterpolateMode type;
@@ -397,6 +397,8 @@ public:
         BaseFusingTest::SetUp();
         // BICUBIC_PILLOW with partial axes requires v11 shape inference for correct output layout
         cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        ov::intel_gpu::ImplementationDesc resample_target_impl = { format::bfyx, "resample_pil_ref", cldnn::impl_types::ocl};
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample_prim", resample_target_impl} }));
         cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     }
 
@@ -410,40 +412,38 @@ public:
     }
 
     layout get_input_layout(resample_axes_test_params& p) {
-        return layout{ p.data_type, p.input_format, p.in_shape, padding{} };
+        return layout{ p.in_shape, p.data_type, p.input_format, padding{} };
+    }
+
+    layout get_output_layout(resample_axes_test_params& p) {
+        return layout{ p.out_shape, p.data_type, p.input_format };
     }
 
     layout get_per_channel_layout(resample_axes_test_params& p) {
-        return layout{ p.default_type, p.default_format, tensor{ 1, p.out_shape.feature[0], 1, 1 } };
+        ov::PartialShape shape(std::vector<ov::Dimension>(p.out_shape.size(), 1));
+        shape[1] = p.out_shape[1];
+        return layout{ shape, p.default_type, p.default_format };
     }
 
-    // Build sizes vector from axes and out_shape (bfyx order: b=0,f=1,y=2,x=3)
     std::vector<int64_t> get_sizes_for_axes(resample_axes_test_params& p) {
         std::vector<int64_t> sizes;
-        const tensor& s = p.out_shape;
         for (auto ax : p.axes) {
-            switch (ax) {
-                case 0: sizes.push_back(s.batch[0]); break;
-                case 1: sizes.push_back(s.feature[0]); break;
-                case 2: sizes.push_back(s.spatial[1]); break;  // height
-                case 3: sizes.push_back(s.spatial[0]); break;  // width
-                default: break;
-            }
+            sizes.push_back(p.out_shape[ax].get_length());
         }
         return sizes;
     }
 };
 }  // namespace
 
-// BICUBIC_PILLOW, f16, bfyx, spatial axes = {2,3} (Y and X, downscale)
+// BICUBIC_PILLOW, f16, spatial axes = {2,3} (downscale)
 #define CASE_RESAMPLE_BICUBIC_PILLOW_AXES_1 \
-    { 1, 15, 4, 5 }, { 1, 15, 2, 3 }, data_types::f16, format::bfyx, \
+    ov::PartialShape{ 1, 15, 5, 4 }, ov::PartialShape{ 1, 15, 3, 2 }, data_types::f16, format::bfyx, \
     resample::InterpolateOp::InterpolateMode::BICUBIC_PILLOW, data_types::f16, format::bfyx, \
     std::vector<int64_t>{2, 3}
 
-// BICUBIC_PILLOW, f16, bfyx, spatial axes = {2,3} (Y and X, upscale)
+// BICUBIC_PILLOW, f16, spatial axes = {2,3} (upscale)
 #define CASE_RESAMPLE_BICUBIC_PILLOW_AXES_2 \
-    { 1, 16, 4, 5 }, { 1, 16, 7, 8 }, data_types::f16, format::bfyx, \
+    ov::PartialShape{ 1, 16, 5, 4 }, ov::PartialShape{ 1, 16, 8, 7 }, data_types::f16, format::bfyx, \
     resample::InterpolateOp::InterpolateMode::BICUBIC_PILLOW, data_types::f16, format::bfyx, \
     std::vector<int64_t>{2, 3}
 
