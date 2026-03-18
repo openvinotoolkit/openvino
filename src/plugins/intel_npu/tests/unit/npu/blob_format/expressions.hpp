@@ -45,14 +45,14 @@ const std::vector<CRE::Token> expression_3 = {CRE::AND, CRE::ELF_SCHEDULE};
 /*
            AND
           /   \
-       *ELF*  *BS*
+       *ELF*  *BT*
 */
 const std::vector<CRE::Token> expression_4 = {CRE::AND, CRE::ELF_SCHEDULE, CRE::BATCHING};
 
 /*
               AND
            /   |   \
-        *ELF* *BS* *WS*
+        *ELF* *BT* *WS*
 */
 const std::vector<CRE::Token> expression_5 = {CRE::AND, CRE::ELF_SCHEDULE, CRE::BATCHING, CRE::WEIGHTS_SEPARATION};
 
@@ -61,7 +61,7 @@ const std::vector<CRE::Token> expression_5 = {CRE::AND, CRE::ELF_SCHEDULE, CRE::
            /   \
         *ELF*  OR
               /  \
-           *BS*  *WS*
+           *BT*  *WS*
 */
 const std::vector<CRE::Token> expression_6 =
     {CRE::AND, CRE::ELF_SCHEDULE, CRE::OPEN, CRE::OR, CRE::BATCHING, CRE::WEIGHTS_SEPARATION, CRE::CLOSE};
@@ -71,7 +71,7 @@ const std::vector<CRE::Token> expression_6 =
           /    \
         *ELF*  AND
               /   \
-           *BS*   *WS*
+           *BT*   *WS*
 */
 const std::vector<CRE::Token> expression_7 =
     {CRE::OR, CRE::ELF_SCHEDULE, CRE::OPEN, CRE::AND, CRE::BATCHING, CRE::WEIGHTS_SEPARATION, CRE::CLOSE};
@@ -81,7 +81,7 @@ const std::vector<CRE::Token> expression_7 =
                /     |      \
            *ELF*     OR      OR
                     /  \    /  \
-                 *BS* *WS* *WS* *BS*
+                 *BT* *WS* *WS* *BT*
 */
 const std::vector<CRE::Token> expression_8 = {CRE::AND,
                                               CRE::ELF_SCHEDULE,
@@ -103,9 +103,9 @@ const std::vector<CRE::Token> expression_8 = {CRE::AND,
               /                 \
          __ AND __             _ OR _
         /    |    \           /   |   \
-      *ELF* *WS* *BS*      *ELF* *WS*  AND
+      *ELF* *WS* *BT*      *ELF* *WS*  AND
                                       /   \
-                                    *ELF* *BS*
+                                    *ELF* *BT*
 */
 const std::vector<CRE::Token> expression_9 = {CRE::OR,
                                               CRE::OPEN,
@@ -126,6 +126,36 @@ const std::vector<CRE::Token> expression_9 = {CRE::OR,
                                               CRE::CLOSE};
 
 /*
+                  ____ OR ____
+                /             \
+               /               \
+              /                 \
+         __ OR __              _ AND _
+        /    |    \           /   |   \
+      AND *WS* *ELF*      *ELF* *WS* *BT*
+     /   \
+   *BT* *ELF*
+*/
+// expression_9 but with reversed leaves
+const std::vector<CRE::Token> expression_10 = {CRE::OR,
+                                               CRE::OPEN,
+                                               CRE::OR,
+                                               CRE::OPEN,
+                                               CRE::AND,
+                                               CRE::BATCHING,
+                                               CRE::ELF_SCHEDULE,
+                                               CRE::CLOSE,
+                                               CRE::WEIGHTS_SEPARATION,
+                                               CRE::ELF_SCHEDULE,
+                                               CRE::CLOSE,
+                                               CRE::OPEN,
+                                               CRE::AND,
+                                               CRE::ELF_SCHEDULE,
+                                               CRE::WEIGHTS_SEPARATION,
+                                               CRE::BATCHING,
+                                               CRE::CLOSE};
+
+/*
     AND
      |
     AND
@@ -134,7 +164,7 @@ const std::vector<CRE::Token> expression_9 = {CRE::OR,
      |
    *WS*
 */
-const std::vector<CRE::Token> expression_10 =
+const std::vector<CRE::Token> expression_11 =
     {CRE::AND, CRE::OPEN, CRE::AND, CRE::OPEN, CRE::OR, CRE::WEIGHTS_SEPARATION, CRE::CLOSE, CRE::CLOSE};
 
 /*
@@ -144,11 +174,11 @@ const std::vector<CRE::Token> expression_10 =
                 /   \
              *WS*   OR
                    /   \
-                  AND   *BS*
+                  AND   *BT*
                  /  \
              *ELF* *WS*
 */
-const std::vector<CRE::Token> expression_11 = {CRE::AND,
+const std::vector<CRE::Token> expression_12 = {CRE::AND,
                                                CRE::ELF_SCHEDULE,
                                                CRE::OPEN,
                                                CRE::OR,
@@ -163,6 +193,14 @@ const std::vector<CRE::Token> expression_11 = {CRE::AND,
                                                CRE::BATCHING,
                                                CRE::CLOSE,
                                                CRE::CLOSE};
+
+/*
+              AND
+           /   |   \
+        *ELF* *BT* *ELF*
+*/
+// should we allow duplicated tokens?
+const std::vector<CRE::Token> expression_13 = {CRE::AND, CRE::ELF_SCHEDULE, CRE::BATCHING, CRE::ELF_SCHEDULE};
 
 // missing operand for OR operator
 const std::vector<CRE::Token> invalid_expression_1 = {CRE::AND, CRE::ELF_SCHEDULE, CRE::OPEN, CRE::OR, CRE::CLOSE};
@@ -180,7 +218,7 @@ const std::vector<CRE::Token> invalid_expression_3 =
                /     |      \
            *ELF*     OR      OR
                      |      /  \
-                     0    *WS* *BS*
+                     0    *WS* *BT*
 */
 // missing operand for the first OR operator
 const std::vector<CRE::Token> invalid_expression_4 = {CRE::AND,

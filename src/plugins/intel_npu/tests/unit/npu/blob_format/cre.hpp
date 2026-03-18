@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <string>
 #include <vector>
 
 #include "expressions.hpp"
@@ -19,12 +20,12 @@ using CREParams = std::tuple<std::string, std::vector<CRE::Token>, std::vector<u
 class CREUnitTests : public ::testing::TestWithParam<CREParams> {
 protected:
     void SetUp() override {
-        std::tie(std::ignore, expression, section_types, is_compatible) = GetParam();
+        std::string name;
+        std::tie(name, expression, section_types, is_compatible) = GetParam();
 
         cre = CRE(expression);
 
         for (const auto& token : section_types) {
-            // compile-time assert if an unknown token is used for StaticCapability?
             supported_capabilities[token] = std::make_shared<StaticCapability>(token);
         }
     }
@@ -35,11 +36,41 @@ protected:
     bool is_compatible;
 
 public:
+    static std::string tokenToString(CRE::Token token) {
+        switch (token) {
+        case CRE::AND:
+            return "AND";
+        case CRE::OR:
+            return "OR";
+        case CRE::OPEN:
+            return "OPN";
+        case CRE::CLOSE:
+            return "CLS";
+        case CRE::CRE_EVALUATION:
+            return "CRE_EVAL";
+        case CRE::ELF_SCHEDULE:
+            return "ELF";
+        case CRE::BATCHING:
+            return "BS";
+        case CRE::WEIGHTS_SEPARATION:
+            return "WS";
+        default:
+            return std::to_string(token);
+        }
+    }
+
     static std::string getTestCaseName(testing::TestParamInfo<CREParams> obj) {
-        bool is_compatible;
-        std::tie(std::ignore, std::ignore, std::ignore, is_compatible) = obj.param;
-        std::string compatibility_str = is_compatible ? "compatible" : "incompatible";
-        return std::get<0>(obj.param) + "_" + compatibility_str;
+        const auto& [name, expression, section_types, is_compatible] = obj.param;
+
+        std::string caps_str = section_types.empty() ? "none" : "";
+        for (size_t i = 0; i < section_types.size(); i++) {
+            if (i > 0) {
+                caps_str += "_";
+            }
+            caps_str += tokenToString(section_types[i]);
+        }
+
+        return name + "__" + caps_str + "__" + (is_compatible ? "compatible" : "incompatible");
     }
 };
 
