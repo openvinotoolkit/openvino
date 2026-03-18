@@ -20,6 +20,7 @@
 #include "strided_slice_inst.h"
 #include <sstream>
 
+#include "gated_mlp_inst.h"
 #include "gemm_inst.h"
 #include "deconvolution_inst.h"
 #include "fully_connected_inst.h"
@@ -1541,6 +1542,7 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
     enable_onednn_for<convolution>();
     enable_onednn_for<deconvolution>();
     enable_onednn_for<fully_connected>();
+    enable_onednn_for<gated_mlp>();
     enable_onednn_for<gemm>();
     enable_onednn_for<lstm_seq>();
     enable_onednn_for<gru_seq>();
@@ -1551,8 +1553,9 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
 
 bool layout_optimizer::has_all_enabled_onednn_impls_optimization_attribute() {
     return is_enabled_onednn_for<concatenation>() && is_enabled_onednn_for<convolution>() && is_enabled_onednn_for<deconvolution>() &&
-        is_enabled_onednn_for<fully_connected>() && is_enabled_onednn_for<gemm>() && is_enabled_onednn_for<lstm_seq>() && is_enabled_onednn_for<gru_seq>() &&
-        is_enabled_onednn_for<pooling>() && is_enabled_onednn_for<reduce>() && is_enabled_onednn_for<reorder>();
+           is_enabled_onednn_for<fully_connected>() && is_enabled_onednn_for<gated_mlp>() && is_enabled_onednn_for<gemm>() &&
+           is_enabled_onednn_for<gru_seq>() && is_enabled_onednn_for<lstm_seq>() && is_enabled_onednn_for<pooling>() &&
+           is_enabled_onednn_for<reduce>() && is_enabled_onednn_for<reorder>();
 }
 
 void layout_optimizer::set_value_onednn(primitive_type_id p_type, bool val) {
