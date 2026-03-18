@@ -172,6 +172,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SQUARE", DEQUANTIZE_INPUTS(translate_square_op)},
         {"SQUARED_DIFFERENCE", translate_binary<opset10::SquaredDifference>},
         {"SQUEEZE", DEQUANTIZE_INPUTS(translate_squeeze_op)},
+        {"STABLEHLO_COMPOSITE", stablehlo_composite},
         {"STRIDED_SLICE", DEQUANTIZE_INPUTS(translate_strided_slice_op)},
         {"SUB", translate_binary_op_with_activation<opset10::Subtract>},
         {"SUM", translate_reduce_op<opset10::ReduceSum>},

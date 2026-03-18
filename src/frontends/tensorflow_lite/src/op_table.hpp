@@ -27,6 +27,7 @@ std::map<std::string, CreatorFunction> get_supported_ops();
 /// built-in ops
 TFL_OP_CONVERTER(avg_pool_2d);
 TFL_OP_CONVERTER(complex_abs);
+TFL_OP_CONVERTER(stablehlo_composite);
 TFL_OP_CONVERTER(concatenation);
 TFL_OP_CONVERTER(conv2d);
 TFL_OP_CONVERTER(depthwise_conv2d);
