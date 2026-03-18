@@ -784,10 +784,9 @@ Example:
     </skip_config>
 
     <skip_config>
-        <message>Only "developer built" compilers support weights separation</message>
+        <message>Non "developer build" CiDs don't support weights separation yet</message>
         <filters>
-            <filter>.*WeightsSeparationTests.*</filter>
-            <filter>.*WeightsSeparationIterativeTests.*</filter>
+            <filter>.*WeightsSeparationIterativeTests.*DRIVER.*</filter>
         </filters>
     </skip_config>
 
@@ -815,13 +814,6 @@ Example:
         <filters>
             <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
-        </filters>
-    </skip_config>
-
-    <skip_config>
-        <message>The "one shot" implementation of the weights separation feature is supported only in the compiler-in-plugin flow</message>
-        <filters>
-            <filter>.*WeightsSeparationOneShotTests.*</filter>
         </filters>
     </skip_config>
 
@@ -876,15 +868,14 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- C#182232 -->
     <skip_config>
-        <message>ROI Tensor tests fail since UD2026.08 CiP update.</message>
+        <message>PV driver cannot create infer request for models with boolean inputs</message>
         <enable_rules>
-            <device>4000</device>
-            <device>5010</device>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
         </enable_rules>
         <filters>
-            <filter>.*RoiTensorsTestsRun.*</filter>
+            <filter>.*BooleanPrecisionInferRequestRunTests.*</filter>
         </filters>
     </skip_config>
 

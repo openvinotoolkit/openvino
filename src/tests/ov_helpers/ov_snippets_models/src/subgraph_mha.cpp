@@ -237,6 +237,75 @@ void MHAConstBFunction::validate_function(const std::shared_ptr<Model>& f) const
     validate_params_shape(expected_shapes, f->get_parameters());
 }
 
+std::shared_ptr<ov::Model> MHATwoConstBFunction::initOriginal() const {
+    OPENVINO_ASSERT(std::all_of(input_shapes.begin(), input_shapes.end(),
+                                [](const PartialShape& s) { return s.is_static(); }),
+                    "MHATwoConstBFunction requires static input shapes");
+
+    auto q1Param   = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
+    auto k1Param   = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
+    auto add1Param = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
+
+    auto vConst1 = ov::test::utils::make_constant(precisions[3], input_shapes[6].to_shape());
+
+    auto q2Param   = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[3]);
+    auto k2Param   = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[4]);
+    auto add2Param = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[5]);
+
+    auto v2Param   = std::make_shared<ov::opset1::Parameter>(precisions[3], input_shapes[6]);
+
+    const size_t rank = input_shapes[0].size();
+    const auto fusion_order_vals     = get_fusion_order(rank);
+    const auto decomposed_order_vals = get_decomposed_order(rank);
+
+    auto build_branch = [&](std::shared_ptr<ov::Node> q_in,
+                             std::shared_ptr<ov::Node> k_in,
+                             std::shared_ptr<ov::Node> add_in,
+                             std::shared_ptr<ov::Node> v_in) -> std::shared_ptr<ov::Node> {
+        auto t0c = ov::op::v0::Constant::create(ov::element::i64, {rank}, fusion_order_vals);
+        auto t1c = ov::op::v0::Constant::create(ov::element::i64, {rank}, decomposed_order_vals);
+        auto t3c = ov::op::v0::Constant::create(ov::element::i64, {rank}, fusion_order_vals);
+
+        auto t0  = std::make_shared<ov::op::v1::Transpose>(q_in, t0c);
+        auto t1  = std::make_shared<ov::op::v1::Transpose>(k_in, t1c);
+        auto mm0 = std::make_shared<ov::op::v0::MatMul>(t0, t1);
+        auto add = std::make_shared<ov::op::v1::Add>(mm0, add_in);
+
+        std::shared_ptr<ov::Node> softmax_out;
+        if (with_reshape) {
+            const auto interm_shape = add->get_output_shape(0);
+            const size_t batch = std::accumulate(interm_shape.begin(),
+                                                 interm_shape.begin() + static_cast<std::ptrdiff_t>(rank - 1),
+                                                 size_t{1},
+                                                 std::multiplies<size_t>());
+            auto r0c = ov::op::v0::Constant::create(ov::element::i64, {2},
+                                                    std::vector<int64_t>{static_cast<int64_t>(batch), -1});
+            auto r1c = ov::op::v0::Constant::create(ov::element::i64,
+                                                    {interm_shape.size()},
+                                                    std::vector<int64_t>(interm_shape.begin(), interm_shape.end()));
+            auto r0 = std::make_shared<ov::opset1::Reshape>(add, r0c, true);
+            auto sm = std::make_shared<ov::opset1::Softmax>(r0, 1);
+            softmax_out = std::make_shared<ov::opset1::Reshape>(sm, r1c, true);
+        } else {
+            softmax_out = std::make_shared<ov::opset1::Softmax>(add, rank - 1);
+        }
+
+        // v_in is pre-transposed → use directly (no Transpose here)
+        auto mm1 = std::make_shared<ov::op::v0::MatMul>(softmax_out, v_in);
+        return std::make_shared<ov::op::v1::Transpose>(mm1, t3c);
+    };
+
+    auto out1 = build_branch(q1Param, k1Param, add1Param, vConst1);
+    auto out2 = build_branch(q2Param, k2Param, add2Param, v2Param);
+
+    ov::ParameterVector params = {q1Param, k1Param, add1Param, q2Param, k2Param, add2Param, v2Param};
+    ov::ResultVector results = {
+        std::make_shared<ov::opset1::Result>(out1),
+        std::make_shared<ov::opset1::Result>(out2),
+    };
+    return std::make_shared<ov::Model>(results, params, "mha_two_const_b");
+}
+
 std::shared_ptr<ov::Model> MHA2DFunction::initOriginal() const {
     auto param0 = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
     auto param1 = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
