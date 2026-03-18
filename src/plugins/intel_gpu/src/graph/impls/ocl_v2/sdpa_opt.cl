@@ -1214,10 +1214,11 @@ KERNEL(sdpa_opt)(
         MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZERO;
 #if IS_CAUSAL
 #if IS_PAGED_ATTENTION && HAS_TOKEN_TYPE_IDS
-        if (seq_len < max_effective_end) { // keep tril, extended for bidirectional
+        const uint this_subgroup_max_target_seq_idx = max_effective_end;
 #else
-        if (seq_len <= target_seq_idx) { // keep tril i.e. m >= n
+        const uint this_subgroup_max_target_seq_idx = target_seq_idx;
 #endif
+        if (seq_len <= this_subgroup_max_target_seq_idx) { // keep tril i.e. m >= n
 #endif
 #if IS_PAGED_ATTENTION
 #ifdef BROADCAST_GROUP_SIZE
@@ -1430,16 +1431,16 @@ KERNEL(sdpa_opt)(
                 unroll_for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
 #if IS_CAUSAL
                     // causal mask: valid only if m >= n
-#if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
-#if HAS_TOKEN_TYPE_IDS
-                    if ((seq_len + i <= effective_causal_limit) && (effective_causal_limit < SLIDING_WINDOW_SIZE || seq_len + i > effective_causal_limit - SLIDING_WINDOW_SIZE)) {
+#if IS_PAGED_ATTENTION && HAS_TOKEN_TYPE_IDS
+                    const uint this_work_item_max_target_seq_idx = effective_causal_limit;
 #else
-                    if ((seq_len + i <= target_seq_idx + sglid) && (target_seq_idx + sglid < SLIDING_WINDOW_SIZE || seq_len + i > target_seq_idx + sglid - SLIDING_WINDOW_SIZE)) {
+                    const uint this_work_item_max_target_seq_idx = target_seq_idx + sglid;
 #endif
-#elif IS_PAGED_ATTENTION && HAS_TOKEN_TYPE_IDS
-                    if (seq_len + i <= effective_causal_limit) {
+
+#if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
+                    if ((seq_len + i <= this_work_item_max_target_seq_idx) && (this_work_item_max_target_seq_idx < SLIDING_WINDOW_SIZE || seq_len + i > this_work_item_max_target_seq_idx - SLIDING_WINDOW_SIZE)) {
 #else
-                    if (seq_len + i <= target_seq_idx + sglid) {
+                    if (seq_len + i <= this_work_item_max_target_seq_idx) {
 #endif
 #endif  // IS_CAUSAL
 #if !APPLY_SCALES_TO_QUERY
