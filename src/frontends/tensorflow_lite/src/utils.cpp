@@ -82,6 +82,7 @@ ov::element::Type ov::frontend::tensorflow_lite::get_ov_type(const tflite::Tenso
         {tflite::TensorType_UINT32, element::u32},
         {tflite::TensorType_UINT16, element::u16},
         {tflite::TensorType_INT4, element::i4},
+        {tflite::TensorType_INT2, element::i2},
         {tflite::TensorType_COMPLEX64, element::dynamic},
         {tflite::TensorType_STRING, element::dynamic},
         // TODO: support the following types

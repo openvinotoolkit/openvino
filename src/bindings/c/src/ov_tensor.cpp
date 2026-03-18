@@ -13,6 +13,7 @@ const std::map<ov_element_type_e, ov::element::Type> element_type_map = {
     {ov_element_type_e::F16, ov::element::f16},
     {ov_element_type_e::F32, ov::element::f32},
     {ov_element_type_e::F64, ov::element::f64},
+    {ov_element_type_e::I2, ov::element::i2},
     {ov_element_type_e::I4, ov::element::i4},
     {ov_element_type_e::I8, ov::element::i8},
     {ov_element_type_e::I16, ov::element::i16},
