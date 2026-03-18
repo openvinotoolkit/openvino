@@ -279,12 +279,11 @@ std::shared_ptr<ov::Model> build_fused_gdn_ref(int32_t batch,
         beta_in = std::make_shared<ov::op::v1::Transpose>(beta, perm_bsh);
     }
 
-    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(ov::OutputVector{q_in, k_in, v_in, h0, g_in, beta_in});
-    ov::op::internal::GatedDeltaNet::Config cfg;
-    cfg.fuse_qk_l2norm = true;
-    cfg.q_l2_norm_eps = 1e-6F;
-    cfg.k_l2_norm_eps = 1e-6F;
-    gdn->set_config(cfg);
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(ov::OutputVector{q_in, k_in, v_in, h0, g_in, beta_in},
+                                                                 true,
+                                                                 1e-6F,
+                                                                 1e-6F);
+
     ov::Output<ov::Node> gdn_core_output = gdn->output(0);
     if (ordered) {
         gdn_core_output = std::make_shared<ov::op::v1::Transpose>(gdn->output(0), perm_bshd);

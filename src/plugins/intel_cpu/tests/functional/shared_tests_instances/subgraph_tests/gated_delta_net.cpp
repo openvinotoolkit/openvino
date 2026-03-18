@@ -4,8 +4,7 @@
 
 #include "subgraph_tests/gated_delta_net.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 std::vector<gated_delta_net_params> test_cases = {
     {1, 1, 2, 2, 16, 16, ov::element::f32, "CPU"},
@@ -28,5 +27,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedDeltaNet,
                          GatedDeltaNet,
                          ::testing::ValuesIn(test_cases),
                          GatedDeltaNet::getTestCaseName);
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test

@@ -37,9 +37,9 @@ GatedDeltaNet::GatedDeltaNet(const std::shared_ptr<ov::Node>& op, const GraphCon
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto& gdn = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(op);
-    m_fuse_qk_l2norm = gdn->get_config().fuse_qk_l2norm;
-    m_q_l2_norm_eps = gdn->get_config().q_l2_norm_eps;
-    m_k_l2_norm_eps = gdn->get_config().k_l2_norm_eps;
+    m_fuse_qk_l2norm = gdn->get_fuse_qk_l2norm();
+    m_q_l2_norm_eps = gdn->get_q_l2_norm_eps();
+    m_k_l2_norm_eps = gdn->get_k_l2_norm_eps();
 }
 
 void GatedDeltaNet::initSupportedPrimitiveDescriptors() {

@@ -63,12 +63,25 @@ GatedDeltaNet::GatedDeltaNet(const Output<Node>& query,
                              const Output<Node>& value,
                              const Output<Node>& recurrent_state,
                              const Output<Node>& gate,
-                             const Output<Node>& beta)
-    : Op({query, key, value, recurrent_state, gate, beta}) {
+                             const Output<Node>& beta,
+                             bool fuse_qk_l2norm,
+                             float q_l2_norm_eps,
+                             float k_l2_norm_eps)
+    : Op({query, key, value, recurrent_state, gate, beta}),
+      m_fuse_qk_l2norm(fuse_qk_l2norm),
+      m_q_l2_norm_eps(q_l2_norm_eps),
+      m_k_l2_norm_eps(k_l2_norm_eps) {
     constructor_validate_and_infer_types();
 }
 
-GatedDeltaNet::GatedDeltaNet(const ov::OutputVector& args) : ov::op::Op(args) {
+GatedDeltaNet::GatedDeltaNet(const ov::OutputVector& args,
+                             bool fuse_qk_l2norm,
+                             float q_l2_norm_eps,
+                             float k_l2_norm_eps)
+    : ov::op::Op(args),
+      m_fuse_qk_l2norm(fuse_qk_l2norm),
+      m_q_l2_norm_eps(q_l2_norm_eps),
+      m_k_l2_norm_eps(k_l2_norm_eps) {
     constructor_validate_and_infer_types();
 }
 
@@ -91,17 +104,14 @@ void GatedDeltaNet::validate_and_infer_types() {
 
 bool GatedDeltaNet::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(GatedDeltaNet_visit_attributes);
-    visitor.start_structure("config");
-    visitor.on_attribute("fuse_qk_l2norm", m_config.fuse_qk_l2norm);
-    visitor.on_attribute("q_l2_norm_eps", m_config.q_l2_norm_eps);
-    visitor.on_attribute("k_l2_norm_eps", m_config.k_l2_norm_eps);
-    visitor.finish_structure();
+    visitor.on_attribute("fuse_qk_l2norm", m_fuse_qk_l2norm);
+    visitor.on_attribute("q_l2_norm_eps", m_q_l2_norm_eps);
+    visitor.on_attribute("k_l2_norm_eps", m_k_l2_norm_eps);
     return true;
 }
 
 std::shared_ptr<ov::Node> GatedDeltaNet::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    auto cloned = std::make_shared<GatedDeltaNet>(new_args);
-    cloned->m_config = m_config;
+    auto cloned = std::make_shared<GatedDeltaNet>(new_args, m_fuse_qk_l2norm, m_q_l2_norm_eps, m_k_l2_norm_eps);
     return cloned;
 }
 

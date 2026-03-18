@@ -253,9 +253,6 @@ ov::pass::FuseGDNLoop::FuseGDNLoop() {
 
         linear_attn->set_friendly_name(loop_node->get_friendly_name());
 
-        ov::op::internal::GatedDeltaNet::Config config;
-        config.fuse_qk_l2norm = false;
-        linear_attn->set_config(config);
         ov::copy_runtime_info(loop_node, linear_attn);
         ov::replace_node(loop_node, linear_attn);
         auto consumers = linear_attn->output(0).get_target_inputs();
@@ -315,14 +312,12 @@ ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto gdn_node = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(pattern_map.at(gdn).get_node_shared_ptr());
-        auto config = gdn_node->get_config();
-        config.fuse_qk_l2norm = true;
 
         auto l2_norm_q_eps_node = pattern_map.at(eps_q_const).get_node_shared_ptr();
         auto l2_norm_k_eps_node = pattern_map.at(eps_k_const).get_node_shared_ptr();
 
-        config.q_l2_norm_eps = ov::as_type_ptr<v0::Constant>(l2_norm_q_eps_node)->cast_vector<float>()[0];
-        config.k_l2_norm_eps = ov::as_type_ptr<v0::Constant>(l2_norm_k_eps_node)->cast_vector<float>()[0];
+        float q_l2_norm_eps = ov::as_type_ptr<v0::Constant>(l2_norm_q_eps_node)->cast_vector<float>()[0];
+        float k_l2_norm_eps = ov::as_type_ptr<v0::Constant>(l2_norm_k_eps_node)->cast_vector<float>()[0];
 
         ov::Output<ov::Node> gdn_input_query = pattern_map.at(query);
         ov::Output<ov::Node> gdn_input_key = pattern_map.at(key);
@@ -345,13 +340,16 @@ ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
             ov::replace_node(transpose_k, out_transposed);
             gdn_input_key = gdn_node->input_value(1);
         }
-        gdn_node->set_config(config);
-        auto new_gdn = gdn_node->clone_with_new_inputs({gdn_input_query,
-                                                        gdn_input_key,
-                                                        pattern_map.at(value),
-                                                        pattern_map.at(init_state),
-                                                        pattern_map.at(gate),
-                                                        pattern_map.at(beta)});
+
+        auto new_gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(gdn_input_query,
+                                                                         gdn_input_key,
+                                                                         pattern_map.at(value),
+                                                                         pattern_map.at(init_state),
+                                                                         pattern_map.at(gate),
+                                                                         pattern_map.at(beta),
+                                                                         true,
+                                                                         q_l2_norm_eps,
+                                                                         k_l2_norm_eps);
         ov::copy_runtime_info(gdn_node, new_gdn);
         new_gdn->set_friendly_name(gdn_node->get_friendly_name());
         ov::replace_node(gdn_node, new_gdn);
