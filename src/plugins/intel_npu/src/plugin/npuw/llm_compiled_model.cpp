@@ -814,6 +814,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             .run_on_model(prefill_model);                                          // Whisper decoder model
         ov::npuw::util::PrepareWhisperKVCacheModel().run_on_model(kvcache_model);  // Whisper decoder_with_past model
 
+        // FIXME: Whisper Decompose SDPA
         // WA: to mock new "cross_attention_qk_scaled_scores" outputs in original model
         if (whisper_decompose_sdpa) {
             auto& mutable_outputs = const_cast<std::vector<ov::Output<const ov::Node>>&>(this->outputs());
@@ -1067,8 +1068,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                 .run_on_model(model_variant);
         }
     }
-
-    save_model(prefill_model, "C:\\workspace\\openvino_npuw_prefill_model.xml");
 
     // Compile multiple generate model variants with different sizes
     compile_generate_model_variants(generate_model_variants, plugin, generate_config);

@@ -255,6 +255,7 @@ bool can_move_scale_after_matmul(const ov::Output<ov::Node>& query,
     return false;
 }
 
+// FIXME: Whisper Decompose SDPA
 class WhisperScaledDotProductAttentionDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("WhisperScaledDotProductAttentionDecomposition");
@@ -657,12 +658,14 @@ void add_cache_position_input(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Validate().run_on_model(model);
 }
 
+// FIXME: Whisper Decompose SDPA
 void decompose_scaled_dot_product_attention_for_whisper(std::shared_ptr<ov::Model> model) {
     ov::pass::Manager manager;
     manager.register_pass<WhisperScaledDotProductAttentionDecomposition>();
     auto result = manager.run_passes(model);
 }
 
+// FIXME: Whisper Decompose SDPA
 size_t add_cross_attention_qk_scaled_scores_outputs_for_whisper(std::shared_ptr<ov::Model> model) {
     size_t idx = 0;
     for (auto& op : model->get_ordered_ops()) {
@@ -718,6 +721,7 @@ bool ov::npuw::util::PrepareWhisperPrefillModel::run_on_model(const std::shared_
 
     add_attention_mask_input(model, m_max_prompt_size, m_lhs_seq_size, true);
 
+    // FIXME: Whisper Decompose SDPA
     if (m_decompose_sdpa) {
         decompose_scaled_dot_product_attention_for_whisper(model);
         m_decomposed_layers_size = add_cross_attention_qk_scaled_scores_outputs_for_whisper(model);

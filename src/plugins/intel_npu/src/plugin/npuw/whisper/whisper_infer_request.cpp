@@ -220,6 +220,7 @@ void ov::npuw::WhisperInferRequest::infer() {
     }
 }
 
+// FIXME: Whisper Decompose SDPA
 ov::SoPtr<ov::ITensor> ov::npuw::WhisperInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     const auto& port_names = port.get_names();
 

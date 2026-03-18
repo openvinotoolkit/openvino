@@ -26,7 +26,6 @@ protected:
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids);
 
     bool m_need_copy_kvcache = false;
-    // <name, tensor>
     std::map<std::string, ov::SoPtr<ov::ITensor>> m_alignment_tensors{};
 };
 
