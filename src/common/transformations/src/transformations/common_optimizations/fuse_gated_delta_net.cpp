@@ -184,7 +184,7 @@ ov::pass::FuseGDNLoop::FuseGDNLoop() {
     auto init_state = pattern::any_input(pattern::rank_equals(4));
     auto gate = pattern::any_input(pattern::shape_matches("[?, head_num, ?]"));
     auto beta = pattern::any_input(pattern::shape_matches("[?, head_num, ?]"));
-
+    // Check if the q_scale is sqrt(qk_head_size) or not. GDN spec assumes it's sqrt(qk_head_size).
     auto shape_head_size = pattern::any_input(pattern::shape_matches("[?, ?, ?, qk_head_size]"));
     auto shape_of_head_size = pattern::wrap_type<op::v3::ShapeOf>({shape_head_size});
     auto gather_index = pattern::optional<op::v8::Gather>({shape_of_head_size, {0, 2, 1, 3}, 0}, {{"batch_dims", 0}});
@@ -195,8 +195,7 @@ ov::pass::FuseGDNLoop::FuseGDNLoop() {
     auto const_half = pattern::wrap_type<v0::Constant>(pattern::value_matches("0.5"));
     auto convert_half = pattern::optional<v0::Convert>({const_half});
 
-    auto power_head_size = pattern::wrap_type<v1::Power>({head_size_f32, convert_half});
-    auto attn_scale = power_head_size;
+    auto attn_scale = pattern::wrap_type<v1::Power>({head_size_f32, convert_half});
 
     auto q_scale = pattern::wrap_type<v1::Divide>({query, attn_scale});
     // optional convert after q_scale for fp16
