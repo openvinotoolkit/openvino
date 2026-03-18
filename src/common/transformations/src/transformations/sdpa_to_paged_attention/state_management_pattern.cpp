@@ -723,11 +723,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         if (allow_adaptive_rkv) {
             OPENVINO_ASSERT(
                 optional_model_wide_params.count("adaptive_rkv_start_size"),
-                "No adaptive_rkv_start_size input found. For using Adaptive R-KV, the model has to contain "
+                "No adaptive_rkv_start_size input found. For using Adaptive R-KV, the model have to contain "
                 "an additional input (Parameter) called adaptive_rkv_start_size.");
             OPENVINO_ASSERT(
                 optional_model_wide_params.count("adaptive_rkv_evictable_sizes"),
-                "No adaptive_rkv_evictable_sizes input found. For using Adaptive R-KV, the model has to contain "
+                "No adaptive_rkv_evictable_sizes input found. For using Adaptive R-KV, the model have to contain "
                 "an additional input (Parameter) called adaptive_rkv_evictable_sizes.");
             pa_arguments.insert(pa_arguments.begin() + 21, optional_model_wide_params.at("adaptive_rkv_start_size"));
             pa_arguments.insert(pa_arguments.begin() + 22,
