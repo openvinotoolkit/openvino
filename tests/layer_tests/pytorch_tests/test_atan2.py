@@ -120,7 +120,10 @@ class TestAtan2ZeroEdgeCases(PytorchLayerTest):
                 super().__init__()
 
             def forward(self, lhs, rhs):
-                return torch.arctan2(lhs, rhs)
+                out = torch.arctan2(lhs, rhs)
+                # Use reciprocal so that signed-zero differences become
+                # observable: +0 -> +inf, -0 -> -inf.
+                return 1.0 / out
 
         return aten_atan2(), "aten::atan2"
 

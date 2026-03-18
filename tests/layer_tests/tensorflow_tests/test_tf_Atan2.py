@@ -89,7 +89,17 @@ class TestAtan2ZeroEdgeCases(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             y = tf.compat.v1.placeholder(input_type, input_shape, 'y')
             x = tf.compat.v1.placeholder(input_type, input_shape, 'x')
-            tf.raw_ops.Atan2(y=y, x=x)
+            atan2_res = tf.raw_ops.Atan2(y=y, x=x)
+            # Make signed-zero outputs observable: +0 -> +1, -0 -> -1.
+            # Wrap in where + sign to keep only finite values in the output:
+            #   sign(1/+0) = sign(+inf) = +1
+            #   sign(1/-0) = sign(-inf) = -1
+            #   non-zero outputs are kept as-is.
+            zero_const = tf.constant(0.0, dtype=input_type)
+            is_zero = tf.equal(atan2_res, zero_const)
+            sign_of_recip = tf.sign(tf.math.reciprocal(atan2_res))
+            tf.where(is_zero, sign_of_recip, atan2_res,
+                     name="atan2_sign_aware")
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
