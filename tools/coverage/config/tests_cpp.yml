@@ -145,8 +145,8 @@ tests:
     binary: ov_util_tests
     mode: gtest_single
 
-  - name: paddle_tests
-    binary: paddle_tests
+  - name: ov_paddle_tests
+    binary: ov_paddle_tests
     mode: gtest_single
 
   - name: ov_npu_unit_tests

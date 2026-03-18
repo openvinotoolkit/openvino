@@ -73,21 +73,6 @@ tests:
       npu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not gpu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
       default: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
 
-  - name: paddle_layers
-    kind: pytest_if_dir
-    profiles: [cpu, gpu, npu]
-    target: "${TESTS_DIR}/layer_tests/paddle_tests"
-    env:
-      cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
-      gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-      npu: "TEST_DEVICE=NPU TEST_PRECISION=FP16"
-      default: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
-    args:
-      cpu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      gpu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      npu: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not cuda and not gpu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      default: "-sv -n ${PYTEST_XDIST_WORKERS} -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-
   - name: jax_layers_precommit
     kind: pytest_if_dir
     target: "${TESTS_DIR}/layer_tests/jax_tests"
