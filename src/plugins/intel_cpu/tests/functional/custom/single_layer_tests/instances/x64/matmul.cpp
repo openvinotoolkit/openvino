@@ -667,8 +667,9 @@ const std::vector<ShapeRelatedParams> IS_brgemm_Amx_smoke = {
         {static_shapes_to_test_representation({{10, 10, 100}, {10, 100, 10}}), {false, false}},
         {static_shapes_to_test_representation({{10, 10, 100}, {10, 100, 10}}), {true, false}},
 
-        {static_shapes_to_test_representation({{55, 120}, {120, 55}}), {false, true}},
-        {static_shapes_to_test_representation({{55, 120}, {120, 55}}), {true, true}},
+        // NOTE: 2D small shapes (e.g., 55x120) are intentionally excluded because
+        // oneDNN's small shapes heuristic prefers GEMM over AMX for these sizes.
+        // See brgemm_matmul_utils.cpp small_K heuristic.
 };
 
 const auto matMulBrgemmAmxParams_smoke = ::testing::Combine(::testing::ValuesIn(IS_brgemm_Amx_smoke),
@@ -739,7 +740,21 @@ const auto testBrgemmAmxParams_FP16_nightly = ::testing::Combine(matMulBrgemmAmx
 
 INSTANTIATE_TEST_SUITE_P(nightly_MM_Brgemm_Amx_Static_FP16, MatMulLayerCPUTest, testBrgemmAmxParams_FP16_nightly, MatMulLayerCPUTest::getTestCaseName);
 
-const auto matMulBrgemmAmxParamsDynamic = ::testing::Combine(::testing::ValuesIn(IS_Brgemm_Dynamic),
+// Dynamic shapes for AMX tests - using larger shapes to avoid small shapes heuristic
+// that prefers GEMM over AMX. See brgemm_matmul_utils.cpp small_K heuristic.
+// Note: Many shapes with transpose or small dimensions trigger the heuristic.
+const std::vector<ShapeRelatedParams> IS_Brgemm_Amx_Dynamic = {
+        // 4D x 2D matmul - large enough to use AMX
+        {
+                {
+                        {{-1, -1, -1, -1}, {{1, 2, 32, 60}, {1, 2, 32, 30}}},
+                        {{-1, -1}, {{60, 5}, {30, 5}}}
+                },
+                {true, false}
+        },
+};
+
+const auto matMulBrgemmAmxParamsDynamic = ::testing::Combine(::testing::ValuesIn(IS_Brgemm_Amx_Dynamic),
                                                              ::testing::Values(ElementType::f32),
                                                              ::testing::Values(ElementType::dynamic),
                                                              ::testing::Values(ElementType::dynamic),
@@ -754,7 +769,7 @@ const auto testBrgemmAmxParamsDynamic = ::testing::Combine(matMulBrgemmAmxParams
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Amx_Dynamic, MatMulLayerCPUTest, testBrgemmAmxParamsDynamic, MatMulLayerCPUTest::getTestCaseName);
 
-const auto matMulBrgemmAmxParamsDynamic_FP16 = ::testing::Combine(::testing::ValuesIn(IS_Brgemm_Dynamic),
+const auto matMulBrgemmAmxParamsDynamic_FP16 = ::testing::Combine(::testing::ValuesIn(IS_Brgemm_Amx_Dynamic),
                                                                   ::testing::Values(ElementType::f32),
                                                                   ::testing::Values(ElementType::dynamic),
                                                                   ::testing::Values(ElementType::dynamic),
