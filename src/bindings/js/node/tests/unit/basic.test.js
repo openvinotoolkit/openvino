@@ -178,6 +178,13 @@ describe("ov basic tests.", () => {
 
       assert.throws(() => core.compileModelSync(model), new RegExp(expectedMsg));
     });
+
+    it("compileModelSync(invalid model path) - C++ API error", () => {
+      assert.throws(
+        () => core.compileModelSync("invalid_path.xml", "CPU"),
+        /Could not open the file/,
+      );
+    });
   });
 
   describe("Core.compileModel()", () => {
@@ -193,6 +200,7 @@ describe("ov basic tests.", () => {
       assert.ok(promise instanceof Promise);
       const cm = await promise;
       assert.ok(cm instanceof ov.CompiledModel);
+      assert.ok(cm.createInferRequest());
     });
 
     it("compileModel(model_path) returns Promise<CompiledModel>", async () => {
@@ -231,6 +239,20 @@ describe("ov basic tests.", () => {
       await assert.rejects(
         async () => await core.compileModel(model),
         /Invalid number of arguments/,
+      );
+    });
+
+    // it("compileModel(invalid device) - C++ API error", async () => {
+    //   await assert.rejects(
+    //     async () => await core.compileModel(model, "MADE-UP"),
+    //     /Device .* is not registered/,
+    //   );
+    // });
+
+    it("compileModel(invalid path to model) - C++ API error", async () => {
+      await assert.rejects(
+        async () => await core.compileModel("invalid_path.xml", "CPU"),
+        /Could not open the file/,
       );
     });
   });
