@@ -60,8 +60,17 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
                 return false;
             }
             auto index = index_val[0];
-            if (index_val[0] < 0) {
-                index = inputs.size() + index;
+            auto num_inputs = static_cast<int64_t>(inputs.size());
+            if (index < 0) {
+                index += num_inputs;
+            }
+            if (index < 0 || index >= num_inputs) {
+                add_exception_to_fw_node(list_unpack,
+                                         "prim::ListUnpack: aten::__getitem__ index " +
+                                             std::to_string(index_val[0]) +
+                                             " is out of bounds for input list with " +
+                                             std::to_string(num_inputs) + " elements.");
+                return false;
             }
             auto axis_0 = v0::Constant::create(element::i32, Shape{}, {0});
             auto split = std::make_shared<v1::Split>(inputs[index], axis_0, list_unpack->get_output_size());
