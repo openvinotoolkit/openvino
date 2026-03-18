@@ -84,9 +84,9 @@ const auto create_test_model_weights_from_file = [](const std::filesystem::path&
                                                                                 w_buff->size() / 2,
                                                                                 w_buff);
 
-    auto param = std::make_shared<Parameter>(ov::element::f32, Shape{2, 200});
-    auto add = std::make_shared<Add>(param, std::make_shared<Constant>(element::f32, Shape{1, 200}, w1));
-    add = std::make_shared<Add>(add, std::make_shared<Constant>(element::f32, Shape{1, 200}, w2));
+    auto param = std::make_shared<Parameter>(ov::element::f32, Shape{2, 2000});
+    auto add = std::make_shared<Add>(param, std::make_shared<Constant>(element::f32, Shape{1, 2000}, w1));
+    add = std::make_shared<Add>(add, std::make_shared<Constant>(element::f32, Shape{1, 2000}, w2));
     return std::make_shared<ov::Model>(add->outputs(), "Test model weight from file");
 };
 
@@ -102,7 +102,7 @@ TEST_F(WeightShareExtensionTest, get_constant_id_with_descriptor) {
     create_test_weights_file(w_path);
     auto w_buffer = ov::load_mmap_object(w_path);
     auto w1 = std::make_shared<SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(w_buffer->data() + 200,
-                                                                                w_buffer->size() - 200,
+                                                                                sizeof(float) * 200,
                                                                                 w_buffer);
     auto constant = Constant(element::f32, Shape{200}, w1);
 
@@ -117,7 +117,7 @@ TEST_F(WeightShareExtensionTest, get_constant_source_buffer_check_id) {
 
     auto w_buffer = ov::load_mmap_object(w_path);
     auto w1 = std::make_shared<SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(w_buffer->data() + 200,
-                                                                                w_buffer->size() - 200,
+                                                                                sizeof(float) * 200,
                                                                                 w_buffer);
     auto constant = Constant(element::f32, Shape{200}, w1);
 
