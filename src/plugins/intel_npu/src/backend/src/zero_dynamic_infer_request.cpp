@@ -45,7 +45,7 @@ void ZeroDynamicInferRequest::update_command_list_for_tensor(SyncInferRequest::F
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "create zero tensor");
             // Try to use the user tensor directly if its underlying data is already allocated in the same Level Zero
             // context.
-            levelZeroTensor = std::make_shared<ZeroTensor>(_initStructs, _config, tensor);
+            levelZeroTensor = std::make_shared<ZeroTensor>(_initStructs, tensor);
         } catch (const ZeroMemException& exception) {
             _logger.debug("set_tensor - exception caught while trying to create a Level Zero tensor "
                           "from the user tensor: %s",
@@ -109,8 +109,7 @@ void ZeroDynamicInferRequest::update_command_list_for_tensors(SyncInferRequest::
             try {
                 _logger.debug("set_tensors - create zero tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "create zero tensor");
-                get_level_zero_input(foundPort.idx, i) =
-                    std::make_shared<ZeroTensor>(_initStructs, _config, tensors.at(i));
+                get_level_zero_input(foundPort.idx, i) = std::make_shared<ZeroTensor>(_initStructs, tensors.at(i));
             } catch (const ZeroMemException& exception) {
                 _logger.debug("set_tensors - exception caught while trying to create a Level "
                               "Zero tensor "
@@ -165,8 +164,7 @@ std::shared_ptr<ZeroTensor> ZeroDynamicInferRequest::allocate_tensor(const size_
         allocatedTensorShape[utils::BATCH_AXIS] = *batchSize;
     }
 
-    auto tensor =
-        std::make_shared<ZeroTensor>(_initStructs, _config, descriptor.precision, allocatedTensorShape, isInput);
+    auto tensor = std::make_shared<ZeroTensor>(_initStructs, descriptor.precision, allocatedTensorShape, isInput);
 
     if (isInput) {
         if (get_user_input(index) == nullptr) {
@@ -187,6 +185,7 @@ void ZeroDynamicInferRequest::infer_async() {
     predict_shapes(outputPros);
     check_tensor_and_predicted_shapes(outputPros);
     prepare_inputs();
+    prepare_outputs();
     update_tensor(outputPros);
 
     OV_ITT_TASK_NEXT(ZERO_INFER, "push");
@@ -214,7 +213,9 @@ void ZeroDynamicInferRequest::predict_shapes(std::vector<IDynamicGraph::MemRefTy
             auto& userTensor = get_user_input(i);
             if (userTensor != nullptr) {
                 // If userTensor is set, use userTensor to update memref handle
-                inputPros[i].set(get_tensor_data_ptr(userTensor._ptr), 0, userTensor._ptr);
+                const auto userTensorPtr = userTensor._ptr;
+                OPENVINO_ASSERT(userTensorPtr != nullptr, "Input user tensor pointer is null");
+                inputPros[i].set(get_tensor_data_ptr(userTensorPtr), 0, userTensorPtr);
             } else if (levelZeroTensor != nullptr) {
                 // If userTensor is not set, use levelZeroTensor to update memref handle
                 inputPros[i].set(get_tensor_data_ptr(levelZeroTensor), 0, levelZeroTensor);
@@ -234,7 +235,9 @@ void ZeroDynamicInferRequest::predict_shapes(std::vector<IDynamicGraph::MemRefTy
             auto& userTensor = _userOutputTensors.at(i);
             if (userTensor != nullptr) {
                 // If userTensor is set, use userTensor to update memref handle
-                outputProps[i].set(get_tensor_data_ptr(userTensor._ptr), 0, userTensor._ptr);
+                const auto userTensorPtr = userTensor._ptr;
+                OPENVINO_ASSERT(userTensorPtr != nullptr, "Output user tensor pointer is null");
+                outputProps[i].set(get_tensor_data_ptr(userTensorPtr), 0, userTensorPtr);
             } else if (levelZeroTensor != nullptr) {
                 // If userTensor is not set, use levelZeroTensor to update memref handle
                 outputProps[i].set(get_tensor_data_ptr(levelZeroTensor), 0, levelZeroTensor);

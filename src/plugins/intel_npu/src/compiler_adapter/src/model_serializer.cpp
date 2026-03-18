@@ -4,6 +4,7 @@
 
 #include "model_serializer.hpp"
 
+#include <chrono>
 #include <cstdint>
 #include <istream>
 #include <regex>
@@ -185,7 +186,9 @@ void storeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
  * @param model Both source and target.
  */
 void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
+    std::unordered_map<size_t, size_t> wca_offset_to_size;
     size_t constantId = 0;
+
     for (auto&& node : model->get_ordered_ops()) {
         if (ov::is_type<ov::op::v0::Constant>(node)) {
             ov::RTMap& runtimeInfoMap = node->get_rt_info();
@@ -195,11 +198,81 @@ void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
             const std::string constantIdString = std::to_string(constantId++);
             if (weightlessCacheAttrIt != runtimeInfoMap.end()) {
                 auto& weightlessCacheAttr = weightlessCacheAttrIt->second.as<ov::WeightlessCacheAttribute>();
+
+                if (!wca_offset_to_size.count(weightlessCacheAttr.bin_offset)) {
+                    wca_offset_to_size[weightlessCacheAttr.bin_offset] = weightlessCacheAttr.original_size;
+                } else {
+                    OPENVINO_ASSERT(
+                        wca_offset_to_size.at(weightlessCacheAttr.bin_offset) == weightlessCacheAttr.original_size,
+                        "The WeightlessCacheAttribute of at least two Constant nodes use the same offset, but "
+                        "different sizes");
+                }
+
                 model->set_rt_info(weightlessCacheAttr.bin_offset, "ws_bin_offset_" + constantIdString);
                 model->set_rt_info(weightlessCacheAttr.original_size, "ws_original_size_" + constantIdString);
                 model->set_rt_info(weightlessCacheAttr.original_dtype, "ws_original_dtype_" + constantIdString);
             }
         }
+    }
+}
+
+int get_ir_version(const std::shared_ptr<const ov::Model>& model, const intel_npu::Logger& logger) {
+    const auto& rtInfo = model->get_rt_info();
+    const auto it = rtInfo.find("version");
+    if (it != rtInfo.end()) {
+        return static_cast<int>(it->second.as<int64_t>());
+    }
+
+    logger.warning("The IR version was not found within the runtime information attributes. The NPU plugin will "
+                   "continue execution assuming the version is 11. If wrong, compilation issues may occur.");
+    return 11;
+}
+
+/**
+ * @brief Find out which model serializer version should be used by the model serializer.
+ * @details This result depends on the support offered by the compiler adapter and the IR version of the model. IR
+ * versions < 11 support only "ALL_WEIGHTS_COPY". If the provided "serializerVersion" is not "AUTO", then the same
+ * version will be returned only if it is supported by the compiler adapter. Otherwise, the plugin will decide the
+ * version based on compatibility and preference.
+ *
+ * @param serializerVersion The requested serializer version, can be "AUTO"
+ * @param isOptionValueSupportedByCompiler Function used to query the support offered by the compiler-adapter. If
+ * "nullptr", then the support is not checked.
+ * @return ov::intel_npu::ModelSerializerVersion
+ */
+ov::intel_npu::ModelSerializerVersion determineModelSerializerVersion(
+    const ov::intel_npu::ModelSerializerVersion serializerVersion,
+    const std::function<bool(const std::string&, const std::optional<std::string>&)>& isOptionValueSupportedByCompiler,
+    const std::shared_ptr<ov::Model>& model,
+    const intel_npu::Logger& logger) {
+    if (get_ir_version(model, logger) < 11) {
+        // Models that use a version < 11 cannot be marshalled using the "no_weights_copy" algorithm. See C#179944.
+        return ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY;
+    }
+
+    switch (serializerVersion) {
+    case ov::intel_npu::ModelSerializerVersion::AUTO:
+        // The "AUTO" value allows the plugin to pick the option it considers best. Try the more performant version
+        // first
+        if (isOptionValueSupportedByCompiler(ov::intel_npu::model_serializer_version.name(),
+                                             intel_npu::MODEL_SERIALIZER_VERSION::toString(
+                                                 ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY))) {
+            return ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY;
+        }
+        return ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY;
+    case ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY:
+        // We assume this version is always supported
+        return serializerVersion;
+    default:
+        // The user has chosen one explicit version, other than "all-weights-copy". Attempt to use it, and throw if not
+        // successful
+        if (!isOptionValueSupportedByCompiler(ov::intel_npu::model_serializer_version.name(),
+                                              intel_npu::MODEL_SERIALIZER_VERSION::toString(serializerVersion))) {
+            OPENVINO_THROW("The NPU plugin was requested to use the model serializer version \"",
+                           intel_npu::MODEL_SERIALIZER_VERSION::toString(serializerVersion),
+                           "\", but the compiler adapter does not support this version");
+        }
+        return serializerVersion;
     }
 }
 
@@ -229,7 +302,7 @@ protected:
     /**
      * @brief Model preprocessing steps common to all serializers.
      * @details These steps should include operator conversions and the storage of additional runtime information that
-     * the driver-compiler adapter may use.
+     * the compiler adapter may use.
      *
      * @param storeWeightlessCacheAttributeFlag If true, the WeightlessCacheAttributes will also be stored as runtime
      * information using a custom format. This is necessary if the "weights separation" flow is used.
@@ -263,7 +336,7 @@ protected:
         // has been removed.
         model->set_rt_info(true, "is_new_api");
         // Flag used to indicate an NPU plugin version that switched the I/O identification convention from
-        // names to indices. The flag is needed to inform the driver-compiler adapter to expect indices
+        // names to indices. The flag is needed to inform the compiler adapter to expect indices
         // when attempting to deserialize the I/O metadata.
         model->set_rt_info(true, "use_indices_for_io_metadata");
     }
@@ -362,7 +435,7 @@ public:
 
         OPENVINO_ASSERT(offset == sizeOfSerializedIR);
 
-        return {buffer, sizeOfSerializedIR, hash};
+        return {buffer, sizeOfSerializedIR, ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY, hash};
     }
 
 private:
@@ -444,7 +517,7 @@ public:
         std::optional<uint64_t> hash = computeModelHash ? std::make_optional<uint64_t>(0) : std::nullopt;
         serialize_model_to_buffer(model, buffer.get(), hash);
 
-        return {buffer, serializedModelSize, hash};
+        return {buffer, serializedModelSize, ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY, hash};
     }
 
 private:
@@ -487,20 +560,54 @@ private:
     }
 };
 
-SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
-                         const ze_graph_compiler_version_info_t compilerVersion,
-                         const uint32_t supportedOpsetVersion,
-                         const bool useBaseModelSerializer,
-                         const bool computeModelHash,
-                         const bool storeWeightlessCacheAttributeFlag) {
+SerializedIR serializeIR(
+    const std::shared_ptr<const ov::Model>& model,
+    const ze_graph_compiler_version_info_t compilerVersion,
+    const uint32_t supportedOpsetVersion,
+    const ov::intel_npu::ModelSerializerVersion serializerVersion,
+    const std::function<bool(const std::string&, const std::optional<std::string>&)>& isOptionValueSupportedByCompiler,
+    const bool computeModelHash,
+    const bool storeWeightlessCacheAttributeFlag) {
+    OPENVINO_ASSERT(model, "nullptr passed as model to the NPU model serializer");
+    OPENVINO_ASSERT(isOptionValueSupportedByCompiler,
+                    "The NPU model serializer was called without providing a function for querying the config options "
+                    "support offered by the compiler-adapter");
+
+    const Logger& logger = Logger("serializeIR", Logger::global().level());
+    std::chrono::steady_clock::time_point start_time;
+    if (logger.level() >= ov::log::Level::INFO) {
+        start_time = std::chrono::steady_clock::now();
+    }
+
     // The current instance is already a clone (or should be one), we are not modifying the original model
     const std::shared_ptr<ov::Model> nonConstantModel = std::const_pointer_cast<ov::Model>(model);
-    if (!useBaseModelSerializer) {
-        return VCLSerializerWithoutWeightsCopy(compilerVersion, supportedOpsetVersion)
-            .serialize(nonConstantModel, computeModelHash, storeWeightlessCacheAttributeFlag);
+    const ov::intel_npu::ModelSerializerVersion version =
+        determineModelSerializerVersion(serializerVersion, isOptionValueSupportedByCompiler, nonConstantModel, logger);
+
+    logger.info("Model serializer version chosen by the NPU plugin: %s",
+                MODEL_SERIALIZER_VERSION::toString(version).c_str());
+
+    SerializedIR serializedIR;
+    switch (version) {
+    case ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY:
+        serializedIR = VCLSerializerWithoutWeightsCopy(compilerVersion, supportedOpsetVersion)
+                           .serialize(nonConstantModel, computeModelHash, storeWeightlessCacheAttributeFlag);
+        break;
+    case ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY:
+        serializedIR = VCLSerializerWithWeightsCopy(compilerVersion, supportedOpsetVersion)
+                           .serialize(nonConstantModel, computeModelHash, storeWeightlessCacheAttributeFlag);
+        break;
+    default:
+        OPENVINO_THROW("Invalid version of model serializer determined by the utility function. Obtained the version: ",
+                       MODEL_SERIALIZER_VERSION::toString(version));
     }
-    return VCLSerializerWithWeightsCopy(compilerVersion, supportedOpsetVersion)
-        .serialize(nonConstantModel, computeModelHash, storeWeightlessCacheAttributeFlag);
+
+    logger.info(
+        "Model serialization duration: %.2f ms",
+        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start_time).count() /
+            1000.0);
+
+    return serializedIR;
 }
 
 std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices) {
@@ -687,10 +794,19 @@ std::string serializeConfig(const FilteredConfig& config,
         }
     };
 
-    // NPU_TURBO is a special option in the sense that by default it is a driver-setting, but certain compilers
-    // support and make use of it too If we have turbo in the config string, we check if compiler supports it. If it
-    // doesn't support it, we remove it
+    // Options with OptionMode::Both may be used by the plugin even when the compiler does not support them.
+    // Remove them from the config string before sending it to the compiler if they are unsupported.
+
+    // NPU_TURBO is a special option in the sense that by default it is a
+    //  driver-setting, but certain compilers support and make use of it too If we have turbo in the config string, we
+    //  check if compiler supports it. If it doesn't support it, we remove it
     removeOptionIfUnsupported(ov::intel_npu::turbo.name());
+    // LOG_LEVEL must not be sent to the compiler if not supported
+    removeOptionIfUnsupported(ov::log::level.name());
+    // PERFORMANCE_HINT must not be sent to the compiler if not supported
+    removeOptionIfUnsupported(ov::hint::performance_mode.name());
+    // PERF_COUNT must not be sent to the compiler if not supported
+    removeOptionIfUnsupported(ov::enable_profiling.name());
 
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
     // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix
