@@ -473,3 +473,54 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_bicubic_pillow_axes_scale_activat
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_1, RESAMPLE_BICUBIC_PILLOW_AXES_SCALE_ACTIVATION_ELTWISE_CNT },
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_2, RESAMPLE_BICUBIC_PILLOW_AXES_SCALE_ACTIVATION_ELTWISE_CNT },
 }));
+
+class resample_bicubic_pillow_axes_activation : public ResampleAxesPrimitiveFusingTest {};
+TEST_P(resample_bicubic_pillow_axes_activation, basic) {
+    auto p = GetParam();
+    auto sizes = get_sizes_for_axes(p);
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        resample("resample_prim", input_info("input"), sizes, {}, p.axes, {}, {}, 0, -0.75f,
+                 p.type, resample::InterpolateOp::ShapeCalcMode::SIZES),
+        activation("activation", input_info("resample_prim"), activation_func::abs),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-2f;
+    execute(p);
+}
+
+#define RESAMPLE_BICUBIC_PILLOW_AXES_ACTIVATION_CNT 2, 3
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_bicubic_pillow_axes_activation,
+    ::testing::ValuesIn(std::vector<resample_axes_test_params>{
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_1, RESAMPLE_BICUBIC_PILLOW_AXES_ACTIVATION_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_2, RESAMPLE_BICUBIC_PILLOW_AXES_ACTIVATION_CNT },
+}));
+
+class resample_bicubic_pillow_axes_quantize : public ResampleAxesPrimitiveFusingTest {};
+TEST_P(resample_bicubic_pillow_axes_quantize, basic) {
+    auto p = GetParam();
+    auto sizes = get_sizes_for_axes(p);
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_lo", get_mem(get_single_element_layout(p), -127)),
+        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        resample("resample_prim", input_info("input"), sizes, {}, p.axes, {}, {}, 0, -0.75f,
+                 p.type, resample::InterpolateOp::ShapeCalcMode::SIZES),
+        quantize("quantize", input_info("resample_prim"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1;
+    execute(p);
+}
+
+#define RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT 2, 3
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_bicubic_pillow_axes_quantize,
+    ::testing::ValuesIn(std::vector<resample_axes_test_params>{
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_1, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_2, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
+}));

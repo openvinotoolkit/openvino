@@ -122,7 +122,7 @@ DataTensor GetIntermediateBufferSize(const resample_params& params) {
     OPENVINO_ASSERT(channelIndex >= 0, "Invalid layout channel index");
 
     dims[channelIndex] = ybox_last - ybox_first;
-    DataTensor result{dims, output.GetDType(), layout};
+    DataTensor result{dims, Datatype::F32, layout};
     return result;
 }
 
@@ -134,6 +134,8 @@ ParamsKey ResampleKernelPilRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT8);
     k.EnableDifferentTypes();
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
@@ -281,6 +283,7 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
         MakeJitConstant("STAGE_CALC_VERTICAL_COEFFICIENTS", static_cast<int>(eCalcVerticalCoefficients)),
         MakeJitConstant("STAGE_RESAMPLE_VERTICAL", static_cast<int>(eResampleVertical)),
     });
+    jit_constants.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
     switch (id) {
         case eCalcHorizontalCoefficients: {
             auto inputHorizontalSizeWithPadding = getInputHorizontalSize(params, true);

@@ -58,7 +58,7 @@ KERNEL (calculate_coefficients_gpu_ref)(__global float* coefficients, __global i
         ww += w;
     }
     for (x = 0; x < xmax; x++) {
-        if (ww != 0.0) {
+        if (ww != 0.0f) {
             k[x] /= ww;
         }
     }
@@ -72,10 +72,16 @@ KERNEL (calculate_coefficients_gpu_ref)(__global float* coefficients, __global i
 
 #elif RESAMPLE_PILLOW_STAGE == STAGE_RESAMPLE_HORIZONTAL
 
+#if ENABLE_VERTICAL_PASS
+#define RESAMPLE_HORIZONTAL_OUTPUT_TYPE INTERMEDIATE_BUF_TYPE
+#else
+#define RESAMPLE_HORIZONTAL_OUTPUT_TYPE OUTPUT_TYPE
+#endif
+
 KERNEL (resample_horizontal_gpu_ref)(  __global INPUT0_TYPE* input
                                      , __global float* coefficients
                                      , __global int* bounds
-                                     , __global OUTPUT_TYPE* output
+                                     , __global RESAMPLE_HORIZONTAL_OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
                                      , FUSED_OPS_DECLS
 #endif
@@ -97,7 +103,7 @@ KERNEL (resample_horizontal_gpu_ref)(  __global INPUT0_TYPE* input
 #endif
     int horizontal_min, horizontal_max;
     float* k;
-    OUTPUT_TYPE ss = 0.f;
+    ACCUMULATOR_TYPE ss = 0.f;
 #if BATCH_IS_HORIZONTAL_AXIS == 1
     horizontal_min = bounds[b * 2 + 0];
     horizontal_max = bounds[b * 2 + 1];
@@ -157,7 +163,13 @@ KERNEL (resample_horizontal_gpu_ref)(  __global INPUT0_TYPE* input
 
 #else // RESAMPLE_PILLOW_STAGE == STAGE_RESAMPLE_VERTICAL
 
-KERNEL (resample_vertical_gpu_ref)(  __global INPUT0_TYPE* input
+#if ENABLE_HORIZONTAL_PASS
+#define RESAMPLE_VERTICAL_INPUT_TYPE INTERMEDIATE_BUF_TYPE
+#else
+#define RESAMPLE_VERTICAL_INPUT_TYPE INPUT0_TYPE
+#endif
+
+KERNEL (resample_vertical_gpu_ref)(  __global RESAMPLE_VERTICAL_INPUT_TYPE* input
                                      , __global float* coefficients
                                      , __global int* bounds
                                      , __global OUTPUT_TYPE* output
@@ -194,7 +206,7 @@ KERNEL (resample_vertical_gpu_ref)(  __global INPUT0_TYPE* input
     vertical_max = bounds[x * 2 + 1];
 #endif
 
-    OUTPUT_TYPE ss = 0.f;
+    ACCUMULATOR_TYPE ss = 0.f;
     for (int vertical_dim = 0; vertical_dim < vertical_max; vertical_dim++) {
 #if ENABLE_HORIZONTAL_PASS
 
@@ -254,3 +266,9 @@ KERNEL (resample_vertical_gpu_ref)(  __global INPUT0_TYPE* input
 #endif
 
 #undef PILLOW_SUPPORT
+#ifdef RESAMPLE_HORIZONTAL_OUTPUT_TYPE
+#undef RESAMPLE_HORIZONTAL_OUTPUT_TYPE
+#endif
+#ifdef RESAMPLE_VERTICAL_INPUT_TYPE
+#undef RESAMPLE_VERTICAL_INPUT_TYPE
+#endif
