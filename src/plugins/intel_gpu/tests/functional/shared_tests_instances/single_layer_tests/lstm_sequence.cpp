@@ -153,7 +153,7 @@ TEST_P(LSTMSequenceGPUTestCM, Inference) {
     run();
 };
 
-INSTANTIATE_TEST_SUITE_P(LSTMSequenceCM, LSTMSequenceGPUTestCM,
+INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCM, LSTMSequenceGPUTestCM,
                         ::testing::Combine(
                                 ::testing::Values(ov::test::utils::SequenceTestsMode::PURE_SEQ),
                                 ::testing::ValuesIn(seq_lengths_cm),
