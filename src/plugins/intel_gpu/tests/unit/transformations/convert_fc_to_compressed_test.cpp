@@ -492,7 +492,7 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed11) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertFCToCompressed11) {
+TEST_F(TransformationTestsF, ConvertFCToCompressed12) {
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
         auto weights_param = std::make_shared<ov::op::v0::Parameter>(ov::element::u4, ov::Shape{32, 16});
@@ -518,7 +518,7 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed11) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertFCToCompressed12) {
+TEST_F(TransformationTestsF, ConvertFCToCompressed13) {
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
         auto weights_param = std::make_shared<ov::op::v0::Parameter>(ov::element::u4, ov::Shape{4, 4, 32});
@@ -554,7 +554,7 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed12) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertFCToCompressed13) {
+TEST_F(TransformationTestsF, ConvertFCToCompressed14) {
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
         auto weights_param = std::make_shared<ov::op::v0::Parameter>(ov::element::u4, ov::Shape{4, 4, 32});
@@ -590,7 +590,7 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed13) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertFCToCompressed14) {
+TEST_F(TransformationTestsF, ConvertFCToCompressed15) {
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
         auto weights_param = std::make_shared<ov::op::v0::Parameter>(ov::element::u4, ov::Shape{4, 4, 32});
