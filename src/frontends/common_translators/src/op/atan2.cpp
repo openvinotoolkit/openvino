@@ -79,8 +79,13 @@ OutputVector translate_atan2_util(const NodeContext& context, const Output<Node>
 
     auto one = context.mark_node(v0::Constant::create(ov::element::f64, Shape{}, {1.0}));
     one = context.mark_node(make_shared<v1::ConvertLike>(one, rhs));
-    auto recip_x = context.mark_node(make_shared<v1::Divide>(one, rhs));  // +inf for +0, -inf for -0
-    auto recip_y = context.mark_node(make_shared<v1::Divide>(one, lhs));
+
+    // for safe division when non-zero, +inf for +0, -inf for -0 when zero
+    auto rhs_for_sign = context.mark_node(make_shared<v1::Select>(both_zero_condition, rhs, one));
+    auto lhs_for_sign = context.mark_node(make_shared<v1::Select>(both_zero_condition, lhs, one));
+    auto recip_x = context.mark_node(make_shared<v1::Divide>(one, rhs_for_sign));
+    auto recip_y = context.mark_node(make_shared<v1::Divide>(one, lhs_for_sign));
+
     auto x_sign_negative = context.mark_node(make_shared<v1::Less>(recip_x, zero));
     auto y_sign_negative = context.mark_node(make_shared<v1::Less>(recip_y, zero));
     auto x_sign_positive = context.mark_node(make_shared<v1::LogicalNot>(x_sign_negative));
@@ -90,16 +95,16 @@ OutputVector translate_atan2_util(const NodeContext& context, const Output<Node>
     auto neg_zero = context.mark_node(make_shared<v0::Negative>(zero));
 
     // atan2(-0, -0) = -π
-    auto case_nn = context.mark_node(make_shared<v1::LogicalAnd>(x_sign_negative, y_sign_negative));
+    auto case_y_neg_x_neg = context.mark_node(make_shared<v1::LogicalAnd>(x_sign_negative, y_sign_negative));
     // atan2(+0, -0) = +π
-    auto case_pn = context.mark_node(make_shared<v1::LogicalAnd>(x_sign_negative, y_sign_positive));
+    auto case_y_pos_x_neg = context.mark_node(make_shared<v1::LogicalAnd>(x_sign_negative, y_sign_positive));
     // atan2(-0, +0) = -0
-    auto case_np = context.mark_node(make_shared<v1::LogicalAnd>(x_sign_positive, y_sign_negative));
+    auto case_y_neg_x_pos = context.mark_node(make_shared<v1::LogicalAnd>(x_sign_positive, y_sign_negative));
     // atan2(+0, +0) = +0 (default fallback)
 
-    auto signed_zero_result = context.mark_node(make_shared<v1::Select>(case_nn, neg_pi, zero));
-    signed_zero_result = context.mark_node(make_shared<v1::Select>(case_pn, pi, signed_zero_result));
-    signed_zero_result = context.mark_node(make_shared<v1::Select>(case_np, neg_zero, signed_zero_result));
+    auto signed_zero_result = context.mark_node(make_shared<v1::Select>(case_y_neg_x_neg, neg_pi, zero));
+    signed_zero_result = context.mark_node(make_shared<v1::Select>(case_y_pos_x_neg, pi, signed_zero_result));
+    signed_zero_result = context.mark_node(make_shared<v1::Select>(case_y_neg_x_pos, neg_zero, signed_zero_result));
 
     // do adjustment
     auto atan_plus_pi = context.mark_node(make_shared<v1::Add>(atan, pi));
