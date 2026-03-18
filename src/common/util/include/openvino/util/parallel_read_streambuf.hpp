@@ -48,8 +48,8 @@ namespace util {
 ///        reads, bypassing the OS page cache pressure that mmap+memcpy incurs.
 ///
 /// For reads >= threshold bytes, the read is split across N threads where each
-/// thread issues its own positional read (pread on Linux, OVERLAPPED ReadFile on
-/// Windows). Smaller reads fall through to a single positional call.
+/// thread issues its own independent positional read operation using
+/// platform-specific APIs. Smaller reads fall through to a single positional call.
 ///
 /// Usage:
 /// @code
@@ -101,6 +101,22 @@ public:
         }
         m_file_size = static_cast<std::streamoff>(st.st_size);
 #endif
+
+        if (m_file_offset < static_cast<std::streamoff>(0) || m_file_offset > m_file_size) {
+#ifdef _WIN32
+            if (m_handle != INVALID_HANDLE_VALUE) {
+                CloseHandle(m_handle);
+                m_handle = INVALID_HANDLE_VALUE;
+            }
+#else
+            if (m_fd != -1) {
+                ::close(m_fd);
+                m_fd = -1;
+            }
+#endif
+            throw std::out_of_range("ParallelReadStreamBuf: header_offset is out of range for file: " +
+                                    path.string());
+        }
     }
 
     ~ParallelReadStreamBuf() override {
