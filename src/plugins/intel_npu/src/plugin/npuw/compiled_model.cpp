@@ -2306,9 +2306,13 @@ std::shared_ptr<const ov::Model> ov::npuw::CompiledModel::get_runtime_model() co
 std::shared_ptr<const ::intel_npu::Plugin> ov::npuw::CompiledModel::get_npuw_plugin() const {
     auto plugin = get_plugin();
     OPENVINO_ASSERT(plugin);
+#ifdef OPENVINO_NPUW_UT_SKIP_PLUGIN_DYNAMIC_CAST
+    OPENVINO_THROW("Unit-test build path: intel_npu::Plugin dynamic cast is disabled");
+#else
     auto npuw_plugin = std::dynamic_pointer_cast<const ::intel_npu::Plugin>(plugin);
     OPENVINO_ASSERT(npuw_plugin);
     return npuw_plugin;
+#endif
 }
 
 ov::Any ov::npuw::CompiledModel::get_property(const std::string& name) const {

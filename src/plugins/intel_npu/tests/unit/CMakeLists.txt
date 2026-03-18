@@ -40,7 +40,6 @@ ov_add_test_target(
         OBJECT_FILES
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_compiled_model_utils.cpp
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/compiled_model.cpp # needed for LLMCompiledModel, but should be linked first!!
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_compiled_model.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_infer_base_request.cpp # needed for LLMCompiledModel
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_infer_request.cpp # needed for LLMCompiledModel
@@ -55,6 +54,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/moe/moe_resources.cpp # needed for LLMCompiledModel
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/moe/moe_infer_utils.cpp # needed for LLMCompiledModel
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/moe/moe_executor.cpp # needed for LLMCompiledModel
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/compiled_model.cpp # needed for LLMCompiledModel
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/weights_bank.cpp # needed for LLMCompiledModel
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/spatial.cpp # needed for LLMCompiledModel
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/base_sync_infer_request.cpp # needed for LLMCompiledModel
@@ -83,6 +83,8 @@ ov_add_test_target(
         LABELS
             NPUW
 )
+
+target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_NPUW_UT_SKIP_PLUGIN_DYNAMIC_CAST)
 
 if(ENABLE_AVX2)
     ov_avx2_optimization_flags(avx2_flags)
