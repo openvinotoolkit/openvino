@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+is // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,6 +43,7 @@ enum class Type_t {
     f16,      //!< f16 element type
     f32,      //!< f32 element type
     f64,      //!< f64 element type
+    i2,       //!< i2 element type
     i4,       //!< i4 element type
     i8,       //!< i8 element type
     i16,      //!< i16 element type
@@ -153,6 +154,9 @@ inline constexpr Type f32(Type_t::f32);
 /// \brief f64 element type
 /// \ingroup ov_element_cpp_api
 inline constexpr Type f64(Type_t::f64);
+/// \brief i2 element type
+/// \ingroup ov_element_cpp_api
+inline constexpr Type i2(Type_t::i2);
 /// \brief i4 element type
 /// \ingroup ov_element_cpp_api
 inline constexpr Type i4(Type_t::i4);
