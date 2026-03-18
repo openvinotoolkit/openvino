@@ -101,3 +101,7 @@ install(TARGETS ${TARGET_NAME}
         COMPONENT tests
         EXCLUDE_FROM_ALL
 )
+
+target_sources(${TARGET_NAME} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/options_config_test.cpp
+)
