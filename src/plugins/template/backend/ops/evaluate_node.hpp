@@ -32,6 +32,8 @@ bool evaluate_node(std::shared_ptr<ov::Node> node, ov::TensorVector& outputs, co
         return evaluate<ov::element::Type_t::f64>(ov::as_type_ptr<T>(node), outputs, inputs);
     case ov::element::Type_t::f32:
         return evaluate<ov::element::Type_t::f32>(ov::as_type_ptr<T>(node), outputs, inputs);
+    case ov::element::Type_t::i2:
+        return evaluate<ov::element::Type_t::i2>(ov::as_type_ptr<T>(node), outputs, inputs);
     case ov::element::Type_t::i4:
         return evaluate<ov::element::Type_t::i4>(ov::as_type_ptr<T>(node), outputs, inputs);
     case ov::element::Type_t::i8:
