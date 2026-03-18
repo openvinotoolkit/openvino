@@ -221,7 +221,23 @@ void replace_nodes(const std::shared_ptr<Model>& f,
                        parameter_replacement_map,
                    const std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Node>>& body_replacement_map);
 
-/// Topological sort of nodes needed to compute root_nodes
+/// \brief Performs a topological sort on a graph of nodes.
+///
+/// \tparam T A container type (e.g., std::vector, std::deque) of shared_ptr<Node> or Node*.
+/// \param root_nodes The starting nodes from which to begin the topological sort traversal.
+///
+/// \return A vector of nodes sorted in topological order, where dependencies come before dependents.
+///
+/// \details
+/// This function performs a depth-first traversal of the computation graph starting from the given root nodes.
+/// It produces an ordering where each node appears after all of its input dependencies.
+///
+/// \note If a circular dependency is detected (a node is visited more than twice during traversal),
+///       the function clears the offending node's arguments and control dependencies, then throws
+///       an OPENVINO_THROW exception with details about the loop source.
+///
+/// \warning The caller is responsible for providing valid, acyclic graph structures. Circular
+///          dependencies will result in an exception being thrown.
 template <typename T>
 std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
     std::stack<Node*, std::vector<Node*>> nodes_to_do;
