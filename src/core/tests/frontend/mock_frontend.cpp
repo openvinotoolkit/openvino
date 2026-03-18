@@ -137,10 +137,13 @@ public:
     bool supported_impl(const std::vector<ov::Any>& variants) const override {
         // Last boolean flag in `variants` (if presented) is reserved for FE configuration
         size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
-        if (variants.size() == 1 + extra_variants_num && variants[0].is<std::string>()) {
-            FRONT_END_GENERAL_CHECK(variants[0].as<std::string>() != "throw_now", "Test exception");
-        } else if (variants.size() == 1 + extra_variants_num && variants[0].is<std::filesystem::path>()) {
-            FRONT_END_GENERAL_CHECK(variants[0].as<std::filesystem::path>().string() != "throw_now", "Test exception");
+        if (variants.size() == 1 + extra_variants_num) {
+            if (variants[0].is<std::string>()) {
+                FRONT_END_GENERAL_CHECK(variants[0].as<std::string>() != "throw_now", "Test exception");
+            } else if (variants[0].is<std::filesystem::path>()) {
+                FRONT_END_GENERAL_CHECK(variants[0].as<std::filesystem::path>().string() != "throw_now",
+                                        "Test exception");
+            }
         }
         return false;
     }
