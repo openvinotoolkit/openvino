@@ -135,8 +135,9 @@ protected:
         // Float32 accumulator for numerical stability.
         jit.add(make_type_jit_constants("ACCUMULATOR", data_types::f32));
 
-        // Set to 1 to enable kernel-side printf diagnostics.
-        jit.add(make_jit_constant("DEBUG_FCCmpOpt", 1));
+        // 1 = summary per-group scale/ZP + final result.
+        // 2 = also dump raw tensor bytes (activation, weight nibbles, scale, ZP, act_scale).
+        jit.add(make_jit_constant("DEBUG_FCCmpOpt", 2));
 
         // Diagnostic: log JIT constants at kernel-compile time (compile-time params/shapes).
         std::cout << "[FCCmpOpt][JIT] node compile: K=" << K << " N=" << N << " B=" << B
@@ -198,7 +199,7 @@ protected:
             const size_t n_groups = (N + SG_SIZE - 1) / SG_SIZE;
 
             // Diagnostic: log runtime dispatch dimensions.
-            std::cout << "[FCCmpOpt][DISPATCH] B=" << B << " K=" << K << " N=" << N
+            std::cout << "[FCCmpOpt][DISPATCH] B=" << B << " N=" << N
                       << " global=[" << (n_groups * SG_SIZE) << "," << B << ",1]\n";
             if (params.input_layouts.size() > 2) {
                 const auto& sc_shape = params.input_layouts[2].get_shape();

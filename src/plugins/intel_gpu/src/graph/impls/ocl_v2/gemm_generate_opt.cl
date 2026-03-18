@@ -248,7 +248,7 @@ KERNEL(gemm_generate_opt)(
 //   OUTPUT: f16 output          [B, N]
 //
 // Math: output[b,n] = act_scale[b] *
-//         Σ_{gk} scale_w[gk,n] * Σ_{k in gk} act[b,k] * (w4[n,k] − zp_w[gk,n])
+//         Σ_{gk} scale_w[n,gk] * Σ_{k in gk} act[b,k] * (w4[n,k] − zp_w[n,gk])
 // ============================================================
 #else  // IS_ACT_INT8 == 1
 
@@ -256,9 +256,9 @@ KERNEL(gemm_generate_opt)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE*  A,         // i8/char activation [B, K]
     const __global uchar*        W,         // u4/i4 packed weight [N, K/2]
-    const __global INPUT2_TYPE*  Scale,     // f16 weight scale, fbyx: [NUM_GROUPS, N]
+    const __global INPUT2_TYPE*  Scale,     // f16 weight scale, fbyx: [N, NUM_GROUPS]
 #if HAS_ZP
-    const __global uchar*        ZP,        // ZP fbyx: u8=[NUM_GROUPS,N] or u4=[NUM_GROUPS,N/2]
+    const __global uchar*        ZP,        // ZP fbyx: u8=[N,NUM_GROUPS] or u4=[N,NUM_GROUPS/2]
 #endif
     const __global half*         ActScale,  // f16 per-token activation scale [B]
     __global OUTPUT_TYPE*        C          // f16 output [B, N]
@@ -273,10 +273,44 @@ KERNEL(gemm_generate_opt)(
     const int a_base = b * K_SIZE;
     const int w_base = n * K_HALF_SIZE;
 
+    // ---------------------------------------------------------------
+    // Level-2 debug: one-time header dump for (b=0, n=0)
+    // Prints raw tensor values so we can verify memory layout offline.
+    // ---------------------------------------------------------------
+#if defined(DEBUG_FCCmpOpt) && (DEBUG_FCCmpOpt >= 2)
+    if (b == 0 && n == 0) {
+        // Dump Scale[0..NUM_GROUPS-1] - scale row for output channel 0
+        printf("[FCCmpOpt-DBG2] Scale[n=0, gk=0..3]: %.6f %.6f %.6f %.6f\n",
+               (float)Scale[0], (float)Scale[1], (float)Scale[2], (float)Scale[3]);
+#if HAS_ZP
+        printf("[FCCmpOpt-DBG2] ZP[n=0, gk=0..3]: %.0f %.0f %.0f %.0f\n",
+               (float)ZP[0], (float)ZP[1], (float)ZP[2], (float)ZP[3]);
+#endif
+        // Dump first 8 weight nibbles for row n=0 (bytes at W[0..3] = nibbles 0..7)
+        uchar4 w0 = vload4(0, W);
+        printf("[FCCmpOpt-DBG2] W raw bytes[0..3]: %d %d %d %d\n",
+               (int)w0.s0, (int)w0.s1, (int)w0.s2, (int)w0.s3);
+        printf("[FCCmpOpt-DBG2] W nibbles[0..7]: %d %d %d %d %d %d %d %d\n",
+               (int)(w0.s0 & 0xF), (int)(w0.s0 >> 4),
+               (int)(w0.s1 & 0xF), (int)(w0.s1 >> 4),
+               (int)(w0.s2 & 0xF), (int)(w0.s2 >> 4),
+               (int)(w0.s3 & 0xF), (int)(w0.s3 >> 4));
+        // Dump first 8 activation values for b=0
+        printf("[FCCmpOpt-DBG2] A[b=0, k=0..7]: %d %d %d %d %d %d %d %d\n",
+               (int)A[0], (int)A[1], (int)A[2], (int)A[3],
+               (int)A[4], (int)A[5], (int)A[6], (int)A[7]);
+        // Dump first 4 ActScale values (check which index = current token)
+        printf("[FCCmpOpt-DBG2] ActScale[0..3]: %.6f %.6f %.6f %.6f\n",
+               (float)ActScale[0], (float)ActScale[1],
+               (float)ActScale[2], (float)ActScale[3]);
+        printf("[FCCmpOpt-DBG2] B_SIZE=%d K_SIZE=%d N_SIZE=%d NUM_GROUPS=%d GROUP_SIZE=%d\n",
+               B_SIZE, K_SIZE, N_SIZE, NUM_GROUPS, GROUP_SIZE);
+    }
+#endif
+
     float acc = 0.0f;
 
     for (int gk = 0; gk < NUM_GROUPS; gk++) {
-        // Scale fbyx[f=N, b=NG]: physical = n * NUM_GROUPS + gk
         float scale = (float)Scale[n * NUM_GROUPS + gk];
 
         float zp;
@@ -284,36 +318,38 @@ KERNEL(gemm_generate_opt)(
 
 #if defined(DEBUG_FCCmpOpt) && (DEBUG_FCCmpOpt >= 1)
         if (b == 0 && n == 0)
-            printf("[FCCmpOpt-W4A8] gk=%d scale=%.6f zp=%.2f k_start=%d\n",
-                   gk, scale, zp, gk * GROUP_SIZE);
+            printf("[FCCmpOpt-W4A8] gk=%d scale=%.6f zp=%.2f\n", gk, scale, zp);
 #endif
 
         const int k_start = gk * GROUP_SIZE;
+        float gk_acc = 0.0f;
 
         float8 group_acc = (float8)(0.f);
         for (int k = k_start; k < k_start + GROUP_SIZE; k += VEC_SIZE) {
-            // Load VEC_SIZE=8 i8 activation elements (INPUT0_TYPE = char for i8).
             char8 a_vec = vload8(0, A + a_base + k);
-
             uchar4 w_packed = vload4(0, W + w_base + k / 2);
             float8 w_f;
             UNPACK8(w_packed, w_f);
-
             w_f = w_f - zp;
-
             group_acc = mad(convert_float8(a_vec), w_f, group_acc);
         }
+        float group_dot = HSUM8(group_acc);
 
-        acc += HSUM8(group_acc) * scale;
+#if defined(DEBUG_FCCmpOpt) && (DEBUG_FCCmpOpt >= 2)
+        if (b == 0 && n == 0)
+            printf("[FCCmpOpt-W4A8] gk=%d group_dot=%.4f scale=%.6f contrib=%.6f\n",
+                   gk, group_dot, scale, group_dot * scale);
+#endif
+
+        acc += group_dot * scale;
     }
 
-    // Apply per-token activation scale and write output.
     float act_scale = (float)ActScale[b];
     float result = acc * act_scale;
 
 #if defined(DEBUG_FCCmpOpt) && (DEBUG_FCCmpOpt >= 1)
-    if (b == 0 && n < 4)
-        printf("[FCCmpOpt-W4A8] b=0 n=%d acc=%.6f act_scale=%.6f out=%.6f\n",
+    if (b == 0 && n < 8)
+        printf("[FCCmpOpt-W4A8] b=0 n=%d raw_acc=%.6f act_scale=%.8f result=%.6f\n",
                n, acc, act_scale, result);
 #endif
 
