@@ -3556,10 +3556,6 @@ void primitive_inst::enable_multi_impl_mode(ImplSwitchingPolicy policy) {
 
                     const bool m1_raw_ok = m1_impl->m_manager &&
                         m1_impl->m_manager->raw_sub_byte_weight_compatible();
-                    std::cout << id()
-                        << ": multi-impl pool: M=1 retry got impl="
-                        << m1_impl->get_kernel_name()
-                        << " raw_ok=" << m1_raw_ok << std::endl;
 
                     if (!m1_raw_ok)
                         continue;   // not the GEMV kernel — try next manager
@@ -3570,9 +3566,6 @@ void primitive_inst::enable_multi_impl_mode(ImplSwitchingPolicy policy) {
                         m1_impl->set_kernels(std::move(kernels));
                     }
                     alt_impl = std::move(m1_impl);
-                    std::cout << id()
-                        << ": multi-impl pool: type=" << t
-                        << " using M=1 decode-synthesised impl for sub-byte WOQ" << std::endl;
                     break;
                 }
             }
@@ -3680,6 +3673,11 @@ bool primitive_inst::switch_impl_to(impl_types target_type) {
     const auto prev_type = _impl_pool->active_impl_type;
     _impl = it->second;
     _impl_pool->active_impl_type = target_type;
+
+    // Ensure the weight reorder cache matches the newly active impl's requirements.
+    // Without this, if the previous impl (e.g. OneDNN) had reordered weights into its
+    // internal format, weights_memory() would return wrong bytes to the new impl (e.g. OCL).
+    update_weights();
 
     // Rebind kernel arguments to the newly active impl.
     set_flag(ExecutionFlags::ARG_UPDATE_REQUIRED);
