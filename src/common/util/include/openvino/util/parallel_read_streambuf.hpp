@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,13 +9,11 @@
 #include <atomic>
 #include <cstring>
 #include <filesystem>
-#include <fstream>
-#include <future>
 #include <iostream>
 #include <stdexcept>
 #include <streambuf>
-#include <thread>
-#include <vector>
+
+#include "openvino/core/parallel.hpp"
 
 #ifdef _WIN32
 #    ifndef NOMINMAX
@@ -71,6 +69,7 @@ public:
                                    size_t threshold = DEFAULT_THRESHOLD)
         : m_path(path),
           m_file_offset(header_offset),
+          m_header_offset(header_offset),
           m_threshold(threshold) {
 #ifdef _WIN32
         m_handle = CreateFileW(path.native().c_str(),
@@ -114,8 +113,7 @@ public:
                 m_fd = -1;
             }
 #endif
-            throw std::out_of_range("ParallelReadStreamBuf: header_offset is out of range for file: " +
-                                    path.string());
+            throw std::out_of_range("ParallelReadStreamBuf: header_offset is out of range for file: " + path.string());
         }
     }
 
@@ -199,24 +197,30 @@ protected:
     // Seek support
     // -----------------------------------------------------------------------
     pos_type seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode /* which */) override {
+        // All internal positions (m_file_offset, m_file_size, m_header_offset) are
+        // absolute byte offsets from the start of the file.  The public-facing
+        // stream positions are *logical* offsets: 0 == header_offset in the file.
         std::streamoff new_pos = 0;
         if (way == std::ios_base::beg) {
-            new_pos = off;
+            // off is a logical offset; translate to absolute file offset.
+            new_pos = m_header_offset + off;
         } else if (way == std::ios_base::cur) {
-            // Account for the buffered char from underflow() if it hasn't been consumed
+            // Account for the buffered chars from underflow() not yet consumed.
             const std::streamsize ahead = static_cast<std::streamsize>(egptr() - gptr());
-            new_pos = m_file_offset - ahead + off;
+            new_pos = m_file_offset - ahead + off;  // stays absolute
         } else {
-            new_pos = m_file_size + off;
+            new_pos = m_file_size + off;  // stays absolute
         }
 
-        if (new_pos < 0 || new_pos > m_file_size) {
+        // Reject seeks before the logical stream start or past the file end.
+        if (new_pos < m_header_offset || new_pos > m_file_size) {
             return pos_type(off_type(-1));
         }
 
         setg(nullptr, nullptr, nullptr);  // invalidate get-area
         m_file_offset = new_pos;
-        return pos_type(m_file_offset);
+        // Return the logical position (0 == start of exposed stream).
+        return pos_type(m_file_offset - m_header_offset);
     }
 
     pos_type seekpos(pos_type pos, std::ios_base::openmode /* which */) override {
@@ -277,7 +281,7 @@ private:
     // Parallel positional read
     // -----------------------------------------------------------------------
     bool parallel_read(char* dst, size_t size, size_t file_offset) {
-        const size_t hw_threads = static_cast<size_t>(std::thread::hardware_concurrency());
+        const size_t hw_threads = static_cast<size_t>(parallel_get_max_threads());
         const size_t max_by_size = size / (1024 * 1024);  // 1 thread per MB
         const size_t num_threads = std::max(size_t{1}, std::min(hw_threads, max_by_size));
 
@@ -290,91 +294,91 @@ private:
         chunk_size = (chunk_size + 4095u) & ~size_t{4095u};
 
         std::atomic<bool> success{true};
-        std::vector<std::future<void>> futures;
-        futures.reserve(num_threads);
 
 #if ENABLE_BD_PROFILING_LOG
         const auto t0 = std::chrono::steady_clock::now();
 #endif
 
-        size_t cur_offset = 0;
-        for (size_t i = 0; i < num_threads; ++i) {
-            const size_t read_size = (i == num_threads - 1u) ? (size - cur_offset) : chunk_size;
-            if (read_size == 0) {
-                break;
+        // Dispatch via OpenVINO's thread pool (TBB/OMP/SEQ) so threads are reused
+        // across calls and there is no per-read create/destroy overhead.
+        // Each worker opens its own file descriptor so that Linux's per-file-
+        // description readahead state (file_ra_state / f_ra) is independent per
+        // thread. Sharing a single fd causes concurrent pread() calls to corrupt
+        // each other's sequential readahead prediction, collapsing throughput from
+        // ~3.5 GB/s sequential to ~0.5 GB/s.
+        ov::parallel_nt_static(static_cast<int>(num_threads), [&](int ithr, int nthr) {
+            const size_t cur_offset = static_cast<size_t>(ithr) * chunk_size;
+            if (cur_offset >= size) {
+                return;  // chunk rounding may leave trailing workers with nothing to do
             }
-
-            char* ptr = dst + cur_offset;
+            const size_t read_size = (ithr == nthr - 1) ? (size - cur_offset) : chunk_size;
+            char* const ptr = dst + cur_offset;
             const size_t thread_file_offset = file_offset + cur_offset;
 
 #ifdef _WIN32
             const std::wstring wpath = m_path.native();
-            futures.emplace_back(std::async(std::launch::async, [wpath, thread_file_offset, ptr, read_size, &success] {
-                HANDLE t_handle = CreateFileW(wpath.c_str(),
-                                              GENERIC_READ,
-                                              FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                              nullptr,
-                                              OPEN_EXISTING,
-                                              FILE_ATTRIBUTE_NORMAL,
-                                              nullptr);
-                if (t_handle == INVALID_HANDLE_VALUE) {
-                    success = false;
-                    return;
-                }
+            HANDLE t_handle = CreateFileW(wpath.c_str(),
+                                          GENERIC_READ,
+                                          FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                          nullptr,
+                                          OPEN_EXISTING,
+                                          FILE_ATTRIBUTE_NORMAL,
+                                          nullptr);
+            if (t_handle == INVALID_HANDLE_VALUE) {
+                success = false;
+                return;
+            }
 
-                char* cur = ptr;
-                size_t remaining = read_size;
-                size_t cur_file_offset = thread_file_offset;
+            char* cur = ptr;
+            size_t remaining = read_size;
+            size_t cur_file_offset = thread_file_offset;
 
-                while (remaining > 0 && success) {
-                    const DWORD to_read =
-                        static_cast<DWORD>(std::min(remaining, static_cast<size_t>(UINT_MAX - 1024u)));
-                    OVERLAPPED ov = {};
-                    ov.Offset = static_cast<DWORD>(cur_file_offset & 0xFFFFFFFFu);
-                    ov.OffsetHigh = static_cast<DWORD>((cur_file_offset >> 32) & 0xFFFFFFFFu);
-                    DWORD bytes_read = 0;
-                    if (!ReadFile(t_handle, cur, to_read, &bytes_read, &ov)) {
-                        if (GetLastError() != ERROR_IO_PENDING) {
-                            success = false;
-                            break;
-                        }
-                    }
-                    if (bytes_read == 0) {
+            while (remaining > 0 && success) {
+                const DWORD to_read = static_cast<DWORD>(std::min(remaining, static_cast<size_t>(UINT_MAX - 1024u)));
+                OVERLAPPED ov = {};
+                ov.Offset = static_cast<DWORD>(cur_file_offset & 0xFFFFFFFFu);
+                ov.OffsetHigh = static_cast<DWORD>((cur_file_offset >> 32) & 0xFFFFFFFFu);
+                DWORD bytes_read = 0;
+                if (!ReadFile(t_handle, cur, to_read, &bytes_read, &ov)) {
+                    if (GetLastError() != ERROR_IO_PENDING) {
                         success = false;
                         break;
                     }
-                    cur += bytes_read;
-                    cur_file_offset += bytes_read;
-                    remaining -= bytes_read;
                 }
-                CloseHandle(t_handle);
-            }));
+                if (bytes_read == 0) {
+                    success = false;
+                    break;
+                }
+                cur += bytes_read;
+                cur_file_offset += bytes_read;
+                remaining -= bytes_read;
+            }
+            CloseHandle(t_handle);
 #else
-            // Each worker opens its own std::ifstream so that Linux's per-file-
-            // description readahead state (file_ra_state / f_ra) is independent
-            // per thread. Sharing a single fd causes concurrent pread() calls to
-            // corrupt each other's sequential readahead prediction, collapsing
-            // throughput from ~3.5 GB/s sequential to ~0.5 GB/s.
-            const std::filesystem::path t_path = m_path;
-            futures.emplace_back(std::async(std::launch::async, [t_path, thread_file_offset, ptr, read_size, &success] {
-                std::ifstream t_ifs(t_path, std::ios::binary);
-                if (!t_ifs.is_open()) {
-                    success = false;
-                    return;
-                }
-                t_ifs.seekg(static_cast<std::streamoff>(thread_file_offset), std::ios::beg);
-                t_ifs.read(ptr, static_cast<std::streamsize>(read_size));
-                if (!t_ifs.good()) {
-                    success = false;
-                }
-            }));
-#endif
-            cur_offset += read_size;
-        }
+            const int t_fd = ::open(m_path.c_str(), O_RDONLY);
+            if (t_fd == -1) {
+                success = false;
+                return;
+            }
 
-        for (auto& f : futures) {
-            f.get();
-        }
+            char* cur = ptr;
+            size_t remaining = read_size;
+            off_t cur_off = static_cast<off_t>(thread_file_offset);
+
+            while (remaining > 0 && success) {
+                const ssize_t n = ::pread(t_fd, cur, remaining, cur_off);
+                if (n <= 0) {
+                    success = false;
+                    break;
+                }
+                cur += n;
+                cur_off += n;
+                remaining -= static_cast<size_t>(n);
+            }
+            ::close(t_fd);
+#endif
+        });
+
 #if ENABLE_BD_PROFILING_LOG
         {
             const auto t1 = std::chrono::steady_clock::now();
@@ -397,6 +401,7 @@ private:
     int m_fd = -1;
 #endif
     std::streamoff m_file_offset;
+    std::streamoff m_header_offset = 0;  // absolute file offset of logical stream start
     std::streamoff m_file_size = 0;
     size_t m_threshold;
     std::array<char_type, UNDERFLOW_BUF> m_underflow_buf{};  // buffer for underflow()

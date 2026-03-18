@@ -200,6 +200,53 @@ TEST_F(SingleFileStorageTest, AppendOnlyCacheEntry) {
     EXPECT_TRUE(read_called);
 }
 
+// ---------------------------------------------------------------------------
+// Large blob test: write >= 4 MB so that the real DEFAULT_THRESHOLD (4 MB) in
+// ParallelReadStreamBuf is crossed on the non-mmap read path.  This exercises
+// the SingleFileStorage → ParallelReadStreamBuf integration end-to-end,
+// including the blob alignment padding before the data and the non-zero
+// header_offset passed to the streambuf constructor.
+// ---------------------------------------------------------------------------
+TEST_F(SingleFileStorageTest, WriteReadLargeBlob_ParallelPath) {
+    // 5 MB + 1 byte so that even after padding the blob data itself exceeds the
+    // 4 MB parallel threshold.
+    constexpr size_t kBlobSize = 5UL * 1024 * 1024 + 1;
+    const std::string blob_id = "999";
+
+    // Build a deterministic pattern so byte-exact comparison is possible.
+    std::vector<uint8_t> expected(kBlobSize);
+    for (size_t i = 0; i < kBlobSize; ++i) {
+        expected[i] = static_cast<uint8_t>(i % 251u);
+    }
+
+    m_storage->write_cache_entry(blob_id, [&](std::ostream& s) {
+        s.write(reinterpret_cast<const char*>(expected.data()), static_cast<std::streamsize>(kBlobSize));
+    });
+
+    // --- non-mmap path (ParallelReadStreamBuf) ---
+    m_storage->read_cache_entry(blob_id, /*enable_mmap=*/false, [&](const ICacheManager::CompiledBlobVariant& cv) {
+        ASSERT_TRUE(std::holds_alternative<std::reference_wrapper<std::istream>>(cv));
+        auto& stream = std::get<std::reference_wrapper<std::istream>>(cv).get();
+
+        std::vector<uint8_t> got(kBlobSize);
+        ASSERT_TRUE(stream.read(reinterpret_cast<char*>(got.data()), static_cast<std::streamsize>(kBlobSize)));
+        EXPECT_EQ(got, expected) << "Parallel read returned incorrect data for large blob";
+    });
+
+    // Reset and re-open to ensure the content survives a round-trip through
+    // build_content_index (re-scans the file and rebuilds m_blob_index).
+    m_storage.reset();
+    SingleFileStorage reopened(m_file_path);
+    reopened.read_cache_entry(blob_id, /*enable_mmap=*/false, [&](const ICacheManager::CompiledBlobVariant& cv) {
+        ASSERT_TRUE(std::holds_alternative<std::reference_wrapper<std::istream>>(cv));
+        auto& stream = std::get<std::reference_wrapper<std::istream>>(cv).get();
+
+        std::vector<uint8_t> got(kBlobSize);
+        ASSERT_TRUE(stream.read(reinterpret_cast<char*>(got.data()), static_cast<std::streamsize>(kBlobSize)));
+        EXPECT_EQ(got, expected) << "Parallel read after re-open returned incorrect data for large blob";
+    });
+}
+
 TEST_F(SingleFileStorageTest, ContextMetaWriteRead) {
     weight_sharing::Context test_context;
     test_context.m_weight_registry[1][11] = {100, 200, element::Type_t::f32};
