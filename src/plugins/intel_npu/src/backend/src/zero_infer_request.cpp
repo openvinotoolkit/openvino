@@ -717,6 +717,7 @@ void ZeroInferRequest::update_states_if_memory_changed() {
 }
 
 void ZeroInferRequest::infer() {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::InferenceNPU, "SyncInferenceNPU");
     if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         OPENVINO_THROW("Only start async is supported when RUN_INFERENCES_SEQUENTIALLY is enabled!");
     }
@@ -727,6 +728,9 @@ void ZeroInferRequest::infer() {
 
 void ZeroInferRequest::infer_async() {
     _logger.debug("InferRequest::infer_async started");
+    // TASK_BASE marker is always on by default
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::InferenceNPU, "Inference::start");
+    // This task chain marker will only be available when ENABLE_PROFILING_ITT=FULL
     OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
     prepare_inputs();
     prepare_outputs();
@@ -876,6 +880,7 @@ void ZeroInferRequest::prepare_outputs() {
 }
 
 void ZeroInferRequest::get_result() {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::InferenceNPU, "Inference::get_result");
     OV_ITT_TASK_CHAIN(ZERO_RESULT, itt::domains::LevelZeroBackend, "get_result", "pull");
     _logger.debug("InferRequest::get_result start");
     _pipeline->pull();
