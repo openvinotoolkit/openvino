@@ -417,10 +417,15 @@ TEST(MappedMemory, get_id_same_for_same_file) {
     std::filesystem::remove(file_path);
 }
 
-using RangedMappingTestRegions =  // offset_1, size_1, offset_2, size_2, file_size (0 means auto-calculate)
-    std::tuple<size_t, size_t, size_t, size_t, size_t>;
-using RangedMappingTestParams =  // offset-size pairs, use file path (true) or file handle (false)
-    std::tuple<RangedMappingTestRegions, bool>;
+struct RangedMappingTestRegions {
+    size_t offset_1;
+    size_t size_1;
+    size_t offset_2;
+    size_t size_2;
+    size_t file_size;
+};
+// regions, use file path (true) or file handle (false)
+using RangedMappingTestParams = std::tuple<RangedMappingTestRegions, bool>;
 
 namespace {
 size_t calc_sector_actual_size(size_t offset, size_t size, size_t file_actual_size) {

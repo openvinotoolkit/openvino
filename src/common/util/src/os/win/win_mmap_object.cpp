@@ -4,6 +4,7 @@
 
 #include <stdexcept>
 
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
@@ -76,7 +77,8 @@ public:
         // rename/deletion, but it doesn't work with FAT32 filesystem (works on NTFS)
         auto h = ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         map(path, h, offset, size);
-        m_id = std::hash<std::wstring>{}(path.native()) ^ std::hash<size_t>{}(offset) ^ std::hash<size_t>{}(size);
+        m_id = util::u64_hash_combine(offset, size);
+        m_id = util::u64_hash_combine(std::hash<std::filesystem::path::string_type>{}(path.native()), m_id);
     }
 
     void set_from_handle(HANDLE h, size_t offset, size_t size) {
@@ -109,7 +111,7 @@ private:
         }
         const auto file_size = static_cast<size_t>(file_size_large.QuadPart);
         m_size = (size == auto_size<size_t>) ? file_size - offset : size;
-        if (offset + m_size > file_size) {
+        if (offset + m_size > file_size || offset + m_size < offset) {
             throw std::runtime_error("Requested mapping range exceeds file size for " + util::path_to_string(path));
         }
 

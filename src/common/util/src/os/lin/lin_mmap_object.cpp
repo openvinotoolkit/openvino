@@ -12,6 +12,7 @@
 #include <iostream>
 #include <sstream>
 
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
@@ -80,8 +81,8 @@ public:
                                      " for mapping. Ensure that file exists and has appropriate permissions.");
         }
         set_from_fd(fd, offset, size);
-        m_id = std::hash<std::filesystem::path::string_type>{}(path.native()) ^ std::hash<size_t>{}(offset) ^
-               std::hash<size_t>{}(size);
+        m_id = util::u64_hash_combine(offset, size);
+        m_id = util::u64_hash_combine(std::hash<std::filesystem::path::string_type>{}(path.native()), m_id);
     }
 
     void set_from_fd(const int fd, const size_t offset, const size_t size) {
@@ -96,7 +97,7 @@ public:
         }
         const auto file_size = static_cast<size_t>(sb.st_size);
         m_size = (size == auto_size<size_t>) ? file_size - offset : size;
-        if (offset + m_size > file_size) {
+        if (offset + m_size > file_size || offset + m_size < offset) {
             throw std::runtime_error("Requested mapping range exceeds file size for fd=" + std::to_string(fd));
         }
 
