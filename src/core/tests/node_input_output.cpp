@@ -435,9 +435,7 @@ TEST(node_input_output, output_replace_bidirectional_connection) {
     EXPECT_EQ(add1->output(0).get_target_inputs().size(), 0) << "add1 should have no targets";
 
     // create model from incorrect net (cycles) to release nodes without leaking memory
-    OV_EXPECT_THROW(std::ignore = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{param}),
-                    ov::Exception,
-                    _);
+    OV_EXPECT_THROW(ov::Model(OutputVector{mul}, ParameterVector{param}), ov::Exception, _);
 }
 
 TEST(node_input_output, output_replace_empty_targets) {
