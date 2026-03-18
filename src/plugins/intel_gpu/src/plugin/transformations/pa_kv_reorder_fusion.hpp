@@ -11,6 +11,48 @@
 
 namespace ov::intel_gpu {
 
+/// Fuses paired key/value cache reorder paths into a single PA_KV_Reorder op.
+///
+///     ┌───────────────┐                                     ┌───────────────┐
+///     │   Parameter   │                                     │   Parameter   │
+///     │   key_cache   │                                     │  value_cache  │
+///     └───────┬───────┘                                     └───────┬───────┘
+///             │                                                     │
+///       ┌─────┴─────┐                                         ┌─────┴─────┐
+///       │  Gather   │<────────── block_update_indices ────────│  Gather   │
+///       └─────┬─────┘                                         └─────┬─────┘
+///             │                                                     │
+///     ┌───────┴────────┐                                    ┌───────┴────────┐
+///     │ ScatterUpdate  │<──────────── block_indices ────────│ ScatterUpdate  │
+///     └───────┬────────┘                                    └───────┬────────┘
+///             │                                                     │
+///             └───────────────────┐         ┌───────────────────────┘
+///                                 │         │
+///                              ┌──┴─────────┴───┐
+///                              │    Concat      │
+///                              └──────┬─────────┘
+///                                     │
+///                                   Result
+///
+///                                         =>
+///
+///         ┌───────────────┐                               ┌───────────────┐
+///         │   Parameter   │                               │   Parameter   │
+///         │   key_cache   │                               │  value_cache  │
+///         └───────┬───────┘                               └───────┬───────┘
+///                 │                                               │
+///                 └───────────────►┌────────────────────────┐◄────┘
+///        ┌───────────────┐         │      PA_KV_Reorder     │        ┌─────────────────────┐
+///        │   Parameter   │────────►│                        │◄───────│     Parameter       │
+///        │ block_indices │         │                        │        │ block_update_indices│
+///        └───────────────┘         │                        │        └─────────────────────┘
+///     ┌────────────────────┐       │                        │       ┌────────────────────────────┐
+///     │     Parameter      │──────►│                        │◄──────│         Parameter          │
+///     │ block_indices_begins│      └────────────┬───────────┘       │ block_update_indices_begins│
+///     └────────────────────┘                    │                   └────────────────────────────┘
+///                                               │
+///                                             Result
+
 class PaKVReorderFusion : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("PaKVReorderFusion");
@@ -26,10 +68,10 @@ public:
           m_key_cache_precision(key_cache_precision),
           m_value_cache_precision(value_cache_precision),
           m_inference_precision(inference_precision) {
-            if (m_key_cache_precision == ov::element::i4 || m_key_cache_precision == ov::element::u4) {
-                OPENVINO_THROW("[GPU] i4/u4 precision is currently not supported for kv cache reorder.");
-            }
-          }
+        if (m_key_cache_precision == ov::element::i4 || m_key_cache_precision == ov::element::u4) {
+            OPENVINO_THROW("[GPU] i4/u4 precision is currently not supported for kv cache reorder.");
+        }
+    }
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
