@@ -4,7 +4,7 @@ GPU plugin in [OpenVINO toolkit](https://github.com/openvinotoolkit/openvino) su
 
 ## Key Contacts
 
-For assistance regarding GPU, contact a member of [openvino-ie-gpu-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-gpu-maintainers) group.
+For assistance regarding GPU, open a [GitHub issue](https://github.com/openvinotoolkit/openvino/issues) and tag it with the `gpu` label, or reach out via the [OpenVINO Discussions](https://github.com/openvinotoolkit/openvino/discussions) page.
 
 ## Components
 
@@ -35,10 +35,10 @@ This contents explain the internal implementation of dynamic shape support in th
 
 * [Overall flow for dynamic shape execution](./docs/dynamic_shape/overall_flow.md)
 * Implementation details
-  * [Preprocessing: Shape inference / update weight / realloc memory](./docs/dynamic_shape/preprocessing.md)
+  * Preprocessing: Shape inference / update weight / realloc memory *(documentation pending)*
   * [dynamic impl of kernels](./docs/dynamic_shape/dynamic_impl.md)
   * [in-memory kernel cache](./docs/dynamic_shape/in_memory_cache.md)
-  * [async kernel compilation](./docs/dynamic_shape/async_compilation.md)
+  * async kernel compilation *(documentation pending)*
   <!-- * weight compression (TBD)) -->
 * Optimization features
   * [Memory preallocation](./docs/dynamic_shape/memory_preallocation.md)
