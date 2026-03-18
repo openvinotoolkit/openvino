@@ -43,15 +43,17 @@ public:
         case CRE::OR:
             return "OR";
         case CRE::OPEN:
-            return "OPN";
+            return "OPEN";
         case CRE::CLOSE:
-            return "CLS";
+            return "CLOSE";
+        case CRE::NOT:
+            return "NOT";
         case CRE::CRE_EVALUATION:
             return "CRE_EVAL";
         case CRE::ELF_SCHEDULE:
             return "ELF";
         case CRE::BATCHING:
-            return "BS";
+            return "BT";
         case CRE::WEIGHTS_SEPARATION:
             return "WS";
         default:
@@ -112,6 +114,7 @@ TEST_F(AppendSingleToken, AppendReservedTokenThrows) {
     EXPECT_ANY_THROW(cre.append_to_expression(CRE::OR));
     EXPECT_ANY_THROW(cre.append_to_expression(CRE::OPEN));
     EXPECT_ANY_THROW(cre.append_to_expression(CRE::CLOSE));
+    EXPECT_ANY_THROW(cre.append_to_expression(CRE::NOT));
 }
 
 TEST_F(AppendSingleToken, BuildsEvaluatableAndExpression) {
@@ -161,6 +164,3 @@ TEST_F(AppendTokenVector, MixedAppend) {
     caps.erase(CRE::ELF_SCHEDULE);
     EXPECT_FALSE(cre.check_compatibility(caps));
 }
-
-// to test later: order of serialization vs order of expression
-// what if there is something in the expression in the capabilities found and vice versa

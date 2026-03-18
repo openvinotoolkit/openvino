@@ -16,27 +16,27 @@ std::vector<CREParams> valid_test_cases = {
     MAKE_PARAM(expression_3, false),
 
     MAKE_PARAM(expression_4, true, CRE::ELF_SCHEDULE, CRE::BATCHING),
-    MAKE_PARAM(expression_4, false, CRE::BATCHING),
     MAKE_PARAM(expression_4, false, CRE::ELF_SCHEDULE),
+    MAKE_PARAM(expression_4, false, CRE::BATCHING),
 
     MAKE_PARAM(expression_5, true, CRE::ELF_SCHEDULE, CRE::BATCHING, CRE::WEIGHTS_SEPARATION),
     MAKE_PARAM(expression_5, false, CRE::ELF_SCHEDULE, CRE::WEIGHTS_SEPARATION),
     MAKE_PARAM(expression_5, false, CRE::ELF_SCHEDULE),
 
     MAKE_PARAM(expression_6, true, CRE::ELF_SCHEDULE, CRE::BATCHING, CRE::WEIGHTS_SEPARATION),
-    MAKE_PARAM(expression_6, true, CRE::ELF_SCHEDULE, CRE::BATCHING),
     MAKE_PARAM(expression_6, true, CRE::ELF_SCHEDULE, CRE::WEIGHTS_SEPARATION),
+    MAKE_PARAM(expression_6, true, CRE::ELF_SCHEDULE, CRE::BATCHING),
     MAKE_PARAM(expression_6, false, CRE::BATCHING, CRE::WEIGHTS_SEPARATION),
     MAKE_PARAM(expression_6, false),
 
     MAKE_PARAM(expression_7, true, CRE::ELF_SCHEDULE, CRE::BATCHING, CRE::WEIGHTS_SEPARATION),
-    MAKE_PARAM(expression_7, true, CRE::ELF_SCHEDULE),
     MAKE_PARAM(expression_7, true, CRE::BATCHING, CRE::WEIGHTS_SEPARATION),
+    MAKE_PARAM(expression_7, true, CRE::ELF_SCHEDULE),
     MAKE_PARAM(expression_7, false, CRE::WEIGHTS_SEPARATION),
 
     MAKE_PARAM(expression_8, true, CRE::ELF_SCHEDULE, CRE::BATCHING, CRE::WEIGHTS_SEPARATION),
-    MAKE_PARAM(expression_8, true, CRE::ELF_SCHEDULE, CRE::BATCHING),
     MAKE_PARAM(expression_8, true, CRE::ELF_SCHEDULE, CRE::WEIGHTS_SEPARATION),
+    MAKE_PARAM(expression_8, true, CRE::ELF_SCHEDULE, CRE::BATCHING),
     MAKE_PARAM(expression_8, false, CRE::BATCHING, CRE::WEIGHTS_SEPARATION),
 
     MAKE_PARAM(expression_9, true, CRE::ELF_SCHEDULE, CRE::BATCHING, CRE::WEIGHTS_SEPARATION),
@@ -63,6 +63,50 @@ std::vector<CREParams> valid_test_cases = {
     MAKE_PARAM(expression_12, false, CRE::ELF_SCHEDULE),
 
     MAKE_PARAM(expression_13, true, CRE::ELF_SCHEDULE, CRE::BATCHING),
+
+    MAKE_PARAM(expression_14, true, CRE::WEIGHTS_SEPARATION, CRE::BATCHING),
+    MAKE_PARAM(expression_14, true),
+    MAKE_PARAM(expression_14, false, CRE::ELF_SCHEDULE, CRE::BATCHING),
+    MAKE_PARAM(expression_14, false, CRE::ELF_SCHEDULE),
+
+    MAKE_PARAM(expression_15, true, CRE::WEIGHTS_SEPARATION, CRE::BATCHING),
+    MAKE_PARAM(expression_15, true),
+    MAKE_PARAM(expression_15, false, CRE::ELF_SCHEDULE),
+
+    MAKE_PARAM(expression_16, true, CRE::WEIGHTS_SEPARATION),
+    MAKE_PARAM(expression_16, false, CRE::ELF_SCHEDULE, CRE::BATCHING, CRE::WEIGHTS_SEPARATION),
+    MAKE_PARAM(expression_16, false, CRE::BATCHING, CRE::WEIGHTS_SEPARATION),
+    MAKE_PARAM(expression_16, false),
+
+    MAKE_PARAM(expression_17, true, CRE::WEIGHTS_SEPARATION),
+    MAKE_PARAM(expression_17, false, CRE::ELF_SCHEDULE, CRE::BATCHING, CRE::WEIGHTS_SEPARATION),
+    MAKE_PARAM(expression_17, false, CRE::ELF_SCHEDULE, CRE::WEIGHTS_SEPARATION),
+    MAKE_PARAM(expression_17, false, CRE::BATCHING, CRE::WEIGHTS_SEPARATION),
+
+    MAKE_PARAM(expression_18, false, CRE::ELF_SCHEDULE, CRE::BATCHING),
+    MAKE_PARAM(expression_18, true, CRE::ELF_SCHEDULE),
+    MAKE_PARAM(expression_18, true),
+
+    MAKE_PARAM(expression_19, true, CRE::BATCHING, CRE::WEIGHTS_SEPARATION),
+    MAKE_PARAM(expression_19, true, CRE::ELF_SCHEDULE, CRE::BATCHING),
+    MAKE_PARAM(expression_19, true, CRE::WEIGHTS_SEPARATION),
+    MAKE_PARAM(expression_19, true, CRE::BATCHING),
+    MAKE_PARAM(expression_19, true),
+    MAKE_PARAM(expression_19, false, CRE::ELF_SCHEDULE, CRE::WEIGHTS_SEPARATION),
+
+    MAKE_PARAM(expression_20, true, CRE::ELF_SCHEDULE, CRE::BATCHING, CRE::WEIGHTS_SEPARATION),
+    MAKE_PARAM(expression_20, true, CRE::WEIGHTS_SEPARATION),
+    MAKE_PARAM(expression_20, true),
+    MAKE_PARAM(expression_20, false, CRE::BATCHING),
+
+    MAKE_PARAM(expression_21, true, CRE::ELF_SCHEDULE, CRE::BATCHING, CRE::WEIGHTS_SEPARATION),
+    MAKE_PARAM(expression_21, true, CRE::ELF_SCHEDULE, CRE::WEIGHTS_SEPARATION),
+    MAKE_PARAM(expression_21, true, CRE::BATCHING, CRE::WEIGHTS_SEPARATION),
+    MAKE_PARAM(expression_21, true, CRE::ELF_SCHEDULE, CRE::BATCHING),
+    MAKE_PARAM(expression_21, true, CRE::ELF_SCHEDULE),
+    MAKE_PARAM(expression_21, false, CRE::WEIGHTS_SEPARATION),
+    MAKE_PARAM(expression_21, false, CRE::BATCHING),
+    MAKE_PARAM(expression_21, false),
 };
 
 INSTANTIATE_TEST_SUITE_P(CRETests,
@@ -76,6 +120,9 @@ std::vector<CREParams> invalid_test_cases = {
     MAKE_PARAM(invalid_expression_3, false),
     MAKE_PARAM(invalid_expression_4, false),
     MAKE_PARAM(invalid_expression_5, false),
+    MAKE_PARAM(invalid_expression_6, false),
+    MAKE_PARAM(invalid_expression_7, false),
+    MAKE_PARAM(invalid_expression_8, false),
 };
 
 INSTANTIATE_TEST_SUITE_P(CRETests,

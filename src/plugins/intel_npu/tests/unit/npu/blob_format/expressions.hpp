@@ -102,10 +102,10 @@ const std::vector<CRE::Token> expression_8 = {CRE::AND,
                /               \
               /                 \
          __ AND __             _ OR _
-        /    |    \           /   |   \
-      *ELF* *WS* *BT*      *ELF* *WS*  AND
-                                      /   \
-                                    *ELF* *BT*
+        /    |    \          /   |    \
+      *ELF* *WS* *BT*     *ELF* *WS*  AND
+                                     /   \
+                                   *ELF* *BT*
 */
 const std::vector<CRE::Token> expression_9 = {CRE::OR,
                                               CRE::OPEN,
@@ -130,9 +130,9 @@ const std::vector<CRE::Token> expression_9 = {CRE::OR,
                 /             \
                /               \
               /                 \
-         __ OR __              _ AND _
-        /    |    \           /   |   \
-      AND *WS* *ELF*      *ELF* *WS* *BT*
+         __ OR __             _ AND _
+        /   |    \           /   |   \
+      AND  *WS* *ELF*     *ELF* *WS* *BT*
      /   \
    *BT* *ELF*
 */
@@ -202,6 +202,139 @@ const std::vector<CRE::Token> expression_12 = {CRE::AND,
 // should we allow duplicated tokens?
 const std::vector<CRE::Token> expression_13 = {CRE::AND, CRE::ELF_SCHEDULE, CRE::BATCHING, CRE::ELF_SCHEDULE};
 
+/*
+    NOT
+     |
+   *ELF*
+*/
+const std::vector<CRE::Token> expression_14 = {CRE::NOT, CRE::ELF_SCHEDULE};
+
+/*
+        AND
+         |
+       ~ELF
+*/
+const std::vector<CRE::Token> expression_15 = {CRE::AND, CRE::NOT, CRE::ELF_SCHEDULE};
+
+/*
+              AND
+           /   |   \
+        ~ELF  ~BT  *WS*
+*/
+const std::vector<CRE::Token> expression_16 =
+    {CRE::AND, CRE::NOT, CRE::ELF_SCHEDULE, CRE::NOT, CRE::BATCHING, CRE::WEIGHTS_SEPARATION};
+
+/*
+            AND
+           /   \
+        ~ELF  ~OR
+              /  \
+           *BT*  ~WS
+*/
+const std::vector<CRE::Token> expression_17 = {CRE::AND,
+                                               CRE::NOT,
+                                               CRE::ELF_SCHEDULE,
+                                               CRE::NOT,
+                                               CRE::OPEN,
+                                               CRE::OR,
+                                               CRE::BATCHING,
+                                               CRE::NOT,
+                                               CRE::WEIGHTS_SEPARATION,
+                                               CRE::CLOSE};
+
+/*
+      NOT
+       |
+      AND
+     /   \
+  *ELF*  *BT*
+*/
+const std::vector<CRE::Token> expression_18 =
+    {CRE::NOT, CRE::OPEN, CRE::AND, CRE::ELF_SCHEDULE, CRE::BATCHING, CRE::CLOSE};
+
+/*
+                    NOT
+                     |
+                ___ AND ___
+               /     |      \
+           *ELF*     OR      OR
+                    /  \    /  \
+                 ~BT  *WS* *WS* ~BT
+*/
+const std::vector<CRE::Token> expression_19 = {CRE::NOT,
+                                               CRE::OPEN,
+                                               CRE::AND,
+                                               CRE::ELF_SCHEDULE,
+                                               CRE::OPEN,
+                                               CRE::OR,
+                                               CRE::NOT,
+                                               CRE::BATCHING,
+                                               CRE::WEIGHTS_SEPARATION,
+                                               CRE::CLOSE,
+                                               CRE::OPEN,
+                                               CRE::OR,
+                                               CRE::WEIGHTS_SEPARATION,
+                                               CRE::NOT,
+                                               CRE::BATCHING,
+                                               CRE::CLOSE,
+                                               CRE::CLOSE};
+
+/*
+                  _ OR _
+                /        \
+               /          \
+             NOT           \
+              |             \
+              OR             OR
+            /    \         /    \
+         *ELF*  *BT*    *ELF*   *WS*
+*/
+const std::vector<CRE::Token> expression_20 = {CRE::OR,
+                                               CRE::NOT,
+                                               CRE::OPEN,
+                                               CRE::OR,
+                                               CRE::ELF_SCHEDULE,
+                                               CRE::BATCHING,
+                                               CRE::CLOSE,
+                                               CRE::OPEN,
+                                               CRE::OR,
+                                               CRE::ELF_SCHEDULE,
+                                               CRE::WEIGHTS_SEPARATION,
+                                               CRE::CLOSE};
+
+/*
+                NOT
+                 |
+                NOT
+                 |
+                NOT
+                 |
+              _ AND _
+             /       \
+            /         \
+           AND        OR
+            |       /    \
+          ~ELF    ~BT    ~WS
+*/
+const std::vector<CRE::Token> expression_21 = {CRE::NOT,
+                                               CRE::NOT,
+                                               CRE::NOT,
+                                               CRE::OPEN,
+                                               CRE::AND,
+                                               CRE::OPEN,
+                                               CRE::AND,
+                                               CRE::NOT,
+                                               CRE::ELF_SCHEDULE,
+                                               CRE::CLOSE,
+                                               CRE::OPEN,
+                                               CRE::OR,
+                                               CRE::NOT,
+                                               CRE::BATCHING,
+                                               CRE::NOT,
+                                               CRE::WEIGHTS_SEPARATION,
+                                               CRE::CLOSE,
+                                               CRE::CLOSE};
+
 // missing operand for OR operator
 const std::vector<CRE::Token> invalid_expression_1 = {CRE::AND, CRE::ELF_SCHEDULE, CRE::OPEN, CRE::OR, CRE::CLOSE};
 
@@ -235,3 +368,12 @@ const std::vector<CRE::Token> invalid_expression_4 = {CRE::AND,
 // missing operands for nested operators
 const std::vector<CRE::Token> invalid_expression_5 =
     {CRE::AND, CRE::OPEN, CRE::OR, CRE::OPEN, CRE::OR, CRE::CLOSE, CRE::CLOSE};
+
+// NOT missing operand
+const std::vector<CRE::Token> invalid_expression_6 = {CRE::AND, CRE::ELF_SCHEDULE, CRE::NOT};
+
+// chained NOTs with no operand
+const std::vector<CRE::Token> invalid_expression_7 = {CRE::NOT, CRE::NOT};
+
+// NOT missing operand before CLOSE
+const std::vector<CRE::Token> invalid_expression_8 = {CRE::AND, CRE::OPEN, CRE::NOT, CRE::CLOSE};
