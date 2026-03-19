@@ -68,7 +68,6 @@ jobs:
 
       - name: Install python from apt (GPU lane)
         if: ${{ matrix.lane == 'gpu' }}
-        continue-on-error: true
         run: |
           sudo apt --assume-yes update
           sudo apt --assume-yes install python3 python3-pip python3-venv
@@ -192,7 +191,6 @@ jobs:
 
       - name: Install python from apt (GPU lane)
         if: ${{ matrix.lane == 'gpu' }}
-        continue-on-error: true
         run: |
           sudo apt --assume-yes update
           sudo apt --assume-yes install python3 python3-pip python3-venv
@@ -275,7 +273,6 @@ jobs:
 
       - name: Restore executable bits for C++ test binaries
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
-        continue-on-error: true
         run: |
           set -euo pipefail
           target="${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}"
@@ -285,7 +282,6 @@ jobs:
 
       - name: Install GPU runtime stack
         if: ${{ steps.restore_artifact.outputs.ready == 'true' && matrix.requires_gpu_runtime }}
-        continue-on-error: true
         run: |
           set -euo pipefail
           sudo apt --assume-yes update
@@ -313,12 +309,10 @@ jobs:
 
       - name: Verify GPU devices
         if: ${{ steps.restore_artifact.outputs.ready == 'true' && matrix.requires_gpu_runtime }}
-        continue-on-error: true
         run: clinfo
 
       - name: Install C++ coverage prerequisites
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
-        continue-on-error: true
         run: |
           sudo apt --assume-yes update
           sudo apt --assume-yes install lcov ca-certificates libtbb12
@@ -327,7 +321,6 @@ jobs:
 
       - name: Run selected C++ coverage tests
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
-        continue-on-error: true
         run: |
           echo "C++ shard ${{ matrix.cpp_shard_index }}/${{ matrix.cpp_shard_count }} running ${{ matrix.cpp_test_count }} test(s)"
           echo "Selected tests: ${{ matrix.cpp_test_names }}"
@@ -336,7 +329,6 @@ jobs:
       - name: Detect native coverage data (C++)
         id: detect_gcda
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
-        continue-on-error: true
         run: |
           search_roots=()
           for root in \
@@ -355,12 +347,10 @@ jobs:
 
       - name: Generate native C/C++ coverage report (C++ tests)
         if: ${{ steps.restore_artifact.outputs.ready == 'true' && steps.detect_gcda.outputs.exists == 'true' }}
-        continue-on-error: true
         run: python3 ${{ github.workspace }}/tools/coverage/coverage.py step collect-cpp-coverage
 
       - name: Verify C++ coverage file
         id: verify_cpp_cov
-        continue-on-error: true
         run: |
           target="${{ github.workspace }}/coverage.info"
           if [[ -s "${target}" ]]; then
@@ -371,6 +361,7 @@ jobs:
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "Coverage file missing or empty: ${target}"
+            exit 1
           fi
 
       - name: Cleanup staging/gcno files before Codecov (C++)
@@ -557,7 +548,6 @@ jobs:
 
       - name: Install GPU runtime stack
         if: ${{ steps.restore_artifact.outputs.ready == 'true' && matrix.requires_gpu_runtime }}
-        continue-on-error: true
         run: |
           set -euo pipefail
           sudo apt --assume-yes update
@@ -585,12 +575,10 @@ jobs:
 
       - name: Verify GPU devices
         if: ${{ steps.restore_artifact.outputs.ready == 'true' && matrix.requires_gpu_runtime }}
-        continue-on-error: true
         run: clinfo
 
       - name: Install Python coverage prerequisites
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
-        continue-on-error: true
         run: |
           sudo apt --assume-yes update
           sudo apt --assume-yes install lcov ca-certificates libtbb12
@@ -599,7 +587,6 @@ jobs:
 
       - name: Run Python API/Frontend/Layer/OVC tests with coverage
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
-        continue-on-error: true
         run: |
           echo "Python shard ${{ matrix.py_shard_index }}/${{ matrix.py_shard_count }} running ${{ matrix.py_test_count }} test(s)"
           echo "Selected tests: ${{ matrix.py_test_names }}"
@@ -608,7 +595,6 @@ jobs:
       - name: Detect native coverage data (Python-driven)
         id: detect_gcda
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
-        continue-on-error: true
         run: |
           if find "${{ github.workspace }}/build" "${{ github.workspace }}/build_js" -type f -name '*.gcda' -print -quit | grep -q .; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
@@ -618,12 +604,10 @@ jobs:
 
       - name: Generate native C/C++ coverage report (Python-driven)
         if: ${{ steps.restore_artifact.outputs.ready == 'true' && steps.detect_gcda.outputs.exists == 'true' }}
-        continue-on-error: true
         run: python3 ${{ github.workspace }}/tools/coverage/coverage.py step collect-cpp-coverage
 
       - name: Verify Python coverage file
         id: verify_py_cov
-        continue-on-error: true
         run: |
           target="${{ github.workspace }}/python-coverage.xml"
           if [[ -s "${target}" ]]; then
@@ -634,11 +618,11 @@ jobs:
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "Coverage file missing or empty: ${target}"
+            exit 1
           fi
 
       - name: Verify native C/C++ coverage file (Python-driven)
         id: verify_cpp_cov
-        continue-on-error: true
         run: |
           target="${{ github.workspace }}/coverage.info"
           if [[ -s "${target}" ]]; then
@@ -771,7 +755,6 @@ jobs:
 
       - name: Install python from apt (GPU lane)
         if: ${{ matrix.lane == 'gpu' }}
-        continue-on-error: true
         run: |
           sudo apt --assume-yes update
           sudo apt --assume-yes install python3 python3-pip python3-venv
@@ -786,7 +769,6 @@ jobs:
 
       - name: Install Node.js from apt (GPU lane)
         if: ${{ matrix.lane == 'gpu' }}
-        continue-on-error: true
         run: |
           sudo apt --assume-yes update
           sudo apt --assume-yes install nodejs npm
@@ -868,7 +850,6 @@ jobs:
 
       - name: Install GPU runtime stack
         if: ${{ steps.restore_artifact.outputs.ready == 'true' && matrix.requires_gpu_runtime }}
-        continue-on-error: true
         run: |
           set -euo pipefail
           sudo apt --assume-yes update
@@ -896,12 +877,10 @@ jobs:
 
       - name: Verify GPU devices
         if: ${{ steps.restore_artifact.outputs.ready == 'true' && matrix.requires_gpu_runtime }}
-        continue-on-error: true
         run: clinfo
 
       - name: Install JS coverage prerequisites
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
-        continue-on-error: true
         run: |
           sudo apt --assume-yes update
           sudo apt --assume-yes install lcov xvfb ca-certificates libtbb12
@@ -910,7 +889,6 @@ jobs:
 
       - name: Run Node.js bindings unit/e2e tests with coverage
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
-        continue-on-error: true
         run: |
           echo "JS shard ${{ matrix.js_shard_index }}/${{ matrix.js_shard_count }} running ${{ matrix.js_test_count }} test(s)"
           echo "Selected tests: ${{ matrix.js_test_names }}"
@@ -919,7 +897,6 @@ jobs:
       - name: Detect native coverage data (JS-driven)
         id: detect_gcda
         if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
-        continue-on-error: true
         run: |
           if find "${{ github.workspace }}/build" "${{ github.workspace }}/build_js" -type f -name '*.gcda' -print -quit | grep -q .; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
@@ -929,12 +906,10 @@ jobs:
 
       - name: Generate native C/C++ coverage report (JS-driven)
         if: ${{ steps.restore_artifact.outputs.ready == 'true' && steps.detect_gcda.outputs.exists == 'true' }}
-        continue-on-error: true
         run: python3 ${{ github.workspace }}/tools/coverage/coverage.py step collect-cpp-coverage
 
       - name: Verify JS coverage file
         id: verify_js_cov
-        continue-on-error: true
         run: |
           target="${{ github.workspace }}/js-lcov.info"
           if [[ -s "${target}" ]]; then
@@ -945,11 +920,11 @@ jobs:
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "Coverage file missing or empty: ${target}"
+            exit 1
           fi
 
       - name: Verify native C/C++ coverage file (JS-driven)
         id: verify_cpp_cov
-        continue-on-error: true
         run: |
           target="${{ github.workspace }}/coverage.info"
           if [[ -s "${target}" ]]; then
