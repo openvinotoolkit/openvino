@@ -395,3 +395,139 @@ struct NPUW_LLM_GENERATE_HINT final : OptionBase<NPUW_LLM_GENERATE_HINT, ::intel
     }
 };
 }  // namespace intel_npu
+
+// Single-source NPUW option inventory for registration and property publication.
+// Format:
+//   APPLY(EMIT, option_type, group, surface, caching, build)
+// where:
+//   group   = ROOT | LLM | KOKORO
+//   surface = EXPOSED | HIDDEN
+//   caching = CACHED | UNCACHED
+//   build   = ALL | DEV
+#define INTEL_NPU_FOR_EACH_NPUW_OPTION(APPLY, EMIT)                                                       \
+    APPLY(EMIT, NPU_USE_NPUW, ROOT, EXPOSED, CACHED, ALL)                                                 \
+    APPLY(EMIT, NPUW_DEVICES, ROOT, EXPOSED, CACHED, ALL)                                                 \
+    APPLY(EMIT, NPUW_SUBMODEL_DEVICE, ROOT, EXPOSED, CACHED, ALL)                                         \
+    APPLY(EMIT, NPUW_ONLINE_PIPELINE, ROOT, EXPOSED, CACHED, ALL)                                         \
+    APPLY(EMIT, NPUW_ONLINE_AVOID, ROOT, EXPOSED, CACHED, ALL)                                            \
+    APPLY(EMIT, NPUW_ONLINE_ISOLATE, ROOT, EXPOSED, CACHED, ALL)                                          \
+    APPLY(EMIT, NPUW_ONLINE_NO_FOLD, ROOT, EXPOSED, CACHED, ALL)                                          \
+    APPLY(EMIT, NPUW_ONLINE_MIN_SIZE, ROOT, EXPOSED, CACHED, ALL)                                         \
+    APPLY(EMIT, NPUW_ONLINE_KEEP_BLOCKS, ROOT, EXPOSED, CACHED, ALL)                                      \
+    APPLY(EMIT, NPUW_ONLINE_KEEP_BLOCK_SIZE, ROOT, EXPOSED, CACHED, ALL)                                  \
+    APPLY(EMIT, NPUW_ONLINE_DUMP_PLAN, ROOT, HIDDEN, UNCACHED, ALL)                                       \
+    APPLY(EMIT, NPUW_PLAN, ROOT, HIDDEN, UNCACHED, ALL)                                                   \
+    APPLY(EMIT, NPUW_FOLD, ROOT, EXPOSED, CACHED, ALL)                                                    \
+    APPLY(EMIT, NPUW_CWAI, ROOT, EXPOSED, CACHED, ALL)                                                    \
+    APPLY(EMIT, NPUW_DQ, ROOT, EXPOSED, CACHED, ALL)                                                      \
+    APPLY(EMIT, NPUW_DQ_FULL, ROOT, EXPOSED, CACHED, ALL)                                                 \
+    APPLY(EMIT, NPUW_PMM, ROOT, EXPOSED, CACHED, ALL)                                                     \
+    APPLY(EMIT, NPUW_MM_GATED, ROOT, EXPOSED, CACHED, ALL)                                                \
+    APPLY(EMIT, NPUW_SLICE_OUT, ROOT, EXPOSED, CACHED, ALL)                                               \
+    APPLY(EMIT, NPUW_SPATIAL, ROOT, EXPOSED, CACHED, ALL)                                                 \
+    APPLY(EMIT, NPUW_SPATIAL_NWAY, ROOT, EXPOSED, CACHED, ALL)                                            \
+    APPLY(EMIT, NPUW_SPATIAL_DYN, ROOT, EXPOSED, CACHED, ALL)                                             \
+    APPLY(EMIT, NPUW_MOE_TOKEN_CHUNK_SIZE, ROOT, EXPOSED, CACHED, ALL)                                    \
+    APPLY(EMIT, NPUW_MOE_POOL_SIZE, ROOT, EXPOSED, CACHED, ALL)                                           \
+    APPLY(EMIT, NPUW_ATTN, ROOT, EXPOSED, CACHED, ALL)                                                    \
+    APPLY(EMIT, NPUW_ATTN_DYN, ROOT, HIDDEN, UNCACHED, ALL)                                               \
+    APPLY(EMIT, NPUW_ATTN_NO_COPY, ROOT, HIDDEN, UNCACHED, ALL)                                           \
+    APPLY(EMIT, NPUW_ATTN_HFA_FUSED, ROOT, EXPOSED, CACHED, ALL)                                          \
+    APPLY(EMIT, NPUW_HOST_GATHER, ROOT, EXPOSED, CACHED, ALL)                                             \
+    APPLY(EMIT, NPUW_F16IC, ROOT, EXPOSED, CACHED, ALL)                                                   \
+    APPLY(EMIT, NPUW_DCOFF_TYPE, ROOT, EXPOSED, CACHED, ALL)                                              \
+    APPLY(EMIT, NPUW_DCOFF_SCALE, ROOT, EXPOSED, CACHED, ALL)                                             \
+    APPLY(EMIT, NPUW_FUNCALL_FOR_ALL, ROOT, EXPOSED, CACHED, ALL)                                         \
+    APPLY(EMIT, NPUW_PARALLEL_COMPILE, ROOT, HIDDEN, UNCACHED, ALL)                                       \
+    APPLY(EMIT, NPUW_WEIGHTS_BANK, ROOT, EXPOSED, CACHED, ALL)                                            \
+    APPLY(EMIT, NPUW_WEIGHTS_BANK_ALLOC, ROOT, EXPOSED, CACHED, ALL)                                      \
+    APPLY(EMIT, NPUW_CACHE_DIR, ROOT, HIDDEN, UNCACHED, ALL)                                              \
+    APPLY(EMIT, NPUW_FUNCALL_ASYNC, ROOT, EXPOSED, CACHED, ALL)                                           \
+    APPLY(EMIT, NPUW_UNFOLD_IREQS, ROOT, EXPOSED, CACHED, ALL)                                            \
+    APPLY(EMIT, NPUW_FALLBACK_EXEC, ROOT, EXPOSED, CACHED, ALL)                                           \
+    APPLY(EMIT, NPUW_ACC_CHECK, ROOT, HIDDEN, UNCACHED, ALL)                                              \
+    APPLY(EMIT, NPUW_ACC_THRESH, ROOT, HIDDEN, UNCACHED, ALL)                                             \
+    APPLY(EMIT, NPUW_ACC_DEVICE, ROOT, HIDDEN, UNCACHED, ALL)                                             \
+    APPLY(EMIT, NPUW_DUMP_FULL, ROOT, HIDDEN, UNCACHED, DEV)                                              \
+    APPLY(EMIT, NPUW_DUMP_SUBS, ROOT, HIDDEN, UNCACHED, DEV)                                              \
+    APPLY(EMIT, NPUW_DUMP_SUBS_DIR, ROOT, HIDDEN, UNCACHED, DEV)                                          \
+    APPLY(EMIT, NPUW_DUMP_SUBS_ON_FAIL, ROOT, HIDDEN, UNCACHED, DEV)                                      \
+    APPLY(EMIT, NPUW_DUMP_IO, ROOT, HIDDEN, UNCACHED, DEV)                                                \
+    APPLY(EMIT, NPUW_DUMP_IO_ITERS, ROOT, HIDDEN, UNCACHED, DEV)                                          \
+    APPLY(EMIT, NPUW_LLM, LLM, EXPOSED, CACHED, ALL)                                                      \
+    APPLY(EMIT, NPUW_LLM_BATCH_DIM, LLM, EXPOSED, CACHED, ALL)                                            \
+    APPLY(EMIT, NPUW_LLM_SEQ_LEN_DIM, LLM, EXPOSED, CACHED, ALL)                                          \
+    APPLY(EMIT, NPUW_LLM_MAX_PROMPT_LEN, LLM, EXPOSED, CACHED, ALL)                                       \
+    APPLY(EMIT, NPUW_LLM_MIN_RESPONSE_LEN, LLM, EXPOSED, CACHED, ALL)                                     \
+    APPLY(EMIT, NPUW_LLM_MAX_LORA_RANK, LLM, EXPOSED, CACHED, ALL)                                        \
+    APPLY(EMIT, NPUW_LLM_OPTIMIZE_V_TENSORS, LLM, EXPOSED, CACHED, ALL)                                   \
+    APPLY(EMIT, NPUW_LLM_OPTIMIZE_FP8, LLM, EXPOSED, CACHED, ALL)                                         \
+    APPLY(EMIT, NPUW_LLM_CACHE_ROPE, LLM, EXPOSED, CACHED, ALL)                                           \
+    APPLY(EMIT, NPUW_LLM_PREFILL_MOE_HINT, LLM, EXPOSED, CACHED, ALL)                                     \
+    APPLY(EMIT, NPUW_LLM_GENERATE_MOE_HINT, LLM, EXPOSED, CACHED, ALL)                                    \
+    APPLY(EMIT, NPUW_LLM_GENERATE_PYRAMID, LLM, EXPOSED, CACHED, ALL)                                     \
+    APPLY(EMIT, NPUW_LLM_PREFILL_CHUNK_SIZE, LLM, EXPOSED, CACHED, ALL)                                   \
+    APPLY(EMIT, NPUW_LLM_ENABLE_PREFIX_CACHING, LLM, EXPOSED, CACHED, ALL)                                \
+    APPLY(EMIT, NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE, LLM, EXPOSED, CACHED, ALL)                            \
+    APPLY(EMIT, NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS, LLM, EXPOSED, CACHED, ALL)                        \
+    APPLY(EMIT, NPUW_LLM_MAX_GENERATION_TOKEN_LEN, LLM, EXPOSED, CACHED, ALL)                             \
+    APPLY(EMIT, NPUW_LLM_PREFILL_HINT, LLM, EXPOSED, CACHED, ALL)                                         \
+    APPLY(EMIT, NPUW_LLM_GENERATE_HINT, LLM, EXPOSED, CACHED, ALL)                                        \
+    APPLY(EMIT, NPUW_LLM_PREFILL_ATTENTION_HINT, LLM, EXPOSED, CACHED, ALL)                               \
+    APPLY(EMIT, NPUW_LLM_GENERATE_ATTENTION_HINT, LLM, EXPOSED, CACHED, ALL)                              \
+    APPLY(EMIT, NPUW_LLM_SHARED_HEAD, LLM, EXPOSED, CACHED, ALL)                                          \
+    APPLY(EMIT, NPUW_WHISPER, LLM, EXPOSED, CACHED, ALL)                                                  \
+    APPLY(EMIT, NPUW_WHISPER_EOS_TOKEN, LLM, EXPOSED, UNCACHED, ALL)                                      \
+    APPLY(EMIT, NPUW_EAGLE, LLM, EXPOSED, CACHED, ALL)                                                    \
+    APPLY(EMIT, NPUW_TEXT_EMBED, LLM, EXPOSED, CACHED, ALL)                                               \
+    APPLY(EMIT, NPUW_LLM_PREFILL_CONFIG, LLM, EXPOSED, CACHED, ALL)                                       \
+    APPLY(EMIT, NPUW_LLM_ADDITIONAL_PREFILL_CONFIG, LLM, EXPOSED, CACHED, ALL)                            \
+    APPLY(EMIT, NPUW_LLM_GENERATE_CONFIG, LLM, EXPOSED, CACHED, ALL)                                      \
+    APPLY(EMIT, NPUW_LLM_ADDITIONAL_GENERATE_CONFIG, LLM, EXPOSED, CACHED, ALL)                           \
+    APPLY(EMIT, NPUW_LLM_SHARED_LM_HEAD_CONFIG, LLM, EXPOSED, CACHED, ALL)                                \
+    APPLY(EMIT, NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG, LLM, EXPOSED, CACHED, ALL)                     \
+    APPLY(EMIT, NPUW_KOKORO, KOKORO, EXPOSED, UNCACHED, ALL)                                              \
+    APPLY(EMIT, NPUW_KOKORO_BLOCK_SIZE, KOKORO, EXPOSED, UNCACHED, ALL)                                   \
+    APPLY(EMIT, NPUW_KOKORO_OVERLAP_SIZE, KOKORO, EXPOSED, UNCACHED, ALL)
+
+#define INTEL_NPU_NPUW_IF_BUILD_ALL(SELECT, EMIT, OPT) SELECT(EMIT, OPT)
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+#define INTEL_NPU_NPUW_IF_BUILD_DEV(SELECT, EMIT, OPT) SELECT(EMIT, OPT)
+#else
+#define INTEL_NPU_NPUW_IF_BUILD_DEV(SELECT, EMIT, OPT)
+#endif
+
+#define INTEL_NPU_NPUW_IF_GROUP_ROOT_ROOT(EMIT, OPT) EMIT(OPT)
+#define INTEL_NPU_NPUW_IF_GROUP_ROOT_LLM(EMIT, OPT)
+#define INTEL_NPU_NPUW_IF_GROUP_ROOT_KOKORO(EMIT, OPT)
+#define INTEL_NPU_NPUW_IF_GROUP_LLM_ROOT(EMIT, OPT)
+#define INTEL_NPU_NPUW_IF_GROUP_LLM_LLM(EMIT, OPT) EMIT(OPT)
+#define INTEL_NPU_NPUW_IF_GROUP_LLM_KOKORO(EMIT, OPT)
+#define INTEL_NPU_NPUW_IF_GROUP_KOKORO_ROOT(EMIT, OPT)
+#define INTEL_NPU_NPUW_IF_GROUP_KOKORO_LLM(EMIT, OPT)
+#define INTEL_NPU_NPUW_IF_GROUP_KOKORO_KOKORO(EMIT, OPT) EMIT(OPT)
+
+#define INTEL_NPU_NPUW_IF_SURFACE_EXPOSED(EMIT, OPT) EMIT(OPT)
+#define INTEL_NPU_NPUW_IF_SURFACE_HIDDEN(EMIT, OPT)
+#define INTEL_NPU_NPUW_IF_CACHING_CACHED(EMIT, OPT) EMIT(OPT)
+#define INTEL_NPU_NPUW_IF_CACHING_UNCACHED(EMIT, OPT)
+
+#define INTEL_NPU_NPUW_SELECT_ROOT(EMIT, OPT, GROUP, SURFACE, CACHING, BUILD) \
+    INTEL_NPU_NPUW_IF_BUILD_##BUILD(INTEL_NPU_NPUW_IF_GROUP_ROOT_##GROUP, EMIT, OPT)
+#define INTEL_NPU_NPUW_SELECT_LLM(EMIT, OPT, GROUP, SURFACE, CACHING, BUILD) \
+    INTEL_NPU_NPUW_IF_BUILD_##BUILD(INTEL_NPU_NPUW_IF_GROUP_LLM_##GROUP, EMIT, OPT)
+#define INTEL_NPU_NPUW_SELECT_KOKORO(EMIT, OPT, GROUP, SURFACE, CACHING, BUILD) \
+    INTEL_NPU_NPUW_IF_BUILD_##BUILD(INTEL_NPU_NPUW_IF_GROUP_KOKORO_##GROUP, EMIT, OPT)
+#define INTEL_NPU_NPUW_SELECT_EXPOSED(EMIT, OPT, GROUP, SURFACE, CACHING, BUILD) \
+    INTEL_NPU_NPUW_IF_BUILD_##BUILD(INTEL_NPU_NPUW_IF_SURFACE_##SURFACE, EMIT, OPT)
+#define INTEL_NPU_NPUW_SELECT_CACHED(EMIT, OPT, GROUP, SURFACE, CACHING, BUILD) \
+    INTEL_NPU_NPUW_IF_BUILD_##BUILD(INTEL_NPU_NPUW_IF_CACHING_##CACHING, EMIT, OPT)
+
+#define INTEL_NPU_FOR_EACH_ROOT_NPUW_OPTION(EMIT) INTEL_NPU_FOR_EACH_NPUW_OPTION(INTEL_NPU_NPUW_SELECT_ROOT, EMIT)
+#define INTEL_NPU_FOR_EACH_LLM_NPUW_OPTION(EMIT) INTEL_NPU_FOR_EACH_NPUW_OPTION(INTEL_NPU_NPUW_SELECT_LLM, EMIT)
+#define INTEL_NPU_FOR_EACH_KOKORO_NPUW_OPTION(EMIT) \
+    INTEL_NPU_FOR_EACH_NPUW_OPTION(INTEL_NPU_NPUW_SELECT_KOKORO, EMIT)
+#define INTEL_NPU_FOR_EACH_EXPOSED_NPUW_OPTION(EMIT) \
+    INTEL_NPU_FOR_EACH_NPUW_OPTION(INTEL_NPU_NPUW_SELECT_EXPOSED, EMIT)
+#define INTEL_NPU_FOR_EACH_CACHED_NPUW_OPTION(EMIT) \
+    INTEL_NPU_FOR_EACH_NPUW_OPTION(INTEL_NPU_NPUW_SELECT_CACHED, EMIT)
