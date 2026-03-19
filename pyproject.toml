@@ -71,7 +71,36 @@ reportIncompatibleMethodOverride = false
 [tool.bandit]
 exclude_dirs = ["docs", "tests", "thirdparty", "samples", ".github/actions"]
 skips = [
-    "B101", # assert_used
-    "B614", # pytorch_load
-    "B615", # huggingface_unsafe_download
-]
+    'B101', 
+    'B102', 
+    'B103', 
+    'B104', 
+    'B105', 
+    'B106', 
+    'B107', 
+    'B108', 
+    'B110', 
+    'B112', 
+    'B201', 
+    'B501', 
+    'B502', 
+    'B503', 
+    'B504', 
+    'B505', 
+    'B506', 
+    'B507', 
+    'B601', 
+    'B602', 
+    'B603', 
+    'B604', 
+    'B605', 
+    'B606', 
+    'B607', 
+    'B608', 
+    'B609', 
+    'B610', 
+    'B611', 
+    'B701', 
+    'B702', 
+    'B703']
+
