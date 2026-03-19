@@ -20,7 +20,7 @@ permissions: read-all
 
 env:
   CMAKE_BUILD_TYPE: 'Release'
-  PARALLEL_JOBS: '32'
+  PARALLEL_JOBS: '64'
   CPP_TEST_CONCURRENCY: '1'
   CPP_TESTS_PER_JOB: '5'
   PY_TESTS_PER_JOB: '5'
@@ -56,7 +56,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.ResolveMatrix.outputs.matrix) }}
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: ubuntu-latest-64-cores
     env:
       TEST_PROFILE: ${{ matrix.test_profile }}
     steps:
@@ -70,6 +70,11 @@ jobs:
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: '22'
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639 # v1.2.20
+        with:
+          max-size: 50G
 
       - name: Clone OpenVINO
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
