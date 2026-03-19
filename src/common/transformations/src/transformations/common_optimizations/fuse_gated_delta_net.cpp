@@ -183,6 +183,7 @@ ov::pass::FuseGDNLoop::FuseGDNLoop() {
     auto gate = pattern::any_input(pattern::shape_matches("[?, head_num, ?]"));
     auto beta = pattern::any_input(pattern::shape_matches("[?, head_num, ?]"));
     // Check if the q_scale is sqrt(qk_head_size) or not. GDN spec assumes it's sqrt(qk_head_size).
+    // TODO: CVS-183262 simplify the scale subgraph with constant.
     auto shape_head_size = pattern::any_input(pattern::shape_matches("[?, ?, ?, qk_head_size]"));
     auto shape_of_head_size = pattern::wrap_type<op::v3::ShapeOf>({shape_head_size});
     auto gather_index = pattern::optional<op::v8::Gather>({shape_of_head_size, {0, 2, 1, 3}, 0}, {{"batch_dims", 0}});
