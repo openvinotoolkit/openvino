@@ -5,11 +5,12 @@ on:
       test_profile:
         description: 'Coverage lanes to execute'
         required: false
-        default: cpu_gpu
+        default: cpu
         type: choice
         options:
           - cpu
           - cpu_gpu
+  pull_request:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
