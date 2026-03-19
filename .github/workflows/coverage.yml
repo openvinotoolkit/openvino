@@ -197,6 +197,12 @@ jobs:
           echo "ARTIFACT_STAGING_DIR=${dir}" >> "$GITHUB_ENV"
           echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
+      - name: Checkout sources for path mapping
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        with:
+          fetch-depth: 0
+          submodules: 'true'
+
       - name: Seed C++ shard duration report
         run: |
           python3 tools/coverage/ci_reports.py init-shard-artifact \
@@ -208,12 +214,6 @@ jobs:
             --shard-index "${{ matrix.cpp_shard_index }}" \
             --shard-count "${{ matrix.cpp_shard_count }}" \
             --test-names "${CXX_TEST_NAMES}"
-
-      - name: Checkout sources for path mapping
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
-        with:
-          fetch-depth: 0
-          submodules: 'true'
 
       - name: Download reusable build artifact
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
@@ -456,6 +456,12 @@ jobs:
           echo "ARTIFACT_STAGING_DIR=${dir}" >> "$GITHUB_ENV"
           echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
+      - name: Checkout sources for path mapping
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        with:
+          fetch-depth: 0
+          submodules: 'true'
+
       - name: Seed Python shard duration report
         run: |
           python3 tools/coverage/ci_reports.py init-shard-artifact \
@@ -467,12 +473,6 @@ jobs:
             --shard-index "${{ matrix.py_shard_index }}" \
             --shard-count "${{ matrix.py_shard_count }}" \
             --test-names "${PY_TEST_NAMES}"
-
-      - name: Checkout sources for path mapping
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
-        with:
-          fetch-depth: 0
-          submodules: 'true'
 
       - name: Download reusable build artifact
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
@@ -743,6 +743,12 @@ jobs:
           echo "ARTIFACT_STAGING_DIR=${dir}" >> "$GITHUB_ENV"
           echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
+      - name: Checkout sources for path mapping
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        with:
+          fetch-depth: 0
+          submodules: 'true'
+
       - name: Seed JS shard duration report
         run: |
           python3 tools/coverage/ci_reports.py init-shard-artifact \
@@ -754,12 +760,6 @@ jobs:
             --shard-index "${{ matrix.js_shard_index }}" \
             --shard-count "${{ matrix.js_shard_count }}" \
             --test-names "${JS_TEST_NAMES}"
-
-      - name: Checkout sources for path mapping
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
-        with:
-          fetch-depth: 0
-          submodules: 'true'
 
       - name: Download reusable build artifact
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
