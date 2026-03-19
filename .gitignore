@@ -69,3 +69,7 @@ coverage
 /tools/commit_slider/slider_cache/*
 /src/plugins/intel_cpu/thirdparty/ComputeLibrary/build/arm_compute_version.embed
 .github/GITHUB_OUTPUT
+
+# Local BevPool ONNX generated artifacts
+/bevpool_v2_custom*.onnx
+/bevpool_v2_custom*.onnx.data
