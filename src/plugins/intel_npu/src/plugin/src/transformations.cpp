@@ -243,6 +243,7 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
         if (batchModeIsAvailable) {
             // If we have successfully debatched the model on the PLUGIN side, we should
             // avoid repeating the same in the compiler by resetting the batch mode
+            logger.info("The model was reshaped to batch size 1 on the plugin side.");
             updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
         }
     } catch (const std::exception& ex) {
