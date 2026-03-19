@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "openvino_npu_driver_compiler_adapter")
+set(TARGET_NAME "openvino_npu_compiler_adapter")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
