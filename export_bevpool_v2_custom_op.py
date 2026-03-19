@@ -15,9 +15,9 @@ Usage
   python export_bevpool_v2_custom_op.py \
     --out bevpool_v2_custom.onnx \
     --opset 14 \
-    --N 1 --D 64 --H 16 --W 44 --C 80 \
-    --out-height 128 --out-width 128 \
-    --K 1000 --M 1
+        --N 1 --D 90 --H 54 --W 96 --C 80 \
+        --out-height 128 --out-width 128 \
+        --K 466560 --M 7313
 
 The produced ONNX will require a runtime that implements the custom op
 `com.intel.bevpool::BevPoolV2`.
@@ -214,12 +214,12 @@ def main() -> None:
     parser.add_argument("--opset", type=int, default=14)
 
     parser.add_argument("--N", type=int, default=1)
-    parser.add_argument("--D", type=int, default=64)
-    parser.add_argument("--H", type=int, default=16)
-    parser.add_argument("--W", type=int, default=44)
+    parser.add_argument("--D", type=int, default=90)
+    parser.add_argument("--H", type=int, default=54)
+    parser.add_argument("--W", type=int, default=96)
     parser.add_argument("--C", type=int, default=80)
-    parser.add_argument("--K", type=int, default=1000)
-    parser.add_argument("--M", type=int, default=1)
+    parser.add_argument("--K", type=int, default=466560)
+    parser.add_argument("--M", type=int, default=7313)
 
     parser.add_argument("--out-height", type=int, default=128)
     parser.add_argument("--out-width", type=int, default=128)

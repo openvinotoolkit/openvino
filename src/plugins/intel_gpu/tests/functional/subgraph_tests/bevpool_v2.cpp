@@ -15,7 +15,7 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        const auto cf = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 2, 2});
+        const auto cf = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 2, 1});
         const auto dw = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 2, 2});
         const auto idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{5});
         const auto itv = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{6});

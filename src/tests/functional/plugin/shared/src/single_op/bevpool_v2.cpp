@@ -126,13 +126,13 @@ void BevPoolV2LayerTest::generate_inputs(const std::vector<ov::Shape>& targetInp
 const BevPoolV2LayerTest::TGenData BevPoolV2LayerTest::GetTestDataForDevice(const char* deviceName) {
     const std::vector<std::vector<InputShape>> input_shapes = {
         {
-            {{-1, 4, 3, 5}, {{1, 4, 3, 5}, {2, 4, 3, 5}}},
+            {{-1, 3, 5, 4}, {{1, 3, 5, 4}, {2, 3, 5, 4}}},
             {{-1, 2, 3, 5}, {{1, 2, 3, 5}, {2, 2, 3, 5}}},
             {{-1}, {{6}, {9}}},
             {{6}, {{6}, {6}}},
         },
         {
-            {{1, 4, 3, 5}, {{1, 4, 3, 5}}},
+            {{1, 3, 5, 4}, {{1, 3, 5, 4}}},
             {{1, 2, 3, 5}, {{1, 2, 3, 5}}},
             {{6}, {{6}}},
             {{6}, {{6}}},

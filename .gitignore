@@ -73,3 +73,4 @@ coverage
 # Local BevPool ONNX generated artifacts
 /bevpool_v2_custom*.onnx
 /bevpool_v2_custom*.onnx.data
+/report_*.xml

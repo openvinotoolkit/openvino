@@ -130,6 +130,7 @@ cmake --build build -j"$(nproc)"
 ```bash
 cmake --build build --target help | grep -i gpu_func
 find . -type f -name ov_gpu_func_tests
+./bin/intel64/Release/ov_gpu_func_tests --gtest_list_tests | grep -i BevPoolV2
 ```
 
 ---
@@ -628,7 +629,7 @@ cd /home/lijie/intel/intel_gpu/openvino
 /home/lijie/envs/ovenv/bin/python export_bevpool_v2_custom_op.py \
   --out bevpool_v2_custom_ref4.onnx \
   --N 1 --D 90 --H 54 --W 96 --C 80 \
-  --K 6000 --M 5035 \
+   --K 466560 --M 7313 \
   --out-height 128 --out-width 128
 ```
 
@@ -654,13 +655,13 @@ cd /home/lijie/intel/intel_gpu/openvino
 ./bin/intel64/Release/benchmark_app \
   -m ./bevpool_v2_custom_ref4.onnx \
   -d CPU \
-  -shape "feat[1,54,96,80],depth[1,90,54,96],indices[6000],intervals[5035,3]" \
+   -shape "feat[1,54,96,80],depth[1,90,54,96],indices[466560],intervals[7313,3]" \
   -niter 5
 
 ./bin/intel64/Release/benchmark_app \
   -m ./bevpool_v2_custom_ref4.onnx \
   -d GPU \
-  -shape "feat[1,54,96,80],depth[1,90,54,96],indices[6000],intervals[5035,3]" \
+   -shape "feat[1,54,96,80],depth[1,90,54,96],indices[466560],intervals[7313,3]" \
   -niter 5
 ```
 
