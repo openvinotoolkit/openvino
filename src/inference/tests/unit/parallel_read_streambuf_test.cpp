@@ -368,8 +368,11 @@ TEST_F(ParallelReadStreamBufTest, ReadAtEof) {
 // ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, ParallelDispatch_FullReadCorrectness) {
     // Use hw_threads * 1 MB + 1 byte so that on any N-core machine,
-    // min(hw, size/1MB) > 1 whenever hw >= 2.
-    const size_t hw = std::max(size_t{2}, static_cast<size_t>(std::thread::hardware_concurrency()));
+    // min(hw, size/1MB) > 1 whenever hw >= 2. To avoid excessive memory / I/O
+    // on very high-core CI runners, cap the effective hw used for sizing.
+    constexpr size_t kMaxHwForSize = 16;
+    const size_t raw_hw = std::max(size_t{2}, static_cast<size_t>(std::thread::hardware_concurrency()));
+    const size_t hw = std::min(kMaxHwForSize, raw_hw);
     const size_t kSize = hw * 1024 * 1024 + 1;
 
     std::vector<uint8_t> expected(kSize);
@@ -416,8 +419,7 @@ TEST_F(ParallelReadStreamBufTest, ParallelDispatch_NonZeroOffset_AndSeek) {
 
     // Second pass: read the whole payload
     std::vector<uint8_t> full_read(kPayloadSize);
-    ASSERT_TRUE(
-        stream.read(reinterpret_cast<char*>(full_read.data()), static_cast<std::streamsize>(kPayloadSize)));
+    ASSERT_TRUE(stream.read(reinterpret_cast<char*>(full_read.data()), static_cast<std::streamsize>(kPayloadSize)));
     EXPECT_EQ(full_read, payload) << "Full read after seek produced incorrect data";
 }
 

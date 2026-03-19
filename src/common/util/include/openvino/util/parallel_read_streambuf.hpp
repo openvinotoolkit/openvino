@@ -35,10 +35,6 @@
 #    include <unistd.h>
 #endif
 
-#ifndef ENABLE_BD_PROFILING_LOG
-#    define ENABLE_BD_PROFILING_LOG 0
-#endif
-
 namespace ov {
 namespace util {
 
@@ -228,8 +224,20 @@ protected:
     }
 
     std::streamsize showmanyc() override {
-        const std::streamoff avail = m_file_size - m_file_offset;
-        return avail > 0 ? static_cast<std::streamsize>(avail) : -1;
+        // Report both buffered characters (in the get area) and remaining
+        // bytes in the underlying file. Return -1 only when nothing more is
+        // available, to match std::streambuf expectations.
+        std::streamsize buffered = 0;
+        if (gptr() != nullptr && egptr() != nullptr && egptr() > gptr()) {
+            buffered = static_cast<std::streamsize>(egptr() - gptr());
+        }
+        std::streamoff remaining_off = m_file_size - m_file_offset;
+        if (remaining_off < 0) {
+            remaining_off = 0;
+        }
+        const std::streamsize remaining = remaining_off > 0 ? static_cast<std::streamsize>(remaining_off) : 0;
+        const std::streamsize total = buffered + remaining;
+        return total > 0 ? total : static_cast<std::streamsize>(-1);
     }
 
 private:
@@ -294,11 +302,6 @@ private:
         chunk_size = (chunk_size + 4095u) & ~size_t{4095u};
 
         std::atomic<bool> success{true};
-
-#if ENABLE_BD_PROFILING_LOG
-        const auto t0 = std::chrono::steady_clock::now();
-#endif
-
         // Dispatch via OpenVINO's thread pool (TBB/OMP/SEQ) so threads are reused
         // across calls and there is no per-read create/destroy overhead.
         // Each worker opens its own file descriptor so that Linux's per-file-
@@ -332,18 +335,25 @@ private:
             char* cur = ptr;
             size_t remaining = read_size;
             size_t cur_file_offset = thread_file_offset;
-
+            // Windows path: single_read()/parallel_read() treat ERROR_IO_PENDING as non-fatal but never wait for the
+            // overlapped I/O to complete (bytes_read may remain 0). This can cause spurious read failures or truncated
+            // reads on Windows. Fix by either opening the file handle(s) with FILE_FLAG_OVERLAPPED and calling
+            // GetOverlappedResult (or waiting on an event) when ERROR_IO_PENDING is returned, or avoid overlapped I/O
+            // entirely and use a synchronous positional read approach that guarantees bytes_read is populated before
+            // continuing.
             while (remaining > 0 && success) {
                 const DWORD to_read = static_cast<DWORD>(std::min(remaining, static_cast<size_t>(UINT_MAX - 1024u)));
-                OVERLAPPED ov = {};
-                ov.Offset = static_cast<DWORD>(cur_file_offset & 0xFFFFFFFFu);
-                ov.OffsetHigh = static_cast<DWORD>((cur_file_offset >> 32) & 0xFFFFFFFFu);
+                LARGE_INTEGER li;
+                li.QuadPart = static_cast<LONGLONG>(cur_file_offset);
+                if (!SetFilePointerEx(t_handle, li, nullptr, FILE_BEGIN)) {
+                    success = false;
+                    break;
+                }
+
                 DWORD bytes_read = 0;
-                if (!ReadFile(t_handle, cur, to_read, &bytes_read, &ov)) {
-                    if (GetLastError() != ERROR_IO_PENDING) {
-                        success = false;
-                        break;
-                    }
+                if (!ReadFile(t_handle, cur, to_read, &bytes_read, nullptr)) {
+                    success = false;
+                    break;
                 }
                 if (bytes_read == 0) {
                     success = false;
@@ -379,16 +389,6 @@ private:
 #endif
         });
 
-#if ENABLE_BD_PROFILING_LOG
-        {
-            const auto t1 = std::chrono::steady_clock::now();
-            const double elapsed_s = std::chrono::duration<double>(t1 - t0).count();
-            const double bw_gbs =
-                (elapsed_s > 0.0) ? (static_cast<double>(size) / elapsed_s / (1024.0 * 1024.0 * 1024.0)) : 0.0;
-            std::cout << "[ParallelReadStreamBuf] parallel_read: " << size / 1024.0 / 1024.0 << " MB, " << num_threads
-                      << " threads, " << elapsed_s * 1e3 << " ms, " << bw_gbs << " GB/s" << std::endl;
-        }
-#endif
         return success.load();
     }
 

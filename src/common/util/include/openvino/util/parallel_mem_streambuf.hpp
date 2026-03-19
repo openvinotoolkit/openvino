@@ -31,10 +31,6 @@
 #include "openvino/util/log.hpp"
 #include "openvino/util/parallel_read_streambuf.hpp"
 
-#ifndef ENABLE_BD_PROFILING_LOG
-#    define ENABLE_BD_PROFILING_LOG 0
-#endif
-
 namespace ov {
 namespace util {
 
@@ -238,26 +234,11 @@ private:
         madvise(const_cast<char*>(src), size, MADV_WILLNEED);
 #endif
 
-#if ENABLE_BD_PROFILING_LOG
-        const auto t0 = std::chrono::steady_clock::now();
-#endif
-
         ov::parallel_for(num_chunks, [&](size_t i) {
             const size_t offset = i * chunk_size;
             const size_t copy_size = (i + 1 == num_chunks) ? (size - offset) : chunk_size;
             std::memcpy(dst + offset, src + offset, copy_size);
         });
-
-#if ENABLE_BD_PROFILING_LOG
-        {
-            const auto t1 = std::chrono::steady_clock::now();
-            const double elapsed_s = std::chrono::duration<double>(t1 - t0).count();
-            const double bw_gbs =
-                (elapsed_s > 0.0) ? (static_cast<double>(size) / elapsed_s / (1024.0 * 1024.0 * 1024.0)) : 0.0;
-            std::cout << "[ParallelMemStreamBuf] parallel_copy: " << size / 1024.0 / 1024.0 << " MB, " << num_chunks
-                      << " chunks, " << elapsed_s * 1e3 << " ms, " << bw_gbs << " GB/s" << std::endl;
-        }
-#endif
     }
 
     const char* m_begin;

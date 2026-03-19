@@ -194,8 +194,7 @@ TEST(ParallelMemStreamBufTest, SeekFromCurrent) {
     ASSERT_TRUE(stream.read(reinterpret_cast<char*>(second.data()), static_cast<std::streamsize>(kSecondRead)));
 
     const size_t expected_start = kFirstRead + static_cast<size_t>(kSkip);
-    std::vector<uint8_t> expected_slice(src.begin() + expected_start,
-                                        src.begin() + expected_start + kSecondRead);
+    std::vector<uint8_t> expected_slice(src.begin() + expected_start, src.begin() + expected_start + kSecondRead);
     EXPECT_EQ(second, expected_slice);
 }
 
