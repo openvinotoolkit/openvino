@@ -61,17 +61,16 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
 }
 
 bool should_use_weightless_flow(const ov::AnyMap& non_npuw_props,
-                                bool npuw_cwai_enabled,
+                                const ::intel_npu::Config& config,
                                 const std::unordered_map<const void*, std::size_t>& const_to_offset) {
-    if (!npuw_cwai_enabled) {
+    if (!config.get<::intel_npu::NPUW_FOLD>() || !config.get<::intel_npu::NPUW_FUNCALL_FOR_ALL>() ||
+        !config.get<::intel_npu::NPUW_CWAI>()) {
         return false;
     }
 
     bool is_weightless = true;
     if (auto it = non_npuw_props.find(ov::enable_weightless.name()); it != non_npuw_props.end()) {
-        if (!it->second.as<bool>()) {
-            is_weightless = false;
-        }
+        is_weightless = it->second.as<bool>();
     } else if (auto it = non_npuw_props.find(ov::cache_mode.name());
                it != non_npuw_props.end() && it->second.as<ov::CacheMode>() == ov::CacheMode::OPTIMIZE_SPEED) {
         is_weightless = false;
@@ -1046,7 +1045,7 @@ void ov::npuw::CompiledModel::export_model(std::ostream& stream) const {
 
     // Identify either full flow or weightless
     bool is_weightless =
-        should_use_weightless_flow(m_non_npuw_props, m_cfg.get<::intel_npu::NPUW_CWAI>(), m_const_to_offset);
+        should_use_weightless_flow(m_non_npuw_props, m_cfg, m_const_to_offset);
     if (!is_weightless) {
         LOG_INFO("Serialization will be done via flow with weights.");
     }
@@ -1249,7 +1248,7 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
 
         // Write flow identifier
         bool is_weightless =
-            should_use_weightless_flow(m_non_npuw_props, m_cfg.get<::intel_npu::NPUW_CWAI>(), m_const_to_offset);
+            should_use_weightless_flow(m_non_npuw_props, m_cfg, m_const_to_offset);
         write(model_stream, is_weightless);
 
         // Write bf16 consts cache

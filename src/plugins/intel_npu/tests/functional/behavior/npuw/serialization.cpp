@@ -80,24 +80,59 @@ TEST(SerializationTestNPUW, Stress_ParallelImport) {
     }
 }
 
-TEST(SerializationTestNPUW, ImportBlobWithOnlyNpuUseNpuw) {
-    ov::Core ov_core;
+class ImportNonLLMBlobTestNPUW :
+    public ::testing::TestWithParam<std::tuple<ov::AnyMap, ov::Any>> {
+public:
+    void SetUp() override {
+        ModelBuilder mb;
+        m_ov_model = mb.get_model_with_repeated_blocks();
+        m_props = {{"NPU_USE_NPUW", "YES"}, {"NPUW_DEVICES", "NPU"}};
+    }
 
-    // Build model in-test: no external model files and no downloads.
-    ModelBuilder mb;
-    auto model = mb.get_model_with_repeated_blocks();
+protected:
+    ModelBuilder model_builder;
+    std::shared_ptr<ov::Model> m_ov_model;
+    ov::AnyMap m_props;
+    ov::Core m_core;
+};
 
-    // Reproduction config from the issue: only NPU_USE_NPUW.
-    ov::AnyMap props = {{"NPU_USE_NPUW", "YES"}};
+TEST_P(ImportNonLLMBlobTestNPUW, NoThrow) {
+    ov::AnyMap wai_props;
+    ov::Any cache_prop;
+    std::tie(wai_props, cache_prop) = GetParam();
+    m_props.insert(wai_props.begin(), wai_props.end());
+    m_props["CACHE_MODE"] = cache_prop;
 
-    auto compiled = ov_core.compile_model(model, "NPU", props);
+    auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
 
     std::stringstream blob;
     compiled.export_model(blob);
 
     EXPECT_NO_THROW({
-        auto imported = ov_core.import_model(blob, "NPU", props);
+        auto imported = m_core.import_model(blob, "NPU", m_props);
         auto request = imported.create_infer_request();
         request.infer();
     });
 }
+
+INSTANTIATE_TEST_SUITE_P(Only_NPU_USE_NPUW, ImportNonLLMBlobTestNPUW,
+    testing::Combine(
+    testing::Values(ov::AnyMap{}),
+    testing::Values(ov::Any{"OPTIMIZE_SPEED"}, ov::Any{"OPTIMIZE_SIZE"})));
+INSTANTIATE_TEST_SUITE_P(NPUW_FOLD, ImportNonLLMBlobTestNPUW,
+    testing::Combine(
+    testing::Values(ov::AnyMap{{"NPUW_FOLD", "YES"}}),
+    testing::Values(ov::Any{"OPTIMIZE_SPEED"}, ov::Any{"OPTIMIZE_SIZE"})));
+INSTANTIATE_TEST_SUITE_P(NPUW_FUNCALL_FOR_ALL, ImportNonLLMBlobTestNPUW,
+    testing::Combine(
+    testing::Values(ov::AnyMap{{"NPUW_FUNCALL_FOR_ALL", "YES"}}),
+    testing::Values(ov::Any{"OPTIMIZE_SPEED"}, ov::Any{"OPTIMIZE_SIZE"})));
+INSTANTIATE_TEST_SUITE_P(NPUW_FOLD_FUNCALL_FOR_ALL, ImportNonLLMBlobTestNPUW,
+    testing::Combine(
+    testing::Values(ov::AnyMap{{"NPUW_FOLD", "YES"},
+                               {"NPUW_FUNCALL_FOR_ALL", "YES"}}),
+    testing::Values(ov::Any{"OPTIMIZE_SPEED"}, ov::Any{"OPTIMIZE_SIZE"})));
+INSTANTIATE_TEST_SUITE_P(NPUW_CWAI, ImportNonLLMBlobTestNPUW,
+    testing::Combine(
+    testing::Values(ov::AnyMap{{"NPUW_CWAI", "YES"}}),
+    testing::Values(ov::Any{"OPTIMIZE_SPEED"}, ov::Any{"OPTIMIZE_SIZE"})));
