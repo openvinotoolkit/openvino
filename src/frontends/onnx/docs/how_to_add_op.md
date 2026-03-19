@@ -66,7 +66,7 @@ ONNX_OP("CustomAdd", OPSET_SINCE(1), ai_onnx::opset_1::custom_add, OPENVINO_ONNX
 }  // namespace ov
 ```
 
-The minimum requirement to receive an approval during the code review is the implementation of [C++ unit tests](tests.md#C++-tests) for a new operation. To make a test you may need to prepare a [prototxt file](../tests/models) with a small model which implements your operation.
+The minimum requirement to receive an approval during the code review is the implementation of [C++ unit tests](tests.md#C-tests) for a new operation. To make a test you may need to prepare a [prototxt file](../tests/models) with a small model which implements your operation.
 
 
 ## How to register a custom operation via extensions mechanism
