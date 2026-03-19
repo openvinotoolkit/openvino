@@ -912,12 +912,50 @@ void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fi
     std::memset(tensor_data, fill_val, byte_size);
 }
 
-bool ov::npuw::util::isPastKeyValuesKey(const std::string& str) {
-    std::regex pattern(R"(past_key_values\.\d+\.key)");
-    return std::regex_match(str, pattern);
+std::optional<int> ov::npuw::util::isPastKeyValuesKey(const std::string& str) {
+    // Capture the number in parentheses
+    std::regex pattern(R"(past_key_values\.(\d+)\.key)");
+    std::smatch match;
+    if (std::regex_match(str, match, pattern)) {
+        // match[1] contains the number
+        int index = std::stoi(match[1].str());
+        return index;
+    }
+    return std::nullopt;
 }
 
-bool ov::npuw::util::isPastKeyValuesValue(const std::string& str) {
-    std::regex pattern(R"(past_key_values\.\d+\.value)");
-    return std::regex_match(str, pattern);
+std::optional<int> ov::npuw::util::isPastKeyValuesValue(const std::string& str) {
+    // Capture the number in parentheses
+    std::regex pattern(R"(past_key_values\.(\d+)\.value)");
+    std::smatch match;
+    if (std::regex_match(str, match, pattern)) {
+        // match[1] contains the number
+        int index = std::stoi(match[1].str());
+        return index;
+    }
+    return std::nullopt;
+}
+
+std::optional<int> ov::npuw::util::isPresentKeyValuesKey(const std::string& str) {
+    // Capture the number in parentheses
+    std::regex pattern(R"(present\.(\d+)\.key)");
+    std::smatch match;
+    if (std::regex_match(str, match, pattern)) {
+        // match[1] contains the number
+        int index = std::stoi(match[1].str());
+        return index;
+    }
+    return std::nullopt;
+}
+
+std::optional<int> ov::npuw::util::isPresentKeyValuesValue(const std::string& str) {
+    // Capture the number in parentheses
+    std::regex pattern(R"(present\.(\d+)\.value)");
+    std::smatch match;
+    if (std::regex_match(str, match, pattern)) {
+        // match[1] contains the number
+        int index = std::stoi(match[1].str());
+        return index;
+    }
+    return std::nullopt;
 }

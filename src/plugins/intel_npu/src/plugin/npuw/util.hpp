@@ -7,6 +7,7 @@
 #include <future>
 #include <random>
 #include <string>
+#include <optional>
 
 #include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
@@ -243,9 +244,11 @@ private:
     mutable bool done = false;
 };
 
-bool isPastKeyValuesKey(const std::string& str);
 
-bool isPastKeyValuesValue(const std::string& str);
+std::optional<int> isPastKeyValuesKey(const std::string& str);
+std::optional<int> isPastKeyValuesValue(const std::string& str);
+std::optional<int> isPresentKeyValuesKey(const std::string& str);
+std::optional<int> isPresentKeyValuesValue(const std::string& str);
 
 }  // namespace util
 }  // namespace npuw
