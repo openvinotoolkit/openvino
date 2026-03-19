@@ -194,21 +194,23 @@ void compileModelThreadModel(TsfnContextModel* context) {
 }
 
 void compileModelThreadPath(TsfnContextPath* context) {
-    std::string error_msg;
+    std::exception_ptr stored_exception;
     try {
         ov::Core core;
         context->_compiled_model = core.compile_model(context->_model, context->_device, context->_config);
-    } catch (const std::exception& e) {
-        error_msg = e.what();
+    } catch (...) {
+        stored_exception = std::current_exception();
     }
-    auto callback = [error_msg](Napi::Env env, Napi::Function, TsfnContextPath* context) {
+    auto callback = [stored_exception](Napi::Env env, Napi::Function, TsfnContextPath* context) {
         try {
-            if (!error_msg.empty()) {
-                throw std::runtime_error(error_msg);
+            if (stored_exception) {
+                std::rethrow_exception(stored_exception);
             }
             context->deferred.Resolve(CompiledModelWrap::wrap(env, context->_compiled_model));
         } catch (const std::exception& e) {
             context->deferred.Reject(Napi::Error::New(env, e.what()).Value());
+        } catch (...) {
+            context->deferred.Reject(Napi::Error::New(env, "Unknown error occurred during model compilation").Value());
         }
     };
 
