@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -32,6 +33,11 @@ namespace {
     auto cfg = ::intel_npu::Config(opt_desc);
     cfg.update(cfg_map);
     return cfg;
+}
+
+std::filesystem::path make_unique_temp_path(const std::string& stem, const std::string& extension) {
+    const auto nonce = std::chrono::steady_clock::now().time_since_epoch().count();
+    return std::filesystem::temp_directory_path() / (stem + "_" + std::to_string(nonce) + extension);
 }
 
 std::shared_ptr<ov::Model> build_unary_chain_model() {
@@ -132,16 +138,17 @@ TEST(PartitioningOptionsTest, IsolateOptionTagsUnaryGroups) {
 }
 
 TEST(PartitioningOptionsTest, DumpPlanWritesXmlFile) {
-    const auto dump_path = std::filesystem::temp_directory_path() / "npuw_partitioning_effect_dump.xml";
-    std::filesystem::remove(dump_path);
+    const auto dump_path = make_unique_temp_path("npuw_partitioning_effect_dump", ".xml");
 
     auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "NONE"}, {"NPUW_ONLINE_DUMP_PLAN", dump_path.string()}});
     (void)ov::npuw::online::buildPartitioning(build_unary_chain_model(), cfg);
 
     ASSERT_TRUE(std::filesystem::exists(dump_path));
-    std::ifstream stream(dump_path);
-    std::string xml((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
-    EXPECT_NE(xml.find("<ensemble"), std::string::npos);
+    {
+        std::ifstream stream(dump_path);
+        std::string xml((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
+        EXPECT_NE(xml.find("<ensemble"), std::string::npos);
+    }
 
     std::filesystem::remove(dump_path);
 }
@@ -264,8 +271,7 @@ TEST(PartitioningOptionsTest, CwaiCreatesFunctionCallsForRepeatedBlocks) {
 }
 
 TEST(PartitioningOptionsTest, PlanFileReusesDumpedPartitioningStructure) {
-    const auto plan_path = std::filesystem::temp_directory_path() / "npuw_partitioning_effect_plan.xml";
-    std::filesystem::remove(plan_path);
+    const auto plan_path = make_unique_temp_path("npuw_partitioning_effect_plan", ".xml");
 
     auto online_cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "NONE"}, {"NPUW_ONLINE_DUMP_PLAN", plan_path.string()}});
     auto online_ens = ov::npuw::online::buildPartitioning(build_unary_chain_model(), online_cfg);
@@ -279,8 +285,9 @@ TEST(PartitioningOptionsTest, PlanFileReusesDumpedPartitioningStructure) {
     std::filesystem::remove(plan_path);
 }
 
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
 TEST(PartitioningOptionsTest, DumpFullWritesModelXmlIntoCurrentDirectory) {
-    const auto temp_dir = std::filesystem::temp_directory_path() / "npuw_dump_full_effect";
+    const auto temp_dir = make_unique_temp_path("npuw_dump_full_effect", "");
     std::filesystem::create_directories(temp_dir);
     const auto old_cwd = std::filesystem::current_path();
 
@@ -299,5 +306,6 @@ TEST(PartitioningOptionsTest, DumpFullWritesModelXmlIntoCurrentDirectory) {
     std::filesystem::remove(temp_dir / "npuw_dump_full_effect_model.bin");
     std::filesystem::remove(temp_dir);
 }
+#endif
 
 }  // namespace
