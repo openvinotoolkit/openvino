@@ -13,15 +13,6 @@
 
 namespace {
 
-#define INTEL_NPU_NPUW_IF_BUILD_ALL(SELECT, ...) SELECT(__VA_ARGS__)
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
-#define INTEL_NPU_NPUW_IF_BUILD_DEV(SELECT, ...) SELECT(__VA_ARGS__)
-#else
-#define INTEL_NPU_NPUW_IF_BUILD_DEV(SELECT, ...)
-#endif
-#define INTEL_NPU_NPUW_IF_SURFACE_EXPOSED(EMIT, ...) EMIT(__VA_ARGS__)
-#define INTEL_NPU_NPUW_IF_SURFACE_HIDDEN(EMIT, ...)
-
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     std::map<std::string, std::string> result;
     for (auto&& value : params) {
@@ -610,18 +601,10 @@ void Properties::registerPluginProperties() {
 
     // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
     // to enable those for OV Core to query.
-#define REGISTER_EXPOSED_NPUW_PROPERTY(OPT_TYPE) TRY_REGISTER_NPUW_OPTION_PROPERTY(OPT_TYPE);
-#define INTEL_NPU_NPUW_SIMPLE_OPT(OPT, TYPE, DEFAULT, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
-    INTEL_NPU_NPUW_IF_BUILD_##BUILD(INTEL_NPU_NPUW_IF_SURFACE_##SURFACE, REGISTER_EXPOSED_NPUW_PROPERTY, OPT)
-#define INTEL_NPU_NPUW_STRING_ENUM_OPT(OPT, TYPE, TRAITS, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
-    INTEL_NPU_NPUW_IF_BUILD_##BUILD(INTEL_NPU_NPUW_IF_SURFACE_##SURFACE, REGISTER_EXPOSED_NPUW_PROPERTY, OPT)
-#define INTEL_NPU_NPUW_ANYMAP_OPT(OPT, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
-    INTEL_NPU_NPUW_IF_BUILD_##BUILD(INTEL_NPU_NPUW_IF_SURFACE_##SURFACE, REGISTER_EXPOSED_NPUW_PROPERTY, OPT)
-#include "intel_npu/config/npuw_option_defs.inc"
-#undef INTEL_NPU_NPUW_ANYMAP_OPT
-#undef INTEL_NPU_NPUW_STRING_ENUM_OPT
-#undef INTEL_NPU_NPUW_SIMPLE_OPT
-#undef REGISTER_EXPOSED_NPUW_PROPERTY
+    for_each_exposed_npuw_option([&](auto tag) {
+        using Opt = typename decltype(tag)::type;
+        TRY_REGISTER_NPUW_OPTION_PROPERTY(Opt);
+    });
 
     // 2. Metrics (static device and enviroment properties)
     // ========

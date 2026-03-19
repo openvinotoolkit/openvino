@@ -35,15 +35,6 @@
 namespace {
 using namespace intel_npu;
 
-#define INTEL_NPU_NPUW_IF_BUILD_ALL(SELECT, ...) SELECT(__VA_ARGS__)
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
-#define INTEL_NPU_NPUW_IF_BUILD_DEV(SELECT, ...) SELECT(__VA_ARGS__)
-#else
-#define INTEL_NPU_NPUW_IF_BUILD_DEV(SELECT, ...)
-#endif
-#define INTEL_NPU_NPUW_IF_SURFACE_EXPOSED(EMIT, ...) EMIT(__VA_ARGS__)
-#define INTEL_NPU_NPUW_IF_SURFACE_HIDDEN(EMIT, ...)
-
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
 const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
@@ -282,18 +273,10 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
 
     // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
     // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
-#define REGISTER_EXPOSED_NPUW_OPTION(OPT_TYPE) REGISTER_OPTION(OPT_TYPE);
-#define INTEL_NPU_NPUW_SIMPLE_OPT(OPT, TYPE, DEFAULT, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
-    INTEL_NPU_NPUW_IF_BUILD_##BUILD(INTEL_NPU_NPUW_IF_SURFACE_##SURFACE, REGISTER_EXPOSED_NPUW_OPTION, OPT)
-#define INTEL_NPU_NPUW_STRING_ENUM_OPT(OPT, TYPE, TRAITS, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
-    INTEL_NPU_NPUW_IF_BUILD_##BUILD(INTEL_NPU_NPUW_IF_SURFACE_##SURFACE, REGISTER_EXPOSED_NPUW_OPTION, OPT)
-#define INTEL_NPU_NPUW_ANYMAP_OPT(OPT, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
-    INTEL_NPU_NPUW_IF_BUILD_##BUILD(INTEL_NPU_NPUW_IF_SURFACE_##SURFACE, REGISTER_EXPOSED_NPUW_OPTION, OPT)
-#include "intel_npu/config/npuw_option_defs.inc"
-#undef INTEL_NPU_NPUW_ANYMAP_OPT
-#undef INTEL_NPU_NPUW_STRING_ENUM_OPT
-#undef INTEL_NPU_NPUW_SIMPLE_OPT
-#undef REGISTER_EXPOSED_NPUW_OPTION
+    for_each_exposed_npuw_option([&](auto tag) {
+        using Opt = typename decltype(tag)::type;
+        REGISTER_OPTION(Opt);
+    });
 
     config.enableRuntimeOptions();
 

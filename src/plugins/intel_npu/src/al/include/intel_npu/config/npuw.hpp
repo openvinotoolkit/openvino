@@ -99,6 +99,30 @@ enum class MoEHint { DENSE, HOST_ROUTED, DEVICE_ROUTED };
 }  // namespace llm
 }  // namespace npuw
 
+enum class NPUWOptionGroup { ROOT, LLM, KOKORO };
+enum class NPUWOptionSurface { EXPOSED, HIDDEN };
+enum class NPUWOptionCaching { CACHED, UNCACHED };
+enum class NPUWOptionBuild { ALL, DEV };
+
+template <typename Option>
+struct NPUWOptionMeta;
+
+namespace detail {
+template <typename T>
+struct TypeTag {
+    using type = T;
+};
+}  // namespace detail
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+inline constexpr bool kIsNPUWDeveloperBuild = true;
+#else
+inline constexpr bool kIsNPUWDeveloperBuild = false;
+#endif
+
+template <NPUWOptionBuild Build>
+inline constexpr bool kIsNPUWBuildEnabled = Build == NPUWOptionBuild::ALL || kIsNPUWDeveloperBuild;
+
 template <typename EnumType>
 struct NPUWStringEnumOptionTraits;
 
@@ -297,6 +321,116 @@ struct NPUWStringEnumOptionBase : OptionBase<ActualOpt, typename Traits::ValueTy
 #undef DEFINE_NPUW_STRING_ENUM_OPT
 #undef DEFINE_NPUW_ANYMAP_OPT
 #undef DEFINE_NPUW_SIMPLE_OPT
+
+#define INTEL_NPU_NPUW_SIMPLE_OPT(OPT, TYPE, DEFAULT, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
+    template <>                                                                                           \
+    struct NPUWOptionMeta<OPT> {                                                                          \
+        using ConfigValueType = TYPE;                                                                     \
+        using PropertyValueType = TYPE;                                                                   \
+        static constexpr auto group = NPUWOptionGroup::GROUP;                                             \
+        static constexpr auto surface = NPUWOptionSurface::SURFACE;                                       \
+        static constexpr auto caching = NPUWOptionCaching::CACHING;                                       \
+        static constexpr auto build = NPUWOptionBuild::BUILD;                                             \
+        static constexpr std::string_view key() {                                                         \
+            return KEY;                                                                                   \
+        }                                                                                                 \
+    };
+#define INTEL_NPU_NPUW_STRING_ENUM_OPT(OPT, TYPE, TRAITS, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
+    template <>                                                                                                \
+    struct NPUWOptionMeta<OPT> {                                                                               \
+        using ConfigValueType = TYPE;                                                                          \
+        using PropertyValueType = std::string;                                                                 \
+        static constexpr auto group = NPUWOptionGroup::GROUP;                                                  \
+        static constexpr auto surface = NPUWOptionSurface::SURFACE;                                            \
+        static constexpr auto caching = NPUWOptionCaching::CACHING;                                            \
+        static constexpr auto build = NPUWOptionBuild::BUILD;                                                  \
+        static constexpr std::string_view key() {                                                              \
+            return KEY;                                                                                        \
+        }                                                                                                      \
+    };
+#define INTEL_NPU_NPUW_ANYMAP_OPT(OPT, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
+    template <>                                                                            \
+    struct NPUWOptionMeta<OPT> {                                                           \
+        using ConfigValueType = ov::AnyMap;                                                \
+        using PropertyValueType = ov::AnyMap;                                              \
+        static constexpr auto group = NPUWOptionGroup::GROUP;                              \
+        static constexpr auto surface = NPUWOptionSurface::SURFACE;                        \
+        static constexpr auto caching = NPUWOptionCaching::CACHING;                        \
+        static constexpr auto build = NPUWOptionBuild::BUILD;                              \
+        static constexpr std::string_view key() {                                          \
+            return KEY;                                                                    \
+        }                                                                                  \
+    };
+#include "intel_npu/config/npuw_option_defs.inc"
+#undef INTEL_NPU_NPUW_ANYMAP_OPT
+#undef INTEL_NPU_NPUW_STRING_ENUM_OPT
+#undef INTEL_NPU_NPUW_SIMPLE_OPT
+
+template <NPUWOptionGroup Group, typename Fn>
+void for_each_npuw_option(Fn&& fn) {
+#define INTEL_NPU_NPUW_SIMPLE_OPT(OPT, TYPE, DEFAULT, NS, VARNAME, KEY, ENTRY_GROUP, SURFACE, CACHING, BUILD) \
+    if constexpr (Group == NPUWOptionGroup::ENTRY_GROUP && kIsNPUWBuildEnabled<NPUWOptionBuild::BUILD>) {      \
+        fn(detail::TypeTag<OPT>{});                                                                              \
+    }
+#define INTEL_NPU_NPUW_STRING_ENUM_OPT(OPT, TYPE, TRAITS, NS, VARNAME, KEY, ENTRY_GROUP, SURFACE, CACHING, BUILD) \
+    if constexpr (Group == NPUWOptionGroup::ENTRY_GROUP && kIsNPUWBuildEnabled<NPUWOptionBuild::BUILD>) {           \
+        fn(detail::TypeTag<OPT>{});                                                                                   \
+    }
+#define INTEL_NPU_NPUW_ANYMAP_OPT(OPT, NS, VARNAME, KEY, ENTRY_GROUP, SURFACE, CACHING, BUILD)                  \
+    if constexpr (Group == NPUWOptionGroup::ENTRY_GROUP && kIsNPUWBuildEnabled<NPUWOptionBuild::BUILD>) {      \
+        fn(detail::TypeTag<OPT>{});                                                                              \
+    }
+#include "intel_npu/config/npuw_option_defs.inc"
+#undef INTEL_NPU_NPUW_ANYMAP_OPT
+#undef INTEL_NPU_NPUW_STRING_ENUM_OPT
+#undef INTEL_NPU_NPUW_SIMPLE_OPT
+}
+
+template <typename Fn>
+void for_each_exposed_npuw_option(Fn&& fn) {
+#define INTEL_NPU_NPUW_SIMPLE_OPT(OPT, TYPE, DEFAULT, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
+    if constexpr (NPUWOptionSurface::SURFACE == NPUWOptionSurface::EXPOSED &&                           \
+                  kIsNPUWBuildEnabled<NPUWOptionBuild::BUILD>) {                                         \
+        fn(detail::TypeTag<OPT>{});                                                                      \
+    }
+#define INTEL_NPU_NPUW_STRING_ENUM_OPT(OPT, TYPE, TRAITS, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
+    if constexpr (NPUWOptionSurface::SURFACE == NPUWOptionSurface::EXPOSED &&                                \
+                  kIsNPUWBuildEnabled<NPUWOptionBuild::BUILD>) {                                              \
+        fn(detail::TypeTag<OPT>{});                                                                           \
+    }
+#define INTEL_NPU_NPUW_ANYMAP_OPT(OPT, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
+    if constexpr (NPUWOptionSurface::SURFACE == NPUWOptionSurface::EXPOSED &&             \
+                  kIsNPUWBuildEnabled<NPUWOptionBuild::BUILD>) {                           \
+        fn(detail::TypeTag<OPT>{});                                                        \
+    }
+#include "intel_npu/config/npuw_option_defs.inc"
+#undef INTEL_NPU_NPUW_ANYMAP_OPT
+#undef INTEL_NPU_NPUW_STRING_ENUM_OPT
+#undef INTEL_NPU_NPUW_SIMPLE_OPT
+}
+
+template <typename Fn>
+void for_each_cached_npuw_option(Fn&& fn) {
+#define INTEL_NPU_NPUW_SIMPLE_OPT(OPT, TYPE, DEFAULT, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
+    if constexpr (NPUWOptionCaching::CACHING == NPUWOptionCaching::CACHED &&                            \
+                  kIsNPUWBuildEnabled<NPUWOptionBuild::BUILD>) {                                         \
+        fn(detail::TypeTag<OPT>{});                                                                      \
+    }
+#define INTEL_NPU_NPUW_STRING_ENUM_OPT(OPT, TYPE, TRAITS, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
+    if constexpr (NPUWOptionCaching::CACHING == NPUWOptionCaching::CACHED &&                                 \
+                  kIsNPUWBuildEnabled<NPUWOptionBuild::BUILD>) {                                              \
+        fn(detail::TypeTag<OPT>{});                                                                           \
+    }
+#define INTEL_NPU_NPUW_ANYMAP_OPT(OPT, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
+    if constexpr (NPUWOptionCaching::CACHING == NPUWOptionCaching::CACHED &&             \
+                  kIsNPUWBuildEnabled<NPUWOptionBuild::BUILD>) {                          \
+        fn(detail::TypeTag<OPT>{});                                                       \
+    }
+#include "intel_npu/config/npuw_option_defs.inc"
+#undef INTEL_NPU_NPUW_ANYMAP_OPT
+#undef INTEL_NPU_NPUW_STRING_ENUM_OPT
+#undef INTEL_NPU_NPUW_SIMPLE_OPT
+}
 
 }  // namespace intel_npu
 

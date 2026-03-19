@@ -11,15 +11,6 @@
 
 namespace intel_npu {
 
-#define INTEL_NPU_NPUW_IF_BUILD_ALL(SELECT, ...) SELECT(__VA_ARGS__)
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
-#define INTEL_NPU_NPUW_IF_BUILD_DEV(SELECT, ...) SELECT(__VA_ARGS__)
-#else
-#define INTEL_NPU_NPUW_IF_BUILD_DEV(SELECT, ...)
-#endif
-#define INTEL_NPU_NPUW_IF_CACHING_CACHED(EMIT, ...) EMIT(__VA_ARGS__)
-#define INTEL_NPU_NPUW_IF_CACHING_UNCACHED(EMIT, ...)
-
 enum class PropertiesType { PLUGIN, COMPILED_MODEL };
 
 class Properties final {
@@ -138,43 +129,37 @@ private:
     void registerPluginProperties();
     void registerCompiledModelProperties();
 
-    const std::vector<ov::PropertyName> _cachingProperties = {
-        ov::cache_mode.name(),
-        ov::enable_profiling.name(),
-        ov::device::architecture.name(),
-        ov::hint::execution_mode.name(),
-        ov::hint::inference_precision.name(),
-        ov::hint::performance_mode.name(),
-        ov::intel_npu::batch_compiler_mode_settings.name(),
-        ov::intel_npu::batch_mode.name(),
-        ov::intel_npu::compilation_mode.name(),
-        ov::intel_npu::compilation_mode_params.name(),
-        ov::intel_npu::compiler_dynamic_quantization.name(),
-        ov::intel_npu::compiler_type.name(),
-        ov::intel_npu::dma_engines.name(),
-        ov::intel_npu::driver_version.name(),
-        ov::intel_npu::dynamic_shape_to_static.name(),
-        ov::intel_npu::enable_strides_for.name(),
-        ov::intel_npu::max_tiles.name(),
-        ov::intel_npu::stepping.name(),
-        ov::intel_npu::tiles.name(),
-        ov::intel_npu::turbo.name(),
-        ov::intel_npu::qdq_optimization.name(),
-        ov::intel_npu::qdq_optimization_aggressive.name(),
-        // NPUW caching properties
-#define NPUW_CACHING_PROPERTY(OPT_TYPE) ov::PropertyName(std::string{::intel_npu::OPT_TYPE::key()}),
-#define INTEL_NPU_NPUW_SIMPLE_OPT(OPT, TYPE, DEFAULT, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
-        INTEL_NPU_NPUW_IF_BUILD_##BUILD(INTEL_NPU_NPUW_IF_CACHING_##CACHING, NPUW_CACHING_PROPERTY, OPT)
-#define INTEL_NPU_NPUW_STRING_ENUM_OPT(OPT, TYPE, TRAITS, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
-        INTEL_NPU_NPUW_IF_BUILD_##BUILD(INTEL_NPU_NPUW_IF_CACHING_##CACHING, NPUW_CACHING_PROPERTY, OPT)
-#define INTEL_NPU_NPUW_ANYMAP_OPT(OPT, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
-        INTEL_NPU_NPUW_IF_BUILD_##BUILD(INTEL_NPU_NPUW_IF_CACHING_##CACHING, NPUW_CACHING_PROPERTY, OPT)
-#include "intel_npu/config/npuw_option_defs.inc"
-#undef INTEL_NPU_NPUW_ANYMAP_OPT
-#undef INTEL_NPU_NPUW_STRING_ENUM_OPT
-#undef INTEL_NPU_NPUW_SIMPLE_OPT
-#undef NPUW_CACHING_PROPERTY
-    };
+    const std::vector<ov::PropertyName> _cachingProperties = [] {
+        std::vector<ov::PropertyName> properties = {
+            ov::cache_mode.name(),
+            ov::enable_profiling.name(),
+            ov::device::architecture.name(),
+            ov::hint::execution_mode.name(),
+            ov::hint::inference_precision.name(),
+            ov::hint::performance_mode.name(),
+            ov::intel_npu::batch_compiler_mode_settings.name(),
+            ov::intel_npu::batch_mode.name(),
+            ov::intel_npu::compilation_mode.name(),
+            ov::intel_npu::compilation_mode_params.name(),
+            ov::intel_npu::compiler_dynamic_quantization.name(),
+            ov::intel_npu::compiler_type.name(),
+            ov::intel_npu::dma_engines.name(),
+            ov::intel_npu::driver_version.name(),
+            ov::intel_npu::dynamic_shape_to_static.name(),
+            ov::intel_npu::enable_strides_for.name(),
+            ov::intel_npu::max_tiles.name(),
+            ov::intel_npu::stepping.name(),
+            ov::intel_npu::tiles.name(),
+            ov::intel_npu::turbo.name(),
+            ov::intel_npu::qdq_optimization.name(),
+            ov::intel_npu::qdq_optimization_aggressive.name(),
+        };
+        for_each_cached_npuw_option([&](auto tag) {
+            using Opt = typename decltype(tag)::type;
+            properties.emplace_back(std::string{Opt::key()});
+        });
+        return properties;
+    }();
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
                                                                         ov::internal::caching_with_mmap.name(),
