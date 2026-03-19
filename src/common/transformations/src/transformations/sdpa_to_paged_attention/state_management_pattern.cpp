@@ -4,6 +4,8 @@
 
 #include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
 
+#include <iostream>
+#include <memory>
 #include <tuple>
 
 #include "openvino/cc/pass/itt.hpp"
@@ -200,14 +202,11 @@ static std::shared_ptr<ov::Node> handle_baichuan2_13b_alibi(
 
 static std::shared_ptr<ov::Node> handle_gemma3_token_type_ids(
     const std::map<std::string, std::shared_ptr<v0::Parameter>>& optional_model_wide_params) {
-    if (optional_model_wide_params.find("token_type_ids") != optional_model_wide_params.end()) {
-        auto param = optional_model_wide_params.at("token_type_ids");
-        if (param->get_element_type() != ov::element::i32) {
-            return std::make_shared<v0::Convert>(param, ov::element::i32);
-        }
-        return param;
+    auto param = optional_model_wide_params.at("token_type_ids");
+    if (param->get_element_type() != ov::element::i32) {
+        return std::make_shared<v0::Convert>(param, ov::element::i32);
     }
-    return v0::Constant::create(ov::element::i32, ov::Shape{0}, {});
+    return param;
 }
 
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> phi3_sliding_window_pattern() {
@@ -410,6 +409,16 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     std::shared_ptr<ov::Node> gptoss_gemma3_mask, gptoss_gemma3_offset;
     std::tie(gptoss_gemma3_mask, gptoss_gemma3_offset) = gptoss_gemma3_sliding_window_pattern();
 
+    // Persistent flag: set to true the first time a sliding_attention layer matches the
+    // gptoss_gemma3 pattern AND token_type_ids is present. This uniquely identifies Gemma3
+    // (gpt-oss shares the pattern but has no token_type_ids). The flag must live outside the
+    // per-layer callback so that full_attention layers (which don't match the sliding window
+    // pattern) can still see it once it has been set by a preceding sliding_attention layer.
+    // Use shared_ptr<bool> so the flag outlives the constructor scope: the lambda captures it
+    // by value (copying the shared_ptr), keeping the underlying bool alive until all callbacks
+    // are destroyed.
+    auto is_gemma3 = std::make_shared<bool>(false);
+
     // Scale's shape limitations according to SDPA specification
     auto scale_predicate = [=](const Output<Node>& output) -> bool {
         return output.get_partial_shape() == ov::PartialShape{} ||
@@ -438,13 +447,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
     auto sdpa_variants = std::make_shared<Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs, sdpa_with_6_inputs});
 
-    // Shared flag to track whether the model is Gemma3, set when any layer matches
-    // the gptoss_gemma3 sliding window pattern. Combined with the token_type_ids check,
-    // this uniquely identifies Gemma3 (gpt-oss shares the pattern but lacks token_type_ids).
-    bool is_gemma3 = false;
-
     ov::matcher_pass_callback callback = [=,
-                                          &is_gemma3,
                                           &kv_parameters,
                                           &model_wide_params,
                                           &block_indices_inputs_for_each_layer,
@@ -622,7 +625,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             }
             sliding_window = std::make_shared<v1::Subtract>(v0::Constant::create(element::i32, Shape{}, {2}), offset);
         } else if (pattern_map.count(gptoss_gemma3_offset)) {
-            is_gemma3 = optional_model_wide_params.count("token_type_ids");
+            // Combined check: gptoss pattern + token_type_ids uniquely identifies Gemma3.
+            // gpt-oss shares this sliding window pattern but has no token_type_ids input.
+            *is_gemma3 |= optional_model_wide_params.count("token_type_ids") > 0;
             auto offset = pattern_map.at(gptoss_gemma3_offset).get_node_shared_ptr();
             if (pattern_map.at(gptoss_gemma3_offset).get_partial_shape().rank() != 0) {
                 offset = std::make_shared<v15::Squeeze>(offset);
@@ -634,6 +639,16 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         } else {
             sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
         }
+        // is_gemma3 is set by sliding_attention layer callbacks (which match the gptoss pattern)
+        // and remains visible here for full_attention layers that don't match that pattern.
+        bool has_token_type_ids = *is_gemma3;
+
+        std::cout << "[StateManagementPattern] layer " << (layer_index - 1)
+                  << ": sliding_window_type="
+                  << (pattern_map.count(phi3_offset)          ? "phi3"
+                      : pattern_map.count(gptoss_gemma3_offset) ? "gptoss_gemma3"
+                                                                : "none")
+                  << ", token_type_ids=" << (has_token_type_ids ? "yes" : "no") << "\n";
 
         std::initializer_list<std::shared_ptr<Node>> additional_params = {scale,
                                                                           sliding_window,
@@ -757,7 +772,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
         OPENVINO_ASSERT(pa_arguments.size() == 25);
 
-        if (is_gemma3) {
+        if (has_token_type_ids) {
             pa_arguments.insert(pa_arguments.begin() + 25, handle_gemma3_token_type_ids(optional_model_wide_params));
         } else {
             pa_arguments.insert(pa_arguments.begin() + 25, v0::Constant::create(element::i32, Shape{0}, {}));
