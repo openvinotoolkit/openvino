@@ -528,7 +528,7 @@ For more details, refer to:
 
 
 
-Discontinued in 2026.0
+Discontinued in 2026
 -----------------------------
 
 * The deprecated ``openvino.runtime`` namespace has been removed. Please use the ``openvino`` namespace directly.
