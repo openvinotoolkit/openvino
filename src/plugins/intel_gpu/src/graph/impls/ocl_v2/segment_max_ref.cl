@@ -11,10 +11,10 @@
 // maximum value.
 //
 // Inputs:
-//   data         – [num_rows x inner_dim_size] flattened
-//   segment_ids  – [num_rows]
+//   data         - [num_rows x inner_dim_size] flattened
+//   segment_ids  - [num_rows]
 // Output:
-//   output       – [num_segments x inner_dim_size]
+//   output       - [num_segments x inner_dim_size]
 
 KERNEL(segment_max_ref)(
     OPTIONAL_SHAPE_INFO_ARG
