@@ -7,6 +7,7 @@
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/arg_max_min.hpp"
 #include "intel_gpu/primitives/batch_to_space.hpp"
+#include "intel_gpu/primitives/bevpool_v2.hpp"
 #include "intel_gpu/primitives/border.hpp"
 #include "intel_gpu/primitives/broadcast.hpp"
 #include "intel_gpu/primitives/bucketize.hpp"
@@ -80,6 +81,7 @@ REGISTER_OCL(activation);
 REGISTER_OCL(adaptive_pooling);
 REGISTER_OCL(arg_max_min);
 REGISTER_OCL(batch_to_space);
+REGISTER_OCL(bevpool_v2);
 REGISTER_OCL(border);
 REGISTER_OCL(broadcast);
 REGISTER_OCL(bucketize);
