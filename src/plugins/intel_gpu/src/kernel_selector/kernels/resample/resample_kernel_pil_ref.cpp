@@ -122,7 +122,7 @@ DataTensor GetIntermediateBufferSize(const resample_params& params) {
     OPENVINO_ASSERT(channelIndex >= 0, "Invalid layout channel index");
 
     dims[channelIndex] = ybox_last - ybox_first;
-    DataTensor result{dims, Datatype::F32, layout};
+    DataTensor result{dims, Datatype::F16, layout};
     return result;
 }
 
@@ -395,7 +395,7 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
 KernelsData ResampleKernelPilRef::GetKernelsData(const Params &params) const {
     const resample_params& resample_parameters = static_cast<const resample_params&>(params);
     KernelData kd = KernelData::Default<resample_params>(params, GetKernelsNum(resample_parameters));
-    kd.internalBufferDataType = Datatype::F32;
+    kd.internalBufferDataType = Datatype::F16;
     int i = 0;
     for (ResampleKernelPilRef::KernelId id = eCalcHorizontalCoefficients; id < eEnd; ++id) {
         if (!NeedHorizontalPass(resample_parameters) &&
