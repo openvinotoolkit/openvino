@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #pragma once
 
@@ -65,14 +66,15 @@ struct SDPAPatternNodes {
     std::shared_ptr<ov::Node> matmul2_node = nullptr;
     std::shared_ptr<ov::Node> softmax_node = nullptr;
     std::shared_ptr<ov::Node> add_node = nullptr;
-    std::shared_ptr<ov::Node> past_key_param_node = nullptr;
-    std::shared_ptr<ov::Node> past_value_param_node = nullptr;
+    // Support multiple block parameters after KV cache split
+    std::vector<std::shared_ptr<ov::Node>> past_key_param_nodes;
+    std::vector<std::shared_ptr<ov::Node>> past_value_param_nodes;
     std::shared_ptr<ov::Node> past_key_concat_node = nullptr;
     std::shared_ptr<ov::Node> past_value_concat_node = nullptr;
 
     bool is_valid() const {
-        return matmul1_node && matmul2_node && softmax_node && add_node && past_key_param_node &&
-               past_value_param_node && past_key_concat_node && past_value_concat_node;
+        return matmul1_node && matmul2_node && softmax_node && add_node && !past_key_param_nodes.empty() &&
+               !past_value_param_nodes.empty() && past_key_concat_node && past_value_concat_node;
     }
 
     // Log pattern information for debugging

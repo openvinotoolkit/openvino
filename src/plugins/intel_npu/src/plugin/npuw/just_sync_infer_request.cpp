@@ -1550,8 +1550,20 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     // Use pre-cached SDPA indices
     const auto& sdpa_in = sdpa_info._sdpa_indices;
 
-    auto past_key_tensor = hfa_inputs.at(sdpa_in.past_key);
-    auto past_value_tensor = hfa_inputs.at(sdpa_in.past_value);
+    std::vector<ov::SoPtr<ov::ITensor>> past_key_blocks;
+    std::vector<ov::SoPtr<ov::ITensor>> past_value_blocks;
+
+    NPUW_ASSERT(!sdpa_in.past_key_blocks.empty() && !sdpa_in.past_value_blocks.empty() &&
+                "SDPA indices must have at least one past_key/value block");
+    NPUW_ASSERT(sdpa_in.past_key_blocks.size() == sdpa_in.past_value_blocks.size() &&
+                "Number of past key blocks must match number of past value blocks");
+
+    // Collect all KV block tensors (works for both single-block and multi-block cases)
+    for (size_t i = 0; i < sdpa_in.past_key_blocks.size(); ++i) {
+        past_key_blocks.push_back(hfa_inputs.at(sdpa_in.past_key_blocks[i]));
+        past_value_blocks.push_back(hfa_inputs.at(sdpa_in.past_value_blocks[i]));
+    }
+
     auto query_tensor = hfa_inputs.at(sdpa_in.query);
     auto present_key_tensor = hfa_inputs.at(sdpa_in.present_key);
     auto attention_mask_tensor = hfa_inputs.at(sdpa_in.attention_mask);
@@ -1727,22 +1739,49 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     };
 
     int64_t mask_tile_offset = 0;
-    int64_t kv_tile_offset = 0;
+    int64_t global_kv_offset = 0;  // Global KV offset across all blocks
 
-    // Process regular tiles (all but the last one)
+    // Process regular tiles (all but the last one) - iterate through past KV blocks
     // Each regular tile processes past KV cache and outputs intermediate states (acc, max, d)
-    for (int64_t tile_idx = 0; tile_idx < num_tiles - 1; ++tile_idx) {
-        process_tile(regular_tile_request,
-                     hfa_desc._compiled_tile_model,
-                     past_key_tensor,
-                     past_value_tensor,
-                     kv_tile_offset,
-                     mask_tile_offset,
-                     tile_size);
+    int64_t past_kv_tiles = num_tiles - 1;  // Exclude final tile (present KV)
 
-        kv_tile_offset += tile_size;
-        mask_tile_offset += tile_size;
+    for (size_t block_idx = 0; block_idx < past_key_blocks.size() && past_kv_tiles > 0; ++block_idx) {
+        const auto& k_block = past_key_blocks[block_idx];
+        const auto& v_block = past_value_blocks[block_idx];
+
+        // Get block size from tensor shape
+        const int64_t block_size = static_cast<int64_t>(k_block->get_shape()[K_SEQ_DIM]);
+        NPUW_ASSERT(block_size % tile_size == 0 && "HFA block size must be a multiple of tile size for correct tiling");
+
+        // Calculate number of tiles in this block
+        // Example: 8K total tokens (7K past + 1K present), tile_size = 1K
+        //   - Single-block mode: past KV block_size = 7K → tiles_in_block = 7 (process 7 past tiles in this block)
+        //   - Multi-block mode (1K split): 7 blocks × 1K each, block_size = 1K → tiles_in_block = 1 (process 1 past
+        //   tile per block)
+        // Note: The present KV tile is processed after this loop completes
+        const int64_t tiles_in_block = block_size / tile_size;
+
+        // Process all tiles in this block (but only up to past_kv_tiles remaining)
+        for (int64_t tile_in_block = 0; tile_in_block < tiles_in_block && past_kv_tiles > 0; ++tile_in_block) {
+            const int64_t kv_offset_in_block = tile_in_block * tile_size;
+
+            // Process this tile directly from the block (no extraction needed)
+            process_tile(regular_tile_request,
+                         hfa_desc._compiled_tile_model,
+                         k_block,
+                         v_block,
+                         kv_offset_in_block,
+                         mask_tile_offset,
+                         tile_size);
+
+            mask_tile_offset += tile_size;
+            global_kv_offset += tile_size;
+            past_kv_tiles--;
+        }
     }
+
+    // Verify that all past tiles were processed correctly
+    NPUW_ASSERT(past_kv_tiles == 0 && "HFA: All past KV blocks should contain exactly (num_tiles - 1) tiles in total");
 
     // Process final tile separately
     // Final tile processes present KV tokens and produces final attention output

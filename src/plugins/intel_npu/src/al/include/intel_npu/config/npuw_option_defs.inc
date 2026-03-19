@@ -63,6 +63,7 @@ INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_ENABLE_PREFIX_CACHING, bool, false, ov::intel
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE, uint64_t, 256, ov::intel_npu::npuw::llm, prefix_caching_block_size, "NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS, uint64_t, 128, ov::intel_npu::npuw::llm, prefix_caching_max_num_blocks, "NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_CACHE_ROPE, bool, true, ov::intel_npu::npuw::llm, cache_rope, "NPUW_LLM_CACHE_ROPE", LLM, EXPOSED, CACHED, ALL)
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE, bool, false, ov::intel_npu::npuw::llm, enable_block_based_kv_cache, "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_STRING_ENUM_OPT(NPUW_LLM_PREFILL_MOE_HINT, ::intel_npu::npuw::llm::MoEHint, MoEHintOptionTraits, ov::intel_npu::npuw::llm, prefill_moe_hint, "NPUW_LLM_PREFILL_MOE_HINT", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_STRING_ENUM_OPT(NPUW_LLM_GENERATE_MOE_HINT, ::intel_npu::npuw::llm::MoEHint, MoEHintOptionTraits, ov::intel_npu::npuw::llm, generate_moe_hint, "NPUW_LLM_GENERATE_MOE_HINT", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_STRING_ENUM_OPT(NPUW_LLM_PREFILL_HINT, ::intel_npu::npuw::llm::PrefillHint, PrefillHintOptionTraits, ov::intel_npu::npuw::llm, prefill_hint, "NPUW_LLM_PREFILL_HINT", LLM, EXPOSED, CACHED, ALL)

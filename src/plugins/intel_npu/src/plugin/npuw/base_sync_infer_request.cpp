@@ -567,9 +567,15 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         // Check if sub_in_idx matches any SDPA parameter index
         auto& hfa_attn = proto_comp_model_desc.host_flash_attention.value()._sdpa_attention_info;
         const auto& sdpa_in = hfa_attn._sdpa_indices;
-        return sub_in_idx == sdpa_in.query || sub_in_idx == sdpa_in.past_key || sub_in_idx == sdpa_in.past_value ||
-               sub_in_idx == sdpa_in.present_key || sub_in_idx == sdpa_in.present_value ||
-               sub_in_idx == sdpa_in.attention_mask;
+
+        // Check if sub_in_idx is in past_key_blocks or past_value_blocks vectors
+        auto is_past_kv = [&](const std::vector<std::size_t>& blocks) {
+            return std::find(blocks.begin(), blocks.end(), sub_in_idx) != blocks.end();
+        };
+
+        return sub_in_idx == sdpa_in.query || is_past_kv(sdpa_in.past_key_blocks) ||
+               is_past_kv(sdpa_in.past_value_blocks) || sub_in_idx == sdpa_in.present_key ||
+               sub_in_idx == sdpa_in.present_value || sub_in_idx == sdpa_in.attention_mask;
     };
 
     for (auto&& it : iodesc.global_params) {

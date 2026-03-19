@@ -142,8 +142,8 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::HostF
 
     // Serialize SDPA indices from _sdpa_attention_info
     write(stream, var._sdpa_attention_info._sdpa_indices.query);
-    write(stream, var._sdpa_attention_info._sdpa_indices.past_key);
-    write(stream, var._sdpa_attention_info._sdpa_indices.past_value);
+    write(stream, var._sdpa_attention_info._sdpa_indices.past_key_blocks);
+    write(stream, var._sdpa_attention_info._sdpa_indices.past_value_blocks);
     write(stream, var._sdpa_attention_info._sdpa_indices.present_key);
     write(stream, var._sdpa_attention_info._sdpa_indices.present_value);
     write(stream, var._sdpa_attention_info._sdpa_indices.attention_mask);
@@ -367,8 +367,8 @@ void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::HostFlashAtt
 
     // Deserialize SDPA indices into _sdpa_attention_info
     read(stream, var._sdpa_attention_info._sdpa_indices.query);
-    read(stream, var._sdpa_attention_info._sdpa_indices.past_key);
-    read(stream, var._sdpa_attention_info._sdpa_indices.past_value);
+    read(stream, var._sdpa_attention_info._sdpa_indices.past_key_blocks);
+    read(stream, var._sdpa_attention_info._sdpa_indices.past_value_blocks);
     read(stream, var._sdpa_attention_info._sdpa_indices.present_key);
     read(stream, var._sdpa_attention_info._sdpa_indices.present_value);
     read(stream, var._sdpa_attention_info._sdpa_indices.attention_mask);
