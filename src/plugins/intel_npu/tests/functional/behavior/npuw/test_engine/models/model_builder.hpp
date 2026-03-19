@@ -411,10 +411,7 @@ struct ModelConfig {
     size_t max_position_embeddings = 512;
     size_t type_vocab_size = 2;
 
-    ModelConfig()
-        : lm_head_weight(weight),
-          norm(LayerNorm(hidden_size, precision)),
-          ffn(SwiGLU(hidden_size, intermediate_size, precision, weight)) {}
+    ModelConfig() : lm_head_weight(weight) {}
 
     size_t get_kv_heads() const {
         return num_kv_heads == 0 ? num_heads : num_kv_heads;
