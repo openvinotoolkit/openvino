@@ -238,9 +238,9 @@ void ZeroInferRequest::construct_pipeline() {
     _logger.debug("ZeroInferRequest::create_pipeline - constructing pipeline");
     auto batchSize = _graph->get_batch_size();
     // Construct pipeline
-    _pipeline = std::make_unique<Pipeline>(_config,
-                                           _initStructs,
+    _pipeline = std::make_unique<Pipeline>(_initStructs,
                                            _graph,
+                                           _config,
                                            _levelZeroInputTensors,
                                            _levelZeroOutputTensors,
                                            batchSize.has_value() ? batchSize.value() : utils::DEFAULT_BATCH_SIZE);

@@ -215,7 +215,9 @@ private:
         ov::intel_npu::npuw::llm::optimize_fp8.name(),
         ov::intel_npu::npuw::eagle::enabled.name(),
         ov::intel_npu::npuw::llm::prefill_moe_hint.name(),
-        ov::intel_npu::npuw::llm::generate_moe_hint.name()};
+        ov::intel_npu::npuw::llm::generate_moe_hint.name(),
+        ov::intel_npu::npuw::whisper::enabled.name(),
+        ov::intel_npu::npuw::text_embed::enabled.name()};
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
                                                                         ov::internal::caching_with_mmap.name(),

@@ -111,7 +111,6 @@ TEST_F(WeightShareExtensionTest, get_constant_id_with_descriptor) {
 }
 
 TEST_F(WeightShareExtensionTest, get_constant_source_buffer_check_id) {
-    GTEST_SKIP() << "Shared buffer with descriptor must but improved to pass this test";
     const auto w_path = test_dir / "weights.bin";
     create_test_weights_file(w_path);
 
