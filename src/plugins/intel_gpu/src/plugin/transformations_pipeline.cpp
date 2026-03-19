@@ -1299,6 +1299,20 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     }
 
     {
+        // Re-apply i64->i32 conversion after loop unrolling.
+        // UnrollTensorIterator replaces the current_iteration Parameter with a
+        // Constant(i64) regardless of the original parameter type. GPU kernels
+        // do not support i64 operands (e.g. ScatterUpdate indices),
+        // so convert these newly introduced i64 nodes to i32.
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply::post_unroll_convert_precision");
+        ov::pass::Manager manager("GPU:PostUnrollConvertPrecision");
+        precisions_map post_unroll_int_map{{ov::element::i64, ov::element::i32}};
+        type_to_fuse_map post_unroll_type_to_fuse = {};
+        manager.register_pass<ov::pass::ConvertPrecision>(post_unroll_int_map, post_unroll_type_to_fuse, false, false);
+        manager.run_passes(func);
+    }
+
+    {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply::activations_scaling");
         ov::pass::Manager manager("GPU:ActivationsScaling");
         manager.set_per_pass_validation(false);
