@@ -141,7 +141,7 @@ public:
             if (variants[0].is<std::string>()) {
                 FRONT_END_GENERAL_CHECK(variants[0].as<std::string>() != "throw_now", "Test exception");
             } else if (variants[0].is<std::filesystem::path>()) {
-                FRONT_END_GENERAL_CHECK(variants[0].as<std::filesystem::path>().string() != "throw_now",
+                FRONT_END_GENERAL_CHECK(variants[0].as<std::filesystem::path>() != "throw_now",
                                         "Test exception");
             }
         }
