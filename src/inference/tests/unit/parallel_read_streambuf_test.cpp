@@ -174,10 +174,7 @@ TEST_F(ParallelReadStreamBufTest, CharByCharUnderflow) {
         got.push_back(static_cast<uint8_t>(ch));
     }
     ASSERT_EQ(got.size(), kSize);
-
-    // Compare as uint8_t to avoid sign-extension artefacts
-    std::vector<uint8_t> got_u8(got.begin(), got.end());
-    EXPECT_EQ(got_u8, expected);
+    EXPECT_EQ(got, expected);
 }
 
 // ---------------------------------------------------------------------------
@@ -394,7 +391,9 @@ TEST_F(ParallelReadStreamBufTest, ParallelDispatch_FullReadCorrectness) {
 // ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, ParallelDispatch_NonZeroOffset_AndSeek) {
     constexpr size_t kPrefixSize = 4 * 1024;
-    const size_t hw = std::max(size_t{2}, static_cast<size_t>(std::thread::hardware_concurrency()));
+    constexpr size_t kMaxHwForSize = 16;
+    const size_t hw = std::min(kMaxHwForSize,
+                               std::max(size_t{2}, static_cast<size_t>(std::thread::hardware_concurrency())));
     const size_t kPayloadSize = hw * 1024 * 1024;
 
     std::vector<uint8_t> payload(kPayloadSize);

@@ -388,7 +388,9 @@ TEST(ParallelMemStreamBufTest, SeekToZeroAndReread) {
 TEST(ParallelMemStreamBufTest, ParallelDispatch_FullReadCorrectness) {
     // 2 * hw_threads * 2 MB + 1: guarantees num_chunks >= 2 on hardware that has
     // at least 2 threads, since MIN_CHUNK_SIZE inside parallel_copy is 2 MB.
-    const size_t hw = std::max(size_t{2}, static_cast<size_t>(std::thread::hardware_concurrency()));
+    const size_t kMaxHw = 16;
+    const size_t hw_raw = std::max(size_t{2}, static_cast<size_t>(std::thread::hardware_concurrency()));
+    const size_t hw = hw_raw > kMaxHw ? kMaxHw : hw_raw;
     const size_t kSize = 2u * hw * 2u * 1024u * 1024u + 1u;
 
     std::vector<uint8_t> src(kSize);
@@ -408,7 +410,9 @@ TEST(ParallelMemStreamBufTest, ParallelDispatch_FullReadCorrectness) {
 //     is correct after a parallel bulk read.
 // ---------------------------------------------------------------------------
 TEST(ParallelMemStreamBufTest, ParallelDispatch_SeekAndReread) {
-    const size_t hw = std::max(size_t{2}, static_cast<size_t>(std::thread::hardware_concurrency()));
+    const size_t kMaxHw = 16;
+    const size_t hw_raw = std::max(size_t{2}, static_cast<size_t>(std::thread::hardware_concurrency()));
+    const size_t hw = hw_raw > kMaxHw ? kMaxHw : hw_raw;
     const size_t kSize = 2u * hw * 2u * 1024u * 1024u;
 
     std::vector<uint8_t> src(kSize);

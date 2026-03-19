@@ -5,13 +5,11 @@
 #pragma once
 
 #include <algorithm>
-#include <chrono>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <memory>
 #include <sstream>
-#include <stdexcept>
 #include <streambuf>
 
 #ifdef _WIN32
@@ -85,9 +83,13 @@ public:
                         // AllocationBase is the start of the mapped view.
                         const std::streamoff file_offset =
                             reinterpret_cast<const char*>(data) - reinterpret_cast<const char*>(mbi.AllocationBase);
-                        m_file_buf = std::make_unique<ParallelReadStreamBuf>(std::filesystem::path(win32_path),
-                                                                             file_offset,
-                                                                             threshold);
+                        try {
+                            m_file_buf = std::make_unique<ParallelReadStreamBuf>(std::filesystem::path(win32_path),
+                                                                                 file_offset,
+                                                                                 threshold);
+                        } catch (...) {
+                            // File became inaccessible after mmap detection; fall through to memcpy path.
+                        }
                     }
                 }
             }
@@ -108,7 +110,11 @@ public:
             std::filesystem::path file_path;
             std::streamoff file_off = 0;
             if (get_mmap_file_info(data, file_path, file_off)) {
-                m_file_buf = std::make_unique<ParallelReadStreamBuf>(file_path, file_off, threshold);
+                try {
+                    m_file_buf = std::make_unique<ParallelReadStreamBuf>(file_path, file_off, threshold);
+                } catch (...) {
+                    // File became inaccessible after mmap detection; fall through to memcpy path.
+                }
             }
         }
         // For non-file-backed memory (anonymous mmap, USM host buffers, etc.)
@@ -291,8 +297,13 @@ private:
             const auto dash = addr_range.find('-');
             if (dash == std::string::npos)
                 continue;
-            const auto range_start = static_cast<uintptr_t>(std::stoull(addr_range.substr(0, dash), nullptr, 16));
-            const auto range_end = static_cast<uintptr_t>(std::stoull(addr_range.substr(dash + 1), nullptr, 16));
+            uintptr_t range_start = 0, range_end = 0;
+            try {
+                range_start = static_cast<uintptr_t>(std::stoull(addr_range.substr(0, dash), nullptr, 16));
+                range_end = static_cast<uintptr_t>(std::stoull(addr_range.substr(dash + 1), nullptr, 16));
+            } catch (...) {
+                continue;
+            }
             if (addr_val < range_start || addr_val >= range_end)
                 continue;
             // Read optional pathname
@@ -300,7 +311,12 @@ private:
             if (!(iss >> path) || path.empty() || path[0] != '/')
                 return false;  // anonymous or special region, no benefit
             out_path = path;
-            const auto map_offset = static_cast<std::streamoff>(std::stoull(offset_str, nullptr, 16));
+            std::streamoff map_offset = 0;
+            try {
+                map_offset = static_cast<std::streamoff>(std::stoull(offset_str, nullptr, 16));
+            } catch (...) {
+                return false;
+            }
             out_offset = map_offset + static_cast<std::streamoff>(addr_val - range_start);
             return true;
         }

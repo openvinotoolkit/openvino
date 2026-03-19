@@ -9,7 +9,6 @@
 #include <atomic>
 #include <cstring>
 #include <filesystem>
-#include <iostream>
 #include <stdexcept>
 #include <streambuf>
 
@@ -85,7 +84,7 @@ public:
         }
         m_file_size = static_cast<std::streamoff>(file_size.QuadPart);
 #else
-        m_fd = ::open(path.c_str(), O_RDONLY);
+        m_fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
         if (m_fd == -1) {
             throw std::runtime_error("ParallelReadStreamBuf: cannot open file: " + path.string());
         }
@@ -136,7 +135,7 @@ protected:
         std::streamsize total = 0;
 
         // Drain any chars previously buffered by underflow()
-        if (gptr() < egptr()) {
+        if (gptr() != nullptr && gptr() < egptr()) {
             const std::streamsize avail = static_cast<std::streamsize>(egptr() - gptr());
             const std::streamsize from_buf = std::min(n, avail);
             std::memcpy(dst, gptr(), static_cast<size_t>(from_buf));
@@ -202,7 +201,7 @@ protected:
             new_pos = m_header_offset + off;
         } else if (way == std::ios_base::cur) {
             // Account for the buffered chars from underflow() not yet consumed.
-            const std::streamsize ahead = static_cast<std::streamsize>(egptr() - gptr());
+            const std::streamsize ahead = (gptr() != nullptr) ? static_cast<std::streamsize>(egptr() - gptr()) : 0;
             new_pos = m_file_offset - ahead + off;  // stays absolute
         } else {
             new_pos = m_file_size + off;  // stays absolute
@@ -251,14 +250,18 @@ private:
         size_t cur_offset = file_offset;
         while (remaining > 0) {
             const DWORD to_read = static_cast<DWORD>(std::min(remaining, static_cast<size_t>(UINT_MAX - 1024u)));
-            OVERLAPPED ov = {};
-            ov.Offset = static_cast<DWORD>(cur_offset & 0xFFFFFFFFu);
-            ov.OffsetHigh = static_cast<DWORD>((cur_offset >> 32) & 0xFFFFFFFFu);
+            // Use SetFilePointerEx + ReadFile(nullptr) for a purely synchronous
+            // positional read.  Passing a non-NULL OVERLAPPED to a synchronous
+            // handle (no FILE_FLAG_OVERLAPPED) works but can misleadingly suggest
+            // that ERROR_IO_PENDING needs to be handled.
+            LARGE_INTEGER li;
+            li.QuadPart = static_cast<LONGLONG>(cur_offset);
+            if (!SetFilePointerEx(m_handle, li, nullptr, FILE_BEGIN)) {
+                return false;
+            }
             DWORD bytes_read = 0;
-            if (!ReadFile(m_handle, cur, to_read, &bytes_read, &ov)) {
-                if (GetLastError() != ERROR_IO_PENDING) {
-                    return false;
-                }
+            if (!ReadFile(m_handle, cur, to_read, &bytes_read, nullptr)) {
+                return false;
             }
             if (bytes_read == 0) {
                 return false;
@@ -297,7 +300,15 @@ private:
             return single_read(dst, size, file_offset);
         }
 
-        // Align chunk boundaries to page size for natural I/O alignment
+        // Round chunk_size UP to the next 4 KiB boundary so that every thread's
+        // start offset is page-aligned (better I/O coalescing on NVMe/direct I/O).
+        // Because rounding up means num_threads * chunk_size >= size, two extra
+        // guards are required:
+        //   1. Non-last threads: cap read to min(chunk_size, size - cur_offset) so
+        //      they never stride past EOF when the aligned chunk extends beyond it.
+        //   2. Last thread: use (size - cur_offset) to capture every remaining byte
+        //      including the fragment that lies beyond (nthr-1) * chunk_size but
+        //      before size.  Using chunk_size here would silently drop those bytes.
         size_t chunk_size = size / num_threads;
         chunk_size = (chunk_size + 4095u) & ~size_t{4095u};
 
@@ -312,9 +323,13 @@ private:
         ov::parallel_nt_static(static_cast<int>(num_threads), [&](int ithr, int nthr) {
             const size_t cur_offset = static_cast<size_t>(ithr) * chunk_size;
             if (cur_offset >= size) {
-                return;  // chunk rounding may leave trailing workers with nothing to do
+                return;  // page-alignment rounding created a surplus worker slot
             }
-            const size_t read_size = (ithr == nthr - 1) ? (size - cur_offset) : chunk_size;
+            // Last thread: read everything remaining (includes the fragment that
+            // falls between (nthr-1)*chunk_size and size).
+            // Non-last threads: cap to min(chunk_size, size - cur_offset) so we
+            // never read past eof when alignment pushed the chunk boundary beyond it.
+            const size_t read_size = (ithr == nthr - 1) ? (size - cur_offset) : std::min(chunk_size, size - cur_offset);
             char* const ptr = dst + cur_offset;
             const size_t thread_file_offset = file_offset + cur_offset;
 
@@ -335,12 +350,6 @@ private:
             char* cur = ptr;
             size_t remaining = read_size;
             size_t cur_file_offset = thread_file_offset;
-            // Windows path: single_read()/parallel_read() treat ERROR_IO_PENDING as non-fatal but never wait for the
-            // overlapped I/O to complete (bytes_read may remain 0). This can cause spurious read failures or truncated
-            // reads on Windows. Fix by either opening the file handle(s) with FILE_FLAG_OVERLAPPED and calling
-            // GetOverlappedResult (or waiting on an event) when ERROR_IO_PENDING is returned, or avoid overlapped I/O
-            // entirely and use a synchronous positional read approach that guarantees bytes_read is populated before
-            // continuing.
             while (remaining > 0 && success) {
                 const DWORD to_read = static_cast<DWORD>(std::min(remaining, static_cast<size_t>(UINT_MAX - 1024u)));
                 LARGE_INTEGER li;
@@ -365,7 +374,7 @@ private:
             }
             CloseHandle(t_handle);
 #else
-            const int t_fd = ::open(m_path.c_str(), O_RDONLY);
+            const int t_fd = ::open(m_path.c_str(), O_RDONLY | O_CLOEXEC);
             if (t_fd == -1) {
                 success = false;
                 return;
