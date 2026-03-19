@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "batch_size_section.hpp"
 #include "compiler_schedules_sections.hpp"
 #include "intel_npu/common/cre.hpp"
@@ -19,11 +21,6 @@ const auto CRE_SECTION = std::make_shared<intel_npu::CRESection>(CRE(DUMMY_CRE_E
 
 const intel_npu::OffsetsTable DUMMY_OFFSETS_TABLE;
 const auto OFFSETS_TABLE_SECTION = std::make_shared<intel_npu::OffsetsTableSection>(DUMMY_OFFSETS_TABLE);
-
-const std::vector<ov::Layout> DUMMY_INPUT_LAYOUTS = {ov::Layout("NCHW")};
-const std::vector<ov::Layout> DUMMY_OUTPUT_LAYOUTS = {ov::Layout("NCHW")};
-const auto IO_LAYOUTS_SECTION =
-    std::make_shared<intel_npu::IOLayoutsSection>(DUMMY_INPUT_LAYOUTS, DUMMY_OUTPUT_LAYOUTS);
 
 const ov::Tensor DUMMY_MAIN_SCHEDULE(ov::element::u8, ov::Shape{16});
 const auto ELF_MAIN_SCHEDULE_SECTION = std::make_shared<intel_npu::ELFMainScheduleSection>(DUMMY_MAIN_SCHEDULE);
