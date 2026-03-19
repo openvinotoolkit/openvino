@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base_sync_infer_request.hpp"
+#include "llm_block_kvcache_extension.hpp"
 #include "llm_compiled_model.hpp"
 #include "llm_eagle3_extension.hpp"
 #include "llm_infer_base_request.hpp"
@@ -127,6 +128,9 @@ protected:
     // LLM-level profiling for 1st token generation analysis
     using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
     ov::npuw::perf::Profile<MS> m_llm_profile;
+
+    // Support multi-block KV cache (all logic encapsulated in extension)
+    BlockKVCacheExtension m_block_kvcache_ext;
 
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;

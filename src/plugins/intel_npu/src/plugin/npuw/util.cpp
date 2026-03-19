@@ -913,11 +913,15 @@ void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fi
 }
 
 bool ov::npuw::util::isPastKeyValuesKey(const std::string& str) {
-    std::regex pattern(R"(past_key_values\.\d+\.key)");
+    // Match both original format and block-split format (numbered and tail blocks)
+    // Examples: "past_key_values.0.key", "past_key_values.0.key_block_3", "past_key_values.0.key_block_tail"
+    std::regex pattern(R"(past_key_values\.\d+\.key(_block_(\d+|tail))?)");
     return std::regex_match(str, pattern);
 }
 
 bool ov::npuw::util::isPastKeyValuesValue(const std::string& str) {
-    std::regex pattern(R"(past_key_values\.\d+\.value)");
+    // Match both original format and block-split format (numbered and tail blocks)
+    // Examples: "past_key_values.0.value", "past_key_values.0.value_block_3", "past_key_values.0.value_block_tail"
+    std::regex pattern(R"(past_key_values\.\d+\.value(_block_(\d+|tail))?)");
     return std::regex_match(str, pattern);
 }
