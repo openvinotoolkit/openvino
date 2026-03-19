@@ -123,28 +123,6 @@ bool matches_linear_attention_loop(const std::shared_ptr<ov::Node>& node) {
 
 }  // namespace
 
-static std::shared_ptr<ov::Node> get_scalar(std::shared_ptr<ov::Node> scalar_pattern, Matcher& matcher) {
-    auto& pm = matcher.get_pattern_value_map();
-    if (pm.count(scalar_pattern)) {
-        auto scalar_node = pm.at(scalar_pattern);
-
-        const auto& pshape = scalar_node.get_partial_shape();
-        auto rank = pshape.rank();
-        if (pshape.is_static() && ov::shape_size(pshape.get_shape()) != 1) {
-            return nullptr;
-        } else {
-            if (rank.get_length() > 1) {
-                scalar_node = ov::op::util::make_try_fold<v1::Reshape>(scalar_node,
-                                                                       v0::Constant::create(ov::element::i64, {1}, {1}),
-                                                                       false);
-            }
-            return scalar_node.get_node_shared_ptr();
-        }
-    } else {
-        return nullptr;
-    }
-}
-
 ov::pass::RemoveConcatSliceAfterLoop::RemoveConcatSliceAfterLoop() {
     auto value = any_input(shape_matches("[?, head_num, ?, v_head_size]"));
     auto init_state = any_input(rank_equals((4)));
@@ -208,7 +186,18 @@ ov::pass::FuseGDNLoop::FuseGDNLoop() {
     auto gate = ov::pass::pattern::any_input(shape_matches("[?, head_num, ?]"));
     auto beta = ov::pass::pattern::any_input(shape_matches("[?, head_num, ?]"));
 
-    auto attn_scale = any_input(has_static_rank());
+    auto shape_head_size = any_input(shape_matches("[?, ?, ?, qk_head_size]"));
+    auto shape_of_head_size = pattern::wrap_type<op::v3::ShapeOf>({shape_head_size});
+    auto gather_index = pattern::optional<op::v8::Gather>({shape_of_head_size, {0, 2, 1, 3}, 0}, {{"batch_dims", 0}});
+    auto gather = pattern::wrap_type<op::v8::Gather>({gather_index | shape_of_head_size, 3, 0}, {{"batch_dims", 0}});
+
+    auto head_size_f32 = pattern::optional<v0::Convert>({gather});
+
+    auto const_half = pattern::wrap_type<v0::Constant>(value_matches("0.5"));
+    auto convert_half = pattern::optional<v0::Convert>({const_half});
+
+    auto attn_scale = pattern::wrap_type<v1::Power>({head_size_f32, convert_half});
+
     auto q_scale = pattern::wrap_type<v1::Divide>({query, attn_scale});
     // optional convert after q_scale for fp16
     auto q_convert = pattern::optional<v0::Convert>({q_scale});
@@ -222,10 +211,6 @@ ov::pass::FuseGDNLoop::FuseGDNLoop() {
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto loop_node = pattern_map.at(loop_output).get_node_shared_ptr();
-
-        std::shared_ptr<ov::Node> scalar_node;
-        if (!(scalar_node = get_scalar(attn_scale, m)))
-            return false;
 
         auto perm_bhls_to_blhs = v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3});
         auto perm_bhl_to_blh = v0::Constant::create(ov::element::i64, {3}, {0, 2, 1});
@@ -304,7 +289,7 @@ ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
         auto sqrt = pattern::wrap_type<v0::Sqrt>({add});
         auto const_one = pattern::wrap_type<v0::Constant>(value_matches("1"));
         auto convert_one = pattern::optional<v0::Convert>({const_one});
-        auto div = pattern::wrap_type<v1::Divide>({any_input(), sqrt});
+        auto div = pattern::wrap_type<v1::Divide>({convert_one, sqrt});
         auto multiply = pattern::wrap_type<v1::Multiply>({input_convert, div});
         return multiply;
     };
@@ -347,7 +332,6 @@ ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
         }
         bool k_transposed = pattern_map.count(transpose_key);
         if (k_transposed) {
-            auto consumers = pattern_map.at(transpose_key).get_target_inputs();
             auto transpose_k = pattern_map.at(transpose_key).get_node_shared_ptr();
             auto out_transposed = transpose_k->clone_with_new_inputs({gdn_input_key, transpose_k->input_value(1)});
             out_transposed->set_friendly_name(transpose_k->get_friendly_name());
