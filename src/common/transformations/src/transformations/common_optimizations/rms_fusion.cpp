@@ -38,7 +38,16 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x, bool enable_wit
     auto power = pattern::wrap_type<v1::Power>({x, const_power_convert});
 
     // ReduceMean(x^2,axes)
-    auto mean_axes = pattern::wrap_type<v0::Constant>();
+    auto mean_axes = pattern::wrap_type<v0::Constant>([](const ov::Output<ov::Node>& output) {
+        auto const_node = ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr());
+        if (!const_node) {
+            return false;
+        }
+        const auto& axes_shape = const_node->get_output_shape(0);
+        const auto num_elems = ov::shape_size(axes_shape);
+        // RMS fusion is only valid when ReduceMean has exactly one axis.
+        return num_elems == 1;
+    });
     auto mean = pattern::wrap_type<v1::ReduceMean>({power, mean_axes});
 
     // ReduceMean(x^2,axes)+eps
