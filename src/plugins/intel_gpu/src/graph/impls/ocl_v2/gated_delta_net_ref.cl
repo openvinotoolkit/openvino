@@ -20,8 +20,20 @@ inline float FUNC(sum8)(float8 v) {
 }
 
 #if (K_HEAD_DIM == 128 && (V_HEAD_DIM % V_BLOCK_SIZE == 0))
-inline void FUNC(prepare_qk)(__global INPUT0_TYPE* q, __global INPUT1_TYPE* k, int q_offset, int k_offset, int lane_k_base, float8* b_q, float8* b_k) {
+inline void FUNC(prepare_qk)(__global INPUT0_TYPE* q, __global INPUT1_TYPE* k, int q_offset, int k_offset, int lid, float8* b_q, float8* b_k) {
     const int K_CHUNKS = K_HEAD_DIM / (SUBGROUP_SIZE * 8);
+
+    // Memory coalescing illustration (SUBGROUP_SIZE = 16, SUBGROUP_SIZE * 8 = 128 elements per chunk):
+    // +-------+---------------+---------------+     +---------------+
+    // | Loop j|  Thread0 (T0) |  Thread1 (T1) | ... | Thread15(T15) | <-- GPU Hardware Coalesced Read Transaction
+    // +-------+---------------+---------------+     +---------------+
+    // |   0   |  k[0]         |  k[1]         | ... |  k[15]        | == Block Read of size 16 starting at 0
+    // |   1   |  k[16]        |  k[17]        | ... |  k[31]        | == Block Read of size 16 starting at 16
+    // |   2   |  k[32]        |  k[33]        | ... |  k[47]        |
+    // |  ...  |   ...         |   ...         | ... |   ...         |
+    // |   7   |  k[112]       |  k[113]       | ... |  k[127]       | == Block Read of size 16 starting at 112
+    // +-------+---------------+---------------+     +---------------+
+
 #    if FUSE_QK_L2NORM
     // normalize k and q (l2norm + q scale)
     float k_sum = 0.0f;
@@ -30,7 +42,8 @@ inline void FUNC(prepare_qk)(__global INPUT0_TYPE* q, __global INPUT1_TYPE* k, i
         float8 lane_k = (float8)(0.0f);
 #        pragma unroll
         for (int j = 0; j < 8; j++) {
-            int k_idx = lane_k_base + c * 8 + j;
+            // Map row elements across the subgroup threads (stride-1) for perfectly coalesced block reads
+            int k_idx = c * (SUBGROUP_SIZE * 8) + j * SUBGROUP_SIZE + lid;
             lane_k[j] = convert_float(k[k_offset + k_idx]);
             k_sum += lane_k[j] * lane_k[j];
         }
@@ -46,7 +59,8 @@ inline void FUNC(prepare_qk)(__global INPUT0_TYPE* q, __global INPUT1_TYPE* k, i
         float8 lane_q = (float8)(0.0f);
 #        pragma unroll
         for (int j = 0; j < 8; j++) {
-            int q_idx = lane_k_base + c * 8 + j;
+            // Map row elements across the subgroup threads (stride-1) for perfectly coalesced block reads
+            int q_idx = c * (SUBGROUP_SIZE * 8) + j * SUBGROUP_SIZE + lid;
             lane_q[j] = convert_float(q[q_offset + q_idx]);
             q_sum += lane_q[j] * lane_q[j];
         }
@@ -62,7 +76,8 @@ inline void FUNC(prepare_qk)(__global INPUT0_TYPE* q, __global INPUT1_TYPE* k, i
         float8 lane_q = (float8)(0.0f);
 #        pragma unroll
         for (int j = 0; j < 8; j++) {
-            int idx = lane_k_base + c * 8 + j;
+            // Map row elements across the subgroup threads (stride-1) for perfectly coalesced block reads
+            int idx = c * (SUBGROUP_SIZE * 8) + j * SUBGROUP_SIZE + lid;
             lane_k[j] = convert_float(k[k_offset + idx]);
             lane_q[j] = convert_float(q[q_offset + idx]) * SCALE_FACTOR;
         }
@@ -136,6 +151,11 @@ KERNEL(gated_delta_net_ref)
 
 #if (K_HEAD_DIM == 128 && (V_HEAD_DIM % V_BLOCK_SIZE == 0))
 // 1. LOAD STATE BLOCK: 4 V-columns, 8 K-rows per lane
+// Memory layout mapping across subgroup (e.g. SUBGROUP_SIZE=16, j=0..7):
+// Thread 0 reads indices: 0, 16, 32, ..., 112
+// Thread 1 reads indices: 1, 17, 33, ..., 113
+// ...
+// Result: Each tick `j`, the subgroup performs a perfect sequential read [0..15], [16..31], etc.
 #    pragma unroll
     for (int row_chunk = 0; row_chunk < K_CHUNKS; row_chunk++) {
 #    pragma unroll
@@ -144,7 +164,7 @@ KERNEL(gated_delta_net_ref)
             float8 lane_state = (float8)(0.0f);
 #    pragma unroll
             for (int j = 0; j < 8; j++) {
-                int row_idx = lid * (K_HEAD_DIM / SUBGROUP_SIZE) + row_chunk * 8 + j;
+                int row_idx = row_chunk * (SUBGROUP_SIZE * 8) + j * SUBGROUP_SIZE + lid;
                 lane_state[j] = convert_float(initial_state[STATE_BASE + row_idx * V_len + curr_iv]);
             }
             h_state[v_idx][row_chunk] = lane_state;
@@ -168,7 +188,6 @@ KERNEL(gated_delta_net_ref)
         int g_idx = (b * T_len + t) * H_len + h;
         float b_g = exp(convert_float(g[g_idx]));
         float b_beta = convert_float(beta[g_idx]);
-        const int lane_k_base = lid * (K_HEAD_DIM / SUBGROUP_SIZE);
 
         int q_offset = b * Q_B_STRIDE + t * Q_T_STRIDE + hk * K_len;
         int k_offset = b * K_B_STRIDE + t * K_T_STRIDE + (hk + key_offset) * K_len;
@@ -177,10 +196,10 @@ KERNEL(gated_delta_net_ref)
         float8 b_k[K_CHUNKS];
         float8 b_q[K_CHUNKS];
 
-        FUNC(prepare_qk)(q, k, q_offset, k_offset, lane_k_base, b_q, b_k);
+        FUNC(prepare_qk)(q, k, q_offset, k_offset, lid, b_q, b_k);
 
         // V load
-        float4 b_v_vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+        float4 b_v_vec = (float4)(0.0f);
 #    pragma unroll
         for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
             int curr_iv = start_iv + v_idx;
@@ -188,18 +207,17 @@ KERNEL(gated_delta_net_ref)
         }
 
         // 3. RECURRENT UPDATE
-        float4 dot_part_k_vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
-        float4 dot_part_q_vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+        float4 dot_part_k_vec = (float4)(0.0f);
+        float4 dot_part_q_vec = (float4)(0.0f);
 
         for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
-            int curr_iv = start_iv + v_idx;
-            for (int c = 0; c < K_CHUNKS; c++)
-                h_state[v_idx][c] *= (float8)(b_g);
-
             float dot_part_k = 0.0f;
 #    pragma unroll
-            for (int c = 0; c < K_CHUNKS; c++)
-                dot_part_k += FUNC(sum8)(fma(h_state[v_idx][c], b_k[c], (float8)(0.0f)));
+            for (int c = 0; c < K_CHUNKS; c++) {
+                // Loop fusion: Combine applying the gating scalar and computing the k dot product
+                h_state[v_idx][c] *= (float8)(b_g);
+                dot_part_k += FUNC(sum8)(h_state[v_idx][c] * b_k[c]);
+            }
             dot_part_k_vec[v_idx] = dot_part_k;
         }
 
@@ -209,15 +227,14 @@ KERNEL(gated_delta_net_ref)
                       sub_group_reduce_add(dot_part_k_vec.s3));
 
         for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
-            int curr_iv = start_iv + v_idx;
             float update_val = (b_v_vec[v_idx] - h_k_vec[v_idx]) * b_beta;
-            for (int c = 0; c < K_CHUNKS; c++)
-                h_state[v_idx][c] += (b_k[c] * (float8)(update_val));
-
             float dot_part_q = 0.0f;
 #    pragma unroll
-            for (int c = 0; c < K_CHUNKS; c++)
-                dot_part_q += FUNC(sum8)(fma(h_state[v_idx][c], b_q[c], (float8)(0.0f)));
+            for (int c = 0; c < K_CHUNKS; c++) {
+                // Loop fusion: use FMA to compute recurrent state update while simultaneously computing q dot product
+                h_state[v_idx][c] = fma(b_k[c], (float8)(update_val), h_state[v_idx][c]);
+                dot_part_q += FUNC(sum8)(h_state[v_idx][c] * b_q[c]);
+            }
             dot_part_q_vec[v_idx] = dot_part_q;
         }
 
@@ -254,7 +271,7 @@ KERNEL(gated_delta_net_ref)
                 q_norm[k_idx] = convert_float(q[q_offset + k_idx]) * q_scale;
             }
 
-            float4 b_v_vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+            float4 b_v_vec = (float4)(0.0f);
 #    pragma unroll
             for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
                 int curr_iv = start_iv + v_idx;
@@ -277,7 +294,7 @@ KERNEL(gated_delta_net_ref)
 
                 float b_output = 0.0f;
                 for (int k_idx = 0; k_idx < K_len; k_idx++) {
-                    h_state_f[v_idx][k_idx] += k_norm[k_idx] * update_val;
+                    h_state_f[v_idx][k_idx] = fma(k_norm[k_idx], update_val, h_state_f[v_idx][k_idx]);
                     b_output = fma(h_state_f[v_idx][k_idx], q_norm[k_idx], b_output);
                 }
 
@@ -289,6 +306,7 @@ KERNEL(gated_delta_net_ref)
 
 #if (K_HEAD_DIM == 128 && (V_HEAD_DIM % V_BLOCK_SIZE == 0))
 // 4. WRITE BACK STATE BLOCK
+// Writes back using the exact same coalesced mapped layout as LOAD STATE BLOCK
 #    pragma unroll
     for (int row_chunk = 0; row_chunk < K_CHUNKS; row_chunk++) {
 #    pragma unroll
@@ -296,7 +314,8 @@ KERNEL(gated_delta_net_ref)
             int curr_iv = start_iv + v_idx;
 #    pragma unroll
             for (int j = 0; j < 8; j++) {
-                int row_idx = lid * (K_HEAD_DIM / SUBGROUP_SIZE) + row_chunk * 8 + j;
+                // Map state mapping to match coalesced block layout (stride-1 access)
+                int row_idx = row_chunk * (SUBGROUP_SIZE * 8) + j * SUBGROUP_SIZE + lid;
 #    if OUTPUT_STATE
                 output_state[STATE_BASE + row_idx * V_len + curr_iv] = (OUTPUT1_TYPE)(h_state[v_idx][row_chunk][j]);
 #    else
