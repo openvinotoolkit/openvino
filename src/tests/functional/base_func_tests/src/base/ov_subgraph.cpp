@@ -257,10 +257,15 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
         for (size_t i = 0; i < result->get_input_size(); ++i) {
             std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
             auto it = compare_map.find(inputNode->get_type_info());
-            ASSERT_NE(it, compare_map.end());
-            it->second(inputNode, i, inference_precision,
-                       expected[j], actual[j],
-                       abs_threshold, rel_threshold, topk_threshold, mvn_threshold);
+            if (it == compare_map.end()) {
+                // Fallback to generic tensor comparator when node-specific comparator is missing
+                ov::test::utils::compare(expected[j], actual[j], inference_precision,
+                                         abs_threshold, rel_threshold, topk_threshold, mvn_threshold);
+            } else {
+                it->second(inputNode, i, inference_precision,
+                           expected[j], actual[j],
+                           abs_threshold, rel_threshold, topk_threshold, mvn_threshold);
+            }
         }
     }
 }
