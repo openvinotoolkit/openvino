@@ -90,7 +90,7 @@ protected:
     mutable std::vector<std::vector<std::shared_ptr<ZeroTensor>>> _levelZeroInputTensors;
     mutable std::vector<std::shared_ptr<ZeroTensor>> _levelZeroOutputTensors;
 
-    std::unique_ptr<Pipeline> _pipeline;
+    std::unique_ptr<IPipeline> _pipeline;
 
     bool _pipelineIsCreated = false;
     bool _dynamicBatchValueChanged = false;

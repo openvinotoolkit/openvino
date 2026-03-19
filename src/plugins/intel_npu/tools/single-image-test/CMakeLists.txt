@@ -1,6 +1,5 @@
-#
-# Copyright (C) 2018-2026 Intel Corporation.
-# SPDX-License-Identifier: Apache 2.0
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME single-image-test)
@@ -53,8 +52,8 @@ ov_add_target(TYPE EXECUTABLE
 ov_set_threading_interface_for(${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES
-                          FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
-                          CXX_STANDARD 17)
+                      FOLDER intel_npu_tools
+                      CXX_STANDARD 17)
 
 # TODO: fix warnings and remove this exception
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
