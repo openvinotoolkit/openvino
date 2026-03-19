@@ -107,6 +107,7 @@ enum class KernelType {
     ROPE,
     DYNAMIC_QUANTIZE,
     SEARCH_SORTED,
+    BEVPOOL_V2,
     SEGMENT_MAX,
     STFT,
     ISTFT,
