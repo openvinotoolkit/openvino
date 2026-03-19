@@ -1,7 +1,5 @@
 # OpenVINO™
 
-<!--- The note below is intended for master branch only for pre-release purpose. Remove it for official releases. --->
-
 
 Intel® Distribution of OpenVINO™ toolkit is an open-source toolkit for optimizing and deploying
 AI inference. It can be used to develop applications and solutions based on deep learning tasks,
