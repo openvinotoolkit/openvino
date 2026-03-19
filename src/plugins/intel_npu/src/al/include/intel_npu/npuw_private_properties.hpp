@@ -24,16 +24,16 @@ inline constexpr ov::Property<ov::FileHandleProvider> weights_handle_provider{"N
 
 }  // namespace ov::intel_npu::npuw
 
-#define INTEL_NPU_NPUW_DECLARE_PROPERTY_ALIAS(OPT, NS_PATH, NAME) \
-    namespace NS_PATH {                                           \
+#define INTEL_NPU_NPUW_DECLARE_PROPERTY_ALIAS(OPT, NS_PATH, NAME)                                 \
+    namespace NS_PATH {                                                                           \
     inline constexpr const auto& NAME = ::ov::intel_npu::detail::npuw_property<::intel_npu::OPT>; \
     }
 
 #define INTEL_NPU_NPUW_IF_BUILD_ALL(OPT, NS_PATH, NAME) INTEL_NPU_NPUW_DECLARE_PROPERTY_ALIAS(OPT, NS_PATH, NAME)
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
-#define INTEL_NPU_NPUW_IF_BUILD_DEV(OPT, NS_PATH, NAME) INTEL_NPU_NPUW_DECLARE_PROPERTY_ALIAS(OPT, NS_PATH, NAME)
+#    define INTEL_NPU_NPUW_IF_BUILD_DEV(OPT, NS_PATH, NAME) INTEL_NPU_NPUW_DECLARE_PROPERTY_ALIAS(OPT, NS_PATH, NAME)
 #else
-#define INTEL_NPU_NPUW_IF_BUILD_DEV(OPT, NS_PATH, NAME)
+#    define INTEL_NPU_NPUW_IF_BUILD_DEV(OPT, NS_PATH, NAME)
 #endif
 
 #define INTEL_NPU_NPUW_SIMPLE_OPT(OPT, TYPE, DEFAULT, NS_PATH, NAME, KEY, GROUP, SURFACE, CACHING, BUILD) \

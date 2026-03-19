@@ -191,8 +191,8 @@ namespace intel_npu {
                 isMutable = ov::PropertyMutability::RO;                                                 \
             }                                                                                           \
             _properties.emplace(o_name, std::make_tuple(isPublic, isMutable, [](const Config& config) { \
-                                     return config.get<OPT_TYPE>();                                      \
-                                 }));                                                                    \
+                                    return config.get<OPT_TYPE>();                                      \
+                                }));                                                                    \
         }                                                                                               \
     } while (0)
 
