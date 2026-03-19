@@ -103,7 +103,7 @@ install(TARGETS ${TARGET_NAME}
 )
 
 target_sources(${TARGET_NAME} PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_graph_effect_test.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning_effect_test.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/options_config_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_graph_options_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning_options_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_options_smoke_test.cpp
 )

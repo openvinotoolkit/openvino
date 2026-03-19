@@ -137,7 +137,7 @@ private:
     std::vector<CompileCall> m_calls;
 };
 
-class LLMCompiledModelGraphEffectTest : public ::testing::Test {
+class LLMCompiledModelGraphOptionsTest : public ::testing::Test {
 protected:
     void SetUp() override {
         m_plugin = std::make_shared<NullPlugin>();
@@ -233,7 +233,7 @@ protected:
     std::shared_ptr<ov::IPlugin> m_plugin;
 };
 
-TEST_F(LLMCompiledModelGraphEffectTest, SharedHeadAddsHeadModelAndSlicesPrefillEmbeds) {
+TEST_F(LLMCompiledModelGraphOptionsTest, SharedHeadAddsHeadModelAndSlicesPrefillEmbeds) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -258,7 +258,7 @@ TEST_F(LLMCompiledModelGraphEffectTest, SharedHeadAddsHeadModelAndSlicesPrefillE
     EXPECT_GE(count_ops<ov::op::v8::Slice>(prefill->model), 1u);
 }
 
-TEST_F(LLMCompiledModelGraphEffectTest, PromptResponseAndGenerationLengthsDriveStaticShapes) {
+TEST_F(LLMCompiledModelGraphOptionsTest, PromptResponseAndGenerationLengthsDriveStaticShapes) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -288,7 +288,7 @@ TEST_F(LLMCompiledModelGraphEffectTest, PromptResponseAndGenerationLengthsDriveS
     EXPECT_EQ(generate_mask->get_shape(), (ov::Shape{1, 192}));
 }
 
-TEST_F(LLMCompiledModelGraphEffectTest, DynamicChunkPrefillKeepsPastKvInputsAndExportsPresentKvOutputs) {
+TEST_F(LLMCompiledModelGraphOptionsTest, DynamicChunkPrefillKeepsPastKvInputsAndExportsPresentKvOutputs) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -308,7 +308,7 @@ TEST_F(LLMCompiledModelGraphEffectTest, DynamicChunkPrefillKeepsPastKvInputsAndE
     EXPECT_EQ(ids->get_shape(), (ov::Shape{1, 32}));
 }
 
-TEST_F(LLMCompiledModelGraphEffectTest, StaticPrefillRemovesPastKvInputsAndKeepsPresentKvOutputs) {
+TEST_F(LLMCompiledModelGraphOptionsTest, StaticPrefillRemovesPastKvInputsAndKeepsPresentKvOutputs) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -328,7 +328,7 @@ TEST_F(LLMCompiledModelGraphEffectTest, StaticPrefillRemovesPastKvInputsAndKeeps
     EXPECT_EQ(ids->get_shape(), (ov::Shape{1, 128}));
 }
 
-TEST_F(LLMCompiledModelGraphEffectTest, GeneratePyramidCreatesIntermediateKvVariants) {
+TEST_F(LLMCompiledModelGraphOptionsTest, GeneratePyramidCreatesIntermediateKvVariants) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 

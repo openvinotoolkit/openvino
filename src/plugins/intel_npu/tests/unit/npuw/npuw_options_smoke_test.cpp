@@ -189,9 +189,9 @@ std::vector<Case> make_cases() {
     return cases;
 }
 
-class NPUWOptionConfigTest : public ::testing::TestWithParam<Case> {};
+class SmokeTest : public ::testing::TestWithParam<Case> {};
 
-TEST_P(NPUWOptionConfigTest, ParsesDocumentedOption) {
+TEST_P(SmokeTest, ParsesDocumentedOption) {
     auto cfg = make_config(GetParam().options);
     GetParam().verify(cfg);
 }
@@ -200,6 +200,6 @@ std::string case_name(const testing::TestParamInfo<Case>& info) {
     return info.param.test_name;
 }
 
-INSTANTIATE_TEST_SUITE_P(AllDocumentedOptions, NPUWOptionConfigTest, ::testing::ValuesIn(make_cases()), case_name);
+INSTANTIATE_TEST_SUITE_P(NPUWOptions, SmokeTest, ::testing::ValuesIn(make_cases()), case_name);
 
 }  // namespace
