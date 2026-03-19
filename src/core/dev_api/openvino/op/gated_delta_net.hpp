@@ -59,7 +59,7 @@ public:
         return m_k_l2_norm_eps;
     }
 
-protected:
+private:
     bool m_fuse_qk_l2norm = false;
     float m_q_l2_norm_eps = 1e-6F;
     float m_k_l2_norm_eps = 1e-6F;

@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <climits>
 #include <memory>
 
@@ -38,17 +39,9 @@
 namespace ov::test {
 
 namespace {
-bool is_ordered(const std::vector<size_t>& order) {
-    for (size_t i = 0; i < order.size(); ++i) {
-        if (order[i] != i) {
-            return false;
-        }
-    }
-    return true;
-}
 
 ov::PartialShape adjust_input_shape(const ov::PartialShape& shape, const std::vector<size_t>& order) {
-    if (is_ordered(order)) {
+    if (std::is_sorted(order.begin(), order.end())) {
         return shape;
     } else {
         ov::PartialShape adjusted_shape(shape);
@@ -68,7 +61,7 @@ std::shared_ptr<ov::Model> build_looped_gdn(int32_t batch,
                                             ov::element::Type dtype,
                                             std::vector<size_t>& input_order) {
     // 0, 1, 2, 3 for B, H, L, S
-    bool ordered = is_ordered(input_order);
+    bool ordered = std::is_sorted(input_order.begin(), input_order.end());
 
     ov::PartialShape qk_shape{batch, qk_head_num, seq_len, qk_head_size};
     ov::PartialShape v_tensor_shape{batch, v_head_num, seq_len, v_head_size};
@@ -242,7 +235,7 @@ std::shared_ptr<ov::Model> build_fused_gdn_ref(int32_t batch,
                                                int32_t v_head_size,
                                                ov::element::Type dtype = ov::element::f32,
                                                std::vector<size_t> input_order = {0, 2, 1, 3}) {
-    bool ordered = is_ordered(input_order);
+    bool ordered = std::is_sorted(input_order.begin(), input_order.end());
     ov::PartialShape qk_shape{batch, qk_head_num, seq_len, qk_head_size};
     ov::PartialShape v_tensor_shape{batch, v_head_num, seq_len, v_head_size};
     ov::PartialShape gv_shape{batch, qk_head_num, seq_len};

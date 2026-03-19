@@ -41,11 +41,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
-#include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace pattern = ov::pass::pattern;
-namespace gen_pattern = ov::gen_pattern;
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 
@@ -141,7 +139,7 @@ ov::pass::RemoveConcatSliceAfterLoop::RemoveConcatSliceAfterLoop() {
 
     auto reshape_core_attn = pattern::wrap_type<v1::Reshape>({loop_output0, {-1}});
     auto reshape_core_state = pattern::wrap_type<v1::Reshape>({loop_output1, {-1}});
-    auto concat_loop = gen_pattern::makeOP<v0::Concat>({reshape_core_attn, reshape_core_state}, {{"axis", 0}});
+    auto concat_loop = pattern::wrap_type<v0::Concat>({reshape_core_attn, reshape_core_state}, {{"axis", 0}});
     auto out_numel = pattern::any_input(pattern::has_static_shape());
     auto slice_attn = pattern::wrap_type<ov::op::v8::Slice>({concat_loop, {0}, out_numel, {1}, {0}});
     auto reshape_attn = pattern::wrap_type<v1::Reshape>({slice_attn, pattern::any_input()},
