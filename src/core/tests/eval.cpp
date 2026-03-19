@@ -23,6 +23,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/asin.hpp"
 #include "openvino/op/atan.hpp"
+#include "openvino/op/bevpool_v2.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/concat.hpp"
@@ -109,6 +110,87 @@ TEST(eval, evaluate_shape_of) {
     auto result_shape = read_vector<int64_t>(result);
     vector<int64_t> arg_shape{2, 3};
     ASSERT_EQ(result_shape, arg_shape);
+}
+
+TEST(eval, evaluate_bevpool_v2_f32) {
+    auto cf = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 2, 1, 2});
+    auto dw = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{2});
+    auto idx = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{2});
+    auto itv = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{3});
+
+    ov::op::v15::Bound b{0.f, 1.f, 1.f};
+    auto bevpool = make_shared<ov::op::v15::BevPoolV2>(OutputVector{cf, dw, idx, itv},
+                                                        2,
+                                                        2,
+                                                        2,
+                                                        1,
+                                                        1,
+                                                        1,
+                                                        b,
+                                                        b,
+                                                        b,
+                                                        b);
+    auto model = make_shared<Model>(OutputVector{bevpool}, ParameterVector{cf, dw, idx, itv});
+
+    ov::Tensor out;
+    auto out_vector = ov::TensorVector{out};
+    auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{1, 2, 1, 2}, {1.f, 2.f, 3.f, 4.f}),
+                                      make_tensor<element::Type_t::f32>(Shape{2}, {10.f, 20.f}),
+                                      make_tensor<element::Type_t::i32>(Shape{2}, {0, 1}),
+                                      make_tensor<element::Type_t::i32>(Shape{3}, {0, 2, 0})};
+
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    out = out_vector.at(0);
+
+    EXPECT_EQ(out.get_element_type(), element::f32);
+    EXPECT_EQ(out.get_shape(), (Shape{1, 2, 1, 1}));
+
+    auto result = read_vector<float>(out);
+    std::vector<float> expected{70.f, 100.f};
+    ASSERT_EQ(result, expected);
+}
+
+TEST(eval, evaluate_bevpool_v2_f16_with_tolerance) {
+    auto cf = make_shared<ov::op::v0::Parameter>(element::f16, PartialShape{1, 2, 1, 2});
+    auto dw = make_shared<ov::op::v0::Parameter>(element::f16, PartialShape{2});
+    auto idx = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{2});
+    auto itv = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{3});
+
+    ov::op::v15::Bound b{0.f, 1.f, 1.f};
+    auto bevpool = make_shared<ov::op::v15::BevPoolV2>(OutputVector{cf, dw, idx, itv},
+                                                        2,
+                                                        2,
+                                                        2,
+                                                        1,
+                                                        1,
+                                                        1,
+                                                        b,
+                                                        b,
+                                                        b,
+                                                        b);
+    auto model = make_shared<Model>(OutputVector{bevpool}, ParameterVector{cf, dw, idx, itv});
+
+    ov::Tensor out;
+    auto out_vector = ov::TensorVector{out};
+    auto in_vector = ov::TensorVector{
+        make_tensor<element::Type_t::f16>(Shape{1, 2, 1, 2},
+                                          {ov::float16(1.f), ov::float16(2.f), ov::float16(3.f), ov::float16(4.f)}),
+        make_tensor<element::Type_t::f16>(Shape{2}, {ov::float16(10.f), ov::float16(20.f)}),
+        make_tensor<element::Type_t::i32>(Shape{2}, {0, 1}),
+        make_tensor<element::Type_t::i32>(Shape{3}, {0, 2, 0})};
+
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    out = out_vector.at(0);
+
+    EXPECT_EQ(out.get_element_type(), element::f16);
+    EXPECT_EQ(out.get_shape(), (Shape{1, 2, 1, 1}));
+
+    auto result = read_vector<ov::float16>(out);
+    std::vector<float> expected{70.f, 100.f};
+    ASSERT_EQ(result.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_NEAR(static_cast<float>(result[i]), expected[i], 1e-2f) << "at index: " << i;
+    }
 }
 
 TEST(eval, evaluate_dynamic_range_sum) {
