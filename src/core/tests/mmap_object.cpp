@@ -155,8 +155,8 @@ TEST_P(RangedMappingTest, compare_data) {
         mm_1 = load_mmap_object(m_file_path, offset_1, size_1);
         mm_2 = load_mmap_object(m_file_path, offset_2, size_2);
     } else {
-        const auto handle_1 = utils::open_file(m_file_path);
-        const auto handle_2 = utils::open_file(m_file_path);
+        const auto handle_1 = utils::open_ro_file(m_file_path);
+        const auto handle_2 = utils::open_ro_file(m_file_path);
         mm_1 = load_mmap_object_from_handle(handle_1, offset_1, size_1);
         mm_2 = load_mmap_object_from_handle(handle_2, offset_2, size_2);
     }
@@ -189,9 +189,9 @@ TEST_P(RangedMappingTest, compare_id) {
         other_mm_2 = load_mmap_object(other_file_path, offset_2, size_2);
         mm_1_ = load_mmap_object(m_file_path, offset_1, size_1);
     } else {
-        const auto handle_1 = utils::open_file(m_file_path);
-        const auto handle_2 = utils::open_file(m_file_path);
-        const auto other_handle = utils::open_file(other_file_path);
+        const auto handle_1 = utils::open_ro_file(m_file_path);
+        const auto handle_2 = utils::open_ro_file(m_file_path);
+        const auto other_handle = utils::open_ro_file(other_file_path);
         mm_1 = load_mmap_object_from_handle(handle_1, offset_1, size_1);
         mm_2 = load_mmap_object_from_handle(handle_2, offset_2, size_2);
         other_mm_1 = load_mmap_object_from_handle(other_handle, offset_1, size_1);

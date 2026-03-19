@@ -249,9 +249,9 @@ std::filesystem::path to_fs_path(const StringPathVariant& param) {
                       param);
 }
 
-FileHandle open_file(const std::filesystem::path& path) {
+FileHandle open_ro_file(const std::filesystem::path& path) {
 #ifdef _WIN32
-    return ::CreateFileA(path.string().c_str(),
+    return ::CreateFileW(path.c_str(),
                          GENERIC_READ,
                          FILE_SHARE_READ,
                          nullptr,
