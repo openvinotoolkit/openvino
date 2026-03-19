@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -255,10 +255,22 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 if (is_integer_type(input_0_type)) {
                     // input_0 == int && input_1 == int
                     if (is_integer_type(input_1_type)) {
-                        if (ew.mode == EltwiseMode::MODULU)
+                        if (ew.mode == EltwiseMode::MODULU) {
+                            // Use raw integer inputs for modulo to avoid float % float
                             op += "INPUT_" + op_num_str + "_0 % INPUT_" + op_num_str + "_1";
-                        else
-                            op += cast_type + mode + "(" + input0_str + ", " + input1_str + ")";
+                        } else {
+                            // Check if accumulator is floating-point (happens when input types
+                            // like INT8/INT16/UINT8/UINT16 are not in GetAccumulatorType's list).
+                            // In that case, inputs are cast to float and we need fmin/fmax
+                            // instead of the integer-only min/max.
+                            auto acc_type = GetAccumulatorType(params);
+                            bool acc_is_fp = (acc_type == Datatype::F32 || acc_type == Datatype::F16);
+                            if (acc_is_fp) {
+                                op += cast_type + "f" + mode + "(" + input0_str + ", " + input1_str + ")";
+                            } else {
+                                op += cast_type + mode + "(" + input0_str + ", " + input1_str + ")";
+                            }
+                        }
                     } else {
                         // input_0 == int && input_1 != int
                         op += cast_type + "f" + mode + "(convert_float(" + input0_str + "), " + input1_str + ")";
