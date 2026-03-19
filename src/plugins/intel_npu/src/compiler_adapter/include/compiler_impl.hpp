@@ -7,9 +7,9 @@
 #include <memory>
 #include <optional>
 
-#include "compiler.h"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/network_metadata.hpp"
+#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/except.hpp"
 
 namespace intel_npu {

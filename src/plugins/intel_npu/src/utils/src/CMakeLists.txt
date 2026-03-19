@@ -3,6 +3,7 @@
 #
 
 add_subdirectory(logger)
+add_subdirectory(vcl)
 
 if(ENABLE_NPU_PLUGIN_ENGINE)
     add_subdirectory(zero)
