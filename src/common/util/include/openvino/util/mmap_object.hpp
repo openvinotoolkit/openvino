@@ -46,7 +46,6 @@ public:
  */
 inline constexpr auto auto_size = std::numeric_limits<size_t>::max();
 
-
 /**
  * @brief Returns mapped memory for a file from provided path.
  * Instead of reading files, we can map the memory via mmap for Linux
