@@ -49,6 +49,12 @@ endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
 
+# parallel_read_streambuf.cpp and parallel_mem_streambuf.cpp call
+# ov::parallel_nt_static / ov::parallel_for from openvino/core/parallel.hpp.
+# Using PRIVATE avoids re-exporting the core include path to consumers.
+target_include_directories(${TARGET_NAME} PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/include>)
+
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     SOURCE_DIRECTORIES ${UTIL_INCLUDE_DIR})
