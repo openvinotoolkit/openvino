@@ -128,7 +128,6 @@ public:
     void update_network_name(std::string_view name) override;
 
     const std::shared_ptr<CommandQueue>& get_command_queue() const override;
-    uint32_t get_command_queue_group_ordinal() const override;
 
     void set_workload_type(const ov::WorkloadType workloadType) const override;
 
@@ -172,7 +171,6 @@ private:
     uint64_t _num_of_subgraphs = 1;
 
     std::shared_ptr<CommandQueue> _commandQueue;
-    uint32_t _commandQueueGroupOrdinal = 0;
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 
     std::optional<ov::Tensor> _blob;
