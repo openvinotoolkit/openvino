@@ -259,7 +259,6 @@ jobs:
           fi
 
       - name: Restore executable bits for C++ test binaries
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
         run: |
           set -euo pipefail
           target="${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}"
@@ -268,7 +267,7 @@ jobs:
           fi
 
       - name: Install GPU runtime stack
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' && matrix.requires_gpu_runtime }}
+        if: ${{ matrix.requires_gpu_runtime }}
         run: |
           set -euo pipefail
           sudo apt --assume-yes update
@@ -295,11 +294,10 @@ jobs:
           sudo apt --assume-yes install libze-intel-gpu1 libze1 intel-opencl-icd libze-dev intel-ocloc intel-level-zero-gpu-raytracing
 
       - name: Verify GPU devices
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' && matrix.requires_gpu_runtime }}
+        if: ${{ matrix.requires_gpu_runtime }}
         run: clinfo
 
       - name: Install C++ coverage prerequisites
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
         run: |
           sudo apt --assume-yes update
           sudo apt --assume-yes install lcov ca-certificates libtbb12
@@ -307,7 +305,6 @@ jobs:
           python3 -m pip install pyyaml
 
       - name: Run selected C++ coverage tests
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
         run: |
           echo "C++ shard ${{ matrix.cpp_shard_index }}/${{ matrix.cpp_shard_count }} running ${{ matrix.cpp_test_count }} test(s)"
           echo "Selected tests: ${{ matrix.cpp_test_names }}"
@@ -315,7 +312,6 @@ jobs:
 
       - name: Detect native coverage data (C++)
         id: detect_gcda
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
         run: |
           search_roots=()
           for root in \
@@ -333,7 +329,7 @@ jobs:
           fi
 
       - name: Generate native C/C++ coverage report (C++ tests)
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' && steps.detect_gcda.outputs.exists == 'true' }}
+        if: ${{ steps.detect_gcda.outputs.exists == 'true' }}
         run: python3 ${{ github.workspace }}/tools/coverage/coverage.py step collect-cpp-coverage
 
       - name: Verify C++ coverage file
@@ -522,7 +518,7 @@ jobs:
           fi
 
       - name: Install GPU runtime stack
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' && matrix.requires_gpu_runtime }}
+        if: ${{ matrix.requires_gpu_runtime }}
         run: |
           set -euo pipefail
           sudo apt --assume-yes update
@@ -549,11 +545,10 @@ jobs:
           sudo apt --assume-yes install libze-intel-gpu1 libze1 intel-opencl-icd libze-dev intel-ocloc intel-level-zero-gpu-raytracing
 
       - name: Verify GPU devices
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' && matrix.requires_gpu_runtime }}
+        if: ${{ matrix.requires_gpu_runtime }}
         run: clinfo
 
       - name: Install Python coverage prerequisites
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
         run: |
           sudo apt --assume-yes update
           sudo apt --assume-yes install lcov ca-certificates libtbb12
@@ -561,7 +556,6 @@ jobs:
           python3 -m pip install pyyaml coverage pytest pytest-cov pytest-xdist[psutil]
 
       - name: Run Python API/Frontend/Layer/OVC tests with coverage
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
         run: |
           echo "Python shard ${{ matrix.py_shard_index }}/${{ matrix.py_shard_count }} running ${{ matrix.py_test_count }} test(s)"
           echo "Selected tests: ${{ matrix.py_test_names }}"
@@ -569,7 +563,6 @@ jobs:
 
       - name: Detect native coverage data (Python-driven)
         id: detect_gcda
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
         run: |
           if find "${{ github.workspace }}/build" "${{ github.workspace }}/build_js" -type f -name '*.gcda' -print -quit | grep -q .; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
@@ -578,7 +571,7 @@ jobs:
           fi
 
       - name: Generate native C/C++ coverage report (Python-driven)
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' && steps.detect_gcda.outputs.exists == 'true' }}
+        if: ${{ steps.detect_gcda.outputs.exists == 'true' }}
         run: python3 ${{ github.workspace }}/tools/coverage/coverage.py step collect-cpp-coverage
 
       - name: Verify Python coverage file
@@ -812,7 +805,7 @@ jobs:
           fi
 
       - name: Install GPU runtime stack
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' && matrix.requires_gpu_runtime }}
+        if: ${{ matrix.requires_gpu_runtime }}
         run: |
           set -euo pipefail
           sudo apt --assume-yes update
@@ -839,11 +832,10 @@ jobs:
           sudo apt --assume-yes install libze-intel-gpu1 libze1 intel-opencl-icd libze-dev intel-ocloc intel-level-zero-gpu-raytracing
 
       - name: Verify GPU devices
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' && matrix.requires_gpu_runtime }}
+        if: ${{ matrix.requires_gpu_runtime }}
         run: clinfo
 
       - name: Install JS coverage prerequisites
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
         run: |
           sudo apt --assume-yes update
           sudo apt --assume-yes install lcov xvfb ca-certificates libtbb12
@@ -851,7 +843,6 @@ jobs:
           python3 -m pip install pyyaml
 
       - name: Run Node.js bindings unit/e2e tests with coverage
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
         run: |
           echo "JS shard ${{ matrix.js_shard_index }}/${{ matrix.js_shard_count }} running ${{ matrix.js_test_count }} test(s)"
           echo "Selected tests: ${{ matrix.js_test_names }}"
@@ -859,7 +850,6 @@ jobs:
 
       - name: Detect native coverage data (JS-driven)
         id: detect_gcda
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' }}
         run: |
           if find "${{ github.workspace }}/build" "${{ github.workspace }}/build_js" -type f -name '*.gcda' -print -quit | grep -q .; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
@@ -868,7 +858,7 @@ jobs:
           fi
 
       - name: Generate native C/C++ coverage report (JS-driven)
-        if: ${{ steps.restore_artifact.outputs.ready == 'true' && steps.detect_gcda.outputs.exists == 'true' }}
+        if: ${{ steps.detect_gcda.outputs.exists == 'true' }}
         run: python3 ${{ github.workspace }}/tools/coverage/coverage.py step collect-cpp-coverage
 
       - name: Verify JS coverage file
