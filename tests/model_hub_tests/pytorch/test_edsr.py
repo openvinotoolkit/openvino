@@ -42,7 +42,9 @@ class TestEdsrConvertModel(TestTorchConvertModel):
     def load_model(self, model_name, model_link):
         # image link from https://github.com/eugenesiow/super-image
         url = 'https://paperswithcode.com/media/datasets/Set5-0000002728-07a9793f_zA3bDjj.jpg'
-        image = Image.open(requests.get(url, stream=True).raw)
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        image = Image.open(response.raw)
         assert model_name in name_to_class, "Unexpected model name"
         print(f"scale: {self.scale}")
         model_cached = snapshot_download(f'eugenesiow/{model_name}')  # required to avoid HF rate limits
