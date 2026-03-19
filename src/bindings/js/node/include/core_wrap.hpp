@@ -6,6 +6,7 @@
 #include <napi.h>
 
 #include <thread>
+#include <variant>
 
 #include "openvino/runtime/core.hpp"
 
@@ -78,16 +79,7 @@ protected:
                                    const Napi::String& device);
 
     Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
-                                   const Napi::String& model_path,
-                                   const Napi::String& device);
-
-    Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
                                    const Napi::Object& model,
-                                   const Napi::String& device,
-                                   const std::map<std::string, ov::Any>& config);
-
-    Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
-                                   const Napi::String& model_path,
                                    const Napi::String& device,
                                    const std::map<std::string, ov::Any>& config);
 
@@ -108,27 +100,14 @@ private:
     std::mutex _mutex;
 };
 
-struct TsfnContextModel {
-    TsfnContextModel(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)) {};
-    std::thread nativeThread;
+struct TsfnCompileModelContext {
+    TsfnCompileModelContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)) {};
+    std::thread native_thread;
 
     Napi::Promise::Deferred deferred;
     Napi::ThreadSafeFunction tsfn;
 
-    std::shared_ptr<ov::Model> _model;
-    std::string _device;
-    ov::CompiledModel _compiled_model;
-    std::map<std::string, ov::Any> _config = {};
-};
-
-struct TsfnContextPath {
-    TsfnContextPath(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)) {};
-    std::thread nativeThread;
-
-    Napi::Promise::Deferred deferred;
-    Napi::ThreadSafeFunction tsfn;
-
-    std::filesystem::path _model;
+    std::variant<std::shared_ptr<ov::Model>, std::filesystem::path> _model;
     std::string _device;
     ov::CompiledModel _compiled_model;
     std::map<std::string, ov::Any> _config = {};
@@ -148,7 +127,5 @@ struct ImportModelContext {
     ov::CompiledModel _compiled_model;
 };
 
-void FinalizerCallbackModel(Napi::Env env, void* finalizeData, TsfnContextModel* context);
-void FinalizerCallbackPath(Napi::Env env, void* finalizeData, TsfnContextPath* context);
-void compileModelThreadModel(TsfnContextModel* context);
-void compileModelThreadPath(TsfnContextPath* context);
+void tsfn_finalizer_callback(Napi::Env env, void* finalize_data, TsfnCompileModelContext* context);
+void compile_model_thread(TsfnCompileModelContext* context);

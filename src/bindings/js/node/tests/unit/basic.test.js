@@ -16,7 +16,6 @@ const {
   generateImage,
 } = require("../utils.js");
 
-// Tests are skipped until CVS-180810 is fixed.
 describe("ov basic tests.", () => {
   const { testModelFP32 } = testModels;
   let core = null;
@@ -224,7 +223,7 @@ describe("ov basic tests.", () => {
     it("compileModel(model, device, invalidconfig) throws", async () => {
       await assert.rejects(
         async () => await core.compileModel(model, "CPU", "string"),
-        /Argument #\d+ must be an Object./,
+        /'compileModel' method called with incorrect parameters/,
       );
     });
 
@@ -238,16 +237,16 @@ describe("ov basic tests.", () => {
     it("compileModel(model) throws with invalid number of args", async () => {
       await assert.rejects(
         async () => await core.compileModel(model),
-        /Invalid number of arguments/,
+        /'compileModel' method called with incorrect parameters/,
       );
     });
 
-    // it("compileModel(invalid device) - C++ API error", async () => {
-    //   await assert.rejects(
-    //     async () => await core.compileModel(model, "DEVICE"),
-    //     /Device .* is not registered/,
-    //   );
-    // });
+    it("compileModel(invalid device) - C++ API error", async () => {
+      await assert.rejects(
+        async () => await core.compileModel(model, "DEVICE"),
+        /Device .* is not registered/,
+      );
+    });
 
     it("compileModel(invalid path to model) - C++ API error", async () => {
       await assert.rejects(
@@ -306,7 +305,8 @@ describe("ov basic tests.", () => {
     });
   });
 
-  describe("Test exportModel()/importModel()", () => {
+  // Tests are skipped until CVS-180810 is fixed.
+  describe("Test exportModel()/importModel()", { skip: true }, () => {
     let tensor = null;
     let userStream = null;
     let res1 = null;
