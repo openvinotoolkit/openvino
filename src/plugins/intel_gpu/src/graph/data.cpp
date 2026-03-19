@@ -30,7 +30,8 @@ memory::ptr attach_or_copy_data(network& network, memory::ptr mem) {
         char* src_ptr = src.data();
         char* dst_ptr = dst.data();
         constexpr size_t MIN_CHUNK = 2UL * 1024 * 1024;
-        const size_t num_chunks = std::max(size_t{1}, data_size / MIN_CHUNK);
+        const size_t max_threads = static_cast<size_t>(parallel_get_max_threads());
+        const size_t num_chunks = std::max(size_t{1}, std::min(data_size / MIN_CHUNK, max_threads));
         const size_t chunk_size = (data_size + num_chunks - 1) / num_chunks;
         ov::parallel_for(num_chunks, [src_ptr, dst_ptr, chunk_size, data_size, num_chunks](size_t i) {
             const size_t offset = i * chunk_size;

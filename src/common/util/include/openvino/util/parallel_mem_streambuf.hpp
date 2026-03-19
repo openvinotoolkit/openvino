@@ -5,6 +5,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -19,8 +20,10 @@
 #    ifndef WIN32_LEAN_AND_MEAN
 #        define WIN32_LEAN_AND_MEAN
 #    endif
-#    include <psapi.h>
+// clang-format off
 #    include <windows.h>
+#    include <psapi.h>
+// clang-format on
 #else
 #    include <sys/mman.h>
 #endif
@@ -120,7 +123,11 @@ public:
         // For non-file-backed memory (anonymous mmap, USM host buffers, etc.)
         // fall back to async prefetch + parallel memcpy.
         if (!m_file_buf) {
-            madvise(const_cast<void*>(data), size, MADV_WILLNEED);
+            // madvise(2) requires addr to be page-aligned; round down and extend
+            // the length to cover the alignment delta so all original bytes are included.
+            const uintptr_t base = reinterpret_cast<uintptr_t>(data);
+            const uintptr_t aligned_base = base & ~uintptr_t{4095};
+            madvise(reinterpret_cast<void*>(aligned_base), size + (base - aligned_base), MADV_WILLNEED);
         }
 #endif
     }
@@ -237,7 +244,10 @@ private:
 #else
         // Ask the kernel to start async I/O for these mmap pages so they are
         // resident before the parallel memcpy threads access them.
-        madvise(const_cast<char*>(src), size, MADV_WILLNEED);
+        // madvise(2) requires a page-aligned address; round down and extend size.
+        const uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+        const uintptr_t src_aligned = src_base & ~uintptr_t{4095};
+        madvise(reinterpret_cast<void*>(src_aligned), size + (src_base - src_aligned), MADV_WILLNEED);
 #endif
 
         ov::parallel_for(num_chunks, [&](size_t i) {

@@ -63,7 +63,7 @@ std::filesystem::path write_temp_file(const std::vector<uint8_t>& data,
         path = ov::test::utils::generateTestFilePrefix() + "_par_read.bin";
     }
     std::ofstream ofs(path, std::ios::binary | std::ios::trunc);
-    EXPECT_TRUE(ofs.is_open());
+    ASSERT_TRUE(ofs.is_open());
     if (prefix_size > 0) {
         std::vector<uint8_t> prefix(prefix_size, 0xFFu);
         ofs.write(reinterpret_cast<const char*>(prefix.data()), static_cast<std::streamsize>(prefix_size));
@@ -392,8 +392,8 @@ TEST_F(ParallelReadStreamBufTest, ParallelDispatch_FullReadCorrectness) {
 TEST_F(ParallelReadStreamBufTest, ParallelDispatch_NonZeroOffset_AndSeek) {
     constexpr size_t kPrefixSize = 4 * 1024;
     constexpr size_t kMaxHwForSize = 16;
-    const size_t hw = std::min(kMaxHwForSize,
-                               std::max(size_t{2}, static_cast<size_t>(std::thread::hardware_concurrency())));
+    const size_t hw =
+        std::min(kMaxHwForSize, std::max(size_t{2}, static_cast<size_t>(std::thread::hardware_concurrency())));
     const size_t kPayloadSize = hw * 1024 * 1024;
 
     std::vector<uint8_t> payload(kPayloadSize);
