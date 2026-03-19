@@ -75,6 +75,136 @@ ov::Tensor generate(const std::shared_ptr<ov::Node>& node,
     return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
 }
 
+ov::Tensor generate(const std::shared_ptr<ov::op::v15::BevPoolV2>& node,
+                    size_t port,
+                    const ov::element::Type& elemType,
+                    const ov::Shape& targetShape,
+                    std::shared_ptr<InputGenerateData> inGenRangeData = nullptr) {
+    if (port == 0 || port == 1) {
+        InputGenerateData inGenData;
+        inGenData.start_from = 1;
+        inGenData.range = 20;
+        inGenData.resolution = 1;
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
+    }
+
+    if (port == 2) {
+        const auto idx_count = ov::shape_size(targetShape);
+
+        size_t dw_len = 1;
+        try {
+            dw_len = std::max<size_t>(1, ov::shape_size(node->get_input_shape(1)));
+        } catch (...) {
+            dw_len = 1;
+        }
+
+        ov::Tensor idx_tensor(elemType, targetShape);
+        switch (elemType) {
+        case ov::element::Type_t::i32: {
+            auto* p = idx_tensor.data<int32_t>();
+            for (size_t i = 0; i < idx_count; ++i) {
+                p[i] = static_cast<int32_t>(i % dw_len);
+            }
+            break;
+        }
+        case ov::element::Type_t::i64: {
+            auto* p = idx_tensor.data<int64_t>();
+            for (size_t i = 0; i < idx_count; ++i) {
+                p[i] = static_cast<int64_t>(i % dw_len);
+            }
+            break;
+        }
+        case ov::element::Type_t::u32: {
+            auto* p = idx_tensor.data<uint32_t>();
+            for (size_t i = 0; i < idx_count; ++i) {
+                p[i] = static_cast<uint32_t>(i % dw_len);
+            }
+            break;
+        }
+        case ov::element::Type_t::u64: {
+            auto* p = idx_tensor.data<uint64_t>();
+            for (size_t i = 0; i < idx_count; ++i) {
+                p[i] = static_cast<uint64_t>(i % dw_len);
+            }
+            break;
+        }
+        default:
+            return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape, inGenRangeData);
+        }
+
+        return idx_tensor;
+    }
+
+    if (port == 3) {
+        const auto itv_count = ov::shape_size(targetShape);
+
+        size_t idx_count = 0;
+        try {
+            idx_count = ov::shape_size(node->get_input_shape(2));
+        } catch (...) {
+            idx_count = 0;
+        }
+
+        const int64_t m = static_cast<int64_t>(idx_count);
+        const int64_t mid = std::min<int64_t>(m, 2);
+
+        std::vector<int64_t> itv_values(itv_count, 0);
+        if (itv_count >= 3) {
+            itv_values[0] = 0;
+            itv_values[1] = mid;
+            itv_values[2] = 0;
+        }
+        if (itv_count >= 6) {
+            itv_values[3] = mid;
+            itv_values[4] = m;
+            itv_values[5] = 1;
+        }
+        for (size_t i = 6; i + 2 < itv_count; i += 3) {
+            itv_values[i + 0] = m;
+            itv_values[i + 1] = m;
+            itv_values[i + 2] = 0;
+        }
+
+        ov::Tensor itv_tensor(elemType, targetShape);
+        switch (elemType) {
+        case ov::element::Type_t::i32: {
+            auto* p = itv_tensor.data<int32_t>();
+            for (size_t i = 0; i < itv_count; ++i) {
+                p[i] = static_cast<int32_t>(itv_values[i]);
+            }
+            break;
+        }
+        case ov::element::Type_t::i64: {
+            auto* p = itv_tensor.data<int64_t>();
+            for (size_t i = 0; i < itv_count; ++i) {
+                p[i] = static_cast<int64_t>(itv_values[i]);
+            }
+            break;
+        }
+        case ov::element::Type_t::u32: {
+            auto* p = itv_tensor.data<uint32_t>();
+            for (size_t i = 0; i < itv_count; ++i) {
+                p[i] = static_cast<uint32_t>(std::max<int64_t>(0, itv_values[i]));
+            }
+            break;
+        }
+        case ov::element::Type_t::u64: {
+            auto* p = itv_tensor.data<uint64_t>();
+            for (size_t i = 0; i < itv_count; ++i) {
+                p[i] = static_cast<uint64_t>(std::max<int64_t>(0, itv_values[i]));
+            }
+            break;
+        }
+        default:
+            return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape, inGenRangeData);
+        }
+
+        return itv_tensor;
+    }
+
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape, inGenRangeData);
+}
+
 namespace Activation {
 ov::Tensor generate(const ov::element::Type& elemType,
                              const ov::Shape& targetShape,
@@ -1060,6 +1190,8 @@ const InputsMap& getInputMap() {
 #include "openvino/opsets/opset16_tbl.hpp"
 
 #include "ov_ops/opset_private_tbl.hpp"
+    // Ensure BevPoolV2 is registered in inputs map in case private table misses it
+    {ov::op::v15::BevPoolV2::get_type_info_static(), generateInput<ov::op::v15::BevPoolV2>},
 #undef _OPENVINO_OP_REG
     };
 

@@ -1,0 +1,203 @@
+ir_version: 8
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "bevpool_v2_graph"
+  node {
+    input: "cf"
+    input: "dw"
+    input: "idx"
+    input: "itv"
+    output: "out"
+    op_type: "BevPoolV2"
+    domain: "org.openvinotoolkit"
+    attribute {
+      name: "input_channels"
+      i: 4
+      type: INT
+    }
+    attribute {
+      name: "output_channels"
+      i: 2
+      type: INT
+    }
+    attribute {
+      name: "image_width"
+      i: 5
+      type: INT
+    }
+    attribute {
+      name: "image_height"
+      i: 3
+      type: INT
+    }
+    attribute {
+      name: "feature_width"
+      i: 7
+      type: INT
+    }
+    attribute {
+      name: "feature_height"
+      i: 6
+      type: INT
+    }
+    attribute {
+      name: "x_bound_min"
+      f: -10.0
+      type: FLOAT
+    }
+    attribute {
+      name: "x_bound_max"
+      f: 10.0
+      type: FLOAT
+    }
+    attribute {
+      name: "x_bound_step"
+      f: 0.5
+      type: FLOAT
+    }
+    attribute {
+      name: "y_bound_min"
+      f: -20.0
+      type: FLOAT
+    }
+    attribute {
+      name: "y_bound_max"
+      f: 20.0
+      type: FLOAT
+    }
+    attribute {
+      name: "y_bound_step"
+      f: 1.0
+      type: FLOAT
+    }
+    attribute {
+      name: "z_bound_min"
+      f: -3.0
+      type: FLOAT
+    }
+    attribute {
+      name: "z_bound_max"
+      f: 5.0
+      type: FLOAT
+    }
+    attribute {
+      name: "z_bound_step"
+      f: 0.25
+      type: FLOAT
+    }
+    attribute {
+      name: "d_bound_min"
+      f: 1.0
+      type: FLOAT
+    }
+    attribute {
+      name: "d_bound_max"
+      f: 4.0
+      type: FLOAT
+    }
+    attribute {
+      name: "d_bound_step"
+      f: 1.0
+      type: FLOAT
+    }
+  }
+  input {
+    name: "cf"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "dw"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "idx"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 6
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "itv"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "out"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 6
+          }
+          dim {
+            dim_value: 7
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: "org.openvinotoolkit"
+  version: 1
+}
