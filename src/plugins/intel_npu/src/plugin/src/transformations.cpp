@@ -189,7 +189,10 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
     const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
     std::optional<ov::Dimension>& originalBatch,
     Logger logger) {
-    auto reshapedModel = model->clone();
+    auto originalModel = std::const_pointer_cast<ov::Model>(model);
+    // Keep the original model for all no-op/early-return paths.
+    // A mutable clone is created only when plugin batching is actually about to be applied.
+    auto reshapedModel = originalModel;
     auto successfullyDebatched = false;
 
     auto batchModeIsAvailable = localConfig.isAvailable(ov::intel_npu::batch_mode.name());
@@ -203,12 +206,12 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
             return {reshapedModel, successfullyDebatched};
         }
     } else {
-        // If the compiler doesn't support BATCH_MODE, we can still try using the PLUGIN batch
-        batchMode = ov::intel_npu::BatchMode::PLUGIN;
+        // If the compiler doesn't support BATCH_MODE, we can still try using batching
+        batchMode = ov::intel_npu::BatchMode::AUTO;
     }
 
     try {
-        const auto pluginBatchingIsSupported = validateModelBatch(reshapedModel, logger);
+        const auto pluginBatchingIsSupported = validateModelBatch(model, logger);
 
         if (!pluginBatchingIsSupported) {
             if (batchModeIsAvailable && batchMode == ov::intel_npu::BatchMode::AUTO) {
@@ -219,6 +222,8 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
         }
 
         logger.info("Attempting to handle batching on the plugin side.");
+        // Clone right before mutation to avoid extra memory usage when batching is skipped.
+        reshapedModel = model->clone();
 
         try {
             originalBatch = ov::get_batch(reshapedModel);
@@ -241,8 +246,20 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
             updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
         }
     } catch (const std::exception& ex) {
-        logger.info("Couldn't validate and reshape the model. Batching will be handled by compiler. Error: %s",
-                    ex.what());
+        // If plugin-side transformation failed, keep the original model and drop the clone
+        reshapedModel = originalModel;
+        if (batchMode == ov::intel_npu::BatchMode::AUTO) {
+            logger.info("Couldn't validate and reshape the model. Batching will be handled by compiler. Error: %s",
+                        ex.what());
+            if (batchModeIsAvailable) {
+                // If we failed to handle batching on the plugin side, we should reset the batch mode to default
+                // COMPILER But only if the batch mode is available, otherwise we might be running on older compiler
+                // which doesn't support batch mode at all
+                updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
+            }
+        } else {
+            OPENVINO_THROW("Couldn't validate and reshape the model for PLUGIN batch mode. Error: %s", ex.what());
+        }
     }
 
     return {reshapedModel, successfullyDebatched};

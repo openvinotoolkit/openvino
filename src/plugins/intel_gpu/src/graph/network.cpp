@@ -715,13 +715,13 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
         }
     }
 
-    // We shouldn't call surfaces_lock::create() function constantly here, but due to
+    // We shouldn't call create_surfaces_lock function constantly here, but due to
     // some changes in assembler code, performance drops in case if we move it under
     // `shared_mem_found` condition (it somehow connected with get_cl_queue() - this function call
-    // makes asm faster for some reasons). So, as WA we keep this surfaces_lock::create() here
+    // makes asm faster for some reasons). So, as WA we keep this create_surfaces_lock here
     // with empty memory vector and do nothing inside this function for saving performance
     // in some cases.
-    auto surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
+    auto surf_lock = get_stream().create_surfaces_lock(in_out_mem);
 
     execute_impl(dependencies);
 

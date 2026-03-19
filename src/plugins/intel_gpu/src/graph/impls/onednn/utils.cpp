@@ -5,7 +5,6 @@
 #include "utils.hpp"
 #include <oneapi/dnnl/dnnl_debug.h>
 #include <numeric>
-#include <oneapi/dnnl/dnnl_ocl.hpp>
 
 namespace cldnn {
 namespace onednn {
@@ -965,5 +964,17 @@ int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout
     else
         return (1 << 1);
 }
+std::string dnnl_status_to_string(dnnl_status_t status) {
+    switch (status) {
+        case dnnl_success: return "dnnl_success";
+        case dnnl_out_of_memory: return "dnnl_out_of_memory";
+        case dnnl_invalid_arguments: return "dnnl_invalid_arguments";
+        case dnnl_unimplemented: return "dnnl_unimplemented";
+        case dnnl_runtime_error: return "dnnl_runtime_error";
+        case dnnl_not_required: return "dnnl_not_required";
+        default: return "dnnl_status_unknown";
+    }
+}
+
 }  // namespace onednn
 }  // namespace cldnn

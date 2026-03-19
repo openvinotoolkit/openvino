@@ -728,7 +728,6 @@ def test_override_all_outputs_2():
     assert res
 
 
-@EDITOR_XFAIL_MARK
 def test_override_all_outputs_3():
     skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
@@ -770,6 +769,30 @@ def test_override_all_outputs_invalid_place():
 
     res = compare_models(result_model, expected_model)
     assert res
+
+
+def test_override_all_outputs_reorder():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model.onnx")
+    assert model
+
+    # Original output order: out1, out2, out3, out4
+    original_outputs = model.get_outputs()
+    assert len(original_outputs) == 4
+
+    # Request reversed order
+    place4 = get_tensor_place(model, "out4")
+    place3 = get_tensor_place(model, "out3")
+    place2 = get_tensor_place(model, "out2")
+    place1 = get_tensor_place(model, "out1")
+    model.override_all_outputs(outputs=[place4, place3, place2, place1])
+    result_model = fe.convert(model)
+
+    result_output_names = [o.get_any_name() for o in result_model.outputs]
+    assert result_output_names == ["out4", "out3", "out2", "out1"]
 
 
 def test_override_all_inputs():
