@@ -56,19 +56,28 @@ void fill_pattern(std::vector<uint8_t>& buf, size_t start_index = 0) {
 /// Write `data` to a file, preceded by `prefix_size` bytes of a recognisable
 /// "garbage" prefix (0xFF repeated) so that non-zero-offset tests can verify
 /// that the header bytes are never surfaced through the streambuf.
+// ASSERT_* macros expand to `return` (void), so they cannot be used directly
+// in a non-void function.  The canonical GTest pattern is to delegate to a
+// void helper, then check HasFatalFailure() before continuing.
+void write_temp_file_impl(const std::filesystem::path& path, const std::vector<uint8_t>& data, size_t prefix_size) {
+    std::ofstream ofs(path, std::ios::binary | std::ios::trunc);
+    ASSERT_TRUE(ofs.is_open()) << "Cannot create temp file: " << path;
+    if (prefix_size > 0) {
+        std::vector<uint8_t> prefix(prefix_size, 0xFFu);
+        ofs.write(reinterpret_cast<const char*>(prefix.data()), static_cast<std::streamsize>(prefix_size));
+    }
+    ofs.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
+}
+
 std::filesystem::path write_temp_file(const std::vector<uint8_t>& data,
                                       size_t prefix_size = 0,
                                       std::filesystem::path path = {}) {
     if (path.empty()) {
         path = ov::test::utils::generateTestFilePrefix() + "_par_read.bin";
     }
-    std::ofstream ofs(path, std::ios::binary | std::ios::trunc);
-    ASSERT_TRUE(ofs.is_open());
-    if (prefix_size > 0) {
-        std::vector<uint8_t> prefix(prefix_size, 0xFFu);
-        ofs.write(reinterpret_cast<const char*>(prefix.data()), static_cast<std::streamsize>(prefix_size));
-    }
-    ofs.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
+    write_temp_file_impl(path, data, prefix_size);
+    if (::testing::Test::HasFatalFailure())
+        return {};
     return path;
 }
 

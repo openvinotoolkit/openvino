@@ -225,7 +225,6 @@ TEST_F(SingleFileStorageTest, WriteReadLargeBlob_ParallelPath) {
 
     // --- non-mmap path (ParallelReadStreamBuf) ---
     m_storage->read_cache_entry(blob_id, /*enable_mmap=*/false, [&](const ICacheManager::CompiledBlobVariant& cv) {
-        ASSERT_TRUE(std::holds_alternative<std::reference_wrapper<std::istream>>(cv));
         auto& stream = std::get<std::reference_wrapper<std::istream>>(cv).get();
 
         std::vector<uint8_t> got(kBlobSize);
@@ -238,7 +237,6 @@ TEST_F(SingleFileStorageTest, WriteReadLargeBlob_ParallelPath) {
     m_storage.reset();
     SingleFileStorage reopened(m_file_path);
     reopened.read_cache_entry(blob_id, /*enable_mmap=*/false, [&](const ICacheManager::CompiledBlobVariant& cv) {
-        ASSERT_TRUE(std::holds_alternative<std::reference_wrapper<std::istream>>(cv));
         auto& stream = std::get<std::reference_wrapper<std::istream>>(cv).get();
 
         std::vector<uint8_t> got(kBlobSize);
