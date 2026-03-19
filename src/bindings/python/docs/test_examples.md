@@ -43,7 +43,7 @@ To print test names and increase verbosity, use `-v` flag.
 ```shell
 pytest tests/test_runtime/test_core.py -v
 ```
-*Tip: look at pytest's documentation for more useful tricks: https://docs.pytest.org/en/latest/*
+*Tip: look at pytest's documentation for more useful tricks: https://docs.pytest.org/en/latest/
 
 To run full test suite one can utilize `tox` command:
 ```shell
