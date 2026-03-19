@@ -67,3 +67,11 @@ reportFunctionMemberAccess = false
 reportAttributeAccessIssue = false
 reportMissingImports = false
 reportIncompatibleMethodOverride = false
+
+[tool.bandit]
+exclude_dirs = ["docs", "tests", "thirdparty", "samples", ".github/actions"]
+skips = [
+    "B101", # assert_used
+    "B614", # pytorch_load
+    "B615", # huggingface_unsafe_download
+]
