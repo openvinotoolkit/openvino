@@ -119,7 +119,7 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
         REGISTER_PASS(manager, DisableShapeOfConstantFolding, false);
         REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
         // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
-        // so that not extra memory is used for intermediate decompressed constants.
+        // so that no extra memory is used for intermediate decompressed constants.
         REGISTER_PASS(manager, MarkCompressedFloatConstants);
         REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding);
 
@@ -140,7 +140,7 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
 
         return manager;
     };
-    static Manager manager = get_manager();
+    static thread_local Manager manager = get_manager();
 
     manager.run_passes(model);
 

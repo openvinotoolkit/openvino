@@ -4,13 +4,17 @@
 
 #pragma once
 
+#include <memory>
 #include <openvino/runtime/intel_npu/properties.hpp>
 #include <vector>
 
 #include "behavior/compiled_model/properties.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "openvino/core/log.hpp"
+#include "zero_backend.hpp"
+#include "zero_device.hpp"
 
 using namespace ov::test::behavior;
 
@@ -29,6 +33,18 @@ public:
     LogCallbackGuard(const LogCallbackGuard&) = delete;
     LogCallbackGuard& operator=(const LogCallbackGuard&) = delete;
 };
+
+bool has_non_negative_numeric_suffix(const std::string& value) {
+    const auto dot_pos = value.find('.');
+    if (dot_pos == std::string::npos || dot_pos + 1 >= value.size()) {
+        return false;
+    }
+
+    const auto suffix = value.substr(dot_pos + 1);
+    return std::all_of(suffix.begin(), suffix.end(), [](const char ch) {
+        return ch >= '0' && ch <= '9';
+    });
+}
 
 // ExecutableNetwork Properties tests
 class ClassExecutableNetworkGetPropertiesTestNPU
@@ -239,6 +255,21 @@ using ClassExecutableNetworkInvalidDeviceIDTestSuite = ClassExecutableNetworkGet
 
 TEST_P(ClassExecutableNetworkInvalidDeviceIDTestSuite, InvalidNPUdeviceIDTest) {
     deviceName = configValue.as<std::string>();
+    const bool is_non_negative_numeric_device_id = has_non_negative_numeric_suffix(deviceName);
+
+    auto backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
+    auto device = backend->getDevice();
+    if (device != nullptr && device->getName() == ov::intel_npu::Platform::AUTO_DETECT) {
+        if (is_non_negative_numeric_device_id) {
+            GTEST_SKIP()
+                << "Skip since AUTO_DETECT platform should ignore numeric suffix and find the device successfully\n";
+        }
+
+        OV_EXPECT_THROW_HAS_SUBSTRING(ov::CompiledModel compiled_model = ie.compile_model(model, deviceName),
+                                      ov::Exception,
+                                      "Compilation failed.");
+        return;
+    }
 
     OV_EXPECT_THROW_HAS_SUBSTRING(ov::CompiledModel compiled_model = ie.compile_model(model, deviceName),
                                   ov::Exception,
@@ -249,15 +280,21 @@ using CheckCompilerTypeProperty = ClassExecutableNetworkGetPropertiesTestNPU;
 
 TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyFromCompiledModel) {
     std::string platform = ov::test::utils::getTestsPlatformFromEnvironmentOr(deviceName);
-    size_t pos0 = platform.find("5010");
-    size_t pos1 = platform.find("4000");
+    const std::vector<std::string> plugin_compiler_platforms = {"4000", "5010", "5020"};
+    bool is_plugin_compiler_platform = false;
+    for (const auto& p : plugin_compiler_platforms) {
+        if (platform.find(p) != std::string::npos) {
+            is_plugin_compiler_platform = true;
+            break;
+        }
+    }
     ov::Core core;
 
     ov::CompiledModel compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
     auto compiler_type = compiled_model.get_property(ov::intel_npu::compiler_type);
 
-    if (pos0 != std::string::npos || pos1 != std::string::npos) {
+    if (is_plugin_compiler_platform) {
         ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::PLUGIN);
     } else {
         ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
@@ -269,7 +306,7 @@ TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyFromCompiledModel) {
     compiler_type = compiled_model.get_property(ov::intel_npu::compiler_type);
     ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
 
-    if (pos0 != std::string::npos || pos1 != std::string::npos) {
+    if (is_plugin_compiler_platform) {
         OV_ASSERT_NO_THROW(compiled_model =
                                core.compile_model(model,
                                                   deviceName,
@@ -281,8 +318,14 @@ TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyFromCompiledModel) {
 
 TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyAfterSettingExtraConfigToGetProperty) {
     std::string platform = ov::test::utils::getTestsPlatformFromEnvironmentOr(deviceName);
-    size_t pos0 = platform.find("5010");
-    size_t pos1 = platform.find("4000");
+    const std::vector<std::string> plugin_compiler_platforms = {"4000", "5010", "5020"};
+    bool is_plugin_compiler_platform = false;
+    for (const auto& p : plugin_compiler_platforms) {
+        if (platform.find(p) != std::string::npos) {
+            is_plugin_compiler_platform = true;
+            break;
+        }
+    }
     ov::Core core;
 
     auto test_custom_compiler_type =
@@ -292,7 +335,7 @@ TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyAfterSettingExtraConf
     ASSERT_TRUE(test_custom_compiler_type == ov::intel_npu::CompilerType::DRIVER);
 
     test_custom_compiler_type = core.get_property(deviceName, ov::intel_npu::compiler_type);
-    if (pos0 != std::string::npos || pos1 != std::string::npos) {
+    if (is_plugin_compiler_platform) {
         ASSERT_TRUE(test_custom_compiler_type == ov::intel_npu::CompilerType::PREFER_PLUGIN);
     } else {
         ASSERT_TRUE(test_custom_compiler_type == ov::intel_npu::CompilerType::DRIVER);
@@ -302,7 +345,7 @@ TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyAfterSettingExtraConf
     OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
     auto compiler_type = compiled_model.get_property(ov::intel_npu::compiler_type);
 
-    if (pos0 != std::string::npos || pos1 != std::string::npos) {
+    if (is_plugin_compiler_platform) {
         ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::PLUGIN);
     } else {
         ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
