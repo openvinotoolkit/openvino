@@ -13,9 +13,9 @@
 
 #include "compiled_model.hpp"
 #include "embedding_model_utils.hpp"
+#include "llm_test_models.hpp"
 #include "llm_compiled_model.hpp"
 #include "llm_compiled_model_utils.hpp"
-#include "model_builder.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "serialization.hpp"
@@ -151,34 +151,16 @@ protected:
         m_plugin = std::make_shared<NullPlugin>();
     }
 
-    static ov::test::npuw::ModelConfig base_model_config() {
-        ov::test::npuw::ModelConfig cfg;
-        cfg.num_layers = 2;
-        cfg.hidden_size = 64;
-        cfg.num_heads = 4;
-        cfg.head_dim = 16;
-        cfg.num_kv_heads = 4;
-        cfg.vocab_size = 256;
-        return cfg;
-    }
-
     std::shared_ptr<ov::Model> build_llm_model() const {
-        ov::test::npuw::ModelBuilder mb;
-        return mb.build_model(base_model_config());
+        return ov::test::npuw::build_llm_test_model();
     }
 
     std::shared_ptr<ov::Model> build_whisper_decoder_model() const {
-        auto cfg = base_model_config();
-        cfg.use_cross_attention = true;
-        ov::test::npuw::ModelBuilder mb;
-        return mb.build_model(cfg);
+        return ov::test::npuw::build_whisper_decoder_test_model();
     }
 
     std::shared_ptr<ov::Model> build_embedding_model() const {
-        auto cfg = base_model_config();
-        cfg.use_token_type_embedding = true;
-        ov::test::npuw::ModelBuilder mb;
-        return mb.build_model(cfg);
+        return ov::test::npuw::build_embedding_test_model();
     }
 
     static ov::AnyMap base_props() {
@@ -291,30 +273,29 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, ConfigOverridesAndAdditionsArePassedT
     ov::AnyMap props = {
         {"NPUW_LLM_SHARED_HEAD", "YES"},
         {"NPUW_DEVICES", "CPU"},
-        {"NPUW_LLM_PREFILL_CONFIG", ov::AnyMap{{"PREFILL_ONLY", "base"}, {"NPUW_ONLINE_PIPELINE", "NONE"}}},
-        {"++NPUW_LLM_PREFILL_CONFIG", ov::AnyMap{{"PREFILL_ONLY", "override"}, {"PREFILL_EXTRA", "1"}}},
-        {"NPUW_LLM_GENERATE_CONFIG", ov::AnyMap{{"GENERATE_ONLY", "base"}, {"NPUW_ONLINE_PIPELINE", "NONE"}}},
-        {"++NPUW_LLM_GENERATE_CONFIG", ov::AnyMap{{"GENERATE_ONLY", "override"}, {"GENERATE_EXTRA", "1"}}},
-        {"NPUW_LLM_SHARED_HEAD_CONFIG", ov::AnyMap{{"HEAD_ONLY", "base"}}},
-        {"++NPUW_LLM_SHARED_HEAD_CONFIG", ov::AnyMap{{"HEAD_ONLY", "override"}, {"HEAD_EXTRA", "1"}}},
+        {"NPUW_LLM_PREFILL_CONFIG", ov::AnyMap{{"NPUW_ONLINE_PIPELINE", "NONE"}, {"NPUW_DEVICES", "CPU"}}},
+        {"++NPUW_LLM_PREFILL_CONFIG", ov::AnyMap{{"NPUW_DEVICES", "CPU,NPU"}, {"NPUW_UNFOLD_IREQS", "YES"}}},
+        {"NPUW_LLM_GENERATE_CONFIG", ov::AnyMap{{"NPUW_ONLINE_PIPELINE", "NONE"}, {"NPUW_FALLBACK_EXEC", "YES"}}},
+        {"++NPUW_LLM_GENERATE_CONFIG", ov::AnyMap{{"NPUW_FALLBACK_EXEC", "NO"}, {"NPUW_FUNCALL_ASYNC", "NO"}}},
+        {"NPUW_LLM_SHARED_HEAD_CONFIG", ov::AnyMap{{"NPUW_DEVICES", "CPU"}}},
+        {"++NPUW_LLM_SHARED_HEAD_CONFIG", ov::AnyMap{{"NPUW_DEVICES", "NPU"}}},
     };
 
     ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(), props, recorder));
     ASSERT_NE(compiled, nullptr);
 
     const auto& prefill = require_call(recorder, "_prefill");
-    expect_prop(prefill.props, "PREFILL_ONLY", "override");
-    expect_prop(prefill.props, "PREFILL_EXTRA", "1");
-    expect_prop(prefill.props, "NPUW_DEVICES", "CPU");
+    expect_prop(prefill.props, "NPUW_ONLINE_PIPELINE", "NONE");
+    expect_prop(prefill.props, "NPUW_DEVICES", "CPU,NPU");
+    expect_prop(prefill.props, "NPUW_UNFOLD_IREQS", "YES");
 
     const auto& generate = require_call(recorder, "_kv192");
-    expect_prop(generate.props, "GENERATE_ONLY", "override");
-    expect_prop(generate.props, "GENERATE_EXTRA", "1");
-    expect_prop(generate.props, "NPUW_DEVICES", "CPU");
+    expect_prop(generate.props, "NPUW_ONLINE_PIPELINE", "NONE");
+    expect_prop(generate.props, "NPUW_FALLBACK_EXEC", "NO");
+    expect_prop(generate.props, "NPUW_FUNCALL_ASYNC", "NO");
 
     const auto& head = require_call(recorder, "_lm_head");
-    expect_prop(head.props, "HEAD_ONLY", "override");
-    expect_prop(head.props, "HEAD_EXTRA", "1");
+    expect_prop(head.props, "NPUW_DEVICES", "NPU");
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, AttentionHintsPropagateToStageConfigs) {
@@ -502,6 +483,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, StaticAndHfaAttentionHintsCoverDistin
         const auto& generate = require_call(recorder, "_kv192");
         expect_prop(prefill.props, "NPUW_ATTN", "STATIC");
         expect_prop(generate.props, "NPUW_ATTN", "STATIC");
+        // Static attention must not inject REP partitioning knobs into the stage configs.
         EXPECT_EQ(prefill.props.count("NPUW_ONLINE_PIPELINE"), 0u);
         EXPECT_EQ(generate.props.count("NPUW_ONLINE_PIPELINE"), 0u);
     }

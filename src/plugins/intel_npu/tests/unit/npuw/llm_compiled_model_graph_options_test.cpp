@@ -13,8 +13,8 @@
 #include <vector>
 
 #include "compiled_model.hpp"
+#include "llm_test_models.hpp"
 #include "llm_compiled_model.hpp"
-#include "model_builder.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "serialization.hpp"
@@ -143,20 +143,8 @@ protected:
         m_plugin = std::make_shared<NullPlugin>();
     }
 
-    static ov::test::npuw::ModelConfig base_model_config() {
-        ov::test::npuw::ModelConfig cfg;
-        cfg.num_layers = 2;
-        cfg.hidden_size = 64;
-        cfg.num_heads = 4;
-        cfg.head_dim = 16;
-        cfg.num_kv_heads = 4;
-        cfg.vocab_size = 256;
-        return cfg;
-    }
-
     std::shared_ptr<ov::Model> build_model() const {
-        ov::test::npuw::ModelBuilder mb;
-        return mb.build_model(base_model_config());
+        return ov::test::npuw::build_llm_test_model();
     }
 
     static ov::AnyMap base_props() {
