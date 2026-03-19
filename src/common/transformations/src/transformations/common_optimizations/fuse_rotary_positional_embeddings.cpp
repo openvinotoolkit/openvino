@@ -29,6 +29,7 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
@@ -1149,7 +1150,7 @@ RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
 
     auto varsplit = pattern::wrap_type<v1::VariadicSplit>({x, -1, {"half_ndims", "?"}});
     varsplit->set_output_size(2);
-    auto split = pattern::wrap_type<v1::Split>({x, -1});
+    auto split = pattern::wrap_type<v1::Split>({x, -1}, {{"num_splits", 2}});
     split->set_output_size(2);
     auto split0 = std::make_shared<pattern::op::Or>(OutputVector{varsplit->output(0), split->output(0)});
     auto split1 = std::make_shared<pattern::op::Or>(OutputVector{varsplit->output(1), split->output(1)});
@@ -1192,15 +1193,11 @@ RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
         new_args.push_back(pattern_map.at(t_sin));
         auto new_node = std::make_shared<ov::op::internal::RoPE>(new_args, config);
         new_node->set_friendly_name(root->get_friendly_name());
-        ov::copy_runtime_info({pattern_map.at(neg).get_node_shared_ptr(),
-                               pattern_map.at(sub_Subtract).get_node_shared_ptr(),
-                               pattern_map.at(first_half_mul_cos).get_node_shared_ptr(),
-                               pattern_map.at(first_half_mul_sin).get_node_shared_ptr(),
-                               pattern_map.at(second_half_mul_cos).get_node_shared_ptr(),
-                               pattern_map.at(second_half_mul_sin).get_node_shared_ptr(),
-                               pattern_map.at(add_Add).get_node_shared_ptr(),
-                               pattern_map.at(result).get_node_shared_ptr()},
-                              new_node);
+        NodeVector matched_nodes;
+        for (const auto& kv : pattern_map) {
+            matched_nodes.push_back(kv.second.get_node_shared_ptr());
+        }
+        ov::copy_runtime_info(matched_nodes, new_node);
         ov::replace_node(root, new_node);
         register_new_node(new_node);
         return true;
