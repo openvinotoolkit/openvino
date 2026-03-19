@@ -20,9 +20,9 @@ LANE_DEFS = {
     "cpu": {
         "lane": "cpu",
         "test_profile": "cpu",
-        "cpp_runner": '["ubuntu-latest-64-cores"]',
-        "python_runner": '["ubuntu-latest-8-cores"]',
-        "js_runner": '["ubuntu-latest-8-cores"]',
+        "cpp_runner": '["aks-linux-8-cores-16gb"]',
+        "python_runner": '["aks-linux-8-cores-16gb"]',
+        "js_runner": '["aks-linux-8-cores-16gb"]',
         "requires_gpu_runtime": False,
         "requires_npu_runtime": False,
     },
