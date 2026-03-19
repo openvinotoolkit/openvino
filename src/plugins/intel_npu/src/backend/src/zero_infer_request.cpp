@@ -100,8 +100,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     for (const auto& ports : {get_inputs(), get_outputs()}) {
         for (size_t i = 0; i < ports.size(); i++) {
             const auto& port = ports[i];
-            size_t portHash = ov::util::hash_combine(std::vector<size_t>{std::hash<const ov::Node*>()(port.get_node()),
-                                                                         std::hash<size_t>()(port.get_index())});
+            size_t portHash = ov::util::hash_combine(
+                {std::hash<const ov::Node*>()(port.get_node()), std::hash<size_t>()(port.get_index())});
             _cachedPorts[portHash] = {i, portType};
         }
         portType = ZeroInferRequest::FoundPort::Type::OUTPUT;
