@@ -62,6 +62,66 @@ SUITE_DEFS = {
 }
 
 
+def _split_test_names(raw: str) -> list[str]:
+    return [name.strip() for name in raw.split(",") if name.strip()]
+
+
+def _write_env_file(path: Path, values: list[tuple[str, str]]) -> None:
+    path.write_text("\n".join(f"{key}={value}" for key, value in values) + "\n", encoding="utf-8")
+
+
+def init_shard_artifact(
+    *,
+    suite: str,
+    artifact_dir: Path,
+    lane: str,
+    artifact_name: str,
+    shard_label: str,
+    shard_index: int,
+    shard_count: int,
+    test_names: str,
+) -> None:
+    suite_def = SUITE_DEFS[suite]
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+
+    tests = _split_test_names(test_names)
+    total = len(tests)
+
+    duration_path = artifact_dir / str(suite_def["duration_file"])
+    with duration_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["test_name", "status", "duration_seconds", "duration_minutes"])
+        for test_name in tests:
+            writer.writerow([test_name, "not_run", "0.000", "0.000"])
+
+    stats_values: list[tuple[str, str]] = [(str(suite_def["total_key"]), str(total))]
+    executed_key = suite_def["executed_key"]
+    if executed_key:
+        stats_values.append((str(executed_key), "0"))
+    stats_values.extend(
+        [
+            (str(suite_def["passed_key"]), "0"),
+            (str(suite_def["failed_key"]), "0"),
+            (str(suite_def["skipped_key"]), "0"),
+            (str(suite_def["not_run_key"]), str(total)),
+        ]
+    )
+    _write_env_file(artifact_dir / str(suite_def["stats_file"]), stats_values)
+
+    metadata = {
+        "suite": suite,
+        "lane": lane,
+        "artifact_name": artifact_name,
+        "shard_label": shard_label,
+        "shard_index": shard_index,
+        "shard_count": shard_count,
+    }
+    (artifact_dir / METADATA_FILE).write_text(
+        json.dumps(metadata, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+
+
 def _read_json_file(path: Path) -> dict[str, object]:
     if not path.is_file():
         return {}
@@ -314,6 +374,16 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Coverage CI report helpers")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    init = subparsers.add_parser("init-shard-artifact", help="Initialize shard artifact metadata, duration CSV, and stats files")
+    init.add_argument("--suite", choices=sorted(SUITE_DEFS), required=True)
+    init.add_argument("--artifact-dir", type=Path, required=True)
+    init.add_argument("--lane", required=True)
+    init.add_argument("--artifact-name", required=True)
+    init.add_argument("--shard-label", required=True)
+    init.add_argument("--shard-index", type=int, required=True)
+    init.add_argument("--shard-count", type=int, required=True)
+    init.add_argument("--test-names", default="")
+
     render = subparsers.add_parser("render-summary", help="Render the aggregated GitHub summary from downloaded artifacts")
     render.add_argument("--workspace", type=Path, required=True)
     render.add_argument("--summary-file", type=Path, required=True)
@@ -329,6 +399,18 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = _parse_args()
+    if args.command == "init-shard-artifact":
+        init_shard_artifact(
+            suite=args.suite,
+            artifact_dir=args.artifact_dir.resolve(),
+            lane=args.lane,
+            artifact_name=args.artifact_name,
+            shard_label=args.shard_label,
+            shard_index=args.shard_index,
+            shard_count=args.shard_count,
+            test_names=args.test_names,
+        )
+        return 0
     if args.command == "render-summary":
         render_summary(
             workspace=args.workspace.resolve(),
