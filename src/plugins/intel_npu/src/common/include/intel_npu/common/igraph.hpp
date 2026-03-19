@@ -48,7 +48,6 @@ public:
     virtual void update_network_name(std::string_view name);
 
     virtual const std::shared_ptr<CommandQueue>& get_command_queue() const;
-    virtual uint32_t get_command_queue_group_ordinal() const;
 
     virtual void set_workload_type(const ov::WorkloadType workloadType) const;
 
