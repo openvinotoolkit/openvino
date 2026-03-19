@@ -9,7 +9,7 @@
 #include "intel_npu/common/idynamic_graph.hpp"
 #include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "npu_mlir_runtime_api.hpp"
+#include "npu_vm_runtime_api.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
@@ -128,7 +128,6 @@ public:
     void update_network_name(std::string_view name) override;
 
     const std::shared_ptr<CommandQueue>& get_command_queue() const override;
-    uint32_t get_command_queue_group_ordinal() const override;
 
     void set_workload_type(const ov::WorkloadType workloadType) const override;
 
@@ -172,7 +171,6 @@ private:
     uint64_t _num_of_subgraphs = 1;
 
     std::shared_ptr<CommandQueue> _commandQueue;
-    uint32_t _commandQueueGroupOrdinal = 0;
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 
     std::optional<ov::Tensor> _blob;
@@ -180,7 +178,6 @@ private:
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported
     bool _blobIsReleased = false;
-    bool _blobAllocatedByPlugin = false;
 
     uint32_t _uniqueId = 0;
     uint32_t _lastSubmittedId = 0;

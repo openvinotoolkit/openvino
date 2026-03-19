@@ -409,7 +409,6 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
                            const FilteredConfig& config)
     : _zeroInitStruct(zeroInitStruct),
       _blob(std::move(blob)),
-      _blobAllocatedByPlugin(blobAllocatedByPlugin),
       _logger("DynamicGraph", config.get<LOG_LEVEL>()) {
     _logger.info("Create DynamicGraph");
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
@@ -494,10 +493,6 @@ const std::shared_ptr<CommandQueue>& DynamicGraph::get_command_queue() const {
     return _commandQueue;
 }
 
-uint32_t DynamicGraph::get_command_queue_group_ordinal() const {
-    return _commandQueueGroupOrdinal;
-}
-
 void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) const {
     if (_commandQueue == nullptr) {
         return;
@@ -561,10 +556,6 @@ void DynamicGraph::initialize(const FilteredConfig& config) {
     if (_commandQueue == nullptr) {
         _logger.debug("Graph initialize without graph handle");
 
-        _commandQueueGroupOrdinal =
-            zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
-                                                    ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
-
         uint32_t commandQueueOptions = 0;
 
         if (config.has<TURBO>() && config.get<TURBO>()) {
@@ -581,7 +572,6 @@ void DynamicGraph::initialize(const FilteredConfig& config) {
 
         _commandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
                                                        zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                       _commandQueueGroupOrdinal,
                                                        commandQueueOptions);
 
         if (config.has<WORKLOAD_TYPE>()) {
