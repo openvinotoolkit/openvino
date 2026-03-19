@@ -13,12 +13,21 @@ from coverage_workflow import CoverageContext, run_cmd, warn
 
 
 def _has_gcda(root: Path) -> bool:
+    """Return whether a directory tree contains any gcda files."""
     if not root.exists():
         return False
     return any(root.rglob("*.gcda"))
 
 
 def _read_header(path: Path) -> bytes | None:
+    """Read the 12-byte gcov header used for compatibility checks.
+
+    Example layout: ``<4-byte magic><4-byte version><4-byte stamp/checksum>``.
+    This helper only returns the raw 12 bytes so callers can compare fields such
+    as ``header[4:12]`` between matching ``.gcda`` and ``.gcno`` files. This is
+    needed because stale runtime data from an older build can make ``lcov`` fail
+    with mismatch errors even when the current build is otherwise valid.
+    """
     try:
         with path.open("rb") as f:
             header = f.read(12)
@@ -30,6 +39,12 @@ def _read_header(path: Path) -> bytes | None:
 
 
 def _prefilter_incompatible_gcda(root: Path, *, label: str, gcno_root: Path | None = None) -> None:
+    """Remove gcda files that cannot be matched to compatible gcno files.
+
+    This is a proactive cleanup step before running ``lcov``. It filters out
+    stale, unreadable, or mismatched coverage data so one bad ``.gcda`` file
+    does not break capture for the whole shard.
+    """
     if not root.exists():
         return
 
@@ -79,6 +94,12 @@ def _prefilter_incompatible_gcda(root: Path, *, label: str, gcno_root: Path | No
 
 
 def _extract_problematic_gcda(log_text: str) -> list[Path]:
+    """Extract gcda paths mentioned in lcov/gcov error output.
+
+    This is used after a failed ``lcov`` attempt to identify the specific
+    runtime coverage files that triggered mismatch or missing-notes errors, so
+    they can be removed and capture can be retried.
+    """
     patterns = (
         r"(?m)^([^\n]+\.gcda):stamp mismatch with notes file$",
         r"GCOV failed for ([^\s!]+\.gcda)!",
@@ -95,6 +116,11 @@ def _extract_problematic_gcda(log_text: str) -> list[Path]:
 
 
 def _remove_gcda_files(paths: list[Path]) -> int:
+    """Delete problematic gcda files and return how many were removed.
+
+    Removing only the known-bad files lets coverage collection continue with the
+    remaining valid data instead of failing the entire report.
+    """
     removed = 0
     for path in paths:
         try:
@@ -113,6 +139,12 @@ def _run_lcov_capture(
     output_file: Path,
     label: str,
 ) -> None:
+    """Capture one lcov tracefile, retrying after gcda cleanup when needed.
+
+    ``lcov`` can fail on mismatched or corrupted ``.gcda`` inputs. This helper
+    wraps capture with targeted cleanup and retry logic so transient artifact or
+    stale-file issues do not abort native coverage generation unnecessarily.
+    """
     cmd = [
         "lcov",
         "--capture",
@@ -164,6 +196,12 @@ def _run_lcov_capture(
 
 
 def _collect_staged_gcov_runs(ctx: CoverageContext) -> list[Path]:
+    """List staged gcov run directories created by parallel C++ tests.
+
+    Parallel C++ test execution writes gcov data into isolated staging
+    directories to avoid file collisions, and those directories must later be
+    discovered and merged into the final coverage report.
+    """
     runs_root = ctx.workspace / ".tmp" / "cpp-gcov" / "runs"
     if not runs_root.exists():
         return []
@@ -171,6 +209,12 @@ def _collect_staged_gcov_runs(ctx: CoverageContext) -> list[Path]:
 
 
 def _merge_tracefiles(tracefiles: list[Path], output: Path) -> None:
+    """Merge captured lcov tracefiles into the final coverage report.
+
+    Coverage may be captured from the main build, the JS build, and staged
+    parallel-test runs, so those partial reports need to be combined into a
+    single ``coverage.info`` file for downstream upload and HTML generation.
+    """
     if not tracefiles:
         warn("No native C/C++ coverage tracefiles were produced; creating empty coverage.info")
         output.write_text("", encoding="utf-8")
@@ -188,6 +232,12 @@ def _merge_tracefiles(tracefiles: list[Path], output: Path) -> None:
 
 
 def run(ctx: CoverageContext) -> None:
+    """Collect native C/C++ coverage data and generate HTML output.
+
+    The flow intentionally cleans up incompatible gcov artifacts, captures all
+    available native tracefiles, merges them, and then produces the final report
+    used by Codecov and local HTML inspection.
+    """
     src_dir = ctx.workspace
     report_dir = ctx.workspace / "coverage-report"
     merged_info = ctx.workspace / "coverage.info"

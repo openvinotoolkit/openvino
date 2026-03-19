@@ -7,6 +7,7 @@ from coverage_workflow import CoverageContext, run_cmd
 
 
 def run(ctx: CoverageContext) -> None:
+    """Configure the main OpenVINO coverage build with CMake."""
     ctx.log_profile()
 
     cmd = [

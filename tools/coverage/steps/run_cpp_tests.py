@@ -26,6 +26,7 @@ class _CppTestRunResult:
 
 
 def _remove_gcda(root: Path) -> None:
+    """Delete stale gcda files before a fresh coverage run."""
     if not root.exists():
         return
     for gcda in root.rglob("*.gcda"):
@@ -36,6 +37,7 @@ def _remove_gcda(root: Path) -> None:
 
 
 def _compose_runtime_ld_library_path(ctx: CoverageContext) -> str:
+    """Build the runtime library search path for C++ tests."""
     paths: list[Path] = []
 
     candidates = [
@@ -57,14 +59,17 @@ def _compose_runtime_ld_library_path(ctx: CoverageContext) -> str:
 
 
 def _slugify(value: str) -> str:
+    """Convert a test name into a filesystem-friendly fragment."""
     return re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip("-") or "test"
 
 
 def _gcov_stage_root(ctx: CoverageContext) -> Path:
+    """Return the root directory used for staged gcov output."""
     return ctx.workspace / ".tmp" / "cpp-gcov"
 
 
 def _selected_test_names() -> list[str]:
+    """Read the optional C++ shard test selection from the environment."""
     raw = os.environ.get("CXX_TEST_NAMES", "").strip()
     if not raw:
         return []
@@ -72,10 +77,12 @@ def _selected_test_names() -> list[str]:
 
 
 def _gcov_prefix_strip(path: Path) -> int:
+    """Compute the gcov prefix strip value for a workspace path."""
     return len([part for part in path.resolve().parts if part != os.sep])
 
 
 def _build_gcov_env(env: dict[str, str], *, gcov_dir: Path | None, workspace: Path) -> dict[str, str]:
+    """Prepare gcov environment variables for one test process."""
     prepared = dict(env)
     if gcov_dir is None:
         prepared.pop("GCOV_PREFIX", None)
@@ -89,6 +96,7 @@ def _build_gcov_env(env: dict[str, str], *, gcov_dir: Path | None, workspace: Pa
 
 
 def _build_test_command(exe: Path, *, mode: str, args: str) -> list[str]:
+    """Build the command line for one configured C++ test binary."""
     cmd = [str(exe)]
     if mode == "raw":
         if args:
@@ -108,6 +116,7 @@ def _run_test(
     runtime_ld_library_path: str,
     gcov_dir: Path | None,
 ) -> _CppTestRunResult:
+    """Run a single C++ test binary and capture its result."""
     exe = ctx.paths.bin_dir / test.binary
     if not exe.exists():
         return _CppTestRunResult(
@@ -153,6 +162,7 @@ def _run_test(
 
 
 def _write_duration_report(ctx: CoverageContext, results: list[_CppTestRunResult]) -> None:
+    """Write per-test duration data for the C++ shard."""
     report_path = ctx.workspace / "cpp-test-durations.csv"
     with report_path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
@@ -175,6 +185,7 @@ def _write_stats_report(
     skipped: int,
     not_run: int = 0,
 ) -> None:
+    """Write aggregate C++ shard execution counters."""
     report_path = ctx.workspace / "cpp-coverage-stats.env"
     report_path.write_text(
         "\n".join(
@@ -198,6 +209,7 @@ def _run_tests_serial(
     *,
     runtime_ld_library_path: str,
 ) -> tuple[list[str], list[str], list[str]]:
+    """Run selected C++ tests one after another."""
     results: list[_CppTestRunResult] = []
     executed: list[str] = []
     skipped: list[str] = []
@@ -230,6 +242,7 @@ def _run_tests_parallel(
     *,
     runtime_ld_library_path: str,
 ) -> tuple[list[str], list[str], list[str]]:
+    """Run selected C++ tests in parallel with isolated gcov output."""
     results: list[_CppTestRunResult] = []
     executed: list[str] = []
     skipped: list[str] = []
@@ -284,6 +297,7 @@ def _run_tests_parallel(
 
 
 def run(ctx: CoverageContext) -> None:
+    """Execute configured C++ tests and record shard statistics."""
     config = ctx.workspace / "tools" / "coverage" / "config" / "tests_cpp.yml"
     tests = load_cpp_tests(config, ctx.test_profile)
     selected_names = _selected_test_names()

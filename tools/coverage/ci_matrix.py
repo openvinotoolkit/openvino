@@ -78,11 +78,13 @@ SUITE_CONFIG = {
 
 
 def _emit_output(**values: str) -> None:
+    """Print key-value pairs in the format expected by GitHub outputs."""
     for key, value in values.items():
         print(f"{key}={value}")
 
 
 def _list_enabled_tests(*, suite: str, profile: str) -> list[str]:
+    """Return enabled test names for a suite/profile combination."""
     output = subprocess.check_output(
         [*LIST_TESTS_CMD, "--suite", suite, "--profile", profile],
         cwd=WORKSPACE,
@@ -93,6 +95,7 @@ def _list_enabled_tests(*, suite: str, profile: str) -> list[str]:
 
 
 def resolve_lanes(selection: str) -> None:
+    """Expand a workflow selection into the coverage lane matrix."""
     lanes = SELECTION_MAP[selection]
     matrix = {"include": [LANE_DEFS[lane] for lane in lanes]}
     _emit_output(
@@ -102,6 +105,7 @@ def resolve_lanes(selection: str) -> None:
 
 
 def resolve_shards(*, suite: str, base_matrix_json: str, tests_per_job: int) -> None:
+    """Split enabled tests into per-shard matrix entries."""
     config = SUITE_CONFIG[suite]
     base_matrix = json.loads(base_matrix_json)
     include: list[dict[str, object]] = []
@@ -137,6 +141,7 @@ def resolve_shards(*, suite: str, base_matrix_json: str, tests_per_job: int) -> 
 
 
 def _parse_args() -> argparse.Namespace:
+    """Build and parse the command line for matrix helpers."""
     parser = argparse.ArgumentParser(description="Coverage CI matrix helpers")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -152,6 +157,7 @@ def _parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    """Dispatch the requested matrix helper command."""
     args = _parse_args()
     if args.command == "resolve-lanes":
         resolve_lanes(args.selection)

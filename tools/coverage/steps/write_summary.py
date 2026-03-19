@@ -9,6 +9,7 @@ from coverage_workflow import CoverageContext, run_cmd_capture
 
 
 def _int_env(name: str) -> int:
+    """Read an integer metric from the environment."""
     raw = os.environ.get(name, "0").strip()
     if not raw:
         return 0
@@ -19,6 +20,7 @@ def _int_env(name: str) -> int:
 
 
 def run(ctx: CoverageContext) -> None:
+    """Write a short markdown summary for the current coverage run."""
     cxx_total = _int_env("CXX_TESTS_TOTAL")
     cxx_passed = _int_env("CXX_TESTS_PASSED")
     cxx_failed = _int_env("CXX_TESTS_FAILED")

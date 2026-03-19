@@ -63,10 +63,12 @@ SUITE_DEFS = {
 
 
 def _split_test_names(raw: str) -> list[str]:
+    """Split a comma-separated test list into normalized names."""
     return [name.strip() for name in raw.split(",") if name.strip()]
 
 
 def _write_env_file(path: Path, values: list[tuple[str, str]]) -> None:
+    """Write simple KEY=VALUE pairs to an env-style file."""
     path.write_text("\n".join(f"{key}={value}" for key, value in values) + "\n", encoding="utf-8")
 
 
@@ -81,6 +83,7 @@ def init_shard_artifact(
     shard_count: int,
     test_names: str,
 ) -> None:
+    """Create initial shard metadata, stats, and duration files."""
     suite_def = SUITE_DEFS[suite]
     artifact_dir.mkdir(parents=True, exist_ok=True)
 
@@ -123,12 +126,14 @@ def init_shard_artifact(
 
 
 def _read_json_file(path: Path) -> dict[str, object]:
+    """Read a JSON file and return an empty dict when it is missing."""
     if not path.is_file():
         return {}
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _read_env_file(path: Path) -> dict[str, str]:
+    """Read a simple env-style file into a dictionary."""
     values: dict[str, str] = {}
     if not path.is_file():
         return values
@@ -141,6 +146,7 @@ def _read_env_file(path: Path) -> dict[str, str]:
 
 
 def _to_int(values: dict[str, str], key: str | None) -> int:
+    """Parse an integer metric from an env-style mapping."""
     if not key:
         return 0
     raw = values.get(key, "0").strip()
@@ -151,11 +157,13 @@ def _to_int(values: dict[str, str], key: str | None) -> int:
 
 
 def _artifact_lane(artifact_name: str, prefix: str) -> str:
+    """Extract the lane name from a shard artifact name."""
     suffix = artifact_name[len(prefix) :]
     return suffix.split("-shard-", 1)[0]
 
 
 def _collect_artifacts(*, workspace: Path, suite_key: str) -> list[dict[str, object]]:
+    """Collect downloaded shard artifacts for one suite."""
     suite_def = SUITE_DEFS[suite_key]
     root = workspace / "artifacts" / suite_def["artifacts_dir"]
     if not root.exists():
@@ -201,6 +209,7 @@ def _collect_artifacts(*, workspace: Path, suite_key: str) -> list[dict[str, obj
 
 
 def _flag_patterns(suite: str, lane: str) -> list[str]:
+    """Return Codecov flag patterns expected for a suite/lane pair."""
     if suite == "cpp":
         return [f"cpp-runtime-cpp-{lane}-shard-*"]
     if suite == "python":
@@ -217,6 +226,7 @@ def _flag_patterns(suite: str, lane: str) -> list[str]:
 
 
 def render_summary(*, workspace: Path, summary_file: Path, selection: str, selected_lanes: str) -> None:
+    """Render the final GitHub summary from downloaded shard artifacts."""
     rows: list[dict[str, object]] = []
     overall = {"total": 0, "executed": 0, "passed": 0, "failed": 0, "skipped": 0, "not_run": 0, "shards": 0}
 
@@ -332,6 +342,7 @@ def render_summary(*, workspace: Path, summary_file: Path, selection: str, selec
 
 
 def merge_durations(*, workspace: Path, output: Path) -> None:
+    """Merge per-shard duration CSV files into one report."""
     rows: list[dict[str, str]] = []
 
     for suite_key, suite_def in SUITE_DEFS.items():
@@ -371,6 +382,7 @@ def merge_durations(*, workspace: Path, output: Path) -> None:
 
 
 def _parse_args() -> argparse.Namespace:
+    """Build and parse the command line for report helpers."""
     parser = argparse.ArgumentParser(description="Coverage CI report helpers")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -398,6 +410,7 @@ def _parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    """Dispatch the selected report helper command."""
     args = _parse_args()
     if args.command == "init-shard-artifact":
         init_shard_artifact(

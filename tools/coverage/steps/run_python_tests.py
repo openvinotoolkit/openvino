@@ -27,6 +27,7 @@ omit =
 
 
 def _compose_runtime_ld_library_path(ctx: CoverageContext) -> str:
+    """Build the runtime library search path for Python tests."""
     paths: list[Path] = []
     candidates = [
         ctx.paths.bin_dir,
@@ -46,10 +47,12 @@ def _compose_runtime_ld_library_path(ctx: CoverageContext) -> str:
 
 
 def _expand(value: str) -> str:
+    """Expand environment variables in a config value."""
     return os.path.expandvars(value)
 
 
 def _selected_test_names() -> list[str]:
+    """Read the optional Python shard test selection from the environment."""
     raw = os.environ.get("PY_TEST_NAMES", "").strip()
     if not raw:
         return []
@@ -57,6 +60,7 @@ def _selected_test_names() -> list[str]:
 
 
 def _find_openvino_wheel(wheels_dir: Path) -> Path:
+    """Return the generated OpenVINO wheel from the install output."""
     candidates = sorted(wheels_dir.glob("openvino-*.whl"))
     if not candidates:
         raise FileNotFoundError(f"OpenVINO wheel not found in {wheels_dir}")
@@ -64,6 +68,7 @@ def _find_openvino_wheel(wheels_dir: Path) -> Path:
 
 
 def _write_duration_report(ctx: CoverageContext, rows: list[tuple[str, str, float]]) -> None:
+    """Write per-test duration data for the Python shard."""
     report_path = ctx.workspace / "python-test-durations.csv"
     with report_path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
@@ -83,6 +88,7 @@ def _write_stats_report(
     skipped: int,
     not_run: int = 0,
 ) -> None:
+    """Write aggregate Python shard execution counters."""
     report_path = ctx.workspace / "python-coverage-stats.env"
     report_path.write_text(
         "\n".join(
@@ -100,6 +106,7 @@ def _write_stats_report(
 
 
 def _run_pytest(test_name: str, target: str, args: str, env_assignments: str) -> tuple[int, float]:
+    """Run one pytest-based test group and measure its duration."""
     cmd = ["python3", "-m", "pytest", "-ra", "--durations=50", target]
     if args:
         cmd.extend(shlex.split(args))
@@ -112,6 +119,7 @@ def _run_pytest(test_name: str, target: str, args: str, env_assignments: str) ->
 
 
 def _run_python_command(test_name: str, command: str, env_assignments: str) -> tuple[int, float]:
+    """Run one configured shell command for the Python suite."""
     merged = command.strip()
     if env_assignments:
         merged = f"{env_assignments} {merged}"
@@ -123,6 +131,7 @@ def _run_python_command(test_name: str, command: str, env_assignments: str) -> t
 
 
 def run(ctx: CoverageContext) -> None:
+    """Execute configured Python tests and export coverage results."""
     config = ctx.workspace / "tools" / "coverage" / "config" / "tests_python.yml"
     tests = load_python_tests(config, ctx.test_profile)
     selected_names = _selected_test_names()

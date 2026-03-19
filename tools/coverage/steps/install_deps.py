@@ -12,11 +12,13 @@ from coverage_workflow import CoverageContext, run_cmd, warn
 
 
 def _flag_from_env(name: str, default: str = "false") -> bool:
+    """Read a boolean flag from the environment."""
     value = os.environ.get(name, default).strip().lower()
     return value in {"1", "true", "yes", "on"}
 
 
 def _node_major_version() -> int | None:
+    """Return the installed Node.js major version, if available."""
     node_path = shutil.which("node")
     if not node_path:
         return None
@@ -35,6 +37,7 @@ def _node_major_version() -> int | None:
 
 
 def _install_nodejs(sudo_prefix: list[str], major_version: str) -> None:
+    """Install a requested Node.js major version from NodeSource."""
     if not major_version.isdigit():
         raise RuntimeError(f"Invalid OVCOV_NODEJS_VERSION='{major_version}'. Expected a major number, for example: 22")
 
@@ -53,6 +56,7 @@ def _install_nodejs(sudo_prefix: list[str], major_version: str) -> None:
 
 
 def run(ctx: CoverageContext) -> None:
+    """Install system and Python dependencies needed by coverage jobs."""
     sudo_prefix: list[str] = []
     if os.geteuid() != 0:
         sudo_prefix = ["sudo"]

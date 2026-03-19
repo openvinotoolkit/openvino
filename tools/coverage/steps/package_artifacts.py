@@ -9,6 +9,7 @@ from coverage_workflow import CoverageContext
 
 
 def run(ctx: CoverageContext) -> None:
+    """Package generated coverage reports into a single archive."""
     report_dir = ctx.workspace / "coverage-report"
     coverage_info = ctx.workspace / "coverage.info"
     archive = ctx.workspace / "coverage-report.tgz"

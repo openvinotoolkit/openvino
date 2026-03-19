@@ -13,6 +13,7 @@ from coverage_workflow import CoverageContext, load_js_tests, run_cmd, warn
 
 
 def _compose_runtime_ld_library_path(ctx: CoverageContext) -> str:
+    """Build the runtime library search path for JS tests."""
     paths: list[Path] = []
     candidates = [
         ctx.paths.bin_dir,
@@ -33,6 +34,7 @@ def _compose_runtime_ld_library_path(ctx: CoverageContext) -> str:
 
 
 def _selected_test_names() -> list[str]:
+    """Read the optional JS shard test selection from the environment."""
     raw = os.environ.get("JS_TEST_NAMES", "").strip()
     if not raw:
         return []
@@ -40,6 +42,7 @@ def _selected_test_names() -> list[str]:
 
 
 def _write_duration_report(ctx: CoverageContext, rows: list[tuple[str, str, float]]) -> None:
+    """Write per-test duration data for the JS shard."""
     report_path = ctx.workspace / "js-test-durations.csv"
     with report_path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
@@ -59,6 +62,7 @@ def _write_stats_report(
     skipped: int,
     not_run: int = 0,
 ) -> None:
+    """Write aggregate JS shard execution counters."""
     report_path = ctx.workspace / "js-coverage-stats.env"
     report_path.write_text(
         "\n".join(
@@ -76,6 +80,7 @@ def _write_stats_report(
 
 
 def run(ctx: CoverageContext) -> None:
+    """Execute configured JS tests and export coverage results."""
     if shutil.which("node") is None or shutil.which("npm") is None:
         raise RuntimeError(
             "Node.js/npm are not available. Install them first, for example via: "

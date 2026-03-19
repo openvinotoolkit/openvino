@@ -84,6 +84,8 @@ class ConfigValidationIssue:
 
 
 class GithubIO:
+    """Manage GitHub Actions env and summary files with a local fallback."""
+
     def __init__(self, workspace: Path) -> None:
         self.workspace = workspace
         self._github_env = os.environ.get("GITHUB_ENV", "").strip()
@@ -115,6 +117,7 @@ class GithubIO:
         return bool(self._github_env)
 
     def load_local_env(self) -> dict[str, str]:
+        """Load locally persisted workflow variables when not in Actions."""
         if self.is_github_mode:
             return {}
 
@@ -131,11 +134,13 @@ class GithubIO:
         return loaded
 
     def export_env(self, key: str, value: str) -> None:
+        """Append an environment variable to the active env file."""
         with self.env_file.open("a", encoding="utf-8") as f:
             f.write(f"{key}={value}\n")
         os.environ[key] = value
 
     def append_summary(self, text: str) -> None:
+        """Append text to the step summary when summary output is enabled."""
         if not self._summary_enabled:
             return
         with self.summary_file.open("a", encoding="utf-8") as f:
@@ -164,6 +169,7 @@ def run_cmd(
     check: bool = True,
     shell: bool = False,
 ) -> int:
+    """Run a command and optionally fail when it returns non-zero."""
     display = cmd if isinstance(cmd, str) else " ".join(shlex.quote(part) for part in cmd)
     log(f"$ {display}")
     completed = subprocess.run(cmd, cwd=cwd, env=env, shell=shell, text=True)
@@ -173,6 +179,7 @@ def run_cmd(
 
 
 def run_cmd_capture(cmd: Sequence[str], *, cwd: Path | None = None, check: bool = True) -> str:
+    """Run a command and return captured stdout."""
     display = " ".join(shlex.quote(part) for part in cmd)
     log(f"$ {display}")
     completed = subprocess.run(cmd, cwd=cwd, text=True, capture_output=True)
@@ -183,6 +190,7 @@ def run_cmd_capture(cmd: Sequence[str], *, cwd: Path | None = None, check: bool 
 
 
 def env_from_assignments(assignments: str | None, base_env: dict[str, str] | None = None) -> dict[str, str]:
+    """Apply shell-style KEY=VALUE assignments to an environment mapping."""
     env = dict(base_env or os.environ)
     if not assignments:
         return env
@@ -196,6 +204,7 @@ def env_from_assignments(assignments: str | None, base_env: dict[str, str] | Non
 
 
 def _repo_root(default: Path) -> Path:
+    """Return the git repository root when available."""
     try:
         output = subprocess.check_output(
             ["git", "rev-parse", "--show-toplevel"],
@@ -210,6 +219,7 @@ def _repo_root(default: Path) -> Path:
 
 
 def _profile_flags(profile: str) -> ProfileFlags:
+    """Resolve build flags and runtime switches for a test profile."""
     if profile == "cpu":
         return ProfileFlags(False, False, ("-DENABLE_INTEL_GPU=OFF", "-DENABLE_ONEDNN_FOR_GPU=OFF"), ("-DENABLE_INTEL_NPU=OFF",))
     if profile == "gpu":
@@ -221,6 +231,8 @@ def _profile_flags(profile: str) -> ProfileFlags:
 
 @dataclass
 class CoverageContext:
+    """Runtime configuration shared by coverage workflow steps."""
+
     workspace: Path
     build_type: str
     parallel_jobs: int
@@ -236,6 +248,7 @@ class CoverageContext:
 
     @classmethod
     def from_env(cls) -> "CoverageContext":
+        """Build a coverage context from environment variables."""
         workspace = Path(os.environ.get("OV_WORKSPACE") or os.environ.get("GITHUB_WORKSPACE") or str(_repo_root(Path.cwd()))).resolve()
 
         io = GithubIO(workspace)
@@ -318,6 +331,7 @@ class CoverageContext:
         return self.profile_flags.npu_flags
 
     def log_profile(self) -> None:
+        """Print the resolved profile and accelerator flags."""
         print(f"[coverage] TEST_PROFILE={self.test_profile}")
         print(f"[coverage] RUN_GPU_TESTS={'true' if self.run_gpu_tests else 'false'}")
         print(f"[coverage] RUN_NPU_TESTS={'true' if self.run_npu_tests else 'false'}")
@@ -326,6 +340,7 @@ class CoverageContext:
 
 
 def _as_text(value: Any) -> str:
+    """Normalize a value into the string form used by configs."""
     if value is None:
         return ""
     if isinstance(value, bool):
@@ -334,6 +349,7 @@ def _as_text(value: Any) -> str:
 
 
 def _resolve_profile_value(value: Any, profile: str) -> str:
+    """Pick a profile-specific config value when a mapping is provided."""
     if isinstance(value, dict):
         if profile in value:
             return _as_text(value[profile])
@@ -342,6 +358,7 @@ def _resolve_profile_value(value: Any, profile: str) -> str:
 
 
 def _resolve_enabled(test: dict[str, Any], profile: str) -> tuple[bool, str]:
+    """Decide whether a configured test is enabled for the active profile."""
     skip_reason = _as_text(test.get("skip_reason", "")).strip()
     profiles = test.get("profiles")
 
@@ -367,6 +384,7 @@ def _resolve_enabled(test: dict[str, Any], profile: str) -> tuple[bool, str]:
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
+    """Load a YAML config file used by the coverage tooling."""
     if not path.exists():
         raise FileNotFoundError(f"Config file not found: {path}")
     try:
@@ -381,6 +399,7 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 
 
 def _load_tests(path: Path, suite: str) -> list[dict[str, Any]]:
+    """Load and validate raw test definitions for one suite."""
     data = _load_yaml(path)
     found_suite = _as_text(data.get("suite", "")).strip()
     if found_suite != suite:
@@ -392,6 +411,7 @@ def _load_tests(path: Path, suite: str) -> list[dict[str, Any]]:
 
 
 def load_cpp_tests(path: Path, profile: str) -> list[CppTestCase]:
+    """Load resolved C++ test definitions for a profile."""
     if profile not in SUPPORTED_PROFILES:
         raise ValueError(f"Unsupported profile: {profile}")
 
@@ -413,6 +433,7 @@ def load_cpp_tests(path: Path, profile: str) -> list[CppTestCase]:
 
 
 def load_python_tests(path: Path, profile: str) -> list[PythonTestCase]:
+    """Load resolved Python test definitions for a profile."""
     if profile not in SUPPORTED_PROFILES:
         raise ValueError(f"Unsupported profile: {profile}")
 
@@ -435,6 +456,7 @@ def load_python_tests(path: Path, profile: str) -> list[PythonTestCase]:
 
 
 def load_js_tests(path: Path, profile: str) -> list[JsTestCase]:
+    """Load resolved JS test definitions for a profile."""
     if profile not in SUPPORTED_PROFILES:
         raise ValueError(f"Unsupported profile: {profile}")
 
@@ -454,6 +476,7 @@ def load_js_tests(path: Path, profile: str) -> list[JsTestCase]:
 
 
 def validate_configs(config_dir: Path) -> list[ConfigValidationIssue]:
+    """Validate coverage YAML configs and return any issues found."""
     issues: list[ConfigValidationIssue] = []
 
     suites = {
@@ -508,6 +531,7 @@ RUN_ALL_ORDER = [
 
 
 def _apply_common_env(args: argparse.Namespace) -> None:
+    """Project CLI options into environment variables used by steps."""
     profile = getattr(args, "profile", None)
     if profile:
         os.environ["TEST_PROFILE"] = profile
@@ -546,11 +570,13 @@ def _apply_common_env(args: argparse.Namespace) -> None:
 
 
 def _load_context(args: argparse.Namespace) -> CoverageContext:
+    """Create a coverage context for the current command."""
     _apply_common_env(args)
     return CoverageContext.from_env()
 
 
 def _resolve_step_handler(step_name: str) -> Callable[[CoverageContext], None]:
+    """Import and return the handler for a named workflow step."""
     module_name = STEP_MODULES.get(step_name)
     if not module_name:
         raise KeyError(f"Unknown step '{step_name}'")
@@ -562,18 +588,21 @@ def _resolve_step_handler(step_name: str) -> Callable[[CoverageContext], None]:
 
 
 def _run_step(ctx: CoverageContext, step_name: str) -> None:
+    """Execute one coverage workflow step."""
     log(f"Starting step: {step_name}")
     handler = _resolve_step_handler(step_name)
     handler(ctx)
 
 
 def _command_step(args: argparse.Namespace) -> int:
+    """Run a single named workflow step."""
     ctx = _load_context(args)
     _run_step(ctx, args.step_name)
     return 0
 
 
 def _command_run_all(args: argparse.Namespace) -> int:
+    """Run a range of workflow steps in sequence."""
     ctx = _load_context(args)
 
     try:
@@ -653,6 +682,7 @@ def _command_run_all(args: argparse.Namespace) -> int:
 
 
 def _command_list_tests(args: argparse.Namespace) -> int:
+    """Print resolved tests for a suite/profile pair."""
     _apply_common_env(args)
     workspace = Path(os.environ.get("OV_WORKSPACE") or os.environ.get("GITHUB_WORKSPACE") or Path.cwd()).resolve()
     config_dir = workspace / "tools" / "coverage" / "config"
@@ -712,6 +742,7 @@ def _command_list_tests(args: argparse.Namespace) -> int:
 
 
 def _command_validate_config(args: argparse.Namespace) -> int:
+    """Validate the coverage YAML configuration files."""
     _apply_common_env(args)
     workspace = Path(os.environ.get("OV_WORKSPACE") or os.environ.get("GITHUB_WORKSPACE") or Path.cwd()).resolve()
     issues = validate_configs(workspace / "tools" / "coverage" / "config")
@@ -726,6 +757,7 @@ def _command_validate_config(args: argparse.Namespace) -> int:
 
 
 def _add_common_options(parser: argparse.ArgumentParser, *, include_profile: bool = True) -> None:
+    """Attach shared CLI options used by coverage commands."""
     if include_profile:
         parser.add_argument("--profile", choices=sorted(SUPPORTED_PROFILES), default=os.environ.get("TEST_PROFILE", "cpu"))
     parser.add_argument("--workspace", default=os.environ.get("OV_WORKSPACE") or os.environ.get("GITHUB_WORKSPACE"))
@@ -747,6 +779,7 @@ def _add_common_options(parser: argparse.ArgumentParser, *, include_profile: boo
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the top-level CLI parser for coverage tooling."""
     parser = argparse.ArgumentParser(description="OpenVINO coverage workflow orchestrator")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -777,6 +810,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Parse arguments and run the selected CLI command."""
     parser = build_parser()
     args = parser.parse_args(argv)
 
