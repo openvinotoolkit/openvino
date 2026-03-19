@@ -120,8 +120,6 @@ TEST_F(SingleFileStorageTest, BlobAlignment) {
     const auto stream_end = stream.tellg();
     stream.seekg(version_size(), std::ios::beg);
 
-    const auto alignment = util::get_system_page_size();
-
     while (stream.good() && stream.tellg() < stream_end) {
         SingleFileStorage::Tag tag;
         runtime::TLVTraits::LengthType length;
@@ -140,7 +138,8 @@ TEST_F(SingleFileStorageTest, BlobAlignment) {
 
             stream.seekg(padding_size, std::ios::cur);
             const auto blob_data_pos = stream.tellg();
-            EXPECT_EQ(blob_data_pos % alignment, 0) << "Blob with id " << id << " is not properly aligned";
+            EXPECT_EQ(blob_data_pos % SingleFileStorage::blob_alignment, 0)
+                << "Blob with id " << id << " is not properly aligned";
 
             const auto expected_pos = blob_id_pos + static_cast<std::streamoff>(length);
             stream.seekg(test_blobs.at(id).size(), std::ios::cur);
@@ -255,8 +254,6 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
     const auto stream_end = stream.tellg();
     stream.seekg(version_size(), std::ios::beg);
 
-    const auto alignment = util::get_system_page_size();
-
     while (stream.good() && stream.tellg() < stream_end) {
         SingleFileStorage::Tag tag;
         runtime::TLVTraits::LengthType length;
@@ -274,7 +271,7 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
 
             stream.seekg(padding_size, std::ios::cur);
             const auto weight_pos = stream.tellg();
-            ASSERT_EQ(weight_pos % alignment, 0);
+            ASSERT_EQ(weight_pos % SingleFileStorage::blob_alignment, 0);
             const auto weight_size =
                 length - sizeof(device_id) - sizeof(source_id) - sizeof(padding_size) - padding_size;
             ASSERT_EQ(weight_size, buffer->size());

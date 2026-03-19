@@ -96,7 +96,7 @@ public:
             throw std::runtime_error("Can not get file size for fd=" + std::to_string(fd));
         }
         const auto file_size = static_cast<size_t>(sb.st_size);
-        m_size = (size == auto_size<size_t>) ? file_size - offset : size;
+        m_size = (size == auto_size) ? file_size - offset : size;
         if (offset + m_size > file_size || offset + m_size < offset) {
             throw std::runtime_error("Requested mapping range exceeds file size for fd=" + std::to_string(fd));
         }

@@ -349,4 +349,6 @@ using StringPathVariant = std::variant<std::string, std::u16string, std::u32stri
 
 std::filesystem::path to_fs_path(const StringPathVariant& param);
 
+FileHandle open_file(const std::filesystem::path& path);
+
 }  // namespace ov::test::utils

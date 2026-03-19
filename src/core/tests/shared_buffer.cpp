@@ -9,19 +9,8 @@
 #include <fstream>
 #include <sstream>
 
-#ifdef _WIN32
-// clang-format-off
-#    ifndef NOMINMAX
-#        define NOMINMAX
-#    endif
-#    include <windows.h>
-// clang-format-on
-#else
-#    include <fcntl.h>
-#    include <unistd.h>
-#endif
-
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/util/mmap_object.hpp"
 
@@ -429,7 +418,7 @@ using RangedMappingTestParams = std::tuple<RangedMappingTestRegions, bool>;
 
 namespace {
 size_t calc_sector_actual_size(size_t offset, size_t size, size_t file_actual_size) {
-    return size == auto_size<size_t> ? file_actual_size - offset : size;
+    return size == auto_size ? file_actual_size - offset : size;
 }
 }  // namespace
 
@@ -491,22 +480,6 @@ public:
     }
 };
 
-namespace {
-FileHandle open_file(const std::filesystem::path& path) {
-#ifdef _WIN32
-    return ::CreateFileA(path.string().c_str(),
-                         GENERIC_READ,
-                         FILE_SHARE_READ,
-                         nullptr,
-                         OPEN_EXISTING,
-                         FILE_ATTRIBUTE_NORMAL,
-                         nullptr);
-#else
-    return ::open(path.c_str(), O_RDONLY);
-#endif
-}
-}  // namespace
-
 TEST_P(RangedMappingTest, compare_data) {
     const auto& [regions, use_file_path] = GetParam();
     const auto& [offset_1, size_1, offset_2, size_2, file_size] = regions;
@@ -516,8 +489,8 @@ TEST_P(RangedMappingTest, compare_data) {
         mm_1 = load_mmap_object(m_file_path, offset_1, size_1);
         mm_2 = load_mmap_object(m_file_path, offset_2, size_2);
     } else {
-        const auto handle_1 = open_file(m_file_path);
-        const auto handle_2 = open_file(m_file_path);
+        const auto handle_1 = utils::open_file(m_file_path);
+        const auto handle_2 = utils::open_file(m_file_path);
         mm_1 = load_mmap_object_from_handle(handle_1, offset_1, size_1);
         mm_2 = load_mmap_object_from_handle(handle_2, offset_2, size_2);
     }
@@ -550,9 +523,9 @@ TEST_P(RangedMappingTest, compare_id) {
         other_mm_2 = load_mmap_object(other_file_path, offset_2, size_2);
         mm_1_ = load_mmap_object(m_file_path, offset_1, size_1);
     } else {
-        const auto handle_1 = open_file(m_file_path);
-        const auto handle_2 = open_file(m_file_path);
-        const auto other_handle = open_file(other_file_path);
+        const auto handle_1 = utils::open_file(m_file_path);
+        const auto handle_2 = utils::open_file(m_file_path);
+        const auto other_handle = utils::open_file(other_file_path);
         mm_1 = load_mmap_object_from_handle(handle_1, offset_1, size_1);
         mm_2 = load_mmap_object_from_handle(handle_2, offset_2, size_2);
         other_mm_1 = load_mmap_object_from_handle(other_handle, offset_1, size_1);
@@ -572,7 +545,10 @@ TEST_P(RangedMappingTest, compare_id) {
     EXPECT_EQ(mm_1->get_id(), mm_1_->get_id());
 }
 
-static auto pg_sz = util::get_system_page_size();
+static const auto pg_sz = []() {
+    const auto sz = util::get_system_page_size();
+    return sz > 0 ? sz : 4096;
+}();
 INSTANTIATE_TEST_SUITE_P(MappedMemory,
                          RangedMappingTest,
                          ::testing::Combine(::testing::ValuesIn(std::vector<RangedMappingTestRegions>{
@@ -580,10 +556,10 @@ INSTANTIATE_TEST_SUITE_P(MappedMemory,
                                                 {0, 3 * pg_sz, 7 * pg_sz, 1024, (7 * pg_sz + 1024)},
                                                 {0, pg_sz, pg_sz, pg_sz, (2 * pg_sz)},
                                                 {100, 50, 150, 30, 180},
-                                                {1, auto_size<size_t>, 0, auto_size<size_t>, pg_sz},
+                                                {1, auto_size, 0, auto_size, pg_sz},
                                                 {0, 40, 0, 41, 42},
-                                                {11, auto_size<size_t>, 17, 80, 101},
-                                                {10, auto_size<size_t>, 0, 90, 100}}),
+                                                {11, auto_size, 17, 80, 101},
+                                                {10, auto_size, 0, 90, 100}}),
                                             ::testing::ValuesIn(std::vector<bool>{true, false})),
                          RangedMappingTest::test_name);
 

@@ -67,6 +67,11 @@ void write_padding(std::ostream& stream, uint64_t alignment) {
 }
 }  // namespace
 
+const size_t SingleFileStorage::blob_alignment = []() {
+    const auto sz = util::get_system_page_size();
+    return sz > 0 ? sz : size_t{1};
+}();
+
 SingleFileStorage::SingleFileStorage(const std::filesystem::path& path)
     : m_file_path{path},
       m_blob_index{},
@@ -219,7 +224,7 @@ void SingleFileStorage::write_blob_entry(std::ofstream& stream, BlobIdType blob_
 
     const auto blob_writer = [&](std::ostream& s) {
         s.write(reinterpret_cast<const char*>(&blob_id), sizeof(blob_id));
-        write_padding(s, util::get_system_page_size());
+        write_padding(s, blob_alignment);
         blob_pos = s.tellp();
         writer(s);
         blob_size = s.tellp() - blob_pos;
@@ -319,7 +324,7 @@ void SingleFileStorage::write_context(const weight_sharing::Context& context) {
                 const auto device_id = static_cast<uint64_t>(std::strtoul(weight_buffer.m_device.c_str(), nullptr, 10));
                 s.write(reinterpret_cast<const char*>(&device_id), sizeof(device_id));
                 s.write(reinterpret_cast<const char*>(&source_id), sizeof(source_id));
-                write_padding(s, util::get_system_page_size());
+                write_padding(s, blob_alignment);
                 s.write(reinterpret_cast<const char*>(buf->get_ptr()), buf->size());
             }
 
