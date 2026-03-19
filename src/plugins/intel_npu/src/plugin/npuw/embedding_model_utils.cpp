@@ -370,9 +370,10 @@ private:
 
 }  // namespace
 
-void ov::npuw::util::prepare_text_embedding_model(std::shared_ptr<ov::Model> model, uint32_t seq_len_dim) {
+bool ov::npuw::util::PrepareTextEmbeddingModel::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager manager("prepare-embedding");
     manager.set_per_pass_validation(true);
-    manager.register_pass<ReConstructEmbeddingModel>(seq_len_dim);
-    manager.run_passes(model);
+    manager.register_pass<ReConstructEmbeddingModel>(m_seq_len_dim);
+
+    return manager.run_passes(model);
 }

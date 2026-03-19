@@ -172,7 +172,7 @@ ov::npuw::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                        const ov::AnyMap& properties)
-    : ov::npuw::ICompiledModel(model, plugin),
+    : ov::npuw::ICompiledModel_v0(model, plugin),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
@@ -595,7 +595,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                        const bool serialized)
-    : ov::npuw::ICompiledModel(model, plugin),
+    : ov::npuw::ICompiledModel_v0(model, plugin),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
@@ -1506,6 +1506,18 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
             desc_closure.closure[cidx] = m_weights_bank->get(desc_closure.closure_uid[cidx], *func_desc.device_it);
         }
     }
+}
+
+std::size_t ov::npuw::CompiledModel::num_submodels() const {
+    return m_compiled_submodels.size();
+}
+
+std::shared_ptr<ov::npuw::weights::Bank> ov::npuw::CompiledModel::get_weights_bank() const {
+    return m_weights_bank;
+}
+
+void ov::npuw::CompiledModel::set_weights_bank(std::shared_ptr<ov::npuw::weights::Bank> bank) {
+    m_weights_bank = std::move(bank);
 }
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {

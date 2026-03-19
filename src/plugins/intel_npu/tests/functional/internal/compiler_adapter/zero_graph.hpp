@@ -154,23 +154,13 @@ using ZeroGraphCompilationTests = ZeroGraphTest;
 TEST_P(ZeroGraphCompilationTests, GetGraphInitIR) {
     serializeIR();
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
-
-    uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 }
 
 TEST_P(ZeroGraphCompilationTests, GetInitSetArgsDestroyGraphAlignedMemoryIR) {
     serializeIR();
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
-
-    uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 
     size_t totalSize = 1 * 3 * 24 * 24 * sizeof(float);
     std::shared_ptr<ZeroMem> buffer;
@@ -187,12 +177,7 @@ TEST_P(ZeroGraphTest, GetGraphInitBlob) {
     OV_ASSERT_NO_THROW(alignedSize = make_blob());
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
-
-    uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 }
 
 TEST_P(ZeroGraphTest, GetNetworkMeta) {
@@ -212,12 +197,7 @@ TEST_P(ZeroGraphTest, GetGraphBinary) {
     OV_ASSERT_NO_THROW(alignedSize = make_blob());
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
-
-    uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 
     const uint8_t* blobPtr = nullptr;
     std::vector<uint8_t> blobVec;
@@ -228,12 +208,7 @@ TEST_P(ZeroGraphTest, SetGraphArgOnNullBuffer) {
     serializeIR();
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
-
-    uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 
     ASSERT_ANY_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, nullptr));
 }
@@ -243,12 +218,7 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
     OV_ASSERT_NO_THROW(alignedSize = make_blob());
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
-
-    uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 
     std::shared_ptr<ZeroMem> buffer;
     OV_ASSERT_NO_THROW(buffer = ZeroMemPool::get_instance().allocate_zero_memory(zeroInitStruct,
@@ -264,12 +234,7 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
     OV_ASSERT_NO_THROW(alignedSize = make_blob());
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
-
-    uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 
     std::shared_ptr<ZeroMem> buffer;
     OV_ASSERT_NO_THROW(buffer = ZeroMemPool::get_instance().allocate_zero_memory(zeroInitStruct,
@@ -305,11 +270,7 @@ TEST_P(ZeroGraphTest, SetUnalignedAddressBlob) {
     }
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blobAddressUnaligned, alignedSize));
-    uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
     ASSERT_FALSE(zeGraphExt->isBlobDataImported(graphDescriptor));
 }
 
@@ -337,12 +298,7 @@ TEST_P(ZeroGraphTest, SetUnalignedSizeBlob) {
     }
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, unalignedSize));
-
-    uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 
     ASSERT_FALSE(zeGraphExt->isBlobDataImported(graphDescriptor));
 }
@@ -353,11 +309,7 @@ TEST_P(ZeroGraphTest, SetAlignedBlob) {
     OV_ASSERT_NO_THROW(alignedSize = make_blob());
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
-    uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
     if (zeroInitStruct->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 13) &&
         zeroInitStruct->isExternalMemoryStandardAllocationSupported()) {
         ASSERT_TRUE(zeGraphExt->isBlobDataImported(graphDescriptor));
