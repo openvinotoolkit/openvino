@@ -587,7 +587,8 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperKvCachePreparationAddsCacheInp
     const auto input_count_before = model->inputs().size();
     const auto output_count_before = model->outputs().size();
 
-    auto prepared = ov::npuw::util::prepare_whisper_kvcache_model(model);
+    EXPECT_TRUE(ov::npuw::util::PrepareWhisperKVCacheModel().run_on_model(model));
+    auto prepared = model;
 
     EXPECT_GT(prepared->inputs().size(), input_count_before);
     EXPECT_EQ(prepared->outputs().size(), output_count_before);
@@ -603,7 +604,8 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPrefillPreparationAddsCrossAtt
     ov::pass::StatefulToStateless().run_on_model(model);
     model = model->clone();
 
-    auto prepared = ov::npuw::util::prepare_whisper_prefill_model(model, 128, 256);
+    EXPECT_TRUE(ov::npuw::util::PrepareWhisperPrefillModel(128, 256).run_on_model(model));
+    auto prepared = model;
 
     EXPECT_TRUE(has_input_name(prepared, "attention_mask"));
     EXPECT_FALSE(has_input_name(prepared, "cache_position"));
@@ -612,7 +614,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPrefillPreparationAddsCrossAtt
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbeddingPreparationRejectsCurrentSyntheticEmbeddingModel) {
     auto model = build_embedding_model();
-    EXPECT_ANY_THROW(ov::npuw::util::prepare_text_embedding_model(model, 2));
+    EXPECT_ANY_THROW(ov::npuw::util::PrepareTextEmbeddingModel(2).run_on_model(model));
 }
 
 }  // namespace
