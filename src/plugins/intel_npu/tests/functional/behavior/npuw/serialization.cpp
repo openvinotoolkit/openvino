@@ -79,3 +79,25 @@ TEST(SerializationTestNPUW, Stress_ParallelImport) {
         }
     }
 }
+
+TEST(SerializationTestNPUW, ImportBlobWithOnlyNpuUseNpuw) {
+    ov::Core ov_core;
+
+    // Build model in-test: no external model files and no downloads.
+    ModelBuilder mb;
+    auto model = mb.get_model_with_repeated_blocks();
+
+    // Reproduction config from the issue: only NPU_USE_NPUW.
+    ov::AnyMap props = {{"NPU_USE_NPUW", "YES"}};
+
+    auto compiled = ov_core.compile_model(model, "NPU", props);
+
+    std::stringstream blob;
+    compiled.export_model(blob);
+
+    EXPECT_NO_THROW({
+        auto imported = ov_core.import_model(blob, "NPU", props);
+        auto request = imported.create_infer_request();
+        request.infer();
+    });
+}
