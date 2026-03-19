@@ -427,28 +427,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
 
     {
-        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply::run_passes");
-        ov::pass::Manager manager("GPU:UnrollTensorIterator");
-        // This ConstantFolding pass is added to fold reshapes added for constant inputs on NMS internal operation which prevents upper-bound calculation
-        // TODO: check why we have these reshapes
-        manager.register_pass<ov::pass::ConstantFolding>();
-
-        manager.register_pass<ov::pass::UnrollTensorIterator>();
-        auto pass_config = manager.get_pass_config();
-        pass_config->set_callback<ov::pass::UnrollTensorIterator>(
-            [unroll_loop](const std::shared_ptr<const ov::Node> &node) -> bool {
-                auto sub_graph_op = ov::as_type_ptr<const ov::op::util::SubGraphOp>(node);
-                int64_t num_iter = sub_graph_op->get_num_iterations();
-                std::cout << "num_iter : " << num_iter << std::endl;
-                if (!unroll_loop)
-                    return num_iter != 1;
-                return num_iter >= 16;
-            });
-
-        manager.run_passes(func);
-    }
-
-    {
         ov::pass::Manager manager("Plugin:GPU");
         auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
@@ -1297,6 +1275,41 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         auto params = LayerTransformation::Params(true, element::f32, defaultPrecisions, reshapeIgnorePerTensorQuantizationCheck);
         lptManager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
         lptManager.run_passes(func);
+    }
+
+    {
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply::run_passes");
+        ov::pass::Manager manager("GPU:UnrollTensorIterator");
+        // This ConstantFolding pass is added to fold reshapes added for constant inputs on NMS internal operation which prevents upper-bound calculation
+        // TODO: check why we have these reshapes
+        manager.register_pass<ov::pass::ConstantFolding>();
+
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
+        auto pass_config = manager.get_pass_config();
+        pass_config->set_callback<ov::pass::UnrollTensorIterator>(
+            [unroll_loop](const std::shared_ptr<const ov::Node> &node) -> bool {
+                auto sub_graph_op = ov::as_type_ptr<const ov::op::util::SubGraphOp>(node);
+                int64_t num_iter = sub_graph_op->get_num_iterations();
+                if (!unroll_loop)
+                    return num_iter != 1;
+                return num_iter >= 16;
+            });
+
+        manager.run_passes(func);
+    }
+
+    {
+        // Re-apply i64->i32 conversion after loop unrolling.
+        // UnrollTensorIterator replaces the current_iteration Parameter with a
+        // Constant(i64) regardless of the original parameter type. GPU kernels
+        // do not support i64 operands (e.g. ScatterUpdate indices),
+        // so convert these newly introduced i64 nodes to i32.
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply::post_unroll_convert_precision");
+        ov::pass::Manager manager("GPU:PostUnrollConvertPrecision");
+        precisions_map post_unroll_int_map{{ov::element::i64, ov::element::i32}};
+        type_to_fuse_map post_unroll_type_to_fuse = {};
+        manager.register_pass<ov::pass::ConvertPrecision>(post_unroll_int_map, post_unroll_type_to_fuse, false, false);
+        manager.run_passes(func);
     }
 
     {
