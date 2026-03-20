@@ -32,7 +32,7 @@ jobs:
           max-size: 50G
 
       - name: Clone OpenVINO
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           submodules: 'true'
@@ -104,7 +104,7 @@ jobs:
         continue-on-error: true
 
       # - name: Run Paddle frontend unit tests
-      #   run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/paddle_tests --gtest_filter=-*IE_GPU*
+      #   run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_paddle_tests --gtest_filter=-*IE_GPU*
       #   continue-on-error: true
 
       - name: Run TensorFlow frontend unit tests

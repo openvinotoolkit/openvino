@@ -7,6 +7,8 @@
 #include <iostream>
 #include <iterator>
 
+#include "compiler_impl.hpp"
+#include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
@@ -402,14 +404,11 @@ void DynamicGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescript
 }
 
 DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                           std::optional<ov::Tensor> blob,
+                           ov::Tensor blob,
                            bool blobAllocatedByPlugin,
-                           const Config& config,
-                           const ov::SoPtr<VCLCompilerImpl>& compiler)
+                           const FilteredConfig& config)
     : _zeroInitStruct(zeroInitStruct),
       _blob(std::move(blob)),
-      _blobAllocatedByPlugin(blobAllocatedByPlugin),
-      _compiler(compiler),
       _logger("DynamicGraph", config.get<LOG_LEVEL>()) {
     _logger.info("Create DynamicGraph");
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
@@ -494,10 +493,6 @@ const std::shared_ptr<CommandQueue>& DynamicGraph::get_command_queue() const {
     return _commandQueue;
 }
 
-uint32_t DynamicGraph::get_command_queue_group_ordinal() const {
-    return _commandQueueGroupOrdinal;
-}
-
 void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) const {
     if (_commandQueue == nullptr) {
         return;
@@ -516,18 +511,6 @@ void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) const 
     }
 
     _commandQueue->setWorkloadType(zeWorkloadType);
-}
-
-std::vector<ov::ProfilingInfo> DynamicGraph::process_profiling_output(const std::vector<uint8_t>& profData,
-                                                                      const Config& config) const {
-    if (_compiler == nullptr) {
-        OPENVINO_THROW("Profiling post-processing is not supported.");
-    }
-
-    std::vector<uint8_t> blob(_blob->get_byte_size());
-    blob.assign(reinterpret_cast<const uint8_t*>(_blob->data()),
-                reinterpret_cast<const uint8_t*>(_blob->data()) + _blob->get_byte_size());
-    return _compiler->process_profiling_output(profData, blob, config);
 }
 
 void DynamicGraph::set_argument_value(uint32_t argi, const void* argv) const {
@@ -555,7 +538,7 @@ ze_graph_handle_t DynamicGraph::get_handle() const {
     return nullptr;
 }
 
-void DynamicGraph::initialize(const Config& config) {
+void DynamicGraph::initialize(const FilteredConfig& config) {
     _logger.debug("Graph initialize start");
 
     if (!_impl) {
@@ -573,10 +556,6 @@ void DynamicGraph::initialize(const Config& config) {
     if (_commandQueue == nullptr) {
         _logger.debug("Graph initialize without graph handle");
 
-        _commandQueueGroupOrdinal =
-            zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
-                                                    ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
-
         uint32_t commandQueueOptions = 0;
 
         if (config.has<TURBO>() && config.get<TURBO>()) {
@@ -593,7 +572,6 @@ void DynamicGraph::initialize(const Config& config) {
 
         _commandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
                                                        zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                       _commandQueueGroupOrdinal,
                                                        commandQueueOptions);
 
         if (config.has<WORKLOAD_TYPE>()) {
@@ -616,7 +594,7 @@ void DynamicGraph::initialize(const Config& config) {
     _init_completed = true;
 }
 
-bool DynamicGraph::release_blob(const Config& config) {
+bool DynamicGraph::release_blob(const FilteredConfig& config) {
     _logger.warning("Release blob is skipped, no handle for DynamicGraph");
     return false;
 };

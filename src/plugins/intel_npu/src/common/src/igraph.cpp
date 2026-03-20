@@ -12,7 +12,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> IGraph::export_blob(st
     OPENVINO_THROW("export_blob not implemented");
 }
 
-std::vector<ov::ProfilingInfo> IGraph::process_profiling_output(const std::vector<uint8_t>&, const Config&) const {
+std::vector<ov::ProfilingInfo> IGraph::process_profiling_output(const std::vector<uint8_t>&) const {
     OPENVINO_THROW("process_profiling_output not implemented");
 }
 
@@ -24,7 +24,7 @@ void IGraph::set_argument_value_with_strides(uint32_t, const void*, const std::v
     OPENVINO_THROW("set_argument_value_with_strides not implemented");
 }
 
-void IGraph::initialize(const Config&) {
+void IGraph::initialize(const FilteredConfig&) {
     OPENVINO_THROW("initialize not implemented");
 }
 
@@ -42,10 +42,6 @@ void IGraph::update_network_name(std::string_view) {
 
 const std::shared_ptr<CommandQueue>& IGraph::get_command_queue() const {
     OPENVINO_THROW("get_command_queue not implemented");
-}
-
-uint32_t IGraph::get_command_queue_group_ordinal() const {
-    OPENVINO_THROW("get_command_queue_group_ordinal not implemented");
 }
 
 void IGraph::set_workload_type(const ov::WorkloadType) const {
