@@ -44,6 +44,7 @@
 #include "openvino/op/elu.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/erf.hpp"
+#include "openvino/op/erfinv.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/floor.hpp"
 #include "openvino/op/floor_mod.hpp"
@@ -312,6 +313,7 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[ov::op::v0::Clamp::get_type_info_static()] = emitter_factory.from_node<intel_cpu::jit_clamp_emitter>();
     jitters[ov::op::v0::Elu::get_type_info_static()] = emitter_factory.from_node<intel_cpu::jit_elu_emitter>();
     jitters[ov::op::v0::Erf::get_type_info_static()] = emitter_factory.from_node<intel_cpu::jit_erf_emitter>();
+    jitters[ov::op::v16::ErfInv::get_type_info_static()] = emitter_factory.from_node<intel_cpu::jit_erfinv_emitter>();
     jitters[ov::op::v0::Exp::get_type_info_static()] = emitter_factory.from_node<intel_cpu::jit_exp_emitter>();
     jitters[ov::op::v0::Floor::get_type_info_static()] = emitter_factory.from_node<intel_cpu::jit_floor_emitter>();
     jitters[ov::op::v5::Round::get_type_info_static()] = emitter_factory.from_node<intel_cpu::jit_round_emitter>();

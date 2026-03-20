@@ -2385,6 +2385,192 @@ size_t jit_soft_sign_emitter::aux_vecs_count() const {
     return 1;
 }
 
+/// ERFINV ///
+namespace {
+static inline uint32_t erfinv_f2u(float f) {
+    uint32_t u;
+    std::memcpy(&u, &f, sizeof(u));
+    return u;
+}
+}  // namespace
+
+jit_erfinv_emitter::jit_erfinv_emitter(x64::jit_generator_t* host,
+                                       x64::cpu_isa_t host_isa,
+                                       [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
+                                       ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
+jit_erfinv_emitter::jit_erfinv_emitter(x64::jit_generator_t* host,
+                                       x64::cpu_isa_t host_isa,
+                                       ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
+
+size_t jit_erfinv_emitter::get_inputs_num() const {
+    return 1;
+}
+
+std::set<std::vector<element::Type>> jit_erfinv_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
+void jit_erfinv_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                   const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == x64::sse41) {
+        emit_isa<x64::sse41>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == x64::avx2) {
+        emit_isa<x64::avx2>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == x64::avx512_core) {
+        emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
+    }
+}
+
+template <x64::cpu_isa_t isa>
+void jit_erfinv_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                  const std::vector<size_t>& out_vec_idxs) const {
+    using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+    auto vmm_src = Vmm(in_vec_idxs[0]);
+    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    // aux0 is xmm0 for SSE41 (blend mask); free during main computation
+    auto aux0 = Vmm(aux_vec_idxs[0]);
+    auto aux1 = Vmm(aux_vec_idxs[1]);  // v → exponent → log(v) → w
+    auto aux2 = Vmm(aux_vec_idxs[2]);  // log poly acc → r1 → r2
+    auto aux3 = Vmm(aux_vec_idxs[3]);  // mantissa → h → branch1 poly acc → poly1
+    auto aux4 = Vmm(aux_vec_idxs[4]);  // branch2 poly acc → poly2
+    auto aux5 = Vmm(aux_vec_idxs[5]);  // saved x
+
+    // Save x (needed for final multiply after src may be overwritten by dst)
+    h->uni_vmovups(aux5, vmm_src);
+
+    // v = 1 - x² (computed as (-x²) + 1.0 via xor+add)
+    h->uni_vmulps(aux1, vmm_src, vmm_src);
+    h->uni_vxorps(aux1, aux1, table_val("sign_mask"));
+    h->uni_vaddps(aux1, aux1, table_val("one"));
+
+    // --- Inline log(v): log(v) = (e+1)*ln2 + log(y), y = f/2, f = 1.mantissa ---
+    // Extract biased exponent k = v_bits >> 23 (integer)
+    h->uni_vpsrld(aux2, aux1, 23);
+    // aux2 = k - 126 = e+1 as int32 (biased_e = e+127, so e+1 = k-126)
+    h->uni_vpsubd(aux2, aux2, table_val("int126"));
+    // Extract mantissa from aux1 (v bits still intact), compute h = f/2 - 1
+    h->uni_vandps(aux3, aux1, table_val("mantissa_mask"));  // mantissa bits
+    h->uni_vorps(aux3, aux3, table_val("one"));             // f = 1.mantissa ∈ [1, 2)
+    h->uni_vmulps(aux3, aux3, table_val("half"));           // f/2 ∈ [0.5, 1)
+    h->uni_vsubps(aux3, aux3, table_val("one"));            // h = f/2 - 1 ∈ [-0.5, 0)
+    // Convert exponent to float (overwrites v in aux1)
+    h->uni_vcvtdq2ps(aux1, aux2);  // aux1 = (e+1) as float; aux2 freed
+
+    // Log polynomial Horner: log(1+h) = h*(1 + h*(p0 + h*(p1 + ... + h*p6)))
+    // Accumulate in aux2 (uses aux3 = h as argument, table_val for coeffs)
+    h->uni_vmovups(aux2, table_val("log_pol6"));
+    h->uni_vfmadd213ps(aux2, aux3, table_val("log_pol5"));
+    h->uni_vfmadd213ps(aux2, aux3, table_val("log_pol4"));
+    h->uni_vfmadd213ps(aux2, aux3, table_val("log_pol3"));
+    h->uni_vfmadd213ps(aux2, aux3, table_val("log_pol2"));
+    h->uni_vfmadd213ps(aux2, aux3, table_val("log_pol1"));
+    h->uni_vfmadd213ps(aux2, aux3, table_val("log_pol0"));
+    h->uni_vfmadd213ps(aux2, aux3, table_val("one"));  // include constant 1.0 factor
+    h->uni_vmulps(aux2, aux2, aux3);                   // log(1+h) = acc * h; aux3 freed
+
+    // Combine: log(v) = (e+1)*ln2 + log(y); aux1 = (e+1)*ln2 + log(y)
+    h->uni_vfmadd132ps(aux1, aux2, table_val("ln2"));  // aux1 = aux1*ln2 + aux2
+    h->uni_vxorps(aux1, aux1, table_val("sign_mask")); // w = -log(v); aux2 freed
+
+    // Branch 1: poly1 = Giles poly(w - 2.5), valid for w < 5
+    h->uni_vmovups(aux2, aux1);
+    h->uni_vsubps(aux2, aux2, table_val("two_point_five"));  // r1 = w - 2.5
+    h->uni_vmovups(aux3, table_val("e1_c8"));
+    h->uni_vfmadd213ps(aux3, aux2, table_val("e1_c7"));
+    h->uni_vfmadd213ps(aux3, aux2, table_val("e1_c6"));
+    h->uni_vfmadd213ps(aux3, aux2, table_val("e1_c5"));
+    h->uni_vfmadd213ps(aux3, aux2, table_val("e1_c4"));
+    h->uni_vfmadd213ps(aux3, aux2, table_val("e1_c3"));
+    h->uni_vfmadd213ps(aux3, aux2, table_val("e1_c2"));
+    h->uni_vfmadd213ps(aux3, aux2, table_val("e1_c1"));
+    h->uni_vfmadd213ps(aux3, aux2, table_val("e1_c0"));  // aux3 = poly1; aux2 freed
+
+    // Branch 2: poly2 = Giles poly(sqrt(w) - 3.0), valid for w >= 5
+    h->uni_vsqrtps(aux2, aux1);
+    h->uni_vsubps(aux2, aux2, table_val("three"));           // r2 = sqrt(w) - 3.0
+    h->uni_vmovups(aux4, table_val("e2_c8"));
+    h->uni_vfmadd213ps(aux4, aux2, table_val("e2_c7"));
+    h->uni_vfmadd213ps(aux4, aux2, table_val("e2_c6"));
+    h->uni_vfmadd213ps(aux4, aux2, table_val("e2_c5"));
+    h->uni_vfmadd213ps(aux4, aux2, table_val("e2_c4"));
+    h->uni_vfmadd213ps(aux4, aux2, table_val("e2_c3"));
+    h->uni_vfmadd213ps(aux4, aux2, table_val("e2_c2"));
+    h->uni_vfmadd213ps(aux4, aux2, table_val("e2_c1"));
+    h->uni_vfmadd213ps(aux4, aux2, table_val("e2_c0"));  // aux4 = poly2; aux2 freed
+
+    // Blend: select poly1 where w < 5, poly2 otherwise; multiply by x
+    if (isa == x64::avx512_core) {
+        h->vcmpps(k_mask, aux1, table_val("five"), _cmp_lt_os);
+        h->uni_vmovups(vmm_dst, aux4);
+        h->vblendmps(vmm_dst | k_mask, vmm_dst, aux3);  // k_mask ? poly1 : poly2
+    } else if (isa == x64::avx2) {
+        h->vcmpps(aux0, aux1, table_val("five"), _cmp_lt_os);
+        h->uni_vblendvps(vmm_dst, aux4, aux3, aux0);
+    } else {
+        // SSE41: aux0 == xmm0 (guaranteed by JIT framework for SSE41)
+        h->uni_vmovups(aux0, aux1);
+        h->cmpps(aux0, table_val("five"), _cmp_lt_os);
+        h->uni_vmovups(vmm_dst, aux4);
+        h->blendvps(vmm_dst, aux3);  // implicit xmm0 (= aux0) as mask
+    }
+    h->uni_vmulps(vmm_dst, vmm_dst, aux5);
+}
+
+void jit_erfinv_emitter::register_table_entries() {
+    push_arg_entry_of("one", CONST_1_F, true);
+    push_arg_entry_of("half", erfinv_f2u(0.5f), true);
+    push_arg_entry_of("sign_mask", 0x80000000, true);
+    push_arg_entry_of("mantissa_mask", 0x007fffff, true);
+    // bias_mask and "one" are both 0x3f800000; reuse "one" for vorps
+    push_arg_entry_of("int126", 126u, true);      // integer 126 for vpsubd
+    push_arg_entry_of("ln2", 0x3f317218, true);
+    push_arg_entry_of("two_point_five", erfinv_f2u(2.5f), true);
+    push_arg_entry_of("three", erfinv_f2u(3.0f), true);
+    push_arg_entry_of("five", erfinv_f2u(5.0f), true);
+    // Log polynomial: log(1+h) Taylor coefficients (from softplus emitter)
+    push_arg_entry_of("log_pol0", 0xbf000000, true);  // -1/2
+    push_arg_entry_of("log_pol1", 0x3eaaaa9f, true);  //  1/3
+    push_arg_entry_of("log_pol2", 0xbe800000, true);  // -1/4
+    push_arg_entry_of("log_pol3", 0x3e4ccccd, true);  //  1/5
+    push_arg_entry_of("log_pol4", 0xbe2aaac1, true);  // -1/6
+    push_arg_entry_of("log_pol5", 0x3e12491b, true);  //  1/7
+    push_arg_entry_of("log_pol6", 0xbe000000, true);  // -1/8
+    // Giles erfinv branch 1 coefficients (w < 5, poly in w-2.5)
+    push_arg_entry_of("e1_c8", 0x32f16588, true);   //  2.81022636e-08
+    push_arg_entry_of("e1_c7", 0x34b84b36, true);   //  3.43273939e-07
+    push_arg_entry_of("e1_c6", 0xb66c7357, true);   // -3.5233877e-06
+    push_arg_entry_of("e1_c5", 0xb6935ac1, true);   // -4.39150654e-06
+    push_arg_entry_of("e1_c4", 0x396532db, true);   //  0.00021858087
+    push_arg_entry_of("e1_c3", 0xbaa45408, true);   // -0.00125372503
+    push_arg_entry_of("e1_c2", 0xbb88e4ef, true);   // -0.00417768164
+    push_arg_entry_of("e1_c1", 0x3e7c8f63, true);   //  0.246640727
+    push_arg_entry_of("e1_c0", 0x3fc02e2f, true);   //  1.50140941
+    // Giles erfinv branch 2 coefficients (w >= 5, poly in sqrt(w)-3.0)
+    push_arg_entry_of("e2_c8", 0xb951f09b, true);   // -0.000200214257
+    push_arg_entry_of("e2_c7", 0x38d3b56b, true);   //  0.000100950558
+    push_arg_entry_of("e2_c6", 0x3ab0dc72, true);   //  0.00134934322
+    push_arg_entry_of("e2_c5", 0xbb70bde7, true);   // -0.00367342844
+    push_arg_entry_of("e2_c4", 0x3bbc127b, true);   //  0.00573950773
+    push_arg_entry_of("e2_c3", 0xbbf9c5d7, true);   // -0.0076224613
+    push_arg_entry_of("e2_c2", 0xbc1aa57e, true);   // -0.00943887047
+    push_arg_entry_of("e2_c1", 0x3f8036db, true);   //  1.00167406
+    push_arg_entry_of("e2_c0", 0x40354f7e, true);   //  2.83297682
+}
+
+size_t jit_erfinv_emitter::aux_vecs_count() const {
+    return 6;
+}
+
 /// IS_FINITE ///
 template <>
 void jit_is_finite_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t>& in_vec_idxs,

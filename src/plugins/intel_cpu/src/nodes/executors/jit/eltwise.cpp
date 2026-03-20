@@ -398,7 +398,6 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
     const auto algorithm = attrs.data.algo;
     if (any_of(algorithm,
                Algorithm::EltwiseLog,
-               Algorithm::EltwiseErfInv,
                Algorithm::EltwiseBitwiseLeftShift,
                Algorithm::EltwiseBitwiseRightShift)) {
         return false;  // NOLINT(readability-simplify-boolean-expr) since no further checks on x64 are required
