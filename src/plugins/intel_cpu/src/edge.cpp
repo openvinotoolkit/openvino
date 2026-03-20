@@ -518,7 +518,8 @@ void Edge::init() {
         // data corruption (GH#33255).
         const bool thisFromConst = getParent()->isConstant() &&
                                    !edgePtr->getParent()->isConstant() &&
-                                   getChild()->getType() == Type::Concatenation;
+                                   getChild()->getType() == Type::Concatenation &&
+                                   edgePtr->getParent() == getChild();
         if (thisFromConst) {
             changeStatus(Status::NeedAllocation);
             DEBUG_LOG(*this, " edge inplace from ", *edgePtr, " is broken!");
