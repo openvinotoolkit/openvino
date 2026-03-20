@@ -238,6 +238,15 @@ bool evaluate_interpolate(const ov::op::util::InterpolateBase* node,
                                           out_shape,
                                           m_attrs);
         break;
+    case Type_t::f64:
+        ov::reference::interpolate<double>(reinterpret_cast<double*>(padded_data_ptr),
+                                           padded_input_shape,
+                                           scales,
+                                           *axes,
+                                           outputs[0].data<double>(),
+                                           out_shape,
+                                           m_attrs);
+        break;
     case Type_t::f16:
     case Type_t::bf16:
         return ov::util::evaluate_node_with_unsupported_precision(node, outputs, inputs);
@@ -285,6 +294,7 @@ bool ov::op::v4::Interpolate::has_evaluate() const {
     case ov::element::bf16:
     case ov::element::f16:
     case ov::element::f32:
+    case ov::element::f64:
         return true;
     default:
         return false;
@@ -360,6 +370,7 @@ bool ov::op::v11::Interpolate::has_evaluate() const {
     case ov::element::bf16:
     case ov::element::f16:
     case ov::element::f32:
+    case ov::element::f64:
         return true;
     default:
         return false;

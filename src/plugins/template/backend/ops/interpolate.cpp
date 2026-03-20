@@ -170,6 +170,120 @@ std::vector<float> get_scales_vector(const ov::TensorVector& args,
     return scales;
 }
 
+namespace v4 {
+bool evaluate_interpolate(const std::shared_ptr<ov::op::v4::Interpolate>& op,
+                          ov::TensorVector& outputs,
+                          const ov::TensorVector& inputs) {
+    using namespace ov;
+
+    constexpr size_t data_port = 0;
+    constexpr size_t sizes_scales_port = 1;
+    constexpr size_t axes_port = 2;
+    constexpr size_t max_num_of_ports = 3;
+
+    element::Type input_et = inputs[0].get_element_type();
+    size_t type_size = input_et.size();
+
+    PartialShape input_shape{inputs[data_port].get_shape()};
+    auto m_attrs = op->get_attrs();
+
+    const auto ta = make_tensor_accessor(inputs);
+    auto input_shapes = std::vector<PartialShape>();
+    std::transform(inputs.cbegin(), inputs.cend(), std::back_inserter(input_shapes), [](const ov::Tensor& ht) {
+        return ht.get_shape();
+    });
+
+    // Use v4 shape inference
+    const auto output_shape =
+        ov::op::v4::shape_infer(op.get(), input_shapes, m_attrs.pads_begin, m_attrs.pads_end, ta).front();
+
+    Shape padded_input_shape;
+    for (size_t i = 0; i < input_shape.size(); ++i) {
+        padded_input_shape.emplace_back(m_attrs.pads_begin[i] + m_attrs.pads_end[i] + input_shape[i].get_length());
+    }
+
+    auto axes = get_axes_vector(inputs, inputs[data_port].get_shape().size(), axes_port, max_num_of_ports);
+    auto scales = get_scales_vector(inputs, padded_input_shape, m_attrs, axes, sizes_scales_port);
+
+    Shape out_shape = output_shape.to_shape();
+    outputs[0].set_shape(out_shape);
+
+    size_t bytes_in_padded_input = shape_size(padded_input_shape) * type_size;
+    std::vector<uint8_t> padded_input_data(bytes_in_padded_input, 0);
+
+    auto data_ptr = static_cast<const uint8_t*>(inputs[0].data());
+    uint8_t* padded_data_ptr = padded_input_data.data();
+
+    reference::pad_input_data(data_ptr,
+                              padded_data_ptr,
+                              type_size,
+                              input_shape.to_shape(),
+                              padded_input_shape,
+                              m_attrs.pads_begin);
+
+    switch (input_et) {
+    case element::f32:
+        ov::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
+                                          padded_input_shape,
+                                          scales,
+                                          axes,
+                                          outputs[0].data<float>(),
+                                          out_shape,
+                                          m_attrs);
+        break;
+    case element::f64:
+        ov::reference::interpolate<double>(reinterpret_cast<double*>(padded_data_ptr),
+                                           padded_input_shape,
+                                           scales,
+                                           axes,
+                                           outputs[0].data<double>(),
+                                           out_shape,
+                                           m_attrs);
+        break;
+    case element::bf16:
+        ov::reference::interpolate<bfloat16>(reinterpret_cast<bfloat16*>(padded_data_ptr),
+                                             padded_input_shape,
+                                             scales,
+                                             axes,
+                                             outputs[0].data<bfloat16>(),
+                                             out_shape,
+                                             m_attrs);
+        break;
+    case element::f16:
+        ov::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
+                                            padded_input_shape,
+                                            scales,
+                                            axes,
+                                            outputs[0].data<float16>(),
+                                            out_shape,
+                                            m_attrs);
+        break;
+    case element::i8:
+        ov::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
+                                           padded_input_shape,
+                                           scales,
+                                           axes,
+                                           outputs[0].data<int8_t>(),
+                                           out_shape,
+                                           m_attrs);
+        break;
+    case element::u8:
+        ov::reference::interpolate<uint8_t>(reinterpret_cast<uint8_t*>(padded_data_ptr),
+                                            padded_input_shape,
+                                            scales,
+                                            axes,
+                                            outputs[0].data<uint8_t>(),
+                                            out_shape,
+                                            m_attrs);
+        break;
+    default:
+        OPENVINO_THROW("Interpolate operation supports only f32, f64, f16, bf16, i8 and u8 types");
+    }
+
+    return true;
+}
+}  // namespace v4
+
 namespace v11 {
 bool evaluate_interpolate(const std::shared_ptr<ov::op::v11::Interpolate>& op,
                           ov::TensorVector& outputs,
@@ -297,6 +411,59 @@ bool evaluate(const std::shared_ptr<ov::op::v11::Interpolate>& op,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
     return eval::interpolate::v11::evaluate_interpolate(op, outputs, inputs);
+}
+
+template <ov::element::Type_t ET>
+bool evaluate(const std::shared_ptr<ov::op::v4::Interpolate>& op,
+              ov::TensorVector& outputs,
+              const ov::TensorVector& inputs) {
+    return eval::interpolate::v4::evaluate_interpolate(op, outputs, inputs);
+}
+
+template <>
+bool evaluate_node<ov::op::v4::Interpolate>(std::shared_ptr<ov::Node> node,
+                                            ov::TensorVector& outputs,
+                                            const ov::TensorVector& inputs) {
+    auto element_type = node->get_output_element_type(0);
+    if (ov::is_type<ov::op::v1::Select>(node) || ov::is_type<ov::op::util::BinaryElementwiseComparison>(node))
+        element_type = node->get_input_element_type(1);
+
+    switch (element_type) {
+    case ov::element::boolean:
+        return evaluate<ov::element::boolean>(ov::as_type_ptr<ov::op::v4::Interpolate>(node), outputs, inputs);
+    case ov::element::bf16:
+        return evaluate<ov::element::bf16>(ov::as_type_ptr<ov::op::v4::Interpolate>(node), outputs, inputs);
+    case ov::element::f16:
+        return evaluate<ov::element::f16>(ov::as_type_ptr<ov::op::v4::Interpolate>(node), outputs, inputs);
+    case ov::element::f64:
+        return evaluate<ov::element::f64>(ov::as_type_ptr<ov::op::v4::Interpolate>(node), outputs, inputs);
+    case ov::element::f32:
+        return evaluate<ov::element::f32>(ov::as_type_ptr<ov::op::v4::Interpolate>(node), outputs, inputs);
+    case ov::element::i4:
+        return evaluate<ov::element::i4>(ov::as_type_ptr<ov::op::v4::Interpolate>(node), outputs, inputs);
+    case ov::element::i8:
+        return evaluate<ov::element::i8>(ov::as_type_ptr<ov::op::v4::Interpolate>(node), outputs, inputs);
+    case ov::element::i16:
+        return evaluate<ov::element::i16>(ov::as_type_ptr<ov::op::v4::Interpolate>(node), outputs, inputs);
+    case ov::element::i32:
+        return evaluate<ov::element::i32>(ov::as_type_ptr<ov::op::v4::Interpolate>(node), outputs, inputs);
+    case ov::element::i64:
+        return evaluate<ov::element::i64>(ov::as_type_ptr<ov::op::v4::Interpolate>(node), outputs, inputs);
+    case ov::element::u1:
+        return evaluate<ov::element::u1>(ov::as_type_ptr<ov::op::v4::Interpolate>(node), outputs, inputs);
+    case ov::element::u4:
+        return evaluate<ov::element::u4>(ov::as_type_ptr<ov::op::v4::Interpolate>(node), outputs, inputs);
+    case ov::element::u8:
+        return evaluate<ov::element::u8>(ov::as_type_ptr<ov::op::v4::Interpolate>(node), outputs, inputs);
+    case ov::element::u16:
+        return evaluate<ov::element::u16>(ov::as_type_ptr<ov::op::v4::Interpolate>(node), outputs, inputs);
+    case ov::element::u32:
+        return evaluate<ov::element::u32>(ov::as_type_ptr<ov::op::v4::Interpolate>(node), outputs, inputs);
+    case ov::element::u64:
+        return evaluate<ov::element::u64>(ov::as_type_ptr<ov::op::v4::Interpolate>(node), outputs, inputs);
+    default:
+        OPENVINO_THROW("Unhandled data type ", node->get_element_type().get_type_name(), " in evaluate_node()");
+    }
 }
 
 template <>

@@ -82,6 +82,7 @@ _OPENVINO_OP_REG(ScatterNDUpdate, op::v3)
 _OPENVINO_OP_REG(ShapeOf, op::v3)
 
 _OPENVINO_OP_REG(CTCLoss, op::v4)
+_OPENVINO_OP_REG(Interpolate, op::v4)
 _OPENVINO_OP_REG(LSTMCell, op::v4)
 _OPENVINO_OP_REG(NonMaxSuppression, op::v4)
 _OPENVINO_OP_REG(Proposal, op::v4)
