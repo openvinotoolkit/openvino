@@ -559,14 +559,6 @@ void jit_uni_eltwise_generic<isa>::load_vector(Vmm vmm_src,
                     vpbroadcastb(vmm_src, xmm_src);
                 }
                 break;
-            case 2:
-                if (isa == x64::sse41) {
-                    punpcklwd(xmm_src, xmm_src);
-                    pshufd(xmm_src, xmm_src, 0);
-                } else {
-                    vpbroadcastw(vmm_src, xmm_src);
-                }
-                break;
             default:
                 uni_vbroadcastss(vmm_src, xmm_src);
                 break;
