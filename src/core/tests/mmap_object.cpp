@@ -213,7 +213,7 @@ TEST_P(RangedMappingTest, compare_id) {
 
 static const auto pg_sz = []() {
     const auto sz = util::get_system_page_size();
-    return sz > 0 ? sz : 4096;
+    return sz > 0 ? static_cast<size_t>(sz) : size_t{4096};
 }();
 INSTANTIATE_TEST_SUITE_P(MappedMemory,
                          RangedMappingTest,
