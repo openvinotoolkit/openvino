@@ -11,7 +11,7 @@ using namespace cldnn;
 
 namespace {
 
-std::function<bool(const program_node& node)> not_in_shape_flow_and_ocl_supported_dtype() {
+std::function<bool(const program_node& node)> not_in_shape_flow_and_check_ocl_dtype() {
     return [](const program_node& node) {
         const auto& in_layout = node.get_input_layout(0);
         const auto& out_layout = node.get_output_layout(0);
@@ -25,8 +25,8 @@ namespace ov::intel_gpu {
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<activation>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
-        OV_GPU_GET_INSTANCE_OCL(activation, shape_types::static_shape, not_in_shape_flow_and_ocl_supported_dtype())
-        OV_GPU_GET_INSTANCE_OCL(activation, shape_types::dynamic_shape, not_in_shape_flow_and_ocl_supported_dtype())
+        OV_GPU_GET_INSTANCE_OCL(activation, shape_types::static_shape, not_in_shape_flow_and_check_ocl_dtype())
+        OV_GPU_GET_INSTANCE_OCL(activation, shape_types::dynamic_shape, not_in_shape_flow_and_check_ocl_dtype())
         OV_GPU_GET_INSTANCE_CPU(activation, shape_types::static_shape, in_shape_flow())
         OV_GPU_GET_INSTANCE_CPU(activation, shape_types::dynamic_shape, in_shape_flow())
     };
