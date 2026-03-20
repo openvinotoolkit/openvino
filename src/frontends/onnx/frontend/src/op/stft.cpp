@@ -2,21 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/stft.hpp"
-
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert_like.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/squeeze.hpp"
 #include "openvino/op/stft.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -71,12 +66,10 @@ ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
         (window_node_provided && dft_length_provided)) {
         return stft_v15(node, ov_inputs);
     }
-    // Use legacy DFT-based decomposition for 3D signal or optional inputs
+    // Use DFT-based decomposition for 3D signal or optional inputs
     CHECK_VALID_NODE(node,
                      signal_param_shape.is_static() && signal_param_shape.size() == 3,
                      "Shape of signal input must be static with the rank equal to 3.");
-
-    // Legacy DFT-based implementation for static rank-3 inputs
     const auto onesided = node.get_attribute_value<int64_t>("onesided", 1);
     const int64_t axis = 1;
 
