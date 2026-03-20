@@ -291,19 +291,12 @@ void WeightlessGraph::initialize(const FilteredConfig& config) {
 
     // Simplified version for init schedules
     const size_t numberOfInits = _initsGraphDesc.size();
-    _initsCommandQueueOrdinals.resize(numberOfInits);
     _initsCommandLists.resize(numberOfInits);
     _initsFences.resize(numberOfInits);
 
     for (size_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
         _wgLogger.debug("WeightlessGraph initialize start, init schedule ", initIndex);
-        uint32_t& initCommandQueueOrdinal = _initsCommandQueueOrdinals.at(initIndex);
-
-        // Code similar to "Graph::initialize"
-        initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
-                                                                          ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
-
-        _zeGraphExt->initializeGraph(_initsGraphDesc.at(initIndex), initCommandQueueOrdinal);
+        _zeGraphExt->initializeGraph(_initsGraphDesc.at(initIndex));
         _wgLogger.debug("WeightlessGraph initialize finish, init schedule ", initIndex);
 
         //  We are allowed to release the original blob because weights were loaded in NPU memory during
@@ -313,10 +306,6 @@ void WeightlessGraph::initialize(const FilteredConfig& config) {
     }
 
     // Create a single command queue for all weights initialization schedules
-    _initsCommandQueueGroupOrdinal =
-        zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
-                                                ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
-
     uint32_t commandQueueOptions = 0;
     if (config.has<TURBO>() && config.get<TURBO>()) {
         if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
@@ -327,7 +316,6 @@ void WeightlessGraph::initialize(const FilteredConfig& config) {
 
     _initsCommandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
                                                         zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                        _initsCommandQueueGroupOrdinal,
                                                         commandQueueOptions);
 
     if (config.has<WORKLOAD_TYPE>()) {
@@ -354,7 +342,6 @@ void WeightlessGraph::initialize(const FilteredConfig& config) {
         release_graphs();
     }
 
-    _initsCommandQueueOrdinals.clear();
     _initsCommandLists.clear();
     _initsFences.clear();
     _initsMetadata.clear();
@@ -381,6 +368,9 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
     // tensors" are used for separating them.
     const std::shared_ptr<ZeroTensor> initInputsAllocatedTensor =
         std::make_shared<ZeroTensor>(_zeroInitStruct, ov::element::Type_t::u8, ov::Shape({initInputsByteSize}), true);
+
+    std::vector<size_t> noLongerRequiredIds;
+    noLongerRequiredIds.reserve(_initsMetadata.at(initIndex).inputs.size());
 
     size_t offset = 0;
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).inputs) {
@@ -416,8 +406,15 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
             ov::make_tensor(descriptor.precision, tensorShapeFromCompiler, currentInputBufferLocation));
         offset += currentInputSize;
 
+        // Note: One cannot immediately delete the constant, because there might
+        // be a duplicate. The deletion should happen once the input data for
+        // init schedule is fully set.
+        noLongerRequiredIds.push_back(id);
+    }
+
+    for (size_t id : noLongerRequiredIds) {
         // Note: By construction of the weight schedule, every constant from OV
-        // model appears exactly once across all schedules. Thus, one can delete
+        // model appears in exactly one schedule. Thus, one can delete
         // the handle to the constant memory early.
         constants.erase(id);
     }
@@ -534,8 +531,7 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
         OPENVINO_THROW("Zero compiler adapter wasn't initialized");
     }
 
-    _initsCommandLists.at(initIndex) =
-        std::make_unique<CommandList>(_zeroInitStruct, _initsCommandQueueOrdinals.at(initIndex));
+    _initsCommandLists.at(initIndex) = std::make_unique<CommandList>(_zeroInitStruct);
     _initsFences.at(initIndex) = std::make_unique<Fence>(_initsCommandQueue);
 
     size_t io_index = 0;
