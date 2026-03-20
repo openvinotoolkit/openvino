@@ -189,6 +189,13 @@ jobs:
           python3 --version
           python3 -m pip --version
 
+      - name: Install C++ coverage prerequisites
+        run: |
+          apt --assume-yes update
+          apt --assume-yes install lcov ca-certificates libtbb12 rsync
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml
+
       - name: Prepare C++ artifact staging directory
         id: artifact_staging
         run: |
@@ -288,13 +295,6 @@ jobs:
       - name: Verify GPU devices
         if: ${{ matrix.requires_gpu_runtime }}
         run: clinfo
-
-      - name: Install C++ coverage prerequisites
-        run: |
-          sudo apt --assume-yes update
-          sudo apt --assume-yes install lcov ca-certificates libtbb12
-          python3 -m pip install --upgrade pip
-          python3 -m pip install pyyaml
 
       - name: Run selected C++ coverage tests
         run: |
@@ -448,6 +448,13 @@ jobs:
           python-version: '3.10.10'
           architecture: 'x64'
 
+      - name: Install Python coverage prerequisites
+        run: |
+          apt --assume-yes update
+          apt --assume-yes install lcov ca-certificates libtbb12 rsync
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml coverage pytest pytest-cov pytest-xdist[psutil]
+
       - name: Prepare Python artifact staging directory
         id: artifact_staging
         run: |
@@ -539,13 +546,6 @@ jobs:
       - name: Verify GPU devices
         if: ${{ matrix.requires_gpu_runtime }}
         run: clinfo
-
-      - name: Install Python coverage prerequisites
-        run: |
-          sudo apt --assume-yes update
-          sudo apt --assume-yes install lcov ca-certificates libtbb12
-          python3 -m pip install --upgrade pip
-          python3 -m pip install pyyaml coverage pytest pytest-cov pytest-xdist[psutil]
 
       - name: Run Python API/Frontend/Layer/OVC tests with coverage
         run: |
@@ -735,6 +735,13 @@ jobs:
           node --version
           npm --version
 
+      - name: Install JS coverage prerequisites
+        run: |
+          apt --assume-yes update
+          apt --assume-yes install lcov xvfb ca-certificates libtbb12 rsync
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml
+
       - name: Prepare JS artifact staging directory
         id: artifact_staging
         run: |
@@ -826,13 +833,6 @@ jobs:
       - name: Verify GPU devices
         if: ${{ matrix.requires_gpu_runtime }}
         run: clinfo
-
-      - name: Install JS coverage prerequisites
-        run: |
-          sudo apt --assume-yes update
-          sudo apt --assume-yes install lcov xvfb ca-certificates libtbb12
-          python3 -m pip install --upgrade pip
-          python3 -m pip install pyyaml
 
       - name: Run Node.js bindings unit/e2e tests with coverage
         run: |
