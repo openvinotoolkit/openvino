@@ -69,9 +69,8 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
             "The driver is not applicable. The driver doesn't exist or is too old to run inference for this blob.");
     }
 
-    const std::shared_ptr<SyncInferRequest>& syncInferRequest =
+    const std::shared_ptr<InferRequest>& syncInferRequest =
         _device->createInferRequest(shared_from_this(), _propertiesManager->getConfig());
-    syncInferRequest->initialize_states();
 
     return std::make_shared<AsyncInferRequest>(syncInferRequest,
                                                get_task_executor(),
