@@ -8,6 +8,8 @@
 
 #include <algorithm>
 #include <common_test_utils/test_assertions.hpp>
+#include <exception>
+#include <mutex>
 #include <sstream>
 #include <thread>
 #include <vector>
@@ -242,17 +244,33 @@ TEST_P(OVCompileAndInferRequest, MultiThreadedCreateAndInferRequestsOnDifferentT
 
     const int num_threads = 64;
     std::vector<std::thread> threads;
+    std::vector<std::exception_ptr> exceptions;
+    std::mutex exceptions_mutex;
 
     for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back([this]() {
-            ov::InferRequest req;
-            OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-            OV_ASSERT_NO_THROW(req.infer());
+        threads.emplace_back([this, &exceptions, &exceptions_mutex]() {
+            try {
+                auto req = execNet.create_infer_request();
+                req.infer();
+            } catch (...) {
+                std::lock_guard<std::mutex> lock(exceptions_mutex);
+                exceptions.emplace_back(std::current_exception());
+            }
         });
     }
 
     for (auto& thread : threads) {
         thread.join();
+    }
+
+    if (!exceptions.empty()) {
+        try {
+            std::rethrow_exception(exceptions.front());
+        } catch (const std::exception& ex) {
+            FAIL() << ex.what();
+        } catch (...) {
+            FAIL() << "Unknown exception occurred in one of the threads.";
+        }
     }
 }
 
