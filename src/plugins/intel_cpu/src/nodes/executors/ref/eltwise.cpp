@@ -427,21 +427,28 @@ bool EltwiseRef64bExecutor<T, Enable>::supports([[maybe_unused]] const EltwiseCo
 
 template <typename T, typename Enable>
 void EltwiseRef64bExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
-                                            const VectorDims&,
-                                            const CpuParallelPtr&) {
+                                            const VectorDims& dims_out,
+                                            [[maybe_unused]] const CpuParallelPtr& cpu_parallel) {
     // Only supported Clamp Operator
-    if (this->m_opData.algo == Algorithm::EltwiseClamp) {
-        const auto* src_ptr_i = reinterpret_cast<const T*>(args_ptrs.src_ptr[0]);
-        auto* dst_ptr_i = reinterpret_cast<T*>(args_ptrs.dst_ptr);
-        auto lower = static_cast<T>(this->m_opData.alpha);
-        auto upper = static_cast<T>(this->m_opData.beta);
-
-        parallel_for(this->m_fullWorkAmount, [&](size_t i) {
-            dst_ptr_i[i] = std::min(std::max(src_ptr_i[i], lower), upper);
-        });
-        return;
+    if (this->m_opData.algo != Algorithm::EltwiseClamp) {
+        OPENVINO_THROW("Unsupported operation type for Eltwise executor");
     }
-    OPENVINO_THROW("Unsupported operation type for Eltwise executor");
+    auto lower = static_cast<T>(this->m_opData.alpha);
+    auto upper = static_cast<T>(this->m_opData.beta);
+    
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        size_t start = 0;
+        size_t end = 0;
+        splitter(this->m_fullWorkAmount, nthr, ithr, start, end);
+
+        std::vector<size_t> counters(dims_out.size(), 0);
+        for (size_t iwork = start; iwork < end; ++iwork) {
+            std::vector<T> src_f(this->m_inputNum);
+            T* dst_ptr_f = nullptr;
+            this->init_ptr(args_ptrs, dims_out, counters, iwork, src_f, dst_ptr_f);
+            *dst_ptr_f = std::min(std::max(src_f[0], lower), upper);
+        }
+    });
 }
 
 // BitwiseRefExecutor implementation
