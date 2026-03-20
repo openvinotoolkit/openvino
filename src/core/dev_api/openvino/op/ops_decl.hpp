@@ -23,6 +23,7 @@ class DepthToSpace;
 class DetectionOutput;
 class Elu;
 class Erf;
+class ErfInv;
 class Exp;
 class FakeQuantize;
 class Floor;

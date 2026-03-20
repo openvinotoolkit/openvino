@@ -87,6 +87,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Erf", Type::Eltwise},
         {"SoftPlus", Type::Eltwise},
         {"SoftSign", Type::Eltwise},
+        {"ErfInv", Type::Eltwise},
         {"SegmentMax", Type::SegmentMax},
         {"Select", Type::Eltwise},
         {"Log", Type::Eltwise},
@@ -467,6 +468,7 @@ std::string algToString(const Algorithm alg) {
         CASE(EltwiseRoundHalfAwayFromZero);
         CASE(EltwiseErf);
         CASE(EltwiseSoftSign);
+        CASE(EltwiseErfInv);
         CASE(EltwiseLog);
         CASE(EltwiseBitwiseAnd);
         CASE(EltwiseBitwiseNot);

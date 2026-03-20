@@ -63,6 +63,7 @@
 #include "openvino/op/elu.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/erf.hpp"
+#include "openvino/op/erfinv.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/floor.hpp"
 #include "openvino/op/floor_mod.hpp"
@@ -394,6 +395,10 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
          []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
              node.algorithm = Algorithm::EltwiseSoftSign;
          }},
+        {ov::op::v16::ErfInv::get_type_info_static(),
+         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseErfInv;
+         }},
         {ov::op::v1::Select::get_type_info_static(),
          []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
              node.algorithm = Algorithm::EltwiseSelect;
@@ -495,6 +500,7 @@ size_t Eltwise::getOpInputsNum() const {
     case Algorithm::EltwiseRoundHalfToEven:
     case Algorithm::EltwiseRoundHalfAwayFromZero:
     case Algorithm::EltwiseSoftSign:
+    case Algorithm::EltwiseErfInv:
     case Algorithm::EltwiseLog:
         return 1;
     case Algorithm::EltwiseAdd:
