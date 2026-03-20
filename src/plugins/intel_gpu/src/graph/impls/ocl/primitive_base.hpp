@@ -142,6 +142,24 @@ protected:
         _kernels.clear();
         if (!_kernel_data.kernels.empty()) {
             auto compiled_kernels = kernels_cache.get_kernels(params);
+
+            // Verify that each compiled kernel's entry point matches what this impl expects.
+            // If actual and expected entry points differ, the wrong kernel handle was
+            // assigned to this impl, which will cause a kernel argument mismatch at runtime.
+            OPENVINO_ASSERT(compiled_kernels.size() == _kernel_data.kernels.size(),
+                            "[GPU] Compiled kernels count mismatch for node '", params.desc ? params.desc->id : "?", "': "
+                            "expected ", _kernel_data.kernels.size(), " but got ", compiled_kernels.size());
+            for (size_t i = 0; i < compiled_kernels.size(); ++i) {
+                const auto& expected = _kernel_data.kernels[i].code.kernelString->entry_point;
+                const auto& actual   = compiled_kernels[i]->get_id();
+                OPENVINO_ASSERT(actual == expected,
+                                "[GPU] Kernel entry point mismatch for node '", params.desc ? params.desc->id : "?", "' kernel[", i, "]: "
+                                "expected '", expected, "' but got '", actual, "'. "
+                                "This indicates a static impl received a dynamic (__sa) kernel handle "
+                                "due to incorrect impl reselection in propagate_constants. "
+                                "Check propagate_constants::try_reselect_impl_for_node.");
+            }
+
             _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
             // batch program hash and kernel entry point to find corresponding cl source code
             kernel_dump_info = std::make_pair(std::to_string(kernels_cache.get_kernel_batch_hash(params)),
