@@ -606,7 +606,7 @@ jobs:
     with:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
-      runner: "[ 'self-hosted', 'igpu', 'ov-dmz-16' ]"
+      runner: "[ 'self-hosted', 'ov-dmz-16' ]"
       runner-group: 'Intel-GPU'
       image: ubuntu:22.04
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD128:/dev/dri/renderD128"
