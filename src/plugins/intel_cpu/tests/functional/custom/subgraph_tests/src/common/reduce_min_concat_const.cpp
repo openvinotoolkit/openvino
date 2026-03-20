@@ -2,44 +2,53 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Regression test for GitHub issue #33255.
-
-#include <gtest/gtest.h>
-
-#include "common_test_utils/ov_plugin_cache.hpp"
 #include "openvino/op/concat.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_min.hpp"
-#include "openvino/op/result.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "utils/cpu_test_utils.hpp"
+
+using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
 
-TEST(ReduceMinAfterConcatConstTest, smoke_ReduceMinAfterConcatConst) {
-    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{7});
-    auto constData =
-        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{6}, std::vector<int32_t>{0, -1, 1, 1, 0, 0});
-    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{param, constData}, 0);
-    auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
-    auto reduceMin = std::make_shared<ov::op::v1::ReduceMin>(concat, axes, false);
-    auto result = std::make_shared<ov::op::v0::Result>(reduceMin);
-    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+// Regression test for GH#33255: ReduceMin after Concat(Parameter, Constant)
+// returned the Constant values with wrong shape instead of the scalar minimum.
+//
+// Subgraph:
+/*
+ *  Parameter[i32,(7,)]   Constant[i32,(6,)]={0,-1,1,1,0,0}
+ *                    \         /
+ *                   Concat(axis=0)[i32,(13,)]
+ *                          |
+ *               ReduceMin(axes=[0], keep_dims=False)
+ *                          |
+ *                     Result[i32,()]
+ */
 
-    auto core = ov::test::utils::PluginCache::get().core();
-    auto compiled = core->compile_model(model, "CPU");
-    auto req = compiled.create_infer_request();
+class ReduceMinAfterConcatConstTest : virtual public SubgraphBaseStaticTest {
+public:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
-    // param input: {5, 3, 7, 2, 4, 8, 6}, const: {0, -1, 1, 1, 0, 0}
-    // concatenated: {5, 3, 7, 2, 4, 8, 6, 0, -1, 1, 1, 0, 0}, min = -1
-    std::vector<int32_t> inputData{5, 3, 7, 2, 4, 8, 6};
-    req.set_input_tensor(ov::Tensor(ov::element::i32, ov::Shape{7}, inputData.data()));
-    req.infer();
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{7})};
+        auto constData =
+            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{6}, std::vector<int32_t>{0, -1, 1, 1, 0, 0});
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{params[0], constData}, 0);
+        auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+        auto reduceMin = std::make_shared<ov::op::v1::ReduceMin>(concat, axes, false);
 
-    auto output = req.get_output_tensor(0);
-    ASSERT_EQ(output.get_shape(), ov::Shape({})) << "Expected scalar output, got shape " << output.get_shape();
-    ASSERT_EQ(output.data<int32_t>()[0], -1) << "Expected minimum value -1";
+        function = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(reduceMin)},
+                                               params,
+                                               "ReduceMinAfterConcatConst");
+    }
+};
+
+namespace {
+TEST_F(ReduceMinAfterConcatConstTest, smoke_ReduceMinAfterConcatConst) {
+    run();
 }
+}  // namespace
 
 }  // namespace test
 }  // namespace ov
