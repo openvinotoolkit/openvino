@@ -15,7 +15,7 @@ namespace test {
 std::string EltwiseOverflowLayerCPUTest::getTestCaseName(const testing::TestParamInfo<EltwiseOverflowTestParams>& obj) {
     const auto& [kind, shape] = obj.param;
     std::ostringstream result;
-    result << "kind=" << (kind == EltwiseOverflowKind::UNDERFLOW ? "UNDERFLOW" : "OVERFLOW");
+    result << "kind=" << (kind == EltwiseOverflowKind::Underflow ? "UNDERFLOW" : "OVERFLOW");
     result << "_shape=" << shape;
     return result.str();
 }
@@ -34,7 +34,7 @@ void EltwiseOverflowLayerCPUTest::SetUp() {
     auto b = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape(shape));
 
     std::shared_ptr<ov::Node> op;
-    if (kind == EltwiseOverflowKind::UNDERFLOW) {
+    if (kind == EltwiseOverflowKind::Underflow) {
         op = std::make_shared<ov::op::v1::Subtract>(a, b);
     } else {
         op = std::make_shared<ov::op::v1::Add>(a, b);
@@ -62,8 +62,8 @@ void EltwiseOverflowLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& 
     static const std::vector<uint8_t> overflow_b = {1, 2, 100, 128, 255, 10, 128, 255};
     // Expected results (wrap): 0, 0, 44, 0, 254, 4, 127, 0
 
-    const auto& src_a = (overflowKind == EltwiseOverflowKind::UNDERFLOW) ? underflow_a : overflow_a;
-    const auto& src_b = (overflowKind == EltwiseOverflowKind::UNDERFLOW) ? underflow_b : overflow_b;
+    const auto& src_a = (overflowKind == EltwiseOverflowKind::Underflow) ? underflow_a : overflow_a;
+    const auto& src_b = (overflowKind == EltwiseOverflowKind::Underflow) ? underflow_b : overflow_b;
 
     std::vector<uint8_t> data0(size);
     std::vector<uint8_t> data1(size);

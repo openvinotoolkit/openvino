@@ -7,7 +7,7 @@
 namespace ov {
 namespace test {
 
-const std::vector<EltwiseOverflowKind> overflowKinds = {EltwiseOverflowKind::UNDERFLOW, EltwiseOverflowKind::OVERFLOW};
+const std::vector<EltwiseOverflowKind> overflowKinds = {EltwiseOverflowKind::Underflow, EltwiseOverflowKind::Overflow};
 
 const std::vector<ov::Shape> testShapes = {
     {4},           // small 1D

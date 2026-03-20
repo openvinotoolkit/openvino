@@ -11,7 +11,7 @@
 namespace ov {
 namespace test {
 
-enum class EltwiseOverflowKind { UNDERFLOW, OVERFLOW };
+enum class EltwiseOverflowKind { Underflow, Overflow };
 
 typedef std::tuple<EltwiseOverflowKind, ov::Shape> EltwiseOverflowTestParams;
 
