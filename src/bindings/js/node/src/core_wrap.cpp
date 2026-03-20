@@ -210,7 +210,8 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
     std::vector<std::string> allowed_signatures;
     auto env = info.Env();
     try {
-        auto context_data = new TsfnCompileModelContext(env, _core);
+        std::unique_ptr<TsfnCompileModelContext> context_holder(new TsfnCompileModelContext(env, _core));
+        auto* context_data = context_holder.get();
         if (ov::js::validate<ModelWrap, Napi::String>(info, allowed_signatures) ||
             ov::js::validate<ModelWrap, Napi::String, Napi::Object>(info, allowed_signatures)) {
             auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(info[0].ToObject());
@@ -232,6 +233,7 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
                                                            context_data,
                                                            tsfn_finalizer_callback,
                                                            (void*)nullptr);
+        context_holder.release();
 
         context_data->native_thread = std::thread(compile_model_thread, context_data);
         return context_data->deferred.Promise();
