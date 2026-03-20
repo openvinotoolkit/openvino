@@ -107,7 +107,6 @@ private:
     std::vector<NetworkMetadata> _initsMetadata;
     std::shared_ptr<const ov::Model> _model;
 
-    std::vector<uint32_t> _initsCommandQueueOrdinals;
     std::vector<std::unique_ptr<CommandList>> _initsCommandLists;
     std::vector<std::unique_ptr<Fence>> _initsFences;
     std::shared_ptr<CommandQueue> _initsCommandQueue;

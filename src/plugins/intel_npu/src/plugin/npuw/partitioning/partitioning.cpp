@@ -1494,9 +1494,12 @@ void Partitioner::saveTailDictConstants(const std::string& func_name) {
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     std::vector<CPtr> to_keep;
 
+    ov::npuw::patterns::opt::Context ctx;
+    ctx.mm_gate = cfg.get<::intel_npu::NPUW_MM_GATED>();
+
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(to_keep));
-    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulSymm>(std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(ctx), std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulFP8>(std::ref(ctx), std::ref(to_keep));
     rewr.run_on_model(model_group.front());
 
     for (auto&& const_to_keep : to_keep) {

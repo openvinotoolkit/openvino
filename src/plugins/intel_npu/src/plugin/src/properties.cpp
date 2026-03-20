@@ -539,7 +539,6 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::enable_weightless, ENABLE_WEIGHTLESS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::weightless_blob, WEIGHTLESS_BLOB);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::use_base_model_serializer, USE_BASE_MODEL_SERIALIZER);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::model_serializer_version, MODEL_SERIALIZER_VERSION);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::enable_strides_for, ENABLE_STRIDES_FOR);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::disable_idle_memory_prunning, DISABLE_IDLE_MEMORY_PRUNING);
@@ -607,6 +606,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::dyn_quant, NPUW_DQ);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::dyn_quant_full, NPUW_DQ_FULL);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::par_matmul_merge_dims, NPUW_PMM);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::matmul_gate_preserve_constants, NPUW_MM_GATED);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::slice_out, NPUW_SLICE_OUT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::spatial, NPUW_SPATIAL);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::spatial_nway, NPUW_SPATIAL_NWAY);
@@ -659,6 +659,8 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::kokoro::enabled, NPUW_KOKORO);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::kokoro::block_size, NPUW_KOKORO_BLOCK_SIZE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::kokoro::overlap_size, NPUW_KOKORO_OVERLAP_SIZE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::moe_token_chunk_size, NPUW_MOE_TOKEN_CHUNK_SIZE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::moe_pool_size, NPUW_MOE_POOL_SIZE);
 
     // 2. Metrics (static device and enviroment properties)
     // ========
@@ -1091,13 +1093,15 @@ bool Properties::isPropertyRegistered(const std::string& propertyName) const {
 
 FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& properties,
                                                         const ICompilerAdapter* compiler) {
-    auto [updatedConfig, compilerConfigsFilteredByCompiler, currentlyUsedCompiler, currentlyUsedPlatform] = [&]() {
-        std::lock_guard<std::mutex> lock(_mutex);
-        return std::make_tuple(_config,
-                               _compilerConfigsFilteredByCompiler,
-                               _currentlyUsedCompiler,
-                               _currentlyUsedPlatform);
-    }();
+    auto [updatedConfig, compilerConfigsFilteredByCompiler, currentlyUsedCompiler, currentlyUsedPlatform, logger] =
+        [&]() {
+            std::lock_guard<std::mutex> lock(_mutex);
+            return std::make_tuple(_config,
+                                   _compilerConfigsFilteredByCompiler,
+                                   _currentlyUsedCompiler,
+                                   _currentlyUsedPlatform,
+                                   _logger);
+        }();
 
     std::optional<ov::intel_npu::CompilerType> propertiesCompilerType = std::nullopt;
     std::optional<std::string> propertiesPlatform = std::nullopt;
@@ -1118,7 +1122,7 @@ FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& proper
           propertiesPlatform.value_or(currentlyUsedPlatform) == currentlyUsedPlatform)) {
         // In case the compiler properties are not initialized or the compiler/platform was changed since last call -
         // filter out options again
-        filterPropertiesByCompilerSupport(updatedConfig, compiler, _backend, _logger);
+        filterPropertiesByCompilerSupport(updatedConfig, compiler, _backend, logger);
     }
 
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
@@ -1142,9 +1146,9 @@ FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& proper
 }
 
 FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::AnyMap& properties) {
-    auto [updatedConfig, compilerConfigsFilteredByCompiler] = [&]() {
+    auto [updatedConfig, compilerConfigsFilteredByCompiler, logger] = [&]() {
         std::lock_guard<std::mutex> lock(_mutex);
-        return std::make_tuple(_config, _compilerConfigsFilteredByCompiler);
+        return std::make_tuple(_config, _compilerConfigsFilteredByCompiler, _logger);
     }();
 
     if (compilerConfigsFilteredByCompiler) {
@@ -1162,16 +1166,15 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
             const auto optionMode = updatedConfig.getOpt(key).mode();
 
             if (optionMode == OptionMode::CompileTime) {
-                _logger.info(
+                logger.info(
                     "Config key '%s' is recognized as a compiler option, will not be used for current configuration.",
                     key.c_str());
                 continue;
             }
 
             if (optionMode == OptionMode::Both && !updatedConfig.isAvailable(key)) {
-                _logger.info(
-                    "Config key '%s' is not enabled by the plugin, will not be used for current configuration.",
-                    key.c_str());
+                logger.info("Config key '%s' is not enabled by the plugin, will not be used for current configuration.",
+                            key.c_str());
                 continue;
             }
         }
