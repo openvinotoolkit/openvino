@@ -29,6 +29,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/common_util.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::pass::pattern;
@@ -109,6 +110,39 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
         auto scale = pattern_map.at(weights_scales_m).get_node_shared_ptr();
         auto zp = (pattern_map.count(weights_zp_m) > 0) ? pattern_map.at(weights_zp_m).get_node_shared_ptr() : nullptr;
         auto activation = pattern_map.at(first_input_m).get_node_shared_ptr();
+
+        // expects NHWC -> NCHW transpose on activation
+        const auto act_order = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(a_order_m).get_node_shared_ptr());
+        OPENVINO_ASSERT(act_order);
+        const auto act_order_data = act_order->cast_vector<int64_t>();
+        const auto act_rank = act_order_data.size();
+        const auto is_act_transpose = pattern_map.count(transpose_activations_m) > 0;
+        if (is_act_transpose) {
+            // 0,3,1,2
+            if (act_rank < 3 || act_order_data[act_rank - 1] != act_rank - 2 ||
+                act_order_data[act_rank - 2] != act_rank - 3 || act_order_data[act_rank - 3] != act_rank - 1) {
+                return false;
+            }
+        } else {
+            // reshape is not transposing, so expects C==1 or HW==1
+            const auto act_reshape =
+                ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(reshape_activations_m).get_node_shared_ptr());
+            const auto& dimC = act_order_data[act_rank - 3];
+            const auto& dimH = act_order_data[act_rank - 2];
+            const auto& dimW = act_order_data[act_rank - 1];
+            if (act_rank < 3 || !((dimH == 1 && dimW == 1) || dimC == 1)) {
+                return false;
+            }
+            // not eliminate reshape, simply replace with NHWC to avoid incompatible activation shape
+            auto new_order_data = act_order_data;
+            new_order_data[act_rank - 1] = dimC;  // C
+            new_order_data[act_rank - 2] = dimW;  // W
+            new_order_data[act_rank - 3] = dimH;  // H
+            const auto new_order = ov::op::v0::Constant::create(element::i64, Shape{act_rank}, new_order_data);
+            const auto new_reshape =
+                std::make_shared<ov::op::v1::Reshape>(activation, new_order, act_reshape->get_special_zero());
+            activation = new_reshape;
+        }
 
         auto reshape_const_to_2d = [](std::shared_ptr<ov::Node> node) {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
