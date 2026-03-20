@@ -17,7 +17,6 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
-#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -121,33 +120,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                     zp_nodes.push_back(fc_user->get_input_node_shared_ptr(4));
             }
         }
-        // Skip FC horizontal fusion when LoRA consumers are detected.
-        // LoRA pattern: FC -> Add(FC_output, MatMul(Multiply(alpha, lora_A), lora_B))
-        // Fusing QKV FCs into a single large FC causes numerical divergence in FP16
-        // due to different GEMM tiling/accumulation in the larger fused kernel.
-        auto has_lora_consumer = [](const std::shared_ptr<ov::Node>& fc_node) {
-            for (const auto& consumer : fc_node->get_users()) {
-                const auto& add = ov::as_type_ptr<ov::op::v1::Add>(consumer);
-                if (!add)
-                    continue;
-                for (size_t i = 0; i < 2; ++i) {
-                    const auto& matmul = ov::as_type_ptr<ov::op::v0::MatMul>(add->get_input_node_shared_ptr(i));
-                    if (!matmul)
-                        continue;
-                    if (ov::is_type<ov::op::v1::Multiply>(matmul->get_input_node_shared_ptr(0)))
-                        return true;
-                }
-            }
-            return false;
-        };
-        for (const auto& fc : fc_nodes) {
-            if (has_lora_consumer(fc)) {
-                GPU_DEBUG_TRACE_DETAIL << "Skip FC horizontal fusion: LoRA consumer detected for "
-                                       << fc->get_friendly_name() << std::endl;
-                return false;
-            }
-        }
-
+        // fc weight is already transposed to [N, K]
         const size_t weight_idx = 1;
         if (fc_nodes[0]->get_input_shape(weight_idx).size() != 2)
             return false;
