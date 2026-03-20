@@ -238,7 +238,7 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
 
         context_data->native_thread = std::thread(compile_model_thread, context_data.get());
         const auto promise = context_data->deferred.Promise();
-        context_data.release(); // ownership is transferred to the TSFN finalizer callback
+        context_data.release();  // ownership is transferred to the TSFN finalizer callback
         return promise;
 
     } catch (std::exception& e) {
