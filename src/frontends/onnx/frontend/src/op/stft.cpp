@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/stft.hpp"
+
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
@@ -30,78 +32,51 @@ namespace ai_onnx {
 namespace opset_17 {
 
 namespace {
-// Implementation using v15::STFT for dynamic shapes or non-rank-3 inputs
 ov::OutputVector stft_v15(const ov::frontend::onnx::Node& node, const ov::OutputVector& ov_inputs) {
     // ONNX STFT inputs: signal, frame_step, window (optional), frame_length (optional)
     // ONNX STFT output shape: [batch_size, num_frames, fft_length, 2]
     // OpenVINO v15::STFT inputs: data, window, frame_size, frame_step
-    // OpenVINO v15::STFT output shape: [batch, num_frames, fft_length, 2] (transpose_frames=false)
+    // OpenVINO v15::STFT output shape: [batch_size, num_frames, fft_length, 2] (transpose_frames=false)
     auto signal = ov_inputs.at(0);
     const auto frame_step_input = ov_inputs.at(1);
 
-    // Get frame_length (frame_size for OpenVINO STFT)
-    ov::Output<ov::Node> frame_size;
-    const auto frame_length_provided = ov_inputs.size() > 3 && !ov::op::util::is_null(ov_inputs[3]);
-    if (frame_length_provided) {
-        frame_size = ov_inputs[3];
-    } else {
-        // Default frame_length: If not provided, use the window length
-        // Per ONNX spec: frame_length defaults to the size of the window
-        const auto window_provided = ov_inputs.size() > 2 && !ov::op::util::is_null(ov_inputs[2]);
-        CHECK_VALID_NODE(node,
-                         window_provided,
-                         "frame_length must be provided when window is not specified.");
-        // Get window length using ShapeOf
-        const auto window_shape = std::make_shared<v3::ShapeOf>(ov_inputs[2], ov::element::i64);
-        const auto zero_idx = v0::Constant::create(ov::element::i64, {1}, {0});
-        frame_size = std::make_shared<v8::Gather>(window_shape, zero_idx, zero_idx);
-    }
-
-    // Get or create window
-    ov::Output<ov::Node> window;
-    const auto window_provided = ov_inputs.size() > 2 && !ov::op::util::is_null(ov_inputs[2]);
-    if (window_provided) {
-        window = ov_inputs[2];
-        // Validate window rank
-        if (window.get_partial_shape().rank().is_static()) {
-            CHECK_VALID_NODE(node,
-                             window.get_partial_shape().rank().get_length() == 1,
-                             "The rank of window input must be 1D.");
-        }
-    } else {
-        // Create a window of ones with frame_size length
-        const auto one = v0::Constant::create(ov::element::f32, {}, {1.0f});
-        const auto one_like = std::make_shared<v1::ConvertLike>(one, signal);
-        const auto frame_size_1d = std::make_shared<v1::Reshape>(
-            frame_size,
-            v0::Constant::create(ov::element::i64, {1}, {1}),
-            false);
-        window = std::make_shared<v3::Broadcast>(one_like, frame_size_1d);
-    }
+    ov::Output<ov::Node> frame_size = ov_inputs[3];
+    ov::Output<ov::Node> window = ov_inputs[2];
 
     // Create STFT operation
-    // transpose_frames=false gives output shape [batch, num_frames, fft_length, 2]
-    // which matches ONNX expected output shape
+    // transpose_frames=false gives output shape [batch_size, num_frames, fft_length, 2]
+    // to match ONNX expected output shape
     constexpr bool transpose_frames = false;
-    auto stft_result =
-        std::make_shared<v15::STFT>(signal, window, frame_size, frame_step_input, transpose_frames);
+    auto stft_result = std::make_shared<v15::STFT>(signal, window, frame_size, frame_step_input, transpose_frames);
 
     return {stft_result};
 }
 }  // namespace
 
 ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
+    common::default_op_checks(node, 2, 4);
+
     const ov::OutputVector ov_inputs{node.get_ov_inputs()};
     auto signal = ov_inputs.at(0);
     const auto signal_param_shape = signal.get_partial_shape();
 
-    // Use v15::STFT for dynamic shapes or non-rank-3 inputs
-    if (!signal_param_shape.is_static() || signal_param_shape.size() == 2) {
+    const auto window_node_provided = ov_inputs.size() > 2 && !ov::op::util::is_null(ov_inputs[2]);
+    const auto dft_length_provided = ov_inputs.size() > 3 && !ov::op::util::is_null(ov_inputs[3]);
+
+    // Use ov::op::v15::STFT for 2D signal - all inputs are required
+    // Even if 2D input is not described in onnx spec, it is allowed by onnx model checker,
+    // The 2D shape is compatible with 3D case [batch, signal_length, 1] -> [batch, signal_length]
+    // 2D input can be seen in real models and is supported by frameworks (including OpenVINO STFT)
+    if ((signal_param_shape.rank().is_static() && signal_param_shape.size() == 2) &&
+        (window_node_provided && dft_length_provided)) {
         return stft_v15(node, ov_inputs);
     }
+    // Use legacy DFT-based decomposition for 3D signal or optional inputs
+    CHECK_VALID_NODE(node,
+                     signal_param_shape.is_static() && signal_param_shape.size() == 3,
+                     "Shape of signal input must be static with the rank equal to 3.");
 
     // Legacy DFT-based implementation for static rank-3 inputs
-    const auto dft_length_provided = ov_inputs.size() > 3 && !ov::op::util::is_null(ov_inputs[3]);
     const auto onesided = node.get_attribute_value<int64_t>("onesided", 1);
     const int64_t axis = 1;
 
@@ -128,7 +103,6 @@ ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
             ov::as_type_ptr<v0::Constant>(frame_length_node.get_node_shared_ptr())->cast_vector<int64_t>()[0];
     }
 
-    const auto window_node_provided = ov_inputs.size() > 2 && !ov::op::util::is_null(ov_inputs[2]);
     if (window_node_provided) {  // window input provided
         if (ov_inputs[2].get_partial_shape().rank().is_static()) {
             CHECK_VALID_NODE(node,
