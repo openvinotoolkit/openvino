@@ -150,21 +150,27 @@ void AsyncInferQueue::start_async_impl(const size_t handle,
                                        Napi::Object infer_data,
                                        Napi::Object user_data,
                                        Napi::Promise::Deferred deferred) {
-    m_user_inputs[handle] = Napi::Persistent(infer_data);  // keep reference to inputs so they are not garbage collected
-    m_user_ids[handle] = std::make_pair(Napi::Persistent(user_data), deferred);
+    try {
+        m_user_inputs[handle] =
+            Napi::Persistent(infer_data);  // keep reference to inputs so they are not garbage collected
+        m_user_ids[handle] = std::make_pair(Napi::Persistent(user_data), deferred);
 
-    // CVS-166764
-    const auto& keys = infer_data.GetPropertyNames();
-    for (uint32_t i = 0; i < keys.Length(); ++i) {
-        auto input_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
-        auto value = infer_data.Get(input_name);
-        auto tensor = value_to_tensor(value, m_requests[handle], input_name);
+        // CVS-166764
+        const auto& keys = infer_data.GetPropertyNames();
+        for (uint32_t i = 0; i < keys.Length(); ++i) {
+            auto input_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
+            auto value = infer_data.Get(input_name);
+            auto tensor = value_to_tensor(value, m_requests[handle], input_name);
 
-        m_requests[handle].set_tensor(input_name, tensor);
+            m_requests[handle].set_tensor(input_name, tensor);
+        }
+
+        OPENVINO_ASSERT(m_tsfn != nullptr,
+                        "Callback has to be set before starting inference. Use 'setCallback' method.");
+        m_requests[handle].start_async();  // returns immediately, main event loop is free
+    } catch (const std::exception& e) {
+        deferred.Reject(Napi::Error::New(infer_data.Env(), e.what()).Value());
     }
-
-    OPENVINO_ASSERT(m_tsfn != nullptr, "Callback has to be set before starting inference. Use 'setCallback' method.");
-    m_requests[handle].start_async();  // returns immediately, main event loop is free
 }
 
 Napi::Value AsyncInferQueue::start_async(const Napi::CallbackInfo& info) {

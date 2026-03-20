@@ -217,4 +217,34 @@ describe("Tests for AsyncInferQueue.", () => {
     });
     inferQueue.release();
   });
+
+  it("Test startAsync with incorrect data shape", async () => {
+    const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
+    inferQueue.setCallback(basicUserCallback);
+
+    const incorrectShapeData = generateImage([1, 2, 3]);
+    try {
+      await assert.rejects(
+        async () => await inferQueue.startAsync({ data: incorrectShapeData }, "user_data"),
+        /Memory allocated using shape and element::type mismatc/,
+      );
+    } finally {
+      inferQueue.release();
+    }
+  });
+
+  it("Test startAsync with incorrect data shape2", async () => {
+    const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
+    inferQueue.setCallback(basicUserCallback);
+
+    const tensor1 = new ov.Tensor(ov.element.f32, [1, 3, 32, 31]);
+    try {
+      await assert.rejects(
+        async () => await inferQueue.startAsync({ data: tensor1 }, "user_data"),
+        /incompatible/,
+      );
+    } finally {
+      inferQueue.release();
+    }
+  });
 });
