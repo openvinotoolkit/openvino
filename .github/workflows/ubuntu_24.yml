@@ -1,5 +1,8 @@
 name: Linux (Ubuntu 24.04, Python 3.12)
 on:
+  schedule:
+    # at 00:00 on Wednesday and Saturday (with latest OneDNN)
+    - cron: '0 0 * * 3,6'
   workflow_dispatch:
     inputs:
       target-branch:
@@ -121,6 +124,7 @@ jobs:
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: [ Docker, Build, Smart_CI ]
+    if: ${{ github.event_name != 'schedule' }}
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
@@ -131,6 +135,7 @@ jobs:
   Debian_Packages:
     name: Debian Packages
     needs: [ Docker, Build ]
+    if: ${{ github.event_name != 'schedule' }}
     uses: ./.github/workflows/job_debian_packages.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
@@ -138,7 +143,7 @@ jobs:
 
   Samples:
     needs: [ Docker, Build, Smart_CI ]
-    if: fromJSON(needs.smart_ci.outputs.affected_components).samples
+    if: fromJSON(needs.smart_ci.outputs.affected_components).samples && github.event_name != 'schedule'
     uses: ./.github/workflows/job_samples_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
@@ -148,6 +153,7 @@ jobs:
   Python_Unit_Tests:
     name: Python unit tests
     needs: [ Docker, Build, Smart_CI ]
+    if: ${{ github.event_name != 'schedule' }}
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
@@ -158,6 +164,7 @@ jobs:
   Python_API_Tests:
     name: Python API tests
     needs: [ Docker, Build, Smart_CI ]
+    if: ${{ github.event_name != 'schedule' }}
     uses: ./.github/workflows/job_python_api_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
@@ -168,6 +175,7 @@ jobs:
   Pytorch_Layer_Tests:
     name: Pytorch Layer Tests
     needs: [ Docker, Build, Smart_CI ]
+    if: ${{ github.event_name != 'schedule' }}
     uses: ./.github/workflows/job_pytorch_layer_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
@@ -178,6 +186,7 @@ jobs:
   Pytorch_FX_Layer_Tests:
     name: Pytorch FX Layer Tests
     needs: [ Docker, Build, Smart_CI ]
+    if: ${{ github.event_name != 'schedule' }}
     uses: ./.github/workflows/job_pytorch_fx_layer_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
@@ -188,6 +197,7 @@ jobs:
   JAX_Layer_Tests:
     name: JAX Layer Tests
     needs: [ Docker, Build, Smart_CI ]
+    if: ${{ github.event_name != 'schedule' }}
     uses: ./.github/workflows/job_jax_layer_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
@@ -198,6 +208,7 @@ jobs:
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
+    if: ${{ github.event_name != 'schedule' }}
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
@@ -216,7 +227,7 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.12'
       target-branch: ${{ inputs.target-branch }}
-    if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS && github.event_name != 'schedule'
 
   dGPU_B50_Nightly:
     name: dGPU Arc-B50 Tests Nightly
@@ -234,7 +245,7 @@ jobs:
       runner-group: 'Intel-GPU'
       image: ubuntu:24.04
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
-    # if: ${{ github.event_name == 'schedule' }}
+    if: ${{ github.event_name == 'schedule' }}
 
   # dGPU_B580_Nightly:
   #     name: dGPU Arc-B580 Tests Nightly
