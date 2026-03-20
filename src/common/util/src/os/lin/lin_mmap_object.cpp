@@ -18,8 +18,8 @@
 
 namespace ov {
 namespace util {
-size_t get_system_page_size() {
-    static auto page_size = static_cast<size_t>(sysconf(_SC_PAGE_SIZE));
+int64_t get_system_page_size() {
+    static auto page_size = static_cast<int64_t>(sysconf(_SC_PAGE_SIZE));
     return page_size;
 }
 }  // namespace util

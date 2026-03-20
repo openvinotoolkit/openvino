@@ -17,7 +17,7 @@
 namespace ov {
 
 namespace util {
-size_t get_system_page_size();
+int64_t get_system_page_size();
 }  // namespace util
 
 #ifdef _WIN32

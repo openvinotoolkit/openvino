@@ -17,11 +17,11 @@
 
 namespace ov {
 namespace util {
-size_t get_system_page_size() {
+int64_t get_system_page_size() {
     static auto page_size = []() {
         SYSTEM_INFO sysInfo;
         GetSystemInfo(&sysInfo);
-        return static_cast<size_t>(sysInfo.dwPageSize);
+        return static_cast<int64_t>(sysInfo.dwPageSize);
     }();
     return page_size;
 }
