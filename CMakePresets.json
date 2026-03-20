@@ -1,0 +1,218 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 19,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "common",
+            "description": "Common settings for all presets",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "ENABLE_INTEL_GPU": true,
+                "ENABLE_INTEL_NPU": false,
+                "BUILD_SHARED_LIBS": true,
+                "ENABLE_MLAS_FOR_CPU": true,
+                "ENABLE_TESTS": false,
+                "THREADING": "TBB",
+                "CMAKE_CXX_FLAGS": "-Wno-deprecated -Wno-deprecated-declarations",
+                "CMAKE_C_FLAGS": "-Wno-deprecated -Wno-deprecated-declarations",
+                "CMAKE_INSTALL_PREFIX": "/home/gta/openvino_install",
+                "ENABLE_CLANG_TIDY": false
+            }
+        },
+        {
+            "name": "ReleaseCPPuser",
+            "description": "CPP only build without debug caps",
+            "inherits": "common",
+            "binaryDir": "${sourceDir}/build/ReleaseCPPuser",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "ENABLE_PYTHON": false
+            }
+        },
+        {
+            "name": "ReleasePyUser",
+            "description": "Build without debug caps",
+            "inherits": "ReleaseCPPuser",
+            "cacheVariables": {
+                "ENABLE_PYTHON": true,
+                "PYTHON_EXECUTABLE": "/usr/bin/python3"
+            }
+        },
+        {
+            "name": "ReleasePyDebugCaps",
+            "description": "Release build with python and debug caps",
+            "inherits": "common",
+            "binaryDir": "${sourceDir}/build/Release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "ENABLE_PYTHON": true,
+                "PYTHON_EXECUTABLE": "/usr/bin/python3",
+                "ENABLE_DEBUG_CAPS": true
+            }
+        },
+        {
+            "name": "Debug",
+            "description": "Debug build",
+            "inherits": "common",
+            "binaryDir": "${sourceDir}/build/Debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ENABLE_PYTHON": false,
+                "ENABLE_TESTS": true,
+                "ENABLE_CPU_SPECIFIC_TARGET_PER_TEST": true,
+                "ENABLE_DEBUG_CAPS": true,
+                "ENABLE_CLANG_TIDY": false,
+                "ENABLE_CLANG_TIDY_FIX": false
+            }
+        },
+        {
+            "name": "ReleaseStatic",
+            "description": "Release build static library",
+            "inherits": "common",
+            "binaryDir": "${sourceDir}/build/ReleaseStatic",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "ENABLE_PYTHON": false,
+                "ENABLE_TESTS": true,
+                "ENABLE_CPU_SPECIFIC_TARGET_PER_TEST": true,
+                "ENABLE_DEBUG_CAPS": true,
+                "BUILD_SHARED_LIBS": false,
+                "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
+                "CMAKE_C_COMPILER": "/usr/bin/clang",
+                "ENABLE_CPPLINT": false,
+                "ENABLE_NCC_STYLE": false,
+                "ENABLE_PROFILING_ITT": true,
+                "SELECTIVE_BUILD": "COLLECT",
+                "ENABLE_UNITY_BUILD": true,
+                "CMAKE_CXX_STANDARD": "20"
+            }
+        },
+        {
+            "name": "ReleaseASANStatic",
+            "description": "Release build static library with ASAN",
+            "inherits": "common",
+            "binaryDir": "${sourceDir}/build/ReleaseASANStatic",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "ENABLE_PYTHON": false,
+                "ENABLE_TESTS": true,
+                "ENABLE_CPU_SPECIFIC_TARGET_PER_TEST": true,
+                "ENABLE_DEBUG_CAPS": true,
+                "BUILD_SHARED_LIBS": false,
+                "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
+                "CMAKE_C_COMPILER": "/usr/bin/clang",
+                "ENABLE_CPPLINT": false,
+                "ENABLE_NCC_STYLE": false,
+                "ENABLE_PROFILING_ITT": true,
+                "SELECTIVE_BUILD": "COLLECT",
+                "ENABLE_UNITY_BUILD": true,
+                "CMAKE_CXX_STANDARD": "20",
+                "CMAKE_CXX_FLAGS": "-Wno-deprecated -Wno-deprecated-declarations -fno-omit-frame-pointer",
+                "CMAKE_C_FLAGS": "-Wno-deprecated -Wno-deprecated-declarations -fno-omit-frame-pointer",
+                "ENABLE_OV_ONNX_FRONTEND": false,
+                "ENABLE_OV_PADDLE_FRONTEND": false,
+                "ENABLE_OV_PYTORCH_FRONTEND": false,
+                "ENABLE_OV_JAX_FRONTEND": false,
+                "ENABLE_OV_TF_FRONTEND": false,
+                "ENABLE_OV_TF_LITE_FRONTEND": false
+            }
+        },
+        {
+            "name": "DebugStatic",
+            "description": "Debug build static library",
+            "inherits": "common",
+            "binaryDir": "${sourceDir}/build/DebugStatic",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ENABLE_PYTHON": false,
+                "ENABLE_TESTS": true,
+                "ENABLE_CPU_SPECIFIC_TARGET_PER_TEST": true,
+                "ENABLE_DEBUG_CAPS": true,
+                "BUILD_SHARED_LIBS": false,
+                "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
+                "CMAKE_C_COMPILER": "/usr/bin/clang",
+                "ENABLE_CPPLINT": false,
+                "ENABLE_NCC_STYLE": false,
+                "ENABLE_PROFILING_ITT": true,
+                "SELECTIVE_BUILD": "COLLECT",
+                "ENABLE_UNITY_BUILD": true,
+                "CMAKE_CXX_STANDARD": "20"
+            }
+        },
+        {
+            "name": "DebugPython",
+            "description": "Debug build with python support",
+            "inherits": "common",
+            "binaryDir": "${sourceDir}/build/DebugPy",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ENABLE_PYTHON": true,
+                "PYTHON_EXECUTABLE": "/usr/bin/python3",
+                "ENABLE_DEBUG_CAPS": true
+            }
+        },
+        {
+            "name": "DebugARM",
+            "description": "Debug ARM 32 build",
+            "inherits": "common",
+            "binaryDir": "${sourceDir}/build/DebugARM",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ENABLE_PYTHON": false,
+                "ENABLE_TESTS": true,
+                "ENABLE_CPU_SPECIFIC_TARGET_PER_TEST": true,
+                "ENABLE_DEBUG_CAPS": true,
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/arm.toolchain.cmake",
+                "ENABLE_MLAS_FOR_CPU": false,
+                "BUILD_SHARED_LIBS": false,
+                "THREADING": "SEQ"
+            }
+        },
+        {
+            "name": "RelWithDebInfoTests",
+            "description": "CPP build with debug info",
+            "inherits": "common",
+            "binaryDir": "${sourceDir}/build/RelWithDebInfo",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "ENABLE_PYTHON": false,
+                "ENABLE_TESTS": true,
+                "ENABLE_CPU_SPECIFIC_TARGET_PER_TEST": true,
+                "CMAKE_CXX_FLAGS": "-Wno-deprecated -Wno-deprecated-declarations -fno-omit-frame-pointer",
+                "CMAKE_C_FLAGS": "-Wno-deprecated -Wno-deprecated-declarations -fno-omit-frame-pointer"
+            }
+        },
+        {
+            "name": "RelWithDebInfo",
+            "description": "CPP build with debug info",
+            "inherits": "common",
+            "binaryDir": "${sourceDir}/build/RelWithDebInfo",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "ENABLE_PYTHON": true,
+                "CMAKE_CXX_FLAGS": "-Wno-deprecated -Wno-deprecated-declarations -fno-omit-frame-pointer",
+                "CMAKE_C_FLAGS": "-Wno-deprecated -Wno-deprecated-declarations -fno-omit-frame-pointer",
+                "ENABLE_DEBUG_CAPS": true
+            }
+        },
+        {
+            "name": "Sanitizer",
+            "description": "CPP build with debug info and ASAN enabled",
+            "inherits": "common",
+            "binaryDir": "${sourceDir}/build/RelWithDebInfo",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "ENABLE_PYTHON": false,
+                "ENABLE_TESTS": true,
+                "ENABLE_CPU_SPECIFIC_TARGET_PER_TEST": true,
+                "ENABLE_SANITIZER": true,
+                "CMAKE_CXX_FLAGS": "-Wno-deprecated -Wno-deprecated-declarations -fno-omit-frame-pointer",
+                "CMAKE_C_FLAGS": "-Wno-deprecated -Wno-deprecated-declarations -fno-omit-frame-pointer"
+            }
+        }
+    ]
+}
