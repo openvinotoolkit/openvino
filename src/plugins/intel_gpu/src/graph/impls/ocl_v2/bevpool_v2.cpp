@@ -15,31 +15,29 @@ namespace {
 
 class BevPoolV2Ref : public KernelGenerator {
 public:
-    BevPoolV2Ref() : KernelGenerator("bevpool_v2_ref") {}
+    BevPoolV2Ref() : KernelGenerator("bevpool_v2", "ref") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         const auto& desc = params.typed_desc<bevpool_v2>();
 
-        const auto inputs_count = params.get_input_layouts().size();
+        const auto inputs_count = params.input_layouts.size();
         const auto input1_length = params.is_dynamic() ? 1 : params.get_input_layout(1).count();
         const auto input3_length = params.is_dynamic() ? 1 : params.get_input_layout(3).count();
 
-        jit.add({
-            make_jit_constant("INPUTS_COUNT", inputs_count),
-            make_jit_constant("INPUT_CHANNELS", desc->input_channels),
-            make_jit_constant("OUTPUT_CHANNELS", desc->output_channels),
-            make_jit_constant("IMAGE_WIDTH", desc->image_width),
-            make_jit_constant("IMAGE_HEIGHT", desc->image_height),
-            make_jit_constant("FEATURE_WIDTH", desc->feature_width),
-            make_jit_constant("FEATURE_HEIGHT", desc->feature_height),
-            make_jit_constant("D_BOUND_MIN", desc->d_bound.min),
-            make_jit_constant("D_BOUND_MAX", desc->d_bound.max),
-            make_jit_constant("D_BOUND_STEP", desc->d_bound.step),
-            make_jit_constant("INPUT1_LENGTH", input1_length),
-            make_jit_constant("INPUT3_LENGTH", input3_length),
-        });
+        jit.add(make_jit_constant("INPUTS_COUNT", inputs_count));
+        jit.add(make_jit_constant("INPUT_CHANNELS", desc->input_channels));
+        jit.add(make_jit_constant("OUTPUT_CHANNELS", desc->output_channels));
+        jit.add(make_jit_constant("IMAGE_WIDTH", desc->image_width));
+        jit.add(make_jit_constant("IMAGE_HEIGHT", desc->image_height));
+        jit.add(make_jit_constant("FEATURE_WIDTH", desc->feature_width));
+        jit.add(make_jit_constant("FEATURE_HEIGHT", desc->feature_height));
+        jit.add(make_jit_constant("D_BOUND_MIN", desc->d_bound.min));
+        jit.add(make_jit_constant("D_BOUND_MAX", desc->d_bound.max));
+        jit.add(make_jit_constant("D_BOUND_STEP", desc->d_bound.step));
+        jit.add(make_jit_constant("INPUT1_LENGTH", input1_length));
+        jit.add(make_jit_constant("INPUT3_LENGTH", input3_length));
 
         return jit;
     }
