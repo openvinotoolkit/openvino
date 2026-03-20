@@ -23,9 +23,9 @@ void ZeroDynamicInferRequest::construct_pipeline() {
     auto batchSize = _graph->get_batch_size();
     // Construct pipeline
     _pipeline =
-        std::make_unique<DynamicPipeline>(_config,
-                                          _initStructs,
+        std::make_unique<DynamicPipeline>(_initStructs,
                                           _graph,
+                                          _config,
                                           _levelZeroInputTensors,
                                           _levelZeroOutputTensors,
                                           batchSize.has_value() ? batchSize.value() : utils::DEFAULT_BATCH_SIZE);
