@@ -53,10 +53,6 @@ const std::shared_ptr<CommandQueue>& Graph::get_command_queue() const {
     return _commandQueue;
 }
 
-uint32_t Graph::get_command_queue_group_ordinal() const {
-    return _commandQueueGroupOrdinal;
-}
-
 void Graph::set_workload_type(const ov::WorkloadType workloadType) const {
     if (_commandQueue == nullptr) {
         return;
@@ -169,9 +165,6 @@ void Graph::initialize(const FilteredConfig& config) {
         return;
     }
 
-    _commandQueueGroupOrdinal = zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
-                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
-
     uint32_t commandQueueOptions = 0;
 
     if (config.has<TURBO>() && config.get<TURBO>()) {
@@ -189,14 +182,13 @@ void Graph::initialize(const FilteredConfig& config) {
 
     _commandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
                                                    zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                   _commandQueueGroupOrdinal,
                                                    commandQueueOptions);
 
     if (config.has<WORKLOAD_TYPE>()) {
         set_workload_type(config.get<WORKLOAD_TYPE>());
     }
 
-    _zeGraphExt->initializeGraph(_graphDesc, _commandQueueGroupOrdinal);
+    _zeGraphExt->initializeGraph(_graphDesc);
     _logger.debug("Graph initialize finish");
 
     //  We are allowed to release the original blob because weights were loaded in NPU memory during

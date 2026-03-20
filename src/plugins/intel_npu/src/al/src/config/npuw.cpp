@@ -29,6 +29,7 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_DQ>();
     desc.add<NPUW_DQ_FULL>();
     desc.add<NPUW_PMM>();
+    desc.add<NPUW_MM_GATED>();
     desc.add<NPUW_SLICE_OUT>();
     desc.add<NPUW_SPATIAL>();
     desc.add<NPUW_SPATIAL_NWAY>();
@@ -38,6 +39,7 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_ATTN>();
     desc.add<NPUW_ATTN_DYN>();
     desc.add<NPUW_ATTN_NO_COPY>();
+    desc.add<NPUW_ATTN_HFA_FUSED>();
     desc.add<NPUW_HOST_GATHER>();
     desc.add<NPUW_F16IC>();
     desc.add<NPUW_DCOFF_TYPE>();

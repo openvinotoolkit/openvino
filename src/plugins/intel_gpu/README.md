@@ -61,7 +61,7 @@ This contents explain the internal implementation of dynamic shape support in th
 ## Attached licenses
 
 GPU plugin uses 3<sup>rd</sup>-party components licensed under following licenses:
-- *googletest* under [Google License](https://github.com/google/googletest/blob/master/googletest/LICENSE)
+- *googletest* under [Google License](https://github.com/google/googletest/blob/master/LICENSE)
 - *OpenCL™ ICD and C++ Wrapper under [Khronos™ License](https://github.com/KhronosGroup/OpenCL-CLHPP/blob/master/LICENSE.txt)
 - *RapidJSON* under [Tencent License](https://github.com/Tencent/rapidjson/blob/master/license.txt)
 
