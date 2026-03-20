@@ -17,16 +17,14 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
-namespace ov::testing {
+namespace ov::test {
 
 TEST(ConvertLegacyPrecisionAttributeTest, basic_migration) {
     // Create model with legacy attribute on a node
     auto data_1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 10});
     auto data_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 1});
     auto matmul = std::make_shared<op::v0::MatMul>(data_1, data_2);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    disable_fp16_compression(matmul);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    matmul->get_rt_info()[DisableFP16Compression::get_type_info_static()] = DisableFP16Compression{};
     auto result = std::make_shared<op::v0::Result>(matmul);
     auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data_1, data_2});
 
@@ -101,4 +99,4 @@ TEST(ConvertLegacyPrecisionAttributeTest, multiple_nodes) {
     ASSERT_TRUE(is_compression_disabled_to(matmul, element::f16));
 }
 
-}  // namespace ov::testing
+}  // namespace ov::test

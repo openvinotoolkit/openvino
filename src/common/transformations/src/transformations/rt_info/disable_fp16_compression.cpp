@@ -6,6 +6,8 @@
 
 #include <sstream>
 
+#include "openvino/util/common_util.hpp"
+
 namespace {
 const std::string& get_postponed_fp16_compression_tag() {
     static const std::string postponed_fp16_compression_tag("postponed_fp16_compression");
@@ -14,18 +16,15 @@ const std::string& get_postponed_fp16_compression_tag() {
 }  // namespace
 
 void ov::disable_fp16_compression(const std::shared_ptr<Node>& node) {
-    auto& rt_info = node->get_rt_info();
-    rt_info[DisableFP16Compression::get_type_info_static()] = DisableFP16Compression{};
+    disable_compression_to(node, element::f16);
 }
 
 void ov::enable_fp16_compression(const std::shared_ptr<Node>& node) {
-    auto& rt_info = node->get_rt_info();
-    rt_info.erase(DisableFP16Compression::get_type_info_static());
+    enable_compression_to(node, element::f16);
 }
 
 bool ov::fp16_compression_is_disabled(const std::shared_ptr<const Node>& node) {
-    const auto& rt_info = node->get_rt_info();
-    return rt_info.count(DisableFP16Compression::get_type_info_static());
+    return is_compression_disabled_to(node, element::f16);
 }
 
 void ov::postpone_fp16_compression(ov::RTMap& rt_info) {
@@ -40,11 +39,13 @@ void ov::do_not_postpone_fp16_compression(ov::RTMap& rt_info) {
     rt_info.erase(get_postponed_fp16_compression_tag());
 }
 
-void ov::disable_compression_to(const std::shared_ptr<Node>& node, element::Type to) {
+void ov::disable_compression_to(const std::shared_ptr<Node>& node, const element::Type& to) {
     return disable_compression_from_to(node, element::dynamic, to);
 }
 
-void ov::disable_compression_from_to(const std::shared_ptr<Node>& node, element::Type from, element::Type to) {
+void ov::disable_compression_from_to(const std::shared_ptr<Node>& node,
+                                     const element::Type& from,
+                                     const element::Type& to) {
     auto& rt_info = node->get_rt_info();
     if (rt_info.count(DisablePrecisionConversion::get_type_info_static())) {
         auto& dpc_attribute =
@@ -65,11 +66,13 @@ void ov::disable_compression_from_to(const std::shared_ptr<Node>& node,
     }
 }
 
-void ov::enable_compression_to(const std::shared_ptr<Node>& node, element::Type to) {
+void ov::enable_compression_to(const std::shared_ptr<Node>& node, const element::Type& to) {
     enable_compression_from_to(node, element::dynamic, to);
 }
 
-void ov::enable_compression_from_to(const std::shared_ptr<Node>& node, element::Type from, element::Type to) {
+void ov::enable_compression_from_to(const std::shared_ptr<Node>& node,
+                                    const element::Type& from,
+                                    const element::Type& to) {
     auto& rt_info = node->get_rt_info();
     if (rt_info.count(DisablePrecisionConversion::get_type_info_static())) {
         auto& dpc_attribute =
@@ -93,11 +96,13 @@ void ov::enable_compression_from_to(const std::shared_ptr<Node>& node,
     }
 }
 
-bool ov::is_compression_disabled_to(const std::shared_ptr<Node>& node, element::Type to) {
+bool ov::is_compression_disabled_to(const std::shared_ptr<const Node>& node, const element::Type& to) {
     return is_compression_disabled_from_to(node, element::dynamic, to);
 }
 
-bool ov::is_compression_disabled_from_to(const std::shared_ptr<Node>& node, element::Type from, element::Type to) {
+bool ov::is_compression_disabled_from_to(const std::shared_ptr<const Node>& node,
+                                         const element::Type& from,
+                                         const element::Type& to) {
     auto& rt_info = node->get_rt_info();
     if (rt_info.count(DisablePrecisionConversion::get_type_info_static())) {
         auto& dpc_attribute =
@@ -133,14 +138,7 @@ const std::string& ov::AttributeAdapter<ov::DisabledPrecisionMap>::get() {
         if (!first_entry)
             oss << ';';
         first_entry = false;
-        oss << from_type.to_string() << ':';
-        bool first_to = true;
-        for (const auto& to_type : to_types) {
-            if (!first_to)
-                oss << ',';
-            first_to = false;
-            oss << to_type.to_string();
-        }
+        oss << from_type.to_string() << ':' << ov::util::join(to_types, ",");
     }
     m_serialized = oss.str();
     return m_serialized;

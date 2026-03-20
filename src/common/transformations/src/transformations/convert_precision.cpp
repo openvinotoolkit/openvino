@@ -179,10 +179,11 @@ static precisions_map filter_precisions_for_node(const std::shared_ptr<ov::Node>
                                                  const precisions_map& precisions) {
     precisions_map result = precisions;
     for (auto it = result.begin(); it != result.end();) {
-        if (is_compression_disabled_from_to(node, it->first, it->second))
+        if (is_compression_disabled_from_to(node, it->first, it->second)) {
             it = result.erase(it);
-        else
+        } else {
             ++it;
+        }
     }
     return result;
 }
@@ -392,7 +393,6 @@ bool convert_precision(ov::pass::PassBase& pass,
                        const type_to_fuse_map& type_to_fuse,
                        const type_to_fuse_map& type_to_extend,
                        const precisions_map& precisions,
-                       bool has_fp16_compression,
                        bool keep_sensitive_in_fp32,
                        bool convert_input_output_precision,
                        bool store_original_precision_as_rt_attribute) {
@@ -451,8 +451,6 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
 
     if (used_precisions.empty())
         return false;
-
-    bool has_fp16_compression = m_precisions.count(element::f32) > 0 && m_precisions[element::f32] == element::f16;
 
     type_to_fuse_map type_to_fuse{
         {v0::Convert::get_type_info_static(), fuse_type_to_convert},
@@ -525,7 +523,6 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
                                         type_to_fuse,
                                         type_to_extend,
                                         used_precisions,
-                                        has_fp16_compression,
                                         m_keep_precision_sensitive_in_fp32,
                                         m_convert_input_output_precision,
                                         m_store_original_precision_as_rt_attribute);
