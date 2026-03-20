@@ -227,8 +227,9 @@ KERNEL(pa_kv_cache_reorder)(
                 VSTORE(VLOAD(0, value_cache + src_off), 0, value_cache + dst_off);
             }
 
-            // Handle leftovers
-            for (; v < (uint)V_HEAD_SIZE; v += SUBGROUP_SIZE) {
+            // Handle leftovers from the first non-vectorized index.
+            const uint vec_tail_begin = ((uint)V_HEAD_SIZE / VEC_SIZE) * VEC_SIZE;
+            for (v = vec_tail_begin + sglid; v < (uint)V_HEAD_SIZE; v += SUBGROUP_SIZE) {
                 uint src_off = val_src_base + src_slot * V_HEAD_SIZE + v;
                 uint dst_off = val_dst_base + dst_slot * V_HEAD_SIZE + v;
                 value_cache[dst_off] = value_cache[src_off];
