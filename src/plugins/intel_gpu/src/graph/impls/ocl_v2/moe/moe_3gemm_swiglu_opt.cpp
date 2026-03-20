@@ -1199,7 +1199,7 @@ public:
         auto hidden_states_layout = params.input_layouts[0];
         auto token_num = get_seq_len(hidden_states_layout);
         auto data_type = hidden_states_layout.data_type;
-        bool has_shared_expert = params.input_layouts.size() > 11;
+        bool has_shared_expert = params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT);
 
         std::vector<BufferDescriptor> internal_buffers;
         // softmax+topk

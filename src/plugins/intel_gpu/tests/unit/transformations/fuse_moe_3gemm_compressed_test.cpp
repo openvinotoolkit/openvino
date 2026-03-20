@@ -217,7 +217,7 @@ TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertCompressedTest) {
         config.hidden_size = 2048;
         config.inter_size = 768;
         config.num_expert = 128;
-        config.num_shared_expert = 1;
+        config.num_shared_expert = 0;
         config.group_size = 128;
         config.top_k = 8;
         config.out_type = ov::element::f16;
@@ -248,7 +248,7 @@ TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertCompressedTest) {
         config.hidden_size = 2048;
         config.inter_size = 768;
         config.num_expert = 128;
-        config.num_shared_expert = 1;
+        config.num_shared_expert = 0;
         config.group_size = 128;
         config.top_k = 8;
         config.out_type = ov::element::f16;

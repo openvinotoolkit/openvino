@@ -43,29 +43,31 @@ struct moe_3gemm_fused_compressed : public primitive_base<moe_3gemm_fused_compre
     //                      shape [num_experts, hidden_size, group_num, 1]
     //                   10: w2_zp - expert zp for final projection for compressed experts,
     //                      shape [num_experts, hidden_size, group_num, 1]
-    //                   11: routing_bias (optional, SIGMOID_BIAS only) - [1, num_experts] routing bias for sigmoid routing
-    //                   12: routing_eps (optional, SIGMOID_BIAS only) - scalar epsilon for normalization (read at kernel compile time)
+    //                   11: routing_bias (optional, SIGMOID_BIAS only; dummy placeholder for SOFTMAX+shared) -
+    //                      [1, num_experts] routing bias for sigmoid routing
+    //                   12: routing_eps (optional, SIGMOID_BIAS only; dummy placeholder for SOFTMAX+shared) -
+    //                      scalar epsilon for normalization (read at kernel compile time)
     //
-    //                   Options for shared experts (if config.num_shared_expert > 0, starting at index 11 for SOFTMAX):
-    //                   11: shared_gate_weight - shared expert weights for first projection,
+    //                   Options for shared experts (if config.num_shared_expert > 0, always starting at index 13):
+    //                   13: shared_gate_weight - shared expert weights for first projection,
     //                      shape [1, inter_size, group_num, group_size]
-    //                   12: shared_gate_scale - shared expert scale for first projection,
+    //                   14: shared_gate_scale - shared expert scale for first projection,
     //                      shape [1, inter_size, group_num, 1]
-    //                   13: shared_gate_zp - shared expert zp for first projection,
+    //                   15: shared_gate_zp - shared expert zp for first projection,
     //                      shape [1, inter_size, group_num, 1]
-    //                   14: shared_up_weight - shared expert weights for second projection,
+    //                   16: shared_up_weight - shared expert weights for second projection,
     //                      shape [1, inter_size, group_num, group_size]
-    //                   15: shared_up_scale - shared expert scale for second projection,
+    //                   17: shared_up_scale - shared expert scale for second projection,
     //                      shape [1, inter_size, group_num, 1]
-    //                   16: shared_up_zp - shared expert zp for second projection,
+    //                   18: shared_up_zp - shared expert zp for second projection,
     //                      shape [1, inter_size, group_num, 1]
-    //                   17: shared_down_weight - shared expert weights for final projection,
+    //                   19: shared_down_weight - shared expert weights for final projection,
     //                      shape [1, hidden_size, group_num, group_size]
-    //                   18: shared_down_scale - shared expert scale for final projection,
+    //                   20: shared_down_scale - shared expert scale for final projection,
     //                      shape [1, hidden_size, group_num, 1]
-    //                   19: shared_down_zp - shared expert zp for final projection,
+    //                   21: shared_down_zp - shared expert zp for final projection,
     //                      shape [1, hidden_size, group_num, 1]
-    //                   20: shared_gate_gate_weight - shared expert gate weight for gating,
+    //                   22: shared_gate_gate_weight - shared expert gate weight for gating,
     //                      shape [hidden_size]
     //
     moe_3gemm_fused_compressed(const primitive_id& id, const std::vector<input_info>& inputs, const MOE3GemmFusedCompressed::Config& config)

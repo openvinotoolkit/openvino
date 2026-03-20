@@ -161,6 +161,9 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
 
         auto config = moe_compressed->get_config();
         bool has_shared_expert = pattern_map.count(shared_gate_wei_m) > 0;
+        if (!has_shared_expert) {
+            config.num_shared_expert = 0;
+        }
         OutputVector args{
             pattern_map.at(hidden_state_reshape),
             pattern_map.at(matmul),
@@ -178,6 +181,13 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
             args.push_back(pattern_map.at(sig_routing_bias));
             args.push_back(pattern_map.at(sig_eps_value));
             config.routing_type = ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS;
+        } else if (has_shared_expert) {
+            // SOFTMAX + shared expert: insert dummy placeholders at indices 11-12
+            // so that shared expert inputs always start at index 13.
+            auto dummy_bias = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {0.0f});
+            auto dummy_eps = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {0.0f});
+            args.push_back(dummy_bias);
+            args.push_back(dummy_eps);
         }
         if (has_shared_expert) {
             args.push_back(pattern_map.at(shared_gate_wei_m));

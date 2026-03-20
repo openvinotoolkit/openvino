@@ -41,13 +41,18 @@ KeepMOE3GemmConstPrecision::KeepMOE3GemmConstPrecision() {
     auto sh_down_wei_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
     auto sh_down_zp_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
 
-    // Softmax + shared expert: 20 inputs
+    // Softmax + shared expert: 23 inputs (indices 11-12 are dummy placeholders)
     auto moe_softmax_shared_m = wrap_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(
         {any_input(), any_input(), wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(),
-         zp_2_m, sh_gate_wei_m, any_input(), sh_gate_zp_m, sh_up_wei_m, any_input(), sh_up_zp_m, sh_down_wei_m, any_input(), sh_down_zp_m, any_input()});
+         zp_2_m, any_input(), any_input(), sh_gate_wei_m, any_input(), sh_gate_zp_m, sh_up_wei_m, any_input(), sh_up_zp_m, sh_down_wei_m, any_input(), sh_down_zp_m, any_input()});
+
+    // SigmoidBias + shared expert: 23 inputs (indices 11-12 are routing_bias/eps)
+    auto moe_sigmoid_shared_m = wrap_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(
+        {any_input(), any_input(), wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(),
+         zp_2_m, any_input(), any_input(), sh_gate_wei_m, any_input(), sh_gate_zp_m, sh_up_wei_m, any_input(), sh_up_zp_m, sh_down_wei_m, any_input(), sh_down_zp_m, any_input()});
 
     auto moe_3gemm_fused_compressed_m = std::make_shared<ov::pass::pattern::op::Or>(
-        OutputVector{moe_softmax_m, moe_sigmoid_m, moe_softmax_shared_m});
+        OutputVector{moe_softmax_m, moe_sigmoid_m, moe_softmax_shared_m, moe_sigmoid_shared_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

@@ -124,10 +124,12 @@ struct Moe3GemmReference {
                                                    const std::vector<float>& s_gate_scalar_data = {}) {
         size_t batch_size = config.batch_size;
         size_t seq_len = config.seq_len;
+        size_t hidden_size = config.hidden_size;
+        size_t inter_size = config.inter_size;
         size_t num_experts = config.num_experts;
         size_t top_k = config.top_k;
 
-        std::vector<ov::float16> output(batch_size * seq_len * config.hidden_size, 0);
+        std::vector<ov::float16> output(batch_size * seq_len * hidden_size, 0);
 
         for (size_t b = 0; b < batch_size; ++b) {
             for (size_t s = 0; s < seq_len; ++s) {
@@ -673,6 +675,16 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
     topology.add(data("w2_zp", w2_zp_mem));
     
     // Add shared inputs
+    // Insert dummy routing_bias/eps placeholders at indices 11-12 (SOFTMAX + shared expert)
+    auto dummy_bias_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
+    set_values(dummy_bias_mem, {ov::float16(0.0f)});
+    get_test_stream().finish();
+    auto dummy_eps_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
+    set_values(dummy_eps_mem, {ov::float16(0.0f)});
+    get_test_stream().finish();
+    topology.add(data("dummy_routing_bias", dummy_bias_mem));
+    topology.add(data("dummy_routing_eps", dummy_eps_mem));
+
     topology.add(data("s_gate_weight", s_gate_weight_mem));
     topology.add(data("s_gate_scale", s_gate_scale_mem));
     topology.add(data("s_gate_zp", s_gate_zp_mem));
@@ -707,7 +719,10 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
                                                 input_info("w2_weight"),
                                                 input_info("w2_scale"),
                                                 input_info("w2_zp"),
-                                                // Shared Expert Inputs
+                                                // Dummy placeholders for routing_bias/eps (indices 11-12)
+                                                input_info("dummy_routing_bias"),
+                                                input_info("dummy_routing_eps"),
+                                                // Shared Expert Inputs (indices 13-22)
                                                 input_info("s_gate_weight"),
                                                 input_info("s_gate_scale"),
                                                 input_info("s_gate_zp"),
@@ -817,7 +832,6 @@ TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
     // Input 11: w2_zp [num_experts, hidden_size, group_num, 1]
     auto w2_zp = create_u4_tensor(w2_zp_data, num_experts, hidden_size, group_num2, 1);
 
-    // Input 3: w0_weight [num_experts, inter_size, group_num, group_size]
     // Build topology
     topology topology;
 
