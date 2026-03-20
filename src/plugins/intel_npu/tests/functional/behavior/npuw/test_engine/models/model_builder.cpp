@@ -1392,10 +1392,20 @@ std::shared_ptr<ov::Model> ModelBuilder::make_model(const ov::Output<ov::Node>& 
     return std::make_shared<ov::Model>(ov::OutputVector{res->output(0)}, m_sinks, model_name);
 }
 
-std::shared_ptr<ov::Model> ModelBuilder::build_model(const ModelConfig& config) {
+std::shared_ptr<ov::Model> ModelBuilder::build_model(const ModelConfig& config_in) {
     OPENVINO_ASSERT(
-        (int)config.use_conv_features + (int)config.use_cross_attention + (int)config.use_token_type_embedding <= 1,
+        static_cast<int>(config_in.use_conv_features) + static_cast<int>(config_in.use_cross_attention) + static_cast<int>(config_in.use_token_type_embedding) <= 1,
         "At most one structural dispatch flag may be set");
+
+    // Fill in norm/ffn defaults from actual config sizes when the caller left them empty.
+    ModelConfig config = config_in;
+    if (!config.norm) {
+        config.norm = LayerNorm(config.hidden_size, config.precision);
+    }
+    if (!config.ffn) {
+        config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
+    }
+
     if (config.use_conv_features) {
         return build_whisper_encoder(config);
     }

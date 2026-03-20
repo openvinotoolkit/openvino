@@ -1093,13 +1093,15 @@ bool Properties::isPropertyRegistered(const std::string& propertyName) const {
 
 FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& properties,
                                                         const ICompilerAdapter* compiler) {
-    auto [updatedConfig, compilerConfigsFilteredByCompiler, currentlyUsedCompiler, currentlyUsedPlatform] = [&]() {
-        std::lock_guard<std::mutex> lock(_mutex);
-        return std::make_tuple(_config,
-                               _compilerConfigsFilteredByCompiler,
-                               _currentlyUsedCompiler,
-                               _currentlyUsedPlatform);
-    }();
+    auto [updatedConfig, compilerConfigsFilteredByCompiler, currentlyUsedCompiler, currentlyUsedPlatform, logger] =
+        [&]() {
+            std::lock_guard<std::mutex> lock(_mutex);
+            return std::make_tuple(_config,
+                                   _compilerConfigsFilteredByCompiler,
+                                   _currentlyUsedCompiler,
+                                   _currentlyUsedPlatform,
+                                   _logger);
+        }();
 
     std::optional<ov::intel_npu::CompilerType> propertiesCompilerType = std::nullopt;
     std::optional<std::string> propertiesPlatform = std::nullopt;
@@ -1120,7 +1122,7 @@ FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& proper
           propertiesPlatform.value_or(currentlyUsedPlatform) == currentlyUsedPlatform)) {
         // In case the compiler properties are not initialized or the compiler/platform was changed since last call -
         // filter out options again
-        filterPropertiesByCompilerSupport(updatedConfig, compiler, _backend, _logger);
+        filterPropertiesByCompilerSupport(updatedConfig, compiler, _backend, logger);
     }
 
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
@@ -1144,9 +1146,9 @@ FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& proper
 }
 
 FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::AnyMap& properties) {
-    auto [updatedConfig, compilerConfigsFilteredByCompiler] = [&]() {
+    auto [updatedConfig, compilerConfigsFilteredByCompiler, logger] = [&]() {
         std::lock_guard<std::mutex> lock(_mutex);
-        return std::make_tuple(_config, _compilerConfigsFilteredByCompiler);
+        return std::make_tuple(_config, _compilerConfigsFilteredByCompiler, _logger);
     }();
 
     if (compilerConfigsFilteredByCompiler) {
@@ -1164,16 +1166,15 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
             const auto optionMode = updatedConfig.getOpt(key).mode();
 
             if (optionMode == OptionMode::CompileTime) {
-                _logger.info(
+                logger.info(
                     "Config key '%s' is recognized as a compiler option, will not be used for current configuration.",
                     key.c_str());
                 continue;
             }
 
             if (optionMode == OptionMode::Both && !updatedConfig.isAvailable(key)) {
-                _logger.info(
-                    "Config key '%s' is not enabled by the plugin, will not be used for current configuration.",
-                    key.c_str());
+                logger.info("Config key '%s' is not enabled by the plugin, will not be used for current configuration.",
+                            key.c_str());
                 continue;
             }
         }
