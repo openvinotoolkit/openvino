@@ -23,8 +23,6 @@
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/sigmoid.hpp"
-#include "openvino/op/sigmoid.hpp"
-#include "openvino/op/sigmoid.hpp"
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -94,7 +92,8 @@ namespace ov::intel_gpu {
     auto gemm3_reshape_ungroup_##SUFFIX = [](const ov::Output<ov::Node>& output) {\
         auto in_ps = output.get_node()->get_input_partial_shape(0);\
         auto out_ps = output.get_node()->get_output_partial_shape(0);\
-        return in_ps.rank().is_static() && out_ps.rank().is_static() && (in_ps.size() == 4 && out_ps.size() == 3);\
+        return in_ps.rank().is_static() && out_ps.rank().is_static() &&\
+        ((in_ps.size() == 4 && out_ps.size() == 3) || (in_ps.size() == 3 && out_ps.size() == 2));\
     };\
     \
     auto gemm3_reshape_const_m_##SUFFIX = wrap_type<ov::op::v0::Constant>();\
@@ -154,27 +153,37 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
                                              for (auto& tg : output.get_target_inputs()) {
                                                  if (ov::is_type<ov::op::v1::Add>(tg.get_node())) {
                                                      auto add = tg.get_node();
-                                                     if (add->get_input_node_ptr(0) && ov::is_type<ov::op::v1::Multiply>(add->get_input_node_ptr(0))) return false;
-                                                     if (add->get_input_node_ptr(1) && ov::is_type<ov::op::v1::Multiply>(add->get_input_node_ptr(1))) return false;
+                                                     // Check both Add inputs; follow through Reshape to detect shared expert
+                                                     for (size_t i = 0; i < add->get_input_size(); i++) {
+                                                         auto n = add->get_input_node_ptr(i);
+                                                         if (n && ov::is_type<ov::op::v1::Reshape>(n))
+                                                             n = n->get_input_node_ptr(0);
+                                                         if (n && ov::is_type<ov::op::v1::Multiply>(n)) return false;
+                                                     }
                                                  }
                                              }
                                              return true;
                                          });
 
-    auto shared_gate_m = wrap_type<ov::op::v0::MatMul>({hidden_states_m, gemm3_convert_m_shared_gate});
+    // Shared expert uses a separate hidden_states input because in the actual model,
+    // MOE's hidden_states is the node BEFORE a Reshape (matmul_experts_fusion extracts input_value(0)),
+    // while shared expert MatMuls take the node AFTER that Reshape.
+    auto shared_hidden_states_m = any_input();
+    auto shared_gate_m = wrap_type<ov::op::v0::MatMul>({shared_hidden_states_m, gemm3_convert_m_shared_gate});
     auto shared_swish_m = wrap_type<ov::op::v4::Swish>({shared_gate_m});
-    auto shared_up_m = wrap_type<ov::op::v0::MatMul>({hidden_states_m, gemm3_convert_m_shared_up});
+    auto shared_up_m = wrap_type<ov::op::v0::MatMul>({shared_hidden_states_m, gemm3_convert_m_shared_up});
     auto shared_mul_m = wrap_type<ov::op::v1::Multiply>({shared_swish_m, shared_up_m});
     auto shared_down_m = wrap_type<ov::op::v0::MatMul>({shared_mul_m, gemm3_convert_m_shared_down});
 
     auto shared_gate_gate_wei_m = any_input();
-    auto shared_gate_gate_m = wrap_type<ov::op::v0::MatMul>({hidden_states_m, shared_gate_gate_wei_m});
+    auto shared_gate_gate_m = wrap_type<ov::op::v0::MatMul>({shared_hidden_states_m, shared_gate_gate_wei_m});
     auto shared_gate_sigmoid_m = wrap_type<ov::op::v0::Sigmoid>({shared_gate_gate_m});
     auto shared_expert_gated_m = wrap_type<ov::op::v1::Multiply>({shared_gate_sigmoid_m, shared_down_m});
     auto shared_expert_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{shared_down_m, shared_expert_gated_m});
+    auto shared_expert_reshaped_m = optional<ov::op::v1::Reshape>({shared_expert_m, any_input()});
 
-    auto add_1 = wrap_type<ov::op::v1::Add>({moe_root_gemm3_no_shared_expert_bare, shared_expert_m});
-    auto add_2 = wrap_type<ov::op::v1::Add>({shared_expert_m, moe_root_gemm3_no_shared_expert_bare});
+    auto add_1 = wrap_type<ov::op::v1::Add>({moe_root_gemm3_no_shared_expert_bare, shared_expert_reshaped_m});
+    auto add_2 = wrap_type<ov::op::v1::Add>({shared_expert_reshaped_m, moe_root_gemm3_no_shared_expert_bare});
     auto moe_root_gemm3_shared_expert = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{add_1, add_2});
     auto moe_root_gemm3 = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{moe_root_gemm3_no_shared_expert, moe_root_gemm3_shared_expert});
     // gemm3 pattern finished
