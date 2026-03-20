@@ -76,10 +76,8 @@ TEST(ConvertLegacyPrecisionAttributeTest, multiple_nodes) {
     auto data_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 1});
     auto add = std::make_shared<op::v1::Add>(data_1, data_1);
     auto matmul = std::make_shared<op::v0::MatMul>(add, data_2);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    disable_fp16_compression(add);
-    disable_fp16_compression(matmul);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    add->get_rt_info()[DisableFP16Compression::get_type_info_static()] = DisableFP16Compression{};
+    matmul->get_rt_info()[DisableFP16Compression::get_type_info_static()] = DisableFP16Compression{};
     auto result = std::make_shared<op::v0::Result>(matmul);
     auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data_1, data_2});
 
