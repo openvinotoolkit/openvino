@@ -69,7 +69,7 @@ void write_padding(std::ostream& stream, uint64_t alignment) {
 
 const size_t SingleFileStorage::blob_alignment = []() {
     const auto sz = util::get_system_page_size();
-    return sz > 0 ? sz : size_t{1};
+    return sz > 0 ? static_cast<size_t>(sz) : size_t{1};
 }();
 
 SingleFileStorage::SingleFileStorage(const std::filesystem::path& path)
