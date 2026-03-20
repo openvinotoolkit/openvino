@@ -184,7 +184,6 @@ ov::OutputVector bevpool_v2(const ov::frontend::onnx::Node& node) {
 
 bool register_multiple_translators(void) {
     ONNX_OP_M("BevPoolV2", OPSET_SINCE(1), org_openvinotoolkit::opset_1::bevpool_v2, OPENVINO_ONNX_DOMAIN);
-    ONNX_OP_M("BevPoolV2", OPSET_SINCE(1), org_openvinotoolkit::opset_1::bevpool_v2, "com.intel.bevpool");
     return true;
 }
 
