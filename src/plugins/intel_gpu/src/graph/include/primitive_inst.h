@@ -374,10 +374,10 @@ public:
     // phase changes (Prefill → Generate or vice-versa).
     struct WorkloadPredictor {
         static constexpr size_t HISTORY_SIZE = 8;
-        std::deque<float>      seq_length_history;
+        std::deque<size_t>     workload_history;  // compute_workload (M*K) per invocation
         std::deque<impl_types> impl_history;
-        // Returns true when the latest seq-length differs from the previous by
-        // more than 50 % — a strong indicator of a Prefill/Generate transition.
+        // Returns true when the latest compute workload differs from the previous by
+        // more than 2x — a strong indicator of a Prefill/Generate transition.
         bool      detect_phase_change() const;
         // If the last three recorded impls are identical, predict that type;
         // otherwise returns impl_types::any (no confident prediction).

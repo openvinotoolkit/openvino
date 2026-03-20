@@ -16,13 +16,13 @@
 //    Inputs:
 //      INPUT0 A[B,K]              f16  activations
 //      INPUT1 W[N,K/2]            uchar u4/i4-packed weights (low nibble = even K)
-//      INPUT2 S, fbyx:[f=N, b=NG]  half  per-group per-output-channel scale
+//      INPUT2 Scale, fbyx:[b=N, f=NG]  half  per-group per-output-channel scale
 //      INPUT3 ZP, fbyx (optional, present only if HAS_ZP):
-//               u8: [f=N, b=NG]    1 byte/entry
-//               u4: [f=N, b=NG/2]  2 nibbles/byte along group dim
+//               u8: [b=N, f=NG]    1 byte/entry
+//               u4: [b=N, f=NG/2]  2 nibbles/byte along group dim
 //        where NG = K / GROUP_SIZE = NUM_GROUPS
-//    Scale/ZP use fbyx memory format: f(=N=6144) is outer, b(=NG=32) is inner.
-//      scale(n, gk) = Scale[n * NUM_GROUPS + gk]
+//    Scale/ZP use fbyx memory format: f(=NG=32) is outer (slowest), b(=N=6144) is inner (fastest).
+//      scale(n, gk) = Scale[gk * N_SIZE + n]
 //    Dequant formula per group gk:
 //      acc += scale[gk,n] * Σ_{k in group} A[k] * (w_int4[n,k] − ZP[gk,n])
 //    ZP defaults to 0 when no explicit ZP tensor is provided (HAS_ZP=0).
@@ -110,8 +110,11 @@ KERNEL(gemm_generate_opt)(
 // After update_impl_params the layouts are:
 //   INPUT0: activation [B, K]      (f16 for W4A16, char/i8 for W4A8)
 //   INPUT1: weight     [N, K/2]    bytes  (data_type u4/i4, B folded into B dim above M)
-//   INPUT2: scale      [NG, N]     (INPUT2_TYPE = half)  NG = NUM_GROUPS
-//   INPUT3: ZP         [N, NG/2]   bytes  (optional, present only if HAS_ZP)
+//   INPUT2: scale      fbyx [b=N, f=NG]  (INPUT2_TYPE = half)  NG = NUM_GROUPS
+//                      physical = [F=NG outermost, B=N inner]: Scale[gk * N_SIZE + n]
+//   INPUT3: ZP         fbyx (optional, present only if HAS_ZP)
+//                      u8:  [b=N, f=NG]    1 byte/entry:     ZP[gk * N_SIZE + n]
+//                      u4:  [b=N, f=NG/2]  2 nibbles/byte:   ZP[(gk/2) * N_SIZE + n]
 //   (W4A8 only) next input: ActScale [B]  half per-token activation scale
 //
 // Note: after update_impl_params the B batch dim is already folded into M=1, so
@@ -121,29 +124,26 @@ KERNEL(gemm_generate_opt)(
 // -----------------------------------------------------------------------
 // Shared ZP dequant helper macro used by both the f16 and i8 activation paths.
 // Emits a 'float zp' variable for the given group index gk and output channel n.
+//
+// Scale/ZP tensors use fbyx memory format with PartialShape [N, NG] mapped as
+// BFYX logical [B=N, F=NG, Y=1, X=1].  In fbyx physical layout, F is outermost:
+//   physical address for (B=n, F=gk) = gk * N_SIZE + n
+// For symmetry the ZP tensors follow the same convention:
+//   u8 ZP: 1 byte per (gk, n),  address = gk * N_SIZE + n
+//   u4 ZP: 2 nibbles per byte packed along the F(=gk) dimension,
+//          shape [B=N, F=NG/2], address of byte = (gk/2) * N_SIZE + n
 // -----------------------------------------------------------------------
 #if HAS_ZP
-// Scale and ZP tensors use fbyx memory format.
-// Tensor shape printed as "fbyx:6144x32" means:
-//   f = 6144 = N (output channels) — OUTERMOST dim (slowest in memory)
-//   b = 32  = NUM_GROUPS           — INNER dim (fastest in memory)
-// Physical stride for f: NUM_GROUPS (=32);  stride for b: 1.
-// So element at (output_channel=n, group=gk):
-//   scale(n, gk)  = Scale[n * NUM_GROUPS + gk]   f16, 1 element/entry
-//   zp_u8(n, gk)  = ZP   [n * NUM_GROUPS + gk]   u8,  1 byte/entry
-//   zp_u4(n, gk): nibbles packed along the b (group) dimension:
-//                  byte = ZP[n * (NUM_GROUPS/2) + gk/2],  nibble = gk%2
 #if ZP_IS_U8
-// u8 ZP: one byte per (output-channel n, group gk), fbyx → n * NUM_GROUPS + gk.
-#define LOAD_ZP(gk, n, ZP, zp_var)  (zp_var) = (float)ZP[(n) * NUM_GROUPS + (gk)]
+// u8 ZP: one byte per (group gk, output-channel n), fbyx → gk * N_SIZE + n.
+#define LOAD_ZP(gk, n, ZP, zp_var)  (zp_var) = (float)ZP[(gk) * N_SIZE + (n)]
 #else
-// u4 ZP: 2 nibbles per byte, packed along the group dimension (b in fbyx),
-// so two consecutive gk values share one byte for the same output channel n.
-//   byte  = ZP[n * (NUM_GROUPS/2) + gk/2]
+// u4 ZP: 2 nibbles per byte, packed along the F (group) dimension:
+//   byte  = ZP[(gk/2) * N_SIZE + n]
 //   nibble= gk % 2  (low nibble = even gk, high nibble = odd gk)
 #define LOAD_ZP(gk, n, ZP, zp_var)                                         \
     do {                                                                    \
-        uchar zp_byte_ = ZP[(n) * (NUM_GROUPS / 2) + (gk) / 2];           \
+        uchar zp_byte_ = ZP[((gk) / 2) * N_SIZE + (n)];                   \
         (zp_var) = ((gk) % 2 == 0) ? (float)(zp_byte_ & 0xF)              \
                                     : (float)(zp_byte_ >> 4);              \
     } while (0)
@@ -188,8 +188,8 @@ KERNEL(gemm_generate_opt)(
 
     // Outer loop: iterate over quantisation groups.
     for (int gk = 0; gk < NUM_GROUPS; gk++) {
-        // Scale fbyx[f=N, b=NG]: physical = n * NUM_GROUPS + gk
-        float scale = (float)Scale[n * NUM_GROUPS + gk];
+        // Scale fbyx[b=N, f=NG]: physical = gk * N_SIZE + n (F=NG is outermost)
+        float scale = (float)Scale[gk * N_SIZE + n];
 
         float zp;
         LOAD_ZP(gk, n, ZP, zp);
@@ -226,11 +226,6 @@ KERNEL(gemm_generate_opt)(
         acc += HSUM8(group_acc) * scale;
     }
 
-    // Write output (convert float → f16).
-#if defined(DEBUG_FCCmpOpt) && (DEBUG_FCCmpOpt >= 1)
-    if (b == 0 && n < 4)
-        printf("[FCCmpOpt-W4A16] b=0 n=%d acc=%.6f out=%.6f\n", n, acc, (float)TO_OUTPUT_TYPE(acc));
-#endif
     C[b * N_SIZE + n] = TO_OUTPUT_TYPE(acc);
 }
 
@@ -311,7 +306,7 @@ KERNEL(gemm_generate_opt)(
     float acc = 0.0f;
 
     for (int gk = 0; gk < NUM_GROUPS; gk++) {
-        float scale = (float)Scale[n * NUM_GROUPS + gk];
+        float scale = (float)Scale[gk * N_SIZE + n];
 
         float zp;
         LOAD_ZP(gk, n, ZP, zp);
@@ -322,8 +317,6 @@ KERNEL(gemm_generate_opt)(
 #endif
 
         const int k_start = gk * GROUP_SIZE;
-        float gk_acc = 0.0f;
-
         float8 group_acc = (float8)(0.f);
         for (int k = k_start; k < k_start + GROUP_SIZE; k += VEC_SIZE) {
             char8 a_vec = vload8(0, A + a_base + k);

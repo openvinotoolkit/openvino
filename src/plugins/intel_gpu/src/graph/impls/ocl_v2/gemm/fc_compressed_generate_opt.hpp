@@ -28,8 +28,9 @@ namespace ov::intel_gpu::ocl {
 // Targets the `fully_connected` cldnn primitive configured with:
 //   - f16 or i8 activations [B, M=1, K]
 //   - u4 or i4 packed weights [N, K] (2 elements per byte, low-nibble first)
-//   - f16 per-group weight decompression scale [K/GROUP_SIZE, N]
-//   - (optional) u4 packed per-group zero point [K/GROUP_SIZE, N/2]
+//   - f16 per-group weight decompression scale, PartialShape [N, NG], format fbyx
+//     Physical layout (fbyx = F-outermost): F=NG is outer, B=N is inner → Scale[gk * N + n]
+//   - (optional) u4 packed per-group zero point, same fbyx convention
 //   - (W4A8 only) f16 per-token activation scale [B]
 //
 // After `fully_connected_impl::update_impl_params` the runtime `kernel_impl_params`

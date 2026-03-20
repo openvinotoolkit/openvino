@@ -149,7 +149,7 @@ protected:
 
         // DEBUG_FCCmpOpt levels:
         // 0 = off (production)
-        // 1 = per-group scale/ZP + final result for n=0..7
+        // 1 = per-group scale/ZP + final result for n=0..7; also prints [DIAG] Scale[0]/A[0]
         // 2 = also dump raw tensor bytes (verbose, causes ~6x slowdown via GPU printf)
         jit.add(make_jit_constant("DEBUG_FCCmpOpt", 0));
 
@@ -261,6 +261,7 @@ public:
                 data.fused_op_inputs.push_back(instance.fused_memory(i));
         }
         data.shape_info = instance.shape_info_memory_ptr();
+
         return data;
     }
 };
