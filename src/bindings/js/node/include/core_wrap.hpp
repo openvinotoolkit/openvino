@@ -101,7 +101,9 @@ private:
 };
 
 struct TsfnCompileModelContext {
-    TsfnCompileModelContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)) {};
+    TsfnCompileModelContext(Napi::Env env, ov::Core& core)
+        : deferred(Napi::Promise::Deferred::New(env)),
+          _core{core} {};
     std::thread native_thread;
 
     Napi::Promise::Deferred deferred;
@@ -110,6 +112,7 @@ struct TsfnCompileModelContext {
     std::variant<std::shared_ptr<ov::Model>, std::filesystem::path> _model;
     std::string _device;
     ov::CompiledModel _compiled_model;
+    ov::Core& _core;
     std::map<std::string, ov::Any> _config = {};
 };
 

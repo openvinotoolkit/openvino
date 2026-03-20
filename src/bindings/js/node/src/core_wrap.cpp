@@ -179,10 +179,10 @@ void tsfn_finalizer_callback(Napi::Env env, void* finalize_data, TsfnCompileMode
 void compile_model_thread(TsfnCompileModelContext* context) {
     std::exception_ptr stored_exception;
     try {
-        ov::Core core;
         std::visit(
-            [&core, &context](auto&& model_variant) {
-                context->_compiled_model = core.compile_model(model_variant, context->_device, context->_config);
+            [&context](auto&& model_variant) {
+                context->_compiled_model =
+                    context->_core.compile_model(model_variant, context->_device, context->_config);
             },
             context->_model);
     } catch (...) {
@@ -210,7 +210,7 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
     std::vector<std::string> allowed_signatures;
     auto env = info.Env();
     try {
-        auto context_data = new TsfnCompileModelContext(env);
+        auto context_data = new TsfnCompileModelContext(env, _core);
         if (ov::js::validate<ModelWrap, Napi::String>(info, allowed_signatures) ||
             ov::js::validate<ModelWrap, Napi::String, Napi::Object>(info, allowed_signatures)) {
             auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(info[0].ToObject());
