@@ -270,6 +270,11 @@ void Transpose::execute(const dnnl::stream& strm) {
         return;
     }
 
+    if (prec == ov::element::string) {
+        executeString();
+        return;
+    }
+
     if (prim) {
         prim.execute(strm, primArgs);
     } else if (execPtr) {
@@ -283,7 +288,41 @@ void Transpose::execute(const dnnl::stream& strm) {
 }
 
 void Transpose::executeDynamicImpl(const dnnl::stream& strm) {
+    if (prec == ov::element::string && !isOptimized) {
+        executeString();
+        return;
+    }
     execute(strm);
+}
+
+void Transpose::executeString() {
+    const auto srcMemPtr = getSrcMemoryAtPort(INPUT_DATA_IDX);
+    const auto dstMemPtr = getDstMemoryAtPort(0);
+    const auto& srcDims = srcMemPtr->getStaticDims();
+    const auto& dstDims = dstMemPtr->getStaticDims();
+    const auto* src = srcMemPtr->getDataAs<const std::string>();
+    auto* dst = dstMemPtr->getDataAs<std::string>();
+
+    const size_t rank = srcDims.size();
+
+    VectorDims srcStrides(rank, 1);
+    for (int i = static_cast<int>(rank) - 2; i >= 0; --i)
+        srcStrides[i] = srcStrides[i + 1] * srcDims[i + 1];
+
+    VectorDims dstStrides(rank, 1);
+    for (int i = static_cast<int>(rank) - 2; i >= 0; --i)
+        dstStrides[i] = dstStrides[i + 1] * dstDims[i + 1];
+
+    const size_t total = ov::shape_size(dstDims);
+    for (size_t flat = 0; flat < total; ++flat) {
+        size_t rem = flat, srcFlat = 0;
+        for (size_t d = 0; d < rank; ++d) {
+            const size_t idx = rem / dstStrides[d];
+            rem %= dstStrides[d];
+            srcFlat += idx * srcStrides[order[d]];
+        }
+        dst[flat] = src[srcFlat];
+    }
 }
 
 bool Transpose::created() const {

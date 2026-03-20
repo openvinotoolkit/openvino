@@ -66,6 +66,8 @@ private:
 
     bool performAsReorder = false;
     bool isOptimized = false;
+
+    void executeString();
 };
 
 }  // namespace ov::intel_cpu::node
