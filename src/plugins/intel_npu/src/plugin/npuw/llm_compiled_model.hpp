@@ -7,13 +7,7 @@
 #include <memory>
 
 #include "compiled_model.hpp"
-
-namespace {
-struct KVAxesPosition {
-    uint32_t batch;
-    uint32_t seq_len;
-};
-}  // anonymous namespace
+#include "npuw_transformations/kv_axes_position.hpp"
 
 namespace ov {
 namespace npuw {
