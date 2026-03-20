@@ -211,33 +211,35 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
     std::vector<std::string> allowed_signatures;
     auto env = info.Env();
     try {
-        std::unique_ptr<TsfnCompileModelContext> context_holder(new TsfnCompileModelContext(env, _core));
-        auto* context_data = context_holder.get();
+        std::variant<std::shared_ptr<ov::Model>, std::filesystem::path> model_variant;
         if (ov::js::validate<ModelWrap, Napi::String>(info, allowed_signatures) ||
             ov::js::validate<ModelWrap, Napi::String, Napi::Object>(info, allowed_signatures)) {
             auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(info[0].ToObject());
-            context_data->_model = m->get_model()->clone();
+            model_variant = m->get_model()->clone();
         } else if (ov::js::validate<Napi::String, Napi::String>(info, allowed_signatures) ||
                    ov::js::validate<Napi::String, Napi::String, Napi::Object>(info, allowed_signatures)) {
-            context_data->_model = js_to_cpp<std::filesystem::path>(info, 0);
+            model_variant = js_to_cpp<std::filesystem::path>(info, 0);
         } else {
             OPENVINO_THROW("'compileModel'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
-        context_data->_device = info[1].ToString();
-        context_data->_config = info.Length() == 3 ? js_to_cpp<std::map<std::string, ov::Any>>(info, 2) : ov::AnyMap();
+        const std::string device = info[1].ToString();
+        auto config = info.Length() == 3 ? js_to_cpp<ov::AnyMap>(info, 2) : ov::AnyMap();
 
+        std::unique_ptr<TsfnCompileModelContext> context_data(
+            new TsfnCompileModelContext(env, _core, std::move(model_variant), device, std::move(config)));
         context_data->tsfn = Napi::ThreadSafeFunction::New(env,
                                                            Napi::Function(),
                                                            "TSFN",
                                                            0,
                                                            1,
-                                                           context_data,
+                                                           context_data.get(),
                                                            tsfn_finalizer_callback,
                                                            (void*)nullptr);
-        context_holder.release();
 
-        context_data->native_thread = std::thread(compile_model_thread, context_data);
-        return context_data->deferred.Promise();
+        context_data->native_thread = std::thread(compile_model_thread, context_data.get());
+        const auto promise = context_data->deferred.Promise();
+        context_data.release(); // ownership is transferred to the TSFN finalizer callback
+        return promise;
 
     } catch (std::exception& e) {
         reportError(env, e.what());

@@ -102,19 +102,27 @@ private:
 };
 
 struct TsfnCompileModelContext {
-    TsfnCompileModelContext(Napi::Env env, ov::Core& core)
+    TsfnCompileModelContext(Napi::Env env, ov::Core& core,
+                            std::variant<std::shared_ptr<ov::Model>, std::filesystem::path> model,
+                            const std::string& device,
+                            ov::AnyMap config)
         : deferred(Napi::Promise::Deferred::New(env)),
-          _core{core} {};
+          _core{core},
+          _model(std::move(model)),
+          _device(device),
+          _config(std::move(config)) {};
+
     std::thread native_thread;
 
     Napi::Promise::Deferred deferred;
     Napi::ThreadSafeFunction tsfn;
-
+    
+    ov::Core& _core;
     std::variant<std::shared_ptr<ov::Model>, std::filesystem::path> _model;
     std::string _device;
+    ov::AnyMap _config;
+
     ov::CompiledModel _compiled_model;
-    ov::Core& _core;
-    std::map<std::string, ov::Any> _config = {};
 };
 
 struct ImportModelContext {
