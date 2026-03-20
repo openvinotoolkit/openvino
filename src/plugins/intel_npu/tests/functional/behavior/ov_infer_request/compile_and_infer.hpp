@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <common_test_utils/test_assertions.hpp>
 #include <sstream>
+#include <thread>
+#include <vector>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -218,6 +220,39 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeDelayedExecutor) {
         OV_EXPECT_THROW_HAS_SUBSTRING(execNet.set_property(modelConfiguration),
                                       ov::Exception,
                                       "Unsupported configuration key: WORKLOAD_TYPE");
+    }
+}
+
+TEST_P(OVCompileAndInferRequest, CompiledModelAndCreateMultipleInferRequestsWithDelayedExecutor) {
+    configuration[intel_npu::defer_weights_load.name()] = true;
+    OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
+    ov::InferRequest req0, req1, req2;
+    OV_ASSERT_NO_THROW(req0 = execNet.create_infer_request());
+    OV_ASSERT_NO_THROW(req1 = execNet.create_infer_request());
+    OV_ASSERT_NO_THROW(req2 = execNet.create_infer_request());
+
+    OV_ASSERT_NO_THROW(req0.infer());
+    OV_ASSERT_NO_THROW(req1.infer());
+    OV_ASSERT_NO_THROW(req2.infer());
+}
+
+TEST_P(OVCompileAndInferRequest, MultiThreadedCreateAndInferRequestsOnDifferentThreads) {
+    configuration[intel_npu::defer_weights_load.name()] = true;
+    OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
+
+    const int num_threads = 64;
+    std::vector<std::thread> threads;
+
+    for (int i = 0; i < num_threads; ++i) {
+        threads.emplace_back([this]() {
+            ov::InferRequest req;
+            OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+            OV_ASSERT_NO_THROW(req.infer());
+        });
+    }
+
+    for (auto& thread : threads) {
+        thread.join();
     }
 }
 

@@ -72,6 +72,7 @@ protected:
     GraphDescriptor _graphDesc;
     NetworkMetadata _metadata;
 
+    mutable std::mutex _commandQueueMutex;
     std::shared_ptr<CommandQueue> _commandQueue;
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 

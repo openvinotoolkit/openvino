@@ -494,6 +494,7 @@ const std::shared_ptr<CommandQueue>& DynamicGraph::get_command_queue() const {
 }
 
 void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) const {
+    std::lock_guard<std::mutex> lock(_commandQueueMutex);
     if (_commandQueue == nullptr) {
         return;
     }
@@ -541,6 +542,13 @@ ze_graph_handle_t DynamicGraph::get_handle() const {
 void DynamicGraph::initialize(const FilteredConfig& config) {
     _logger.debug("Graph initialize start");
 
+    std::lock_guard<std::mutex> lock(_initialize_mutex);
+
+    if (_init_completed.load(std::memory_order_acquire)) {
+        _logger.debug("Graph is already initialized, skipping initialization.");
+        return;
+    }
+
     if (!_impl) {
         _impl = std::make_unique<DynamicGraphImpl>();
         // initialize MLIR execution engine, metadata, input&output descriptors
@@ -548,7 +556,7 @@ void DynamicGraph::initialize(const FilteredConfig& config) {
         _num_of_subgraphs = _impl->getNumSubgraphs();
     }
 
-    if (!_zeroInitStruct || _init_completed) {
+    if (!_zeroInitStruct) {
         _logger.warning("Zero device is not available, skip graph initialize!");
         return;
     }
@@ -557,22 +565,21 @@ void DynamicGraph::initialize(const FilteredConfig& config) {
         _logger.debug("Graph initialize without graph handle");
 
         uint32_t commandQueueOptions = 0;
-
         if (config.has<TURBO>() && config.get<TURBO>()) {
-            if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 0)) {
-                OPENVINO_THROW("Turbo is not supported by the current driver");
-            }
+            OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0),
+                            "Turbo is not supported by the current driver");
             commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
+        OPENVINO_ASSERT(!(_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+                          config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()),
+                        "Running inferences sequentially is not supported by the current driver");
 
-        if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
-            config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-            commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
+        {
+            std::lock_guard<std::mutex> lock(_commandQueueMutex);
+            _commandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
+                                                           zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+                                                           commandQueueOptions);
         }
-
-        _commandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                       zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                       commandQueueOptions);
 
         if (config.has<WORKLOAD_TYPE>()) {
             set_workload_type(config.get<WORKLOAD_TYPE>());
@@ -581,17 +588,10 @@ void DynamicGraph::initialize(const FilteredConfig& config) {
         _logger.debug("Graph initialize finish");
 
         _batchSize = determine_batch_size();
-
-        if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-            config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-            auto numberOfCommandLists = _batchSize.has_value() ? *_batchSize : 1;
-
-            _lastSubmittedEvent.resize(numberOfCommandLists);
-        }
     }
 
     // To ensure that the initialization of the graph does not exit prematurely due to nullptrs
-    _init_completed = true;
+    _init_completed.store(true, std::memory_order_release);
 }
 
 bool DynamicGraph::release_blob(const FilteredConfig& config) {

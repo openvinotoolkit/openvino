@@ -170,6 +170,7 @@ private:
      */
     uint64_t _num_of_subgraphs = 1;
 
+    mutable std::mutex _commandQueueMutex;
     std::shared_ptr<CommandQueue> _commandQueue;
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -52,11 +53,11 @@ public:
     virtual void set_workload_type(const ov::WorkloadType workloadType) const;
 
     std::mutex& get_mutex() {
-        return _mutex;
+        return _initialize_mutex;
     }
 
-    bool init_completed() {
-        return _init_completed;
+    bool init_completed() const {
+        return _init_completed.load(std::memory_order_acquire);
     }
 
     virtual void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList);
@@ -75,8 +76,8 @@ public:
 protected:
     // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the
     // first inference starts running
-    std::mutex _mutex;
-    bool _init_completed = false;
+    std::mutex _initialize_mutex;
+    std::atomic<bool> _init_completed{false};
 };
 
 }  // namespace intel_npu

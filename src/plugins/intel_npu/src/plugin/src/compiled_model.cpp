@@ -52,22 +52,17 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
 
     // sanity check
-    if (_device == nullptr) {
-        OPENVINO_THROW("No available devices. Failed to create infer request!");
-    }
+    OPENVINO_ASSERT(_device != nullptr, "No available devices. Failed to create infer request!");
 
     if (!_propertiesManager->getConfig().get<CREATE_EXECUTOR>() ||
         _propertiesManager->getConfig().get<DEFER_WEIGHTS_LOAD>()) {
-        if (_graph == nullptr) {
-            OPENVINO_THROW("Invalid graph handle! Failed to create infer request!");
-        }
+        OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to create infer request!");
         _graph->initialize(_propertiesManager->getConfig());
     }
 
-    if (!_graph->init_completed()) {
-        OPENVINO_THROW(
-            "The driver is not applicable. The driver doesn't exist or is too old to run inference for this blob.");
-    }
+    OPENVINO_ASSERT(_graph != nullptr && _graph->init_completed(),
+                    "Graph is unavailable or failed to initialize. The driver may be missing or too old to run "
+                    "inference for this blob.");
 
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =
         _device->createInferRequest(shared_from_this(), _propertiesManager->getConfig());
