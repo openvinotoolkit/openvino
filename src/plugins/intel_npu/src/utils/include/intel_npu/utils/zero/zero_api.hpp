@@ -59,7 +59,8 @@ namespace intel_npu {
     symbol_statement(zeMemAllocHost)                          \
     symbol_statement(zeMemFree)                               \
     symbol_statement(zeMemGetAllocProperties)                 \
-    symbol_statement(zelLoaderGetVersions)
+    symbol_statement(zelLoaderGetVersions)                    \
+    symbol_statement(zeDeviceGetStatus)
 
 //unsupported symbols with older ze_loader versions
 #define weak_symbols_list()                                   \

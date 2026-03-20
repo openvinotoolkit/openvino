@@ -73,7 +73,7 @@ public:
         return false;
     }
 
-    static const std::shared_ptr<ZeroInitStructsHolder>& getInstance();
+    static const std::shared_ptr<ZeroInitStructsHolder> getInstance();
 
 private:
     void initNpuDriver();
