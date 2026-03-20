@@ -99,10 +99,14 @@ enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2,
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     PagedAttentionStage stage;
     size_t max_context_len;
+    size_t batch_size_in_sequences;
     // below are rt params for decoding
     size_t num_of_partitions;
     // cached single-token Q chunking
     SingleTokenQChunking q_chunking;
+    // multi-token subsequence routing
+    size_t multi_token_wg_count;
+    bool enable_xattn_estimation;
     // below are rt params for xattn
     size_t block_wg_m;
     size_t q_block_pad;
@@ -120,13 +124,16 @@ enum PagedAttentionInternBuffIdx {
     // for decoding kernels
     DECODE_PARTITIONOUT = 0,  // 0: intermediate partition output
     DECODE_EXPSUMS = 1,       // 1: softmax exp_sums
+    // routing helpers
+    MULTI_TOKEN_WG_MAPPING = 2,        // 2: [block_start_pos, subsequence_id] pairs
+    SINGLE_TOKEN_SELECTED_SEQ_IDS = 3, // 3: selected sequence ids for single-token kernel
     // for xattn kernels
-    XATTN_GEMMQK_MAX = 2,        // 2: kq_max_wg
-    XATTN_GEMMQK_EXPSUMS = 3,    // 3: kq_exp_partial_sum
-    XATTN_BLOCKMASK = 4,         // 4: sparse_block_mask
-    XATTN_BLOCKMASK_MERGED = 5,  // 5: sparse_block_mask_wg
+    XATTN_GEMMQK_MAX = 4,        // 4: kq_max_wg
+    XATTN_GEMMQK_EXPSUMS = 5,    // 5: kq_exp_partial_sum
+    XATTN_BLOCKMASK = 6,         // 6: sparse_block_mask
+    XATTN_BLOCKMASK_MERGED = 7,  // 7: sparse_block_mask_wg
 #if FIND_DEBUG_ACC
-    XATTN_FIND_DEBUG_ACC = 6,  // 6: kq_sum for debug purpose only
+    XATTN_FIND_DEBUG_ACC = 8,  // 8: kq_sum for debug purpose only
 #endif
 };
 

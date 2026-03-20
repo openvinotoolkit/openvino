@@ -24,6 +24,12 @@ using namespace cldnn;
 namespace {
 constexpr size_t reduce_split_step = 16;
 constexpr size_t KV_SUB_BLOCK_SIZE = 16;
+
+size_t get_batch_size_in_sequences(const RuntimeParams& params) {
+    const auto past_lens_shape = params.input_layouts[PagedAttentionInputIdx::PAST_LENS].get_shape();
+    OPENVINO_ASSERT(!past_lens_shape.empty(), "PAST_LENS layout must have at least 1 dimension");
+    return past_lens_shape[0];
+}
 }  // namespace
 
 #define DEBUG_ENABLED 0
@@ -277,8 +283,7 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
                       << ", " << wgs.global[1] << ", " << wgs.global[2] << "]" << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2]
                       << "]" << std::endl;
         }
-        // TODO: support multiple sequences
-        size_t batch_size_in_sequences = 1;
+        size_t batch_size_in_sequences = get_batch_size_in_sequences(params);
         std::vector<size_t> scaler_value = {key_pitch, key_offset, value_pitch, value_offset, batch_size_in_sequences};
         scalars.resize(scaler_value.size());
 
@@ -304,6 +309,7 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});         // block_indices
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});  // block_indices_begins
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});    // subsequence_begins
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::MULTI_TOKEN_WG_MAPPING});  // per-WG subsequence mapping
 
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
@@ -354,9 +360,8 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
         auto& scalars = kd.params.scalars;
         auto desc = params.typed_desc<paged_attention>();
         auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
-        // OPENVINO_ASSERT(rt_params != nullptr);
+        OPENVINO_ASSERT(rt_params != nullptr);
         const size_t heads_num = desc->heads_num;
-        auto query_layout = params.input_layouts[PagedAttentionInputIdx::QUERY];
 
         auto out_shape = params.output_layouts[0].get_shape();
         const size_t batch = out_shape.size() < 4 ? 1 : out_shape[0];
@@ -364,7 +369,8 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
 
         const size_t q_step = get_q_step(params);
         const size_t wg_seq_len = get_wg_seq_len(params);
-        const size_t wg_count = align_to(q_len, wg_seq_len) / wg_seq_len;
+        const size_t wg_count = rtp->multi_token_wg_count;
+        OPENVINO_ASSERT(wg_count > 0, "Invalid multi_token_wg_count in runtime params");
 
         wgs.global = {batch, heads_num, wg_count * WG_SIZE};
         wgs.local = {1, 1, WG_SIZE};
@@ -430,6 +436,7 @@ Arguments PagedAttentionGeneratorSingleToken::get_arguments_desc(const kernel_im
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});         // block indices
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});  // block indices begins
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});    // subsequence begins
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::SINGLE_TOKEN_SELECTED_SEQ_IDS});  // selected sequence ids
 
     // outputs
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_PARTITIONOUT});  // partition output
@@ -437,6 +444,7 @@ Arguments PagedAttentionGeneratorSingleToken::get_arguments_desc(const kernel_im
 
     // scalar
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len==1
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // selected_sequence_count
 
     return args;
 }
@@ -460,7 +468,7 @@ DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() co
 
         // generate stage: q_len=1
         auto& scalars = kd.params.scalars;
-        std::vector<size_t> scaler_value = {1};
+        std::vector<size_t> scaler_value = {1, rtp->batch_size_in_sequences};
         scalars.resize(scaler_value.size());
 
         if (DEBUG_ENABLED) {  // Debug

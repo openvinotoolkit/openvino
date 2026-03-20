@@ -6,6 +6,7 @@
 
 #include <array>
 #include <cstdint>
+#include <vector>
 #include <memory>
 #include <utility>
 
@@ -29,6 +30,28 @@
 #endif
 
 namespace ov::intel_gpu::cm {
+
+namespace {
+
+std::vector<int32_t> read_subsequence_begins(const kernel_impl_params& params) {
+    const auto& memory_deps = params.memory_deps;
+    const auto subsequence_begins_mem = memory_deps.at(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS);
+    mem_lock<int32_t, mem_lock_type::read> lock(subsequence_begins_mem, *params.strm);
+    return std::vector<int32_t>(lock.begin(), lock.end());
+}
+
+size_t get_batch_size_in_sequences(const kernel_impl_params& params) {
+    const auto& memory_deps = params.memory_deps;
+    const auto past_lens_mem = memory_deps.at(PagedAttentionInputIdx::PAST_LENS);
+    mem_lock<int32_t, mem_lock_type::read> lock(past_lens_mem, *params.strm);
+    return lock.size();
+}
+
+bool has_multiple_subsequences(const kernel_impl_params& params) {
+    return get_batch_size_in_sequences(params) > 1;
+}
+
+}  // namespace
 
 class PagedAttentionCmImpl : public PrimitiveImplCM {
 public:
@@ -127,6 +150,9 @@ public:
         OPENVINO_ASSERT(!params.is_dynamic());
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         const auto& desc = params.typed_desc<paged_attention>();
+        rt_params->batch_size_in_sequences = get_batch_size_in_sequences(params);
+        rt_params->multi_token_wg_count = 0;
+        rt_params->enable_xattn_estimation = false;
 
         rt_params->stage = get_paged_attention_stage(params);
         const auto max_context_len = get_max_context_len(params);
@@ -140,11 +166,63 @@ public:
             rt_params->q_chunking = get_single_token_q_chunking(params, *desc, partition_size);
             GPU_DEBUG_TRACE_DETAIL << "  partition_size: " << partition_size << "  num_of_partitions: " << rt_params->num_of_partitions << std::endl;
         } else {
-            if (desc->has_xattention) {
+            const auto subsequence_begins = read_subsequence_begins(params);
+            const auto wg_seq_len = PagedAttentionGeneratorMultiToken::get_wg_seq_len(params);
+            for (size_t subsequence_id = 0; subsequence_id + 1 < subsequence_begins.size(); ++subsequence_id) {
+                const auto q_len = static_cast<size_t>(std::max<int32_t>(subsequence_begins[subsequence_id + 1] - subsequence_begins[subsequence_id], 0));
+                if (q_len == 0) {
+                    continue;
+                }
+                rt_params->multi_token_wg_count += ceil_div(q_len, wg_seq_len);
+            }
+
+            if (desc->has_xattention && rt_params->batch_size_in_sequences == 1) {
                 update_xattn_rt_params(params);
+                rt_params->enable_xattn_estimation = true;
             } else {
                 rt_params->xattn_block_size = 1;  // disable xattn for pa
             }
+        }
+    }
+
+    void prepare_multi_token_mapping(primitive_inst& instance) {
+        const auto& params = *instance.get_impl_params();
+        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        OPENVINO_ASSERT(rt_params != nullptr);
+        OPENVINO_ASSERT(rt_params->multi_token_wg_count > 0, "Invalid multi_token_wg_count");
+
+        const auto subsequence_begins = read_subsequence_begins(params);
+        const auto wg_seq_len = static_cast<int32_t>(PagedAttentionGeneratorMultiToken::get_wg_seq_len(params));
+        std::vector<int32_t> mapping;
+        mapping.reserve(rt_params->multi_token_wg_count * 2);
+
+        for (size_t subsequence_id = 0; subsequence_id + 1 < subsequence_begins.size(); ++subsequence_id) {
+            const int32_t q_begin = subsequence_begins[subsequence_id];
+            const int32_t q_end = subsequence_begins[subsequence_id + 1];
+            for (int32_t block_start = q_begin; block_start < q_end; block_start += wg_seq_len) {
+                mapping.push_back(block_start);
+                mapping.push_back(static_cast<int32_t>(subsequence_id));
+            }
+        }
+
+        OPENVINO_ASSERT(mapping.size() == rt_params->multi_token_wg_count * 2,
+                        "Unexpected multi-token mapping size: expected ",
+                        rt_params->multi_token_wg_count * 2,
+                        ", got ",
+                        mapping.size());
+
+        auto mapping_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::MULTI_TOKEN_WG_MAPPING];
+        mem_lock<int32_t, mem_lock_type::write> lock(mapping_mem, instance.get_network().get_stream());
+        std::copy(mapping.begin(), mapping.end(), lock.begin());
+    }
+
+    void prepare_single_token_selected_ids(primitive_inst& instance) {
+        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        OPENVINO_ASSERT(rt_params != nullptr);
+        auto selected_ids_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::SINGLE_TOKEN_SELECTED_SEQ_IDS];
+        mem_lock<int32_t, mem_lock_type::write> lock(selected_ids_mem, instance.get_network().get_stream());
+        for (size_t sequence_id = 0; sequence_id < rt_params->batch_size_in_sequences; ++sequence_id) {
+            lock[sequence_id] = static_cast<int32_t>(sequence_id);
         }
     }
 
@@ -167,7 +245,8 @@ public:
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
 
         if (rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) {
-            const bool is_xattn_bypassed = bypass_xattn(params);
+            prepare_multi_token_mapping(instance);
+            const bool is_xattn_bypassed = bypass_xattn(params) || !rt_params->enable_xattn_estimation;
             if (is_xattn_bypassed || desc->has_xattention == false) {
                 GPU_DEBUG_TRACE_DETAIL << "Execute multi-token stage w/o XAttention estimation stages." << std::endl;
 
@@ -198,6 +277,7 @@ public:
                 res_event = {execute_stage(res_event, instance, pa_multi_token)};
             }
         } else {
+            prepare_single_token_selected_ids(instance);
             res_event = {execute_stage(res_event, instance, pa_single_token)};
             res_event = {execute_stage(res_event, instance, pa_single_token_finalization)};
         }
@@ -210,7 +290,8 @@ public:
         // In case of MIXED mode execution Paged Attention may require dispatch data update and internal
         // buffers reallocation even if the input shapes haven't been changed. Therefore, check the current execution
         // mode and update parameters if needed
-        return stage == PagedAttentionStage::MIXED;
+         return stage == PagedAttentionStage::MIXED ||
+             ((stage == PagedAttentionStage::PREFILL || stage == PagedAttentionStage::UNKNOWN) && has_multiple_subsequences(impl_params));
     }
 
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
@@ -234,31 +315,35 @@ public:
 
             internal_buffers.emplace_back(tmp_out_elements_count, ov::element::f32);  // 0: intermediate partition output
             internal_buffers.emplace_back(buf_elements_count, ov::element::f32);      // 1: softmax exp_sums
+            internal_buffers.emplace_back(2, ov::element::i32);                       // 2: unused multi-token mapping placeholder
+            internal_buffers.emplace_back(total_tokens, ov::element::i32);            // 3: selected sequence ids
 
             GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: tmp_out=" << tmp_out_elements_count * 4 << "  exp_sums=" << buf_elements_count * 4 << std::endl;
         } else {
             internal_buffers.emplace_back(16, ov::element::f32);  // 0: intermediate partition output
             internal_buffers.emplace_back(16, ov::element::f32);  // 1: softmax exp_sums
+            internal_buffers.emplace_back(std::max<int64_t>(2, static_cast<int64_t>(rt_params->multi_token_wg_count * 2)), ov::element::i32);  // 2: multi-token mapping
+            internal_buffers.emplace_back(std::max<int64_t>(1, static_cast<int64_t>(rt_params->batch_size_in_sequences)), ov::element::i32);  // 3: selected ids / placeholder
 
             // internal buffer for XAttention
-            if (desc->has_xattention) {
+            if (rt_params->enable_xattn_estimation) {
                 auto count_kq_max_wg = static_cast<int64_t>(desc->heads_num * rt_params->N_kq_groups * rt_params->q_stride_pad);
-                internal_buffers.emplace_back(count_kq_max_wg, ov::element::f32);  // 2: kq_max_wg
+                internal_buffers.emplace_back(count_kq_max_wg, ov::element::f32);  // 4: kq_max_wg
 
                 auto count_kq_exp_partial_sum = static_cast<int64_t>(desc->heads_num * rt_params->q_stride_pad * rt_params->k_block_pad);
-                internal_buffers.emplace_back(count_kq_exp_partial_sum, ov::element::f32);  // 3: kq_exp_partial_sum
+                internal_buffers.emplace_back(count_kq_exp_partial_sum, ov::element::f32);  // 5: kq_exp_partial_sum
 
                 auto count_elements_mask = static_cast<int64_t>(desc->heads_num * rt_params->q_block_pad * rt_params->k_block_pad);
-                internal_buffers.emplace_back(count_elements_mask, ov::element::boolean);  // 4: sparse_block_mask
+                internal_buffers.emplace_back(count_elements_mask, ov::element::boolean);  // 6: sparse_block_mask
 
                 auto count_elements_mask_merged = static_cast<int64_t>(desc->heads_num * rt_params->q_block_pad_merged * rt_params->k_block_pad);
-                internal_buffers.emplace_back(count_elements_mask_merged, ov::element::boolean);  // 5: sparse_block_mask_wg
+                internal_buffers.emplace_back(count_elements_mask_merged, ov::element::boolean);  // 7: sparse_block_mask_wg
 
 #if FIND_DEBUG_ACC
                 const size_t sum_per_n_token_in_block = static_cast<size_t>(rt_params->xattn_block_size / STRIDE);
                 size_t q_block_input = rt_params->q_stride_pad / sum_per_n_token_in_block;
                 auto count_elements_kq_sum = static_cast<int64_t>(desc->heads_num * q_block_input * rt_params->k_block_pad);
-                internal_buffers.emplace_back(count_elements_kq_sum, ov::element::f16);  // 6: kq_sum
+                internal_buffers.emplace_back(count_elements_kq_sum, ov::element::f16);  // 8: kq_sum
 #endif
 
                 GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: count_kq_max_wg=" << count_kq_max_wg * 4
