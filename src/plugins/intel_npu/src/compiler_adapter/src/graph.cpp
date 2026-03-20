@@ -158,15 +158,8 @@ void Graph::set_argument_value_with_strides(uint32_t id, const void* data, const
     _zeGraphExt->setGraphArgumentValueWithStrides(_graphDesc, id, data, strides);
 }
 
-void Graph::initialize(const FilteredConfig& config) {
+void Graph::initialize_impl(const FilteredConfig& config) {
     _logger.debug("Graph initialize start");
-
-    std::lock_guard<std::mutex> lock(_initialize_mutex);
-
-    if (_init_completed.load(std::memory_order_acquire)) {
-        _logger.debug("Graph is already initialized, skipping initialization.");
-        return;
-    }
 
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
         // To ensure that no issues are thrown during subsequent calls.

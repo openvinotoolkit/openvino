@@ -119,8 +119,6 @@ public:
 
     ze_graph_handle_t get_handle() const override;
 
-    void initialize(const FilteredConfig& config) override;
-
     ~DynamicGraph() override;
 
     const NetworkMetadata& get_metadata() const override;
@@ -157,6 +155,8 @@ public:
     std::optional<bool> is_profiling_blob() const override;
 
 private:
+    void initialize_impl(const FilteredConfig& config) override;
+
     bool release_blob(const FilteredConfig& config);
     std::optional<size_t> determine_batch_size();
 

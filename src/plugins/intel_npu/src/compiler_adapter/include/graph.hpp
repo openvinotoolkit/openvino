@@ -35,8 +35,6 @@ public:
                                          const void* data,
                                          const std::vector<size_t>& strides) const override;
 
-    void initialize(const FilteredConfig& config) override;
-
     const NetworkMetadata& get_metadata() const override;
     ze_graph_handle_t get_handle() const override;
 
@@ -62,6 +60,8 @@ public:
     ~Graph() override;
 
 protected:
+    void initialize_impl(const FilteredConfig& config) override;
+
     bool release_blob(const FilteredConfig& config);
     std::optional<size_t> determine_batch_size();
 

@@ -539,15 +539,8 @@ ze_graph_handle_t DynamicGraph::get_handle() const {
     return nullptr;
 }
 
-void DynamicGraph::initialize(const FilteredConfig& config) {
+void DynamicGraph::initialize_impl(const FilteredConfig& config) {
     _logger.debug("Graph initialize start");
-
-    std::lock_guard<std::mutex> lock(_initialize_mutex);
-
-    if (_init_completed.load(std::memory_order_acquire)) {
-        _logger.debug("Graph is already initialized, skipping initialization.");
-        return;
-    }
 
     if (!_impl) {
         _impl = std::make_unique<DynamicGraphImpl>();

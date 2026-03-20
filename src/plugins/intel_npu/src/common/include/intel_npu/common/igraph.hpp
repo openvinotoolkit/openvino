@@ -39,7 +39,7 @@ public:
                                                  const void* data,
                                                  const std::vector<size_t>& strides) const;
 
-    virtual void initialize(const FilteredConfig& config);
+    void initialize(const FilteredConfig& config);
 
     virtual ~IGraph() = default;
 
@@ -74,8 +74,10 @@ public:
     virtual std::optional<bool> is_profiling_blob() const = 0;
 
 protected:
-    // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the
-    // first inference starts running
+    virtual void initialize_impl(const FilteredConfig& config);
+
+    // Used to protect graph initialization (including zero pipeline creation) in the graph. Initialization should
+    // happen only once per graph, typically when the graph is first used (e.g. when the first inference starts)
     std::mutex _initialize_mutex;
     std::atomic<bool> _init_completed{false};
 };
