@@ -427,8 +427,8 @@ bool EltwiseRef64bExecutor<T, Enable>::supports([[maybe_unused]] const EltwiseCo
 
 template <typename T, typename Enable>
 void EltwiseRef64bExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
-                                            [[maybe_unused]] const VectorDims& dims_out,
-                                            [[maybe_unused]] const CpuParallelPtr& cpu_parallel) {
+                                            const VectorDims&,
+                                            const CpuParallelPtr&) {
     // Only supported Clamp Operator
     if (this->m_opData.algo == Algorithm::EltwiseClamp) {
         const auto* src_ptr_i = reinterpret_cast<const T*>(args_ptrs.src_ptr[0]);
