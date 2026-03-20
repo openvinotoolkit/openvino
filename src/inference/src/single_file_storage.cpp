@@ -134,7 +134,7 @@ bool SingleFileStorage::build_content_index(std::ifstream& stream) {
             return false;
         }
         if (std::string model_name; read_tlv_string(s, model_name)) {
-            m_blob_index[id].model_name = model_name;
+            m_blob_index[id].model_name = std::move(model_name);
         }
         return s.good();
     };
@@ -239,7 +239,7 @@ void SingleFileStorage::write_blob_entry(std::ofstream& stream, BlobIdType blob_
     };
     write_tlv_record(stream, static_cast<TLVTraits::TagType>(Tag::BlobMap), blob_map_writer);
 
-    m_blob_index[blob_id] = {blob_pos, blob_size, model_name};
+    m_blob_index[blob_id] = {blob_pos, blob_size, std::move(model_name)};
 }
 
 void SingleFileStorage::write_cache_entry(const std::string& blob_id, StreamWriter writer) {
