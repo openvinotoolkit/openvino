@@ -5,6 +5,25 @@
 
 ---
 
+## 0. 最近一次代码更新（2026-03-20）
+
+这次最新提交可归纳为两部分：
+
+1. **新增 BevPoolV2 的 OCL v2 实现**
+   - 新增 `src/plugins/intel_gpu/src/graph/impls/ocl_v2/bevpool_v2.hpp`
+   - 新增 `src/plugins/intel_gpu/src/graph/impls/ocl_v2/bevpool_v2.cpp`
+   - 新增 `src/plugins/intel_gpu/src/graph/impls/ocl_v2/bevpool_v2.cl`
+   - 重点：实现了类型/格式校验、JIT 常量注入、dispatch 配置，以及执行前输出清零。
+
+2. **增强 GPU 单测稳定性与语义清晰度**
+   - 修改 `src/plugins/intel_gpu/tests/unit/test_cases/bevpool_v2_gpu_test.cpp`
+   - 输入和期望输出内存改为 `allocation_type::usm_host`
+   - `mem_lock` 明确为只读锁 `mem_lock_type::read`
+
+> 注：`export_bevpool_v2_custom_op.py` 的调整主要是示例排版，不属于算子实现能力变更。
+
+---
+
 ## 1. 先理解：要改哪些模块？
 
 开发一个 GPU 自定义算子，通常要覆盖 6 个层面：
@@ -27,7 +46,7 @@
    - 把 `ov::op::vXX::<Op>` 映射成 GPU primitive，并绑定 OCL implementation。
    - 典型位置：
      - `src/plugins/intel_gpu/src/plugin/ops/<op>.cpp`
-     - `src/plugins/intel_gpu/src/graph/impls/ocl/<op>.cpp`
+   - `src/plugins/intel_gpu/src/graph/impls/ocl_v2/<op>.cpp`
 
 5. **工厂注册层（非常关键）**
    - 若没注册，运行时会找不到实现。
@@ -353,7 +372,7 @@ KERNEL(my_op_ref)(OPTIONAL_SHAPE_INFO_ARG
 
 ### 8.7 OCL 实现注册（graph/impl）
 
-文件：`src/plugins/intel_gpu/src/graph/impls/ocl/my_op.cpp`
+文件：`src/plugins/intel_gpu/src/graph/impls/ocl_v2/my_op.cpp`
 
 ```cpp
 #include "intel_gpu/graph/impls/impl_map.hpp"
