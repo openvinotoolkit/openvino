@@ -52,9 +52,9 @@ protected:
         jit.make("K_HEAD_DIM", k_head_dims);
         jit.make("V_HEAD_DIM", v_head_dims);
         jit.make("SUBGROUP_SIZE", get_subgroup_size(params.get_device_info().arch));
-        jit.make("FUSE_QK_L2NORM", desc->config.fuse_qk_l2norm ? 1 : 0);
-        jit.make("Q_L2_NORM_EPS", desc->config.q_l2_norm_eps);
-        jit.make("K_L2_NORM_EPS", desc->config.k_l2_norm_eps);
+        jit.make("FUSE_QK_L2NORM", desc->fuse_qk_l2norm ? 1 : 0);
+        jit.make("Q_L2_NORM_EPS", desc->q_l2_norm_eps);
+        jit.make("K_L2_NORM_EPS", desc->k_l2_norm_eps);
         jit.make("SCALE_FACTOR", scale_factor);
         jit.make("OUTPUT_STATE", output_state);
 

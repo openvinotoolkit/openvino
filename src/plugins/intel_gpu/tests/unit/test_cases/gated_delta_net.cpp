@@ -172,13 +172,11 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         topo.add(input_layout("state", state_layout));
         topo.add(input_layout("g", g_layout));
         topo.add(input_layout("beta", beta_layout));
-        ov::op::GatedDeltaNet::Config config;
-        config.fuse_qk_l2norm = true;
-        config.q_l2_norm_eps = 1e-6f;
-        config.k_l2_norm_eps = 1e-6f;
         auto linear_attn_prim = gated_delta_net("gated_delta_net",
                                                 {input_info("q"), input_info("k"), input_info("v"), input_info("state"), input_info("g"), input_info("beta")},
-                                                config);
+                                                true,
+                                                1e-6f,
+                                                1e-6f);
         topo.add(linear_attn_prim);
         topo.add(reorder("output", input_info("gated_delta_net", 0), format::bfyx, output_dt));
         // topo.add(reorder("states", input_info("gated_delta_net", 1), format::bfyx, data_types::f16));

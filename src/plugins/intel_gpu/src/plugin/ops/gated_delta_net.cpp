@@ -12,7 +12,7 @@
 namespace ov {
 namespace op {
 namespace internal {
-using GatedDeltaNet = ov::op::GatedDeltaNet;
+using GatedDeltaNet = ov::op::internal::GatedDeltaNet;
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
@@ -25,7 +25,7 @@ static void CreateGatedDeltaNetOp(ProgramBuilder& p, const std::shared_ptr<ov::o
     auto inputs = p.GetInputInfo(op);
 
     const std::string layerName = layer_type_name_ID(op);
-    cldnn::gated_delta_net gated_delta_net_prim(layerName, inputs, op->get_config());
+    cldnn::gated_delta_net gated_delta_net_prim(layerName, inputs, op->get_fuse_qk_l2norm(), op->get_q_l2_norm_eps(), op->get_k_l2_norm_eps());
 
     const auto query_ps = op->get_input_partial_shape(0);
     const auto key_ps = op->get_input_partial_shape(1);

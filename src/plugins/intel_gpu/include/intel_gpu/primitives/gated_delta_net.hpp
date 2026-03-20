@@ -12,7 +12,7 @@
 
 namespace cldnn {
 
-using GatedDeltaNet = ov::op::GatedDeltaNet;
+using GatedDeltaNet = ov::op::internal::GatedDeltaNet;
 
 /// @brief gated_delta_net primitive
 /// @details Performs gated_delta_net
@@ -25,10 +25,11 @@ struct gated_delta_net : public primitive_base<gated_delta_net> {
     ///
     /// @param id                 An identifier of new primitive.
     /// @param inputs             A list of Input primitive ids (inputs).
-    /// @param config             GatedDeltaNet config struct
-    gated_delta_net(const primitive_id& id, const std::vector<input_info>& inputs, const GatedDeltaNet::Config& config)
-        : primitive_base(id, inputs),
-          config(config) {}
+    /// @param fuse_qk_l2norm     A boolean to enable l2norm for variables q and k.
+    /// @param q_l2_norm_eps      Epsilon value for q's l2 normalization computation.
+    /// @param k_l2_norm_eps      Epsilon value for k's l2 normalization computation.
+    gated_delta_net(const primitive_id& id, const std::vector<input_info>& inputs, bool fuse_qk_l2norm = false, float q_l2_norm_eps = 1e-6f, float k_l2_norm_eps = 1e-6f)
+        : primitive_base(id, inputs), fuse_qk_l2norm(fuse_qk_l2norm), q_l2_norm_eps(q_l2_norm_eps), k_l2_norm_eps(k_l2_norm_eps) {}
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -36,9 +37,9 @@ struct gated_delta_net : public primitive_base<gated_delta_net> {
         seed = hash_combine(seed, v_head_size);
         seed = hash_combine(seed, k_heads_num);
         seed = hash_combine(seed, v_heads_num);
-        seed = hash_combine(seed, config.fuse_qk_l2norm);
-        seed = hash_combine(seed, config.q_l2_norm_eps);
-        seed = hash_combine(seed, config.k_l2_norm_eps);
+        seed = hash_combine(seed, fuse_qk_l2norm);
+        seed = hash_combine(seed, q_l2_norm_eps);
+        seed = hash_combine(seed, k_l2_norm_eps);
         return seed;
     }
 
@@ -48,8 +49,8 @@ struct gated_delta_net : public primitive_base<gated_delta_net> {
 
         auto rhs_casted = downcast<const gated_delta_net>(rhs);
         return k_head_size == rhs_casted.k_head_size && v_head_size == rhs_casted.v_head_size && k_heads_num == rhs_casted.k_heads_num &&
-               v_heads_num == rhs_casted.v_heads_num && config.fuse_qk_l2norm == rhs_casted.config.fuse_qk_l2norm &&
-               config.q_l2_norm_eps == rhs_casted.config.q_l2_norm_eps && config.k_l2_norm_eps == rhs_casted.config.k_l2_norm_eps;
+               v_heads_num == rhs_casted.v_heads_num && fuse_qk_l2norm == rhs_casted.fuse_qk_l2norm &&
+               q_l2_norm_eps == rhs_casted.q_l2_norm_eps && k_l2_norm_eps == rhs_casted.k_l2_norm_eps;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -58,9 +59,9 @@ struct gated_delta_net : public primitive_base<gated_delta_net> {
         ob << v_head_size;
         ob << k_heads_num;
         ob << v_heads_num;
-        ob << config.fuse_qk_l2norm;
-        ob << config.q_l2_norm_eps;
-        ob << config.k_l2_norm_eps;
+        ob << fuse_qk_l2norm;
+        ob << q_l2_norm_eps;
+        ob << k_l2_norm_eps;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -69,16 +70,18 @@ struct gated_delta_net : public primitive_base<gated_delta_net> {
         ib >> v_head_size;
         ib >> k_heads_num;
         ib >> v_heads_num;
-        ib >> config.fuse_qk_l2norm;
-        ib >> config.q_l2_norm_eps;
-        ib >> config.k_l2_norm_eps;
+        ib >> fuse_qk_l2norm;
+        ib >> q_l2_norm_eps;
+        ib >> k_l2_norm_eps;
     }
 
     size_t k_head_size = 0;
     size_t v_head_size = 0;
     size_t k_heads_num = 0;
     size_t v_heads_num = 0;
-    GatedDeltaNet::Config config;
+    bool fuse_qk_l2norm = false;
+    float q_l2_norm_eps = 1e-6f;
+    float k_l2_norm_eps = 1e-6f;
 };
 
 }  // namespace cldnn

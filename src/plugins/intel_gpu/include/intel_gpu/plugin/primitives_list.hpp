@@ -302,6 +302,7 @@ REGISTER_FACTORY(internal, ReadValue);
 REGISTER_FACTORY(internal, ReadValues);
 REGISTER_FACTORY(internal, Gemm);
 REGISTER_FACTORY(internal, GLU);
+REGISTER_FACTORY(internal, GatedMLP);
 REGISTER_FACTORY(internal, IndirectGemm);
 REGISTER_FACTORY(internal, Convolution);
 REGISTER_FACTORY(internal, Placeholder);

@@ -6,8 +6,7 @@
 
 #include "shared_test_classes/subgraph/gated_delta_net.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 inline void CheckNumberOfNodesWithType(std::shared_ptr<const ov::Model> function,
                                        const std::unordered_set<std::string>& nodeTypes,
@@ -35,5 +34,4 @@ TEST_P(GatedDeltaNet, CompareWithRefs) {
     CheckNumberOfNodesWithType(function, {"Multiply"}, 0);
     CheckNumberOfNodesWithType(function, {"Divide"}, 0);
 };
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test

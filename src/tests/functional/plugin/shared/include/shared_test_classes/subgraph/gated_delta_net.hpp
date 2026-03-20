@@ -6,8 +6,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 using gated_delta_net_params = std::tuple<int32_t,            // B
                                           int32_t,            // T
@@ -26,8 +25,7 @@ private:
                                               int32_t qk_head_num,
                                               int32_t v_head_num,
                                               int32_t qk_head_size,
-                                              int32_t v_head_size,
-                                              ov::element::Type dtype);
+                                              int32_t v_head_size);
 
 public:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
@@ -38,5 +36,4 @@ protected:
     void SetUp() override;
 };
 
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test
