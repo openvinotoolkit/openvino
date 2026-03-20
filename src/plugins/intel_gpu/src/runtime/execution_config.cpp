@@ -157,7 +157,7 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
         apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
     }
 
-    if (!is_llm || has_lora) {
+    if (!is_llm || (has_lora && !info.supports_immad)) {
         apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
     }
 

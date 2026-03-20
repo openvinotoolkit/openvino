@@ -18,6 +18,7 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/pass/manager.hpp"
 
@@ -335,6 +336,66 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_eltwise_bias_zp_scal
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }
+
+TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_skip_lora_consumers) {
+    std::vector<int64_t> pattern = {7, -1};
+    size_t hidden_size = 4096;
+    size_t lora_rank = 128;
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 7, static_cast<int64_t>(hidden_size)});
+        auto weight_q = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{4096, hidden_size});
+        auto weight_k = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{1024, hidden_size});
+        auto weight_v = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{1024, hidden_size});
+        auto bias_q = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto bias_k = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto bias_v = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto scale_q = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{4096, 32});
+        auto scale_k = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1024, 32});
+        auto scale_v = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1024, 32});
+        auto fc_q = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight_q, bias_q, scale_q);
+        auto fc_k = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight_k, bias_k, scale_k);
+        auto fc_v = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight_v, bias_v, scale_v);
+
+        // LoRA subgraph for Q: input -> MatMul(A) -> Multiply(alpha) -> MatMul(B) -> Add(FC_out, ...)
+        auto lora_a_q = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{hidden_size, lora_rank});
+        auto lora_matmul1_q = std::make_shared<ov::op::v0::MatMul>(input, lora_a_q, false, false);
+        auto lora_alpha_q = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, lora_rank});
+        auto lora_mul_q = std::make_shared<ov::op::v1::Multiply>(lora_matmul1_q, lora_alpha_q);
+        auto lora_b_q = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{lora_rank, 4096});
+        auto lora_matmul2_q = std::make_shared<ov::op::v0::MatMul>(lora_mul_q, lora_b_q, false, false);
+        auto lora_add_q = std::make_shared<ov::op::v1::Add>(fc_q, lora_matmul2_q);
+
+        // LoRA subgraph for K
+        auto lora_a_k = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{hidden_size, lora_rank});
+        auto lora_matmul1_k = std::make_shared<ov::op::v0::MatMul>(input, lora_a_k, false, false);
+        auto lora_alpha_k = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, lora_rank});
+        auto lora_mul_k = std::make_shared<ov::op::v1::Multiply>(lora_matmul1_k, lora_alpha_k);
+        auto lora_b_k = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{lora_rank, 1024});
+        auto lora_matmul2_k = std::make_shared<ov::op::v0::MatMul>(lora_mul_k, lora_b_k, false, false);
+        auto lora_add_k = std::make_shared<ov::op::v1::Add>(fc_k, lora_matmul2_k);
+
+        // LoRA subgraph for V
+        auto lora_a_v = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{hidden_size, lora_rank});
+        auto lora_matmul1_v = std::make_shared<ov::op::v0::MatMul>(input, lora_a_v, false, false);
+        auto lora_alpha_v = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, lora_rank});
+        auto lora_mul_v = std::make_shared<ov::op::v1::Multiply>(lora_matmul1_v, lora_alpha_v);
+        auto lora_b_v = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{lora_rank, 1024});
+        auto lora_matmul2_v = std::make_shared<ov::op::v0::MatMul>(lora_mul_v, lora_b_v, false, false);
+        auto lora_add_v = std::make_shared<ov::op::v1::Add>(fc_v, lora_matmul2_v);
+
+        auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, pattern);
+        auto reshape1 = std::make_shared<ov::op::v1::Reshape>(lora_add_q, reshape_pattern, true);
+        auto reshape2 = std::make_shared<ov::op::v1::Reshape>(lora_add_k, reshape_pattern, true);
+        auto reshape3 = std::make_shared<ov::op::v1::Reshape>(lora_add_v, reshape_pattern, true);
+        auto result1 = std::make_shared<ov::op::v0::Result>(reshape1);
+        auto result2 = std::make_shared<ov::op::v0::Result>(reshape2);
+        auto result3 = std::make_shared<ov::op::v0::Result>(reshape3);
+        model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2, result3}, ov::ParameterVector{input});
+        manager.register_pass<FullyConnectedHorizontalFusion>();
+    }
+    // model_ref is not set => expects no transformation (model unchanged)
+}
+
 }  // namespace intel_gpu
 }  // namespace test
 }  // namespace ov
