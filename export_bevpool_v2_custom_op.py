@@ -3,7 +3,7 @@
 
 Goal
 - Produce an ONNX model whose graph contains exactly one node:
-  `com.intel.bevpool::BevPoolV2`.
+    `org.openvinotoolkit::BevPoolV2`.
 
 Why a dummy forward?
 - `mmdet3d.ops.bev_pool_v2` calls a CUDA/C++ extension.
@@ -20,7 +20,7 @@ Usage
     --K 466560 --M 7313
 
 The produced ONNX will require a runtime that implements the custom op
-`com.intel.bevpool::BevPoolV2`.
+`org.openvinotoolkit::BevPoolV2`.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ import torch
 from torch import nn
 
 
-CUSTOM_DOMAIN = "com.intel.bevpool"
+CUSTOM_DOMAIN = "org.openvinotoolkit"
 CUSTOM_OPSET_VERSION = 1
 
 
@@ -109,7 +109,7 @@ class _BevPoolV2CustomOp(torch.autograd.Function):
         out_width: int,
     ):
         # Map to a domain-qualified custom op.
-        # Consumers should register this op under domain `com.intel.bevpool`.
+        # Consumers should register this op under domain `org.openvinotoolkit`.
         out = g.op(
             f"{CUSTOM_DOMAIN}::BevPoolV2",
             feat,
