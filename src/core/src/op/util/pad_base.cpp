@@ -10,6 +10,8 @@
 #include "openvino/op/pad.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/reference/pad.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 #include "pad_shape_inference.hpp"
 
 namespace ov {
@@ -101,6 +103,51 @@ void op::util::PadBase::validate_and_infer_types() {
 
 bool op::util::PadBase::evaluate_pad(TensorVector& outputs, const TensorVector& inputs) const {
     const auto& data = inputs[0];
+
+    // element::string requires proper C++ copy semantics — raw byte copy via
+    // std::copy(char*, char*+32, ...) corrupts std::string internals (aliased heap
+    // pointer for non-SSO strings → double-free).  Handle it here explicitly.
+    if (data.get_element_type() == element::string) {
+        OPENVINO_ASSERT(get_pad_mode() == op::PadMode::CONSTANT,
+                        "Only CONSTANT pad mode is supported for element::string");
+
+        op::v0::Constant pads_begin_const(inputs[1]);
+        CoordinateDiff pads_begin_coord(pads_begin_const.cast_vector<ptrdiff_t>());
+        op::v0::Constant pads_end_const(inputs[2]);
+        CoordinateDiff pads_end_coord(pads_end_const.cast_vector<ptrdiff_t>());
+
+        const auto& data_shape = data.get_shape();
+        ov::Shape padded_shape(data_shape.size());
+        for (size_t i = 0; i < data_shape.size(); ++i)
+            padded_shape[i] = data_shape[i] + pads_begin_coord[i] + pads_end_coord[i];
+        outputs[0].set_shape(padded_shape);
+
+        const auto* src = static_cast<const std::string*>(data.data());
+        auto*       dst = static_cast<std::string*>(outputs[0].data());
+        const std::string pad_str =
+            (get_input_size() == 4)
+                ? *static_cast<const std::string*>(inputs[3].data())
+                : std::string{};
+
+        ov::CoordinateTransformBasic out_coord_transform(padded_shape);
+        for (const auto& out_coord : out_coord_transform) {
+            bool is_pad = false;
+            Coordinate in_coord(data_shape.size());
+            for (size_t ax = 0; ax < data_shape.size(); ++ax) {
+                const auto sc = static_cast<std::ptrdiff_t>(out_coord[ax]);
+                const auto cc = sc - pads_begin_coord[ax];
+                if (cc < 0 || cc >= static_cast<std::ptrdiff_t>(data_shape[ax])) {
+                    is_pad = true;
+                    break;
+                }
+                in_coord[ax] = static_cast<size_t>(cc);
+            }
+            const size_t dst_idx = ov::coordinate_index(out_coord, padded_shape);
+            dst[dst_idx] = is_pad ? pad_str : src[ov::coordinate_index(in_coord, data_shape)];
+        }
+        return true;
+    }
+
     const auto elem_size = data.get_element_type().size();
 
     const char* pad_value = nullptr;

@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <numeric>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/core/type/float16.hpp>
 #include <openvino/op/constant.hpp>
@@ -102,6 +103,8 @@ Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     fillingInParameters(attrs.padsBegin, PADS_BEGIN_ID);
     fillingInParameters(attrs.padsEnd, PADS_END_ID);
 
+    isStringDataType = (pad->get_input_element_type(DATA_ID) == ov::element::string);
+
     const auto pad_mode = pad->get_pad_mode();
     isPadValueSpecified = pad->get_input_size() == 4;
     if (pad_mode == op::PadMode::CONSTANT) {
@@ -109,8 +112,10 @@ Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         if (isPadValueSpecified && op->get_input_node_shared_ptr(PAD_VALUE_ID)->get_type_info() ==
                                        ov::op::v0::Constant::get_type_info_static()) {
             CPU_NODE_ASSERT(ov::is_scalar(pad->get_input_shape(PAD_VALUE_ID)), "has non scalar 'pad_value' input");
-            attrs.padValue = ov::as_type_ptr<const op::v0::Constant>(pad->get_input_node_shared_ptr(PAD_VALUE_ID))
-                                 ->cast_vector<float>()[0];
+            if (!isStringDataType) {
+                attrs.padValue = ov::as_type_ptr<const op::v0::Constant>(pad->get_input_node_shared_ptr(PAD_VALUE_ID))
+                                     ->cast_vector<float>()[0];
+            }
             attrs.constPadValue = true;
         }
     } else if (pad_mode == op::PadMode::EDGE) {
@@ -131,8 +136,13 @@ void Pad::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    std::vector<ov::element::Type> supportedPrecisions =
-        {ov::element::f32, ov::element::i32, ov::element::bf16, ov::element::f16, ov::element::i8, ov::element::u8};
+    std::vector<ov::element::Type> supportedPrecisions = {ov::element::f32,
+                                                          ov::element::i32,
+                                                          ov::element::bf16,
+                                                          ov::element::f16,
+                                                          ov::element::i8,
+                                                          ov::element::u8,
+                                                          ov::element::string};
     ov::element::Type precision = getOriginalInputPrecisionAtPort(DATA_ID);
     if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), precision) == supportedPrecisions.end()) {
         precision = precision.is_real() ? ov::element::f32 : ov::element::i32;
@@ -154,8 +164,10 @@ void Pad::initSupportedPrimitiveDescriptors() {
         config.inConfs[2].setMemDesc(
             creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::i32, getInputShapeAtPort(PADS_END_ID)));
         if (isPadValueSpecified) {
-            config.inConfs[3].setMemDesc(creatorsMap.at(LayoutType::ncsp)
-                                             ->createSharedDesc(ov::element::f32, getInputShapeAtPort(PAD_VALUE_ID)));
+            const auto padValPrec =
+                (precision == ov::element::string) ? ov::element::string : ov::element::f32;
+            config.inConfs[3].setMemDesc(
+                creatorsMap.at(LayoutType::ncsp)->createSharedDesc(padValPrec, getInputShapeAtPort(PAD_VALUE_ID)));
         }
 
         config.outConfs[0].setMemDesc(
@@ -209,7 +221,7 @@ void Pad::createPrimitive() {
     if (inputShapesDefined() && isExecutable() && !shapeHasDataDependency) {
         // WA to prevent reading uninitialized data in case of the pad value is a parameter
         MemoryCPtr padValue = srcMemory.size() > PAD_VALUE_ID ? srcMemory[PAD_VALUE_ID] : nullptr;
-        if (padValue && !getParentEdgeAt(PAD_VALUE_ID)->getParent()->isConstant()) {
+        if (padValue && !getParentEdgeAt(PAD_VALUE_ID)->getParent()->isConstant() && !isStringDataType) {
             // set artificial zero memory just to avoid reading garbage from the uninitilized input
             auto tmpPadValue = std::make_shared<Memory>(getEngine(), padValue->getDescPtr());
             tmpPadValue->nullify();
@@ -235,6 +247,10 @@ bool Pad::isExecutable() const {
 
 void Pad::prepareParams() {
     updateLastInputDims();
+    if (isStringDataType) {
+        // String Pad is executed by executeString(); PadExecutor does not support element::string
+        return;
+    }
     attrs.cpuParallel = context->getCpuParallel();
     execPtr = std::make_shared<PadExecutor>(attrs, srcMemory, dstMemory);
 }
@@ -428,13 +444,89 @@ void Pad::PadExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemP
 }
 
 void Pad::execute([[maybe_unused]] const dnnl::stream& strm) {
+    if (isStringDataType) {
+        executeString();
+        return;
+    }
     CPU_NODE_ASSERT(execPtr, "has not compiled executor.");
 
     execPtr->exec(getSrcMemoryAtPort(0), getDstMemoryAtPort(0));
 }
 
 void Pad::executeDynamicImpl(const dnnl::stream& strm) {
+
     execute(strm);
+}
+
+// Regular PadExecutor operates on raw bytes which is undefined behaviour for std::string objects
+void Pad::executeString() {
+    OPENVINO_ASSERT(attrs.padMode == CONSTANT,
+                    "Pad: only CONSTANT mode is supported for string data type");
+
+    const auto srcMem = getSrcMemoryAtPort(DATA_ID);
+    const auto dstMem = getDstMemoryAtPort(DATA_ID);
+    const auto* src   = srcMem->getDataAs<const std::string>();
+    auto*       dst   = dstMem->getDataAs<std::string>();
+
+    const auto& srcShape = srcMem->getStaticDims();
+    const auto& dstShape = dstMem->getStaticDims();
+    const size_t nDims   = srcShape.size();
+
+    std::vector<int32_t> padsBegin = attrs.padsBegin;
+    std::vector<int32_t> padsEnd   = attrs.padsEnd;
+    if (padsBegin.empty()) {
+        const auto* pb = getSrcMemoryAtPort(PADS_BEGIN_ID)->getDataAs<const int32_t>();
+        padsBegin.assign(pb, pb + nDims);
+    }
+    if (padsEnd.empty()) {
+        const auto* pe = getSrcMemoryAtPort(PADS_END_ID)->getDataAs<const int32_t>();
+        padsEnd.assign(pe, pe + nDims);
+    }
+
+    const std::string padStr =
+        isPadValueSpecified ? *getSrcMemoryAtPort(PAD_VALUE_ID)->getDataAs<const std::string>() : std::string{};
+
+    // Row-major strides for the source tensor
+    std::vector<size_t> srcStrides(nDims, 1UL);
+    for (int d = static_cast<int>(nDims) - 2; d >= 0; --d)
+        srcStrides[d] = srcStrides[d + 1] * srcShape[d + 1];
+
+    const size_t nDst = std::accumulate(dstShape.begin(), dstShape.end(), size_t{1}, std::multiplies<size_t>{});
+
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        size_t start = 0, end = 0;
+        splitter(nDst, nthr, ithr, start, end);
+
+        std::vector<size_t> coord(nDims);
+        {
+            size_t tmp = start;
+            for (int d = static_cast<int>(nDims) - 1; d >= 0; --d) {
+                coord[d] = tmp % dstShape[d];
+                tmp      /= dstShape[d];
+            }
+        }
+
+        for (size_t i = start; i < end; ++i) {
+            bool   in_range = true;
+            size_t srcIdx   = 0;
+            for (size_t d = 0; d < nDims; ++d) {
+                const int64_t sc = static_cast<int64_t>(coord[d]) - padsBegin[d];
+                if (sc < 0 || sc >= static_cast<int64_t>(srcShape[d])) {
+                    in_range = false;
+                    break;
+                }
+                srcIdx += static_cast<size_t>(sc) * srcStrides[d];
+            }
+
+            dst[i] = in_range ? src[srcIdx] : padStr;
+
+            for (int d = static_cast<int>(nDims) - 1; d >= 0; --d) {
+                if (++coord[d] < dstShape[d])
+                    break;
+                coord[d] = 0;
+            }
+        }
+    });
 }
 
 static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims& dims, std::vector<int32_t>& indexes) {
