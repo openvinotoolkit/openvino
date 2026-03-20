@@ -18,17 +18,6 @@ namespace ov {
 namespace test {
 
 TEST_P(PagedAttentionTokenTypeTest, ImageTokensDifferFromCausal) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType, head_size, head_num, pattern, device] = this->GetParam();
-
-    size_t seq_len = pattern.types.size();
-    size_t hidden_dim = head_num * head_size;
-
-    // Create q, k, v tensors shared across both runs
-    ov::Tensor q_tensor(inType, {seq_len, hidden_dim});
-    ov::Tensor k_tensor(inType, {seq_len, hidden_dim});
-    ov::Tensor v_tensor(inType, {seq_len, hidden_dim});
-
     std::vector<float> q_data{
         0.764539,  0.830008,  -0.234272, 0.918611,  -0.219104, 0.201791,  -0.486855, 0.587283,  0.881543,  -0.733628, 0.869196,  0.187159,  0.738809,
         0.135431,  0.482188,  -0.141191, 0.770886,  0.147809,  -0.46684,  0.254898,  -0.460737, -0.117273, -0.406158, 0.663371,  -0.78937,  -0.46101,
@@ -107,19 +96,6 @@ TEST_P(PagedAttentionTokenTypeTest, ImageTokensDifferFromCausal) {
         -0.315192, 0.603313,  -0.367653, -0.085877, 0.933738,  -0.409974, -0.71541,  -0.559644, -0.277246, -0.474499, -0.518932, 0.403944,  0.169938,
         -0.320062, -0.776911, -0.31486,  -0.422039, -0.325419, -0.902123, 0.215429,  -0.734724, -0.778799, -0.817033, 0.417384,  -0.602027, -0.412751,
         0.783841,  0.530964,  0.573391,  -0.949507, -0.7171,   -0.377511, 0.826098,  0.1023};
-    if (inType == ov::element::f32) {
-        auto fill_f32 = [](ov::Tensor& t, const std::vector<float>& data) {
-            auto* p = t.data<float>();
-            ASSERT_TRUE(data.size() == t.get_size());
-            for (size_t i = 0; i < t.get_size(); i++) {
-                p[i] = data[i];
-            }
-        };
-        fill_f32(q_tensor, q_data);
-        fill_f32(k_tensor, k_data);
-        fill_f32(v_tensor, v_data);
-    }
-
     const std::vector<float> wanted_output{
         0.204055,  -0.936876, 0.873114,  0.627391,  -0.978946, -0.477633, 0.326155,  -0.20546,  -0.108976, -0.451516, 0.80322,   -0.558998, 0.829277,
         0.064522,  0.201022,  0.780132,  -0.164766, -0.569343, -0.161734, 0.811053,  -0.741987, 0.22698,   -0.982791, 0.524302,  0.369468,  0.042392,
@@ -146,8 +122,11 @@ TEST_P(PagedAttentionTokenTypeTest, ImageTokensDifferFromCausal) {
         0.259847,  0.077396,  -0.216889, -0.165674, 0.114659,  0.420869,  -0.310004, -0.219591, 0.058677,  0.111571,  0.075767,  -0.308003, 0.027901,
         -0.193572, 0.030041,  -0.003273, -0.011198, 0.11971,   -0.113571, 0.096788,  0.267463,  0.206419,  -0.269637, 0.570271,  -0.336993, 0.193851,
         0.012757,  0.050464,  0.260114,  -0.194947, -0.03562,  -0.219055, 0.196855,  0.047158};
+    std::vector<int32_t> token_types{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-    RunAndValidate(pattern.types, q_tensor, k_tensor, v_tensor, wanted_output);
+    InferenceData data{token_types, q_data, k_data, v_data, wanted_output};
+
+    RunAndValidate(data);
 }
 
 namespace {

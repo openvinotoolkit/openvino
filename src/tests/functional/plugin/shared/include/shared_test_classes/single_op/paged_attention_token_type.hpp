@@ -19,6 +19,14 @@ struct TokenTypePattern {
     std::vector<int32_t> types;  // 0=text, 1=image
 };
 
+struct InferenceData {
+    std::vector<int32_t> tokenTypes;
+    std::vector<float> qData;
+    std::vector<float> kData;
+    std::vector<float> vData;
+    std::vector<float> expectedOutput;
+};
+
 using PagedAttnTokenTypeParams = std::tuple<ov::element::Type_t,
                                             size_t,            //< head_size
                                             size_t,            //< head_num
@@ -34,15 +42,7 @@ public:
 protected:
     void SetUp() override;
 
-    void RunAndValidate(const std::vector<int32_t>& token_types,
-                          const ov::Tensor& q_tensor,
-                          const ov::Tensor& k_tensor,
-                          const ov::Tensor& v_tensor,
-                          const std::vector<float>& expected_output);
-
-private:
-    ov::Dimension::value_type headSize;
-    ov::Dimension::value_type headNum;
+    void RunAndValidate(const InferenceData& data);
 };
 
 }  // namespace test

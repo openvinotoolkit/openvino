@@ -151,32 +151,38 @@ void PagedAttentionTokenTypeTest::SetUp() {
     configuration[ov::hint::inference_precision.name()] = ov::element::f32;
     configuration[ov::hint::kv_cache_precision.name()] = ov::element::f32;
     targetDevice = device;
-    headSize = head_size;
-    headNum = head_num;
     function = helpers::PrepareModel(inType, head_size, head_num);
     compile_model();
 }
 
-void PagedAttentionTokenTypeTest::RunAndValidate(const std::vector<int32_t>& token_types,
-                                                   const ov::Tensor& q_tensor,
-                                                   const ov::Tensor& k_tensor,
-                                                   const ov::Tensor& v_tensor,
-                                                   const std::vector<float>& wanted_output) {
-    auto data_type = q_tensor.get_element_type();
-    size_t seq_len = q_tensor.get_shape()[0];
-    size_t hidden_dim = q_tensor.get_shape()[1];
-    size_t head_size = headSize;
-    size_t head_num = headNum;
-    ASSERT_EQ(token_types.size(), seq_len);
-    ASSERT_EQ(head_num * head_size, hidden_dim);
+void PagedAttentionTokenTypeTest::RunAndValidate(const InferenceData& data) {
+    const auto& [inType, head_size, head_num, pattern, device] = this->GetParam();
+
+    const size_t seq_len = data.tokenTypes.size();
+    const size_t hidden_dim = head_size * head_num;
+
+    ASSERT_EQ(data.qData.size(), seq_len * hidden_dim);
+    ASSERT_EQ(data.kData.size(), seq_len * hidden_dim);
+    ASSERT_EQ(data.vData.size(), seq_len * hidden_dim);
+
+    ov::Tensor token_type_tensor(ov::element::i32, {seq_len});
+    std::memcpy(token_type_tensor.data<int32_t>(), data.tokenTypes.data(), seq_len * sizeof(int32_t));
+
+    ASSERT_TRUE(inType == ov::element::f32);
+    ov::Tensor q_tensor(inType, {seq_len, hidden_dim});
+    std::memcpy(q_tensor.data<float>(), data.qData.data(), seq_len * hidden_dim * sizeof(float));
+    ov::Tensor k_tensor(inType, {seq_len, hidden_dim});
+    std::memcpy(k_tensor.data<float>(), data.kData.data(), seq_len * hidden_dim * sizeof(float));
+    ov::Tensor v_tensor(inType, {seq_len, hidden_dim});
+    std::memcpy(v_tensor.data<float>(), data.vData.data(), seq_len * hidden_dim * sizeof(float));
 
     auto infer_request = compiledModel.create_infer_request();
 
     // Create cache tensors with known shapes
     const size_t block_size = 16;
     const size_t block_nums = 1024 / block_size;
-    ov::Tensor key_cache_tensor(data_type, {block_nums, head_num, head_size, block_size});
-    ov::Tensor value_cache_tensor(data_type, {block_nums, head_num, block_size, head_size});
+    ov::Tensor key_cache_tensor(inType, {block_nums, head_num, head_size, block_size});
+    ov::Tensor value_cache_tensor(inType, {block_nums, head_num, block_size, head_size});
 
     auto params = function->get_parameters();
 
@@ -197,10 +203,6 @@ void PagedAttentionTokenTypeTest::RunAndValidate(const std::vector<int32_t>& tok
     for (int32_t i = 0; i < total_blocks; i++) {
         block_indices.data<int32_t>()[i] = i;
     }
-
-    // token_type_ids
-    ov::Tensor token_type_tensor(ov::element::i32, {seq_len});
-    std::memcpy(token_type_tensor.data<int32_t>(), token_types.data(), seq_len * sizeof(int32_t));
 
     for (auto& param : params) {
         auto name = param->get_friendly_name();
@@ -236,12 +238,12 @@ void PagedAttentionTokenTypeTest::RunAndValidate(const std::vector<int32_t>& tok
 
     const float tolerance = (inType == ElementType::f16) ? 1e-2f : 1e-5f;
 
-    ASSERT_EQ(outputVec.size(), wanted_output.size());
+    ASSERT_EQ(outputVec.size(), data.expectedOutput.size());
 
     for (size_t i = 0; i < outputVec.size(); i++) {
-        float diff = std::abs(outputVec[i] - wanted_output[i]);
+        float diff = std::abs(outputVec[i] - data.expectedOutput[i]);
         EXPECT_LE(diff, tolerance) << "Output differs from expected at index " << i << ": got " << outputVec[i]
-                                   << ", expected " << wanted_output[i];
+                                   << ", expected " << data.expectedOutput[i];
     }
 }
 
