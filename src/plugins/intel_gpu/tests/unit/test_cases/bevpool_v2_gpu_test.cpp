@@ -16,10 +16,10 @@ TEST(bevpool_v2_gpu_test, ref_comp_f32) {
     auto& engine = get_test_engine();
     auto stream = get_test_stream_ptr(get_test_default_config(engine));
 
-    const auto cf = engine.allocate_memory({ov::PartialShape{1, 1, 2, 2}, data_types::f32, format::bfyx});
-    const auto dw = engine.allocate_memory({ov::PartialShape{1, 2, 2, 2}, data_types::f32, format::bfyx});
-    const auto idx = engine.allocate_memory({ov::PartialShape{5}, data_types::i32, format::bfyx});
-    const auto itv = engine.allocate_memory({ov::PartialShape{6}, data_types::i32, format::bfyx});
+    const auto cf = engine.allocate_memory({ov::PartialShape{1, 1, 2, 2}, data_types::f32, format::bfyx}, allocation_type::usm_host);
+    const auto dw = engine.allocate_memory({ov::PartialShape{1, 2, 2, 2}, data_types::f32, format::bfyx}, allocation_type::usm_host);
+    const auto idx = engine.allocate_memory({ov::PartialShape{5}, data_types::i32, format::bfyx}, allocation_type::usm_host);
+    const auto itv = engine.allocate_memory({ov::PartialShape{6}, data_types::i32, format::bfyx}, allocation_type::usm_host);
 
     set_values<float>(cf, {10.f, 20.f, 30.f, 40.f});
     set_values<float>(dw, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
@@ -59,11 +59,11 @@ TEST(bevpool_v2_gpu_test, ref_comp_f32) {
     ASSERT_EQ(outputs.size(), size_t{1});
 
     const auto output = outputs.at("bevpool_v2").get_memory();
-    const auto expected = engine.allocate_memory({ov::PartialShape{1, 1, 2, 1}, data_types::f32, format::bfyx});
+    const auto expected = engine.allocate_memory({ov::PartialShape{1, 1, 2, 1}, data_types::f32, format::bfyx}, allocation_type::usm_host);
     set_values<float>(expected, {50.f, 300.f});
 
-    mem_lock<float> output_ptr(output, get_test_stream());
-    mem_lock<float> expected_ptr(expected, get_test_stream());
+    mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    mem_lock<float, mem_lock_type::read> expected_ptr(expected, get_test_stream());
     ASSERT_EQ(output_ptr.size(), expected_ptr.size());
     for (size_t i = 0; i < output_ptr.size(); ++i) {
         ASSERT_TRUE(are_equal(expected_ptr[i], output_ptr[i], 2e-3f)) << "at index " << i;

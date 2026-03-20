@@ -15,9 +15,9 @@ Usage
   python export_bevpool_v2_custom_op.py \
     --out bevpool_v2_custom.onnx \
     --opset 14 \
-        --N 1 --D 90 --H 54 --W 96 --C 80 \
-        --out-height 128 --out-width 128 \
-        --K 466560 --M 7313
+    --N 1 --D 90 --H 54 --W 96 --C 80 \
+    --out-height 128 --out-width 128 \
+    --K 466560 --M 7313
 
 The produced ONNX will require a runtime that implements the custom op
 `com.intel.bevpool::BevPoolV2`.
