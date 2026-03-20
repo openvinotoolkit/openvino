@@ -88,7 +88,6 @@ protected:
             const size_t batch = q_shape[0].get_length();
             const size_t seq_len = q_shape[1].get_length();
             const size_t head_nums = v_shape[2].get_length();
-            const size_t k_head_dims = q_shape[3].get_length();
             const size_t v_head_dims = v_shape[3].get_length();
             const size_t v_blocks = (v_head_dims + v_block_size - 1) / v_block_size;
             const size_t subgroup_size = get_subgroup_size(params.get_device_info().arch);
