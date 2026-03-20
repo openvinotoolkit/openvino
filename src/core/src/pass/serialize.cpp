@@ -31,7 +31,7 @@
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 namespace {
-const void validate_xml_path(const std::filesystem::path& path) {
+void validate_xml_path(const std::filesystem::path& path) {
     OPENVINO_ASSERT(path.extension() == ".xml",
                     "Path for xml file doesn't contains file name with 'xml' extension: ",
                     path);
@@ -43,7 +43,7 @@ std::filesystem::path provide_bin_path(const std::filesystem::path& xml_path) {
     return bin_path;
 }
 
-void convert_py_rt_info(const ov::Model& model) {
+void convert_py_rt_info(ov::Model& model) {
     // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
     //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
     // ['precise_0'] = '' into => rt_info['precise_0'] = DisableFP16Compression{}
