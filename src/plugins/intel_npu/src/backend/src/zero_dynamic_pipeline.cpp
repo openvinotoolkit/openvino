@@ -76,17 +76,6 @@ DynamicPipeline::DynamicPipeline(const Config& config,
         _graph->resize_last_submitted_event(_number_of_command_lists);
     }
 
-    auto reuseCmdList = getenv("ENABLED_HOST_COMPILE_REUSE_CMDLIST");
-    if (reuseCmdList != nullptr) {
-        if (std::string(reuseCmdList) == "1")
-            _reuseCmdListMode = ENABLE_REUSE_WITH_MUTABLE_COMMANDLIST;
-        else if (std::string(reuseCmdList) == "2")
-            _reuseCmdListMode = ENABLE_REUSE_WITHOUT_MUTATING_COMMANDLIST;
-        else {
-            _reuseCmdListMode = DISABLE_EXECUTION_CONTEXT_CREATION;
-        }
-    }
-
     OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>() ||
                         _init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
                     "In-order execution doesn't work in case synchronization of the inferences is done using events");
@@ -308,7 +297,8 @@ void DynamicPipeline::push() {
         } else {
 
             auto& cmdLists = command_lists->_commandListHandles;
-            if (_reuseCmdListMode == ENABLE_REUSE_WITH_MUTABLE_COMMANDLIST) {
+            if (_reuseCmdListMode == ENABLE_REUSE_WITH_MUTABLE_COMMANDLIST ||
+            _reuseCmdListMode == ENABLE_REUSE_WITH_EXECUTE_MUTABLE_COMMANDLIST) {
                 
                 uint64_t numArgs = graphArguments._inputs.size() + graphArguments._outputs.size();
 
@@ -325,11 +315,12 @@ void DynamicPipeline::push() {
                 // UpdateMutableCommandList is called.
                 command_lists->closeCommandList();
             }
-
-            auto cmdQueue = _graph->get_command_queue();
-            auto result = zeCommandQueueExecuteCommandLists(cmdQueue->handle(), static_cast<uint32_t>(cmdLists.size()), cmdLists.data(), fence);
-            if (result != ZE_RESULT_SUCCESS) {
-                OPENVINO_THROW("Failed to submit command lists");
+            if(_reuseCmdListMode != ENABLE_REUSE_WITH_EXECUTE_MUTABLE_COMMANDLIST) {
+                auto cmdQueue = _graph->get_command_queue();
+                auto result = zeCommandQueueExecuteCommandLists(cmdQueue->handle(), static_cast<uint32_t>(cmdLists.size()), cmdLists.data(), fence);
+                if (result != ZE_RESULT_SUCCESS) {
+                    OPENVINO_THROW("Failed to submit command lists");
+                }
             }
         }
     }

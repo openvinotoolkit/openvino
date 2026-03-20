@@ -242,6 +242,15 @@ NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL np
     uint64_t* argIndexArray,                     ///< [in] pointer to argument index list
     uint64_t argIndexArraySize);                 ///< [in] size of argument index list
 
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Execute mutable command list used in execution and execute
+NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimeExecuteMutableCommandList(
+    npu_mlir_runtime_handle_t hRuntime,          ///< [in] handle of mlir runtime object
+    npu_mlir_runtime_execute_params_t* pParams,  ///< [in] pointer to execution parameters
+    uint64_t* argIndexArray,                     ///< [in] pointer to argument index list
+    uint64_t argIndexArraySize);                 ///< [in] size of argument index list
+
+
 #if defined(__cplusplus)
 }  // extern "C"
 #endif
