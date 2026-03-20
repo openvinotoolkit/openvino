@@ -1,4 +1,3 @@
-#include "openvino/op/constant.hpp"
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -58,10 +57,11 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
         auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshape, routers);
 
         // tokens:32, num_experts:128, topk:8
-        auto [unsqueeze_moe, topk_indices] =
-            routing_type == MoERoutingType::SOFTMAX
-                ? build_softmax_routing_subgraph(routing_weights, 128, 8)
-                : build_sigmoid_bias_routing_subgraph(routing_weights, element::f16, 128, 8);
+        auto routing_pair = routing_type == MoERoutingType::SOFTMAX
+            ? build_softmax_routing_subgraph(routing_weights, 128, 8)
+            : build_sigmoid_bias_routing_subgraph(routing_weights, element::f16, 128, 8);
+        auto unsqueeze_moe = routing_pair.first;
+        auto topk_indices = routing_pair.second;
 
         auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
         auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 16, 768}, {0.01f});
@@ -161,46 +161,9 @@ TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertCompressedTest) {
         auto routers = op::v0::Constant::create(element::f16, Shape{2048, 128}, {0.2});
         auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states, routers);
 
-        auto softmax = std::make_shared<ov::op::v8::Softmax>(routing_weights, 1);
-        auto k = op::v0::Constant::create(element::i32, Shape{}, {8});
-        auto topk = std::make_shared<ov::op::v11::TopK>(softmax, k, 1,
-            ov::op::v11::TopK::Mode::MAX, ov::op::v11::TopK::SortType::SORT_VALUES);
-
-        // weight output
-        auto reduce_axis = op::v0::Constant::create(element::i64, Shape{1}, {1});
-        auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(topk->output(0), reduce_axis->output(0), true);
-        auto norm = std::make_shared<ov::op::v1::Divide>(topk->output(0), reduce_sum->output(0));
-
-        // 32
-        auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(topk->output(1));  // [2]{32, 8}
-        auto gather_idx = op::v0::Constant::create(element::i64, Shape{}, {0});
-        auto gather_axis = op::v0::Constant::create(element::i64, Shape{}, {0});
-        auto gather = std::make_shared<ov::op::v8::Gather>(shape_of, gather_idx, gather_axis); // scalar: 32
-        auto const_unsqueeze = op::v0::Constant::create(element::i64, Shape{1}, {0});
-        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(gather, const_unsqueeze);  // [1]{32}
-
-        // 128
-        auto const0 = op::v0::Constant::create(element::i64, Shape{}, {128});
-        auto const1 = op::v0::Constant::create(element::i64, Shape{1}, {0});
-        auto unsqueeze1 = std::make_shared<ov::op::v0::Unsqueeze>(const0, const1);  // [1]{128}
-        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{unsqueeze, unsqueeze1}, 0);  // [2]{32,128}
-        auto const3 = op::v0::Constant::create(element::i64, Shape{1}, {1});
-        auto concat1 = std::make_shared<ov::op::v0::Concat>(OutputVector{unsqueeze1, unsqueeze, const3}, 0);
-
-        // [32, 128]
-        auto zero = op::v0::Constant::create(element::f16, Shape{1}, {0});
-        auto bc = std::make_shared<ov::op::v3::Broadcast>(zero, concat);
-        auto scatter_axis = op::v0::Constant::create(element::i64, Shape{1}, {1});
-        auto scatter = std::make_shared<ov::op::v12::ScatterElementsUpdate>(bc,                  // [32, 128]
-                                                                            topk->output(1),     // [32, 8]
-                                                                            norm,                // [32, 8]
-                                                                            scatter_axis,        // [1]
-                                                                            ov::op::v12::ScatterElementsUpdate::Reduction::SUM);
-        auto transpose_shape = op::v0::Constant::create(element::i64, Shape{2}, {1, 0});
-        auto transpose = std::make_shared<ov::op::v1::Transpose>(scatter, transpose_shape);  // [128, 32]
-        auto reshape = std::make_shared<ov::op::v1::Reshape>(transpose, concat1, false);
-        auto unsqueeze_const = op::v0::Constant::create(element::i64, Shape{1}, {3});
-        auto unsqueeze_moe = std::make_shared<ov::op::v0::Unsqueeze>(reshape, unsqueeze_const); // [128, 1, 32, 1]
+        auto routing_pair = build_softmax_routing_subgraph(routing_weights, 128, 8);
+        auto unsqueeze_moe = routing_pair.first;
+        auto topk_indices = routing_pair.second;
 
         // weight
         auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
@@ -234,7 +197,7 @@ TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertCompressedTest) {
         config.top_k = 8;
         config.out_type = ov::element::f16;
         auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(
-            ov::OutputVector{hidden_states, unsqueeze_moe, topk->output(1),
+            ov::OutputVector{hidden_states, unsqueeze_moe, topk_indices,
                 wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up, wei_down, scale_down, zp_down,
                 sh_wei_gate, sh_scale_gate, sh_zp_gate, sh_wei_up, sh_scale_up, sh_zp_up,
                 sh_wei_down, sh_scale_down, sh_zp_down, sh_gate_gate_wei}, config);

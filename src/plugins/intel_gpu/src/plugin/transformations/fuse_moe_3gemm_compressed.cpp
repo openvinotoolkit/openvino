@@ -164,8 +164,12 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
         if (!has_shared_expert) {
             config.num_shared_expert = 0;
         }
+        // When Optional<Reshape> is absent, the optional pattern is NOT in the map.
+        auto hs_reshaped = pattern_map.count(hidden_state_reshape)
+            ? pattern_map.at(hidden_state_reshape)
+            : pattern_map.at(hidden_state_m);
         OutputVector args{
-            pattern_map.at(hidden_state_reshape),
+            hs_reshaped,
             pattern_map.at(matmul),
             pattern_map.at(gate_wei_m),
             pattern_map.at(gate_scale_m),
@@ -207,7 +211,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
 
         // If MOECompressed's first input was the original (un-reshaped) hidden state
         // but the fused op works on the flattened 2D input, reshape the output back.
-        if (moe_compressed->input_value(0) == pattern_map.at(hidden_state_m)) {
+        if (moe_compressed->input_value(0) != hs_reshaped) {
             auto hidden_state_shape = std::make_shared<ov::op::v3::ShapeOf>(pattern_map.at(hidden_state_m));
             moe_router_fused = std::make_shared<ov::op::v1::Reshape>(moe_router_fused, hidden_state_shape, false);
             ov::copy_runtime_info(moe_compressed, {hidden_state_shape, moe_router_fused});
