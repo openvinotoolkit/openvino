@@ -223,7 +223,7 @@ TEST(propagate_constants, no_reselection_when_constants_are_static) {
 TEST(propagate_constants, all_reselection_targets_get_consistent_static_impl) {
     auto& engine = get_test_engine();
 
-    auto static_layout = layout{{1, 3, 4, 4}, data_types::f32, format::bfyx};
+    const auto static_layout = layout{{1, 3, 4, 4}, data_types::f32, format::bfyx};
 
     topology topology(
         input_layout("input_1", static_layout),
