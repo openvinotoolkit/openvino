@@ -24,8 +24,7 @@
 #    endif
 #endif
 
-namespace ov {
-namespace util {
+namespace ov::util {
 
 /// @brief A std::streambuf that reads from a file using parallel I/O for large
 ///        reads, bypassing the OS page cache pressure that mmap+memcpy incurs.
@@ -84,5 +83,4 @@ private:
     std::array<char_type, UNDERFLOW_BUF> m_underflow_buf{};  // buffer for underflow()
 };
 
-}  // namespace util
-}  // namespace ov
+}  // namespace ov::util

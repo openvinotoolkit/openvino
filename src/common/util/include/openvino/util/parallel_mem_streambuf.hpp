@@ -9,8 +9,7 @@
 
 #include "openvino/util/parallel_read_streambuf.hpp"
 
-namespace ov {
-namespace util {
+namespace ov::util {
 
 /// @brief A std::streambuf that reads from an in-memory buffer using parallel
 ///        memcpy for large reads.
@@ -38,7 +37,7 @@ public:
     /// @param data       Pointer to the start of the memory region.
     /// @param size       Total size of the memory region in bytes.
     /// @param threshold  Minimum read size to engage parallel memcpy.
-    ParallelMemStreamBuf(const void* data, size_t size, size_t threshold = DEFAULT_THRESHOLD);
+    explicit ParallelMemStreamBuf(const void* data, size_t size, size_t threshold = DEFAULT_THRESHOLD);
 
     ~ParallelMemStreamBuf() override = default;
 
@@ -66,5 +65,4 @@ private:
     std::unique_ptr<ParallelReadStreamBuf> m_file_buf;
 };
 
-}  // namespace util
-}  // namespace ov
+}  // namespace ov::util

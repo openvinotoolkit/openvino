@@ -49,17 +49,6 @@ endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
 
-# parallel_read_streambuf.cpp and parallel_mem_streambuf.cpp call
-# ov::parallel_for from openvino/core/parallel.hpp, which requires:
-#   1. The core include path (for the header itself).
-#   2. The correct OV_THREAD compile definition so parallel.hpp selects the
-#      right threading backend and does not trigger -Wundef warnings.
-# Using PRIVATE for both avoids leaking these into consumers of openvino_util.
-target_include_directories(${TARGET_NAME} PRIVATE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/include>)
-
-ov_set_threading_interface_for(${TARGET_NAME})
-
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     SOURCE_DIRECTORIES ${UTIL_INCLUDE_DIR})

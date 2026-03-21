@@ -8,8 +8,8 @@
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
-
-#include "openvino/core/parallel.hpp"
+#include <thread>
+#include <vector>
 
 #ifdef _WIN32
 // clang-format off
@@ -167,7 +167,7 @@ std::streamsize ParallelMemStreamBuf::xsgetn(char_type* dst, std::streamsize n) 
     if (m_file_buf) {
         return m_file_buf->sgetn(dst, n);
     }
-    if (m_current >= m_end) {
+    if (n <= 0 || m_current >= m_end) {
         return 0;
     }
     const std::streamsize avail = static_cast<std::streamsize>(m_end - m_current);
@@ -251,7 +251,12 @@ void ParallelMemStreamBuf::parallel_copy(char* dst, const char* src, size_t size
     constexpr size_t MAX_CHUNKS = 16;
     const size_t num_chunks = std::max(size_t{1}, std::min(size / MIN_CHUNK, MAX_CHUNKS));
 #else
-    const size_t num_chunks = std::max(size_t{1}, size / MIN_CHUNK);
+    // Cap at hardware_concurrency: without a bound, a large anonymous buffer
+    // (e.g. 10 GB loaded into a vector) would spawn size/MIN_CHUNK = 5120
+    // threads, exhausting pthread stacks and causing severe OS scheduling
+    // overhead.  Match the same hw_threads ceiling used by parallel_read.
+    const size_t hw_conc = std::max(size_t{1}, static_cast<size_t>(std::thread::hardware_concurrency()));
+    const size_t num_chunks = std::max(size_t{1}, std::min(size / MIN_CHUNK, hw_conc));
 #endif
     const size_t chunk_size = (size + num_chunks - 1) / num_chunks;
 
@@ -267,11 +272,27 @@ void ParallelMemStreamBuf::parallel_copy(char* dst, const char* src, size_t size
     madvise(reinterpret_cast<void*>(src_aligned), size + (src_base - src_aligned), MADV_WILLNEED);
 #endif
 
-    ov::parallel_for(num_chunks, [&](size_t i) {
-        const size_t offset = i * chunk_size;
-        const size_t copy_size = (i + 1 == num_chunks) ? (size - offset) : chunk_size;
-        std::memcpy(dst + offset, src + offset, copy_size);
-    });
+    std::vector<std::thread> workers;
+    workers.reserve(num_chunks);
+    for (size_t i = 0; i < num_chunks; ++i) {
+        try {
+            workers.emplace_back([&, i]() {
+                const size_t offset = i * chunk_size;
+                const size_t copy_size = (i + 1 == num_chunks) ? (size - offset) : chunk_size;
+                std::memcpy(dst + offset, src + offset, copy_size);
+            });
+        } catch (...) {
+            for (auto& t : workers)
+                t.join();
+            const size_t done = i * chunk_size;
+            if (done < size)
+                std::memcpy(dst + done, src + done, size - done);
+            return;
+        }
+    }
+    for (auto& t : workers) {
+        t.join();
+    }
 }
 
 }  // namespace util

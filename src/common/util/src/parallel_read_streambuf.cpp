@@ -8,8 +8,10 @@
 #include <atomic>
 #include <cstring>
 #include <stdexcept>
+#include <thread>
+#include <vector>
 
-#include "openvino/core/parallel.hpp"
+#include "openvino/util/file_util.hpp"
 
 #ifdef _WIN32
 // windows.h is included transitively via the header (needed for HANDLE member type)
@@ -38,23 +40,23 @@ ParallelReadStreamBuf::ParallelReadStreamBuf(const std::filesystem::path& path,
                            FILE_ATTRIBUTE_NORMAL,
                            nullptr);
     if (m_handle == INVALID_HANDLE_VALUE) {
-        throw std::runtime_error("ParallelReadStreamBuf: cannot open file: " + path.string());
+        throw std::runtime_error("ParallelReadStreamBuf: cannot open file: " + ov::util::path_to_string(path));
     }
     LARGE_INTEGER file_size = {};
     if (!GetFileSizeEx(m_handle, &file_size)) {
         CloseHandle(m_handle);
-        throw std::runtime_error("ParallelReadStreamBuf: cannot get file size: " + path.string());
+        throw std::runtime_error("ParallelReadStreamBuf: cannot get file size: " + ov::util::path_to_string(path));
     }
     m_file_size = static_cast<std::streamoff>(file_size.QuadPart);
 #else
     m_fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
     if (m_fd == -1) {
-        throw std::runtime_error("ParallelReadStreamBuf: cannot open file: " + path.string());
+        throw std::runtime_error("ParallelReadStreamBuf: cannot open file: " + ov::util::path_to_string(path));
     }
     struct stat st = {};
     if (::fstat(m_fd, &st) != 0) {
         ::close(m_fd);
-        throw std::runtime_error("ParallelReadStreamBuf: cannot stat file: " + path.string());
+        throw std::runtime_error("ParallelReadStreamBuf: cannot stat file: " + ov::util::path_to_string(path));
     }
     m_file_size = static_cast<std::streamoff>(st.st_size);
 #endif
@@ -71,7 +73,8 @@ ParallelReadStreamBuf::ParallelReadStreamBuf(const std::filesystem::path& path,
             m_fd = -1;
         }
 #endif
-        throw std::out_of_range("ParallelReadStreamBuf: header_offset is out of range for file: " + path.string());
+        throw std::out_of_range("ParallelReadStreamBuf: header_offset is out of range for file: " +
+                                ov::util::path_to_string(path));
     }
 }
 
@@ -91,6 +94,9 @@ ParallelReadStreamBuf::~ParallelReadStreamBuf() {
 // xsgetn: main hot path - called by sgetn() for all bulk reads
 // -----------------------------------------------------------------------
 std::streamsize ParallelReadStreamBuf::xsgetn(char_type* dst, std::streamsize n) {
+    if (n <= 0)
+        return 0;
+
     std::streamsize total = 0;
 
     // Drain any chars previously buffered by underflow()
@@ -163,6 +169,15 @@ ParallelReadStreamBuf::pos_type ParallelReadStreamBuf::seekoff(off_type off,
         // Account for the buffered chars from underflow() not yet consumed.
         const std::streamsize ahead = (gptr() != nullptr) ? static_cast<std::streamsize>(egptr() - gptr()) : 0;
         new_pos = m_file_offset - ahead + off;  // stays absolute
+        // Pure tell (off == 0): return current position without any side effects
+        // on the get area or m_file_offset.  Discarding the underflow buffer on a
+        // tell would force the next read to re-issue a pread for data that is
+        // already buffered, breaking interleaved getline()+tellg() patterns.
+        if (off == 0) {
+            if (new_pos < m_header_offset || new_pos > m_file_size)
+                return pos_type(off_type(-1));
+            return pos_type(new_pos - m_header_offset);
+        }
     } else {
         new_pos = m_file_size + off;  // stays absolute
     }
@@ -251,7 +266,7 @@ bool ParallelReadStreamBuf::single_read(char* dst, size_t size, size_t file_offs
 // Parallel positional read
 // -----------------------------------------------------------------------
 bool ParallelReadStreamBuf::parallel_read(char* dst, size_t size, size_t file_offset) {
-    const size_t hw_threads = static_cast<size_t>(parallel_get_max_threads());
+    const size_t hw_threads = std::max(size_t{1}, static_cast<size_t>(std::thread::hardware_concurrency()));
     const size_t max_by_size = size / (1024 * 1024);  // 1 thread per MB
     const size_t num_threads = std::max(size_t{1}, std::min(hw_threads, max_by_size));
 
@@ -266,97 +281,108 @@ bool ParallelReadStreamBuf::parallel_read(char* dst, size_t size, size_t file_of
     //   1. Non-last threads: cap read to min(chunk_size, size - cur_offset) so
     //      they never stride past EOF when the aligned chunk extends beyond it.
     //   2. Last thread: use (size - cur_offset) to capture every remaining byte
-    //      including the fragment that lies beyond (nthr-1) * chunk_size but
-    //      before size.  Using chunk_size here would silently drop those bytes.
+    //      including the fragment that lies beyond (num_threads-1) * chunk_size
+    //      but before size.  Using chunk_size here would silently drop those bytes.
     size_t chunk_size = size / num_threads;
     chunk_size = (chunk_size + 4095u) & ~size_t{4095u};
 
     std::atomic<bool> success{true};
-    // Dispatch via OpenVINO's thread pool (TBB/OMP/SEQ) so threads are reused
-    // across calls and there is no per-read create/destroy overhead.
     // Each worker opens its own file descriptor so that Linux's per-file-
     // description readahead state (file_ra_state / f_ra) is independent per
     // thread. Sharing a single fd causes concurrent pread() calls to corrupt
     // each other's sequential readahead prediction, collapsing throughput from
     // ~3.5 GB/s sequential to ~0.5 GB/s.
-    ov::parallel_nt_static(static_cast<int>(num_threads), [&](int ithr, int nthr) {
-        const size_t cur_offset = static_cast<size_t>(ithr) * chunk_size;
-        if (cur_offset >= size) {
-            return;  // page-alignment rounding created a surplus worker slot
-        }
-        // Last thread: read everything remaining (includes the fragment that
-        // falls between (nthr-1)*chunk_size and size).
-        // Non-last threads: cap to min(chunk_size, size - cur_offset) so we
-        // never read past eof when alignment pushed the chunk boundary beyond it.
-        const size_t read_size = (ithr == nthr - 1) ? (size - cur_offset) : std::min(chunk_size, size - cur_offset);
-        char* const ptr = dst + cur_offset;
-        const size_t thread_file_offset = file_offset + cur_offset;
+    std::vector<std::thread> workers;
+    workers.reserve(num_threads);
+    for (size_t ithr = 0; ithr < num_threads; ++ithr) {
+        try {
+            workers.emplace_back([&, ithr]() {
+                const size_t cur_offset = ithr * chunk_size;
+                if (cur_offset >= size) {
+                    return;  // page-alignment rounding created a surplus worker slot
+                }
+                // Last thread: read everything remaining (includes the fragment that
+                // falls between (num_threads-1)*chunk_size and size).
+                // Non-last threads: cap to min(chunk_size, size - cur_offset) so we
+                // never read past eof when alignment pushed the chunk boundary beyond it.
+                const size_t read_size =
+                    (ithr == num_threads - 1) ? (size - cur_offset) : std::min(chunk_size, size - cur_offset);
+                char* const ptr = dst + cur_offset;
+                const size_t thread_file_offset = file_offset + cur_offset;
 
 #ifdef _WIN32
-        const std::wstring wpath = m_path.native();
-        HANDLE t_handle = CreateFileW(wpath.c_str(),
-                                      GENERIC_READ,
-                                      FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                      nullptr,
-                                      OPEN_EXISTING,
-                                      FILE_ATTRIBUTE_NORMAL,
-                                      nullptr);
-        if (t_handle == INVALID_HANDLE_VALUE) {
-            success = false;
-            return;
-        }
+                const std::wstring& wpath = m_path.native();
+                HANDLE t_handle = CreateFileW(wpath.c_str(),
+                                              GENERIC_READ,
+                                              FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                              nullptr,
+                                              OPEN_EXISTING,
+                                              FILE_ATTRIBUTE_NORMAL,
+                                              nullptr);
+                if (t_handle == INVALID_HANDLE_VALUE) {
+                    success = false;
+                    return;
+                }
 
-        char* cur = ptr;
-        size_t remaining = read_size;
-        size_t cur_file_offset = thread_file_offset;
-        while (remaining > 0 && success) {
-            const DWORD to_read = static_cast<DWORD>(std::min(remaining, static_cast<size_t>(UINT_MAX - 1024u)));
-            LARGE_INTEGER li;
-            li.QuadPart = static_cast<LONGLONG>(cur_file_offset);
-            if (!SetFilePointerEx(t_handle, li, nullptr, FILE_BEGIN)) {
-                success = false;
-                break;
-            }
+                char* cur = ptr;
+                size_t remaining = read_size;
+                size_t cur_file_offset = thread_file_offset;
+                while (remaining > 0 && success) {
+                    const DWORD to_read =
+                        static_cast<DWORD>(std::min(remaining, static_cast<size_t>(UINT_MAX - 1024u)));
+                    LARGE_INTEGER li;
+                    li.QuadPart = static_cast<LONGLONG>(cur_file_offset);
+                    if (!SetFilePointerEx(t_handle, li, nullptr, FILE_BEGIN)) {
+                        success = false;
+                        break;
+                    }
 
-            DWORD bytes_read = 0;
-            if (!ReadFile(t_handle, cur, to_read, &bytes_read, nullptr)) {
-                success = false;
-                break;
-            }
-            if (bytes_read == 0) {
-                success = false;
-                break;
-            }
-            cur += bytes_read;
-            cur_file_offset += bytes_read;
-            remaining -= bytes_read;
-        }
-        CloseHandle(t_handle);
+                    DWORD bytes_read = 0;
+                    if (!ReadFile(t_handle, cur, to_read, &bytes_read, nullptr)) {
+                        success = false;
+                        break;
+                    }
+                    if (bytes_read == 0) {
+                        success = false;
+                        break;
+                    }
+                    cur += bytes_read;
+                    cur_file_offset += bytes_read;
+                    remaining -= bytes_read;
+                }
+                CloseHandle(t_handle);
 #else
-        const int t_fd = ::open(m_path.c_str(), O_RDONLY | O_CLOEXEC);
-        if (t_fd == -1) {
-            success = false;
-            return;
-        }
+                const int t_fd = ::open(m_path.c_str(), O_RDONLY | O_CLOEXEC);
+                if (t_fd == -1) {
+                    success = false;
+                    return;
+                }
 
-        char* cur = ptr;
-        size_t remaining = read_size;
-        off_t cur_off = static_cast<off_t>(thread_file_offset);
+                char* cur = ptr;
+                size_t remaining = read_size;
+                off_t cur_off = static_cast<off_t>(thread_file_offset);
 
-        while (remaining > 0 && success) {
-            const ssize_t n = ::pread(t_fd, cur, remaining, cur_off);
-            if (n <= 0) {
-                success = false;
-                break;
-            }
-            cur += n;
-            cur_off += n;
-            remaining -= static_cast<size_t>(n);
-        }
-        ::close(t_fd);
+                while (remaining > 0 && success) {
+                    const ssize_t n = ::pread(t_fd, cur, remaining, cur_off);
+                    if (n <= 0) {
+                        success = false;
+                        break;
+                    }
+                    cur += n;
+                    cur_off += n;
+                    remaining -= static_cast<size_t>(n);
+                }
+                ::close(t_fd);
 #endif
-    });
-
+            });  // workers.emplace_back
+        } catch (...) {
+            success = false;
+            break;
+        }
+    }
+    for (auto& t : workers) {
+        t.join();
+    }
     return success.load();
 }
 
