@@ -173,6 +173,40 @@ def resolve_model_inputs(model: ov.Model) -> Dict[str, ov.Output]:
     return resolved
 
 
+def _port_names(port: ov.Output) -> set[str]:
+    names: set[str] = set()
+    try:
+        names.update(port.get_names())
+    except Exception:
+        pass
+    try:
+        any_name = port.get_any_name()
+        if any_name:
+            names.add(any_name)
+    except Exception:
+        pass
+    return names
+
+
+def _compiled_input_for_model_port(compiled: ov.CompiledModel, model: ov.Model, model_port: ov.Output, logical_name: str) -> ov.Output:
+    target_names = _port_names(model_port)
+    if not target_names:
+        raise RuntimeError(f"Resolved model input '{logical_name}' has no names; cannot map to compiled input")
+
+    for i, p in enumerate(model.inputs):
+        if _port_names(p) & target_names:
+            return compiled.input(i)
+
+    model_inputs_desc = []
+    for i, p in enumerate(model.inputs):
+        n = sorted(_port_names(p))
+        model_inputs_desc.append(f"#{i}:{n}")
+    raise RuntimeError(
+        f"Failed to map logical input '{logical_name}' with names {sorted(target_names)} to compiled inputs: "
+        + "; ".join(model_inputs_desc)
+    )
+
+
 def infer_one_device(
     core: ov.Core,
     model_path: Path,
@@ -195,11 +229,10 @@ def infer_one_device(
 
     compiled = core.compile_model(model, device)
 
-    model_to_index = {id(port): i for i, port in enumerate(model.inputs)}
-    in_feat = compiled.input(model_to_index[id(resolved["feat"])])
-    in_depth = compiled.input(model_to_index[id(resolved["depth"])])
-    in_indices = compiled.input(model_to_index[id(resolved["indices"])])
-    in_intervals = compiled.input(model_to_index[id(resolved["intervals"])])
+    in_feat = _compiled_input_for_model_port(compiled, model, resolved["feat"], "feat")
+    in_depth = _compiled_input_for_model_port(compiled, model, resolved["depth"], "depth")
+    in_indices = _compiled_input_for_model_port(compiled, model, resolved["indices"], "indices")
+    in_intervals = _compiled_input_for_model_port(compiled, model, resolved["intervals"], "intervals")
 
     request_inputs = {
         in_feat: cast_for_input(feat, in_feat.get_element_type()),
