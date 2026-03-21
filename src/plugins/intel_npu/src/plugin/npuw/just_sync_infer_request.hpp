@@ -139,6 +139,7 @@ protected:
 
     // Helper function to setup pyramid attention infer requests
     void setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate);
+    void refresh_pyramid_infer_request_inputs(std::size_t real_idx, std::size_t pyramid_id, bool is_piped);
 
     // Helper function to setup host flash attention tile infer requests
     void setup_hfa_infer_requests(std::size_t real_idx,

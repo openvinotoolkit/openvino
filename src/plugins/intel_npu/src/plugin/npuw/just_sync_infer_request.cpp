@@ -626,6 +626,7 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
         for (auto&& id : m_funcall_heads) {
             auto& comp_model_desc = m_npuw_model->m_compiled_submodels[id];
             if (comp_model_desc.pyramid_attention.has_value()) {
+                refresh_pyramid_infer_request_inputs(id, pyramid_id, is_pipelined(id));
                 m_subrequests[id] = comp_model_desc.pyramid_infer_requests[pyramid_id];
                 if (is_pipelined(id)) {
                     m_funcall_pipeline[id].subrequest = comp_model_desc.pyramid_pipeline_requests[pyramid_id];
@@ -1097,6 +1098,53 @@ void ov::npuw::JustInferRequest::recreate_moe_resources(std::size_t idx, std::si
     m_moe_executor->prepare(idx, real_idx, m_num_submodels, pool_size);
 
     LOG_INFO("MoE resources recreated successfully");
+}
+
+void ov::npuw::JustInferRequest::refresh_pyramid_infer_request_inputs(std::size_t real_idx,
+                                                                      std::size_t pyramid_id,
+                                                                      bool is_piped) {
+    auto& submodel_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    NPUW_ASSERT(submodel_desc.pyramid_attention.has_value());
+
+    const auto& pyramid_models = submodel_desc.pyramid_attention.value()._compiled_models;
+    const size_t num_pyramid_models = pyramid_models.size();
+    NPUW_ASSERT(num_pyramid_models > 0);
+
+    const size_t last_model_idx = num_pyramid_models - 1;
+    if (pyramid_id == last_model_idx) {
+        return;
+    }
+
+    const auto& source_request = submodel_desc.pyramid_infer_requests[last_model_idx];
+    const auto& pyramid_request = submodel_desc.pyramid_infer_requests[pyramid_id];
+    NPUW_ASSERT(source_request);
+    NPUW_ASSERT(pyramid_request);
+
+    const size_t num_inputs = pyramid_models[pyramid_id]->inputs().size();
+    NPUW_ASSERT(num_inputs == submodel_desc.compiled_model->inputs().size());
+    for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
+        const auto& pyramid_input = pyramid_models[pyramid_id]->inputs()[input_idx];
+        const auto& main_input = submodel_desc.compiled_model->inputs()[input_idx];
+
+        auto source_tensor = source_request->get_tensor(main_input);
+        auto pyramid_tensor = pyramid_request->get_tensor(pyramid_input);
+        auto shared_tensor = ov::get_tensor_impl(
+            ov::Tensor(pyramid_tensor->get_element_type(), pyramid_tensor->get_shape(), source_tensor->data()));
+        pyramid_request->set_tensor(pyramid_input, shared_tensor);
+
+        if (is_piped) {
+            const auto& source_pipeline_request = submodel_desc.pyramid_pipeline_requests[last_model_idx];
+            const auto& pyramid_pipeline_request = submodel_desc.pyramid_pipeline_requests[pyramid_id];
+            NPUW_ASSERT(source_pipeline_request);
+            NPUW_ASSERT(pyramid_pipeline_request);
+
+            auto source_pipeline_tensor = source_pipeline_request->get_tensor(main_input);
+            auto pipeline_tensor = pyramid_pipeline_request->get_tensor(pyramid_input);
+            auto shared_pipeline_tensor = ov::get_tensor_impl(
+                ov::Tensor(pipeline_tensor->get_element_type(), pipeline_tensor->get_shape(), source_pipeline_tensor->data()));
+            pyramid_pipeline_request->set_tensor(pyramid_input, shared_pipeline_tensor);
+        }
+    }
 }
 
 void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate) {
