@@ -84,13 +84,10 @@ protected:
             for (size_t i = 0; i + 2 < rank; ++i)
                 B *= shape_a[i];
 
-            // Each sub-group (= one work-group of SG_SIZE lanes) produces WG_TILES
-            // outputs along N.  We need ceil(N / WG_TILES) work-groups along N,
-            // B work-groups along the batch axis.
-            const size_t n_groups = (N + WG_TILES - 1) / WG_TILES;
-
+            // One work-group (= one sub-group) per output element along N.
+            // Each sub-group cooperatively reduces over K for coalesced memory access.
             auto& wgs = kd.params.workGroups;
-            wgs.global = {n_groups * SG_SIZE, B, 1};
+            wgs.global = {N * SG_SIZE, B, 1};
             wgs.local  = {static_cast<size_t>(SG_SIZE), 1, 1};
 
             (void)K;

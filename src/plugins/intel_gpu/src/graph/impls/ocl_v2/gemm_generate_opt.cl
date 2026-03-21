@@ -4,74 +4,81 @@
 
 // Optimised GEMV for the LLM token-generation phase (M=1).
 //
-// This file contains two kernel specialisations selected at JIT-compile time via
-// the IS_WEIGHT_INT4 define:
+// Sub-group cooperative K-split: each work-group of SG_SIZE lanes computes
+// ONE output element.  All lanes split the K reduction dimension, then
+// merge partial sums via sub_group_reduce_add.  This gives coalesced weight
+// reads (consecutive lanes read consecutive K bytes from the same row).
 //
-//  IS_WEIGHT_INT4 == 0 (default)  →  pure f16/f16 GEMM
-//    Inputs:  A[B,K] f16, B[B,N,K] f16
-//    Dispatch: global=[ceil(N/SG)*SG, B, 1], local=[SG,1,1]
-//    Each lane computes one output element with vectorised float32 dot product.
+//  IS_WEIGHT_INT4 == 0  →  pure f16/f16 GEMM
+//    Dispatch: global=[N*SG_SIZE, B, 1], local=[SG_SIZE,1,1]
 //
-//  IS_WEIGHT_INT4 == 1  →  f16-activation + int4-weight GEMV with WOQ
-//    Inputs:
-//      INPUT0 A[B,K]              f16  activations
-//      INPUT1 W[N,K/2]            uchar u4/i4-packed weights (low nibble = even K)
-//      INPUT2 Scale, fbyx:[b=N, f=NG]  half  per-group per-output-channel scale
-//      INPUT3 ZP, fbyx (optional, present only if HAS_ZP):
-//               u8: [b=N, f=NG]    1 byte/entry
-//               u4: [b=N, f=NG/2]  2 nibbles/byte along group dim
-//        where NG = K / GROUP_SIZE = NUM_GROUPS
-//    Scale/ZP use fbyx memory format: f(=NG=32) is outer (slowest), b(=N=6144) is inner (fastest).
-//      scale(n, gk) = Scale[gk * N_SIZE + n]
-//    Dequant formula per group gk:
-//      acc += scale[gk,n] * Σ_{k in group} A[k] * (w_int4[n,k] − ZP[gk,n])
-//    ZP defaults to 0 when no explicit ZP tensor is provided (HAS_ZP=0).
-//    For i4 weights (WEIGHT_IS_SIGNED=1) nibbles are sign-extended before subtract.
+//  IS_WEIGHT_INT4 == 1  →  W4A16 or W4A8
+//    Dispatch: global=[N*SG_SIZE, B, 1], local=[SG_SIZE,1,1]
 
 #include "include/batch_headers/common.cl"
+
+// K-elements processed per sub-group per step.
+#define K_PER_STEP (SG_SIZE * VEC_SIZE)
+
+// Default N_TILE: outputs per work-group. Must match JIT value.
+#ifndef N_TILE
+#define N_TILE 1
+#endif
 
 // Horizontal sum of a float8.
 #define HSUM8(v) ((v).s0 + (v).s1 + (v).s2 + (v).s3 + \
                   (v).s4 + (v).s5 + (v).s6 + (v).s7)
 
 // ============================================================
-// Branch A: f16/f16 pure GEMM
+// Branch A: f16/f16 pure GEMM — sub-group cooperative K-split
 // ============================================================
 #if !defined(IS_WEIGHT_INT4) || (IS_WEIGHT_INT4 == 0)
 
-// Vector type aliases for VEC_SIZE-wide loads.
 #define INPUT_VEC_TYPE   MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE)
 #define WEIGHT_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT1_TYPE, VEC_SIZE)
-#define ACC_VEC_TYPE     MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE)
 #define INPUT_VLOAD      CAT(vload, VEC_SIZE)
-#define TO_ACC_VEC8(x)   convert_float8(x)
 
+REQD_SUB_GROUP_SIZE(SG_SIZE)
 KERNEL(gemm_generate_opt)(
     const __global INPUT0_TYPE*  A,   // activations [B, K]
     const __global INPUT1_TYPE*  B,   // weights     [B, N, K]
           __global OUTPUT_TYPE*  C    // output      [B, N]
 )
 {
-    const int n = (int)get_global_id(0);
-    const int b = (int)get_global_id(1);
+    const int n_base = (int)get_group_id(0) * N_TILE;
+    const int lane   = (int)get_sub_group_local_id();
+    const int b_idx  = (int)get_global_id(1);
 
-    if (n >= N_SIZE)
-        return;
+    const int a_base = b_idx * K_SIZE;
 
-    const int a_base = b * K_SIZE;
-    const int w_base = b * N_SIZE * K_SIZE + n * K_SIZE;
+    float lane_acc[N_TILE];
+    __attribute__((opencl_unroll_hint))
+    for (int t = 0; t < N_TILE; t++)
+        lane_acc[t] = 0.0f;
 
-    ACC_VEC_TYPE acc = (ACC_VEC_TYPE)(ACCUMULATOR_VAL_ZERO);
+    for (int k_block = 0; k_block < K_SIZE; k_block += K_PER_STEP) {
+        const int k = k_block + lane * VEC_SIZE;
+        INPUT_VEC_TYPE a_vec = INPUT_VLOAD(0, A + a_base + k);
+        float8 af = convert_float8(a_vec);
 
-    const int k_iters = K_SIZE / VEC_SIZE;
-    for (int ki = 0; ki < k_iters; ++ki) {
-        INPUT_VEC_TYPE  a_vec = INPUT_VLOAD(ki, A + a_base);
-        WEIGHT_VEC_TYPE w_vec = INPUT_VLOAD(ki, B + w_base);
-        acc = mad(TO_ACC_VEC8(a_vec), TO_ACC_VEC8(w_vec), acc);
+        __attribute__((opencl_unroll_hint))
+        for (int t = 0; t < N_TILE; t++) {
+            const int n = n_base + t;
+            if (n < N_SIZE) {
+                const int wb = b_idx * N_SIZE * K_SIZE + n * K_SIZE;
+                WEIGHT_VEC_TYPE w_vec = INPUT_VLOAD(0, B + wb + k);
+                lane_acc[t] += HSUM8(af * convert_float8(w_vec));
+            }
+        }
     }
 
-    ACCUMULATOR_TYPE result = (ACCUMULATOR_TYPE)(HSUM8(acc));
-    C[b * N_SIZE + n] = TO_OUTPUT_TYPE(result);
+    __attribute__((opencl_unroll_hint))
+    for (int t = 0; t < N_TILE; t++) {
+        float result = sub_group_reduce_add(lane_acc[t]);
+        const int n = n_base + t;
+        if (lane == 0 && n < N_SIZE)
+            C[b_idx * N_SIZE + n] = TO_OUTPUT_TYPE(result);
+    }
 }
 
 // ============================================================
@@ -110,11 +117,8 @@ KERNEL(gemm_generate_opt)(
 // After update_impl_params the layouts are:
 //   INPUT0: activation [B, K]      (f16 for W4A16, char/i8 for W4A8)
 //   INPUT1: weight     [N, K/2]    bytes  (data_type u4/i4, B folded into B dim above M)
-//   INPUT2: scale      fbyx [b=N, f=NG]  (INPUT2_TYPE = half)  NG = NUM_GROUPS
-//                      physical = [F=NG outermost, B=N inner]: Scale[gk * N_SIZE + n]
-//   INPUT3: ZP         fbyx (optional, present only if HAS_ZP)
-//                      u8:  [b=N, f=NG]    1 byte/entry:     ZP[gk * N_SIZE + n]
-//                      u4:  [b=N, f=NG/2]  2 nibbles/byte:   ZP[(gk/2) * N_SIZE + n]
+//   INPUT2: scale      [NG, N]     (INPUT2_TYPE = half)  NG = NUM_GROUPS
+//   INPUT3: ZP         [N, NG/2]   bytes  (optional, present only if HAS_ZP)
 //   (W4A8 only) next input: ActScale [B]  half per-token activation scale
 //
 // Note: after update_impl_params the B batch dim is already folded into M=1, so
@@ -124,21 +128,23 @@ KERNEL(gemm_generate_opt)(
 // -----------------------------------------------------------------------
 // Shared ZP dequant helper macro used by both the f16 and i8 activation paths.
 // Emits a 'float zp' variable for the given group index gk and output channel n.
-//
-// Scale/ZP tensors use fbyx memory format with PartialShape [N, NG] mapped as
-// BFYX logical [B=N, F=NG, Y=1, X=1].  In fbyx physical layout, F is outermost:
-//   physical address for (B=n, F=gk) = gk * N_SIZE + n
-// For symmetry the ZP tensors follow the same convention:
-//   u8 ZP: 1 byte per (gk, n),  address = gk * N_SIZE + n
-//   u4 ZP: 2 nibbles per byte packed along the F(=gk) dimension,
-//          shape [B=N, F=NG/2], address of byte = (gk/2) * N_SIZE + n
 // -----------------------------------------------------------------------
 #if HAS_ZP
+// Scale and ZP tensors use fbyx memory format.
+// PartialShape [N, NG] maps to BFYX as [B=N, F=NG, Y=1, X=1].
+// In fbyx physical layout, F(=NG) is outermost (slowest), B(=N) is inner (fastest).
+//   physical stride for F(=NG): N_SIZE;  stride for B(=N): 1.
+// So element at (output_channel=n, group=gk):
+//   scale(n, gk)  = Scale[gk * N_SIZE + n]   f16, 1 element/entry
+//   zp_u8(n, gk)  = ZP   [gk * N_SIZE + n]   u8,  1 byte/entry
+//   zp_u4(n, gk): nibbles packed along the F(=gk) dimension:
+//                  byte = ZP[(gk/2) * N_SIZE + n],  nibble = gk%2
 #if ZP_IS_U8
 // u8 ZP: one byte per (group gk, output-channel n), fbyx → gk * N_SIZE + n.
 #define LOAD_ZP(gk, n, ZP, zp_var)  (zp_var) = (float)ZP[(gk) * N_SIZE + (n)]
 #else
-// u4 ZP: 2 nibbles per byte, packed along the F (group) dimension:
+// u4 ZP: 2 nibbles per byte, packed along the F(=gk) dimension,
+// so two consecutive gk values share one byte for the same output channel n.
 //   byte  = ZP[(gk/2) * N_SIZE + n]
 //   nibble= gk % 2  (low nibble = even gk, high nibble = odd gk)
 #define LOAD_ZP(gk, n, ZP, zp_var)                                         \
@@ -159,194 +165,132 @@ KERNEL(gemm_generate_opt)(
 
 // ============================================================
 // Branch B1: f16-activation + int4-weight WOQ GEMV  (W4A16)
+//            Sub-group cooperative K-split — coalesced weight reads.
 // ============================================================
 #if !defined(IS_ACT_INT8) || (IS_ACT_INT8 == 0)
 
+REQD_SUB_GROUP_SIZE(SG_SIZE)
 KERNEL(gemm_generate_opt)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE*  A,         // f16 activation [B, K]
     const __global uchar*        W,         // u4/i4 packed weight [N, K/2]
     const __global INPUT2_TYPE*  Scale,     // f16 scale, fbyx: [NUM_GROUPS, N]
 #if HAS_ZP
-    const __global uchar*        ZP,        // ZP fbyx: u8=[NUM_GROUPS,N] or u4=[NUM_GROUPS,N/2]
+    const __global uchar*        ZP,        // ZP fbyx
 #endif
     __global OUTPUT_TYPE*        C          // f16 output [B, N]
 )
 {
-    const int n = (int)get_global_id(0);   // output feature index
-    const int b = (int)get_global_id(1);   // batch index
+    const int n_base = (int)get_group_id(0) * N_TILE;
+    const int lane   = (int)get_sub_group_local_id();
+    const int b      = (int)get_global_id(1);
 
-    if (n >= N_SIZE)
-        return;
-
-    // Activation base: row b of the A matrix.
     const int a_base = b * K_SIZE;
-    // Weight row n: each row has K_HALF_SIZE bytes.
-    const int w_base = n * K_HALF_SIZE;
 
-    float acc = 0.0f;
+    float lane_acc[N_TILE];
+    __attribute__((opencl_unroll_hint))
+    for (int t = 0; t < N_TILE; t++)
+        lane_acc[t] = 0.0f;
 
-    // Outer loop: iterate over quantisation groups.
-    for (int gk = 0; gk < NUM_GROUPS; gk++) {
-        // Scale fbyx[b=N, f=NG]: physical = gk * N_SIZE + n (F=NG is outermost)
-        float scale = (float)Scale[gk * N_SIZE + n];
+    for (int k_block = 0; k_block < K_SIZE; k_block += K_PER_STEP) {
+        const int k0 = k_block + lane * VEC_SIZE;
+        const int gk = k0 / GROUP_SIZE;
 
-        float zp;
-        LOAD_ZP(gk, n, ZP, zp);
+        // Activation loaded once, reused across N_TILE tiles.
+        half8  a_vec = vload8(0, A + a_base + k0);
+        float8 af = convert_float8(a_vec);
 
-#if defined(DEBUG_FCCmpOpt) && (DEBUG_FCCmpOpt >= 1)
-        if (b == 0 && n == 0)
-            printf("[FCCmpOpt-W4A16] gk=%d scale=%.6f zp=%.2f k_start=%d\n",
-                   gk, scale, zp, gk * GROUP_SIZE);
-#endif
+        __attribute__((opencl_unroll_hint))
+        for (int t = 0; t < N_TILE; t++) {
+            const int n = n_base + t;
+            if (n < N_SIZE) {
+                const int wb = n * K_HALF_SIZE;
+                float sc = (float)Scale[gk * N_SIZE + n];
+                float zp;
+                LOAD_ZP(gk, n, ZP, zp);
 
-        // Inner loop: vectorised dot product over one group of GROUP_SIZE K-elements.
-        const int k_start = gk * GROUP_SIZE;
-
-        float8 group_acc = (float8)(0.f);
-        for (int k = k_start; k < k_start + GROUP_SIZE; k += VEC_SIZE) {
-            // Load VEC_SIZE=8 f16 activation elements.
-            half8 a_vec = vload8(0, A + a_base + k);
-
-            // Load 4 bytes = VEC_SIZE=8 u4/i4 nibbles from the weight row.
-            uchar4 w_packed = vload4(0, W + w_base + k / 2);
-
-            // Unpack nibbles into a float8.
-            float8 w_f;
-            UNPACK8(w_packed, w_f);
-
-            // Subtract ZP (same value for all 8 positions within the group on this iter).
-            w_f = w_f - zp;
-
-            // float32 fused multiply-add accumulation.
-            group_acc = mad(convert_float8(a_vec), w_f, group_acc);
+                uchar4 wp = vload4(0, W + wb + k0 / 2);
+                float8 wf;
+                UNPACK8(wp, wf);
+                wf = wf - zp;
+                lane_acc[t] += HSUM8(af * wf) * sc;
+            }
         }
-
-        // Horizontal sum of the 8-wide vector accumulator, then apply scale.
-        acc += HSUM8(group_acc) * scale;
     }
 
-    C[b * N_SIZE + n] = TO_OUTPUT_TYPE(acc);
+    __attribute__((opencl_unroll_hint))
+    for (int t = 0; t < N_TILE; t++) {
+        float result = sub_group_reduce_add(lane_acc[t]);
+        const int n = n_base + t;
+        if (lane == 0 && n < N_SIZE)
+            C[b * N_SIZE + n] = TO_OUTPUT_TYPE(result);
+    }
 }
 
 // ============================================================
 // Branch B2: i8-activation + int4-weight WOQ GEMV  (W4A8)
-//
-// Kernel inputs (positional, matching FCCompressedOptGenerator::get_arguments_desc):
-//   INPUT0: i8/char activation  [B, K]
-//   INPUT1: u4/i4 packed weight [N, K/2]
-//   INPUT2: f16 weight scale    fbyx [f=N, b=NG]       physical: n*NG + gk
-//   INPUT3: ZP                  fbyx (only if HAS_ZP):
-//                                u8:  [f=N, b=NG]       1 byte/entry,   n*NG + gk
-//                                u4:  [f=N, b=NG/2]     2 nibbles/byte, n*(NG/2) + gk/2, nibble=gk%2
-//   next  : f16 act scale       [B]                      (per-token, always present in W4A8)
-//   OUTPUT: f16 output          [B, N]
-//
-// Math: output[b,n] = act_scale[b] *
-//         Σ_{gk} scale_w[n,gk] * Σ_{k in gk} act[b,k] * (w4[n,k] − zp_w[n,gk])
+//            Sub-group cooperative K-split — coalesced weight reads.
 // ============================================================
 #else  // IS_ACT_INT8 == 1
 
+REQD_SUB_GROUP_SIZE(SG_SIZE)
 KERNEL(gemm_generate_opt)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE*  A,         // i8/char activation [B, K]
     const __global uchar*        W,         // u4/i4 packed weight [N, K/2]
     const __global INPUT2_TYPE*  Scale,     // f16 weight scale, fbyx: [N, NUM_GROUPS]
 #if HAS_ZP
-    const __global uchar*        ZP,        // ZP fbyx: u8=[N,NUM_GROUPS] or u4=[N,NUM_GROUPS/2]
+    const __global uchar*        ZP,        // ZP fbyx
 #endif
     const __global half*         ActScale,  // f16 per-token activation scale [B]
     __global OUTPUT_TYPE*        C          // f16 output [B, N]
 )
 {
-    const int n = (int)get_global_id(0);   // output feature index
-    const int b = (int)get_global_id(1);   // batch index
-
-    if (n >= N_SIZE)
-        return;
+    const int n_base = (int)get_group_id(0) * N_TILE;
+    const int lane   = (int)get_sub_group_local_id();
+    const int b      = (int)get_global_id(1);
 
     const int a_base = b * K_SIZE;
-    const int w_base = n * K_HALF_SIZE;
 
-    // ---------------------------------------------------------------
-    // Level-2 debug: one-time header dump for (b=0, n=0)
-    // Prints raw tensor values so we can verify memory layout offline.
-    // ---------------------------------------------------------------
-#if defined(DEBUG_FCCmpOpt) && (DEBUG_FCCmpOpt >= 2)
-    if (b == 0 && n == 0) {
-        // Dump Scale[0..NUM_GROUPS-1] - scale row for output channel 0
-        printf("[FCCmpOpt-DBG2] Scale[n=0, gk=0..3]: %.6f %.6f %.6f %.6f\n",
-               (float)Scale[0], (float)Scale[1], (float)Scale[2], (float)Scale[3]);
-#if HAS_ZP
-        printf("[FCCmpOpt-DBG2] ZP[n=0, gk=0..3]: %.0f %.0f %.0f %.0f\n",
-               (float)ZP[0], (float)ZP[1], (float)ZP[2], (float)ZP[3]);
-#endif
-        // Dump first 8 weight nibbles for row n=0 (bytes at W[0..3] = nibbles 0..7)
-        uchar4 w0 = vload4(0, W);
-        printf("[FCCmpOpt-DBG2] W raw bytes[0..3]: %d %d %d %d\n",
-               (int)w0.s0, (int)w0.s1, (int)w0.s2, (int)w0.s3);
-        printf("[FCCmpOpt-DBG2] W nibbles[0..7]: %d %d %d %d %d %d %d %d\n",
-               (int)(w0.s0 & 0xF), (int)(w0.s0 >> 4),
-               (int)(w0.s1 & 0xF), (int)(w0.s1 >> 4),
-               (int)(w0.s2 & 0xF), (int)(w0.s2 >> 4),
-               (int)(w0.s3 & 0xF), (int)(w0.s3 >> 4));
-        // Dump first 8 activation values for b=0
-        printf("[FCCmpOpt-DBG2] A[b=0, k=0..7]: %d %d %d %d %d %d %d %d\n",
-               (int)A[0], (int)A[1], (int)A[2], (int)A[3],
-               (int)A[4], (int)A[5], (int)A[6], (int)A[7]);
-        // Dump first 4 ActScale values (check which index = current token)
-        printf("[FCCmpOpt-DBG2] ActScale[0..3]: %.6f %.6f %.6f %.6f\n",
-               (float)ActScale[0], (float)ActScale[1],
-               (float)ActScale[2], (float)ActScale[3]);
-        printf("[FCCmpOpt-DBG2] B_SIZE=%d K_SIZE=%d N_SIZE=%d NUM_GROUPS=%d GROUP_SIZE=%d\n",
-               B_SIZE, K_SIZE, N_SIZE, NUM_GROUPS, GROUP_SIZE);
-    }
-#endif
+    float lane_acc[N_TILE];
+    __attribute__((opencl_unroll_hint))
+    for (int t = 0; t < N_TILE; t++)
+        lane_acc[t] = 0.0f;
 
-    float acc = 0.0f;
+    for (int k_block = 0; k_block < K_SIZE; k_block += K_PER_STEP) {
+        const int k0 = k_block + lane * VEC_SIZE;
+        const int gk = k0 / GROUP_SIZE;
 
-    for (int gk = 0; gk < NUM_GROUPS; gk++) {
-        float scale = (float)Scale[gk * N_SIZE + n];
+        char8  a_vec = vload8(0, A + a_base + k0);
+        float8 af = convert_float8(a_vec);
 
-        float zp;
-        LOAD_ZP(gk, n, ZP, zp);
+        __attribute__((opencl_unroll_hint))
+        for (int t = 0; t < N_TILE; t++) {
+            const int n = n_base + t;
+            if (n < N_SIZE) {
+                const int wb = n * K_HALF_SIZE;
+                float sc = (float)Scale[gk * N_SIZE + n];
+                float zp;
+                LOAD_ZP(gk, n, ZP, zp);
 
-#if defined(DEBUG_FCCmpOpt) && (DEBUG_FCCmpOpt >= 1)
-        if (b == 0 && n == 0)
-            printf("[FCCmpOpt-W4A8] gk=%d scale=%.6f zp=%.2f\n", gk, scale, zp);
-#endif
-
-        const int k_start = gk * GROUP_SIZE;
-        float8 group_acc = (float8)(0.f);
-        for (int k = k_start; k < k_start + GROUP_SIZE; k += VEC_SIZE) {
-            char8 a_vec = vload8(0, A + a_base + k);
-            uchar4 w_packed = vload4(0, W + w_base + k / 2);
-            float8 w_f;
-            UNPACK8(w_packed, w_f);
-            w_f = w_f - zp;
-            group_acc = mad(convert_float8(a_vec), w_f, group_acc);
+                uchar4 wp = vload4(0, W + wb + k0 / 2);
+                float8 wf;
+                UNPACK8(wp, wf);
+                wf = wf - zp;
+                lane_acc[t] += HSUM8(af * wf) * sc;
+            }
         }
-        float group_dot = HSUM8(group_acc);
-
-#if defined(DEBUG_FCCmpOpt) && (DEBUG_FCCmpOpt >= 2)
-        if (b == 0 && n == 0)
-            printf("[FCCmpOpt-W4A8] gk=%d group_dot=%.4f scale=%.6f contrib=%.6f\n",
-                   gk, group_dot, scale, group_dot * scale);
-#endif
-
-        acc += group_dot * scale;
     }
 
     float act_scale = (float)ActScale[b];
-    float result = acc * act_scale;
 
-#if defined(DEBUG_FCCmpOpt) && (DEBUG_FCCmpOpt >= 1)
-    if (b == 0 && n < 8)
-        printf("[FCCmpOpt-W4A8] b=0 n=%d raw_acc=%.6f act_scale=%.8f result=%.6f\n",
-               n, acc, act_scale, result);
-#endif
-
-    C[b * N_SIZE + n] = TO_OUTPUT_TYPE(result);
+    __attribute__((opencl_unroll_hint))
+    for (int t = 0; t < N_TILE; t++) {
+        float result = sub_group_reduce_add(lane_acc[t]) * act_scale;
+        const int n = n_base + t;
+        if (lane == 0 && n < N_SIZE)
+            C[b * N_SIZE + n] = TO_OUTPUT_TYPE(result);
+    }
 }
 
 #endif  // IS_ACT_INT8
