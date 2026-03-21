@@ -14,6 +14,7 @@
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
 namespace {
+
 #ifdef _WIN32
 constexpr uint32_t WIN_DRIVER_NO_MCL_SUPPORT = 2688;
 #endif
@@ -58,6 +59,48 @@ std::tuple<uint32_t, std::string> queryDriverExtensionVersion(const char* extNam
     }
 
     return std::make_tuple(targetVersion, functionExtName ? functionExtName : "");
+}
+
+uint32_t findCommandQueueGroupOrdinal(ze_device_handle_t device_handle,
+                                      const ze_command_queue_group_property_flags_t command_queue_group_property) {
+    std::vector<ze_command_queue_group_properties_t> command_group_properties;
+    uint32_t command_queue_group_count = 0;
+
+    // Discover all command queue groups
+    THROW_ON_FAIL_FOR_LEVELZERO(
+        "zeDeviceGetCommandQueueGroupProperties",
+        intel_npu::zeDeviceGetCommandQueueGroupProperties(device_handle, &command_queue_group_count, nullptr));
+
+    command_group_properties.resize(command_queue_group_count);
+
+    for (auto& prop : command_group_properties) {
+        prop.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_GROUP_PROPERTIES;
+        prop.pNext = nullptr;
+    }
+
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetCommandQueueGroupProperties",
+                                intel_npu::zeDeviceGetCommandQueueGroupProperties(device_handle,
+                                                                                  &command_queue_group_count,
+                                                                                  command_group_properties.data()));
+
+    for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
+        const auto& flags = command_group_properties[index].flags;
+        if (flags == command_queue_group_property) {
+            return index;
+        }
+    }
+
+    // if we don't find a group where only the proper flag is enabled then search for a group where that flag is
+    // enabled
+    for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
+        const auto& flags = command_group_properties[index].flags;
+        if (flags & command_queue_group_property) {
+            return index;
+        }
+    }
+
+    // if still don't find compute flag, return 0
+    return 0;
 }
 
 }  // namespace
@@ -406,6 +449,9 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     if (external_memory_mapping_ext_version > 0) {
         _external_memory_standard_allocation_supported = true;
     }
+
+    _command_queue_group_ordinal =
+        findCommandQueueGroupOrdinal(_device_handle, ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 }
 
 const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance() {

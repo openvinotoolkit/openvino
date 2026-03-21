@@ -44,10 +44,6 @@ const std::shared_ptr<CommandQueue>& IGraph::get_command_queue() const {
     OPENVINO_THROW("get_command_queue not implemented");
 }
 
-uint32_t IGraph::get_command_queue_group_ordinal() const {
-    OPENVINO_THROW("get_command_queue_group_ordinal not implemented");
-}
-
 void IGraph::set_workload_type(const ov::WorkloadType) const {
     OPENVINO_THROW("set_workload_type not implemented");
 }
