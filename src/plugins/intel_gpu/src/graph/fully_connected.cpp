@@ -280,6 +280,11 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         can_apply_fake_alignment = false;
     }
 
+    // Don't apply fake alignment for f32 data type due to memory usage issues
+    if (orig_output_layout.data_type == data_types::f32) {
+        can_apply_fake_alignment = false;
+    }
+
     GPU_DEBUG_IF(orig_impl_param.get_program().get_config().get_disable_fake_alignment()) {
         can_apply_fake_alignment = false;
     }
