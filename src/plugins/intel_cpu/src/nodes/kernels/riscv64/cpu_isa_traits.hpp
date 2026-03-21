@@ -33,5 +33,6 @@ enum cpu_isa_t : unsigned {
 std::string isa2str(cpu_isa_t isa);
 
 bool mayiuse(cpu_isa_t cpu_isa);
+bool has_zvfh_support();
 
 }  // namespace ov::intel_cpu::riscv64
