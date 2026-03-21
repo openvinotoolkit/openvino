@@ -2030,7 +2030,7 @@ public:
                                        *softmax_topk,
                                        {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS))},
                                        {scratch.topk_id, scratch.topk_weights},
-                                       {static_cast<size_t>(token_num), lws_size},
+                                       {token_num, lws_size},
                                        {1, lws_size},
                                        instance.needs_completion_event());
         } else if (config.routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS) {
@@ -2041,7 +2041,7 @@ public:
                                         instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_BIAS)),
                                         instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_EPS))},
                                        {scratch.topk_id, scratch.topk_weights},
-                                       {static_cast<size_t>(token_num), lws_size},
+                                       {token_num, lws_size},
                                        {1, lws_size},
                                        instance.needs_completion_event());
         } else {
@@ -2076,10 +2076,10 @@ public:
 
         if (_has_shared_expert) {
             auto& engine = instance.get_network().get_engine();
-            init_shared_primitives(engine, scratch.moe_fusion_wei_addr, token_num);
+            init_shared_primitives(engine, scratch.moe_fusion_wei_addr, static_cast<int>(token_num));
             if (ret_env)
                 ret_env->wait();
-            execute_shared_expert(stream.get_onednn_stream(), token_num, hidden_states_mem_ptr, final_hidden_states_mem_ptr, scratch);
+            execute_shared_expert(stream.get_onednn_stream(), static_cast<int>(token_num), hidden_states_mem_ptr, final_hidden_states_mem_ptr, scratch);
         }
         // Wait for the final event to be ready
         // ret_env->wait();
