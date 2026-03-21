@@ -784,10 +784,9 @@ Example:
     </skip_config>
 
     <skip_config>
-        <message>Only "developer built" compilers support weights separation</message>
+        <message>Non "developer build" CiDs don't support weights separation yet</message>
         <filters>
-            <filter>.*WeightsSeparationTests.*</filter>
-            <filter>.*WeightsSeparationIterativeTests.*</filter>
+            <filter>.*WeightsSeparationIterativeTests.*DRIVER.*</filter>
         </filters>
     </skip_config>
 
@@ -815,13 +814,6 @@ Example:
         <filters>
             <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
-        </filters>
-    </skip_config>
-
-    <skip_config>
-        <message>The "one shot" implementation of the weights separation feature is supported only in the compiler-in-plugin flow</message>
-        <filters>
-            <filter>.*WeightsSeparationOneShotTests.*</filter>
         </filters>
     </skip_config>
 
@@ -863,6 +855,27 @@ Example:
             <filter>.*CompileModelLoadFromCacheTest.*NPU_TURBO.*</filter>
             <filter>.*CompileModelLoadFromCacheTest.*NPU_QDQ_OPTIMIZATION.*</filter>
             <filter>.*CompileModelLoadFromCacheTest.*NPU_QDQ_OPTIMIZATION_AGGRESSIVE.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Skip test-cases failing with Win Drv UD48</message>
+        <enable_rules>
+            <operating_system>windows</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*DX12RemoteRunTests.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>PV driver cannot create infer request for models with boolean inputs</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
+        </enable_rules>
+        <filters>
+            <filter>.*BooleanPrecisionInferRequestRunTests.*</filter>
         </filters>
     </skip_config>
 
