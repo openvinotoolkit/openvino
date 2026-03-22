@@ -500,7 +500,7 @@ This struct represents OpenVINO entity and allows you to manipulate with plugins
     - `device_name` - Name of a device to load a model to.
     - `property_args_size` - How many properties args will be passed, each property contains 2 args: key and value.
     - `compiled_model` - A pointer to the newly created compiled_model.
-    - `...` - property paramater, optional pack of pairs: <char* property_key, char* property_value> relevant only for this load operation operation.
+    - `...` - property parameter, optional pack of pairs: <char* property_key, char* property_value> relevant only for this load operation operation.
 
   - Return value: Status code of the operation: OK(0) for success.
 

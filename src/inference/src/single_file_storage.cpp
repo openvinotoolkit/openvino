@@ -256,7 +256,7 @@ void SingleFileStorage::read_cache_entry(const std::string& blob_id, bool enable
     if (std::filesystem::exists(m_file_path) && has_blob_id(cid)) {
         const auto& [blob_pos, blob_size, model_name] = m_blob_index[cid];
         if (enable_mmap) {
-            // CVS-181859 Extend memory mapping helpers to suport partial file mapping
+            // CVS-181859 Extend memory mapping helpers to support partial file mapping
             CompiledBlobVariant compiled_blob{std::in_place_index<0>,
                                               ov::read_tensor_data(m_file_path,
                                                                    element::u8,

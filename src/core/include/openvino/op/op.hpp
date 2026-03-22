@@ -21,7 +21,7 @@
                                                                _OPENVINO_RTTI_OP_WITH_TYPE)(__VA_ARGS__)) \
     /* Add accessibility for Op to the method: evaluate from the Base class                               \
      Usually C++ allows to use virtual methods of Base class from Derived class but if they have          \
-     the same name and not all of them are overrided in Derived class, the only overrided methods         \
+     the same name and not all of them are overridden in Derived class, the only overridden methods         \
      will be available from Derived class. We need to explicitly cast Derived to Base class to            \
      have an access to remaining methods or use this using. */                                            \
     using ov::op::Op::evaluate;                                                                           \
