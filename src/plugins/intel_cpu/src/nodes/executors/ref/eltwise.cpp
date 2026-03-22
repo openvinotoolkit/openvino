@@ -435,7 +435,7 @@ void EltwiseRef64bExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& ar
     }
     auto lower = static_cast<T>(this->m_opData.alpha);
     auto upper = static_cast<T>(this->m_opData.beta);
-    
+
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0;
         size_t end = 0;
