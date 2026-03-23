@@ -94,20 +94,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamicShapes4D_PermutePerChannels, TransposeLaye
                                  ::testing::Values(CPUSpecificParams{})),
                          TransposeLayerCPUTest::getTestCaseName);
 
-// ─── String Transpose ────────────────────────────────────────────────────────
-// Tests cover the executeString() fallback introduced to handle element::string,
-// because the JIT permute kernel's switch(data_size) has no case for
-// sizeof(std::string)==32 and would silently produce empty output strings.
-
 const std::vector<InputShape> stringInputShapes2D = {
     InputShape{{3, 4}, {{3, 4}}},                        // static 2-D
-    InputShape{{-1, -1}, {{2, 3}, {4, 2}, {1, 5}}},     // dynamic 2-D
+    InputShape{{-1, -1}, {{2, 3}, {4, 2}, {1, 5}}},      // dynamic 2-D
 };
 const std::vector<std::vector<size_t>> stringOrders2D = {{1, 0}};
 
 const std::vector<InputShape> stringInputShapes3D = {
     InputShape{{2, 3, 4}, {{2, 3, 4}}},                  // static 3-D
-    InputShape{{-1, -1, -1}, {{2, 3, 4}, {1, 5, 2}}},   // dynamic 3-D
+    InputShape{{-1, -1, -1}, {{2, 3, 4}, {1, 5, 2}}},    // dynamic 3-D
 };
 const std::vector<std::vector<size_t>> stringOrders3D = {{2, 0, 1}, {1, 0, 2}, {0, 2, 1}};
 

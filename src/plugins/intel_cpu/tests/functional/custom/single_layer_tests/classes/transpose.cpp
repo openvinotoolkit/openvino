@@ -121,7 +121,6 @@ const std::vector<std::vector<size_t>>& inputOrder4D() {
 }
 }  // namespace Transpose
 
-// ─── TransposeStringLayerCPUTest ────────────────────────────────────────────
 
 void TransposeStringLayerCPUTest::SetUp() {
     const auto& [inputShapes, inputOrder, /*netPrecision*/_, _targetDevice,
@@ -131,8 +130,6 @@ void TransposeStringLayerCPUTest::SetUp() {
 
     inType = outType = ov::element::string;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-    // For string type there is no JIT kernel; selectedType comes straight from
-    // CPUSpecificParams (empty → CheckPluginRelatedResults is skipped).
 
     init_input_shapes({inputShapes});
 
@@ -154,7 +151,7 @@ void TransposeStringLayerCPUTest::generate_inputs(
     const auto& funcInputs = function->inputs();
     ov::test::utils::InputGenerateData in_data;
     in_data.start_from = 0;
-    in_data.range     = 10;      // generates short strings like "str0" … "str9" (SSO-safe)
+    in_data.range     = 10;
     auto data_tensor = ov::test::utils::create_and_fill_tensor(
         ov::element::string, targetInputStaticShapes.front(), in_data);
     inputs.insert({funcInputs[0].get_node_shared_ptr(), data_tensor});

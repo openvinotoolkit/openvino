@@ -29,11 +29,6 @@ protected:
     void SetUp() override;
 };
 
-// String-specific Transpose test — uses element::string input/output and overrides
-// generate_inputs to fill tensors with string data instead of numeric data.
-// The TEMPLATE-plugin reference computation uses reference::transpose which does a
-// bitwise copy of std::string objects; this is correct for SSO strings (< ~15 chars),
-// which is what PadStringParamsVector and the generator produce.
 class TransposeStringLayerCPUTest
     : public testing::WithParamInterface<TransposeLayerCPUTestParamSet>,
       public ov::test::SubgraphBaseTest,
