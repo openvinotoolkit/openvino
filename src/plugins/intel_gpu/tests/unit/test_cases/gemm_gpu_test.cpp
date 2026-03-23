@@ -2722,7 +2722,7 @@ public:
         // gemm_mmad_int8_slm requires SIMD8 with no wider-SIMD fallback
         const auto& supported_simd = engine.get_device_info().supported_simd_sizes;
         if (p.kernel_name == "gemm_mmad_int8_slm" &&
-            !std::any_of(supported_simd.begin(), supported_simd.end(), [](size_t s) { return s == 8; })) {
+            std::none_of(supported_simd.begin(), supported_simd.end(), [](size_t s) { return s == 8; })) {
             GTEST_SKIP() << p.kernel_name << " requires SIMD8 which is not supported on this platform";
         }
 

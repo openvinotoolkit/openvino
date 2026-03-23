@@ -11807,10 +11807,14 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
     }
 
     // convolution_gpu_bfyx_os_iyx_osv32 is disabled for dynamic shapes on Xe2+
-    // due to OOB scatter input reads (see convolution_kernel_bfyx_os_iyx_osv32 Validate)
+    // because its scatter input reads can access memory beyond the allocated
+    // buffer (OOB), which causes CL_OUT_OF_RESOURCES on Xe2+ (pre-Xe2 hardware
+    // silently returns zero for OOB reads). See Validate() in
+    // convolution_kernel_bfyx_os_iyx_osv32.cpp.
     const auto& device_info = engine.get_device_info();
     if (device_info.gfx_ver.major >= 20) {
-        GTEST_SKIP() << "convolution_gpu_bfyx_os_iyx_osv32 is disabled for dynamic shapes on Xe2+";
+        GTEST_SKIP() << "convolution_gpu_bfyx_os_iyx_osv32 is disabled for dynamic shapes on Xe2+ "
+                     << "(OOB scatter reads cause CL_OUT_OF_RESOURCES)";
     }
 
     auto groups_num = 1;
@@ -11858,9 +11862,8 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
 
     auto inst = network.get_primitive("conv");
     auto impl = inst->get_impl();
-    if (impl == nullptr) {
-        GTEST_SKIP() << "Forced convolution_gpu_bfyx_os_iyx_osv32 implementation is not available on this device";
-    }
+    ASSERT_NE(impl, nullptr) << "Forced convolution_gpu_bfyx_os_iyx_osv32 implementation was not selected; "
+                             << "if this platform is expected to lack support, add an explicit skip above";
     ASSERT_TRUE(impl->is_dynamic());
 
     auto outputs = network.execute();

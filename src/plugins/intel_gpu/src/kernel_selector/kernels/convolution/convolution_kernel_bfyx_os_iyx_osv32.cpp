@@ -192,10 +192,10 @@ bool ConvolutionKernel_bfyx_os_iyx_osv32::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    // On Xe2+ discrete GPUs the scatter input reads in this kernel can access
-    // memory beyond the allocated input buffer for certain dynamic-shape
-    // configurations. Pre-Xe2 hardware silently returns zero for OOB reads
-    // but Xe2 raises CL_OUT_OF_RESOURCES. Disable for dynamic shapes on Xe2+.
+    // On Xe2+ the scatter input reads in this kernel can access memory beyond
+    // the allocated input buffer for certain dynamic-shape configurations.
+    // Pre-Xe2 hardware silently returns zero for OOB reads but Xe2 raises
+    // CL_OUT_OF_RESOURCES. Disable for dynamic shapes on Xe2+.
     if (p.is_shape_agnostic) {
         const auto ip_major = static_cast<uint32_t>(p.engineInfo.ip_version >> 16);
         const bool is_xe2_or_later = p.engineInfo.arch >= gpu_arch::xe2 ||
