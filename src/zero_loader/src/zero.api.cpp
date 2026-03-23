@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
+#define ZERO_API_KEEP_SYMBOLS_LIST_MACRO
 #include "openvino/zero_api.hpp"
 
 #include <mutex>

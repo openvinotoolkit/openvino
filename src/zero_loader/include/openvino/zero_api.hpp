@@ -106,4 +106,8 @@ weak_symbols_list();
 symbols_list();
 weak_symbols_list();
 #undef symbol_statement
+#ifndef ZERO_API_KEEP_SYMBOLS_LIST_MACRO
+#undef symbols_list
+#undef weak_symbols_list
+#endif
 }  // namespace ov::zero
