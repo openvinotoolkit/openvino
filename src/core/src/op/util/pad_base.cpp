@@ -123,11 +123,9 @@ bool op::util::PadBase::evaluate_pad(TensorVector& outputs, const TensorVector& 
         outputs[0].set_shape(padded_shape);
 
         const auto* src = static_cast<const std::string*>(data.data());
-        auto*       dst = static_cast<std::string*>(outputs[0].data());
+        auto* dst = static_cast<std::string*>(outputs[0].data());
         const std::string pad_str =
-            (get_input_size() == 4)
-                ? *static_cast<const std::string*>(inputs[3].data())
-                : std::string{};
+            (get_input_size() == 4) ? *static_cast<const std::string*>(inputs[3].data()) : std::string{};
 
         ov::CoordinateTransformBasic out_coord_transform(padded_shape);
         for (const auto& out_coord : out_coord_transform) {

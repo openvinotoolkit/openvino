@@ -164,8 +164,7 @@ void Pad::initSupportedPrimitiveDescriptors() {
         config.inConfs[2].setMemDesc(
             creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::i32, getInputShapeAtPort(PADS_END_ID)));
         if (isPadValueSpecified) {
-            const auto padValPrec =
-                (precision == ov::element::string) ? ov::element::string : ov::element::f32;
+            const auto padValPrec = (precision == ov::element::string) ? ov::element::string : ov::element::f32;
             config.inConfs[3].setMemDesc(
                 creatorsMap.at(LayoutType::ncsp)->createSharedDesc(padValPrec, getInputShapeAtPort(PAD_VALUE_ID)));
         }
@@ -454,26 +453,24 @@ void Pad::execute([[maybe_unused]] const dnnl::stream& strm) {
 }
 
 void Pad::executeDynamicImpl(const dnnl::stream& strm) {
-
     execute(strm);
 }
 
 // Regular PadExecutor operates on raw bytes which is undefined behaviour for std::string objects
 void Pad::executeString() {
-    OPENVINO_ASSERT(attrs.padMode == CONSTANT,
-                    "Pad: only CONSTANT mode is supported for string data type");
+    OPENVINO_ASSERT(attrs.padMode == CONSTANT, "Pad: only CONSTANT mode is supported for string data type");
 
     const auto srcMem = getSrcMemoryAtPort(DATA_ID);
     const auto dstMem = getDstMemoryAtPort(DATA_ID);
-    const auto* src   = srcMem->getDataAs<const std::string>();
-    auto*       dst   = dstMem->getDataAs<std::string>();
+    const auto* src = srcMem->getDataAs<const std::string>();
+    auto* dst = dstMem->getDataAs<std::string>();
 
     const auto& srcShape = srcMem->getStaticDims();
     const auto& dstShape = dstMem->getStaticDims();
-    const size_t nDims   = srcShape.size();
+    const size_t nDims = srcShape.size();
 
     std::vector<int32_t> padsBegin = attrs.padsBegin;
-    std::vector<int32_t> padsEnd   = attrs.padsEnd;
+    std::vector<int32_t> padsEnd = attrs.padsEnd;
     if (padsBegin.empty()) {
         const auto* pb = getSrcMemoryAtPort(PADS_BEGIN_ID)->getDataAs<const int32_t>();
         padsBegin.assign(pb, pb + nDims);
@@ -502,13 +499,13 @@ void Pad::executeString() {
             size_t tmp = start;
             for (int d = static_cast<int>(nDims) - 1; d >= 0; --d) {
                 coord[d] = tmp % dstShape[d];
-                tmp      /= dstShape[d];
+                tmp /= dstShape[d];
             }
         }
 
         for (size_t i = start; i < end; ++i) {
-            bool   in_range = true;
-            size_t srcIdx   = 0;
+            bool in_range = true;
+            size_t srcIdx = 0;
             for (size_t d = 0; d < nDims; ++d) {
                 const int64_t sc = static_cast<int64_t>(coord[d]) - padsBegin[d];
                 if (sc < 0 || sc >= static_cast<int64_t>(srcShape[d])) {

@@ -2154,4 +2154,87 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs,
                          ReferencePadV1TestNonConstPadsBeginPadsEndPadValParamsOk,
                          testing::ValuesIn(generateCombinedParamsOk()),
                          ReferencePadTest::getTestCaseName);
+
+std::vector<PadParams> generateStringParams() {
+    const auto ET = element::Type_t::string;
+    const auto ET_INT = element::Type_t::i64;
+    using T = typename element_type_traits<ET>::value_type;
+    using T_INT = typename element_type_traits<ET_INT>::value_type;
+
+    return {
+        // 1-D, pad begin and end with explicit pad value
+        PadParams(reference_tests::Tensor(ET, {4}, std::vector<T>{"a", "bb", "ccc", "dddd"}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{1}),
+                  reference_tests::Tensor(ET, {7}, std::vector<T>{"<p>", "<p>", "a", "bb", "ccc", "dddd", "<p>"}),
+                  op::PadMode::CONSTANT,
+                  reference_tests::Tensor(ET, {}, std::vector<T>{"<p>"}),
+                  "pad_string_1d_begin_end_explicit_value"),
+
+        // 1-D, explicit empty-string pad value
+        PadParams(reference_tests::Tensor(ET, {3}, std::vector<T>{"x", "yy", "zzz"}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{1}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+                  reference_tests::Tensor(ET, {6}, std::vector<T>{"", "x", "yy", "zzz", "", ""}),
+                  op::PadMode::CONSTANT,
+                  reference_tests::Tensor(ET, {}, std::vector<T>{""}),
+                  "pad_string_1d_empty_pad_value"),
+
+        // 2-D, pad rows and columns
+        PadParams(reference_tests::Tensor(ET, {2, 2}, std::vector<T>{"a", "bb", "ccc", "dddd"}),
+                  reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+                  reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 1}),
+                  reference_tests::Tensor(
+                      ET,
+                      {3, 5},
+                      std::vector<T>{".", ".", ".", ".", ".", ".", ".", "a", "bb", ".", ".", ".", "ccc", "dddd", "."}),
+                  op::PadMode::CONSTANT,
+                  reference_tests::Tensor(ET, {}, std::vector<T>{"."}),
+                  "pad_string_2d_rows_cols"),
+
+        // 1-D, negative pads (crop)
+        PadParams(reference_tests::Tensor(ET, {5}, std::vector<T>{"a", "bb", "ccc", "dddd", "eeeee"}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-1}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-2}),
+                  reference_tests::Tensor(ET, {2}, std::vector<T>{"bb", "ccc"}),
+                  op::PadMode::CONSTANT,
+                  reference_tests::Tensor(ET, {}, std::vector<T>{""}),
+                  "pad_string_1d_negative_crop"),
+
+        // Long strings that exercise the heap allocation path
+        PadParams(reference_tests::Tensor(ET,
+                                          {2},
+                                          std::vector<T>{"this string is long enough to exceed SSO",
+                                                         "another rather long string for the test"}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{1}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{1}),
+                  reference_tests::Tensor(ET,
+                                          {4},
+                                          std::vector<T>{"PAD",
+                                                         "this string is long enough to exceed SSO",
+                                                         "another rather long string for the test",
+                                                         "PAD"}),
+                  op::PadMode::CONSTANT,
+                  reference_tests::Tensor(ET, {}, std::vector<T>{"PAD"}),
+                  "pad_string_1d_long_strings_heap"),
+    };
+}
+
+class ReferencePadV12StringTest : public ReferencePadTest {
+public:
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        BaseConstSetUp();
+        function = commonConstPadsCreateFunction<op::v12::Pad>(GetParam());
+    }
+};
+
+TEST_P(ReferencePadV12StringTest, CompareWithRefs) {
+    Exec();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Pad_String_With_Hardcoded_Refs,
+                         ReferencePadV12StringTest,
+                         testing::ValuesIn(generateStringParams()),
+                         ReferencePadTest::getTestCaseName);
 }  // namespace
