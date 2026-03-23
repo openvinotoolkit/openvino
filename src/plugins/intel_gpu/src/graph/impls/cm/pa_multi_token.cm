@@ -82,6 +82,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
     // multiple work-groups are required to split a sequence,
     // need to figure out which part of query-tokens to process
+    // Hybrid dispatch selection:
+    // - dynamic path: derive wg_seq_len from runtime local_size
+    // - optimized path: pass compile-time CMPA_WG_SEQ_LEN in build options
 #if defined(CMPA_WG_SEQ_LEN) && (CMPA_WG_SEQ_LEN > 0)
     const int wg_seq_len = CMPA_WG_SEQ_LEN;
 #else
@@ -110,6 +113,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
     int q_start_local = (block_start_pos - subseq_q_begin) + (wg_local_id * q_step);
 #if CMPA_KVCACHE_U8
+    // U8 path uses workgroup-level barriers in `pa_lsc_u8`, so every lane in
+    // the workgroup must participate. For out-of-range lanes, pass q_len_sg=0
+    // so no output is written while still participating in synchronization.
     bool lane_active = (q_start_local < subseq_q_len);
     q_start_sg = subseq_q_begin + q_start_local;
     q_len_sg = q_step;
