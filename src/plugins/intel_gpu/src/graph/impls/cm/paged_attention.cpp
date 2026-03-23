@@ -217,6 +217,12 @@ public:
                 }
             }
 
+            if (use_split_mixed && rt_params->single_token_selected_count > 0) {
+                const auto partition_size = PagedAttentionGeneratorSingleToken::get_partition_size(desc->has_xattention);
+                rt_params->num_of_partitions = ceil_div(max_context_len, partition_size);
+                rt_params->q_chunking = get_single_token_q_chunking(params, *desc, partition_size);
+            }
+
             if (desc->has_xattention && rt_params->batch_size_in_sequences == 1) {
                 update_xattn_rt_params(params);
                 rt_params->enable_xattn_estimation = true;
