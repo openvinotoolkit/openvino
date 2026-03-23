@@ -82,10 +82,10 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     int* block_indices_begins [[type("svmptr_t")]],
     int* subsequence_begins [[type("svmptr_t")]],
     int* selected_sequence_ids [[type("svmptr_t")]],
-    int selected_sequence_count,
     float* output [[type("svmptr_t")]],
     float* lse [[type("svmptr_t")]],
-    int q_len// 1
+    int q_len,// 1
+    int selected_sequence_count
     ) {
     //# batch=1, seq_num=1 or >1
     //# query [seq_idx, seq_num, head_num, head_size]

@@ -509,9 +509,12 @@ Arguments PagedAttentionGeneratorSingleTokenFinalization::get_arguments_desc(con
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_PARTITIONOUT});  // partition data
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                                                          // output
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_EXPSUMS});       // lse
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});                  // subsequence begins
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::SINGLE_TOKEN_SELECTED_SEQ_IDS});  // selected sequence ids
 
     // scalar
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // kv_partition_num
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // selected_sequence_count
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // kv_partition_num
 
     return args;
 }
@@ -526,7 +529,7 @@ DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_da
 
         OPENVINO_ASSERT(rt_params != nullptr);
 
-        const size_t batch = params.input_layouts[0].get_partial_shape()[0].get_length();
+        const size_t batch = rtp->batch_size_in_sequences;
         const size_t heads_num = desc->heads_num;
         const size_t head_size = desc->k_head_size;
         wgs.global = {batch, heads_num, head_size / reduce_split_step};
@@ -534,7 +537,7 @@ DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_da
 
         auto& scalars = kd.params.scalars;
         const size_t partition_num = rtp->num_of_partitions;
-        std::vector<size_t> scaler_value = {partition_num};
+        std::vector<size_t> scaler_value = {rtp->batch_size_in_sequences, partition_num};
         scalars.resize(scaler_value.size());
 
         if (DEBUG_ENABLED) {  // Debug
