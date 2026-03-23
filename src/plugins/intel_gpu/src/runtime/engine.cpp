@@ -310,7 +310,8 @@ bool engine::check_allocatable(const layout& layout, allocation_type type) {
                         "[GPU] Exceeded max size of memory object allocation: ",
                         "requested ", layout.bytes_count(), " bytes, "
                         "but max alloc size supported by device is ", get_device_info().max_alloc_mem_size, " bytes. ",
-                        "Please try to reduce batch size or use lower precision.");
+                        "Please try to reduce batch size, use lower precision, "
+                        "or set GPU_ENABLE_LARGE_ALLOCATIONS property to true.");
     }
 
     auto used_mem = get_used_device_memory(allocation_type::usm_device) + get_used_device_memory(allocation_type::usm_host);
