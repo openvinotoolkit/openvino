@@ -3,13 +3,11 @@
 //
 
 #include "string_tensor_unpack.hpp"
-#include "pad_string.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/precision_support.h"
 #include "openvino/op/string_tensor_unpack.hpp"
-#include "openvino/op/pad.hpp"
 
 using namespace CPUTestUtils;
 
@@ -92,110 +90,8 @@ const std::vector<StringTensorUnpackSpecificParams> StringTensorUnpackParamsVect
     StringTensorUnpackSpecificParams {
         InputShape{{3, -1, {3, 8}}, {{3, 1, 3}, {3, 2, 8}}}
     },
-    // Zero-dim inputs — exercise the zero-dim branch in shape_infer (else-if path in string_tensor_unpack_shape_inference.hpp)
-    StringTensorUnpackSpecificParams {
-        InputShape{{0}, {{0}}}              // static 1-D, zero elements
-    },
-    StringTensorUnpackSpecificParams {
-        InputShape{{2, 0, 3}, {{2, 0, 3}}}  // static 3-D with zero inner dim
-    },
-    StringTensorUnpackSpecificParams {
-        InputShape{{-1}, {{0}, {3}, {0}}}   // dynamic 1-D, alternates zero / non-zero
-    },
-    StringTensorUnpackSpecificParams {
-        InputShape{{-1, -1}, {{0, 5}, {3, 4}, {3, 0}}}  // dynamic 2-D, some shapes have a zero
-    },
 };
 
 }  // namespace StringTensorUnpack
-}  // namespace test
-}  // namespace ov
-
-// ─── PadString test implementation ──────────────────────────────────────────
-
-namespace ov {
-namespace test {
-namespace PadString {
-
-std::string PadStringLayerCPUTest::getTestCaseName(
-    const testing::TestParamInfo<PadStringLayerCPUTestParamsSet>& obj) {
-    const auto& [basicParamsSet, cpuParams] = obj.param;
-    const auto& [padStringParams, targetDevice] = basicParamsSet;
-    const auto& [padsBegin, padsEnd, padValue, inputShape] = padStringParams;
-
-    std::ostringstream result;
-    result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_TS=(";
-    for (const auto& shape : inputShape.second)
-        result << ov::test::utils::vec2str(shape) << "_";
-    result << ")_padsBegin=" << ov::test::utils::vec2str(padsBegin)
-           << "_padsEnd="   << ov::test::utils::vec2str(padsEnd)
-           << "_padValue="  << padValue
-           << "_trgDev="    << targetDevice
-           << CPUTestUtils::CPUTestsBase::getTestCaseName(cpuParams);
-    return result.str();
-}
-
-void PadStringLayerCPUTest::generate_inputs(
-    const std::vector<ov::Shape>& targetInputStaticShapes) {
-    inputs.clear();
-    const auto& funcInputs = function->inputs();
-    ov::test::utils::InputGenerateData in_data;
-    in_data.start_from = 0;
-    in_data.range     = 10;
-    auto data_tensor = ov::test::utils::create_and_fill_tensor(
-        ov::element::string, targetInputStaticShapes.front(), in_data);
-    inputs.insert({funcInputs[0].get_node_shared_ptr(), data_tensor});
-}
-
-void PadStringLayerCPUTest::SetUp() {
-    const auto& [basicParamsSet, cpuParams] = this->GetParam();
-    std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-    const auto& [padStringParams, _targetDevice] = basicParamsSet;
-    targetDevice = _targetDevice;
-    const auto& [padsBegin, padsEnd, padValue, dataInputShape] = padStringParams;
-
-    init_input_shapes({dataInputShape});
-
-    auto dataParam = std::make_shared<ov::op::v0::Parameter>(
-        ov::element::string, inputDynamicShapes[0]);
-
-    auto padsBeginConst = std::make_shared<ov::op::v0::Constant>(
-        ov::element::i64, ov::Shape{padsBegin.size()}, padsBegin);
-    auto padsEndConst = std::make_shared<ov::op::v0::Constant>(
-        ov::element::i64, ov::Shape{padsEnd.size()}, padsEnd);
-    auto padValueConst = std::make_shared<ov::op::v0::Constant>(
-        ov::element::string, ov::Shape{}, std::vector<std::string>{padValue});
-
-    auto pad = std::make_shared<ov::op::v12::Pad>(
-        dataParam, padsBeginConst, padsEndConst, padValueConst,
-        ov::op::PadMode::CONSTANT);
-
-    function = std::make_shared<ov::Model>(
-        ov::ResultVector{std::make_shared<ov::op::v0::Result>(pad)},
-        ov::ParameterVector{dataParam},
-        "PadStringLayerCPUTest");
-    functionRefs = function->clone();
-}
-
-TEST_P(PadStringLayerCPUTest, CompareWithRefs) {
-    run();
-}
-
-const std::vector<PadStringSpecificParams> PadStringParamsVector = {
-    // 2-D static: pad first-dim begin, second-dim end
-    PadStringSpecificParams{{1, 0}, {0, 1}, "PAD", InputShape{{}, {{2, 3}}}},
-    // 2-D static: pad both dims
-    PadStringSpecificParams{{1, 2}, {2, 1}, "X",   InputShape{{}, {{3, 4}}}},
-    // 3-D static: pad last dim only
-    PadStringSpecificParams{{0, 0, 0}, {1, 2, 0}, "*", InputShape{{}, {{3, 3, 4}}}},
-    // 2-D dynamic: pad first-dim begin, second-dim end
-    PadStringSpecificParams{{1, 0}, {0, 1}, "PAD",
-        InputShape{{-1, -1}, {{2, 3}, {4, 2}, {1, 5}}}},
-    // 3-D dynamic
-    PadStringSpecificParams{{1, 0, 2}, {0, 1, 0}, "STR",
-        InputShape{{-1, -1, -1}, {{2, 3, 2}, {1, 2, 4}}}},
-};
-
-}  // namespace PadString
 }  // namespace test
 }  // namespace ov

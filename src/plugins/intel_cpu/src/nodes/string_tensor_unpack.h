@@ -24,7 +24,6 @@ public:
     void execute(const dnnl::stream& strm) override;
     [[nodiscard]] bool created() const override;
     [[nodiscard]] bool needPrepareParams() const override;
-    [[nodiscard]] bool isExecutable() const override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
 };
 
