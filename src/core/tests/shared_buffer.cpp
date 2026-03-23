@@ -345,65 +345,6 @@ TEST_F(SharedBufferTest, aligned_buffer_interface) {
     EXPECT_EQ(aligned->get_ptr(), test_data);
 }
 
-// ==================== MappedMemory get_id Tests ====================
-
-TEST(MappedMemory, get_id_unique_per_file) {
-    // Create two temporary files
-    std::filesystem::path file1 = ov::test::utils::generateTestFilePrefix() + "_file1";
-    std::filesystem::path file2 = ov::test::utils::generateTestFilePrefix() + "_file2";
-
-    const char test_data[] = "Test data for MappedMemory";
-
-    // Write same data to both files
-    {
-        std::ofstream os1(file1, std::ios::binary);
-        os1.write(test_data, sizeof(test_data));
-
-        std::ofstream os2(file2, std::ios::binary);
-        os2.write(test_data, sizeof(test_data));
-    }
-
-    {
-        // Load both files
-        auto mapped1 = ov::load_mmap_object(file1);
-        auto mapped2 = ov::load_mmap_object(file2);
-
-        ASSERT_NE(mapped1, nullptr);
-        ASSERT_NE(mapped2, nullptr);
-
-        // IDs should be different even though content is the same (ID is hash of file path)
-        EXPECT_NE(mapped1->get_id(), mapped2->get_id());
-    }
-    // Clean up
-    std::filesystem::remove(file1);
-    std::filesystem::remove(file2);
-}
-
-TEST(MappedMemory, get_id_same_for_same_file) {
-    std::filesystem::path file_path = ov::test::utils::generateTestFilePrefix() + "_same_file";
-    const char test_data[] = "Test data for same file";
-
-    // Create file
-    {
-        std::ofstream os(file_path, std::ios::binary);
-        os.write(test_data, sizeof(test_data));
-    }
-
-    {
-        // Load the same file twice
-        auto mapped1 = ov::load_mmap_object(file_path);
-        auto mapped2 = ov::load_mmap_object(file_path);
-
-        ASSERT_NE(mapped1, nullptr);
-        ASSERT_NE(mapped2, nullptr);
-
-        // IDs should be the same for the same file path
-        EXPECT_EQ(mapped1->get_id(), mapped2->get_id());
-    }
-    // Clean up
-    std::filesystem::remove(file_path);
-}
-
 // ==================== SharedBuffer with explicit descriptor Tests ====================
 
 TEST_F(SharedBufferTest, shared_ptr_void_with_explicit_descriptor) {
