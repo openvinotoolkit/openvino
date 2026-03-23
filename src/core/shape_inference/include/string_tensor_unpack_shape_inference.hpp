@@ -39,9 +39,7 @@ std::vector<TRShape> shape_infer(const StringTensorUnpack* op,
             total_length += (*it).length();
         }
         output_shapes.emplace_back(TRShape{static_cast<typename TRShape::value_type>(total_length)});
-    } else if (std::any_of(data_shape.cbegin(), data_shape.cend(), [](const auto& dim) {
-                   return dim == 0;
-               })) {
+    } else if (std::count(data_shape.cbegin(), data_shape.cend(), 0)) {
         output_shapes.emplace_back(TRShape{static_cast<typename TRShape::value_type>(0)});
     } else {
         output_shapes.emplace_back(ov::PartialShape{ov::Dimension::dynamic()});
