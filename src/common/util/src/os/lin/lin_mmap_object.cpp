@@ -110,7 +110,7 @@ public:
             }
             m_data = static_cast<char*>(m_mapped_view) + (offset - aligned_offset);
         }
-        m_id = util::hash_combine({sb.st_ino, sb.st_dev, offset, size});
+        m_id = util::u64_hash_combine({sb.st_ino, sb.st_dev, offset, size});
     }
 
     uint64_t get_id() const noexcept override {

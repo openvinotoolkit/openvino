@@ -94,6 +94,14 @@ constexpr uint64_t u64_hash_combine(uint64_t h, uint64_t k) {
     return h + 0xe6546b64;
 }
 
+constexpr uint64_t u64_hash_combine(std::initializer_list<uint64_t>&& list) {
+    uint64_t seed = 0;
+    for (uint64_t v : list) {
+        seed ^= u64_hash_combine(v, seed);
+    }
+    return seed;
+}
+
 /**
  * @brief trim from start (in place)
  * @param s - string to trim

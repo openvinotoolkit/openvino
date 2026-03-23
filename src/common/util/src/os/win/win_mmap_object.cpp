@@ -100,12 +100,11 @@ public:
 private:
     void set_id(const HANDLE h, const size_t offset, const size_t size) {
         if (FILE_ID_INFO info; GetFileInformationByHandleEx(h, FileIdInfo, &info, sizeof(info))) {
-            m_id = util::u64_hash_combine(offset, size);
-            m_id = util::u64_hash_combine(info.VolumeSerialNumber, m_id);
             static_assert(sizeof(info.FileId) == 16);
-            const auto p = reinterpret_cast<uint64_t*>(&info.FileId);
-            m_id = util::u64_hash_combine(*p, m_id);
-            m_id = util::u64_hash_combine(*(p + 1), m_id);
+            const uint64_t fid_l, fid_r;
+            std::memcpy(&fid_l, &info.FileId, sizeof(fid_l));
+            std::memcpy(&fid_r, reinterpret_cast<const char*>(&info.FileId) + sizeof(fid_l), sizeof(fid_r));
+            m_id = util::u64_hash_combine({offset, size, info.VolumeSerialNumber, fid_l, fid_r});
         } else {
             throw std::runtime_error{"Cannot obtain file id info for handle " +
                                      std::to_string(reinterpret_cast<uint64_t>(h))};
