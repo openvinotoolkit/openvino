@@ -28,7 +28,7 @@
 namespace ov::op {
 
 #define SUPPORTED_ET                                                                                                 \
-    boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, nf4, f8e4m3, f8e5m2, \
+    boolean, bf16, f16, f32, f64, i2, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, nf4, f8e4m3, f8e5m2, \
         f4e2m1, f8e8m0
 
 template <class TContainer>
@@ -111,6 +111,9 @@ bool in_t_range(const U& v) {
     } else if constexpr (ET == element::u6) {
         const auto temp = static_cast<ConstantT>(v);
         return 0 <= temp && temp <= 63;
+    } else if constexpr (ET == element::i2) {
+        const auto temp = static_cast<ConstantT>(v);
+        return -2 <= temp && temp <= 1;
     } else if constexpr (ET == element::i4) {
         const auto temp = static_cast<ConstantT>(v);
         return -8 <= temp && temp <= 7;

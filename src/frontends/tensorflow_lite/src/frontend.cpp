@@ -20,6 +20,8 @@
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
+#include "openvino/core/graph_util.hpp"
+#include <cstdlib>
 
 using namespace ov;
 using namespace ov::frontend::tensorflow_lite;
@@ -115,6 +117,10 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
                                           op_type);
         }
     }
+    std::string model_name = "/tmp/model" + std::to_string(rand());
+    std::cout << "Running Serialize 2 " << model_name << std::endl;
+    std::string model_name2 = model_name + ".xml";
+    ov::serialize(ov_model, model_name2);
     return ov_model;
 }
 
