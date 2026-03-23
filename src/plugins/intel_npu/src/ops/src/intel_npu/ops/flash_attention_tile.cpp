@@ -27,6 +27,7 @@ void flash_attention_evaluate(const float* query,
                               bool attention_mask_broadcasted,
                               int32_t B,
                               int32_t H,
+                              int32_t H_kv,
                               int32_t L,
                               int32_t S,
                               int32_t E,
@@ -34,11 +35,14 @@ void flash_attention_evaluate(const float* query,
     std::vector<float> scores(S);
     std::vector<float> exp_scores(S);
 
+    const auto gqa_group_size = H / H_kv;
+
     for (int32_t b = 0; b < B; ++b) {
         for (int32_t h = 0; h < H; ++h) {
+            auto kv_h = h / gqa_group_size;
             auto q_ptr = query + b * H * L * E + h * L * E;
-            auto k_ptr = key + b * H * S * E + h * S * E;
-            auto v_ptr = value + b * H * S * Ev + h * S * Ev;
+            auto k_ptr = key + b * H_kv * S * E + kv_h * S * E;
+            auto v_ptr = value + b * H_kv * S * Ev + kv_h * S * Ev;
 
             const float* m_ptr = attention_mask;
             if (attention_mask != nullptr && !attention_mask_broadcasted) {
@@ -150,17 +154,32 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
     l_dim = *(query_shape.end() - 2);
     e_dim = *(query_shape.end() - 1);
 
+    // Split query dims into true batch dims and head dim.
+    // For rank 3: [H, L, E] -> batch_dims=[], head_dim=H
+    // For rank 4: [B, H, L, E] -> batch_dims=[B], head_dim=H
+    auto q_head_dim = *(query_shape.end() - 3);
     auto query_batch_dims = query_shape;
-    query_batch_dims.resize(query_shape.size() - 2);
+    query_batch_dims.resize(query_shape.size() - 3);
+
+    // Helper: check that KV head dim is compatible with Q head dim (GQA: Q heads divisible by KV heads)
+    auto is_gqa_compatible = [](const DimType& q_head, const DimType& kv_head) -> bool {
+        if (q_head.is_static() && kv_head.is_static()) {
+            return q_head.get_length() % kv_head.get_length() == 0;
+        }
+        return true;  // allow dynamic dims
+    };
 
     const auto& key_shape = input_shapes[1];
     const auto& key_rank = key_shape.rank();
-    const bool& key_input_correctness =
+    auto key_batch_dims = ov::PartialShape(std::vector<DimType>(key_shape.begin(), key_shape.end() - 3));
+    auto kv_head_dim = *(key_shape.end() - 3);
+    const bool key_input_correctness =
         key_rank.get_length() >= 3 &&
         ov::PartialShape::broadcast_merge_into(
             query_batch_dims,
-            ov::PartialShape(std::vector<DimType>(key_shape.begin(), key_shape.end() - 2)),
+            key_batch_dims,
             AutoBroadcastType::NUMPY) &&
+        is_gqa_compatible(q_head_dim, kv_head_dim) &&
         DimType::merge(e_dim, e_dim, *(key_shape.end() - 1));
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
@@ -171,12 +190,16 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
 
     const auto& value_shape = input_shapes[2];
     const auto& value_rank = value_shape.rank();
-    const bool& value_input_correctness =
+    auto value_batch_dims = ov::PartialShape(std::vector<DimType>(value_shape.begin(), value_shape.end() - 3));
+    auto v_head_dim = *(value_shape.end() - 3);
+    const bool value_input_correctness =
         value_rank.get_length() >= 3 &&
         ov::PartialShape::broadcast_merge_into(
             query_batch_dims,
-            ov::PartialShape(std::vector<DimType>(value_shape.begin(), value_shape.end() - 2)),
+            value_batch_dims,
             AutoBroadcastType::NUMPY) &&
+        is_gqa_compatible(q_head_dim, v_head_dim) &&
+        DimType::merge(kv_head_dim, kv_head_dim, v_head_dim) &&
         DimType::merge(s_dim, s_dim, *(value_shape.end() - 2));
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
@@ -185,12 +208,16 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
 
     ev_dim = *(value_shape.end() - 1);
 
+    // Reconstruct full Q batch dims (including head dim) for running state validation
+    auto q_full_batch_dims = query_batch_dims;
+    q_full_batch_dims.push_back(q_head_dim);
+
     const auto& running_output_shape = input_shapes[3];
     const auto& running_output_rank = running_output_shape.rank();
-    const bool& running_output_correctness =
+    const bool running_output_correctness =
         running_output_rank.get_length() >= 3 &&
         ov::PartialShape::broadcast_merge_into(
-            query_batch_dims,
+            q_full_batch_dims,
             ov::PartialShape(std::vector<DimType>(running_output_shape.begin(), running_output_shape.end() - 2)),
             AutoBroadcastType::NUMPY) &&
         (*(running_output_shape.end() - 1) == ev_dim) && (*(running_output_shape.end() - 2) == l_dim);
@@ -201,10 +228,10 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
 
     const auto& running_max_shape = input_shapes[4];
     const auto& running_max_rank = running_max_shape.rank();
-    const bool& running_max_correctness =
+    const bool running_max_correctness =
         running_max_rank.get_length() >= 2 &&
         ov::PartialShape::broadcast_merge_into(
-            query_batch_dims,
+            q_full_batch_dims,
             ov::PartialShape(std::vector<DimType>(running_max_shape.begin(), running_max_shape.end() - 1)),
             AutoBroadcastType::NUMPY) &&
         (*(running_max_shape.end() - 1) == l_dim);
@@ -215,10 +242,10 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
 
     const auto& running_sum_shape = input_shapes[5];
     const auto& running_sum_rank = running_sum_shape.rank();
-    const bool& running_sum_correctness =
+    const bool running_sum_correctness =
         running_sum_rank.get_length() >= 2 &&
         ov::PartialShape::broadcast_merge_into(
-            query_batch_dims,
+            q_full_batch_dims,
             ov::PartialShape(std::vector<DimType>(running_sum_shape.begin(), running_sum_shape.end() - 1)),
             AutoBroadcastType::NUMPY) &&
         (*(running_sum_shape.end() - 1) == l_dim);
@@ -238,7 +265,7 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
             attention_mask_input_correctness =
                 attention_mask_input_correctness &&
                 ov::PartialShape::broadcast_merge_into(
-                    query_batch_dims,
+                    q_full_batch_dims,
                     ov::PartialShape(std::vector<DimType>(attention_mask.begin(), attention_mask.end() - 2)),
                     AutoBroadcastType::NUMPY);
         }
@@ -248,12 +275,12 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
                                "Attention mask input shape not compatible with other inputs.");
     }
 
-    auto result_running_output_shape = query_batch_dims;
+    auto result_running_output_shape = q_full_batch_dims;
     result_running_output_shape.push_back(l_dim);
     result_running_output_shape.push_back(ev_dim);
 
     // Running max and sum have the same shape
-    auto result_running_max_and_sum_shape = query_batch_dims;
+    auto result_running_max_and_sum_shape = q_full_batch_dims;
     result_running_max_and_sum_shape.push_back(l_dim);
 
     return {result_running_output_shape, result_running_max_and_sum_shape, result_running_max_and_sum_shape};
@@ -374,6 +401,7 @@ static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
     const auto E = static_cast<int32_t>(*(query_shape.end() - 1));
 
     const auto& key_shape = inputs[KEY].get_shape();
+    const auto H_kv = static_cast<int32_t>(*(key_shape.end() - 3));
     const auto S = static_cast<int32_t>(*(key_shape.end() - 2));
 
     const auto& value_shape = inputs[VALUE].get_shape();
@@ -419,6 +447,7 @@ static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
                              attention_mask_broadcasted,
                              B,
                              H,
+                             H_kv,
                              L,
                              S,
                              E,
