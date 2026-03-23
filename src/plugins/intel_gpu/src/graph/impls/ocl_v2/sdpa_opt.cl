@@ -4,6 +4,7 @@
 
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/common.cl"
+#include "include/batch_headers/int4_utils.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/sub_group_shuffle.cl"
@@ -289,10 +290,79 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
                 const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + seq_len, 0);
                 KEY_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(key_zp, key_scale, comp_offset);
-#if USE_ASYMMETRIC_QUANTIZATION
+#if USE_ASYMMETRIC_QUANTIZATION || IS_INT4_COMPRESSED
                 KEY_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(key_zp, key_scale, comp_offset);
 #endif
 #endif
+
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
+                // Original logic
+                ////////////////////////////////////////////////////////////////////////////////////
+                {
+                #if 0
+                    #define KEY_BLOCK_SIZE 1
+                    for (; head_idx_index + (KEY_BLOCK_SIZE * SUBGROUP_SIZE) <= K_HEAD_SIZE; head_idx_index += SUBGROUP_SIZE * KEY_BLOCK_SIZE) {
+                        #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, KEY_BLOCK_SIZE, ptr, offset);
+                        #define KEY_BLOCK MAKE_VECTOR_TYPE(INPUT1_TYPE, KEY_BLOCK_SIZE)
+                        #define KEY_BLOCK_UNCOMPRESSED MAKE_VECTOR_TYPE(KEY_COMPRESSION_SCALE_TYPE, KEY_BLOCK_SIZE)
+                        #define TO_KEY_BLOCK_UNCOMPRESSED_TYPE(val) CAT(convert_, KEY_BLOCK_UNCOMPRESSED)(val)
+                        #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_BLOCK_SIZE)
+
+                        KEY_BLOCK key_vec_packed = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
+                        KEY_BLOCK_UNCOMPRESSED key_vals = (TO_KEY_BLOCK_UNCOMPRESSED_TYPE(key_vec_packed) - comp_zp) * comp_scale;
+
+                        uint query_offset = head_idx_index + sglid;
+                        unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
+                            QUERY_BLOCK query_vals_reg;
+                            // KEY_BLOCK_SIZE 1
+                            // unroll_for(uint i = 0; i < KEY_BLOCK_SIZE; i++) {
+                            //     query_vals_reg = query_local[query_offset + i * SUBGROUP_SIZE];
+                            // }
+                            query_vals_reg = query_local[query_offset];
+
+                            acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(query_vals_reg), TO_SOFTMAX_ACCUMULATOR_TYPE(key_vals), acc[seq_idx]);
+                            query_offset += K_HEAD_SIZE;
+                        }
+                    }
+                    // Sum up all accumulators accross single SG and save result to SLM
+                    unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
+                        acc[seq_idx] = sub_group_reduce_add(acc[seq_idx]);
+                        qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len] = acc[seq_idx];
+                    }
+                #endif
+                }
+                ////////////////////////////////////////////////////////////////////////////////////
+
+                // 4-bit KV cache: physical key size is K_HEAD_SIZE/2 bytes per sequence position.
+                // Packing: consecutive pairs of SUBGROUP_SIZE-wide groups share one physical byte:
+                //   byte at phys_offset = (head_idx_index/2 + sglid) holds:
+                //     lo order_in_packed -> key val at head dim [head_idx_index + sglid]
+                //     hi order_in_packed -> key val at head dim [head_idx_index + SUBGROUP_SIZE + sglid]
+                for (uint head_idx_index = 0; head_idx_index < K_HEAD_SIZE; head_idx_index += 2 * SUBGROUP_SIZE) {
+                    #define KEY_BLOCK_READ_1(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset)
+                    INPUT1_TYPE packed_byte = KEY_BLOCK_READ_1(key_input, key_offset + head_idx_index / 2);
+                    char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
+
+                    KEY_COMPRESSION_SCALE_TYPE key_val0 = (CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(unpacked.s0) - comp_zp) * comp_scale;
+                    KEY_COMPRESSION_SCALE_TYPE key_val1 = (CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(unpacked.s1) - comp_zp) * comp_scale;
+
+                    uint query_offset = head_idx_index + sglid;
+                    unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
+                        query_offset + = seq_idx * K_HEAD_SIZE;
+                        INPUT0_TYPE q_val0 = query_local[query_offset];
+                        INPUT0_TYPE q_val1 = query_local[query_offset+ SUBGROUP_SIZE];
+                        acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(q_val0), TO_SOFTMAX_ACCUMULATOR_TYPE(key_val0), acc[seq_idx]);
+                        acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(q_val1), TO_SOFTMAX_ACCUMULATOR_TYPE(key_val1), acc[seq_idx]);
+                    }
+                    #undef KEY_BLOCK_READ_1
+                }
+
+                // Sum up all accumulators accross SG and save result to SLM
+                unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
+                    acc[seq_idx] = sub_group_reduce_add(acc[seq_idx]);
+                    qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len] = acc[seq_idx];
+                }
+#else  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED) — original INT8 path
                 uint head_idx_index = 0;
                 #define KEY_BLOCK_SIZE 8
                 for (; head_idx_index + (KEY_BLOCK_SIZE * SUBGROUP_SIZE) <= K_HEAD_SIZE; head_idx_index += SUBGROUP_SIZE * KEY_BLOCK_SIZE) {
@@ -424,6 +494,7 @@ KERNEL(sdpa_opt)(
                     acc[seq_idx] = sub_group_reduce_add(acc[seq_idx]);
                     qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len] = acc[seq_idx];
                 }
+#endif  // IS_KV_COMPRESSED && IS_INT4_COMPRESSED
             }
 
             {
@@ -643,7 +714,12 @@ KERNEL(sdpa_opt)(
         uint value_offset_next_seq = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 1, 0);
         const uint value_pitch = value_offset_next_seq - value_offset;
 #else
+#if IS_INT4_COMPRESSED
+        // INT4: GET_INDEX returns element-level offsets; rows are V_HEAD_SIZE apart
         const uint value_pitch = V_HEAD_SIZE;
+#else
+        const uint value_pitch = V_HEAD_SIZE;
+#endif
 #endif
 #endif
 
@@ -661,17 +737,28 @@ KERNEL(sdpa_opt)(
             uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, sgid * SUBGROUP_SIZE);
 #else
             const uint b_idx = b0_idx;
-#ifdef INPUT2_DIMS_ORDER
-            uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
-#else
-            uint value_offset = INPUT2_GET_INDEX(b_idx, b1_idx, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
-#endif
+    #if IS_INT4_COMPRESSED
+                const uint order_in_packed = (head_size_idx / SUBGROUP_SIZE) & 1;
+    #endif
+    #ifdef INPUT2_DIMS_ORDER
+        #if IS_INT4_COMPRESSED
+                    uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
+        #else
+                    uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
+        #endif
+    #else
+        #if IS_INT4_COMPRESSED
+                    uint value_offset = INPUT2_GET_INDEX(b_idx, b1_idx, start_partition_idx + (seq_len * SUBGROUP_SIZE), (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
+        #else
+                    uint value_offset = INPUT2_GET_INDEX(b_idx, b1_idx, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
+        #endif
+    #endif
 #endif
 
 #if IS_KV_COMPRESSED
             const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, 0);
             VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
-#if USE_ASYMMETRIC_QUANTIZATION
+#if USE_ASYMMETRIC_QUANTIZATION || IS_INT4_COMPRESSED
             VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif
@@ -688,7 +775,14 @@ KERNEL(sdpa_opt)(
                 const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
 #endif
 
-#if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+                // INT4: unpack the order_in_packed for this lane's head dim from the packed byte.
+                char2 v_unpacked = unpack_to_char(*(uint4x2_t*)&value_packed);
+                VALUE_COMPRESSION_SCALE_TYPE value_val = (order_in_packed == 0 ?
+                    CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked.s0) :
+                    CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked.s1));
+                value_val = (value_val - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+#elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                 VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
 #elif IS_KV_COMPRESSED
                 VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed * sub_group_broadcast(comp_scale, i));
@@ -717,16 +811,27 @@ KERNEL(sdpa_opt)(
             const uint b_idx = b0_idx;
 #endif
 
+#if IS_INT4_COMPRESSED
+            const uint order_in_packed = (head_size_idx / SUBGROUP_SIZE) & 1;
+#endif
 #ifdef INPUT2_DIMS_ORDER
+#if IS_INT4_COMPRESSED
+            const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len, (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
+#else
             const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len, head_size_idx);
+#endif
+#else
+#if IS_INT4_COMPRESSED
+            const uint value_offset = INPUT2_GET_INDEX(b_idx, b1_idx, start_partition_idx + seq_len, (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
 #else
             const uint value_offset = INPUT2_GET_INDEX(b_idx, b1_idx, start_partition_idx + seq_len, head_size_idx);
+#endif
 #endif
 
 #if IS_KV_COMPRESSED
             const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + seq_len, 0);
             VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
-#if USE_ASYMMETRIC_QUANTIZATION
+#if USE_ASYMMETRIC_QUANTIZATION || IS_INT4_COMPRESSED
             VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif
@@ -737,7 +842,13 @@ KERNEL(sdpa_opt)(
             }
 
             const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
-#if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+            char2 v_rem_unpacked = unpack_to_char(*(uint4x2_t*)&value_packed);
+            VALUE_COMPRESSION_SCALE_TYPE value_val = (order_in_packed == 0 ?
+                CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_rem_unpacked.s0) :
+                CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_rem_unpacked.s1));
+            value_val = (value_val - comp_zp) * comp_scale;
+#elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
             const VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - comp_zp) * comp_scale;
 #elif IS_KV_COMPRESSED
             const VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed * comp_scale);
@@ -1247,10 +1358,39 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
                 const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, seq_len + sglid, 0);
                 KEY_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(key_zp, key_scale, comp_offset);
-#if USE_ASYMMETRIC_QUANTIZATION
+#if USE_ASYMMETRIC_QUANTIZATION || IS_INT4_COMPRESSED
                 KEY_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(key_zp, key_scale, comp_offset);
 #endif
 #endif
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+                {
+                    // INT4: process 2*SUBGROUP_SIZE logical head dims per iteration (one packed byte per lane per token row)
+                    #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset);
+                    #define QUERY_VEC MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
+                    const uint key_pitch_int4 = K_HEAD_SIZE;
+                    for (uint hi = 0; hi < K_HEAD_SIZE; hi += 2 * SUBGROUP_SIZE) {
+                        QUERY_VEC qvec_lo, qvec_hi;
+                        uint qlo = hi * TARGET_SEQ_LEN_BLOCK_SIZE + sglid;
+                        uint qhi_off = (hi + SUBGROUP_SIZE) * TARGET_SEQ_LEN_BLOCK_SIZE + sglid;
+                        unroll_for (uint q_row = 0; q_row < TARGET_SEQ_LEN_BLOCK_SIZE; q_row++) {
+                            qvec_lo[q_row] = slm_query[qlo];
+                            qvec_hi[q_row] = slm_query[qhi_off];
+                            qlo += TARGET_SEQ_LEN_BLOCK_SIZE;
+                            qhi_off += TARGET_SEQ_LEN_BLOCK_SIZE;
+                        }
+                        unroll_for (uint key_row_idx = 0; key_row_idx < TARGET_SEQ_LEN_BLOCK_SIZE; key_row_idx++) {
+                            const INPUT1_TYPE packed_byte = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch_int4 + hi / 2);
+                            char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
+                            KEY_COMPRESSION_SCALE_TYPE key_lo = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
+                            KEY_COMPRESSION_SCALE_TYPE key_hi = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s1) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
+                            unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
+                                qk_acc[key_row_idx] = mad(sub_group_broadcast(key_lo, i), qvec_lo[i], qk_acc[key_row_idx]);
+                                qk_acc[key_row_idx] = mad(sub_group_broadcast(key_hi, i), qvec_hi[i], qk_acc[key_row_idx]);
+                            }
+                        }
+                    }
+                }
+#else  // !IS_INT4_COMPRESSED
                 uint head_idx_index = 0;
                 __attribute__((opencl_unroll_hint(1)))
                 for (; head_idx_index + SUBGROUP_SIZE <= K_HEAD_SIZE; head_idx_index += SUBGROUP_SIZE) {
@@ -1309,15 +1449,49 @@ KERNEL(sdpa_opt)(
                         }
                     }
                 #endif
+#endif  // !IS_INT4_COMPRESSED
             } else if (seq_len_calc_size > 0) {
 #if IS_KV_COMPRESSED
                 const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, seq_len + min(sglid, (uint)seq_len_calc_size - 1), 0);
                 // const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, seq_len + sglid, 0);
                 KEY_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(key_zp, key_scale, comp_offset);
-#if USE_ASYMMETRIC_QUANTIZATION
+#if USE_ASYMMETRIC_QUANTIZATION || IS_INT4_COMPRESSED
                 KEY_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(key_zp, key_scale, comp_offset);
 #endif
 #endif
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+                {
+                    // INT4 partial block: process 2*SUBGROUP_SIZE logical head dims per iteration
+                    #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset)
+                    #define QUERY_VEC_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
+                    const uint key_pitch_int4 = K_HEAD_SIZE;
+                    for (uint hi = 0; hi < K_HEAD_SIZE; hi += 2 * SUBGROUP_SIZE) {
+                        QUERY_VEC_TYPE qvec_lo, qvec_hi;
+                        uint qlo = hi * TARGET_SEQ_LEN_BLOCK_SIZE + sglid;
+                        uint qhi_off = (hi + SUBGROUP_SIZE) * TARGET_SEQ_LEN_BLOCK_SIZE + sglid;
+                        unroll_for (uint q_row = 0; q_row < TARGET_SEQ_LEN_BLOCK_SIZE; q_row++) {
+                            qvec_lo[q_row] = slm_query[qlo];
+                            qvec_hi[q_row] = slm_query[qhi_off];
+                            qlo += TARGET_SEQ_LEN_BLOCK_SIZE;
+                            qhi_off += TARGET_SEQ_LEN_BLOCK_SIZE;
+                        }
+                        unroll_for (uint key_row_idx = 0; key_row_idx < TARGET_SEQ_LEN_BLOCK_SIZE; key_row_idx++) {
+                            KEY_COMPRESSION_SCALE_TYPE key_lo = 0;
+                            KEY_COMPRESSION_SCALE_TYPE key_hi = 0;
+                            if (key_row_idx < seq_len_calc_size) {
+                                const INPUT1_TYPE packed_byte = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch_int4 + hi / 2);
+                                char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
+                                key_lo = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
+                                key_hi = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s1) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
+                            }
+                            unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
+                                qk_acc[key_row_idx] = mad(sub_group_broadcast(key_lo, i), qvec_lo[i], qk_acc[key_row_idx]);
+                                qk_acc[key_row_idx] = mad(sub_group_broadcast(key_hi, i), qvec_hi[i], qk_acc[key_row_idx]);
+                            }
+                        }
+                    }
+                }
+#else  // !IS_INT4_COMPRESSED
                 uint head_idx_index = 0;
                 __attribute__((opencl_unroll_hint(1)))
                 for (; head_idx_index + SUBGROUP_SIZE <= K_HEAD_SIZE; head_idx_index += SUBGROUP_SIZE) {
@@ -1405,6 +1579,7 @@ KERNEL(sdpa_opt)(
                         }
                     }
                 #endif // K_HEAD_SIZE_LEFTOVER
+#endif  // !IS_INT4_COMPRESSED
             }
 
             // softmax_scale
@@ -1676,7 +1851,12 @@ KERNEL(sdpa_opt)(
             uint value_offset_next_seq = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 1, 0);
             const uint value_pitch = value_offset_next_seq - value_offset_base;
 #else
+#if IS_INT4_COMPRESSED
+            // INT4: GET_INDEX returns element-level offsets; rows are V_HEAD_SIZE apart
             const uint value_pitch = V_HEAD_SIZE;
+#else
+            const uint value_pitch = V_HEAD_SIZE;
+#endif
 #endif
 #endif
 
@@ -1700,10 +1880,21 @@ KERNEL(sdpa_opt)(
                     const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len) + sglid, sgid * SUBGROUP_SIZE);
 #else
                     const uint b_idx = b0_idx;
+    #if IS_INT4_COMPRESSED
+                    const uint order_in_packed = (head_size_idx / SUBGROUP_SIZE) & 1;
+    #endif
     #ifdef INPUT2_DIMS_ORDER
+    #if IS_INT4_COMPRESSED
+                    uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len), (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
+    #else
                     uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len), head_size_idx);
+    #endif
+    #else
+    #if IS_INT4_COMPRESSED
+                    uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + (seq_len), (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
     #else
                     uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + (seq_len), head_size_idx);
+    #endif
     #endif
 #endif
 #endif
@@ -1714,7 +1905,7 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
                     const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + seq_len + sglid, 0);
                     VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
-#if USE_ASYMMETRIC_QUANTIZATION
+#if USE_ASYMMETRIC_QUANTIZATION || IS_INT4_COMPRESSED
                     VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif
@@ -1730,7 +1921,13 @@ KERNEL(sdpa_opt)(
                         const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
                         #endif
 
-                        #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
+                        #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+                        char2 v_unpacked = unpack_to_char(*(uint4x2_t*)&value_packed);
+                        VALUE_COMPRESSION_SCALE_TYPE value_val = (order_in_packed == 0 ?
+                            CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked.s0) :
+                            CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked.s1));
+                        value_val = (value_val - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+                        #elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
                         #elif IS_KV_COMPRESSED
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed * sub_group_broadcast(comp_scale, i));
@@ -1753,7 +1950,13 @@ KERNEL(sdpa_opt)(
                         #else
                             const INPUT2_TYPE value_packed = value_input[value_offset];
                         #endif
-                        #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
+                        #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+                            char2 v_unpacked_elt = unpack_to_char(*(uint4x2_t*)&value_packed);
+                            VALUE_COMPRESSION_SCALE_TYPE value_val = (order_in_packed == 0 ?
+                                CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked_elt.s0) :
+                                CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked_elt.s1));
+                            value_val = (value_val - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+                        #elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                             VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
                         #elif IS_KV_COMPRESSED
                             VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed * sub_group_broadcast(comp_scale, i));
@@ -1793,10 +1996,21 @@ KERNEL(sdpa_opt)(
                     uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, sgid * SUBGROUP_SIZE);
                 #else
                     const uint b_idx = b0_idx;
+                #if IS_INT4_COMPRESSED
+                    const uint order_in_packed = (head_size_idx / SUBGROUP_SIZE) & 1;
+                #endif
                 #ifdef INPUT2_DIMS_ORDER
+                #if IS_INT4_COMPRESSED
+                    uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
+                #else
                     uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
+                #endif
+                #else
+                #if IS_INT4_COMPRESSED
+                    uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + (seq_len * SUBGROUP_SIZE), (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
                 #else
                     uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
+                #endif
                 #endif
             #endif
 #endif
@@ -1804,7 +2018,7 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
                     const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, 0);
                     VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
-#if USE_ASYMMETRIC_QUANTIZATION
+#if USE_ASYMMETRIC_QUANTIZATION || IS_INT4_COMPRESSED
                     VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif // IS_KV_COMPRESSED
@@ -1825,7 +2039,13 @@ KERNEL(sdpa_opt)(
                         const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
                 #endif
 
-                #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
+                #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+                        char2 v_unpacked = unpack_to_char(*(uint4x2_t*)&value_packed);
+                        VALUE_COMPRESSION_SCALE_TYPE value_val = (order_in_packed == 0 ?
+                            CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked.s0) :
+                            CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked.s1));
+                        value_val = (value_val - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+                #elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
                 #elif IS_KV_COMPRESSED
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed * sub_group_broadcast(comp_scale, i));
@@ -1848,7 +2068,13 @@ KERNEL(sdpa_opt)(
                         #else
                             const INPUT2_TYPE value_packed = value_input[value_offset];
                         #endif
-                        #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
+                        #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+                            char2 v_unpacked_elt = unpack_to_char(*(uint4x2_t*)&value_packed);
+                            VALUE_COMPRESSION_SCALE_TYPE value_val = (order_in_packed == 0 ?
+                                CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked_elt.s0) :
+                                CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked_elt.s1));
+                            value_val = (value_val - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+                        #elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                             VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
                         #elif IS_KV_COMPRESSED
                             VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed * sub_group_broadcast(comp_scale, i));
@@ -1891,10 +2117,21 @@ KERNEL(sdpa_opt)(
                     const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len_leftovers_start + sglid, sgid * SUBGROUP_SIZE);
 #else
                     const uint b_idx = b0_idx;
+    #if IS_INT4_COMPRESSED
+                    const uint order_in_packed = (head_size_idx / SUBGROUP_SIZE) & 1;
+    #endif
     #ifdef INPUT2_DIMS_ORDER
+    #if IS_INT4_COMPRESSED
+                    uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len_leftovers_start, (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
+    #else
                     uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len_leftovers_start, head_size_idx);
+    #endif
+    #else
+    #if IS_INT4_COMPRESSED
+                    uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + seq_len_leftovers_start, (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
     #else
                     uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + seq_len_leftovers_start, head_size_idx);
+    #endif
     #endif
 #endif
 #endif
@@ -1903,7 +2140,7 @@ KERNEL(sdpa_opt)(
                     const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + min(seq_len_leftovers_start + sglid, seq_len_end - 1), 0);
                     // const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + seq_len_leftovers_start + sglid, 0);
                     VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
-#if USE_ASYMMETRIC_QUANTIZATION
+#if USE_ASYMMETRIC_QUANTIZATION || IS_INT4_COMPRESSED
                     VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif
@@ -1929,7 +2166,13 @@ KERNEL(sdpa_opt)(
                         #endif
                     #endif // V_HEAD_SIZE_LEFTOVER
 
-#if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+                        char2 v_left_unpacked = unpack_to_char(*(uint4x2_t*)&value_packed);
+                        VALUE_COMPRESSION_SCALE_TYPE value_val = (order_in_packed == 0 ?
+                            CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_left_unpacked.s0) :
+                            CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_left_unpacked.s1));
+                        value_val = (value_val - sub_group_broadcast(comp_zp, seq_len_idx)) * sub_group_broadcast(comp_scale, seq_len_idx);
+#elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, seq_len_idx)) * sub_group_broadcast(comp_scale, seq_len_idx);
 #elif IS_KV_COMPRESSED
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed * sub_group_broadcast(comp_scale, seq_len_idx));
