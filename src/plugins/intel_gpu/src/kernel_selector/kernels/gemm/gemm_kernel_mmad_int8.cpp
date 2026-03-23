@@ -124,12 +124,8 @@ GemmKernelMMADint8::GemmTuningData GemmKernelMMADint8::SetTuningParams(const gem
 
     if (!leftovers_simd16x2 && very_big_matrices && no_input2)
         { simd_size = 16; tile_num = 2; }
-    else if ((leftovers_simd16 && !leftovers_simd8) || small_matrices)
+    else if (((leftovers_simd16 && !leftovers_simd8) || small_matrices) && IsSIMDSizeSupported(params.engineInfo, 8))
         { simd_size = 8; }
-
-    // Xe2+ does not support SIMD8; fall back to SIMD16 which the kernel also handles
-    if (simd_size == 8 && !IsSIMDSizeSupported(params.engineInfo, 8))
-        simd_size = 16;
 
     tuning_data.simd_size = simd_size;
     tuning_data.tile_num = tile_num;

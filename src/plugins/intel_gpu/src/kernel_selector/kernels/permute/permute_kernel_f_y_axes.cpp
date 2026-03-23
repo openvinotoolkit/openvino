@@ -68,7 +68,7 @@ size_t GetTileWidth(const permute_params& params) {
     if ((input_type == Datatype::INT64) || (output_type == Datatype::INT64)) {
         size_t halved = min_divisor >= 4 ? min_divisor / 2 : min_divisor;
         const auto& supported = params.engineInfo.supportedSimdSizes;
-        if (std::find(supported.begin(), supported.end(), halved) != supported.end() || supported.empty())
+        if (std::any_of(supported.begin(), supported.end(), [halved](size_t s) { return s == halved; }) || supported.empty())
             min_divisor = halved;
     }
     if (input_type == Datatype::F16) {

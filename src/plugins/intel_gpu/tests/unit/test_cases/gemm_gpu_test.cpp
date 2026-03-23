@@ -18,6 +18,7 @@
 #include "layout_optimizer.h"
 
 #include <cstddef>
+#include <algorithm>
 #include <vector>
 
 using namespace cldnn;
@@ -2718,18 +2719,17 @@ public:
 
         ov::intel_gpu::ImplementationDesc gemm_impl = getImplementationDesc(p);
 
+        // gemm_mmad_int8_slm requires SIMD8 with no wider-SIMD fallback
+        const auto& supported_simd = engine.get_device_info().supported_simd_sizes;
+        if (p.kernel_name == "gemm_mmad_int8_slm" &&
+            !std::any_of(supported_simd.begin(), supported_simd.end(), [](size_t s) { return s == 8; })) {
+            GTEST_SKIP() << p.kernel_name << " requires SIMD8 which is not supported on this platform";
+        }
+
         ExecutionConfig cfg = get_test_default_config(engine);
         cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_bfyx", gemm_impl} }));
 
-        cldnn::network::ptr network;
-        try {
-            network = get_network(engine, topology, cfg, get_test_stream_ptr(), is_caching_test);
-        } catch (std::exception& e) {
-            std::string msg(e.what());
-            if (msg.find("Could not find a suitable kernel") != std::string::npos)
-                GTEST_SKIP() << "Forced implementation '" << p.kernel_name << "' not available on this platform";
-            throw;
-        }
+        cldnn::network::ptr network = get_network(engine, topology, cfg, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input0", input0_mem);
         network->set_input_data("input1", input1_mem);
         if (p.beta != 0) {

@@ -11806,6 +11806,13 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
         return;
     }
 
+    // convolution_gpu_bfyx_os_iyx_osv32 is disabled for dynamic shapes on Xe2+
+    // due to OOB scatter input reads (see convolution_kernel_bfyx_os_iyx_osv32 Validate)
+    const auto& device_info = engine.get_device_info();
+    if (device_info.gfx_ver.major >= 20) {
+        GTEST_SKIP() << "convolution_gpu_bfyx_os_iyx_osv32 is disabled for dynamic shapes on Xe2+";
+    }
+
     auto groups_num = 1;
 
     auto calculate_ref = [&](memory::ptr input, memory::ptr weights, ExecutionConfig config) {
