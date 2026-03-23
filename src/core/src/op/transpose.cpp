@@ -137,33 +137,17 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
                 OPENVINO_THROW("Transpose for i4/u4 dtype is supported only for ndims <= 3");
             }
         } else if (arg_type == ov::element::string) {
-            // std::string requires proper C++ copy semantics.
-            // reference::transpose uses elem_size-byte raw copies which corrupt
-            // std::string internals (aliased heap pointer → double-free).
+            const auto* src = static_cast<const std::string*>(arg.data());
+            auto* dst = static_cast<std::string*>(out.data());
             const auto& src_shape = arg.get_shape();
             const size_t ndim = src_shape.size();
 
-            // Compute src strides (row-major)
-            std::vector<size_t> src_strides(ndim, 1);
-            for (int i = static_cast<int>(ndim) - 2; i >= 0; --i)
-                src_strides[i] = src_strides[i + 1] * src_shape[i + 1];
-
-            // Compute dst strides (row-major over out_shape)
-            std::vector<size_t> dst_strides(ndim, 1);
-            for (int i = static_cast<int>(ndim) - 2; i >= 0; --i)
-                dst_strides[i] = dst_strides[i + 1] * out_shape[i + 1];
-
-            const auto* src = static_cast<const std::string*>(arg.data());
-            auto*       dst = static_cast<std::string*>(out.data());
-
-            ov::CoordinateTransformBasic dst_transform(out_shape);
+            ov::Coordinate src_coord(ndim);
+            const ov::CoordinateTransformBasic dst_transform{out_shape};
             for (const auto& dst_coord : dst_transform) {
-                size_t src_idx = 0, dst_idx = 0;
-                for (size_t ax = 0; ax < ndim; ++ax) {
-                    src_idx += dst_coord[ax] * src_strides[axes_order[ax]];
-                    dst_idx += dst_coord[ax] * dst_strides[ax];
-                }
-                dst[dst_idx] = src[src_idx];
+                for (size_t j = 0; j < ndim; ++j)
+                    src_coord[axes_order[j]] = dst_coord[j];
+                dst[ov::coordinate_index(dst_coord, out_shape)] = src[ov::coordinate_index(src_coord, src_shape)];
             }
         } else {
             reference::transpose(static_cast<const char*>(arg.data()),
