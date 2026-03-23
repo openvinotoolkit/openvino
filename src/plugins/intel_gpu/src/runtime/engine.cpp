@@ -309,7 +309,7 @@ bool engine::check_allocatable(const layout& layout, allocation_type type) {
         OPENVINO_ASSERT(!exceed_allocatable_mem_size,
                         "[GPU] Exceeded max size of memory object allocation: ",
                         "requested ", layout.bytes_count(), " bytes, "
-                        "but max alloc size supported by device is ", get_device_info().max_alloc_mem_size, " bytes.",
+                        "but max alloc size supported by device is ", get_device_info().max_alloc_mem_size, " bytes. ",
                         "Please try to reduce batch size or use lower precision.");
     }
 
