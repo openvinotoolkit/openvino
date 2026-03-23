@@ -60,15 +60,18 @@ describe("Tests for AsyncInferQueue.", () => {
 
     inferQueue.setCallback(callback);
 
-    for (let i = 0; i < jobs; i++) {
-      const img = generateImage();
-      // Start the inference request in non-blocking mode.
-      // The results will be available in the callback function.
-      await inferQueue.startAsync({ data: img }, i);
-    }
+    try {
+      for (let i = 0; i < jobs; i++) {
+        const img = generateImage();
+        // Start the inference request in non-blocking mode.
+        // The results will be available in the callback function.
+        await inferQueue.startAsync({ data: img }, i);
+      }
 
-    assert.strictEqual(jobsDone.filter((job) => job.finished).length, jobs);
-    inferQueue.release();
+      assert.strictEqual(jobsDone.filter((job) => job.finished).length, jobs);
+    } finally {
+      inferQueue.release();
+    }
   });
 
   it("Test startAsync fails without callback", async () => {
@@ -91,8 +94,11 @@ describe("Tests for AsyncInferQueue.", () => {
       }
     }
     inferQueue.setCallback(basicUserCallback);
-    await inferQueue.startAsync({ data: generateImage() });
-    inferQueue.release();
+    try {
+      await inferQueue.startAsync({ data: generateImage() });
+    } finally {
+      inferQueue.release();
+    }
   });
 
   it("test Promise.all()", async () => {
@@ -123,9 +129,17 @@ describe("Tests for AsyncInferQueue.", () => {
       promises.push(promise);
     }
 
-    await Promise.all(promises);
-    assert.strictEqual(jobsDone.filter((job) => job.finished).length, jobs);
-    inferQueue.release();
+    const allSettled = Promise.allSettled(promises);
+
+    try {
+      const results = await allSettled;
+      const rejected = results.filter((r) => r.status === "rejected");
+      assert.strictEqual(rejected.length, 0, "startAsync promise rejected");
+      assert.strictEqual(jobsDone.filter((job) => job.finished).length, jobs);
+    } finally {
+      await allSettled;
+      inferQueue.release();
+    }
   });
 
   it("Test AsyncInferQueue no freeze", async () => {
@@ -138,44 +152,61 @@ describe("Tests for AsyncInferQueue.", () => {
 
   it("Test double set_callback", async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
-    inferQueue.setCallback(() => {});
-    inferQueue.setCallback(() => {});
-    inferQueue.release();
+    try {
+      inferQueue.setCallback(() => {});
+      inferQueue.setCallback(() => {});
+    } finally {
+      inferQueue.release();
+    }
   });
 
   it("Test repeated AsyncInferQueue.release()", async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
     inferQueue.setCallback(basicUserCallback);
-    inferQueue.release();
-    assert.doesNotThrow(() => {
+    try {
       inferQueue.release();
-    }, "Release should do nothing on second call.");
+      assert.doesNotThrow(() => {
+        inferQueue.release();
+      }, "Release should do nothing on second call.");
+    } finally {
+      inferQueue.release();
+    }
   });
 
   it("Test call startAsync after release()", async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
     inferQueue.setCallback(basicUserCallback);
-    inferQueue.release();
-    await assert.rejects(async () => {
-      await inferQueue.startAsync({ data: generateImage() }, "user_data");
-    }, /Callback has to be set before starting inference./);
+    try {
+      inferQueue.release();
+      await assert.rejects(async () => {
+        await inferQueue.startAsync({ data: generateImage() }, "user_data");
+      }, /Callback has to be set before starting inference./);
+    } finally {
+      inferQueue.release();
+    }
   });
 
   it("Test setCallback throws and list possible signatures", async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
-    assert.throws(() => {
-      inferQueue.setCallback();
-    }, /'setCallback' method called with incorrect parameters./);
-    inferQueue.release();
+    try {
+      assert.throws(() => {
+        inferQueue.setCallback();
+      }, /'setCallback' method called with incorrect parameters./);
+    } finally {
+      inferQueue.release();
+    }
   });
 
   it("Test startAsync throws and list possible signatures", async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
-    inferQueue.setCallback(basicUserCallback);
-    assert.throws(() => {
-      inferQueue.startAsync({ data: generateImage() }, "user_data", "extra_param");
-    }, /'startAsync' method called with incorrect parameters./);
-    inferQueue.release();
+    try {
+      inferQueue.setCallback(basicUserCallback);
+      assert.throws(() => {
+        inferQueue.startAsync({ data: generateImage() }, "user_data", "extra_param");
+      }, /'startAsync' method called with incorrect parameters./);
+    } finally {
+      inferQueue.release();
+    }
   });
 
   it("Test possibility to catch error in callback", async () => {
@@ -192,9 +223,12 @@ describe("Tests for AsyncInferQueue.", () => {
         }, /ReferenceError: jobsDone is not defined/);
       }
     }
-    inferQueue.setCallback(callback);
-    await inferQueue.startAsync({ data: generateImage() }, "data");
-    inferQueue.release();
+    try {
+      inferQueue.setCallback(callback);
+      await inferQueue.startAsync({ data: generateImage() }, "data");
+    } finally {
+      inferQueue.release();
+    }
   });
 
   it("Test error in callback and rejected promise", async () => {
@@ -210,12 +244,15 @@ describe("Tests for AsyncInferQueue.", () => {
       }
     }
 
-    inferQueue.setCallback(callback);
-    await inferQueue.startAsync({ data: generateImage() }, "data").catch((err) => {
-      assert(err instanceof Error);
-      assert.strictEqual(err.message, "jobsDone is not defined");
-    });
-    inferQueue.release();
+    try {
+      inferQueue.setCallback(callback);
+      await inferQueue.startAsync({ data: generateImage() }, "data").catch((err) => {
+        assert(err instanceof Error);
+        assert.strictEqual(err.message, "jobsDone is not defined");
+      });
+    } finally {
+      inferQueue.release();
+    }
   });
 
   it("Test startAsync with incorrect data shape", async () => {

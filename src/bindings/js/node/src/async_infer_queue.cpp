@@ -107,22 +107,22 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
         for (size_t handle = 0; handle < m_requests.size(); handle++) {
             m_requests[handle].set_callback([this, handle](std::exception_ptr exception_ptr) {
                 try {
-                    if (exception_ptr) {
-                        std::rethrow_exception(exception_ptr);
-                    }
-                    auto ov_callback = [this, handle](Napi::Env env, Napi::Function user_callback) {
+                    auto ov_callback = [this, handle, exception_ptr](Napi::Env env, Napi::Function user_callback) {
                         Napi::Object js_ir = InferRequestWrap::wrap(env, m_requests[handle]);
                         const auto promise = m_user_ids[handle].second;
                         try {
+                            if (exception_ptr) {
+                                std::rethrow_exception(exception_ptr);
+                            }
                             auto user_data =
                                 m_user_ids[handle].first.Value().ToString().Utf8Value() == UNDEFINED_USER_DATA
                                     ? env.Undefined()
                                     : m_user_ids[handle].first.Value();
-                            user_callback.Call({env.Null(), js_ir, user_data});  // CVS-170804
+                            user_callback.Call({env.Null(), js_ir, user_data});
                             promise.Resolve(user_data);
                             // returns before the promise's .then() is completed
-                        } catch (Napi::Error& e) {
-                            promise.Reject(Napi::Error::New(env, e.Message()).Value());
+                        } catch (const std::exception& e) {
+                            promise.Reject(Napi::Error::New(env, e.what()).Value());
                         }
                         // Start async inference on the next request or add idle handle to queue
                         if (std::lock_guard<std::mutex> lock(m_mutex); m_awaiting_requests.size() > 0) {
