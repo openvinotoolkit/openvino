@@ -12,6 +12,7 @@
 #include <intel_gpu/primitives/lrn.hpp>
 
 #include <cmath>
+#include <algorithm>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -32,6 +33,11 @@ struct lrn_test_params {
 
 class LrnFusingTest : public ::BaseFusingTest<lrn_test_params> {
 public:
+    bool is_simd_size_supported(size_t simd) const {
+        const auto& supported = engine.get_device_info().supported_simd_sizes;
+        return std::any_of(supported.begin(), supported.end(), [simd](size_t s) { return s == simd; });
+    }
+
     void execute(lrn_test_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
 
@@ -101,8 +107,9 @@ public:
 class lrn_fp32_quantize_u8_eltwise_activation : public LrnFusingTest {};
 TEST_P(lrn_fp32_quantize_u8_eltwise_activation, basic) {
     auto p = GetParam();
-    if (engine.get_device_info().gfx_ver.major >= 20 && p.input_format == format::yxfb) {
-        GTEST_SKIP() << "Skip yxfb LRN u8 fusion case on Xe2+ due missing kernel selection in this environment.";
+    // lrn_gpu_across_channel_yxfb_b8_opt kernel requires SIMD8; skip on hardware that lacks it
+    if (!is_simd_size_supported(8) && p.kernel_name == "lrn_gpu_across_channel_yxfb_b8_opt") {
+        GTEST_SKIP() << "Kernel '" << p.kernel_name << "' requires SIMD8 which is not supported on this hardware";
     }
 
     uint32_t size = 5;
@@ -131,8 +138,8 @@ TEST_P(lrn_fp32_quantize_u8_eltwise_activation, basic) {
 
 TEST_P(lrn_fp32_quantize_u8_eltwise_activation, per_channel) {
     auto p = GetParam();
-    if (engine.get_device_info().gfx_ver.major >= 20 && p.input_format == format::yxfb) {
-        GTEST_SKIP() << "Skip yxfb LRN u8 fusion case on Xe2+ due missing kernel selection in this environment.";
+    if (!is_simd_size_supported(8) && p.kernel_name == "lrn_gpu_across_channel_yxfb_b8_opt") {
+        GTEST_SKIP() << "Kernel '" << p.kernel_name << "' requires SIMD8 which is not supported on this hardware";
     }
 
     uint32_t size = 5;
@@ -186,8 +193,9 @@ class lrn_fp32_quantize_u8_eltwise_activation_onednn : public LrnFusingTest {};
 TEST_P(lrn_fp32_quantize_u8_eltwise_activation_onednn, same_behavior) {
     // Case : activation function is NOT supported on oneDNN and an input primitive selects clDNN execution
     auto p = GetParam();
-    if (engine.get_device_info().gfx_ver.major >= 20 && p.input_format == format::yxfb) {
-        GTEST_SKIP() << "Skip yxfb LRN u8 fusion case on Xe2+ due missing kernel selection in this environment.";
+    // lrn_gpu_across_channel_yxfb_b8_opt kernel requires SIMD8; skip on hardware that lacks it
+    if (!is_simd_size_supported(8) && p.kernel_name == "lrn_gpu_across_channel_yxfb_b8_opt") {
+        GTEST_SKIP() << "Kernel '" << p.kernel_name << "' requires SIMD8 which is not supported on this hardware";
     }
     uint32_t size = 5;
     float k = 1.0f;
@@ -229,8 +237,9 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, lrn_fp32_quantize_u8_eltwise_activation_on
 class lrn_fp32_quantize_i8_eltwise_activation : public LrnFusingTest {};
 TEST_P(lrn_fp32_quantize_i8_eltwise_activation, basic) {
     auto p = GetParam();
-    if (engine.get_device_info().gfx_ver.major >= 20 && p.input_format == format::yxfb) {
-        GTEST_SKIP() << "Skip yxfb LRN i8 fusion case on Xe2+ due missing kernel selection in this environment.";
+    // lrn_gpu_across_channel_yxfb_b8_opt kernel requires SIMD8; skip on hardware that lacks it
+    if (!is_simd_size_supported(8) && p.kernel_name == "lrn_gpu_across_channel_yxfb_b8_opt") {
+        GTEST_SKIP() << "Kernel '" << p.kernel_name << "' requires SIMD8 which is not supported on this hardware";
     }
 
     uint32_t size = 5;
@@ -276,8 +285,9 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, lrn_fp32_quantize_i8_eltwise_activation, :
 class lrn_fp32_eltwise_activation_quantize_u8 : public LrnFusingTest {};
 TEST_P(lrn_fp32_eltwise_activation_quantize_u8, basic) {
     auto p = GetParam();
-    if (engine.get_device_info().gfx_ver.major >= 20 && p.input_format == format::yxfb) {
-        GTEST_SKIP() << "Skip yxfb LRN u8 fusion case on Xe2+ due missing kernel selection in this environment.";
+    // lrn_gpu_across_channel_yxfb_b8_opt kernel requires SIMD8; skip on hardware that lacks it
+    if (!is_simd_size_supported(8) && p.kernel_name == "lrn_gpu_across_channel_yxfb_b8_opt") {
+        GTEST_SKIP() << "Kernel '" << p.kernel_name << "' requires SIMD8 which is not supported on this hardware";
     }
 
     uint32_t size = 5;
