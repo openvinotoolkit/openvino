@@ -141,6 +141,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         return;
     }
 
+    // Single-token path uses the latest token from each subsequence.
     const uint q_token_idx = subseq_q_end - 1;
     const uint kv_len = past_lens[orig_seq_idx] + subseq_q_len;
     const uint seq_kv_partition_num = (kv_len + KV_PARTITION_SIZE - 1) / KV_PARTITION_SIZE;
@@ -149,6 +150,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const uint block_end = block_indices_begins[orig_seq_idx + 1];
     const uint total_blocks_num = block_end - block_begin;
 
+    // The code here requires KV_PARTITION_SIZE to be an integer multiple of KV_BLOCK_SIZE.
     const uint blocks_per_partition = (KV_PARTITION_SIZE / KV_BLOCK_SIZE);
     const uint start_block_idx = block_begin + kv_partition_idx * blocks_per_partition;
 
