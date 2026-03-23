@@ -155,8 +155,8 @@ void PagedAttentionTokenTypeTest::SetUp() {
     compile_model();
 }
 
-void PagedAttentionTokenTypeTest::RunAndValidate(const InferenceData& data) {
-    const auto& [inType, head_size, head_num, pattern, device] = this->GetParam();
+void PagedAttentionTokenTypeTest::RunAndValidate() {
+    const auto& [inType, head_size, head_num, data, device] = this->GetParam();
 
     const size_t seq_len = data.tokenTypes.size();
     const size_t hidden_dim = head_size * head_num;
