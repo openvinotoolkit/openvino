@@ -19,27 +19,20 @@ public:
     void infer_async() override;
 
 protected:
-    void construct_pipeline() override;
+    void create_pipeline_impl() override;
 
-    /**
-     * @brief Allocates a tensor on host and stores the reference inside multiple attributes.
-     * @param index The index which the allocated tensor shall use.
-     * @param isInput Determines the containers in which the newly allocated tensors will be stored.
-     * @param batchSize If provided, the value of the shape on the 0th axis is overriden with this value.
-     * @return Pointer towards the allocated tensor
-     */
-    std::shared_ptr<ZeroTensor> allocate_tensor(const size_t index,
-                                                const bool isInput,
-                                                const std::optional<std::size_t> batchSize = std::nullopt) const;
+    std::shared_ptr<ZeroTensor> allocate_tensor(
+        const size_t index,
+        const bool isInput,
+        const std::optional<std::size_t>& batchSize = std::nullopt) const override;
 
-    void update_command_list_for_tensor(SyncInferRequest::FoundPort& foundPort,
-                                        const ov::SoPtr<ov::ITensor>& tensor) override;
+    void sync_zero_tensor_with_graph(const ZeroInferRequest::FoundPort& foundPort,
+                                     const ov::SoPtr<ov::ITensor>& tensor) override;
+    void sync_zero_tensors_with_graph(const ZeroInferRequest::FoundPort& foundPort,
+                                      const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
+                                      const std::optional<size_t>& batchSize = std::nullopt) override;
 
-    void update_command_list_for_tensors(SyncInferRequest::FoundPort& foundPort,
-                                         const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
-                                         std::optional<size_t> batchSizeCandidate = std::nullopt) override;
     void predict_shapes(std::vector<IDynamicGraph::MemRefType>& outputProps);
-
     void check_tensor_and_predicted_shapes(const std::vector<IDynamicGraph::MemRefType>& outputProps);
 
     void update_tensor(const std::vector<IDynamicGraph::MemRefType>& outputProps);
