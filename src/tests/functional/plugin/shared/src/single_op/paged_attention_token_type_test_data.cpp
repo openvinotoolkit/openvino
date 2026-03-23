@@ -2,14 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/node_builders/constant.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/core/type/float16.hpp"
-#include "openvino/op/paged_attention.hpp"
-#include "openvino/op/parameter.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/base/utils/ranges.hpp"
 #include "shared_test_classes/single_op/paged_attention_token_type.hpp"
 
 using namespace ov::op;
@@ -22,9 +14,8 @@ std::vector<InferenceData> PagedAttentionTokenTypeTest::GetTestData() {
 
     {
         const std::string name = "plain_casual";
-
-        std::vector<int32_t> token_types{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-        std::vector<float> q_data{
+        const std::vector<int32_t> token_types{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        const std::vector<float> q_data{
             0.764539,  0.830008,  -0.234272, 0.918611,  -0.219104, 0.201791,  -0.486855, 0.587283,  0.881543,
             -0.733628, 0.869196,  0.187159,  0.738809,  0.135431,  0.482188,  -0.141191, 0.770886,  0.147809,
             -0.46684,  0.254898,  -0.460737, -0.117273, -0.406158, 0.663371,  -0.78937,  -0.46101,  -0.282375,
@@ -61,7 +52,7 @@ std::vector<InferenceData> PagedAttentionTokenTypeTest::GetTestData() {
             -0.078023, -0.333011, -0.323521, 0.032131,  -0.212112, -0.344312, -0.478806, -0.813827, 0.838507,
             -0.400187, 0.264979,  -0.346966, 0.081261,  0.9323,    0.460723,  -0.8666,   0.396903,  0.949243,
             0.263083,  0.670425,  0.985888,  -0.153229, 0.207554};
-        std::vector<float> k_data{
+        const std::vector<float> k_data{
             -0.695035, -0.206077, 0.740584,  0.512646,  -0.632789, -0.801885, -0.683364, -0.986878, -0.771639,
             -0.247297, 0.674877,  0.167382,  -0.760605, -0.802224, 0.497475,  -0.743841, -0.123127, 0.479706,
             -0.462812, -0.10904,  -0.087044, -0.236583, -0.507032, -0.891438, -0.808357, -0.535462, 0.965838,
@@ -98,7 +89,7 @@ std::vector<InferenceData> PagedAttentionTokenTypeTest::GetTestData() {
             -0.803697, -0.333885, 0.962618,  -0.246632, -0.050164, -0.830331, -0.559407, -0.02042,  -0.621159,
             -0.12401,  0.406959,  -0.978177, 0.297012,  -0.661208, -0.488051, 0.38391,   0.79512,   -0.273309,
             -0.410569, -0.904236, -0.515658, -0.875637, -0.228871};
-        std::vector<float> v_data{
+        const std::vector<float> v_data{
             0.204055,  -0.936876, 0.873114,  0.627391,  -0.978946, -0.477633, 0.326155,  -0.20546,  -0.108976,
             -0.451516, 0.80322,   -0.558998, 0.829277,  0.064522,  0.201022,  0.780132,  -0.164766, -0.569343,
             -0.161734, 0.811053,  -0.741987, 0.22698,   -0.982791, 0.524302,  0.369468,  0.042392,  0.429193,

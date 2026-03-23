@@ -35,6 +35,7 @@ class PagedAttentionTokenTypeTest : public testing::WithParamInterface<PagedAttn
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PagedAttnTokenTypeParams>& obj);
     static std::vector<InferenceData> GetTestData();
+    void run() override;
 
 protected:
     void SetUp() override;
