@@ -184,27 +184,36 @@ KERNEL (resample_onnx)(__global INPUT0_TYPE* input,
         bool brOutOfBounds = in_y2 < 0 || in_y2 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
 #endif // PADDING_USED == 1
 
-#if OUTPUT_DIMS == 5
+#if PADDING_USED == 1
+        // Clamp coordinates to valid range before reading to avoid OOB memory access
+        // (Xe2+ raises CL_OUT_OF_RESOURCES on OOB reads instead of returning zero)
+        int safe_y1 = clamp(in_y1, 0, (int)INPUT0_SIZE_Y - 1);
+        int safe_y2 = clamp(in_y2, 0, (int)INPUT0_SIZE_Y - 1);
+        int safe_x1 = clamp(in_x1, 0, (int)INPUT0_SIZE_X - 1);
+        int safe_x2 = clamp(in_x2, 0, (int)INPUT0_SIZE_X - 1);
+  #if OUTPUT_DIMS == 5
+        acc_vec_t top_left     = tlOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, safe_y1, safe_x1)));
+        acc_vec_t top_right    = trOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, safe_y1, safe_x2)));
+        acc_vec_t bottom_left  = blOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, safe_y2, safe_x1)));
+        acc_vec_t bottom_right = brOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, safe_y2, safe_x2)));
+  #else
+        acc_vec_t top_left     = tlOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, safe_y1, safe_x1)));
+        acc_vec_t top_right    = trOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, safe_y1, safe_x2)));
+        acc_vec_t bottom_left  = blOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, safe_y2, safe_x1)));
+        acc_vec_t bottom_right = brOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, safe_y2, safe_x2)));
+  #endif
+#else
+  #if OUTPUT_DIMS == 5
         acc_vec_t top_left     = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y1, in_x1)));
         acc_vec_t top_right    = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y1, in_x2)));
         acc_vec_t bottom_left  = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y2, in_x1)));
         acc_vec_t bottom_right = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y2, in_x2)));
-#else
+  #else
         acc_vec_t top_left     = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y1, in_x1)));
         acc_vec_t top_right    = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y1, in_x2)));
         acc_vec_t bottom_left  = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y2, in_x1)));
         acc_vec_t bottom_right = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y2, in_x2)));
-#endif
-
-#if PADDING_USED == 1
-        if (tlOutOfBounds)
-            top_left = TO_OUT_VEC_TYPE(INPUT0_VAL_ZERO);
-        if (trOutOfBounds)
-            top_right = TO_OUT_VEC_TYPE(INPUT0_VAL_ZERO);
-        if (blOutOfBounds)
-            bottom_left = TO_OUT_VEC_TYPE(INPUT0_VAL_ZERO);
-        if (brOutOfBounds)
-            bottom_right = TO_OUT_VEC_TYPE(INPUT0_VAL_ZERO);
+  #endif
 #endif // PADDING_USED == 1
         acc_vec_t res = TO_ACC_VEC_TYPE(dx2 * dy2 * top_left) +
                         TO_ACC_VEC_TYPE(dx1 * dy2 * top_right) +
