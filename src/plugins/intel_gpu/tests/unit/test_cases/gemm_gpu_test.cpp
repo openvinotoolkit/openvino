@@ -2721,7 +2721,15 @@ public:
         ExecutionConfig cfg = get_test_default_config(engine);
         cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_bfyx", gemm_impl} }));
 
-        cldnn::network::ptr network = get_network(engine, topology, cfg, get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network;
+        try {
+            network = get_network(engine, topology, cfg, get_test_stream_ptr(), is_caching_test);
+        } catch (std::exception& e) {
+            std::string msg(e.what());
+            if (msg.find("Could not find a suitable kernel") != std::string::npos)
+                GTEST_SKIP() << "Forced implementation '" << p.kernel_name << "' not available on this platform";
+            throw;
+        }
         network->set_input_data("input0", input0_mem);
         network->set_input_data("input1", input1_mem);
         if (p.beta != 0) {
