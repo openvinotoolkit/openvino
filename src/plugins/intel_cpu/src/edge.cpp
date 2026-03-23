@@ -516,10 +516,8 @@ void Edge::init() {
         // Break aliasing when a Constant's in-place chain leads to a Concat output:
         // the Constant buffer is smaller than the full Concat output, causing silent
         // data corruption (GH#33255).
-        const bool thisFromConst = getParent()->isConstant() &&
-                                   !edgePtr->getParent()->isConstant() &&
-                                   getChild()->getType() == Type::Concatenation &&
-                                   edgePtr->getParent() == getChild();
+        const bool thisFromConst = getParent()->isConstant() && !edgePtr->getParent()->isConstant() &&
+                                   getChild()->getType() == Type::Concatenation && edgePtr->getParent() == getChild();
         if (thisFromConst) {
             changeStatus(Status::NeedAllocation);
             DEBUG_LOG(*this, " edge inplace from ", *edgePtr, " is broken!");
