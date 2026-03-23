@@ -69,7 +69,7 @@ TEST_F(OptimizeValueTensorsPassTest, GenerateModelHasMatMulFromDecomposedSDPA) {
     const auto* generate = recorder.find_suffix("_kv192");
     ASSERT_NE(generate, nullptr);
 
-    // 2 layers × 2 MatMuls per SDPA decomposition = at least 4
+    // 2 layers x 2 MatMuls per SDPA decomposition = at least 4
     EXPECT_GE(count_ops<ov::op::v0::MatMul>(generate->model), 4u);
 }
 

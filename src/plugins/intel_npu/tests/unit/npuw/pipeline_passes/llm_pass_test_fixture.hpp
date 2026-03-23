@@ -18,9 +18,9 @@
 //   * find_output()      - returns the first output port whose name contains a needle
 //   * all_inputs_static()               - returns true when every model input is fully static
 //   * input_shape()                     - returns the concrete shape of a named input
-//   * all_inputs_with_name_have_type()  - true iff every input matching needle has expected_type
-//   * all_outputs_with_name_have_type() - true iff every output matching needle has expected_type
-//   * no_inputs_with_name_have_type()   - true iff no input matching needle has excluded_type
+//   * all_inputs_with_name_have_type()  - true iff every input matching needle has expected_type; throws if needle unmatched
+//   * all_outputs_with_name_have_type() - true iff every output matching needle has expected_type; throws if needle unmatched
+//   * no_inputs_with_name_have_type()   - true iff no input matching needle has excluded_type; throws if needle unmatched
 //
 // Pass-specific helpers (e.g. any_matmul_has_transpose_b) should remain in the individual test files.
 
@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 
@@ -140,8 +141,8 @@ protected:
         return ps.to_shape();
     }
 
-    // Returns true if at least one input whose name contains `needle` exists AND
-    // every such input has `expected_type`.
+    // Returns true iff every input whose name contains `needle` has `expected_type`.
+    // Throws std::runtime_error if no input matching `needle` is found.
     static bool all_inputs_with_name_have_type(const std::shared_ptr<ov::Model>& model,
                                                std::string_view needle,
                                                ov::element::Type expected_type) {
@@ -153,11 +154,14 @@ protected:
                     return false;
             }
         }
-        return found_any;
+        if (!found_any)
+            throw std::runtime_error(std::string("No input matching needle '") + std::string(needle) +
+                                     "' found in model '" + model->get_friendly_name() + "'");
+        return true;
     }
 
-    // Returns true if at least one output whose name contains `needle` exists AND
-    // every such output has `expected_type`.
+    // Returns true iff every output whose name contains `needle` has `expected_type`.
+    // Throws std::runtime_error if no output matching `needle` is found.
     static bool all_outputs_with_name_have_type(const std::shared_ptr<ov::Model>& model,
                                                 std::string_view needle,
                                                 ov::element::Type expected_type) {
@@ -169,19 +173,28 @@ protected:
                     return false;
             }
         }
-        return found_any;
+        if (!found_any)
+            throw std::runtime_error(std::string("No output matching needle '") + std::string(needle) +
+                                     "' found in model '" + model->get_friendly_name() + "'");
+        return true;
     }
 
-    // Returns true if NO input whose name contains `needle` has `excluded_type`.
+    // Returns true iff no input whose name contains `needle` has `excluded_type`.
+    // Throws std::runtime_error if no input matching `needle` is found.
     static bool no_inputs_with_name_have_type(const std::shared_ptr<ov::Model>& model,
                                               std::string_view needle,
                                               ov::element::Type excluded_type) {
+        bool found_any = false;
         for (const auto& input : model->inputs()) {
             if (port_has_name(input, needle)) {
+                found_any = true;
                 if (input.get_element_type() == excluded_type)
                     return false;
             }
         }
+        if (!found_any)
+            throw std::runtime_error(std::string("No input matching needle '") + std::string(needle) +
+                                     "' found in model '" + model->get_friendly_name() + "'");
         return true;
     }
 

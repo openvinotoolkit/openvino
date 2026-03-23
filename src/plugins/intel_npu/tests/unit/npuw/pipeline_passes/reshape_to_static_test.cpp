@@ -12,7 +12,7 @@ using ov::test::npuw::RecordingFactory;
 
 class ReshapeToStaticPassTest : public ov::test::npuw::LLMPassTestFixture {};
 
-// ─── Test 1 ───────────────────────────────────────────────────────────────────
+// --- Test 1 -------------------------------------------------------------------------
 // Every input of the prefill sub-model must be fully static after ReshapeToStatic.
 // We additionally verify the concrete shapes of the two most representative inputs.
 TEST_F(ReshapeToStaticPassTest, AllPrefillInputsAreStatic) {
@@ -39,7 +39,7 @@ TEST_F(ReshapeToStaticPassTest, AllPrefillInputsAreStatic) {
     EXPECT_EQ(*mask_shape, (ov::Shape{1, 128}));
 }
 
-// ─── Test 2 ───────────────────────────────────────────────────────────────────
+// --- Test 2 -------------------------------------------------------------------------
 // Every input of the generate sub-model must be fully static after ReshapeToStatic.
 // kvcache_size = 128 + 64 = 192, so the model is named _kv192.
 // Model config: num_kv_heads=4, head_dim=16, max_generation_token_len=1 (default).
@@ -77,7 +77,7 @@ TEST_F(ReshapeToStaticPassTest, AllGenerateInputsAreStatic) {
     EXPECT_EQ((*kv_shape)[3], 16u);  // head_dim
 }
 
-// ─── Test 3 ───────────────────────────────────────────────────────────────────
+// --- Test 3 -------------------------------------------------------------------------
 // The past_key_values sequence dimension in the generate model must equal
 // kvcache_size - input_size.  With MAX_PROMPT_LEN=256 and MIN_RESPONSE_LEN=128:
 //   kvcache_size = 256 + 128 = 384
@@ -91,7 +91,7 @@ TEST_F(ReshapeToStaticPassTest, GenerateModelKVCacheShapeReflectsKVCacheSize) {
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
 
-    // kvcache_size = 256 + 128 = 384  →  model suffix is _kv384
+    // kvcache_size = 256 + 128 = 384  ->  model suffix is _kv384
     const auto* generate = recorder.find_suffix("_kv384");
     ASSERT_NE(generate, nullptr) << "Generate sub-model _kv384 was not compiled";
 
@@ -110,10 +110,10 @@ TEST_F(ReshapeToStaticPassTest, GenerateModelKVCacheShapeReflectsKVCacheSize) {
     EXPECT_EQ((*kv_shape)[3], 16u);  // head_dim
 }
 
-// ─── Test 4 ───────────────────────────────────────────────────────────────────
+// --- Test 4 -------------------------------------------------------------------------
 // When NPUW_LLM_MAX_GENERATION_TOKEN_LEN=8:
-//   • input_ids in the generate model has shape {1, 8}
-//   • past_key_values seq dim = kvcache_size(192) - input_size(8) = 184
+//   * input_ids in the generate model has shape {1, 8}
+//   * past_key_values seq dim = kvcache_size(192) - input_size(8) = 184
 TEST_F(ReshapeToStaticPassTest, MaxGenerationTokenLenDrivesGenerateInputShape) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
@@ -121,7 +121,7 @@ TEST_F(ReshapeToStaticPassTest, MaxGenerationTokenLenDrivesGenerateInputShape) {
     ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}}, recorder));
     ASSERT_NE(compiled, nullptr);
 
-    // MAX_PROMPT_LEN=128, MIN_RESPONSE_LEN=64 from base_props → kvcache_size=192
+    // MAX_PROMPT_LEN=128, MIN_RESPONSE_LEN=64 from base_props -> kvcache_size=192
     const auto* generate = recorder.find_suffix("_kv192");
     ASSERT_NE(generate, nullptr) << "Generate sub-model _kv192 was not compiled";
 

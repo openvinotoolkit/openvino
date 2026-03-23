@@ -10,19 +10,19 @@
 #include "llm_pass_test_fixture.hpp"
 #include "openvino/runtime/properties.hpp"
 
-// ─── Design note ─────────────────────────────────────────────────────────────
+// --- Design note -------------------------------------------------------------------------
 // The model builder creates KV cache state with ov::element::f32 (the default
 // ModelConfig::precision).  ConvertKVCacheToPrecision is therefore doing *real*
 // work on the test model: it lowers f32 past_key inputs and present outputs to
 // the requested storage type (f16 by default, or whatever
 // ov::hint::kv_cache_precision selects).
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------------------
 
 namespace {
 
 using ov::test::npuw::RecordingFactory;
 
-// ─── Parametrized fixture ─────────────────────────────────────────────────────
+// --- Parametrized fixture -------------------------------------------------------------------------
 // Parametrized over ov::element::Type so that f16, f8e4m3, and f8e5m2 are each
 // exercised in exactly the same test bodies.
 
@@ -90,7 +90,7 @@ TEST_P(ConvertKVCacheHintPrecisionTest, PrefillModelPresentOutputsHaveExpectedPr
         << "present outputs in the prefill model must have type " << kv_type;
 }
 
-// ─── Non-parametric tests ─────────────────────────────────────────────────────
+// --- Non-parametric tests -------------------------------------------------------------------------
 
 class ConvertKVCacheToPrecisionPassTest : public ov::test::npuw::LLMPassTestFixture {};
 
@@ -123,7 +123,7 @@ TEST_F(ConvertKVCacheToPrecisionPassTest, NonKVInputsAreNotConverted) {
     ASSERT_NE(generate, nullptr);
 
     EXPECT_TRUE(no_inputs_with_name_have_type(generate->model, "input_ids", ov::element::f16))
-        << "input_ids must NOT be f16 — ConvertKVCacheToPrecision must not touch it";
+        << "input_ids must NOT be f16 -- ConvertKVCacheToPrecision must not touch it";
 }
 
 }  // namespace
