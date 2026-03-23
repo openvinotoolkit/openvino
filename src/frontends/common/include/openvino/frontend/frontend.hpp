@@ -42,20 +42,16 @@ public:
 
     virtual ~FrontEnd();
 
-    /// \brief Validates if FrontEnd can recognize model with parameters specified.
-    /// Same parameters should be used to load model.
+    /// \brief Validates whether the FrontEnd can recognize a model with the specified parameters.
+    /// The same parameters should be used to load the model.
     /// \param vars Any number of parameters of any type. What kind of parameters
-    /// are accepted is determined by each FrontEnd individually, typically it is
-    /// std::string containing path to the model file. For more information please
-    /// refer to specific FrontEnd documentation.
-    /// \return true if model recognized, false - otherwise.
+    /// are accepted is determined by each FrontEnd individually, typically this is
+    /// a path to the model file. For more information please
+    /// refer to the specific FrontEnd documentation.
+    /// \return true if the model is recognized, false otherwise.
     template <typename... Types>
     inline bool supported(const Types&... vars) const {
-        if constexpr ((std::is_same_v<std::filesystem::path, Types> || ...)) {
-            return supported_impl({path_as_str_or_forward(vars)...});
-        } else {
-            return supported_impl({ov::Any(vars)...});
-        }
+        return supported_impl({ov::Any(vars)...});
     }
     inline bool supported(const ov::AnyVector& vars) const {
         return supported_impl(vars);
@@ -64,17 +60,13 @@ public:
     /// \brief Loads an input model by any specified arguments. Each FrontEnd separately
     /// defines what arguments it can accept.
     /// \param vars Any number of parameters of any type. What kind of parameters
-    /// are accepted is determined by each FrontEnd individually, typically it is
-    /// std::string containing path to the model file. For more information please
-    /// refer to specific FrontEnd documentation.
+    /// are accepted is determined by each FrontEnd individually, typically this is
+    /// a path to the model file. For more information please
+    /// refer to the specific FrontEnd documentation.
     /// \return Loaded input model.
     template <typename... Types>
     inline InputModel::Ptr load(const Types&... vars) const {
-        if constexpr ((std::is_same_v<std::filesystem::path, Types> || ...)) {
-            return load_impl({path_as_str_or_forward(vars)...});
-        } else {
-            return load_impl({ov::Any{vars}...});
-        }
+        return load_impl({ov::Any{vars}...});
     }
 
     inline InputModel::Ptr load(const ov::AnyVector& vars) const {
@@ -130,18 +122,22 @@ public:
     /// \{
     void add_extension(const std::string& library_path);
 
-    void add_extension(const std::filesystem::path& library_path) {
-        add_extension(library_path.string());
+    template <class TPath, std::enable_if_t<std::is_constructible_v<std::string, TPath>>* = nullptr>
+    void add_extension(const TPath& library_path) {
+        add_extension(std::string(library_path));
     }
-    /// \}
+
+    void add_extension(const std::filesystem::path& library_path);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
-    /// \brief Registers extension
-    /// \param library_path path to library with ov::Extension
     void add_extension(const std::wstring& library_path);
 
+    template <class TPath, std::enable_if_t<std::is_constructible_v<std::wstring, TPath>>* = nullptr>
+    void add_extension(const TPath& library_path) {
+        add_extension(std::wstring(library_path));
+    }
 #endif
+    /// \}
 
     /// @brief Registers extension
     /// @param extension Extension class which is inherited from ov::BaseOpExtension class
@@ -174,15 +170,6 @@ protected:
 private:
     static std::shared_ptr<ov::Model> create_copy(const std::shared_ptr<ov::Model>& ov_model,
                                                   const std::shared_ptr<void>& shared_object);
-
-    template <class T>
-    static constexpr auto path_as_str_or_forward(T&& p) {
-        if constexpr (std::is_same_v<std::filesystem::path, std::decay_t<T>>) {
-            return p.string();
-        } else {
-            return std::forward<T>(p);
-        }
-    }
 };
 
 template <>
