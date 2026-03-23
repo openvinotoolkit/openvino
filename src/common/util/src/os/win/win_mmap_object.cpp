@@ -83,6 +83,8 @@ public:
 
     void set_from_handle(HANDLE h, size_t offset, size_t size) {
         map("<external_handle>", h, offset, size);
+        m_id = util::u64_hash_combine(offset, size);
+        m_id = util::u64_hash_combine(reinterpret_cast<uint64_t>(h), m_id);
     }
 
     char* data() noexcept override {
@@ -154,7 +156,7 @@ std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path
     return holder;
 }
 
-std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle, size_t offset, size_t size) {
+std::shared_ptr<ov::MappedMemory> detail::load_mmap_object_from_handle(FileHandle handle, size_t offset, size_t size) {
     if (handle == INVALID_HANDLE_VALUE || handle == nullptr) {
         throw std::runtime_error("Invalid handle provided to load_mmap_object");
     }

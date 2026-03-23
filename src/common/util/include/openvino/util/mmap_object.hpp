@@ -71,12 +71,14 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& 
  * @param size Size of the mapping. If size is std::numeric_limits<size_t>::max(), maps from offset to EOF.
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
+namespace detail {
 std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle,
                                                                size_t offset = 0,
                                                                size_t size = auto_size);
+}
 
 template <typename T, std::enable_if_t<std::is_same<T, FileHandle>::value, int> = 0>
 std::shared_ptr<ov::MappedMemory> load_mmap_object(T handle, size_t offset = 0, size_t size = auto_size) {
-    return load_mmap_object_from_handle(static_cast<FileHandle>(handle), offset, size);
+    return detail::load_mmap_object_from_handle(static_cast<FileHandle>(handle), offset, size);
 }
 }  // namespace ov

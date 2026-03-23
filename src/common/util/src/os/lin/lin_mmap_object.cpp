@@ -86,9 +86,6 @@ public:
     }
 
     void set_from_fd(const int fd, const size_t offset, const size_t size) {
-        if (fd == -1) {
-            throw std::runtime_error("Invalid file descriptor provided for mapping.");
-        }
         m_handle = HandleHolder(fd);
 
         struct stat sb = {};
@@ -112,6 +109,8 @@ public:
             }
             m_data = static_cast<char*>(m_mapped_view) + (offset - aligned_offset);
         }
+        m_id = util::u64_hash_combine(offset, size);
+        m_id = util::u64_hash_combine(fd, m_id);
     }
 
     uint64_t get_id() const noexcept override {
@@ -139,7 +138,10 @@ std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path
     return holder;
 }
 
-std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle, size_t offset, size_t size) {
+std::shared_ptr<ov::MappedMemory> detail::load_mmap_object_from_handle(FileHandle handle, size_t offset, size_t size) {
+    if (handle == -1) {
+        throw std::runtime_error("Invalid file descriptor provided for mapping.");
+    }
     auto holder = std::make_shared<MapHolder>();
     holder->set_from_fd(handle, offset, size);
     return holder;
