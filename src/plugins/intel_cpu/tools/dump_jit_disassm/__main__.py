@@ -2,7 +2,7 @@ import os
 import re
 import argparse
 import platform
-import subprocess
+import subprocess   # nosec B404: used only for executing addr2line_path
 import sys
 from colorama import Fore
 
