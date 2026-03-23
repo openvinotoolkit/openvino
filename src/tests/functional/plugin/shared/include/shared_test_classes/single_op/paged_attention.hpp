@@ -14,7 +14,6 @@
 #include "common_test_utils/test_enums.hpp"
 
 #include "openvino/op/paged_attention.hpp"
-#include "openvino/reference/utils/paged_cache_manager_helper.hpp"
 
 
 namespace ov {
@@ -226,10 +225,6 @@ protected:
                                       adaptive_rkv_diversity_block_set_indices,adaptive_rkv_diversity_block_set_indices_begins};
 
         auto pa = std::make_shared<ov::op::PagedAttentionExtension>(pa_inputs);
-        // Ensure a cache manager is always available for TEMPLATE (reference) evaluation
-        // and any plugin paths that rely on shared cache state
-        ov::reference::paged_attention_cache::set_cache_manager(
-            pa.get(), ov::reference::paged_attention_cache::make_cache_handle(data_type));
 
         // Provide head metadata required by ConvertPagedAttnInputs transformation
         // These keys are the canonical ones read by the transformation callback
