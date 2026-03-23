@@ -224,8 +224,8 @@ public:
             }
 
             if (desc->has_xattention && rt_params->batch_size_in_sequences == 1) {
-                update_xattn_rt_params(params);
                 rt_params->enable_xattn_estimation = true;
+                update_xattn_rt_params(params);
             } else {
                 rt_params->xattn_block_size = 1;  // disable xattn for pa
             }
@@ -347,8 +347,9 @@ public:
             }
 
             prepare_multi_token_mapping(instance);
-            const bool is_xattn_bypassed = bypass_xattn(params) || !rt_params->enable_xattn_estimation;
-            if (is_xattn_bypassed || desc->has_xattention == false) {
+            const bool xattn_enabled = desc->has_xattention && rt_params->enable_xattn_estimation;
+            const bool is_xattn_bypassed = xattn_enabled ? bypass_xattn(params) : true;
+            if (is_xattn_bypassed || !xattn_enabled) {
                 GPU_DEBUG_TRACE_DETAIL << "Execute multi-token stage w/o XAttention estimation stages." << std::endl;
 
                 res_event = {execute_stage(res_event, instance, *pa_multi_token_1)};
@@ -493,6 +494,15 @@ private:
     size_t get_xattn_block_size(const kernel_impl_params& params, const size_t seq_idx = 0) {
         constexpr int32_t block_size_128 = 128;
         constexpr int32_t block_size_256 = 256;
+
+        const auto rt_params = static_cast<const PagedAttentionRuntimeParams*>(m_rt_params.get());
+        OPENVINO_ASSERT(rt_params != nullptr, "PagedAttention runtime params are not initialized");
+        OPENVINO_ASSERT(rt_params->enable_xattn_estimation,
+                        "XAttention block size must be accessed only when enable_xattn_estimation is true");
+
+        const auto desc = params.typed_desc<paged_attention>();
+        OPENVINO_ASSERT(desc->has_xattention,
+                        "XAttention block size must be accessed only when has_xattention is true");
 
         const auto& input_mem = params.memory_deps;
         const auto it = input_mem.find(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE);

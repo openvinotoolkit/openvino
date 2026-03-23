@@ -84,6 +84,10 @@ size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx) {
 // TODO: change xattn_thresh from scaler to memory... once we remove the converter node
 // between parameter node "xattention_threshold.xxx" and paged_attention node.
 float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
+    const auto desc = params.typed_desc<paged_attention>();
+    OPENVINO_ASSERT(desc->has_xattention,
+                    "XAttention threshold must be accessed only when has_xattention is true");
+
     const auto& input_mem = params.memory_deps;
     const auto it = input_mem.find(PagedAttentionInputIdx::XATTENTION_THRESHOLD);
     if (it == input_mem.end() || it->second == nullptr) {
