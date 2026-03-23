@@ -157,12 +157,14 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 
         #ifdef SHOULD_USE_DATA_ZP
             #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
-                {
+                if (in_f_start + (k + 1) * FSV <= FILTER_IFM_NUM) {
+                    data_zp_val = as_uint4(vload16(0, activations_zp + data_zp_idx));
+                } else {
+                    data_zp_val = (uint4)(0);
                     INPUT0_TYPE* data_zp_arr = (INPUT0_TYPE*)&data_zp_val;
-                    uint valid_ifm = (in_f_start + (k + 1) * FSV <= FILTER_IFM_NUM) ? FSV : (FILTER_IFM_NUM % FSV);
-                    __attribute__((opencl_unroll_hint(FSV)))
-                    for (uint f = 0; f < FSV; f++) {
-                        data_zp_arr[f] = (f < valid_ifm) ? activations_zp[data_zp_idx + f] : 0;
+                    __attribute__((opencl_unroll_hint(FILTER_IFM_NUM % FSV)))
+                    for (uint f = 0; f < FILTER_IFM_NUM % FSV; f++) {
+                        data_zp_arr[f] = activations_zp[data_zp_idx + f];
                     }
                 }
             #else
