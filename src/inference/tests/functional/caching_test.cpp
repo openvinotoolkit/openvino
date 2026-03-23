@@ -3430,7 +3430,6 @@ TEST_P(CachingTest, test_share_weight_create_ctx_multiple_compilation) {
         EXPECT_EQ(comp_models.size(), 1);
         m_post_mock_net_callbacks.pop_back();
     }
-    std::cout << "2n compile with same context test start" << std::endl;
     {
         // 2nd compile
         EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _, _))
