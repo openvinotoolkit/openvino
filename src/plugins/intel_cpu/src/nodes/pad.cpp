@@ -247,7 +247,6 @@ bool Pad::isExecutable() const {
 void Pad::prepareParams() {
     updateLastInputDims();
     if (isStringDataType) {
-        // String Pad is executed by executeString(); PadExecutor does not support element::string
         return;
     }
     attrs.cpuParallel = context->getCpuParallel();
@@ -456,7 +455,6 @@ void Pad::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-// Regular PadExecutor operates on raw bytes which is undefined behaviour for std::string objects
 void Pad::executeString() {
     OPENVINO_ASSERT(attrs.padMode == CONSTANT, "Pad: only CONSTANT mode is supported for string data type");
 
@@ -469,21 +467,18 @@ void Pad::executeString() {
     const auto& dstShape = dstMem->getStaticDims();
     const size_t nDims = srcShape.size();
 
-    std::vector<int32_t> padsBegin = attrs.padsBegin;
-    std::vector<int32_t> padsEnd = attrs.padsEnd;
-    if (padsBegin.empty()) {
-        const auto* pb = getSrcMemoryAtPort(PADS_BEGIN_ID)->getDataAs<const int32_t>();
-        padsBegin.assign(pb, pb + nDims);
-    }
-    if (padsEnd.empty()) {
-        const auto* pe = getSrcMemoryAtPort(PADS_END_ID)->getDataAs<const int32_t>();
-        padsEnd.assign(pe, pe + nDims);
-    }
+    auto loadPads = [&](size_t port, const VectorIdxs& cached) -> std::vector<int32_t> {
+        if (!cached.empty())
+            return {cached.begin(), cached.end()};
+        const auto* p = getSrcMemoryAtPort(port)->getDataAs<const int32_t>();
+        return {p, p + nDims};
+    };
+    const auto padsBegin = loadPads(PADS_BEGIN_ID, attrs.padsBegin);
+    const auto padsEnd = loadPads(PADS_END_ID, attrs.padsEnd);
 
     const std::string padStr =
         isPadValueSpecified ? *getSrcMemoryAtPort(PAD_VALUE_ID)->getDataAs<const std::string>() : std::string{};
 
-    // Row-major strides for the source tensor
     std::vector<size_t> srcStrides(nDims, 1UL);
     for (int d = static_cast<int>(nDims) - 2; d >= 0; --d)
         srcStrides[d] = srcStrides[d + 1] * srcShape[d + 1];

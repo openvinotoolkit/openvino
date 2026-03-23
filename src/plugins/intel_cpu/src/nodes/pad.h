@@ -122,9 +122,6 @@ private:
     static constexpr size_t PAD_VALUE_ID = 3LU;
 
     bool isPadValueSpecified = false;
-    // True when the DATA input (port 0) has element::string type.
-    // Such Pad nodes are handled by executeString() which uses proper C++ string
-    // semantics instead of the raw-byte PadExecutor pipeline.
     bool isStringDataType = false;
 
     void executeString();

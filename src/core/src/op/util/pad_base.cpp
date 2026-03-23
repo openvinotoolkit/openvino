@@ -104,9 +104,6 @@ void op::util::PadBase::validate_and_infer_types() {
 bool op::util::PadBase::evaluate_pad(TensorVector& outputs, const TensorVector& inputs) const {
     const auto& data = inputs[0];
 
-    // element::string requires proper C++ copy semantics — raw byte copy via
-    // std::copy(char*, char*+32, ...) corrupts std::string internals (aliased heap
-    // pointer for non-SSO strings → double-free).  Handle it here explicitly.
     if (data.get_element_type() == element::string) {
         OPENVINO_ASSERT(get_pad_mode() == op::PadMode::CONSTANT,
                         "Only CONSTANT pad mode is supported for element::string");

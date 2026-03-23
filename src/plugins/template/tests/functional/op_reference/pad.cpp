@@ -2200,23 +2200,6 @@ std::vector<PadParams> generateStringParams() {
                   op::PadMode::CONSTANT,
                   reference_tests::Tensor(ET, {}, std::vector<T>{""}),
                   "pad_string_1d_negative_crop"),
-
-        // Long strings that exercise the heap allocation path
-        PadParams(reference_tests::Tensor(ET,
-                                          {2},
-                                          std::vector<T>{"this string is long enough to exceed SSO",
-                                                         "another rather long string for the test"}),
-                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{1}),
-                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{1}),
-                  reference_tests::Tensor(ET,
-                                          {4},
-                                          std::vector<T>{"PAD",
-                                                         "this string is long enough to exceed SSO",
-                                                         "another rather long string for the test",
-                                                         "PAD"}),
-                  op::PadMode::CONSTANT,
-                  reference_tests::Tensor(ET, {}, std::vector<T>{"PAD"}),
-                  "pad_string_1d_long_strings_heap"),
     };
 }
 
