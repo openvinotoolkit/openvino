@@ -423,8 +423,7 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
     if (args._impl == nullptr || commandListIndexArray.empty() ||
         reuseCmdListMode == DISABLE_EXECUTION_CONTEXT_CREATION ||
         reuseCmdListMode == ENABLE_EXECUTION_CONTEXT_CREATION) {
-        _logger.debug("There are tensor shape changes or it is the first execution, can not reuse command list, need "
-                      "to reset command list");
+        _logger.debug("Reset command list to run with runtime");
         // Reset commandLists since there are tensor with new shapes or it is the first execution, can not reuse command
         // list with update
         for (auto& cmdList : commandLists) {
@@ -432,8 +431,7 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
         }
     } else {
         if (reuseCmdListMode == ENABLE_REUSE_WITH_MUTABLE_COMMANDLIST && !noTensorChange) {
-            _logger.debug("There are tensor pointer or stride changes, even there is no shape change, can reuse "
-                          "command list but need to update command list with UpdateMutableCommandList API");
+            _logger.debug("Update command list with new tensor pointer");
             if (params->executionContext == nullptr) {
                 OPENVINO_THROW(
                     "Execution context is not created, can not reuse command list with UpdateMutableCommandList API");
@@ -452,8 +450,7 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
                 zeCommandListClose(cmdList);
             }
         } else {
-            _logger.debug("All tensor shape, pointer and stride keep unchanged, can reuse command list directly "
-                          "without UpdateMutableCommandList API");
+            _logger.debug("Reuse command list without update since no tensor change detected");
         }
 
         auto result = zeCommandQueueExecuteCommandLists(commandQueue,
