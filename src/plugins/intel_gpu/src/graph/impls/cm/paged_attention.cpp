@@ -436,8 +436,19 @@ public:
 
             GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: tmp_out=" << tmp_out_elements_count * 4 << "  exp_sums=" << buf_elements_count * 4 << std::endl;
         } else {
-            internal_buffers.emplace_back(16, ov::element::f32);  // 0: intermediate partition output
-            internal_buffers.emplace_back(16, ov::element::f32);  // 1: softmax exp_sums
+            int64_t decode_tmp_out_elements_count = 16;
+            int64_t decode_buf_elements_count = 16;
+            const bool needs_single_token_buffers = stage == PagedAttentionStage::MIXED &&
+                                                    rt_params->mixed_route_mode == MixedRouteMode::SPLIT &&
+                                                    rt_params->single_token_selected_count > 0;
+            if (needs_single_token_buffers) {
+                OPENVINO_ASSERT(rt_params->num_of_partitions != 0);
+                decode_buf_elements_count = static_cast<int64_t>(rt_params->single_token_selected_count * desc->heads_num * rt_params->num_of_partitions);
+                decode_tmp_out_elements_count = static_cast<int64_t>(rt_params->single_token_selected_count * desc->heads_num * desc->v_head_size * rt_params->num_of_partitions);
+            }
+
+            internal_buffers.emplace_back(decode_tmp_out_elements_count, ov::element::f32);  // 0: intermediate partition output
+            internal_buffers.emplace_back(decode_buf_elements_count, ov::element::f32);       // 1: softmax exp_sums
             internal_buffers.emplace_back(std::max<int64_t>(2, static_cast<int64_t>(rt_params->multi_token_wg_count * 2)), ov::element::i32);  // 2: multi-token mapping
             internal_buffers.emplace_back(std::max<int64_t>(1, static_cast<int64_t>(rt_params->batch_size_in_sequences)), ov::element::i32);  // 3: selected ids / placeholder
 
