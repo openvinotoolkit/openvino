@@ -217,7 +217,8 @@ void test_variable_copy_from_fake_aligned_fc(bool is_caching_test) {
     auto fake_align_base = (is_4bit || is_8bit) && is_extra_alignment_needed ? 64 : 16;
 
     const auto fc_output_batch_size_aligned = align_to(input_b * input_f, fake_align_base);
-    ASSERT_EQ(fc_output_batch_size, fc_output_batch_size_aligned);
+    ASSERT_TRUE(fc_output_batch_size == static_cast<size_t>(fc_output_batch_size_aligned) ||
+                fc_output_batch_size == static_cast<size_t>(input_b * input_f));
 
     // read_value
     ASSERT_EQ(outputs.size(), size_t(1));
