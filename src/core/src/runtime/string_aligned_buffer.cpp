@@ -11,7 +11,6 @@
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 
-
 namespace {
 void aux_unpack_string_tensor(const char* const data,
                               const size_t size,
@@ -23,7 +22,7 @@ void aux_unpack_string_tensor(const char* const data,
     using header_element_t = int32_t;  // Type of a single element in the header (strings_count and offsets)
 
     static_assert(sizeof(header_element_t) <= sizeof(size_t),
-                  "size_t must be at least as wide as header_element_t for safe casting of header values")
+                  "size_t must be at least as wide as header_element_t for safe casting of header values");
 
     OPENVINO_ASSERT(size >= sizeof(header_element_t),
                     "Incorrect packed string tensor format: no strings count in the packed string tensor");
@@ -99,8 +98,10 @@ void aux_get_header(const std::shared_ptr<ov::StringAlignedBuffer>& string_align
     constexpr size_t strings_count_elements = 1;  // Header size occupied by strings_count
     constexpr size_t last_end_elements = 1;       // Header size occupied by last end offset
 
-    OPENVINO_ASSERT(strings_count <= std::numeric_limits<size_t>::max() - strings_count_elements - last_end_elements,
-                    "Too many strings: header element count overflow");
+    constexpr auto header_elements_max = static_cast<size_t>(std::numeric_limits<header_element_t>::max());
+
+    OPENVINO_ASSERT(strings_count <= header_elements_max - strings_count_elements - last_end_elements,
+                    "Incorrect StringAlignedBuffer format: header element count overflow");
 
     const size_t header_elems =
         strings_count + (strings_count == 0 ? strings_count_elements : strings_count_elements + last_end_elements);
@@ -109,7 +110,7 @@ void aux_get_header(const std::shared_ptr<ov::StringAlignedBuffer>& string_align
 
     size_t header_size_bytes = 0;
     const bool is_overflow = ov::util::mul_overflow(header_elems, element_size, header_size_bytes);
-    OPENVINO_ASSERT(!is_overflow, "Too many strings: header size overflow detected");
+    OPENVINO_ASSERT(!is_overflow, "Incorrect StringAlignedBuffer format: header size overflow detected");
 
     header_size = header_size_bytes;
     data = std::shared_ptr<uint8_t>(new uint8_t[header_size], std::default_delete<uint8_t[]>());
@@ -126,6 +127,9 @@ void aux_get_header(const std::shared_ptr<ov::StringAlignedBuffer>& string_align
 
         for (size_t idx = 0; idx < strings_count; ++idx, ++header, ++strings) {
             current_string_end += strings->size();
+            OPENVINO_ASSERT(
+                current_string_end <= header_elements_max,
+                "Incorrect StringAlignedBuffer format: total string data size exceeds header element type capacity");
             *header = static_cast<header_element_t>(current_string_end);
         }
     }
