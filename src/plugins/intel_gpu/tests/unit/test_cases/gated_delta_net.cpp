@@ -119,7 +119,7 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
                     size_t i_hk = i_h / group_size;
                     const T* q_ptr = q.data() + i_b * BATCH_STRIDE_Q + i_hk * HEAD_STRIDE;
                     const T* k_ptr = k.data() + i_b * BATCH_STRIDE_K + i_hk * HEAD_STRIDE;
-                    const T* v_ptr = v.data() + i_b * BATCH_STRIDE_V + i_h * HEAD_STRIDE;
+                    const T* v_ptr = v.data() + i_b * BATCH_STRIDE_V + i_h * this->V;
                     // B, H, K, V
                     for (size_t j = 0; j < this->K; j++) {
                         init_state[j] = state[i_b * this->H * this->V * this->K + i_h * this->V * this->K + j * this->V + i_v];
@@ -245,12 +245,12 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         auto g_mem = engine.allocate_memory(g_static_layout);
         auto beta_mem = engine.allocate_memory(beta_static_layout);
 
-        auto input_q = rg.generate_random_1d<T>(ov::shape_size(q_mem->get_layout().get_shape()), -1, 1);
-        auto input_k = rg.generate_random_1d<T>(ov::shape_size(k_mem->get_layout().get_shape()), -1, 1);
-        auto input_v = rg.generate_random_1d<T>(ov::shape_size(v_mem->get_layout().get_shape()), -1, 1);
-        auto input_g = rg.generate_random_1d<T>(ov::shape_size(g_mem->get_layout().get_shape()), -1, 1);
-        auto input_beta = rg.generate_random_1d<T>(ov::shape_size(beta_mem->get_layout().get_shape()), 0, 1);
-        auto input_state = rg.generate_random_1d<T>(ov::shape_size(state_mem->get_layout().get_shape()), -1, 1);
+        auto input_q = rg.generate_random_1d<T>(ov::shape_size(q_mem->get_layout().get_shape()), -1, 1, 256);
+        auto input_k = rg.generate_random_1d<T>(ov::shape_size(k_mem->get_layout().get_shape()), -1, 1, 256);
+        auto input_v = rg.generate_random_1d<T>(ov::shape_size(v_mem->get_layout().get_shape()), -1, 1, 256);
+        auto input_g = rg.generate_random_1d<T>(ov::shape_size(g_mem->get_layout().get_shape()), -1, 1, 256);
+        auto input_beta = rg.generate_random_1d<T>(ov::shape_size(beta_mem->get_layout().get_shape()), 0, 1, 256);
+        auto input_state = rg.generate_random_1d<T>(ov::shape_size(state_mem->get_layout().get_shape()), -1, 1, 256);
 
         load_input(q_mem, 0, input_q);
         load_input(k_mem, 1, input_k);
@@ -290,7 +290,7 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         }
 
         if (p.precision == ov::element::f32) {
-            execute_t<float>(p, cldnn_precision, 1e-3f, is_caching_test);
+            execute_t<float>(p, cldnn_precision, 1e-4f, is_caching_test);
             return;
         }
 
