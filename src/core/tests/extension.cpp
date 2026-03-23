@@ -28,7 +28,7 @@ inline std::wstring get_extension_wdir() {
 }
 
 TEST(extension, load_extension) {
-    EXPECT_NO_THROW(ov::detail::load_extensions(get_extension_path()));
+    EXPECT_NO_THROW(ov::detail::load_extensions(ov::util::make_path(get_extension_path())));
 }
 
 #if defined(_WIN32)
@@ -38,14 +38,14 @@ TEST(extension, load_extension_wstring) {
                                             "",
                                             std::string("openvino_template_extension") + OV_BUILD_POSTFIX));
     _wrename(ov::util::string_to_wstring(get_extension_path()).c_str(), wdir_ext_path.c_str());
-    EXPECT_NO_THROW(ov::detail::load_extensions(wdir_ext_path));
+    EXPECT_NO_THROW(ov::detail::load_extensions(ov::util::make_path(wdir_ext_path)));
     _wrename(wdir_ext_path.c_str(), ov::util::string_to_wstring(get_extension_path()).c_str());
     _wrmdir(wdir.c_str());
 }
 #endif
 
 TEST(extension, load_extension_and_cast) {
-    std::vector<ov::Extension::Ptr> so_extensions = ov::detail::load_extensions(get_extension_path());
+    std::vector<ov::Extension::Ptr> so_extensions = ov::detail::load_extensions(ov::util::make_path(get_extension_path()));
     ASSERT_LE(1, so_extensions.size());
     std::vector<ov::Extension::Ptr> extensions;
     std::vector<std::shared_ptr<void>> so;
@@ -70,7 +70,7 @@ public:
 }  // namespace
 
 TEST(extension, create_model_from_extension) {
-    std::vector<ov::Extension::Ptr> so_extensions = ov::detail::load_extensions(get_extension_path());
+    std::vector<ov::Extension::Ptr> so_extensions = ov::detail::load_extensions(ov::util::make_path(get_extension_path()));
     ASSERT_LE(1, so_extensions.size());
     std::vector<ov::Extension::Ptr> extensions;
     std::vector<std::shared_ptr<void>> so;

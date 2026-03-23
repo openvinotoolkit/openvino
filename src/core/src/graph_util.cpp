@@ -330,7 +330,7 @@ void save_model(const std::shared_ptr<const ov::Model>& m,
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
 void save_model(const std::shared_ptr<const ov::Model>& m, const std::wstring& output_model, bool compress_to_fp16) {
-    save_model(m, ov::util::wstring_to_string(output_model), compress_to_fp16);
+    save_model(m, ov::util::make_path(output_model), compress_to_fp16);
 }
 #endif
 
