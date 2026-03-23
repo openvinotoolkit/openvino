@@ -435,6 +435,8 @@ public:
     std::shared_ptr<ov::Model> get_model_without_repeated_blocks();
     std::shared_ptr<ov::Model> get_model_with_repeated_blocks(std::size_t repetitions);
     std::shared_ptr<ov::Model> get_model_with_repeated_blocks();
+    std::shared_ptr<ov::Model> get_model_with_repeated_blocks_with_weightless_cache(std::size_t repetitions);
+    std::shared_ptr<ov::Model> get_model_with_repeated_blocks_with_weightless_cache();
     std::shared_ptr<ov::Model> get_model_with_repeated_blocks_and_results(
         std::size_t repetitions,
         const std::vector<std::size_t>& block_indices);
