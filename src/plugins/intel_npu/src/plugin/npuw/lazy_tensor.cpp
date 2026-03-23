@@ -69,7 +69,7 @@ ov::Tensor Const::eval() const {
         // Use handle_provider if available, otherwise use default mmap
         if (m_handle_provider) {
             ov::FileHandle handle = m_handle_provider();
-            mapped_memory = ov::load_mmap_object(handle);
+            mapped_memory = ov::load_mmap_object_from_handle(handle);
         } else {
             mapped_memory = ov::load_mmap_object(ov::util::make_path(m_weights_path));
         }

@@ -16,6 +16,7 @@
 #include <typeinfo>
 #include <unordered_map>
 #include <utility>
+#include <type_traits>
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"

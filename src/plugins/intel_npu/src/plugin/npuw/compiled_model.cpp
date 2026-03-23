@@ -1404,7 +1404,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
             // Use handle_provider if available, otherwise use default mmap with weights_path
             if (handle_provider) {
                 ov::FileHandle handle = handle_provider();
-                mapped_memory = ov::load_mmap_object(handle);
+                mapped_memory = ov::load_mmap_object_from_handle(handle);
             } else if (!weights_path.empty()) {
                 mapped_memory = ov::load_mmap_object(ov::util::make_path(weights_path));
             }
