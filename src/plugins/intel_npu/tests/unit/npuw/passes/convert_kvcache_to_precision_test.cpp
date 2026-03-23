@@ -22,60 +22,6 @@ namespace {
 
 using ov::test::npuw::RecordingFactory;
 
-// Returns true if at least one input whose name contains `needle` exists AND
-// every such input has `expected_type`.
-static bool all_inputs_with_name_have_type(const std::shared_ptr<ov::Model>& model,
-                                           const std::string& needle,
-                                           ov::element::Type expected_type) {
-    bool found_any = false;
-    for (const auto& input : model->inputs()) {
-        for (const auto& name : input.get_names()) {
-            if (name.find(needle) != std::string::npos) {
-                found_any = true;
-                if (input.get_element_type() != expected_type)
-                    return false;
-                break;
-            }
-        }
-    }
-    return found_any;
-}
-
-// Returns true if at least one output whose name contains `needle` exists AND
-// every such output has `expected_type`.
-static bool all_outputs_with_name_have_type(const std::shared_ptr<ov::Model>& model,
-                                            const std::string& needle,
-                                            ov::element::Type expected_type) {
-    bool found_any = false;
-    for (const auto& output : model->outputs()) {
-        for (const auto& name : output.get_names()) {
-            if (name.find(needle) != std::string::npos) {
-                found_any = true;
-                if (output.get_element_type() != expected_type)
-                    return false;
-                break;
-            }
-        }
-    }
-    return found_any;
-}
-
-// Returns true if NO input whose name contains `needle` has `excluded_type`.
-static bool no_inputs_with_name_have_type(const std::shared_ptr<ov::Model>& model,
-                                          const std::string& needle,
-                                          ov::element::Type excluded_type) {
-    for (const auto& input : model->inputs()) {
-        for (const auto& name : input.get_names()) {
-            if (name.find(needle) != std::string::npos) {
-                if (input.get_element_type() == excluded_type)
-                    return false;
-                break;
-            }
-        }
-    }
-    return true;
-}
-
 // ─── Parametrized fixture ─────────────────────────────────────────────────────
 // Parametrized over ov::element::Type so that f16, f8e4m3, and f8e5m2 are each
 // exercised in exactly the same test bodies.

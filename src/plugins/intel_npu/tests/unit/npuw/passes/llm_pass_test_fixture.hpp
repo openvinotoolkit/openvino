@@ -6,21 +6,23 @@
 //
 // All pass-specific test fixtures should derive from LLMPassTestFixture instead of
 // ::testing::Test directly.  The base provides:
-//   • SetUp()            – creates m_plugin (NullPlugin)
-//   • base_props()       – minimal LLM compile properties
-//   • merge_props()      – merge two AnyMap instances
-//   • create_compiled_model()         – builds a standard LLM sub-pipeline
-//   • create_whisper_compiled_model() – builds a Whisper-decoder sub-pipeline
-//   • count_ops<Op>()    – count nodes of a given type in a model graph
-//   • port_has_name()    – checks whether any name on a port contains a needle
-//   • count_inputs()     – counts inputs whose name contains a needle
-//   • find_input()       – returns the first input port whose name contains a needle
-//   • find_output()      – returns the first output port whose name contains a needle
-//   • all_inputs_static() – returns true when every model input is fully static
-//   • input_shape()       – returns the concrete shape of a named input
+//   * SetUp()            - creates m_plugin (NullPlugin)
+//   * base_props()       - minimal LLM compile properties
+//   * merge_props()      - merge two AnyMap instances
+//   * create_compiled_model()         - builds a standard LLM sub-pipeline
+//   * create_whisper_compiled_model() - builds a Whisper-decoder sub-pipeline
+//   * count_ops<Op>()    - count nodes of a given type in a model graph
+//   * port_has_name()    - checks whether any name on a port contains a needle
+//   * count_inputs()     - counts inputs whose name contains a needle
+//   * find_input()       - returns the first input port whose name contains a needle
+//   * find_output()      - returns the first output port whose name contains a needle
+//   * all_inputs_static()               - returns true when every model input is fully static
+//   * input_shape()                     - returns the concrete shape of a named input
+//   * all_inputs_with_name_have_type()  - true iff every input matching needle has expected_type
+//   * all_outputs_with_name_have_type() - true iff every output matching needle has expected_type
+//   * no_inputs_with_name_have_type()   - true iff no input matching needle has excluded_type
 //
-// Pass-specific helpers (e.g. any_matmul_has_transpose_b, has_input_with_name,
-// all_inputs_with_name_have_type) should remain in the individual test files.
+// Pass-specific helpers (e.g. any_matmul_has_transpose_b) should remain in the individual test files.
 
 #pragma once
 
@@ -43,7 +45,7 @@ protected:
         m_plugin = std::make_shared<NullPlugin>();
     }
 
-    // ── Properties ────────────────────────────────────────────────────────────
+    // -- Properties -------------------------------------------------------------
 
     static ov::AnyMap base_props() {
         return {{"NPUW_LLM", "YES"}, {"NPUW_LLM_MAX_PROMPT_LEN", "128"}, {"NPUW_LLM_MIN_RESPONSE_LEN", "64"}};
@@ -55,7 +57,7 @@ protected:
         }
     }
 
-    // ── Model construction ───────────────────────────────────────────────────
+    // -- Model construction --------------------------------------------------------
 
     std::unique_ptr<ov::npuw::LLMCompiledModel> create_compiled_model(const ov::AnyMap& extra_props,
                                                                        RecordingFactory& recorder) const {
@@ -73,7 +75,7 @@ protected:
             build_whisper_decoder_test_model(), m_plugin, props, recorder.make_factory());
     }
 
-    // ── Graph inspection ─────────────────────────────────────────────────────
+    // -- Graph inspection ----------------------------------------------------------
 
     template <class Op>
     static std::size_t count_ops(const std::shared_ptr<ov::Model>& model) {
@@ -138,7 +140,52 @@ protected:
         return ps.to_shape();
     }
 
-    // ── Shared state ─────────────────────────────────────────────────────────
+    // Returns true if at least one input whose name contains `needle` exists AND
+    // every such input has `expected_type`.
+    static bool all_inputs_with_name_have_type(const std::shared_ptr<ov::Model>& model,
+                                               std::string_view needle,
+                                               ov::element::Type expected_type) {
+        bool found_any = false;
+        for (const auto& input : model->inputs()) {
+            if (port_has_name(input, needle)) {
+                found_any = true;
+                if (input.get_element_type() != expected_type)
+                    return false;
+            }
+        }
+        return found_any;
+    }
+
+    // Returns true if at least one output whose name contains `needle` exists AND
+    // every such output has `expected_type`.
+    static bool all_outputs_with_name_have_type(const std::shared_ptr<ov::Model>& model,
+                                                std::string_view needle,
+                                                ov::element::Type expected_type) {
+        bool found_any = false;
+        for (const auto& output : model->outputs()) {
+            if (port_has_name(output, needle)) {
+                found_any = true;
+                if (output.get_element_type() != expected_type)
+                    return false;
+            }
+        }
+        return found_any;
+    }
+
+    // Returns true if NO input whose name contains `needle` has `excluded_type`.
+    static bool no_inputs_with_name_have_type(const std::shared_ptr<ov::Model>& model,
+                                              std::string_view needle,
+                                              ov::element::Type excluded_type) {
+        for (const auto& input : model->inputs()) {
+            if (port_has_name(input, needle)) {
+                if (input.get_element_type() == excluded_type)
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    // -- Shared state ----------------------------------------------------------
 
     std::shared_ptr<ov::IPlugin> m_plugin;
 };
