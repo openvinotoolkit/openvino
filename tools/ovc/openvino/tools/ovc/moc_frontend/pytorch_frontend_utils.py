@@ -243,7 +243,7 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
         pass
     # attempt to load exported model
     try:
-        exported_program = torch.export.load(input_model, weights_only=True)
+        exported_program = torch.export.load(input_model)
         if hasattr(torch, "export") and isinstance(exported_program, (torch.export.ExportedProgram)):
             argv.input_model = TorchFXPythonDecoder.from_exported_program(exported_program)
             argv.framework = 'pytorch'
