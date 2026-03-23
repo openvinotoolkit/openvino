@@ -79,6 +79,28 @@ INSTANTIATE_TEST_SUITE_P(
                       std::make_tuple(Shape{4}, std::vector<std::string>{"Intel", "OpenVINO", "", "AI"}),
                       std::make_tuple(Shape{2, 2}, std::vector<std::string>{"Intel", "OpenVINO", "Gen", "AI"})));
 
+class TypePropStringTensorUnpackZeroDimTestSuite : public ::testing::TestWithParam<ov::PartialShape> {};
+
+TEST_P(TypePropStringTensorUnpackZeroDimTestSuite, chars_output_is_zero_when_input_has_zero_dim) {
+    const auto& data_shape = GetParam();
+    const auto data = std::make_shared<Parameter>(element::string, data_shape);
+    const auto op = std::make_shared<op::v15::StringTensorUnpack>(data);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_element_type(0), element::i32);
+    EXPECT_EQ(op->get_output_element_type(1), element::i32);
+    EXPECT_EQ(op->get_output_element_type(2), element::u8);
+    EXPECT_EQ(op->get_output_partial_shape(0), data_shape);
+    EXPECT_EQ(op->get_output_partial_shape(1), data_shape);
+    EXPECT_EQ(op->get_output_partial_shape(2), PartialShape{0});
+}
+
+INSTANTIATE_TEST_SUITE_P(TypePropStringTensorUnpackZeroDimTests,
+                         TypePropStringTensorUnpackZeroDimTestSuite,
+                         ::testing::Values(PartialShape{0},
+                                           PartialShape{0, 3},
+                                           PartialShape{2, 0, 3}));
+
 TEST(type_prop, StringTensorUnpack_incorrect_data_type) {
     const auto data = std::make_shared<Parameter>(element::u8, PartialShape{3, 6});
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v15::StringTensorUnpack>(data),

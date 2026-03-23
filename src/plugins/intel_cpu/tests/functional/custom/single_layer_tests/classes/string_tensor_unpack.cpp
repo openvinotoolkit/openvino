@@ -92,7 +92,7 @@ const std::vector<StringTensorUnpackSpecificParams> StringTensorUnpackParamsVect
     StringTensorUnpackSpecificParams {
         InputShape{{3, -1, {3, 8}}, {{3, 1, 3}, {3, 2, 8}}}
     },
-    // Zero-dim inputs — exercise the hasZero early-return path in executeDynamicImpl
+    // Zero-dim inputs — exercise the zero-dim branch in shape_infer (else-if path in string_tensor_unpack_shape_inference.hpp)
     StringTensorUnpackSpecificParams {
         InputShape{{0}, {{0}}}              // static 1-D, zero elements
     },

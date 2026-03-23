@@ -71,20 +71,9 @@ bool StringTensorUnpack::needPrepareParams() const {
     return false;
 }
 
-bool StringTensorUnpack::isExecutable() const {
-    // Always execute so we can set output shapes even when input has zero dims
-    return true;
-}
-
 void StringTensorUnpack::executeDynamicImpl(const dnnl::stream& strm) {
     const auto& srcMemory = getSrcMemoryAtPort(0);
     const auto& srcDataDims = srcMemory->getStaticDims();
-
-    const bool hasZero = std::any_of(srcDataDims.begin(), srcDataDims.end(), [](size_t d) { return d == 0; });
-    if (hasZero) {
-        redefineOutputMemory({srcDataDims, srcDataDims, {0}});
-        return;
-    }
 
     const auto& srcData = srcMemory->getDataAs<std::string>();
     Dim stringCount = std::accumulate(srcDataDims.begin(), srcDataDims.end(), 1, std::multiplies<>());
