@@ -229,7 +229,7 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
     # attempt to load scripted model
     try:
         inputs = prepare_torch_inputs(example_inputs)
-        model = torch.jit.load(input_model)
+        model = torch.jit.load(input_model, weights_only=True)  # load in weights-only mode to avoid executing user code in __setstate__
         model.eval()
         decoder = TorchScriptPythonDecoder(
             model,
@@ -243,7 +243,7 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
         pass
     # attempt to load exported model
     try:
-        exported_program = torch.export.load(input_model)
+        exported_program = torch.export.load(input_model, weights_only=True)
         if hasattr(torch, "export") and isinstance(exported_program, (torch.export.ExportedProgram)):
             argv.input_model = TorchFXPythonDecoder.from_exported_program(exported_program)
             argv.framework = 'pytorch'
