@@ -62,18 +62,22 @@ public:
 
     void get_max_batch_size() {
         ov::Core ie;
+        // This test uses ov::Core to compile a model and query max_batch_size,
+        // which requires the GPU plugin to be registered. The unit test binary
+        // may not have the plugin discoverable — skip gracefully in that case.
+        try {
+            ie.get_available_devices();  // triggers plugin discovery
+        } catch (...) {}
+
         const auto available_devices = ie.get_available_devices();
         const bool has_gpu = std::any_of(available_devices.begin(), available_devices.end(), [](const std::string& device) {
             return device.rfind("GPU", 0) == 0;
         });
         if (!has_gpu) {
-            GTEST_SKIP() << "GPU device is not registered in ov::Core for this test environment.";
+            GTEST_SKIP() << "GPU plugin is not available in ov::Core (unit test binary may lack plugin discovery).";
         }
 
         auto& engine = get_test_engine();
-        if (engine.get_device_info().gfx_ver.major >= 20) {
-            GTEST_SKIP() << "Skip max_batch_size estimation on Xe2+ due unstable OpenCL runtime behavior in test environment.";
-        }
         uint32_t batch_size = 0, batch_size_native = 0;
         uint32_t n_streams = 1;
         std::string target_device = "GPU";

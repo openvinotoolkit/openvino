@@ -2628,7 +2628,6 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x1x1_nopad_random) {
     ASSERT_EQ(outputs.begin()->first, "conv");
 
     auto output_prim = outputs.begin()->second.get_memory();
-    auto output_layout = output_prim->get_layout();
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
@@ -2700,7 +2699,6 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in2x2x1x2_nopad_random) {
     ASSERT_EQ(outputs.begin()->first, "conv");
 
     auto output_prim = outputs.begin()->second.get_memory();
-    auto output_layout = output_prim->get_layout();
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
@@ -2759,7 +2757,6 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x1x1_nopad) {
     ASSERT_EQ(outputs.begin()->first, "conv");
 
     auto output_prim = outputs.begin()->second.get_memory();
-    auto output_layout = output_prim->get_layout();
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
@@ -4095,9 +4092,6 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp32)
     const int32_t output_y = (input_y - weights_y) / stride_y + 1;
 
     auto& engine = get_test_engine();
-    if (engine.get_device_info().gfx_ver.major >= 20) {
-        GTEST_SKIP() << "Skip legacy yxfb convolution coverage on Xe2+ due CL_OUT_OF_RESOURCES in OCL path.";
-    }
 
     auto input_size = tensor( batch_size, input_feature_count, input_x, input_y );
     auto input = engine.allocate_memory({ data_types::f32, input_format, input_size });
@@ -4215,7 +4209,6 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp32)
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
-    auto output_layout = output_prim->get_layout();
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
@@ -4227,15 +4220,12 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp32)
         {
             for (uint32_t bi = 0; bi < batch_size; ++bi, ++i)
             {
-                auto x = yxi % output_x;
-                auto y = yxi / output_x;
-                auto output_idx = output_layout.get_linear_offset(tensor(bi, ofi, x, y));
-                auto equal = are_equal(output_vals[i], output_ptr[output_idx]);
+                auto equal = are_equal(output_vals[i], output_ptr[i]);
                 ASSERT_TRUE(equal);
                 if (!equal)
                 {
                     std::cout << "Failed at position (" << yxi << ", output feature = " << ofi << ", batch = " << bi << "): "
-                        << output_vals[i] << " != " << output_ptr[output_idx] << std::endl;
+                        << output_vals[i] << " != " << output_ptr[i] << std::endl;
                     return;
                 }
             }
@@ -5015,9 +5005,6 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp16)
         std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
         ASSERT_EQ(1, 1);
         return;
-    }
-    if (engine.get_device_info().gfx_ver.major >= 20) {
-        GTEST_SKIP() << "Skip legacy yxfb convolution coverage on Xe2+ due CL_OUT_OF_RESOURCES in OCL path.";
     }
 
     const auto input_format   = format::yxfb;
