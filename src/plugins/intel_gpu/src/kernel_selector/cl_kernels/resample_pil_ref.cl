@@ -158,7 +158,12 @@ KERNEL (resample_horizontal_gpu_ref)(  __global INPUT0_TYPE* input
 #else
     int out_idx = OUTPUT_GET_INDEX(b, f, y, x);
 #endif
-    output[out_idx] = ss;
+    #if HAS_FUSED_OPS
+        FUSED_OPS;
+        output[out_idx] = FUSED_OPS_RESULT;
+    #else
+        output[out_idx] = ACTIVATION(ss, ACTIVATION_PARAMS);
+    #endif
 }
 
 #else // RESAMPLE_PILLOW_STAGE == STAGE_RESAMPLE_VERTICAL

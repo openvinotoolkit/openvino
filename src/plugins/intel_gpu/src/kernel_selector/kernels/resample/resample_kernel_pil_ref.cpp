@@ -226,6 +226,9 @@ static void SetKernelArguments(const resample_params& params, ResampleKernelPilR
                 BytesPerElement(intermediateBufferTensor.GetDType()));
         } else {
             arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0}); // output
+            for (uint32_t i = 0; i < fusedCount; i++) {
+                arguments.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, i});
+            }
         }
         break;
     }
@@ -329,6 +332,20 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
                 MakeJitConstant("ENABLE_HORIZONTAL_PASS", NeedHorizontalPass(params)),
                 MakeJitConstant("KSIZE", ksize),
             });
+            if (!NeedVerticalPass(params)) {
+                if (!params.fused_ops.empty()) {
+                    std::vector<std::string> idx_order;
+                    if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
+                        idx_order = {"b", "f", "y", "x"};
+                    } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
+                        idx_order = {"b", "f", "z", "y", "x"};
+                    } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 6) {
+                        idx_order = {"b", "f", "w", "z", "y", "x"};
+                    }
+                    FusedOpsConfiguration conf = {"", idx_order, "ss", params.outputs[0].GetDType(), 1};
+                    jit_constants.Merge(MakeFusedOpsJitConstants(params, {conf}));
+                }
+            }
             break;
         }
         case eCalcVerticalCoefficients: {
