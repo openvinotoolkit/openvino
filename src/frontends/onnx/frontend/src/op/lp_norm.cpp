@@ -6,6 +6,8 @@
 #include "exceptions.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/select.hpp"
 #include "utils/common.hpp"
 #include "utils/norm.hpp"
 using namespace ov::op;
@@ -33,7 +35,13 @@ ov::OutputVector lp_norm(const ov::frontend::onnx::Node& node) {
     std::shared_ptr<ov::Node> norm =
         ov::op::util::lp_norm(data, normalize_axis_const, static_cast<std::size_t>(p_norm), 0.0f, true);
 
-    return {std::make_shared<v1::Divide>(data, norm)};
+    auto div = std::make_shared<v1::Divide>(data, norm);
+
+    // Guard: Output 0 for the zero-norm case.
+    // Ref: https://onnx.ai/onnx/operators/onnx__LpNormalization.html
+    auto zero = v0::Constant::create(data.get_element_type(), ov::Shape{}, {0.0f});
+    auto is_zero_norm = std::make_shared<v1::Equal>(norm, zero);
+    return {std::make_shared<v1::Select>(is_zero_norm, zero, div)};
 }
 
 ONNX_OP("LpNormalization", OPSET_SINCE(1), ai_onnx::opset_1::lp_norm);
