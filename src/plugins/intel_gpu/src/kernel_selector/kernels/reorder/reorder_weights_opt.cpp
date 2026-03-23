@@ -213,16 +213,6 @@ bool ReorderWeightsOpt::Validate(const Params& params) const {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
-    // On Xe2+ the subgroup block-write operations used by this optimised kernel
-    // can trigger CL_OUT_OF_RESOURCES for certain weight layouts
-    // (e.g. os_iyx_osv32). Fall back to the scalar base kernel.
-    const auto ip_major = static_cast<uint32_t>(p.engineInfo.ip_version >> 16);
-    const bool is_xe2_or_later = p.engineInfo.arch >= gpu_arch::xe2 ||
-                                 (p.engineInfo.arch == gpu_arch::unknown && ip_major >= 20);
-    if (is_xe2_or_later) {
-        DO_NOT_USE_THIS_KERNEL(params.layerID);
-    }
-
     return true;
 }
 
