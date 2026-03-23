@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/stft.hpp"
+
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
@@ -12,7 +14,6 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/stft.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "utils/common.hpp"
@@ -26,45 +27,27 @@ namespace onnx {
 namespace ai_onnx {
 namespace opset_17 {
 
-namespace {
-ov::OutputVector stft_v15(const ov::frontend::onnx::Node& node, const ov::OutputVector& ov_inputs) {
-    // ONNX STFT inputs: signal, frame_step, window (optional), frame_length (optional)
-    // ONNX STFT output shape: [batch_size, num_frames, fft_length, 2]
-    // OpenVINO v15::STFT inputs: data, window, frame_size, frame_step
-    // OpenVINO v15::STFT output shape: [batch_size, num_frames, fft_length, 2] (transpose_frames=false)
-    auto signal = ov_inputs.at(0);
-    const auto frame_step_input = ov_inputs.at(1);
-
-    ov::Output<ov::Node> frame_size = ov_inputs[3];
-    ov::Output<ov::Node> window = ov_inputs[2];
-
-    // Create STFT operation
-    // transpose_frames=false gives output shape [batch_size, num_frames, fft_length, 2]
-    // to match ONNX expected output shape
-    constexpr bool transpose_frames = false;
-    auto stft_result = std::make_shared<v15::STFT>(signal, window, frame_size, frame_step_input, transpose_frames);
-
-    return {stft_result};
-}
-}  // namespace
-
 ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
     common::default_op_checks(node, 2, 4);
 
     const ov::OutputVector ov_inputs{node.get_ov_inputs()};
     auto signal = ov_inputs.at(0);
     const auto signal_param_shape = signal.get_partial_shape();
-
     const auto window_node_provided = ov_inputs.size() > 2 && !ov::op::util::is_null(ov_inputs[2]);
     const auto dft_length_provided = ov_inputs.size() > 3 && !ov::op::util::is_null(ov_inputs[3]);
 
     // Use ov::op::v15::STFT for 2D signal - all inputs are required
     // Even if 2D input is not described in onnx spec, it is allowed by onnx model checker,
-    // The 2D shape is compatible with 3D case [batch, signal_length, 1] -> [batch, signal_length]
     // 2D input can be seen in real models and is supported by frameworks (including OpenVINO STFT)
-    if ((signal_param_shape.rank().is_static() && signal_param_shape.size() == 2) &&
-        (window_node_provided && dft_length_provided)) {
-        return stft_v15(node, ov_inputs);
+    // The 2D shape is compatible with 3D case [batch, signal_length, 1] -> [batch, signal_length]
+    if (signal_param_shape.rank().is_static() && signal_param_shape.size() == 2 && window_node_provided &&
+        dft_length_provided) {
+        // ONNX STFT inputs: signal, frame_step, window (optional), frame_length (optional)
+        // ONNX STFT output shape: [batch_size, num_frames, fft_length, 2]
+        // OpenVINO v15::STFT inputs: data, window, frame_size, frame_step
+        // OpenVINO v15::STFT output shape: [batch_size, num_frames, fft_length, 2] (transpose_frames=false)
+        constexpr bool transpose_frames = false;
+        return {std::make_shared<v15::STFT>(signal, ov_inputs[2], ov_inputs[3], ov_inputs[1], transpose_frames)};
     }
     // Use DFT-based decomposition for 3D signal or optional inputs
     CHECK_VALID_NODE(node,
