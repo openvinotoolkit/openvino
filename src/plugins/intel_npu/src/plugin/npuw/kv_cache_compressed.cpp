@@ -22,6 +22,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 
 
@@ -64,12 +65,10 @@ public:
             LOG_DEBUG("Found DynamicQuantize : " << dq_ptr->get_friendly_name() << " decomposing");
             LOG_BLOCK();
 
-            // TODO: dequantize k and v caches in different layouts
-            auto is_k_cache = dq_ptr->get_friendly_name().find("k-cache") != std::string::npos;
             constexpr size_t k_embedding_index = 3;
             constexpr size_t v_embedding_index = 2;
 
-            auto reduction_axis = is_k_cache ? k_embedding_index : v_embedding_index;
+            auto reduction_axis = isKey(dq_ptr->get_friendly_name()) ? k_embedding_index : v_embedding_index;
 
             auto dq_input = dq_ptr->input_value(0);
             auto has_zp = dq_ptr->outputs().size() == 3;
@@ -81,7 +80,7 @@ public:
             // --- Rewire outputs ---
             dq_ptr->output(0).replace(dq_results[0]);
             dq_ptr->output(1).replace(dq_results[1]);
-            //if (has_zp)
+            if (has_zp)
             {
                 dq_ptr->output(2).replace(dq_results[2]);
             }
@@ -90,9 +89,6 @@ public:
         };
 
         register_matcher(std::make_shared<opp::Matcher>(dynamic_quantize, "DecomposeDynamicQuantize"), callback);
-
-        // const auto output = dynamic_quantize_linear(params);
-        // return std::make_shared<ov::Model>(output, params, "DQDecomposition");
     }
 
 private:
@@ -120,28 +116,30 @@ private:
                 std::make_shared<ov::op::v5::Round>(x_scaled, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
         const auto& y_zero_point_f32 = std::make_shared<ov::op::v0::Convert>(y_zero_point, ov::element::f32);
         const auto& result_shifted = std::make_shared<ov::op::v1::Add>(x_rounded, y_zero_point_f32);
-        const auto& result_clamped = std::make_shared<ov::op::v0::Clamp>(result_shifted, 0, 255);
+        const auto& result_clamped = std::make_shared<ov::op::v0::Clamp>(result_shifted, -128, 127);
 
-        return std::make_shared<ov::op::v0::Convert>(result_clamped, ov::element::u8);
+        return std::make_shared<ov::op::v0::Convert>(result_clamped, ov::element::i8);
     }
 
     ov::OutputVector dynamic_quantize_linear(std::shared_ptr<ov::Node>  input, size_t reduction_axe) {
         const auto& x = input;
-        // quantization range in case of uint8 is [0, 255]
-        const auto& quant_range_min = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0});
-        const auto& quant_range_max = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {255});
+        // quantization range in case of int8 is [-128, 127]
+        const auto& quant_range_min = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {-128});
+        const auto& quant_range_max = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {127});
         const auto& quant_range_span = std::make_shared<ov::op::v1::Subtract>(quant_range_max, quant_range_min);
 
         const auto& x_max = find_max_value(x, reduction_axe);
         const auto& x_min = find_min_value(x, reduction_axe);
         const auto& x_span = std::make_shared<ov::op::v1::Subtract>(x_max, x_min);
-        const auto& y_scale = std::make_shared<ov::op::v1::Divide>(x_span, quant_range_max);
-        const auto& x_min_shifted = std::make_shared<ov::op::v1::Subtract>(quant_range_min, x_min);
+        const auto& y_scale = std::make_shared<ov::op::v1::Divide>(x_span, quant_range_span);
+        // ONNX spec: intermediate_zero_point = qmin - min(x) / y_scale
+        // Note: this is qmin - (x_min / y_scale), NOT (qmin - x_min) / y_scale
+        const auto& x_min_div_scale = std::make_shared<ov::op::v1::Divide>(x_min, y_scale);
         const auto& intermediate_zero_point =
-                std::make_shared<ov::op::v5::Round>(std::make_shared<ov::op::v1::Divide>(x_min_shifted, y_scale),
+                std::make_shared<ov::op::v5::Round>(std::make_shared<ov::op::v1::Subtract>(quant_range_min, x_min_div_scale),
                                                     ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
         const auto& y_zero_point = std::make_shared<ov::op::v0::Convert>(
-                std::make_shared<ov::op::v0::Clamp>(intermediate_zero_point, 0, 255), ov::element::u8);
+                std::make_shared<ov::op::v0::Clamp>(intermediate_zero_point, -128, 127), ov::element::i8);
 
         const auto& y = quantize_linear(x, x_span, quant_range_span, y_zero_point);
         return {y, y_scale, y_zero_point};
@@ -150,6 +148,150 @@ private:
 
 };
 
+//reverse crafted from compiler patter
+class DecomposeDynamicQuantize3 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::DecomposeDynamicQuantize3");
+    DecomposeDynamicQuantize3() {
+        // We are interested in specific matmul for LLM:
+        auto dynamic_quantize = opp::wrap_type<ov::op::internal::DynamicQuantize>({opp::any_input()});
+        auto callback = [=](opp::Matcher& m) {
+            auto& node_to_output = m.get_pattern_value_map();
+            auto dq_ptr = node_to_output.at(dynamic_quantize).get_node_shared_ptr();
+
+            LOG_DEBUG("Found DynamicQuantize : " << dq_ptr->get_friendly_name() << " decomposing");
+            LOG_BLOCK();
+
+            // TODO: dequantize k and v caches in different layouts
+            constexpr size_t k_embedding_index = 3;
+            constexpr size_t v_embedding_index = 2;
+
+            auto reduction_axis = isKey(dq_ptr->get_friendly_name()) ? k_embedding_index : v_embedding_index;
+
+            auto dq_input = dq_ptr->input_value(0);
+            auto has_zp = dq_ptr->outputs().size() == 3;
+
+            auto dq_results = build_dynamic_quantize_linear(dq_input, reduction_axis, dq_ptr->get_friendly_name());
+
+            // --- Optional: expose outputs ---
+            // --- Rewire outputs ---
+            dq_ptr->output(0).replace(dq_results[0]);
+            dq_ptr->output(1).replace(dq_results[1]);
+            //if (has_zp)
+            {
+                dq_ptr->output(2).replace(dq_results[2]);
+            }
+
+            return true;
+        };
+
+        register_matcher(std::make_shared<opp::Matcher>(dynamic_quantize, "DecomposeDynamicQuantize"), callback);
+    }
+
+    ov::OutputVector build_dynamic_quantize_linear(const ov::Output<ov::Node>& input, size_t reduction_axis, const std::string& name_prefix) {
+
+        // Helper to create unique node names using the DynamicQuantize node's friendly name as prefix
+        auto make_name = [&name_prefix](const std::string& suffix) {
+            return name_prefix + "/" + suffix;
+        };
+
+        // ── Reduce axis: last dim only, keep_dims=true ────────────────────────────
+        auto reduceAxis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {reduction_axis});
+
+        // ── f32 constants to match input precision at compile time ─────────────────
+        // Values are representable in f16; NPU compiler will demote to f16 as needed.
+        auto cst_255    = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {255.0f});
+        auto cst_inv255 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f / 255.0f});
+        auto cst_zero   = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {0.0f});
+
+        // ── %0 = ReduceMin(input)  →  [1,8,1024,1] ───────────────────────────────
+        auto reduceMin = std::make_shared<ov::op::v1::ReduceMin>(
+                input, reduceAxis, /*keep_dims=*/true);
+        reduceMin->set_friendly_name(make_name("ReduceMin"));
+
+        // ── %3 = ReduceMax(input)  →  [1,8,1024,1] ───────────────────────────────
+        auto reduceMax = std::make_shared<ov::op::v1::ReduceMax>(
+                input, reduceAxis, /*keep_dims=*/true);
+        reduceMax->set_friendly_name(make_name("ReduceMax"));
+
+        // ── %1 = Clamp(ReduceMin, -inf, 0) ───────────────────────────────────────
+        auto minClamped = std::make_shared<ov::op::v0::Clamp>(
+                reduceMin,
+                std::numeric_limits<float>::lowest(),
+                0.0);
+        minClamped->set_friendly_name(make_name("Clamp_min"));
+
+        // ── %4 = Clamp(ReduceMax, 0, +inf) ───────────────────────────────────────
+        auto maxClamped = std::make_shared<ov::op::v0::Clamp>(
+                reduceMax,
+                0.0,
+                std::numeric_limits<float>::max());
+        maxClamped->set_friendly_name(make_name("Clamp_max"));
+
+        // ── %5 = Subtract(maxClamped, minClamped) ─────────────────────────────────
+        auto subtractSpan = std::make_shared<ov::op::v1::Subtract>(maxClamped, minClamped);
+        subtractSpan->set_friendly_name(make_name("Subtract_span"));
+
+        // ── %scale = Multiply(subtractSpan, 1/255) ────────────────────────────────
+        auto multiplyScale = std::make_shared<ov::op::v1::Multiply>(subtractSpan, cst_inv255);
+        multiplyScale->set_friendly_name(make_name("Multiply_scale"));
+
+
+        auto multiplyInput = std::make_shared<ov::op::v1::Multiply>(input, cst_255);
+        multiplyInput->set_friendly_name(make_name("Multiply_input_255"));
+
+        // ── ONNX spec: zp = qmin - minClamped / scale ────────────────────────────
+        // Note: this is qmin - (minClamped / scale), NOT (0 - minClamped) / scale
+        auto cst_qmin = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {-128.0f});
+        auto minDivScale = std::make_shared<ov::op::v1::Divide>(minClamped, multiplyScale);
+        minDivScale->set_friendly_name(make_name("Divide_min_by_scale"));
+
+        auto zpFloat = std::make_shared<ov::op::v1::Subtract>(cst_qmin, minDivScale);
+        zpFloat->set_friendly_name(make_name("Subtract_zp"));
+
+        // ── %12 = Divide(multiplyInput, subtractSpan) ─────────────────────────────
+        auto divideSpan = std::make_shared<ov::op::v1::Divide>(multiplyInput, subtractSpan);
+        divideSpan->set_friendly_name(make_name("Divide_span"));
+
+        // ── Round(zpFloat) ────────────────────────────────────────────────────────
+        auto roundZp = std::make_shared<ov::op::v5::Round>(
+                zpFloat, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+        roundZp->set_friendly_name(make_name("Round_zp"));
+
+        // ── %13 = Round(divideSpan) ───────────────────────────────────────────────
+        auto roundSpan = std::make_shared<ov::op::v5::Round>(
+                divideSpan, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+        roundSpan->set_friendly_name(make_name("Round_span"));
+
+        // ── %9 = Clamp(roundZp, -128, 127) ───────────────────────────────────────
+        auto clampZp = std::make_shared<ov::op::v0::Clamp>(roundZp, -128.0, 127.0);
+        clampZp->set_friendly_name(make_name("Clamp_zp"));
+
+        // ── %14 = Add(roundSpan, clampZp) ────────────────────────────────────────
+        auto addQuant = std::make_shared<ov::op::v1::Add>(roundSpan, clampZp);
+        addQuant->set_friendly_name(make_name("Add_quant"));
+
+        // ── %15 = Clamp(addQuant, -128, 127) ─────────────────────────────────────
+        auto clampOutput = std::make_shared<ov::op::v0::Clamp>(addQuant, -128.0, 127.0);
+        clampOutput->set_friendly_name(make_name("Clamp_output"));
+
+        // ── Convert zp → i8 ──────────────────────────────────────────────────────
+        auto convertZp = std::make_shared<ov::op::v0::Convert>(clampZp, ov::element::i8);
+        convertZp->set_friendly_name(make_name("Convert_zp"));
+
+        // ── Convert quantized output → i8 ────────────────────────────────────────
+        auto convertOutput = std::make_shared<ov::op::v0::Convert>(clampOutput, ov::element::i8);
+        convertOutput->set_friendly_name(make_name("Convert_output"));
+
+        // ── Three outputs ─────────────────────────────────────────────────
+        //   quantOutput → convertOutput   [1,8,1024,128] i8
+        //   scale       → multiplyScale   [1,8,1024,  1] f32
+        //   zp          → convertZp       [1,8,1024,  1] i8
+
+        return {convertOutput->output(0), multiplyScale->output(0), convertZp->output(0)};
+    }
+};
+// handcrafter version
 class DecomposeDynamicQuantize : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::DecomposeDynamicQuantize");
@@ -266,9 +408,71 @@ public:
     }
 };
 
+// Debug helper: creates a minimal model with Parameter → DynamicQuantize → 3x Result,
+// runs the specified decompose pass, validates, and saves the result to an XML file.
+// Call this to compare decomposition outputs side by side.
+namespace {
+void debug_export_decomposition(const std::string& filename, int decompose_version) {
+    using namespace ov;
+
+    // Create a simple 4D input: [1, 8, 1024, 128] f32 — mimics a KV cache tensor
+    auto param = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 8, 1024, 128});
+    param->set_friendly_name("kv_input");
+    param->output(0).get_tensor().set_names({"kv_input"});
+
+    // DynamicQuantize config: asymmetric i8 with per-token quantization
+    op::internal::DynamicQuantize::Attributes config;
+    config.quantization_dt = element::i8;
+    config.quantization_type = op::internal::DynamicQuantize::QuantizationType::Asymmetric;
+    config.scale_dt = element::f32;
+    config.group_sizes = {1, 1, 1, 1};
+    config.zp_dt = element::i8;
+
+    auto dq = std::make_shared<op::internal::DynamicQuantize>(param, config);
+    dq->set_friendly_name("DynamicQuantize/0/key");
+
+    // 3 results: quantized output (i8), scale (f32), zp (i8)
+    auto res_quant = std::make_shared<op::v0::Result>(dq->output(0));
+    res_quant->set_friendly_name("result_quant");
+
+    auto res_scale = std::make_shared<op::v0::Result>(dq->output(1));
+    res_scale->set_friendly_name("result_scale");
+
+    auto res_zp = std::make_shared<op::v0::Result>(dq->output(2));
+    res_zp->set_friendly_name("result_zp");
+
+    auto model = std::make_shared<Model>(
+        ResultVector{res_quant, res_scale, res_zp},
+        ParameterVector{param},
+        "debug_dq_v" + std::to_string(decompose_version));
+
+    model->validate_nodes_and_infer_types();
+    ov::save_model(model, filename + "_before.xml");
+
+    // Run the selected decomposition pass
+    pass::Manager manager("debug_decompose");
+    switch (decompose_version) {
+        case 1: manager.register_pass<DecomposeDynamicQuantize>(); break;
+        case 2: manager.register_pass<DecomposeDynamicQuantize2>(); break;
+        case 3: manager.register_pass<DecomposeDynamicQuantize3>(); break;
+        default: LOG_WARN("Unknown decompose version: " << decompose_version); return;
+    }
+    manager.run_passes(model);
+
+    model->validate_nodes_and_infer_types();
+    ov::save_model(model, filename + "_after.xml");
+
+    LOG_INFO("debug_export_decomposition: saved " << filename << "_before.xml and " << filename << "_after.xml");
+}
+} // namespace
 
 // inject DynamicQuantize/Dynamic dequantize ops on kv-cache passes before matmuls
 void ov::npuw::run_kv_cache_dynamic_qantization_passes(const std::shared_ptr<ov::Model>& model, ov::element::Type kv_cache_precision_hint) {
+
+    // Debug: export all 3 decomposition variants for comparison
+    // debug_export_decomposition("debug_decompose_v1", 1);
+    // debug_export_decomposition("debug_decompose_v2", 2);
+    // debug_export_decomposition("debug_decompose_v3", 3);
 
     auto pattern_nodes_list = ov::npuw::util::find_all_sdpa_pattern_nodes(model);
 
@@ -326,75 +530,107 @@ void ov::npuw::run_kv_cache_dynamic_qantization_passes(const std::shared_ptr<ov:
         return base_name + std::string("/") + std::to_string(pattern_index);
     };
 
+    // Shared lambda: create DynamicQuantize node on a given input, expose scale/zp as Results.
+    // Returns the DynamicQuantize node so caller can wire its output(0) as needed.
+    auto create_dynamic_quantize = [&make_name, &create_result_with_name, &qt_type]
+                                    (const ov::Output<ov::Node>& dq_input, bool is_key)
+                                    -> std::shared_ptr<ov::op::internal::DynamicQuantize> {
+        const std::string kv_name = cacheName(is_key);
+
+        auto rank = dq_input.get_partial_shape().size();
+        std::vector<uint64_t> shape_group_size(rank, 1);
+
+        ov::op::internal::DynamicQuantize::Attributes config;
+        config.quantization_dt = element::i8;
+        config.quantization_type = qt_type;
+        config.scale_dt = element::f32;
+        config.group_sizes = shape_group_size;
+
+        if (qt_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric) {
+            config.zp_dt = element::i8;
+        }
+
+        auto kv_dyn_quant = std::make_shared<ov::op::internal::DynamicQuantize>(dq_input, config);
+        kv_dyn_quant->set_friendly_name(make_name("DynamicQuantize") + "/" + kv_name);
+
+        create_result_with_name(kv_dyn_quant->output(1),
+            make_name("DynamicQuantize") + "/" + g_present_name + "/" + kv_name + "/scale");
+
+        if (qt_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric) {
+            create_result_with_name(kv_dyn_quant->output(2),
+                make_name("DynamicQuantize") + "/" + g_present_name + "/" + kv_name + "/zp");
+        }
+
+        return kv_dyn_quant;
+    };
+
+    // helper to recreate dequantisation nodes - TODO: probably better to insert Dequantize Node, than decompose it or not.
+    auto create_dequant_nodes = [&model, &create_parameter_with_name, &clear_embedding_index, &make_name, &qt_type]
+        (std::shared_ptr<ov::Node> start_node, bool isKey) {
+
+        const std::string node_name = isKey ? g_key_cache_name : g_value_cache_name;
+
+        // TODO: adding back slash here kils partitioning - fix that.
+        auto make_dq_name = [&make_name, &node_name](auto base_name) {
+            return make_name("DynamicQuantize") +  node_name + "/" + base_name;
+        };
+        auto make_dq_param_name = [&make_name, &node_name](auto base_name) {
+            return make_name("DynamicQuantize") + "/" + g_past_name + "/" + node_name + "/" + base_name;
+        };
+
+        // Take snapshot of the ORIGINAL edge BEFORE building new nodes
+        auto concat_consumers_set = start_node->output(0).get_target_inputs();
+
+        LOG_INFO("Found Dequantize for "<< node_name <<" insertion point after: " << start_node->get_name() << ") shape: " << start_node->get_shape());
+
+        // reconstruct k-cache intgeres values  to matmul using one of Dequantize approach
+        // use zp on quant/dequant only in case od assym
+        std::shared_ptr<ov::Node> fp_subtracted_zp = start_node;
+        if (qt_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric) {
+            //  Subtract zero-point - TODO: share this memory with DynamicQuantize/read/assign?
+            auto zp = create_parameter_with_name(ov::element::i8, clear_embedding_index(start_node, isKey), make_dq_param_name("zp"));
+
+            //this probably to be optimized by compiler - but for now we need it to avoid types mismatch
+            auto converted_zp = std::make_shared<ov::op::v0::Convert>(zp, ov::element::f32);
+            converted_zp->set_friendly_name(make_dq_name("zp_convert"));
+
+            fp_subtracted_zp = std::make_shared<ov::op::v1::Subtract>(start_node, converted_zp);
+            fp_subtracted_zp->set_friendly_name(make_dq_name("zp_sub"));
+        } else {
+        //  Convert INT8 -> FP32 - for now lots of convert existed before concat - so avoiding doing that
+        // fp_subtracted_zp = std::make_shared<ov::op::v0::Convert>(fp_subtracted_zp, ov::element::f32);
+        // fp_subtracted_zp->set_friendly_name(make_dq_name("convert"));
+        // fp_subtracted_zp->output(0).get_tensor().set_names({make_dq_name("convert")});
+        }
+
+        // Multiply by scale
+        auto fp_scale = create_parameter_with_name(ov::element::f32, clear_embedding_index(fp_subtracted_zp, isKey), make_dq_param_name("scale"));
+
+        auto dequantized = std::make_shared<ov::op::v1::Multiply>(fp_subtracted_zp, fp_scale);
+        dequantized->set_friendly_name(make_dq_name("scale"));
+
+        // substitute concat consumers to read from dq chain
+        for (auto && concat_consumer : concat_consumers_set) {
+            concat_consumer.replace_source_output(dequantized);
+        }
+    };
+
+    bool quantize_inserted_before_concat = false;
+
     for (auto && pattern_nodes : pattern_nodes_list) {
-        // if concat_nodes not present - avoid Dequantization
         if (!pattern_nodes.past_key_concat_node) {
             LOG_INFO("NO k-cache concat node");
         }
         if (!pattern_nodes.past_value_concat_node) {
             LOG_INFO("NO v-cache concat node");
         }
-        // most likely concat missed in prefill model
         if (!pattern_nodes.past_value_concat_node || !pattern_nodes.past_key_concat_node) {
             LOG_INFO("skipping Dequantization for this pattern:");
             continue;
         }
 
-        // helper to recreate dequantisation nodes - TODO: probably better to inser Dequantize Node, than decompose it or not.
-        auto create_dequant_nodes = [&model, &create_parameter_with_name, &clear_embedding_index, &make_name, &qt_type]
-                                    (std::shared_ptr<ov::Node> start_node, bool isKey) {
-
-
-            const std::string node_name = isKey ? g_key_cache_name : g_value_cache_name;
-
-            // TODO: adding back slash here kils partitioning - fix that.
-            auto make_dq_name = [&make_name, &node_name](auto base_name) {
-                return make_name("DynamicQuantize") +  node_name + "/" + base_name;
-            };
-            auto make_dq_param_name = [&make_name, &node_name](auto base_name) {
-                return make_name("DynamicQuantize") + "/" + g_past_name + "/" + node_name + "/" + base_name;
-            };
-
-            // Take snapshot of the ORIGINAL edge BEFORE building new nodes
-            auto concat_consumers_set = start_node->output(0).get_target_inputs();
-
-            LOG_INFO("Found Dequantize for "<< node_name <<" insertion point after: " << start_node->get_name() << ") shape: " << start_node->get_shape());
-
-            // reconstruct k-cache intgeres values  to matmul using one of Dequantize approach
-            // use zp on quant/dequant only in case od assym
-            std::shared_ptr<ov::Node> fp_subtracted_zp = start_node;
-            if (qt_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric) {
-                //  Subtract zero-point - TODO: share this memory with DynamicQuantize/read/assign?
-                auto zp = create_parameter_with_name(ov::element::i8, clear_embedding_index(start_node, isKey), make_dq_param_name("zp"));
-
-                //this probably to be optimized by compiler - but for now we need it to avoid types mismatch
-                auto converted_zp = std::make_shared<ov::op::v0::Convert>(zp, ov::element::f32);
-                converted_zp->set_friendly_name(make_dq_name("zp_convert"));
-
-                fp_subtracted_zp = std::make_shared<ov::op::v1::Subtract>(start_node, converted_zp);
-                fp_subtracted_zp->set_friendly_name(make_dq_name("zp_sub"));
-            } else {
-                //  Convert INT8 -> FP32 - for now lots of convert existed before concat - so avoiding doing that
-                // fp_subtracted_zp = std::make_shared<ov::op::v0::Convert>(fp_subtracted_zp, ov::element::f32);
-                // fp_subtracted_zp->set_friendly_name(make_dq_name("convert"));
-                // fp_subtracted_zp->output(0).get_tensor().set_names({make_dq_name("convert")});
-            }
-
-            // Multiply by scale
-            auto fp_scale = create_parameter_with_name(ov::element::f32, clear_embedding_index(fp_subtracted_zp, isKey), make_dq_param_name("scale"));
-
-            auto dequantized = std::make_shared<ov::op::v1::Multiply>(fp_subtracted_zp, fp_scale);
-            dequantized->set_friendly_name(make_dq_name("scale"));
-
-            // substitute concat consumers to read from dq chain
-            for (auto && concat_consumer : concat_consumers_set) {
-                concat_consumer.replace_source_output(dequantized);
-            }
-        };
-
-
-        create_dequant_nodes(pattern_nodes.past_key_concat_node->input(0).get_source_output().get_node_shared_ptr(), true);
-        create_dequant_nodes(pattern_nodes.past_value_concat_node->input(0).get_source_output().get_node_shared_ptr(), false);
+        create_dequant_nodes(pattern_nodes.past_key_concat_node->input_value(0).get_node_shared_ptr(), true);
+        create_dequant_nodes(pattern_nodes.past_value_concat_node->input_value(0).get_node_shared_ptr(), false);
 
         pattern_index ++;
     }
@@ -428,28 +664,6 @@ void ov::npuw::run_kv_cache_dynamic_qantization_passes(const std::shared_ptr<ov:
 
         LOG_DEBUG("is a " << kv_name <<": with index=" << pattern_index<< ", shape=" << result->get_input_shape(0));
 
-        // TODO: rank is same for both matmuls?
-        auto rank = kv_result->get_input_partial_shape(0).size();
-        std::vector<uint64_t> shape_group_size(rank, 1);
-
-        ov::op::internal::DynamicQuantize::Attributes config;
-        config.quantization_dt = element::i8;
-        config.quantization_type = qt_type;
-        config.scale_dt = element::f32;
-        config.group_sizes = shape_group_size;
-
-        if (qt_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric) {
-             //&& adj_group_size == UINT64_MAX) {
-             //config.quantization_type = ov::op::internal::QuantizationType::Asymmetric;
-             config.zp_dt = element::i8; // it supports u8 only now
-         }
-
-        // replacing input to convert/results/etc node on redir chain
-        LOG_DEBUG("Inserting DynamicQuantize after: "<< kv_result->input_value(0).get_node_shared_ptr()->get_friendly_name());
-
-        // If PPP inserted a Convert node before the Result (e.g., f16→i8),
-        // we need to bypass it: DynamicQuantize should consume the original
-        // f16 data, not the already-converted i8 data.
         auto dq_input_value = kv_result->input_value(0);
         auto dq_input_node = dq_input_value.get_node_shared_ptr();
         if (ov::is_type<ov::op::v0::Convert>(dq_input_node) && dq_input_node->get_users().size() == 1) {
@@ -459,21 +673,14 @@ void ov::npuw::run_kv_cache_dynamic_qantization_passes(const std::shared_ptr<ov:
             dq_input_value = dq_input_node->input_value(0);
         }
 
-        auto kv_dyn_quant = std::make_shared<ov::op::internal::DynamicQuantize>(dq_input_value, config);
-        kv_dyn_quant->set_friendly_name(make_name("DynamicQuantize") + "/" + kv_name);
+
+        auto kv_dyn_quant = create_dynamic_quantize(dq_input_value, is_key.has_value());
 
         //  might be a convert layer - that substitute, if no just insert before it
         {
-             kv_result->input(0).replace_source_output(kv_dyn_quant->output(0));
+            kv_result->input(0).replace_source_output(kv_dyn_quant->output(0));
         }
 
-        create_result_with_name(kv_dyn_quant->output(1),
-            make_name("DynamicQuantize") + "/" + g_present_name + "/" + kv_name + "/scale");
-
-         if (qt_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric) {
-             create_result_with_name(kv_dyn_quant->output(2),
-                make_name("DynamicQuantize") + "/" + g_present_name + "/" + kv_name + "/zp");
-         }
         LOG_DEBUG("Done");
     }
     model->validate_nodes_and_infer_types();

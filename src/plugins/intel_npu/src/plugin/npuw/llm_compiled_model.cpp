@@ -1948,9 +1948,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         } else {
             LOG_DEBUG("Don't remove input key/values from prefill model.");
             LOG_DEBUG("Ask prefill model to output key/values for prefill chunk size tokens.");
-            ov::save_model(prefill_model, "prefill_before_redirect.xml");
             prefill_model = redirect_new_kv_to_output(prefill_model);
-            ov::save_model(prefill_model, "prefill_after_redirect.xml");
         }
 
         LOG_DEBUG("Optimize generate model to output key/values for new token.");
