@@ -410,6 +410,13 @@ static bool is_weights_dependency(program_node* predecessor, program_node* succe
         size_t dep_idx = successor->get_dependency_index(*predecessor);
         is_weights_dep = dep_idx == successor->get_primitive()->input_size();
     }
+    // Reorder nodes with weights_reorder_params handle their own format conversion
+    // (e.g. bfyx → os_iyx_osv32). Don't insert data reorders before them.
+    if (!is_weights_dep && successor->is_type<reorder>()) {
+        const auto& r_prim = successor->as<reorder>().get_primitive();
+        if (r_prim->weights_reorder_params)
+            is_weights_dep = true;
+    }
     return is_weights_dep;
 }
 
