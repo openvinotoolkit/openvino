@@ -160,9 +160,13 @@ KERNEL (resample_horizontal_gpu_ref)(  __global INPUT0_TYPE* input
 #endif
     #if HAS_FUSED_OPS
         FUSED_OPS;
-        output[out_idx] = FUSED_OPS_RESULT;
+        output[out_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT);
     #else
-        output[out_idx] = ACTIVATION(ss, ACTIVATION_PARAMS);
+        #if ENABLE_VERTICAL_PASS
+            output[out_idx] = TO_INTERMEDIATE_BUF_TYPE(ACTIVATION(ss, ACTIVATION_PARAMS));
+        #else
+            output[out_idx] = TO_OUTPUT_TYPE(ACTIVATION(ss, ACTIVATION_PARAMS));
+        #endif
     #endif
 }
 
@@ -262,9 +266,9 @@ KERNEL (resample_vertical_gpu_ref)(  __global RESAMPLE_VERTICAL_INPUT_TYPE* inpu
     int out_idx = OUTPUT_GET_INDEX(b, f, y, x);
     #if HAS_FUSED_OPS
         FUSED_OPS;
-        output[out_idx] = FUSED_OPS_RESULT;
+        output[out_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT);
     #else
-        output[out_idx] = ACTIVATION(ss, ACTIVATION_PARAMS);
+        output[out_idx] = TO_OUTPUT_TYPE(ACTIVATION(ss, ACTIVATION_PARAMS));
     #endif
 }
 

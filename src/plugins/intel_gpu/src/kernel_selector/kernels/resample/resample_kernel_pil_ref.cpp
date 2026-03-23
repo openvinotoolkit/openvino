@@ -342,7 +342,7 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
                     } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 6) {
                         idx_order = {"b", "f", "w", "z", "y", "x"};
                     }
-                    FusedOpsConfiguration conf = {"", idx_order, "ss", params.outputs[0].GetDType(), 1};
+                    FusedOpsConfiguration conf = {"", idx_order, "ss", GetAccumulatorType(params), 1};
                     jit_constants.Merge(MakeFusedOpsJitConstants(params, {conf}));
                 }
             }
@@ -397,7 +397,7 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
                 } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 6) {
                     idx_order = {"b", "f", "w", "z", "y", "x"};
                 }
-                FusedOpsConfiguration conf = {"", idx_order, "ss", params.outputs[0].GetDType(), 1};
+                FusedOpsConfiguration conf = {"", idx_order, "ss", GetAccumulatorType(params), 1};
                 jit_constants.Merge(MakeFusedOpsJitConstants(params, {conf}));
             }
 
