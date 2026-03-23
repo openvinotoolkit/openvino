@@ -78,9 +78,10 @@ describe("Tests for AsyncInferQueue.", () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
 
     const img = generateImage();
-    await assert.rejects(async () => {
-      await inferQueue.startAsync({ data: img }, "user_data");
-    }, /Callback has to be set before starting inference./);
+    await assert.rejects(
+      async () => await inferQueue.startAsync({ data: img }, "user_data"),
+      /Callback has to be set before starting inference./,
+    );
   });
 
   it("Test startAsync without user data", async () => {
@@ -163,27 +164,20 @@ describe("Tests for AsyncInferQueue.", () => {
   it("Test repeated AsyncInferQueue.release()", async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
     inferQueue.setCallback(basicUserCallback);
-    try {
+    inferQueue.release();
+    assert.doesNotThrow(() => {
       inferQueue.release();
-      assert.doesNotThrow(() => {
-        inferQueue.release();
-      }, "Release should do nothing on second call.");
-    } finally {
-      inferQueue.release();
-    }
+    }, "Release should do nothing on second call.");
   });
 
   it("Test call startAsync after release()", async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
     inferQueue.setCallback(basicUserCallback);
-    try {
-      inferQueue.release();
-      await assert.rejects(async () => {
-        await inferQueue.startAsync({ data: generateImage() }, "user_data");
-      }, /Callback has to be set before starting inference./);
-    } finally {
-      inferQueue.release();
-    }
+    inferQueue.release();
+    await assert.rejects(
+      async () => await inferQueue.startAsync({ data: generateImage() }, "user_data"),
+      /Callback has to be set before starting inference./,
+    );
   });
 
   it("Test setCallback throws and list possible signatures", async () => {
