@@ -112,6 +112,7 @@ public:
             }
             m_data = static_cast<char*>(m_mapped_view) + (offset - aligned_offset);
         }
+        m_id = std::hash<int>{}(fd) ^ std::hash<size_t>{}(offset) ^ std::hash<size_t>{}(size);
     }
 
     uint64_t get_id() const noexcept override {

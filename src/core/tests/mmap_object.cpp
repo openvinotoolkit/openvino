@@ -171,9 +171,6 @@ TEST_P(RangedMappingTest, compare_data) {
 
 TEST_P(RangedMappingTest, compare_id) {
     const auto& [regions, use_file_path] = GetParam();
-    if (!use_file_path) {
-        GTEST_SKIP();  // CVS-182260
-    }
     const auto& [offset_1, size_1, offset_2, size_2, file_size] = regions;
 
     std::filesystem::path other_file_path = utils::generateTestFilePrefix();

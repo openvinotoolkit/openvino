@@ -83,6 +83,7 @@ public:
 
     void set_from_handle(HANDLE h, size_t offset, size_t size) {
         map("<external_handle>", h, offset, size);
+        m_id = std::hash<HANDLE>{}(h) ^ std::hash<size_t>{}(offset) ^ std::hash<size_t>{}(size);
     }
 
     char* data() noexcept override {
