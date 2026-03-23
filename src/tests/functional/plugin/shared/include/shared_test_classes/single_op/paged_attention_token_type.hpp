@@ -14,7 +14,7 @@
 namespace ov {
 namespace test {
 
-struct InferenceData {
+struct TestData {
     std::string name;
     std::vector<int32_t> tokenTypes;
     std::vector<float> qData;
@@ -24,17 +24,17 @@ struct InferenceData {
 };
 
 using PagedAttnTokenTypeParams = std::tuple<ov::element::Type_t,
-                                            size_t,         //< head_size
-                                            size_t,         //< head_num
-                                            InferenceData,  //< pattern
-                                            std::string     //< Device name
+                                            size_t,      //< head_size
+                                            size_t,      //< head_num
+                                            TestData,    //< pattern
+                                            std::string  //< Device name
                                             >;
 
 class PagedAttentionTokenTypeTest : public testing::WithParamInterface<PagedAttnTokenTypeParams>,
                                     virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PagedAttnTokenTypeParams>& obj);
-    static std::vector<InferenceData> GetTestData();
+    static std::vector<TestData> GetTestDataForHeadSize32HeadNum1();
     void run() override;
 
 protected:

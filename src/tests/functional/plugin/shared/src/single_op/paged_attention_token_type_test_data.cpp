@@ -9,8 +9,8 @@ using namespace ov::op;
 namespace ov {
 namespace test {
 
-std::vector<InferenceData> PagedAttentionTokenTypeTest::GetTestData() {
-    std::vector<InferenceData> testData;
+std::vector<TestData> PagedAttentionTokenTypeTest::GetTestDataForHeadSize32HeadNum1() {
+    std::vector<TestData> testData;
 
     {
         const std::string name = "plain_casual";
