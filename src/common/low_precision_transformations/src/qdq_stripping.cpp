@@ -46,6 +46,8 @@
 namespace ov {
 namespace pass {
 namespace low_precision {
+    std::unordered_map<std::string, std::vector<ov::Input<ov::Node>>> m_adjusted_map;
+
 namespace {
 // Motivation: if the stripped FQ's dequantization scale (y_scale) is large,
 // the original activation values flowing through the stripped FQ path can exceed f16 range,
@@ -56,15 +58,15 @@ namespace {
 // Note: Such scaling is possible only if all downstream paths go to scale-invariant nodes (such as MVN or Softmax).
 class ScaleAdjuster {
 public:
-    ScaleAdjuster(float scale_divisor, const std::shared_ptr<ov::Node>& fq)
+    ScaleAdjuster(float scale_divisor, const std::shared_ptr<ov::Node>& fq, bool duplication)
         : m_scale_divisor(scale_divisor),
-          m_fq(fq.get()) {}
+          m_fq(fq.get()),
+          m_duplication(duplication){}
 
     void adjust() {
         propagate_backward(m_fq);
         propagate_forward(m_fq);
-
-        if (scale_adjustment_possible()) {
+        if (scale_adjustment_possible() && m_duplication == false) {
             for (auto& input : m_pending_adjustments) {
                 auto original_const = input.get_source_output();
                 auto divisor_const =
@@ -73,14 +75,50 @@ public:
                 OPENVINO_ASSERT(new_const, "Adjusted scale must be constant");
                 ov::copy_runtime_info(original_const.get_node_shared_ptr(), new_const);
                 input.replace_source_output(new_const);
+                nodes_to_adjust.push_back(input);
+            }
+            m_adjusted_map.emplace(m_fq->get_friendly_name(), nodes_to_adjust);
+        }
+        if (scale_adjustment_possible() && m_duplication == true) {
+            //get nodes adjusted for org fq name and skip them from scaling
+            auto fq = m_fq->get_friendly_name();
+            std::string wo_duplicated_fq_name, duplicated_fq_name;
+            std::vector<ov::Input<ov::Node>> nodes;
+            if (fq.find("/duplicated") != std::string::npos) {
+                wo_duplicated_fq_name = fq.substr(0, fq.find("/duplicated"));
+                nodes = m_adjusted_map.find(wo_duplicated_fq_name) != m_adjusted_map.end()
+                            ? m_adjusted_map[wo_duplicated_fq_name]
+                            : std::vector<ov::Input<ov::Node>>{};
+            } else {
+                duplicated_fq_name = fq + "/duplicated";
+                nodes = m_adjusted_map.find(duplicated_fq_name) != m_adjusted_map.end()
+                    ? m_adjusted_map[duplicated_fq_name]
+                    : std::vector<ov::Input<ov::Node>>{};
+            }
+            for (auto& input : m_pending_adjustments) {
+                if (std::find_if(nodes.begin(), nodes.end(), [&input](const ov::Input<ov::Node>& n) {
+                        return n.get_node() == input.get_node();
+                    }) != nodes.end()) {
+                    continue;
+                }
+                auto original_const = input.get_source_output();
+                auto divisor_const =
+                    ov::op::v0::Constant::create(original_const.get_element_type(), {}, {m_scale_divisor});
+                auto new_const = ov::op::util::make_try_fold<ov::op::v1::Divide>(original_const, divisor_const);
+                OPENVINO_ASSERT(new_const, "Adjusted scale must be constant");
+                ov::copy_runtime_info(original_const.get_node_shared_ptr(), new_const);
+                input.replace_source_output(new_const);
+                nodes_to_adjust.push_back(input);
             }
         }
     }
-
+public:
+    std::vector<ov::Input<ov::Node>> nodes_to_adjust;
 private:
     float m_scale_divisor;
     ov::Node* m_fq;
     bool m_scale_adjustment_possible = true;
+    bool m_duplication = false;
 
     std::unordered_set<ov::Node*> m_visited;
     std::vector<ov::Input<ov::Node>> m_pending_adjustments;
@@ -199,6 +237,7 @@ FQStrippingTransformation::FQStrippingTransformation(const std::set<size_t>& lev
 
 bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(FQStrippingTransformation);
+    bool duplication = false;
     if (levels_to_strip.empty()) {
         return false;
     }
@@ -251,8 +290,25 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         constexpr auto threshold = 1.0f;
 
         if (need_weights_adjustment && max_dq_scale > threshold) {
+
+            std::string wo_duplicated_fq_name, duplicated_fq_name;
+            auto fq_name = fq->get_friendly_name();
+            if (fq_name.find("/duplicated") != std::string::npos) {
+                wo_duplicated_fq_name = fq_name.substr(0, fq_name.find("/duplicated"));
+                duplicated_fq_name = fq_name;
+                if (m_adjusted_map.count(wo_duplicated_fq_name) != 0) {
+                    duplication = true;
+                }
+            }
+            else {
+                wo_duplicated_fq_name = fq_name;
+                duplicated_fq_name = fq_name + "/duplicated";
+                if (m_adjusted_map.count(duplicated_fq_name) != 0) {
+                    duplication = true;
+                }
+            }
             constexpr auto ratio = 10.0f;
-            ScaleAdjuster adjuster(max_dq_scale * ratio, fq);
+            ScaleAdjuster adjuster(max_dq_scale * ratio, fq, duplication);
             adjuster.adjust();
         }
 
