@@ -141,8 +141,10 @@ std::string PagedAttentionTokenTypeTest::getTestCaseName(const testing::TestPara
     result << "Prc=" << inType << "_";
     result << "HS=" << head_size << "_";
     result << "HN=" << head_num << "_";
-    result << "Pattern=" << pattern.name << "_";
-    result << "Device=" << device;
+    result << "SQ=" << pattern.tokenTypes.size() << "_";
+    result << "Device=" << device << "_";
+    result << "Name=" << pattern.name;
+
     return result.str();
 }
 
