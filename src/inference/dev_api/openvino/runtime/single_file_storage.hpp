@@ -63,6 +63,8 @@ public:
     using DataIdType = uint64_t;
     using PadSizeType = uint64_t;
 
+    static const size_t blob_alignment;
+
 private:
     std::filesystem::path m_file_path;
 
