@@ -62,17 +62,9 @@ public:
     const ov::element::Type get_out_type(int index) const;
     void set_out_type(int index, const ov::element::Type& output_type);
 
-    using PagedCacheManagerHandle = std::shared_ptr<void>;  // Void handle to avoid inconsistent linkage
-    PagedCacheManagerHandle get_cache_manager() const;
-    void set_cache_manager(PagedCacheManagerHandle cache_manager);
-
 protected:
-    PagedCacheManagerHandle m_cache_manager = nullptr;
     std::vector<ov::element::Type> m_output_type = {ov::element::dynamic, ov::element::dynamic, ov::element::dynamic};
 };
-
-// Exported function for transformations to construct the manager; avoids C4273 in some build configs
-OPENVINO_API PagedAttentionExtension::PagedCacheManagerHandle make_paged_cache_handle(ov::element::Type et);
 
 }  // namespace op
 }  // namespace ov

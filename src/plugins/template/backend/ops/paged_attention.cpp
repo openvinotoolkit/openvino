@@ -10,7 +10,7 @@
 #include "evaluate_node.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/reference/paged_attention.hpp"
-#include "openvino/reference/utils/paged_cache_manager.hpp"
+#include "openvino/reference/utils/paged_cache_manager_helper.hpp"
 #include "paged_attention_shape_inference.hpp"
 #include "tensor_data_accessor.hpp"
 
@@ -131,8 +131,7 @@ bool evaluate_node<ov::op::PagedAttentionExtension>(std::shared_ptr<ov::Node> no
                                                     ov::TensorVector& outputs,
                                                     const ov::TensorVector& inputs) {
     const auto& pa = std::static_pointer_cast<ov::op::PagedAttentionExtension>(node);
-    const auto& handle = pa->get_cache_manager();
-    auto* cache_manager = static_cast<ov::reference::paged_attention_cache::PagedCacheManager*>(handle.get());
+    auto* cache_manager = ov::reference::paged_attention_cache::get_cache_manager_ptr(pa.get());
     OPENVINO_ASSERT(cache_manager != nullptr, "PagedAttentionExtension: cache manager handle is null");
 
     const std::uintptr_t node_key = reinterpret_cast<std::uintptr_t>(node.get());

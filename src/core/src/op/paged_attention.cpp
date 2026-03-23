@@ -8,7 +8,6 @@
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/op.hpp"
-#include "openvino/reference/utils/paged_cache_manager.hpp"
 #include "paged_attention_shape_inference.hpp"
 
 namespace {
@@ -125,9 +124,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
 std::shared_ptr<ov::Node> PagedAttentionExtension::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     OV_OP_SCOPE(PagedAttentionExtension_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    auto cloned = std::make_shared<PagedAttentionExtension>(new_args);
-    cloned->set_cache_manager(this->get_cache_manager());
-    return cloned;
+    return std::make_shared<PagedAttentionExtension>(new_args);
 }
 
 const ov::element::Type PagedAttentionExtension::get_out_type(int index) const {
@@ -140,22 +137,5 @@ void PagedAttentionExtension::set_out_type(int index, const ov::element::Type& o
     m_output_type[index] = output_type;
 }
 
-PagedAttentionExtension::PagedCacheManagerHandle PagedAttentionExtension::get_cache_manager() const {
-    return m_cache_manager;
-}
-
-void PagedAttentionExtension::set_cache_manager(PagedAttentionExtension::PagedCacheManagerHandle cache_manager) {
-    m_cache_manager = std::move(cache_manager);
-}
-
-PagedAttentionExtension::PagedCacheManagerHandle make_paged_cache_handle(ov::element::Type et) {
-    using ov::reference::paged_attention_cache::PagedCacheManager;
-
-    auto* mgr = new PagedCacheManager(et);
-
-    return PagedAttentionExtension::PagedCacheManagerHandle(static_cast<void*>(mgr), [](void* p) {
-        delete static_cast<PagedCacheManager*>(p);
-    });
-}
 }  // namespace op
 }  // namespace ov

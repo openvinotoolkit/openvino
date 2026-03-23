@@ -315,7 +315,10 @@ void paged_attention(std::uintptr_t node_key,
     std::vector<float> out_head;
     std::vector<float> key_buf;  // re-used for rotary re-rotation
 
-    // Sink: read the per-head scalar values from the [1,H,1,1] input
+    // Sink: read the per-head scalar values from the [1,H,1,1] input.
+    // Per the spec, H is the number of **query** heads (not KV heads), so in
+    // GQA configurations (q_heads > kv_heads) all q_heads elements are read.
+    // The caller is responsible for passing a buffer of at least q_heads elements.
     std::vector<float> sink_vals;
     if (has_sinks) {
         sink_vals.resize(q_heads, 0.f);
@@ -495,7 +498,21 @@ void paged_attention(std::uintptr_t node_key,
                         });
                     }
 
-                    // Cumulative sum selection
+                    // Cumulative sum selection.
+                    // cumsum tracks total score of all positions decided BEFORE
+                    // the current one (positions 0..i-1).  For each position i:
+                    //   - First column (i==0): always kept.
+                    //   - Diagonal (i==1, qb>=1): always kept; cumsum initialised
+                    //     to the first column score.
+                    //   - Otherwise: kept if cumsum < required (top-p style),
+                    //     then cumsum is incremented with vals[i-1].first.
+                    // After the cumulative-sum decision, a causal gate rejects
+                    // any block k > q-block (future blocks).  Rejected blocks
+                    // do NOT feed back into cumsum for subsequent iterations:
+                    // the update `cumsum += vals[i-1].first` always adds the
+                    // previous *entry* regardless of whether it was kept or not,
+                    // which is correct because the cumsum represents the total
+                    // attention score of entries seen so far in sorted order.
                     float cumsum = 0.f;
                     for (std::size_t i = 0; i < vals.size(); ++i) {
                         bool keep = false;
