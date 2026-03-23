@@ -510,10 +510,12 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
         if (get_allocation_type() == allocation_type::usm_device) {
             GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
             _host_buffer.allocateHost(_bytes_count);
-            try {
-                cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _host_buffer.get(), _buffer.get(), _bytes_count, CL_TRUE);
-            } catch (cl::Error const& err) {
-                OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+            if (type != mem_lock_type::write) {
+                try {
+                    cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _host_buffer.get(), _buffer.get(), _bytes_count, CL_TRUE);
+                } catch (cl::Error const& err) {
+                    OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+                }
             }
             _copy_back_to_device = (type != mem_lock_type::read);
             _mapped_ptr = _host_buffer.get();
