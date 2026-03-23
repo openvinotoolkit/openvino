@@ -1,0 +1,242 @@
+<?xml version="1.0"?>
+<net name="TensorFlow_Lite_Frontend_IR" version="11">
+	<layers>
+		<layer id="0" name="LanguageModel.decode_graph/LanguageModel.transformer_stack/transformer.transformer/layer_34/layer_34.post_qkv/mlp/gating_einsum1/composite" type="Parameter" version="opset1">
+			<data shape="1,1,1536" element_type="i8" />
+			<output>
+				<port id="0" precision="I8" names="LanguageModel.decode_graph/LanguageModel.transformer_stack/transformer.transformer/layer_34/layer_34.post_qkv/mlp/gating_einsum1/composite">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1536</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="Convert_61" type="Convert" version="opset1">
+			<data destination_type="f32" />
+			<input>
+				<port id="0" precision="I8">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1536</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1536</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="Constant_62" type="Const" version="opset1">
+			<data element_type="f32" shape="" offset="0" size="4" />
+			<output>
+				<port id="0" precision="FP32" />
+			</output>
+		</layer>
+		<layer id="3" name="Constant_63" type="Const" version="opset1">
+			<data element_type="f32" shape="" offset="4" size="4" />
+			<output>
+				<port id="0" precision="FP32" />
+			</output>
+		</layer>
+		<layer id="4" name="Constant_68" type="Const" version="opset1">
+			<data element_type="f32" shape="" offset="8" size="4" />
+			<output>
+				<port id="0" precision="FP32" />
+			</output>
+		</layer>
+		<layer id="5" name="Constant_69" type="Const" version="opset1">
+			<data element_type="f32" shape="" offset="12" size="4" />
+			<output>
+				<port id="0" precision="FP32" />
+			</output>
+		</layer>
+		<layer id="6" name="FakeQuantize_70" type="FakeQuantize" version="opset1">
+			<data levels="256" auto_broadcast="numpy" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1536</dim>
+				</port>
+				<port id="1" precision="FP32" />
+				<port id="2" precision="FP32" />
+				<port id="3" precision="FP32" />
+				<port id="4" precision="FP32" />
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1536</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="7" name="LanguageModel.decode_graph/LanguageModel.transformer_stack/transformer.transformer/layer_34/layer_34.post_qkv/mlp/gating_einsum1/btd,df->btf/dot_general" type="Const" version="opset1">
+			<data element_type="i2" shape="12288, 1536" offset="16" size="4718592" />
+			<output>
+				<port id="0" precision="I2" names="LanguageModel.decode_graph/LanguageModel.transformer_stack/transformer.transformer/layer_34/layer_34.post_qkv/mlp/gating_einsum1/btd\,df->btf/dot_general">
+					<dim>12288</dim>
+					<dim>1536</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="8" name="Convert_73" type="Convert" version="opset1">
+			<data destination_type="f32" />
+			<input>
+				<port id="0" precision="I2">
+					<dim>12288</dim>
+					<dim>1536</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>12288</dim>
+					<dim>1536</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="9" name="Constant_72" type="Const" version="opset1">
+			<data element_type="f32" shape="12288, 1" offset="4718608" size="49152" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>12288</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="10" name="Multiply_74" type="Multiply" version="opset1">
+			<data auto_broadcast="numpy" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>12288</dim>
+					<dim>1536</dim>
+				</port>
+				<port id="1" precision="FP32">
+					<dim>12288</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>12288</dim>
+					<dim>1536</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="11" name="0" type="MatMul" version="opset1">
+			<data transpose_a="false" transpose_b="true" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1536</dim>
+				</port>
+				<port id="1" precision="FP32">
+					<dim>12288</dim>
+					<dim>1536</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32" names="LanguageModel.decode_graph/LanguageModel.transformer_stack/transformer.transformer/layer_34/layer_34.post_qkv/mlp/gating_einsum1/btd\,df->btf/dot_general1_1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>12288</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="12" name="Constant_83" type="Const" version="opset1">
+			<data element_type="f32" shape="" offset="4767760" size="4" />
+			<output>
+				<port id="0" precision="FP32" />
+			</output>
+		</layer>
+		<layer id="13" name="Constant_84" type="Const" version="opset1">
+			<data element_type="f32" shape="" offset="4767764" size="4" />
+			<output>
+				<port id="0" precision="FP32" />
+			</output>
+		</layer>
+		<layer id="14" name="Constant_77" type="Const" version="opset1">
+			<data element_type="f32" shape="" offset="0" size="4" />
+			<output>
+				<port id="0" precision="FP32" />
+			</output>
+		</layer>
+		<layer id="15" name="Constant_78" type="Const" version="opset1">
+			<data element_type="f32" shape="" offset="4" size="4" />
+			<output>
+				<port id="0" precision="FP32" />
+			</output>
+		</layer>
+		<layer id="16" name="FakeQuantize_85" type="FakeQuantize" version="opset1">
+			<data levels="256" auto_broadcast="numpy" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>12288</dim>
+				</port>
+				<port id="1" precision="FP32" />
+				<port id="2" precision="FP32" />
+				<port id="3" precision="FP32" />
+				<port id="4" precision="FP32" />
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>12288</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="17" name="Convert_86" type="Convert" version="opset1">
+			<data destination_type="i8" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>12288</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="I8" names="LanguageModel.decode_graph/LanguageModel.transformer_stack/transformer.transformer/layer_34/layer_34.post_qkv/mlp/gating_einsum1/btd\,df->btf/dot_general1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>12288</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="18" name="Result_9" type="Result" version="opset1" output_names="LanguageModel.decode_graph/LanguageModel.transformer_stack/transformer.transformer/layer_34/layer_34.post_qkv/mlp/gating_einsum1/btd\,df->btf/dot_general1">
+			<input>
+				<port id="0" precision="I8">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>12288</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+		<edge from-layer="1" from-port="1" to-layer="6" to-port="0" />
+		<edge from-layer="2" from-port="0" to-layer="6" to-port="1" />
+		<edge from-layer="3" from-port="0" to-layer="6" to-port="2" />
+		<edge from-layer="4" from-port="0" to-layer="6" to-port="3" />
+		<edge from-layer="5" from-port="0" to-layer="6" to-port="4" />
+		<edge from-layer="6" from-port="5" to-layer="11" to-port="0" />
+		<edge from-layer="7" from-port="0" to-layer="8" to-port="0" />
+		<edge from-layer="8" from-port="1" to-layer="10" to-port="0" />
+		<edge from-layer="9" from-port="0" to-layer="10" to-port="1" />
+		<edge from-layer="10" from-port="2" to-layer="11" to-port="1" />
+		<edge from-layer="11" from-port="2" to-layer="16" to-port="0" />
+		<edge from-layer="12" from-port="0" to-layer="16" to-port="1" />
+		<edge from-layer="13" from-port="0" to-layer="16" to-port="2" />
+		<edge from-layer="14" from-port="0" to-layer="16" to-port="3" />
+		<edge from-layer="15" from-port="0" to-layer="16" to-port="4" />
+		<edge from-layer="16" from-port="5" to-layer="17" to-port="0" />
+		<edge from-layer="17" from-port="1" to-layer="18" to-port="0" />
+	</edges>
+	<rt_info />
+</net>
