@@ -7,17 +7,18 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>
-#include <vector>
 
 #include "cpu_memory.h"
 #include "graph_context.h"
 #include "node.h"
-#include "nodes/executors/executor.hpp"
-#include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/node.hpp"
 
 #ifdef OPENVINO_ARCH_ARM64
+#    include <vector>
+
+#    include "nodes/executors/executor.hpp"
+#    include "nodes/executors/executor_factory.hpp"
 #    include "nodes/executors/kleidiai/kleidiai_mm.hpp"
 #endif
 
