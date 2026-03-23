@@ -75,15 +75,15 @@ public:
     void set(const std::filesystem::path& path, size_t offset, size_t size) {
         // Note that file can't be changed (renamed/deleted) until it's unmapped. FILE_SHARE_DELETE flag allow
         // rename/deletion, but it doesn't work with FAT32 filesystem (works on NTFS)
-        auto h = ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        const auto h =
+            ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         map(path, h, offset, size);
-        m_id = util::u64_hash_combine(offset, size);
-        m_id = util::u64_hash_combine(std::hash<std::filesystem::path::string_type>{}(path.native()), m_id);
+        set_id(h, offset, size);
     }
 
     void set_from_handle(HANDLE h, size_t offset, size_t size) {
         map("<external_handle>", h, offset, size);
-        m_id = std::hash<HANDLE>{}(h) ^ std::hash<size_t>{}(offset) ^ std::hash<size_t>{}(size);
+        set_id(h, offset, size);
     }
 
     char* data() noexcept override {
@@ -98,7 +98,21 @@ public:
     }
 
 private:
-    void map(const std::filesystem::path& path, HANDLE h, const size_t offset, const size_t size) {
+    void set_id(const HANDLE h, const size_t offset, const size_t size) {
+        if (FILE_ID_INFO info; GetFileInformationByHandleEx(h, FileIdInfo, &info, sizeof(info))) {
+            m_id = util::u64_hash_combine(offset, size);
+            m_id = util::u64_hash_combine(info.VolumeSerialNumber, m_id);
+            static_assert(sizeof(info.FileId) == 16);
+            const auto p = reinterpret_cast<uint64_t*>(&info.FileId);
+            m_id = util::u64_hash_combine(*p, m_id);
+            m_id = util::u64_hash_combine(*(p + 1), m_id);
+        } else {
+            throw std::runtime_error{"Cannot obtain file id info for handle " +
+                                     std::to_string(reinterpret_cast<uint64_t>(h))};
+        }
+    }
+
+    void map(const std::filesystem::path& path, const HANDLE h, const size_t offset, const size_t size) {
         if (h == INVALID_HANDLE_VALUE) {
             throw std::runtime_error("Can not open file " + util::path_to_string(path) +
                                      " for mapping. Ensure that file exists and has appropriate permissions");
