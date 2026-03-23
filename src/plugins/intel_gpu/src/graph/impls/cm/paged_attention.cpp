@@ -5,9 +5,11 @@
 #include "paged_attention.hpp"
 
 #include <array>
+#include <cctype>
 #include <cstdint>
 #include <vector>
 #include <memory>
+#include <algorithm>
 #include <utility>
 
 #include "common_utils/jitter.hpp"
@@ -38,6 +40,28 @@ std::vector<int32_t> read_subsequence_begins(const kernel_impl_params& params) {
     const auto subsequence_begins_mem = memory_deps.at(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS);
     mem_lock<int32_t, mem_lock_type::read> lock(subsequence_begins_mem, *params.strm);
     return std::vector<int32_t>(lock.begin(), lock.end());
+}
+
+std::vector<int32_t> read_past_lens(const kernel_impl_params& params) {
+    const auto& memory_deps = params.memory_deps;
+    const auto past_lens_mem = memory_deps.at(PagedAttentionInputIdx::PAST_LENS);
+    mem_lock<int32_t, mem_lock_type::read> lock(past_lens_mem, *params.strm);
+    return std::vector<int32_t>(lock.begin(), lock.end());
+}
+
+MixedRouteMode get_mixed_route_mode_from_env() {
+    const char* env = std::getenv("OV_GPU_CM_MIXED_ROUTE_MODE");
+    if (!env) {
+        return MixedRouteMode::MULTI;
+    }
+
+    std::string mode(env);
+    std::transform(mode.begin(), mode.end(), mode.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (mode == "split" || mode == "route_split") {
+        return MixedRouteMode::SPLIT;
+    }
+
+    return MixedRouteMode::MULTI;
 }
 
 size_t get_batch_size_in_sequences(const kernel_impl_params& params) {
@@ -151,10 +175,12 @@ public:
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         const auto& desc = params.typed_desc<paged_attention>();
         rt_params->batch_size_in_sequences = get_batch_size_in_sequences(params);
+        rt_params->single_token_selected_count = 0;
         rt_params->multi_token_wg_count = 0;
         rt_params->enable_xattn_estimation = false;
 
         rt_params->stage = get_paged_attention_stage(params);
+        rt_params->mixed_route_mode = get_mixed_route_mode_from_env();
         const auto max_context_len = get_max_context_len(params);
         rt_params->max_context_len = max_context_len;
         GPU_DEBUG_TRACE_DETAIL << "update_rt_params for stage: " << static_cast<size_t>(rt_params->stage) << "  max_context_len: " << rt_params->max_context_len
@@ -164,16 +190,31 @@ public:
             auto partition_size = PagedAttentionGeneratorSingleToken::get_partition_size(desc->has_xattention);
             rt_params->num_of_partitions = ceil_div(max_context_len, partition_size);
             rt_params->q_chunking = get_single_token_q_chunking(params, *desc, partition_size);
+            rt_params->single_token_selected_count = rt_params->batch_size_in_sequences;
             GPU_DEBUG_TRACE_DETAIL << "  partition_size: " << partition_size << "  num_of_partitions: " << rt_params->num_of_partitions << std::endl;
         } else {
             const auto subsequence_begins = read_subsequence_begins(params);
+            const auto past_lens = read_past_lens(params);
             const auto wg_seq_len = PagedAttentionGeneratorMultiToken::get_wg_seq_len(params);
+            const bool use_split_mixed = rt_params->stage == PagedAttentionStage::MIXED &&
+                                         rt_params->mixed_route_mode == MixedRouteMode::SPLIT;
             for (size_t subsequence_id = 0; subsequence_id + 1 < subsequence_begins.size(); ++subsequence_id) {
                 const auto q_len = static_cast<size_t>(std::max<int32_t>(subsequence_begins[subsequence_id + 1] - subsequence_begins[subsequence_id], 0));
                 if (q_len == 0) {
                     continue;
                 }
-                rt_params->multi_token_wg_count += ceil_div(q_len, wg_seq_len);
+
+                if (use_split_mixed) {
+                    const auto past_len = static_cast<size_t>(std::max<int32_t>(past_lens[subsequence_id], 0));
+                    const bool decode_subsequence = (q_len == 1) && (past_len > 0);
+                    if (decode_subsequence) {
+                        rt_params->single_token_selected_count++;
+                    } else {
+                        rt_params->multi_token_wg_count += ceil_div(q_len, wg_seq_len);
+                    }
+                } else {
+                    rt_params->multi_token_wg_count += ceil_div(q_len, wg_seq_len);
+                }
             }
 
             if (desc->has_xattention && rt_params->batch_size_in_sequences == 1) {
@@ -182,6 +223,12 @@ public:
             } else {
                 rt_params->xattn_block_size = 1;  // disable xattn for pa
             }
+
+            if (use_split_mixed) {
+                // In split route mode, mixed stage follows conservative non-xattention behavior.
+                rt_params->enable_xattn_estimation = false;
+                rt_params->xattn_block_size = 1;
+            }
         }
     }
 
@@ -189,16 +236,36 @@ public:
         const auto& params = *instance.get_impl_params();
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         OPENVINO_ASSERT(rt_params != nullptr);
-        OPENVINO_ASSERT(rt_params->multi_token_wg_count > 0, "Invalid multi_token_wg_count");
+        if (rt_params->multi_token_wg_count == 0) {
+            return;
+        }
 
         const auto subsequence_begins = read_subsequence_begins(params);
+        const auto past_lens = read_past_lens(params);
         const auto wg_seq_len = static_cast<int32_t>(PagedAttentionGeneratorMultiToken::get_wg_seq_len(params));
         std::vector<int32_t> mapping;
         mapping.reserve(rt_params->multi_token_wg_count * 2);
 
+        const bool use_split_mixed = rt_params->stage == PagedAttentionStage::MIXED &&
+                                     rt_params->mixed_route_mode == MixedRouteMode::SPLIT;
+
         for (size_t subsequence_id = 0; subsequence_id + 1 < subsequence_begins.size(); ++subsequence_id) {
             const int32_t q_begin = subsequence_begins[subsequence_id];
             const int32_t q_end = subsequence_begins[subsequence_id + 1];
+
+            if (q_end <= q_begin) {
+                continue;
+            }
+
+            if (use_split_mixed) {
+                const int32_t q_len = q_end - q_begin;
+                const int32_t past_len = std::max<int32_t>(past_lens[subsequence_id], 0);
+                const bool decode_subsequence = (q_len == 1) && (past_len > 0);
+                if (decode_subsequence) {
+                    continue;
+                }
+            }
+
             for (int32_t block_start = q_begin; block_start < q_end; block_start += wg_seq_len) {
                 mapping.push_back(block_start);
                 mapping.push_back(static_cast<int32_t>(subsequence_id));
@@ -217,12 +284,36 @@ public:
     }
 
     void prepare_single_token_selected_ids(primitive_inst& instance) {
+        const auto& params = *instance.get_impl_params();
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         OPENVINO_ASSERT(rt_params != nullptr);
+
+        std::vector<int32_t> selected_ids;
+        selected_ids.reserve(rt_params->batch_size_in_sequences);
+
+        const bool use_split_mixed = rt_params->stage == PagedAttentionStage::MIXED &&
+                                     rt_params->mixed_route_mode == MixedRouteMode::SPLIT;
+        if (use_split_mixed) {
+            const auto subsequence_begins = read_subsequence_begins(params);
+            const auto past_lens = read_past_lens(params);
+            for (size_t sequence_id = 0; sequence_id + 1 < subsequence_begins.size(); ++sequence_id) {
+                const int32_t q_len = subsequence_begins[sequence_id + 1] - subsequence_begins[sequence_id];
+                const int32_t past_len = std::max<int32_t>(past_lens[sequence_id], 0);
+                if (q_len == 1 && past_len > 0) {
+                    selected_ids.push_back(static_cast<int32_t>(sequence_id));
+                }
+            }
+        } else {
+            for (size_t sequence_id = 0; sequence_id < rt_params->batch_size_in_sequences; ++sequence_id) {
+                selected_ids.push_back(static_cast<int32_t>(sequence_id));
+            }
+        }
+
+        rt_params->single_token_selected_count = selected_ids.size();
         auto selected_ids_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::SINGLE_TOKEN_SELECTED_SEQ_IDS];
         mem_lock<int32_t, mem_lock_type::write> lock(selected_ids_mem, instance.get_network().get_stream());
-        for (size_t sequence_id = 0; sequence_id < rt_params->batch_size_in_sequences; ++sequence_id) {
-            lock[sequence_id] = static_cast<int32_t>(sequence_id);
+        for (size_t i = 0; i < selected_ids.size(); ++i) {
+            lock[i] = selected_ids[i];
         }
     }
 
@@ -244,7 +335,11 @@ public:
         std::vector<event::ptr> res_event = events;
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
 
-        if (rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) {
+        const auto execute_multi_token_path = [&]() {
+            if (rt_params->multi_token_wg_count == 0) {
+                return;
+            }
+
             prepare_multi_token_mapping(instance);
             const bool is_xattn_bypassed = bypass_xattn(params) || !rt_params->enable_xattn_estimation;
             if (is_xattn_bypassed || desc->has_xattention == false) {
@@ -275,6 +370,21 @@ public:
 #endif
                 res_event = {execute_stage(res_event, instance, xattn_post_proc)};
                 res_event = {execute_stage(res_event, instance, pa_multi_token)};
+            }
+        };
+
+        if (rt_params->stage == PagedAttentionStage::PREFILL) {
+            execute_multi_token_path();
+        } else if (rt_params->stage == PagedAttentionStage::MIXED) {
+            if (rt_params->mixed_route_mode == MixedRouteMode::SPLIT) {
+                prepare_single_token_selected_ids(instance);
+                if (rt_params->single_token_selected_count > 0) {
+                    res_event = {execute_stage(res_event, instance, pa_single_token)};
+                    res_event = {execute_stage(res_event, instance, pa_single_token_finalization)};
+                }
+                execute_multi_token_path();
+            } else {
+                execute_multi_token_path();
             }
         } else {
             prepare_single_token_selected_ids(instance);

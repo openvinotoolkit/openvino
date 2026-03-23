@@ -457,7 +457,7 @@ DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() co
         auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
         OPENVINO_ASSERT(rt_params != nullptr);
 
-        const size_t batch = params.input_layouts[0].get_partial_shape()[0].get_length();
+        const size_t batch = rtp->single_token_selected_count;
         const size_t heads_num = desc->heads_num;
         const size_t kv_heads_num = desc->kv_heads_num;
         const size_t partition_num = rtp->num_of_partitions;
@@ -468,7 +468,7 @@ DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() co
 
         // generate stage: q_len=1
         auto& scalars = kd.params.scalars;
-        std::vector<size_t> scaler_value = {1, rtp->batch_size_in_sequences};
+        std::vector<size_t> scaler_value = {1, rtp->single_token_selected_count};
         scalars.resize(scaler_value.size());
 
         if (DEBUG_ENABLED) {  // Debug
@@ -529,7 +529,7 @@ DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_da
 
         OPENVINO_ASSERT(rt_params != nullptr);
 
-        const size_t batch = rtp->batch_size_in_sequences;
+        const size_t batch = rtp->single_token_selected_count;
         const size_t heads_num = desc->heads_num;
         const size_t head_size = desc->k_head_size;
         wgs.global = {batch, heads_num, head_size / reduce_split_step};
@@ -537,7 +537,7 @@ DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_da
 
         auto& scalars = kd.params.scalars;
         const size_t partition_num = rtp->num_of_partitions;
-        std::vector<size_t> scaler_value = {rtp->batch_size_in_sequences, partition_num};
+        std::vector<size_t> scaler_value = {rtp->single_token_selected_count, partition_num};
         scalars.resize(scaler_value.size());
 
         if (DEBUG_ENABLED) {  // Debug

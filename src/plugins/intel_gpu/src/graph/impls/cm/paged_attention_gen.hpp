@@ -96,14 +96,17 @@ constexpr size_t WG_SIZE = 16;
 constexpr int STRIDE = 16;
 
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
+enum class MixedRouteMode : uint8_t { MULTI = 0, SPLIT = 1 };
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     PagedAttentionStage stage;
+    MixedRouteMode mixed_route_mode = MixedRouteMode::MULTI;
     size_t max_context_len;
     size_t batch_size_in_sequences;
     // below are rt params for decoding
     size_t num_of_partitions;
     // cached single-token Q chunking
     SingleTokenQChunking q_chunking;
+    size_t single_token_selected_count = 0;
     // multi-token subsequence routing
     size_t multi_token_wg_count;
     bool enable_xattn_estimation;
