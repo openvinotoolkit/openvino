@@ -94,9 +94,7 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
         return {Type_t::f32, Type_t::f16};
     }
 #if defined(OPENVINO_ARCH_X86_64)
-    // @todo enable for bf16 as well
-    // after EnforceInferencePrecision is replaced with ConvertPrecision
-    return {Type_t::f32};
+    return {Type_t::f32, Type_t::bf16};
 #elif defined(OV_CPU_WITH_KLEIDIAI)
     return {Type_t::f32};
 #else

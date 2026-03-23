@@ -76,6 +76,13 @@ protected:
     void SetUp() override;
 
     void check_results();
+
+    void setUpWithDataPrecision(const ov::element::Type data_precision);
+};
+
+class MatmulWeightsDecompressionBF16 : public MatmulWeightsDecompression {
+protected:
+    void SetUp() override;
 };
 
 }  // namespace test

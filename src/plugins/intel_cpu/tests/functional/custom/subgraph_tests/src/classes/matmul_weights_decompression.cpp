@@ -3,6 +3,7 @@
 //
 
 #include "matmul_weights_decompression.hpp"
+
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 
@@ -11,10 +12,19 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-std::string MatmulWeightsDecompression::getTestCaseName(const testing::TestParamInfo<MatmulWeightsDecompressionParams>& obj) {
-    const auto& [shape_params, weights_precision, decompression_precision, scale_precision, transpose,
-                 decompression_multiply_type, decompression_subtract_type, reshape_on_decompression, additional_config,
-                 fusing_params, should_fuse] = obj.param;
+std::string MatmulWeightsDecompression::getTestCaseName(
+    const testing::TestParamInfo<MatmulWeightsDecompressionParams>& obj) {
+    const auto& [shape_params,
+                 weights_precision,
+                 decompression_precision,
+                 scale_precision,
+                 transpose,
+                 decompression_multiply_type,
+                 decompression_subtract_type,
+                 reshape_on_decompression,
+                 additional_config,
+                 fusing_params,
+                 should_fuse] = obj.param;
     std::ostringstream result;
     result << shape_params << "_";
     result << "weights_precision=" << weights_precision << "_";
@@ -36,37 +46,46 @@ std::string MatmulWeightsDecompression::getTestCaseName(const testing::TestParam
     return result.str();
 }
 
-std::shared_ptr<ov::Model> MatmulWeightsDecompression::initSubgraph(const ov::PartialShape& data_shape,
-                                                                    const ov::Shape& weights_shape,
-                                                                    const int group_size,
-                                                                    const ov::element::Type data_precision,
-                                                                    const ov::element::Type weights_precision,
-                                                                    const ov::element::Type decompression_precision,
-                                                                    const ov::element::Type scale_precision,
-                                                                    const bool transpose_weights,
-                                                                    const ov::test::utils::DecompressionType decompression_multiply_type,
-                                                                    const ov::test::utils::DecompressionType decompression_subtract_type,
-                                                                    const bool reshape_on_decompression) {
+std::shared_ptr<ov::Model> MatmulWeightsDecompression::initSubgraph(
+    const ov::PartialShape& data_shape,
+    const ov::Shape& weights_shape,
+    const int group_size,
+    const ov::element::Type data_precision,
+    const ov::element::Type weights_precision,
+    const ov::element::Type decompression_precision,
+    const ov::element::Type scale_precision,
+    const bool transpose_weights,
+    const ov::test::utils::DecompressionType decompression_multiply_type,
+    const ov::test::utils::DecompressionType decompression_subtract_type,
+    const bool reshape_on_decompression) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(data_precision, data_shape)};
     const auto weights_subgraph = initMatMulDecompressionSubgraph(weights_shape,
-                                                                    group_size,
-                                                                    data_precision,
-                                                                    weights_precision,
-                                                                    decompression_precision,
-                                                                    scale_precision,
-                                                                    transpose_weights,
-                                                                    decompression_multiply_type,
-                                                                    decompression_subtract_type,
-                                                                    reshape_on_decompression);
+                                                                  group_size,
+                                                                  data_precision,
+                                                                  weights_precision,
+                                                                  decompression_precision,
+                                                                  scale_precision,
+                                                                  transpose_weights,
+                                                                  decompression_multiply_type,
+                                                                  decompression_subtract_type,
+                                                                  reshape_on_decompression);
     auto matMul = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
     return create_ov_model(data_precision, params, matMul, "MatmulWeightsDecompression");
 }
 
-void MatmulWeightsDecompression::SetUp() {
+void MatmulWeightsDecompression::setUpWithDataPrecision(const ov::element::Type data_precision) {
     targetDevice = ov::test::utils::DEVICE_CPU;
-    const auto& [shape_params, weights_precision, decompression_precision, scale_precision, transpose_weights,
-                 decompression_multiply_type, decompression_subtract_type, reshape_on_decompression, additional_config,
-                 fusing_params, should_fuse] = GetParam();
+    const auto& [shape_params,
+                 weights_precision,
+                 decompression_precision,
+                 scale_precision,
+                 transpose_weights,
+                 decompression_multiply_type,
+                 decompression_subtract_type,
+                 reshape_on_decompression,
+                 additional_config,
+                 fusing_params,
+                 should_fuse] = GetParam();
     configuration.insert(additional_config.begin(), additional_config.end());
     std::tie(postOpMgrPtr, fusedOps) = fusing_params;
     init_input_shapes({shape_params.data_shape});
@@ -78,7 +97,7 @@ void MatmulWeightsDecompression::SetUp() {
     // if dynamic quantization is enabled
     if (configuration.count(ov::hint::dynamic_quantization_group_size.name()) &&
         configuration.at(ov::hint::dynamic_quantization_group_size.name()) != 0) {
-        abs_threshold = 0.1;
+        abs_threshold = data_precision == ov::element::bf16 ? 0.2 : 0.1;
     }
 
     if (configuration.count(ov::hint::inference_precision.name()) &&
@@ -86,7 +105,7 @@ void MatmulWeightsDecompression::SetUp() {
         abs_threshold = 0.2;
     }
 
-    ElementType netType = ov::element::f32;
+    const ElementType netType = data_precision;
     inType = outType = netType;
 
     function = initSubgraph(inputDynamicShapes[0],
@@ -100,6 +119,14 @@ void MatmulWeightsDecompression::SetUp() {
                             decompression_multiply_type,
                             decompression_subtract_type,
                             reshape_on_decompression);
+}
+
+void MatmulWeightsDecompression::SetUp() {
+    setUpWithDataPrecision(ov::element::f32);
+}
+
+void MatmulWeightsDecompressionBF16::SetUp() {
+    setUpWithDataPrecision(ov::element::bf16);
 }
 
 void MatmulWeightsDecompression::check_results() {
@@ -118,13 +145,18 @@ void MatmulWeightsDecompression::check_results() {
     type = fc->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
     EXPECT_EQ(type, "FullyConnected");
 
-    const auto& expected_weights_precision = use_matmul_decompression_impl
-                                                    ? compressed_weights_precision
-                                                    : fc->get_input_element_type(0);
+    const auto& expected_weights_precision =
+        use_matmul_decompression_impl ? compressed_weights_precision : fc->get_input_element_type(0);
     EXPECT_EQ(fc->get_input_element_type(1), expected_weights_precision);
 }
 
 TEST_P(MatmulWeightsDecompression, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    check_results();
+}
+
+TEST_P(MatmulWeightsDecompressionBF16, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     check_results();

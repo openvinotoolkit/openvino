@@ -27,6 +27,7 @@ std::vector<ov::AnyMap> filter_additional_config_amx() {
 }
 
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
+const std::vector<ov::test::ElementType> decompression_precisions_bf16 = {ov::element::bf16};
 const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8,
                                                                ov::element::u4,
                                                                ov::element::i4,
@@ -302,6 +303,18 @@ std::vector<ov::AnyMap> filter_additional_config_dyn_quant() {
     return additional_config;
 }
 
+std::vector<ov::AnyMap> filter_additional_config_dyn_quant_bf16() {
+    std::vector<ov::AnyMap> additional_config = {};
+    if (ov::with_cpu_x86_bfloat16() && ov::with_cpu_x86_avx512_core_vnni() && !ov::with_cpu_x86_avx512_core_amx()) {
+        additional_config = {
+            {{ov::hint::dynamic_quantization_group_size(0)}},
+            {{ov::hint::dynamic_quantization_group_size(16)}},
+            {{ov::hint::dynamic_quantization_group_size(128)}},
+        };
+    }
+    return additional_config;
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_non_default_dyn_quant_group_sizes,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_basic_dyn_quant),
@@ -313,6 +326,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_non_default_dyn_quant_gro
                                             ::testing::ValuesIn(decompression_subtract_type),
                                             ::testing::Values(false),
                                             ::testing::ValuesIn(filter_additional_config_dyn_quant()),
+                                            ::testing::ValuesIn(fusing_params_dyn_quant),
+                                            ::testing::Values(true)),
+                         MatmulWeightsDecompression::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_non_default_dyn_quant_group_sizes_bf16,
+                         MatmulWeightsDecompressionBF16,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_basic_dyn_quant),
+                                            ::testing::ValuesIn(weights_precisions_dyn_quant),
+                                            ::testing::ValuesIn(decompression_precisions_bf16),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(true),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::ValuesIn(decompression_subtract_type),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(filter_additional_config_dyn_quant_bf16()),
                                             ::testing::ValuesIn(fusing_params_dyn_quant),
                                             ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
