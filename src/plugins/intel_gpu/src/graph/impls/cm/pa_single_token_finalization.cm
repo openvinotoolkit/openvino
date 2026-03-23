@@ -19,9 +19,16 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     float* input [[type("svmptr_t")]],
     half* output [[type("svmptr_t")]],
     float* lse [[type("svmptr_t")]],
+    int* subsequence_begins [[type("svmptr_t")]],
+    int* selected_sequence_ids [[type("svmptr_t")]],
+    int selected_sequence_count,
     int kv_partition_num
     ) {
         auto batch = cm_global_id(0);
+        if (batch >= selected_sequence_count) {
+            return;
+        }
+        auto orig_batch = selected_sequence_ids[batch];
         auto head = cm_global_id(1);
         auto offset = cm_group_id(2) * REDUCE_SPLIT_SIZE;
         const int total_partition_num = (kv_partition_num * HEADS_NUM);
@@ -73,6 +80,12 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
         out_mat = cm_mul<half>(out_mat_f32, (float)1.0f);
         // write output
-        uint output_offset = batch * HEADS_NUM * HEAD_SIZE + head * HEAD_SIZE + offset;
+        uint q_begin = subsequence_begins[orig_batch];
+        uint q_end = subsequence_begins[orig_batch + 1];
+        if (q_end <= q_begin) {
+            return;
+        }
+        uint q_token_idx = q_end - 1;
+        uint output_offset = q_token_idx * HEADS_NUM * HEAD_SIZE + head * HEAD_SIZE + offset;
         cm_svm_block_write<half, REDUCE_SPLIT_SIZE>((svmptr_t)(output + output_offset), out_mat.format<half>());
     }
