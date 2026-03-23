@@ -35,13 +35,14 @@ ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
     const auto signal_param_shape = signal.get_partial_shape();
     const auto window_node_provided = ov_inputs.size() > 2 && !ov::op::util::is_null(ov_inputs[2]);
     const auto dft_length_provided = ov_inputs.size() > 3 && !ov::op::util::is_null(ov_inputs[3]);
+    const auto onesided = node.get_attribute_value<int64_t>("onesided", 1);
 
-    // Use ov::op::v15::STFT for 2D signal - all inputs are required
+    // Use ov::op::v15::STFT for 2D signal - all inputs are required, output is onesided
     // Even if 2D input is not described in onnx spec, it is allowed by onnx model checker,
     // 2D input can be seen in real models and is supported by frameworks (including OpenVINO STFT)
     // The 2D shape is compatible with 3D case [batch, signal_length, 1] -> [batch, signal_length]
-    if (signal_param_shape.rank().is_static() && signal_param_shape.size() == 2 && window_node_provided &&
-        dft_length_provided) {
+    const auto is_2d_signal = signal_param_shape.rank().is_static() && signal_param_shape.size() == 2;
+    if (is_2d_signal && onesided && window_node_provided && dft_length_provided) {
         // ONNX STFT inputs: signal, frame_step, window (optional), frame_length (optional)
         // ONNX STFT output shape: [batch_size, num_frames, fft_length, 2]
         // OpenVINO v15::STFT inputs: data, window, frame_size, frame_step
@@ -53,7 +54,6 @@ ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(node,
                      signal_param_shape.is_static() && signal_param_shape.size() == 3,
                      "Shape of signal input must be static with the rank equal to 3.");
-    const auto onesided = node.get_attribute_value<int64_t>("onesided", 1);
     const int64_t axis = 1;
 
     const auto& frame_step_node = ov_inputs.at(1);
