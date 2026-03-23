@@ -57,6 +57,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
         # pass common variables
         foreach(cmake_var IN ITEMS CMAKE_SYSTEM_NAME CMAKE_SYSTEM_VERSION
                                    CMAKE_SYSTEM_PROCESSOR CMAKE_TOOLCHAIN_FILE
+                                   CMAKE_SYSROOT
                                    CMAKE_VERBOSE_MAKEFILE CMAKE_GENERATOR
                                    CMAKE_CXX_COMPILER CMAKE_C_COMPILER
                                    CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER)
