@@ -1140,8 +1140,9 @@ void ov::npuw::JustInferRequest::refresh_pyramid_infer_request_inputs(std::size_
 
             auto source_pipeline_tensor = source_pipeline_request->get_tensor(main_input);
             auto pipeline_tensor = pyramid_pipeline_request->get_tensor(pyramid_input);
-            auto shared_pipeline_tensor = ov::get_tensor_impl(
-                ov::Tensor(pipeline_tensor->get_element_type(), pipeline_tensor->get_shape(), source_pipeline_tensor->data()));
+            auto shared_pipeline_tensor = ov::get_tensor_impl(ov::Tensor(pipeline_tensor->get_element_type(),
+                                                                         pipeline_tensor->get_shape(),
+                                                                         source_pipeline_tensor->data()));
             pyramid_pipeline_request->set_tensor(pyramid_input, shared_pipeline_tensor);
         }
     }
