@@ -3,7 +3,6 @@
 //
 
 #include "custom/single_layer_tests/classes/string_tensor_unpack.hpp"
-#include "custom/single_layer_tests/classes/pad_string.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
 
@@ -20,15 +19,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_StringTensorUnpackLayoutTest, StringTensorUnpackL
                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_string"})),
                 StringTensorUnpackLayerCPUTest::getTestCaseName);
 }  // namespace StringTensorUnpack
-
-namespace PadString {
-INSTANTIATE_TEST_SUITE_P(smoke_PadStringLayoutTest, PadStringLayerCPUTest,
-              ::testing::Combine(
-                  ::testing::Combine(
-                      ::testing::ValuesIn(PadStringParamsVector),
-                      ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                  ::testing::Values(CPUSpecificParams{})),
-              PadStringLayerCPUTest::getTestCaseName);
-}  // namespace PadString
 }  // namespace test
 }  // namespace ov
