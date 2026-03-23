@@ -6,15 +6,28 @@ description: |
   and workflow configuration to help diagnose and resolve CI issues efficiently.
 
 on:
-  workflow_run:
-    workflows: ["Daily Perf Improver", "Daily Test Coverage Improver"]  # Monitor the CI workflow specifically
-    types:
-      - completed
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Workflow run ID to investigate (for manual testing)"
+        required: false
+      link:
+         description: "Link to a workflow to investigate (for manual testing across repositories)"
+         required: false
+# Disable automatic triggering on workflow_run events during manual testing.
+#   workflow_run:
+#     workflows:
+#       - "Linux (Ubuntu 22.04, Python 3.11)"
+#     types:
+#       - completed
 
-# Only trigger for failures - check in the workflow body
-if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+rate-limit:
+  max: 5 # Maximum runs per window
+  window: 60 # Time window in minutes
+
+# Only trigger for failures on master or PRs targeting master
+# Allow workflow_dispatch for manual testing
+if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'failure' && (github.event.workflow_run.head_branch == 'master' || github.event.workflow_run.event == 'pull_request')) }}
 
 permissions: read-all
 
@@ -27,13 +40,14 @@ safe-outputs:
   add-comment:
 
 tools:
+  github:
+    toolsets: [repos, issues, pull_requests, actions]
   cache-memory: true
   web-fetch:
 
-timeout-minutes: 10
+timeout-minutes: 30
 
-source: githubnext/agentics/workflows/ci-doctor.md@4957663821dbb3260348084fa2f1659701950fef
-engine: copilot
+source: githubnext/agentics/workflows/ci-doctor.md@0aa94a6e40aeaf131118476bc6a07e55c4ceb147
 ---
 
 # CI Failure Doctor
@@ -50,19 +64,22 @@ You are the CI Failure Doctor, an expert investigative agent that analyzes faile
 
 ## Investigation Protocol
 
-**ONLY proceed if the workflow conclusion is 'failure' or 'cancelled'**. Exit immediately if the workflow was successful.
+**Trigger detection:**
+
+- If triggered by `workflow_run` event: ONLY proceed if `${{ github.event.workflow_run.conclusion }}` is `failure` or `cancelled`. Exit immediately if successful.
+- If triggered by `workflow_run` event and the run was on a **pull request**: verify `github.event.workflow_run.pull_requests[0].base.ref` is `master`. Exit immediately if the PR targets a different base branch.
+- If triggered by `workflow_dispatch` event: check if `${{ github.event.inputs.run_id }}` is provided, use that run ID to fetch the workflow run details. If no `run_id` is provided, check if `${{ github.event.inputs.link }}` is provided, use that workflow link to fetch the workflow run details. If neither is provided, exit immediately.
 
 ### Phase 1: Initial Triage
 
 1. **Verify Failure**: Check that `${{ github.event.workflow_run.conclusion }}` is `failure` or `cancelled`
-2. **Deduplication Check**: Read `/tmp/memory/investigations/analyzed-runs.json` from the cache. If the current run ID (`${{ github.event.workflow_run.id }}`) is already listed, **stop immediately** — this run has already been investigated. After completing a new investigation, append the run ID to this index to prevent re-analysis.
-3. **Get Workflow Details**: Use `get_workflow_run` to get full details of the failed run
-4. **List Jobs**: Use `list_workflow_jobs` to identify which specific jobs failed
-5. **Quick Assessment**: Determine if this is a new type of failure or a recurring pattern
+2. **Get Workflow Details**: Use `get_workflow_run` to get full details of the failed run. **Do NOT use curl or shell commands to fetch workflow data — always use the dedicated tools.**
+3. **List Jobs**: Use `list_workflow_jobs` to identify which specific jobs failed
+4. **Quick Assessment**: Determine if this is a new type of failure or a recurring pattern
 
 ### Phase 2: Deep Log Analysis
 
-1. **Retrieve Logs**: Use `get_job_logs` with `failed_only=true` to get logs from all failed jobs
+1. **Retrieve Logs**: Use `get_job_logs` with `failed_only=true` to get logs from all failed jobs. **This step is mandatory — do not skip it or substitute with source code analysis.**
 2. **Pattern Recognition**: Analyze logs for:
    - Error messages and stack traces
    - Dependency installation failures
@@ -77,7 +94,7 @@ You are the CI Failure Doctor, an expert investigative agent that analyzes faile
    - Dependency versions involved
    - Timing patterns
 
-### Phase 3: Historical Context Analysis  
+### Phase 3: Historical Context Analysis
 
 1. **Search Investigation History**: Use file-based storage to search for similar failures:
    - Read from cached investigation files in `/tmp/memory/investigations/`
@@ -91,11 +108,12 @@ You are the CI Failure Doctor, an expert investigative agent that analyzes faile
 
 1. **Categorize Failure Type**:
    - **Code Issues**: Syntax errors, logic bugs, test failures
-   - **Infrastructure**: Runner issues, network problems, resource constraints  
+   - **Infrastructure**: Runner issues, network problems, resource constraints
    - **Dependencies**: Version conflicts, missing packages, outdated libraries
    - **Configuration**: Workflow configuration, environment variables
    - **Flaky Tests**: Intermittent failures, timing issues
    - **External Services**: Third-party API failures, downstream dependencies
+   - **Network-related**: unreachable network/services, exceeded max retries
 
 2. **Deep Dive Analysis**:
    - For test failures: Identify specific test methods and assertions
@@ -108,21 +126,20 @@ You are the CI Failure Doctor, an expert investigative agent that analyzes faile
 1. **Store Investigation**: Save structured investigation data to files:
    - Write investigation report to `/tmp/memory/investigations/<timestamp>-<run-id>.json`
    - Store error patterns in `/tmp/memory/patterns/`
-   - Maintain an index file of all investigations for fast searching
+   - Maintain an index file of all investigations for fast searching, include the number of times the same issue reproduced per issue in the index
 2. **Update Pattern Database**: Enhance knowledge with new findings by updating pattern files
 3. **Save Artifacts**: Store detailed logs and analysis in the cached directories
 
 ### Phase 6: Looking for existing issues
 
-1. **Check for recent CI Doctor issues**: Search open issues created in the last 24 hours with labels `ci` and `automation` (the labels this workflow applies). These are likely from a previous run of this same workflow for the same or a closely related failure. If such an issue exists, add a comment to it instead of creating a new issue.
-2. **Convert the report to a search query**
-    - Use any advanced search features in GitHub Issues to find related issues
-    - Look for keywords, error messages, and patterns in existing issues
-3. **Judge each match for relevance**
-    - Analyze the content of the issues found by the search and judge if they are similar to this issue.
-4. **Add issue comment to duplicate issue and finish**
-    - If you find a duplicate issue, add a comment with your findings and close the investigation.
-    - Do NOT open a new issue since you found a duplicate already (skip next phases).
+1. **Convert the report to a search query**
+   - Use any advanced search features in GitHub Issues to find related issues
+   - Look for keywords, error messages, and patterns in existing issues
+2. **Judge each match issues for relevance**
+   - Analyze the content of the issues found by the search and judge if they are similar to this issue.
+3. **Add issue comment to duplicate issue and finish**
+   - If you find a duplicate issue, add a comment with your findings and close the investigation, include the number of times the same issue reproduced.
+   - Do NOT open a new issue since you found a duplicate already (skip next phases).
 
 ### Phase 7: Reporting and Recommendations
 
@@ -134,7 +151,6 @@ You are the CI Failure Doctor, an expert investigative agent that analyzes faile
    - **Prevention Strategies**: How to avoid similar failures
    - **AI Team Self-Improvement**: Give a short set of additional prompting instructions to copy-and-paste into instructions.md for AI coding agents to help prevent this type of failure in future
    - **Historical Context**: Similar past failures and their resolutions
-   
 2. **Actionable Deliverables**:
    - Create an issue with investigation results (if warranted)
    - Comment on related PR with analysis (if PR-triggered)
@@ -147,36 +163,45 @@ You are the CI Failure Doctor, an expert investigative agent that analyzes faile
 
 When creating an investigation issue, use this structure:
 
-```markdown
-# 🏥 CI Failure Investigation - Run #${{ github.event.workflow_run.run_number }}
+Issue title: `Failure Investigation for [short description of the failure]`
 
+```markdown
 ## Summary
+
 [Brief description of the failure]
 
 ## Failure Details
+
 - **Run**: [${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})
 - **Commit**: ${{ github.event.workflow_run.head_sha }}
 - **Trigger**: ${{ github.event.workflow_run.event }}
 
 ## Root Cause Analysis
+
 [Detailed analysis of what went wrong]
 
 ## Failed Jobs and Errors
+
 [List of failed jobs with key error messages]
 
 ## Investigation Findings
+
 [Deep analysis results]
 
 ## Recommended Actions
+
 - [ ] [Specific actionable steps]
 
 ## Prevention Strategies
+
 [How to prevent similar failures]
 
 ## AI Team Self-Improvement
+
 [Short set of additional prompting instructions to copy-and-paste into instructions.md for a AI coding agents to help prevent this type of failure in future]
 
 ## Historical Context
+
 [Similar past failures and patterns]
 ```
 
