@@ -438,6 +438,11 @@ KERNEL(pa_sdpa_opt)(
         unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
             #ifdef HAS_SINK_INPUT
             const SOFTMAX_ACCUMULATOR_TYPE qk_max_tmp = sub_group_reduce_max(GET_VECTOR_ELEMENT(qk_max, q_idx));
+            // Include sink in softmax only for partition 0, because each partition independently
+            // computes its own local softmax (max + exp_sum). The finalization kernel later merges
+            // all partitions by rescaling each partition's exp_sum with exp(local_max - global_max).
+            // If sink were included in every partition, the finalization would count the sink
+            // contribution P times (once per partition) instead of once.
             if (partition_idx == 0) {
                 const uint head_idx = get_global_id(1);
                 GET_VECTOR_ELEMENT(qk_max, q_idx) = qk_max_tmp > sink_ptr[head_idx] ? qk_max_tmp : sink_ptr[head_idx];
