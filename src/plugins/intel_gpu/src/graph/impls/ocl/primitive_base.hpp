@@ -143,21 +143,31 @@ protected:
         if (!_kernel_data.kernels.empty()) {
             auto compiled_kernels = kernels_cache.get_kernels(params);
 
-            // Verify that each compiled kernel's entry point matches what this impl expects.
-            // If actual and expected entry points differ, the wrong kernel handle was
-            // assigned to this impl, which will cause a kernel argument mismatch at runtime.
+            // Verify that each compiled kernel's shape-agnostic status matches what this impl expects.
+            // Nodes with identical kernel_impl_params legitimately share compiled kernels (kernel reuse),
+            // so entry point names may differ by their unique counter. However, a mismatch in the __sa
+            // (shape-agnostic) suffix indicates a static impl received a dynamic kernel or vice versa.
             OPENVINO_ASSERT(compiled_kernels.size() == _kernel_data.kernels.size(),
                             "[GPU] Compiled kernels count mismatch for node '", params.desc ? params.desc->id : "?", "': "
                             "expected ", _kernel_data.kernels.size(), " but got ", compiled_kernels.size());
             for (size_t i = 0; i < compiled_kernels.size(); ++i) {
+                OPENVINO_ASSERT(compiled_kernels[i] != nullptr,
+                                "[GPU] Null compiled kernel handle for node '", params.desc ? params.desc->id : "?",
+                                "' kernel[", i, "]. "
+                                "This indicates an incomplete or inconsistent kernel_part_idx mapping.");
                 const auto& expected = _kernel_data.kernels[i].code.kernelString->entry_point;
                 const auto& actual   = compiled_kernels[i]->get_id();
-                OPENVINO_ASSERT(actual == expected,
-                                "[GPU] Kernel entry point mismatch for node '", params.desc ? params.desc->id : "?", "' kernel[", i, "]: "
-                                "expected '", expected, "' but got '", actual, "'. "
-                                "This indicates a static impl received a dynamic (__sa) kernel handle "
-                                "due to incorrect impl reselection in propagate_constants. "
-                                "Check propagate_constants::try_reselect_impl_for_node.");
+                const std::string sa_suffix = "__sa";
+                bool expected_sa = expected.size() >= sa_suffix.size() &&
+                                   expected.compare(expected.size() - sa_suffix.size(), sa_suffix.size(), sa_suffix) == 0;
+                bool actual_sa = actual.size() >= sa_suffix.size() &&
+                                 actual.compare(actual.size() - sa_suffix.size(), sa_suffix.size(), sa_suffix) == 0;
+                OPENVINO_ASSERT(expected_sa == actual_sa,
+                                "[GPU] Kernel shape-agnostic mismatch for node '", params.desc ? params.desc->id : "?", "' kernel[", i, "]: "
+                                "expected '", expected, "' (sa=", expected_sa, ") but got '", actual, "' (sa=", actual_sa, "). "
+                                "This indicates that the impl metadata and compiled kernel handle are inconsistent "
+                                "(e.g. incorrect impl reselection in propagate_constants). "
+                                "Verify implementation selection logic for this node.");
             }
 
             _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
