@@ -123,7 +123,7 @@ const std::vector<std::vector<size_t>>& inputOrder4D() {
 
 
 void TransposeStringLayerCPUTest::SetUp() {
-    const auto& [inputShapes, inputOrder, /*netPrecision*/_, _targetDevice,
+    const auto& [inputShapes, inputOrder, _, _targetDevice,
                  additionalConfig, cpuParams] = this->GetParam();
     targetDevice = _targetDevice;
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
@@ -151,7 +151,7 @@ void TransposeStringLayerCPUTest::generate_inputs(
     const auto& funcInputs = function->inputs();
     ov::test::utils::InputGenerateData in_data;
     in_data.start_from = 0;
-    in_data.range     = 10;
+    in_data.range = 10;
     auto data_tensor = ov::test::utils::create_and_fill_tensor(
         ov::element::string, targetInputStaticShapes.front(), in_data);
     inputs.insert({funcInputs[0].get_node_shared_ptr(), data_tensor});
