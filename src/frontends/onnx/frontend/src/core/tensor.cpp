@@ -442,7 +442,9 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
             element_count--;
         }
     }
-    if (has_external_data()) {
+    if (element_count == 0 && (m_shape.size() == 0 || shape_size(m_shape) == 0)) {
+        constant = common::make_failsafe_constant(ov_type);
+    } else if (has_external_data()) {
         const auto ext_data = m_tensor_place != nullptr
                                   ? detail::TensorExternalData(*m_tensor_place->get_data_location(),
                                                                reinterpret_cast<size_t>(m_tensor_place->get_data()),
@@ -569,8 +571,6 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
                 "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
                 "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
         }
-    } else if (element_count == 0 && m_shape.size() == 0) {
-        constant = common::make_failsafe_constant(ov_type);
     } else {
         FRONT_END_THROW("Tensor shape doesn't match data size");
     }
