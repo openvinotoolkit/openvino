@@ -13,7 +13,7 @@
 #include <utility>
 #include <vector>
 
-#include "failsafe.hpp"
+#include "v1/elements/failsafe.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 

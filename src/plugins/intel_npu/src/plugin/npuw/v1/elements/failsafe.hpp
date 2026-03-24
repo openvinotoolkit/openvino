@@ -14,8 +14,8 @@
 #include <tuple>
 #include <vector>
 
-#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
 namespace ov::npuw::failsafe {
@@ -89,6 +89,11 @@ public:
 private:
     friend class CompiledModel;
 
+    // The wrapper exposes stable public tensors even if the inner infer request
+    // gets recreated on failover. Keying by (node, port index, input/output
+    // side) keeps wrapper-owned tensors distinct from the inner request's
+    // transient tensor handles and also avoids collisions in trivial graphs
+    // where input/output descriptors may alias.
     struct PortKey {
         const ov::Node* node = nullptr;
         std::size_t index = 0;
