@@ -70,6 +70,7 @@ Table of Contents
 * :doc:`EmbeddingSegmentsSum <../operation-specs/sparse/embedding-segments-sum-3>`
 * :doc:`Equal <../operation-specs/comparison/equal-1>`
 * :doc:`Erf <../operation-specs/arithmetic/erf-1>`
+* :doc:`ErfInv <../operation-specs/arithmetic/erfinv-16>`
 * :doc:`Exp <../operation-specs/activation/exp-1>`
 * :doc:`ExperimentalDetectronDetectionOutput_6 <../operation-specs/detection/experimental-detectron-detection-output-6>`
 * :doc:`ExperimentalDetectronGenerateProposalsSingleImage_6 <../operation-specs/detection/experimental-detectron-generate-proposals-single-image-6>`
