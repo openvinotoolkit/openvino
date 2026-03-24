@@ -4,12 +4,6 @@
 
 #include "openvino/runtime/single_file_storage.hpp"
 
-#ifdef _WIN32
-#    include <windows.h>
-#else
-#    include <unistd.h>
-#endif
-
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -47,16 +41,6 @@ void write_tlv_string(std::ostream& stream, const std::string& str) {
     write_tlv_record(stream, static_cast<TLVTraits::TagType>(SingleFileStorage::Tag::String), str.size(), str.data());
 }
 
-static const uint64_t alignment = []() {
-#ifdef _WIN32
-    SYSTEM_INFO sysInfo;
-    GetSystemInfo(&sysInfo);
-    return static_cast<uint64_t>(sysInfo.dwPageSize);
-#else
-    return static_cast<uint64_t>(sysconf(_SC_PAGE_SIZE));
-#endif
-}();
-
 bool read_tlv_string(std::istream& stream, std::string& str) {
     TLVTraits::TagType tag;
     TLVTraits::LengthType size;
@@ -82,6 +66,11 @@ void write_padding(std::ostream& stream, uint64_t alignment) {
     }
 }
 }  // namespace
+
+const size_t SingleFileStorage::blob_alignment = []() {
+    const auto sz = util::get_system_page_size();
+    return sz > 0 ? static_cast<size_t>(sz) : size_t{1};
+}();
 
 SingleFileStorage::SingleFileStorage(const std::filesystem::path& path)
     : m_file_path{path},
@@ -145,7 +134,7 @@ bool SingleFileStorage::build_content_index(std::ifstream& stream) {
             return false;
         }
         if (std::string model_name; read_tlv_string(s, model_name)) {
-            m_blob_index[id].model_name = model_name;
+            m_blob_index[id].model_name = std::move(model_name);
         }
         return s.good();
     };
@@ -235,7 +224,7 @@ void SingleFileStorage::write_blob_entry(std::ofstream& stream, BlobIdType blob_
 
     const auto blob_writer = [&](std::ostream& s) {
         s.write(reinterpret_cast<const char*>(&blob_id), sizeof(blob_id));
-        write_padding(s, alignment);
+        write_padding(s, blob_alignment);
         blob_pos = s.tellp();
         writer(s);
         blob_size = s.tellp() - blob_pos;
@@ -250,7 +239,7 @@ void SingleFileStorage::write_blob_entry(std::ofstream& stream, BlobIdType blob_
     };
     write_tlv_record(stream, static_cast<TLVTraits::TagType>(Tag::BlobMap), blob_map_writer);
 
-    m_blob_index[blob_id] = {blob_pos, blob_size, model_name};
+    m_blob_index[blob_id] = {blob_pos, blob_size, std::move(model_name)};
 }
 
 void SingleFileStorage::write_cache_entry(const std::string& blob_id, StreamWriter writer) {
@@ -335,7 +324,7 @@ void SingleFileStorage::write_context(const weight_sharing::Context& context) {
                 const auto device_id = static_cast<uint64_t>(std::strtoul(weight_buffer.m_device.c_str(), nullptr, 10));
                 s.write(reinterpret_cast<const char*>(&device_id), sizeof(device_id));
                 s.write(reinterpret_cast<const char*>(&source_id), sizeof(source_id));
-                write_padding(s, alignment);
+                write_padding(s, blob_alignment);
                 s.write(reinterpret_cast<const char*>(buf->get_ptr()), buf->size());
             }
 
