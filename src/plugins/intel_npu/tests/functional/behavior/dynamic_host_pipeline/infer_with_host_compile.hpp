@@ -77,6 +77,15 @@ public:
 
         std::tie(target_device, configuration) = this->GetParam();
 
+        std::vector<std::string> deviceNames =
+            core->get_property("NPU", ov::available_devices.name()).as<std::vector<std::string>>();
+        for (auto name : deviceNames) {
+            if (target_device.find(name) != std::string::npos) {
+                isTargetDevice = true;
+                break;
+            }
+        }
+
         APIBaseTest::SetUp();
     }
 
@@ -106,6 +115,7 @@ public:
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
+    bool isTargetDevice = false;
 };
 
 TEST_P(InferWithHostCompileTests, Compile) {
@@ -127,16 +137,7 @@ TEST_P(InferWithHostCompileTests, Compile) {
 TEST_P(InferWithHostCompileTests, CompileAndImport) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    std::vector<std::string> deviceNames =
-        core->get_property("NPU", ov::available_devices.name()).as<std::vector<std::string>>();
-    bool skip = true;
-    for (auto name : deviceNames) {
-        if (target_device.find(name) != std::string::npos) {
-            skip = false;
-            break;
-        }
-    }
-    if (skip) {
+    if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
     auto model = createMaxPoolModel();
@@ -160,16 +161,7 @@ TEST_P(InferWithHostCompileTests, CompileAndImport) {
 TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    std::vector<std::string> deviceNames =
-        core->get_property("NPU", ov::available_devices.name()).as<std::vector<std::string>>();
-    bool skip = true;
-    for (auto name : deviceNames) {
-        if (target_device.find(name) != std::string::npos) {
-            skip = false;
-            break;
-        }
-    }
-    if (skip) {
+    if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
 
@@ -197,10 +189,10 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     try {
         reqDynamic = compiledModel.create_infer_request();
     } catch (const ov::Exception& e) {
-        // check if the exception info is "Failed to create MLIR runtime engine"
-        ASSERT_TRUE(std::string(e.what()).find("Failed to create MLIR runtime engine") != std::string::npos)
-            << "Expected exception message to contain 'Failed to create MLIR runtime engine', but got: " << e.what();
-        GTEST_SKIP() << "Failed to create MLIR runtime engine, skip test    .";
+        // check if the exception info is "Cannot load library"
+        ASSERT_TRUE(std::string(e.what()).find("Cannot load library") != std::string::npos)
+            << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
+        GTEST_SKIP() << "Cannot load library, skip test.";
     }
 
     // create input tensor match the customized models
@@ -208,14 +200,14 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
-
-    // Check if the inference is done with runtime
+    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
     ASSERT_TRUE(custom_logger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime', but got: " << custom_logger.str();
 
     custom_logger.str("");
     custom_logger.clear();
     OV_ASSERT_NO_THROW(reqDynamic.infer());
+    // Rerun inferrequest with current tensor, the command list is reused without update since no tensor change detected
     ASSERT_TRUE(custom_logger.str().find("Reuse command list without update since no tensor change detected") !=
                 std::string::npos)
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for second "
@@ -226,7 +218,8 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     ov::Tensor inTensor1 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor1));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
-    // Local LevelZero tensor are large enough and reused without update
+    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused with
+    // data copy
     ASSERT_TRUE(custom_logger.str().find("Reuse command list without update since no tensor change detected") !=
                 std::string::npos)
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for third "
@@ -239,6 +232,8 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor3));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
+    // Set new tensor with new shape, it can not be used by runtime directly, local LevelZero tensor are not reused
+    // since the original one is too small, command list is reset to run with runtime
     ASSERT_TRUE(custom_logger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime' for fourth inference with new shape, but "
            "got: "
@@ -250,16 +245,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
 TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    std::vector<std::string> deviceNames =
-        core->get_property("NPU", ov::available_devices.name()).as<std::vector<std::string>>();
-    bool skip = true;
-    for (auto name : deviceNames) {
-        if (target_device.find(name) != std::string::npos) {
-            skip = false;
-            break;
-        }
-    }
-    if (skip) {
+    if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
 
@@ -288,9 +274,9 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
         reqDynamic = compiledModel.create_infer_request();
     } catch (const ov::Exception& e) {
         // check if the exception info is "Failed to create MLIR runtime engine"
-        ASSERT_TRUE(std::string(e.what()).find("Failed to create MLIR runtime engine") != std::string::npos)
-            << "Expected exception message to contain 'Failed to create MLIR runtime engine', but got: " << e.what();
-        GTEST_SKIP() << "Failed to create MLIR runtime engine, skip test    .";
+        ASSERT_TRUE(std::string(e.what()).find("Cannot load library") != std::string::npos)
+            << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
+        GTEST_SKIP() << "Cannot load library, skip test.";
     }
 
     // create input tensor match the customized models
@@ -298,14 +284,14 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
-
-    // Check if the inference is done with runtime
+    // The first time to set tensor, the command list is reset to run with runtime
     ASSERT_TRUE(custom_logger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime', but got: " << custom_logger.str();
 
     custom_logger.str("");
     custom_logger.clear();
     OV_ASSERT_NO_THROW(reqDynamic.infer());
+    // Rerun inferrequest with current tensor, the command list is reused without update since no tensor change detected
     ASSERT_TRUE(custom_logger.str().find("Reuse command list without update since no tensor change detected") !=
                 std::string::npos)
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for second "
@@ -316,7 +302,8 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     ov::Tensor inTensor1 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor1));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
-    // Local LevelZero tensor are reused
+    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused with
+    // data copy
     ASSERT_TRUE(custom_logger.str().find("Reuse command list without update since no tensor change detected") !=
                 std::string::npos)
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for third "
@@ -329,9 +316,80 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor3));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
+    // Set new tensor with new shape, it can not be used by runtime directly, local LevelZero tensor are not reused
+    // since the original one is too small, command list is reset to run with runtime
     ASSERT_TRUE(custom_logger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime' for fourth inference with new shape, but "
            "got: "
+        << custom_logger.str();
+}
+
+// The test to compile, create infer request and infer with dynamic shapes. It is expected to fail since the
+// npu_mlir_runtime is not loaded with NPU_CREATE_EXECUTOR=0
+TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    auto model = createMaxPoolModel();
+    ov::CompiledModel compiledModel;
+
+    // Create log callback function which will store log to string, the set to ov
+    std::stringstream custom_logger;
+    std::function<void(std::string_view)> custom_log_callback =
+        [&](std::string_view s) {  // switch to query allocation info for import flag when possible
+            custom_logger << s << std::endl;
+            std::cout << s << std::endl;
+        };
+    ov::util::set_log_callback(custom_log_callback);
+    struct ResetLogCallbackGuard {
+        ~ResetLogCallbackGuard() {
+            ov::util::reset_log_callback();
+        }
+    } reset_log_callback_guard;
+
+    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
+
+    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
+
+    ov::InferRequest reqDynamic;
+    try {
+        reqDynamic = compiledModel.create_infer_request();
+    } catch (const ov::Exception& e) {
+        // check if the exception info is "Failed to create MLIR runtime engine"
+        ASSERT_TRUE(std::string(e.what()).find("Cannot load library") != std::string::npos)
+            << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
+        GTEST_SKIP() << "Cannot load library, skip test.";
+    }
+
+    // create input tensor match the customized models
+    ov::Shape shape = {1, 16, 700, 1280};
+    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
+    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
+    OV_ASSERT_NO_THROW(reqDynamic.infer());
+
+    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
+    ASSERT_TRUE(custom_logger.str().find("Reset command list to run with runtime") != std::string::npos)
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << custom_logger.str();
+
+    custom_logger.str("");
+    custom_logger.clear();
+    ov::InferRequest reqDynamic1 = compiledModel.create_infer_request();
+    OV_ASSERT_NO_THROW(reqDynamic1.infer());
+    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
+    ASSERT_TRUE(custom_logger.str().find("Reset command list to run with runtime") != std::string::npos)
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << custom_logger.str();
+    custom_logger.str("");
+    custom_logger.clear();
+    auto outputTensorFromReq = reqDynamic.get_tensor(model->output());
+    OV_ASSERT_NO_THROW(reqDynamic1.set_input_tensor(0, outputTensorFromReq));
+    OV_ASSERT_NO_THROW(reqDynamic1.infer());
+    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
+    ASSERT_TRUE(custom_logger.str().find("Update command list with new tensor pointer") != std::string::npos)
+        << "Expected log to contain 'Update command list with new tensor pointer' for third "
+           "inference, but got: "
         << custom_logger.str();
 }
 

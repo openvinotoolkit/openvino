@@ -286,6 +286,10 @@ void ZeroDynamicInferRequest::predict_shapes(std::vector<IDynamicGraph::MemRefTy
 
 void ZeroDynamicInferRequest::check_tensor_and_predicted_shapes(
     const std::vector<IDynamicGraph::MemRefType>& outputProps) {
+    if (outputProps.size() == 0) {
+        _logger.debug("check_tensor_and_predicted_shapes - no output props to check, skip check");
+        return;
+    }
     // check_tensor in set_tensor already checked the input tensor and output tensor with metadata
     // Check again here to see if the shape is right compared with predicted shape
     // If user set output tensor, need check if the tensor is large enough
