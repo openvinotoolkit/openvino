@@ -131,9 +131,6 @@ TEST_F(SharedStringAlignedBufferTest, create_with_smaller_size_than_input_buffer
     EXPECT_EQ(*buffer.get_ptr<const std::string>(), msg_at_0);
 }
 
-/// @brief Test case for zero number of strings in packed string tensor.
-/// Expecting an empty buffer.
-/// num_strings = 0
 TEST(StringUnpackTensorTest, ZeroNumberOfStringsYieldsEmptyBuffer) {
     constexpr auto strings_count = 0;
 
@@ -145,9 +142,6 @@ TEST(StringUnpackTensorTest, ZeroNumberOfStringsYieldsEmptyBuffer) {
     EXPECT_EQ(result->get_num_elements(), 0);
 }
 
-/// @brief Test case for missing number of strings in packed string tensor.
-/// Expecting AssertFailure with message about missing strings count.
-/// num_strings = <missing>
 TEST(StringUnpackTensorTest, MissingNumberOfStringsFails) {
     const std::vector<uint8_t> strings = {'0', '1'};
 
@@ -159,9 +153,6 @@ TEST(StringUnpackTensorTest, MissingNumberOfStringsFails) {
                     HasSubstr("no strings count in the packed string tensor"));
 }
 
-/// @brief Test case for negative number of strings in packed string tensor.
-/// Expecting AssertFailure with message about negative number of strings.
-/// num_strings = -1, which is invalid because number of strings cannot be negative.
 TEST(StringUnpackTensorTest, NegativeNumberOfStringsFails) {
     constexpr auto strings_count = -1;
 
@@ -173,9 +164,6 @@ TEST(StringUnpackTensorTest, NegativeNumberOfStringsFails) {
                     HasSubstr("negative number of strings"));
 }
 
-/// @brief Test case for header size exceeding indexable range.
-/// Expecting AssertFailure with message about header size calculation overflow.
-/// num_strings = <plenty>
 TEST(StringUnpackTensorTest, HeaderSizeOverflowFails) {
     constexpr auto strings_count = 1;
     constexpr auto strings_count_tampered = std::numeric_limits<header_element_t>::max();
@@ -196,9 +184,6 @@ TEST(StringUnpackTensorTest, HeaderSizeOverflowFails) {
                     HasSubstr("header size overflow detected"));
 }
 
-/// @brief Test case for header size exceeding buffer bounds in packed string tensor.
-/// Expecting AssertFailure with message about header exceeds provided buffer size.
-/// num_strings = 10, header: [10, 0, end0=3, end1=5], but buffer too small
 TEST(StringUnpackTensorTest, HeaderSizeBeyondBufferFails) {
     constexpr auto strings_count = 2;
     constexpr auto strings_count_tampered = 10;
@@ -215,9 +200,6 @@ TEST(StringUnpackTensorTest, HeaderSizeBeyondBufferFails) {
                     HasSubstr("header exceeds provided buffer size"));
 }
 
-/// @brief Test case for negative offsets in packed string tensor.
-/// Expecting AssertFailure with message about begin offset greater than end offset.
-/// num_strings = 2, header: [2, 0, end0=-3, end1=5]
 TEST(StringUnpackTensorTest, NegativeOffsetsFails) {
     constexpr auto strings_count = 2;
 
@@ -230,9 +212,6 @@ TEST(StringUnpackTensorTest, NegativeOffsetsFails) {
                     HasSubstr("negative string offset in the packed string tensor"));
 }
 
-/// @brief Test case for decreasing offsets in packed string tensor.
-/// Expecting AssertFailure with message about begin offset greater than end offset.
-/// num_strings = 2, header: [2, 0, end0=5, end1=3]
 TEST(StringUnpackTensorTest, DecreasingOffsetsFails) {
     constexpr auto strings_count = 2;
 
@@ -245,9 +224,6 @@ TEST(StringUnpackTensorTest, DecreasingOffsetsFails) {
                     HasSubstr("begin offset greater than end offset"));
 }
 
-/// @brief Test case for string offset exceeding buffer bounds in packed string tensor.
-/// Expecting AssertFailure with message about string offset exceeds buffer bounds.
-/// num_strings = 2, header: [2, 0, end0=10, end1=20], but buffer too small
 TEST(StringUnpackTensorTest, OffsetBeyondBufferFails) {
     constexpr auto strings_count = 2;
 
