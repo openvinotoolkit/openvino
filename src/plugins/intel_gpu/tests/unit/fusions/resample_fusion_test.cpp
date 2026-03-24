@@ -628,7 +628,7 @@ TEST_P(resample_bicubic_pillow_axes_quantize_u8, basic) {
         resample("resample_prim", input_info("input"), sizes, {}, p.axes, {}, {}, 0, -0.75f,
                  p.type, resample::InterpolateOp::ShapeCalcMode::SIZES),
         quantize("quantize", input_info("resample_prim"), input_info("in_lo"), input_info("in_hi"),
-                 input_info("out_lo"), input_info("out_hi"), 255, data_types::u8),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
         reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
