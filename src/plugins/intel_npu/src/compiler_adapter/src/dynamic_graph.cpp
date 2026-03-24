@@ -58,9 +58,9 @@ public:
                             std::vector<DynamicGraph::MemRefType>& outputDescriptors) override;
 
     void prepareCommandListIndexArray(DynamicGraph::GraphArguments& args,
-                                          std::vector<uint64_t>& argIndexArray,
-                                          bool& noTensorChange,
-                                          bool& allTensorHasOldShape);
+                                      std::vector<uint64_t>& argIndexArray,
+                                      bool& noTensorChange,
+                                      bool& allTensorHasOldShape);
 
 public:
     npu_vm_runtime_handle_t _engine = nullptr;
@@ -78,23 +78,25 @@ void DynamicGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetada
 
     _binding._inputs.resize(metadata.inputs.size());
 
-    // dump output of _metadata
-    _logger.debug("Dump metadata info from blob");
-    _logger.debug("Metadata inputs: %d", metadata.inputs.size());
-    for (const auto& input : metadata.inputs) {
-        _logger.debug("Input compiler name: %s input node name: %s shapeFromCompiler: %s shapeFromIRModel: %s",
-                      input.nameFromCompiler.c_str(),
-                      input.nodeFriendlyName.c_str(),
-                      input.shapeFromCompiler.to_string().c_str(),
-                      input.shapeFromIRModel.has_value() ? input.shapeFromIRModel->to_string().c_str() : "N/A");
-    }
-    _logger.debug("Metadata outputs: %d", metadata.outputs.size());
-    for (const auto& output : metadata.outputs) {
-        _logger.debug("Output compiler name: %s output node name: %s shapeFromCompiler: %s shapeFromIRModel: %s",
-                      output.nameFromCompiler.c_str(),
-                      output.nodeFriendlyName.c_str(),
-                      output.shapeFromCompiler.to_string().c_str(),
-                      output.shapeFromIRModel.has_value() ? output.shapeFromIRModel->to_string().c_str() : "N/A");
+    if (_logger.level() >= ov::log::Level::DEBUG) {
+        // dump output of _metadata
+        _logger.debug("Dump metadata info from blob");
+        _logger.debug("Metadata inputs: %d", metadata.inputs.size());
+        for (const auto& input : metadata.inputs) {
+            _logger.debug("Input compiler name: %s input node name: %s shapeFromCompiler: %s shapeFromIRModel: %s",
+                          input.nameFromCompiler.c_str(),
+                          input.nodeFriendlyName.c_str(),
+                          input.shapeFromCompiler.to_string().c_str(),
+                          input.shapeFromIRModel.has_value() ? input.shapeFromIRModel->to_string().c_str() : "N/A");
+        }
+        _logger.debug("Metadata outputs: %d", metadata.outputs.size());
+        for (const auto& output : metadata.outputs) {
+            _logger.debug("Output compiler name: %s output node name: %s shapeFromCompiler: %s shapeFromIRModel: %s",
+                          output.nameFromCompiler.c_str(),
+                          output.nodeFriendlyName.c_str(),
+                          output.shapeFromCompiler.to_string().c_str(),
+                          output.shapeFromIRModel.has_value() ? output.shapeFromIRModel->to_string().c_str() : "N/A");
+        }
     }
 
     auto& inputs = _binding._inputs;
@@ -305,14 +307,13 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
                                     ze_fence_handle_t fence,
                                     ze_event_handle_t event,
                                     ze_graph_profiling_pool_handle_t profiling) {
+    _logger.debug("Start to execute graph with runtime engine");
     std::shared_ptr<DynamicGraph::GraphArgumentsImpl> argsImpl =
         args._impl ? std::static_pointer_cast<DynamicGraph::GraphArgumentsImpl>(args._impl)
                    : std::make_shared<DynamicGraph::GraphArgumentsImpl>();
 
     npu_vm_runtime_execute_params_t* params = &argsImpl->_executeParams;
-
     for (auto& in : args._inputs) {
-        _logger.debug("Prepare input argument for graph execution, info: %s", in.toString().c_str());
         std::shared_ptr<DynamicGraph::MemRefTypeImpl> inImpl =
             std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(in._impl);
         if (inImpl == nullptr) {
@@ -325,7 +326,6 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
         }
     }
     for (auto& out : args._outputs) {
-        _logger.debug("Prepare output argument for graph execution, info: %s", out.toString().c_str());
         std::shared_ptr<DynamicGraph::MemRefTypeImpl> outImpl =
             std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(out._impl);
         if (outImpl == nullptr) {
@@ -338,35 +338,6 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
         }
     }
 
-    enum ReuseCmdListMode {
-        ENABLE_EXECUTION_CONTEXT_CREATION,  // Create execution context
-        ENABLE_REUSE_WITH_MUTABLE_COMMANDLIST,
-        ENABLE_REUSE_WITHOUT_MUTATING_COMMANDLIST,
-        DISABLE_EXECUTION_CONTEXT_CREATION
-    };
-    ReuseCmdListMode reuseCmdListMode = ENABLE_REUSE_WITH_MUTABLE_COMMANDLIST;
-    _logger.debug("Default reuse command list mode: %d", reuseCmdListMode);
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
-    auto reuseCmdList = getenv("ENABLED_HOST_COMPILE_REUSE_CMDLIST");
-
-    if (reuseCmdList != nullptr) {
-        if (std::string(reuseCmdList) == "0") {
-            reuseCmdListMode = ENABLE_EXECUTION_CONTEXT_CREATION;
-            _logger.debug("Create execution context, do not reuse command list");
-        } else if (std::string(reuseCmdList) == "1") {
-            reuseCmdListMode = ENABLE_REUSE_WITH_MUTABLE_COMMANDLIST;
-            _logger.debug("Create execution context, reuse and update commandlist if tensor shape keep unchanged, "
-                          "otherwise reuse command list only if no tensor change detected");
-        } else if (std::string(reuseCmdList) == "2") {
-            reuseCmdListMode = ENABLE_REUSE_WITHOUT_MUTATING_COMMANDLIST;
-            _logger.debug("Create execution context, reuse command list only if no tensor change detected");
-        } else if (std::string(reuseCmdList) == "3") {
-            reuseCmdListMode = DISABLE_EXECUTION_CONTEXT_CREATION;
-            _logger.debug("Keep execution context be empty, do not reuse command list");
-        }
-    }
-#endif
-
     std::vector<uint64_t> commandListIndexArray;
     bool noTensorChange = true;
     bool allTensorHasOldShape = true;
@@ -374,9 +345,7 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
     // Empty means some tensor has new shape, can not reuse commandlist
     prepareCommandListIndexArray(args, commandListIndexArray, noTensorChange, allTensorHasOldShape);
 
-    if (args._impl == nullptr || !allTensorHasOldShape ||
-        reuseCmdListMode == DISABLE_EXECUTION_CONTEXT_CREATION ||
-        reuseCmdListMode == ENABLE_EXECUTION_CONTEXT_CREATION) {
+    if (args._impl == nullptr || !allTensorHasOldShape) {
         _logger.debug("Reset command list to run with runtime");
         // Reset commandLists since there are tensor with new shapes or it is the first execution, can not reuse command
         // list with update
@@ -384,7 +353,7 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
             zeCommandListReset(cmdList);
         }
     } else {
-        if (reuseCmdListMode == ENABLE_REUSE_WITH_MUTABLE_COMMANDLIST && !noTensorChange) {
+        if (!noTensorChange) {
             _logger.debug("Update command list with new tensor pointer");
             if (params->executionContext == nullptr) {
                 OPENVINO_THROW(
@@ -418,7 +387,7 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
     }
 
     // Prepare execution context for each graph arguments
-    if (reuseCmdListMode != DISABLE_EXECUTION_CONTEXT_CREATION && params->executionContext == nullptr) {
+    if (params->executionContext == nullptr) {
         if (npuVMRuntimeCreateExecutionContext(_engine, &params->executionContext) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
             OPENVINO_THROW("Failed to create a VM execution context");
         } else {
@@ -502,9 +471,9 @@ void DynamicGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescript
 }
 
 void DynamicGraphImpl::prepareCommandListIndexArray(DynamicGraph::GraphArguments& args,
-                                                                    std::vector<uint64_t>& argIndexArray,
-                                                                    bool& noTensorChange,
-                                                                    bool& allTensorHasOldShape) {
+                                                    std::vector<uint64_t>& argIndexArray,
+                                                    bool& noTensorChange,
+                                                    bool& allTensorHasOldShape) {
     argIndexArray.clear();
     noTensorChange = true;
     allTensorHasOldShape = true;
@@ -542,16 +511,17 @@ void DynamicGraphImpl::prepareCommandListIndexArray(DynamicGraph::GraphArguments
     }
     if (!allTensorHasOldShape) {
         // There are tensor that has new shape, can not reuse commandlist with update
-        _logger.debug(
-            "There are %d tensors with old shape, need %d tensors, can not reuse commandlist with update",
-            argIndexArray.size(),
-            args._inputs.size() + args._outputs.size());
+        _logger.debug("There are %d tensors with old shape, need %d tensors, can not reuse commandlist with update",
+                      argIndexArray.size(),
+                      args._inputs.size() + args._outputs.size());
         argIndexArray.clear();
     } else {
-        if(noTensorChange) {
-            _logger.debug("All tensors have old shape, and no tensor pointer or stride change, can reuse commandlist directly");
+        if (noTensorChange) {
+            _logger.debug(
+                "All tensors have old shape, and no tensor pointer or stride change, can reuse commandlist directly");
         } else {
-            _logger.debug("All tensors have old shape, but some tensor pointer or stride updated, can reuse commandlist with update");
+            _logger.debug("All tensors have old shape, but some tensor pointer or stride updated, can reuse "
+                          "commandlist with update");
         }
     }
 }

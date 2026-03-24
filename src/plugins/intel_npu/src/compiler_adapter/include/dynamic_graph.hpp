@@ -78,13 +78,13 @@ public:
     };
 
     struct GraphArgumentsImpl {
-        std::vector<npu_mlir_runtime_mem_ref_handle_t> _inputMemRefs;
-        std::vector<npu_mlir_runtime_mem_ref_handle_t> _outputMemRefs;
-        npu_mlir_runtime_execute_params_t _executeParams = {};
+        std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefs;
+        std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefs;
+        npu_vm_runtime_execute_params_t _executeParams = {};
 
         virtual ~GraphArgumentsImpl() {
             if (_executeParams.executionContext != nullptr) {
-                npuMLIRRuntimeDestroyExecutionContext(_executeParams.executionContext);
+                npuVMRuntimeDestroyExecutionContext(_executeParams.executionContext);
                 _executeParams.executionContext = nullptr;
             }
         }
