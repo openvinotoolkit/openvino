@@ -24,8 +24,18 @@ void IGraph::set_argument_value_with_strides(uint32_t, const void*, const std::v
     OPENVINO_THROW("set_argument_value_with_strides not implemented");
 }
 
-void IGraph::initialize(const FilteredConfig&) {
-    OPENVINO_THROW("initialize not implemented");
+void IGraph::initialize(const FilteredConfig& config) {
+    std::lock_guard<std::mutex> lock(_initialize_mutex);
+
+    if (_init_completed.load(std::memory_order_acquire)) {
+        return;
+    }
+
+    initialize_impl(config);
+}
+
+void IGraph::initialize_impl(const FilteredConfig&) {
+    OPENVINO_THROW("initialize_impl not implemented");
 }
 
 const NetworkMetadata& IGraph::get_metadata() const {

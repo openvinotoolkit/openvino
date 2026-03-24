@@ -1256,7 +1256,6 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
     Stage::Ptr pa_sdpa_micro_mixed = make_stage<SDPAMicroGenerator>(false);
-    Stage::Ptr pa_sdpa_micro_gqa_single_token = make_stage<SDPAMicroGenerator>(false, true);
 #endif
 
     PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
@@ -1271,7 +1270,6 @@ public:
         if (use_micro_sdpa) {
             add_stage(pa_sdpa_micro, params);
             add_stage(pa_sdpa_micro_mixed, params);
-            add_stage(pa_sdpa_micro_gqa_single_token, params);
         }
 #endif
 
@@ -1297,6 +1295,14 @@ public:
     }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    bool valid_micro_stage(const PagedAttentionStage& stage) const {
+        if (stage == PagedAttentionStage::PREFILL)
+            return pa_sdpa_micro->kd.micro_kernels.size() > 0;
+        else if (stage == PagedAttentionStage::MIXED)
+            return pa_sdpa_micro_mixed->kd.micro_kernels.size() > 0;
+        return false;
+    }
+
     bool supports_micro_sdpa(const kernel_impl_params& params) const {
         auto& engine = params.get_program().get_engine();
 
@@ -1409,7 +1415,7 @@ public:
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        rt_params->use_micro_sdpa = supports_micro_sdpa(params);
+        rt_params->use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(rt_params->stage);
 #else
         rt_params->use_micro_sdpa = false;
 #endif
@@ -1417,16 +1423,9 @@ public:
         rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
 
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
-            if (data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision())) {
+            rt_params->use_micro_sdpa = false;
+            if (desc->has_sink_input) {
                 rt_params->use_gqa_kernel = false;
-                rt_params->use_micro_sdpa = false;
-                return;
-            }
-
-            if (rt_params->use_micro_sdpa) {
-                size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
-                rt_params->use_gqa_kernel = (kv_group_size == 8 && desc->k_head_size == 64);
-                rt_params->use_micro_sdpa = rt_params->use_gqa_kernel;
             } else {
                 rt_params->use_gqa_kernel = can_use_gqa_kernel(params, PagedAttentionStage::GENERATE, rt_params->max_context_len);
             }
@@ -1478,8 +1477,6 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 if (multi_tokens_mode && rt_params->use_micro_sdpa)
                     res_event = {execute_stage(res_event, instance, pa_sdpa_micro_mixed)};
-                else if (!multi_tokens_mode && rt_params->use_micro_sdpa && rt_params->use_gqa_kernel)
-                    res_event = {execute_stage(res_event, instance, pa_sdpa_micro_gqa_single_token)};
                 else
 #endif
                     res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_single_token)};
@@ -1591,7 +1588,7 @@ public:
         }
         bool can_use_micro_sdpa = false;
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        can_use_micro_sdpa = has_stage(pa_sdpa_micro);
+        can_use_micro_sdpa = has_stage(pa_sdpa_micro) && valid_micro_stage(stage);
         if (stage == PagedAttentionStage::GENERATE && (rt_params == nullptr || (rt_params != nullptr && rt_params->use_gqa_kernel == false)))
             can_use_micro_sdpa = false;
 
