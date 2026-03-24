@@ -35,7 +35,7 @@ typedef std::tuple <
 > OptimizeVTTestParamsTuple;
 
 struct OptimizeVTTestParams {
-    #define _AT(idx) std::tuple_element<idx, OptimizeVTTestParamsTuple>::type 
+    #define _AT(idx) std::tuple_element<idx, OptimizeVTTestParamsTuple>::type
 
     _AT(0)  inputShape;
     _AT(1)  withConvert;
@@ -58,9 +58,9 @@ class TransposeVTTest : public testing::WithParamInterface<OptimizeVTTestParamsT
 public:
     void Validate() const {
         auto test = OptimizeVTTestParams{GetParam()};
-        
+
         auto isValidSubgraph  = test.withTranspose;
-        ASSERT_EQ(isValidSubgraph, ov::npuw::util::optimize_value_tensors(model, test.withHpAttenMask));
+        ASSERT_EQ(isValidSubgraph, ov::npuw::util::OptimizeValueTensors(test.withHpAttenMask).run_on_model(model));
 
         //std::shared_ptr<ov::Model> model = ...;  // your model
 
@@ -75,8 +75,8 @@ public:
         serialize_pass.run_on_model(model);
 #endif
 
-     
-        // validation of High Precision attention mask - implies enabling SDPA layer to be unrolled, 
+
+        // validation of High Precision attention mask - implies enabling SDPA layer to be unrolled,
         // and also specific FP16 activation transformation in partitioning
         // Note: When withSink=true, standard OpenVINO SDPA decomposition is used which doesn't support HP
         if (test.withSDPA && !test.withSink) {
@@ -94,7 +94,7 @@ public:
             // input to add is 32b via convert / or via 32b parameter
             bool bAttentionMaskVerified = false;
             bool bAttentionMaskResultVerified = false;
-            
+
             auto get_rank = [](const ov::Shape& sh) {
                 return std::count_if(sh.begin(), sh.end(), [](size_t dim) {return dim != 1;});
             };
@@ -108,7 +108,7 @@ public:
                 auto test_case_name = getTestCaseName(testing::TestParamInfo<OptimizeVTTestParamsTuple>{GetParam(), 0});
                 std::string xml_path = test_case_name + "_"+ std::to_string(idx) +"_partitioned.xml";
                 std::string bin_path = test_case_name + "_"+ std::to_string(idx) +"_partitioned.bin";
-        
+
                 // Save the model
                 ov::pass::Serialize serialize_pass(xml_path, bin_path);
                 serialize_pass.run_on_model(partitioned_model);
@@ -123,16 +123,16 @@ public:
                         // assume in lhs we have a mask
                         auto lhs = op->get_input_node_ptr(0);
                         auto rhs = op->get_input_node_ptr(1);
-                        
+
                         ASSERT_EQ(lhs->get_output_size(), 1);
                         ASSERT_EQ(rhs->get_output_size(), 1);
 
                         ASSERT_NE(lhs, nullptr) << "Add layer " << op->get_friendly_name() << " need to have two inputs";
                         ASSERT_NE(rhs, nullptr) << "Add layer " << op->get_friendly_name() << " need to have two inputs";
-                        
+
                         if (get_rank(lhs->get_output_shape(0)) != 2) {
-                            ASSERT_EQ(get_rank(rhs->get_output_shape(0)), 2) 
-                                << "Add layer " << op->get_friendly_name() << " should have 2D input, but was{" 
+                            ASSERT_EQ(get_rank(rhs->get_output_shape(0)), 2)
+                                << "Add layer " << op->get_friendly_name() << " should have 2D input, but was{"
                                 << lhs->get_output_shape(0) << " , " << rhs->get_output_shape(0) << " }";
                             std::swap(lhs, rhs);
                         }
@@ -149,7 +149,7 @@ public:
                             ASSERT_EQ(ov::as_type<ov::op::v0::Convert>(lhs)->get_input_element_type(0), ov::element::f16) << err;
                         }
 
-                        // should be only one add as atention_mask   
+                        // should be only one add as atention_mask
                         bAttentionMaskVerified = true;
                     }
 
@@ -174,9 +174,9 @@ public:
                             ASSERT_EQ(ov::as_type<ov::op::v0::Convert>(result)->get_input_element_type(0), ov::element::f32) << err;
                         }
 
-                        // should be only one add as atention_mask   
+                        // should be only one add as atention_mask
                         bAttentionMaskResultVerified = true;
-                    }                    
+                    }
                 }
             }
 
@@ -189,7 +189,7 @@ public:
         auto test = OptimizeVTTestParams{obj.param};
 
         std::ostringstream result;
-        result << "npuw_llm_pipeline_" << test.inputShape << "_" 
+        result << "npuw_llm_pipeline_" << test.inputShape << "_"
                << (test.kind == NetworkKind::MHA ? "MHA" : "GQA")
                << (test.withConvert ? "_with_convert" : "")
                << (test.withSDPA ? "_SDPA" : "")
@@ -197,7 +197,7 @@ public:
                << (test.withHpAttenMask ? "_HP" : "")
                << (!test.withTranspose ? "_NEGATIVE" : "");
         return result.str();
-    }    
+    }
 
 protected:
 
@@ -208,7 +208,7 @@ protected:
     std::shared_ptr<ov::Model> CreateModel() {
 
         const auto test = OptimizeVTTestParams{GetParam()};
-        
+
         auto create_shape_constant = [](const std::vector<int64_t> & const_data, const std::string& name) {
             auto pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{const_data.size()}, const_data);
             pattern->set_friendly_name("unsqueese_pattern");
@@ -227,8 +227,8 @@ protected:
         auto param = std::make_shared<ov::op::v0::Parameter>(test.withConvert ? ov::element::f16 : ov::element::f32, input_shape);
         param->set_friendly_name("past_key_value");
 
-        std::shared_ptr<ov::Node> convert = test.withConvert ? 
-            std::static_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(param, ov::element::f32)) : 
+        std::shared_ptr<ov::Node> convert = test.withConvert ?
+            std::static_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(param, ov::element::f32)) :
             std::static_pointer_cast<ov::Node>(param);
         if (test.withConvert) {
             convert->set_friendly_name("convert");
@@ -261,12 +261,12 @@ protected:
         std::shared_ptr<ov::Node> concat_or_reshape = concat;
 
         if (test.kind == NetworkKind::GQA) {
-            auto unsqueeze_pattern =  create_shape_constant({2}, "unsqueese_pattern"); 
+            auto unsqueeze_pattern =  create_shape_constant({2}, "unsqueese_pattern");
             auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(concat, unsqueeze_pattern);
             unsqueeze->set_friendly_name("unsqueeze");
 
 
-            auto broadcast_pattern =  create_shape_constant({1, 8, 4, input_2 + 1, input_3}, "broadcast_pattern"); 
+            auto broadcast_pattern =  create_shape_constant({1, 8, 4, input_2 + 1, input_3}, "broadcast_pattern");
             //TODO: v1::Broadcast not working
             auto broadcast = std::make_shared<ov::op::v3::Broadcast>(unsqueeze, broadcast_pattern, ov::op::BroadcastType::BIDIRECTIONAL);
             broadcast->set_friendly_name("broadcast");
@@ -331,9 +331,9 @@ protected:
             auto result = std::make_shared<ov::op::v0::Result>(matmul);
             result->set_friendly_name("res");
             return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param, param2, param3});
-    
+
         }
-    }    
+    }
 
     std::shared_ptr<ov::Model> model;
 };
@@ -342,7 +342,7 @@ protected:
 TEST_P(TransposeVTTest, smoke_Run_MatchAndTransposeVT) {
     Validate();
 }
- 
+
 namespace {
 // eliminate direct shape dependency to match llama2, as in test and in optimize function
 const std::vector<ov::Shape> input_shapes{{1, 0, 1151, 128}, {1, 0, 1141, 64}};
@@ -365,8 +365,8 @@ const std::vector<NetworkKind> networkKind = {
  INSTANTIATE_TEST_SUITE_P(smoke_Run_MatchAndTransposeVT,
                           TransposeVTTest,
                           ::testing::Combine(
-                                ::testing::ValuesIn(input_shapes), 
-                                ::testing::ValuesIn(withTranspose), 
+                                ::testing::ValuesIn(input_shapes),
+                                ::testing::ValuesIn(withTranspose),
                                 ::testing::ValuesIn(withBroadCast),
                                 ::testing::ValuesIn(withSDPA),
                                 ::testing::ValuesIn(withHpAttenMask),

@@ -197,18 +197,6 @@ std::shared_ptr<const ov::Model> exclude_model_ptr_from_map(ov::AnyMap& properti
     return modelPtr;
 }
 
-int get_ir_version(const std::shared_ptr<const ov::Model>& model, const intel_npu::Logger& logger) {
-    const auto& rtInfo = model->get_rt_info();
-    const auto it = rtInfo.find("version");
-    if (it != rtInfo.end()) {
-        return static_cast<int>(it->second.as<int64_t>());
-    }
-
-    logger.warning("The IR version was not found within the runtime information attributes. The NPU plugin will "
-                   "continue execution assuming the version is 11. If wrong, compilation issues may occur.");
-    return 11;
-}
-
 void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredConfig& config) {
     // Initialize (note: it will reset registered options)
     options.reset();
@@ -268,7 +256,6 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(WEIGHTLESS_BLOB);
     REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
-    REGISTER_OPTION(USE_BASE_MODEL_SERIALIZER);
     REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
     REGISTER_OPTION(ENABLE_STRIDES_FOR);
 
@@ -286,72 +273,10 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
 
     // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
     // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
-    REGISTER_OPTION(NPU_USE_NPUW);
-    REGISTER_OPTION(NPUW_DEVICES);
-    REGISTER_OPTION(NPUW_SUBMODEL_DEVICE);
-    REGISTER_OPTION(NPUW_WEIGHTS_BANK);
-    REGISTER_OPTION(NPUW_WEIGHTS_BANK_ALLOC);
-    REGISTER_OPTION(NPUW_ONLINE_PIPELINE);
-    REGISTER_OPTION(NPUW_ONLINE_AVOID);
-    REGISTER_OPTION(NPUW_ONLINE_ISOLATE);
-    REGISTER_OPTION(NPUW_ONLINE_NO_FOLD);
-    REGISTER_OPTION(NPUW_ONLINE_MIN_SIZE);
-    REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCKS);
-    REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCK_SIZE);
-    REGISTER_OPTION(NPUW_ATTN);
-    REGISTER_OPTION(NPUW_ATTN_HFA_FUSED);
-    REGISTER_OPTION(NPUW_FOLD);
-    REGISTER_OPTION(NPUW_CWAI);
-    REGISTER_OPTION(NPUW_DQ);
-    REGISTER_OPTION(NPUW_DQ_FULL);
-    REGISTER_OPTION(NPUW_PMM);
-    REGISTER_OPTION(NPUW_SLICE_OUT);
-    REGISTER_OPTION(NPUW_SPATIAL);
-    REGISTER_OPTION(NPUW_SPATIAL_NWAY);
-    REGISTER_OPTION(NPUW_SPATIAL_DYN);
-    REGISTER_OPTION(NPUW_F16IC);
-    REGISTER_OPTION(NPUW_HOST_GATHER);
-    REGISTER_OPTION(NPUW_DCOFF_TYPE);
-    REGISTER_OPTION(NPUW_DCOFF_SCALE);
-    REGISTER_OPTION(NPUW_FUNCALL_FOR_ALL);
-    REGISTER_OPTION(NPUW_FUNCALL_ASYNC);
-    REGISTER_OPTION(NPUW_UNFOLD_IREQS);
-    REGISTER_OPTION(NPUW_FALLBACK_EXEC);
-    REGISTER_OPTION(NPUW_LLM);
-    REGISTER_OPTION(NPUW_LLM_BATCH_DIM);
-    REGISTER_OPTION(NPUW_LLM_SEQ_LEN_DIM);
-    REGISTER_OPTION(NPUW_LLM_MAX_PROMPT_LEN);
-    REGISTER_OPTION(NPUW_LLM_MAX_GENERATION_TOKEN_LEN);
-    REGISTER_OPTION(NPUW_LLM_MIN_RESPONSE_LEN);
-    REGISTER_OPTION(NPUW_LLM_OPTIMIZE_V_TENSORS);
-    REGISTER_OPTION(NPUW_LLM_OPTIMIZE_FP8);
-    REGISTER_OPTION(NPUW_LLM_CACHE_ROPE);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_MOE_HINT);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_MOE_HINT);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_PYRAMID);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_CHUNK_SIZE);
-    REGISTER_OPTION(NPUW_LLM_SHARED_HEAD);
-    REGISTER_OPTION(NPUW_LLM_MAX_LORA_RANK);
-    REGISTER_OPTION(NPUW_LLM_ENABLE_PREFIX_CACHING);
-    REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE);
-    REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS);
-    REGISTER_OPTION(NPUW_WHISPER);
-    REGISTER_OPTION(NPUW_WHISPER_EOS_TOKEN);
-    REGISTER_OPTION(NPUW_EAGLE);
-    REGISTER_OPTION(NPUW_TEXT_EMBED);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_HINT);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_ADDITIONAL_PREFILL_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_ATTENTION_HINT);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_HINT);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_ADDITIONAL_GENERATE_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_ATTENTION_HINT);
-    REGISTER_OPTION(NPUW_LLM_SHARED_LM_HEAD_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
-    REGISTER_OPTION(NPUW_KOKORO);
-    REGISTER_OPTION(NPUW_KOKORO_BLOCK_SIZE);
-    REGISTER_OPTION(NPUW_KOKORO_OVERLAP_SIZE);
+    for_each_exposed_npuw_option([&](auto tag) {
+        using Opt = typename decltype(tag)::type;
+        REGISTER_OPTION(Opt);
+    });
 
     config.enableRuntimeOptions();
 
@@ -498,33 +423,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         _logger.warning("Model received in config will be ignored as it was already provided by parameter.");
     }
 
-    // There is an on-going migration from "USE_BASE_MODEL_SERIALIZER" to "MODEL_SERIALIZER_VERSION". Until done, make
-    // sure only the option supported by the compiler is registered in the config.
-    bool useBaseModelSerializer = true;
-    bool modelSerializerChosenExplicitly = false;
-
-    if (get_ir_version(model, _logger) > 10) {
-        const std::string useBaseModelSerializerKey = ov::intel_npu::use_base_model_serializer.name();
-        const std::string modelSerializerVersionKey = ov::intel_npu::model_serializer_version.name();
-        if (localProperties.count(useBaseModelSerializerKey)) {
-            modelSerializerChosenExplicitly = true;
-            useBaseModelSerializer = localProperties.at(useBaseModelSerializerKey).as<bool>();
-            localProperties.erase(useBaseModelSerializerKey);
-            localProperties.erase(modelSerializerVersionKey);
-        } else if (localProperties.count(modelSerializerVersionKey)) {
-            modelSerializerChosenExplicitly = true;
-            const auto modelSerializerVersion =
-                localProperties.at(modelSerializerVersionKey).as<ov::intel_npu::ModelSerializerVersion>();
-            useBaseModelSerializer =
-                !(modelSerializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
-            localProperties.erase(modelSerializerVersionKey);
-        }
-    } else {
-        // Models that use a version < 11 cannot be marshalled using the "no_weights_copy" algorithm. See C#179944.
-        // This is a hack that should be cleaned up after the config option migration is complete.
-        modelSerializerChosenExplicitly = true;
-    }
-
     if (_backend != nullptr) {
         _backend->updateInfo(localProperties);
     }
@@ -646,35 +544,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         localConfig.update({{ov::intel_npu::weightless_blob.name(), cacheModeOptimizeSize ? "YES" : "NO"}});
     }
 
-    if (modelSerializerChosenExplicitly) {
-        if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
-            localConfig.update(
-                {{ov::intel_npu::use_base_model_serializer.name(), useBaseModelSerializer ? "YES" : "NO"}});
-        } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
-            localConfig.update({{ov::intel_npu::model_serializer_version.name(),
-                                 useBaseModelSerializer ? "ALL_WEIGHTS_COPY" : "NO_WEIGHTS_COPY"}});
-        }
-    } else {
-        const auto compilerType = localConfig.get<COMPILER_TYPE>();
-        if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
-            if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
-                localConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "NO"}});
-            } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
-                localConfig.update({{ov::intel_npu::model_serializer_version.name(), "NO_WEIGHTS_COPY"}});
-            }
-        } else if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
-            if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
-                localConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "YES"}});
-            } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
-                localConfig.update({{ov::intel_npu::model_serializer_version.name(), "ALL_WEIGHTS_COPY"}});
-            }
-        }
-    }
-
     std::shared_ptr<intel_npu::IGraph> graph;
 
     auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
-        if (!localConfig.get<WEIGHTLESS_BLOB>() && !localConfig.get<ENABLE_WEIGHTLESS>() ) {
+        if (!localConfig.get<WEIGHTLESS_BLOB>() && !localConfig.get<ENABLE_WEIGHTLESS>()) {
             return compiler->compile(modelToCompile, config);
         } else {
             check_weightless_cache_attribute_occurrence(model);
@@ -688,17 +561,31 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         // Determine which model to use
         auto modelToCompile = successfullyDebatched ? batchedModel : model->clone();
 
-        if (successfullyDebatched && localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY) {
-            _logger.info("Override performance mode to THROUGHPUT for compilation");
+        const bool performanceHintSetByUser = localConfig.has(ov::hint::performance_mode.name());
+        const bool shouldForceThroughput = successfullyDebatched && !performanceHintSetByUser;
+        const bool shouldWarnAboutLatency = successfullyDebatched && performanceHintSetByUser &&
+                                            localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY;
+
+        if (shouldWarnAboutLatency) {
+            _logger.warning("PERFORMANCE_HINT is explicitly set to LATENCY mode, but batch dimension (N) is "
+                            "detected in the model. The NPU Plugin will reshape the model to batch size 1 and "
+                            "process each batch slice separately.");
+            _logger.warning("For optimal performance with batched models, THROUGHPUT mode is highly recommended, "
+                            "as LATENCY mode prevents parallel batch processing.");
+            _logger.warning("If batch detection appears incorrect, verify that the input and output layouts are "
+                            "configured properly.");
+        }
+
+        if (shouldForceThroughput) {
+            _logger.info("Setting performance mode to THROUGHPUT for batched model compilation.");
 
             auto modifiedConfig = localConfig;  // Copy only when needed
             std::stringstream strStream;
             strStream << ov::hint::PerformanceMode::THROUGHPUT;
             modifiedConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
-
             graph = compileWithConfig(std::move(modelToCompile), modifiedConfig);
         } else {
-            graph = compileWithConfig(std::move(modelToCompile), localConfig);  // No copy
+            graph = compileWithConfig(std::move(modelToCompile), localConfig);
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -885,31 +772,6 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     update_log_level(properties);
 
     auto localProperties = properties;
-    // There is an on-going migration from "USE_BASE_MODEL_SERIALIZER" to "MODEL_SERIALIZER_VERSION". Until done, make
-    // sure only the option supported by the compiler is registered in the config.
-    bool useBaseModelSerializer = true;
-    bool modelSerializerChosenExplicitly = false;
-    if (get_ir_version(model, _logger) > 10) {
-        const std::string useBaseModelSerializerKey = ov::intel_npu::use_base_model_serializer.name();
-        const std::string modelSerializerVersionKey = ov::intel_npu::model_serializer_version.name();
-        if (localProperties.count(useBaseModelSerializerKey)) {
-            modelSerializerChosenExplicitly = true;
-            useBaseModelSerializer = localProperties.at(useBaseModelSerializerKey).as<bool>();
-            localProperties.erase(useBaseModelSerializerKey);
-            localProperties.erase(modelSerializerVersionKey);
-        } else if (localProperties.count(modelSerializerVersionKey)) {
-            modelSerializerChosenExplicitly = true;
-            const auto modelSerializerVersion =
-                localProperties.at(modelSerializerVersionKey).as<ov::intel_npu::ModelSerializerVersion>();
-            useBaseModelSerializer =
-                !(modelSerializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
-            localProperties.erase(modelSerializerVersionKey);
-        }
-    } else {
-        // Models that use a version < 11 cannot be marshalled using the "no_weights_copy" algorithm. See C#179944.
-        // This is a hack that should be cleaned up after the config option migration is complete.
-        modelSerializerChosenExplicitly = true;
-    }
     exclude_model_ptr_from_map(localProperties);
 
     if (_backend != nullptr) {
@@ -935,32 +797,6 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     }
 
     FilteredConfig localConfig = _propertiesManager->getConfigForSpecificCompiler(localProperties, compiler.get());
-
-    if (modelSerializerChosenExplicitly) {
-        if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
-            localConfig.update(
-                {{ov::intel_npu::use_base_model_serializer.name(), useBaseModelSerializer ? "YES" : "NO"}});
-        } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
-            localConfig.update({{ov::intel_npu::model_serializer_version.name(),
-                                 useBaseModelSerializer ? "ALL_WEIGHTS_COPY" : "NO_WEIGHTS_COPY"}});
-        }
-    } else {
-        const auto compilerType = localConfig.get<COMPILER_TYPE>();
-        if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
-            if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
-                localConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "NO"}});
-            } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
-                localConfig.update({{ov::intel_npu::model_serializer_version.name(), "NO_WEIGHTS_COPY"}});
-            }
-        } else if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
-            if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
-                localConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "YES"}});
-            } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
-                localConfig.update({{ov::intel_npu::model_serializer_version.name(), "ALL_WEIGHTS_COPY"}});
-            }
-        }
-    }
-
     ov::SupportedOpsMap supportedOpsMap;
     try {
         supportedOpsMap = compiler->query(model->clone(), localConfig);
