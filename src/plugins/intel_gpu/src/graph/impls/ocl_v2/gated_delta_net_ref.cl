@@ -103,8 +103,12 @@ KERNEL(gated_delta_net_ref)
  __global OUTPUT1_TYPE* output_state,
 #endif
  int seq_len,
+ int query_offset,
  int key_offset,
- int value_offset) {
+ int value_offset,
+ int q_t_stride,
+ int k_t_stride,
+ int v_t_stride) {
     const int T_len = seq_len;
     const int H_len = V_HEAD_NUM;
     const int HK_len = K_HEAD_NUM;
@@ -116,9 +120,9 @@ KERNEL(gated_delta_net_ref)
     const int h = get_global_id(1);
     const int lid = get_sub_group_local_id();
 
-    const int Q_T_STRIDE = HK_len * K_len;
-    const int K_T_STRIDE = (HK_len + key_offset) * K_len;
-    const int V_T_STRIDE = (H_len + value_offset) * V_len;
+    const int Q_T_STRIDE = q_t_stride;
+    const int K_T_STRIDE = k_t_stride;
+    const int V_T_STRIDE = v_t_stride;
     const int Q_B_STRIDE = T_len * Q_T_STRIDE;
     const int K_B_STRIDE = T_len * K_T_STRIDE;
     const int V_B_STRIDE = T_len * V_T_STRIDE;
@@ -155,8 +159,7 @@ KERNEL(gated_delta_net_ref)
         for (int k_idx = 0; k_idx < K_len; k_idx++) {
             for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
                 int curr_iv = start_iv + v_idx;
-                h_state_f[v_idx][k_idx] =
-                    (curr_iv < V_len) ? convert_float(initial_state[STATE_BASE + k_idx * V_len + curr_iv]) : 0.0f;
+                h_state_f[v_idx][k_idx] = (curr_iv < V_len) ? convert_float(initial_state[STATE_BASE + k_idx * V_len + curr_iv]) : 0.0f;
             }
         }
     }
@@ -170,7 +173,7 @@ KERNEL(gated_delta_net_ref)
         float b_beta = convert_float(beta[g_idx]);
         const int lane_k_base = lid * (K_HEAD_DIM / SUBGROUP_SIZE);
 
-        int q_offset = b * Q_B_STRIDE + t * Q_T_STRIDE + hk * K_len;
+        int q_offset = b * Q_B_STRIDE + t * Q_T_STRIDE + (hk + query_offset) * K_len;
         int k_offset = b * K_B_STRIDE + t * K_T_STRIDE + (hk + key_offset) * K_len;
         int v_offset = b * V_B_STRIDE + t * V_T_STRIDE + (h + value_offset) * V_len;
         int out_offset = out_bh_base + t * H_len * V_len;
@@ -204,9 +207,9 @@ KERNEL(gated_delta_net_ref)
         }
 
         float4 h_k_vec = (float4)(sub_group_reduce_add(dot_part_k_vec.s0),
-                      sub_group_reduce_add(dot_part_k_vec.s1),
-                      sub_group_reduce_add(dot_part_k_vec.s2),
-                      sub_group_reduce_add(dot_part_k_vec.s3));
+                                  sub_group_reduce_add(dot_part_k_vec.s1),
+                                  sub_group_reduce_add(dot_part_k_vec.s2),
+                                  sub_group_reduce_add(dot_part_k_vec.s3));
 
         for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
             int curr_iv = start_iv + v_idx;
@@ -222,9 +225,9 @@ KERNEL(gated_delta_net_ref)
         }
 
         float4 b_output_vec = (float4)(sub_group_reduce_add(dot_part_q_vec.s0),
-                           sub_group_reduce_add(dot_part_q_vec.s1),
-                           sub_group_reduce_add(dot_part_q_vec.s2),
-                           sub_group_reduce_add(dot_part_q_vec.s3));
+                                       sub_group_reduce_add(dot_part_q_vec.s1),
+                                       sub_group_reduce_add(dot_part_q_vec.s2),
+                                       sub_group_reduce_add(dot_part_q_vec.s3));
 
         if (lid == 0) {
             for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
@@ -238,7 +241,7 @@ KERNEL(gated_delta_net_ref)
             float b_g = exp(convert_float(g[g_idx]));
             float b_beta = convert_float(beta[g_idx]);
 
-            int q_offset = b * Q_B_STRIDE + t * Q_T_STRIDE + hk * K_len;
+            int q_offset = b * Q_B_STRIDE + t * Q_T_STRIDE + (hk + query_offset) * K_len;
             int k_offset = b * K_B_STRIDE + t * K_T_STRIDE + (hk + key_offset) * K_len;
             int v_offset = b * V_B_STRIDE + t * V_T_STRIDE + (h + value_offset) * V_len;
             int out_offset = out_bh_base + t * H_len * V_len;
