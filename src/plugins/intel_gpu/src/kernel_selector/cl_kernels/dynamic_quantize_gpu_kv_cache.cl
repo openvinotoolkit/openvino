@@ -104,7 +104,9 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
     ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((UINT4_RANGE) / diff_value);
     ACCUMULATOR_TYPE zp_tmp    = (ACCUMULATOR_TYPE)(-min_value * scale_tmp); // maps min -> 0, max -> UINT4_RANGE
 
-    const uint output_offset = OUTPUT_GET_INDEX(b, f, y, x);
+    // INT4 packed buffer: the output layout uses i8 with full head_size shape,
+    // so divide by 2 to get the correct packed byte offset (2 INT4 values per byte).
+    const uint output_offset = OUTPUT_GET_INDEX(b, f, y, x) / 2;
     // Pairs of consecutive SUBGROUP_SIZE blocks are packed together.
     unroll_for (uint i = 0; i < INNERMOST_DIM_VALUE / SUBGROUP_SIZE; i += 2) {
         uchar q0 = (uchar)clamp(convert_int_rte((float)val[i]     * scale_tmp + zp_tmp), 0, UINT4_RANGE);

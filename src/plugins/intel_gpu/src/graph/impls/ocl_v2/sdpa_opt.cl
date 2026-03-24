@@ -272,6 +272,15 @@ KERNEL(sdpa_opt)(
             // Main Gemm1 calculation loop
             // Each SG performs element-wise multiplications of Q[HEAD_SIZE]xK[HEAD_SIZE] values
             // HEAD_SIZE / SUBGROUPS_PER_WG times in the loop and saves the result to the qk_local SLM buffer
+#if IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+    #ifdef INPUT1_DIMS_ORDER
+            const uint key_base_p0 = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 0, 0);
+            const uint key_packed_pitch_p0 = (FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 1, 0) - key_base_p0) / 2;
+    #else
+            const uint key_base_p0 = INPUT1_GET_INDEX(b0_idx, b1_idx, 0, 0);
+            const uint key_packed_pitch_p0 = K_HEAD_SIZE / 2;
+    #endif
+#endif
             for (uint seq_len = sgid; seq_len < partition_seq_len; seq_len += SUBGROUPS_PER_WG) {
 #ifdef BEAM_TABLE_TYPE
                 const uint b_idx = beam_table[FUNC_CALL(get_bt_index_key)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len, 0)];
@@ -279,7 +288,9 @@ KERNEL(sdpa_opt)(
                 const uint b_idx = b0_idx;
 #endif
 
-#ifdef INPUT1_DIMS_ORDER
+#if IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+                uint key_offset = key_base_p0 + (start_partition_idx + seq_len) * key_packed_pitch_p0;
+#elif defined(INPUT1_DIMS_ORDER)
                 uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len, 0);
 #else
                 uint key_offset = INPUT1_GET_INDEX(b_idx, b1_idx, start_partition_idx + seq_len, 0);
@@ -712,15 +723,28 @@ KERNEL(sdpa_opt)(
 #ifdef INPUT2_DIMS_ORDER
         uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 0, 0);
         uint value_offset_next_seq = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 1, 0);
+    #if IS_INT4_COMPRESSED
+        const uint value_pitch = (value_offset_next_seq - value_offset) / 2;
+    #else
         const uint value_pitch = value_offset_next_seq - value_offset;
+    #endif
 #else
-#if IS_INT4_COMPRESSED
-        // INT4: GET_INDEX returns element-level offsets; rows are V_HEAD_SIZE apart
+    #if IS_INT4_COMPRESSED
+        const uint value_pitch = V_HEAD_SIZE / 2;
+    #else
         const uint value_pitch = V_HEAD_SIZE;
-#else
-        const uint value_pitch = V_HEAD_SIZE;
+    #endif
 #endif
 #endif
+
+#if IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+        const uint val_packed_x = (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE;
+        const uint order_in_packed_p0 = (head_size_idx / SUBGROUP_SIZE) & 1;
+    #ifdef INPUT2_DIMS_ORDER
+        const uint value_base_p0 = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 0, val_packed_x);
+    #else
+        const uint value_base_p0 = INPUT2_GET_INDEX(b0_idx, b1_idx, 0, val_packed_x);
+    #endif
 #endif
 
 #if SG_SCALE_FACTOR > 1
@@ -738,20 +762,12 @@ KERNEL(sdpa_opt)(
 #else
             const uint b_idx = b0_idx;
     #if IS_INT4_COMPRESSED
-                const uint order_in_packed = (head_size_idx / SUBGROUP_SIZE) & 1;
-    #endif
-    #ifdef INPUT2_DIMS_ORDER
-        #if IS_INT4_COMPRESSED
-                    uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
-        #else
-                    uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
-        #endif
+                const uint order_in_packed = order_in_packed_p0;
+                uint value_offset = value_base_p0 + (start_partition_idx + (seq_len * SUBGROUP_SIZE)) * value_pitch;
+    #elif defined(INPUT2_DIMS_ORDER)
+                uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
     #else
-        #if IS_INT4_COMPRESSED
-                    uint value_offset = INPUT2_GET_INDEX(b_idx, b1_idx, start_partition_idx + (seq_len * SUBGROUP_SIZE), (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
-        #else
-                    uint value_offset = INPUT2_GET_INDEX(b_idx, b1_idx, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
-        #endif
+                uint value_offset = INPUT2_GET_INDEX(b_idx, b1_idx, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
     #endif
 #endif
 
@@ -811,21 +827,13 @@ KERNEL(sdpa_opt)(
             const uint b_idx = b0_idx;
 #endif
 
-#if IS_INT4_COMPRESSED
-            const uint order_in_packed = (head_size_idx / SUBGROUP_SIZE) & 1;
-#endif
-#ifdef INPUT2_DIMS_ORDER
-#if IS_INT4_COMPRESSED
-            const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len, (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
-#else
+#if IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+            const uint order_in_packed = order_in_packed_p0;
+            const uint value_offset = value_base_p0 + (start_partition_idx + seq_len) * value_pitch;
+#elif defined(INPUT2_DIMS_ORDER)
             const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len, head_size_idx);
-#endif
-#else
-#if IS_INT4_COMPRESSED
-            const uint value_offset = INPUT2_GET_INDEX(b_idx, b1_idx, start_partition_idx + seq_len, (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
 #else
             const uint value_offset = INPUT2_GET_INDEX(b_idx, b1_idx, start_partition_idx + seq_len, head_size_idx);
-#endif
 #endif
 
 #if IS_KV_COMPRESSED
@@ -1385,6 +1393,16 @@ KERNEL(sdpa_opt)(
     // Q*K calculation loop
     MAKE_VECTOR_TYPE(OUTPUT_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) output_acc = OUTPUT_VAL_ZERO;
 
+#if IS_INT4_COMPRESSED && !defined(IS_PAGED_ATTENTION) && !defined(BEAM_TABLE_TYPE)
+    #ifdef INPUT1_DIMS_ORDER
+    const uint key_base_s1 = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 0, 0);
+    const uint key_packed_pitch_s1 = (FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 1, 0) - key_base_s1) / 2;
+    #else
+    const uint key_base_s1 = INPUT1_GET_INDEX(b0_idx, b1_idx, 0, 0);
+    const uint key_packed_pitch_s1 = K_HEAD_SIZE / 2;
+    #endif
+#endif
+
     __attribute__((opencl_unroll_hint(1)))
     for (uint start_partition_idx = 0; start_partition_idx < SOURCE_SEQ_LEN; start_partition_idx += SEQ_LEN_PARTITION_SIZE) {
         const uint seq_len = start_partition_idx + sgid * SUBGROUP_SIZE;
@@ -1416,7 +1434,10 @@ KERNEL(sdpa_opt)(
             const uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, seq_len + sglid, 0);
 #else
             const uint b_idx = b0_idx;
-    #ifdef INPUT1_DIMS_ORDER
+    #if IS_INT4_COMPRESSED
+            uint key_offset = key_base_s1 + seq_len * key_packed_pitch_s1;
+            const uint key_pitch = key_packed_pitch_s1;
+    #elif defined(INPUT1_DIMS_ORDER)
             uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, seq_len, 0);
             uint key_offset_next_seq = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, seq_len + 1, 0);
             const uint key_pitch = key_offset_next_seq - key_offset;
@@ -1452,7 +1473,7 @@ KERNEL(sdpa_opt)(
                     // INT4: process 2*SUBGROUP_SIZE logical head dims per iteration (one packed byte per lane per token row)
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset);
                     #define QUERY_VEC MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
-                    const uint key_pitch_int4 = K_HEAD_SIZE;
+                    const uint key_pitch_int4 = K_HEAD_SIZE / 2;
                     for (uint hi = 0; hi < K_HEAD_SIZE; hi += 2 * SUBGROUP_SIZE) {
                         QUERY_VEC qvec_lo, qvec_hi;
                         uint qlo = hi * TARGET_SEQ_LEN_BLOCK_SIZE + sglid;
@@ -1549,7 +1570,7 @@ KERNEL(sdpa_opt)(
                     // INT4 partial block: process 2*SUBGROUP_SIZE logical head dims per iteration
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset)
                     #define QUERY_VEC_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
-                    const uint key_pitch_int4 = K_HEAD_SIZE;
+                    const uint key_pitch_int4 = K_HEAD_SIZE / 2;
                     for (uint hi = 0; hi < K_HEAD_SIZE; hi += 2 * SUBGROUP_SIZE) {
                         QUERY_VEC_TYPE qvec_lo, qvec_hi;
                         uint qlo = hi * TARGET_SEQ_LEN_BLOCK_SIZE + sglid;
@@ -1934,15 +1955,28 @@ KERNEL(sdpa_opt)(
 #ifdef INPUT2_DIMS_ORDER
             uint value_offset_base = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 0, 0);
             uint value_offset_next_seq = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 1, 0);
+    #if IS_INT4_COMPRESSED
+            const uint value_pitch = (value_offset_next_seq - value_offset_base) / 2;
+    #else
             const uint value_pitch = value_offset_next_seq - value_offset_base;
+    #endif
 #else
-#if IS_INT4_COMPRESSED
-            // INT4: GET_INDEX returns element-level offsets; rows are V_HEAD_SIZE apart
+    #if IS_INT4_COMPRESSED
+            const uint value_pitch = V_HEAD_SIZE / 2;
+    #else
             const uint value_pitch = V_HEAD_SIZE;
-#else
-            const uint value_pitch = V_HEAD_SIZE;
+    #endif
 #endif
 #endif
+
+#if IS_INT4_COMPRESSED && !defined(IS_PAGED_ATTENTION) && !defined(BEAM_TABLE_TYPE)
+            const uint val_packed_x_s1 = (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE;
+            const uint order_in_packed_s1 = (head_size_idx / SUBGROUP_SIZE) & 1;
+    #ifdef INPUT2_DIMS_ORDER
+            const uint value_base_s1 = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 0, val_packed_x_s1);
+    #else
+            const uint value_base_s1 = INPUT2_GET_INDEX(b0_idx, b1_idx, 0, val_packed_x_s1);
+    #endif
 #endif
 
             if (partition_seq_len == SEQ_LEN_PARTITION_SIZE) {
@@ -1966,20 +2000,12 @@ KERNEL(sdpa_opt)(
 #else
                     const uint b_idx = b0_idx;
     #if IS_INT4_COMPRESSED
-                    const uint order_in_packed = (head_size_idx / SUBGROUP_SIZE) & 1;
-    #endif
-    #ifdef INPUT2_DIMS_ORDER
-    #if IS_INT4_COMPRESSED
-                    uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len), (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
-    #else
+                    const uint order_in_packed = order_in_packed_s1;
+                    uint value_offset = value_base_s1 + (start_partition_idx + (seq_len)) * value_pitch;
+    #elif defined(INPUT2_DIMS_ORDER)
                     uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len), head_size_idx);
-    #endif
-    #else
-    #if IS_INT4_COMPRESSED
-                    uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + (seq_len), (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
     #else
                     uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + (seq_len), head_size_idx);
-    #endif
     #endif
 #endif
 #endif
@@ -2082,20 +2108,12 @@ KERNEL(sdpa_opt)(
                 #else
                     const uint b_idx = b0_idx;
                 #if IS_INT4_COMPRESSED
-                    const uint order_in_packed = (head_size_idx / SUBGROUP_SIZE) & 1;
-                #endif
-                #ifdef INPUT2_DIMS_ORDER
-                #if IS_INT4_COMPRESSED
-                    uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
-                #else
+                    const uint order_in_packed = order_in_packed_s1;
+                    uint value_offset = value_base_s1 + (start_partition_idx + (seq_len * SUBGROUP_SIZE)) * value_pitch;
+                #elif defined(INPUT2_DIMS_ORDER)
                     uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
-                #endif
-                #else
-                #if IS_INT4_COMPRESSED
-                    uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + (seq_len * SUBGROUP_SIZE), (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
                 #else
                     uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
-                #endif
                 #endif
             #endif
 #endif
@@ -2203,20 +2221,12 @@ KERNEL(sdpa_opt)(
 #else
                     const uint b_idx = b0_idx;
     #if IS_INT4_COMPRESSED
-                    const uint order_in_packed = (head_size_idx / SUBGROUP_SIZE) & 1;
-    #endif
-    #ifdef INPUT2_DIMS_ORDER
-    #if IS_INT4_COMPRESSED
-                    uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len_leftovers_start, (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
-    #else
+                    const uint order_in_packed = order_in_packed_s1;
+                    uint value_offset = value_base_s1 + (start_partition_idx + seq_len_leftovers_start) * value_pitch;
+    #elif defined(INPUT2_DIMS_ORDER)
                     uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len_leftovers_start, head_size_idx);
-    #endif
-    #else
-    #if IS_INT4_COMPRESSED
-                    uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + seq_len_leftovers_start, (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE);
     #else
                     uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + seq_len_leftovers_start, head_size_idx);
-    #endif
     #endif
 #endif
 #endif
