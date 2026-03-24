@@ -442,7 +442,11 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
             element_count--;
         }
     }
-    if (element_count == 0 && (m_shape.size() == 0 || shape_size(m_shape) == 0)) {
+    if (element_count != shape_size(m_shape)) {
+        FRONT_END_THROW("The number of elements implied by the data size does not match the shape of an initializer '" +
+                        get_name() + "' in the model");
+    }
+    if (element_count == 0) {
         constant = common::make_failsafe_constant(ov_type);
     } else if (has_external_data()) {
         const auto ext_data = m_tensor_place != nullptr
@@ -467,7 +471,7 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
                 "The size of the external data file does not match the byte size of an initializer '" + get_name() +
                 "' in the model");
         }
-    } else if (element_count == shape_size(m_shape) && m_tensor_proto != nullptr) {
+    } else if (m_tensor_proto != nullptr) {
         switch (m_tensor_proto->data_type()) {
         case TensorProto_DataType::TensorProto_DataType_FLOAT:
         case TensorProto_DataType::TensorProto_DataType_DOUBLE:
@@ -519,7 +523,7 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
                 "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
                 "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
         }
-    } else if (element_count == shape_size(m_shape) && m_tensor_place != nullptr) {
+    } else if (m_tensor_place != nullptr) {
         switch (m_tensor_place->get_element_type()) {
         case ov::element::f32:
         case ov::element::f64:
