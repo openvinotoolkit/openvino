@@ -327,6 +327,41 @@ TEST(FailsafeCompiledModelTest, InferenceFailureFallsBackAndRebindsTensors) {
                                         "infer:CPU"}));
 }
 
+TEST(FailsafeCompiledModelTest, UserProvidedOutputBufferReceivesFailoverResult) {
+    auto model = make_test_model();
+    auto plugin = std::make_shared<NullPlugin>();
+    std::vector<std::string> events;
+    auto first = std::make_shared<CandidateState>(CandidateState{"NPU", &events, 0, 1, 10.f});
+    auto second = std::make_shared<CandidateState>(CandidateState{"CPU", &events, 0, 0, 20.f});
+
+    auto compiled = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(ov::npuw::failsafe::CompiledModel::create(
+        model,
+        plugin,
+        {"NPU", "CPU"},
+        make_factory(model, plugin, {{"NPU", first}, {"CPU", second}})));
+
+    ASSERT_NE(compiled, nullptr);
+    auto request = compiled->create_sync_infer_request();
+    auto input = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{1}));
+    auto output = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{1}));
+    input->data<float>()[0] = 3.f;
+    output->data<float>()[0] = -1.f;
+    request->set_tensor(model->inputs().front(), input);
+    request->set_tensor(model->outputs().front(), output);
+
+    ASSERT_NO_THROW(request->infer());
+    EXPECT_EQ(compiled->active_device_name(), "CPU");
+    EXPECT_EQ(request->get_tensor(model->outputs().front())._ptr, output._ptr);
+    EXPECT_FLOAT_EQ(output->data<const float>()[0], 23.f);
+    EXPECT_EQ(events,
+              (std::vector<std::string>{"compile:NPU",
+                                        "create-request:NPU",
+                                        "infer:NPU",
+                                        "compile:CPU",
+                                        "create-request:CPU",
+                                        "infer:CPU"}));
+}
+
 TEST(FailsafeCompiledModelTest, ChainedInferenceSurvivesUpstreamAndDownstreamFailover) {
     auto model = make_test_model();
     auto plugin = std::make_shared<NullPlugin>();

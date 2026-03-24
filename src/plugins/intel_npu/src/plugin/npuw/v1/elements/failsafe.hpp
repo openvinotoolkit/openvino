@@ -57,7 +57,7 @@ private:
         std::shared_ptr<ov::ICompiledModel> compiled_model;
     };
 
-    ActiveState ensure_compiled_locked() const;
+    ActiveState ensure_active_compiled_model_locked() const;
     ActiveState failover_from_locked(std::size_t generation, const char* stage, std::exception_ptr failure) const;
     std::shared_ptr<ov::IAsyncInferRequest> create_request(std::size_t& generation) const;
     bool is_generation_current(std::size_t generation) const;
@@ -110,14 +110,14 @@ private:
     };
 
     void materialize() const;
-    void ensure_request_locked() const;
+    void ensure_inner_request_locked() const;
     PortKey port_key_locked(const ov::Output<const ov::Node>& port) const;
     bool is_output_port_locked(const ov::Output<const ov::Node>& port) const;
     PortTensors& get_or_create_port_tensors_locked(const ov::Output<const ov::Node>& port) const;
-    void bind_input_tensors_locked(const ov::Output<const ov::Node>& port,
-                                   const std::vector<ov::SoPtr<ov::ITensor>>& tensors) const;
-    void sync_output_tensors_locked() const;
-    void rebind_user_tensors_locked() const;
+    void bind_public_input_tensors_locked(const ov::Output<const ov::Node>& port,
+                                          const std::vector<ov::SoPtr<ov::ITensor>>& tensors) const;
+    void sync_public_output_tensors_locked() const;
+    void rebind_public_input_tensors_locked() const;
 
     std::shared_ptr<const CompiledModel> m_failsafe_compiled_model;
     mutable std::mutex m_mutex;
