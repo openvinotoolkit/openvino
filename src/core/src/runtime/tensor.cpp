@@ -264,9 +264,16 @@ Tensor read_tensor_data(ov::FileHandle file_handle,
                         size_t offset_in_bytes) {
     OPENVINO_ASSERT(element_type != ov::element::string);
     const auto size = get_size_for_mapping(element_type, partial_shape);
+#ifdef BUILD_OPENVINO_WITH_CHROMIUM
     return read_tensor_data_mmap_impl(load_mmap_object_from_handle(file_handle, offset_in_bytes, size),
                                       element_type,
                                       partial_shape,
                                       offset_in_bytes);
+#else
+    return read_tensor_data_mmap_impl(load_mmap_object(file_handle, offset_in_bytes, size),
+                                      element_type,
+                                      partial_shape,
+                                      offset_in_bytes);
+#endif
 }
 }  // namespace ov

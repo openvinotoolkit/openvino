@@ -1404,7 +1404,11 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
             // Use handle_provider if available, otherwise use default mmap with weights_path
             if (handle_provider) {
                 ov::FileHandle handle = handle_provider();
+#ifdef BUILD_OPENVINO_WITH_CHROMIUM
                 mapped_memory = ov::load_mmap_object_from_handle(handle);
+#else
+                mapped_memory = ov::load_mmap_object(handle.get()));
+#endif
             } else if (!weights_path.empty()) {
                 mapped_memory = ov::load_mmap_object(ov::util::make_path(weights_path));
             }

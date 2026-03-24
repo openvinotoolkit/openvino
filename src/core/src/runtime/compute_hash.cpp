@@ -647,14 +647,14 @@ void ComputeHash<avx512_core>::join(const Vmm& v_dst) {
     }
 
     mov(r64_aux, ptr[r64_params + GET_OFF(intermediate_ptr)]);
-    prefetcht0(ptr[static_cast<Xbyak::RegExp>(r64_aux ) + 1024]);
+    prefetcht0(ptr[static_cast<Xbyak::RegExp>(r64_aux) + 1024]);
 
     auto xmm_src_0 = getXmm();
     auto xmm_src_last = Xbyak::Xmm(v_dst.getIdx());
     auto xmm_aux_0 = getXmm();
     auto xmm_k_2_3 = Xbyak::Xmm(v_k_2_3.getIdx());
 
-    uni_vmovdqu64(xmm_src_last, ptr[static_cast<Xbyak::RegExp>(r64_aux ) + xmm_len * 7]);
+    uni_vmovdqu64(xmm_src_last, ptr[static_cast<Xbyak::RegExp>(r64_aux) + xmm_len * 7]);
 
     uni_vmovdqu64(xmm_src_0, ptr[r64_aux]);
     vpclmulqdq(xmm_aux_0, xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_k_ptr) + K_14_15_OFF], 0b00000000);
@@ -662,37 +662,37 @@ void ComputeHash<avx512_core>::join(const Vmm& v_dst) {
     uni_vpxorq(xmm_src_last, xmm_src_last, xmm_aux_0);
     uni_vpxorq(xmm_src_last, xmm_src_last, xmm_src_0);
 
-    uni_vmovdqu64(xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_aux ) + xmm_len]);
+    uni_vmovdqu64(xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_aux) + xmm_len]);
     vpclmulqdq(xmm_aux_0, xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_k_ptr) + K_12_13_OFF], 0b00000000);
     vpclmulqdq(xmm_src_0, xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_k_ptr) + K_12_13_OFF], 0b00010001);
     uni_vpxorq(xmm_src_last, xmm_src_last, xmm_aux_0);
     uni_vpxorq(xmm_src_last, xmm_src_last, xmm_src_0);
 
-    uni_vmovdqu64(xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_aux ) + xmm_len * 2lu]);
+    uni_vmovdqu64(xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_aux) + xmm_len * 2lu]);
     vpclmulqdq(xmm_aux_0, xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_k_ptr) + K_10_11_OFF], 0b00000000);
     vpclmulqdq(xmm_src_0, xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_k_ptr) + K_10_11_OFF], 0b00010001);
     uni_vpxorq(xmm_src_last, xmm_src_last, xmm_aux_0);
     uni_vpxorq(xmm_src_last, xmm_src_last, xmm_src_0);
 
-    uni_vmovdqu64(xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_aux ) + xmm_len * 3lu]);
+    uni_vmovdqu64(xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_aux) + xmm_len * 3lu]);
     vpclmulqdq(xmm_aux_0, xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_k_ptr) + K_8_9_OFF], 0b00000000);
     vpclmulqdq(xmm_src_0, xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_k_ptr) + K_8_9_OFF], 0b00010001);
     uni_vpxorq(xmm_src_last, xmm_src_last, xmm_aux_0);
     uni_vpxorq(xmm_src_last, xmm_src_last, xmm_src_0);
 
-    uni_vmovdqu64(xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_aux ) + xmm_len * 4lu]);
+    uni_vmovdqu64(xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_aux) + xmm_len * 4lu]);
     vpclmulqdq(xmm_aux_0, xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_k_ptr) + K_6_7_OFF], 0b00000000);
     vpclmulqdq(xmm_src_0, xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_k_ptr) + K_6_7_OFF], 0b00010001);
     uni_vpxorq(xmm_src_last, xmm_src_last, xmm_aux_0);
     uni_vpxorq(xmm_src_last, xmm_src_last, xmm_src_0);
 
-    uni_vmovdqu64(xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_aux ) + xmm_len * 5lu]);
+    uni_vmovdqu64(xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_aux) + xmm_len * 5lu]);
     vpclmulqdq(xmm_aux_0, xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_k_ptr) + K_4_5_OFF], 0b00000000);
     vpclmulqdq(xmm_src_0, xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_k_ptr) + K_4_5_OFF], 0b00010001);
     uni_vpxorq(xmm_src_last, xmm_src_last, xmm_aux_0);
     uni_vpxorq(xmm_src_last, xmm_src_last, xmm_src_0);
 
-    uni_vmovdqu64(xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_aux ) + xmm_len * 6lu]);
+    uni_vmovdqu64(xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_aux) + xmm_len * 6lu]);
     vpclmulqdq(xmm_aux_0, xmm_src_0, xmm_k_2_3, 0b00000000);
     vpclmulqdq(xmm_src_0, xmm_src_0, xmm_k_2_3, 0b00010001);
     uni_vpxorq(xmm_src_last, xmm_src_last, xmm_aux_0);
@@ -706,28 +706,28 @@ void ComputeHash<isa>::join(const Vmm& v_dst) {
     }
 
     mov(r64_aux, ptr[r64_params + GET_OFF(intermediate_ptr)]);
-    prefetcht0(ptr[static_cast<Xbyak::RegExp>(r64_aux ) + 1024]);
+    prefetcht0(ptr[static_cast<Xbyak::RegExp>(r64_aux) + 1024]);
 
     auto xmm_src_0 = getXmm();
     auto xmm_src_last = Xbyak::Xmm(v_dst.getIdx());
     auto xmm_aux_0 = getXmm();
     auto xmm_k_2_3 = Xbyak::Xmm(v_k_2_3.getIdx());
 
-    uni_vmovdqu64(xmm_src_last, ptr[static_cast<Xbyak::RegExp>(r64_aux ) + xmm_len * 3]);
+    uni_vmovdqu64(xmm_src_last, ptr[static_cast<Xbyak::RegExp>(r64_aux) + xmm_len * 3]);
 
-    uni_vmovdqu64(xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_aux ) + xmm_len * 0lu]);
+    uni_vmovdqu64(xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_aux) + xmm_len * 0lu]);
     vpclmulqdq(xmm_aux_0, xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_k_ptr) + K_6_7_OFF], 0b00000000);
     vpclmulqdq(xmm_src_0, xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_k_ptr) + K_6_7_OFF], 0b00010001);
     uni_vpxorq(xmm_src_last, xmm_src_last, xmm_aux_0);
     uni_vpxorq(xmm_src_last, xmm_src_last, xmm_src_0);
 
-    uni_vmovdqu64(xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_aux ) + xmm_len * 1lu]);
+    uni_vmovdqu64(xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_aux) + xmm_len * 1lu]);
     vpclmulqdq(xmm_aux_0, xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_k_ptr) + K_4_5_OFF], 0b00000000);
     vpclmulqdq(xmm_src_0, xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_k_ptr) + K_4_5_OFF], 0b00010001);
     uni_vpxorq(xmm_src_last, xmm_src_last, xmm_aux_0);
     uni_vpxorq(xmm_src_last, xmm_src_last, xmm_src_0);
 
-    uni_vmovdqu64(xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_aux ) + xmm_len * 2lu]);
+    uni_vmovdqu64(xmm_src_0, ptr[static_cast<Xbyak::RegExp>(r64_aux) + xmm_len * 2lu]);
     vpclmulqdq(xmm_aux_0, xmm_src_0, xmm_k_2_3, 0b00000000);
     vpclmulqdq(xmm_src_0, xmm_src_0, xmm_k_2_3, 0b00010001);
     uni_vpxorq(xmm_src_last, xmm_src_last, xmm_aux_0);
