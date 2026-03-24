@@ -2388,8 +2388,8 @@ size_t jit_soft_sign_emitter::aux_vecs_count() const {
 
 /// ERFINV ///
 namespace {
-static inline uint32_t erfinv_f2u(float f) {
-    uint32_t u;
+inline uint32_t erfinv_f2u(float f) {
+    uint32_t u = 0;
     std::memcpy(&u, &f, sizeof(u));
     return u;
 }
@@ -2562,18 +2562,18 @@ void jit_erfinv_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
 void jit_erfinv_emitter::register_table_entries() {
     push_arg_entry_of("one", CONST_1_F, true);
-    push_arg_entry_of("half", erfinv_f2u(0.5f), true);
+    push_arg_entry_of("half", erfinv_f2u(0.5F), true);
     push_arg_entry_of("sign_mask", 0x80000000, true);
     push_arg_entry_of("abs_mask", 0x7fffffff, true);
     push_arg_entry_of("pos_inf", 0x7f800000, true);
     push_arg_entry_of("qnan", 0x7fc00000, true);
     push_arg_entry_of("mantissa_mask", 0x007fffff, true);
     // bias_mask and "one" are both 0x3f800000; reuse "one" for vorps
-    push_arg_entry_of("int126", 126u, true);  // integer 126 for vpsubd
+    push_arg_entry_of("int126", 126U, true);  // integer 126 for vpsubd
     push_arg_entry_of("ln2", 0x3f317218, true);
-    push_arg_entry_of("two_point_five", erfinv_f2u(2.5f), true);
-    push_arg_entry_of("three", erfinv_f2u(3.0f), true);
-    push_arg_entry_of("five", erfinv_f2u(5.0f), true);
+    push_arg_entry_of("two_point_five", erfinv_f2u(2.5F), true);
+    push_arg_entry_of("three", erfinv_f2u(3.0F), true);
+    push_arg_entry_of("five", erfinv_f2u(5.0F), true);
     // Log polynomial: log(1+h) Taylor coefficients (from softplus emitter)
     push_arg_entry_of("log_pol0", 0xbf000000, true);  // -1/2
     push_arg_entry_of("log_pol1", 0x3eaaaa9f, true);  //  1/3
