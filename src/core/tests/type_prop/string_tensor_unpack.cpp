@@ -97,7 +97,7 @@ TEST_P(TypePropStringTensorUnpackZeroDimTestSuite, chars_output_is_zero_when_inp
 
 INSTANTIATE_TEST_SUITE_P(TypePropStringTensorUnpackZeroDimTests,
                          TypePropStringTensorUnpackZeroDimTestSuite,
-                         ::testing::Values(PartialShape{0}, PartialShape{0, 3}, PartialShape{2, 0, 3}));
+                         ::testing::Values(PartialShape{0}, PartialShape{0, 3}, PartialShape{2, 0, 3}, PartialShape{{2, 5}, 0, {0, 7}, 8}));
 
 TEST(type_prop, StringTensorUnpack_incorrect_data_type) {
     const auto data = std::make_shared<Parameter>(element::u8, PartialShape{3, 6});
