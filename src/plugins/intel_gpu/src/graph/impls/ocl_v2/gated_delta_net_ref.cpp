@@ -74,6 +74,10 @@ protected:
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});
         args.push_back({ArgumentDescriptor::Types::SCALAR, 2});
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 3});
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 4});
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 5});
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 6});
 
         return args;
     }
@@ -92,27 +96,34 @@ protected:
             const size_t v_blocks = (v_head_dims + v_block_size - 1) / v_block_size;
             const size_t subgroup_size = get_subgroup_size(params.get_device_info().arch);
 
-            auto get_simple_offset = [](const cldnn::layout& layout) {
-                size_t offset = 0;
-                const auto& data_padding = layout.data_padding;
-                const auto& lower_pads = data_padding._lower_size;
-                for (auto& it : lower_pads) {
-                    if (it > 0) {
-                        offset = it;
-                        break;
-                    }
-                }
-                return offset;
+            auto get_head_offset = [](const cldnn::layout& layout) {
+                const auto& lower_pads = layout.data_padding._lower_size;
+                return lower_pads.size() > 2 ? lower_pads[2] : 0;
             };
 
-            size_t key_offset = get_simple_offset(params.input_layouts[1]);
-            size_t value_offset = get_simple_offset(params.input_layouts[2]);
+            const auto& q_pitches = params.input_layouts[0].get_pitches();
+            const auto& k_pitches = params.input_layouts[1].get_pitches();
+            const auto& v_pitches = params.input_layouts[2].get_pitches();
+
+            size_t query_offset = get_head_offset(params.input_layouts[0]);
+            size_t key_offset = get_head_offset(params.input_layouts[1]);
+            size_t value_offset = get_head_offset(params.input_layouts[2]);
+
+            const int32_t q_t_stride = q_pitches.size() > 1 ? static_cast<int32_t>(q_pitches[1]) : static_cast<int32_t>(q_shape[2].get_length() * q_shape[3].get_length());
+            const int32_t k_t_stride = k_pitches.size() > 1 ? static_cast<int32_t>(k_pitches[1]) : static_cast<int32_t>(q_shape[2].get_length() * q_shape[3].get_length());
+            const int32_t v_t_stride = v_pitches.size() > 1 ? static_cast<int32_t>(v_pitches[1]) : static_cast<int32_t>(v_shape[2].get_length() * v_shape[3].get_length());
 
             wgs.global = {batch, head_nums, v_blocks * subgroup_size};
             wgs.local = {1, 1, subgroup_size};
 
             kd.params.scalars.clear();
-            std::vector<int32_t> scalars{static_cast<int32_t>(seq_len), static_cast<int32_t>(key_offset), static_cast<int32_t>(value_offset)};
+            std::vector<int32_t> scalars{static_cast<int32_t>(seq_len),
+                                         static_cast<int32_t>(query_offset),
+                                         static_cast<int32_t>(key_offset),
+                                         static_cast<int32_t>(value_offset),
+                                         q_t_stride,
+                                         k_t_stride,
+                                         v_t_stride};
             for (auto i : scalars) {
                 scalar_desc desc;
                 desc.t = scalar_desc::Types::INT32;
