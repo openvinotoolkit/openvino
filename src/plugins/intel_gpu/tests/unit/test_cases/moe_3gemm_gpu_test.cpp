@@ -641,9 +641,9 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
     auto w2_weight_mem = create_weight_tensor(w2_q_packed, config.num_experts, config.hidden_size, config.group_size, group_num2);
     auto w2_scale_mem = create_f16_tensor(w2_scale, config.num_experts, group_num2, 1, config.hidden_size);
     auto w2_zp_mem = create_zp_tensor(w2_zp_packed, config.num_experts, group_num2, 1, config.hidden_size);
-    
+
     // Shared Expert Weights (num_experts = 1)
-    // create_weight_tensor(values, b, f, y, x) -> b=1, f=inter_size, y=group_num, x=group_size
+    // create_weight_tensor(values, b, f, y, x) -> b=1, f=inter_size, y=group_size, x=group_num
     auto s_gate_weight_mem = create_weight_tensor(s_gate_q_packed, 1, config.inter_size, config.group_size, group_num);
     auto s_gate_scale_mem = create_f16_tensor(s_gate_scale, 1, group_num, 1, config.inter_size);
     auto s_gate_zp_mem = create_zp_tensor(s_gate_zp_packed, 1, group_num, 1, config.inter_size);

@@ -176,16 +176,16 @@ TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertCompressedTest) {
         auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 6, 2048}, {0.01f});
         auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 6, 2048}, {0});
 
-        // Shared expert weights
-        auto sh_wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {2});
-        auto sh_scale_gate = op::v0::Constant::create(element::f16, Shape{128, 16, 768}, {0.02f});
-        auto sh_zp_gate = op::v0::Constant::create(element::u4, Shape{128, 16, 768}, {0});
-        auto sh_wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {2});
-        auto sh_scale_up = op::v0::Constant::create(element::f16, Shape{128, 16, 768}, {0.02f});
-        auto sh_zp_up = op::v0::Constant::create(element::u4, Shape{128, 16, 768, 16}, {0});
-        auto sh_wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {2});
-        auto sh_scale_down = op::v0::Constant::create(element::f16, Shape{128, 6, 2048}, {0.02f});
-        auto sh_zp_down = op::v0::Constant::create(element::u4, Shape{128, 6, 2048}, {0});
+        // Shared expert weights (single shared expert: leading dimension 1)
+        auto sh_wei_gate = op::v0::Constant::create(element::u4, Shape{1, 768, 16, 128}, {2});
+        auto sh_scale_gate = op::v0::Constant::create(element::f16, Shape{1, 16, 768}, {0.02f});
+        auto sh_zp_gate = op::v0::Constant::create(element::u4, Shape{1, 16, 768}, {0});
+        auto sh_wei_up = op::v0::Constant::create(element::u4, Shape{1, 768, 16, 128}, {2});
+        auto sh_scale_up = op::v0::Constant::create(element::f16, Shape{1, 16, 768}, {0.02f});
+        auto sh_zp_up = op::v0::Constant::create(element::u4, Shape{1, 16, 768, 16}, {0});
+        auto sh_wei_down = op::v0::Constant::create(element::u4, Shape{1, 2048, 6, 128}, {2});
+        auto sh_scale_down = op::v0::Constant::create(element::f16, Shape{1, 6, 2048}, {0.02f});
+        auto sh_zp_down = op::v0::Constant::create(element::u4, Shape{1, 6, 2048}, {0});
         auto sh_gate_gate_wei = op::v0::Constant::create(element::f16, Shape{2048, 1}, {0.5f});
 
         ov::intel_gpu::op::MOECompressed::Config config;
@@ -221,16 +221,16 @@ TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertCompressedTest) {
         auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 6, 2048}, {0.01f});
         auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 6, 2048}, {0});
 
-        // Shared expert weights
-        auto sh_wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {2});
-        auto sh_scale_gate = op::v0::Constant::create(element::f16, Shape{128, 16, 768}, {0.02f});
-        auto sh_zp_gate = op::v0::Constant::create(element::u4, Shape{128, 16, 768}, {0});
-        auto sh_wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {2});
-        auto sh_scale_up = op::v0::Constant::create(element::f16, Shape{128, 16, 768}, {0.02f});
-        auto sh_zp_up = op::v0::Constant::create(element::u4, Shape{128, 16, 768, 16}, {0});
-        auto sh_wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {2});
-        auto sh_scale_down = op::v0::Constant::create(element::f16, Shape{128, 6, 2048}, {0.02f});
-        auto sh_zp_down = op::v0::Constant::create(element::u4, Shape{128, 6, 2048}, {0});
+        // Shared expert weights (single shared expert: leading dimension 1)
+        auto sh_wei_gate = op::v0::Constant::create(element::u4, Shape{1, 768, 16, 128}, {2});
+        auto sh_scale_gate = op::v0::Constant::create(element::f16, Shape{1, 16, 768}, {0.02f});
+        auto sh_zp_gate = op::v0::Constant::create(element::u4, Shape{1, 16, 768}, {0});
+        auto sh_wei_up = op::v0::Constant::create(element::u4, Shape{1, 768, 16, 128}, {2});
+        auto sh_scale_up = op::v0::Constant::create(element::f16, Shape{1, 16, 768}, {0.02f});
+        auto sh_zp_up = op::v0::Constant::create(element::u4, Shape{1, 16, 768, 16}, {0});
+        auto sh_wei_down = op::v0::Constant::create(element::u4, Shape{1, 2048, 6, 128}, {2});
+        auto sh_scale_down = op::v0::Constant::create(element::f16, Shape{1, 6, 2048}, {0.02f});
+        auto sh_zp_down = op::v0::Constant::create(element::u4, Shape{1, 6, 2048}, {0});
         auto sh_gate_gate_wei = op::v0::Constant::create(element::f16, Shape{2048, 1}, {0.5f});
 
         // Dummy placeholders for SOFTMAX + shared expert (indices 11-12)
