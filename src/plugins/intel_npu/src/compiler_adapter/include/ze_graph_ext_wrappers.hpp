@@ -49,7 +49,12 @@ public:
 
     void destroyGraph(GraphDescriptor& graphDescriptor);
 
-    std::string getCompilerSupportedOptions() const;
+    /**
+     * @brief Returns the list of compiler options supported by the driver.
+     * @return `std::optional<std::string>` containing the list of supported options if the query is supported,
+     *         or `std::nullopt` if the query itself is not supported.
+     */
+    std::optional<std::string> getCompilerSupportedOptions() const;
 
     /**
      * @brief Checks whether the specified driver/compiler option is supported by the driver.
@@ -79,7 +84,7 @@ public:
                                           const void* data,
                                           const std::vector<size_t>& strides) const;
 
-    void initializeGraph(const GraphDescriptor& graphDescriptor, uint32_t commandQueueGroupOrdinal) const;
+    void initializeGraph(const GraphDescriptor& graphDescriptor) const;
 
     bool isBlobDataImported(const GraphDescriptor& graphDescriptor) const;
 
@@ -89,7 +94,7 @@ private:
                      std::vector<IODescriptor>& inputs,
                      std::vector<IODescriptor>& outputs) const;
 
-    void initializeGraphThroughCommandList(ze_graph_handle_t graphHandle, uint32_t commandQueueGroupOrdinal) const;
+    void initializeGraphThroughCommandList(ze_graph_handle_t graphHandle) const;
 
     bool canCpuVaBeImported(const void* data, size_t size) const;
 

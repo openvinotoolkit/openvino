@@ -62,6 +62,7 @@
 #include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
+#include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
@@ -219,7 +220,6 @@
 #endif
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-#    include "low_precision/avg_pool.hpp"
 #    include "low_precision/convolution.hpp"
 #    include "low_precision/convolution_backprop_data.hpp"
 #    include "low_precision/fake_quantize.hpp"
@@ -228,7 +228,6 @@
 #    include "low_precision/group_convolution.hpp"
 #    include "low_precision/interpolate.hpp"
 #    include "low_precision/mat_mul.hpp"
-#    include "low_precision/max_pool.hpp"
 #    include "low_precision/mvn.hpp"
 #    include "low_precision/normalize_l2.hpp"
 #    include "low_precision/recurrent_cell.hpp"
@@ -269,7 +268,6 @@
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)
-#    include "openvino/op/gelu.hpp"
 #    include "openvino/op/power.hpp"
 #    include "openvino/op/select.hpp"
 #    include "openvino/op/swish.hpp"
@@ -583,6 +581,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::GatedDeltaNetFusion);
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
     cacheConfig.keyCachePrecision = config.keyCachePrecision;
     cacheConfig.valueCachePrecision = config.valueCachePrecision;
@@ -991,13 +990,11 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         FuseMultiplyToFakeQuantizeTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
-    CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
     // ConvolutionTransformation is disabled temporary until ACL issues are fixed: #1252, #1253
     CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
-    CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MVNTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, NormalizeL2Transformation);
     CPU_DISABLE_PASS_ARM(lptManager, RecurrentCellTransformation);
@@ -1402,9 +1399,6 @@ void Transformations::MainSnippets() {
         // CPU Plugin supports Swish in Subgraph via conversion to SwishCPU that requires scalar beta.
         // CPU Plugin does not support Mish for x64
         auto is_unsupported = [](const std::shared_ptr<const ov::Node>& n) {
-#if defined(OPENVINO_ARCH_RISCV64)
-            const auto gelu_v7 = ov::as_type_ptr<const ov::op::v7::Gelu>(n);
-#endif
             return (ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
                     !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)))
 #if defined(OPENVINO_ARCH_X86_64)
@@ -1412,7 +1406,6 @@ void Transformations::MainSnippets() {
 #elif defined(OPENVINO_ARCH_RISCV64)
                    // These operations are not currently supported in the RISC-V snippets target machine.
                    || ov::is_type<const ov::op::v4::Swish>(n) ||
-                   (gelu_v7 && gelu_v7->get_approximation_mode() == ov::op::GeluApproximationMode::TANH) ||
                    ov::is_type_any_of<const ov::op::v0::Ceiling,
                                       const ov::op::v1::Power,
                                       const ov::op::v1::Select,
@@ -1607,12 +1600,12 @@ void Transformations::PostSnippets() {
             return node::FakeQuantize::isSupportedOperation(node, errMsg);
         },
         ov::pass::FakeQuantizeDecomposition);
-    // FQ node is not decomposed on ARM only if it is fused into Convolution node
+    // FQ node is not decomposed on ARM only if it is fused into nodes that support quantized output
     // Otherwise FQ node is decomposed because there is no native support of FQ on ARM
     CPU_SET_CALLBACK_ARM(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
-            return match_acl_int8_conv_fq_chain(node);
+            return match_acl_int8_pooling_fq_chain(node) || match_acl_int8_conv_fq_chain(node);
         },
         ov::pass::FakeQuantizeDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);

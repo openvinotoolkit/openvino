@@ -94,6 +94,37 @@
 #    include "emitters/snippets/riscv64/verbose.hpp"
 #endif
 
+#define CREATE_GELU_V7_EMITTER(e_type_erf, e_type_tanh)                                           \
+    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+         const auto& n = expr->get_node();                                                        \
+         const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                                 \
+         if (gelu == nullptr) {                                                                   \
+             OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                    \
+         }                                                                                        \
+         const auto approximationMode = gelu->get_approximation_mode();                           \
+         if (approximationMode == ov::op::GeluApproximationMode::ERF) {                           \
+             return std::make_shared<e_type_erf>(h.get(), isa, n);                                \
+         }                                                                                        \
+         if (approximationMode == ov::op::GeluApproximationMode::TANH) {                          \
+             return std::make_shared<e_type_tanh>(h.get(), isa, n);                               \
+         }                                                                                        \
+         OPENVINO_THROW("Unsupported Gelu approximation mode");                                   \
+     },                                                                                           \
+     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<ov::element::Type>> {         \
+         const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                                 \
+         if (gelu == nullptr) {                                                                   \
+             OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                    \
+         }                                                                                        \
+         const auto approximationMode = gelu->get_approximation_mode();                           \
+         if (approximationMode == ov::op::GeluApproximationMode::ERF) {                           \
+             return e_type_erf::get_supported_precisions(n);                                      \
+         }                                                                                        \
+         if (approximationMode == ov::op::GeluApproximationMode::TANH) {                          \
+             return e_type_tanh::get_supported_precisions(n);                                     \
+         }                                                                                        \
+         OPENVINO_THROW("Unsupported Gelu approximation mode");                                   \
+     }}
+
 #define CREATE_ROUND_V5_EMITTER(e_type_from_zero, e_type_even)                                    \
     {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
          const auto& n = expr->get_node();                                                        \
@@ -280,7 +311,8 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     jitters[ov::op::v0::Floor::get_type_info_static()] = emitter_factory.from_node<jit_floor_emitter>();
     jitters[ov::op::v1::FloorMod::get_type_info_static()] = emitter_factory.from_node<jit_floor_mod_emitter>();
     jitters[ov::op::v0::Gelu::get_type_info_static()] = emitter_factory.from_node<jit_gelu_erf_emitter>();
-    jitters[ov::op::v7::Gelu::get_type_info_static()] = emitter_factory.from_node<jit_gelu_erf_emitter>();
+    jitters[ov::op::v7::Gelu::get_type_info_static()] =
+        CREATE_GELU_V7_EMITTER(jit_gelu_erf_emitter, jit_gelu_tanh_emitter);
     jitters[ov::op::v5::HSigmoid::get_type_info_static()] = emitter_factory.from_node<jit_hsigmoid_emitter>();
     jitters[ov::op::v4::HSwish::get_type_info_static()] = emitter_factory.from_node<jit_hswish_emitter>();
     jitters[ov::op::v10::IsFinite::get_type_info_static()] = emitter_factory.from_node<jit_is_finite_emitter>();
