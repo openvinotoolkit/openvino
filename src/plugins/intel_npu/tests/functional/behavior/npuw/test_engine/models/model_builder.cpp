@@ -14,10 +14,26 @@
 #include "openvino/op/util/variable.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 
 namespace ov {
 namespace test {
 namespace npuw {
+
+namespace {
+void annotate_constants_with_weightless_cache(const std::shared_ptr<ov::Model>& model) {
+    std::size_t offset = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (!ov::op::util::is_constant(node)) {
+            continue;
+        }
+        const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node);
+        c->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+            ov::WeightlessCacheAttribute(c->get_byte_size(), offset, c->get_element_type());
+        offset += c->get_byte_size();
+    }
+}
+}  // namespace
 
 // Named constants for magic values used throughout model construction.
 constexpr float kRoPEBaseFrequency = 10000.0f;
@@ -1028,6 +1044,16 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks(std::siz
 
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks() {
     return get_model_with_repeated_blocks(10);
+}
+
+std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_with_weightless_cache(std::size_t repetitions) {
+    auto model = get_model_with_repeated_blocks(repetitions);
+    annotate_constants_with_weightless_cache(model);
+    return model;
+}
+
+std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_with_weightless_cache() {
+    return get_model_with_repeated_blocks_with_weightless_cache(10);
 }
 
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_results(
