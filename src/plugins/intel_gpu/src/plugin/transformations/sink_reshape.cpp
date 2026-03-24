@@ -32,7 +32,6 @@ namespace intel_gpu {
 
 SinkReshape::SinkReshape() {
     using namespace ov::pass::pattern;
-    using ov::pass::pattern::op::Or;
     using namespace ov::op;
 
     auto reshape_predicate = [](const ov::Output<ov::Node>& output) -> bool {

@@ -32,8 +32,8 @@ WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
     const auto sub_integer = pattern::wrap_type<v1::Subtract>({convert, convert_sub_c_integer});
     const auto sub_c = pattern::wrap_type<v0::Constant>();
     const auto sub = pattern::wrap_type<v1::Subtract>({convert, sub_c});
-    const auto sub_or_sub_integer = std::make_shared<pattern::op::Or>(OutputVector{sub_integer, sub});
-    const auto sub_or_convert = std::make_shared<pattern::op::Or>(OutputVector{convert, sub_or_sub_integer});
+    const auto sub_or_sub_integer = sub_integer | sub;
+    const auto sub_or_convert = convert | sub_or_sub_integer;
 
     const auto mul_c = pattern::wrap_type<v0::Constant>();
     const auto mul = pattern::wrap_type<v1::Multiply>({sub_or_convert, mul_c});

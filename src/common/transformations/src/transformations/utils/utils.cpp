@@ -182,17 +182,17 @@ bool has_f16_constants(const std::shared_ptr<const ov::Model>& function) {
 }
 
 bool is_large_language_model(const ov::Model& model, std::function<bool(std::shared_ptr<ov::Node>)> func) {
+    using namespace ov::pass;
     const auto past = wrap_type<v6::ReadValue>();
-    const auto convert_past = ov::pass::pattern::optional<v0::Convert>(past);
+    const auto convert_past = pattern::optional<v0::Convert>(past);
     const auto beam_idx = wrap_type<v0::Parameter>();
     const auto gather_past = wrap_type<v8::Gather>({convert_past, beam_idx, wrap_type<v0::Constant>()});
-    const auto gather_convert = ov::pass::pattern::optional<v0::Convert>(gather_past);
-    const auto concat_past_input =
-        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{convert_past, gather_convert});
+    const auto gather_convert = pattern::optional<v0::Convert>(gather_past);
+    const auto concat_past_input = convert_past | gather_convert;
     const auto concat = wrap_type<v0::Concat>({concat_past_input, any_input()});
-    const auto convert_present = ov::pass::pattern::optional<v0::Convert>(concat);
+    const auto convert_present = pattern::optional<v0::Convert>(concat);
     const auto present = wrap_type<v6::Assign>({convert_present});
-    const auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
+    const auto kvcache_matcher = std::make_shared<pattern::Matcher>(present, "KVCacheMatcher");
 
     for (const auto& op : model.get_ops()) {
         if (func(op))

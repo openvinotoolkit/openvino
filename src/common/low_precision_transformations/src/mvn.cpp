@@ -43,10 +43,9 @@ std::shared_ptr<ov::op::v0::Constant> createNewScalesConst(const ov::op::v0::Con
 
 MVNTransformation::MVNTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(MVNTransformation);
-    auto matcher = std::make_shared<pass::pattern::op::Or>(OutputVector{
-        pattern::wrap_type<ov::op::v0::MVN>({ pattern::wrap_type<ov::opset1::Multiply>() }),
-        pattern::wrap_type<ov::opset6::MVN>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() })
-    });
+    auto matcher =
+        pattern::wrap_type<ov::op::v0::MVN>({ pattern::wrap_type<ov::opset1::Multiply>() }) |
+        pattern::wrap_type<ov::opset6::MVN>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() });
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();

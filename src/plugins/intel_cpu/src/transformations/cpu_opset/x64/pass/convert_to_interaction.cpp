@@ -35,6 +35,7 @@
 ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
     MATCHER_SCOPE(ConvertToInteraction);
     using namespace ov::pass::pattern;
+    using ov::pass::operator|;
     auto dense_feature_m = any_input(has_static_shape());
     std::vector<std::shared_ptr<Node>> features_m{dense_feature_m};
     OutputVector features_output{dense_feature_m->output(0)};
@@ -92,9 +93,7 @@ ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(
-        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{final_concat_m1, final_concat_m2}),
-        matcher_name);
+    auto m = std::make_shared<Matcher>(final_concat_m1 | final_concat_m2, matcher_name);
     this->register_matcher(m, callback);
 }
 

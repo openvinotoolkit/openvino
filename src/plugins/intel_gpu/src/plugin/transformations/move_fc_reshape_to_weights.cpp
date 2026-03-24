@@ -21,6 +21,7 @@ namespace ov::intel_gpu {
 
 MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     using namespace ov::pass::pattern;
+    using ov::pass::operator|;
 
     auto weights_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto convert_m = wrap_type<ov::op::v0::Convert>({weights_m});
@@ -31,7 +32,7 @@ MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     auto mul_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto mul_with_sub_m = wrap_type<ov::op::v1::Multiply>({subtract_m, mul_const_m}, rank_equals(3));
     auto mul_no_sub_m = wrap_type<ov::op::v1::Multiply>({convert_m, mul_const_m}, rank_equals(3));
-    auto mul_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_with_sub_m, mul_no_sub_m});
+    auto mul_m = mul_with_sub_m | mul_no_sub_m;
 
     auto one_consumer_rank_2 = [](const ov::Output<ov::Node>& out) {
         return consumers_count(1)(out) && rank_equals(2)(out);
@@ -41,7 +42,7 @@ MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
 
     auto transpose_const_m = wrap_type<ov::op::v0::Constant>();
     auto transpose_m = wrap_type<ov::op::v1::Transpose>({reshape_m, transpose_const_m});
-    auto weights_input_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, transpose_m});
+    auto weights_input_m = reshape_m | transpose_m;
 
     auto data_m = any_input();
     auto fully_connected_m = wrap_type<op::FullyConnected>({data_m, weights_input_m, any_input()});

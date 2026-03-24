@@ -24,8 +24,6 @@ using ov::pass::pattern::any_input;
 using ov::pass::pattern::Matcher;
 using ov::pass::pattern::type_matches;
 using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::op::Or;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
@@ -51,15 +49,15 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
     auto mul_const_m = any_input();  // const or const+convert
     auto mul_with_sub_m = wrap_type<v1::Multiply>({subtract_m, mul_const_m});
     auto mul_no_sub_m = wrap_type<v1::Multiply>({convert_m, mul_const_m});
-    auto mul_m = std::make_shared<Or>(ov::OutputVector{mul_with_sub_m, mul_no_sub_m});
+    auto mul_m = mul_with_sub_m | mul_no_sub_m;
 
     auto reshape_const_m = wrap_type<v0::Constant>();
     auto reshape_m = wrap_type<v1::Reshape>({mul_m, reshape_const_m}, reshape_3d_to_2d);
 
-    auto last_convert_input = std::make_shared<Or>(ov::OutputVector{reshape_m, mul_m});
+    auto last_convert_input = reshape_m | mul_m;
     auto last_convert_m = wrap_type<v0::Convert>({last_convert_input});
 
-    auto dicts_input_m = std::make_shared<Or>(ov::OutputVector{reshape_m, last_convert_m, mul_m});
+    auto dicts_input_m = reshape_m | last_convert_m | mul_m;
     auto gather_m = wrap_type<v8::Gather>({dicts_input_m, any_input(), wrap_type<v0::Constant>()});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {

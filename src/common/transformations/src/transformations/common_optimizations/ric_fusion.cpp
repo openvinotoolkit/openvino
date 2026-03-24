@@ -697,8 +697,7 @@ public:
             {pattern::any_input(pattern::has_static_rank()), pattern::any_input(pattern::has_static_rank())},
             pattern::has_static_rank());
 
-        auto pattern_root =
-            std::make_shared<pattern::op::Or>(OutputVector{fake_quantize_pattern, binary_elementwise_pattern});
+        auto pattern_root = fake_quantize_pattern | binary_elementwise_pattern;
 
         auto callback = [=](pattern::Matcher& m) {
             const auto& root = m.get_match_root();

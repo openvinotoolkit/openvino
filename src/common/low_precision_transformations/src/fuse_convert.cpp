@@ -33,7 +33,7 @@ FuseConvertTransformation::FuseConvertTransformation(const Params& params) : Cle
         pattern::any_input(),
         pattern::any_input()});
     auto matcher = std::make_shared<ov::pass::pattern::Matcher>(
-        std::make_shared<pass::pattern::op::Or>(OutputVector{ multiply, subtract, add, fakeQuantize }),
+        multiply | subtract | add | fakeQuantize,
         matcher_name);
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {

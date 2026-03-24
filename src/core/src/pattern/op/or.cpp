@@ -6,7 +6,6 @@
 
 #include "openvino/core/log_util.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/util/log.hpp"
 
 bool ov::pass::pattern::op::Or::match_value(Matcher* matcher,
                                             const Output<Node>& pattern_value,
@@ -30,9 +29,4 @@ bool ov::pass::pattern::op::Or::match_value(Matcher* matcher,
 
 std::shared_ptr<ov::Node> ov::pass::operator|(const ov::Output<ov::Node>& lhs, const ov::Output<ov::Node>& rhs) {
     return std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{lhs, rhs});
-}
-
-std::shared_ptr<ov::Node> ov::pass::operator|(const std::shared_ptr<ov::Node>& lhs,
-                                              const std::shared_ptr<ov::Node>& rhs) {
-    return std::make_shared<pattern::op::Or>(OutputVector{lhs->get_default_output(), rhs->get_default_output()});
 }

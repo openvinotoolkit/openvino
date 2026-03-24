@@ -106,8 +106,7 @@ TSUnaryBackward::TSUnaryBackward() {
         {pattern::any_input(), pattern::any_input(), pattern::any_input()},
         unary_restrictions);
 
-    auto unary_label = std::make_shared<pattern::op::Or>(
-        ov::OutputVector{unary_with_1_input_label, unary_with_2_inputs_label, unary_with_3_inputs_label});
+    auto unary_label = unary_with_1_input_label | unary_with_2_inputs_label | unary_with_3_inputs_label;
 
     auto transpose_const_label = pattern::wrap_type<v0::Constant>();
 

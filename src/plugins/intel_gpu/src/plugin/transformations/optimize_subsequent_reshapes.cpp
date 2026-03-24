@@ -17,7 +17,6 @@ namespace ov::intel_gpu {
 
 OptimizeSubsequentReshapes::OptimizeSubsequentReshapes() {
     using namespace ov::pass::pattern;
-    using ov::pass::pattern::op::Or;
 
     auto single_dynamic_dim = [](Output<Node> output) {
         const auto& shape = output.get_partial_shape();

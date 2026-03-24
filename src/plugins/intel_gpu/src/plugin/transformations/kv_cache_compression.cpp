@@ -138,6 +138,7 @@ public:
 
 KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compression_dt, bool supports_immad) {
     using namespace ov::pass::pattern;
+    using ov::pass::operator|;
 
     if (!cldnn::one_of(compression_dt, {element::i8, element::u8, element::i4, element::u4}))
         return;
@@ -159,14 +160,14 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
     auto key_beam_idx = any_input();
     auto key_cache_notrim = wrap_type<ov::intel_gpu::op::KVCache>({key_past, key_new_token, key_beam_idx});
     auto key_cache_trim = wrap_type<ov::intel_gpu::op::KVCache>({key_past, key_new_token, key_beam_idx, past_seq_len});
-    auto key_cache = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{key_cache_notrim, key_cache_trim});
+    auto key_cache = key_cache_notrim | key_cache_trim;
 
     auto value_past = wrap_type<ov::intel_gpu::op::ReadValue>();
     auto value_new_token = any_input();
     auto value_beam_idx = any_input();
     auto value_cache_notrim = wrap_type<ov::intel_gpu::op::KVCache>({value_past, value_new_token, value_beam_idx});
     auto value_cache_trim = wrap_type<ov::intel_gpu::op::KVCache>({value_past, value_new_token, value_beam_idx, past_seq_len});
-    auto value_cache = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{value_cache_notrim, value_cache_trim});
+    auto value_cache = value_cache_notrim | value_cache_trim;
 
     auto input_attn_mask = any_input();
     auto input_scale = any_input();
@@ -177,7 +178,7 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
     auto sdpa_with_attn_mask_and_scale_m =
         wrap_type<ov::intel_gpu::op::IndirectSDPA>({ query, key_cache, value_cache, input_attn_mask, input_scale, input_beam_table });
 
-    auto sdpa = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sdpa_without_attn_mask_m, sdpa_with_attn_mask_m, sdpa_with_attn_mask_and_scale_m});
+    auto sdpa = sdpa_without_attn_mask_m | sdpa_with_attn_mask_m | sdpa_with_attn_mask_and_scale_m;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {

@@ -72,19 +72,19 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x, bool enable_wit
     auto const_div = pattern::wrap_type<v0::Constant>(constant_value(1));
     auto const_div_convert = pattern::optional<v0::Convert>(const_div);
     auto div = pattern::wrap_type<v1::Divide>({const_div_convert, sqrt});
-    auto div_or_pow = std::make_shared<pattern::op::Or>(OutputVector{div, pow});
+    auto div_or_pow = div | pow;
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps)
     auto mul1 = pattern::wrap_type<v1::Multiply>({x, div_or_pow});
 
-    std::shared_ptr<pattern::op::Or> mul_or_div;
+    std::shared_ptr<Node> mul_or_div;
     // TODO: Check div_x pattern failed in CPU CI Pytorch layer test.
     if (enable_div_x) {
         // x / Sqrt(ReduceMean(x^2,axes)+eps)
         auto div_x = pattern::wrap_type<v1::Divide>({x, sqrt});
-        mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1, div_x});
+        mul_or_div = mul1 | div_x;
     } else {
-        mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1});
+        mul_or_div = mul1;
     }
 
     // Pattern 1: RMS with gamma (learnable parameter)
@@ -100,7 +100,7 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x, bool enable_wit
         // This allows partial fusion: only fuse up to mul_or_div
         auto scale = pattern::any_input(pattern::class_other_than<v0::Constant>());
         auto mul_with_scale = pattern::wrap_type<v1::Multiply>({mul_or_div, scale});
-        rms_mul = std::make_shared<pattern::op::Or>(OutputVector{mul_with_gamma, mul_with_scale});
+        rms_mul = mul_with_gamma | mul_with_scale;
     } else {
         rms_mul = mul_with_gamma;
     }

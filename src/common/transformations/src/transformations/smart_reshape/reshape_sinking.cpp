@@ -42,7 +42,7 @@ ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
     auto add_label =
         pattern::wrap_type<v1::Add>({matmul_label, pattern::wrap_type<v0::Constant>()}, pattern::rank_equals(2));
 
-    auto matmul_or_matmul_add_label = make_shared<pattern::op::Or>(OutputVector{add_label, matmul_label});
+    auto matmul_or_matmul_add_label = add_label | matmul_label;
 
     auto reshape_1_label =
         pattern::wrap_type<v1::Reshape>({matmul_or_matmul_add_label, pattern::wrap_type<v0::Constant>()},

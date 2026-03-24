@@ -34,10 +34,11 @@ namespace ov::intel_gpu {
 
 KVCacheFusionMatcher::KVCacheFusionMatcher() {
     using namespace ov::pass::pattern;
+    using ov::pass::operator|;
 
     auto past = wrap_type<ov::op::v6::ReadValue>();
     auto convert_past = wrap_type<ov::op::v0::Convert>({past});
-    auto gather_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past});
+    auto gather_input = past | convert_past;
     auto beam_idx = wrap_type<ov::op::v0::Parameter>();
     auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
     auto gather_convert = wrap_type<ov::op::v0::Convert>({gather_past});
@@ -49,13 +50,13 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
     auto stride = wrap_type<ov::op::v0::Constant>();
     auto step = wrap_type<ov::op::v0::Constant>();
     auto slice_axes = wrap_type<ov::op::v0::Constant>();
-    auto trim_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{gather_input, gather_past, gather_convert, update_kv});
+    auto trim_input = gather_input | gather_past | gather_convert | update_kv;
     auto trim_past = wrap_type<ov::op::v8::Slice>({trim_input, start, past_seq_len, step, slice_axes});
     auto trim_past2 = wrap_type<ov::op::v1::StridedSlice>({trim_input, start, past_seq_len, stride});
-    auto concat_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{trim_input, trim_past, trim_past2});
+    auto concat_past_input = trim_input | trim_past | trim_past2;
     auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
     auto convert_present = wrap_type<ov::op::v0::Convert>({concat});
-    auto present_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat, convert_present});
+    auto present_input = concat | convert_present;
     auto present = wrap_type<ov::op::v6::Assign>({present_input});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {

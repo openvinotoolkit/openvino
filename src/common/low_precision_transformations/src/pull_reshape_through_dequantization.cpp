@@ -117,13 +117,12 @@ ov::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroughDeq
     const auto convert = ov::pass::pattern::wrap_type<ov::opset1::Convert>({ weights });
 
     MATCHER_SCOPE(PullReshapeThroughDequantization);
-    const auto subtractValues = std::make_shared<pass::pattern::op::Or>(OutputVector{
-        ov::pass::pattern::wrap_type<ov::opset1::Constant>(),
-        ov::pass::pattern::wrap_type<ov::opset1::Convert>({ov::pass::pattern::wrap_type<ov::opset1::Constant>()})
-    });
+    const auto subtractValues =
+        ov::pass::pattern::wrap_type<ov::opset1::Constant>() |
+        ov::pass::pattern::wrap_type<ov::opset1::Convert>({ov::pass::pattern::wrap_type<ov::opset1::Constant>()});
     const auto subtract = ov::pass::pattern::wrap_type<ov::opset1::Subtract>({ convert, subtractValues });
 
-    const auto subtractOrConvert = std::make_shared<pass::pattern::op::Or>(OutputVector{ convert, subtract });
+    const auto subtractOrConvert = convert | subtract;
 
     const auto multiplyConstant = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
     const auto multiply = ov::pass::pattern::wrap_type<ov::opset1::Multiply>({ subtractOrConvert, multiplyConstant });

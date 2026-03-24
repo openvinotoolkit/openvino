@@ -32,7 +32,7 @@ ClampFusion::ClampFusion() {
     auto min_pattern1 = pattern::wrap_type<v1::Minimum>({max_pattern1, max_const_pattern});
     auto min_pattern2 = pattern::wrap_type<v1::Minimum>({data_pattern, max_const_pattern});
     auto max_pattern2 = pattern::wrap_type<v1::Maximum>({min_pattern2, min_const_pattern}, pattern::consumers_count(1));
-    auto root = std::make_shared<pattern::op::Or>(ov::OutputVector{min_pattern1, max_pattern2});
+    auto root = min_pattern1 | max_pattern2;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();

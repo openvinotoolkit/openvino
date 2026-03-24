@@ -32,8 +32,6 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::pass::pattern;
-using ov::pass::pattern::op::Or;
-
 ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1ToMatmul() {
     MATCHER_SCOPE(ConvertWeightCompressedConv1x1ToMatmul);
 
@@ -43,14 +41,13 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
     auto reshape_activations_m =
         ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({first_input_m, a_order_m},
                                                           pattern::shape_matches("[?, hidden_in, 1, 1]"));
-    auto a_m =
-        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_activations_m, reshape_activations_m});
+    auto a_m = transpose_activations_m | reshape_activations_m;
 
     auto weights_const_m = wrap_type<ov::op::v0::Constant>(pattern::shape_matches("[?, ?, 1, 1]") ||
                                                            pattern::shape_matches("[?, ?, ?, 1, 1]"));
     auto weights_param_m = wrap_type<ov::op::v0::Parameter>(pattern::shape_matches("[?, ?, 1, 1]") ||
                                                             pattern::shape_matches("[?, ?, ?, 1, 1]"));
-    auto weights_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weights_const_m, weights_param_m});
+    auto weights_m = weights_const_m | weights_param_m;
     auto weight_convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights_m});
     auto weights_scales_m = ov::pass::pattern::any_input();
     auto weights_zp_m = ov::pass::pattern::any_input();
@@ -58,26 +55,25 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
     auto weight_subtract_m =
         ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({weight_convert_m, weights_zp_convert_m});
     // Make zp subtraction optional to account for symmetrical quantization cases
-    auto weight_dequantized_m =
-        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weight_convert_m, weight_subtract_m});
+    auto weight_dequantized_m = weight_convert_m | weight_subtract_m;
     auto weight_mult_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({weight_dequantized_m, weights_scales_m});
     auto weight_reshape_m =
         ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({weight_mult_m, ov::pass::pattern::any_input()});
-    auto weight_input_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weight_mult_m, weight_reshape_m});
+    auto weight_input_m = weight_mult_m | weight_reshape_m;
     auto conv1x1_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({a_m, weight_input_m});
 
     // Optional bias
     auto bias_const_m = wrap_type<ov::op::v0::Constant>(pattern::shape_matches("[1, ?, 1, 1]"));
     auto bias_m = ov::pass::pattern::wrap_type<ov::op::v1::Add>({conv1x1_m, bias_const_m});
-    auto bias_out_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{conv1x1_m, bias_m});
+    auto bias_out_m = conv1x1_m | bias_m;
 
     auto convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({bias_out_m});
-    auto conv_out_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{bias_out_m, convert_m});
+    auto conv_out_m = bias_out_m | convert_m;
 
     auto c_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto transpose_output_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({conv_out_m, c_order_m});
     auto reshape_output_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({conv_out_m, c_order_m});
-    auto output_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_output_m, reshape_output_m});
+    auto output_m = transpose_output_m | reshape_output_m;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

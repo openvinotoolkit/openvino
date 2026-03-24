@@ -43,7 +43,7 @@ NopBroadcast::NopBroadcast() {
 
     auto broadcast_3_ins = broadcast_label({data_label, maximum, pattern::any_input()});
     auto broadcast_2_ins = broadcast_label({data_label, maximum});
-    auto broadcast = make_shared<pattern::op::Or>(OutputVector{broadcast_2_ins, broadcast_3_ins});
+    auto broadcast = broadcast_2_ins | broadcast_3_ins;
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& vm = m.get_pattern_value_map();

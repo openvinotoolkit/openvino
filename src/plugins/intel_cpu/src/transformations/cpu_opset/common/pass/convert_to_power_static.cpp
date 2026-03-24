@@ -141,21 +141,23 @@ std::shared_ptr<ov::Node> convert(const std::shared_ptr<BaseOp>& node) {
 
 ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
     MATCHER_SCOPE(ConvertToPowerStatic);
-    ov::OutputVector twoInputs = {ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
-                                  ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank())};
+    using namespace ov::pass::pattern;
+    using ov::pass::operator|;
+
+    ov::OutputVector twoInputs = {any_input(has_static_rank()), any_input(has_static_rank())};
     // Decompression/dequantization nodes are not converted to PowerStatic because
     // they are always fused into other operations or constant folded in CPU graph optimizations
     // If these constants converted into PowerStatic, we would have to handle these specific cases in plugin fusings
     auto not_dequantization_or_decompression = [](const ov::Output<ov::Node>& output) {
         return !ov::is_dequantization_node(output.get_node_shared_ptr());
     };
-    auto power = ov::pass::pattern::wrap_type<ov::op::v1::Power>(twoInputs, not_dequantization_or_decompression);
-    auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>(twoInputs, not_dequantization_or_decompression);
-    auto sub = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>(twoInputs, not_dequantization_or_decompression);
-    auto mult = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>(twoInputs, not_dequantization_or_decompression);
-    const auto candidate = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{power, add, sub, mult});
+    auto power = wrap_type<ov::op::v1::Power>(twoInputs, not_dequantization_or_decompression);
+    auto add = wrap_type<ov::op::v1::Add>(twoInputs, not_dequantization_or_decompression);
+    auto sub = wrap_type<ov::op::v1::Subtract>(twoInputs, not_dequantization_or_decompression);
+    auto mult = wrap_type<ov::op::v1::Multiply>(twoInputs, not_dequantization_or_decompression);
+    const auto candidate = power | add | sub | mult;
 
-    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [](Matcher& m) {
         auto node = m.get_match_root();
 
         std::shared_ptr<ov::Node> toReplace = node;
@@ -188,6 +190,6 @@ ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(candidate, matcher_name);
+    auto m = std::make_shared<Matcher>(candidate, matcher_name);
     this->register_matcher(m, callback);
 }

@@ -36,7 +36,7 @@ DilatedConvolutionConverter::DilatedConvolutionConverter() {
         pattern::wrap_type<v1::SpaceToBatch>({data_pattern, block_shape_pattern, pads_begin_pattern, pads_end_pattern});
     auto conv_p = pattern::wrap_type<v1::Convolution>({space_to_batch_pattern, pattern::any_input()});
     auto gconv_p = pattern::wrap_type<v1::GroupConvolution>({space_to_batch_pattern, pattern::any_input()});
-    auto conv_pattern = std::make_shared<pattern::op::Or>(OutputVector{conv_p, gconv_p});
+    auto conv_pattern = conv_p | gconv_p;
     auto crops_begin_pattern = pattern::wrap_type<v0::Constant>();
     auto crops_end_pattern = pattern::wrap_type<v0::Constant>();
     auto batch_to_space_pattern = pattern::wrap_type<v1::BatchToSpace>(

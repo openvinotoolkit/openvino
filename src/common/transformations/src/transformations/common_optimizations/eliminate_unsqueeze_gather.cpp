@@ -88,7 +88,7 @@ ov::pass::EliminateGatherUnsqueeze::EliminateGatherUnsqueeze() {
         wrap_type<op_util::BinaryElementwiseArithmetic,
                   op_util::BinaryElementwiseComparison,
                   op_util::BinaryElementwiseLogical>({gather_label, any_input()}, scalar_with_one_consumer);
-    const auto or_label = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{gather_label, be_label});
+    const auto or_label = gather_label | be_label;
     const auto unsqueeze_label = wrap_type<v0::Unsqueeze, v1::Reshape>({or_label, any_input()}, rank_equals(1));
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {

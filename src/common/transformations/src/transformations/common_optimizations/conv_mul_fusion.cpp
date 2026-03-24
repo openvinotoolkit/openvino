@@ -178,7 +178,7 @@ ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMultiplyFusion() {
     auto conv_2_inputs = pattern::wrap_type<v1::ConvolutionBackpropData>({input, weights}, pattern::consumers_count(1));
     auto conv_3_inputs = pattern::wrap_type<v1::ConvolutionBackpropData>({input, weights, pattern::any_input()},
                                                                          pattern::consumers_count(1));
-    auto conv = std::make_shared<pattern::op::Or>(OutputVector{conv_2_inputs, conv_3_inputs});
+    auto conv = conv_2_inputs | conv_3_inputs;
     auto mul_const = pattern::wrap_type<v0::Constant>(pattern::has_static_shape());
     auto mul = pattern::wrap_type<v1::Multiply>({conv, mul_const});
 
@@ -253,7 +253,7 @@ GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpropDataMultiply
         pattern::wrap_type<v1::GroupConvolutionBackpropData>({input, weights}, pattern::consumers_count(1));
     auto conv_3_inputs = pattern::wrap_type<v1::GroupConvolutionBackpropData>({input, weights, pattern::any_input()},
                                                                               pattern::consumers_count(1));
-    auto conv = std::make_shared<pattern::op::Or>(OutputVector{conv_2_inputs, conv_3_inputs});
+    auto conv = conv_2_inputs | conv_3_inputs;
     auto mul_const = pattern::wrap_type<v0::Constant>(pattern::has_static_shape());
     auto mul = pattern::wrap_type<v1::Multiply>({conv, mul_const});
 

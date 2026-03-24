@@ -34,7 +34,7 @@ SoftmaxFusion::SoftmaxFusion() {
     auto reduce_max_pattern = pattern::wrap_type<v1::ReduceMax>({data_pattern, reduce_max_axes_pattern});
     auto sub_pattern = pattern::wrap_type<v1::Subtract>({data_pattern, reduce_max_pattern});
 
-    auto exp_input = std::make_shared<pattern::op::Or>(OutputVector{sub_pattern, data_pattern});
+    auto exp_input = sub_pattern | data_pattern;
     auto exp_pattern = pattern::wrap_type<v0::Exp>({exp_input});
 
     auto reduce_sum_axes_pattern = pattern::wrap_type<v0::Constant>();

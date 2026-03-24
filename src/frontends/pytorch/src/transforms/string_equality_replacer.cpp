@@ -30,7 +30,7 @@ StringEqualityReplacer::StringEqualityReplacer() {
     const auto& equal_op = pattern::wrap_type<v1::Equal>({framework_node_lhs, framework_node_rhs});
     const auto& not_equal_op = pattern::wrap_type<v1::NotEqual>({framework_node_lhs, framework_node_rhs});
 
-    const auto& string_equality_pattern = std::make_shared<pattern::op::Or>(OutputVector{equal_op, not_equal_op});
+    const auto& string_equality_pattern = equal_op | not_equal_op;
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();

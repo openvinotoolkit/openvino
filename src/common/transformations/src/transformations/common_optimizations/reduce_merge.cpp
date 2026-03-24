@@ -184,15 +184,9 @@ ReduceMerge::ReduceMerge() {
     auto reduce_prod_pattern = create_pattern<v1::ReduceProd>();
     auto reduce_sum_pattern = create_pattern<v1::ReduceSum>();
 
-    auto pattern_node = std::make_shared<pattern::op::Or>(OutputVector{reducel1_pattern,
-                                                                       reducel2_pattern,
-                                                                       reduce_log_and_pattern,
-                                                                       reduce_log_or_pattern,
-                                                                       reduce_max_pattern,
-                                                                       reduce_mean_pattern,
-                                                                       reduce_min_pattern,
-                                                                       reduce_prod_pattern,
-                                                                       reduce_sum_pattern});
+    auto pattern_node = reducel1_pattern | reducel2_pattern | reduce_log_and_pattern | reduce_log_or_pattern |
+                        reduce_max_pattern | reduce_mean_pattern | reduce_min_pattern | reduce_prod_pattern |
+                        reduce_sum_pattern;
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto node = m.get_match_root();

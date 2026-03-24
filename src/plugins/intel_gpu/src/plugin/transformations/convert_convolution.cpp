@@ -21,7 +21,6 @@
 #include "openvino/core/graph_util.hpp"
 
 using namespace ov::pass::pattern;
-using ov::pass::pattern::op::Or;
 
 namespace ov::intel_gpu {
 namespace {
@@ -113,6 +112,7 @@ public:
 };
 
 AsymmetricConvolutionMatcher::AsymmetricConvolutionMatcher() {
+    using ov::pass::operator|;
     auto input_m = any_input(type_matches_any({ov::element::u8, ov::element::i8}));
     auto azp_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1) && type_matches_any({ov::element::u8, ov::element::i8}));
     auto azp_subtract_m = wrap_type<ov::op::v1::Subtract>({input_m, azp_const_m});
@@ -121,8 +121,8 @@ AsymmetricConvolutionMatcher::AsymmetricConvolutionMatcher() {
     auto wzp_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1) && type_matches_any({ov::element::u8, ov::element::i8}));
     auto wzp_subtract_m = wrap_type<ov::op::v1::Subtract>({weights_m, wzp_const_m});
 
-    auto conv_activations_m = std::make_shared<Or>(OutputVector{input_m, azp_subtract_m});
-    auto conv_weights_m = std::make_shared<Or>(OutputVector{weights_m, wzp_subtract_m});
+    auto conv_activations_m = input_m | azp_subtract_m;
+    auto conv_weights_m = weights_m | wzp_subtract_m;
 
     auto convolution_m = wrap_type<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>({ conv_activations_m, conv_weights_m });
 

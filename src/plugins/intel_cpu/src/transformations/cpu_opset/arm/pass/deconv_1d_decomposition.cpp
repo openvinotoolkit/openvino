@@ -46,6 +46,8 @@
 namespace ov::intel_cpu {
 
 Deconv1DDecomposition::Deconv1DDecomposition() {
+    using ov::pass::operator|;
+
     auto input_pattern = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(3));
     auto weights_pattern = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(3));
 
@@ -54,7 +56,7 @@ Deconv1DDecomposition::Deconv1DDecomposition() {
         ov::pass::pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>({input_pattern, weights_pattern});
     auto deconv_3_inputs = ov::pass::pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>(
         {input_pattern, weights_pattern, ov::pass::pattern::any_input()});
-    auto deconv_1d = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{deconv_2_inputs, deconv_3_inputs});
+    auto deconv_1d = deconv_2_inputs | deconv_3_inputs;
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();

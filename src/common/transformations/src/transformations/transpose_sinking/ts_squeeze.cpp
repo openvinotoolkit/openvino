@@ -190,7 +190,7 @@ TSSqueezeBackward::TSSqueezeBackward() {
     auto squeeze_label =
         pattern::wrap_type<v0::Squeeze, v1::Reshape>({pattern::any_input(), pattern::wrap_type<v0::Constant>()},
                                                      CheckTransposeConsumers);
-    auto pattern = std::make_shared<pattern::op::Or>(OutputVector{squeeze_with_1_input, squeeze_label});
+    auto pattern = squeeze_with_1_input | squeeze_label;
     auto transpose_label = pattern::wrap_type<v1::Transpose>({pattern, pattern::wrap_type<v0::Constant>()},
                                                              [](const Output<Node>& output) -> bool {
                                                                  return pattern::has_static_rank()(output);

@@ -209,30 +209,30 @@ DeReshapeMatMul::DeReshapeMatMul() {
 
     auto lhs_concat_0 = pattern::wrap_type<op::v0::Concat>({pattern::any_input(), lhs_reshape}, concat_predicate);
     auto lhs_concat_1 = pattern::wrap_type<op::v0::Concat>({lhs_reshape, pattern::any_input()}, concat_predicate);
-    auto lhs_concat = std::make_shared<pattern::op::Or>(OutputVector{lhs_concat_0, lhs_concat_1});
+    auto lhs_concat = lhs_concat_0 | lhs_concat_1;
 
-    auto lhs_reshape_or_concat = std::make_shared<pattern::op::Or>(OutputVector{lhs_reshape, lhs_concat});
+    auto lhs_reshape_or_concat = lhs_reshape | lhs_concat;
 
     auto lhs_bea_scalar = SCALAR_INPUT;
     auto lhs_bea = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({lhs_reshape_or_concat, lhs_bea_scalar},
                                                                              pattern::consumers_count(1));
 
-    auto lhs_bea_or_concat = std::make_shared<pattern::op::Or>(OutputVector{lhs_reshape_or_concat, lhs_bea});
+    auto lhs_bea_or_concat = lhs_reshape_or_concat | lhs_bea;
 
     // rhs of MatMul
     auto rhs_reshape = IN_RESHAPE;
 
     auto rhs_concat_0 = pattern::wrap_type<op::v0::Concat>({pattern::any_input(), rhs_reshape}, concat_predicate);
     auto rhs_concat_1 = pattern::wrap_type<op::v0::Concat>({rhs_reshape, pattern::any_input()}, concat_predicate);
-    auto rhs_concat = std::make_shared<pattern::op::Or>(OutputVector{rhs_concat_0, rhs_concat_1});
+    auto rhs_concat = rhs_concat_0 | rhs_concat_1;
 
-    auto rhs_reshape_or_concat = std::make_shared<pattern::op::Or>(OutputVector{rhs_reshape, rhs_concat});
+    auto rhs_reshape_or_concat = rhs_reshape | rhs_concat;
 
     auto rhs_bea_scalar = SCALAR_INPUT;
     auto rhs_bea = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({rhs_reshape_or_concat, rhs_bea_scalar},
                                                                              pattern::consumers_count(1));
 
-    auto rhs_bea_or_concat = std::make_shared<pattern::op::Or>(OutputVector{rhs_reshape_or_concat, rhs_bea});
+    auto rhs_bea_or_concat = rhs_reshape_or_concat | rhs_bea;
     // END: symmetrical patterns for MatMul inputs
 
     auto matmul =
@@ -258,7 +258,7 @@ DeReshapeMatMul::DeReshapeMatMul() {
             }
         });
 
-    auto matmul_or_add = std::make_shared<pattern::op::Or>(OutputVector{matmul, add});
+    auto matmul_or_add = matmul | add;
     auto final_reshape =
         pattern::wrap_type<op::v1::Reshape>({matmul_or_add, pattern::any_input()}, [](std::shared_ptr<Node> n) -> bool {
             return reshape_keeps_last_two_dims(n);

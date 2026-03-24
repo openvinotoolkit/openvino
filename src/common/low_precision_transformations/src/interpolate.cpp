@@ -50,7 +50,7 @@ InterpolateTransformation::InterpolateTransformation(const Params& params) : Lay
     };
 
     auto matcher = std::make_shared<ov::pass::pattern::Matcher>(
-        std::make_shared<pass::pattern::op::Or>(OutputVector{ interpolate1, interpolate4, interpolate4_2 }),
+        interpolate1 | interpolate4 | interpolate4_2,
         matcher_name);
 
     this->register_matcher(matcher, callback);

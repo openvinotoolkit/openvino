@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransfor
     auto mul1 = pattern::wrap_type<ov::opset1::Multiply>();
     auto mul2 = pattern::wrap_type<ov::opset1::Multiply>();
     auto fq2 = pattern::wrap_type<ov::opset1::FakeQuantize>();
-    auto matcher = pattern::wrap_type<ov::opset1::MatMul>({ mul1, std::make_shared<pass::pattern::op::Or>(OutputVector{ mul2, fq2 })});
+    auto matcher = pattern::wrap_type<ov::opset1::MatMul>({ mul1, mul2 | fq2 });
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();

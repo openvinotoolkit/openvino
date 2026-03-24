@@ -46,26 +46,26 @@ bool FuseTransposeBrgemm::is_supported_transpose_order(const std::vector<int32_t
 
 FuseTransposeBrgemm::FuseTransposeBrgemm() {
     MATCHER_SCOPE(FuseTransposeBrgemm);
-    auto m_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto m_transpose = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({ov::pass::pattern::any_input(), m_constant},
-                                                                           is_supported_transpose);
+
+    using namespace ov::pass::pattern;
+    using ov::pass::operator|;
+
+    auto m_constant = wrap_type<ov::op::v0::Constant>();
+    auto m_transpose = wrap_type<ov::op::v1::Transpose>({any_input(), m_constant}, is_supported_transpose);
 
     // Pattern 0: Transpose on 0-th input of MatMul
-    auto m_brgemm_in0 = ov::pass::pattern::wrap_type<op::Brgemm>({m_transpose, ov::pass::pattern::any_input()});
+    auto m_brgemm_in0 = wrap_type<op::Brgemm>({m_transpose, any_input()});
 
     // Pattern 1: Transpose on 1-st input of MatMul
-    auto m_brgemm_in1 = ov::pass::pattern::wrap_type<op::Brgemm>({ov::pass::pattern::any_input(), m_transpose});
+    auto m_brgemm_in1 = wrap_type<op::Brgemm>({any_input(), m_transpose});
 
     // Pattern 2: Transpose on output of MatMul
-    auto m_brgemm_out =
-        ov::pass::pattern::wrap_type<op::Brgemm>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
-    auto m_transpose2 =
-        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({m_brgemm_out, m_constant}, is_supported_transpose);
+    auto m_brgemm_out = wrap_type<op::Brgemm>({any_input(), any_input()});
+    auto m_transpose2 = wrap_type<ov::op::v1::Transpose>({m_brgemm_out, m_constant}, is_supported_transpose);
 
-    auto m_brgemm_or_transpose =
-        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_brgemm_in0, m_brgemm_in1, m_transpose2});
+    auto m_brgemm_or_transpose = m_brgemm_in0 | m_brgemm_in1 | m_transpose2;
 
-    auto callback = [](ov::pass::pattern::Matcher& m) {
+    auto callback = [](Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "FuseTransposeBrgemm")
         auto brgemm = ov::as_type_ptr<op::Brgemm>(m.get_match_root());
 
@@ -124,7 +124,7 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
         return true;
     };
 
-    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(m_brgemm_or_transpose, matcher_name), callback);
+    register_matcher(std::make_shared<Matcher>(m_brgemm_or_transpose, matcher_name), callback);
 }
 
 }  // namespace ov::snippets::pass

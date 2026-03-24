@@ -32,7 +32,7 @@ BroadcastTransition::BroadcastTransition() {
     auto eltwise_input_m = pattern::any_input(pattern::has_static_rank());
     auto eltwise_1 = pattern::wrap_type<op_util::BinaryElementwiseArithmetic>({eltwise_input_m, bcast_m});
     auto eltwise_2 = pattern::wrap_type<op_util::BinaryElementwiseArithmetic>({bcast_m, eltwise_input_m});
-    auto eltwise_m = std::make_shared<pattern::op::Or>(OutputVector{eltwise_1, eltwise_2});
+    auto eltwise_m = eltwise_1 | eltwise_2;
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

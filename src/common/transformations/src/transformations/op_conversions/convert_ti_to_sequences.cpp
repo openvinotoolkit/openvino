@@ -52,8 +52,6 @@ using ov::pass::pattern::any_input;
 using ov::pass::pattern::Matcher;
 using ov::pass::pattern::rank_equals;
 using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::op::Or;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
@@ -268,7 +266,7 @@ bool check_condition_increment_pattern(
     // pattern for condition sub-graph in Loop operarion
     auto num_iter_const_label = wrap_type<op::v0::Constant>();
     auto num_iter_param_label = wrap_type<op::v0::Parameter>();
-    auto num_iterations_label = std::make_shared<Or>(OutputVector{num_iter_const_label, num_iter_param_label});
+    auto num_iterations_label = num_iter_const_label | num_iter_param_label;
     auto counter_label = wrap_type<op::v0::Parameter>();
     auto counter_step_label = wrap_type<op::v0::Constant>();
     auto updated_counter_label = wrap_type<op::v1::Add>({counter_label, counter_step_label});
@@ -433,8 +431,8 @@ bool check_lstm_cell_pattern(const std::shared_ptr<op::v5::Loop>& loop,
     std::shared_ptr<Node> h_param, h_broadcast_value, h_mul;
     create_mul_by_one_pattern(h_param, h_broadcast_value, h_mul, false);
 
-    auto xi_common_label = std::make_shared<Or>(OutputVector{xi_reshape_label, x_mul});
-    auto hidden_common_label = std::make_shared<Or>(OutputVector{init_hidden_state_i_label, h_mul});
+    auto xi_common_label = xi_reshape_label | x_mul;
+    auto hidden_common_label = init_hidden_state_i_label | h_mul;
 
     auto lstm_cell_label = wrap_type<op::v4::LSTMCell>(
         {xi_common_label, hidden_common_label, init_cell_state_i_label, W_label, R_label, B_label});
@@ -792,7 +790,7 @@ ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpda
     auto input_transpose_label =
         wrap_type<op::v1::Transpose, op::v1::Reshape>({input_label, input_transpose_const_label}, rank_equals(3));
     auto scatter_indexes_label = wrap_type<op::v0::Constant>();
-    auto scatter_update_label = std::make_shared<Or>(OutputVector{input_transpose_label, input_label});
+    auto scatter_update_label = input_transpose_label | input_label;
     auto scatter_label = wrap_type<op::v3::ScatterNDUpdate>({any_input(), scatter_indexes_label, scatter_update_label});
     auto trip_count_label = wrap_type<op::v0::Constant>();
     auto cond_label = wrap_type<op::v0::Constant>();
@@ -826,8 +824,7 @@ ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpda
     auto sequence_index_new_shape_label = wrap_type<op::v0::Constant>();
     auto sequence_index_reshaped_label =
         wrap_type<op::v1::Reshape>({sequence_index_label, sequence_index_new_shape_label});
-    auto sequence_index_or_label =
-        std::make_shared<Or>(OutputVector{sequence_index_label, sequence_index_reshaped_label});
+    auto sequence_index_or_label = sequence_index_label | sequence_index_reshaped_label;
     auto gather_body_label =
         wrap_type<ov::op::v8::Gather>({X_body_label, sequence_index_or_label, gather_axis_label}, rank_equals(2));
     auto W_label = any_input();
@@ -1383,7 +1380,7 @@ ov::pass::FuseReverseLSTMSequence::FuseReverseLSTMSequence() {
     auto data_label = any_input(rank_equals(3));
     auto first_transpose_label =
         wrap_type<op::v1::Transpose, op::v1::Reshape>({data_label, wrap_type<op::v0::Constant>()}, rank_equals(3));
-    auto input_to_first_reverse_sequence_label = std::make_shared<Or>(OutputVector{first_transpose_label, data_label});
+    auto input_to_first_reverse_sequence_label = first_transpose_label | data_label;
     auto first_reverse_sequence_label =
         wrap_type<op::v0::ReverseSequence>({input_to_first_reverse_sequence_label, any_input()});
     auto second_transpose_label =
@@ -1515,16 +1512,14 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
 
     // forward pattern
     auto transpose_forward_label = wrap_type<op::v1::Transpose>({data_label, wrap_type<op::v0::Constant>()});
-    auto lstm_sequence_forward_first_input_label =
-        std::make_shared<Or>(OutputVector{transpose_forward_label, data_label});
+    auto lstm_sequence_forward_first_input_label = transpose_forward_label | data_label;
     auto shapeof_forward_label = wrap_type<op_util::ShapeOfBase>({lstm_sequence_forward_first_input_label});
     auto gather_forward_label = wrap_type<op_util::GatherBase>(
         {shapeof_forward_label, wrap_type<op::v0::Constant>(), wrap_type<op::v0::Constant>()});
     auto max_sequence_len_forward_label = wrap_type<op::v0::Constant>();
     auto broadcast_forward_label = wrap_type<op::v3::Broadcast>({max_sequence_len_forward_label, gather_forward_label});
     auto const_sequence_lengths_forward_label = wrap_type<op::v0::Constant>();
-    auto sequence_lengths_forward_label =
-        std::make_shared<Or>(OutputVector{broadcast_forward_label, const_sequence_lengths_forward_label});
+    auto sequence_lengths_forward_label = broadcast_forward_label | const_sequence_lengths_forward_label;
     auto lstm_sequence_forward_label = wrap_type<op::v5::LSTMSequence>({lstm_sequence_forward_first_input_label,
                                                                         any_input(),
                                                                         any_input(),
@@ -1538,16 +1533,14 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
     // backward pattern
     auto transpose_reverse_label =
         wrap_type<op::v1::Transpose, op::v1::Reshape>({data_label, wrap_type<op::v0::Constant>()});
-    auto lstm_sequence_reverse_first_input_label =
-        std::make_shared<Or>(OutputVector{transpose_reverse_label, data_label});
+    auto lstm_sequence_reverse_first_input_label = transpose_reverse_label | data_label;
     auto shapeof_reverse_label = wrap_type<op_util::ShapeOfBase>({lstm_sequence_reverse_first_input_label});
     auto gather_reverse_label = wrap_type<op_util::GatherBase>(
         {shapeof_reverse_label, wrap_type<op::v0::Constant>(), wrap_type<op::v0::Constant>()});
     auto max_sequence_len_reverse_label = wrap_type<op::v0::Constant>();
     auto broadcast_reverse_label = wrap_type<op::v3::Broadcast>({max_sequence_len_reverse_label, gather_reverse_label});
     auto const_sequence_lengths_reverse_label = wrap_type<op::v0::Constant>();
-    auto sequence_lengths_reverse_label =
-        std::make_shared<Or>(OutputVector{broadcast_reverse_label, const_sequence_lengths_reverse_label});
+    auto sequence_lengths_reverse_label = broadcast_reverse_label | const_sequence_lengths_reverse_label;
     auto lstm_sequence_reverse_label = wrap_type<op::v5::LSTMSequence>({lstm_sequence_reverse_first_input_label,
                                                                         any_input(),
                                                                         any_input(),

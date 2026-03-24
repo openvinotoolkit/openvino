@@ -25,5 +25,4 @@ public:
 };
 }  // namespace pattern::op
 OPENVINO_API std::shared_ptr<Node> operator|(const Output<Node>& lhs, const Output<Node>& rhs);
-OPENVINO_API std::shared_ptr<Node> operator|(const std::shared_ptr<Node>& lhs, const std::shared_ptr<Node>& rhs);
 }  // namespace ov::pass

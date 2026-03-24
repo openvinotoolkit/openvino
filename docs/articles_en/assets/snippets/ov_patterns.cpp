@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 // ! [ov:imports]
 #include "openvino/op/abs.hpp"
@@ -141,8 +142,8 @@ void pattern_or() {
     auto blue_pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({blue_pattern_mul->output(0)});
     auto blue_pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({blue_pattern_abs->output(0)});
 
-    // Create Or node
-    auto pattern_or = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{red_pattern_sigmoid->output(0), blue_pattern_relu->output(0)});
+    // Create 'Or' node or use an operator '|' overload
+    auto pattern_or = red_pattern_sigmoid->output(0) | blue_pattern_relu->output(0);
 
     // pattern_or should perfectly matches model_relu
 }

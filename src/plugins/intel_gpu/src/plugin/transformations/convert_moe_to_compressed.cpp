@@ -30,6 +30,7 @@
 
 namespace ov::intel_gpu {
     using namespace ov::pass::pattern;
+    using ov::pass::operator|;
 #define MOE_COMPRESSED_WEIGHT_PATTERN(SUFFIX)\
     auto compressed_constant_##SUFFIX = [](const ov::Output<ov::Node>& output) {\
         return (output.get_element_type() == ov::element::u8 || output.get_element_type() == ov::element::i8 ||\
@@ -50,12 +51,12 @@ namespace ov::intel_gpu {
     auto sub_convert_const_m_##SUFFIX = wrap_type<ov::op::v0::Convert>({sub_const_m_##SUFFIX});\
     auto sub_with_convert_m_##SUFFIX = wrap_type<ov::op::v1::Subtract>({convert_m_##SUFFIX, sub_convert_const_m_##SUFFIX});\
     auto sub_no_convert_m_##SUFFIX = wrap_type<ov::op::v1::Subtract>({convert_m_##SUFFIX, sub_const_m_##SUFFIX});\
-    auto subtract_m_##SUFFIX = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sub_with_convert_m_##SUFFIX, sub_no_convert_m_##SUFFIX});\
+    auto subtract_m_##SUFFIX = sub_with_convert_m_##SUFFIX | sub_no_convert_m_##SUFFIX;\
     \
     auto mul_const_m_##SUFFIX = wrap_type<ov::op::v0::Constant>();\
     auto mul_with_sub_m_##SUFFIX = wrap_type<ov::op::v1::Multiply>({subtract_m_##SUFFIX, mul_const_m_##SUFFIX});\
     auto mul_no_sub_m_##SUFFIX = wrap_type<ov::op::v1::Multiply>({convert_m_##SUFFIX, mul_const_m_##SUFFIX});\
-    auto mul_m_##SUFFIX = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_with_sub_m_##SUFFIX, mul_no_sub_m_##SUFFIX});\
+    auto mul_m_##SUFFIX = mul_with_sub_m_##SUFFIX | mul_no_sub_m_##SUFFIX;\
     \
     auto reshape_const_m_##SUFFIX = wrap_type<ov::op::v0::Constant>();\
     auto reshape_m_##SUFFIX = wrap_type<ov::op::v1::Reshape>({mul_m_##SUFFIX, reshape_const_m_##SUFFIX}, reshape_squeeze_##SUFFIX);\
@@ -64,14 +65,13 @@ namespace ov::intel_gpu {
     auto mul2_const_m_##SUFFIX = wrap_type<ov::op::v0::Constant>();\
     auto mul2_m_##SUFFIX = wrap_type<ov::op::v1::Multiply>({reshape_m_##SUFFIX, mul2_const_m_##SUFFIX});\
     \
-    auto transpose_input_##SUFFIX = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape_m_##SUFFIX, mul_m_##SUFFIX});\
+    auto transpose_input_##SUFFIX = reshape_m_##SUFFIX | mul_m_##SUFFIX;\
     auto transpose_const_m_##SUFFIX = wrap_type<ov::op::v0::Constant>();\
     auto transpose_m_##SUFFIX = wrap_type<ov::op::v1::Transpose>({transpose_input_##SUFFIX, transpose_const_m_##SUFFIX});\
     \
     auto convert_mul_m_##SUFFIX = wrap_type<ov::op::v0::Convert>({mul_m_##SUFFIX});\
-    auto compressed_weights_input_m_##SUFFIX =\
-    std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m_##SUFFIX, convert_reshape_m_##SUFFIX, transpose_m_##SUFFIX, \
-         mul_m_##SUFFIX, mul2_m_##SUFFIX, convert_mul_m_##SUFFIX});
+    auto compressed_weights_input_m_##SUFFIX = reshape_m_##SUFFIX | convert_reshape_m_##SUFFIX | transpose_m_##SUFFIX |\
+         mul_m_##SUFFIX | mul2_m_##SUFFIX | convert_mul_m_##SUFFIX;
 
 #define MOE_COMPRESSED_WEIGHT_GEMM3_PATTERN(SUFFIX)\
     auto gemm3_compressed_weights_m_##SUFFIX = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4,ov::element::u8}));\
@@ -169,7 +169,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
 
     // gemm2 pattern finished
 
-    auto moe_root = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{moe_root_gemm3, moe_root_gemm2});
+    auto moe_root = moe_root_gemm3 | moe_root_gemm2;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

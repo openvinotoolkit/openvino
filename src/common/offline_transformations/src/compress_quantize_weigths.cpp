@@ -80,8 +80,7 @@ bool is_non_negative(const T* data, const ov::Shape& shape) {
 ov::pass::CompressWeightsWithFakeQuantize::CompressWeightsWithFakeQuantize() {
     auto weights_const_pattern = pattern::wrap_type<op::v0::Constant>();
     auto weights_convert_pattern = pattern::wrap_type<op::v0::Convert>({weights_const_pattern});
-    OutputVector weights_options{weights_const_pattern, weights_convert_pattern};
-    auto weights_pattern = std::make_shared<pattern::op::Or>(weights_options);
+    auto weights_pattern = weights_const_pattern | weights_convert_pattern;
     auto input_low_pattern = pattern::wrap_type<op::v0::Constant>();
     auto input_high_pattern = pattern::wrap_type<op::v0::Constant>();
     auto output_low_pattern = pattern::wrap_type<op::v0::Constant>();
@@ -259,13 +258,12 @@ static std::shared_ptr<ov::op::v0::Constant> get_fake_convert_shift(
 ov::pass::CompressWeightsWithFakeConvert::CompressWeightsWithFakeConvert() {
     auto weights_const_pattern = pattern::wrap_type<op::v0::Constant>();
     auto weights_convert_pattern = pattern::wrap_type<op::v0::Convert>({weights_const_pattern});
-    OutputVector weights_options{weights_const_pattern, weights_convert_pattern};
-    auto weights_pattern = std::make_shared<pattern::op::Or>(weights_options);
+    auto weights_pattern = weights_const_pattern | weights_convert_pattern;
     auto fake_convert_pattern = pattern::wrap_type<op::v13::FakeConvert>(
         {weights_pattern, pattern::wrap_type<op::v0::Constant>(), pattern::wrap_type<op::v0::Constant>()});
     auto fake_convert_pattern2 =
         pattern::wrap_type<op::v13::FakeConvert>({weights_pattern, pattern::wrap_type<op::v0::Constant>()});
-    auto root = std::make_shared<pattern::op::Or>(OutputVector{fake_convert_pattern, fake_convert_pattern2});
+    auto root = fake_convert_pattern | fake_convert_pattern2;
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();

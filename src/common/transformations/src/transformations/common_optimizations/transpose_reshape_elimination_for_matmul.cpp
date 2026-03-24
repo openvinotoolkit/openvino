@@ -137,8 +137,7 @@ ov::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMa
     auto optional_broadcast_before_pattern =
         wrap_type<v3::Broadcast>({transpose_before_pattern, const_optional_broadcast_before_pattern});
 
-    auto transpose_or_transpose_broadcast = std::make_shared<ov::pass::pattern::op::Or>(
-        OutputVector{transpose_before_pattern, optional_broadcast_before_pattern});
+    auto transpose_or_transpose_broadcast = transpose_before_pattern | optional_broadcast_before_pattern;
 
     auto const_reshape_before_pattern = wrap_type<v0::Constant>();
     auto reshape_before_pattern =

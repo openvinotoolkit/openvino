@@ -44,7 +44,6 @@ using ov::pass::pattern::any_input;
 using ov::pass::pattern::Matcher;
 using ov::pass::pattern::optional;
 using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::op::Or;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -270,8 +269,7 @@ static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
                                                                 // in a not usual layout, example: bloom
     auto kv_current2 = any_input();
     auto kv_current_reshaped = wrap_type<v1::Reshape>({kv_current2, any_input()});
-    auto kv_concat =
-        wrap_type<v0::Concat>({kv_past, std::make_shared<Or>(OutputVector{kv_current_reshaped, kv_current})});
+    auto kv_concat = wrap_type<v0::Concat>({kv_past, kv_current_reshaped | kv_current});
     return node_tuple(kv_past_var, kv_current2, kv_current_reshaped, kv_concat);
 }
 
@@ -357,18 +355,18 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     auto kv_concat_split = wrap_type<v1::VariadicSplit>({kv_concat, any_input(), any_input()});
     kv_concat_split->set_output_size(2);
 
-    k_concat = std::make_shared<Or>(OutputVector{kv_concat_split->output(0), k_concat});
-    v_concat = std::make_shared<Or>(OutputVector{kv_concat_split->output(1), v_concat});
+    k_concat = kv_concat_split->output(0) | k_concat;
+    v_concat = kv_concat_split->output(1) | v_concat;
 
     auto kv_shaping = [=](const std::shared_ptr<Node>& kv_concat, std::shared_ptr<Node>& unsqueeze) {
         // Return unsqeeze (return param) to deduce number of kv heads in
         // the place where they are being broadcases in case of GQA and MQ
         auto interim = wrap_type<v1::StridedSlice>({kv_concat, any_input(), any_input(), any_input()});
         interim = wrap_type<v1::StridedSlice>({interim, any_input(), any_input(), any_input()});
-        unsqueeze = wrap_type<v0::Unsqueeze>({std::make_shared<Or>(OutputVector{kv_concat, interim}), any_input()});
+        unsqueeze = wrap_type<v0::Unsqueeze>({kv_concat | interim, any_input()});
         interim = wrap_type<v1::StridedSlice>({unsqueeze, any_input(), any_input(), any_input()});
         interim = wrap_type<v1::StridedSlice>({interim, any_input(), any_input(), any_input()});
-        interim = wrap_type<v3::Broadcast>({std::make_shared<Or>(OutputVector{unsqueeze, interim}), any_input()});
+        interim = wrap_type<v3::Broadcast>({unsqueeze | interim, any_input()});
         interim = optional<v1::Reshape>({interim, any_input()});  // Reshape is missing sometimes in MQA case
         return interim;
     };
@@ -385,10 +383,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     auto v_order = any_input();
 
     // KV-path may already have Transposes that will be rewritten based on PA KV inputs required layout
-    auto k_shaped_transposed =
-        wrap_type<v1::Transpose>({std::make_shared<Or>(OutputVector{k_concat, k_shaped}), k_order});
-    auto v_shaped_transposed =
-        wrap_type<v1::Transpose>({std::make_shared<Or>(OutputVector{v_concat, v_shaped}), v_order});
+    auto k_shaped_transposed = wrap_type<v1::Transpose>({k_concat | k_shaped, k_order});
+    auto v_shaped_transposed = wrap_type<v1::Transpose>({v_concat | v_shaped, v_order});
 
     // Optional pattern to capture alibi slopes (based on pattern from bloom)
     std::shared_ptr<ov::Node> general_alibi, general_alibi_mask;
@@ -420,15 +416,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     auto scale_input = any_input(scale_predicate);
     auto sinks = any_input(ov::pass::pattern::has_static_shape() && ov::pass::pattern::rank_equals(4));
 
-    auto k_to_sdpa = std::make_shared<Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
-    auto v_to_sdpa = std::make_shared<Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
+    auto k_to_sdpa = k_concat | k_shaped | k_shaped_transposed | k_simply_shaped;
+    auto v_to_sdpa = v_concat | v_shaped | v_shaped_transposed | v_simply_shaped;
 
-    auto mask_to_sdpa = std::make_shared<Or>(OutputVector{phi3_mask,
-                                                          general_alibi_mask,
-                                                          jais_alibi_mask,
-                                                          baichuan2_13b_alibi_mask,
-                                                          gptoss_gemma3_mask,
-                                                          any_input()});
+    auto mask_to_sdpa =
+        phi3_mask | general_alibi_mask | jais_alibi_mask | baichuan2_13b_alibi_mask | gptoss_gemma3_mask | any_input();
 
     auto sdpa_with_4_inputs = wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
     auto sdpa_with_5_inputs =
@@ -436,7 +428,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     auto sdpa_with_6_inputs =
         wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa, scale_input, sinks});
 
-    auto sdpa_variants = std::make_shared<Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs, sdpa_with_6_inputs});
+    auto sdpa_variants = sdpa_with_4_inputs | sdpa_with_5_inputs | sdpa_with_6_inputs;
 
     // Shared flag to track whether the model is Gemma3, set when any layer matches
     // the gptoss_gemma3 sliding window pattern. Combined with the token_type_ids check,

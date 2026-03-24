@@ -17,6 +17,7 @@ namespace ov::intel_gpu {
 
 FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
     using namespace ov::pass::pattern;
+    using ov::pass::operator|;
 
     auto data = any_input();
     auto weights = any_input();
@@ -24,8 +25,8 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
     auto fully_connected = wrap_type<op::FullyConnected>({data, weights, bias}, consumers_count(1));
     auto fully_connected_compressed1 = wrap_type<op::FullyConnectedCompressed>({data, weights, bias, any_input()}, consumers_count(1));
     auto fully_connected_compressed2 = wrap_type<op::FullyConnectedCompressed>({data, weights, bias, any_input(), any_input()}, consumers_count(1));
-    auto fully_connected_compressed = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fully_connected_compressed1, fully_connected_compressed2});
-    auto fc = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fully_connected, fully_connected_compressed});
+    auto fully_connected_compressed = fully_connected_compressed1 | fully_connected_compressed2;
+    auto fc = fully_connected | fully_connected_compressed;
     auto convert = wrap_type<ov::op::v0::Convert>({fc}, type_matches(element::f32));
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {

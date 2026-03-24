@@ -18,6 +18,7 @@ namespace ov::intel_gpu {
 
 LoRASubgraphHorizontalFusion::LoRASubgraphHorizontalFusion() {
     using namespace ov::pass::pattern;
+    using ov::pass::operator|;
 
     auto is_target_pattern = [](const std::shared_ptr<Node>& split_node) {
         for (const auto& user : split_node->get_users()) {
@@ -31,7 +32,7 @@ LoRASubgraphHorizontalFusion::LoRASubgraphHorizontalFusion() {
     auto lora_input = any_input();
     auto main_flow_1 = wrap_type<op::FullyConnectedCompressed>({lora_input, any_input(), any_input(), any_input()});
     auto main_flow_2 = wrap_type<op::FullyConnectedCompressed>({lora_input, any_input(), any_input(), any_input(), any_input()});
-    auto main_flow = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{main_flow_1, main_flow_2});
+    auto main_flow = main_flow_1 | main_flow_2;
 
     auto axis_const = wrap_type<ov::op::v0::Constant>();
     auto split_const = wrap_type<ov::op::v0::Constant>();

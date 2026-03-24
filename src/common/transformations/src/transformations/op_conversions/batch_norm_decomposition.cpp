@@ -46,7 +46,7 @@ BatchNormDecomposition::BatchNormDecomposition() {
                                                             pattern::any_input(),
                                                             pattern::any_input(),
                                                             pattern::any_input()});
-    auto bn = std::make_shared<pattern::op::Or>(OutputVector{bn_1, bn_5});
+    auto bn = bn_1 | bn_5;
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto m_bn = m.get_match_root();

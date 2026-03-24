@@ -60,7 +60,7 @@ activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_fact
     auto weights_m = pattern::any_input();
     auto convolution_m = pattern::wrap_type<v1::Convolution>({activation_m, weights_m});
     auto matmul_m = pattern::wrap_type<v0::MatMul>({activation_m, weights_m});
-    auto scaled_op_m = std::make_shared<pattern::op::Or>(OutputVector{convolution_m, matmul_m});
+    auto scaled_op_m = convolution_m | matmul_m;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -190,7 +190,7 @@ activations_scaling::EliminateScalarMul::EliminateScalarMul() {
     auto group_norm_m =
         pattern::wrap_type<v12::GroupNormalization>({mul_m, pattern::any_input(), pattern::any_input()});
     auto shape_of_m = pattern::wrap_type<v3::ShapeOf>({mul_m});
-    auto norm_m = std::make_shared<pattern::op::Or>(OutputVector{mvn_m, rms_m, group_norm_m, shape_of_m});
+    auto norm_m = mvn_m | rms_m | group_norm_m | shape_of_m;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -247,7 +247,7 @@ activations_scaling::MulShareTransformation::MulShareTransformation() {
     auto group_norm_m =
         pattern::wrap_type<v12::GroupNormalization>({pattern::any_input(), pattern::any_input(), pattern::any_input()});
     auto shape_of_m = pattern::wrap_type<v3::ShapeOf>({pattern::any_input()});
-    auto norm_m = std::make_shared<pattern::op::Or>(OutputVector{mvn_m, rms_m, group_norm_m, shape_of_m});
+    auto norm_m = mvn_m | rms_m | group_norm_m | shape_of_m;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

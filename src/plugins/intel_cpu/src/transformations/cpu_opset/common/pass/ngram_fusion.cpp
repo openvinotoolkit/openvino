@@ -144,6 +144,7 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
         ov::Output<ov::Node> indices;
         // select branches validation
         {
+            using ov::pass::operator|;
             auto tokens_m = any_input(tokens_symbol_match);
             auto cropped_shape_m = any_input(cropped_shape_symbol_match);
             auto idces_m = any_input(idces_match);
@@ -163,11 +164,11 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
 
             // left equal branch
             auto crop_left_bias_m = wrap_type<ov::op::v0::Constant>();
-            auto crop_left_cropped_shape_m = std::make_shared<ov::pass::pattern::op::Or>(
-                ov::OutputVector{wrap_type<ov::op::v1::Add>({cropped_shape_m, crop_left_bias_m}), cropped_shape_m});
-            auto idxes_crop_left_concat_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{
-                wrap_type<ov::op::v0::Concat>({crop_left_cropped_shape_m, wrap_type<ov::op::v0::Constant>()}),
-                any_input(concat_shape_with_cropped_symbol_m)});
+            auto crop_left_cropped_shape_m =
+                wrap_type<ov::op::v1::Add>({cropped_shape_m, crop_left_bias_m}) | cropped_shape_m;
+            auto idxes_crop_left_concat_m =
+                wrap_type<ov::op::v0::Concat>({crop_left_cropped_shape_m, wrap_type<ov::op::v0::Constant>()}) |
+                any_input(concat_shape_with_cropped_symbol_m);
             auto idxes_crop_left_m = wrap_type<ov::op::v1::StridedSlice>({idces_concat_m,
                                                                           wrap_type<ov::op::v0::Constant>(),
                                                                           idxes_crop_left_concat_m,
@@ -175,11 +176,11 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
 
             // right equal branch
             auto crop_right_bias_m = wrap_type<ov::op::v0::Constant>();
-            auto crop_right_cropped_shape_m = std::make_shared<ov::pass::pattern::op::Or>(
-                ov::OutputVector{wrap_type<ov::op::v1::Add>({cropped_shape_m, crop_right_bias_m}), cropped_shape_m});
-            auto idxes_crop_right_concat_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{
-                wrap_type<ov::op::v0::Concat>({crop_right_cropped_shape_m, wrap_type<ov::op::v0::Constant>()}),
-                any_input(concat_shape_with_cropped_symbol_m)});
+            auto crop_right_cropped_shape_m =
+                wrap_type<ov::op::v1::Add>({cropped_shape_m, crop_right_bias_m}) | cropped_shape_m;
+            auto idxes_crop_right_concat_m =
+                wrap_type<ov::op::v0::Concat>({crop_right_cropped_shape_m, wrap_type<ov::op::v0::Constant>()}) |
+                any_input(concat_shape_with_cropped_symbol_m);
             auto idxes_crop_right_m = wrap_type<ov::op::v1::StridedSlice>({idces_concat_m,
                                                                            wrap_type<ov::op::v0::Constant>(),
                                                                            idxes_crop_right_concat_m,
@@ -196,9 +197,8 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
             auto padded_tokens_m = wrap_type<ov::op::v0::Concat>(padded_tokens_inputs);
 
             auto then_cropped_shape_bias_m = wrap_type<ov::op::v0::Constant>();
-            auto then_cropped_shape_m = std::make_shared<ov::pass::pattern::op::Or>(
-                ov::OutputVector{wrap_type<ov::op::v1::Add>({cropped_shape_m, then_cropped_shape_bias_m}),
-                                 cropped_shape_m});
+            auto then_cropped_shape_m =
+                wrap_type<ov::op::v1::Add>({cropped_shape_m, then_cropped_shape_bias_m}) | cropped_shape_m;
             auto then_m = wrap_type<ov::op::v1::StridedSlice>({padded_tokens_m,
                                                                wrap_type<ov::op::v0::Constant>(),
                                                                then_cropped_shape_m,

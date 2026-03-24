@@ -350,9 +350,9 @@ public:
         auto pow_exp = pattern::wrap_type<v0::Constant>();
         auto optional_pow_convert = pattern::optional<v0::Convert>(pow_exp);
 
-        auto pow_pattern = std::make_shared<v1::Power>(max_or_add, optional_pow_convert);
-        auto mul_pattern = std::make_shared<v1::Multiply>(input_1, pow_pattern);
-        auto div_or_mul_to_negative_pow = std::make_shared<pattern::op::Or>(OutputVector{divide, mul_pattern});
+        auto pow_pattern = pattern::wrap_type<v1::Power>({max_or_add, optional_pow_convert});
+        auto mul_pattern = pattern::wrap_type<v1::Multiply>({input_1, pow_pattern});
+        auto div_or_mul_to_negative_pow = divide | mul_pattern;
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& pattern_to_output = m.get_pattern_map();

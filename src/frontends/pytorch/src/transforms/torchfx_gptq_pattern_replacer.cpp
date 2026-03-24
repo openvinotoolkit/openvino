@@ -42,6 +42,7 @@ uint32_t read_u4_data(const void* array, size_t index) {
 };
 
 GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
+    using ov::pass::operator|;
     const auto& const_1 = wrap_type<v0::Constant>();
     const auto& const_2 = wrap_type<v0::Constant>();
     const auto& unsqueeze_1 = wrap_type<v0::Unsqueeze>({const_1, const_2});
@@ -57,7 +58,7 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
     const auto& convert_3 = wrap_type<v0::Convert>({bitwise_right_shift});
     const auto& convert_4 = wrap_type<v0::Convert>({const_5});
     const auto& add = wrap_type<v1::Add>({convert_3, convert_4});
-    const auto& add_or_convert = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{add, convert_1});
+    const auto& add_or_convert = add | convert_1;
     const auto& const_6 = wrap_type<v0::Constant>();
     const auto& convert_2 = wrap_type<v0::Convert>({const_6});
     const auto& bitwise_and = wrap_type<ov::op::v13::BitwiseAnd>({add_or_convert, convert_2});
@@ -217,13 +218,14 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
 };
 
 GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
+    using ov::pass::operator|;
     const auto& const_1 = wrap_type<v0::Constant>();
     const auto& convert_1 = wrap_type<v0::Convert>({const_1});
     const auto& const_2 = wrap_type<v0::Constant>();
     const auto& convert_2 = wrap_type<v0::Convert>({const_2});
     const auto& add = wrap_type<v1::Add>({convert_1, convert_2});
     const auto& const_3 = wrap_type<v0::Constant>();
-    const auto& add_or_convert = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{add, convert_1});
+    const auto& add_or_convert = add | convert_1;
     const auto& reshape_1 = wrap_type<v1::Reshape>({add_or_convert, const_3});
     const auto& const_4 = wrap_type<v0::Constant>();
     const auto& convert_4 = wrap_type<v0::Convert>({const_4});
