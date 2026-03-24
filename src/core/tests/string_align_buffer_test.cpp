@@ -133,8 +133,9 @@ TEST_F(SharedStringAlignedBufferTest, create_with_smaller_size_than_input_buffer
 
 TEST(StringUnpackTensorTest, ZeroNumberOfStringsYieldsEmptyBuffer) {
     constexpr auto strings_count = 0;
+    constexpr auto last_end = 0;
 
-    const auto tensor = pack_string_tensor(std::vector<header_element_t>{strings_count});
+    const auto tensor = pack_string_tensor(std::vector<header_element_t>{strings_count, last_end});
     const auto result = AttributeAdapter<std::shared_ptr<StringAlignedBuffer>>::unpack_string_tensor(
         reinterpret_cast<const char*>(tensor.data()),
         tensor.size());
@@ -155,8 +156,9 @@ TEST(StringUnpackTensorTest, MissingNumberOfStringsFails) {
 
 TEST(StringUnpackTensorTest, NegativeNumberOfStringsFails) {
     constexpr auto strings_count = -1;
+    constexpr auto last_end = 0;
 
-    const auto tensor = pack_string_tensor(std::vector<header_element_t>{strings_count});
+    const auto tensor = pack_string_tensor(std::vector<header_element_t>{strings_count, last_end});
     OV_EXPECT_THROW(AttributeAdapter<std::shared_ptr<StringAlignedBuffer>>::unpack_string_tensor(
                         reinterpret_cast<const char*>(tensor.data()),
                         tensor.size()),
@@ -204,7 +206,7 @@ TEST(StringUnpackTensorTest, NegativeOffsetsFails) {
     constexpr auto strings_count = 2;
 
     const std::vector<uint8_t> strings = {'0', '1', '2', '3', '4'};
-    const auto tensor = pack_string_tensor(std::vector<header_element_t>{strings_count, 0, -3, 5}, strings);
+    const auto tensor = pack_string_tensor(std::vector<header_element_t>{strings_count, -3, 2, 5}, strings);
     OV_EXPECT_THROW(AttributeAdapter<std::shared_ptr<StringAlignedBuffer>>::unpack_string_tensor(
                         reinterpret_cast<const char*>(tensor.data()),
                         tensor.size()),
