@@ -15,7 +15,7 @@ constexpr intel_npu::SectionTypeInstance FIRST_INSTANCE_ID = 0;
 
 namespace intel_npu {
 
-BlobReader::BlobReader(const ov::Tensor& source) : m_source(source), m_cursor(0) {
+BlobReader::BlobReader(const ov::Tensor& source) : m_source(source), m_npu_region_size(source.get_byte_size()), m_cursor(0) {
     // Register the core sections
     register_reader(PredefinedSectionType::CRE, CRESection::read);
     register_reader(PredefinedSectionType::OFFSETS_TABLE, OffsetsTableSection::read);
@@ -115,9 +115,11 @@ void BlobReader::read(const std::unordered_map<CRE::Token, std::shared_ptr<ICapa
 
     m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID] = CRESection::read(this, section_length.value());
     m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID]->set_section_type_instance(FIRST_INSTANCE_ID);
-    std::dynamic_pointer_cast<CRESection>(m_parsed_sections.at(PredefinedSectionType::CRE).at(FIRST_INSTANCE_ID))
-        ->get_cre()
-        .check_compatibility(plugin_capabilities);
+    const bool is_compatible =
+        std::dynamic_pointer_cast<CRESection>(m_parsed_sections.at(PredefinedSectionType::CRE).at(FIRST_INSTANCE_ID))
+            ->get_cre()
+            .check_compatibility(plugin_capabilities);
+    OPENVINO_ASSERT(is_compatible, "The imported model is not compatible");
 
     // Step 3: Parse all known sections
     move_cursor_to_relative_position(where_the_region_of_persistent_format_starts);

@@ -188,20 +188,15 @@ CRE CRESection::get_cre() const {
 
 std::shared_ptr<ISection> CRESection::read(BlobReader* blob_reader, const size_t section_length) {
     size_t number_of_tokens = section_length / sizeof(CRE::Token);
-    OPENVINO_ASSERT(number_of_tokens > 0);
-    CRE cre;
+    OPENVINO_ASSERT(number_of_tokens > 0); // is this ever false?
 
+    std::vector<CRE::Token> tokens(number_of_tokens);
+    blob_reader->copy_data_from_source(reinterpret_cast<char*>(tokens.data()),
+                                       number_of_tokens * sizeof(CRE::Token));
     // We expect the expression to start with "AND". The ctor also places this token at the beginning.
-    CRE::Token token;
-    blob_reader->copy_data_from_source(reinterpret_cast<char*>(&token), sizeof(token));
-    OPENVINO_ASSERT(token == CRE::AND);
+    OPENVINO_ASSERT(tokens[0] == CRE::AND);
 
-    while (--number_of_tokens) {
-        blob_reader->copy_data_from_source(reinterpret_cast<char*>(&token), sizeof(token));
-        cre.append_to_expression(token);
-    }
-
-    return std::make_shared<CRESection>(cre);
+    return std::make_shared<CRESection>(CRE(tokens));
 }
 
 }  // namespace intel_npu

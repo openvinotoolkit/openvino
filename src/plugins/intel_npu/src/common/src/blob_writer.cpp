@@ -31,9 +31,8 @@ BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader)
     m_cre = std::dynamic_pointer_cast<CRESection>(cre_section)->get_cre();
 
     for (const auto& [section_type_id, sections] : blob_reader->m_parsed_sections) {
-        // The offsets table section is added by the write() method after writing all registered sections (jic the
-        // registered sections will alter the table). Therefore, this section should be omitted here.
-        if (section_type_id != PredefinedSectionType::OFFSETS_TABLE) {
+        if (section_type_id != PredefinedSectionType::OFFSETS_TABLE &&
+            section_type_id != PredefinedSectionType::CRE) {
             // Recall that each section type can have multiple instances
             for (const auto& [instance_id, section] : sections) {
                 register_section_from_blob_reader(section);
@@ -133,6 +132,7 @@ void BlobWriter::write(std::ostream& stream) {
     std::queue<std::shared_ptr<ISection>> registered_sections_backup(m_registered_sections);
     CRE cre_clone = m_cre;
     OffsetsTable offsets_table_backup = m_offsets_table;
+    m_offsets_table = OffsetsTable{};
 
     // The NPU specific region starts from here
     m_stream_base = stream.tellp();
