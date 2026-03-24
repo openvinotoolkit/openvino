@@ -27,7 +27,7 @@ protected:
 TEST_F(TypePropBevPoolV2Test, default_ctor) {
     const auto op = make_op();
 
-    const auto cf = std::make_shared<Parameter>(element::f32, PartialShape{2, 4, 3, 5});
+    const auto cf = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 5, 4});
     const auto dw = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 3, 5});
     const auto idx = std::make_shared<Parameter>(element::i32, PartialShape{6});
     const auto itv = std::make_shared<Parameter>(element::i32, PartialShape{6});
@@ -51,7 +51,7 @@ TEST_F(TypePropBevPoolV2Test, default_ctor) {
 }
 
 TEST_F(TypePropBevPoolV2Test, static_shapes) {
-    const auto cf = std::make_shared<Parameter>(element::f16, PartialShape{3, 8, 10, 12});
+    const auto cf = std::make_shared<Parameter>(element::f16, PartialShape{3, 10, 12, 8});
     const auto dw = std::make_shared<Parameter>(element::f16, PartialShape{3, 4, 10, 12});
     const auto idx = std::make_shared<Parameter>(element::i64, PartialShape{9});
     const auto itv = std::make_shared<Parameter>(element::i64, PartialShape{3, 3});
@@ -74,7 +74,7 @@ TEST_F(TypePropBevPoolV2Test, static_shapes) {
 }
 
 TEST_F(TypePropBevPoolV2Test, invalid_input_count) {
-    const auto cf = std::make_shared<Parameter>(element::f32, PartialShape{2, 4, 3, 5});
+    const auto cf = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 5, 4});
     const auto dw = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 3, 5});
     const auto idx = std::make_shared<Parameter>(element::i64, PartialShape{6});
 
@@ -115,7 +115,7 @@ TEST_F(TypePropBevPoolV2Test, cf_rank_must_be_4d) {
 }
 
 TEST_F(TypePropBevPoolV2Test, cf_channel_dim_must_match_attribute) {
-    const auto cf = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 3, 5});
+    const auto cf = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 5, 3});
     const auto dw = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 3, 5});
     const auto idx = std::make_shared<Parameter>(element::i64, PartialShape{6});
     const auto itv = std::make_shared<Parameter>(element::i64, PartialShape{6});
@@ -136,7 +136,7 @@ TEST_F(TypePropBevPoolV2Test, cf_channel_dim_must_match_attribute) {
 }
 
 TEST_F(TypePropBevPoolV2Test, itv_1d_length_must_be_divisible_by_3) {
-    const auto cf = std::make_shared<Parameter>(element::f32, PartialShape{2, 4, 3, 5});
+    const auto cf = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 5, 4});
     const auto dw = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 3, 5});
     const auto idx = std::make_shared<Parameter>(element::i32, PartialShape{7});
     const auto itv = std::make_shared<Parameter>(element::i32, PartialShape{7});
@@ -157,7 +157,7 @@ TEST_F(TypePropBevPoolV2Test, itv_1d_length_must_be_divisible_by_3) {
 }
 
 TEST_F(TypePropBevPoolV2Test, idx_must_be_integral) {
-    const auto cf = std::make_shared<Parameter>(element::f32, PartialShape{2, 4, 3, 5});
+    const auto cf = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 5, 4});
     const auto dw = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 3, 5});
     const auto idx = std::make_shared<Parameter>(element::f32, PartialShape{6});
     const auto itv = std::make_shared<Parameter>(element::i32, PartialShape{6});

@@ -47,7 +47,7 @@ void assert_with_error_stats(const memory::ptr& output,
     ASSERT_LE(max_abs, abs_threshold) << "worst-case max_abs=" << max_abs << ", mean_abs=" << mean_abs << ", max_rel=" << max_rel;
 }
 
-TEST(bevpool_v2_gpu_test, ref_comp_f32) {
+TEST(BevPoolV2GpuTest, ref_comp_f32) {
     auto& engine = get_test_engine();
     auto stream = get_test_stream_ptr(get_test_default_config(engine));
 
@@ -99,7 +99,7 @@ TEST(bevpool_v2_gpu_test, ref_comp_f32) {
     assert_with_error_stats<float>(output, expected, 1e-4f, 1e-4f);
 }
 
-TEST(bevpool_v2_gpu_test, ref_comp_f16_with_error_stats) {
+TEST(BevPoolV2GpuTest, ref_comp_f16_with_error_stats) {
     auto& engine = get_test_engine();
     auto stream = get_test_stream_ptr(get_test_default_config(engine));
 
@@ -152,7 +152,7 @@ TEST(bevpool_v2_gpu_test, ref_comp_f16_with_error_stats) {
     assert_with_error_stats<ov::float16>(output, expected, 2e-3f, 2e-3f);
 }
 
-TEST(bevpool_v2_gpu_test, ref_comp_f32_u32_indices) {
+TEST(BevPoolV2GpuTest, ref_comp_f32_u32_indices) {
     auto& engine = get_test_engine();
     auto stream = get_test_stream_ptr(get_test_default_config(engine));
 
