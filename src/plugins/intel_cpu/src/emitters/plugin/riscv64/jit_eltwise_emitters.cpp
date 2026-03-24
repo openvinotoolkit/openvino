@@ -1596,8 +1596,8 @@ void jit_erfinv_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     // Blend: select poly1 (aux3) where w<5, poly2 (aux4) otherwise; multiply by x
     load_table_val("five", fp0);
-    h->vmflt_vf(mask_vreg(), aux1, fp0);          // mask = (w < 5.0)
-    h->vmerge_vvm(dst, aux4, aux3, mask_vreg());  // dst = mask ? poly1 : poly2
+    h->vmflt_vf(mask_vreg(), aux1, fp0);       // mask = (w < 5.0)
+    h->vmerge_vvm(dst, aux4, aux3);            // dst = mask ? poly1 : poly2
     h->vfmul_vv(dst, dst, aux0);                  // dst *= saved_x
 
     // Special-case handling: |x| >= 1 → ±inf; |x| > 1 → NaN
@@ -1614,13 +1614,13 @@ void jit_erfinv_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     // ge1_mask: (abs_x >= 1.0) → vmfge_vf
     load_table_val("one", fp0);
-    h->vmfge_vf(mask_vreg(), aux1, fp0);         // mask = (abs_x >= 1.0)
-    h->vmerge_vvm(dst, dst, aux2, mask_vreg());  // dst[ge1] = ±inf
+    h->vmfge_vf(mask_vreg(), aux1, fp0);       // mask = (abs_x >= 1.0)
+    h->vmerge_vvm(dst, dst, aux2);             // dst[ge1] = ±inf
 
     // gt1_mask: (abs_x > 1.0) → vmfgt_vf
     h->vmfgt_vf(mask_vreg(), aux1, fp0);  // mask = (abs_x > 1.0)
     load_table_val("qnan", aux3, gpr);
-    h->vmerge_vvm(dst, dst, aux3, mask_vreg());  // dst[gt1] = NaN
+    h->vmerge_vvm(dst, dst, aux3);             // dst[gt1] = NaN
 }
 
 void jit_erfinv_emitter::register_table_entries() {
