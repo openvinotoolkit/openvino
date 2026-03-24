@@ -5,6 +5,7 @@
 #pragma once
 
 #include <ze_api.h>
+#include <ze_command_queue_npu_ext.h>
 
 #include <mutex>
 #include <unordered_map>

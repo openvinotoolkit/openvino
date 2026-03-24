@@ -5,6 +5,7 @@
 #pragma once
 
 #include <ze_api.h>
+#include <ze_command_queue_npu_ext.h>
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
