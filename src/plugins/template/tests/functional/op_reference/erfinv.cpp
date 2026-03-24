@@ -136,47 +136,30 @@ INSTANTIATE_TEST_SUITE_P(smoke_ErfInv_With_Hardcoded_Refs,
                          testing::ValuesIn(generateErfInvCombinedParams()),
                          ReferenceErfInvLayerTest::getTestCaseName);
 
-// Dedicated edge-case test: |x|>1 must produce NaN, x=±1 must produce ±inf
+// Dedicated edge-case test: |x|>1 must produce NaN, x=±1 must produce ±inf.
 class ReferenceErfInvEdgeCaseTest : public CommonReferenceTest {
 public:
-    void SetUp(const std::vector<float>& inputs, const std::vector<bool>& expect_nan, const std::vector<bool>& expect_inf) {
-        const Shape shape{inputs.size()};
-        const auto in = std::make_shared<op::v0::Parameter>(element::f32, shape);
-        function = std::make_shared<ov::Model>(OutputVector{std::make_shared<op::v16::ErfInv>(in)}, ParameterVector{in});
-        inputData = {CreateTensor(element::f32, inputs)};
-        // refOutData is not used — we validate manually after Exec()
-        refOutData = {CreateTensor(element::f32, inputs)};  // placeholder
-        expect_nan_ = expect_nan;
-        expect_inf_ = expect_inf;
+    void SetUp() {
+        const auto in = std::make_shared<op::v0::Parameter>(element::f32, Shape{4});
+        function = std::make_shared<ov::Model>(OutputVector{std::make_shared<op::v16::ErfInv>(in)},
+                                               ParameterVector{in});
+        // inputs: two out-of-domain values, then the two boundary values
+        inputData = {CreateTensor(element::f32, std::vector<float>{2.0f, -1.5f, 1.0f, -1.0f})};
     }
 
-    void Validate() {
-        executableNetwork = core->compile_model(function, targetDevice);
-        inferRequest = executableNetwork.create_infer_request();
-        inferRequest.set_input_tensor(0, inputData[0]);
-        inferRequest.infer();
-        const auto* result = inferRequest.get_output_tensor(0).data<float>();
-        for (size_t i = 0; i < expect_nan_.size(); ++i) {
-            if (expect_nan_[i]) {
-                EXPECT_TRUE(std::isnan(result[i])) << "index " << i << ": expected NaN, got " << result[i];
-            } else if (expect_inf_[i]) {
-                EXPECT_TRUE(std::isinf(result[i])) << "index " << i << ": expected inf, got " << result[i];
-            }
-        }
+    void Validate() override {
+        const auto* data = inferRequest.get_tensor(executableNetwork.output(0)).data<float>();
+        EXPECT_TRUE(std::isnan(data[0]))                 << "erfinv(2) expected NaN, got "    << data[0];
+        EXPECT_TRUE(std::isnan(data[1]))                 << "erfinv(-1.5) expected NaN, got " << data[1];
+        EXPECT_TRUE(std::isinf(data[2]) && data[2] > 0) << "erfinv(1) expected +inf, got "   << data[2];
+        EXPECT_TRUE(std::isinf(data[3]) && data[3] < 0) << "erfinv(-1) expected -inf, got "  << data[3];
     }
-
-private:
-    std::vector<bool> expect_nan_;
-    std::vector<bool> expect_inf_;
 };
 
 TEST(ErfInvEdgeCases, OutOfDomainAndBoundary) {
     ReferenceErfInvEdgeCaseTest test;
-    test.SetUp(
-        {2.0f, -1.5f, 1.0f, -1.0f},
-        {true,  true,  false, false},  // NaN for |x|>1
-        {false, false, true,  true});  // ±inf for x=±1
-    test.Validate();
+    test.SetUp();
+    test.Exec();
 }
 
 }  // namespace
