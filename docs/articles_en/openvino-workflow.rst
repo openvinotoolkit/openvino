@@ -15,6 +15,7 @@ Conventional AI Workflow
    Running Inference <openvino-workflow/running-inference>
    Deployment on a Local System <openvino-workflow/deployment-locally>
    openvino-workflow/torch-compile
+   openvino-workflow/executorch
 
 
 OpenVINO offers multiple workflows, depending on the use case and personal or project preferences.
@@ -94,6 +95,9 @@ OpenVINO uses the following functions for reading, converting, and saving models
 
 | :doc:`Deployment Option 3. Using torch.compile for PyTorch 2.0  <openvino-workflow/torch-compile>`
 |    Deploy a PyTorch model using OpenVINO in a PyTorch-native application.
+
+| :doc:`Deployment Option 4. Using ExecuTorch for edge deployment  <openvino-workflow/executorch>`
+|    Deploy a PyTorch model on edge and mobile devices using OpenVINO as an ExecuTorch backend delegate.
 
 
 
