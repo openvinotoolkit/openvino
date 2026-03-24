@@ -36,7 +36,6 @@ using namespace testing;
 using namespace ov;
 using namespace std;
 using namespace ov::opset10;
-using namespace ov::op;
 
 namespace v0 = ov::op::v0;
 TEST(TransformationTests, keep_precission_sensitive_fp32_1) {

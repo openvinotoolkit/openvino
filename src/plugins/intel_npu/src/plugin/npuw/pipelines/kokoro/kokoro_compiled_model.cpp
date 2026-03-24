@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
 #include "kokoro_infer_request.hpp"
+#include "kokoro_model_transforms.hpp"
 #include "kokoro_split.hpp"
 #include "npuw/logging.hpp"
 #include "plugin.hpp"
@@ -88,6 +89,9 @@ ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Mod
     // Decompose kokoro model into two static models
     KokoroSplitResult split_result = KokoroSplit::split_model(model, m_kokoro_cfg);
 
+    // Guard aten::angle Divide(0,0)->NaN in Model B before NPUW partitioning
+    ov::npuw::kokoro::guard_angle_divide(split_result.model_b);
+
     LOG_DEBUG("Compiling kokoro model A...");
     // Model A doesn't require decomposition, so it should be handled by CPU or NPU plugin
     if (is_cpu_only(common_props)) {
@@ -107,9 +111,9 @@ ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Mod
         // REP mode is giving best compile time / stability results
         properties_model_b["NPUW_ONLINE_PIPELINE"] = "REP";
     }
-    if (!properties_model_b.count("NPUW_SUBMODEL_DEVICE")) {
-        // 20 & 99 - ISTFT & STFT, 55 & 62 - Not accurate
-        properties_model_b["NPUW_SUBMODEL_DEVICE"] = "20:CPU,99:CPU,55:CPU,62:CPU";
+    if (!properties_model_b.count("NPUW_ONLINE_AVOID")) {
+        properties_model_b["NPUW_ONLINE_AVOID"] = "P:DownsampleInterpolate/NPU,P:FloorModFP32/NPU,P:CumSumSinGen/"
+                                                  "NPU,P:BoxMullerNoise/NPU,P:AngleComplex/NPU,Op:ISTFT/NPU";
     }
     m_model_b_compiled = std::dynamic_pointer_cast<ov::npuw::ICompiledModel>(
         ov::npuw::ICompiledModel::create(split_result.model_b, plugin, properties_model_b));

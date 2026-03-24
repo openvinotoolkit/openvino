@@ -302,26 +302,26 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
             // Wrapped to sp due-to we need to hold GIL upon destruction of python function
             auto py_encrypt = std::shared_ptr<py::function>(new py::function(std::move(property_list[0])),
                                                             [](py::function* py_encrypt) {
-                                                                ConditionalGILScopedAcquire acquire;
+                                                                py::gil_scoped_acquire acquire;
                                                                 delete py_encrypt;
                                                             });
             auto py_decrypt = std::shared_ptr<py::function>(new py::function(std::move(property_list[1])),
                                                             [](py::function* py_decrypt) {
-                                                                ConditionalGILScopedAcquire acquire;
+                                                                py::gil_scoped_acquire acquire;
                                                                 delete py_decrypt;
                                                             });
 
             std::function<std::string(const std::string&)> encrypt_func =
                 [py_encrypt](const std::string& in_str) -> std::string {
                 // Acquire GIL, execute Python function
-                ConditionalGILScopedAcquire acquire;
+                py::gil_scoped_acquire acquire;
                 return (*py_encrypt)(py::bytes(in_str)).cast<std::string>();
             };
 
             std::function<std::string(const std::string&)> decrypt_func =
                 [py_decrypt](const std::string& in_str) -> std::string {
                 // Acquire GIL, execute Python function
-                ConditionalGILScopedAcquire acquire;
+                py::gil_scoped_acquire acquire;
                 return (*py_decrypt)(py::bytes(in_str)).cast<std::string>();
             };
             ov::EncryptionCallbacks encryption_callbacks{encrypt_func, decrypt_func};
@@ -334,24 +334,6 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
         }
     }
     return properties_to_cpp;
-}
-
-std::string convert_path_to_string(const py::object& path) {
-    // import pathlib.Path
-    py::object Path = py::module_::import("pathlib").attr("Path");
-    // check if model path is either a string or pathlib.Path
-    if (py::isinstance(path, Path) || py::isinstance<py::str>(path)) {
-        return py::str(path);
-    }
-    // Convert bytes to string
-    if (py::isinstance<py::bytes>(path)) {
-        return path.cast<std::string>();
-    }
-    std::stringstream str;
-    str << "Path: '" << path << "'"
-        << " does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path. "
-           "Examples:\n(1) '/home/user/models/model.onnx'\n(2) Path('/home/user/models/model/model.onnx')";
-    OPENVINO_THROW(str.str());
 }
 
 std::shared_ptr<ov::Model> convert_to_model(const py::object& obj) {
@@ -587,7 +569,7 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         // If there is no match fallback to py::object
     } else if (py::isinstance<py::object>(py_obj)) {
         return std::shared_ptr<py::object>(new py::object(py_obj), [](py::object* py_obj_reference) {
-            ConditionalGILScopedAcquire acquire;
+            py::gil_scoped_acquire acquire;
             delete py_obj_reference;
         });
     }

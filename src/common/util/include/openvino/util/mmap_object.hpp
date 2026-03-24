@@ -33,6 +33,7 @@ class MappedMemory {
 public:
     virtual char* data() noexcept = 0;
     virtual size_t size() const noexcept = 0;
+    virtual uint64_t get_id() const noexcept = 0;
     virtual ~MappedMemory() = default;
 };
 

@@ -34,14 +34,16 @@ public:
                  const std::vector<uint16_t>& dim_format,
                  const std::vector<SparsityDataDesc>& data_desc,
                  const ov::element::Type target_type,
-                 const uint8_t* values)
+                 const uint8_t* values,
+                 size_t values_size = 0)
         : m_shape(shape),
           m_traversal_order(traversal_order),
           m_block_map(block_map),
           m_dim_format(dim_format),
           m_data_desc(data_desc),
           m_target_type(target_type),
-          m_values(values) {
+          m_values(values),
+          m_values_size(values_size) {
         enable();
     }
 
@@ -90,8 +92,12 @@ public:
         return m_values;
     }
 
-    void set_values(const uint8_t* values) {
+    void set_values(const uint8_t* values, size_t values_size = 0) {
         m_values = values;
+        m_values_size = values_size;
+    }
+    size_t get_values_size() const {
+        return m_values_size;
     }
     bool is_disabled() const {
         return m_disabled;
@@ -123,6 +129,7 @@ private:
     std::vector<uint8_t> m_data;                // Dense data
     ov::element::Type m_target_type;            // Target type
     const uint8_t* m_values = nullptr;          // Sparse values
+    size_t m_values_size = 0;                   // Sparse values buffer size in bytes
     bool m_disabled = false;
 
     // Unpack sparse tensor and return pointer on unpacked data

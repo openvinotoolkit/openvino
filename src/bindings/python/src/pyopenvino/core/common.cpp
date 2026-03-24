@@ -430,7 +430,7 @@ std::shared_ptr<ov::SharedBuffer<py::array>> get_shared_memory(py::array& array)
             array.ndim() == 0 ? array.itemsize() : array.nbytes(),
             array);
         std::shared_ptr<ov::SharedBuffer<py::array>> memory(buffer, [](ov::SharedBuffer<py::array>* buffer) {
-            ConditionalGILScopedAcquire acquire;
+            py::gil_scoped_acquire acquire;
             delete buffer;
         });
         return memory;
@@ -529,7 +529,7 @@ ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const o
     auto element_type = (type == ov::element::dynamic) ? Common::type_helpers::get_ov_type(array) : type;
 
     if (array_helpers::is_contiguous(array)) {
-        return ov::Tensor(element_type, shape, const_cast<void*>(array.data(0)), {});
+        return ov::Tensor(element_type, shape, const_cast<void*>(array.data()), {});
     }
     OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
 }

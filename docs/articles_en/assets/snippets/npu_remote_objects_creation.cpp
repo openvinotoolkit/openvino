@@ -73,13 +73,6 @@ int main() {
     }
 
     {
-        //! [wrap_dmabuf_fd]
-        ov::intel_npu::FileDescriptor file_descriptor{"file_path.bin", 0};  // create the FileDescriptor
-        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, file_descriptor);
-        //! [wrap_dmabuf_fd]
-    }
-
-    {
         //! [allocate_remote_level_zero_host]
         auto remote_tensor = npu_context.create_l0_host_tensor(in_element_type, in_shape);
         // Extract raw level zero pointer from remote tensor

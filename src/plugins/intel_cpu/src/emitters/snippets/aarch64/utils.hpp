@@ -61,7 +61,7 @@ Xbyak_aarch64::XReg init_memory_access_aux_gpr(const std::vector<size_t>& used_g
  * vector)
  * @param runtime_offset offset in runtime params `abi_param1`
  */
-void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
+void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                            int32_t stack_offset,
                                            const Xbyak_aarch64::XReg& ptr_reg,
                                            const std::vector<Xbyak_aarch64::XReg>& aux_regs,
@@ -77,7 +77,7 @@ void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generat
  * vector)
  * @param ptr_offset offset which will be added to data pointer
  */
-void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
+void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                           int32_t stack_offset,
                                           const Xbyak_aarch64::XReg& ptr_reg,
                                           const std::vector<Xbyak_aarch64::XReg>& aux_regs,
@@ -93,7 +93,7 @@ void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generato
  * @param aux_regs vector of available auxiliary registers (must contain >= 3 registers, no overlap with mem_ptrs)
  * @param load_regs vector of registers to load the adjusted pointers back to
  */
-void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator* h,
+void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                      const std::vector<Xbyak_aarch64::XReg>& mem_ptrs,
                                      const std::vector<size_t>& memory_offsets,
                                      const std::vector<size_t>& buffer_ids,
@@ -112,7 +112,7 @@ void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator* h,
  * @param aux_regs vector of available auxiliary registers
  * @param stack_offsets vector of stack offsets where adjusted pointers should be stored
  */
-void push_ptrs_with_offsets_to_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
+void push_ptrs_with_offsets_to_stack(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                      const std::vector<Xbyak_aarch64::XReg>& mem_ptrs,
                                      const std::vector<size_t>& memory_offsets,
                                      const std::vector<size_t>& buffer_ids,

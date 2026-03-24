@@ -44,7 +44,6 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::ValuesIn(transposedShape_4D_WithMul),
                        ::testing::ValuesIn(precision_f32(5)),
                        ::testing::Values(ov::element::f32),
-                       ::testing::Values(MHA::default_thread_count),
                        ::testing::Values(expected_nodes_mha_with_dyn_mul),
                        ::testing::Values(2), // Transpose1 + MHA
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -57,7 +56,6 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::ValuesIn(transposedShape_4D_WithMul),
                        ::testing::ValuesIn(precision_f32(5)),
                        ::testing::Values(ov::element::bf16),
-                       ::testing::Values(MHA::default_thread_count),
                        ::testing::Values(9),  // Transpose1 + MHA + 1 Transpose on output + 6 Converts around
                        ::testing::Values(7),  // MHA + 6 Converts around
                        ::testing::Values(ov::test::utils::DEVICE_CPU),

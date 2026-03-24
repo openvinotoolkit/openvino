@@ -295,7 +295,7 @@ TEST_P(OVCompileAndInferRequestSerializers, AccurateResults) {
     } catch (const ov::Exception& exception) {
         ASSERT_STR_CONTAINS(
             exception.what(),
-            "[ NOT_FOUND ] Option 'NPU_USE_BASE_MODEL_SERIALIZER' is not supported for current configuration");
+            "[ NOT_FOUND ] Option 'NPU_MODEL_SERIALIZER_VERSION' is not supported for current configuration");
     }
 }
 

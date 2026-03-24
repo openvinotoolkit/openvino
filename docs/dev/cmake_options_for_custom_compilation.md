@@ -115,7 +115,7 @@ This document provides description and default values for CMake options that can
     * `ON` is default for x86_64 and AARCH64 platforms
     * Affects only OpenVINO CPU plugin
 
-## Building with OpenCV
+## Building with custom OpenCV
 
 Some OpenVINO samples can benefit from OpenCV usage, e.g. can read more image formats as inputs. If you have OpenCV on your machine, you can pass it via CMake option:
 
@@ -179,11 +179,11 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 [Java]:https://www.java.com/ru/
 [Clang format]:http://clang.llvm.org/docs/ClangFormat.html
 [OpenVINO Contrib]:https://github.com/openvinotoolkit/openvino_contrib
-[OpenVINO thirdparty pugixml]:https://github.com/openvinotoolkit/openvino/tree/master/inference-engine/thirdparty/pugixml
+[OpenVINO thirdparty pugixml]:https://github.com/openvinotoolkit/openvino/tree/master/thirdparty/pugixml
 [pugixml]:https://pugixml.org/
 [ONNX]:https://onnx.ai/
 [protobuf]:https://github.com/protocolbuffers/protobuf
-[OpenVINO Runtime Introduction]:https://docs.openvino.ai/2025/openvino-workflow/running-inference.html
+[OpenVINO Runtime Introduction]:https://docs.openvino.ai/2026/openvino-workflow/running-inference.html
 [PDPD]:https://github.com/PaddlePaddle/Paddle
 [TensorFlow]:https://www.tensorflow.org/
 [TensorFlow Lite]:https://www.tensorflow.org/lite

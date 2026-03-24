@@ -257,6 +257,7 @@ void regclass_graph_Node(py::module m) {
         py::arg("evaluationContext") = PyRTMap(),
         R"(
                 Evaluate the node on inputs, putting results in outputs
+
                 :param output_tensors: Tensors for the outputs to compute. One for each result.
                 :type output_tensors: openvino.TensorVector
                 :param input_tensors: Tensors for the inputs. One for each inputs.

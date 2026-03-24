@@ -185,6 +185,7 @@ static bool is_segfault_detector_emitter(const intel_cpu::jit_emitter* emitter) 
      [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {                  \
          return e_type::get_supported_precisions(n);                                                   \
      }}
+
 class jit_snippet : public dnnl::impl::cpu::x64::jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_snippet)

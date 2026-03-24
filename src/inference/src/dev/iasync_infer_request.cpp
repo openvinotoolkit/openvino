@@ -4,13 +4,19 @@
 
 #include "openvino/runtime/iasync_infer_request.hpp"
 
+#include <atomic>
 #include <memory>
 
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
+#include "openvino/runtime/plugin_itt.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/variable_state.hpp"
+
+/// @brief Thread-safe global counter for unique inference request IDs that
+/// are needed for asynchronous inference.
+static std::atomic<uint64_t> g_inference_uid = {1};
 
 namespace {
 
@@ -37,7 +43,8 @@ ov::IAsyncInferRequest::~IAsyncInferRequest() {
 ov::IAsyncInferRequest::IAsyncInferRequest(const std::shared_ptr<IInferRequest>& request,
                                            const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                                            const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
-    : m_sync_request(request),
+    : m_infer_id(0),
+      m_sync_request(request),
       m_request_executor(task_executor),
       m_callback_executor(callback_executor) {
     if (m_request_executor && m_sync_request)
@@ -119,6 +126,7 @@ void ov::IAsyncInferRequest::start_async_thread_unsafe() {
 void ov::IAsyncInferRequest::run_first_stage(const Pipeline::iterator itBeginStage,
                                              const Pipeline::iterator itEndStage,
                                              const std::shared_ptr<ov::threading::ITaskExecutor> callbackExecutor) {
+    m_infer_id = g_inference_uid++;
     auto& firstStageExecutor = std::get<Stage_e::EXECUTOR>(*itBeginStage);
     OPENVINO_ASSERT(nullptr != firstStageExecutor);
     firstStageExecutor->run(make_next_stage_task(itBeginStage, itEndStage, std::move(callbackExecutor)));
@@ -130,6 +138,8 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
     const std::shared_ptr<ov::threading::ITaskExecutor> callbackExecutor) {
     return std::bind(
         [this, itStage, itEndStage](std::shared_ptr<ov::threading::ITaskExecutor>& callbackExecutor) mutable {
+            // Propagate the inference ID through all subsequent stages for this instance of the pipeline
+            OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Inference, "Inference::pipeline", "InferenceID", m_infer_id);
             std::exception_ptr currentException = nullptr;
             auto& thisStage = *itStage;
             auto itNextStage = itStage + 1;

@@ -54,12 +54,14 @@ def verify_moe_fusion(ov_model: ov.Model, model_id: str):
                             else:
                                 assert weight_shape[0] == num_experts, \
                                     f"Inconsistent expert count: expected {num_experts}, got {weight_shape[0]}"
+
     # If we found fused weights, verify the number of experts makes sense
     if num_experts is not None:
         assert num_experts > 1, f"Expected multiple experts, found {num_experts}"
         # For tiny-random-qwen3_moe, we expect 4 experts
         print(f"Detected {num_experts} experts in fused MoE layers")
         return num_experts
+
     return 0
 
 
@@ -80,6 +82,7 @@ def verify_fused_moe_pattern(ov_model: ov.Model,
     # Verify that MoE fusion is present in the loaded model
     num_experts = verify_moe_fusion(ov_model, model_id)
     assert num_experts > 0, "Model does not contain fused MoE pattern with 3D weight tensors"
+
     # Compile to ensure the model is valid
     ov.Core().compile_model(ov_model, ie_device)
 
@@ -87,6 +90,7 @@ def verify_fused_moe_pattern(ov_model: ov.Model,
 def create_synthetic_moe_model(tmp_path, num_layers, num_experts, dtype="float32", hidden_size=512, intermediate_size=192):
     """
     Create a synthetic Qwen3 MoE model from config for testing.
+
     Args:
         tmp_path: Temporary directory path
         num_layers: Number of hidden layers (MoE layers)
@@ -94,6 +98,7 @@ def create_synthetic_moe_model(tmp_path, num_layers, num_experts, dtype="float32
         dtype: Model dtype (float32, bfloat16, float16)
         hidden_size: Hidden dimension size
         intermediate_size: MoE intermediate size
+
     Returns:
         str: Path to the saved model
     """
@@ -145,6 +150,7 @@ def run_moe(tmp_path,
         # Create a list of different texts for batch processing
         test_text = [f"Test input {i} for MoE model batch verification" for i in range(batch_size)]
     inputs = tokenizer(test_text, return_tensors="pt", padding=True)
+
     # Get PyTorch output
     with torch.no_grad():
         pt_outputs = pt_model(**inputs)
@@ -200,11 +206,13 @@ def run_moe_synthetic(tmp_path,
         batch_size: Number of sequences to process in parallel (default: 1)
     """
     model_path = create_synthetic_moe_model(tmp_path, num_layers, num_experts, dtype)
+
     # Load original PyTorch model for comparison (from local path)
     pt_model = AutoModelForCausalLM.from_pretrained(model_path, trust_remote_code=True)
     # Load tokenizer from cache to avoid HuggingFace rate limits
     tokenizer_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_cache, trust_remote_code=True)
+
     # Prepare test input with specified batch size
     if batch_size == 1:
         test_text = "Test input for synthetic MoE model"
@@ -212,6 +220,7 @@ def run_moe_synthetic(tmp_path,
         # Create a list of different texts for batch processing
         test_text = [f"Synthetic test input {i} for MoE batch validation" for i in range(batch_size)]
     inputs = tokenizer(test_text, return_tensors="pt", padding=True)
+
     # Get PyTorch output
     with torch.no_grad():
         pt_outputs = pt_model(**inputs)
@@ -292,6 +301,7 @@ def test_moe_precommit(tmp_path, model_info_tuple, ie_device, batch_size):
         pytest.skip(reason)
     elif mark == 'xfail':
         pytest.xfail(reason)
+
     run_moe(tmp_path, model_name, model_link, ie_device, batch_size)
 
 
@@ -306,6 +316,7 @@ MOE_SYNTHETIC_TEST_CASES = [
     (2, 4, "float32", 4),   # Two MoE layers, larger batch
     (3, 4, "float32", 1),   # Three MoE layers, single batch
     (3, 4, "float32", 2),   # Three MoE layers, small batch
+
     # Test different numbers of experts with batch processing
     (1, 2, "float32", 1),   # Minimal: 2 experts, single batch
     (1, 2, "float32", 4),   # Minimal: 2 experts, larger batch
@@ -313,16 +324,19 @@ MOE_SYNTHETIC_TEST_CASES = [
     (1, 8, "float32", 2),   # More experts: 8, small batch
     (1, 16, "float32", 1),  # Many experts: 16, single batch
     (1, 16, "float32", 4),  # Many experts: 16, larger batch
+
     # Test different dtypes with batch processing (important for decompression pattern testing)
     (1, 4, "float16", 1),   # FP16 - may have decompression, single batch
     (1, 4, "float16", 4),   # FP16 - may have decompression, larger batch
     (1, 4, "bfloat16", 1),  # BF16 - may have decompression, single batch
     (1, 4, "bfloat16", 2),  # BF16 - may have decompression, small batch
+
     # Combined variations with batch processing
     (2, 8, "float16", 1),   # Multiple layers + more experts + FP16, single batch
     (2, 8, "float16", 4),   # Multiple layers + more experts + FP16, larger batch
     (3, 16, "bfloat16", 1), # Multiple layers + many experts + BF16, single batch
     (3, 16, "bfloat16", 2), # Multiple layers + many experts + BF16, small batch
+
     # Edge cases: larger batch sizes
     (1, 4, "float32", 8),   # Large batch size
     (2, 8, "float32", 8),   # Large batch with more complex model
@@ -340,6 +354,7 @@ def synthetic_test_idfn(entry):
 def test_moe_synthetic(tmp_path, test_params, ie_device):
     """
     Test MoE fusion with synthetically generated models.
+
     This tests various configurations:
     - Different numbers of MoE layers (1, 2, 3)
     - Different numbers of experts (2, 4, 8, 16)

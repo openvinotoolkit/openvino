@@ -101,6 +101,7 @@ const std::vector<ExecutorImplementation<MatMulAttrs>>& getImplementations() {
                 const auto& srcShape1 = srcDesc1->getShape().getStaticDims();
                 const auto srcRank0 = srcShape0.size();
                 const auto srcRank1 = srcShape1.size();
+
                 for (size_t i = 0; i < srcRank0 - 2; i++) {
                     if (srcShape0[i] != srcShape1[i]) {
                         return false;

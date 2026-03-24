@@ -1993,7 +1993,7 @@ void primitive_inst::reset_flags() {
 }
 
 void primitive_inst::prepare_primitive() {
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("primitive_inst::execute: " + id()));
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle(id() + "::prepare"));
     const auto& primitive_id = id();
     if (!_has_valid_input) {
         // For unfused network with dynamic_quantization, we may have empty/unused input
@@ -2184,6 +2184,7 @@ void primitive_inst::prepare_primitive() {
 }
 
 void primitive_inst::execute() {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle(id() + "::execute"));
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::inference);
     if (get_flag(ExecutionFlags::SKIP)) {
         set_out_event(get_network().get_stream().aggregate_events(_impl_params->dep_events));

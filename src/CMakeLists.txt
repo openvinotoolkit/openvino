@@ -8,10 +8,6 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ov_add_compiler_flags(-Wmissing-declarations)
 endif()
 
-if(OV_COMPILER_IS_INTEL_LLVM)
-    ov_disable_deprecated_warnings()
-endif()
-
 # Disable adhoc codesign on Apple AARCH64 by default for internal builds.
 # For community distribution channels (e.g. conda, brew), enable it via -DOV_FORCE_ADHOC_SIGN=ON.
 if(APPLE AND AARCH64 AND NOT OV_FORCE_ADHOC_SIGN)

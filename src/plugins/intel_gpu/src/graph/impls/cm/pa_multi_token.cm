@@ -1,32 +1,24 @@
-
-/*******************************************************************************
- * Copyright (c) 2018-2026 Intel Corporation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *******************************************************************************/
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 namespace KERNEL_NAME {
-#include "cm_pa_common.hpp"
 
+#include "cm_attention_common.hpp"
 #ifdef CM_HAS_LSC_UNTYPED_2D
-#define USE_LSC 1
+#include "cm_pa_xe2.hpp"
 #else
-#define USE_LSC 0
+#include "cm_pa_xe1.hpp"
 #endif
 
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
     //query [q_len, num_heads, S]
+#ifdef CM_HAS_LSC_UNTYPED_2D
     half* query [[type("svmptr_t")]],
+#else
+    SurfaceIndex q_gather [[type("buffer_t")]],
+#endif
+#ifdef CM_HAS_LSC_UNTYPED_2D
 #if CMPA_KVCACHE_U8
     int8_t* k_cache [[type("svmptr_t")]],
     int8_t* v_cache [[type("svmptr_t")]],
@@ -34,21 +26,28 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     half* k_cache [[type("svmptr_t")]],
     half* v_cache [[type("svmptr_t")]],
 #endif
+#else
+#if CMPA_KVCACHE_U8
+    int8_t* k_cache [[type("svmptr_t")]],
+    SurfaceIndex v_cache_stateful [[type("buffer_t")]],
+#else
+    half* k_cache [[type("svmptr_t")]],
+    SurfaceIndex v_cache_stateful [[type("buffer_t")]],
+#endif
+#endif
     int32_t* past_lens [[type("svmptr_t")]],
     int32_t* block_indices [[type("svmptr_t")]],
     int32_t* block_indices_begins [[type("svmptr_t")]],
     int32_t* subsequence_begins [[type("svmptr_t")]],
     half* output [[type("svmptr_t")]],
-#if IS_BLOCK_SPARSE
-    bool* sparse_block_mask [[type("svmptr_t")]],
+    int q_len
+#if SPARSE_BLOCK_SIZE > 1
+    , bool* sparse_block_mask [[type("svmptr_t")]],
     bool* sparse_block_mask_wg [[type("svmptr_t")]],
-    int q_len,
     int num_q_blocks,
-    int num_k_blocks,
-    int SPARSE_BLOCK_SIZE) {
-#else
-    int q_len) {
+    int num_k_blocks
 #endif
+    ) {
     constexpr int is_causal = CMFLA_IS_CAUSAL;
     constexpr int num_heads = CMFLA_NUM_HEADS;
     constexpr int head_size = CMFLA_HEAD_SIZE;
@@ -79,7 +78,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
     // multiple work-groups are required to split a sequence,
     // need to figure out which part of query-tokens to process
+#if defined(CMPA_WG_SEQ_LEN)
+    constexpr int wg_seq_len = CMPA_WG_SEQ_LEN;
+#else
     int wg_seq_len = local_size * q_step;
+#endif
     int past_q_lens = past_lens[0];
     kv_start = 0;
     kv_seq_len = q_len + past_q_lens;
@@ -122,8 +125,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
     //Q/O[B, L, H, S]
     uint q_offset = (q_start_sg*num_heads + h)*head_size;
+    uint q_offset_bytes = q_offset * sizeof(half);
 
-#if IS_BLOCK_SPARSE
+#if SPARSE_BLOCK_SIZE > 1
     bool *block_mask_base, *wg_block_mask_base;
     //# sparse_block_mask [num_heads, num_q_blocks, num_k_blocks]
     //# sparse_block_mask_wg [num_heads, wg_count_along_query, num_k_blocks]
@@ -134,6 +138,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
 #if CMPA_KVCACHE_U8
     uint kv_offset = hkv*(head_size+4)*pa_block_sz;
+    uint kv_offset_bytes = kv_offset; // U8: byte offset
     pa_lsc_u8<is_causal, num_heads, num_kv_heads, head_size, 0>(
                             slm_K,
                             slm_V,
@@ -143,32 +148,51 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                             kv_stop,
                             q_len_sg, //q_step,
                             kv_seq_len, //kv_len,
+#ifdef CM_HAS_LSC_UNTYPED_2D
                             reinterpret_cast<svmptr_t>(query + q_offset),
+#else
+                            q_gather,
+                            q_offset_bytes,
+#endif
                             reinterpret_cast<svmptr_t>(k_cache + kv_offset),
+#ifdef CM_HAS_LSC_UNTYPED_2D
                             reinterpret_cast<svmptr_t>(v_cache + kv_offset),
-#if IS_BLOCK_SPARSE
+#else
+                            v_cache_stateful,
+                            kv_offset_bytes,
+#endif
+#if SPARSE_BLOCK_SIZE > 1
                             reinterpret_cast<svmptr_t>(block_mask_base),
                             reinterpret_cast<svmptr_t>(wg_block_mask_base),
-                            SPARSE_BLOCK_SIZE,
 #endif
                             reinterpret_cast<svmptr_t>(output + q_offset),
                             past_q_lens,
                             block_indices);
 #else
     uint kv_offset = hkv*head_size*pa_block_sz;
+    uint kv_offset_bytes = kv_offset * sizeof(half);
     pa_kernel_lsc_prefetch_f16<is_causal, num_heads, num_kv_heads, head_size, 0, 16>(
                             wg_local_id,
                             q_start_sg, //q_start for SG,
                             kv_stop,
                             q_len_sg, //q_step,
                             kv_seq_len, //kv_len,
+#ifdef CM_HAS_LSC_UNTYPED_2D
                             reinterpret_cast<svmptr_t>(query + q_offset),
+#else
+                            q_gather,
+                            q_offset_bytes,
+#endif
                             reinterpret_cast<svmptr_t>(k_cache + kv_offset),
+#ifdef CM_HAS_LSC_UNTYPED_2D
                             reinterpret_cast<svmptr_t>(v_cache + kv_offset),
-#if IS_BLOCK_SPARSE
+#else
+                            v_cache_stateful,
+                            kv_offset_bytes,
+#endif
+#if SPARSE_BLOCK_SIZE > 1
                             reinterpret_cast<svmptr_t>(block_mask_base),
                             reinterpret_cast<svmptr_t>(wg_block_mask_base),
-                            SPARSE_BLOCK_SIZE,
 #endif
                             reinterpret_cast<svmptr_t>(output + q_offset),
                             past_q_lens,

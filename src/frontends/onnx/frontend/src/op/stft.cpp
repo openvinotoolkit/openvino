@@ -39,6 +39,10 @@ ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
                      "frame_step input must be a scalar or Shape{1} constant.");
     const auto frame_step =
         ov::as_type_ptr<v0::Constant>(frame_step_node.get_node_shared_ptr())->cast_vector<int64_t>()[0];
+    CHECK_VALID_NODE(node,
+                     frame_step > 0,
+                     "Provided frame_step input value must be greater than zero. Got: ",
+                     frame_step);
     const auto signal_param_shape = signal.get_partial_shape();
     CHECK_VALID_NODE(node,
                      signal_param_shape.is_static() && signal_param_shape.size() == 3,

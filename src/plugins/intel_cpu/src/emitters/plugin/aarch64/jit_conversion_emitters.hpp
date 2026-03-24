@@ -18,7 +18,7 @@ namespace ov::intel_cpu::aarch64 {
 
 class jit_convert_emitter : public jit_emitter {
 public:
-    jit_convert_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+    jit_convert_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                         const std::shared_ptr<ov::Node>& n,
                         ov::element::Type exec_prc = ov::element::f32);
@@ -44,7 +44,7 @@ private:
     template <typename TReg>
     inline void cvt_f32_to_f16(const TReg& src, const TReg& dst) const;
     template <typename TReg>
-    inline void cvt_f32_to_i32(const TReg& src, const TReg& dst) const;
+    inline void cvt_f32_to_i32(const TReg& src, const TReg& dst, bool is_saturated) const;
     template <typename TReg>
     inline void cvt_i32_to_f32(const TReg& src, const TReg& dst) const;
     template <typename TReg>
@@ -67,7 +67,7 @@ private:
 //   129   -> -127
 class jit_convert_truncation_emitter : public jit_convert_emitter {
 public:
-    jit_convert_truncation_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+    jit_convert_truncation_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                    const std::shared_ptr<ov::Node>& n,
                                    ov::element::Type exec_prc = ov::element::f32);
@@ -84,7 +84,7 @@ private:
 //   129   -> 127
 class jit_convert_saturation_emitter : public jit_convert_emitter {
 public:
-    jit_convert_saturation_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+    jit_convert_saturation_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                    const std::shared_ptr<ov::Node>& n,
                                    ov::element::Type exec_prc = ov::element::f32);

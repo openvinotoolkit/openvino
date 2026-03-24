@@ -8,7 +8,7 @@
 #include <set>
 
 #include "lpt_visibility.hpp"
-#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pass.hpp"
 #include "quantization_details.hpp"
 
 namespace ov {
@@ -20,10 +20,15 @@ namespace low_precision {
  * @brief FQStrippingTransformation strips FakeQuantize operations with specified levels
  * by replacing them with Clamp operations.
  */
-class LP_TRANSFORMATIONS_API FQStrippingTransformation : public ov::pass::MatcherPass {
+class LP_TRANSFORMATIONS_API FQStrippingTransformation : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("FQStrippingTransformation", "0", MatcherPass);
-    FQStrippingTransformation(const std::set<size_t>& levels_to_strip, bool replace_with_clamp);
+    OPENVINO_MODEL_PASS_RTTI("low_precision::FQStrippingTransformation");
+    FQStrippingTransformation(const std::set<size_t>& levels_to_strip, bool need_weights_adjustment = false);
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+
+private:
+    const std::set<size_t> levels_to_strip;
+    const bool need_weights_adjustment;
 };
 
 } // namespace low_precision

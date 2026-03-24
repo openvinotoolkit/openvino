@@ -374,15 +374,6 @@ void ov::npuw::IBaseInferRequest::alloc_quant_gather() {
         }
         alloc_quant_gather_tensors(i, m_subrequests[i]);
     }
-
-    // Try to allocate intermediate tensors to gather into, when host quant gather is enabled
-    for (size_t i = 0; i < m_num_submodels; i++) {
-        auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
-        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
-            continue;  // Optimized out
-        }
-        alloc_quant_gather_tensors(i, m_subrequests[i]);
-    }
 }
 
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::alloc_global_out(std::size_t out_idx) const {
@@ -591,6 +582,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         const auto& s_port = request->get_inputs()[sub_in_idx];
         LOG_DEBUG("Processing " << g_port << " -> " << s_port << "...");
         LOG_BLOCK();
+
         if (is_spatial_param(sub_in_idx)) {
             // Register for future use
             // FIXME: Not sure why this code is here. There should be no

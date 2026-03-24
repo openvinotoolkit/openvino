@@ -34,6 +34,7 @@
 #include "internal/pass/transform_while.hpp"
 #include "op_table.hpp"
 #include "openvino/core/so_extension.hpp"
+#include "openvino/frontend/common/path_util.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
@@ -149,20 +150,11 @@ std::istream* variant_to_stream_ptr(const ov::Any& variant, std::fstream& fs, st
         ss.write(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size());
         FRONT_END_INITIALIZATION_CHECK(ss && ss.good(), "Cannot open ov::tensor.");
         return &ss;
-    } else if (variant.is<std::string>()) {
-        const auto& model_path = variant.as<std::string>();
-        fs.open(model_path, std::ios::in | std::ifstream::binary);
+    } else if (const auto path = ov::frontend::get_path_from_any(variant)) {
+        fs.open(path.value(), std::ios::in | std::ifstream::binary);
         FRONT_END_INITIALIZATION_CHECK(fs && fs.is_open(), "Cannot open model file.");
         return &fs;
     }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    else if (variant.is<std::wstring>()) {
-        const auto& model_path = variant.as<std::wstring>();
-        fs.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
-        FRONT_END_INITIALIZATION_CHECK(fs && fs.is_open(), "Cannot open model file.");
-        return &fs;
-    }
-#endif
     return nullptr;
 }
 }  // namespace
@@ -380,36 +372,23 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         return false;
 
     // Validating first path, it must contain a model
-    if (variants[0].is<std::string>()) {
-        std::string suffix = ".pdmodel";
-        std::string model_path = variants[0].as<std::string>();
-        FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: \"", model_path, '"');
-        if (!ov::util::ends_with(model_path, suffix)) {
-            model_path += paddle::get_path_sep<char>() + "__model__";
+    if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
+        std::filesystem::path model_path = path.value();
+        if (ov::util::directory_exists(model_path)) {
+            model_path /= "__model__";
+            FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: ", model_path);
+        } else {
+            FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: ", model_path);
+            if (model_path.extension() != ".pdmodel") {
+                return false;
+            }
         }
-        std::ifstream model_str(model_path, std::ios::in | std::ifstream::binary);
+
+        std::ifstream model_str(model_path, std::ifstream::binary);
         // It is possible to validate here that protobuf can read model from the stream,
         // but it will complicate the check, while it should be as quick as possible
         return model_str && model_str.is_open();
-    }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    else if (variants[0].is<std::wstring>()) {
-        std::wstring suffix = L".pdmodel";
-        std::wstring model_path = variants[0].as<std::wstring>();
-        FRONT_END_GENERAL_CHECK(util::file_exists(model_path),
-                                "Could not open the file: \"",
-                                util::path_to_string(model_path),
-                                '"');
-        if (!ov::util::ends_with(model_path, suffix)) {
-            model_path += paddle::get_path_sep<wchar_t>() + L"__model__";
-        }
-        std::ifstream model_str(model_path.c_str(), std::ios::in | std::ifstream::binary);
-        // It is possible to validate here that protobuf can read model from the stream,
-        // but it will complicate the check, while it should be as quick as possible
-        return model_str && model_str.is_open();
-    }
-#endif
-    else if (variants[0].is<std::istream*>()) {
+    } else if (variants[0].is<std::istream*>()) {
         // Validating first stream, it must contain a model
         // step 1:
         // PDPD API ParseFromIstream always deconstructs the context in model stream.
@@ -431,16 +410,9 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     if (variants.size() == 1 + extra_variants_num) {
         // The case when folder with __model__ and weight files is provided or .pdmodel file
-        if (variants[0].is<std::string>()) {
-            std::string m_path = variants[0].as<std::string>();
-            return std::make_shared<InputModel>(m_path, m_telemetry);
+        if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
+            return std::make_shared<InputModel>(path.value().native(), m_telemetry);
         }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        else if (variants[0].is<std::wstring>()) {
-            std::wstring m_path = variants[0].as<std::wstring>();
-            return std::make_shared<InputModel>(m_path, m_telemetry);
-        }
-#endif
         // The case with only model stream provided and no weights. This means model has
         // no learnable weights
         else if (variants[0].is<std::istream*>()) {

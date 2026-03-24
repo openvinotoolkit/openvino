@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma once
 
 #include <napi.h>
@@ -10,8 +14,8 @@
  * @brief This struct retrieves data from Napi::CallbackInfo.
  */
 struct ReadModelArgs {
-    std::string model_path;
-    std::string bin_path;
+    std::filesystem::path model_path;
+    std::filesystem::path bin_path;
     std::string model_str;
     ov::Tensor weight_tensor;
 
@@ -20,10 +24,10 @@ struct ReadModelArgs {
         std::vector<std::string> allowed_signatures;
 
         if (ov::js::validate<Napi::String>(info, allowed_signatures)) {
-            model_path = info[0].ToString();
+            model_path = js_to_cpp<std::filesystem::path>(info, 0);
         } else if (ov::js::validate<Napi::String, Napi::String>(info, allowed_signatures)) {
-            model_path = info[0].ToString();
-            bin_path = info[1].ToString();
+            model_path = js_to_cpp<std::filesystem::path>(info, 0);
+            bin_path = js_to_cpp<std::filesystem::path>(info, 1);
         } else if (ov::js::validate<Napi::Buffer<uint8_t>>(info, allowed_signatures)) {
             model_str = buffer_to_string(info[0]);
             weight_tensor = ov::Tensor(ov::element::Type_t::u8, {0});

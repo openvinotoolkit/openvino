@@ -55,7 +55,6 @@ namespace intel_npu {
     symbol_statement(zeFenceHostSynchronize)                  \
     symbol_statement(zeFenceReset)                            \
     symbol_statement(zeInit)                                  \
-    symbol_statement(zeMemAllocDevice)                        \
     symbol_statement(zeMemAllocHost)                          \
     symbol_statement(zeMemFree)                               \
     symbol_statement(zeMemGetAllocProperties)                 \
@@ -66,7 +65,8 @@ namespace intel_npu {
     symbol_statement(zeCommandListGetNextCommandIdExp)        \
     symbol_statement(zeCommandListUpdateMutableCommandsExp)   \
     symbol_statement(zeInitDrivers)                           \
-    symbol_statement(zelGetLoaderVersion)
+    symbol_statement(zelGetLoaderVersion)                     \
+    symbol_statement(zelSetDriverTeardown)
 // clang-format on
 
 class ZeroApi {

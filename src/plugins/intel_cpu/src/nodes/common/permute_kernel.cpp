@@ -33,23 +33,6 @@ using namespace Xbyak;
 using namespace dnnl::impl::cpu::x64;
 #endif
 
-#if defined(OPENVINO_ARCH_X86_64)
-#    include "utils/cpu_utils.hpp"
-#    include "utils/general_utils.h"
-#endif
-
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <xbyak/xbyak.h>
-
-#    include <cpu/x64/cpu_isa_traits.hpp>
-#    include <memory>
-
-#    include "cpu/x64/jit_generator.hpp"
-
-using namespace Xbyak;
-using namespace dnnl::impl::cpu::x64;
-#endif
-
 using namespace dnnl;
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;

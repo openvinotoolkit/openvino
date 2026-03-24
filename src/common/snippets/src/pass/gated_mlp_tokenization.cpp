@@ -38,7 +38,6 @@
 
 namespace ov::snippets::pass {
 
-using namespace ov::op;
 using namespace ov::pass::pattern;
 using ov::pass::pattern::op::Predicate;
 
@@ -80,7 +79,7 @@ TokenizeGatedMLPSnippets::TokenizeGatedMLPSnippets(const TokenizationConfig& con
 
     auto make_weights = []() {
         // TODO: Add decompressed weights
-        return wrap_type<v0::Constant>();
+        return wrap_type<ov::op::v0::Constant>();
     };
 
     auto m_input = any_input(has_static_rank());

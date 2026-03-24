@@ -1,7 +1,7 @@
 # KV cache management in stateful model
 ## Description
 
-For auto-regressive transformer models, KV (key-value) cache plays a pivotal role to avoid duplicated computation for past tokens. In OpenVINO, management of the KV (key-value) cache differs between the [continuous batch (CB) pipeline](https://docs.openvino.ai/2025/model-server/ovms_demos_continuous_batching.html) and the non-CB pipeline. 
+For auto-regressive transformer models, KV (key-value) cache plays a pivotal role to avoid duplicated computation for past tokens. In OpenVINO, management of the KV (key-value) cache differs between the [continuous batch (CB) pipeline](https://docs.openvino.ai/2026/model-server/ovms_demos_continuous_batching.html) and the non-CB pipeline. 
 
 In CB pipeline with openvino_genai, an SDPA (Scaled Dot Product Attention) operation in the OV IR (intermediate representation) is converted to  a PagedAttention opertation. Then, the KV cache memories are managed by CB pipeline. CB pipeline is the default mode of openvino_genai for running LLMs.
 

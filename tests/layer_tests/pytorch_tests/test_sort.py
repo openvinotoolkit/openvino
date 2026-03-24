@@ -78,6 +78,7 @@ class TestSortConstants(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
+    @pytest.mark.precommit_torch_export
     def test_sort(self, input_shape, descending, stable, ie_device, precision, ir_version):
         self.input_tensor = []
         if type(input_shape) is list:
@@ -87,4 +88,5 @@ class TestSortConstants(PytorchLayerTest):
         dims = len(self.input_tensor.shape)
         for dim in range(-dims, dims):
             self._test(*self.create_model(dim, descending, stable),
-                       ie_device, precision, ir_version)
+                       ie_device, precision, ir_version,
+                       fx_kind=["aten.sort"])

@@ -149,12 +149,14 @@ public:
         topology.add(input_layout("denseShape", dense_shape_dynamic_layout));
         topology.add(input_layout("indices", indices_dynamic_layout));
         topology.add(input_layout("default_value", default_value_dynamic_layout));
+
         std::vector<input_info> inputs = {
             input_info("values"),
             input_info("denseShape"),
             input_info("indices"),
             input_info("default_value"),
         };
+
         topology.add(sparse_fill_empty_rows(
             "sparse_fill_empty_rows",
             inputs,

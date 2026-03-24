@@ -178,15 +178,6 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
             set_weightless_cache_attributes(cloned_model);
     }
 
-    // Set weightless cache attribute only for non IR (e.g. onnxruntime) models
-    // This is a temporary solution. A common way of handling weightless caching will be defined later.
-    if (config_copy.get_enable_weightless()) {
-        const std::string& weights_path = config.get_weights_path();
-
-        if (!ov::util::validate_weights_path(weights_path) && !is_weightless_cache_attributes_set(cloned_model))
-            set_weightless_cache_attributes(cloned_model);
-    }
-
     transform_model(cloned_model, config_copy, context);
 
     // Transformations for some reason may drop output tensor names, so here we copy those from the original model
@@ -243,12 +234,7 @@ Plugin::Plugin() {
     set_device_name("GPU");
     register_primitives();
 
-    // Set OCL runtime which should be always available
-#ifdef OV_GPU_WITH_SYCL
-    cldnn::device_query device_query(cldnn::engine_types::sycl, cldnn::runtime_types::ocl);
-#else
-    cldnn::device_query device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl);
-#endif
+    cldnn::device_query device_query;
     m_device_map = device_query.get_available_devices();
 
     // Set default configs for each device

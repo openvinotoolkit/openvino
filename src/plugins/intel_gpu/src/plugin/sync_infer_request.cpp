@@ -93,7 +93,8 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
     , m_context(std::static_pointer_cast<RemoteContextImpl>(compiled_model->get_context_impl()))
     , m_shape_predictor(new cldnn::ShapePredictor(&m_graph->get_engine(), m_graph->get_config().get_shape_predictor_settings()))
     , m_enable_profiling(m_graph->get_config().get_enable_profiling())
-    , m_use_external_queue(m_graph->use_external_queue()) {
+    , m_use_external_queue(m_graph->use_external_queue())
+    , m_itt_infer_request_str("SyncInferenceGPU::infer::" + std::string(compiled_model->get_model_name())) {
     init_mappings();
     allocate_inputs();
     allocate_outputs();
@@ -101,7 +102,8 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
 }
 
 void SyncInferRequest::infer() {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::infer");
+    // String can be constructed once in the constructor
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::intel_gpu_inference,  m_itt_infer_request_str.c_str());
     setup_stream_graph();
     std::lock_guard<std::mutex> lk(m_graph->get_mutex());
     enqueue();
@@ -308,7 +310,7 @@ void SyncInferRequest::enqueue() {
 }
 
 void SyncInferRequest::wait() {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::wait");
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::intel_gpu_inference, "SyncInferenceGPU::wait");
     OPENVINO_ASSERT(!m_internal_outputs.empty(), "[GPU] Inference was not started!\n");
 
     int64_t sync_total_time = 0;
