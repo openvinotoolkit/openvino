@@ -193,9 +193,10 @@ TEST(pa_kv_reorder_gpu, copy_between_blocks_single_sequence) {
     network->set_input_data("block_update_indices", block_update_indices_mem);
     network->set_input_data("block_update_indices_begins", block_update_indices_begins_mem);
     network->execute();
+    network->get_stream().finish();
 
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> key_ptr(key_cache_mem, get_test_stream());
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> value_ptr(value_cache_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> key_ptr(key_cache_mem, network->get_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> value_ptr(value_cache_mem, network->get_stream());
 
     for (size_t k = 0; k < k_head_size; k++) {
         const auto src0 = key_cache_ref[key_offset(0, 0, k, 0, kv_heads, k_head_size, block_size)];
@@ -292,9 +293,10 @@ TEST(pa_kv_reorder_gpu, updates_are_scoped_per_sequence) {
     network->set_input_data("block_update_indices", block_update_indices_mem);
     network->set_input_data("block_update_indices_begins", block_update_indices_begins_mem);
     network->execute();
+    network->get_stream().finish();
 
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> key_ptr(key_cache_mem, get_test_stream());
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> value_ptr(value_cache_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> key_ptr(key_cache_mem, network->get_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> value_ptr(value_cache_mem, network->get_stream());
 
     for (size_t k = 0; k < k_head_size; k++) {
         ASSERT_EQ(key_ptr[key_offset(0, 0, k, 3, kv_heads, k_head_size, block_size)],
@@ -396,9 +398,10 @@ TEST(pa_kv_reorder_gpu, copy_between_blocks_single_sequence_compressed) {
     network->set_input_data("block_update_indices", block_update_indices_mem);
     network->set_input_data("block_update_indices_begins", block_update_indices_begins_mem);
     network->execute();
+    network->get_stream().finish();
 
-    cldnn::mem_lock<int8_t, mem_lock_type::read> key_ptr(key_cache_mem, get_test_stream());
-    cldnn::mem_lock<int8_t, mem_lock_type::read> value_ptr(value_cache_mem, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> key_ptr(key_cache_mem, network->get_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> value_ptr(value_cache_mem, network->get_stream());
 
     for (size_t k = 0; k < k_head_size; k++) {
         const auto src0 = key_cache_ref[key_offset(0, 0, k, 0, kv_heads, adjusted_k_head_size, block_size)];
@@ -511,9 +514,10 @@ TEST(pa_kv_reorder_gpu, updates_are_scoped_per_sequence_compressed) {
     network->set_input_data("block_update_indices", block_update_indices_mem);
     network->set_input_data("block_update_indices_begins", block_update_indices_begins_mem);
     network->execute();
+    network->get_stream().finish();
 
-    cldnn::mem_lock<int8_t, mem_lock_type::read> key_ptr(key_cache_mem, get_test_stream());
-    cldnn::mem_lock<int8_t, mem_lock_type::read> value_ptr(value_cache_mem, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> key_ptr(key_cache_mem, network->get_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> value_ptr(value_cache_mem, network->get_stream());
 
     for (size_t k = 0; k < k_head_size; k++) {
         ASSERT_EQ(key_ptr[key_offset(0, 0, k, 3, kv_heads, adjusted_k_head_size, block_size)],
@@ -691,9 +695,10 @@ TEST(pa_kv_reorder_gpu, copy_between_blocks_single_sequence_compressed_key_by_ch
     network->set_input_data("block_update_indices", block_update_indices_mem);
     network->set_input_data("block_update_indices_begins", block_update_indices_begins_mem);
     network->execute();
+    network->get_stream().finish();
 
-    cldnn::mem_lock<int8_t, mem_lock_type::read> key_ptr(key_cache_mem, get_test_stream());
-    cldnn::mem_lock<int8_t, mem_lock_type::read> value_ptr(value_cache_mem, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> key_ptr(key_cache_mem, network->get_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> value_ptr(value_cache_mem, network->get_stream());
 
     // In key-by-channel mode, key cache is re-quantized per channel on destination block.
     // Validate by dequantized semantics instead of raw byte equality.
