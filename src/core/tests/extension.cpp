@@ -4,8 +4,8 @@
 
 #include "openvino/core/extension.hpp"
 
+#include <filesystem>
 #include <gtest/gtest.h>
-#include <stdio.h>
 
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -13,9 +13,10 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/util/file_util.hpp"
 
-inline std::string get_extension_path() {
-    return ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
-                                                    std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
+inline std::filesystem::path get_extension_path() {
+    return ov::util::make_plugin_library_name(ov::util::make_path(ov::test::utils::getExecutableDirectory()),
+                                              std::filesystem::path("openvino_template_extension").concat(
+                                                  OV_BUILD_POSTFIX));
 }
 
 inline std::wstring get_extension_wdir() {
@@ -28,7 +29,7 @@ inline std::wstring get_extension_wdir() {
 }
 
 TEST(extension, load_extension) {
-    EXPECT_NO_THROW(ov::detail::load_extensions(ov::util::make_path(get_extension_path())));
+    EXPECT_NO_THROW(ov::detail::load_extensions(get_extension_path()));
 }
 
 #if defined(_WIN32)
@@ -45,7 +46,7 @@ TEST(extension, load_extension_wstring) {
 #endif
 
 TEST(extension, load_extension_and_cast) {
-    std::vector<ov::Extension::Ptr> so_extensions = ov::detail::load_extensions(ov::util::make_path(get_extension_path()));
+    std::vector<ov::Extension::Ptr> so_extensions = ov::detail::load_extensions(get_extension_path());
     ASSERT_LE(1, so_extensions.size());
     std::vector<ov::Extension::Ptr> extensions;
     std::vector<std::shared_ptr<void>> so;
@@ -70,7 +71,7 @@ public:
 }  // namespace
 
 TEST(extension, create_model_from_extension) {
-    std::vector<ov::Extension::Ptr> so_extensions = ov::detail::load_extensions(ov::util::make_path(get_extension_path()));
+    std::vector<ov::Extension::Ptr> so_extensions = ov::detail::load_extensions(get_extension_path());
     ASSERT_LE(1, so_extensions.size());
     std::vector<ov::Extension::Ptr> extensions;
     std::vector<std::shared_ptr<void>> so;
