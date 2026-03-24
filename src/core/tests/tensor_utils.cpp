@@ -4,6 +4,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/reference/convert.hpp"
@@ -146,22 +147,38 @@ TEST_F(FunctionalOffloadTensorTest, read_small_file) {
     auto new_shape = shape;
     new_shape[0] = 10;
     {
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, new_shape, 0), ov::Exception);
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, new_shape, 0, false), ov::Exception);
+        OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, new_shape, 0),
+                        std::runtime_error,
+                        ::testing::HasSubstr("Requested mapping range exceeds"));
+        OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, new_shape, 0, false),
+                        AssertFailure,
+                        ::testing::HasSubstr("Requested space exceeds available bounds"));
     }
 }
 
 TEST_F(FunctionalOffloadTensorTest, read_too_big_offset) {
     {
         // offset + data_size > file_size
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, 1), ov::Exception);
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, 1, false), ov::Exception);
+        OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, 1),
+                        std::runtime_error,
+                        ::testing::HasSubstr("Requested mapping range exceeds"));
+        OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, 1, false),
+                        AssertFailure,
+                        ::testing::HasSubstr("Requested space exceeds available bounds"));
         // offset == file_size
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size), ov::Exception);
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size, false), ov::Exception);
+        OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size),
+                        std::runtime_error,
+                        ::testing::HasSubstr("Requested mapping range exceeds"));
+        OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size, false),
+                        AssertFailure,
+                        ::testing::HasSubstr("Requested space exceeds available bounds"));
         // offset > file_size
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size + 1), ov::Exception);
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size + 1, false), ov::Exception);
+        OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size + 1),
+                        std::runtime_error,
+                        ::testing::HasSubstr("Requested mapping range exceeds"));
+        OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size + 1, false),
+                        AssertFailure,
+                        ::testing::HasSubstr("Requested space exceeds available bounds"));
     }
 }
 
