@@ -159,10 +159,23 @@ public:
         });
     }
 
+    std::size_t count_contains(std::string_view fragment) const {
+        return std::count_if(m_calls.begin(), m_calls.end(), [fragment](const CompileCall& call) {
+            return call.friendly_name.find(fragment) != std::string::npos;
+        });
+    }
+
     const CompileCall* find_suffix(std::string_view suffix) const {
         const auto it = std::find_if(m_calls.begin(), m_calls.end(), [suffix](const CompileCall& call) {
             return call.friendly_name.size() >= suffix.size() &&
                    call.friendly_name.compare(call.friendly_name.size() - suffix.size(), suffix.size(), suffix) == 0;
+        });
+        return it == m_calls.end() ? nullptr : &(*it);
+    }
+
+    const CompileCall* find_contains(std::string_view fragment) const {
+        const auto it = std::find_if(m_calls.begin(), m_calls.end(), [fragment](const CompileCall& call) {
+            return call.friendly_name.find(fragment) != std::string::npos;
         });
         return it == m_calls.end() ? nullptr : &(*it);
     }
