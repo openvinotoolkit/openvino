@@ -34,8 +34,32 @@ static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_const_scalar_data) {
+    auto model = convert_model("quantize_linear_const_scalar_data.onnx");
+
+    auto fq = ov::as_type_ptr<op::v0::FakeQuantize>(model->get_parameters().back()->get_users().back());
+    EXPECT_NE(fq, nullptr);
+    // Check that all inputs are scalars
+    for (size_t i = 0; i <= 4; ++i) {
+        EXPECT_EQ(fq->input_value(i).get_shape(), Shape{}) << "Input " << i << " is not a scalar";
+    }
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input(std::vector<float>{32.25f});
+
+    test_case.add_expected_output(std::vector<std::uint8_t>{64});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_const_scale_const_zero_p) {
     auto model = convert_model("quantize_linear_const.onnx");
+
+    auto fq = ov::as_type_ptr<op::v0::FakeQuantize>(model->get_parameters().back()->get_users().back());
+    EXPECT_NE(fq, nullptr);
+    // Check that all bound inputs (input_low, input_high, output_low, output_high) are scalars
+    for (size_t i = 1; i <= 4; ++i) {
+        EXPECT_EQ(fq->input_value(i).get_shape(), Shape{}) << "Input " << i << " is not a scalar";
+    }
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
@@ -1290,5 +1314,158 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_blocksize) {
     test_case.add_input(std::vector<uint8_t>{128, 189});
 
     test_case.add_expected_output(std::vector<std::uint8_t>{119, 111, 190, 190});
+    test_case.run();
+}
+
+/// 8-bit floating point QuantizeLinear - DequantizeLinear test - f8e4m3 - positive values
+///
+/// Expected outputs were verified against ONNX Runtime 1.19
+///
+/// Q-DQ round-trip formula: y = fp8_round(x / scale) * scale
+/// where fp8_round saturates out-of-range values to the fp8 type maximum.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e4m3) {
+    auto model = convert_model("quant_dequant_f8e4m3.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({0.0f, 1.0f, 2.0f, 100000.0f, 200.0f});  // x
+    test_case.add_input<float>({2.0f});                                 // scale
+
+    // Q: x/2 = [0, 0.5, 1, 50000, 100]
+    //   50000 saturates to 448 (f8e4m3fn max); 100 rounds to 96 (nearest even)
+    // DQ: Q_out * 2 = [0, 1, 2, 896, 192]
+    test_case.add_expected_output<float>({0.0f, 1.0f, 2.0f, 896.0f, 192.0f});
+    test_case.run();
+}
+
+/// 8-bit floating point QuantizeLinear - DequantizeLinear test - f8e5m2 - positive values
+///
+/// Expected outputs were verified against ONNX Runtime 1.19
+///
+/// Q-DQ round-trip formula: y = fp8_round(x / scale) * scale
+/// where fp8_round saturates out-of-range values to the fp8 type maximum.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e5m2) {
+    auto model = convert_model("quant_dequant_f8e5m2.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({0.0f, 1.0f, 2.0f, 100000.0f, 200.0f});  // x
+    test_case.add_input<float>({2.0f});                                 // scale
+
+    // Q: x/2 = [0, 0.5, 1, 50000, 100]
+    //   50000 rounds to 49152 (nearest f8e5m2, within max 57344); 100 rounds to 96
+    // DQ: Q_out * 2 = [0, 1, 2, 98304, 192]
+    test_case.add_expected_output<float>({0.0f, 1.0f, 2.0f, 98304.0f, 192.0f});
+    test_case.run();
+}
+
+/// 8-bit floating point QuantizeLinear - DequantizeLinear test - f8e4m3 - negative values
+///
+/// Expected outputs were verified against ONNX Runtime 1.19
+///
+/// Q-DQ round-trip formula: y = fp8_round(x / scale) * scale
+/// where fp8_round saturates out-of-range values to the fp8 type maximum.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e4m3_negative) {
+    auto model = convert_model("quant_dequant_f8e4m3.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1.0f, -0.5f, 0.0f, 0.5f, 1.0f});  // x
+    test_case.add_input<float>({1.0f});                            // scale
+
+    test_case.add_expected_output<float>({-1.0f, -0.5f, 0.0f, 0.5f, 1.0f});
+    test_case.run();
+}
+
+/// 8-bit floating point QuantizeLinear - DequantizeLinear test - f8e4m3 - value saturation
+///
+/// Expected outputs were verified against ONNX Runtime 1.19
+///
+/// Q-DQ round-trip formula: y = fp8_round(x / scale) * scale
+/// where fp8_round saturates out-of-range values to the fp8 type maximum.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e4m3_saturation) {
+    auto model = convert_model("quant_dequant_f8e4m3.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-500.0f, -450.0f, -96.0f, 96.0f, 500.0f});  // x
+    test_case.add_input<float>({1.0f});                                     // scale
+
+    test_case.add_expected_output<float>({-448.0f, -448.0f, -96.0f, 96.0f, 448.0f});
+    test_case.run();
+}
+
+/// 8-bit floating point QuantizeLinear - DequantizeLinear test - f8e5m2 - sub-unity scale
+///
+/// Expected outputs were verified against ONNX Runtime 1.19
+///
+/// Q-DQ round-trip formula: y = fp8_round(x / scale) * scale
+/// where fp8_round saturates out-of-range values to the fp8 type maximum.
+///
+/// f8e5m2 with sub-unity scale: scale=0.5 shifts the quantization grid
+/// x/0.5 = [-2, -0.5, 0, 0.5, 2] — all exactly representable in f8e5m2
+/// DQ: Q_out * 0.5 recovers x exactly (lossless for this input)
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e5m2_small_scale) {
+    auto model = convert_model("quant_dequant_f8e5m2.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1.0f, -0.25f, 0.0f, 0.25f, 1.0f});  // x
+    test_case.add_input<float>({0.5f});                              // scale
+
+    // x/0.5 = [-2, -0.5, 0, 0.5, 2]: exact in f8e5m2 - Q_out * 0.5 = x
+    test_case.add_expected_output<float>({-1.0f, -0.25f, 0.0f, 0.25f, 1.0f});
+    test_case.run();
+}
+
+/// 8-bit floating point QuantizeLinear - DequantizeLinear test - f8e4m3 - per-axis mode
+///
+/// Per-axis quantization (axis=1) on input shape (2, 3):
+///   scale has shape (3,) — one scale per column.
+///   y[r,c] = fp8_round(x[r,c] / scale[c]) * scale[c]
+///
+/// With scale = [2.0, 4.0, 8.0]:
+///   x / scale (broadcast per column):
+///     row 0: [4/2,    8/4,   16/8]  = [2.0,   2.0,   2.0] -- exact in f8e4m3
+///     row 1: [6/2, 1000/4, 4000/8]  = [3.0, 250.0, 500.0]
+///
+///   f8e4m3 rounding (max = 448.0):
+///     250.0 - nearest representable is 256.0  (distance 240-250 is 10, 250-256 is 6)
+///     500.0 - saturates to 448.0 (exceeds f8e4m3fn max)
+///
+///   DQ (multiply by per-column scale):
+///     row 0: [2×2,   2×4,    2×8] = [  4.0,    8.0,   16.0]
+///     row 1: [3×2, 256×4, 448×8]  = [  6.0, 1024.0, 3584.0]
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e4m3_per_axis) {
+    auto model = convert_model("quant_dequant_f8e4m3_per_axis.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({4.0f, 8.0f, 16.0f, 6.0f, 1000.0f, 4000.0f});  // x, shape (2, 3), row-major
+    test_case.add_input<float>({2.0f, 4.0f, 8.0f});                           // scale, shape (3,)
+
+    test_case.add_expected_output<float>({2, 3}, std::vector<float>{4.0f, 8.0f, 16.0f, 6.0f, 1024.0f, 3584.0f});
+    test_case.run();
+}
+
+/// 8-bit floating point QuantizeLinear - DequantizeLinear test - f8e4m3 - blocked quantization mode
+///
+/// Blocked quantization (axis=1, block_size=2) on input shape (2, 4):
+///   scale shape is (2, ceil(4/2)) = (2, 2) — one independent scale per 2-element block.
+///   y[r, c] = fp8_round(x[r, c] / scale[r, c/block_size]) * scale[r, c/block_size]
+///
+/// scale = [[2.0, 4.0],    x = [[  2.0,   6.0,   8.0, 500.0],
+///          [1.0, 4.0]]         [  1.0,   3.0,  56.0, 2000.0]]
+///
+///   row 0, block 0 (cols 0-1), scale=2.0:  x/s = [1.0,  3.0]  - exact - DQ [2.0,   6.0]
+///   row 0, block 1 (cols 2-3), scale=4.0:  x/s = [2.0, 125.0] - 125.0 rounds to 128.0
+///      (|125-120|=5 vs |125-128|=3, 128 is nearer) - DQ [8.0, 512.0]
+///
+///   row 1, block 0 (cols 0-1), scale=1.0:  x/s = [1.0,  3.0]  - exact - DQ [1.0,   3.0]
+///   row 1, block 1 (cols 2-3), scale=4.0:  x/s = [14.0, 500.0] - 14.0 exact;
+///     500.0 > 448.0 (f8e4m3fn max) - saturates - DQ [56.0, 1792.0]
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e4m3_blocksize) {
+    auto model = convert_model("quant_dequant_f8e4m3_blocksize.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({2.0f, 6.0f, 8.0f, 500.0f, 1.0f, 3.0f, 56.0f, 2000.0f});  // x, shape (2, 4), row-major
+    test_case.add_input<float>({2.0f, 4.0f, 1.0f, 4.0f});  // scale, shape (2, 2), row-major
+
+    test_case.add_expected_output<float>({2, 4},
+                                         std::vector<float>{2.0f, 6.0f, 8.0f, 512.0f, 1.0f, 3.0f, 56.0f, 1792.0f});
     test_case.run();
 }
