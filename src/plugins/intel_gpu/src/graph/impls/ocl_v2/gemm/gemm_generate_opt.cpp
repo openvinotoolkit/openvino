@@ -59,6 +59,7 @@ protected:
             make_jit_constant("SG_SIZE",  SG_SIZE),
             make_jit_constant("VEC_SIZE", VEC_SIZE),
             make_jit_constant("WG_TILES", WG_TILES),
+            make_jit_constant("DISPATCH_MODE", 0),
         });
 
         // Float32 accumulator for numerical stability with f16 inputs.
@@ -84,10 +85,9 @@ protected:
             for (size_t i = 0; i + 2 < rank; ++i)
                 B *= shape_a[i];
 
-            // One work-group (= one sub-group) per output element along N.
-            // Each sub-group cooperatively reduces over K for coalesced memory access.
+            const size_t n_padded = (N + SG_SIZE - 1) / SG_SIZE * SG_SIZE;
             auto& wgs = kd.params.workGroups;
-            wgs.global = {N * SG_SIZE, B, 1};
+            wgs.global = {n_padded, B, 1};
             wgs.local  = {static_cast<size_t>(SG_SIZE), 1, 1};
 
             (void)K;

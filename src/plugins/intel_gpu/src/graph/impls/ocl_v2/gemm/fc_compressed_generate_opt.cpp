@@ -14,7 +14,6 @@ namespace {
 // Sub-group / vectorisation constants — must match gemm_generate_opt.cl definitions.
 static constexpr int SG_SIZE  = 16;   // Intel GPU sub-group width for f16
 static constexpr int VEC_SIZE = 8;    // half8 / u4-nibble-vec per lane
-static constexpr int GROUP_SIZE = SG_SIZE * VEC_SIZE;  // 128 → matches typical per-channel group size
 
 // -----------------------------------------------------------------------
 // Helper: derive the packed-layout input index ordering from kernel_impl_params.
@@ -124,12 +123,12 @@ protected:
 
         // Dispatch/size constants (mirrors GemmGenerateOptGenerator).
         jit.add({
-            make_jit_constant("K_SIZE",    static_cast<int>(K)),
-            make_jit_constant("N_SIZE",    static_cast<int>(N)),
-            make_jit_constant("B_SIZE",    static_cast<int>(B)),
-            make_jit_constant("SG_SIZE",   SG_SIZE),
-            make_jit_constant("VEC_SIZE",  VEC_SIZE),
-            make_jit_constant("WG_TILES",  SG_SIZE),
+            make_jit_constant("K_SIZE",        static_cast<int>(K)),
+            make_jit_constant("N_SIZE",        static_cast<int>(N)),
+            make_jit_constant("B_SIZE",        static_cast<int>(B)),
+            make_jit_constant("SG_SIZE",       SG_SIZE),
+            make_jit_constant("VEC_SIZE",      VEC_SIZE),
+
         });
 
         // WOQ-specific constants.
@@ -200,10 +199,10 @@ protected:
             for (size_t i = 0; i + 1 < rank; ++i)
                 B *= shape_a[i];
 
-            // One work-group (= one sub-group) per output element along N.
-            // Each sub-group cooperatively reduces over K for coalesced memory access.
+            // N-parallel: each lane = one output
             auto& wgs = kd.params.workGroups;
-            wgs.global = {N * SG_SIZE, B, 1};
+            const size_t n_padded = (N + SG_SIZE - 1) / SG_SIZE * SG_SIZE;
+            wgs.global = {n_padded, B, 1};
             wgs.local  = {static_cast<size_t>(SG_SIZE), 1, 1};
         }};
     }

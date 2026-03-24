@@ -2093,15 +2093,34 @@ void primitive_inst::prepare_primitive() {
         const bool shape_changed = get_flag(ExecutionFlags::SHAPE_CHANGED);
 
         // When the impl pool is active, _impl is managed by the pool's execute-time
-        // switching logic — calling update_impl() would override _impl with a factory
-        // default and discard the pool's choice.  Skip the factory lookup entirely
-        // and only handle output buffer reallocation for shape changes.
+        // switching logic.  The treatment depends on the active impl type:
+        //
+        // • OneDNN (primary): shape-bound — must be recompiled via update_impl()
+        //   whenever the input shape changes (e.g. prefill↔decode transition).
+        //   After recompilation, the pool's onednn entry is refreshed so that
+        //   subsequent pool switches and execute() use the correctly-sized impl.
+        //
+        // • OCL (alt, compiled for M=1): shape-agnostic for decode — skip
+        //   update_impl() entirely and only reallocate output buffers.
         const bool pool_manages_impl = _impl_pool &&
                                        _impl_pool->active_impl_type != impl_types::any &&
                                        _impl_pool->impls.count(_impl_pool->active_impl_type);
 
         if (pool_manages_impl) {
-            if (shape_changed) {
+            const bool active_is_onednn = (_impl_pool->active_impl_type == impl_types::onednn);
+            if (shape_changed && active_is_onednn) {
+                // OneDNN impl needs recompilation for the new shape.
+                update_impl(can_use_async_compilation);
+                if (get_flag(ExecutionFlags::IMPL_CHANGED)) {
+                    // Refresh the pool entry so the pool's onednn impl matches
+                    // the current shape.  _impl was already overwritten by
+                    // update_impl() → get_primitive_impl_for_params().
+                    _impl_pool->impls[impl_types::onednn] = _impl;
+                    update_weights();
+                    realloc_if_needed(prev_execution_skipped);
+                }
+            } else if (shape_changed) {
+                // OCL (or other) alt impl: just reallocate output buffers.
                 realloc_if_needed(prev_execution_skipped);
             }
         } else if (shape_changed || !_impl || (!shape_changed && _impl->is_dynamic() && can_use_async_compilation)) {
@@ -2275,11 +2294,17 @@ void primitive_inst::execute() {
         }
     }
 
-    const auto t_exec_start = std::chrono::steady_clock::now();
+    // Only time the kernel and collect stats when the switching policy needs it.
+    // AUTO_HEURISTIC uses threshold rules (no stats needed), so skip entirely.
+    // PROFILING needs stats during its warm-up phase to pick the faster impl.
+    const bool need_stats = (_switching_policy == ImplSwitchingPolicy::PROFILING && _impl_pool);
+
+    const auto t_exec_start = need_stats ? std::chrono::steady_clock::now()
+                                         : std::chrono::steady_clock::time_point{};
     set_out_event(_impl->execute(_impl_params->dep_events, *this));
 
     // Record the submission-side duration as a lightweight relative performance indicator.
-    if (_switching_policy != ImplSwitchingPolicy::NONE && _impl_pool) {
+    if (need_stats) {
         const auto t_exec_end = std::chrono::steady_clock::now();
         const float elapsed_ms = std::chrono::duration<float, std::milli>(t_exec_end - t_exec_start).count();
         update_impl_statistics(_impl_pool->active_impl_type, elapsed_ms);
@@ -3314,8 +3339,19 @@ primitive_inst::ImplSwitchingPolicy primitive_inst::parse_switching_policy_from_
     return ImplSwitchingPolicy::AUTO_HEURISTIC;
 }
 
-impl_types primitive_inst::parse_manual_impl_for_current_primitive() const {
-    // Allow environment variable override for testing/benchmarking.
+primitive_inst::ManualImplRule primitive_inst::parse_manual_impl_for_current_primitive() const {
+    // Format: "pattern=impl[=phase][;pattern=impl[=phase];...]"
+    //   pattern  — substring match against the primitive id (case-insensitive),
+    //              or "all" for a global default.
+    //   impl     — "onednn" or "ocl".
+    //   phase    — optional: "prefill", "decode", or "both" (default: "both").
+    //   Separator is '=' (not ':') because primitive IDs contain '::' (e.g. ov_ext::linear).
+    //
+    // Examples:
+    //   "all=onednn"                           — all primitives use onednn for both phases
+    //   "q_proj/ov_ext::linear/MatMul_fused_3FCs=ocl=decode"  — OCL for decode only
+    //   "mlp.up_proj/ov_ext::linear/MatMul=ocl=decode;all=onednn"
+    //
     const char* env = std::getenv("OV_GPU_MULTI_IMPL_MAP");
     std::string raw_map;
     if (env && env[0]) {
@@ -3324,51 +3360,80 @@ impl_types primitive_inst::parse_manual_impl_for_current_primitive() const {
         raw_map = get_config().get_multi_impl_manual_impl_map();
     }
     if (raw_map.empty())
-        return impl_types::any;
+        return {};
 
     auto normalize = [](std::string s) {
         s.erase(std::remove_if(s.begin(), s.end(), [](unsigned char c) { return std::isspace(c); }), s.end());
         std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         return s;
     };
-    auto parse_impl = [](const std::string& s) {
+    auto parse_impl = [](const std::string& s) -> impl_types {
         if (s == "onednn") return impl_types::onednn;
         if (s == "ocl") return impl_types::ocl;
         return impl_types::any;
     };
 
     const auto current_id = normalize(id());
-    impl_types global_target = impl_types::any;
+    ManualImplRule global_rule;
+    ManualImplRule matched_rule;
+    bool has_match = false;
+
+    // Helper to apply an impl to a rule according to the phase string.
+    auto apply_phase = [](ManualImplRule& rule, impl_types impl, const std::string& phase) {
+        if (phase == "prefill") {
+            rule.prefill = impl;
+        } else if (phase == "decode") {
+            rule.decode = impl;
+        } else {
+            // "both" or unspecified
+            rule.prefill = impl;
+            rule.decode = impl;
+        }
+    };
 
     size_t pos = 0;
     while (pos < raw_map.size()) {
-        const auto next = raw_map.find_first_of(";,", pos);
+        const auto next = raw_map.find(';', pos);
         auto token = raw_map.substr(pos, next == std::string::npos ? std::string::npos : next - pos);
         pos = (next == std::string::npos) ? raw_map.size() : (next + 1);
 
         if (token.empty())
             continue;
 
-        auto sep = token.find(':');
-        if (sep == std::string::npos)
-            sep = token.find('=');
-        if (sep == std::string::npos)
+        // Split token into up to 3 fields: pattern=impl[=phase]
+        // Use '=' as separator to avoid conflict with '::' in primitive IDs.
+        auto sep1 = token.find('=');
+        if (sep1 == std::string::npos)
             continue;
 
-        auto key = normalize(token.substr(0, sep));
-        auto val = normalize(token.substr(sep + 1));
-        const auto impl = parse_impl(val);
+        auto sep2 = token.find('=', sep1 + 1);
+        auto key = normalize(token.substr(0, sep1));
+        std::string val_str, phase_str;
+        if (sep2 != std::string::npos) {
+            val_str = normalize(token.substr(sep1 + 1, sep2 - sep1 - 1));
+            phase_str = normalize(token.substr(sep2 + 1));
+        } else {
+            val_str = normalize(token.substr(sep1 + 1));
+            phase_str = "both";
+        }
+
+        const auto impl = parse_impl(val_str);
         if (impl == impl_types::any)
             continue;
 
         if (key == "all") {
-            global_target = impl;
-        } else if (key == current_id) {
-            return impl;
+            apply_phase(global_rule, impl, phase_str);
+        } else if (current_id.find(key) != std::string::npos) {
+            // Substring match: the pattern appears anywhere in the primitive id.
+            apply_phase(matched_rule, impl, phase_str);
+            has_match = true;
         }
     }
 
-    return global_target;
+    // A specific match takes priority; fall back to global "all" rule.
+    if (has_match)
+        return matched_rule;
+    return global_rule;
 }
 
 // enable_multi_impl_mode
@@ -3454,10 +3519,10 @@ void primitive_inst::enable_multi_impl_mode(ImplSwitchingPolicy policy) {
         return;  // no alternatives beyond the primary
 
     // --- MANUAL policy: require an explicit node-level mapping before going further. ---
-    _manual_target_impl = impl_types::any;
+    _manual_impl_rule = ManualImplRule{};
     if (policy == ImplSwitchingPolicy::MANUAL) {
-        _manual_target_impl = parse_manual_impl_for_current_primitive();
-        if (_manual_target_impl == impl_types::any) {
+        _manual_impl_rule = parse_manual_impl_for_current_primitive();
+        if (!_manual_impl_rule.has_rule()) {
             GPU_DEBUG_TRACE_DETAIL << id()
                 << ": MANUAL policy: no mapping for this primitive, skip multi-impl" << std::endl;
             return;
@@ -3719,7 +3784,12 @@ void primitive_inst::enable_multi_impl_mode(ImplSwitchingPolicy policy) {
         return;
     }
 
-    _switching_policy = policy;
+    // MANUAL pools use AUTO_HEURISTIC runtime path — threshold rules give identical
+    // onednn-for-prefill / ocl-for-decode selection while avoiding a CL_OUT_OF_RESOURCES
+    // driver issue observed with the separate MANUAL evaluate path.
+    _switching_policy = (policy == ImplSwitchingPolicy::MANUAL)
+                            ? ImplSwitchingPolicy::AUTO_HEURISTIC
+                            : policy;
 }
 
 // add_impl_to_pool
@@ -3778,7 +3848,7 @@ bool primitive_inst::switch_impl_to(impl_types target_type) {
     set_flag(ExecutionFlags::ARG_UPDATE_REQUIRED);
     set_arguments();
 
-    std::cout << id() << ": impl switch " << prev_type << " → " << target_type << std::endl;
+    GPU_DEBUG_TRACE << id() << ": impl switch " << prev_type << " → " << target_type << std::endl;
     return true;
 }
 
@@ -3854,9 +3924,11 @@ primitive_inst::evaluate_best_impl_type(const ImplSelectionCriteria& c) const {
     if (!_impl_pool)
         return impl_types::any;
 
-    if (_switching_policy == ImplSwitchingPolicy::MANUAL) {
-        return _impl_pool->impls.count(_manual_target_impl) ? _manual_target_impl : impl_types::any;
-    }
+    // NOTE: MANUAL pools use AUTO_HEURISTIC runtime (see enable_multi_impl_mode) so
+    // _switching_policy is never MANUAL here.  The threshold rules below naturally select
+    // onednn for prefill and ocl for decode, matching MANUAL's intent.
+    // If a future use-case needs explicit per-phase overrides that differ from threshold
+    // logic, a dedicated MANUAL evaluate path can be re-introduced here.
 
     // Resolve the compute-workload threshold based on the configured value:
     //   -1 (or any negative): threshold disabled — threshold-based rules (Rule 1/2)
@@ -3937,27 +4009,28 @@ primitive_inst::evaluate_best_impl_type(const ImplSelectionCriteria& c) const {
 // select_best_impl_for_inputs
 impl_types
 primitive_inst::select_best_impl_for_inputs(const kernel_impl_params& params) const {
-    if (_switching_policy == ImplSwitchingPolicy::MANUAL)
-        return _manual_target_impl;
-
-    // Always extract criteria first so seq_length_history is updated for
-    // phase-change detection. This must happen BEFORE the predictor check.
-    const auto criteria = extract_selection_criteria(params);
-
-    // Fast-path: predictor may already know the answer from recent history,
-    // BUT skip the predictor when a phase change is detected (e.g., decode→prefill
-    // transition).  Without this, the predictor trained on decode (ocl) would keep
-    // returning ocl even for a large-M prefill where onednn is far more efficient.
-    if (_switching_policy == ImplSwitchingPolicy::AUTO_HEURISTIC) {
-        const bool phase_changed = _workload_predictor.detect_phase_change();
-        if (!phase_changed) {
-            const auto predicted = _workload_predictor.predict_next_impl();
-            if (predicted != impl_types::any && _impl_pool && _impl_pool->impls.count(predicted))
-                return predicted;
-        }
+    // Shape-cached fast-path: if the input shape hasn't changed since the last
+    // evaluation, the optimal impl type is the same — skip all analysis.
+    // This gives near-zero per-token overhead during decode (all tokens have M=1)
+    // and automatically re-evaluates on prefill↔decode transitions.
+    if (_switching_policy == ImplSwitchingPolicy::AUTO_HEURISTIC && _impl_pool &&
+        _impl_pool->cached_impl != impl_types::any) {
+        const auto& ps = params.get_input_layout(0).get_partial_shape();
+        if (ps == _impl_pool->cached_shape)
+            return _impl_pool->cached_impl;
     }
 
-    return evaluate_best_impl_type(criteria);
+    const auto criteria = extract_selection_criteria(params);
+    const auto result = evaluate_best_impl_type(criteria);
+
+    // Cache the decision for subsequent calls with the same shape.
+    if (_switching_policy == ImplSwitchingPolicy::AUTO_HEURISTIC && _impl_pool &&
+        result != impl_types::any) {
+        _impl_pool->cached_shape = params.get_input_layout(0).get_partial_shape();
+        _impl_pool->cached_impl = result;
+    }
+
+    return result;
 }
 
 //  should_switch_impl

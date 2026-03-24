@@ -368,6 +368,12 @@ public:
         std::unordered_map<impl_types, std::shared_ptr<primitive_impl>> impls;
         impl_types active_impl_type = impl_types::any;
         std::unordered_map<impl_types, ImplStats> stats;
+
+        // Shape-cached fast-path for AUTO_HEURISTIC: caches the last
+        // evaluate_best_impl_type result so that repeated calls with
+        // the same input shape skip all analysis (O(1) cache hit).
+        mutable ov::PartialShape cached_shape;
+        mutable impl_types cached_impl = impl_types::any;
     };
 
     // Lightweight predictor that tracks recent workload patterns to anticipate
@@ -446,7 +452,13 @@ protected:
     // Null when switching is disabled for this instance.
     std::unique_ptr<ImplPool>  _impl_pool;
     ImplSwitchingPolicy        _switching_policy = ImplSwitchingPolicy::NONE;
-    impl_types                 _manual_target_impl = impl_types::any;
+    // Phase-aware manual impl override: each phase can target a different impl.
+    struct ManualImplRule {
+        impl_types prefill = impl_types::any;  // impl for prefill (seq_len > 1)
+        impl_types decode  = impl_types::any;  // impl for decode  (seq_len == 1)
+        bool has_rule() const { return prefill != impl_types::any || decode != impl_types::any; }
+    };
+    ManualImplRule             _manual_impl_rule;
     WorkloadPredictor          _workload_predictor;
 
     // this is a set of dependencies in terms of memory, if execution of this primitive requires data from another one,
@@ -589,7 +601,7 @@ private:
     // Parse runtime policy string from config.
     ImplSwitchingPolicy parse_switching_policy_from_config() const;
     // Parse manual impl selection for current primitive id from config.
-    impl_types parse_manual_impl_for_current_primitive() const;
+    ManualImplRule parse_manual_impl_for_current_primitive() const;
     // Returns true when a switch to a different impl would be beneficial.
     bool should_switch_impl(const kernel_impl_params& params) const;
     // Update rolling-average execution time and count for a given impl type.
