@@ -17,24 +17,50 @@ Expected result:
 - Build completes successfully.
 - Test binaries are generated under bin/intel64/Release.
 
-## 2. Functional Test for BevPoolV2
+## 2. BevPoolV2 Test Matrix (Core + GPU + Frontend)
 
-Build the GPU plugin target, then run BevPoolV2-related functional tests:
+Build test binaries and runtime model zoo assets first:
 
 ```bash
 cd openvino
-cmake --build build --target openvino_intel_gpu_plugin --parallel 8
+cmake --build build \
+  --target ov_core_unit_tests ov_gpu_unit_tests ov_gpu_func_tests ov_onnx_frontend_tests test_model_zoo \
+  --parallel 8
+```
+
+Run focused BevPoolV2 tests:
+
+```bash
+./bin/intel64/Release/ov_core_unit_tests --gtest_filter='*BevPoolV2*'
+
+./bin/intel64/Release/ov_gpu_unit_tests --gtest_filter='*BevPoolV2*'
 
 ./bin/intel64/Release/ov_gpu_func_tests --gtest_filter='*BevPoolV2*'
+
+./bin/intel64/Release/ov_onnx_frontend_tests --gtest_filter='*onnx_model_bevpool*'
 ```
 
 Expected result:
-- BevPoolV2 test cases are discovered.
-- All selected tests pass.
+- All selected tests are discovered and pass.
 
-If no tests are shown, check test registration and filter string.
+If no tests are shown:
+- Check test registration and filter string.
+- For `ov_gpu_unit_tests`, remember gtest filtering is case-sensitive.
+- To inspect names, run:
 
-### 2.1 Accuracy acceptance thresholds (P1/P3 baseline)
+```bash
+./bin/intel64/Release/ov_gpu_unit_tests --gtest_list_tests | grep -i bevpool
+```
+
+### 2.1 ONNX frontend test prerequisites
+
+`ov_onnx_frontend_tests` relies on runtime models under:
+
+- `bin/intel64/Release/test_model_zoo`
+
+If Python ONNX requirements are not installed in your environment, the current CMake fallback converts ONNX text `.prototxt` to binary ModelProto via `protoc`, so the BevPoolV2 ONNX frontend tests can still run.
+
+### 2.2 Accuracy acceptance thresholds (P1/P3 baseline)
 
 Use the following thresholds for BevPoolV2 correctness acceptance:
 
@@ -50,18 +76,22 @@ Rationale:
 
 Use the same ONNX model and shape settings on CPU and GPU, then compare behavior.
 
+Layout contract for this model:
+- `feat`: `NHWC` (`[N,H,W,C]`)
+- `depth`: `NCHW` (`[N,C,H,W]`)
+
 ### 3.1 CPU run
 
 ```bash
 cd openvino
-./bin/intel64/Release/benchmark_app -m ./bevpool_v2_custom.onnx -d CPU -shape "feat[1,54,96,80],depth[1,90,54,96],indices[466560],intervals[7314,3]" -niter 100 --nireq 1
+./bin/intel64/Release/benchmark_app -m ./bevpool_v2_custom.onnx -d CPU -shape "feat[1,54,96,80],depth[1,90,54,96],indices[466560],intervals[7314,3]" -layout "feat[NHWC],depth[NCHW]" -niter 100 --nireq 1
 ```
 
 ### 3.2 GPU run
 
 ```bash
 cd openvino
-./bin/intel64/Release/benchmark_app -m ./bevpool_v2_custom.onnx -d GPU -shape "feat[1,54,96,80],depth[1,90,54,96],indices[466560],intervals[7314,3]" -niter 100 --nireq 1
+./bin/intel64/Release/benchmark_app -m ./bevpool_v2_custom.onnx -d GPU -shape "feat[1,54,96,80],depth[1,90,54,96],indices[466560],intervals[7314,3]" -layout "feat[NHWC],depth[NCHW]" -niter 100 --nireq 1
 ```
 
 Expected result:
@@ -73,7 +103,11 @@ Expected result:
 
 BevPoolV2 is considered validated when all items below are true:
 - OpenVINO build completes in Release mode with tests enabled.
-- BevPoolV2 functional tests pass in ov_gpu_func_tests.
+- BevPoolV2 tests pass in all four binaries:
+  - `ov_core_unit_tests`
+  - `ov_gpu_unit_tests`
+  - `ov_gpu_func_tests`
+  - `ov_onnx_frontend_tests`
 - benchmark_app runs successfully on both CPU and GPU with the same model and shape settings.
 
 ## 5. Parity and Error Statistics (Performance/Parity Baseline)
@@ -143,6 +177,10 @@ If a forced opt path is not supported on current hardware/runtime guards, GPU fa
 - Model parse failure:
   - Confirm bevpool_v2_custom.onnx is a valid ONNX file and not accidentally overwritten by text/log output.
 - No BevPoolV2 tests matched:
-  - Verify registration and test filter spelling: *BevPoolV2*.
+  - Verify registration and test filter spelling: `*BevPoolV2*`.
+  - `ov_gpu_unit_tests` uses case-sensitive gtest filtering. If needed, list tests via `--gtest_list_tests` and adjust filter accordingly.
 - GPU runtime failure:
   - Rebuild openvino_intel_gpu_plugin and re-run functional tests first.
+- ONNX frontend model file missing or parse failure:
+  - Build `test_model_zoo` target before running ONNX frontend tests.
+  - If file exists but parser fails, check whether runtime `.prototxt` contains binary ModelProto (not plain text copy).
