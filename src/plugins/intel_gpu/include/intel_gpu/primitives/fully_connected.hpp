@@ -212,6 +212,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         ob << activation_scale;
         ob << activation_zero_point;
         ob << activation_precomputed_reduction;
+        ob << dynamic_quantized_precomputed_reduction;
         ob << input_size;
         ob << weights_rank;
         ob << dynamic_quantized_activation;
@@ -236,6 +237,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         ib >> activation_scale;
         ib >> activation_zero_point;
         ib >> activation_precomputed_reduction;
+        ib >> dynamic_quantized_precomputed_reduction;
         ib >> input_size;
         ib >> weights_rank;
         ib >> dynamic_quantized_activation;
