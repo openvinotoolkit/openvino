@@ -2589,6 +2589,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_block_size_invalid, xattention_inva
     paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::nullopt },
     // Abnormal: user provides empty xattention_block_size tensor
     paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{} },
+    // Abnormal: user provides invalid number of block sizes (should be 1 or equal to batch size)
+    paged_attention_test_params{ {{16, 0}, {16, 0}, {16, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128, 128} },
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_threshold_invalid, xattention_invalid_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
@@ -2596,6 +2598,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_threshold_invalid, xattention_inval
     paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::nullopt, std::vector<int>{128} },
     // Abnormal: user provides empty xattention_threshold tensor
     paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{}, std::vector<int>{128} },
+    // Abnormal: user provides invalid number of threshold values (should be 1 or equal to batch size)
+    paged_attention_test_params{ {{16, 0}, {16, 0}, {16, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f}, std::vector<int>{128, 128, 128} },
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_adaptive_rkv, adaptive_rkv_diversity_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
