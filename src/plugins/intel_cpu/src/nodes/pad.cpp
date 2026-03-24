@@ -468,8 +468,9 @@ void Pad::executeString() {
     const size_t nDims = srcShape.size();
 
     auto loadPads = [&](size_t port, const VectorIdxs& cached) -> std::vector<int32_t> {
-        if (!cached.empty())
+        if (!cached.empty()) {
             return {cached.begin(), cached.end()};
+        }
         const auto* p = getSrcMemoryAtPort(port)->getDataAs<const int32_t>();
         return {p, p + nDims};
     };
@@ -480,10 +481,13 @@ void Pad::executeString() {
         isPadValueSpecified ? *getSrcMemoryAtPort(PAD_VALUE_ID)->getDataAs<const std::string>() : std::string{};
 
     std::vector<size_t> srcStrides(nDims, 1UL);
-    for (int d = static_cast<int>(nDims) - 2; d >= 0; --d)
+    for (int d = static_cast<int>(nDims) - 2; d >= 0; --d) {
         srcStrides[d] = srcStrides[d + 1] * srcShape[d + 1];
+    }
 
-    const size_t nDst = std::accumulate(dstShape.begin(), dstShape.end(), size_t{1}, std::multiplies<size_t>{});
+    const size_t nDst = std::accumulate(dstShape.begin(), dstShape.end(), size_t{1}, [](size_t a, size_t b) {
+        return a * b;
+    });
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -513,8 +517,9 @@ void Pad::executeString() {
             dst[i] = in_range ? src[srcIdx] : padStr;
 
             for (int d = static_cast<int>(nDims) - 1; d >= 0; --d) {
-                if (++coord[d] < dstShape[d])
+                if (++coord[d] < dstShape[d]) {
                     break;
+                }
                 coord[d] = 0;
             }
         }
