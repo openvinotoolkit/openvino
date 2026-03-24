@@ -21,6 +21,11 @@
 //   * all_inputs_with_name_have_type()  - true iff every input matching needle has expected_type; throws if needle unmatched
 //   * all_outputs_with_name_have_type() - true iff every output matching needle has expected_type; throws if needle unmatched
 //   * no_inputs_with_name_have_type()   - true iff no input matching needle has excluded_type; throws if needle unmatched
+//   * require_sub_model()           - asserts a CompileCall with the given exact suffix exists and returns it
+//   * require_sub_model_containing() - asserts a CompileCall whose name contains fragment exists and returns it
+//                                      Prefer this over require_sub_model() for KV-cache sub-models whose suffix
+//                                      encodes a concrete cache size (e.g. "_kv192") that changes with properties.
+//                                      Use the stable "_kv" fragment instead of a size-specific suffix.
 //
 // Pass-specific helpers (e.g. any_matmul_has_transpose_b) should remain in the individual test files.
 
@@ -196,6 +201,29 @@ protected:
             throw std::runtime_error(std::string("No input matching needle '") + std::string(needle) +
                                      "' found in model '" + model->get_friendly_name() + "'");
         return true;
+    }
+
+    // -- Sub-model lookup ----------------------------------------------------------
+
+    // Returns the CompileCall whose friendly name ends with `suffix`.
+    // Triggers a fatal assertion if no such call exists.
+    // Use for sub-models with a stable naming convention (_prefill, _lm_head, ...).
+    static const CompileCall& require_sub_model(const RecordingFactory& recorder, std::string_view suffix) {
+        const auto* call = recorder.find_suffix(suffix);
+        OPENVINO_ASSERT(call != nullptr, "Missing compile call with suffix: ", std::string(suffix));
+        return *call;
+    }
+
+    // Returns the CompileCall whose friendly name contains `fragment`.
+    // Triggers a fatal assertion if no such call exists.
+    // Prefer this over require_sub_model() for KV-cache sub-models: their suffix
+    // encodes the concrete cache size (e.g. "_kv192") which changes with compile
+    // properties.  Match on the stable fragment "_kv" instead.
+    static const CompileCall& require_sub_model_containing(const RecordingFactory& recorder,
+                                                           std::string_view fragment) {
+        const auto* call = recorder.find_contains(fragment);
+        OPENVINO_ASSERT(call != nullptr, "Missing compile call containing: ", std::string(fragment));
+        return *call;
     }
 
     // -- Shared state ----------------------------------------------------------

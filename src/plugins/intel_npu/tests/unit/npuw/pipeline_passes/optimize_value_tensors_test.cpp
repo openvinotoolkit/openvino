@@ -35,7 +35,7 @@ class OptimizeValueTensorsNoSDPATest : public ov::test::npuw::LLMPassTestFixture
 
 INSTANTIATE_TEST_SUITE_P(SubModels,
                           OptimizeValueTensorsNoSDPATest,
-                          ::testing::Values(std::string{"_prefill"}, std::string{"_kv192"}),
+                          ::testing::Values(std::string{"_prefill"}, std::string{"_kv"}),
                           [](const ::testing::TestParamInfo<std::string>& info) {
                               auto name = info.param;
                               if (!name.empty() && name[0] == '_')
@@ -44,17 +44,16 @@ INSTANTIATE_TEST_SUITE_P(SubModels,
                           });
 
 TEST_P(OptimizeValueTensorsNoSDPATest, NoSDPAOpsAfterOptimization) {
-    const auto& suffix = GetParam();
+    const auto& fragment = GetParam();
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
     ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "YES"}}, recorder));
     ASSERT_NE(compiled, nullptr);
 
-    const auto* sub = recorder.find_suffix(suffix);
-    ASSERT_NE(sub, nullptr) << "Sub-model '" << suffix << "' not found";
+    const auto& sub = require_sub_model_containing(recorder, fragment);
 
-    EXPECT_EQ(count_ops<ov::op::v13::ScaledDotProductAttention>(sub->model), 0u);
+    EXPECT_EQ(count_ops<ov::op::v13::ScaledDotProductAttention>(sub.model), 0u);
 }
 
 // After SDPA decomposition each layer produces two MatMul ops (QK and SV multiplications).
@@ -66,11 +65,10 @@ TEST_F(OptimizeValueTensorsPassTest, GenerateModelHasMatMulFromDecomposedSDPA) {
     ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "YES"}}, recorder));
     ASSERT_NE(compiled, nullptr);
 
-    const auto* generate = recorder.find_suffix("_kv192");
-    ASSERT_NE(generate, nullptr);
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
 
     // 2 layers x 2 MatMuls per SDPA decomposition = at least 4
-    EXPECT_GE(count_ops<ov::op::v0::MatMul>(generate->model), 4u);
+    EXPECT_GE(count_ops<ov::op::v0::MatMul>(generate.model), 4u);
 }
 
 // SDPA decomposition inserts a Softmax node for each layer.
@@ -82,11 +80,10 @@ TEST_F(OptimizeValueTensorsPassTest, GenerateModelHasSoftmaxFromDecomposedSDPA) 
     ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "YES"}}, recorder));
     ASSERT_NE(compiled, nullptr);
 
-    const auto* generate = recorder.find_suffix("_kv192");
-    ASSERT_NE(generate, nullptr);
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
 
     // At least one Softmax per attention layer; SDPA decomposition creates v8::Softmax
-    EXPECT_GE(count_ops<ov::op::v8::Softmax>(generate->model), 2u);
+    EXPECT_GE(count_ops<ov::op::v8::Softmax>(generate.model), 2u);
 }
 
 // When OptimizeValueTensors is disabled the ScaledDotProductAttentionDecomposition
@@ -99,10 +96,9 @@ TEST_F(OptimizeValueTensorsPassTest, SDPAOpsRemainsWhenOptimizationDisabled) {
     ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}}, recorder));
     ASSERT_NE(compiled, nullptr);
 
-    const auto* generate = recorder.find_suffix("_kv192");
-    ASSERT_NE(generate, nullptr);
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
 
-    EXPECT_GT(count_ops<ov::op::v13::ScaledDotProductAttention>(generate->model), 0u);
+    EXPECT_GT(count_ops<ov::op::v13::ScaledDotProductAttention>(generate.model), 0u);
 }
 
 // TransposeValueTensors sets transpose_b=true on the value-multiplication MatMul
@@ -115,10 +111,9 @@ TEST_F(OptimizeValueTensorsPassTest, AtLeastOneMatMulHasTransposeBSet) {
     ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "YES"}}, recorder));
     ASSERT_NE(compiled, nullptr);
 
-    const auto* generate = recorder.find_suffix("_kv192");
-    ASSERT_NE(generate, nullptr);
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
 
-    EXPECT_TRUE(any_matmul_has_transpose_b(generate->model));
+    EXPECT_TRUE(any_matmul_has_transpose_b(generate.model));
 }
 
 }  // namespace

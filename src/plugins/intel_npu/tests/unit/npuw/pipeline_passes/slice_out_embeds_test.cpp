@@ -47,13 +47,12 @@ TEST_F(SliceOutEmbedsPassTest, SliceIsInsertedWhenGenerationTokenLenIsLessThanPr
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
 
-    const auto* prefill = recorder.find_suffix("_prefill");
-    const auto* lm_head = recorder.find_suffix("_lm_head");
-    ASSERT_NE(prefill, nullptr) << "prefill sub-model not found";
-    ASSERT_NE(lm_head, nullptr) << "lm_head sub-model not found (SHARED_HEAD=YES required)";
+    const auto& prefill = require_sub_model(recorder, "_prefill");
+    const auto& lm_head = require_sub_model(recorder, "_lm_head");
+    (void)lm_head;  // asserted to exist; contents checked by reshape_sliced_head tests
 
     // output_embeds must exist on the prefill model
-    const auto embeds = find_output(prefill->model, ov::npuw::LLMCompiledModel::output_embeds);
+    const auto embeds = find_output(prefill.model, ov::npuw::LLMCompiledModel::output_embeds);
     ASSERT_TRUE(embeds.has_value()) << "output_embeds output not found on prefill model";
 
     // Shape must be static and trimmed to generation token length
@@ -63,7 +62,7 @@ TEST_F(SliceOutEmbedsPassTest, SliceIsInsertedWhenGenerationTokenLenIsLessThanPr
 
     // The direct producer of the output_embeds Result must be a v8::Slice (inserted by SliceOutEmbeds).
     // Other v8::Slice ops (e.g. from HalfRotationRoPE halving) are intentionally not counted.
-    EXPECT_TRUE(output_embeds_has_slice_producer(prefill->model))
+    EXPECT_TRUE(output_embeds_has_slice_producer(prefill.model))
         << "Expected a v8::Slice directly feeding output_embeds, but none was found";
 }
 
@@ -79,11 +78,10 @@ TEST_F(SliceOutEmbedsPassTest, SliceIsNotInsertedWhenGenerationTokenLenEqualsPro
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
 
-    const auto* prefill = recorder.find_suffix("_prefill");
-    ASSERT_NE(prefill, nullptr) << "prefill sub-model not found";
+    const auto& prefill = require_sub_model(recorder, "_prefill");
 
     // output_embeds must still be exported
-    const auto embeds = find_output(prefill->model, ov::npuw::LLMCompiledModel::output_embeds);
+    const auto embeds = find_output(prefill.model, ov::npuw::LLMCompiledModel::output_embeds);
     ASSERT_TRUE(embeds.has_value()) << "output_embeds output not found on prefill model";
 
     // Shape should be the full prompt-length shape, unmodified
@@ -93,7 +91,7 @@ TEST_F(SliceOutEmbedsPassTest, SliceIsNotInsertedWhenGenerationTokenLenEqualsPro
 
     // The direct producer of the output_embeds Result must NOT be a v8::Slice.
     // (Other v8::Slices from RoPE etc. are irrelevant and deliberately ignored.)
-    EXPECT_FALSE(output_embeds_has_slice_producer(prefill->model))
+    EXPECT_FALSE(output_embeds_has_slice_producer(prefill.model))
         << "Expected no v8::Slice directly feeding output_embeds when generation len == prompt len";
 }
 
@@ -113,10 +111,9 @@ TEST_F(SliceOutEmbedsPassTest, SliceNotAppliedWhenNoSharedHead) {
     EXPECT_EQ(lm_head, nullptr) << "lm_head sub-model should not exist when SHARED_HEAD=NO";
 
     // prefill model must not export output_embeds
-    const auto* prefill = recorder.find_suffix("_prefill");
-    ASSERT_NE(prefill, nullptr) << "prefill sub-model not found";
+    const auto& prefill = require_sub_model(recorder, "_prefill");
 
-    const auto embeds = find_output(prefill->model, ov::npuw::LLMCompiledModel::output_embeds);
+    const auto embeds = find_output(prefill.model, ov::npuw::LLMCompiledModel::output_embeds);
     EXPECT_FALSE(embeds.has_value())
         << "output_embeds output should not exist in the prefill model when SHARED_HEAD=NO";
 }

@@ -23,18 +23,17 @@ TEST_F(ReshapeToStaticPassTest, AllPrefillInputsAreStatic) {
     ASSERT_NO_THROW(compiled = create_compiled_model({}, recorder));
     ASSERT_NE(compiled, nullptr);
 
-    const auto* prefill = recorder.find_suffix("_prefill");
-    ASSERT_NE(prefill, nullptr) << "Prefill sub-model was not compiled";
+    const auto& prefill = require_sub_model(recorder, "_prefill");
 
-    EXPECT_TRUE(all_inputs_static(prefill->model))
+    EXPECT_TRUE(all_inputs_static(prefill.model))
         << "At least one prefill input still has a dynamic dimension after ReshapeToStatic";
 
     // Spot-check concrete shapes
-    const auto ids_shape = input_shape(prefill->model, "input_ids");
+    const auto ids_shape = input_shape(prefill.model, "input_ids");
     ASSERT_TRUE(ids_shape.has_value()) << "input_ids not found in prefill model";
     EXPECT_EQ(*ids_shape, (ov::Shape{1, 128}));
 
-    const auto mask_shape = input_shape(prefill->model, "attention_mask");
+    const auto mask_shape = input_shape(prefill.model, "attention_mask");
     ASSERT_TRUE(mask_shape.has_value()) << "attention_mask not found in prefill model";
     EXPECT_EQ(*mask_shape, (ov::Shape{1, 128}));
 }
@@ -51,24 +50,23 @@ TEST_F(ReshapeToStaticPassTest, AllGenerateInputsAreStatic) {
     ASSERT_NO_THROW(compiled = create_compiled_model({}, recorder));
     ASSERT_NE(compiled, nullptr);
 
-    const auto* generate = recorder.find_suffix("_kv192");
-    ASSERT_NE(generate, nullptr) << "Generate sub-model _kv192 was not compiled";
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
 
-    EXPECT_TRUE(all_inputs_static(generate->model))
+    EXPECT_TRUE(all_inputs_static(generate.model))
         << "At least one generate input still has a dynamic dimension after ReshapeToStatic";
 
     // input_ids: one token at a time (default max_generation_token_len=1)
-    const auto ids_shape = input_shape(generate->model, "input_ids");
+    const auto ids_shape = input_shape(generate.model, "input_ids");
     ASSERT_TRUE(ids_shape.has_value()) << "input_ids not found in generate model";
     EXPECT_EQ(*ids_shape, (ov::Shape{1, 1}));
 
     // attention_mask covers the full kvcache window
-    const auto mask_shape = input_shape(generate->model, "attention_mask");
+    const auto mask_shape = input_shape(generate.model, "attention_mask");
     ASSERT_TRUE(mask_shape.has_value()) << "attention_mask not found in generate model";
     EXPECT_EQ(*mask_shape, (ov::Shape{1, 192}));
 
     // past_key_values: [batch=1, num_kv_heads=4, past_seq=kvcache-input_size=191, head_dim=16]
-    const auto kv_shape = input_shape(generate->model, "past_key_values");
+    const auto kv_shape = input_shape(generate.model, "past_key_values");
     ASSERT_TRUE(kv_shape.has_value()) << "past_key_values not found in generate model";
     ASSERT_EQ(kv_shape->size(), 4u);
     EXPECT_EQ((*kv_shape)[0], 1u);   // batch
@@ -91,14 +89,13 @@ TEST_F(ReshapeToStaticPassTest, GenerateModelKVCacheShapeReflectsKVCacheSize) {
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
 
-    // kvcache_size = 256 + 128 = 384  ->  model suffix is _kv384
-    const auto* generate = recorder.find_suffix("_kv384");
-    ASSERT_NE(generate, nullptr) << "Generate sub-model _kv384 was not compiled";
+    // kvcache_size = 256 + 128 = 384
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
 
-    EXPECT_TRUE(all_inputs_static(generate->model))
+    EXPECT_TRUE(all_inputs_static(generate.model))
         << "At least one generate input still has a dynamic dimension after ReshapeToStatic";
 
-    const auto kv_shape = input_shape(generate->model, "past_key_values");
+    const auto kv_shape = input_shape(generate.model, "past_key_values");
     ASSERT_TRUE(kv_shape.has_value()) << "past_key_values not found in generate model";
     ASSERT_EQ(kv_shape->size(), 4u);
     // seq dim = kvcache_size(384) - input_size(1) = 383
@@ -122,24 +119,23 @@ TEST_F(ReshapeToStaticPassTest, MaxGenerationTokenLenDrivesGenerateInputShape) {
     ASSERT_NE(compiled, nullptr);
 
     // MAX_PROMPT_LEN=128, MIN_RESPONSE_LEN=64 from base_props -> kvcache_size=192
-    const auto* generate = recorder.find_suffix("_kv192");
-    ASSERT_NE(generate, nullptr) << "Generate sub-model _kv192 was not compiled";
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
 
-    EXPECT_TRUE(all_inputs_static(generate->model))
+    EXPECT_TRUE(all_inputs_static(generate.model))
         << "At least one generate input still has a dynamic dimension after ReshapeToStatic";
 
     // input_ids must accommodate MAX_GENERATION_TOKEN_LEN tokens
-    const auto ids_shape = input_shape(generate->model, "input_ids");
+    const auto ids_shape = input_shape(generate.model, "input_ids");
     ASSERT_TRUE(ids_shape.has_value()) << "input_ids not found in generate model";
     EXPECT_EQ(*ids_shape, (ov::Shape{1, 8}));
 
     // attention_mask still spans the full kvcache window
-    const auto mask_shape = input_shape(generate->model, "attention_mask");
+    const auto mask_shape = input_shape(generate.model, "attention_mask");
     ASSERT_TRUE(mask_shape.has_value()) << "attention_mask not found in generate model";
     EXPECT_EQ(*mask_shape, (ov::Shape{1, 192}));
 
     // past_key_values seq dim = 192 - 8 = 184
-    const auto kv_shape = input_shape(generate->model, "past_key_values");
+    const auto kv_shape = input_shape(generate.model, "past_key_values");
     ASSERT_TRUE(kv_shape.has_value()) << "past_key_values not found in generate model";
     ASSERT_EQ(kv_shape->size(), 4u);
     EXPECT_EQ((*kv_shape)[0], 1u);   // batch

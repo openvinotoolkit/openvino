@@ -25,10 +25,9 @@ TEST_F(ReshapeSlicedHeadToStaticPassTest, LMHeadInputIsFullyStatic) {
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
 
-    const auto* lm_head = recorder.find_suffix("_lm_head");
-    ASSERT_NE(lm_head, nullptr) << "lm_head sub-model not found; ensure SHARED_HEAD=YES is set";
+    const auto& lm_head = require_sub_model(recorder, "_lm_head");
 
-    const auto head_input = lm_head->model->input(0);
+    const auto head_input = lm_head.model->input(0);
     EXPECT_TRUE(head_input.get_partial_shape().is_static())
         << "lm_head input shape is not fully static: " << head_input.get_partial_shape();
     EXPECT_EQ(head_input.get_shape(), (ov::Shape{1, 8, 64}));
@@ -55,10 +54,9 @@ TEST_P(ReshapeSlicedHeadTokenLenTest, LMHeadInputShapeReflectsMaxGenerationToken
                         recorder));
     ASSERT_NE(compiled, nullptr);
 
-    const auto* lm_head = recorder.find_suffix("_lm_head");
-    ASSERT_NE(lm_head, nullptr) << "lm_head sub-model not found for MAX_GENERATION_TOKEN_LEN=" << gen_len;
+    const auto& lm_head = require_sub_model(recorder, "_lm_head");
 
-    const auto head_input = lm_head->model->input(0);
+    const auto head_input = lm_head.model->input(0);
     ASSERT_TRUE(head_input.get_partial_shape().is_static())
         << "lm_head input shape is not fully static: " << head_input.get_partial_shape();
     EXPECT_EQ(head_input.get_shape(), (ov::Shape{1, gen_len, 64}));
@@ -94,10 +92,9 @@ TEST_F(ReshapeSlicedHeadToStaticPassTest, LMHeadInputHiddenSizeMatchesModelConfi
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
 
-    const auto* lm_head = recorder.find_suffix("_lm_head");
-    ASSERT_NE(lm_head, nullptr) << "lm_head sub-model not found; ensure SHARED_HEAD=YES is set";
+    const auto& lm_head = require_sub_model(recorder, "_lm_head");
 
-    const auto head_input = lm_head->model->input(0);
+    const auto head_input = lm_head.model->input(0);
     ASSERT_TRUE(head_input.get_partial_shape().is_static())
         << "lm_head input shape is not fully static: " << head_input.get_partial_shape();
 

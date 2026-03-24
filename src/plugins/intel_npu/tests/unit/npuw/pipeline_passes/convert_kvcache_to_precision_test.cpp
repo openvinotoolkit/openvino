@@ -49,10 +49,9 @@ TEST_P(ConvertKVCacheHintPrecisionTest, GenerateModelPastKeyInputsHaveExpectedPr
                         {{ov::hint::kv_cache_precision.name(), kv_type}}, recorder));
     ASSERT_NE(compiled, nullptr);
 
-    const auto* generate = recorder.find_suffix("_kv192");
-    ASSERT_NE(generate, nullptr);
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
 
-    EXPECT_TRUE(all_inputs_with_name_have_type(generate->model, "past_key", kv_type))
+    EXPECT_TRUE(all_inputs_with_name_have_type(generate.model, "past_key", kv_type))
         << "past_key inputs must have type " << kv_type;
 }
 
@@ -66,10 +65,9 @@ TEST_P(ConvertKVCacheHintPrecisionTest, GenerateModelPresentOutputsHaveExpectedP
                         {{ov::hint::kv_cache_precision.name(), kv_type}}, recorder));
     ASSERT_NE(compiled, nullptr);
 
-    const auto* generate = recorder.find_suffix("_kv192");
-    ASSERT_NE(generate, nullptr);
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
 
-    EXPECT_TRUE(all_outputs_with_name_have_type(generate->model, "present", kv_type))
+    EXPECT_TRUE(all_outputs_with_name_have_type(generate.model, "present", kv_type))
         << "present outputs must have type " << kv_type;
 }
 
@@ -83,10 +81,9 @@ TEST_P(ConvertKVCacheHintPrecisionTest, PrefillModelPresentOutputsHaveExpectedPr
                         {{ov::hint::kv_cache_precision.name(), kv_type}}, recorder));
     ASSERT_NE(compiled, nullptr);
 
-    const auto* prefill = recorder.find_suffix("_prefill");
-    ASSERT_NE(prefill, nullptr);
+    const auto& prefill = require_sub_model(recorder, "_prefill");
 
-    EXPECT_TRUE(all_outputs_with_name_have_type(prefill->model, "present", kv_type))
+    EXPECT_TRUE(all_outputs_with_name_have_type(prefill.model, "present", kv_type))
         << "present outputs in the prefill model must have type " << kv_type;
 }
 
@@ -104,10 +101,9 @@ TEST_F(ConvertKVCacheToPrecisionPassTest, ChunkedPrefillModelPastKeyInputsAreF16
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
 
-    const auto* prefill = recorder.find_suffix("_prefill");
-    ASSERT_NE(prefill, nullptr);
+    const auto& prefill = require_sub_model(recorder, "_prefill");
 
-    EXPECT_TRUE(all_inputs_with_name_have_type(prefill->model, "past_key", ov::element::f16))
+    EXPECT_TRUE(all_inputs_with_name_have_type(prefill.model, "past_key", ov::element::f16))
         << "past_key inputs in chunked prefill must be f16 after ConvertKVCacheToPrecision";
 }
 
@@ -119,10 +115,9 @@ TEST_F(ConvertKVCacheToPrecisionPassTest, NonKVInputsAreNotConverted) {
     ASSERT_NO_THROW(compiled = create_compiled_model({}, recorder));
     ASSERT_NE(compiled, nullptr);
 
-    const auto* generate = recorder.find_suffix("_kv192");
-    ASSERT_NE(generate, nullptr);
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
 
-    EXPECT_TRUE(no_inputs_with_name_have_type(generate->model, "input_ids", ov::element::f16))
+    EXPECT_TRUE(no_inputs_with_name_have_type(generate.model, "input_ids", ov::element::f16))
         << "input_ids must NOT be f16 -- ConvertKVCacheToPrecision must not touch it";
 }
 
