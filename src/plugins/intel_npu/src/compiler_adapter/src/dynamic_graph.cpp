@@ -19,58 +19,6 @@
 
 namespace intel_npu {
 
-void DynamicGraph::GraphArgumentsImpl::prepareCommandListIndexArray(GraphArguments& args,
-                                                                    std::vector<uint64_t>& argIndexArray,
-                                                                    bool& noTensorChange) {
-    argIndexArray.clear();
-    noTensorChange = true;
-    Logger::global().debug("Prepare command list index array for graph execution, input size: %d, output size: %d",
-                           args._inputs.size(),
-                           args._outputs.size());
-    for (size_t i = 0; i < args._inputs.size(); ++i) {
-        auto& input = args._inputs[i];
-        Logger::global().debug("Prepare command list index for input %d , info: %s", i, input.toString().c_str());
-        // Only check shape now, strides not checked
-        if (!input._shapeUpdated) {
-            argIndexArray.push_back(i);
-            if (input._ptrUpdated || input._strideUpdated) {
-                noTensorChange = false;
-            }
-        } else {
-            Logger::global().debug("Input %d has new shape, can not reuse commandlist with update", i);
-        }
-        input._ptrUpdated = false;
-        input._shapeUpdated = false;
-        input._strideUpdated = false;
-    }
-    for (size_t j = 0; j < args._outputs.size(); ++j) {
-        auto& output = args._outputs[j];
-        Logger::global().debug("Prepare command list index for output %d , info: %s", j, output.toString().c_str());
-        // Only check shape now, strides not checked
-        if (!output._shapeUpdated) {
-            argIndexArray.push_back(j + args._inputs.size());
-            if (output._ptrUpdated || output._strideUpdated) {
-                noTensorChange = false;
-            }
-        } else {
-            Logger::global().debug("Output %d has new shape, can not reuse commandlist with update", j);
-        }
-        output._ptrUpdated = false;
-        output._shapeUpdated = false;
-        output._strideUpdated = false;
-    }
-    if (argIndexArray.size() != args._inputs.size() + args._outputs.size()) {
-        // There are tensor that has new shape, can not reuse commandlist with update
-        Logger::global().debug(
-            "There are %d tensors with old shape, need %d tensors, can not reuse commandlist with update",
-            argIndexArray.size(),
-            args._inputs.size() + args._outputs.size());
-        argIndexArray.clear();
-    } else {
-        Logger::global().debug("All tensors have old shape, can reuse commandlist with update");
-    }
-}
-
 class DynamicGraphImpl : public DynamicGraph::Impl {
 public:
     using MemRefType = DynamicGraph::MemRefType;
@@ -108,6 +56,11 @@ public:
 
     void predictOutputShape(std::vector<DynamicGraph::MemRefType>& inputDescriptors,
                             std::vector<DynamicGraph::MemRefType>& outputDescriptors) override;
+
+    void prepareCommandListIndexArray(DynamicGraph::GraphArguments& args,
+                                          std::vector<uint64_t>& argIndexArray,
+                                          bool& noTensorChange,
+                                          bool& allTensorHasOldShape);
 
 public:
     npu_vm_runtime_handle_t _engine = nullptr;
@@ -416,11 +369,12 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
 
     std::vector<uint64_t> commandListIndexArray;
     bool noTensorChange = true;
+    bool allTensorHasOldShape = true;
     // Prepare command list index array for UpdateMutableCommandList API
     // Empty means some tensor has new shape, can not reuse commandlist
-    argsImpl->prepareCommandListIndexArray(args, commandListIndexArray, noTensorChange);
+    prepareCommandListIndexArray(args, commandListIndexArray, noTensorChange, allTensorHasOldShape);
 
-    if (args._impl == nullptr || commandListIndexArray.empty() ||
+    if (args._impl == nullptr || !allTensorHasOldShape ||
         reuseCmdListMode == DISABLE_EXECUTION_CONTEXT_CREATION ||
         reuseCmdListMode == ENABLE_EXECUTION_CONTEXT_CREATION) {
         _logger.debug("Reset command list to run with runtime");
@@ -544,6 +498,61 @@ void DynamicGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescript
             outImpl->alignWithHandle(out);
         }
         _logger.debug("Output shape prediction is done successfully.");
+    }
+}
+
+void DynamicGraphImpl::prepareCommandListIndexArray(DynamicGraph::GraphArguments& args,
+                                                                    std::vector<uint64_t>& argIndexArray,
+                                                                    bool& noTensorChange,
+                                                                    bool& allTensorHasOldShape) {
+    argIndexArray.clear();
+    noTensorChange = true;
+    allTensorHasOldShape = true;
+    for (size_t i = 0; i < args._inputs.size(); ++i) {
+        auto& input = args._inputs[i];
+        // Only check shape now, strides not checked
+        if (!input._shapeUpdated) {
+            if (input._ptrUpdated || input._strideUpdated) {
+                argIndexArray.push_back(i);
+                noTensorChange = false;
+            }
+        } else {
+            _logger.debug("Input %d has new shape, can not reuse commandlist with update", i);
+            allTensorHasOldShape = false;
+        }
+        input._ptrUpdated = false;
+        input._shapeUpdated = false;
+        input._strideUpdated = false;
+    }
+    for (size_t j = 0; j < args._outputs.size(); ++j) {
+        auto& output = args._outputs[j];
+        // Only check shape now, strides not checked
+        if (!output._shapeUpdated) {
+            if (output._ptrUpdated || output._strideUpdated) {
+                argIndexArray.push_back(j + args._inputs.size());
+                noTensorChange = false;
+            }
+        } else {
+            _logger.debug("Output %d has new shape, can not reuse commandlist with update", j);
+            allTensorHasOldShape = false;
+        }
+        output._ptrUpdated = false;
+        output._shapeUpdated = false;
+        output._strideUpdated = false;
+    }
+    if (!allTensorHasOldShape) {
+        // There are tensor that has new shape, can not reuse commandlist with update
+        _logger.debug(
+            "There are %d tensors with old shape, need %d tensors, can not reuse commandlist with update",
+            argIndexArray.size(),
+            args._inputs.size() + args._outputs.size());
+        argIndexArray.clear();
+    } else {
+        if(noTensorChange) {
+            _logger.debug("All tensors have old shape, and no tensor pointer or stride change, can reuse commandlist directly");
+        } else {
+            _logger.debug("All tensors have old shape, but some tensor pointer or stride updated, can reuse commandlist with update");
+        }
     }
 }
 

@@ -88,9 +88,6 @@ public:
                 _executeParams.executionContext = nullptr;
             }
         }
-        void prepareCommandListIndexArray(GraphArguments& args,
-                                          std::vector<uint64_t>& argIndexArray,
-                                          bool& noTensorChange);
     };
 
     class Impl {
