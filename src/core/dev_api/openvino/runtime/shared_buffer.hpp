@@ -13,6 +13,10 @@ namespace ov {
 OPENVINO_API std::shared_ptr<IBufferDescriptor>
 create_base_descriptor(size_t id, size_t offset, const std::shared_ptr<ov::AlignedBuffer>& source_buffer);
 
+namespace detail {
+OPENVINO_API std::shared_ptr<IBufferDescriptor> create_mmap_descriptor(const std::shared_ptr<ov::MappedMemory>& mmap);
+}  // namespace detail
+
 template <typename T>
 class SharedBufferBase : public ov::AlignedBuffer {
 public:
@@ -86,28 +90,21 @@ public:
     SharedBuffer(char* data, size_t size, const T& shared_object, const std::shared_ptr<IBufferDescriptor>& descriptor)
         : SharedBufferBase<T>(data, size, shared_object, descriptor) {}
 
-    // For non-AlignedBuffer types: no auto-descriptor
-    template <typename U = T, std::enable_if_t<!is_aligned_buffer_ptr_v<U>, int> = 0>
+    // For non-AlignedBuffer, non-MappedMemory types: no auto-descriptor
+    template <
+        typename U = T,
+        std::enable_if_t<!is_aligned_buffer_ptr_v<U> && !std::is_same_v<U, std::shared_ptr<ov::MappedMemory>>, int> = 0>
     SharedBuffer(char* data, size_t size, const T& shared_object) : SharedBufferBase<T>(data, size, shared_object) {}
 
     // For AlignedBuffer-derived shared_ptr types: auto-inherit descriptor
     template <typename U = T, std::enable_if_t<is_aligned_buffer_ptr_v<U>, int> = 0>
     SharedBuffer(char* data, size_t size, const T& shared_object)
         : SharedBufferBase<T>(data, size, shared_object, shared_object ? shared_object->get_descriptor() : nullptr) {}
-};
 
-template <>
-class SharedBuffer<std::shared_ptr<ov::MappedMemory>> : public SharedBufferBase<std::shared_ptr<ov::MappedMemory>> {
-public:
-    SharedBuffer(char* data, size_t size, const std::shared_ptr<ov::MappedMemory>& shared_object)
-        : SharedBufferBase<std::shared_ptr<ov::MappedMemory>>(data,
-                                                              size,
-                                                              shared_object,
-                                                              create_mmap_descriptor(shared_object)) {}
-
-protected:
-    OPENVINO_API std::shared_ptr<IBufferDescriptor> create_mmap_descriptor(
-        const std::shared_ptr<ov::MappedMemory>&) const;
+    // For MappedMemory: auto-create mmap descriptor
+    template <typename U = T, std::enable_if_t<std::is_same_v<U, std::shared_ptr<ov::MappedMemory>>, int> = 0>
+    SharedBuffer(char* data, size_t size, const T& shared_object)
+        : SharedBufferBase<T>(data, size, shared_object, detail::create_mmap_descriptor(shared_object)) {}
 };
 
 /// \brief SharedStreamBuffer class to store pointer to pre-allocated buffer and provide streambuf interface.
