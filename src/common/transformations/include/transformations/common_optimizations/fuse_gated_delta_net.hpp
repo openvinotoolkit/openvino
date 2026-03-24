@@ -49,6 +49,17 @@ public:
     FuseL2NormIntoGDN();
 };
 
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief Fuse q/k repeat into GatedDeltaNet
+ */
+
+class TRANSFORMATIONS_API FuseQKRepeatIntoGDN : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("FuseQKRepeatIntoGDN");
+    FuseQKRepeatIntoGDN();
+};
+
 /// This pass transforms a loop-based Gated Delta Net sub-graph to a single internal `GatedDeltaNet` operation.
 ///
 /// Before:

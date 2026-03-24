@@ -115,4 +115,24 @@ std::shared_ptr<ov::Node> GatedDeltaNet::clone_with_new_inputs(const ov::OutputV
     return cloned;
 }
 
+
+GatedDeltaNetWithVariable::GatedDeltaNetWithVariable(const ov::OutputVector& args, const std::shared_ptr<ov::op::util::Variable>& variable, bool fuse_qk_l2norm, float q_l2_norm_eps, float k_l2_norm_eps)
+    : GatedDeltaNet(args, fuse_qk_l2norm, q_l2_norm_eps, k_l2_norm_eps) {
+    m_variable = variable;
+    constructor_validate_and_infer_types();
+}
+
+bool GatedDeltaNetWithVariable::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(GatedDeltaNetWithVariable_visit_attributes);
+    GatedDeltaNet::visit_attributes(visitor);
+    if (m_variable) {
+        auto variable_info = m_variable->get_info();
+        visitor.on_attribute("variable_id", m_variable);
+        visitor.on_attribute("variable_type", variable_info.data_type);
+        visitor.on_attribute("variable_shape", variable_info.data_shape);
+        m_variable->update(variable_info);
+    }
+    return true;
+}
+
 }  // namespace ov::op::internal

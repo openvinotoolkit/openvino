@@ -4,6 +4,8 @@
 #pragma once
 
 #include "openvino/op/op.hpp"
+#include "openvino/op/util/variable.hpp"
+#include "openvino/op/util/variable_extension.hpp"
 
 namespace ov::op::internal {
 /// \note GatedDeltaNet op class is under development and subject to change
@@ -46,6 +48,7 @@ public:
                   const bool fuse_qk_l2norm = false,
                   const float q_l2_norm_eps = 1e-6F,
                   const float k_l2_norm_eps = 1e-6F);
+
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
@@ -59,10 +62,23 @@ public:
         return m_k_l2_norm_eps;
     }
 
-private:
+protected:
     bool m_fuse_qk_l2norm = false;
     float m_q_l2_norm_eps = 1e-6F;
     float m_k_l2_norm_eps = 1e-6F;
+};
+
+class OPENVINO_API GatedDeltaNetWithVariable : public GatedDeltaNet, public ov::op::util::VariableExtension {
+public:
+    OPENVINO_OP("GatedDeltaNetWithVariable");
+    GatedDeltaNetWithVariable(const ov::OutputVector& args,
+                  const std::shared_ptr<ov::op::util::Variable>& variable,
+                  const bool fuse_qk_l2norm = false,
+                  const float q_l2_norm_eps = 1e-6F,
+                  const float k_l2_norm_eps = 1e-6F);
+
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
 };
 
 }  // namespace ov::op::internal
