@@ -222,6 +222,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     m_generate_initialized = false;
 
     m_llm_profile.report_on_die = ov::npuw::profiling_enabled();
+    m_llm_profile.emit_timestamps = ov::npuw::profiling_enabled();
     m_llm_profile.area = "LLM/execution";
 }
 
