@@ -180,7 +180,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
           python3 -m pip install \
-            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/hf_transformers.txt
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/optimum_intel.txt
 
       - name: PagedAttention Test
         if: ${{ inputs.model_scope == 'precommit' }}
