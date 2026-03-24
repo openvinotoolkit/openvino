@@ -49,21 +49,21 @@ KERNEL(bevpool_v2_opt)(OPTIONAL_SHAPE_INFO_ARG
         const uint feature_flat_idx = dw_index % feature_area;
         const uint cf_offset_base = (camera_idx * feature_area + feature_flat_idx) * INPUT_CHANNELS + channel_base;
 
-#if INPUT0_TYPE_SIZE == 2 && BLOCK_SIZE == 8
+    #if INPUT0_TYPE_SIZE == 2 && BLOCK_SIZE == 8
         if (channel_base + 7 < OUTPUT_CHANNELS && cf_offset_base + 7 < INPUT0_LENGTH) {
             const __global half* cf_half = (const __global half*)cf;
             const half8 cf_vec = vload8(0, cf_half + cf_offset_base);
             acc8 = fma(convert_float8(cf_vec), (float8)(dw_value), acc8);
             continue;
         }
-#elif INPUT0_TYPE_SIZE == 2 && BLOCK_SIZE == 4
+    #elif INPUT0_TYPE_SIZE == 2 && BLOCK_SIZE == 4
         if (channel_base + 3 < OUTPUT_CHANNELS && cf_offset_base + 3 < INPUT0_LENGTH) {
             const __global half* cf_half = (const __global half*)cf;
             const half4 cf_vec = vload4(0, cf_half + cf_offset_base);
             acc4 = fma(convert_float4(cf_vec), (float4)(dw_value), acc4);
             continue;
         }
-#endif
+    #endif
 
         for (uint lane = 0; lane < (uint)BLOCK_SIZE; ++lane) {
             const uint channel = channel_base + lane;
