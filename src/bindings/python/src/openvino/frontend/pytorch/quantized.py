@@ -60,8 +60,15 @@ def unpatch_quantized(model: torch.nn.Module) -> None:
                       "_openvino_quantized_patch_orig_forward")  # type: ignore
 
 
-def _build_quantized_extensions(quant_type):
+def _build_quantized_extensions(quant_type, for_export=False):
     """Build ModuleExtension dict for the given quantization type.
+
+    Args:
+        quant_type: Quantization method string ("awq", "bitnet", etc.).
+        for_export: If True, pass group_size/w_bit as plain ints for
+            ``torch.export``.  If False (default), wrap them in
+            ``torch.tensor`` so they appear as graph inputs in
+            TorchScript tracing.
 
     Returns the extensions dict (may be empty if the required package is
     not installed).  Raises ``RuntimeError`` for unknown quant types.
@@ -73,12 +80,17 @@ def _build_quantized_extensions(quant_type):
     if quant_type == "awq":
         try:
             from awq.modules.linear import WQLinear_GEMM
+
+            def _awq_convert(module, target_op, *args, **kwargs):
+                gs = module.group_size if for_export else torch.tensor(module.group_size)
+                wb = module.w_bit if for_export else torch.tensor(module.w_bit)
+                return target_op(
+                    args[0], module.qweight, module.qzeros, module.scales,
+                    gs, wb, module.bias)
+
             extensions[WQLinear_GEMM] = ModuleExtension(
                 WQLinear_GEMM, "ov_ext::awq_gemm",
-                convert=lambda module, target_op, *args, **kwargs: target_op(
-                    args[0], module.qweight, module.qzeros, module.scales,
-                    module.group_size,
-                    module.w_bit, module.bias),
+                convert=_awq_convert,
                 evaluate=lambda module, *args, **kwargs: fp32_tensor(
                     *args[0].shape[:-1], module.out_features))  # type: ignore
         except ImportError:
@@ -124,7 +136,7 @@ def patch_quantized_for_export(model: torch.nn.Module) -> None:
         RuntimeError: If the quantization type is unknown or unsupported.
     """
     quant_type = detect_quantized_model(model)
-    extensions = _build_quantized_extensions(quant_type)
+    extensions = _build_quantized_extensions(quant_type, for_export=True)
     if extensions is None:
         raise RuntimeError(
             "GPTQ models are not yet supported with torch.export. "
