@@ -3251,12 +3251,11 @@ void jit_erfinv_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     // Copy v to aux1 for exponent extraction (aux2 keeps v bits for mantissa)
     h->mov(aux1.b16, aux2.b16);
 
-    // Extract integer biased exponent k = v_bits >> 23 (in aux1)
+    // Extract integer biased exponent k = v_bits >> 23, convert to float, subtract 126.0f
     h->ushr(aux1.s, aux1.s, 23);  // k (int32)
-    // Subtract 126 to get e+1: load 126 broadcast into aux4
-    h->ld1r(aux4.s, table_val2("int126"));
-    h->sub(aux1 .4s, aux1 .4s, aux4 .4s);  // e+1 (int32)
-    h->scvtf(aux1.s, aux1.s);              // (e+1) as float
+    h->scvtf(aux1.s, aux1.s);     // k as float
+    h->ld1r(aux4.s, table_val2("float126"));
+    h->fsub(aux1.s, aux1.s, aux4.s);  // (e+1) as float
 
     // Extract mantissa from aux2 (v bits) and compute h = f/2 - 1
     h->ld1r(aux4.s, table_val2("mantissa_mask"));
@@ -3398,7 +3397,7 @@ void jit_erfinv_emitter::register_table_entries() {
     push_arg_entry_of("pos_inf", 0x7f800000, true);
     push_arg_entry_of("qnan", 0x7fc00000, true);
     push_arg_entry_of("mantissa_mask", 0x007fffff, true);
-    push_arg_entry_of("int126", 126u, true);
+    push_arg_entry_of("float126", 0x42fc0000, true);  // 126.0f
     push_arg_entry_of("ln2", 0x3f317218, true);
     push_arg_entry_of("two_point_five", 0x40200000, true);
     push_arg_entry_of("three", 0x40400000, true);
