@@ -442,7 +442,6 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
             element_count--;
         }
     }
-
     if (has_external_data()) {
         const auto ext_data = m_tensor_place != nullptr
                                   ? detail::TensorExternalData(*m_tensor_place->get_data_location(),
