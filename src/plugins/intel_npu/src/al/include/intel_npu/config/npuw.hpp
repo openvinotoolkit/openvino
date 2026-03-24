@@ -236,6 +236,18 @@ struct NPUWStringEnumOptionTraits<::intel_npu::npuw::llm::AttentionHint> {
     }
 };
 
+struct PrefillAttentionHintOptionTraits : NPUWStringEnumOptionTraits<::intel_npu::npuw::llm::AttentionHint> {
+    static ValueType defaultValue() {
+        return ValueType::PYRAMID;
+    }
+};
+
+struct GenerateAttentionHintOptionTraits : NPUWStringEnumOptionTraits<::intel_npu::npuw::llm::AttentionHint> {
+    static ValueType defaultValue() {
+        return ValueType::STATIC;
+    }
+};
+
 template <>
 struct NPUWStringEnumOptionTraits<::intel_npu::npuw::llm::MoEHint> {
     using ValueType = ::intel_npu::npuw::llm::MoEHint;
@@ -312,7 +324,7 @@ struct NPUWStringEnumOptionBase : OptionBase<ActualOpt, typename Traits::ValueTy
 #define INTEL_NPU_NPUW_SIMPLE_OPT(OPT, TYPE, DEFAULT, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
     DEFINE_NPUW_SIMPLE_OPT(OPT, TYPE, DEFAULT, KEY)
 #define INTEL_NPU_NPUW_STRING_ENUM_OPT(OPT, TYPE, TRAITS, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
-    DEFINE_NPUW_STRING_ENUM_OPT(OPT, NPUWStringEnumOptionTraits<TYPE>, KEY)
+    DEFINE_NPUW_STRING_ENUM_OPT(OPT, TRAITS, KEY)
 #define INTEL_NPU_NPUW_ANYMAP_OPT(OPT, NS, VARNAME, KEY, GROUP, SURFACE, CACHING, BUILD) \
     DEFINE_NPUW_ANYMAP_OPT(OPT, KEY)
 #include "intel_npu/config/npuw_option_defs.inc"

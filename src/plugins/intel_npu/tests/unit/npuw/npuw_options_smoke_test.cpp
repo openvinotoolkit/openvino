@@ -202,4 +202,11 @@ std::string case_name(const testing::TestParamInfo<Case>& info) {
 
 INSTANTIATE_TEST_SUITE_P(NPUWOptions, SmokeTest, ::testing::ValuesIn(make_cases()), case_name);
 
+TEST(NPUWConfigOptionsSmokeTest, AttentionHintDefaultsCanDifferPerOption) {
+    const auto cfg = make_config();
+
+    EXPECT_EQ(cfg.getString<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>(), "PYRAMID");
+    EXPECT_EQ(cfg.getString<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>(), "STATIC");
+}
+
 }  // namespace
