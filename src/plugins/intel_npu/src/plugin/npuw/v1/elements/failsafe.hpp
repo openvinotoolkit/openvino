@@ -109,7 +109,6 @@ private:
         std::vector<ov::SoPtr<ov::ITensor>> tensors;
     };
 
-    void materialize() const;
     void ensure_inner_request_locked() const;
     PortKey port_key_locked(const ov::Output<const ov::Node>& port) const;
     bool is_output_port_locked(const ov::Output<const ov::Node>& port) const;

@@ -184,7 +184,7 @@ ov::Any ov::npuw::failsafe::CompiledModel::get_property(const std::string& name)
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::failsafe::CompiledModel::create_sync_infer_request() const {
     auto self = std::static_pointer_cast<const CompiledModel>(shared_from_this());
     auto request = std::make_shared<InferRequest>(std::move(self));
-    request->materialize();
+    request->ensure_inner_request_locked();
     return request;
 }
 
@@ -197,11 +197,6 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::failsafe::CompiledModel::creat
 ov::npuw::failsafe::InferRequest::InferRequest(std::shared_ptr<const CompiledModel> compiled_model)
     : ov::ISyncInferRequest(compiled_model),
       m_failsafe_compiled_model(std::move(compiled_model)) {}
-
-void ov::npuw::failsafe::InferRequest::materialize() const {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    ensure_inner_request_locked();
-}
 
 void ov::npuw::failsafe::InferRequest::ensure_inner_request_locked() const {
     if (m_request != nullptr && m_failsafe_compiled_model->is_generation_current(m_generation)) {
