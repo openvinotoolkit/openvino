@@ -158,25 +158,25 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     size_t group_size = desc->_config.group_size;
     switch (type) {
     case MoE3GemmMicroKernelType::MLP_GATE:
-        wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_0);
-        scale_idx = static_cast<int>(MOE3GemmInputIndex::SCALE_0);
-        zp_idx = static_cast<int>(MOE3GemmInputIndex::ZP_0);
+        wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_FUSED);
+        scale_idx = static_cast<int>(MOE3GemmInputIndex::SCALE_FUSED);
+        zp_idx = static_cast<int>(MOE3GemmInputIndex::ZP_FUSED);
         if (group_size == std::numeric_limits<size_t>::max()) {
             group_size = desc->_config.hidden_size;
         }
         break;
     case MoE3GemmMicroKernelType::MLP_UP:
-        wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_1);
-        scale_idx = static_cast<int>(MOE3GemmInputIndex::SCALE_1);
-        zp_idx = static_cast<int>(MOE3GemmInputIndex::ZP_1);
+        wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_FUSED);
+        scale_idx = static_cast<int>(MOE3GemmInputIndex::SCALE_FUSED);
+        zp_idx = static_cast<int>(MOE3GemmInputIndex::ZP_FUSED);
         if (group_size == std::numeric_limits<size_t>::max()) {
             group_size = desc->_config.hidden_size;
         }
         break;
     case MoE3GemmMicroKernelType::MLP_DOWN:
-        wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_2);
-        scale_idx = static_cast<int>(MOE3GemmInputIndex::SCALE_2);
-        zp_idx = static_cast<int>(MOE3GemmInputIndex::ZP_2);
+        wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_FUSED);
+        scale_idx = static_cast<int>(MOE3GemmInputIndex::SCALE_FUSED);
+        zp_idx = static_cast<int>(MOE3GemmInputIndex::ZP_FUSED);
         if (group_size == std::numeric_limits<size_t>::max()) {
             group_size = desc->_config.inter_size;
         }
@@ -369,7 +369,7 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
     switch (m_type) {
     case MoE3GemmMicroKernelType::MLP_GATE:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_UP_INPUT});  // gather input tensor
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::WEIGHT_0)});
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::WEIGHT_FUSED)});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_OUTPUT});  // gate output
         {
             const bool enable_silu_mul = ENABLE_MOE_MICRO_GEMM_POST_PROC_SILU_MUL;
@@ -381,32 +381,32 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT});  // n_array - token len
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                            // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_0)});                 // scale
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_0)});                    // zp
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_FUSED)});                 // scale
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_FUSED)});                    // zp
         break;
     case MoE3GemmMicroKernelType::MLP_UP:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_UP_INPUT});  // gather input tensor
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::WEIGHT_1)});
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::WEIGHT_FUSED)});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_UP_OUTPUT});                       // up output
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS});            // experts_ids
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT});   // input_offset_per_expert
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT});  // n_array - token len
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                            // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_1)});                 // scale
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_1)});                    // zp
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_FUSED)});                 // scale
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_FUSED)});                    // zp
         break;
     case MoE3GemmMicroKernelType::MLP_DOWN:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_OUTPUT});  // intermediate_mem[6]
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::WEIGHT_2)});
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::WEIGHT_FUSED)});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_DOWN_OUTPUT});                     // down output
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS});            // experts_ids
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT});   // input_offset_per_expert
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT});  // n_array - token len
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                            // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_2)});                 // scale
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_2)});                    // zp
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_FUSED)});                 // scale
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_FUSED)});                    // zp
         break;
     default:
         OPENVINO_THROW("Unsupported MoE3GemmMicroKernelType");

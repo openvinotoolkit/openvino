@@ -33,17 +33,11 @@ enum class MoE3GemmMicroKernelType : uint8_t { MLP_GATE = 0, MLP_UP = 1, MLP_DOW
 enum class MOE3GemmInputIndex : uint8_t {
     HIDDEN_STATES = 0,
     ROUTING_WEIGHTS = 1,
-    WEIGHT_0 = 2,
-    SCALE_0 = 3,
-    ZP_0 = 4,
-    WEIGHT_1 = 5,
-    SCALE_1 = 6,
-    ZP_1 = 7,
-    WEIGHT_2 = 8,
-    SCALE_2 = 9,
-    ZP_2 = 10,
-    ROUTING_BIAS = 11,
-    ROUTING_EPS = 12
+    WEIGHT_FUSED = 2,
+    SCALE_FUSED = 3,
+    ZP_FUSED = 4,
+    ROUTING_BIAS = 5,
+    ROUTING_EPS = 6
 };
 
 struct moe_3gemm_config {

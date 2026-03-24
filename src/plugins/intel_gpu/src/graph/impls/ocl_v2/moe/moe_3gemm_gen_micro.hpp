@@ -30,19 +30,19 @@ public:
           m_type(type) {
         switch (m_type) {
         case MoE3GemmMicroKernelType::MLP_GATE:
-            m_wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_0);
-            m_scale_idx = static_cast<int>(MOE3GemmInputIndex::SCALE_0);
-            m_zp_idx = static_cast<int>(MOE3GemmInputIndex::ZP_0);
+            m_wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_FUSED);
+            m_scale_idx = static_cast<int>(MOE3GemmInputIndex::SCALE_FUSED);
+            m_zp_idx = static_cast<int>(MOE3GemmInputIndex::ZP_FUSED);
             break;
         case MoE3GemmMicroKernelType::MLP_UP:
-            m_wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_1);
-            m_scale_idx = static_cast<int>(MOE3GemmInputIndex::SCALE_1);
-            m_zp_idx = static_cast<int>(MOE3GemmInputIndex::ZP_1);
+            m_wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_FUSED);
+            m_scale_idx = static_cast<int>(MOE3GemmInputIndex::SCALE_FUSED);
+            m_zp_idx = static_cast<int>(MOE3GemmInputIndex::ZP_FUSED);
             break;
         case MoE3GemmMicroKernelType::MLP_DOWN:
-            m_wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_2);
-            m_scale_idx = static_cast<int>(MOE3GemmInputIndex::SCALE_2);
-            m_zp_idx = static_cast<int>(MOE3GemmInputIndex::ZP_2);
+            m_wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_FUSED);
+            m_scale_idx = static_cast<int>(MOE3GemmInputIndex::SCALE_FUSED);
+            m_zp_idx = static_cast<int>(MOE3GemmInputIndex::ZP_FUSED);
             break;
         default:
             OPENVINO_THROW("Unsupported MoE3GemmMicroKernelType");

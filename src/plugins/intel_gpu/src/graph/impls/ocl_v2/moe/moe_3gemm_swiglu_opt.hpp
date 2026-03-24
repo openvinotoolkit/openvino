@@ -46,7 +46,7 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
             ov::element::u8,
             ov::element::i8,
         };
-        const auto& wei_layout = node.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0));
+        const auto& wei_layout = node.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_FUSED));
         if (!one_of(wei_layout.data_type, supported_wei_type)) {
             return false;
         }
@@ -55,7 +55,7 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
         static constexpr std::array supported_scale_type = {
             ov::element::f16,
         };
-        const auto& scale_layout = node.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0));
+        const auto& scale_layout = node.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SCALE_FUSED));
         if (!one_of(scale_layout.data_type, supported_scale_type)) {
             return false;
         }
@@ -65,7 +65,7 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
             ov::element::u4,
             ov::element::u8,
         };
-        const auto& zp_layout = node.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::ZP_0));
+        const auto& zp_layout = node.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::ZP_FUSED));
         if (!one_of(zp_layout.data_type, supported_zp_type)) {
             return false;
         }

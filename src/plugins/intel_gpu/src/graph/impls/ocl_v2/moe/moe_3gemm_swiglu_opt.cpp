@@ -9,6 +9,7 @@
 
 #define DEBUG_MOE_LOG 0
 
+// #define ENABLE_ONEDNN_FOR_GPU
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <initializer_list>
 #    include <oneapi/dnnl/dnnl.hpp>
@@ -37,6 +38,13 @@ namespace ov::intel_gpu::ocl {
 namespace {
 
 using namespace ov::intel_gpu::ocl;
+
+static inline bool is_fused_w012_layout(const cldnn::layout& l) {
+    if (l.get_partial_shape().rank().is_dynamic())
+        return false;
+    const auto s = l.get_shape();
+    return s.size() == 4 && s[1] == 3;
+}
 
 dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
     switch (dt) {
@@ -682,7 +690,7 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
     jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
 
-    ov::element::Type weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
+    ov::element::Type weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_FUSED)).data_type;
     // auto scale_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0)).data_type;
     // auto zp_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::ZP_0)).data_type;
     if (weight_dt == ov::element::u4 || weight_dt == ov::element::i4) {
@@ -819,9 +827,10 @@ public:
     };
 
     struct moe_fusion_weights_base_addr {
-        memory::ptr weight[3];  // gate/up/down weights, experts fusion
-        memory::ptr scale[3];
-        memory::ptr zp[3];
+        // up/gate/down fused
+        memory::ptr weight;
+        memory::ptr scale;
+        memory::ptr zp;
         memory::ptr bias[3];
     } moe_fusion_weights;
 
@@ -870,6 +879,7 @@ public:
             // micro_gemm is better than gemm, default to use it
             use_micro_gemm_prefill = true;
         }
+        use_micro_gemm_prefill = false;
 
         auto use_gpu_mask_gen_prefill_str = std::getenv("MOE_USE_GPU_MASK_PREFILL");
         if (use_gpu_mask_gen_prefill_str) {
@@ -893,7 +903,7 @@ public:
         }
 
         // Remove this limitation once micro_gemm kernels has supported i8/u8 weights.
-        const auto& weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
+        const auto& weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_FUSED)).data_type;
         if (weight_dt != data_types::u4 && use_micro_gemm_prefill) {
             use_micro_gemm_prefill = false;
         }
@@ -958,9 +968,24 @@ public:
         };
 
         _dnnl_weights.resize(cur_moe->_config.num_expert);
+        // weight shape: [512, 3, ic, oc]
+        auto wei_stride = get_bytes_count(_hidden_size * _intermediate_size, moe_fusion_wei_addr.weight->get_layout());
+        auto wei_stride_expert = wei_stride * 3;
+        // scale/zp shape: [512, (ic / group_size, oc) * 3].
+        // group_size == ic if no grouped. [oc, ic / group_size] transposed as [ic / group_size, oc].
+        // ic(k) is _hidden_size for gate/up. ic is _intermediate_size for down.
+        auto gate_up_size = _intermediate_size * (_hidden_size / _gate_up_group_size);
+        auto down_size = _hidden_size * (_intermediate_size / _down_group_size);
+        auto s_gate_up_stride = get_bytes_count(gate_up_size, moe_fusion_wei_addr.scale->get_layout());
+        auto s_down_stride = get_bytes_count(down_size, moe_fusion_wei_addr.scale->get_layout());
+        auto s_stride_expert = s_gate_up_stride * 2 + s_down_stride;
+        auto zp_gate_up_stride = get_bytes_count(gate_up_size, moe_fusion_wei_addr.zp->get_layout());
+        auto zp_down_stride = get_bytes_count(down_size, moe_fusion_wei_addr.zp->get_layout());
+        auto zp_stride_expert = zp_gate_up_stride * 2 + zp_down_stride;
+
         for (size_t j = 0; j < cur_moe->_config.num_expert; j++) {
             auto& dnnl_weights = _dnnl_weights[j];
-            dnnl_weights.resize(3);
+            dnnl_weights.resize(3);    // gate, up, down order.
             dnnl_weights[0].ic = _hidden_size;
             dnnl_weights[0].ic_group_size = _gate_up_group_size;
             dnnl_weights[0].oc = _intermediate_size;
@@ -971,23 +996,27 @@ public:
             dnnl_weights[2].ic_group_size = _down_group_size;
             dnnl_weights[2].oc = _hidden_size;
             for (int i = 0; i < 3; i++) {
-                // weight shape: [ic, oc], type: u4/i8
-                int64_t wei_offset = j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc, moe_fusion_wei_addr.weight[i]->get_layout());
+                auto offset_expert = j * wei_stride_expert;
+                // up, gate and down in moe_fusion_wei_addr.weight
+                auto offset_up_gate_down = (i == 1) ? 0 : (i == 0 ? wei_stride : wei_stride * 2);
+                int64_t wei_offset = offset_expert + offset_up_gate_down;
                 dnnl_weights[i].weight =
-                    convert2dnnl(moe_fusion_wei_addr.weight[i], {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset);
+                    convert2dnnl(moe_fusion_wei_addr.weight, {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset);
 
                 // scale shape: [ic / ic_group_size, oc], type: f16
-                int64_t scale_offset =
-                    j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, moe_fusion_wei_addr.scale[i]->get_layout());
-                dnnl_weights[i].scale = convert2dnnl(moe_fusion_wei_addr.scale[i],
+                auto offset_expert_scale = j * s_stride_expert;
+                auto offset_up_gate_down_scale = (i == 1) ? 0 : (i == 0 ? s_gate_up_stride : s_gate_up_stride * 2);
+                int64_t scale_offset = offset_expert_scale + offset_up_gate_down_scale;
+                dnnl_weights[i].scale = convert2dnnl(moe_fusion_wei_addr.scale,
                                                      {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
                                                      dnnl::memory::format_tag::ab,
                                                      scale_offset);
 
                 // zp shape: [ic / ic_group_size, oc], type: u4/i8
-                int64_t zp_offset =
-                    j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, moe_fusion_wei_addr.zp[i]->get_layout());
-                dnnl_weights[i].zp = convert2dnnl(moe_fusion_wei_addr.zp[i],
+                auto offset_expert_zp = j * zp_stride_expert;
+                auto offset_up_gate_down_zp = (i == 1) ? 0 : (i == 0 ? zp_gate_up_stride : zp_gate_up_stride * 2);
+                int64_t zp_offset = offset_expert_zp + offset_up_gate_down_zp;
+                dnnl_weights[i].zp = convert2dnnl(moe_fusion_wei_addr.zp,
                                                   {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
                                                   dnnl::memory::format_tag::ab,
                                                   zp_offset);
@@ -1085,20 +1114,9 @@ public:
             }
         }
 
-        // gate
-        scratch.moe_fusion_wei_addr.weight[0] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0));
-        scratch.moe_fusion_wei_addr.scale[0] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0));
-        scratch.moe_fusion_wei_addr.zp[0] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_0));
-
-        // up
-        scratch.moe_fusion_wei_addr.weight[1] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1));
-        scratch.moe_fusion_wei_addr.scale[1] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_1));
-        scratch.moe_fusion_wei_addr.zp[1] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_1));
-
-        // down
-        scratch.moe_fusion_wei_addr.weight[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2));
-        scratch.moe_fusion_wei_addr.scale[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_2));
-        scratch.moe_fusion_wei_addr.zp[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_2));
+        scratch.moe_fusion_wei_addr.weight = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_FUSED));
+        scratch.moe_fusion_wei_addr.scale = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_FUSED));
+        scratch.moe_fusion_wei_addr.zp = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_FUSED));
     }
 
     void get_expert_mask_from_gpu(const MOE3GemmFusedCompressed::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask) {
@@ -1247,20 +1265,10 @@ public:
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
         const size_t max_work_group_size = instance.get_impl_params()->get_device_info().max_work_group_size;
 
-        // gate
-        const auto& mlp_gate_wei_mem = scratch.moe_fusion_wei_addr.weight[0];
-        const auto& mlp_gate_scale_mem = scratch.moe_fusion_wei_addr.scale[0];
-        const auto& mlp_gate_zp_mem = scratch.moe_fusion_wei_addr.zp[0];
-
-        // up
-        const auto& mlp_up_wei_mem = scratch.moe_fusion_wei_addr.weight[1];
-        const auto& mlp_up_scale_mem = scratch.moe_fusion_wei_addr.scale[1];
-        const auto& mlp_up_zp_mem = scratch.moe_fusion_wei_addr.zp[1];
-
-        // down
-        const auto& mlp_down_wei_mem = scratch.moe_fusion_wei_addr.weight[2];
-        const auto& mlp_down_scale_mem = scratch.moe_fusion_wei_addr.scale[2];
-        const auto& mlp_down_zp_mem = scratch.moe_fusion_wei_addr.zp[2];
+        // memory address
+        const auto& mlp_wei_mem = scratch.moe_fusion_wei_addr.weight;
+        const auto& mlp_scale_mem = scratch.moe_fusion_wei_addr.scale;
+        const auto& mlp_zp_mem = scratch.moe_fusion_wei_addr.zp;
         event::ptr ret;
 
         {
@@ -1269,7 +1277,7 @@ public:
                 events,
                 instance,
                 *mlp_gate_up,
-                {batch_mem_ptr, mlp_gate_wei_mem, mlp_gate_scale_mem, mlp_gate_zp_mem, mlp_up_wei_mem, mlp_up_scale_mem, mlp_up_zp_mem, hidden_states_mem_ptr},
+                {batch_mem_ptr, mlp_wei_mem, mlp_scale_mem, mlp_zp_mem, hidden_states_mem_ptr},
                 {scratch.up},
                 {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
                 {1, subgroup_size, SUBGROUP_NUM});
@@ -1278,7 +1286,7 @@ public:
             ret_event = execute_stage({ret_event},
                                       instance,
                                       *mlp_down,
-                                      {batch_mem_ptr, mlp_down_wei_mem, mlp_down_scale_mem, mlp_down_zp_mem, scratch.up, routing_mem_ptr},
+                                      {batch_mem_ptr, mlp_wei_mem, mlp_scale_mem, mlp_zp_mem, scratch.up, routing_mem_ptr},
                                       {scratch.y},
                                       {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
                                       {1, subgroup_size, SUBGROUP_NUM});
@@ -1604,7 +1612,7 @@ public:
         auto kernel = std::make_shared<onednn_kernel>();
 
         // gate
-        auto gate_weight_layout_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0))->get_layout().data_type);
+        auto gate_weight_layout_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_FUSED))->get_layout().data_type);
         kernel->gate = onednn_linear::create(dnn_stream.get_engine(),
                                              hidden_states_layout_dt,
                                              gate_weight_layout_dt,
@@ -1618,7 +1626,7 @@ public:
                                              dnnl_weights[0].zp);
 
         // up
-        auto up_weight_layout_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1))->get_layout().data_type);
+        auto up_weight_layout_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_FUSED))->get_layout().data_type);
         kernel->up = onednn_linear::create(dnn_stream.get_engine(),
                                            hidden_states_layout_dt,
                                            up_weight_layout_dt,
@@ -1632,7 +1640,7 @@ public:
                                            dnnl_weights[1].zp);
 
         // down
-        auto down_weight_layout_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2))->get_layout().data_type);
+        auto down_weight_layout_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_FUSED))->get_layout().data_type);
         kernel->down = onednn_linear::create(dnn_stream.get_engine(),
                                              hidden_states_layout_dt,
                                              down_weight_layout_dt,
