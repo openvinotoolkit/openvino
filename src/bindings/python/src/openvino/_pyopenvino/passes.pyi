@@ -105,8 +105,8 @@ class LowLatency2(ModelPass, PassBase):
         """
                             Create LowLatency2 pass which is used for changing the structure of the model,
                             which contains TensorIterator/Loop operations.
-                            The transformation finds all TensorIterator/Loop layers in the network, 
-                            processes all back edges that describe a connection between Result and Parameter of the TensorIterator/Loop bodies, 
+                            The transformation finds all TensorIterator/Loop layers in the network,
+                            processes all back edges that describe a connection between Result and Parameter of the TensorIterator/Loop bodies,
                             and inserts ReadValue and Assign layers at the input and output corresponding to this back edge.
         
                             :param use_const_initializer: Changes the type of the initializing subgraph for ReadValue operations.
@@ -124,7 +124,7 @@ class MakeStateful(ModelPass, PassBase):
     def __init__(self, pairs_to_replace: collections.abc.Sequence[tuple[openvino._pyopenvino.op.Parameter, openvino._pyopenvino.op.Result]]) -> None:
         """
          The transformation replaces the provided pairs Parameter and Result with openvino Memory operations ReadValue and Assign.
-                            
+        
                               :param pairs_to_replace:
                               :type pairs_to_replace: list[tuple[op.Parameter, op.Result]
         """
@@ -132,7 +132,7 @@ class MakeStateful(ModelPass, PassBase):
     def __init__(self, pairs_to_replace: collections.abc.Mapping[str, str]) -> None:
         """
                 The transformation replaces the provided pairs Parameter and Result with openvino Memory operations ReadValue and Assign.
-                
+        
                 :param pairs_to_replace: a dictionary of names of the provided Parameter and Result operations.
                 :type pairs_to_replace: dict[str, str]
         """
@@ -580,7 +580,7 @@ class PatternSymbolValue:
                 :type value: openvino.Symbol
         """
     @typing.overload
-    def __init__(self, value: typing.SupportsInt) -> None:
+    def __init__(self, value: typing.SupportsInt | typing.SupportsIndex) -> None:
         """
                 Create PatternSymbolValue with the given value.
         
@@ -588,7 +588,7 @@ class PatternSymbolValue:
                 :type value: int
         """
     @typing.overload
-    def __init__(self, value: typing.SupportsFloat) -> None:
+    def __init__(self, value: typing.SupportsFloat | typing.SupportsIndex) -> None:
         """
                 Create PatternSymbolValue with the given value.
         
@@ -691,7 +691,7 @@ class Version:
         ...
     def __index__(self) -> int:
         ...
-    def __init__(self, value: typing.SupportsInt) -> None:
+    def __init__(self, value: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def __int__(self) -> int:
         ...
@@ -703,7 +703,7 @@ class Version:
         ...
     def __repr__(self) -> str:
         ...
-    def __setstate__(self, state: typing.SupportsInt) -> None:
+    def __setstate__(self, state: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def __str__(self) -> str:
         ...
@@ -717,18 +717,18 @@ class VisualizeTree(ModelPass, PassBase):
     """
     openvino.passes.VisualizeTree transformation
     """
-    def __init__(self, file_name: str, nm: collections.abc.Callable[[openvino._pyopenvino.Node, collections.abc.Sequence[str]], None] = None, don_only: bool = False) -> None:
+    def __init__(self, file_name: typing.Any, nm: collections.abc.Callable[[openvino._pyopenvino.Node, collections.abc.Sequence[str]], None] = None, dot_only: bool = False) -> None:
         """
                           Create VisualizeTree pass which is used for Model to dot serialization.
         
                           :param file_name: Path where serialized model will be saved. For example: /tmp/out.svg
-                          :type file_name: str
+                          :type file_name: Union[str, bytes, pathlib.Path]
         
                           :param nm: Node modifier function.
                           :type nm: function
         
-                          :param don_only: Enable only dot file generation.
-                          :type don_only: bool
+                          :param dot_only: Enable only dot file generation.
+                          :type dot_only: bool
         """
     def __repr__(self) -> str:
         ...
@@ -1112,11 +1112,11 @@ class WrapType(openvino._pyopenvino.Node):
         ...
 def attrs_match(arg0: typing.Any) -> Predicate:
     ...
-def consumers_count(arg0: typing.SupportsInt) -> Predicate:
+def consumers_count(arg0: typing.SupportsInt | typing.SupportsIndex) -> Predicate:
     ...
-def has_static_dim(arg0: typing.SupportsInt) -> Predicate:
+def has_static_dim(arg0: typing.SupportsInt | typing.SupportsIndex) -> Predicate:
     ...
-def has_static_dims(arg0: collections.abc.Sequence[typing.SupportsInt]) -> Predicate:
+def has_static_dims(arg0: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> Predicate:
     ...
 def has_static_rank() -> Predicate:
     ...

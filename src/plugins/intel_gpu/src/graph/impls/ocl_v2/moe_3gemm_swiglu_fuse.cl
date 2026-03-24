@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,13 @@ KERNEL(softmax_topk)(
     __local MOE_DTYPE local_output[TOP_K];
     __local uint local_index[TOP_K];
 
+#if MOE_DTYPE_SIZE == 2
     MOE_DTYPE in_value = as_half(intel_sub_group_block_read_us((const __global ushort*)(input)));
+#elif MOE_DTYPE_SIZE == 4
+    MOE_DTYPE in_value = as_float(intel_sub_group_block_read((const __global uint*)(input)));
+#else
+#    error "softmax_topk: unsupported MOE_DTYPE_SIZE"
+#endif
     local_input[sort_index] = in_value;
     barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -65,13 +71,102 @@ KERNEL(softmax_topk)(
     }
 }
 
+#elif SIGMOID_BIAS_TOPK_ENABLE
+
+KERNEL(sigmoid_bias_topk)(
+    const __global MOE_DTYPE* input,    // routing logits [input_batch, num_experts]
+    const __global MOE_DTYPE* bias,     // routing bias [1, num_experts] or [num_experts]
+    const __global MOE_DTYPE* eps_ptr,  // routing epsilon scalar [1]
+    __global uint* output_index,        // [input_batch, TOP_K]
+    __global MOE_DTYPE* output          // [input_batch, TOP_K]
+) {
+    // gws [batch, num_experts]
+    const uint batch = (uint)get_global_id(0);
+    const uint sort_index = (uint)get_global_id(1);
+    const uint sort_cnt = (uint)get_global_size(1);  // num_experts
+
+    input += batch * sort_cnt + sort_index;
+
+    __local MOE_DTYPE local_sigmoid[VALUE_NUM];     // raw sigmoid values
+    __local MOE_DTYPE local_selection[VALUE_NUM];   // sigmoid + bias (for sorting)
+    __local MOE_DTYPE local_output[TOP_K];
+    __local uint local_index[TOP_K];
+
+    // Compute sigmoid
+#if MOE_DTYPE_SIZE == 2
+    MOE_DTYPE in_value = as_half(intel_sub_group_block_read_us((const __global ushort*)(input)));
+#elif MOE_DTYPE_SIZE == 4
+    MOE_DTYPE in_value = as_float(intel_sub_group_block_read((const __global uint*)(input)));
+#else
+#    error "sigmoid_bias_topk: unsupported MOE_DTYPE_SIZE"
+#endif
+    MOE_DTYPE sigmoid_val = (MOE_DTYPE)(1.0f / (1.0f + native_exp(-(float)in_value)));
+
+    // Add bias for selection (determines which experts are chosen)
+    MOE_DTYPE bias_val = bias[sort_index];
+    MOE_DTYPE selection_val = sigmoid_val + bias_val;
+
+    local_sigmoid[sort_index] = sigmoid_val;
+    local_selection[sort_index] = selection_val;
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // Sort by selection_val (sigmoid + bias) to find top-K
+    uint sort_position = 0;
+    uint actual_topk = (TOP_K < sort_cnt) ? TOP_K : sort_cnt;
+
+    __attribute__((opencl_unroll_hint(8)))
+    for(uint i = 0; i < sort_index; i++) {
+        MOE_DTYPE value = local_selection[i];
+        if(value >= selection_val) {
+            sort_position++;
+        }
+    }
+
+    __attribute__((opencl_unroll_hint(8)))
+    for(uint i = sort_index; i < sort_cnt; i++) {
+        MOE_DTYPE value = local_selection[i];
+        if(value > selection_val) {
+            sort_position++;
+        }
+    }
+
+    // Store raw sigmoid values (NOT sigmoid+bias) for the top-K experts
+    if (sort_position < actual_topk) {
+        local_output[sort_position] = local_sigmoid[sort_index];
+        local_index[sort_position] = sort_index;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // Normalize: weights / (sum + eps)
+    if(sort_position == 0) {
+        float sum_weights = 0.0f;
+        for(uint i = 0; i < actual_topk; i++) {
+            sum_weights += (float)local_output[i];
+        }
+        sum_weights += (float)eps_ptr[0];  // epsilon to avoid division by zero
+
+        output_index += batch * TOP_K;
+        output += batch * TOP_K;
+
+        for(uint i = 0; i < actual_topk; i++) {
+            output[i] = (MOE_DTYPE)((float)local_output[i] / sum_weights);
+            output_index[i] = local_index[i];
+        }
+        // Zero out remaining positions if TOP_K > actual_topk
+        for(uint i = actual_topk; i < TOP_K; i++) {
+            output[i] = (MOE_DTYPE)0.0f;
+            output_index[i] = 0;
+        }
+    }
+}
+
 #elif GATHER_ENABLE
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL (gather_2d_ref)(
     const __global MOE_DTYPE* src_tok,       // input tokens [total_token, hidden_size] - hidden_states_mem_ptr
     const __global MOE_DTYPE* src_rweight,   // topk_weights [total_token, topk_experts]
-    __global int * tok_index,               // token index [expert_idx][] = [actual_token_num]   - expert_mask_mem.batch
-    __global int * top_index,               // topk  index [expert_idx][] = [actual_token_num]   - expert_mask_mem.topk
+    __global int * tok_index,                // token index [expert_idx][] = [actual_token_num]   - expert_mask_mem.batch
+    __global int * top_index,                // topk  index [expert_idx][] = [actual_token_num]   - expert_mask_mem.topk
     __global MOE_DTYPE* dst_tok,             // output tokens [batch_size, hidden_size] - scratch.x
     __global MOE_DTYPE* dst_rweight) {       // output topk_weights [batch_size] - scratch.routing_weights
 
@@ -83,7 +178,7 @@ KERNEL (gather_2d_ref)(
     dst_tok += k * HIDDEN_SIZE;
 
     if (off >= HIDDEN_SIZE) {
-        printf("Warning off >= HIDDEN_SIZE: k = %d, off = %d, HIDDEN_SIZE = %d\n", k, off, HIDDEN_SIZE);
+        // printf("Warning off >= HIDDEN_SIZE: k = %d, off = %d, HIDDEN_SIZE = %d\n", k, off, HIDDEN_SIZE);
         return;
     }
 
@@ -129,4 +224,38 @@ KERNEL (index_add_)(const __global MOE_DTYPE* src_tok,
         dst_tok[off] += src_tok[off];
     #endif
 }
+
+#elif PREFILL_SWIGLU_ENABLE
+
+#define SWISH_BETA 1.0f
+#define ACC_DTYPE float
+__attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
+KERNEL(swiglu_ref) (
+    const __global MOE_DTYPE* up, // [token_len * expert_topK, inter_size]
+    const __global MOE_DTYPE* gate,
+    __global MOE_DTYPE* output    // [token_len * expert_topK, inter_size]
+) {
+    const uint token_idx = get_global_id(1);
+    const uint n_offset = get_global_id(0);
+    // gws = {_intermediate_size, token_cnt,  1}
+    // lws = {subgroup_size, 1, 1};
+
+#if MOE_DTYPE_SIZE == 2
+    const uint sg_id = get_sub_group_local_id();
+    const uint offset = token_idx * INTERMEDIA_SIZE + n_offset - sg_id;
+    ACC_DTYPE up_value = as_half(intel_sub_group_block_read_us((const __global ushort *)(up + offset)));
+    ACC_DTYPE gate_value = as_half(intel_sub_group_block_read_us((const __global ushort *)(gate + offset)));
+    ACC_DTYPE value = gate_value / (1.0f + native_exp(-SWISH_BETA * gate_value));
+    half result = value * up_value;
+    intel_sub_group_block_write_us((__global ushort *)(output + offset), as_ushort(result));
+#else
+    const uint offset = token_idx * INTERMEDIA_SIZE + n_offset;
+    ACC_DTYPE gate_value = gate[offset];
+    ACC_DTYPE up_value = up[offset];
+    ACC_DTYPE value = gate_value / (1.0f + native_exp(-SWISH_BETA * gate_value));
+    ACC_DTYPE result = value * up_value;
+    output[offset] = result;
+#endif
+}
+
 #endif

@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,13 @@
 #include <vector>
 
 #include "../attention.hpp"
+#include "../host_flash_attention.hpp"
 #include "../lazy_tensor.hpp"
+#include "../moe_transformations/moe_transformation.hpp"
 #include "../pyramid_attention.hpp"
 #include "../spatial.hpp"
 #include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "openvino/openvino.hpp"
 
 namespace ov {
@@ -99,6 +102,11 @@ struct Function {
     std::optional<ov::npuw::function::Attention> _attention;
     // Multiple attention graphs with different shapes
     std::optional<ov::npuw::function::PyramidAttention> _pyramid_attention;
+    // Host Flash Attention
+    std::optional<ov::npuw::function::HostFlashAttention> _host_flash_attention;
+    // MoE expert information - single expert model
+    std::optional<ov::npuw::function::MoEExperts> _moe_experts;
+    std::optional<ov::npuw::function::MoEDownstream> _moe_experts_downstream;
     // FIXME: They should exclude each other (introduce a hierarchy, finally?)
     // FIXME: shouldn't be here. Needed to not unpack some lazy closures in DCOFF
     std::set<std::size_t> _idx_lazy_unpack;
@@ -154,6 +162,7 @@ struct RepeatedBlock {
 
 struct Ensemble {
     float gflops;
+    bool irregular_io;
     std::vector<Group> groups;
 
     // Just a map as I don't expect 100s of _different_
@@ -184,6 +193,10 @@ struct Partitioning {
 
 struct PartitioningContext {
     bool use_host_gather_quant = false;
+
+    // Router model for MoE (shared during partitioning process)
+    // Will be populated during first pass and used in second pass
+    mutable std::shared_ptr<ov::Model> router_model;
 };
 
 Partitioning getPartitioning(const std::shared_ptr<ov::Model>& model,

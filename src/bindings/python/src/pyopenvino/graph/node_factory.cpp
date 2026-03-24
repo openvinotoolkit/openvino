@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -121,7 +121,7 @@ public:
         }
     }
 
-    void add_extension(const std::string& lib_path) {
+    void add_extension(const std::filesystem::path& lib_path) {
         // Load extension library, seach for operation extensions (derived from ov::BaseOpExtension) and keep
         // them in m_opset_so_extensions for future use in create methods.
         // NodeFactory provides a simplified API for node creation without involving version of operation.
@@ -185,7 +185,7 @@ void regclass_graph_NodeFactory(py::module m) {
                      });
 
     node_factory.def("add_extension", [](NodeFactory& self, const py::object& lib_path) {
-        return self.add_extension(Common::utils::convert_path_to_string(lib_path));
+        return self.add_extension(Common::utils::to_fs_path(lib_path));
     });
 
     node_factory.def("__repr__", [](const NodeFactory& self) {

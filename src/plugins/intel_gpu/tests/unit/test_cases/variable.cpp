@@ -1,7 +1,8 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "graph/include/primitive_inst.h"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
 #include "intel_gpu/runtime/memory.hpp"
@@ -164,22 +165,22 @@ void test_variable_copy_from_fake_aligned_fc(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     const int32_t input_b = 3, input_f = 590, input_x = 768, weight_b = 768;
-    auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(), input_f, input_x }, data_types::f32, format::bfyx };
-    auto input_data = engine.allocate_memory(layout{ ov::PartialShape{ input_b, input_f, input_x }, data_types::f32, format::bfyx });
-    auto input_data_rnd = rg.generate_random_1d<float>(input_b * input_f * input_x, 0, 1);
+    auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(), input_f, input_x }, data_types::f16, format::bfyx };
+    auto input_data = engine.allocate_memory(layout{ ov::PartialShape{ input_b, input_f, input_x }, data_types::f16, format::bfyx });
+    auto input_data_rnd = rg.generate_random_1d<ov::float16>(input_b * input_f * input_x, 0, 1);
     set_values(input_data, input_data_rnd);
 
-    auto weights_data_layout = layout{ov::PartialShape{weight_b, input_x}, data_types::f32, format::os_iyx_osv32};
+    auto weights_data_layout = layout{ov::PartialShape{weight_b, input_x}, data_types::f16, format::os_iyx_osv32};
     auto weights_data = engine.allocate_memory(weights_data_layout);
-    auto weights_data_rnd = rg.generate_random_1d<float>(weights_data_layout.count(), 0, 1);
+    auto weights_data_rnd = rg.generate_random_1d<ov::float16>(weights_data_layout.count(), 0, 1);
     set_values(weights_data, weights_data_rnd);
 
-    auto bias_data_layout = layout{ov::PartialShape{1, 1, weight_b}, data_types::f32, format::bfyx};
+    auto bias_data_layout = layout{ov::PartialShape{1, 1, weight_b}, data_types::f16, format::bfyx};
     auto bias_data = engine.allocate_memory(bias_data_layout);
-    auto bias_data_rnd = rg.generate_random_1d<float>(bias_data_layout.count(), 0, 1);
+    auto bias_data_rnd = rg.generate_random_1d<ov::float16>(bias_data_layout.count(), 0, 1);
     set_values(bias_data, bias_data_rnd);
 
-    const layout variable_layout{{input_b, input_f, input_x}, data_types::f32, format::bfyx};
+    const layout variable_layout{{input_b, input_f, input_x}, data_types::f16, format::bfyx};
 
     topology topology;
     topology.add(input_layout("input", input_dyn_layout));
@@ -325,6 +326,42 @@ void test_variables_are_preserved_across_inferences(bool is_caching_test) {
 
 TEST(variable_test_common, variables_are_preserved_across_inferences) {
     test_variables_are_preserved_across_inferences<int>(false);
+}
+
+TEST(variable_test_common, variables_release) {
+    auto& engine = get_test_engine();
+
+    const layout variable_layout{{ 1 }, data_types::f32, format::bfyx};
+    const auto input_data = engine.allocate_memory(variable_layout);
+    std::vector<float> inputs = { 70.0f };
+    set_values(input_data, inputs);
+
+    topology topology;
+    topology.add(input_layout("input", input_data->get_layout()));
+    topology.add(read_value{"read_value", {input_info("input")}, "v0", {variable_layout}});
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    auto context = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto read_value_inst = network->get_primitive("read_value");
+    VariableStateInfo var_info{"v0", variable_layout};
+    var_info.m_release_variable_inst.emplace_back(std::dynamic_pointer_cast<memory_state::releasable_variable>(read_value_inst));
+    auto variable = std::make_shared<VariableState>(var_info, context, network->get_shape_predictor());
+    network->set_variable("v0", variable);
+    network->set_input_data("input", input_data);
+
+    const auto outputs = network->execute();
+
+    const auto output_count = read_value_inst->outputs_memory_count();
+    for (size_t i = 0; i < output_count; ++i) {
+        ASSERT_TRUE(read_value_inst->output_memory_ptr(i));
+    }
+
+    variable->reset();
+    for (size_t i = 0; i < output_count; ++i) {
+        ASSERT_FALSE(read_value_inst->output_memory_ptr(i));
+    }
 }
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS

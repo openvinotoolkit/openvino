@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -63,7 +63,7 @@ class TestInverse(PytorchLayerTest):
         np.float32
     ])
     @pytest.mark.parametrize("out", [
-        False, 
+        False,
         True
     ])
     @pytest.mark.nightly
@@ -73,10 +73,10 @@ class TestInverse(PytorchLayerTest):
         if ie_device == "GPU":
             pytest.xfail(reason="Inverse-14 is not supported on GPU")
         if not out:
-            self._test(aten_inverse(), None, "aten::linalg_inv",
+            self._test(aten_inverse(), "aten::linalg_inv",
                     ie_device, precision, ir_version, trace_model=True, freeze_model=False)
         else:
-            self._test(aten_inverse_out(), None, "aten::linalg_inv",
+            self._test(aten_inverse_out(), "aten::linalg_inv",
                     ie_device, precision, ir_version, trace_model=True, freeze_model=False, kwargs_to_prepare_input={"out": out})
 
     @pytest.mark.parametrize("shape", [
@@ -93,17 +93,19 @@ class TestInverse(PytorchLayerTest):
         1, 2, 3
     ])
     @pytest.mark.parametrize("out", [
-        False, 
+        False,
         True
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_inverse(self, shape, dtype, seed, out, ie_device, precision, ir_version):
-        rng = np.random.default_rng(seed)
-        self.input_tensor = rng.uniform(-10.0, 10.0, shape).astype(dtype)
+        base = self.random.uniform(-1.0, 1.0, size=shape, dtype=dtype)
+        n = shape[-1]
+        eye = np.eye(n, dtype=dtype).reshape((1,) * (len(shape) - 2) + (n, n))
+        self.input_tensor = base + eye * n
         if not out:
-            self._test(aten_inverse(), None, "aten::linalg_inv",
+            self._test(aten_inverse(), "aten::linalg_inv",
                     ie_device, precision, ir_version, trace_model=True, freeze_model=False)
         else:
-            self._test(aten_inverse_out(), None, "aten::linalg_inv",
+            self._test(aten_inverse_out(), "aten::linalg_inv",
                     ie_device, precision, ir_version, trace_model=True, freeze_model=False, kwargs_to_prepare_input={"out": out})

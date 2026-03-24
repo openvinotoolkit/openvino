@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,13 +26,36 @@ public:
 bool has_input(const std::shared_ptr<ov::Model>& model, const std::string& name);
 
 // SDPA-unroll and transpose transformations
-bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill);
+class OptimizeValueTensors : public ov::pass::ModelPass {
+    bool m_is_prefill;
 
-std::shared_ptr<ov::Model> prepare_whisper_prefill_model(std::shared_ptr<ov::Model>& model,
-                                                         const uint32_t& max_prompt_size,
-                                                         const uint32_t& lhs_seq_size);
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::OptimizeValueTensors");
+    explicit OptimizeValueTensors(bool is_prefill) : m_is_prefill(is_prefill) {}
 
-std::shared_ptr<ov::Model> prepare_whisper_kvcache_model(std::shared_ptr<ov::Model>& model);
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+};
+
+class PrepareWhisperPrefillModel : public ov::pass::ModelPass {
+    uint32_t m_max_prompt_size;
+    uint32_t m_lhs_seq_size;
+
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::PrepareWhisperPrefillModel");
+    explicit PrepareWhisperPrefillModel(uint32_t max_prompt_size, uint32_t lhs_seq_size)
+        : m_max_prompt_size(max_prompt_size),
+          m_lhs_seq_size(lhs_seq_size) {}
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+};
+
+class PrepareWhisperKVCacheModel : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::PrepareWhisperKVCacheModel");
+    PrepareWhisperKVCacheModel() = default;
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+};
 
 // clang-format off
 }  // namespace ov

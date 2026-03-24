@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -317,13 +317,7 @@ private:
 
 template <class T, typename = std::enable_if_t<is_static_shape_adapter<T>()>>
 std::ostream& operator<<(std::ostream& out, const T& shape) {
-    out << '{';
-    if (!shape.empty()) {
-        std::copy(shape.cbegin(), shape.cend() - 1, std::ostream_iterator<StaticDimension>(out, ","));
-        out << shape[shape.size() - 1];
-    }
-    out << '}';
-    return out;
+    return out << '{' << ov::util::join(shape, ",") << '}';
 }
 
 template <class T, class U, typename = std::enable_if_t<is_static_shape_adapter<T>() && is_static_shape_adapter<U>()>>

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@
 #include "strided_slice_inst.h"
 #include <sstream>
 
+#include "gated_mlp_inst.h"
 #include "gemm_inst.h"
 #include "deconvolution_inst.h"
 #include "fully_connected_inst.h"
@@ -113,7 +114,11 @@ std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder
 }
 
 int64_t cldnn::get_convolution_channel_count(const convolution_node& conv_node, const layout& layout, bool is_input) {
-    auto channel_count = layout.get_partial_shape()[1].is_static() ? layout.get_partial_shape()[1].get_length() : -1;
+    int64_t channel_count = -1;
+    if (layout.get_partial_shape().size() > 1 && layout.get_partial_shape()[1].is_static()) {
+        channel_count = layout.get_partial_shape()[1].get_length();
+    }
+
     if (channel_count == -1) {
         auto weights_layout = conv_node.weights().get_output_layout();
         if (weights_layout.is_static()) {
@@ -239,12 +244,14 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
           prev_output_layout.spatial(1) == 1)) && is_input_reorder(prev, next))
         return true;
 
-    if (next.is_type<quantize>() && (fmt_prev == format::bfyx || fmt_prev == format::bfzyx)) {
-        if (prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
-            return true;
-        if (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 ||
-            fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::b_fs_yx_fsv4)
-            return true;
+    if (next.is_type<quantize>()) {
+        if ((fmt_prev == format::bfyx || fmt_prev == format::bfzyx)) {
+            if (prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
+                return true;
+            if (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 ||
+                fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::b_fs_yx_fsv4)
+                return true;
+        }
         if (use_onednn_impls && prev.get_users().size() == 1)
             return true;
     }
@@ -498,6 +505,8 @@ bool should_use_winograd_2x3_s1(const convolution_node& node,
         || weights_layout.batch() % 64 != 0  // current algorithm is effective for ofm to be multiply of 64
         || any_not_one(prim->stride)               // stride has to be 1x1 by definition
         || any_not_one(prim->dilation)             // no support for dilation
+        || !all_zeroes(prim->padding_begin)        // no padding supported. padding could makes higher accuracy loss.
+        || !all_zeroes(prim->padding_end)          // no padding supported. padding could makes higher accuracy loss.
         || output_size_handling_enabled            // This condition is weird. Need to revise it and replace with something meaningful
         || (input_layout.count() > 3000000)        // limit max input size as winograd consumes more memory
         || (input_layout.count() < 50000)          // limit min input size as winograd is not effective for small input
@@ -1535,6 +1544,7 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
     enable_onednn_for<convolution>();
     enable_onednn_for<deconvolution>();
     enable_onednn_for<fully_connected>();
+    enable_onednn_for<gated_mlp>();
     enable_onednn_for<gemm>();
     enable_onednn_for<lstm_seq>();
     enable_onednn_for<gru_seq>();
@@ -1545,8 +1555,9 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
 
 bool layout_optimizer::has_all_enabled_onednn_impls_optimization_attribute() {
     return is_enabled_onednn_for<concatenation>() && is_enabled_onednn_for<convolution>() && is_enabled_onednn_for<deconvolution>() &&
-        is_enabled_onednn_for<fully_connected>() && is_enabled_onednn_for<gemm>() && is_enabled_onednn_for<lstm_seq>() && is_enabled_onednn_for<gru_seq>() &&
-        is_enabled_onednn_for<pooling>() && is_enabled_onednn_for<reduce>() && is_enabled_onednn_for<reorder>();
+           is_enabled_onednn_for<fully_connected>() && is_enabled_onednn_for<gated_mlp>() && is_enabled_onednn_for<gemm>() &&
+           is_enabled_onednn_for<gru_seq>() && is_enabled_onednn_for<lstm_seq>() && is_enabled_onednn_for<pooling>() &&
+           is_enabled_onednn_for<reduce>() && is_enabled_onednn_for<reorder>();
 }
 
 void layout_optimizer::set_value_onednn(primitive_type_id p_type, bool val) {

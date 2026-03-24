@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -314,7 +314,7 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint y_input = yx_input / OUTPUT_SIZE_X;
     const uint x_input = yx_input % OUTPUT_SIZE_X;
 #endif
-    
+
     const uint input_index = INPUT0_OFFSET +
         batch * INPUT0_BATCH_PITCH +
         input_feature_id * INPUT0_FEATURE_PITCH +
@@ -342,7 +342,7 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint x = yx % OUTPUT_SIZE_X;
     const uint output_index = OUTPUT_GET_INDEX(batch, feature, w, z, y, x);
 #endif
-    
+
     output[output_index] = input[input_index];
 
 #else // NEW_AXIS_MODE

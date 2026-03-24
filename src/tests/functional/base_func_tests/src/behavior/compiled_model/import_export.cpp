@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifcorer: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ std::string OVCompiledGraphImportExportTest::getTestCaseName(testing::TestParamI
 }
 
 void  OVCompiledGraphImportExportTest::SetUp() {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     std::tie(elementType, target_device, configuration) = this->GetParam();
     APIBaseTest::SetUp();

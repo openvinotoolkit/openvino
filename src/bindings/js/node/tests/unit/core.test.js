@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 const { addon: ov } = require("../..");
@@ -72,19 +72,16 @@ describe("ov.Core tests", () => {
   it('Core.addExtension("not_exists") with non-existed library', () => {
     const notExistsExt = "not_exists";
 
-    assert.throws(() => core.addExtension(notExistsExt), /Cannot load library 'not_exists'/);
+    assert.throws(() => core.addExtension(notExistsExt), /Cannot load library "not_exists"/);
   });
 
   it("Core.queryModel() with empty parameters should throw an error", () => {
-    assert.throws(
-      () => core.queryModel().then(),
-      /'queryModel' method called with incorrect parameters./,
-    );
+    assert.throws(() => core.queryModel(), /'queryModel' method called with incorrect parameters./);
   });
 
   it("Core.queryModel() with less arguments should throw an error", () => {
     assert.throws(
-      () => core.queryModel("Unexpected Argument").then(),
+      () => core.queryModel("Unexpected Argument"),
       /'queryModel' method called with incorrect parameters./,
     );
   });
@@ -92,7 +89,7 @@ describe("ov.Core tests", () => {
   it("Core.queryModel() with incorrect arguments should throw an error", () => {
     const model = core.readModelSync(testModelFP32.xml);
     assert.throws(
-      () => core.queryModel(model, "arg1", "arg2").then(),
+      () => core.queryModel(model, "arg1", "arg2"),
       /'queryModel' method called with incorrect parameters./,
     );
   });

@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -138,6 +138,7 @@ REGISTER_IMPLS(detection_output);
 REGISTER_IMPLS(eltwise);
 REGISTER_IMPLS(fake_convert);
 REGISTER_IMPLS(fully_connected);
+REGISTER_IMPLS(gated_mlp);
 REGISTER_IMPLS(gather);
 REGISTER_IMPLS(gather_nd);
 REGISTER_IMPLS(gemm);
@@ -160,6 +161,8 @@ REGISTER_IMPLS(scaled_dot_product_attention);
 REGISTER_IMPLS(scatter_update);
 REGISTER_IMPLS(scatter_elements_update);
 REGISTER_IMPLS(scatter_nd_update);
+REGISTER_IMPLS(segment_max);
+REGISTER_IMPLS(slice_scatter);
 REGISTER_IMPLS(softmax);
 REGISTER_IMPLS(shape_of);
 REGISTER_IMPLS(strided_slice);
@@ -208,7 +211,7 @@ REGISTER_DEFAULT_IMPLS(one_hot, OCL_S);
 REGISTER_DEFAULT_IMPLS(permute, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(prior_box, OCL_S);
 REGISTER_DEFAULT_IMPLS(quantize, OCL_S, OCL_D);
-REGISTER_DEFAULT_IMPLS(random_uniform, OCL_S);
+REGISTER_DEFAULT_IMPLS(random_uniform, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(region_yolo, OCL_S);
 REGISTER_DEFAULT_IMPLS(reorg_yolo, OCL_S);
 REGISTER_DEFAULT_IMPLS(reverse, OCL_S);

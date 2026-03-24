@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "convert_batch_gather_matmul_to_compressed.hpp"
 
-#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <set>
@@ -51,9 +50,7 @@ ov::intel_cpu::ConvertBatchGatherMatmulToBatchGatherMatmulCompressed::
         const auto& weights_shape = bgm->get_input_shape(1);
         bool batched_weights = weights_shape.size() == 3 && weights_shape[0] > 1;
         auto scale_shape = weights_block->get_anchor("mul_const", pattern_map).value().get_shape();
-        bool grouped = std::count_if(scale_shape.begin(), scale_shape.end(), [](size_t d) {
-                           return d > 1;
-                       }) > (batched_weights ? 2 : 1);
+        bool grouped = scale_shape.size() == weights_shape.size() + 1;
 
         ov::NodeVector result_nodes;
         const auto [bgm_input_b, bgm_input_scale, bgm_input_zp] =

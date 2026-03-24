@@ -8,8 +8,8 @@ This document explains how to create new workflows and add tests.
 
 ## Table of Contents
 
-* [Adding Tests to an Existing Workflow](#adding-tests-to-existing-workflow)
-  * [Adding Tests to an Existing Test Suite](#adding-tests-to-existing-test-suite)
+* [Adding Tests to an Existing Workflow](#adding-tests-to-an-existing-workflow)
+  * [Adding Tests to an Existing Test Suite](#adding-tests-to-an-existing-test-suite)
   * [Creating a Step in a Job](#creating-a-step-in-a-job)
   * [Creating a New Job](#creating-a-new-job)
   * [Creating a Workflow](#creating-a-workflow)
@@ -75,7 +75,8 @@ NVIDIA_Plugin:
     image: openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu20.04
     volumes:
       - /mount:/mount
-    options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+      - /home/runner/secrets/:/secrets:ro
+    options: -e SCCACHE_AZURE_BLOB_CONTAINER
   env:
     CMAKE_BUILD_TYPE: 'Release'
     CMAKE_GENERATOR: 'Ninja Multi-Config'
@@ -92,6 +93,13 @@ NVIDIA_Plugin:
   if: fromJSON(needs.smart_ci.outputs.affected_components).NVIDIA
 
   steps:
+    - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+      shell: bash
+      run: |
+        SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+        echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+        echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+        echo "✓ Connection string loaded and masked"
   ...
 ```
 
@@ -110,7 +118,7 @@ A job:
 * requires a series of commands to execute, provided by the `steps` key
   * Refer to the [creating steps in a job section](#creating-a-step-in-a-job) to learn more about `steps`
 * might use build artifacts from the `Build` job
-  * The artifacts can be downloaded using `actions/download-artifact`, read more about the workflow structure in the [Overview of the OpenVINO GitHub Actions CI](./overview.md#structure-of-the-workflows)
+  * The artifacts can be downloaded using `actions/download-artifact`, read more about the workflow structure in the [Overview of the OpenVINO GitHub Actions CI](./overview.md#workflow-structure)
 
 If the job can be used in several workflows, it can be transformed into a reusable workflow.
 Learn more from the [Reusable Workflows page](./reusable_workflows.md).
@@ -120,7 +128,7 @@ Learn more from the [Reusable Workflows page](./reusable_workflows.md).
 To create a new workflow, add a new `<name>.yml` file to the [`.github/workflows`](./../../../../.github) folder.
 Refer to the [official GitHub Actions documentation](https://docs.github.com/en/actions/using-workflows/about-workflows#create-an-example-workflow) for a complete syntax reference, and browse the existing workflows in [`.github/workflows`](./../../../../.github).
 
-You can refer to the [structural overview of the existing workflows](./overview.md#structure-of-the-workflows) as a template for a new workflow.
+You can refer to the [structural overview of the existing workflows](./overview.md#workflow-structure) as a template for a new workflow.
 
 The [`fedora_29.yml`](./../../../../.github/workflows/fedora_29.yml) workflow example includes:
 * The following jobs:

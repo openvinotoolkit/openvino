@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,11 @@
 
 #include <algorithm>
 #include <common_test_utils/test_assertions.hpp>
+#include <exception>
+#include <mutex>
 #include <sstream>
+#include <thread>
+#include <vector>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -102,7 +106,7 @@ public:
     }
     void SetUp() override {
         std::tie(function, target_device, configuration) = this->GetParam();
-        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        // Skip test according to plugin specific disabled_test_patterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
     }
@@ -221,6 +225,55 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeDelayedExecutor) {
     }
 }
 
+TEST_P(OVCompileAndInferRequest, CompiledModelAndCreateMultipleInferRequestsWithDelayedExecutor) {
+    configuration[intel_npu::defer_weights_load.name()] = true;
+    OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
+    ov::InferRequest req0, req1, req2;
+    OV_ASSERT_NO_THROW(req0 = execNet.create_infer_request());
+    OV_ASSERT_NO_THROW(req1 = execNet.create_infer_request());
+    OV_ASSERT_NO_THROW(req2 = execNet.create_infer_request());
+
+    OV_ASSERT_NO_THROW(req0.infer());
+    OV_ASSERT_NO_THROW(req1.infer());
+    OV_ASSERT_NO_THROW(req2.infer());
+}
+
+TEST_P(OVCompileAndInferRequest, MultiThreadedCreateAndInferRequestsOnDifferentThreads) {
+    configuration[intel_npu::defer_weights_load.name()] = true;
+    OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
+
+    const int num_threads = 64;
+    std::vector<std::thread> threads;
+    std::vector<std::exception_ptr> exceptions;
+    std::mutex exceptions_mutex;
+
+    for (int i = 0; i < num_threads; ++i) {
+        threads.emplace_back([this, &exceptions, &exceptions_mutex]() {
+            try {
+                auto req = execNet.create_infer_request();
+                req.infer();
+            } catch (...) {
+                std::lock_guard<std::mutex> lock(exceptions_mutex);
+                exceptions.emplace_back(std::current_exception());
+            }
+        });
+    }
+
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    if (!exceptions.empty()) {
+        try {
+            std::rethrow_exception(exceptions.front());
+        } catch (const std::exception& ex) {
+            FAIL() << ex.what();
+        } catch (...) {
+            FAIL() << "Unknown exception occurred in one of the threads.";
+        }
+    }
+}
+
 TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeUpdateAfterCompilation) {
     if (isCommandQueueExtSupported()) {
         configuration[workload_type.name()] = WorkloadType::DEFAULT;
@@ -295,7 +348,7 @@ TEST_P(OVCompileAndInferRequestSerializers, AccurateResults) {
     } catch (const ov::Exception& exception) {
         ASSERT_STR_CONTAINS(
             exception.what(),
-            "[ NOT_FOUND ] Option 'NPU_USE_BASE_MODEL_SERIALIZER' is not supported for current configuration");
+            "[ NOT_FOUND ] Option 'NPU_MODEL_SERIALIZER_VERSION' is not supported for current configuration");
     }
 }
 

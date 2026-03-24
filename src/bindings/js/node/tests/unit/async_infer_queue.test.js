@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 const assert = require("assert");
@@ -75,9 +75,10 @@ describe("Tests for AsyncInferQueue.", () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
 
     const img = generateImage();
-    await assert.rejects(async () => {
-      await inferQueue.startAsync({ data: img }, "user_data");
-    }, /Callback has to be set before starting inference./);
+    await assert.rejects(
+      async () => await inferQueue.startAsync({ data: img }, "user_data"),
+      /Callback has to be set before starting inference./,
+    );
   });
 
   it("Test startAsync without user data", async () => {
@@ -156,9 +157,10 @@ describe("Tests for AsyncInferQueue.", () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
     inferQueue.setCallback(basicUserCallback);
     inferQueue.release();
-    await assert.rejects(async () => {
-      await inferQueue.startAsync({ data: generateImage() }, "user_data");
-    }, /Callback has to be set before starting inference./);
+    await assert.rejects(
+      async () => await inferQueue.startAsync({ data: generateImage() }, "user_data"),
+      /Callback has to be set before starting inference./,
+    );
   });
 
   it("Test setCallback throws and list possible signatures", async () => {

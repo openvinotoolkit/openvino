@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,6 @@
 #include "intel_gpu/runtime/file_util.hpp"
 #include "to_string_utils.h"
 #include "utils.hpp"
-#include "runtime/ocl/ocl_event.hpp"
 
 #include "intel_gpu/primitives/reorder.hpp"
 
@@ -268,10 +267,9 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                             _post_ops.append_binary(aalgorithm,
                                 dnnl::memory::desc(fused_desc.at(idx).dims, fused_desc.at(idx).dt, fused_desc.at(idx).tag));
                         } else {
-                            dnnl::memory::desc md = onednn::layout_to_memory_desc(
-                                                            impl_params->get_input_layout(fused_desc.at(idx).mem_dep),
-                                                            fused_desc.at(idx).tag,
-                                                            (fused_desc.at(idx).flatten ? onednn::mem_flags::flatten : onednn::mem_flags::None));
+                            dnnl::memory::desc md = fused_desc.at(idx).flatten
+                                ? onednn::layout_to_memory_desc_flatten(impl_params->get_input_layout(fused_desc.at(idx).mem_dep), fused_desc.at(idx).tag)
+                                : onednn::layout_to_memory_desc(impl_params->get_input_layout(fused_desc.at(idx).mem_dep), fused_desc.at(idx).tag);
 
                             _post_ops.append_binary(aalgorithm, md);
                         }
@@ -355,7 +353,7 @@ private:
             std::vector<uint8_t> cache;
             {
                 std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                cache = ov::util::load_binary(generate_cache_path_from_key(config, key));
+                cache = ov::util::load_binary(ov::util::make_path(generate_cache_path_from_key(config, key)));
             }
 
             if (cache.empty()) {
@@ -472,7 +470,11 @@ protected:
 
         if (_scratchpad_md.get_size() != 0) {
             // onednn primitive can have only 1 scratchpad memory.
-            auto scratchpad = instance.get_intermediates_memories()[0];
+            const auto& intermediates = instance.get_intermediates_memories();
+            OPENVINO_ASSERT(!intermediates.empty(),
+                            "[GPU] oneDNN primitive ", instance.id(), " requires scratchpad of size ",
+                            _scratchpad_md.get_size(), " bytes, but intermediates memory is missing");
+            auto scratchpad = intermediates[0];
             args.insert({DNNL_ARG_SCRATCHPAD, scratchpad->get_onednn_memory(_scratchpad_md, 0)});
         }
 
@@ -544,8 +546,7 @@ protected:
             try {
                 _prim.execute(stream.get_onednn_stream(), _args[net_id]);
             } catch (dnnl::error& err) {
-                auto err_code = err.status == dnnl_status_t::dnnl_out_of_memory ? CL_OUT_OF_RESOURCES : CL_INVALID_OPERATION;
-                ocl::rethrow(err.what(), err_code, _engine->get_device_info());
+                OPENVINO_THROW(err.what());
             }
 
             if (_enable_profiling) {
@@ -554,12 +555,11 @@ protected:
                 stream.wait();
 
                 std::vector<uint64_t> duration = dnnl::get_profiling_data(stream.get_onednn_stream(), dnnl::profiling_data_kind::time);
-                if (duration.empty()) {
-                    event = std::make_shared<ocl::ocl_event>(0);
-                } else {
+                event = stream.create_user_event(true);
+                if (!duration.empty()) {
                     OPENVINO_ASSERT(duration.size() == 1, "[GPU] oneDNN profiling data is expected to have info only for single primitive ",
                                                       "actual number is ", duration.size());
-                    event = std::make_shared<ocl::ocl_event>(duration[0]);
+                    event->set_profiling_duration(duration[0]);
                 }
 
             } else {

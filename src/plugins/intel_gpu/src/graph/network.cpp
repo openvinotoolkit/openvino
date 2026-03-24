@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -715,13 +715,13 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
         }
     }
 
-    // We shouldn't call surfaces_lock::create() function constantly here, but due to
+    // We shouldn't call create_surfaces_lock function constantly here, but due to
     // some changes in assembler code, performance drops in case if we move it under
     // `shared_mem_found` condition (it somehow connected with get_cl_queue() - this function call
-    // makes asm faster for some reasons). So, as WA we keep this surfaces_lock::create() here
+    // makes asm faster for some reasons). So, as WA we keep this create_surfaces_lock here
     // with empty memory vector and do nothing inside this function for saving performance
     // in some cases.
-    auto surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
+    auto surf_lock = get_stream().create_surfaces_lock(in_out_mem);
 
     execute_impl(dependencies);
 
@@ -761,6 +761,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
     for (auto& inst : _exec_order) {
         NODE_DEBUG(*inst);
+        OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::intel_gpu_op, openvino::itt::handle(inst->id()));
 
         inst->reset_events();
 
@@ -967,7 +968,12 @@ void network::allocate_primitive_instance(program_node const& node) {
                 }
             }
         }
-        set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0), state_prim->get_user_specified_type(), prim.get(), transpose_required);
+        set_variables_state_info(state_prim->variable_id(),
+                                 node.get_output_layout(0),
+                                 state_prim->get_user_specified_type(),
+                                 prim.get(),
+                                 std::dynamic_pointer_cast<memory_state::releasable_variable>(inst),
+                                 transpose_required);
     }
 
     if (node.is_constant()) {
@@ -1052,11 +1058,15 @@ void network::set_variables_state_info(const std::string& variable_id,
                                        const layout& variable_layout,
                                        ov::element::Type user_specified_type,
                                        const primitive* p,
+                                       const std::shared_ptr<memory_state::releasable_variable>& releasable_var,
                                        bool transpose_required) {
-    _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout, user_specified_type});
+    auto& info = _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout, user_specified_type}).first->second;
 
-    _variables_state_info.at(variable_id).m_primitives.insert(p);
-    _variables_state_info.at(variable_id).transpose_required = transpose_required;
+    [[maybe_unused]] const auto [_, inserted] = info.m_primitives.insert(p);
+    if (inserted && releasable_var) {
+        info.m_release_variable_inst.emplace_back(releasable_var);
+    }
+    info.transpose_required = transpose_required;
 }
 
 void network::set_reuse_variable_mem(bool reuse) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -366,6 +366,9 @@ enum class gpu_arch {
     xe_hpc = 6,
     xe2 = 7,
     xe3 = 8,
+    xe3p_35_10 = 9,
+    xe3p_35_11 = 10,
+    xe3p_unknown = 11,
 };
 
 

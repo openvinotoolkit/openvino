@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
+#include <filesystem>
 #include <map>
 #include <string>
 
@@ -210,9 +211,10 @@ public:
     bool                                           m_runtime_fallback = true;
     bool                                           m_bind_buffer = false;
     std::shared_ptr<ov::Model>                     m_model;
-    std::string                                    m_model_path;
+    std::filesystem::path                          m_model_path;
     std::shared_ptr<const ov::IPlugin>             m_plugin;
     std::string                                    m_str_devices;
+    std::vector<std::string>                       m_str_devices_initial;
     unsigned int                                   m_model_priority = 0;
     ov::Any                                        m_performance_hint;
     ov::Any                                        m_schedule_policy = ov::intel_auto::SchedulePolicy::DEFAULT;

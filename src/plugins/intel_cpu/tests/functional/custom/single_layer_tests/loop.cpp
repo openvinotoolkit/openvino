@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -418,6 +418,42 @@ class StaticLoopDynamicSubgraphCPUTest : public SubgraphBaseTest {
     }
 };
 
+class LoopZeroDimBackEdgeCPUTest : public SubgraphBaseTest {
+protected:
+    void SetUp() override {
+        InputShape input_shape = {{-1, 10, 10}, {{2, 10, 10}, {3, 10, 10}}};
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        init_input_shapes({input_shape});
+
+        const auto netType = ov::element::f32;
+        auto input = std::make_shared<ov::op::v0::Parameter>(netType, inputDynamicShapes[0]);
+        ov::ParameterVector params = {input};
+
+        auto body_param = std::make_shared<ov::op::v0::Parameter>(netType, ov::PartialShape{-1, 10, 10});
+
+        auto begin = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+        auto end = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+        auto stride = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
+        auto axes = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+        auto zero_slice = std::make_shared<ov::op::v8::Slice>(body_param, begin, end, stride, axes);
+
+        auto body_condition_const = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
+        auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition_const, zero_slice},
+                                                ov::ParameterVector{body_param});
+
+        auto trip_count_input = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 3);
+        auto exec_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
+        auto loop = std::make_shared<ov::op::v5::Loop>(trip_count_input, exec_condition);
+        loop->set_function(body);
+        loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 0});
+        loop->set_merged_input(body_param, input, zero_slice);
+
+        auto out = loop->get_iter_value(zero_slice, -1);
+        auto result = std::make_shared<ov::op::v0::Result>(out);
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, params, "loop_zero_dim_back_edge");
+    }
+};
+
 
 TEST_P(LoopLayerCPUTest, CompareWithRefs) {
     run();
@@ -437,6 +473,14 @@ TEST_P(LoopForConcatLayerCPUTest, CompareWithRefs) {
 
 TEST_F(StaticLoopDynamicSubgraphCPUTest, smoke_StaticLoopWithDynSubgraph) {
     run();
+}
+
+TEST_F(LoopZeroDimBackEdgeCPUTest, smoke_ZeroDimBackEdgeNoCrash) {
+    run();
+    ASSERT_EQ(function->get_output_size(), 1);
+    auto output_shape = function->get_output_shape(0);
+    ov::Shape expected_shape{0, 10, 10};
+    EXPECT_EQ(output_shape, expected_shape);
 }
 
 namespace {

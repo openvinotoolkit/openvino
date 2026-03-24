@@ -25,7 +25,7 @@ This disables the Global Interpreter Lock (GIL) in the Python API, enabling free
 
 OpenVINO can be built based on specific virtual environments such as [venv](https://docs.python.org/3/tutorial/venv.html), [virtualenv](https://virtualenv.pypa.io/en/latest/) or [pyenv](https://github.com/pyenv/pyenv). It is highly recommended to use virtual environments during development. They improve development process and allow better management of Python versions and packages.
 
-*Note: Supported Python versions can be found in ["System Requirements"](https://docs.openvino.ai/2025/about-openvino/release-notes-openvino/system-requirements.html).*
+*Note: Supported Python versions can be found in ["System Requirements"](https://docs.openvino.ai/2026/about-openvino/release-notes-openvino/system-requirements.html).*
 
 ### Example: using pyenv with OpenVINO™ on Linux based system
 
@@ -77,9 +77,10 @@ For details please refer to [Python requirements and version constraints managem
 
 ## Run tests to verify OpenVINO™ Python API
 
-Follow instructions in [How to test OpenVINO™ Python API?](./test_examples.md#Running_OpenVINO™_Python_API_tests) to verify the build.
+Follow instructions in [How to test OpenVINO™ Python API?](./test_examples.md#run-openvino-python-api-tests) to verify the build.
 
 ## See also
+ * [Debugging OpenVINO™ Python API with C++ breakpoints](./debugging_python_api.md)
  * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO™ bindings README](../../README.md)
  * [Developer documentation](../../../../docs/dev/index.md)

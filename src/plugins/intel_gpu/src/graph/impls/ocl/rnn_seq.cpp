@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,10 @@ public:
         params.sequential = true;
         for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
+        }
+
+        for (size_t i = 1; i < primitive->num_outputs; i++) {
+            params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(i)));
         }
 
         if (!primitive->activations.empty()) {

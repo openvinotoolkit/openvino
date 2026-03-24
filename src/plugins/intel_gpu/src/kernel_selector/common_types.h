@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,6 +66,7 @@ enum class KernelType {
     SDPA,
     SHUFFLE_CHANNELS,
     SLICE,
+    SLICE_SCATTER,
     STRIDED_SLICE,
     REVERSE_SEQUENCE,
     QUANTIZE,
@@ -106,6 +107,7 @@ enum class KernelType {
     ROPE,
     DYNAMIC_QUANTIZE,
     SEARCH_SORTED,
+    SEGMENT_MAX,
     STFT,
     ISTFT,
     COL2IM,

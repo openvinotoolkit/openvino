@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,12 +36,7 @@ std::vector<std::vector<ov::test::InputShape>> transposedShape_4D_WithMul {
     }
 };
 
-// Transpose is moved outside of Subgraph on ARM64
-#if defined(OPENVINO_ARCH_ARM64)
-static constexpr size_t expected_nodes_mha_with_dyn_mul = 4;
-#else
 static constexpr size_t expected_nodes_mha_with_dyn_mul = 2;
-#endif
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHA_4D_WithDynamicMul,
@@ -49,7 +44,6 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::ValuesIn(transposedShape_4D_WithMul),
                        ::testing::ValuesIn(precision_f32(5)),
                        ::testing::Values(ov::element::f32),
-                       ::testing::Values(MHA::default_thread_count),
                        ::testing::Values(expected_nodes_mha_with_dyn_mul),
                        ::testing::Values(2), // Transpose1 + MHA
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -62,7 +56,6 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::ValuesIn(transposedShape_4D_WithMul),
                        ::testing::ValuesIn(precision_f32(5)),
                        ::testing::Values(ov::element::bf16),
-                       ::testing::Values(MHA::default_thread_count),
                        ::testing::Values(9),  // Transpose1 + MHA + 1 Transpose on output + 6 Converts around
                        ::testing::Values(7),  // MHA + 6 Converts around
                        ::testing::Values(ov::test::utils::DEVICE_CPU),

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/file_util.hpp"
 
 #define OV_PLUGIN_CALL_STATEMENT(...)                                                  \
     OPENVINO_ASSERT(m_ptr != nullptr, "OpenVINO Runtime Plugin was not initialized."); \
@@ -53,7 +54,7 @@ ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::shared_ptr<co
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model, properties), m_so});
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::string& model_path,
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::filesystem::path& model_path,
                                                         const ov::AnyMap& properties) const {
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model_path, properties), m_so});
 }
@@ -112,10 +113,11 @@ ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& argument
 }
 
 bool ov::Plugin::supports_model_caching(const ov::AnyMap& arguments) const {
-    bool supported(false);
-    supported =
-        util::contains(get_property(ov::supported_properties), ov::device::capabilities) &&
-        util::contains(get_property(ov::device::capabilities, arguments), ov::device::capability::EXPORT_IMPORT) &&
-        util::contains(get_property(ov::internal::supported_properties), ov::internal::caching_properties);
-    return supported;
+    return util::contains(get_property(ov::internal::supported_properties), ov::internal::caching_properties) &&
+           is_property_supported(ov::device::capabilities.name(), arguments) &&
+           util::contains(get_property(ov::device::capabilities, arguments), ov::device::capability::EXPORT_IMPORT);
+}
+
+bool ov::Plugin::is_property_supported(const std::string& name, const ov::AnyMap& arguments) const {
+    OV_PLUGIN_CALL_STATEMENT(return m_ptr->is_property_supported(name, arguments));
 }

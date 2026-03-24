@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,9 +31,10 @@ struct LSTMNgInputMap {
         //[begin. end)
         auto weight_list = node.get_ng_inputs("WeightList");
         auto weight_begin = weight_list.begin();
-        auto weight_end = std::next(weight_begin, weight_list.size() / 2);
-        auto bias_begin = weight_end;
+        const size_t half_size = weight_list.size() / 2;
         int bidirect_len = node.get_attribute<bool>("is_bidirec") ? 4 : 2;
+        auto weight_end = std::next(weight_begin, half_size);
+        auto bias_begin = weight_end;
         int layer_weight_start = layer * bidirect_len;
         int layer_weight_end = bidirect_len + layer * bidirect_len;
         int layer_bias_start = layer * bidirect_len;
@@ -155,6 +156,29 @@ NamedOutputs lstm(const NodeContext& node) {
     auto prev_inputs = node.get_ng_inputs("Input");
     Output<Node> prev_output = prev_inputs[0];
     LSTMAttributes attrs(node);
+    PADDLE_OP_CHECK(node, attrs.m_layers > 0, "num_layers must be positive for LSTM.");
+    auto weight_list = node.get_ng_inputs("WeightList");
+    PADDLE_OP_CHECK(node,
+                    (weight_list.size() % 2) == 0,
+                    "WeightList size must be even (weights + biases).",
+                    " Got ",
+                    weight_list.size(),
+                    ".");
+    const size_t half_size = weight_list.size() / 2;
+    const int bidirect_len_weights = node.get_attribute<bool>("is_bidirec") ? 4 : 2;
+    const size_t required_per_half = static_cast<size_t>(attrs.m_layers) * static_cast<size_t>(bidirect_len_weights);
+    PADDLE_OP_CHECK(node,
+                    half_size >= required_per_half,
+                    "WeightList size is insufficient for num_layers and is_bidirec. ",
+                    "half_size=",
+                    half_size,
+                    ", required_per_half=",
+                    required_per_half,
+                    ", num_layers=",
+                    attrs.m_layers,
+                    ", is_bidirec=",
+                    node.get_attribute<bool>("is_bidirec"),
+                    ".");
     OutputVector final_h;
     OutputVector final_c;
     auto axis_const = std::make_shared<opset6::Constant>(element::i64, Shape{}, 0);

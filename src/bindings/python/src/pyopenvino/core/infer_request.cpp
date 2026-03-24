@@ -1,5 +1,6 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "pyopenvino/core/infer_request.hpp"
 
@@ -790,7 +791,7 @@ void regclass_InferRequest(py::module m) {
         },
         R"(
             Gets all input tensors of this InferRequest.
-                                
+
             :rtype: list[openvino.Tensor]
         )");
 
@@ -802,7 +803,7 @@ void regclass_InferRequest(py::module m) {
         R"(
 
             Gets all output tensors of this InferRequest.
-                                
+
             :rtype: list[openvino.Tensor]
         )");
 
@@ -817,18 +818,17 @@ void regclass_InferRequest(py::module m) {
             :rtype: float
         )");
 
-    cls.def_property_readonly(
-        "profiling_info",
-        [](InferRequestWrapper& self) {
-            return self.m_request.get_profiling_info();
-        },
-        py::call_guard<py::gil_scoped_release>(),
-        R"(
+    cls.def_property_readonly("profiling_info",
+                              py::cpp_function([](InferRequestWrapper& self) {
+                                  py::gil_scoped_release release;
+                                  return self.m_request.get_profiling_info();
+                              }),
+                              R"(
             Performance is measured per layer to get feedback on the most time-consuming operation.
             Not all plugins provide meaningful data!
 
             GIL is released while running this function.
-            
+
             :return: Inference time.
             :rtype: list[openvino.ProfilingInfo]
         )");
