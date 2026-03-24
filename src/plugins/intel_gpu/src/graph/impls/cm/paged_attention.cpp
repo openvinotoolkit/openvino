@@ -285,8 +285,14 @@ public:
                         mapping.size());
 
         auto mapping_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::MULTI_TOKEN_WG_MAPPING];
-        mem_lock<int32_t, mem_lock_type::write> lock(mapping_mem, instance.get_network().get_stream());
-        std::copy(mapping.begin(), mapping.end(), lock.begin());
+        if (!mapping.empty()) {
+            mapping_mem->copy_from(instance.get_network().get_stream(),
+                                   mapping.data(),
+                                   0,
+                                   0,
+                                   mapping.size() * sizeof(int32_t),
+                                   true);
+        }
     }
 
     void prepare_single_token_selected_ids(primitive_inst& instance) {
@@ -317,9 +323,13 @@ public:
 
         rt_params->single_token_selected_count = selected_ids.size();
         auto selected_ids_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::SINGLE_TOKEN_SELECTED_SEQ_IDS];
-        mem_lock<int32_t, mem_lock_type::write> lock(selected_ids_mem, instance.get_network().get_stream());
-        for (size_t i = 0; i < selected_ids.size(); ++i) {
-            lock[i] = selected_ids[i];
+        if (!selected_ids.empty()) {
+            selected_ids_mem->copy_from(instance.get_network().get_stream(),
+                                        selected_ids.data(),
+                                        0,
+                                        0,
+                                        selected_ids.size() * sizeof(int32_t),
+                                        true);
         }
     }
 
