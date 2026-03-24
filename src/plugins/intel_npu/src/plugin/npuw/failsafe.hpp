@@ -14,22 +14,22 @@
 #include <tuple>
 #include <vector>
 
-#include "compiled_model.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
 namespace ov::npuw::failsafe {
 
 class InferRequest;
 
-class CompiledModel final : public ov::npuw::ICompiledModel {
+class CompiledModel final : public ov::ICompiledModel {
 public:
     using Factory = std::function<std::shared_ptr<ov::ICompiledModel>(const std::string& device)>;
 
-    static std::shared_ptr<CompiledModel> create(const std::shared_ptr<ov::Model>& model,
-                                                 const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                 std::vector<std::string> devices,
-                                                 Factory factory);
+    static std::shared_ptr<ov::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
+                                                      const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                      std::vector<std::string> devices,
+                                                      Factory factory);
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,

@@ -30,6 +30,10 @@ ov::SoPtr<ov::ITensor> allocate_tensor_like(const ov::SoPtr<ov::ITensor>& tensor
     return ov::get_tensor_impl(ov::Tensor(tensor->get_element_type(), tensor->get_shape()));
 }
 
+// The wrapper keeps public output tensors stable across failover. For plain
+// host tensors the generic ITensor::copy_to path is not consistently available
+// in lightweight test doubles, so use memcpy for the common contiguous case and
+// fall back to plugin-provided copy_to for non-contiguous / remote tensors.
 void copy_tensor_data(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
     OPENVINO_ASSERT(src->get_byte_size() == dst->get_byte_size(), "Failsafe tensor copy size mismatch");
     if (src->is_continuous() && dst->is_continuous()) {
@@ -41,11 +45,22 @@ void copy_tensor_data(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITe
 
 }  // namespace
 
-std::shared_ptr<ov::npuw::failsafe::CompiledModel> ov::npuw::failsafe::CompiledModel::create(
+std::shared_ptr<ov::ICompiledModel> ov::npuw::failsafe::CompiledModel::create(
     const std::shared_ptr<ov::Model>& model,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     std::vector<std::string> devices,
     Factory factory) {
+    OPENVINO_ASSERT(!devices.empty(), "Failsafe compiled model requires at least one device");
+    OPENVINO_ASSERT(static_cast<bool>(factory), "Failsafe compiled model requires a factory");
+
+    if (devices.size() == 1u) {
+        auto compiled_model = factory(devices.front());
+        OPENVINO_ASSERT(compiled_model != nullptr,
+                        "Failsafe factory returned null compiled model for device ",
+                        devices.front());
+        return compiled_model;
+    }
+
     auto compiled_model = std::make_shared<CompiledModel>(model, plugin, std::move(devices), std::move(factory));
     std::lock_guard<std::mutex> lock(compiled_model->m_mutex);
     compiled_model->ensure_compiled_locked();
@@ -56,7 +71,7 @@ ov::npuw::failsafe::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model
                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
                                                  std::vector<std::string> devices,
                                                  Factory factory)
-    : ov::npuw::ICompiledModel(model, plugin),
+    : ov::ICompiledModel(model, plugin),
       m_devices(std::move(devices)),
       m_factory(std::move(factory)) {
     OPENVINO_ASSERT(!m_devices.empty(), "Failsafe compiled model requires at least one device");
