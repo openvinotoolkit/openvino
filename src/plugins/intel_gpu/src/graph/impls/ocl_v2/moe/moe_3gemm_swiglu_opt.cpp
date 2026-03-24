@@ -1109,7 +1109,8 @@ public:
                                                                                   gate_z));
 
         // 3. Scalar Gate (Sigmoid)
-        // Assuming scalar gate is [Hidden, 1], f16 weights, no scale/zp for now
+        // It is very small weight with shape of [Hidden, 1], and not need to keep compressed, so KeepMOE3GemmConstPrecision will not keep its precision and
+        // ConvertPrecision will convert to f16. So Scalar gate is [Hidden, 1], f16 weights, no scale/zp for now
         dnnl::memory sg_w;
         dnnl::memory::data_type sg_w_dt = dnnl::memory::data_type::f16;
         if (addr.shared_weight[3]) {
@@ -2077,8 +2078,11 @@ public:
         if (_has_shared_expert) {
             auto& engine = instance.get_network().get_engine();
             init_shared_primitives(engine, scratch.moe_fusion_wei_addr, static_cast<int>(token_num));
-            if (ret_env)
-                ret_env->wait();
+            // execute_shared_expert will read the output of moe_gemm_down, so it should be after ret_env is ready, but it doesn't need to wait for ret_env to
+            // be ready, since execute_shared_expert will be serialized with the following kernels by onednn stream, just make sure ret_env is submitted before
+            // execute_shared_expert.
+            // if (ret_env)
+            //     ret_env->wait();
             execute_shared_expert(stream.get_onednn_stream(), static_cast<int>(token_num), hidden_states_mem_ptr, final_hidden_states_mem_ptr, scratch);
         }
         // Wait for the final event to be ready

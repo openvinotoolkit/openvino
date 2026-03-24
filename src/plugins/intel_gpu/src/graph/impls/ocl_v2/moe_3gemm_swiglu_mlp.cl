@@ -281,12 +281,12 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     const __global MOE_SCALE_DT* up_scale_addr,
     const __global MOE_ZP_DT* up_zp_addr,
 #    if SHARED_EXPERT_ENABLE
-    const __global uchar* shared_gate_weight,
-    const __global half* shared_gate_scale,
-    const __global uchar* shared_gate_zp,
-    const __global uchar* shared_up_weight,
-    const __global half* shared_up_scale,
-    const __global uchar* shared_up_zp,
+    const __global MOE_WEI_DT* shared_gate_weight,
+    const __global MOE_SCALE_DT* shared_gate_scale,
+    const __global MOE_ZP_DT* shared_gate_zp,
+    const __global MOE_WEI_DT* shared_up_weight,
+    const __global MOE_SCALE_DT* shared_up_scale,
+    const __global MOE_ZP_DT* shared_up_zp,
     const __global half* shared_gate_gate_weight,  // [HIDDEN_SIZE] (assuming no scale/zp for now, or pre-dequantized)
     __global MOE_DTYPE* routing_weights,           // Input routing weights, will append shared gate result at end
 #    endif
