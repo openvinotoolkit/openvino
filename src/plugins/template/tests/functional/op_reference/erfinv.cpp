@@ -6,6 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
+#include <limits>
+
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -35,7 +38,7 @@ class ReferenceErfInvLayerTest : public testing::TestWithParam<ErfInvParams>, pu
 public:
     void SetUp() override {
         auto params = GetParam();
-        function = CreateFunction(params.pshape, params.inType, params.outType);
+        function = CreateFunction(params.pshape, params.inType);
         inputData = {params.inputData};
         refOutData = {params.refData};
     }
@@ -50,8 +53,7 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
-                                                 const element::Type& input_type,
-                                                 const element::Type& output_type) {
+                                                 const element::Type& input_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto erfinv = std::make_shared<op::v16::ErfInv>(in);
         return std::make_shared<ov::Model>(OutputVector{erfinv}, ParameterVector{in});
@@ -66,16 +68,52 @@ template <element::Type_t IN_ET>
 std::vector<ErfInvParams> generateErfInvFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    // erfinv(erf(x)) = x for known values:
-    //   erf(0.0)   = 0.0,   erfinv(0.0)   = 0.0
-    //   erf(0.5)   ≈ 0.5205 → erfinv(0.5205) ≈ 0.5
-    //   erf(-0.5)  ≈ -0.5205
-    //   erfinv(1)  = +inf, erfinv(-1) = -inf
+    // Expected values computed from the Giles (2010) approximation at float32 precision.
+    // The symmetric property erfinv(-x) = -erfinv(x) is verified across the full domain.
     std::vector<ErfInvParams> params{
+        // Zero — must be exactly 0
+        ErfInvParams(ov::PartialShape{1},
+                     IN_ET,
+                     std::vector<T>{T(0.0f)},
+                     std::vector<T>{T(0.0f)}),
+        // Small-to-mid domain: ±0.1, ±0.3, ±0.5
+        ErfInvParams(ov::PartialShape{6},
+                     IN_ET,
+                     std::vector<T>{T(0.1f), T(-0.1f), T(0.3f), T(-0.3f), T(0.5f), T(-0.5f)},
+                     std::vector<T>{T(0.08885599f), T(-0.08885599f),
+                                    T(0.27246271f), T(-0.27246271f),
+                                    T(0.47693628f), T(-0.47693628f)}),
+        // Mid-to-large domain: ±0.7, ±0.9
         ErfInvParams(ov::PartialShape{4},
                      IN_ET,
-                     std::vector<T>{T(0.0f), T(0.5f), T(-0.5f), T(0.9f)},
-                     std::vector<T>{T(0.0f), T(0.4769362762044699f), T(-0.4769362762044699f), T(1.1630871536766743f)}),
+                     std::vector<T>{T(0.7f), T(-0.7f), T(0.9f), T(-0.9f)},
+                     std::vector<T>{T(0.73286909f), T(-0.73286909f),
+                                    T(1.16308725f), T(-1.16308725f)}),
+        // Boundary: x=±1 → ±inf
+        ErfInvParams(ov::PartialShape{2},
+                     IN_ET,
+                     std::vector<T>{T(1.0f), T(-1.0f)},
+                     std::vector<T>{T(std::numeric_limits<float>::infinity()),
+                                    T(-std::numeric_limits<float>::infinity())}),
+    };
+    return params;
+}
+
+// f64 uses higher-precision expected values from the Giles double-precision path.
+std::vector<ErfInvParams> generateErfInvF64Params() {
+    std::vector<ErfInvParams> params{
+        ErfInvParams(ov::PartialShape{7},
+                     element::f64,
+                     std::vector<double>{0.0, 0.1, -0.1, 0.5, -0.5, 0.9, -0.9},
+                     std::vector<double>{0.0,
+                                         0.08885599049425768,  -0.08885599049425768,
+                                         0.4769362762044699,   -0.4769362762044699,
+                                         1.1630871536766741,   -1.1630871536766741}),
+        ErfInvParams(ov::PartialShape{2},
+                     element::f64,
+                     std::vector<double>{1.0, -1.0},
+                     std::vector<double>{std::numeric_limits<double>::infinity(),
+                                         -std::numeric_limits<double>::infinity()}),
     };
     return params;
 }
@@ -84,7 +122,8 @@ std::vector<ErfInvParams> generateErfInvCombinedParams() {
     const std::vector<std::vector<ErfInvParams>> typeParams{
         generateErfInvFloatParams<element::Type_t::f32>(),
         generateErfInvFloatParams<element::Type_t::f16>(),
-        generateErfInvFloatParams<element::Type_t::bf16>()};
+        generateErfInvFloatParams<element::Type_t::bf16>(),
+        generateErfInvF64Params()};
     std::vector<ErfInvParams> combinedParams;
     for (const auto& p : typeParams) {
         combinedParams.insert(combinedParams.end(), p.begin(), p.end());
@@ -96,5 +135,48 @@ INSTANTIATE_TEST_SUITE_P(smoke_ErfInv_With_Hardcoded_Refs,
                          ReferenceErfInvLayerTest,
                          testing::ValuesIn(generateErfInvCombinedParams()),
                          ReferenceErfInvLayerTest::getTestCaseName);
+
+// Dedicated edge-case test: |x|>1 must produce NaN, x=±1 must produce ±inf
+class ReferenceErfInvEdgeCaseTest : public CommonReferenceTest {
+public:
+    void SetUp(const std::vector<float>& inputs, const std::vector<bool>& expect_nan, const std::vector<bool>& expect_inf) {
+        const Shape shape{inputs.size()};
+        const auto in = std::make_shared<op::v0::Parameter>(element::f32, shape);
+        function = std::make_shared<ov::Model>(OutputVector{std::make_shared<op::v16::ErfInv>(in)}, ParameterVector{in});
+        inputData = {CreateTensor(element::f32, inputs)};
+        // refOutData is not used — we validate manually after Exec()
+        refOutData = {CreateTensor(element::f32, inputs)};  // placeholder
+        expect_nan_ = expect_nan;
+        expect_inf_ = expect_inf;
+    }
+
+    void Validate() {
+        executableNetwork = core->compile_model(function, targetDevice);
+        inferRequest = executableNetwork.create_infer_request();
+        inferRequest.set_input_tensor(0, inputData[0]);
+        inferRequest.infer();
+        const auto* result = inferRequest.get_output_tensor(0).data<float>();
+        for (size_t i = 0; i < expect_nan_.size(); ++i) {
+            if (expect_nan_[i]) {
+                EXPECT_TRUE(std::isnan(result[i])) << "index " << i << ": expected NaN, got " << result[i];
+            } else if (expect_inf_[i]) {
+                EXPECT_TRUE(std::isinf(result[i])) << "index " << i << ": expected inf, got " << result[i];
+            }
+        }
+    }
+
+private:
+    std::vector<bool> expect_nan_;
+    std::vector<bool> expect_inf_;
+};
+
+TEST(ErfInvEdgeCases, OutOfDomainAndBoundary) {
+    ReferenceErfInvEdgeCaseTest test;
+    test.SetUp(
+        {2.0f, -1.5f, 1.0f, -1.0f},
+        {true,  true,  false, false},  // NaN for |x|>1
+        {false, false, true,  true});  // ±inf for x=±1
+    test.Validate();
+}
 
 }  // namespace

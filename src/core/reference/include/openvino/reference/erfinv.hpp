@@ -33,9 +33,9 @@ T erfinv(const T val) {
     if (x == F{0})
         return T{0};
     if (x >= F{1})
-        return x > F{1} ? std::numeric_limits<T>::quiet_NaN() : std::numeric_limits<T>::infinity();
+        return x > F{1} ? T{std::numeric_limits<float>::quiet_NaN()} : T{std::numeric_limits<float>::infinity()};
     if (x <= F{-1})
-        return x < F{-1} ? std::numeric_limits<T>::quiet_NaN() : -std::numeric_limits<T>::infinity();
+        return x < F{-1} ? T{std::numeric_limits<float>::quiet_NaN()} : T{-std::numeric_limits<float>::infinity()};
 
     // w = -log((1-x)*(1+x))
     const F w = -std::log((F{1} - x) * (F{1} + x));

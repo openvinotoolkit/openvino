@@ -15,7 +15,7 @@ TEST(type_prop, erfinv_incorrect_type_int) {
     const auto input_shape = Shape{1, 3, 6};
     auto data = make_shared<op::v0::Parameter>(input_type, input_shape);
     try {
-        auto erfinv_op = make_shared<op::v16::ErfInv>(data);
+        make_shared<op::v16::ErfInv>(data);
         FAIL() << "Expected validation error for integer input type.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input element type must be floating-point, instead got"));
@@ -50,16 +50,49 @@ TEST(type_prop, erfinv_bf16) {
     EXPECT_EQ(erfinv_op->get_element_type(), input_type);
 }
 
-TEST(type_prop, erfinv_f32_partial) {
-    const auto input_type = element::f32;
-    const auto input_shape = PartialShape{1, Dimension::dynamic(), 6};
-    auto data = make_shared<op::v0::Parameter>(input_type, input_shape);
+TEST(type_prop, erfinv_f64_scalar) {
+    auto data = make_shared<op::v0::Parameter>(element::f64, Shape{});
     auto erfinv_op = make_shared<op::v16::ErfInv>(data);
-    EXPECT_EQ(erfinv_op->get_element_type(), input_type);
-    ASSERT_TRUE(erfinv_op->get_output_partial_shape(0).same_scheme(input_shape));
-    ASSERT_TRUE(erfinv_op->get_output_partial_shape(0).rank().is_static());
+    EXPECT_EQ(erfinv_op->get_element_type(), element::f64);
+    EXPECT_EQ(erfinv_op->get_shape(), Shape{});
+}
 
-    auto erfinv_dyn = make_shared<op::v16::ErfInv>(
-        make_shared<op::v0::Parameter>(input_type, PartialShape::dynamic()));
-    ASSERT_TRUE(erfinv_dyn->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
+// One dynamic dimension, static rank — output shape must match input.
+TEST(type_prop, erfinv_dynamic_dim) {
+    const auto input_shape = PartialShape{1, Dimension::dynamic(), 6};
+    auto data = make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto erfinv_op = make_shared<op::v16::ErfInv>(data);
+    EXPECT_EQ(erfinv_op->get_element_type(), element::f32);
+    EXPECT_TRUE(erfinv_op->get_output_partial_shape(0).same_scheme(input_shape));
+    EXPECT_TRUE(erfinv_op->get_output_partial_shape(0).rank().is_static());
+}
+
+// Interval-bounded dimensions — bounds must be preserved in the output.
+TEST(type_prop, erfinv_interval_dims) {
+    const auto input_shape = PartialShape{Dimension(2, 5), Dimension(1, 4), 3};
+    auto data = make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto erfinv_op = make_shared<op::v16::ErfInv>(data);
+    EXPECT_EQ(erfinv_op->get_element_type(), element::f32);
+    EXPECT_TRUE(erfinv_op->get_output_partial_shape(0).same_scheme(input_shape));
+}
+
+// Fully-dynamic rank — output must also be rank-dynamic.
+TEST(type_prop, erfinv_dynamic_rank) {
+    auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto erfinv_op = make_shared<op::v16::ErfInv>(data);
+    EXPECT_EQ(erfinv_op->get_element_type(), element::f32);
+    EXPECT_TRUE(erfinv_op->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
+}
+
+// Dimension symbols must propagate unchanged through erfinv.
+TEST(type_prop, erfinv_symbol_propagation) {
+    auto labeled_shape = PartialShape{Dimension::dynamic(), 4};
+    auto symbols = set_shape_symbols(labeled_shape);
+
+    auto data = make_shared<op::v0::Parameter>(element::f32, labeled_shape);
+    auto erfinv_op = make_shared<op::v16::ErfInv>(data);
+
+    const auto& out_shape = erfinv_op->get_output_partial_shape(0);
+    EXPECT_EQ(out_shape.rank().get_length(), 2);
+    EXPECT_EQ(get_shape_symbols(out_shape), symbols);
 }

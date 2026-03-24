@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <set>
@@ -2401,9 +2402,7 @@ jit_erfinv_emitter::jit_erfinv_emitter(x64::jit_generator_t* host,
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
-jit_erfinv_emitter::jit_erfinv_emitter(x64::jit_generator_t* host,
-                                       x64::cpu_isa_t host_isa,
-                                       ov::element::Type exec_prc)
+jit_erfinv_emitter::jit_erfinv_emitter(x64::jit_generator_t* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
@@ -2479,8 +2478,8 @@ void jit_erfinv_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->uni_vmulps(aux2, aux2, aux3);                   // log(1+h) = acc * h; aux3 freed
 
     // Combine: log(v) = (e+1)*ln2 + log(y); aux1 = (e+1)*ln2 + log(y)
-    h->uni_vfmadd132ps(aux1, aux2, table_val("ln2"));  // aux1 = aux1*ln2 + aux2
-    h->uni_vxorps(aux1, aux1, table_val("sign_mask")); // w = -log(v); aux2 freed
+    h->uni_vfmadd132ps(aux1, aux2, table_val("ln2"));   // aux1 = aux1*ln2 + aux2
+    h->uni_vxorps(aux1, aux1, table_val("sign_mask"));  // w = -log(v); aux2 freed
 
     // Branch 1: poly1 = Giles poly(w - 2.5), valid for w < 5
     h->uni_vmovups(aux2, aux1);
@@ -2497,7 +2496,7 @@ void jit_erfinv_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     // Branch 2: poly2 = Giles poly(sqrt(w) - 3.0), valid for w >= 5
     h->uni_vsqrtps(aux2, aux1);
-    h->uni_vsubps(aux2, aux2, table_val("three"));           // r2 = sqrt(w) - 3.0
+    h->uni_vsubps(aux2, aux2, table_val("three"));  // r2 = sqrt(w) - 3.0
     h->uni_vmovups(aux4, table_val("e2_c8"));
     h->uni_vfmadd213ps(aux4, aux2, table_val("e2_c7"));
     h->uni_vfmadd213ps(aux4, aux2, table_val("e2_c6"));
@@ -2524,15 +2523,53 @@ void jit_erfinv_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->blendvps(vmm_dst, aux3);  // implicit xmm0 (= aux0) as mask
     }
     h->uni_vmulps(vmm_dst, vmm_dst, aux5);
+
+    // Special-case handling: |x| >= 1 → ±inf; |x| > 1 → NaN
+    // Reuse aux1..aux4 (all free at this point); aux5 still holds saved x.
+    // abs_x = |x|
+    h->uni_vmovups(aux1, aux5);
+    h->uni_vandps(aux1, aux1, table_val("abs_mask"));
+    // inf_signed = copysign(+inf, x) = (x & sign_mask) | pos_inf
+    h->uni_vmovups(aux2, aux5);
+    h->uni_vandps(aux2, aux2, table_val("sign_mask"));
+    h->uni_vorps(aux2, aux2, table_val("pos_inf"));
+    // ge1_mask = (abs_x >= 1.0f), blend ±inf
+    if (isa == x64::avx512_core) {
+        h->vcmpps(k_mask, aux1, table_val("one"), _cmp_ge_os);
+        h->vblendmps(vmm_dst | k_mask, vmm_dst, aux2);
+    } else if (isa == x64::avx2) {
+        h->vcmpps(aux3, aux1, table_val("one"), _cmp_ge_os);
+        h->uni_vblendvps(vmm_dst, vmm_dst, aux2, aux3);
+    } else {
+        h->uni_vmovups(aux0, aux1);
+        h->cmpps(aux0, table_val("one"), _cmp_ge_os);
+        h->blendvps(vmm_dst, aux2);  // implicit xmm0 (= aux0)
+    }
+    // gt1_mask = (abs_x > 1.0f), blend NaN
+    h->uni_vmovups(aux4, table_val("qnan"));
+    if (isa == x64::avx512_core) {
+        h->vcmpps(k_mask, aux1, table_val("one"), _cmp_gt_os);
+        h->vblendmps(vmm_dst | k_mask, vmm_dst, aux4);
+    } else if (isa == x64::avx2) {
+        h->vcmpps(aux3, aux1, table_val("one"), _cmp_gt_os);
+        h->uni_vblendvps(vmm_dst, vmm_dst, aux4, aux3);
+    } else {
+        h->uni_vmovups(aux0, aux1);
+        h->cmpps(aux0, table_val("one"), _cmp_gt_os);
+        h->blendvps(vmm_dst, aux4);  // implicit xmm0 (= aux0)
+    }
 }
 
 void jit_erfinv_emitter::register_table_entries() {
     push_arg_entry_of("one", CONST_1_F, true);
     push_arg_entry_of("half", erfinv_f2u(0.5f), true);
     push_arg_entry_of("sign_mask", 0x80000000, true);
+    push_arg_entry_of("abs_mask", 0x7fffffff, true);
+    push_arg_entry_of("pos_inf", 0x7f800000, true);
+    push_arg_entry_of("qnan", 0x7fc00000, true);
     push_arg_entry_of("mantissa_mask", 0x007fffff, true);
     // bias_mask and "one" are both 0x3f800000; reuse "one" for vorps
-    push_arg_entry_of("int126", 126u, true);      // integer 126 for vpsubd
+    push_arg_entry_of("int126", 126u, true);  // integer 126 for vpsubd
     push_arg_entry_of("ln2", 0x3f317218, true);
     push_arg_entry_of("two_point_five", erfinv_f2u(2.5f), true);
     push_arg_entry_of("three", erfinv_f2u(3.0f), true);
@@ -2546,25 +2583,25 @@ void jit_erfinv_emitter::register_table_entries() {
     push_arg_entry_of("log_pol5", 0x3e12491b, true);  //  1/7
     push_arg_entry_of("log_pol6", 0xbe000000, true);  // -1/8
     // Giles erfinv branch 1 coefficients (w < 5, poly in w-2.5)
-    push_arg_entry_of("e1_c8", 0x32f16588, true);   //  2.81022636e-08
-    push_arg_entry_of("e1_c7", 0x34b84b36, true);   //  3.43273939e-07
-    push_arg_entry_of("e1_c6", 0xb66c7357, true);   // -3.5233877e-06
-    push_arg_entry_of("e1_c5", 0xb6935ac1, true);   // -4.39150654e-06
-    push_arg_entry_of("e1_c4", 0x396532db, true);   //  0.00021858087
-    push_arg_entry_of("e1_c3", 0xbaa45408, true);   // -0.00125372503
-    push_arg_entry_of("e1_c2", 0xbb88e4ef, true);   // -0.00417768164
-    push_arg_entry_of("e1_c1", 0x3e7c8f63, true);   //  0.246640727
-    push_arg_entry_of("e1_c0", 0x3fc02e2f, true);   //  1.50140941
+    push_arg_entry_of("e1_c8", 0x32f16588, true);  //  2.81022636e-08
+    push_arg_entry_of("e1_c7", 0x34b84b36, true);  //  3.43273939e-07
+    push_arg_entry_of("e1_c6", 0xb66c7357, true);  // -3.5233877e-06
+    push_arg_entry_of("e1_c5", 0xb6935ac1, true);  // -4.39150654e-06
+    push_arg_entry_of("e1_c4", 0x396532db, true);  //  0.00021858087
+    push_arg_entry_of("e1_c3", 0xbaa45408, true);  // -0.00125372503
+    push_arg_entry_of("e1_c2", 0xbb88e4ef, true);  // -0.00417768164
+    push_arg_entry_of("e1_c1", 0x3e7c8f63, true);  //  0.246640727
+    push_arg_entry_of("e1_c0", 0x3fc02e2f, true);  //  1.50140941
     // Giles erfinv branch 2 coefficients (w >= 5, poly in sqrt(w)-3.0)
-    push_arg_entry_of("e2_c8", 0xb951f09b, true);   // -0.000200214257
-    push_arg_entry_of("e2_c7", 0x38d3b56b, true);   //  0.000100950558
-    push_arg_entry_of("e2_c6", 0x3ab0dc72, true);   //  0.00134934322
-    push_arg_entry_of("e2_c5", 0xbb70bde7, true);   // -0.00367342844
-    push_arg_entry_of("e2_c4", 0x3bbc127b, true);   //  0.00573950773
-    push_arg_entry_of("e2_c3", 0xbbf9c5d7, true);   // -0.0076224613
-    push_arg_entry_of("e2_c2", 0xbc1aa57e, true);   // -0.00943887047
-    push_arg_entry_of("e2_c1", 0x3f8036db, true);   //  1.00167406
-    push_arg_entry_of("e2_c0", 0x40354f7e, true);   //  2.83297682
+    push_arg_entry_of("e2_c8", 0xb951f09b, true);  // -0.000200214257
+    push_arg_entry_of("e2_c7", 0x38d3b56b, true);  //  0.000100950558
+    push_arg_entry_of("e2_c6", 0x3ab0dc72, true);  //  0.00134934322
+    push_arg_entry_of("e2_c5", 0xbb70bde7, true);  // -0.00367342844
+    push_arg_entry_of("e2_c4", 0x3bbc127b, true);  //  0.00573950773
+    push_arg_entry_of("e2_c3", 0xbbf9c5d7, true);  // -0.0076224613
+    push_arg_entry_of("e2_c2", 0xbc1aa57e, true);  // -0.00943887047
+    push_arg_entry_of("e2_c1", 0x3f8036db, true);  //  1.00167406
+    push_arg_entry_of("e2_c0", 0x40354f7e, true);  //  2.83297682
 }
 
 size_t jit_erfinv_emitter::aux_vecs_count() const {

@@ -100,6 +100,22 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
             // cover Sign NAN test case
             if ((activationType == utils::ActivationTypes::Sign) && funcInput.get_element_type() == ov::element::f32) {
                 static_cast<float*>(tensor.data())[0] = std::numeric_limits<float>::quiet_NaN();
+            } else if (activationType == utils::ActivationTypes::ErfInv && funcInput.get_element_type().is_real()) {
+                const auto sz = tensor.get_size();
+                auto inject = [&](size_t idx, float val) {
+                    if (idx >= sz) return;
+                    switch (funcInput.get_element_type()) {
+                    case ov::element::f32:  static_cast<float*>(tensor.data())[idx]          = val; break;
+                    case ov::element::f64:  static_cast<double*>(tensor.data())[idx]         = val; break;
+                    case ov::element::f16:  static_cast<ov::float16*>(tensor.data())[idx]    = val; break;
+                    case ov::element::bf16: static_cast<ov::bfloat16*>(tensor.data())[idx]   = val; break;
+                    default: break;
+                    }
+                };
+                inject(0,  1.0f);
+                inject(1, -1.0f);
+                inject(2,  2.0f);
+                inject(3, -1.5f);
             } else if ((activationType == utils::ActivationTypes::IsFinite) && funcInput.get_element_type() == ov::element::f32 && tensor.get_size() >= 5) {
                 static_cast<float*>(tensor.data())[0] = std::numeric_limits<float>::quiet_NaN(); // nan
                 static_cast<float*>(tensor.data())[1] = std::numeric_limits<float>::signaling_NaN(); // nan
@@ -200,6 +216,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::RoundHalfToEven) ||
         (activation_type == utils::ActivationTypes::LeakyRelu) ||
         (activation_type == utils::ActivationTypes::PReLu) ||
+        (activation_type == utils::ActivationTypes::ErfInv) ||
         (activation_type == utils::ActivationTypes::SoftPlus))) {
         return "jit";
     }
@@ -248,7 +265,8 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
             (activation_type == utils::ActivationTypes::Sigmoid) ||
             (activation_type == utils::ActivationTypes::SoftSign) ||
             (activation_type == utils::ActivationTypes::Sqrt) ||
-            (activation_type == utils::ActivationTypes::Tanh))
+            (activation_type == utils::ActivationTypes::Tanh) ||
+            (activation_type == utils::ActivationTypes::ErfInv))
             return "jit";
     }
 #endif
@@ -300,6 +318,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {IsNaN,       {{}}},
         {RoundHalfToEven,       {{}}},
         {RoundHalfAwayFromZero, {{}}},
+        {ErfInv,                {{}}},
     };
 
     return activationTypes;

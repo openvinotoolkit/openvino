@@ -3243,37 +3243,37 @@ void jit_erfinv_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->mov(aux0.b16, vmm_src.b16);
 
     // v = 1 - x²: compute in aux2 (bit pattern preserved for mantissa extraction)
-    h->fmul(aux2.s, vmm_src.s, vmm_src.s);   // x²
-    h->fneg(aux2.s, aux2.s);                  // -x²
+    h->fmul(aux2.s, vmm_src.s, vmm_src.s);  // x²
+    h->fneg(aux2.s, aux2.s);                // -x²
     h->ld1r(aux4.s, table_val2("one"));
-    h->fadd(aux2.s, aux2.s, aux4.s);          // v = 1 - x²
+    h->fadd(aux2.s, aux2.s, aux4.s);  // v = 1 - x²
 
     // Copy v to aux1 for exponent extraction (aux2 keeps v bits for mantissa)
     h->mov(aux1.b16, aux2.b16);
 
     // Extract integer biased exponent k = v_bits >> 23 (in aux1)
-    h->ushr(aux1.s, aux1.s, 23);              // k (int32)
+    h->ushr(aux1.s, aux1.s, 23);  // k (int32)
     // Subtract 126 to get e+1: load 126 broadcast into aux4
     h->ld1r(aux4.s, table_val2("int126"));
-    h->sub(aux1.4s, aux1.4s, aux4.4s);        // e+1 (int32)
-    h->scvtf(aux1.s, aux1.s);                 // (e+1) as float
+    h->sub(aux1 .4s, aux1 .4s, aux4 .4s);  // e+1 (int32)
+    h->scvtf(aux1.s, aux1.s);              // (e+1) as float
 
     // Extract mantissa from aux2 (v bits) and compute h = f/2 - 1
     h->ld1r(aux4.s, table_val2("mantissa_mask"));
-    h->and_(aux2.b16, aux2.b16, aux4.b16);    // mantissa bits
+    h->and_(aux2.b16, aux2.b16, aux4.b16);  // mantissa bits
     h->ld1r(aux4.s, table_val2("one"));
-    h->orr(aux2.b16, aux2.b16, aux4.b16);     // f = 1.mantissa ∈ [1, 2)
+    h->orr(aux2.b16, aux2.b16, aux4.b16);  // f = 1.mantissa ∈ [1, 2)
     h->ld1r(aux4.s, table_val2("half"));
-    h->fmul(aux2.s, aux2.s, aux4.s);          // f/2 ∈ [0.5, 1)
+    h->fmul(aux2.s, aux2.s, aux4.s);  // f/2 ∈ [0.5, 1)
     h->ld1r(aux4.s, table_val2("one"));
-    h->fsub(aux2.s, aux2.s, aux4.s);          // h = f/2 - 1 ∈ [-0.5, 0)
+    h->fsub(aux2.s, aux2.s, aux4.s);  // h = f/2 - 1 ∈ [-0.5, 0)
 
     // Log polynomial Horner: log(1+h) = h*(1+h*(p0+h*(p1+...h*p6)))
     // Pattern: init aux3 with highest coeff, then for each lower coeff:
     //          load coeff into aux4, fmla(aux4, aux3, h) = aux4 += aux3*h, mov aux3=aux4
     h->ld1r(aux3.s, table_val2("log_pol6"));
     h->ld1r(aux4.s, table_val2("log_pol5"));
-    h->fmla(aux4.s, aux3.s, aux2.s);          // aux4 = p5 + p6*h
+    h->fmla(aux4.s, aux3.s, aux2.s);  // aux4 = p5 + p6*h
     h->mov(aux3.b16, aux4.b16);
     h->ld1r(aux4.s, table_val2("log_pol4"));
     h->fmla(aux4.s, aux3.s, aux2.s);
@@ -3290,19 +3290,19 @@ void jit_erfinv_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->ld1r(aux4.s, table_val2("log_pol0"));
     h->fmla(aux4.s, aux3.s, aux2.s);
     h->mov(aux3.b16, aux4.b16);
-    h->ld1r(aux4.s, table_val2("one"));        // constant 1.0 factor
+    h->ld1r(aux4.s, table_val2("one"));  // constant 1.0 factor
     h->fmla(aux4.s, aux3.s, aux2.s);
     h->mov(aux3.b16, aux4.b16);
-    h->fmul(aux3.s, aux2.s, aux3.s);          // log(1+h) = h * poly; aux2 freed
+    h->fmul(aux3.s, aux2.s, aux3.s);  // log(1+h) = h * poly; aux2 freed
 
     // Combine: log(v) = (e+1)*ln2 + log(y); then w = -log(v)
     h->ld1r(aux4.s, table_val2("ln2"));
-    h->fmla(aux3.s, aux1.s, aux4.s);          // aux3 += (e+1)*ln2 = log(v); aux4 freed
-    h->fneg(aux1.s, aux3.s);                   // aux1 = w = -log(v); aux3 freed
+    h->fmla(aux3.s, aux1.s, aux4.s);  // aux3 += (e+1)*ln2 = log(v); aux4 freed
+    h->fneg(aux1.s, aux3.s);          // aux1 = w = -log(v); aux3 freed
 
     // Branch 1: poly1 = Giles poly(r1), r1 = w - 2.5
     h->ld1r(aux4.s, table_val2("two_point_five"));
-    h->fsub(aux2.s, aux1.s, aux4.s);          // r2 = w - 2.5 in aux2
+    h->fsub(aux2.s, aux1.s, aux4.s);  // r2 = w - 2.5 in aux2
     h->ld1r(aux3.s, table_val2("e1_c8"));
     h->ld1r(aux4.s, table_val2("e1_c7"));
     h->fmla(aux4.s, aux3.s, aux2.s);
@@ -3327,12 +3327,12 @@ void jit_erfinv_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->mov(aux3.b16, aux4.b16);
     h->ld1r(aux4.s, table_val2("e1_c0"));
     h->fmla(aux4.s, aux3.s, aux2.s);
-    h->mov(aux3.b16, aux4.b16);               // aux3 = poly1; aux2(r1) freed
+    h->mov(aux3.b16, aux4.b16);  // aux3 = poly1; aux2(r1) freed
 
     // Branch 2: poly2 = Giles poly(r2), r2 = sqrt(w) - 3.0
-    h->fsqrt(aux2.s, aux1.s);                 // sqrt(w)
+    h->fsqrt(aux2.s, aux1.s);  // sqrt(w)
     h->ld1r(aux4.s, table_val2("three"));
-    h->fsub(aux2.s, aux2.s, aux4.s);          // r2 = sqrt(w) - 3.0
+    h->fsub(aux2.s, aux2.s, aux4.s);  // r2 = sqrt(w) - 3.0
     h->ld1r(aux4.s, table_val2("e2_c8"));
     h->ld1r(aux5.s, table_val2("e2_c7"));
     h->fmla(aux5.s, aux4.s, aux2.s);
@@ -3357,19 +3357,46 @@ void jit_erfinv_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->mov(aux4.b16, aux5.b16);
     h->ld1r(aux5.s, table_val2("e2_c0"));
     h->fmla(aux5.s, aux4.s, aux2.s);
-    h->mov(aux4.b16, aux5.b16);               // aux4 = poly2; aux2(r2), aux5 freed
+    h->mov(aux4.b16, aux5.b16);  // aux4 = poly2; aux2(r2), aux5 freed
 
     // Blend: select poly1 (aux3) where w<5, poly2 (aux4) otherwise; mask in aux2
     h->ld1r(aux2.s, table_val2("five"));
-    h->fcmgt(aux2.s, aux2.s, aux1.s);         // aux2 = (5.0 > w) = (w < 5.0)
-    h->bsl(aux2.b16, aux3.b16, aux4.b16);     // aux2 = mask ? poly1 : poly2
-    h->fmul(vmm_dst.s, aux2.s, aux0.s);       // dst = blend * x
+    h->fcmgt(aux2.s, aux2.s, aux1.s);      // aux2 = (5.0 > w) = (w < 5.0)
+    h->bsl(aux2.b16, aux3.b16, aux4.b16);  // aux2 = mask ? poly1 : poly2
+    h->fmul(vmm_dst.s, aux2.s, aux0.s);    // dst = blend * x
+
+    // Special-case handling: |x| >= 1 → ±inf; |x| > 1 → NaN
+    // Reuse aux1..aux5 (all free); aux0 holds saved x.
+    // abs_x = |x|
+    h->ld1r(aux3.s, table_val2("abs_mask"));
+    h->and_(aux1.b16, aux0.b16, aux3.b16);  // aux1 = abs_x
+
+    // inf_signed = copysign(+inf, x) = (x & sign_mask) | pos_inf
+    h->ld1r(aux3.s, table_val2("sign_mask"));
+    h->and_(aux2.b16, aux0.b16, aux3.b16);  // sign bit
+    h->ld1r(aux3.s, table_val2("pos_inf"));
+    h->orr(aux2.b16, aux2.b16, aux3.b16);  // aux2 = ±inf
+
+    // ge1_mask = (abs_x >= 1.0): fcmge sets all-1s where abs_x >= 1
+    h->ld1r(aux3.s, table_val2("one"));
+    h->fcmge(aux4.s, aux1.s, aux3.s);         // aux4 = (abs_x >= 1.0) mask
+    h->bsl(aux4.b16, aux2.b16, vmm_dst.b16);  // aux4 = (ge1) ? ±inf : dst
+    h->mov(vmm_dst.b16, aux4.b16);
+
+    // gt1_mask = (abs_x > 1.0): fcmgt
+    h->fcmgt(aux4.s, aux1.s, aux3.s);  // aux4 = (abs_x > 1.0) mask
+    h->ld1r(aux3.s, table_val2("qnan"));
+    h->bsl(aux4.b16, aux3.b16, vmm_dst.b16);  // aux4 = (gt1) ? NaN : dst
+    h->mov(vmm_dst.b16, aux4.b16);
 }
 
 void jit_erfinv_emitter::register_table_entries() {
     push_arg_entry_of("one", 0x3f800000, true);
     push_arg_entry_of("half", 0x3f000000, true);
     push_arg_entry_of("sign_mask", 0x80000000, true);
+    push_arg_entry_of("abs_mask", 0x7fffffff, true);
+    push_arg_entry_of("pos_inf", 0x7f800000, true);
+    push_arg_entry_of("qnan", 0x7fc00000, true);
     push_arg_entry_of("mantissa_mask", 0x007fffff, true);
     push_arg_entry_of("int126", 126u, true);
     push_arg_entry_of("ln2", 0x3f317218, true);

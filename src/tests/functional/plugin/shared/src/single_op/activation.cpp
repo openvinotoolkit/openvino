@@ -114,6 +114,24 @@ void ActivationLayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
                                             data_range,
                                             data_start_from,
                                             resolution, 1);
+    // Inject boundary/out-of-domain values so x=±1 (→±inf) and |x|>1 (→NaN) are always exercised.
+    if (activationDecl.first == ActivationTypes::ErfInv && funcInput->get_element_type().is_real()) {
+        const auto sz = data_tensor.get_size();
+        auto inject = [&](size_t idx, float val) {
+            if (idx >= sz) return;
+            switch (funcInput->get_element_type()) {
+            case ov::element::f32:  static_cast<float*>(data_tensor.data())[idx]          = val; break;
+            case ov::element::f64:  static_cast<double*>(data_tensor.data())[idx]         = val; break;
+            case ov::element::f16:  static_cast<ov::float16*>(data_tensor.data())[idx]    = val; break;
+            case ov::element::bf16: static_cast<ov::bfloat16*>(data_tensor.data())[idx]   = val; break;
+            default: break;
+            }
+        };
+        inject(0,  1.0f);
+        inject(1, -1.0f);
+        inject(2,  2.0f);
+        inject(3, -1.5f);
+    }
     inputs.insert({funcInput->get_node_shared_ptr(), data_tensor});
 }
 
