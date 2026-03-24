@@ -15,6 +15,8 @@
 using namespace intel_npu;
 
 namespace {
+constexpr int64_t BATCH = 0xDEADBEEF;
+
 void prepare_writer(const std::shared_ptr<BlobWriter>& blobWriter,
                     const std::vector<CRE::Token>& expression,
                     const std::vector<std::shared_ptr<ISection>> sections) {
@@ -51,12 +53,18 @@ std::pair<std::string, std::unordered_map<CRE::Token, std::shared_ptr<ICapabilit
 
 using WriterReaderParams = std::tuple<std::vector<CRE::Token>, std::vector<uint16_t>>;
 
-// TODO: test with BlobWriter(BlobReader)
+/*
+    TODO (probably) tests with:
+    - get_roi_tensor
+    - interpret_data_from_source
+    - get_cursor_relative_position
+    - move_cursor_to_relative_position
+
+*/
 
 // should we randomize the order of serialized sections?
 class WriterReaderUnitTests : public ::testing::TestWithParam<WriterReaderParams> {
 protected:
-    const int64_t BATCH = 0xDEADBEEF;
     const std::vector<ov::Layout> INPUT_LAYOUTS = {ov::Layout("NCHW"), ov::Layout("NHW")};
     const std::vector<ov::Layout> OUTPUT_LAYOUTS = {ov::Layout("NHWC")};
 
@@ -116,7 +124,7 @@ TEST_P(IncompatibleCRE, ReadThrows) {
 using WriterReaderEdgeCases = ::testing::Test;
 
 TEST_F(WriterReaderEdgeCases, CorruptedMagicByte) {
-    auto [blob, caps] = make_simple_blob(0xDEADBEEF);
+    auto [blob, caps] = make_simple_blob(BATCH);
     blob[0] = 'X';
     ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()}, blob.data());
     BlobReader reader(tensor);
@@ -126,7 +134,7 @@ TEST_F(WriterReaderEdgeCases, CorruptedMagicByte) {
 
 TEST_F(WriterReaderEdgeCases, CorruptedFormatVersion) {
     constexpr size_t MAGIC_BYTES_SIZE = 5;  // 'OVNPU'
-    auto [blob, caps] = make_simple_blob(0xDEADBEEF);
+    auto [blob, caps] = make_simple_blob(BATCH);
     blob[MAGIC_BYTES_SIZE] = static_cast<char>(~static_cast<unsigned char>(blob[MAGIC_BYTES_SIZE]));
     ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()}, blob.data());
     BlobReader reader(tensor);
@@ -137,7 +145,6 @@ TEST_F(WriterReaderEdgeCases, CorruptedFormatVersion) {
 // offsets table given to writer_2 from reader_1 leads to failing OffsetsTable::add_entry()
 // BATCHING is found already being present in the map, so the assertion fails
 TEST_F(WriterReaderEdgeCases, ReExportRoundTrip) {
-    constexpr int64_t BATCH = 0xDEADBEEF;
     const std::vector<ov::Layout> input_layouts = {ov::Layout("NCHW")};
     const std::vector<ov::Layout> output_layouts = {ov::Layout("NHWC")};
 
@@ -211,11 +218,91 @@ TEST_F(WriterReaderEdgeCases, MultipleSectionsSameType) {
 }
 
 TEST_F(WriterReaderEdgeCases, UnknownSectionSkipped) {
-    auto [blob, caps] = make_simple_blob(99);
+    auto [blob, caps] = make_simple_blob(BATCH);
     ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()}, blob.data());
     BlobReader reader(tensor);
 
     // intentionally not registering batch size
     ASSERT_NO_THROW(reader.read(caps));
     EXPECT_EQ(reader.retrieve_first_section(PredefinedSectionType::BATCH_SIZE), nullptr);
+}
+
+TEST_F(WriterReaderEdgeCases, RetrieveSectionByExplicitID) {
+    auto [blob, caps] = make_simple_blob(BATCH);
+    ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()}, blob.data());
+    BlobReader reader(tensor);
+    reader.register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
+    ASSERT_NO_THROW(reader.read(caps));
+
+    auto section = reader.retrieve_section(SectionID(PredefinedSectionType::BATCH_SIZE, 0));
+    ASSERT_NE(section, nullptr);
+    EXPECT_EQ(std::dynamic_pointer_cast<BatchSizeSection>(section)->get_batch_size(), BATCH);
+
+    // there is no second instance
+    EXPECT_EQ(reader.retrieve_section(SectionID(PredefinedSectionType::BATCH_SIZE, 1)), nullptr);
+}
+
+TEST_F(WriterReaderEdgeCases, RetrieveSectionsAbsentType) {
+    auto [blob, caps] = make_simple_blob(BATCH);
+    ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()}, blob.data());
+    BlobReader reader(tensor);
+    reader.register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
+    ASSERT_NO_THROW(reader.read(caps));
+
+    auto absent = reader.retrieve_sections_same_type(PredefinedSectionType::IO_LAYOUTS);
+    EXPECT_FALSE(absent.has_value());
+}
+
+TEST_F(WriterReaderEdgeCases, GetNpuRegionSizeFromTensor) {
+    auto [blob, caps] = make_simple_blob(BATCH);
+    ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()}, blob.data());
+
+    const size_t reported = BlobReader::get_npu_region_size(tensor);
+    EXPECT_EQ(reported, blob.size());
+}
+
+TEST_F(WriterReaderEdgeCases, GetNpuRegionSizeFromStream) {
+    auto [blob, caps] = make_simple_blob(BATCH);
+    std::istringstream stream(blob);
+
+    const size_t reported = BlobReader::get_npu_region_size(stream);
+    EXPECT_EQ(reported, blob.size());
+}
+
+TEST_F(WriterReaderEdgeCases, RegisterSectionInstanceIDs) {
+    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> caps;
+    caps[CRE::CRE_EVALUATION] = std::make_shared<StaticCapability>(CRE::CRE_EVALUATION);
+
+    BlobWriter writer;
+    constexpr int64_t BATCH_A = 0xDEADBEEF, BATCH_B = 0xDEAFBEEF, BATCH_C = 0x0FFBEEF;
+    const auto id_0 = writer.register_section(std::make_shared<BatchSizeSection>(BATCH_A));
+    const auto id_1 = writer.register_section(std::make_shared<BatchSizeSection>(BATCH_B));
+    const auto id_2 = writer.register_section(std::make_shared<BatchSizeSection>(BATCH_C));
+    EXPECT_EQ(id_0, 0);
+    EXPECT_EQ(id_1, 1);
+    EXPECT_EQ(id_2, 2);
+
+    const auto io_id0 = writer.register_section(
+        std::make_shared<IOLayoutsSection>(std::vector<ov::Layout>{}, std::vector<ov::Layout>{}));
+    EXPECT_EQ(io_id0, 0);
+
+    std::stringstream stream;
+    writer.write(stream);
+    std::string buffer = stream.str();
+    ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
+    BlobReader reader(tensor);
+    reader.register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
+    ASSERT_NO_THROW(reader.read(caps));
+
+    auto section = reader.retrieve_section(SectionID(PredefinedSectionType::BATCH_SIZE, 0));
+    ASSERT_NE(section, nullptr);
+    EXPECT_EQ(std::dynamic_pointer_cast<BatchSizeSection>(section)->get_batch_size(), BATCH_A);
+
+    section = reader.retrieve_section(SectionID(PredefinedSectionType::BATCH_SIZE, 1));
+    ASSERT_NE(section, nullptr);
+    EXPECT_EQ(std::dynamic_pointer_cast<BatchSizeSection>(section)->get_batch_size(), BATCH_B);
+
+    section = reader.retrieve_section(SectionID(PredefinedSectionType::BATCH_SIZE, 2));
+    ASSERT_NE(section, nullptr);
+    EXPECT_EQ(std::dynamic_pointer_cast<BatchSizeSection>(section)->get_batch_size(), BATCH_C);
 }
