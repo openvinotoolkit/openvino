@@ -160,6 +160,12 @@ CM_INLINE void process_quantization_per_channel(const half* in,
     vector<float, HEAD_SIZE> qrange = max_vals - min_vals;
     vector<ushort, HEAD_SIZE> mask = (qrange == (half)0.0f);
 
+    // Apply small-range guard introduced by quantize_and_save_by_channel_block_with_requantize in ocl impl,
+    // to avoid INF(-INF) caused by scale/zp's out of range of fp16, which cause NaN in dequantization
+    vector<float, HEAD_SIZE> min_range = cm_abs<float>(max_vals) * 0.1f;
+    vector<float, HEAD_SIZE> adjust_val = cm_max<float>(min_range, 1.0f);
+    qrange.merge(qrange + adjust_val, qrange <= min_range);
+
     // scale_vals needs fp32 precision to perform cm_div_ieee to avoid accuracy loss caused by reciprocal approximation division ('/') instruction
     vector<float, HEAD_SIZE> scale_vals = cm_div_ieee(255.0f, qrange);
     scale_vals.merge(1.0f, mask);
