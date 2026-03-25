@@ -159,7 +159,6 @@ struct NPUWStringEnumOptionTraits<::intel_npu::npuw::llm::PrefillHint> {
     }
 };
 
-
 template <>
 struct NPUWStringEnumOptionTraits<::intel_npu::npuw::llm::GenerateHint> {
     using ValueType = ::intel_npu::npuw::llm::GenerateHint;
