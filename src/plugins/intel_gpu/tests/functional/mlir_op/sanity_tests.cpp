@@ -292,7 +292,7 @@ TEST(MLIRExecution, SDPABasic) {
 
     ov::AnyMap device_config;
     // disable sdpa-decomposition
-    device_config[ov::intel_gpu::hint::enable_sdpa_optimization.name()] = false;
+    device_config[ov::intel_gpu::hint::enable_sdpa_optimization.name()] = true;
 
     auto compiled_model = core.compile_model(model, "GPU", device_config);
 
@@ -301,7 +301,7 @@ TEST(MLIRExecution, SDPABasic) {
     // Fill Q, K, V with small random values in [-0.5, 0.5] to avoid f16 overflow
     const size_t total = 4 * 4096 * 64;
     std::mt19937 rng(42);  // fixed seed for reproducibility
-    std::uniform_real_distribution<float> dist(-0.5f, 0.5f);
+    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
     auto make_random_f16 = [&](size_t n) {
         std::vector<ov::float16> v(n);

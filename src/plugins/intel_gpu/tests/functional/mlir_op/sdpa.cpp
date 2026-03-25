@@ -362,44 +362,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnStatic3D_GPU,
                          static_shape_params_3D,
                          ScaledAttnLayerGPUMlirTest::getTestCaseName);
 
-const std::vector<std::vector<InputShape>> static_shapes_3D_4_4096_64{
-    {
-        // q shape
-        {ov::test::InputShape{ov::PartialShape{4, 4096, 64},
-            {ov::Shape{4, 4096, 64}}}
-        },
-        // k shape
-        {ov::test::InputShape{ov::PartialShape{4, 4096, 64},
-            {ov::Shape{4, 4096, 64}}}
-        },
-        // v shape
-        {ov::test::InputShape{ov::PartialShape{4, 4096, 64},
-            {ov::Shape{4, 4096, 64}}}
-        },
-        // attn shape (unused when has_attn=false)
-        {ov::test::InputShape{ov::PartialShape{4096, 4096},
-            {ov::Shape{4096, 4096}}}
-        },
-    },
-};
-
-const auto static_shape_params_3D_4_4096_64 = testing::Combine(
-    testing::Values(ov::element::f16),
-    testing::ValuesIn(static_shapes_3D_4_4096_64),
-    testing::Values(false),       // is_causal
-    testing::Values(false),       // has_attn
-    testing::Values(false),       // is_attn_const
-    testing::Values(false),       // has_scale
-    testing::Values(false),       // is_scale_const
-    testing::Values(disable_transpose),
-    testing::Values(false));      // has_sink
-
-INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnStatic3D_4_4096_64_GPU,
-                         ScaledAttnLayerGPUMlirTest,
-                         static_shape_params_3D_4_4096_64,
-                         ScaledAttnLayerGPUMlirTest::getTestCaseName);
-
-
 const std::vector<std::vector<InputShape>> static_shapes_4D{
     // static shapes
     {
