@@ -23,7 +23,7 @@ namespace behavior {
 
 inline std::shared_ptr<ov::Model> createMaxPoolModel() {
     auto input =
-        std::make_shared<ov::op::v0::Parameter>(element::f16, PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
+        std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
     input->set_friendly_name("input1");
 
     auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input,
@@ -339,7 +339,6 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     std::function<void(std::string_view)> custom_log_callback =
         [&](std::string_view s) {  // switch to query allocation info for import flag when possible
             custom_logger << s << std::endl;
-            std::cout << s << std::endl;
         };
     ov::util::set_log_callback(custom_log_callback);
     struct ResetLogCallbackGuard {
@@ -391,6 +390,141 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
         << custom_logger.str();
 }
 
+void dumpTensor(const ov::Tensor& tensor);
+
+void dumpTensor(const ov::Tensor& tensor) {
+    std::cout << "Tensor shape: " << tensor.get_shape() << ", element type: " << tensor.get_element_type() << std::endl;
+    const float* data = tensor.data<float>();
+    size_t count = ov::shape_size(tensor.get_shape());
+    for (size_t i = 0; i < count; i++) {
+        std::cout << data[i] << " ";
+    }
+    std::cout << std::endl;
+}
+
+// The test to compile, create infer request and infer with a LevelZeroTensor input, then compare the output with a
+// CPU reference result.
+TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithCPU) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    auto model = createMaxPoolModel();
+    ov::CompiledModel compiledModel;
+    ov::CompiledModel cpuCompiledModel;
+
+    // Create log callback function which will store log to string, the set to ov
+    std::stringstream custom_logger;
+    std::function<void(std::string_view)> custom_log_callback =
+        [&](std::string_view s) {  // switch to query allocation info for import flag when possible
+            custom_logger << s << std::endl;
+        };
+    ov::util::set_log_callback(custom_log_callback);
+    struct ResetLogCallbackGuard {
+        ~ResetLogCallbackGuard() {
+            ov::util::reset_log_callback();
+        }
+    } reset_log_callback_guard;
+
+    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
+
+    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
+    try {
+        cpuCompiledModel = core->compile_model(model, "CPU");
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "CPU plugin is not available for reference comparison: " << e.what();
+    }
+
+    ov::InferRequest reqDynamic;
+    try {
+        reqDynamic = compiledModel.create_infer_request();
+    } catch (const ov::Exception& e) {
+        // check if the exception info is "Failed to create MLIR runtime engine"
+        ASSERT_TRUE(std::string(e.what()).find("Cannot load library") != std::string::npos)
+            << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
+        GTEST_SKIP() << "Cannot load library, skip test.";
+    }
+
+    ov::InferRequest reqCPU = cpuCompiledModel.create_infer_request();
+
+    // create input tensor match the customized models
+    ov::Shape shape = {1, 16, 720, 1280};
+    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
+    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
+    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    OV_ASSERT_NO_THROW(reqCPU.set_input_tensor(0, inTensor));
+    OV_ASSERT_NO_THROW(reqCPU.infer());
+
+    auto npuOutputTensor = reqDynamic.get_tensor(model->output());
+    auto cpuOutputTensor = reqCPU.get_tensor(model->output());
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(cpuOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type()));
+
+    std::cout << "Output input tensor from NPU:" << std::endl;
+    dumpTensor(inTensor);
+    std::cout << "Output tensor from NPU:" << std::endl;
+    dumpTensor(npuOutputTensor);
+    std::cout << "Output tensor from CPU:" << std::endl;
+    dumpTensor(cpuOutputTensor);
+
+    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
+    ASSERT_TRUE(custom_logger.str().find("Reset command list to run with runtime") != std::string::npos)
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << custom_logger.str();
+
+    custom_logger.str("");
+    custom_logger.clear();
+    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    OV_ASSERT_NO_THROW(reqCPU.infer());
+    // Rerun inferrequest with current tensor, the command list is reused without update since no tensor change detected
+    ASSERT_TRUE(custom_logger.str().find("Reuse command list without update since no tensor change detected") !=
+                std::string::npos)
+        << "Expected log to contain 'Reuse command list without update since no tensor change detected' for second "
+           "inference, but got: "
+        << custom_logger.str();
+    auto npuOutputTensorSecondRun = reqDynamic.get_tensor(model->output());
+    auto cpuOutputTensorSecondRun = reqCPU.get_tensor(model->output());
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(cpuOutputTensorSecondRun,
+                                                npuOutputTensorSecondRun,
+                                                npuOutputTensorSecondRun.get_element_type()));
+    std::cout << "Output tensor from NPU after second inference:" << std::endl;
+    dumpTensor(npuOutputTensorSecondRun);
+    std::cout << "Output tensor from CPU after second inference:" << std::endl;
+    dumpTensor(cpuOutputTensorSecondRun);
+
+    custom_logger.str("");
+    custom_logger.clear();
+    ov::InferRequest reqDynamic1 = compiledModel.create_infer_request();
+    OV_ASSERT_NO_THROW(reqDynamic1.infer());
+    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
+    ASSERT_TRUE(custom_logger.str().find("Reset command list to run with runtime") != std::string::npos)
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << custom_logger.str();
+
+    custom_logger.str("");
+    custom_logger.clear();
+    ov::InferRequest reqCPU1 = cpuCompiledModel.create_infer_request();
+    OV_ASSERT_NO_THROW(reqDynamic1.set_input_tensor(0, npuOutputTensorSecondRun));
+    OV_ASSERT_NO_THROW(reqDynamic1.infer());
+    OV_ASSERT_NO_THROW(reqCPU1.set_input_tensor(0, cpuOutputTensorSecondRun));
+    OV_ASSERT_NO_THROW(reqCPU1.infer());
+
+    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
+    ASSERT_TRUE(custom_logger.str().find("Update command list with new tensor pointer") != std::string::npos)
+        << "Expected log to contain 'Update command list with new tensor pointer' for third "
+           "inference, but got: "
+        << custom_logger.str();
+
+    auto npuOutputTensorThirdRun = reqDynamic1.get_tensor(model->output());
+    auto cpuOutputTensorThirdRun = reqCPU1.get_tensor(model->output());
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(cpuOutputTensorThirdRun,
+                                                npuOutputTensorThirdRun,
+                                                npuOutputTensorThirdRun.get_element_type()));
+    std::cout << "Output tensor from NPU after third inference:" << std::endl;
+    dumpTensor(npuOutputTensorThirdRun);
+    std::cout << "Output tensor from CPU after third inference:" << std::endl;
+    dumpTensor(cpuOutputTensorThirdRun);
+}
+
 // The test to compile, create infer request and infer with dynamic shapes. Set tensor that can be imported by level
 // zero to trigger command list update
 TEST_P(InferWithHostCompileTests, CompileAndInferWithAlignedTensor) {
@@ -408,7 +542,6 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithAlignedTensor) {
     std::function<void(std::string_view)> custom_log_callback =
         [&](std::string_view s) {  // switch to query allocation info for import flag when possible
             custom_logger << s << std::endl;
-            std::cout << s << std::endl;
         };
     ov::util::set_log_callback(custom_log_callback);
     struct ResetLogCallbackGuard {
