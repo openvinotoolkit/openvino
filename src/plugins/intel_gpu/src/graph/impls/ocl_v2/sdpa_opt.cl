@@ -275,10 +275,10 @@ KERNEL(sdpa_opt)(
 #if IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
     #ifdef INPUT1_DIMS_ORDER
             const uint key_base_p0 = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 0, 0);
-            const uint key_packed_pitch_p0 = (FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 1, 0) - key_base_p0) / 2;
+            const uint key_packed_pitch_p0 = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 1, 0) - key_base_p0;
     #else
             const uint key_base_p0 = INPUT1_GET_INDEX(b0_idx, b1_idx, 0, 0);
-            const uint key_packed_pitch_p0 = K_HEAD_SIZE / 2;
+            const uint key_packed_pitch_p0 = K_HEAD_SIZE;
     #endif
 #endif
             for (uint seq_len = sgid; seq_len < partition_seq_len; seq_len += SUBGROUPS_PER_WG) {
@@ -724,13 +724,13 @@ KERNEL(sdpa_opt)(
         uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 0, 0);
         uint value_offset_next_seq = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 1, 0);
     #if IS_INT4_COMPRESSED
-        const uint value_pitch = (value_offset_next_seq - value_offset) / 2;
+        const uint value_pitch = value_offset_next_seq - value_offset;
     #else
         const uint value_pitch = value_offset_next_seq - value_offset;
     #endif
 #else
     #if IS_INT4_COMPRESSED
-        const uint value_pitch = V_HEAD_SIZE / 2;
+        const uint value_pitch = V_HEAD_SIZE;
     #else
         const uint value_pitch = V_HEAD_SIZE;
     #endif
@@ -1396,10 +1396,10 @@ KERNEL(sdpa_opt)(
 #if IS_INT4_COMPRESSED && !defined(IS_PAGED_ATTENTION) && !defined(BEAM_TABLE_TYPE)
     #ifdef INPUT1_DIMS_ORDER
     const uint key_base_s1 = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 0, 0);
-    const uint key_packed_pitch_s1 = (FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 1, 0) - key_base_s1) / 2;
+    const uint key_packed_pitch_s1 = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 1, 0) - key_base_s1;
     #else
     const uint key_base_s1 = INPUT1_GET_INDEX(b0_idx, b1_idx, 0, 0);
-    const uint key_packed_pitch_s1 = K_HEAD_SIZE / 2;
+    const uint key_packed_pitch_s1 = K_HEAD_SIZE;
     #endif
 #endif
 
@@ -1473,7 +1473,7 @@ KERNEL(sdpa_opt)(
                     // INT4: process 2*SUBGROUP_SIZE logical head dims per iteration (one packed byte per lane per token row)
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset);
                     #define QUERY_VEC MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
-                    const uint key_pitch_int4 = K_HEAD_SIZE / 2;
+                    const uint key_pitch_int4 = K_HEAD_SIZE;
                     for (uint hi = 0; hi < K_HEAD_SIZE; hi += 2 * SUBGROUP_SIZE) {
                         QUERY_VEC qvec_lo, qvec_hi;
                         uint qlo = hi * TARGET_SEQ_LEN_BLOCK_SIZE + sglid;
@@ -1570,7 +1570,7 @@ KERNEL(sdpa_opt)(
                     // INT4 partial block: process 2*SUBGROUP_SIZE logical head dims per iteration
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset)
                     #define QUERY_VEC_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
-                    const uint key_pitch_int4 = K_HEAD_SIZE / 2;
+                    const uint key_pitch_int4 = K_HEAD_SIZE;
                     for (uint hi = 0; hi < K_HEAD_SIZE; hi += 2 * SUBGROUP_SIZE) {
                         QUERY_VEC_TYPE qvec_lo, qvec_hi;
                         uint qlo = hi * TARGET_SEQ_LEN_BLOCK_SIZE + sglid;
@@ -1956,13 +1956,13 @@ KERNEL(sdpa_opt)(
             uint value_offset_base = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 0, 0);
             uint value_offset_next_seq = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 1, 0);
     #if IS_INT4_COMPRESSED
-            const uint value_pitch = (value_offset_next_seq - value_offset_base) / 2;
+            const uint value_pitch = value_offset_next_seq - value_offset_base;
     #else
             const uint value_pitch = value_offset_next_seq - value_offset_base;
     #endif
 #else
     #if IS_INT4_COMPRESSED
-            const uint value_pitch = V_HEAD_SIZE / 2;
+            const uint value_pitch = V_HEAD_SIZE;
     #else
             const uint value_pitch = V_HEAD_SIZE;
     #endif
