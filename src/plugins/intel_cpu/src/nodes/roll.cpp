@@ -199,7 +199,7 @@ void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr,
     for (size_t dim = 0; dim < axesLength; ++dim) {
         int32_t currentAxis = axes[dim] < 0 ? axes[dim] + static_cast<int32_t>(numOfDims) : axes[dim];
         auto shiftSum = static_cast<int32_t>(shiftsVector[currentAxis]) + shift[dim];
-        int32_t dimSize = static_cast<int32_t>(dataDims[currentAxis]);
+        auto dimSize = static_cast<int32_t>(dataDims[currentAxis]);
         shiftsVector[currentAxis] = (shiftSum % dimSize + dimSize) % dimSize;
     }
 

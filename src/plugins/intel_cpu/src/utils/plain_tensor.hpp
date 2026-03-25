@@ -293,7 +293,7 @@ struct PlainTensor {
     [[nodiscard]] bool is_dense() const {
         // check if it's dense tensor
         size_t stride = 1;
-        for (size_t i = m_rank - 1; i >= 0; i--) {
+        for (int i = static_cast<int>(m_rank) - 1; i >= 0; i--) {
             if (m_strides[i] != stride) {
                 return false;
             }
@@ -363,7 +363,7 @@ struct PlainTensor {
         m_rank = new_dims.size();
         assert(m_rank <= PLAINTENSOR_RANK_MAX);
         size_t stride = 1;
-        for (size_t i = m_rank - 1; i >= 0; i--) {
+        for (int i = static_cast<int>(m_rank) - 1; i >= 0; i--) {
             m_dims[i] = new_dims[i];
             m_strides[i] = strides ? strides[i] : stride;
             stride *= new_dims[i];
