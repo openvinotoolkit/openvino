@@ -25,7 +25,8 @@ OutputVector translate_rrelu(const NodeContext& context) {
     const auto input_size = context.get_input_size();
     const auto has_lower = (input_size > 1 && !context.input_is_none(1));
     const auto has_upper = (input_size > 2 && !context.input_is_none(2));
-    bool training = (input_size > 3 || context.input_is_none(3)) ? false : context.const_input<bool>(3);
+    const bool training = (input_size > 3 && !context.input_is_none(3)) ? context.const_input<bool>(3) : false;
+    (void)training;
     if (!has_lower && !has_upper) {
         // no limits are given
         auto average = context.mark_node(v0::Constant::create(element::f32, Shape{}, {11 / 48.0f}));
