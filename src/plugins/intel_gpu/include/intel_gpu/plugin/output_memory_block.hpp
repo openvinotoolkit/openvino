@@ -25,59 +25,47 @@ public:
 
     /// @brief Ensures the current buffer has enough capacity for the given layout.
     ///
-    /// - If the current buffer is large enough (in bytes), it is reused
+    /// - If the current buffer is large enough (in bytes), it is reused via reinterpret_buffer.
     /// - If the buffer is too large (bytes > needed_bytes * reclaim_threshold),
     ///   it is released and reallocated.
     /// - If the buffer is too small or absent, a new USM host buffer is allocated.
     ///
+    /// After this call, memory() returns a cldnn::memory whose layout matches
+    /// alloc_layout, so memory()->count() gives the capacity in elements.
+    ///
     /// @param alloc_layout Layout to allocate (may include shape predictor padding).
-    /// @return Memory pointer for the graph to use as _outputs[i].
-    cldnn::memory::ptr resize(const cldnn::layout& alloc_layout) {
-        auto needed_elems = alloc_layout.get_linear_size();
-        auto needed_elem_size = cldnn::data_type_traits::size_of(alloc_layout.data_type);
-        auto needed_bytes = needed_elems * needed_elem_size;
+    void resize(const cldnn::layout& alloc_layout) {
+        auto needed_bytes = alloc_layout.bytes_count();
 
         auto& buf = m_buffers[m_buff_idx];
-        auto current_bytes = buf.capacity * buf.elem_size;  // 0 when unallocated
+        auto alloc_bytes = buf ? buf->get_mem_tracker()->size() : size_t{0};
 
         // RECLAIM: if current allocation is much larger than needed, release and reallocate
-        if (buf.memory && m_reclaim_threshold > 0 && needed_bytes * m_reclaim_threshold < current_bytes) {
-            GPU_DEBUG_TRACE_DETAIL << "OutputMemoryBlock: reclaim oversized buffer " << current_bytes << "B -> " << needed_bytes << "B" << std::endl;
-            buf.memory = nullptr;
-            buf.capacity = 0;
-            buf.elem_size = 0;
+        if (buf && m_reclaim_threshold > 0 && needed_bytes * m_reclaim_threshold < alloc_bytes) {
+            GPU_DEBUG_TRACE_DETAIL << "OutputMemoryBlock: reclaim oversized buffer " << alloc_bytes << "B -> " << needed_bytes << "B" << std::endl;
+            buf = nullptr;
+            alloc_bytes = 0;
         }
 
-        current_bytes = buf.capacity * buf.elem_size;
-
-        // REUSE: current buffer has enough bytes
-        if (buf.memory && needed_bytes <= current_bytes) {
-            // Recalculate capacity in elements of the (possibly new) type
-            buf.capacity = current_bytes / needed_elem_size;
-            buf.elem_size = needed_elem_size;
-            return buf.memory;
+        // REUSE: current buffer has enough bytes — reinterpret to the requested layout
+        // so that memory()->count() reflects the correct element count and data type.
+        if (buf && needed_bytes <= alloc_bytes) {
+            buf = m_engine.reinterpret_buffer(*buf, alloc_layout);
+            return;
         }
 
         // ALLOCATE: need a (larger) buffer
-        buf.memory = m_engine.allocate_memory(alloc_layout, cldnn::allocation_type::usm_host);
-        buf.capacity = alloc_layout.get_linear_size();
-        buf.elem_size = needed_elem_size;
-        return buf.memory;
+        buf = m_engine.allocate_memory(alloc_layout, cldnn::allocation_type::usm_host);
     }
 
     /// @return Current memory pointer (may be null if not yet allocated or after reclaim).
     cldnn::memory::ptr memory() const {
-        return m_buffers[m_buff_idx].memory;
-    }
-
-    /// @return Current capacity in elements.
-    size_t capacity() const {
-        return m_buffers[m_buff_idx].capacity;
+        return m_buffers[m_buff_idx];
     }
 
     /// @return Raw data pointer of the current buffer, for alias detection.
     void* rawPtr() const {
-        auto mem = m_buffers[m_buff_idx].memory;
+        auto& mem = m_buffers[m_buff_idx];
         return mem ? mem->buffer_ptr() : nullptr;
     }
 
@@ -87,14 +75,8 @@ public:
     }
 
 private:
-    struct Buffer {
-        cldnn::memory::ptr memory;
-        size_t capacity = 0;   ///< Capacity in elements (linear size of the allocated layout).
-        size_t elem_size = 0;  ///< Byte size of one element in the current allocation.
-    };
-
     cldnn::engine& m_engine;
-    std::array<Buffer, 2> m_buffers;
+    std::array<cldnn::memory::ptr, 2> m_buffers;
     int m_buff_idx = 0;
     size_t m_reclaim_threshold;  ///< Reclaim if capacity > needed * threshold.
 };

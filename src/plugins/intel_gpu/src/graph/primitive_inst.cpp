@@ -765,10 +765,10 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                 if (ext_block) {
                     ext_block->resize(actual_layouts[0]);
                     _outputs[0] = get_network().get_engine().reinterpret_buffer(*ext_block->memory(), actual_layouts[0]);
-                    _max_output_layout_count[0] = ext_block->capacity();
+                    _max_output_layout_count[0] = ext_block->memory()->count();
                     GPU_DEBUG_TRACE_DETAIL << id() << ": use ext output memory block via forward probe -> "
                                            << next->id() << " - "
-                                           << actual_layouts[0].get_linear_size() << "/" << ext_block->capacity()
+                                           << actual_layouts[0].get_linear_size() << "/" << ext_block->memory()->count()
                                            << std::endl;
                     GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("ext_output_block_via_forward_probe");
                     return;
@@ -1098,9 +1098,9 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             if (ext_block) {
                 ext_block->resize(updated_params.output_layouts[i]);
                 _outputs[i] = get_network().get_engine().reinterpret_buffer(*ext_block->memory(), actual_layouts[i]);
-                _max_output_layout_count[i] = ext_block->capacity();
+                _max_output_layout_count[i] = ext_block->memory()->count();
                 GPU_DEBUG_TRACE_DETAIL << id() << ": ext output memory block for output[" << i << "] - "
-                                       << actual_layouts[i].get_linear_size() << "/" << ext_block->capacity()
+                                       << actual_layouts[i].get_linear_size() << "/" << ext_block->memory()->count()
                                        << std::endl;
                 GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("ext_output_block");
                 continue;
