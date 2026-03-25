@@ -757,7 +757,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto in_rank = node.get_input_layout(0).get_rank();
             auto out_rank = node.get_output_layout().get_rank();
 
-            return in_rank == out_rank;
+            return (in_rank <= out_rank);
         };
 
         auto is_static_scalar_output = [&](program_node& node) -> bool {
@@ -990,9 +990,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<deconvolution>() && quantize_node.get_scale_shift_opt();
 
-            should_fuse |= input_data.is_type<gather>() &&
-                           (gather_supports_fusings(input_data.as<gather>()) || per_tensor_values) &&
-                           quantize_node.get_scale_shift_opt();
+            should_fuse |= input_data.is_type<gather>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<gather_nd>() && quantize_node.get_scale_shift_opt();
 
