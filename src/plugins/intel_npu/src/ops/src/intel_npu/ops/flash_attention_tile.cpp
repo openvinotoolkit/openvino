@@ -3,8 +3,10 @@
 //
 
 #include <algorithm>
+#include <functional>
 #include <intel_npu/ops/flash_attention_tile.hpp>
 #include <limits>
+#include <numeric>
 #include <openvino/core/type/element_type.hpp>
 #include <openvino/core/type/float16.hpp>
 #include <vector>
@@ -165,17 +167,20 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
     // Helper: check that KV head dim is compatible with Q head dim (GQA: Q heads divisible by KV heads)
     auto is_gqa_compatible = [](const DimType& q_head, const DimType& kv_head) -> bool {
         if (q_head.is_static() && kv_head.is_static()) {
-            return q_head.get_length() % kv_head.get_length() == 0;
+            return kv_head.get_length() != 0 && q_head.get_length() % kv_head.get_length() == 0;
         }
         return true;  // allow dynamic dims
     };
 
     const auto& key_shape = input_shapes[1];
     const auto& key_rank = key_shape.rank();
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           key_rank.get_length() >= 3,
+                           "Key input rank length must be at least 3 or more.");
     auto key_batch_dims = ov::PartialShape(std::vector<DimType>(key_shape.begin(), key_shape.end() - 3));
     auto kv_head_dim = *(key_shape.end() - 3);
     const bool key_input_correctness =
-        key_rank.get_length() >= 3 &&
         ov::PartialShape::broadcast_merge_into(query_batch_dims, key_batch_dims, AutoBroadcastType::NUMPY) &&
         is_gqa_compatible(q_head_dim, kv_head_dim) && DimType::merge(e_dim, e_dim, *(key_shape.end() - 1));
     NODE_SHAPE_INFER_CHECK(op,
@@ -187,10 +192,13 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
 
     const auto& value_shape = input_shapes[2];
     const auto& value_rank = value_shape.rank();
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           value_rank.get_length() >= 3,
+                           "Value input rank length must be at least 3 or more.");
     auto value_batch_dims = ov::PartialShape(std::vector<DimType>(value_shape.begin(), value_shape.end() - 3));
     auto v_head_dim = *(value_shape.end() - 3);
     const bool value_input_correctness =
-        value_rank.get_length() >= 3 &&
         ov::PartialShape::broadcast_merge_into(query_batch_dims, value_batch_dims, AutoBroadcastType::NUMPY) &&
         is_gqa_compatible(q_head_dim, v_head_dim) && DimType::merge(kv_head_dim, kv_head_dim, v_head_dim) &&
         DimType::merge(s_dim, s_dim, *(value_shape.end() - 2));
@@ -384,17 +392,65 @@ bool FlashAttentionTile::has_evaluate() const {
     }
 };
 
+template <typename T>
+static void convert_to_float(const T* src, float* dst, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        dst[i] = static_cast<float>(src[i]);
+    }
+}
+
+template <typename T>
+static void convert_from_float(const float* src, T* dst, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        dst[i] = static_cast<T>(src[i]);
+    }
+}
+
+static ov::Tensor to_f32(const ov::Tensor& tensor) {
+    if (tensor.get_element_type() == ov::element::f32) {
+        return tensor;
+    }
+    ov::Tensor result(ov::element::f32, tensor.get_shape());
+    if (tensor.get_element_type() == ov::element::f16) {
+        convert_to_float(tensor.data<const ov::float16>(), result.data<float>(), tensor.get_size());
+    } else if (tensor.get_element_type() == ov::element::boolean) {
+        // Additive mask: true (attend) -> 0.0, false (mask out) -> -inf
+        const auto* src = tensor.data<const char>();
+        auto* dst = result.data<float>();
+        for (size_t i = 0; i < tensor.get_size(); ++i) {
+            dst[i] = src[i] ? 0.0f : -std::numeric_limits<float>::infinity();
+        }
+    } else {
+        OPENVINO_THROW("Unsupported element type in to_f32: ", tensor.get_element_type());
+    }
+    return result;
+}
+
+static void from_f32(const ov::Tensor& f32_tensor, ov::Tensor& dst_tensor) {
+    if (dst_tensor.get_element_type() == ov::element::f32) {
+        return;
+    }
+    if (dst_tensor.get_element_type() != ov::element::f16) {
+        OPENVINO_THROW("Unsupported element type in from_f32: ", dst_tensor.get_element_type());
+    }
+    convert_from_float(f32_tensor.data<const float>(), dst_tensor.data<ov::float16>(), dst_tensor.get_size());
+}
+
 static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
                                           const ov::TensorVector& inputs,
                                           const FlashAttentionTile::Config& config) {
     const auto& query_shape = inputs[QUERY].get_shape();
-    const auto B = static_cast<int32_t>((query_shape.size() == 4) ? *(query_shape.end() - 4) : 1);
+    const auto B = static_cast<int32_t>(
+        std::accumulate(query_shape.begin(), query_shape.end() - 3, size_t{1}, std::multiplies<size_t>()));
     const auto H_q = static_cast<int32_t>(*(query_shape.end() - 3));
     const auto L = static_cast<int32_t>(*(query_shape.end() - 2));
     const auto E = static_cast<int32_t>(*(query_shape.end() - 1));
 
     const auto& key_shape = inputs[KEY].get_shape();
     const auto H_kv = static_cast<int32_t>(*(key_shape.end() - 3));
+    if (H_kv == 0 || H_q % H_kv != 0) {
+        return false;
+    }
     const auto S = static_cast<int32_t>(*(key_shape.end() - 2));
 
     const auto& value_shape = inputs[VALUE].get_shape();
@@ -409,10 +465,12 @@ static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
 
     const float* attention_mask = nullptr;
     auto attention_mask_broadcasted = false;
+    ov::Tensor mask_f32;
     if (inputs.size() >= 7 && inputs[ATTENTION_MASK].get_size() > 1) {
-        attention_mask = inputs[ATTENTION_MASK].data<const float>();
+        mask_f32 = to_f32(inputs[ATTENTION_MASK]);
+        attention_mask = mask_f32.data<const float>();
         const auto& mask_shape = inputs[ATTENTION_MASK].get_shape();
-        attention_mask_broadcasted = (*(mask_shape.end() - 3) == 1);
+        attention_mask_broadcasted = (mask_shape.size() < 3) || (*(mask_shape.end() - 3) == 1);
     }
 
     auto* out_output = outputs[OUTPUT].data<float>();
@@ -446,36 +504,6 @@ static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
                              E,
                              Ev);
     return true;
-}
-
-template <typename T>
-static void convert_to_float(const T* src, float* dst, size_t count) {
-    for (size_t i = 0; i < count; ++i) {
-        dst[i] = static_cast<float>(src[i]);
-    }
-}
-
-template <typename T>
-static void convert_from_float(const float* src, T* dst, size_t count) {
-    for (size_t i = 0; i < count; ++i) {
-        dst[i] = static_cast<T>(src[i]);
-    }
-}
-
-static ov::Tensor to_f32(const ov::Tensor& tensor) {
-    if (tensor.get_element_type() == ov::element::f32) {
-        return tensor;
-    }
-    ov::Tensor result(ov::element::f32, tensor.get_shape());
-    convert_to_float(tensor.data<const ov::float16>(), result.data<float>(), tensor.get_size());
-    return result;
-}
-
-static void from_f32(const ov::Tensor& f32_tensor, ov::Tensor& dst_tensor) {
-    if (dst_tensor.get_element_type() == ov::element::f32) {
-        return;
-    }
-    convert_from_float(f32_tensor.data<const float>(), dst_tensor.data<ov::float16>(), dst_tensor.get_size());
 }
 
 inline bool FlashAttentionTile::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
