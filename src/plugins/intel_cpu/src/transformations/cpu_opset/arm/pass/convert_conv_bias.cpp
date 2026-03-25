@@ -35,6 +35,7 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
         const auto conv_out = conv_mul_add_fq->get_anchor("convolution", pattern_map);
         const auto mul_out = conv_mul_add_fq->get_anchor("multiply", pattern_map);
         const auto add_out = conv_mul_add_fq->get_anchor("add", pattern_map);
+        const auto activation_out = conv_mul_add_fq->get_anchor("activation", pattern_map);
         const auto fq_out = conv_mul_add_fq->get_anchor("fake_quantize", pattern_map);
         if (!conv_out || !mul_out || !add_out || !fq_out) {
             return false;
