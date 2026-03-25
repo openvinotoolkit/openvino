@@ -95,8 +95,12 @@ constexpr uint64_t u64_hash_combine(uint64_t h, uint64_t k) {
     return h + 0xe6546b64;
 }
 
-inline uint64_t u64_hash_combine(uint64_t seed, const std::filesystem::path& path) {
-    return u64_hash_combine(seed, std::hash<typename std::filesystem::path::string_type>()(path.native()));
+constexpr uint64_t u64_hash_combine(uint64_t seed, std::initializer_list<uint64_t>&& values) {
+    uint64_t h = seed;
+    for (uint64_t k : values) {
+        h = u64_hash_combine(h, k);
+    }
+    return h;
 }
 
 /**
