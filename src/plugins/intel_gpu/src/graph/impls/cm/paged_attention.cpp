@@ -7,6 +7,8 @@
 #include <array>
 #include <cctype>
 #include <cstdint>
+#include <chrono>
+#include <cstdio>
 #include <vector>
 #include <memory>
 #include <algorithm>
@@ -73,6 +75,11 @@ size_t get_batch_size_in_sequences(const kernel_impl_params& params) {
 
 bool has_multiple_subsequences(const kernel_impl_params& params) {
     return get_batch_size_in_sequences(params) > 1;
+}
+
+bool is_cm_pa_exec_probe_enabled() {
+    const char* env = std::getenv("OV_GPU_CM_PA_EXEC_PROBE");
+    return env != nullptr && env[0] != '\0' && env[0] != '0';
 }
 
 }  // namespace
@@ -246,14 +253,19 @@ public:
             return;
         }
 
-        const auto subsequence_begins = read_subsequence_begins(params);
-        const auto past_lens = read_past_lens(params);
-        const auto wg_seq_len = static_cast<int32_t>(PagedAttentionGeneratorMultiToken::get_wg_seq_len(params));
-        std::vector<int32_t> mapping;
-        mapping.reserve(rt_params->multi_token_wg_count * 2);
-
         const bool use_split_mixed = rt_params->stage == PagedAttentionStage::MIXED &&
                                      rt_params->mixed_route_mode == MixedRouteMode::SPLIT;
+
+        const auto subsequence_begins = read_subsequence_begins(params);
+        std::vector<int32_t> past_lens;
+        if (use_split_mixed) {
+            past_lens = read_past_lens(params);
+        }
+
+        const auto wg_seq_len = static_cast<int32_t>(PagedAttentionGeneratorMultiToken::get_wg_seq_len(params));
+        auto mapping_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::MULTI_TOKEN_WG_MAPPING];
+        mem_lock<int32_t, mem_lock_type::write> mapping_lock(mapping_mem, instance.get_network().get_stream());
+        size_t mapping_idx = 0;
 
         for (size_t subsequence_id = 0; subsequence_id + 1 < subsequence_begins.size(); ++subsequence_id) {
             const int32_t q_begin = subsequence_begins[subsequence_id];
@@ -273,26 +285,16 @@ public:
             }
 
             for (int32_t block_start = q_begin; block_start < q_end; block_start += wg_seq_len) {
-                mapping.push_back(block_start);
-                mapping.push_back(static_cast<int32_t>(subsequence_id));
+                mapping_lock[mapping_idx++] = block_start;
+                mapping_lock[mapping_idx++] = static_cast<int32_t>(subsequence_id);
             }
         }
 
-        OPENVINO_ASSERT(mapping.size() == rt_params->multi_token_wg_count * 2,
+        OPENVINO_ASSERT(mapping_idx == rt_params->multi_token_wg_count * 2,
                         "Unexpected multi-token mapping size: expected ",
                         rt_params->multi_token_wg_count * 2,
                         ", got ",
-                        mapping.size());
-
-        auto mapping_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::MULTI_TOKEN_WG_MAPPING];
-        if (!mapping.empty()) {
-            mapping_mem->copy_from(instance.get_network().get_stream(),
-                                   mapping.data(),
-                                   0,
-                                   0,
-                                   mapping.size() * sizeof(int32_t),
-                                   true);
-        }
+                        mapping_idx);
     }
 
     void prepare_single_token_selected_ids(primitive_inst& instance) {
@@ -342,21 +344,35 @@ public:
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         const auto& params = *instance.get_impl_params();
         const auto desc = params.typed_desc<paged_attention>();
+        using probe_clock = std::chrono::steady_clock;
 
         update_stages_flags(instance);
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         OPENVINO_ASSERT(rt_params != nullptr);
+        const bool probe_enabled = is_cm_pa_exec_probe_enabled();
+        const auto execute_begin = probe_clock::now();
+        double kv_cache_update_ms = 0.0;
+        double prepare_multi_mapping_ms = 0.0;
+        double prepare_single_ids_ms = 0.0;
 
         GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::execute():  stage = " << static_cast<int>(rt_params->stage) << std::endl;
         std::vector<event::ptr> res_event = events;
+        const auto kv_begin = probe_clock::now();
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
+        if (probe_enabled) {
+            kv_cache_update_ms = std::chrono::duration<double, std::milli>(probe_clock::now() - kv_begin).count();
+        }
 
         const auto execute_multi_token_path = [&]() {
             if (rt_params->multi_token_wg_count == 0) {
                 return;
             }
 
+            const auto prep_multi_begin = probe_clock::now();
             prepare_multi_token_mapping(instance);
+            if (probe_enabled) {
+                prepare_multi_mapping_ms += std::chrono::duration<double, std::milli>(probe_clock::now() - prep_multi_begin).count();
+            }
             const bool xattn_enabled = desc->has_xattention && rt_params->enable_xattn_estimation;
             const bool is_xattn_bypassed = xattn_enabled ? bypass_xattn(params) : true;
             if (is_xattn_bypassed || !xattn_enabled) {
@@ -394,7 +410,11 @@ public:
             execute_multi_token_path();
         } else if (rt_params->stage == PagedAttentionStage::MIXED) {
             if (rt_params->mixed_route_mode == MixedRouteMode::SPLIT) {
+                const auto prep_single_begin = probe_clock::now();
                 prepare_single_token_selected_ids(instance);
+                if (probe_enabled) {
+                    prepare_single_ids_ms += std::chrono::duration<double, std::milli>(probe_clock::now() - prep_single_begin).count();
+                }
                 if (rt_params->single_token_selected_count > 0) {
                     res_event = {execute_stage(res_event, instance, pa_single_token)};
                     res_event = {execute_stage(res_event, instance, pa_single_token_finalization)};
@@ -404,10 +424,28 @@ public:
                 execute_multi_token_path();
             }
         } else {
+            const auto prep_single_begin = probe_clock::now();
             prepare_single_token_selected_ids(instance);
+            if (probe_enabled) {
+                prepare_single_ids_ms += std::chrono::duration<double, std::milli>(probe_clock::now() - prep_single_begin).count();
+            }
             res_event = {execute_stage(res_event, instance, pa_single_token)};
             res_event = {execute_stage(res_event, instance, pa_single_token_finalization)};
         }
+
+        if (probe_enabled) {
+            const double execute_total_ms = std::chrono::duration<double, std::milli>(probe_clock::now() - execute_begin).count();
+            std::fprintf(stderr,
+                         "[CM_PA_EXEC_PROBE] stage=%d total_ms=%.6f kv_cache_update_ms=%.6f prepare_multi_mapping_ms=%.6f prepare_single_ids_ms=%.6f multi_token_wg_count=%zu single_token_selected_count=%zu\n",
+                         static_cast<int>(rt_params->stage),
+                         execute_total_ms,
+                         kv_cache_update_ms,
+                         prepare_multi_mapping_ms,
+                         prepare_single_ids_ms,
+                         rt_params->multi_token_wg_count,
+                         rt_params->single_token_selected_count);
+        }
+
         return res_event[0];
     }
 
