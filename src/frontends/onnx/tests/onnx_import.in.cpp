@@ -5559,6 +5559,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_expand_failsafe_node) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_expand_scalar_failsafe_node) {
+    const auto model = convert_model("expand_scalar_failsafe_node.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    const auto input_data = std::vector<float>{1.0f};
+    test_case.add_input<float>(input_data);
+    // the target shape is an empty constant so the Expand operation should not modify the input shape
+    test_case.add_expected_output<float>(input_data);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_scan15_fib_like) {
     const auto model = convert_model("scan15_fib_like.onnx");
 
