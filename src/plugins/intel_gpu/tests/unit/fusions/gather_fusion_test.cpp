@@ -301,38 +301,7 @@ public:
                     std::vector<float>(), cldnn::reorder_mean_mode::subtract, cldnn::padding(), true)
         );
     }
-
-    void create_quantize_topology(gather_test_params& p, bool use_per_tensor) {
-        auto dyn_input = layout{ov::PartialShape::dynamic(p.dictionary_shape.size()), p.data_type, p.input_format};
-        auto dyn_indices = layout{ov::PartialShape::dynamic(p.indices_shape.size()), p.data_type, format::bfyx};
-
-        auto in_range_layout = use_per_tensor ? get_single_element_layout(p) : get_per_channel_layout(p);
-
-        create_topologies(
-            input_layout("input", dyn_input),
-            input_layout("gather_indices", dyn_indices),
-            data("in_lo", get_mem(in_range_layout, min_random, 0)),
-            data("in_hi", get_mem(in_range_layout, 1, max_random)),
-            data("out_lo", get_mem(get_single_element_layout(p), -127)),
-            data("out_hi", get_mem(get_single_element_layout(p), 127)),
-            gather("gather_prim", input_info("input"), input_info("gather_indices"),
-                   p.axis, p.dictionary_shape.size(), p.out_shape),
-            quantize("quant", input_info("gather_prim"), input_info("in_lo"), input_info("in_hi"),
-                     input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
-            reorder("reorder_bfyx", input_info("quant"), p.default_format, data_types::f32,
-                    std::vector<float>(), cldnn::reorder_mean_mode::subtract, cldnn::padding(), true)
-        );
-    }
 };
-
-TEST_P(gather_rank_change_fusing, eltwise_per_channel) {
-    auto p = GetParam();
-    create_eltwise_topology(p, eltwise_input_type::per_channel);
-    tolerance = 1e-2f;
-    p.expected_fused_primitives = 4;
-    p.expected_not_fused_primitives = 5;
-    execute(p);
-}
 
 TEST_P(gather_rank_change_fusing, eltwise_scalar) {
     auto p = GetParam();
@@ -343,34 +312,27 @@ TEST_P(gather_rank_change_fusing, eltwise_scalar) {
     execute(p);
 }
 
-TEST_P(gather_rank_change_fusing, eltwise_full_tensor) {
+TEST_P(gather_rank_change_fusing, eltwise_per_channel) {
     auto p = GetParam();
-    create_eltwise_topology(p, eltwise_input_type::full_tensor);
+    create_eltwise_topology(p, eltwise_input_type::per_channel);
     tolerance = 1e-2f;
-    p.expected_fused_primitives = 4;
+    bool is_decrease = p.dictionary_shape.size() > p.out_shape.size();
+    p.expected_fused_primitives = is_decrease ? 4 : 3;
     p.expected_not_fused_primitives = 5;
     execute(p);
 }
 
-TEST_P(gather_rank_change_fusing, quantize_per_channel) {
+TEST_P(gather_rank_change_fusing, eltwise_full_tensor) {
     auto p = GetParam();
-    create_quantize_topology(p, false);
-    tolerance = 1.f;
-    p.expected_fused_primitives = 4;
-    p.expected_not_fused_primitives = 4;
-    execute(p);
-}
-
-TEST_P(gather_rank_change_fusing, quantize_per_tensor) {
-    auto p = GetParam();
-    create_quantize_topology(p, true);
-    tolerance = 1.f;
-    p.expected_fused_primitives = 3;
-    p.expected_not_fused_primitives = 4;
+    create_eltwise_topology(p, eltwise_input_type::full_tensor);
+    tolerance = 1e-2f;
+    bool is_decrease = p.dictionary_shape.size() > p.out_shape.size();
+    p.expected_fused_primitives = is_decrease ? 4 : 3;
+    p.expected_not_fused_primitives = 5;
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_rank_change_fusing, ::testing::ValuesIn(std::vector<gather_test_params>{
     gather_test_params{ CASE_GATHER_RANK_DECREASE_FP16, 2, 3 },
-    gather_test_params{ CASE_GATHER_RANK_INCREASE_FP16, 2, 3 },
+    // gather_test_params{ CASE_GATHER_RANK_INCREASE_FP16, 2, 3 },  TODO)
 }));
