@@ -125,7 +125,6 @@ private:
     friend class moe::MoEExecutor;
 
     bool compile_for_success(std::size_t id);
-    ov::SoPtr<ov::ICompiledModel> compile_submodel_bundle(std::size_t id, const std::string& device_to_try);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
                                                    const std::string& device);
 
