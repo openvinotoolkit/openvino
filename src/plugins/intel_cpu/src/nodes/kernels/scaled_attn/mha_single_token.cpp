@@ -1651,7 +1651,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                        sink_input,
                                                                        cpu_parallel);
         }
-    }
+    } else
 #endif
     if (query.get_precision() == ov::element::f16) {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
