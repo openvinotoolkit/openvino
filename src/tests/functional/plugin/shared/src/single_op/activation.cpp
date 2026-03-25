@@ -59,6 +59,14 @@ void ActivationLayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
             resolution = 32768;
             break;
         }
+        case ActivationTypes::ErfInv: {
+            // Valid domain is (-1, 1); use full range to exercise in-domain accuracy.
+            // Edge values ±1 and |x|>1 are injected explicitly below.
+            data_start_from = -1;
+            data_range = 2;
+            resolution = 32768;
+            break;
+        }
         case ActivationTypes::Ceiling: {
             data_start_from = -1000;
             data_range = 2000;

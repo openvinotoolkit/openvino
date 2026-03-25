@@ -67,8 +67,9 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
         resolution = 128;
     } else if (activationType == utils::ActivationTypes::Acos ||
                activationType == utils::ActivationTypes::Asin ||
-               activationType == utils::ActivationTypes::Atanh) {
-        // range [-1. 1] is required
+               activationType == utils::ActivationTypes::Atanh ||
+               activationType == utils::ActivationTypes::ErfInv) {
+        // range [-1, 1] is required; edge values ±1 and |x|>1 are injected explicitly below
         startFrom = -1;
         range = 2;
         resolution = 128;
