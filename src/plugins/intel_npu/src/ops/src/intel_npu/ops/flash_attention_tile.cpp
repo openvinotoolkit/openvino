@@ -261,15 +261,28 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
         const auto& attention_mask_rank = attention_mask.rank();
         const auto& attention_mask_rank_len = attention_mask_rank.get_length();
         bool attention_mask_input_correctness = attention_mask_rank_len >= 2 &&
-                                                DimType::broadcast_merge(l_dim, l_dim, *(attention_mask.end() - 2)) &&
-                                                DimType::broadcast_merge(s_dim, s_dim, *(attention_mask.end() - 1));
+                                                DimType::merge(l_dim, l_dim, *(attention_mask.end() - 2)) &&
+                                                DimType::merge(s_dim, s_dim, *(attention_mask.end() - 1));
         if (attention_mask_rank_len >= 3) {
-            attention_mask_input_correctness =
-                attention_mask_input_correctness &&
-                ov::PartialShape::broadcast_merge_into(
-                    q_full_batch_dims,
-                    ov::PartialShape(std::vector<DimType>(attention_mask.begin(), attention_mask.end() - 2)),
-                    AutoBroadcastType::NUMPY);
+            // Require mask batch+head dims to exactly match the trailing dims of
+            // q_full_batch_dims (no dim=1 broadcasting for present dims), since
+            // evaluate indexes the mask with flattened batch/head offsets.
+            // Missing leading dims are allowed (e.g. rank-3 mask [H,L,S] with
+            // rank-4 query [B,H,L,E] — mask is shared across all batches).
+            auto mask_batch_head_dims =
+                ov::PartialShape(std::vector<DimType>(attention_mask.begin(), attention_mask.end() - 2));
+            const auto mask_bh_len = static_cast<int64_t>(mask_batch_head_dims.size());
+            const auto q_bh_len = static_cast<int64_t>(q_full_batch_dims.size());
+            if (mask_bh_len > q_bh_len) {
+                attention_mask_input_correctness = false;
+            } else {
+                // Right-align: match mask dims against the trailing dims of q_full_batch_dims
+                for (int64_t i = 0; i < mask_bh_len && attention_mask_input_correctness; ++i) {
+                    DimType merged{};
+                    attention_mask_input_correctness =
+                        DimType::merge(merged, q_full_batch_dims[q_bh_len - mask_bh_len + i], mask_batch_head_dims[i]);
+                }
+            }
         }
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
