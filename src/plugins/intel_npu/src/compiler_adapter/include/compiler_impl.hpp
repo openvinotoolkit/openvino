@@ -26,18 +26,18 @@ public:
      * @param model a shared pointer to the OpenVINO model to be compiled
      * @param config a reference to NPUConfig containing plugin config options
      *        including config options related to compilation
-     * @return a shared pointer on an object implementing NetworkDescription interface
+     * @return an ov::Tensor object containing the blob of the compiled model
      */
-    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const FilteredConfig& config) const;
+    ov::Tensor compile(const std::shared_ptr<const ov::Model>& model, const FilteredConfig& config) const;
 
     /**
      * @brief Compiles the model, weights separation enabled. All init schedules along with the main one are compiled in
      * the same scope.
-     * @return A "NetworkDescription" object for each init schedule, followed by another one corresponding to the main
+     * @return An ov::Tensor object for each init schedule, followed by another one corresponding to the main
      * part.
      */
-    std::vector<std::shared_ptr<NetworkDescription>> compileWsOneShot(const std::shared_ptr<ov::Model>& model,
-                                                                      const FilteredConfig& config) const;
+    std::vector<ov::Tensor> compileWsOneShot(const std::shared_ptr<ov::Model>& model,
+                                             const FilteredConfig& config) const;
     /**
      * @brief Sequential compilation of Init(s) and Main
      *
@@ -52,9 +52,9 @@ public:
      * Compiler should somehow understand wich Init(or Main) to return
      * Plugin does not know total numbers of Init schedules
      */
-    NetworkDescription compileWsIterative(const std::shared_ptr<ov::Model>& model,
-                                          const FilteredConfig& config,
-                                          size_t callNumber) const;
+    ov::Tensor compileWsIterative(const std::shared_ptr<ov::Model>& model,
+                                  const FilteredConfig& config,
+                                  size_t callNumber) const;
     /**
      * @brief Returns information about supported layers of the network passed
      * @param model The model to be queried
@@ -102,9 +102,9 @@ private:
      * "WeightlessCacheAttribute" may be stored within the serialized model if requested.
      * @note Storing the "WeightlessCacheAttribute" is necessary if the "weights separation" flow is being used.
      */
-    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,
-                               const FilteredConfig& config,
-                               const bool storeWeightlessCacheAttributeFlag) const;
+    ov::Tensor compile(const std::shared_ptr<const ov::Model>& model,
+                       const FilteredConfig& config,
+                       const bool storeWeightlessCacheAttributeFlag) const;
 
     vcl_log_handle_t _logHandle = nullptr;
     vcl_compiler_handle_t _compilerHandle = nullptr;
