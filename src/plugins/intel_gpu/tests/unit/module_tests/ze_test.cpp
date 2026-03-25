@@ -339,7 +339,9 @@ ze_test_context create_ze_test_context() {
 
 }  // namespace
 
-TEST(ze_base_event, can_create_as_complete) {
+// user events:
+
+TEST(ze_event, can_create_user_event_as_complete) {
 	auto ctx = create_ze_test_context();
 	auto user_ev = ctx.ze_test_stream->create_user_event(true);
 
@@ -347,18 +349,15 @@ TEST(ze_base_event, can_create_as_complete) {
 	ASSERT_TRUE(user_ev->is_set());
 }
 
-TEST(ze_base_event, can_create_as_not_complete) {
+TEST(ze_event, can_create_user_event_as_not_complete) {
 	auto ctx = create_ze_test_context();
 	auto user_ev = ctx.ze_test_stream->create_user_event(false);
 
 	ASSERT_NE(std::dynamic_pointer_cast<ze::ze_base_event>(user_ev), nullptr);
-	if (std::dynamic_pointer_cast<ze::ze_counter_based_event>(user_ev) != nullptr) {
-		GTEST_SKIP() << "Counter based events are always created as complete";
-	}
 	ASSERT_FALSE(user_ev->is_set());
 }
 
-TEST(ze_base_event, can_create_as_not_complete_and_set) {
+TEST(ze_event, can_create_user_event_as_not_complete_and_set) {
 	auto ctx = create_ze_test_context();
 	auto user_ev = ctx.ze_test_stream->create_user_event(false);
 
@@ -372,7 +371,7 @@ TEST(ze_base_event, can_create_as_not_complete_and_set) {
 	ASSERT_TRUE(user_ev->is_set());
 }
 
-TEST(ze_base_event, can_create_as_complete_and_wait) {
+TEST(ze_event, can_create_user_event_as_complete_and_wait) {
 	auto ctx = create_ze_test_context();
 	auto user_ev = ctx.ze_test_stream->create_user_event(true);
 	user_ev->wait();
@@ -381,7 +380,7 @@ TEST(ze_base_event, can_create_as_complete_and_wait) {
 	ASSERT_TRUE(user_ev->is_set());
 }
 
-TEST(ze_base_event, can_create_as_not_complete_set_and_wait) {
+TEST(ze_event, can_create_user_event_as_not_complete_set_and_wait) {
 	auto ctx = create_ze_test_context();
 	auto user_ev = ctx.ze_test_stream->create_user_event(false);
 	user_ev->set();
@@ -390,5 +389,32 @@ TEST(ze_base_event, can_create_as_not_complete_set_and_wait) {
 	ASSERT_NE(std::dynamic_pointer_cast<ze::ze_base_event>(user_ev), nullptr);
 	ASSERT_TRUE(user_ev->is_set());
 }
+
+// counter based events:
+
+TEST(ze_event, can_create_counter_based_event) {
+	auto ctx = create_ze_test_context();
+	auto base_ev = ctx.ze_test_stream->create_base_event();
+
+	if (std::dynamic_pointer_cast<ze::ze_counter_based_event>(base_ev) != nullptr)
+		GTEST_SKIP() << "Counter based events not supported by this stream";
+
+	ASSERT_NE(std::dynamic_pointer_cast<ze::ze_base_event>(base_ev), nullptr);
+	ASSERT_TRUE(base_ev->is_set());
+}
+
+TEST(ze_event, can_create_counter_based_event_and_wait) {
+	auto ctx = create_ze_test_context();
+	auto base_ev = ctx.ze_test_stream->create_base_event();
+
+	if (std::dynamic_pointer_cast<ze::ze_counter_based_event>(base_ev) != nullptr)
+		GTEST_SKIP() << "Counter based events not supported by this stream";
+
+	base_ev->wait();
+
+	ASSERT_NE(std::dynamic_pointer_cast<ze::ze_base_event>(base_ev), nullptr);
+	ASSERT_TRUE(base_ev->is_set());
+}
+
 
 #endif  // OV_GPU_WITH_ZE_RT
