@@ -22,6 +22,8 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
+#include <openvino/core/graph_util.hpp>
+
 
 namespace ov {
 namespace builder {
@@ -96,6 +98,105 @@ ov::Output<ov::Node> QDQStrippingFunction::add_bias(const ov::Output<ov::Node>& 
     const auto reshaped_bias = std::make_shared<ov::op::v1::Reshape>(bias, new_shape, false);
 
     return std::make_shared<ov::op::v1::Add>(conv, reshaped_bias);
+}
+
+
+
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_shared_dq_pattern_ORT(
+    const ov::PartialShape& input_shape,
+    const ov::element::Type& quantization_precision) {
+    ov::ParameterVector params{ std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape) };
+    static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>>
+        quantization_params{
+            {ov::element::Type_t::u16,
+             {{0.f, 10.f, 0.f, 65535.f, 0}, {-624.4578838348389f, 634.7373962402344f, 0.f, 65535.f, 32500}}},
+            {ov::element::Type_t::i16,
+             {{-5.0000762939453125f, 4.9999237060546875f, -32768.f, 32767.f, 0},
+             { -32768.f, 32770.f, -32768.f, 32770.f, 0 }}},
+    };
+
+    const auto& q_params = quantization_params.at(quantization_precision);
+    const auto& qp_1 = q_params.first;
+    auto input_fq = build_fq(params[0], qp_1);
+
+    auto input_convert1 = std::make_shared<ov::op::v0::Convert>(input_fq, quantization_precision);
+    auto input_convert2 = std::make_shared<ov::op::v0::Convert>(input_convert1, ov::element::f32);
+
+    auto input_dequantized = build_dq(input_convert2, quantization_precision, qp_1);
+    ov::test::utils::InputGenerateData weights_gen_data;
+
+    size_t seed = 1;
+    weights_gen_data.seed = seed;
+    auto weight_quantized =
+        ov::test::utils::make_constant(ov::element::i8, ov::Shape{ 32, 3, 3, 3 }, weights_gen_data);
+    auto weight_convert = std::make_shared<ov::op::v0::Convert>(weight_quantized, ov::element::f32);
+    auto weight_scale =
+        ov::test::utils::make_constant(ov::element::f32, {}, std::vector<float>{1e-4f});
+    auto weight_dequantized = std::make_shared<ov::op::v1::Multiply>(weight_convert, weight_scale);
+
+    auto conv = std::make_shared<ov::op::v1::Convolution>(input_dequantized,
+        weight_dequantized,
+        ov::Strides{ 1, 1 },
+        ov::CoordinateDiff{ 1, 1 },
+        ov::CoordinateDiff{ 1, 1 },
+        ov::Strides{ 1, 1 });
+
+    ov::test::utils::InputGenerateData bias_gen_data(-2.0, 4, 100, seed++);
+    auto bias_const = ov::test::utils::make_constant(ov::element::f32, ov::Shape{ 1, 32, 1, 1 }, bias_gen_data);
+    auto conv_biased = std::make_shared<ov::op::v1::Add>(conv, bias_const);
+
+    const auto& qp_2 = q_params.second;
+    auto fake_quantize = build_fq(conv_biased, qp_2);
+    auto act_quantized = std::make_shared<ov::op::v0::Convert>(fake_quantize, quantization_precision);
+    auto act_convert = std::make_shared<ov::op::v0::Convert>(act_quantized, ov::element::f32);
+    auto left_branch = build_dq(act_convert, quantization_precision, qp_2);
+    auto act_quantized2 = std::make_shared<ov::op::v0::Convert>(act_quantized, quantization_precision);
+    auto act_convert2 = std::make_shared<ov::op::v0::Convert>(act_quantized2, ov::element::f32);
+    auto dq  = build_dq(act_convert2, quantization_precision, qp_2);
+    auto fake_quantize2 = build_fq(dq, qp_2);
+    auto act_quantized3 = std::make_shared<ov::op::v0::Convert>(fake_quantize2, quantization_precision);
+    auto act_convert3 = std::make_shared<ov::op::v0::Convert>(act_quantized3, ov::element::f32);
+    auto right_branch = build_dq(act_convert3, quantization_precision, qp_2);
+    auto add_branches = std::make_shared<ov::op::v1::Add>(left_branch, right_branch);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{ add_branches }, params, "QDQStripping");
+    ov::serialize(model, "test.xml");
+    return model;
+}
+
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_shared_dq_pattern_ORT_ref(const ov::PartialShape& input_shape,
+    bool need_weights_adjustment) {
+    ov::ParameterVector params{ std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape) };
+
+    size_t seed = 1;
+    auto create_branch = [&](float weight_scale_value) {
+        ov::test::utils::InputGenerateData weights_gen_data;
+        weights_gen_data.seed = seed;
+        auto weight_quantized =
+            ov::test::utils::make_constant(ov::element::i8, ov::Shape{ 32, 3, 3, 3 }, weights_gen_data);
+        auto weight_convert = std::make_shared<ov::op::v0::Convert>(weight_quantized, ov::element::f32);
+        auto weight_scale =
+            ov::test::utils::make_constant(ov::element::f32, {}, std::vector<float>{weight_scale_value});
+        auto weight_dequantized = std::make_shared<ov::op::v1::Multiply>(weight_convert, weight_scale);
+
+        auto conv = std::make_shared<ov::op::v1::Convolution>(params[0],
+            weight_dequantized,
+            ov::Strides{ 1, 1 },
+            ov::CoordinateDiff{ 1, 1 },
+            ov::CoordinateDiff{ 1, 1 },
+            ov::Strides{ 1, 1 });
+
+        ov::test::utils::InputGenerateData bias_gen_data(-2.0, 4, 100, seed++);
+        auto bias_const = ov::test::utils::make_constant(ov::element::f32, ov::Shape{ 1, 32, 1, 1 }, bias_gen_data);
+        auto conv_biased = std::make_shared<ov::op::v1::Add>(conv, bias_const);
+        return conv_biased;
+        };
+
+    auto left_branch = create_branch(1e-4f);
+    auto right_branch = create_branch(1e-4f);
+    auto add_branches = std::make_shared<ov::op::v1::Add>(left_branch, right_branch);
+
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{ add_branches }, params, "QDQStripping");
+    return  model;
 }
 
 std::shared_ptr<ov::Model> QDQStrippingFunction::build_shared_dq_pattern(
