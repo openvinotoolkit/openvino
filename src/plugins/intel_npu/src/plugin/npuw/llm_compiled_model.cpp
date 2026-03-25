@@ -395,7 +395,10 @@ public:
                 matched_result = pattern_to_output.at(result2).get_node_shared_ptr();
                 // TODO: need to check that upscale * downscale = 1
                 // TODO: need to check input type is f8e5m2 or f8e4m3 if we use this version of concat
+            } else {
+                OPENVINO_THROW("One of result1 or result2 should be matched");
             }
+
             LOG_DEBUG(m.get_name() << ": matched_result=" << matched_result->get_friendly_name());
 
             matched_result->inputs()[0].replace_source_output(c1);
