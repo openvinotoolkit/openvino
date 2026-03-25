@@ -5,6 +5,7 @@
 #include "paged_attention_gen.hpp"
 
 #include <array>
+#include <cstdlib>
 #include <cstdint>
 #include <memory>
 #include <utility>
@@ -24,6 +25,21 @@ using namespace cldnn;
 namespace {
 constexpr size_t reduce_split_step = 16;
 constexpr size_t KV_SUB_BLOCK_SIZE = 16;
+
+size_t get_kv_update_wg_size() {
+    constexpr size_t default_wg_size = WG_SIZE;
+    const char* env = std::getenv("OV_GPU_CM_KV_UPDATE_WG_SIZE");
+    if (env == nullptr || env[0] == '\0') {
+        return default_wg_size;
+    }
+
+    const long parsed = std::strtol(env, nullptr, 10);
+    OPENVINO_ASSERT(parsed == 8 || parsed == 16 || parsed == 32,
+                    "Unsupported OV_GPU_CM_KV_UPDATE_WG_SIZE value: ",
+                    parsed,
+                    ". Supported values: 8, 16, 32.");
+    return static_cast<size_t>(parsed);
+}
 
 size_t get_batch_size_in_sequences(const RuntimeParams& params) {
     const auto past_lens_shape = params.input_layouts[PagedAttentionInputIdx::PAST_LENS].get_shape();
@@ -237,14 +253,15 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
 
         const size_t kv_len = get_input_kv_len(params);
         const size_t kv_heads_num = desc->kv_heads_num;
+        const size_t kv_wg_size = get_kv_update_wg_size();
         size_t kv_items = kv_len;
         if (get_kv_compressed(params) && desc->is_key_by_channel) {
             kv_items = ceil_div(kv_len, KV_SUB_BLOCK_SIZE);
         }
-        const size_t wg_count = ceil_div(kv_items, WG_SIZE);
+        const size_t wg_count = ceil_div(kv_items, kv_wg_size);
 
-        wgs.global = {1, kv_heads_num, wg_count * WG_SIZE};
-        wgs.local = {1, 1, WG_SIZE};
+        wgs.global = {1, kv_heads_num, wg_count * kv_wg_size};
+        wgs.local = {1, 1, kv_wg_size};
 
         auto& scalars = kd.params.scalars;
         size_t key_pitch = desc->k_head_size * kv_heads_num;

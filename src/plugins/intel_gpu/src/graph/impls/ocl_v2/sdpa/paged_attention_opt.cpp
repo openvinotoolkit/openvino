@@ -10,7 +10,10 @@
 #include "paged_attention_opt.hpp"
 
 #include <array>
+#include <chrono>
+#include <cstdlib>
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <utility>
 
@@ -45,6 +48,11 @@ inline bool get_kv_compressed(const RuntimeParams& params) {
 
 inline size_t get_element_size(ov::element::Type_t type) {
     return ov::element::Type(type).size();
+}
+
+inline bool is_ocl_pa_exec_probe_enabled() {
+    const char* env = std::getenv("OV_GPU_OCL_PA_EXEC_PROBE");
+    return env != nullptr && env[0] != '\0' && env[0] != '0';
 }
 
 static size_t get_pa_sg_number_scale_factor(const device_info& info, size_t head_size, size_t kernel_type, bool is_kv_compressed = false) {
@@ -1466,12 +1474,22 @@ public:
         const bool has_scores_output = desc->has_scores_output();
         const bool has_rotated_blocks = desc->has_rotated_blocks;
         const bool has_adaptive_rkv = desc->has_adaptive_rkv;
+        using probe_clock = std::chrono::steady_clock;
 
         update_stages_flags(instance);
         kernel_dump_info.clear_entries();
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         assert(rt_params != nullptr);
+        const bool probe_enabled = is_ocl_pa_exec_probe_enabled();
+        const auto execute_begin = probe_clock::now();
+        double prepare_internal_buffers_ms = 0.0;
+        double kv_cache_update_ms = 0.0;
+
+        const auto prep_begin = probe_clock::now();
         prepare_internal_buffers(static_cast<paged_attention_inst&>(instance), rt_params->stage, rt_params->use_micro_sdpa, rt_params->query_block_size);
+        if (probe_enabled) {
+            prepare_internal_buffers_ms = std::chrono::duration<double, std::milli>(probe_clock::now() - prep_begin).count();
+        }
         std::vector<event::ptr> res_event = events;
         if (has_rotated_blocks) {
             const auto& rotated_block_indices_input = params.get_input_layout(PagedAttentionInputIdx::ROTATED_BLOCK_INDICES);
@@ -1479,7 +1497,12 @@ public:
                 res_event = {execute_stage(res_event, instance, kv_cache_rotate)};
             }
         }
+
+        const auto kv_begin = probe_clock::now();
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
+        if (probe_enabled) {
+            kv_cache_update_ms = std::chrono::duration<double, std::milli>(probe_clock::now() - kv_begin).count();
+        }
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -1516,6 +1539,19 @@ public:
             if (evictable_sizes_layout.count() > 0) {
                 res_event = {execute_stage(res_event, instance, pa_diversity_calc)};
             }
+        }
+
+        if (probe_enabled) {
+            const double execute_total_ms = std::chrono::duration<double, std::milli>(probe_clock::now() - execute_begin).count();
+            std::fprintf(stderr,
+                         "[OCL_PA_EXEC_PROBE] stage=%d total_ms=%.6f prepare_internal_buffers_ms=%.6f kv_cache_update_ms=%.6f use_micro_sdpa=%d use_gqa_kernel=%d num_of_partitions=%zu\n",
+                         static_cast<int>(rt_params->stage),
+                         execute_total_ms,
+                         prepare_internal_buffers_ms,
+                         kv_cache_update_ms,
+                         rt_params->use_micro_sdpa ? 1 : 0,
+                         rt_params->use_gqa_kernel ? 1 : 0,
+                         rt_params->num_of_partitions);
         }
 
         return res_event[0];
