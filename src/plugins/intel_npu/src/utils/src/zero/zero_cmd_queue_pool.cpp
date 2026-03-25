@@ -23,20 +23,15 @@ std::shared_ptr<CommandQueue> ZeroCmdQueuePool::getCommandQueue(
     const CommandQueueDesc& command_queue_desc) {
     ZeroCmdQueueKey key{init_structs->getContext(), init_structs->getDevice(), command_queue_desc};
 
-    // First check under lock
-    {
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (_pool.find(key) != _pool.end()) {
-            auto obj = _pool.at(key).lock();
-            if (obj) {
-                return obj;
-            }
+    std::lock_guard<std::mutex> lock(_mutex);
+    auto it = _pool.find(key);
+    if (it != _pool.end()) {
+        auto obj = it->second.lock();
+        if (obj) {
+            return obj;
         }
     }
 
-    // Create the new queue outside the lock (expensive operation).
-    // Capture a weak_ptr instead of `this` so the deleter is safe even if the
-    // pool singleton has already been destroyed (static-destruction-order safety).
     auto weak_self = weak_from_this();
     auto new_obj = std::shared_ptr<CommandQueue>(new CommandQueue(init_structs, command_queue_desc),
                                                  [weak_self, key](CommandQueue* ptr) {
@@ -54,17 +49,7 @@ std::shared_ptr<CommandQueue> ZeroCmdQueuePool::getCommandQueue(
                                                      delete ptr;
                                                  });
 
-    // Re-lock to check if another thread inserted the same key and to insert our object
-    {
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (_pool.find(key) != _pool.end()) {
-            auto existing = _pool.at(key).lock();
-            if (existing) {
-                return existing;
-            }
-        }
-        _pool.emplace(key, new_obj);
-    }
+    _pool.emplace(key, new_obj);
 
     return new_obj;
 }
