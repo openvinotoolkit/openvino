@@ -71,6 +71,7 @@ Operation Specifications
    EmbeddingSegmentsSum-3 <operation-specs/sparse/embedding-segments-sum-3>
    Equal-1 <operation-specs/comparison/equal-1>
    Erf-1 <operation-specs/arithmetic/erf-1>
+   ErfInv-17 <operation-specs/arithmetic/erfinv-17>
    Exp-1 <operation-specs/activation/exp-1>
    ExperimentalDetectronDetectionOutput-6 <operation-specs/detection/experimental-detectron-detection-output-6>
    ExperimentalDetectronGenerateProposalsSingleImage-6 <operation-specs/detection/experimental-detectron-generate-proposals-single-image-6>
