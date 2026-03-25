@@ -560,7 +560,7 @@ extern template bool evaluate_node<ov::op::v15::SearchSorted>(std::shared_ptr<ov
                                                               ov::TensorVector& outputs,
                                                               const ov::TensorVector& inputs);
 
-extern template bool evaluate_node<ov::op::v16::ErfInv>(std::shared_ptr<ov::Node> node,
+extern template bool evaluate_node<ov::op::v17::ErfInv>(std::shared_ptr<ov::Node> node,
                                                         ov::TensorVector& outputs,
                                                         const ov::TensorVector& inputs);
 

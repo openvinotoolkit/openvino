@@ -395,7 +395,7 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
          []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
              node.algorithm = Algorithm::EltwiseSoftSign;
          }},
-        {ov::op::v16::ErfInv::get_type_info_static(),
+        {ov::op::v17::ErfInv::get_type_info_static(),
          []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
              node.algorithm = Algorithm::EltwiseErfInv;
          }},

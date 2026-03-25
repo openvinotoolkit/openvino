@@ -150,7 +150,7 @@ std::shared_ptr<ov::Node> make_activation(const ov::Output<Node>& in,
     case ov::test::utils::ActivationTypes::SoftSign:
         return std::make_shared<ov::op::v9::SoftSign>(in);
     case ov::test::utils::ActivationTypes::ErfInv:
-        return std::make_shared<ov::op::v16::ErfInv>(in);
+        return std::make_shared<ov::op::v17::ErfInv>(in);
     case ov::test::utils::ActivationTypes::IsFinite:
         return std::make_shared<ov::op::v10::IsFinite>(in);
     case ov::test::utils::ActivationTypes::IsInf:

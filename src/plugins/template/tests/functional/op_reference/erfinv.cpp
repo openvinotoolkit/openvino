@@ -54,7 +54,7 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        const auto erfinv = std::make_shared<op::v16::ErfInv>(in);
+        const auto erfinv = std::make_shared<op::v17::ErfInv>(in);
         return std::make_shared<ov::Model>(OutputVector{erfinv}, ParameterVector{in});
     }
 };
@@ -142,7 +142,7 @@ public:
     void SetUp() {
         const auto in = std::make_shared<op::v0::Parameter>(element::f32, Shape{4});
         function =
-            std::make_shared<ov::Model>(OutputVector{std::make_shared<op::v16::ErfInv>(in)}, ParameterVector{in});
+            std::make_shared<ov::Model>(OutputVector{std::make_shared<op::v17::ErfInv>(in)}, ParameterVector{in});
         // inputs: two out-of-domain values, then the two boundary values
         inputData = {CreateTensor(element::f32, std::vector<float>{2.0f, -1.5f, 1.0f, -1.0f})};
     }

@@ -23,7 +23,6 @@ class DepthToSpace;
 class DetectionOutput;
 class Elu;
 class Erf;
-class ErfInv;
 class Exp;
 class FakeQuantize;
 class Floor;
@@ -291,3 +290,7 @@ class Identity;
 class SegmentMax;
 class SparseFillEmptyRows;
 }  // namespace ov::op::v16
+
+namespace ov::op::v17 {
+class ErfInv;
+}  // namespace ov::op::v17

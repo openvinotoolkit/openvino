@@ -8,13 +8,13 @@
 
 namespace ov {
 namespace op {
-namespace v16 {
+namespace v17 {
 /// \brief Elementwise inverse error function (erfinv) operation.
 ///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ErfInv : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("ErfInv", "opset16", util::UnaryElementwiseArithmetic);
+    OPENVINO_OP("ErfInv", "opset17", util::UnaryElementwiseArithmetic);
 
     ErfInv() = default;
 
@@ -27,6 +27,6 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
-}  // namespace v16
+}  // namespace v17
 }  // namespace op
 }  // namespace ov

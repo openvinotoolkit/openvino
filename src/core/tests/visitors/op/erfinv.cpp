@@ -6,6 +6,6 @@
 
 #include "unary_ops.hpp"
 
-using Types = ::testing::Types<UnaryOperatorType<ov::op::v16::ErfInv, ov::element::f32>>;
+using Types = ::testing::Types<UnaryOperatorType<ov::op::v17::ErfInv, ov::element::f32>>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(visitor_without_attribute, UnaryOperatorVisitor, Types, UnaryOperatorTypeName);

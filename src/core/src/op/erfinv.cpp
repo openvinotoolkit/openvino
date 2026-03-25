@@ -8,14 +8,14 @@
 
 namespace ov {
 namespace op {
-namespace v16 {
+namespace v17 {
 
 ErfInv::ErfInv(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
 void ErfInv::validate_and_infer_types() {
-    OV_OP_SCOPE(v16_ErfInv_validate_and_infer_types);
+    OV_OP_SCOPE(v17_ErfInv_validate_and_infer_types);
     const element::Type& input_et = get_input_element_type(0);
 
     NODE_VALIDATION_CHECK(this,
@@ -27,11 +27,11 @@ void ErfInv::validate_and_infer_types() {
 }
 
 std::shared_ptr<Node> ErfInv::clone_with_new_inputs(const OutputVector& new_args) const {
-    OV_OP_SCOPE(v16_ErfInv_clone_with_new_inputs);
+    OV_OP_SCOPE(v17_ErfInv_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<ErfInv>(new_args.at(0));
 }
 
-}  // namespace v16
+}  // namespace v17
 }  // namespace op
 }  // namespace ov

@@ -3,10 +3,10 @@ ErfInv
 
 
 .. meta::
-  :description: Learn about ErfInv-16 - an element-wise, arithmetic operation, which
+  :description: Learn about ErfInv-17 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
-**Versioned name**: *ErfInv-16*
+**Versioned name**: *ErfInv-17*
 
 **Category**: *Arithmetic unary*
 
@@ -47,7 +47,7 @@ The function is defined on the open interval ``(-1, 1)`` with the following spec
 .. code-block:: xml
    :force:
 
-   <layer ... type="ErfInv" version="opset16">
+   <layer ... type="ErfInv" version="opset17">
        <input>
            <port id="0">
                <dim>256</dim>
