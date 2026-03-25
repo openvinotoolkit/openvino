@@ -1777,7 +1777,6 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
     }
 
     auto& desc = m_compiled_submodels[id];
-    auto shared_state = ov::npuw::failsafe::CompiledModel::create_shared_state(candidate_devices);
 
     auto compile_candidate = [&](const std::shared_ptr<ov::Model>& model,
                                  const std::string& device,
@@ -1810,40 +1809,33 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
 
     auto make_wrapped = [&](const std::shared_ptr<ov::Model>& model,
                             const std::string& profile_suffix,
-                            bool eager,
                             bool apply_main_workarounds) -> ov::SoPtr<ov::ICompiledModel> {
-        return {ov::npuw::failsafe::CompiledModel::create_with_shared_state(
+        return {ov::npuw::failsafe::CompiledModel::create(
                     model,
                     get_plugin(),
-                    shared_state,
+                    candidate_devices,
                     [&, model, profile_suffix, apply_main_workarounds](const std::string& device)
                         -> std::shared_ptr<ov::ICompiledModel> {
                         return compile_candidate(model, device, profile_suffix, apply_main_workarounds);
-                    },
-                    eager),
+                    }),
                 {}};
     };
 
     if (auto& moe_experts_opt = desc.moe_experts; moe_experts_opt.has_value()) {
-        LOG_INFO("Preparing coordinated MoE expert models for Subgraph[" << id << "]...");
+        LOG_INFO("Preparing MoE expert failsafe models for Subgraph[" << id << "]...");
         LOG_BLOCK();
 
         auto& moe_experts = moe_experts_opt.value();
-        bool eager = true;
         for (const auto& entry : moe_experts._models_to_compile) {
             moe_experts.set_compiled_model(entry.first,
-                                           make_wrapped(entry.second,
-                                                        "/moe_chunk_" + std::to_string(entry.first),
-                                                        eager,
-                                                        false));
-            eager = false;
+                                           make_wrapped(entry.second, "/moe_chunk_" + std::to_string(entry.first), false));
         }
 
         const auto& compiled_models = moe_experts._compiled_models;
         OPENVINO_ASSERT(!compiled_models.empty(), "Expected at least one compiled MoE expert model");
         desc.compiled_model = compiled_models.begin()->second;
     } else {
-        desc.compiled_model = make_wrapped(desc.model, "", true, true);
+        desc.compiled_model = make_wrapped(desc.model, "", true);
     }
 
     if (auto& moe_downstream_opt = desc.moe_experts_downstream; moe_downstream_opt.has_value()) {
@@ -1852,7 +1844,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
     }
 
     if (desc.pyramid_attention.has_value()) {
-        LOG_INFO("Preparing coordinated pyramid attention models for Subgraph[" << id << "]...");
+        LOG_INFO("Preparing pyramid attention failsafe models for Subgraph[" << id << "]...");
         LOG_BLOCK();
 
         auto& pyramid_attn = desc.pyramid_attention.value();
@@ -1862,8 +1854,9 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
         const size_t models_to_compile = total_models > 0 ? total_models - 1 : 0;
 
         for (std::size_t model_id = 0; model_id < models_to_compile; ++model_id) {
-            compiled_models[model_id] =
-                make_wrapped(pyramid_attn_models[model_id], "/pyramid_" + std::to_string(model_id), false, false);
+            compiled_models[model_id] = make_wrapped(pyramid_attn_models[model_id],
+                                                     "/pyramid_" + std::to_string(model_id),
+                                                     false);
         }
         if (total_models > 0) {
             compiled_models[total_models - 1] = desc.compiled_model;
@@ -1877,7 +1870,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
         if (!hfa._tile_model_to_compile) {
             LOG_WARN("Host flash attention tile model is null, skipping compilation");
         } else {
-            hfa.set_compiled_tile_model(make_wrapped(hfa._tile_model_to_compile, "/hfa_tile", false, false));
+            hfa.set_compiled_tile_model(make_wrapped(hfa._tile_model_to_compile, "/hfa_tile", false));
             hfa.set_compiled_final_tile_model(desc.compiled_model);
             LOG_INFO("Host flash attention compilation prepared for Subgraph[" << id << "]");
         }

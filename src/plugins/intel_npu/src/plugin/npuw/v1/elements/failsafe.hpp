@@ -26,34 +26,14 @@ class CompiledModel final : public ov::ICompiledModel {
 public:
     using Factory = std::function<std::shared_ptr<ov::ICompiledModel>(const std::string& device)>;
 
-    struct GlobalState {
-        std::size_t device_index = 0;
-        std::size_t generation = 0;
-        bool initialized = false;
-    };
-
-    struct SharedState {
-        explicit SharedState(std::vector<std::string> devices);
-
-        std::vector<std::string> devices;
-        mutable std::mutex mutex;
-        mutable GlobalState global_state;
-    };
-
     static std::shared_ptr<ov::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
                                                       const std::shared_ptr<const ov::IPlugin>& plugin,
                                                       std::vector<std::string> devices,
                                                       Factory factory);
-    static std::shared_ptr<SharedState> create_shared_state(std::vector<std::string> devices);
-    static std::shared_ptr<ov::ICompiledModel> create_with_shared_state(const std::shared_ptr<ov::Model>& model,
-                                                                        const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                                        std::shared_ptr<SharedState> shared_state,
-                                                                        Factory factory,
-                                                                        bool eager = false);
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
-                  std::shared_ptr<SharedState> shared_state,
+                  std::vector<std::string> devices,
                   Factory factory);
 
     void export_model(std::ostream& model) const override;
@@ -78,13 +58,14 @@ private:
     };
 
     ActiveState ensure_active_compiled_model_locked() const;
-    GlobalState failover_from_locked(std::size_t generation, const char* stage, std::exception_ptr failure) const;
+    ActiveState failover_from_locked(std::size_t generation, const char* stage, std::exception_ptr failure) const;
     std::shared_ptr<ov::IAsyncInferRequest> create_request(std::size_t& generation) const;
     bool is_generation_current(std::size_t generation) const;
 
-    std::shared_ptr<SharedState> m_shared_state;
+    std::vector<std::string> m_devices;
     Factory m_factory;
-    mutable std::optional<ActiveState> m_local_state;
+    mutable std::mutex m_mutex;
+    mutable std::optional<ActiveState> m_active_state;
 };
 
 class InferRequest final : public ov::ISyncInferRequest {
