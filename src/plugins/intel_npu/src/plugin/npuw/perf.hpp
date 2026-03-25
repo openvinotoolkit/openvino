@@ -72,8 +72,10 @@ private:
 public:
     metric() = default;
     metric(metric&& m)
-        : records(std::move(m.records)), name(std::move(m.name)),
-          enabled(m.enabled), emit_timestamps(m.emit_timestamps) {}
+        : records(std::move(m.records)),
+          name(std::move(m.name)),
+          enabled(m.enabled),
+          emit_timestamps(m.emit_timestamps) {}
 
     explicit metric(const std::string& named, bool active = false) : name(named), enabled(active) {}
 
@@ -119,24 +121,24 @@ public:
             *this += U::sample(f);
         } else {
             auto t_start = std::chrono::system_clock::now();
-            auto start_us =
-                std::chrono::duration_cast<std::chrono::microseconds>(t_start.time_since_epoch()).count();
+            auto start_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                                t_start.time_since_epoch())
+                                .count();
             std::time_t start_tt = std::chrono::system_clock::to_time_t(t_start);
             std::tm start_tm = *std::localtime(&start_tt);
-            LOG_INFO("PROF " << name << " START @ "
-                             << std::put_time(&start_tm, "%H:%M:%S") << "."
+            LOG_INFO("PROF " << name << " START @ " << std::put_time(&start_tm, "%H:%M:%S") << "."
                              << std::setfill('0') << std::setw(6) << (start_us % 1000000));
             *this += U::sample(f);
             auto t_end = std::chrono::system_clock::now();
-            auto end_us =
-                std::chrono::duration_cast<std::chrono::microseconds>(t_end.time_since_epoch()).count();
+            auto end_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                              t_end.time_since_epoch())
+                              .count();
             std::time_t end_tt = std::chrono::system_clock::to_time_t(t_end);
             std::tm end_tm = *std::localtime(&end_tt);
-            LOG_INFO("PROF " << name << " END   @ "
-                             << std::put_time(&end_tm, "%H:%M:%S") << "."
-                             << std::setfill('0') << std::setw(6) << (end_us % 1000000)
-                             << " (took " << std::fixed << std::setprecision(3)
-                             << ((end_us - start_us) / 1000.0) << " ms)");
+            LOG_INFO("PROF " << name << " END   @ " << std::put_time(&end_tm, "%H:%M:%S") << "."
+                             << std::setfill('0') << std::setw(6) << (end_us % 1000000) << " (took "
+                             << std::fixed << std::setprecision(3) << ((end_us - start_us) / 1000.0)
+                             << " ms)");
         }
     }
 
