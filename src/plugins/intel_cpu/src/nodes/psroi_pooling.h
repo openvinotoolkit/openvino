@@ -48,6 +48,8 @@ private:
     int nh = 0;
     int nw = 0;
 
+    int inBatchNum = 0;
+
     // for Deformable PSROIPolling
     bool noTrans;
     int partSize = 1;
