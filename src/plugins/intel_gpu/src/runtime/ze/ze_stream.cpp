@@ -10,7 +10,6 @@
 #include "openvino/runtime/properties.hpp"
 
 #include "ze_counter_based_event_factory.hpp"
-#include "ze_counter_based_event.hpp"
 #include "ze_event_factory.hpp"
 #include "ze_events.hpp"
 #include "ze_empty_event.hpp"
@@ -216,10 +215,12 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
 
     OV_ZE_EXPECT(zeCommandListCreateImmediate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &m_command_list));
     bool use_counter_based_events = m_queue_type == QueueTypes::in_order && info.supports_counter_based_events;
+    m_user_ev_factory = std::make_shared<ze_event_factory>(engine, config.get_enable_profiling());
     if (use_counter_based_events) {
-        m_ev_factory = std::make_unique<ze_counter_based_event_factory>(engine, config.get_enable_profiling());
+        m_ev_factory = std::make_shared<ze_counter_based_event_factory>(engine, config.get_enable_profiling());
     } else {
-        m_ev_factory = std::make_unique<ze_event_factory>(engine, config.get_enable_profiling());
+        // If counter based events are not supported or not used, use the same factory for both user and base events
+        m_ev_factory = m_user_ev_factory;
     }
     GPU_DEBUG_INFO << "[GPU] Created L0 stream ("
         << "index=" << index
@@ -331,14 +332,8 @@ void ze_stream::wait() {
 }
 
 event::ptr ze_stream::create_user_event(bool set) {
-    auto ev = m_ev_factory->create_event(++m_queue_counter);
-    if (std::dynamic_pointer_cast<ze::ze_counter_based_event>(ev) != nullptr) {
-        if (!set) {
-            GPU_DEBUG_INFO << "[GPU] Counter based events are always created as complete, ignoring set=false parameter\n";
-        }
-        return ev;
-    }
-    else if (set)
+    auto ev = m_user_ev_factory->create_event(++m_queue_counter);
+    if (set)
         ev->set();
 
     return ev;
