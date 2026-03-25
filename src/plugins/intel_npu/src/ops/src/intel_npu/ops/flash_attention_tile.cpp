@@ -164,13 +164,18 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
     // For rank 3: [H, L, E] -> batch_dims=[], head_dim=H
     // For rank 4: [B, H, L, E] -> batch_dims=[B], head_dim=H
     auto q_head_dim = *(query_shape.end() - 3);
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           !q_head_dim.is_static() || q_head_dim.get_length() > 0,
+                           "Query head dimension must be positive.");
     auto query_batch_dims = query_shape;
     query_batch_dims.resize(query_shape.size() - 3);
 
     // Helper: check that KV head dim is compatible with Q head dim (GQA: Q heads divisible by KV heads)
     auto is_gqa_compatible = [](const DimType& q_head, const DimType& kv_head) -> bool {
         if (q_head.is_static() && kv_head.is_static()) {
-            return kv_head.get_length() != 0 && q_head.get_length() % kv_head.get_length() == 0;
+            return q_head.get_length() > 0 && kv_head.get_length() > 0 &&
+                   q_head.get_length() % kv_head.get_length() == 0;
         }
         return true;  // allow dynamic dims
     };
@@ -460,7 +465,7 @@ static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
 
     const auto& key_shape = inputs[KEY].get_shape();
     const auto H_kv = static_cast<int32_t>(*(key_shape.end() - 3));
-    if (H_kv == 0 || H_q % H_kv != 0) {
+    if (H_q == 0 || H_kv == 0 || H_q % H_kv != 0) {
         return false;
     }
     const auto S = static_cast<int32_t>(*(key_shape.end() - 2));
