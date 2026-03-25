@@ -194,6 +194,10 @@ struct NPUWStringEnumOptionTraits<::intel_npu::npuw::llm::GenerateHint> {
     }
 };
 
+struct PrefillHintOptionTraits : NPUWStringEnumOptionTraits<::intel_npu::npuw::llm::PrefillHint> {};
+
+struct GenerateHintOptionTraits : NPUWStringEnumOptionTraits<::intel_npu::npuw::llm::GenerateHint> {};
+
 template <>
 struct NPUWStringEnumOptionTraits<::intel_npu::npuw::llm::AttentionHint> {
     using ValueType = ::intel_npu::npuw::llm::AttentionHint;
@@ -283,6 +287,8 @@ struct NPUWStringEnumOptionTraits<::intel_npu::npuw::llm::MoEHint> {
         }
     }
 };
+
+struct MoEHintOptionTraits : NPUWStringEnumOptionTraits<::intel_npu::npuw::llm::MoEHint> {};
 
 template <class ActualOpt, class Traits>
 struct NPUWStringEnumOptionBase : OptionBase<ActualOpt, typename Traits::ValueType> {
