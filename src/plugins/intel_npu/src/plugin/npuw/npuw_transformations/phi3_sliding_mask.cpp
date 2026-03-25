@@ -16,6 +16,12 @@ namespace opp = ov::pass::pattern;
 
 namespace {
 
+// diagnostics warnings on OPENVINO_MATCHER_PASS_RTTI() definition: visibility hidden
+#ifdef __GNUC__
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wattributes"
+#endif
+
 class OldPhi3SlidingMaskMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::OldPhi3SlidingMaskMatcher");
@@ -361,6 +367,10 @@ public:
                          std::move(callback));
     }
 };
+
+#ifdef __GNUC__
+#    pragma GCC diagnostic pop
+#endif
 
 }  // namespace
 

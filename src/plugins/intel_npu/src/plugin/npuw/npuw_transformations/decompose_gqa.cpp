@@ -16,6 +16,12 @@ namespace opp = ov::pass::pattern;
 
 namespace {
 
+// diagnostics warnings on OPENVINO_MATCHER_PASS_RTTI() definition: visibility hidden
+#ifdef __GNUC__
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wattributes"
+#endif
+
 class GroupQueryAttentionDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::GroupQueryAttentionDecomposition");
@@ -249,6 +255,10 @@ public:
         }
     }
 };
+
+#ifdef __GNUC__
+#    pragma GCC diagnostic pop
+#endif
 
 bool decompose_GQA(std::shared_ptr<ov::Model> model, bool is_prefill_model) {
     ov::pass::GraphRewrite rewr;

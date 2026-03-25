@@ -35,7 +35,11 @@ auto match_down_up_convert_subgraph_after_lpt = [](const ov::Output<ov::Node>& i
     return downconvert;
 };
 
-} // namespace
+// diagnostics warnings on OPENVINO_MATCHER_PASS_RTTI() definition: visibility hidden
+#ifdef __GNUC__
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wattributes"
+#endif
 
 class RemoveEmptyKVTensors : public ov::pass::MatcherPass {
 public:
@@ -95,7 +99,9 @@ public:
     }
 };
 
-namespace {
+#ifdef __GNUC__
+#    pragma GCC diagnostic pop
+#endif
 
 bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
     ov::pass::GraphRewrite rewr;

@@ -18,13 +18,13 @@
 
 namespace opp = ov::pass::pattern;
 
+namespace {
+
 // diagnostics warnings on OPENVINO_MATCHER_PASS_RTTI() definition: visibility hidden
 #ifdef __GNUC__
 #    pragma GCC diagnostic push
 #    pragma GCC diagnostic ignored "-Wattributes"
 #endif
-namespace {
-
 
 class TransposeValueTensors : public ov::pass::MatcherPass {
 public:
@@ -300,11 +300,11 @@ public:
     }
 };
 
-}  // namespace
-
 #ifdef __GNUC__
 #    pragma GCC diagnostic pop
 #endif
+
+}  // namespace
 
 bool ov::npuw::util::OptimizeValueTensors::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::GraphRewrite rewr;

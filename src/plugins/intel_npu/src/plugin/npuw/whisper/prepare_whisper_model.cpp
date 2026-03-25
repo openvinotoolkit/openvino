@@ -19,12 +19,13 @@
 
 namespace opp = ov::pass::pattern;
 
+namespace {
+
 // diagnostics warnings on OPENVINO_MATCHER_PASS_RTTI() definition: visibility hidden
 #ifdef __GNUC__
 #    pragma GCC diagnostic push
 #    pragma GCC diagnostic ignored "-Wattributes"
 #endif
-namespace {
 
 class AttentionMaskInputPast : public ov::pass::MatcherPass {
 public:
@@ -468,11 +469,12 @@ void add_cache_position_input(const std::shared_ptr<ov::Model>& model) {
 
     ov::pass::Validate().run_on_model(model);
 }
-}  // namespace
 
 #ifdef __GNUC__
 #    pragma GCC diagnostic pop
 #endif
+
+}  // namespace
 
 bool ov::npuw::util::PrepareWhisperPrefillModel::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // 2) Remove all non-runtime states from inputs (they empty on first iteration)
