@@ -70,10 +70,10 @@ protected:
 class OPENVINO_API AssertFailure : public Exception {
 public:
     [[noreturn]] static OPENVINO_API void create(const char* file,
-                                    int line,
-                                    const char* check_string,
-                                    const std::string& context_info,
-                                    const std::string& explanation);
+                                                 int line,
+                                                 const char* check_string,
+                                                 const std::string& context_info,
+                                                 const std::string& explanation);
     virtual ~AssertFailure();
 
 protected:
