@@ -19,7 +19,6 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
       m_npuw_model(compiled_model),
       m_num_submodels(m_npuw_model->m_compiled_submodels.size()) {
     m_subrequests.resize(m_num_submodels, {});
-    m_subrequest_devices.resize(m_num_submodels, {});
     m_completion_cbs.resize(m_num_submodels, {});
     if (m_npuw_model->m_acc_check) {
         m_ref_subrequests.resize(m_num_submodels);
@@ -1057,7 +1056,7 @@ bool ov::npuw::IBaseInferRequest::needs_copy(std::size_t idx) const {
     // the set/get_ tensor API
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-    if (ov::npuw::util::starts_with(m_subrequest_devices[real_idx], "CPU")) {
+    if (ov::npuw::util::starts_with(m_npuw_model->submodel_device(real_idx), "CPU")) {
         return false;
     }
 

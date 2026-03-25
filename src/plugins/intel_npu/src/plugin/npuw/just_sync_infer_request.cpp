@@ -17,6 +17,7 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "plugin.hpp"
 #include "pyramid_attention.hpp"
+#include "v1/elements/failsafe.hpp"
 #include "weights_bank.hpp"
 
 // ====================================================================================================
@@ -236,7 +237,6 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
     // Create infer requests
     // Preallocate funcall tensors & substitute function call requests
-    bool failover_happened = false;
     bool has_spatial = false;
     bool has_dynamic = false;
     bool has_pyramid = false;
@@ -350,11 +350,8 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
         // Special cases are handled -- so nothing to do here
         const bool is_piped = is_pipelined(i);
-        const auto device_before = m_npuw_model->submodel_device(i);
         auto rqs = create_infer_requests(i, is_piped ? 2 : 1);
-        failover_happened |= device_before != m_npuw_model->submodel_device(i);
         m_subrequests[i] = rqs.at(0);
-        m_subrequest_devices[i] = m_npuw_model->submodel_device(i);
         if (is_piped) {
             m_funcall_pipeline[i].subrequest = rqs.at(1);
         }
@@ -370,21 +367,18 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             }
             // Create HFA tile infer requests if this function has host flash attention
             if (proto_comp_model_desc.host_flash_attention) {
+                const bool enable_hfa_optimizations =
+                    std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(proto_comp_model_desc.compiled_model._ptr) ==
+                    nullptr;
                 setup_hfa_infer_requests(real_idx,
                                          is_piped,
                                          /* is_recreate */ false,
-                                         /* enable_hfa_optimizations */ true);
+                                         enable_hfa_optimizations);
             }
         }
 
         LOG_INFO("DONE");
     }  // for(submodels)
-
-    if (failover_happened) {
-        LOG_INFO("Refined device distribution:");
-        LOG_BLOCK();
-        m_npuw_model->log_device_dist();
-    }
 
     // Identify connections for the funcall pipeline, if needed
     if (m_use_function_pipelining) {
@@ -1016,34 +1010,6 @@ void ov::npuw::JustInferRequest::function_prologue_pyramid_attn(std::size_t real
     }
 }
 
-void ov::npuw::JustInferRequest::refresh_failover_side_resources(std::size_t idx) {
-    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-    const auto active_device = m_npuw_model->submodel_device(real_idx);
-
-    if (m_subrequest_devices[real_idx] == active_device) {
-        return;
-    }
-
-    LOG_INFO("Refreshing side resources for subrequest[" << real_idx << "] after failover to " << active_device
-                                                         << " device.");
-    LOG_BLOCK();
-
-    const bool is_piped = is_pipelined(idx);
-    auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-
-    // The primary infer requests already execute via the failsafe wrapper.
-    // Only helper resources with device-bound side buffers need explicit refresh.
-    if (proto_comp_model_desc.host_flash_attention) {
-        setup_hfa_infer_requests(real_idx, is_piped, /* is_recreate */ true, /* enable_hfa_optimizations */ true);
-    }
-    if (proto_comp_model_desc.moe_experts) {
-        recreate_moe_resources(idx, real_idx);
-    }
-
-    m_subrequest_devices[real_idx] = active_device;
-}
-
 void ov::npuw::JustInferRequest::initialize_moe_executor() {
     LOG_INFO("Creating MoE executor...");
 
@@ -1072,17 +1038,6 @@ void ov::npuw::JustInferRequest::initialize_moe_executor() {
     }
 
     LOG_INFO("MoE executor initialized successfully");
-}
-
-void ov::npuw::JustInferRequest::recreate_moe_resources(std::size_t idx, std::size_t real_idx) {
-    LOG_INFO("Recreating MoE resources for submodel[" << idx << "] (real_idx=" << real_idx << ")...");
-    LOG_BLOCK();
-
-    // Re-prepare MoE resources for this specific submodel
-    size_t pool_size = m_npuw_model->m_cfg.get<::intel_npu::NPUW_MOE_POOL_SIZE>();
-    m_moe_executor->prepare(idx, real_idx, m_num_submodels, pool_size);
-
-    LOG_INFO("MoE resources recreated successfully");
 }
 
 void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate) {
@@ -1317,9 +1272,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
     bool next_prepared = false;
-
-    // Another infer request may have already failed over this shared compiled model.
-    refresh_failover_side_resources(idx);
+    const auto active_device_before = m_npuw_model->submodel_device(real_idx);
 
     // Feeding the global Parameters is now part of the common
     // execution pipeline: See how it is done in
@@ -1336,11 +1289,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
     LOG_BLOCK();
     unsafe_run_this_prep_next(idx, next_prepared);
 
-    const bool device_changed = m_subrequest_devices[real_idx] != m_npuw_model->submodel_device(real_idx);
-    failover = failover || device_changed;
-    if (device_changed) {
-        refresh_failover_side_resources(idx);
-    }
+    failover = failover || (active_device_before != m_npuw_model->submodel_device(real_idx));
     LOG_DEBUG("Done: " << idx << "(exec subrequest)");
 
     dump_output_tensors(idx);  // FIXME: Called here unconditionally, need to refactor

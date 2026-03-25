@@ -1776,24 +1776,121 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
         return false;
     }
 
-    auto wrapped = ov::npuw::failsafe::CompiledModel::create(
-        m_compiled_submodels[id].model,
-        get_plugin(),
-        candidate_devices,
-        [this, id](const std::string& device) -> std::shared_ptr<ov::ICompiledModel> {
-            auto compiled = compile_submodel_bundle(id, device);
-            OPENVINO_ASSERT(compiled != nullptr, "Failed to compile failsafe subgraph for device ", device);
-            return compiled._ptr;
+    auto& desc = m_compiled_submodels[id];
+    auto shared_state = ov::npuw::failsafe::CompiledModel::create_shared_state(candidate_devices);
+
+    auto compile_candidate = [&](const std::shared_ptr<ov::Model>& model,
+                                 const std::string& device,
+                                 const std::string& profile_suffix,
+                                 bool apply_main_workarounds) -> std::shared_ptr<ov::ICompiledModel> {
+        if (apply_main_workarounds && npuw::util::starts_with(device, "NPU")) {
+            if (desc.model->inputs().empty()) {
+                LOG_INFO("Avoid compilation for " << device << " as the model should be constant-folded");
+                dump_on_fail(id, device, "Avoided due to workaround");
+                return {};
+            }
+
+            if (desc.attention.has_value()) {
+                for (const auto& input : desc.model->inputs()) {
+                    if (input.get_partial_shape().is_dynamic()) {
+                        LOG_INFO("Avoid compilation for " << device << " as attention model has dynamic shapes");
+                        dump_on_fail(id, device, "Avoided due to dynamic shapes");
+                        return {};
+                    }
+                }
+            }
+        }
+
+        ov::SoPtr<ov::ICompiledModel> compiled_model;
+        m_profile["compile/" + device + profile_suffix].record([&]() {
+            compiled_model = compile_submodel(model, device);
         });
+        return compiled_model._ptr;
+    };
 
-    auto wrapped_failsafe = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(wrapped);
-    OPENVINO_ASSERT(wrapped_failsafe != nullptr, "Expected a failsafe compiled model wrapper");
+    auto make_wrapped = [&](const std::shared_ptr<ov::Model>& model,
+                            const std::string& profile_suffix,
+                            bool eager,
+                            bool apply_main_workarounds) -> ov::SoPtr<ov::ICompiledModel> {
+        return {ov::npuw::failsafe::CompiledModel::create_with_shared_state(
+                    model,
+                    get_plugin(),
+                    shared_state,
+                    [&, model, profile_suffix, apply_main_workarounds](const std::string& device)
+                        -> std::shared_ptr<ov::ICompiledModel> {
+                        return compile_candidate(model, device, profile_suffix, apply_main_workarounds);
+                    },
+                    eager),
+                {}};
+    };
 
-    auto active_device_it = std::find(m_dev_list.cbegin(), m_dev_list.cend(), wrapped_failsafe->active_device_name());
+    if (auto& moe_experts_opt = desc.moe_experts; moe_experts_opt.has_value()) {
+        LOG_INFO("Preparing coordinated MoE expert models for Subgraph[" << id << "]...");
+        LOG_BLOCK();
+
+        auto& moe_experts = moe_experts_opt.value();
+        bool eager = true;
+        for (const auto& entry : moe_experts._models_to_compile) {
+            moe_experts.set_compiled_model(entry.first,
+                                           make_wrapped(entry.second,
+                                                        "/moe_chunk_" + std::to_string(entry.first),
+                                                        eager,
+                                                        false));
+            eager = false;
+        }
+
+        const auto& compiled_models = moe_experts._compiled_models;
+        OPENVINO_ASSERT(!compiled_models.empty(), "Expected at least one compiled MoE expert model");
+        desc.compiled_model = compiled_models.begin()->second;
+    } else {
+        desc.compiled_model = make_wrapped(desc.model, "", true, true);
+    }
+
+    if (auto& moe_downstream_opt = desc.moe_experts_downstream; moe_downstream_opt.has_value()) {
+        moe_downstream_opt->set_compiled_model(std::move(desc.compiled_model));
+        desc.compiled_model = moe_downstream_opt->_compiled_model;
+    }
+
+    if (desc.pyramid_attention.has_value()) {
+        LOG_INFO("Preparing coordinated pyramid attention models for Subgraph[" << id << "]...");
+        LOG_BLOCK();
+
+        auto& pyramid_attn = desc.pyramid_attention.value();
+        const auto& pyramid_attn_models = pyramid_attn._models_to_compile;
+        const size_t total_models = pyramid_attn_models.size();
+        std::vector<ov::SoPtr<ov::ICompiledModel>> compiled_models(total_models);
+        const size_t models_to_compile = total_models > 0 ? total_models - 1 : 0;
+
+        for (std::size_t model_id = 0; model_id < models_to_compile; ++model_id) {
+            compiled_models[model_id] =
+                make_wrapped(pyramid_attn_models[model_id], "/pyramid_" + std::to_string(model_id), false, false);
+        }
+        if (total_models > 0) {
+            compiled_models[total_models - 1] = desc.compiled_model;
+        }
+
+        pyramid_attn.set_compiled_models(std::move(compiled_models));
+    }
+
+    if (desc.host_flash_attention.has_value()) {
+        auto& hfa = desc.host_flash_attention.value();
+        if (!hfa._tile_model_to_compile) {
+            LOG_WARN("Host flash attention tile model is null, skipping compilation");
+        } else {
+            hfa.set_compiled_tile_model(make_wrapped(hfa._tile_model_to_compile, "/hfa_tile", false, false));
+            hfa.set_compiled_final_tile_model(desc.compiled_model);
+            LOG_INFO("Host flash attention compilation prepared for Subgraph[" << id << "]");
+        }
+    }
+
+    std::string active_device = candidate_devices.front();
+    if (auto wrapped_failsafe = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(desc.compiled_model._ptr)) {
+        active_device = wrapped_failsafe->active_device_name();
+    }
+
+    auto active_device_it = std::find(m_dev_list.cbegin(), m_dev_list.cend(), active_device);
     OPENVINO_ASSERT(active_device_it != m_dev_list.cend(), "Failsafe selected an unknown device");
-
-    m_compiled_submodels[id].compiled_model = {std::move(wrapped), {}};
-    m_compiled_submodels[id].device_it = active_device_it;
+    desc.device_it = active_device_it;
     return true;
 }
 

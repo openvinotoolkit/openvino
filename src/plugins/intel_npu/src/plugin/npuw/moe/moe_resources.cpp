@@ -63,6 +63,7 @@ void MoEResources::initialize_expert_iterative_mode(
     auto output_element_type = first_model->outputs()[0].get_element_type();
 
     expert_output_accumulator = allocator(output_element_type, buffer_shape, device);
+    device_name = device;
 
     LOG_DEBUG("Allocated iterative mode output buffer: shape=" << buffer_shape << ", type=" << output_element_type
                                                                << ", device=" << device);

@@ -97,12 +97,6 @@ protected:
     std::vector<IBaseInferRequest::Completed> m_completion_cbs;
     RqPtrs m_subrequests;
 
-    // This vector is used to track devices for individual subrequests
-    // here locally. Note that the models can be recompiled in
-    // contexts of other requests (if multiple of those are created)
-    // so this cached information is used to detect these situations.
-    std::vector<std::string> m_subrequest_devices;
-
     struct TensorStorage {
         ov::SoPtr<ov::ITensor> tensor;
         bool persistent = false;       // true for the parent I/O tensors

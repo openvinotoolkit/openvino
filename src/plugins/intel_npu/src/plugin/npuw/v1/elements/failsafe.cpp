@@ -50,77 +50,97 @@ std::shared_ptr<ov::ICompiledModel> ov::npuw::failsafe::CompiledModel::create(
     const std::shared_ptr<const ov::IPlugin>& plugin,
     std::vector<std::string> devices,
     Factory factory) {
+    return create_with_shared_state(model, plugin, create_shared_state(std::move(devices)), std::move(factory), true);
+}
+
+std::shared_ptr<ov::npuw::failsafe::CompiledModel::SharedState> ov::npuw::failsafe::CompiledModel::create_shared_state(
+    std::vector<std::string> devices) {
     OPENVINO_ASSERT(!devices.empty(), "Failsafe compiled model requires at least one device");
+    return std::make_shared<SharedState>(std::move(devices));
+}
+
+std::shared_ptr<ov::ICompiledModel> ov::npuw::failsafe::CompiledModel::create_with_shared_state(
+    const std::shared_ptr<ov::Model>& model,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    std::shared_ptr<SharedState> shared_state,
+    Factory factory,
+    bool eager) {
+    OPENVINO_ASSERT(shared_state != nullptr, "Failsafe compiled model requires shared state");
+    OPENVINO_ASSERT(!shared_state->devices.empty(), "Failsafe compiled model requires at least one device");
     OPENVINO_ASSERT(static_cast<bool>(factory), "Failsafe compiled model requires a factory");
 
-    if (devices.size() == 1u) {
-        auto compiled_model = factory(devices.front());
+    if (shared_state->devices.size() == 1u) {
+        auto compiled_model = factory(shared_state->devices.front());
         OPENVINO_ASSERT(compiled_model != nullptr,
                         "Failsafe factory returned null compiled model for device ",
-                        devices.front());
+                        shared_state->devices.front());
         return compiled_model;
     }
 
-    auto compiled_model = std::make_shared<CompiledModel>(model, plugin, std::move(devices), std::move(factory));
-    std::lock_guard<std::mutex> lock(compiled_model->m_mutex);
-    compiled_model->ensure_active_compiled_model_locked();
+    auto compiled_model = std::make_shared<CompiledModel>(model, plugin, std::move(shared_state), std::move(factory));
+    if (eager) {
+        std::lock_guard<std::mutex> lock(compiled_model->m_shared_state->mutex);
+        compiled_model->ensure_active_compiled_model_locked();
+    }
     return compiled_model;
 }
 
 ov::npuw::failsafe::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                 std::vector<std::string> devices,
+                                                 std::shared_ptr<SharedState> shared_state,
                                                  Factory factory)
-    : ov::ICompiledModel(model, plugin),
-      m_devices(std::move(devices)),
-      m_factory(std::move(factory)) {
-    OPENVINO_ASSERT(!m_devices.empty(), "Failsafe compiled model requires at least one device");
+     : ov::ICompiledModel(model, plugin),
+       m_shared_state(std::move(shared_state)),
+       m_factory(std::move(factory)) {
+    OPENVINO_ASSERT(m_shared_state != nullptr, "Failsafe compiled model requires shared state");
+    OPENVINO_ASSERT(!m_shared_state->devices.empty(), "Failsafe compiled model requires at least one device");
     OPENVINO_ASSERT(static_cast<bool>(m_factory), "Failsafe compiled model requires a factory");
+}
+
+ov::npuw::failsafe::CompiledModel::SharedState::SharedState(std::vector<std::string> devices)
+    : devices(std::move(devices)) {
+    OPENVINO_ASSERT(!this->devices.empty(), "Failsafe compiled model requires at least one device");
 }
 
 ov::npuw::failsafe::CompiledModel::ActiveState ov::npuw::failsafe::CompiledModel::ensure_active_compiled_model_locked()
     const {
-    if (m_active_state.has_value()) {
-        return m_active_state.value();
+    auto& global = m_shared_state->global_state;
+    if (!global.initialized) {
+        global = GlobalState{0u, 0u, true};
     }
 
-    std::exception_ptr last_failure;
-    for (std::size_t idx = 0; idx < m_devices.size(); ++idx) {
+    while (true) {
+        if (m_local_state.has_value() && m_local_state->generation == global.generation) {
+            return m_local_state.value();
+        }
         try {
-            auto compiled_model = m_factory(m_devices[idx]);
+            auto compiled_model = m_factory(m_shared_state->devices[global.device_index]);
             OPENVINO_ASSERT(compiled_model != nullptr,
                             "Failsafe factory returned null compiled model for device ",
-                            m_devices[idx]);
-            m_active_state = ActiveState{idx, 0u, std::move(compiled_model)};
-            return m_active_state.value();
+                            m_shared_state->devices[global.device_index]);
+            m_local_state = ActiveState{global.device_index, global.generation, std::move(compiled_model)};
+            return m_local_state.value();
         } catch (...) {
-            last_failure = std::current_exception();
+            global = failover_from_locked(global.generation, "compile", std::current_exception());
         }
     }
-
-    throw_failsafe_error("compile", last_failure);
 }
 
-ov::npuw::failsafe::CompiledModel::ActiveState ov::npuw::failsafe::CompiledModel::failover_from_locked(
+ov::npuw::failsafe::CompiledModel::GlobalState ov::npuw::failsafe::CompiledModel::failover_from_locked(
     std::size_t generation,
     const char* stage,
     std::exception_ptr failure) const {
-    auto current = ensure_active_compiled_model_locked();
-    if (current.generation != generation) {
-        return current;
+    auto& global = m_shared_state->global_state;
+    if (!global.initialized) {
+        global = GlobalState{0u, 0u, true};
+    }
+    if (global.generation != generation) {
+        return global;
     }
 
-    for (std::size_t idx = current.device_index + 1; idx < m_devices.size(); ++idx) {
-        try {
-            auto compiled_model = m_factory(m_devices[idx]);
-            OPENVINO_ASSERT(compiled_model != nullptr,
-                            "Failsafe factory returned null compiled model for device ",
-                            m_devices[idx]);
-            m_active_state = ActiveState{idx, current.generation + 1u, std::move(compiled_model)};
-            return m_active_state.value();
-        } catch (...) {
-            failure = std::current_exception();
-        }
+    for (std::size_t idx = global.device_index + 1; idx < m_shared_state->devices.size(); ++idx) {
+        global = GlobalState{idx, global.generation + 1u, true};
+        return global;
     }
 
     throw_failsafe_error(stage, failure);
@@ -128,7 +148,7 @@ ov::npuw::failsafe::CompiledModel::ActiveState ov::npuw::failsafe::CompiledModel
 
 std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::failsafe::CompiledModel::create_request(
     std::size_t& generation) const {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_shared_state->mutex);
 
     while (true) {
         const auto current = ensure_active_compiled_model_locked();
@@ -136,7 +156,7 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::failsafe::CompiledModel::creat
             auto request = current.compiled_model->create_infer_request();
             OPENVINO_ASSERT(request != nullptr,
                             "Failsafe compiled model returned null infer request for device ",
-                            m_devices[current.device_index]);
+                            m_shared_state->devices[current.device_index]);
             generation = current.generation;
             return request;
         } catch (...) {
@@ -146,38 +166,38 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::failsafe::CompiledModel::creat
 }
 
 bool ov::npuw::failsafe::CompiledModel::is_generation_current(std::size_t generation) const {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_shared_state->mutex);
     return ensure_active_compiled_model_locked().generation == generation;
 }
 
 std::size_t ov::npuw::failsafe::CompiledModel::active_device_index() const {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_shared_state->mutex);
     return ensure_active_compiled_model_locked().device_index;
 }
 
 std::string ov::npuw::failsafe::CompiledModel::active_device_name() const {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_shared_state->mutex);
     const auto current = ensure_active_compiled_model_locked();
-    return m_devices[current.device_index];
+    return m_shared_state->devices[current.device_index];
 }
 
 void ov::npuw::failsafe::CompiledModel::export_model(std::ostream& model) const {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_shared_state->mutex);
     ensure_active_compiled_model_locked().compiled_model->export_model(model);
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::failsafe::CompiledModel::get_runtime_model() const {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_shared_state->mutex);
     return ensure_active_compiled_model_locked().compiled_model->get_runtime_model();
 }
 
 void ov::npuw::failsafe::CompiledModel::set_property(const ov::AnyMap& properties) {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_shared_state->mutex);
     ensure_active_compiled_model_locked().compiled_model->set_property(properties);
 }
 
 ov::Any ov::npuw::failsafe::CompiledModel::get_property(const std::string& name) const {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_shared_state->mutex);
     return ensure_active_compiled_model_locked().compiled_model->get_property(name);
 }
 
@@ -322,7 +342,7 @@ void ov::npuw::failsafe::InferRequest::infer() {
             return;
         } catch (...) {
             {
-                std::lock_guard<std::mutex> model_lock(m_failsafe_compiled_model->m_mutex);
+                std::lock_guard<std::mutex> model_lock(m_failsafe_compiled_model->m_shared_state->mutex);
                 m_failsafe_compiled_model->failover_from_locked(m_generation, "infer", std::current_exception());
             }
             m_request.reset();

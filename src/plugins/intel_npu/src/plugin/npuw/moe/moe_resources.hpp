@@ -56,6 +56,7 @@ struct MoEResources {
     // Shape: [num_active_experts, 1, input_token_count, expert_hidden_dim]
     // Accumulates expert outputs before final reduction
     TensorPtr expert_output_accumulator;
+    std::string device_name;
 
     /**
      * @brief Initialize resources for expert iterative mode
