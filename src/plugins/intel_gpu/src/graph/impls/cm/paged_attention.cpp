@@ -302,8 +302,9 @@ public:
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         OPENVINO_ASSERT(rt_params != nullptr);
 
-        std::vector<int32_t> selected_ids;
-        selected_ids.reserve(rt_params->batch_size_in_sequences);
+        auto selected_ids_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::SINGLE_TOKEN_SELECTED_SEQ_IDS];
+        mem_lock<int32_t, mem_lock_type::write> selected_ids_lock(selected_ids_mem, instance.get_network().get_stream());
+        size_t selected_count = 0;
 
         const bool use_split_mixed = rt_params->stage == PagedAttentionStage::MIXED &&
                                      rt_params->mixed_route_mode == MixedRouteMode::SPLIT;
@@ -314,25 +315,16 @@ public:
                 const int32_t q_len = subsequence_begins[sequence_id + 1] - subsequence_begins[sequence_id];
                 const int32_t past_len = std::max<int32_t>(past_lens[sequence_id], 0);
                 if (q_len == 1 && past_len > 0) {
-                    selected_ids.push_back(static_cast<int32_t>(sequence_id));
+                    selected_ids_lock[selected_count++] = static_cast<int32_t>(sequence_id);
                 }
             }
         } else {
             for (size_t sequence_id = 0; sequence_id < rt_params->batch_size_in_sequences; ++sequence_id) {
-                selected_ids.push_back(static_cast<int32_t>(sequence_id));
+                selected_ids_lock[selected_count++] = static_cast<int32_t>(sequence_id);
             }
         }
 
-        rt_params->single_token_selected_count = selected_ids.size();
-        auto selected_ids_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::SINGLE_TOKEN_SELECTED_SEQ_IDS];
-        if (!selected_ids.empty()) {
-            selected_ids_mem->copy_from(instance.get_network().get_stream(),
-                                        selected_ids.data(),
-                                        0,
-                                        0,
-                                        selected_ids.size() * sizeof(int32_t),
-                                        true);
-        }
+        rt_params->single_token_selected_count = selected_count;
     }
 
     // update impl_parameter and rt_parameter
