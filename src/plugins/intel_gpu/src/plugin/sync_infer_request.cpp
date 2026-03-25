@@ -745,13 +745,16 @@ void SyncInferRequest::allocate_states() {
         }
 
         if (compressed) {
+            const auto kv_precision = m_graph->get_config().get_kv_cache_precision();
+            const bool is_4bit_kv_cache = ov::element::Type(kv_precision).bitwidth() == 4;
             m_variables.emplace(vi.first, std::make_shared<VariableStateIndirectKVCacheCompressed>(vi.second,
                                                                                                    m_context,
                                                                                                    m_shape_predictor,
                                                                                                    states_layouts,
                                                                                                    beam_axis,
                                                                                                    concat_axis,
-                                                                                                   has_zp_state));
+                                                                                                   has_zp_state,
+                                                                                                   is_4bit_kv_cache));
         } else if (indirect_kv_cache) {
             m_variables.emplace(vi.first, std::make_shared<VariableStateIndirectKVCache>(vi.second,
                                                                                          m_context,

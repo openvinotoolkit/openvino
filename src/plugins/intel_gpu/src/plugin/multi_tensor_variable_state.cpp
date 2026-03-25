@@ -165,9 +165,11 @@ VariableStateIndirectKVCacheCompressed::VariableStateIndirectKVCacheCompressed(
     const std::vector<cldnn::layout>& output_layouts,
     size_t beam_idx,
     size_t concat_idx,
-    bool has_zp_state = false)
+    bool has_zp_state,
+    bool is_4bit_kv_cache)
     : VariableStateIndirectKVCache(info, context, shape_predictor, beam_idx, concat_idx),
-      m_has_zp_state(has_zp_state) {
+      m_has_zp_state(has_zp_state),
+      m_is_4bit_kv_cache(is_4bit_kv_cache) {
     OPENVINO_ASSERT((has_zp_state && output_layouts.size() == 3) ||
                     (!has_zp_state && output_layouts.size() == 2),
                     "[GPU] Unexpected number of output layouts for VariableStateIndirectKVCacheCompressed");
@@ -185,6 +187,12 @@ VariableStateIndirectKVCacheCompressed::VariableStateIndirectKVCacheCompressed(
     OPENVINO_ASSERT((!m_has_zp_state && m_hidden_states.size() == 3) || (m_has_zp_state && m_hidden_states.size() == 4),
                     "[GPU] VariableStateIndirectKVCacheCompressed expects 3 or 4 internal states to be initialized, "
                     "actual number is ", m_hidden_states.size());
+
+    // For 4-bit KV-cache, two INT4 values are packed per byte.
+    // Halve the innermost dim of the allocation to reduce physical memory usage.
+    if (m_is_4bit_kv_cache) {
+        m_hidden_states[0]->set_alloc_inner_dim_divisor(2);
+    }
 }
 
 VariableState::Ptr VariableStateIndirectKVCacheCompressed::get_compression_scale_state() const {
