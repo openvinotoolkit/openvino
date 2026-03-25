@@ -4,6 +4,7 @@
 
 #include "model_serializer.hpp"
 
+#include <chrono>
 #include <cstdint>
 #include <istream>
 #include <regex>
@@ -247,17 +248,6 @@ ov::intel_npu::ModelSerializerVersion determineModelSerializerVersion(
     if (get_ir_version(model, logger) < 11) {
         // Models that use a version < 11 cannot be marshalled using the "no_weights_copy" algorithm. See C#179944.
         return ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY;
-    }
-    if (isOptionValueSupportedByCompiler == nullptr) {
-        // Can't query the support offered by the compiler. This is considered a test scenario, therefore the version
-        // given as argument will be used.
-        logger.warning(
-            "No function has been provided to the model serializer that allows querying the options supported by the "
-            "compiler. The provided model serializer version will be used without checking the compiler support. This "
-            "is acceptable to happen only if the current run is a test.");
-        return serializerVersion != ov::intel_npu::ModelSerializerVersion::AUTO
-                   ? serializerVersion
-                   : ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY;
     }
 
     switch (serializerVersion) {
@@ -578,26 +568,46 @@ SerializedIR serializeIR(
     const std::function<bool(const std::string&, const std::optional<std::string>&)>& isOptionValueSupportedByCompiler,
     const bool computeModelHash,
     const bool storeWeightlessCacheAttributeFlag) {
+    OPENVINO_ASSERT(model, "nullptr passed as model to the NPU model serializer");
+    OPENVINO_ASSERT(isOptionValueSupportedByCompiler,
+                    "The NPU model serializer was called without providing a function for querying the config options "
+                    "support offered by the compiler-adapter");
+
+    const Logger& logger = Logger("serializeIR", Logger::global().level());
+    std::chrono::steady_clock::time_point start_time;
+    if (logger.level() >= ov::log::Level::INFO) {
+        start_time = std::chrono::steady_clock::now();
+    }
+
     // The current instance is already a clone (or should be one), we are not modifying the original model
     const std::shared_ptr<ov::Model> nonConstantModel = std::const_pointer_cast<ov::Model>(model);
-    const Logger& logger = Logger("serializeIR", Logger::global().level());
     const ov::intel_npu::ModelSerializerVersion version =
         determineModelSerializerVersion(serializerVersion, isOptionValueSupportedByCompiler, nonConstantModel, logger);
 
     logger.info("Model serializer version chosen by the NPU plugin: %s",
                 MODEL_SERIALIZER_VERSION::toString(version).c_str());
 
+    SerializedIR serializedIR;
     switch (version) {
     case ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY:
-        return VCLSerializerWithoutWeightsCopy(compilerVersion, supportedOpsetVersion)
-            .serialize(nonConstantModel, computeModelHash, storeWeightlessCacheAttributeFlag);
+        serializedIR = VCLSerializerWithoutWeightsCopy(compilerVersion, supportedOpsetVersion)
+                           .serialize(nonConstantModel, computeModelHash, storeWeightlessCacheAttributeFlag);
+        break;
     case ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY:
-        return VCLSerializerWithWeightsCopy(compilerVersion, supportedOpsetVersion)
-            .serialize(nonConstantModel, computeModelHash, storeWeightlessCacheAttributeFlag);
+        serializedIR = VCLSerializerWithWeightsCopy(compilerVersion, supportedOpsetVersion)
+                           .serialize(nonConstantModel, computeModelHash, storeWeightlessCacheAttributeFlag);
+        break;
     default:
         OPENVINO_THROW("Invalid version of model serializer determined by the utility function. Obtained the version: ",
                        MODEL_SERIALIZER_VERSION::toString(version));
     }
+
+    logger.info(
+        "Model serialization duration: %.2f ms",
+        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start_time).count() /
+            1000.0);
+
+    return serializedIR;
 }
 
 std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices) {
