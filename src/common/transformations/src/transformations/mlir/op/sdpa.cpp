@@ -6,8 +6,10 @@
 #include "mlir/Dialect/Linalg/Passes.h"
 
 #include <openvino/op/scaled_dot_product_attention.hpp>
+#include <openvino/op/constant.hpp>
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include <iostream>
+#include <cmath>
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Math/IR/Math.h"
@@ -37,7 +39,7 @@ struct ConvertSDPA {
             auto sMap = AffineMap::get(/*dimCount=*/5, /*symbolCount=*/0, ctx);
             auto rMap = AffineMap::get(/*dimCount=*/5, /*symbolCount=*/0, {batch, m, n}, ctx);
             if (hasMask) {
-                auto mMap = AffineMap::get(/*dimCount=*/5, /*symbolCount=*/0, {batch, m, k2}, ctx);
+                auto mMap = AffineMap::get(/*dimCount=*/5, /*symbolCount=*/0, {m, k2}, ctx);
                 return {qMap, kMap, vMap, sMap, mMap, rMap};
             }
             return {qMap, kMap, vMap, sMap, rMap};
@@ -52,7 +54,7 @@ struct ConvertSDPA {
             auto sMap = AffineMap::get(/*dimCount=*/6, /*symbolCount=*/0, ctx);
             auto rMap = AffineMap::get(/*dimCount=*/6, /*symbolCount=*/0, {batch, head, m, n}, ctx);
             if (hasMask) {
-                auto mMap = AffineMap::get(/*dimCount=*/6, /*symbolCount=*/0, {batch, head, m, k2}, ctx);
+                auto mMap = AffineMap::get(/*dimCount=*/6, /*symbolCount=*/0, {m, k2}, ctx);
                 return {qMap, kMap, vMap, sMap, mMap, rMap};
             }
             return {qMap, kMap, vMap, sMap, rMap};
@@ -103,17 +105,41 @@ struct ConvertSDPA {
         if (input_size > 3 && !causal && node->get_input_partial_shape(3).rank().get_length() > 0) {
             mask = inputs[3];
             hasMask = true;
+
+            // Squeeze mask to 2D: mask can be 2D [M,N], 3D [1,M,N], or 4D [1,1,M,N]
+            // linalgx::AttentionOp expects a 2D mask [seq_q, seq_k]
+            auto maskShape = node->get_input_partial_shape(3);
+            auto maskRank = maskShape.rank().get_length();
+            if (maskRank == 3) {
+                // [1, M, N] → [M, N]: collapse dims [0,1] and [2]
+                SmallVector<ReassociationIndices> reassoc = {{0, 1}, {2}};
+                mask = builder.create<tensor::CollapseShapeOp>(loc, mask, reassoc);
+            } else if (maskRank == 4) {
+                // [1, 1, M, N] → [M, N]: collapse dims [0,1,2] and [3]
+                SmallVector<ReassociationIndices> reassoc = {{0, 1, 2}, {3}};
+                mask = builder.create<tensor::CollapseShapeOp>(loc, mask, reassoc);
+            }
+            // maskRank == 2: already 2D, no change needed
         }
 
         // Extract or compute scale (input 4)
         Value scale;
         if (input_size > 4) {
-            // Scale is provided as input tensor - extract scalar from 0-dimensional tensor
-            // For a scalar tensor (shape {}), tensor.extract with no indices extracts the value
-            scale = builder.create<tensor::ExtractOp>(loc, inputs[4], mlir::ValueRange{});
+            // Scale is provided as input tensor
+            // Check if it's an ov::Constant — if so, extract scalar value directly
+            auto scale_node = node->get_input_node_shared_ptr(4);
+            auto scale_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(scale_node);
+            if (scale_const) {
+                auto scale_val = scale_const->cast_vector<float>()[0];
+                scale = getConstant(builder, ov_output_element_type, scale_val);
+            } else {
+                OPENVINO_ASSERT(false, "SDPA: dynamic scale input is not supported in this version");
+            }
         } else {
-            // Default scale: 1.0
-            scale = getConstant(builder, ov_output_element_type, 1.0);
+            // Default scale: 1 / sqrt(head_dim), where head_dim is last dim of Q
+            auto head_dim = qShape[qRank - 1].get_length();
+            float default_scale = 1.0f / std::sqrt(static_cast<float>(head_dim));
+            scale = getConstant(builder, ov_output_element_type, default_scale);
         }
 
         const auto ov_output_shape = node->get_output_partial_shape(0);
