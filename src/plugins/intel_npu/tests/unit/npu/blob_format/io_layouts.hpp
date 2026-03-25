@@ -37,8 +37,8 @@ using ValidLayouts = IOLayoutsSectionUnitTests;
 TEST_P(ValidLayouts, WriteRead) {
     section->write(stream, writer.get());
 
-    const std::string temp_buffer = stream.str();
-    ov::Tensor tensor(ov::element::u8, ov::Shape{temp_buffer.size()}, temp_buffer.data());
+    const std::string buffer = stream.str();
+    ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
     reader = std::make_shared<BlobReader>(tensor);
 
     auto read_section = section->read(reader.get(), stream.tellp());
@@ -52,7 +52,7 @@ TEST_P(ValidLayouts, WriteRead) {
 using IOLayoutsSectionRead = ::testing::Test;
 
 TEST_F(IOLayoutsSectionRead, TooSmallSectionLength) {
-    const std::array<uint8_t, 16> dummy{};
+    std::vector<uint8_t> dummy(0xFFFF, 0xFF);
     ov::Tensor tensor(ov::element::u8, ov::Shape{dummy.size()}, const_cast<uint8_t*>(dummy.data()));
     BlobReader reader(tensor);
     ASSERT_ANY_THROW(IOLayoutsSection::read(&reader, sizeof(uint64_t) - 1));
@@ -63,16 +63,16 @@ TEST_F(IOLayoutsSectionRead, LessLayoutsThanExpected) {
     BlobWriter writer;
     std::stringstream stream;
     real_section.write(stream, &writer);
-    std::string temp_buffer = stream.str();
+    std::string buffer = stream.str();
 
     // overwrite total number of layouts
     const uint64_t fake_count = 20;
-    std::memcpy(temp_buffer.data(), &fake_count, sizeof(fake_count));
-    std::memcpy(temp_buffer.data() + sizeof(uint64_t), &fake_count, sizeof(fake_count));
+    std::memcpy(buffer.data(), &fake_count, sizeof(fake_count));
+    std::memcpy(buffer.data() + sizeof(uint64_t), &fake_count, sizeof(fake_count));
 
-    ov::Tensor tensor(ov::element::u8, ov::Shape{temp_buffer.size()}, temp_buffer.data());
+    ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
     BlobReader reader(tensor);
-    ASSERT_ANY_THROW(IOLayoutsSection::read(&reader, temp_buffer.size()));
+    ASSERT_ANY_THROW(IOLayoutsSection::read(&reader, buffer.size()));
 }
 
 TEST_F(IOLayoutsSectionRead, InvalidLayout) {
@@ -80,20 +80,20 @@ TEST_F(IOLayoutsSectionRead, InvalidLayout) {
     BlobWriter writer;
     std::stringstream stream;
     valid_section.write(stream, &writer);
-    std::string temp_buffer = stream.str();
+    std::string buffer = stream.str();
 
     // overwrite input layout '[N]' with '[%]'
     const size_t layout_offset = sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint16_t);
-    ASSERT_GE(temp_buffer.size(), layout_offset + 3);
-    temp_buffer[layout_offset] = '[';
-    temp_buffer[layout_offset + 1] = '%';
-    temp_buffer[layout_offset + 2] = ']';
+    ASSERT_GE(buffer.size(), layout_offset + 3);
+    buffer[layout_offset] = '[';
+    buffer[layout_offset + 1] = '%';
+    buffer[layout_offset + 2] = ']';
 
-    ov::Tensor tensor(ov::element::u8, ov::Shape{temp_buffer.size()}, temp_buffer.data());
+    ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
     BlobReader reader(tensor);
 
     std::shared_ptr<ISection> read_section;
-    ASSERT_NO_THROW(read_section = IOLayoutsSection::read(&reader, temp_buffer.size()));
+    ASSERT_NO_THROW(read_section = IOLayoutsSection::read(&reader, buffer.size()));
 
     const auto layouts_result = std::dynamic_pointer_cast<IOLayoutsSection>(read_section);
     ASSERT_TRUE(layouts_result);

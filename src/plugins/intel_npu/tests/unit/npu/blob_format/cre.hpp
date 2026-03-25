@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "expressions.hpp"
 #include "intel_npu/common/cre.hpp"
 #include "intel_npu/common/static_capability.hpp"
 
@@ -38,16 +37,6 @@ protected:
 public:
     static std::string tokenToString(CRE::Token token) {
         switch (token) {
-        case CRE::AND:
-            return "AND";
-        case CRE::OR:
-            return "OR";
-        case CRE::OPEN:
-            return "OPEN";
-        case CRE::CLOSE:
-            return "CLOSE";
-        case CRE::NOT:
-            return "NOT";
         case CRE::CRE_EVALUATION:
             return "CRE_EVAL";
         case CRE::ELF_SCHEDULE:
@@ -93,8 +82,9 @@ using AppendSingleToken = ::testing::Test;
 TEST_F(AppendSingleToken, AppendValidTokenUpdatesExpression) {
     CRE cre;
     cre.append_to_expression(CRE::ELF_SCHEDULE);
-    // questionable, might be implementation defined of how vector class behaves
-    EXPECT_EQ(cre.get_expression_length(), 2u);
+    // questionable, might be implementation defined of how vector class behaves?
+    // have to do some research on this
+    EXPECT_EQ(cre.get_expression_length(), 2);
     EXPECT_EQ(cre.get_expression(), (std::vector<CRE::Token>{CRE::AND, CRE::ELF_SCHEDULE}));
 }
 
@@ -103,7 +93,7 @@ TEST_F(AppendSingleToken, AppendMultipleValidTokensAccumulates) {
     cre.append_to_expression(CRE::ELF_SCHEDULE);
     cre.append_to_expression(CRE::BATCHING);
     cre.append_to_expression(CRE::WEIGHTS_SEPARATION);
-    EXPECT_EQ(cre.get_expression_length(), 4u);
+    EXPECT_EQ(cre.get_expression_length(), 4);
     EXPECT_EQ(cre.get_expression(),
               (std::vector<CRE::Token>{CRE::AND, CRE::ELF_SCHEDULE, CRE::BATCHING, CRE::WEIGHTS_SEPARATION}));
 }
@@ -131,16 +121,16 @@ TEST_F(AppendSingleToken, BuildsEvaluatableAndExpression) {
     EXPECT_FALSE(cre.check_compatibility(caps));
 }
 
-using AppendTokenVector = ::testing::Test;
+using AppendToken = ::testing::Test;
 
-TEST_F(AppendTokenVector, AppendEmptyVector) {
+TEST_F(AppendToken, AppendEmptyVector) {
     CRE cre;
     cre.append_to_expression(std::vector<CRE::Token>{});
-    EXPECT_EQ(cre.get_expression_length(), 1u);
+    EXPECT_EQ(cre.get_expression_length(), 1);
     EXPECT_EQ(cre.get_expression(), (std::vector<CRE::Token>{CRE::AND}));
 }
 
-TEST_F(AppendTokenVector, AppendSubexpressionTokens) {
+TEST_F(AppendToken, AppendSubexpressionTokens) {
     CRE cre;
     cre.append_to_expression(
         std::vector<CRE::Token>{CRE::OPEN, CRE::OR, CRE::BATCHING, CRE::WEIGHTS_SEPARATION, CRE::CLOSE});
@@ -150,7 +140,7 @@ TEST_F(AppendTokenVector, AppendSubexpressionTokens) {
         (std::vector<CRE::Token>{CRE::AND, CRE::OPEN, CRE::OR, CRE::BATCHING, CRE::WEIGHTS_SEPARATION, CRE::CLOSE}));
 }
 
-TEST_F(AppendTokenVector, MixedAppend) {
+TEST_F(AppendToken, MixedAppend) {
     CRE cre;
     cre.append_to_expression(CRE::ELF_SCHEDULE);
     cre.append_to_expression(

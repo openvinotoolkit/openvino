@@ -4,29 +4,9 @@
 
 #pragma once
 
-#include "batch_size_section.hpp"
-#include "compiler_schedules_sections.hpp"
 #include "intel_npu/common/cre.hpp"
-#include "intel_npu/common/offsets_table.hpp"
-#include "io_layouts_section.hpp"
 
 using namespace intel_npu;
-
-const std::optional<int64_t> BATCH = 2;
-
-const auto BATCH_SECTION = std::make_shared<intel_npu::BatchSizeSection>(BATCH.value());
-
-const std::vector<CRE::Token> DUMMY_CRE_EXPRESSION = {CRE::OPEN, CRE::AND, CRE::ELF_SCHEDULE, CRE::CLOSE};
-const auto CRE_SECTION = std::make_shared<intel_npu::CRESection>(CRE(DUMMY_CRE_EXPRESSION));
-
-const intel_npu::OffsetsTable DUMMY_OFFSETS_TABLE;
-const auto OFFSETS_TABLE_SECTION = std::make_shared<intel_npu::OffsetsTableSection>(DUMMY_OFFSETS_TABLE);
-
-const ov::Tensor DUMMY_MAIN_SCHEDULE(ov::element::u8, ov::Shape{16});
-const auto ELF_MAIN_SCHEDULE_SECTION = std::make_shared<intel_npu::ELFMainScheduleSection>(DUMMY_MAIN_SCHEDULE);
-
-std::vector<ov::Tensor> DUMMY_INIT_SCHEDULES = {ov::Tensor(ov::element::u8, ov::Shape{16})};
-const auto ELF_INIT_SCHEDULES_SECTION = std::make_shared<intel_npu::ELFInitSchedulesSection>(DUMMY_INIT_SCHEDULES);
 
 const std::vector<CRE::Token> expression_1 = {};
 

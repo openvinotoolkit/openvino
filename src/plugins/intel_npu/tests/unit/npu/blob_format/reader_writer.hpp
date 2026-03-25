@@ -21,7 +21,6 @@ void prepare_writer(const std::shared_ptr<BlobWriter>& blobWriter,
                     const std::vector<CRE::Token>& expression,
                     const std::vector<std::shared_ptr<ISection>> sections) {
     blobWriter->append_compatibility_requirement(expression);
-    // not sure if this is good enough to work
     for (const auto& section : sections) {
         blobWriter->register_section(section);
     }
@@ -86,7 +85,6 @@ protected:
 
     std::vector<CRE::Token> expression;
     std::vector<uint16_t> section_types;
-
     std::shared_ptr<BlobWriter> writer;
     std::shared_ptr<BlobReader> reader;
     std::shared_ptr<BatchSizeSection> batch_section;
@@ -142,8 +140,6 @@ TEST_F(WriterReaderEdgeCases, CorruptedFormatVersion) {
     ASSERT_ANY_THROW(reader.read(caps));
 }
 
-// offsets table given to writer_2 from reader_1 leads to failing OffsetsTable::add_entry()
-// BATCHING is found already being present in the map, so the assertion fails
 TEST_F(WriterReaderEdgeCases, ReExportRoundTrip) {
     const std::vector<ov::Layout> input_layouts = {ov::Layout("NCHW")};
     const std::vector<ov::Layout> output_layouts = {ov::Layout("NHWC")};

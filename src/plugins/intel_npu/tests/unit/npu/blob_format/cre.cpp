@@ -4,6 +4,8 @@
 
 #include "cre.hpp"
 
+#include "expressions.hpp"
+
 #define MAKE_PARAM(expr, result, ...) \
     std::make_tuple(std::string(#expr), expr, std::vector<uint16_t>{__VA_ARGS__}, result)
 
