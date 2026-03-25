@@ -16,6 +16,30 @@
 #    include "openvino/core/type/float16.hpp"
 #    include "openvino/reference/utils/jit_generator.hpp"
 
+namespace {
+// Custom allocator that rounds up the requested size to a full page boundary.
+// This ensures each CodeArray occupies complete pages so that setProtectModeRW()
+// called during destruction cannot strip the execute permission from pages that
+// are simultaneously used by another live CodeArray instance.
+// (The default Xbyak::Allocator aligns the *start* address to a page but does
+// not round up the *size*, so two small allocations may share a page.)
+struct PageAlignedAllocator : public Xbyak::Allocator {
+    uint8_t* alloc(size_t size) override {
+        const size_t pageSize = Xbyak::inner::getPageSize();
+        size = (size + pageSize - 1) & ~(pageSize - 1);
+        return reinterpret_cast<uint8_t*>(Xbyak::AlignedMalloc(size, pageSize));
+    }
+    void free(uint8_t* p) override {
+        Xbyak::AlignedFree(p);
+    }
+};
+
+Xbyak::Allocator& getPageAlignedAllocator() {
+    static PageAlignedAllocator instance;
+    return instance;
+}
+}  // anonymous namespace
+
 namespace ov {
 namespace reference {
 namespace jit {
@@ -66,7 +90,7 @@ bool Generator::is_x64() {
     return sizeof(void*) == 8;
 }
 Generator::Generator(cpu_isa_t isa, void* code_ptr, size_t code_size)
-    : Xbyak::CodeGenerator(code_size, code_ptr),
+    : Xbyak::CodeGenerator(code_size, code_ptr, code_ptr ? nullptr : &getPageAlignedAllocator()),
       size_of_abi_save_regs(num_abi_save_gpr_regs * rax.getBit() / 8 + xmm_to_preserve * xmm_len),
       reg_EVEX_max_8b_offt(rbp) {
     if (isa == avx512_core) {
