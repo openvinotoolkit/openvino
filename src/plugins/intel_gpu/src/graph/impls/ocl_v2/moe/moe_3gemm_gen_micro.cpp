@@ -329,11 +329,6 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
             OPENVINO_THROW("Unsupported input tensor shape size: ", input_layout.get_shape().size());
         }
 
-        auto cur_moe = params.typed_desc<moe_3gemm_fused_compressed>();
-        const auto& config = cur_moe->_config;
-        n = n * config.top_k;
-        GPU_DEBUG_TRACE_DETAIL << "\t n = " << n << std::endl;
-
         const auto& experts_weight_shape = experts_weight_layout.get_shape();
         size_t m = experts_weight_shape[1];
         size_t k = experts_weight_shape.size() == 4 ? experts_weight_shape[2] * experts_weight_shape[3] : experts_weight_shape[2];
