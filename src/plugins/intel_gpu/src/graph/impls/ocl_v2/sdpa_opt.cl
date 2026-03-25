@@ -1603,7 +1603,7 @@ KERNEL(sdpa_opt)(
 #endif
 
 #if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
-                if ((seq_len + i <= this_work_item_max_target_seq_idx) && (this_work_item_max_target_seq_idx < SLIDING_WINDOW_SIZE || seq_len + i > this_work_item_max_target_seq_idx - SLIDING_WINDOW_SIZE)) {
+                if ((seq_len + i <= this_work_item_max_target_seq_idx) && (this_work_item_max_target_seq_idx < SLIDING_WINDOW_SIZE || seq_len + i >= this_work_item_max_target_seq_idx - SLIDING_WINDOW_SIZE)) {
 #else
                 if (seq_len + i <= this_work_item_max_target_seq_idx) {
 #endif
