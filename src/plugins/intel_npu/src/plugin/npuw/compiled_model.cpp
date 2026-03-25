@@ -1789,8 +1789,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
     auto wrapped_failsafe = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(wrapped);
     OPENVINO_ASSERT(wrapped_failsafe != nullptr, "Expected a failsafe compiled model wrapper");
 
-    auto active_device_it =
-        std::find(m_dev_list.cbegin(), m_dev_list.cend(), wrapped_failsafe->active_device_name());
+    auto active_device_it = std::find(m_dev_list.cbegin(), m_dev_list.cend(), wrapped_failsafe->active_device_name());
     OPENVINO_ASSERT(active_device_it != m_dev_list.cend(), "Failsafe selected an unknown device");
 
     m_compiled_submodels[id].compiled_model = {std::move(wrapped), {}};
@@ -2278,7 +2277,8 @@ std::string ov::npuw::CompiledModel::submodel_device(const std::size_t idx) cons
         return m_ref_device;
     }
 
-    if (auto failsafe_model = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(comp_subm_desc.compiled_model._ptr)) {
+    if (auto failsafe_model =
+            std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(comp_subm_desc.compiled_model._ptr)) {
         return failsafe_model->active_device_name();
     }
 

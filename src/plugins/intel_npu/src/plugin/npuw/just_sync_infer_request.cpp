@@ -1341,8 +1341,8 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
             // This may happen when there's multiple NPUW's infer
             // requests created and some failure occurs in one of
             // those before another reaches this point.
-            LOG_INFO("Recreating subrequest[" << real_idx << "] because model was recompiled for "
-                                              << active_device << " device.");
+            LOG_INFO("Recreating subrequest[" << real_idx << "] because model was recompiled for " << active_device
+                                              << " device.");
             recreate_subrequests(real_idx);
         }
 
