@@ -181,6 +181,21 @@ namespace intel_npu {
         }                                                                                               \
     } while (0)
 
+#define TRY_REGISTER_NPUW_OPTION_PROPERTY(OPT_TYPE)                                                     \
+    do {                                                                                                \
+        std::string o_name = std::string(OPT_TYPE::key());                                              \
+        if (_config.isAvailable(o_name)) {                                                              \
+            bool isPublic = _config.getOpt(o_name).isPublic();                                          \
+            ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();                     \
+            if (_pType == PropertiesType::COMPILED_MODEL) {                                             \
+                isMutable = ov::PropertyMutability::RO;                                                 \
+            }                                                                                           \
+            _properties.emplace(o_name, std::make_tuple(isPublic, isMutable, [](const Config& config) { \
+                                    return config.get<OPT_TYPE>();                                      \
+                                }));                                                                    \
+        }                                                                                               \
+    } while (0)
+
 /**
  * @brief Macro for registering simple get<> properties which have been previously set. For COMPILED_MODEL
  *
@@ -586,81 +601,10 @@ void Properties::registerPluginProperties() {
 
     // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
     // to enable those for OV Core to query.
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::use_npuw, NPU_USE_NPUW);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::devices, NPUW_DEVICES);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::submodel_device, NPUW_SUBMODEL_DEVICE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::weights_bank, NPUW_WEIGHTS_BANK);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::weights_bank_alloc, NPUW_WEIGHTS_BANK_ALLOC);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::online::pipeline, NPUW_ONLINE_PIPELINE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::online::avoid, NPUW_ONLINE_AVOID);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::online::isolate, NPUW_ONLINE_ISOLATE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::online::nofold, NPUW_ONLINE_NO_FOLD);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::online::min_size, NPUW_ONLINE_MIN_SIZE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::online::keep_blocks, NPUW_ONLINE_KEEP_BLOCKS);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::online::keep_block_size,
-                                 NPUW_ONLINE_KEEP_BLOCK_SIZE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::attn, NPUW_ATTN);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::attn_hfa_fused, NPUW_ATTN_HFA_FUSED);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::fold, NPUW_FOLD);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::cwai, NPUW_CWAI);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::dyn_quant, NPUW_DQ);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::dyn_quant_full, NPUW_DQ_FULL);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::par_matmul_merge_dims, NPUW_PMM);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::matmul_gate_preserve_constants, NPUW_MM_GATED);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::slice_out, NPUW_SLICE_OUT);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::spatial, NPUW_SPATIAL);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::spatial_nway, NPUW_SPATIAL_NWAY);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::spatial_dyn, NPUW_SPATIAL_DYN);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::f16_interconnect, NPUW_F16IC);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::host_gather, NPUW_HOST_GATHER);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::funcall_async, NPUW_FUNCALL_ASYNC);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::unfold_ireqs, NPUW_UNFOLD_IREQS);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::fallback_exec, NPUW_FALLBACK_EXEC);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::enabled, NPUW_LLM);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::batch_dim, NPUW_LLM_BATCH_DIM);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::seq_len_dim, NPUW_LLM_SEQ_LEN_DIM);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::max_generation_token_len, NPUW_LLM_MAX_GENERATION_TOKEN_LEN);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_moe_hint, NPUW_LLM_PREFILL_MOE_HINT);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_moe_hint, NPUW_LLM_GENERATE_MOE_HINT);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_pyramid, NPUW_LLM_GENERATE_PYRAMID);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_chunk_size, NPUW_LLM_PREFILL_CHUNK_SIZE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::max_lora_rank, NPUW_LLM_MAX_LORA_RANK);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::enable_prefix_caching, NPUW_LLM_ENABLE_PREFIX_CACHING);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefix_caching_block_size,
-                                 NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefix_caching_max_num_blocks,
-                                 NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_hint, NPUW_LLM_PREFILL_HINT);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_config, NPUW_LLM_PREFILL_CONFIG);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::additional_prefill_config,
-                                 NPUW_LLM_ADDITIONAL_PREFILL_CONFIG);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_attn_hint, NPUW_LLM_PREFILL_ATTENTION_HINT);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_config, NPUW_LLM_GENERATE_CONFIG);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::additional_generate_config,
-                                 NPUW_LLM_ADDITIONAL_GENERATE_CONFIG);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_attn_hint, NPUW_LLM_GENERATE_ATTENTION_HINT);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::shared_lm_head_config, NPUW_LLM_SHARED_LM_HEAD_CONFIG);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::additional_shared_lm_head_config,
-                                 NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::whisper::enabled, NPUW_WHISPER);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::whisper::whisper_eos_token, NPUW_WHISPER_EOS_TOKEN);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::eagle::enabled, NPUW_EAGLE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::text_embed::enabled, NPUW_TEXT_EMBED);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::kokoro::enabled, NPUW_KOKORO);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::kokoro::block_size, NPUW_KOKORO_BLOCK_SIZE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::kokoro::overlap_size, NPUW_KOKORO_OVERLAP_SIZE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::moe_token_chunk_size, NPUW_MOE_TOKEN_CHUNK_SIZE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::moe_pool_size, NPUW_MOE_POOL_SIZE);
+    for_each_exposed_npuw_option([&](auto tag) {
+        using Opt = typename decltype(tag)::type;
+        TRY_REGISTER_NPUW_OPTION_PROPERTY(Opt);
+    });
 
     // 2. Metrics (static device and enviroment properties)
     // ========
@@ -1093,13 +1037,15 @@ bool Properties::isPropertyRegistered(const std::string& propertyName) const {
 
 FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& properties,
                                                         const ICompilerAdapter* compiler) {
-    auto [updatedConfig, compilerConfigsFilteredByCompiler, currentlyUsedCompiler, currentlyUsedPlatform] = [&]() {
-        std::lock_guard<std::mutex> lock(_mutex);
-        return std::make_tuple(_config,
-                               _compilerConfigsFilteredByCompiler,
-                               _currentlyUsedCompiler,
-                               _currentlyUsedPlatform);
-    }();
+    auto [updatedConfig, compilerConfigsFilteredByCompiler, currentlyUsedCompiler, currentlyUsedPlatform, logger] =
+        [&]() {
+            std::lock_guard<std::mutex> lock(_mutex);
+            return std::make_tuple(_config,
+                                   _compilerConfigsFilteredByCompiler,
+                                   _currentlyUsedCompiler,
+                                   _currentlyUsedPlatform,
+                                   _logger);
+        }();
 
     std::optional<ov::intel_npu::CompilerType> propertiesCompilerType = std::nullopt;
     std::optional<std::string> propertiesPlatform = std::nullopt;
@@ -1120,7 +1066,7 @@ FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& proper
           propertiesPlatform.value_or(currentlyUsedPlatform) == currentlyUsedPlatform)) {
         // In case the compiler properties are not initialized or the compiler/platform was changed since last call -
         // filter out options again
-        filterPropertiesByCompilerSupport(updatedConfig, compiler, _backend, _logger);
+        filterPropertiesByCompilerSupport(updatedConfig, compiler, _backend, logger);
     }
 
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
@@ -1144,9 +1090,9 @@ FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& proper
 }
 
 FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::AnyMap& properties) {
-    auto [updatedConfig, compilerConfigsFilteredByCompiler] = [&]() {
+    auto [updatedConfig, compilerConfigsFilteredByCompiler, logger] = [&]() {
         std::lock_guard<std::mutex> lock(_mutex);
-        return std::make_tuple(_config, _compilerConfigsFilteredByCompiler);
+        return std::make_tuple(_config, _compilerConfigsFilteredByCompiler, _logger);
     }();
 
     if (compilerConfigsFilteredByCompiler) {
@@ -1164,16 +1110,15 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
             const auto optionMode = updatedConfig.getOpt(key).mode();
 
             if (optionMode == OptionMode::CompileTime) {
-                _logger.info(
+                logger.info(
                     "Config key '%s' is recognized as a compiler option, will not be used for current configuration.",
                     key.c_str());
                 continue;
             }
 
             if (optionMode == OptionMode::Both && !updatedConfig.isAvailable(key)) {
-                _logger.info(
-                    "Config key '%s' is not enabled by the plugin, will not be used for current configuration.",
-                    key.c_str());
+                logger.info("Config key '%s' is not enabled by the plugin, will not be used for current configuration.",
+                            key.c_str());
                 continue;
             }
         }
