@@ -753,6 +753,18 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return lora_is_single_user && is_simple_lora;
         };
 
+        auto gather_supports_fusings = [&](gather_node& node) -> bool {
+            auto in_rank = node.get_input_layout(0).get_rank();
+            auto out_rank = node.get_output_layout().get_rank();
+
+            return (in_rank <= out_rank);
+        };
+
+        auto is_static_scalar_output = [&](program_node& node) -> bool {
+            const auto& out_layout = node.get_output_layout();
+            return out_layout.is_static() && out_layout.count() == 1;
+        };
+
         auto broadcast_supports_fusings = [&](broadcast_node& bcast_node) -> bool {
             if (bcast_node.get_outputs_count() != 1)
                 return false;
@@ -1066,7 +1078,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<pooling>()) ||
                                       (parents[i].first->is_type<depth_to_space>() &&
                                        dts_supports_fusings(parents[i].first->as<depth_to_space>())) ||
-                                      (parents[i].first->is_type<gather>()) ||
+                                      (parents[i].first->is_type<gather>() &&
+                                       (gather_supports_fusings(parents[i].first->as<gather>()) ||
+                                       is_static_scalar_output(*parents[1 - i].first))) ||
                                       (parents[i].first->is_type<reduce>() &&
                                        reduce_supports_fusings(parents[i].first->as<reduce>())) ||
                                       (parents[i].first->is_type<lrn>()) ||
