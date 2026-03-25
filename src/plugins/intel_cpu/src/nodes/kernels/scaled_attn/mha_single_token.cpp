@@ -1653,7 +1653,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
         }
     } else
 #endif
-    if (query.get_precision() == ov::element::f16) {
+        if (query.get_precision() == ov::element::f16) {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
         if (present_key.get_precision() == ov::element::f16) {
             mha_single_token_kernel<ov::float16, ov::float16, ov::float16>(query,
