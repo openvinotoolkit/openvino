@@ -366,6 +366,11 @@ bool CPUTargetMachine::is_supported() const {
     return ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv);
 }
 
+bool CPUTargetMachine::supports_domain_optimization(const std::shared_ptr<ov::Node>& op) const {
+    // RV64 Reduce lowering does not support domain-collapsed shapes yet.
+    return !ov::is_type<ov::snippets::op::ReduceBase>(op);
+}
+
 snippets::CompiledSnippetPtr CPUTargetMachine::get_snippet() {
     OPENVINO_ASSERT(h->create_kernel(), "Failed to create jit_kernel in get_snippet()");
 

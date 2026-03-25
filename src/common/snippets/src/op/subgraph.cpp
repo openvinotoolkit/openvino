@@ -405,10 +405,17 @@ std::shared_ptr<lowered::LinearIR> Subgraph::convert_body_to_linear_ir(
     size_t min_parallel_work_amount,
     size_t min_kernel_work_amount,
     const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
+    const auto& target_machine = m_generator->get_target_machine();
+    const auto target_blocks_domain_optimization =
+        std::any_of(body_ptr()->get_ops().begin(), body_ptr()->get_ops().end(), [&target_machine](const auto& op) {
+            return !target_machine->supports_domain_optimization(op);
+        });
+
     lowered::Config lowering_config;
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
     lowering_config.m_loop_depth = tile_rank;
-    lowering_config.m_enable_domain_optimization = !config.m_has_domain_sensitive_ops;
+    lowering_config.m_enable_domain_optimization =
+        !config.m_has_domain_sensitive_ops && !target_blocks_domain_optimization;
     lowering_config.m_min_parallel_work_amount = min_parallel_work_amount;
     lowering_config.m_min_kernel_work_amount = min_kernel_work_amount;
 #ifdef SNIPPETS_DEBUG_CAPS

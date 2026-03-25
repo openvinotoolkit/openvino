@@ -38,6 +38,7 @@ public:
     [[nodiscard]] std::vector<snippets::Reg> get_abi_arg_regs() const override;
     [[nodiscard]] std::vector<snippets::Reg> get_gp_reg_pool() const override;
     [[nodiscard]] std::vector<snippets::Reg> get_vec_reg_pool() const override;
+    [[nodiscard]] bool supports_domain_optimization(const std::shared_ptr<ov::Node>& op) const override;
 
     [[nodiscard]] ov::intel_cpu::riscv64::cpu_isa_t get_isa() const;
 #ifdef SNIPPETS_DEBUG_CAPS

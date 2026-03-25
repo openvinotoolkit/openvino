@@ -68,7 +68,6 @@
 
 #    include "emitters/snippets/riscv64/cpu_generator.hpp"
 #    include "executors/riscv64/subgraph.hpp"
-#    include "snippets/lowered/pass/optimize_domain.hpp"
 #else
 #    include "emitters/snippets/cpu_runtime_configurator.hpp"
 #    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
@@ -808,10 +807,6 @@ void Subgraph::optimizeIR() {
 #if defined(OPENVINO_ARCH_ARM64)
     // enable it after emitters for RegSpillBegin and RegSpillEnd are implemented on ARM in CVS-162498
     control_flow_config->disable<ov::snippets::lowered::pass::InsertRegSpills>();
-#endif
-#if defined(OPENVINO_ARCH_RISCV64)
-    control_flow_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
-    subgraph->set_tile_rank(std::min(2UL, subgraph->infer_master_shape().size()));
 #endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
