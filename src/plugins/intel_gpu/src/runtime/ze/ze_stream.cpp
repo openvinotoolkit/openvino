@@ -10,6 +10,7 @@
 #include "openvino/runtime/properties.hpp"
 
 #include "ze_counter_based_event_factory.hpp"
+#include "ze_counter_based_event.hpp"
 #include "ze_event_factory.hpp"
 #include "ze_events.hpp"
 #include "ze_empty_event.hpp"
@@ -331,7 +332,13 @@ void ze_stream::wait() {
 
 event::ptr ze_stream::create_user_event(bool set) {
     auto ev = m_ev_factory->create_event(++m_queue_counter);
-    if (set)
+    if (std::dynamic_pointer_cast<ze::ze_counter_based_event>(ev) != nullptr) {
+        if (!set) {
+            GPU_DEBUG_INFO << "[GPU] Counter based events are always created as complete, ignoring set=false parameter\n";
+        }
+        return ev;
+    }
+    else if (set)
         ev->set();
 
     return ev;
