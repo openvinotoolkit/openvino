@@ -39,9 +39,7 @@ GatedDeltaNetVariableFusionMatcher::GatedDeltaNetVariableFusionMatcher() {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto past_node = ov::as_type_ptr<ov::op::v6::ReadValue>(pattern_map.at(past).get_node_shared_ptr());
-        // auto assign_node = ov::as_type_ptr<ov::op::v6::Assign>(pattern_map.at(assign).get_node_shared_ptr());
         auto old_gdn = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(pattern_map.at(gdn).get_node_shared_ptr());
-        std::cout << "Start|Fused GatedDeltaNet with variable: " << old_gdn->get_friendly_name() << std::endl;
 
         auto variable = past_node->get_variable();
 
@@ -54,7 +52,6 @@ GatedDeltaNetVariableFusionMatcher::GatedDeltaNetVariableFusionMatcher() {
 
         ov::copy_runtime_info(m.get_matched_nodes(), new_gdn);
         ov::replace_node(old_gdn, new_gdn);
-        std::cout << "Fused GatedDeltaNet with variable: " << std::endl;
         return true;
     };
 
@@ -64,7 +61,6 @@ GatedDeltaNetVariableFusionMatcher::GatedDeltaNetVariableFusionMatcher() {
 
 bool GatedDeltaNetVariableFusion::run_on_model(const std::shared_ptr<ov::Model>& m) {
     bool changed = pass::GraphRewrite::run_on_model(m);
-    std::cout << "GatedDeltaNetVariableFusion: " << (changed ? "changed" : "not changed") << std::endl;
 
     if (changed) {
         ov::SinkVector sinks = m->get_sinks();

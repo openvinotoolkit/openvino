@@ -503,9 +503,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
         }
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
-        if (getenv("ENABLE_GDN_FUSION")) {
-            manager.register_pass<ov::intel_gpu::GatedDeltaNetVariableFusion>();
-        }
+        manager.register_pass<ov::intel_gpu::GatedDeltaNetVariableFusion>();
+
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
 

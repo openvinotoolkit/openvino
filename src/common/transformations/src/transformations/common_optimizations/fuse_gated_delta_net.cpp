@@ -407,7 +407,6 @@ ov::pass::FuseQKRepeatIntoGDN::FuseQKRepeatIntoGDN() {
         {transpose_Transpose_4, transpose_Transpose_7, value, init_state, gate, beta});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        std::cout << "Found pattern for fusing q/k repeat into GDN." << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         auto gdn_node = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(pattern_map.at(gdn).get_node_shared_ptr());
         auto new_gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(pattern_map.at(query),
@@ -438,10 +437,6 @@ bool ov::pass::GatedDeltaNetFusion::run_on_model(const std::shared_ptr<ov::Model
     // remove redundant transpose after loop fusion, which are inserted by FuseGDNLoop
     symbolic_ctx_manager->register_pass<ov::pass::TransposeFuse>();
     symbolic_ctx_manager->register_pass<ov::pass::FuseL2NormIntoGDN>();
-    symbolic_ctx_manager->register_pass<ov::pass::PrintModel>("after_fuse_gdn_loop.cpp");
-    if (getenv("FUSE_QK_REPEAT_INTO_GDN")) {
-        symbolic_ctx_manager->register_pass<ov::pass::FuseQKRepeatIntoGDN>();
-    }
-    symbolic_ctx_manager->register_pass<ov::pass::PrintModel>("after_repeat_gdn_loop.cpp");
+    symbolic_ctx_manager->register_pass<ov::pass::FuseQKRepeatIntoGDN>();
     return symbolic_optimizations.run_on_model(model);
 }
