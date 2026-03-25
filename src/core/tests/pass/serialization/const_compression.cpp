@@ -376,3 +376,74 @@ TEST_F(SerializationConstantCompressionTest, EmptyAndNotEmptyConstantsDifferentV
     const auto& [success, message] = compare_functions(model_initial, model_imported, true, true, false, true, true);
     ASSERT_TRUE(success) << message;
 }
+
+TEST_F(SerializationConstantCompressionTest, StringConstantsRoundTrip) {
+    // Two vocabularies that share "UNKNOWN" at index 0 triggering the dedup path for the
+    // second constant, and one fully unique constant
+    auto vocab_A = ov::op::v0::Constant::create(ov::element::string,
+                                                ov::Shape{4},
+                                                std::vector<std::string>{"UNKNOWN", "cat", "dog", "fish"});
+
+    auto vocab_B = ov::op::v0::Constant::create(ov::element::string,
+                                                ov::Shape{4},
+                                                std::vector<std::string>{"UNKNOWN", "red", "green", "blue"});
+
+    auto vocab_C = ov::op::v0::Constant::create(ov::element::string,
+                                                ov::Shape{3},
+                                                std::vector<std::string>{"sports", "politics", "tech"});
+
+    auto model_initial =
+        std::make_shared<ov::Model>(ov::OutputVector{vocab_A, vocab_B, vocab_C}, ov::ParameterVector{});
+
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(model_initial);
+
+    ov::Core core;
+    auto model_imported = core.read_model(m_out_xml_path_1, m_out_bin_path_1);
+
+    std::vector<std::shared_ptr<ov::op::v0::Constant>> consts;
+    for (const auto& op : model_imported->get_ordered_ops()) {
+        if (const auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(op)) {
+            if (c->get_element_type() == ov::element::string) {
+                consts.push_back(c);
+            }
+        }
+    }
+    ASSERT_EQ(consts.size(), 3u);
+
+    std::vector<std::vector<std::string>> actual;
+    for (const auto& c : consts) {
+        actual.push_back(c->get_vector<std::string>());
+    }
+    std::sort(actual.begin(), actual.end());
+
+    std::vector<std::vector<std::string>> expected{
+        {"UNKNOWN", "cat", "dog", "fish"},
+        {"UNKNOWN", "red", "green", "blue"},
+        {"sports", "politics", "tech"},
+    };
+    std::sort(expected.begin(), expected.end());
+
+    EXPECT_EQ(actual, expected);
+}
+
+TEST_F(SerializationConstantCompressionTest, IdenticalStringConstantsRoundTrip) {
+    const std::vector<std::string> vocab{"UNKNOWN", "cat", "dog", "fish"};
+
+    auto A = ov::op::v0::Constant::create(ov::element::string, ov::Shape{4}, vocab);
+    auto B = ov::op::v0::Constant::create(ov::element::string, ov::Shape{4}, vocab);
+
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{A, B}, ov::ParameterVector{});
+
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(model);
+
+    ov::Core core;
+    auto model_imported = core.read_model(m_out_xml_path_1, m_out_bin_path_1);
+
+    for (const auto& op : model_imported->get_ordered_ops()) {
+        if (const auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(op)) {
+            if (c->get_element_type() == ov::element::string) {
+                EXPECT_EQ(c->get_vector<std::string>(), vocab);
+            }
+        }
+    }
+}

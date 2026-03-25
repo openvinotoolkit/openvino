@@ -708,12 +708,6 @@ void XmlSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>&
             auto a1 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter);
             auto a2 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>>(&adapter);
 
-            // Build the complete packed blob in memory first, then write it with a single write() call.
-            // This is required because ConstantWriter::write() has hash-based deduplication: writing
-            // the header and each raw string separately can cause individual strings (e.g. "UNKNOWN")
-            // to be "deduplicated" to an earlier position in the bin.  The reader then reads a contiguous
-            // range [offset, offset+size) that contains holes where the deduplicated bytes were supposed
-            // to be, resulting in corrupted vocabulary data after read_model().
             std::shared_ptr<uint8_t> header_ptr = nullptr;
             size_t header_size = 0;
             if (a1) {
@@ -729,8 +723,8 @@ void XmlSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>&
                 num_elements = a2->get()->get_num_elements();
             }
 
-            // Calculate total payload size
-            size_t total_size = header_size;
+            std::vector<char> packed(header_size);
+            std::memcpy(packed.data(), header_ptr.get(), header_size);
             for (size_t ind = 0; ind < num_elements; ++ind) {
                 const char* raw_string_ptr;
                 size_t raw_string_size;
@@ -739,38 +733,19 @@ void XmlSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>&
                 } else {
                     a2->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
                 }
-                total_size += raw_string_size;
+                packed.insert(packed.end(), raw_string_ptr, raw_string_ptr + raw_string_size);
             }
 
-            // Pack header + all string bytes into one contiguous buffer
-            std::vector<char> packed(total_size);
-            char* dst = packed.data();
-            std::memcpy(dst, header_ptr.get(), header_size);
-            dst += header_size;
-            for (size_t ind = 0; ind < num_elements; ++ind) {
-                const char* raw_string_ptr;
-                size_t raw_string_size;
-                if (a1) {
-                    a1->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
-                } else {
-                    a2->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
-                }
-                std::memcpy(dst, raw_string_ptr, raw_string_size);
-                dst += raw_string_size;
-            }
-
-            // Write as a single blob so deduplication is all-or-nothing for this constant
-            size_t written_size = 0;
-            int64_t offset = get_constant_write_handler().write(
-                packed.data(),
-                total_size,
-                written_size,
-                false,   // never fp16-compress string data
-                ov::element::string,
-                true);   // packed is a temporary local buffer
+            size_t new_size = 0;
+            int64_t offset = get_constant_write_handler().write(packed.data(),
+                                                                packed.size(),
+                                                                new_size,
+                                                                m_compress_to_fp16,
+                                                                m_output_element_type,
+                                                                true);
 
             m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
-            m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(written_size));
+            m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
         }
     } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
         if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
