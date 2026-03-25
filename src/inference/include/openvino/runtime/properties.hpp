@@ -15,6 +15,7 @@
 #include <cctype>
 #include <iomanip>
 #include <istream>
+#include <limits>
 #include <map>
 #include <string>
 #include <unordered_map>
@@ -138,19 +139,45 @@ class Property : public util::BaseProperty<T, mutability_> {
         }
 
         template <typename U,
-                  typename std::enable_if<!std::is_same<typename std::decay<U>::type, std::string>::value &&
+                  typename std::enable_if<!std::is_same<std::decay_t<U>, std::string>::value &&
                                               std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
+            using UType = std::decay_t<U>;
+            if constexpr (std::is_integral_v<UType> && std::is_unsigned_v<UType>) {
+                const std::string str_value = value;
+                // Find first non-whitespace character
+                const auto pos = str_value.find_first_not_of(" \t\n\r");
+                if (pos != std::string::npos && str_value[pos] == '-') {
+                    OPENVINO_THROW("Cannot assign negative value ", str_value, " to unsigned property");
+                }
+            }
             return Any{value}.as<U>();
         }
 
         template <typename U,
-                  typename std::enable_if<!std::is_same<typename std::decay<U>::type, std::string>::value &&
+                  typename std::enable_if<!std::is_same<std::decay_t<U>, std::string>::value &&
                                               !std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
-            return value;
+            using UType = std::decay_t<U>;
+            using VType = std::decay_t<V>;
+
+            if constexpr (std::is_integral_v<UType> && std::is_unsigned_v<UType> && !std::is_same_v<UType, bool> &&
+                          std::is_integral_v<VType> && std::is_signed_v<VType>) {
+                if (value < 0) {
+                    OPENVINO_THROW("Cannot assign negative value ", value, " to unsigned property");
+                }
+                if constexpr (sizeof(VType) > sizeof(UType)) {
+                    if (value > static_cast<VType>((std::numeric_limits<UType>::max)())) {
+                        OPENVINO_THROW("Value ", value, " exceeds maximum for target unsigned type");
+                    }
+                }
+
+                return static_cast<U>(static_cast<std::make_unsigned_t<VType>>(value));
+            } else {
+                return static_cast<U>(value);
+            }
         }
 
         V&& value;
@@ -722,6 +749,30 @@ static constexpr Property<Level> level{"LOG_LEVEL"};
 static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
 
 /**
+ * @brief This property defines the path which will be used to store any data cached by plugins.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * The underlying cache structure is not defined and might differ between OpenVINO releases
+ * Cached data might be platform / device specific and might be invalid after OpenVINO version change
+ *
+ * If the path is a directory, it has the same effect as the `cache_dir` property. Regular caching is used in this case.
+ *
+ * If this property is not specified or value is empty string, then caching is disabled.
+ * The property might enable caching for the plugin using the following code:
+ *
+ * @code
+ * ie.set_property("GPU", ov::cache_path("cache/")); // enables cache for GPU plugin
+ * @endcode
+ *
+ * The following code enables caching of compiled network blobs for devices where import/export is supported
+ *
+ * @code
+ * ie.set_property(ov::cache_path("cache/")); // enables models cache
+ * @endcode
+ */
+inline constexpr Property<std::filesystem::path> cache_path{"CACHE_PATH"};
+
+/**
  * @brief Read-only property to notify user that compiled model was loaded from the cache
  * @ingroup ov_runtime_cpp_prop_api
  */
@@ -735,6 +786,26 @@ static constexpr Property<bool, PropertyMutability::RO> loaded_from_cache{"LOADE
  * cache feature is enabled.
  */
 static inline constexpr Property<std::filesystem::path, PropertyMutability::WO> cache_model_path{"CACHE_MODEL_PATH"};
+
+/**
+ * @brief The property allows setting a user ID for a cache entry.
+ *
+ * This overrides the internal ID generation mechanism and the user must manage the ID. If defined by the user, the
+ * same ID must be used to restore the model from the cache; otherwise, the model will be compiled.
+ * The custom ID can allow importing a model from the cache file without the original model.
+ *
+ * The following code allows to compile a model with a custom ID.
+ * @code
+ * // store compiled model to cache with ID "746352"
+ * core.compile_model(model, "NPU", ov::AnyMap{ov::cache_blob_id("746352"), ov::cache_path("cache_dir")});
+ * @endcode
+ *
+ * The following code allows to import a model from the cache if the original model is not available.
+ * @code
+ * core.compile_model(empty_model, "NPU", ov::AnyMap{ov::cache_blob_id("746352"), ov::cache_path("cache_dir")});
+ * @endcode
+ */
+inline constexpr Property<uint64_t, PropertyMutability::RW> cache_blob_id{"CACHE_BLOB_ID"};
 
 /**
  * @brief Enum to define possible workload types

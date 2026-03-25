@@ -12,6 +12,9 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/moe.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
@@ -19,9 +22,11 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/sigmoid.hpp"
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -87,7 +92,8 @@ namespace ov::intel_gpu {
     auto gemm3_reshape_ungroup_##SUFFIX = [](const ov::Output<ov::Node>& output) {\
         auto in_ps = output.get_node()->get_input_partial_shape(0);\
         auto out_ps = output.get_node()->get_output_partial_shape(0);\
-        return in_ps.rank().is_static() && out_ps.rank().is_static() && (in_ps.size() == 4 && out_ps.size() == 3);\
+        return in_ps.rank().is_static() && out_ps.rank().is_static() &&\
+        ((in_ps.size() == 4 && out_ps.size() == 3) || (in_ps.size() == 3 && out_ps.size() == 2));\
     };\
     \
     auto gemm3_reshape_const_m_##SUFFIX = wrap_type<ov::op::v0::Constant>();\
@@ -123,16 +129,63 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
     MOE_COMPRESSED_WEIGHT_GEMM3_PATTERN(up);
     MOE_COMPRESSED_WEIGHT_GEMM3_PATTERN(down);
 
+     // shared expert pattern
+    MOE_COMPRESSED_WEIGHT_GEMM3_PATTERN(shared_gate);
+    MOE_COMPRESSED_WEIGHT_GEMM3_PATTERN(shared_up);
+    MOE_COMPRESSED_WEIGHT_GEMM3_PATTERN(shared_down);
+
     auto hidden_states_m = any_input();
     auto routing_weights_m = any_input();
     auto topk_m = any_input();
 
-    auto moe_root_gemm3 =
+    auto moe_root_gemm3_no_shared_expert_bare =
         wrap_type<ov::op::internal::MOE>({hidden_states_m, routing_weights_m, topk_m, gemm3_convert_m_gate, gemm3_convert_m_up, gemm3_convert_m_down},
                                          [](const ov::Output<ov::Node>& output) {
                                              auto moe = ov::as_type_ptr<ov::op::internal::MOE>(output.get_node_shared_ptr());
                                              return moe && moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
                                          });
+
+    auto moe_root_gemm3_no_shared_expert =
+        wrap_type<ov::op::internal::MOE>({hidden_states_m, routing_weights_m, topk_m, gemm3_convert_m_gate, gemm3_convert_m_up, gemm3_convert_m_down},
+                                         [](const ov::Output<ov::Node>& output) {
+                                             auto moe = ov::as_type_ptr<ov::op::internal::MOE>(output.get_node_shared_ptr());
+                                             if (!moe || moe->get_config().expert_type != ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU) return false;
+                                             for (auto& tg : output.get_target_inputs()) {
+                                                 if (ov::is_type<ov::op::v1::Add>(tg.get_node())) {
+                                                     auto add = tg.get_node();
+                                                     // Check both Add inputs; follow through Reshape to detect shared expert
+                                                     for (size_t i = 0; i < add->get_input_size(); i++) {
+                                                         auto n = add->get_input_node_ptr(i);
+                                                         if (n && ov::is_type<ov::op::v1::Reshape>(n))
+                                                             n = n->get_input_node_ptr(0);
+                                                         if (n && ov::is_type<ov::op::v1::Multiply>(n)) return false;
+                                                     }
+                                                 }
+                                             }
+                                             return true;
+                                         });
+
+    // Shared expert uses a separate hidden_states input because in the actual model,
+    // MOE's hidden_states is the node BEFORE a Reshape (matmul_experts_fusion extracts input_value(0)),
+    // while shared expert MatMuls take the node AFTER that Reshape.
+    auto shared_hidden_states_m = any_input();
+    auto shared_gate_m = wrap_type<ov::op::v0::MatMul>({shared_hidden_states_m, gemm3_convert_m_shared_gate});
+    auto shared_swish_m = wrap_type<ov::op::v4::Swish>({shared_gate_m});
+    auto shared_up_m = wrap_type<ov::op::v0::MatMul>({shared_hidden_states_m, gemm3_convert_m_shared_up});
+    auto shared_mul_m = wrap_type<ov::op::v1::Multiply>({shared_swish_m, shared_up_m});
+    auto shared_down_m = wrap_type<ov::op::v0::MatMul>({shared_mul_m, gemm3_convert_m_shared_down});
+
+    auto shared_gate_gate_wei_m = any_input();
+    auto shared_gate_gate_m = wrap_type<ov::op::v0::MatMul>({shared_hidden_states_m, shared_gate_gate_wei_m});
+    auto shared_gate_sigmoid_m = wrap_type<ov::op::v0::Sigmoid>({shared_gate_gate_m});
+    auto shared_expert_gated_m = wrap_type<ov::op::v1::Multiply>({shared_gate_sigmoid_m, shared_down_m});
+    auto shared_expert_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{shared_down_m, shared_expert_gated_m});
+    auto shared_expert_reshaped_m = optional<ov::op::v1::Reshape>({shared_expert_m, any_input()});
+
+    auto add_1 = wrap_type<ov::op::v1::Add>({moe_root_gemm3_no_shared_expert_bare, shared_expert_reshaped_m});
+    auto add_2 = wrap_type<ov::op::v1::Add>({shared_expert_reshaped_m, moe_root_gemm3_no_shared_expert_bare});
+    auto moe_root_gemm3_shared_expert = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{add_1, add_2});
+    auto moe_root_gemm3 = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{moe_root_gemm3_no_shared_expert, moe_root_gemm3_shared_expert});
     // gemm3 pattern finished
     // =========================================================================================
     // gemm2 pattern start
@@ -174,8 +227,14 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto moe = ov::as_type_ptr<ov::op::internal::MOE>(pattern_map.at(moe_root).get_node_shared_ptr());
-        if (!moe || transformation_callback(moe)) {
+        auto root_node = pattern_map.at(moe_root).get_node_shared_ptr();
+        std::shared_ptr<ov::op::internal::MOE> moe;
+        if (auto add_op = ov::as_type_ptr<ov::op::v1::Add>(root_node)) {
+            moe = ov::as_type_ptr<ov::op::internal::MOE>(pattern_map.count(moe_root_gemm3_no_shared_expert_bare) ? pattern_map.at(moe_root_gemm3_no_shared_expert_bare).get_node_shared_ptr() : pattern_map.at(moe_root_gemm3_no_shared_expert).get_node_shared_ptr());
+        } else {
+            moe = ov::as_type_ptr<ov::op::internal::MOE>(root_node);
+        }
+        if (!moe || transformation_callback(root_node)) {
             return false;
         }
         if (moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU) {
@@ -192,7 +251,9 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             } else {
                 OPENVINO_THROW("Moe weight shape must be 3D or 4D.");
             }
-            OutputVector args(12);
+            bool has_shared_expert = pattern_map.count(gemm3_compressed_weights_m_shared_gate) > 0;
+
+            OutputVector args(has_shared_expert ? 22 : 12);
             args[0] = pattern_map.at(hidden_states_m);
             args[1] = pattern_map.at(routing_weights_m);
             args[2] = pattern_map.at(topk_m);
@@ -223,10 +284,47 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
                 args[10] = pattern_map.at(gemm3_scale_m_down);
                 args[11] = pattern_map.at(gemm3_zp_m_down);
             }
+
+            if (has_shared_expert) {
+                args[12] = pattern_map.at(gemm3_compressed_weights_m_shared_gate);
+                if (group_compressed) {
+                    MOE_COMPRESSED_WEIGHT_GEMM3(shared_gate);
+                    args[13] = gemm3_transpose_scale_shared_gate;
+                    args[14] = gemm3_transpose_zp_shared_gate;
+                } else {
+                    args[13] = pattern_map.at(gemm3_scale_m_shared_gate);
+                    args[14] = pattern_map.at(gemm3_zp_m_shared_gate);
+                }
+                args[15] = pattern_map.at(gemm3_compressed_weights_m_shared_up);
+                if (group_compressed) {
+                    MOE_COMPRESSED_WEIGHT_GEMM3(shared_up);
+                    args[16] = gemm3_transpose_scale_shared_up;
+                    args[17] = gemm3_transpose_zp_shared_up;
+                } else {
+                    args[16] = pattern_map.at(gemm3_scale_m_shared_up);
+                    args[17] = pattern_map.at(gemm3_zp_m_shared_up);
+                }
+                args[18] = pattern_map.at(gemm3_compressed_weights_m_shared_down);
+                if (group_compressed) {
+                    MOE_COMPRESSED_WEIGHT_GEMM3(shared_down);
+                    args[19] = gemm3_transpose_scale_shared_down;
+                    args[20] = gemm3_transpose_zp_shared_down;
+                } else {
+                    args[19] = pattern_map.at(gemm3_scale_m_shared_down);
+                    args[20] = pattern_map.at(gemm3_zp_m_shared_down);
+                }
+                if (pattern_map.count(shared_gate_gate_wei_m)) {
+                    args[21] = pattern_map.at(shared_gate_gate_wei_m);
+                } else {
+                    size_t hidden_size = group_compressed ? weight_shape[2] * weight_shape[3] : weight_shape[2];
+                    args[21] = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{hidden_size}, std::vector<float>(hidden_size, 0.0f));
+                }
+            }
             ov::intel_gpu::op::MOECompressed::Config config(moe->get_config());
             config.hidden_size = group_compressed ? weight_shape[2] * weight_shape[3] : weight_shape[2];
             config.inter_size = weight_shape[1];
             config.num_expert = weight_shape[0];
+            config.num_shared_expert = has_shared_expert ? 1 : 0;
             config.group_size = group_compressed ? weight_shape[3] : std::numeric_limits<size_t>::max();
             auto topk_shape = pattern_map.at(topk_m).get_partial_shape();
             if (!topk_shape[1].is_static()) {
@@ -235,11 +333,25 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             config.top_k = topk_shape[1].get_length();
             config.out_type = ov::element::f16;
             config.has_batch_dim = is_pa ? 0 : 1;
-            auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
-
+            std::shared_ptr<ov::Node> moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
             moe_compressed->set_friendly_name(moe->get_friendly_name());
             ov::copy_runtime_info(moe, moe_compressed);
-            ov::replace_node(moe, moe_compressed);
+
+            // Since f16 precision is forced for MOECompressed output, we may need to insert Convert after MOECompressed
+            // in order not to break the model semantic. This Convert will be most likely optimized at ConvertPrecision stage
+            if (moe->get_output_element_type(0) != moe_compressed->get_output_element_type(0)) {
+                moe_compressed->set_friendly_name(moe_compressed->get_friendly_name() + "/MOECompressed");
+                moe_compressed = std::make_shared<ov::op::v0::Convert>(moe_compressed, moe->get_output_element_type(0));
+                moe_compressed->set_friendly_name(moe->get_friendly_name());
+                ov::copy_runtime_info(moe, moe_compressed);
+            }
+            if (has_shared_expert) {
+                moe_compressed->set_friendly_name(root_node->get_friendly_name());
+                ov::copy_runtime_info(root_node, moe_compressed);
+                ov::replace_node(root_node, moe_compressed);
+            } else {
+                ov::replace_node(moe, moe_compressed);
+            }
         } else if (moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP) {
             OutputVector args;
             auto topk_indice_node = pattern_map.at(topk_indices_gemm2_m);
@@ -292,9 +404,9 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             }
             args.push_back(pattern_map.at(bias_down_gemm2_m));
             auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
-            moe_compressed->set_friendly_name(moe->get_friendly_name());
-            ov::copy_runtime_info(moe, moe_compressed);
-            ov::replace_node(moe, moe_compressed);
+            moe_compressed->set_friendly_name(root_node->get_friendly_name());
+            ov::copy_runtime_info(root_node, moe_compressed);
+            ov::replace_node(root_node, moe_compressed);
         } else {
             OPENVINO_THROW("Unsupported MOE expert type in ConvertMOEToMOECompressed");
         }

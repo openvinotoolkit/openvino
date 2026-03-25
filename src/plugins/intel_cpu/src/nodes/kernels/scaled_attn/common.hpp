@@ -602,4 +602,635 @@ void cvt_add(TDST* dst, TA* a, TB* b, size_t m, size_t n, size_t a_stride, size_
     }
 }
 
+template <typename TA, typename TB>
+float dot_product(TA* a,
+                  TB* b,
+                  size_t n,
+                  float* scale,
+                  float* zp,
+                  float* head_sum,
+                  [[maybe_unused]] size_t group_size) {
+    size_t i = 0;
+    float sum = 0.0F;
+#if defined(HAVE_AVX512F)
+    auto vsum0 = _mm512_setzero_ps();
+    auto vsum1 = _mm512_setzero_ps();
+    auto vsum2 = _mm512_setzero_ps();
+    auto vsum3 = _mm512_setzero_ps();
+    for (; i + 4 * vec_len_f32_avx512 <= n; i += 4 * vec_len_f32_avx512) {
+        auto va0 = mm512_uni_loadu_ps(a + i);
+        auto va1 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512);
+        auto va2 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512 * 2);
+        auto va3 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512 * 3);
+
+        auto vb0 = mm512_uni_loadu_ps(b + i);
+        auto vb1 = mm512_uni_loadu_ps(b + i + vec_len_f32_avx512);
+        auto vb2 = mm512_uni_loadu_ps(b + i + vec_len_f32_avx512 * 2);
+        auto vb3 = mm512_uni_loadu_ps(b + i + vec_len_f32_avx512 * 3);
+
+        vsum0 = _mm512_fmadd_ps(va0, vb0, vsum0);
+        vsum1 = _mm512_fmadd_ps(va1, vb1, vsum1);
+        vsum2 = _mm512_fmadd_ps(va2, vb2, vsum2);
+        vsum3 = _mm512_fmadd_ps(va3, vb3, vsum3);
+    }
+    if (i + 2 * vec_len_f32_avx512 <= n) {
+        auto va0 = mm512_uni_loadu_ps(a + i);
+        auto va1 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512);
+
+        auto vb0 = mm512_uni_loadu_ps(b + i);
+        auto vb1 = mm512_uni_loadu_ps(b + i + vec_len_f32_avx512);
+
+        vsum0 = _mm512_fmadd_ps(va0, vb0, vsum0);
+        vsum1 = _mm512_fmadd_ps(va1, vb1, vsum1);
+        i += 2 * vec_len_f32_avx512;
+    }
+    if (i + vec_len_f32_avx512 <= n) {
+        auto va0 = mm512_uni_loadu_ps(a + i);
+        auto vb0 = mm512_uni_loadu_ps(b + i);
+        vsum0 = _mm512_fmadd_ps(va0, vb0, vsum0);
+        i += vec_len_f32_avx512;
+    }
+    vsum0 = _mm512_add_ps(vsum0, vsum1);
+    vsum2 = _mm512_add_ps(vsum2, vsum3);
+    vsum0 = _mm512_add_ps(vsum0, vsum2);
+    sum = _mm512_reduce_add_ps(vsum0);
+#elif defined(HAVE_AVX2)
+    auto vsum0 = _mm256_set1_ps(0.0f);
+    auto vsum1 = _mm256_set1_ps(0.0f);
+    auto vsum2 = _mm256_set1_ps(0.0f);
+    auto vsum3 = _mm256_set1_ps(0.0f);
+    for (; i + 4 * vec_len_f32_avx2 <= n; i += vec_len_f32_avx2 * 4) {
+        auto va0 = mm256_uni_loadu_ps(a + i);
+        auto va1 = mm256_uni_loadu_ps(a + i + vec_len_f32_avx2);
+        auto va2 = mm256_uni_loadu_ps(a + i + vec_len_f32_avx2 * 2);
+        auto va3 = mm256_uni_loadu_ps(a + i + vec_len_f32_avx2 * 3);
+
+        auto vb0 = mm256_uni_loadu_ps(b + i);
+        auto vb1 = mm256_uni_loadu_ps(b + i + vec_len_f32_avx2);
+        auto vb2 = mm256_uni_loadu_ps(b + i + vec_len_f32_avx2 * 2);
+        auto vb3 = mm256_uni_loadu_ps(b + i + vec_len_f32_avx2 * 3);
+
+        vsum0 = _mm256_fmadd_ps(va0, vb0, vsum0);
+        vsum1 = _mm256_fmadd_ps(va1, vb1, vsum1);
+        vsum2 = _mm256_fmadd_ps(va2, vb2, vsum2);
+        vsum3 = _mm256_fmadd_ps(va3, vb3, vsum3);
+    }
+    if (i + 2 * vec_len_f32_avx2 <= n) {
+        auto va0 = mm256_uni_loadu_ps(a + i);
+        auto va1 = mm256_uni_loadu_ps(a + i + vec_len_f32_avx2);
+
+        auto vb0 = mm256_uni_loadu_ps(b + i);
+        auto vb1 = mm256_uni_loadu_ps(b + i + vec_len_f32_avx2);
+
+        vsum0 = _mm256_fmadd_ps(va0, vb0, vsum0);
+        vsum1 = _mm256_fmadd_ps(va1, vb1, vsum1);
+        i += 2 * vec_len_f32_avx2;
+    }
+    if (i + vec_len_f32_avx2 <= n) {
+        auto va0 = mm256_uni_loadu_ps(a + i);
+        auto vb0 = mm256_uni_loadu_ps(b + i);
+        vsum0 = _mm256_fmadd_ps(va0, vb0, vsum0);
+        i += vec_len_f32_avx2;
+    }
+    vsum0 = _mm256_add_ps(vsum0, vsum1);
+    vsum2 = _mm256_add_ps(vsum2, vsum3);
+    vsum0 = _mm256_add_ps(vsum0, vsum2);
+    hsum(vsum0);
+    sum = _mm256_cvtss_f32(vsum0);
+
+#elif defined(OPENVINO_ARCH_ARM64)
+    // TODO correct handle bf16/f16 for this path CVS-182514
+#    if defined(HAVE_SVE)
+    svbool_t pg = svptrue_b32();
+    svfloat32_t sum0 = svdup_n_f32(0.0f);
+    svfloat32_t sum1 = svdup_n_f32(0.0f);
+    svfloat32_t sum2 = svdup_n_f32(0.0f);
+    svfloat32_t sum3 = svdup_n_f32(0.0f);
+    auto vec_len = vec_len_f32_sve();
+
+    auto _a = reinterpret_cast<float32_t*>(a);
+    auto _b = reinterpret_cast<float32_t*>(b);
+
+    for (; i + 4 * vec_len <= n; i += 4 * vec_len) {
+        svfloat32_t a0 = svld1_f32(pg, _a + i);
+        svfloat32_t a1 = svld1_f32(pg, _a + i + vec_len);
+        svfloat32_t a2 = svld1_f32(pg, _a + i + vec_len * 2);
+        svfloat32_t a3 = svld1_f32(pg, _a + i + vec_len * 3);
+
+        svfloat32_t b0 = svld1_f32(pg, _b + i);
+        svfloat32_t b1 = svld1_f32(pg, _b + i + vec_len);
+        svfloat32_t b2 = svld1_f32(pg, _b + i + vec_len * 2);
+        svfloat32_t b3 = svld1_f32(pg, _b + i + vec_len * 3);
+
+        sum0 = svmla_f32_z(pg, sum0, a0, b0);
+        sum1 = svmla_f32_z(pg, sum1, a1, b1);
+        sum2 = svmla_f32_z(pg, sum2, a2, b2);
+        sum3 = svmla_f32_z(pg, sum3, a3, b3);
+    }
+    if (i + 2 * vec_len <= n) {
+        svfloat32_t a0 = svld1_f32(pg, _a + i);
+        svfloat32_t a1 = svld1_f32(pg, _a + i + vec_len);
+
+        svfloat32_t b0 = svld1_f32(pg, _b + i);
+        svfloat32_t b1 = svld1_f32(pg, _b + i + vec_len);
+
+        sum0 = svmla_f32_z(pg, sum0, a0, b0);
+        sum1 = svmla_f32_z(pg, sum1, a1, b1);
+        i += 2 * vec_len;
+    }
+    if (i + vec_len <= n) {
+        svfloat32_t a0 = svld1_f32(pg, _a + i);
+        svfloat32_t b0 = svld1_f32(pg, _b + i);
+        sum0 = svmla_f32_z(pg, sum0, a0, b0);
+        i += vec_len;
+    }
+    // Process the tail elements parallely as well (if any)
+    if (i != n) {
+        svbool_t pg_rem = svwhilelt_b32(0, static_cast<int>(n - i));
+        svfloat32_t a0 = svld1_f32(pg_rem, _a + i);
+        svfloat32_t b0 = svld1_f32(pg_rem, _b + i);
+        sum0 = svmla_f32_m(pg_rem, sum0, a0, b0);
+        i = n;
+    }
+    float32_t sum_0 = svaddv_f32(pg, sum0);
+    float32_t sum_1 = svaddv_f32(pg, sum1);
+    float32_t sum_2 = svaddv_f32(pg, sum2);
+    float32_t sum_3 = svaddv_f32(pg, sum3);
+    sum = static_cast<float>(sum_0 + sum_1 + sum_2 + sum_3);
+#    else
+    float32x4_t vsum0 = vdupq_n_f32(0.0f);
+    float32x4_t vsum1 = vdupq_n_f32(0.0f);
+    float32x4_t vsum2 = vdupq_n_f32(0.0f);
+    float32x4_t vsum3 = vdupq_n_f32(0.0f);
+
+    for (; i + 4 * vec_len_f32_neon <= n; i += vec_len_f32_neon * 4) {
+        float32x4_t va0 = __vld1q_f32(a + i);
+        float32x4_t va1 = __vld1q_f32(a + i + vec_len_f32_neon);
+        float32x4_t va2 = __vld1q_f32(a + i + vec_len_f32_neon * 2);
+        float32x4_t va3 = __vld1q_f32(a + i + vec_len_f32_neon * 3);
+
+        float32x4_t vb0 = __vld1q_f32(b + i);
+        float32x4_t vb1 = __vld1q_f32(b + i + vec_len_f32_neon);
+        float32x4_t vb2 = __vld1q_f32(b + i + vec_len_f32_neon * 2);
+        float32x4_t vb3 = __vld1q_f32(b + i + vec_len_f32_neon * 3);
+
+        vsum0 = vmlaq_f32(vsum0, va0, vb0);
+        vsum1 = vmlaq_f32(vsum1, va1, vb1);
+        vsum2 = vmlaq_f32(vsum2, va2, vb2);
+        vsum3 = vmlaq_f32(vsum3, va3, vb3);
+    }
+    if (i + 2 * vec_len_f32_neon <= n) {
+        float32x4_t va0 = __vld1q_f32(a + i);
+        float32x4_t va1 = __vld1q_f32(a + i + vec_len_f32_neon);
+
+        float32x4_t vb0 = __vld1q_f32(b + i);
+        float32x4_t vb1 = __vld1q_f32(b + i + vec_len_f32_neon);
+
+        vsum0 = vmlaq_f32(vsum0, va0, vb0);
+        vsum1 = vmlaq_f32(vsum1, va1, vb1);
+        i += 2 * vec_len_f32_neon;
+    }
+    if (i + vec_len_f32_neon <= n) {
+        float32x4_t va0 = __vld1q_f32(a + i);
+        float32x4_t vb0 = __vld1q_f32(b + i);
+        vsum0 = vmlaq_f32(vsum0, va0, vb0);
+        i += vec_len_f32_neon;
+    }
+
+    vsum0 = vaddq_f32(vsum0, vsum1);
+    vsum2 = vaddq_f32(vsum2, vsum3);
+    vsum0 = vaddq_f32(vsum0, vsum2);
+
+    float32x2_t temp_sum = vadd_f32(vget_low_f32(vsum0), vget_high_f32(vsum0));
+    temp_sum = vpadd_f32(temp_sum, temp_sum);
+    sum = vget_lane_f32(temp_sum, 0);
+#    endif
+#endif
+    for (; i < n; i++) {
+        sum += a[i] * b[i];
+    }
+    return sum;
+}
+
+template <typename TA>
+float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* head_sum, size_t group_size) {
+    float sum = 0.0f;
+    size_t group_id = 0;
+#if defined(HAVE_AVX512F)
+    while (group_id < n / group_size) {
+        auto vsum0 = _mm512_set1_ps(0.0f);
+        auto vsum1 = _mm512_set1_ps(0.0f);
+        auto vsum2 = _mm512_set1_ps(0.0f);
+        auto vsum3 = _mm512_set1_ps(0.0f);
+        float group_scale = *(scale + group_id * 2);
+        float group_zp = *(zp + group_id * 2);
+        auto v_zp = _mm512_set1_ps(group_zp);
+        size_t offset = group_id * group_size;
+        size_t i = 0;
+        for (; i + 4 * vec_len_f32_avx512 <= group_size; i += vec_len_f32_avx512 * 4) {
+            auto va0 = mm512_uni_loadu_ps(a + offset + i);
+            auto va1 = mm512_uni_loadu_ps(a + offset + i + vec_len_f32_avx512);
+            auto va2 = mm512_uni_loadu_ps(a + offset + i + vec_len_f32_avx512 * 2);
+            auto va3 = mm512_uni_loadu_ps(a + offset + i + vec_len_f32_avx512 * 3);
+
+            auto vb0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + offset + i));
+            auto vb1_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + offset + i + vec_len_f32_avx512));
+            auto vb2_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + offset + i + vec_len_f32_avx512 * 2));
+            auto vb3_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + offset + i + vec_len_f32_avx512 * 3));
+
+            auto vb0_256 = _mm512_cvtepu8_epi32(vb0_128);
+            auto vb1_256 = _mm512_cvtepu8_epi32(vb1_128);
+            auto vb2_256 = _mm512_cvtepu8_epi32(vb2_128);
+            auto vb3_256 = _mm512_cvtepu8_epi32(vb3_128);
+
+            auto vb0 = _mm512_cvtepi32_ps(vb0_256);
+            auto vb1 = _mm512_cvtepi32_ps(vb1_256);
+            auto vb2 = _mm512_cvtepi32_ps(vb2_256);
+            auto vb3 = _mm512_cvtepi32_ps(vb3_256);
+
+            vb0 = _mm512_sub_ps(vb0, v_zp);
+            vb1 = _mm512_sub_ps(vb1, v_zp);
+            vb2 = _mm512_sub_ps(vb2, v_zp);
+            vb3 = _mm512_sub_ps(vb3, v_zp);
+
+            vsum0 = _mm512_fmadd_ps(va0, vb0, vsum0);
+            vsum1 = _mm512_fmadd_ps(va1, vb1, vsum1);
+            vsum2 = _mm512_fmadd_ps(va2, vb2, vsum2);
+            vsum3 = _mm512_fmadd_ps(va3, vb3, vsum3);
+        }
+        if (i + 2 * vec_len_f32_avx512 <= group_size) {
+            auto va0 = mm512_uni_loadu_ps(a + offset + i);
+            auto va1 = mm512_uni_loadu_ps(a + offset + i + vec_len_f32_avx512);
+
+            auto vb0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + offset + i));
+            auto vb1_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + offset + i + vec_len_f32_avx512));
+
+            auto vb0_256 = _mm512_cvtepu8_epi32(vb0_128);
+            auto vb1_256 = _mm512_cvtepu8_epi32(vb1_128);
+
+            auto vb0 = _mm512_cvtepi32_ps(vb0_256);
+            auto vb1 = _mm512_cvtepi32_ps(vb1_256);
+
+            vb0 = _mm512_sub_ps(vb0, v_zp);
+            vb1 = _mm512_sub_ps(vb1, v_zp);
+
+            vsum0 = _mm512_fmadd_ps(va0, vb0, vsum0);
+            vsum1 = _mm512_fmadd_ps(va1, vb1, vsum1);
+            i += 2 * vec_len_f32_avx512;
+        }
+        if (i + vec_len_f32_avx512 <= group_size) {
+            auto va0 = mm512_uni_loadu_ps(a + offset + i);
+            auto vb0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + offset + i));
+            auto vb0_256 = _mm512_cvtepu8_epi32(vb0_128);
+            auto vb0 = _mm512_cvtepi32_ps(vb0_256);
+            vb0 = _mm512_sub_ps(vb0, v_zp);
+            vsum0 = _mm512_fmadd_ps(va0, vb0, vsum0);
+            i += vec_len_f32_avx512;
+        }
+        vsum0 = _mm512_add_ps(vsum0, vsum1);
+        vsum2 = _mm512_add_ps(vsum2, vsum3);
+        vsum0 = _mm512_add_ps(vsum0, vsum2);
+        float group_sum = _mm512_reduce_add_ps(vsum0);
+        for (; i < group_size; i++) {
+            group_sum += a[offset + i] * (b[offset + i] - group_zp);
+        }
+        sum += group_scale * group_sum;
+        group_id += 1;
+    }
+    return sum;
+
+#elif defined(HAVE_AVX2)
+    while (group_id < n / group_size) {
+        float group_scale = *(scale + group_id * 2);
+        float group_zp = *(zp + group_id * 2);
+        size_t offset = group_id * group_size;
+        size_t i = 0;
+        auto vsum0 = _mm256_set1_ps(0.0f);
+        auto vsum1 = _mm256_set1_ps(0.0f);
+        auto vsum2 = _mm256_set1_ps(0.0f);
+        auto vsum3 = _mm256_set1_ps(0.0f);
+        for (; i + 4 * vec_len_f32_avx2 <= group_size; i += vec_len_f32_avx2 * 4) {
+            auto va0 = mm256_uni_loadu_ps(a + offset + i);
+            auto va1 = mm256_uni_loadu_ps(a + offset + i + vec_len_f32_avx2);
+            auto va2 = mm256_uni_loadu_ps(a + offset + i + vec_len_f32_avx2 * 2);
+            auto va3 = mm256_uni_loadu_ps(a + offset + i + vec_len_f32_avx2 * 3);
+
+            auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + offset + i));
+            auto vb1_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + offset + i + vec_len_f32_avx2));
+            auto vb2_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + offset + i + vec_len_f32_avx2 * 2));
+            auto vb3_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + offset + i + vec_len_f32_avx2 * 3));
+
+            auto vb0_256 = _mm256_cvtepu8_epi32(vb0_128);
+            auto vb1_256 = _mm256_cvtepu8_epi32(vb1_128);
+            auto vb2_256 = _mm256_cvtepu8_epi32(vb2_128);
+            auto vb3_256 = _mm256_cvtepu8_epi32(vb3_128);
+
+            auto vb0 = _mm256_cvtepi32_ps(vb0_256);
+            auto vb1 = _mm256_cvtepi32_ps(vb1_256);
+            auto vb2 = _mm256_cvtepi32_ps(vb2_256);
+            auto vb3 = _mm256_cvtepi32_ps(vb3_256);
+
+            vsum0 = _mm256_fmadd_ps(va0, vb0, vsum0);
+            vsum1 = _mm256_fmadd_ps(va1, vb1, vsum1);
+            vsum2 = _mm256_fmadd_ps(va2, vb2, vsum2);
+            vsum3 = _mm256_fmadd_ps(va3, vb3, vsum3);
+        }
+        if (i + 2 * vec_len_f32_avx2 <= group_size) {
+            auto va0 = mm256_uni_loadu_ps(a + offset + i);
+            auto va1 = mm256_uni_loadu_ps(a + offset + i + vec_len_f32_avx2);
+
+            auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + offset + i));
+            auto vb1_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + offset + i + vec_len_f32_avx2));
+
+            auto vb0_256 = _mm256_cvtepu8_epi32(vb0_128);
+            auto vb1_256 = _mm256_cvtepu8_epi32(vb1_128);
+
+            auto vb0 = _mm256_cvtepi32_ps(vb0_256);
+            auto vb1 = _mm256_cvtepi32_ps(vb1_256);
+
+            vsum0 = _mm256_fmadd_ps(va0, vb0, vsum0);
+            vsum1 = _mm256_fmadd_ps(va1, vb1, vsum1);
+            i += 2 * vec_len_f32_avx2;
+        }
+        if (i + vec_len_f32_avx2 <= group_size) {
+            auto va0 = mm256_uni_loadu_ps(a + offset + i);
+            auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + offset + i));
+            auto vb0_256 = _mm256_cvtepu8_epi32(vb0_128);
+            auto vb0 = _mm256_cvtepi32_ps(vb0_256);
+            vsum0 = _mm256_fmadd_ps(va0, vb0, vsum0);
+            i += vec_len_f32_avx2;
+        }
+        vsum0 = _mm256_add_ps(vsum0, vsum1);
+        vsum2 = _mm256_add_ps(vsum2, vsum3);
+        vsum0 = _mm256_add_ps(vsum0, vsum2);
+        hsum(vsum0);
+        float group_sum = _mm256_cvtss_f32(vsum0);
+        for (; i < group_size; i++) {
+            group_sum += a[offset + i] * b[offset + i];
+        }
+        // B = scale * (b - zero)
+        // Σ (A * B) = Σ (a * scale * (b - zero)) = scale * (Σ a * b - zero Σ a) = scale * (sum - zp * head_sum)
+        group_sum = group_scale * (group_sum - group_zp * head_sum[group_id]);
+        sum += group_sum;
+        group_id += 1;
+    }
+    return sum;
+#elif defined(OPENVINO_ARCH_ARM64)
+    // TODO correct handle bf16/f16 for this path CVS-182514
+    while (group_id < n / group_size) {
+        size_t i = 0;
+        float group_scale = *(scale + group_id * 2);
+        float group_zp = *(zp + group_id * 2);
+        size_t offset = group_id * group_size;
+        float group_sum = 0.0F;
+
+        float32x4_t v_group_zp = vdupq_n_f32(group_zp);
+
+        for (; i + 16 <= group_size; i += 16) {
+            uint8x16_t v_u8 = vld1q_u8(b + i + offset);
+
+            uint16x8_t v_u16_lo = vmovl_u8(vget_low_u8(v_u8));
+            uint16x8_t v_u16_hi = vmovl_u8(vget_high_u8(v_u8));
+
+            uint32x4_t v_u32_0 = vmovl_u16(vget_low_u16(v_u16_lo));
+            uint32x4_t v_u32_1 = vmovl_u16(vget_high_u16(v_u16_lo));
+            uint32x4_t v_u32_2 = vmovl_u16(vget_low_u16(v_u16_hi));
+            uint32x4_t v_u32_3 = vmovl_u16(vget_high_u16(v_u16_hi));
+
+            float32x4_t v_f0 = vcvtq_f32_u32(v_u32_0);
+            float32x4_t v_f1 = vcvtq_f32_u32(v_u32_1);
+            float32x4_t v_f2 = vcvtq_f32_u32(v_u32_2);
+            float32x4_t v_f3 = vcvtq_f32_u32(v_u32_3);
+
+            v_f0 = vsubq_f32(v_f0, v_group_zp);
+            v_f1 = vsubq_f32(v_f1, v_group_zp);
+            v_f2 = vsubq_f32(v_f2, v_group_zp);
+            v_f3 = vsubq_f32(v_f3, v_group_zp);
+
+            if constexpr (std::is_same_v<TA, float>) {
+                float32x4_t v_a0 = vld1q_f32(a + i + offset + 0);
+                float32x4_t v_a1 = vld1q_f32(a + i + offset + 4);
+                float32x4_t v_a2 = vld1q_f32(a + i + offset + 8);
+                float32x4_t v_a3 = vld1q_f32(a + i + offset + 12);
+
+                v_f0 = vmulq_f32(v_f0, v_a0);
+                v_f1 = vmulq_f32(v_f1, v_a1);
+                v_f2 = vmulq_f32(v_f2, v_a2);
+                v_f3 = vmulq_f32(v_f3, v_a3);
+
+                group_sum += vaddvq_f32(v_f0);
+                group_sum += vaddvq_f32(v_f1);
+                group_sum += vaddvq_f32(v_f2);
+                group_sum += vaddvq_f32(v_f3);
+
+            } else if constexpr (std::is_same_v<TA, ov::float16>) {
+                float16x8_t v_la0 = vld1q_f16(reinterpret_cast<const float16_t*>(a) + i + offset + 0);
+                float16x8_t v_la1 = vld1q_f16(reinterpret_cast<const float16_t*>(a) + i + offset + 8);
+
+                float32x4_t v_a0 = vcvt_f32_f16(vget_low_f16(v_la0));
+                float32x4_t v_a1 = vcvt_f32_f16(vget_high_f16(v_la0));
+                float32x4_t v_a2 = vcvt_f32_f16(vget_low_f16(v_la1));
+                float32x4_t v_a3 = vcvt_f32_f16(vget_high_f16(v_la1));
+
+                v_f0 = vmulq_f32(v_f0, v_a0);
+                v_f1 = vmulq_f32(v_f1, v_a1);
+                v_f2 = vmulq_f32(v_f2, v_a2);
+                v_f3 = vmulq_f32(v_f3, v_a3);
+
+                group_sum += vaddvq_f32(v_f0);
+                group_sum += vaddvq_f32(v_f1);
+                group_sum += vaddvq_f32(v_f2);
+                group_sum += vaddvq_f32(v_f3);
+            }
+        }
+        for (; i < group_size; i++) {
+            group_sum += a[i + offset] * (b[i + offset] - group_zp);
+        }
+        sum += group_scale * group_sum;
+        group_id += 1;
+    }
+    return sum;
+#else
+    while (group_id < n / group_size) {
+        size_t i = 0;
+        float group_scale = *(scale + group_id * 2);
+        float group_zp = *(zp + group_id * 2);
+        size_t offset = group_id * group_size;
+        float group_sum = 0.0F;
+        for (; i < group_size; i++) {
+            group_sum += a[i + offset] * (b[i + offset] - group_zp);
+        }
+        sum += group_scale * group_sum;
+        group_id += 1;
+    }
+    return sum;
+#endif
+}
+
+inline void multiply_scalar(float* a, float* a_dst, const float val, const size_t size) {
+    size_t i = 0;
+#if defined(HAVE_AVX512F)
+    auto v_scale = _mm512_set1_ps(val);
+    __m512 v_a = {0};
+    while (i + vec_len_f32_avx512 <= size) {
+        v_a = _mm512_loadu_ps(a + i);
+        v_a = _mm512_mul_ps(v_a, v_scale);
+        mm512_uni_storeu_ps(a_dst + i, v_a);
+        i += vec_len_f32_avx512;
+    }
+    if (i < size) {
+        __mmask16 mask = (1 << (size - i)) - 1;
+        v_a = _mm512_maskz_loadu_ps(mask, a + i);
+        v_a = _mm512_mul_ps(v_a, v_scale);
+        mm512_uni_storeu_tail_ps(a_dst + i, v_a, size - i);
+
+        i += (size - i);
+    }
+#elif defined(HAVE_AVX2)
+    auto v_scale = _mm256_set1_ps(val);
+    __m256 v_a = {0};
+    while (i + vec_len_f32_avx2 <= size) {
+        v_a = _mm256_loadu_ps(a + i);
+        v_a = _mm256_mul_ps(v_a, v_scale);
+        mm256_uni_storeu_ps(a_dst + i, v_a);
+        i += vec_len_f32_avx2;
+    }
+    if (i < size) {
+        auto mask = get_mask(size - i);
+        v_a = _mm256_maskload_ps(a + i, mask);
+        v_a = _mm256_mul_ps(v_a, v_scale);
+        mm256_uni_storeu_tail_ps(a_dst + i, v_a, size - i);
+
+        i += (size - i);
+    }
+#elif defined(OPENVINO_ARCH_ARM64)
+#    if defined(HAVE_SVE)
+    svfloat32_t v_scale = svdup_n_f32(val);
+    size_t inc = vec_len_f32_sve();
+    svbool_t pg = svptrue_b32();
+
+    while (i < size) {
+        if (size - i < vec_len_f32_sve()) {
+            inc = size - i;
+            pg = svwhilelt_b32(0, static_cast<int>(inc));
+        }
+        svfloat32_t v_a = svld1_f32(pg, a + i);
+        v_a = svmul_f32_z(pg, v_a, v_scale);
+        svst1_f32(pg, a_dst + i, v_a);
+        i += inc;
+    }
+#    else
+    float32x4_t v_scale = vdupq_n_f32(val);
+    while (i + vec_len_f32_neon <= size) {
+        float32x4_t v_a = vld1q_f32(a + i);
+        v_a = vmulq_f32(v_a, v_scale);
+        vst1q_f32(a_dst + i, v_a);
+        i += vec_len_f32_neon;
+    }
+#    endif
+#endif
+    for (; i < size; i++) {
+        a_dst[i] = a[i] * val;
+    }
+}
+
+template <typename T, typename = std::enable_if_t<ov::intel_cpu::any_of_v<T, ov::bfloat16, ov::float16>>>
+inline void multiply_scalar(const float* a, T* a_dst, const float val, const size_t size) {
+    size_t i = 0;
+#if defined(HAVE_AVX512F)
+    auto v_scale = _mm512_set1_ps(val);
+    __m512 v_a = {0};
+    while (i + vec_len_f32_avx512 <= size) {
+        v_a = _mm512_loadu_ps(a + i);
+        v_a = _mm512_mul_ps(v_a, v_scale);
+        mm512_uni_storeu_ps(a_dst + i, v_a);
+        i += vec_len_f32_avx512;
+    }
+    if (i < size) {
+        __mmask16 mask = (1 << (size - i)) - 1;
+        v_a = _mm512_maskz_loadu_ps(mask, a + i);
+        v_a = _mm512_mul_ps(v_a, v_scale);
+        mm512_uni_storeu_tail_ps(a_dst + i, v_a, size - i);
+
+        i += (size - i);
+    }
+#else
+    for (; i < size; i++) {
+        a_dst[i] = a[i] * val;
+    }
+#endif
+}
+
+#if defined(OPENVINO_ARCH_ARM64)
+inline void multiply_scalar(ov::float16* a, float* a_dst, const ov::float16 val, const size_t size) {
+    float16x4_t v_a_f16;
+    float32x4_t v_a, v_res;
+    float32x4_t v_val = vdupq_n_f32(static_cast<float>(val));
+    size_t i = 0;
+
+    for (; i + vec_len_f16_neon <= size; i += vec_len_f16_neon) {
+        v_a_f16 = vld1_f16(reinterpret_cast<const float16_t*>(a + i));
+        v_a = vcvt_f32_f16(v_a_f16);
+
+        v_res = vmulq_f32(v_a, v_val);
+
+        vst1q_f32(reinterpret_cast<float*>(a_dst + i), v_res);
+    }
+
+    for (; i < size; ++i) {
+        const auto a_f32 = static_cast<float>(a[i]);
+        a_dst[i] = a_f32 * static_cast<float>(val);
+    }
+}
+inline void multiply_scalar_f32(ov::float16* a, ov::float16* a_dst, const ov::float16 val, const size_t size) {
+    float32x4_t v_a, v_res;
+    float32x4_t v_val = vdupq_n_f32(val);
+    size_t i = 0;
+    for (; i + vec_len_f32_neon <= size; i += vec_len_f32_neon) {
+        v_a = __vld1q_f32((a + i));
+        v_res = vmulq_f32(v_a, v_val);
+        __vst1q_f32(a_dst + i, v_res);
+    }
+    auto val_f32 = static_cast<float>(val);
+    for (; i < size; ++i) {
+        auto _a_f32 = static_cast<float>(a[i]);
+        auto _a_dst_f32 = val_f32 * _a_f32;
+        a_dst[i] = static_cast<ov::float16>(_a_dst_f32);
+    }
+}
+#endif
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+inline void multiply_scalar(ov::float16* a, ov::float16* a_dst, const ov::float16 val, const size_t size) {
+    size_t i = 0;
+#    if defined(HAVE_SVE)
+    svfloat16_t v_scale = svdup_n_f16(val);
+    size_t inc = vec_len_f16_sve();
+    svbool_t pg = svptrue_b16();
+
+    while (i < size) {
+        if (size - i < vec_len_f16_sve()) {
+            inc = size - i;
+            pg = svwhilelt_b16(0, static_cast<int>(inc));
+        }
+        svfloat16_t v_a = svld1_f16(pg, reinterpret_cast<float16_t*>(a + i));
+        v_a = svmul_f16_z(pg, v_a, v_scale);
+        svst1_f16(pg, reinterpret_cast<float16_t*>(a_dst + i), v_a);
+        i += inc;
+    }
+#    else
+    float16x8_t v_a, v_res;
+    float16x8_t v_val = vdupq_n_f16(val);
+    for (; i + vec_len_f16_neon <= size; i += vec_len_f16_neon) {
+        v_a = vld1q_f16(reinterpret_cast<const float16_t*>(a + i));
+        v_res = vmulq_f16(v_a, v_val);
+        vst1q_f16(reinterpret_cast<float16_t*>(a_dst + i), v_res);
+    }
+#    endif
+    for (; i < size; ++i) {
+        a_dst[i] = a[i] * val;
+    }
+}
+#endif
+
 }  // namespace ov::Extensions::Cpu::XARCH
