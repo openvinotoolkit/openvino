@@ -9,7 +9,7 @@
 
 #include "compiler.h"
 #include "intel_npu/common/filtered_config.hpp"
-#include "intel_npu/network_metadata.hpp"
+#include "intel_npu/common/network_metadata.hpp"
 #include "openvino/core/except.hpp"
 
 namespace intel_npu {
