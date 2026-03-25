@@ -6,6 +6,7 @@
 #include <intel_npu/ops/flash_attention_tile.hpp>
 #include <limits>
 #include <openvino/core/type/element_type.hpp>
+#include <openvino/core/type/float16.hpp>
 #include <vector>
 
 #include "openvino/core/partial_shape.hpp"
@@ -26,7 +27,7 @@ void flash_attention_evaluate(const float* query,
                               bool is_tail,
                               bool attention_mask_broadcasted,
                               int32_t B,
-                              int32_t H,
+                              int32_t H_q,
                               int32_t H_kv,
                               int32_t L,
                               int32_t S,
@@ -35,23 +36,23 @@ void flash_attention_evaluate(const float* query,
     std::vector<float> scores(S);
     std::vector<float> exp_scores(S);
 
-    const auto gqa_group_size = H / H_kv;
+    const auto gqa_group_size = H_q / H_kv;
 
     for (int32_t b = 0; b < B; ++b) {
-        for (int32_t h = 0; h < H; ++h) {
+        for (int32_t h = 0; h < H_q; ++h) {
             auto kv_h = h / gqa_group_size;
-            auto q_ptr = query + b * H * L * E + h * L * E;
+            auto q_ptr = query + b * H_q * L * E + h * L * E;
             auto k_ptr = key + b * H_kv * S * E + kv_h * S * E;
             auto v_ptr = value + b * H_kv * S * Ev + kv_h * S * Ev;
 
             const float* m_ptr = attention_mask;
             if (attention_mask != nullptr && !attention_mask_broadcasted) {
-                m_ptr = attention_mask + b * H * L * S + h * L * S;
+                m_ptr = attention_mask + b * H_q * L * S + h * L * S;
             }
 
-            auto out_ptr = running_output + b * H * L * Ev + h * L * Ev;
-            auto max_ptr = running_max + b * H * L + h * L;
-            auto sum_ptr = running_sum + b * H * L + h * L;
+            auto out_ptr = running_output + b * H_q * L * Ev + h * L * Ev;
+            auto max_ptr = running_max + b * H_q * L + h * L;
+            auto sum_ptr = running_sum + b * H_q * L + h * L;
 
             for (int32_t l = 0; l < L; ++l) {
                 auto q_row = q_ptr + l * E;
@@ -175,12 +176,8 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
     auto kv_head_dim = *(key_shape.end() - 3);
     const bool key_input_correctness =
         key_rank.get_length() >= 3 &&
-        ov::PartialShape::broadcast_merge_into(
-            query_batch_dims,
-            key_batch_dims,
-            AutoBroadcastType::NUMPY) &&
-        is_gqa_compatible(q_head_dim, kv_head_dim) &&
-        DimType::merge(e_dim, e_dim, *(key_shape.end() - 1));
+        ov::PartialShape::broadcast_merge_into(query_batch_dims, key_batch_dims, AutoBroadcastType::NUMPY) &&
+        is_gqa_compatible(q_head_dim, kv_head_dim) && DimType::merge(e_dim, e_dim, *(key_shape.end() - 1));
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            key_input_correctness,
@@ -194,12 +191,8 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
     auto v_head_dim = *(value_shape.end() - 3);
     const bool value_input_correctness =
         value_rank.get_length() >= 3 &&
-        ov::PartialShape::broadcast_merge_into(
-            query_batch_dims,
-            value_batch_dims,
-            AutoBroadcastType::NUMPY) &&
-        is_gqa_compatible(q_head_dim, v_head_dim) &&
-        DimType::merge(kv_head_dim, kv_head_dim, v_head_dim) &&
+        ov::PartialShape::broadcast_merge_into(query_batch_dims, value_batch_dims, AutoBroadcastType::NUMPY) &&
+        is_gqa_compatible(q_head_dim, v_head_dim) && DimType::merge(kv_head_dim, kv_head_dim, v_head_dim) &&
         DimType::merge(s_dim, s_dim, *(value_shape.end() - 2));
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
@@ -385,7 +378,7 @@ bool FlashAttentionTile::has_evaluate() const {
     switch (get_input_element_type(0)) {
     case element::f16:
     case element::f32:
-        return (get_input_element_type(RUNNING_SUM) == element::f32);
+        return true;
     default:
         return false;
     }
@@ -396,7 +389,7 @@ static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
                                           const FlashAttentionTile::Config& config) {
     const auto& query_shape = inputs[QUERY].get_shape();
     const auto B = static_cast<int32_t>((query_shape.size() == 4) ? *(query_shape.end() - 4) : 1);
-    const auto H = static_cast<int32_t>(*(query_shape.end() - 3));
+    const auto H_q = static_cast<int32_t>(*(query_shape.end() - 3));
     const auto L = static_cast<int32_t>(*(query_shape.end() - 2));
     const auto E = static_cast<int32_t>(*(query_shape.end() - 1));
 
@@ -407,8 +400,8 @@ static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
     const auto& value_shape = inputs[VALUE].get_shape();
     const auto Ev = static_cast<int32_t>(*(value_shape.end() - 1));
 
-    const auto out_elems = B * H * L * Ev;
-    const auto state_elems = B * H * L;
+    const auto out_elems = B * H_q * L * Ev;
+    const auto state_elems = B * H_q * L;
 
     const auto* query = inputs[QUERY].data<const float>();
     const auto* key = inputs[KEY].data<const float>();
@@ -446,7 +439,7 @@ static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
                              config.is_tail,
                              attention_mask_broadcasted,
                              B,
-                             H,
+                             H_q,
                              H_kv,
                              L,
                              S,
@@ -455,13 +448,70 @@ static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
     return true;
 }
 
+template <typename T>
+static void convert_to_float(const T* src, float* dst, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        dst[i] = static_cast<float>(src[i]);
+    }
+}
+
+template <typename T>
+static void convert_from_float(const float* src, T* dst, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        dst[i] = static_cast<T>(src[i]);
+    }
+}
+
+static ov::Tensor to_f32(const ov::Tensor& tensor) {
+    if (tensor.get_element_type() == ov::element::f32) {
+        return tensor;
+    }
+    ov::Tensor result(ov::element::f32, tensor.get_shape());
+    convert_to_float(tensor.data<const ov::float16>(), result.data<float>(), tensor.get_size());
+    return result;
+}
+
+static void from_f32(const ov::Tensor& f32_tensor, ov::Tensor& dst_tensor) {
+    if (dst_tensor.get_element_type() == ov::element::f32) {
+        return;
+    }
+    convert_from_float(f32_tensor.data<const float>(), dst_tensor.data<ov::float16>(), dst_tensor.get_size());
+}
+
 inline bool FlashAttentionTile::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     auto input_type = get_input_element_type(QUERY);
-    if (input_type != ov::element::f32) {
+    if (input_type == ov::element::f32) {
+        return evaluate_flash_attention_impl(outputs, inputs, m_config);
+    }
+
+    if (input_type != ov::element::f16) {
         return false;
     }
 
-    return evaluate_flash_attention_impl(outputs, inputs, m_config);
+    // Convert f16 inputs to f32 for computation
+    ov::TensorVector f32_inputs;
+    f32_inputs.reserve(inputs.size());
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        f32_inputs.push_back(to_f32(inputs[i]));
+    }
+
+    // Allocate f32 outputs
+    ov::TensorVector f32_outputs;
+    f32_outputs.reserve(outputs.size());
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        f32_outputs.emplace_back(ov::element::f32, outputs[i].get_shape());
+    }
+
+    if (!evaluate_flash_attention_impl(f32_outputs, f32_inputs, m_config)) {
+        return false;
+    }
+
+    // Convert f32 outputs back to original types
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        from_f32(f32_outputs[i], outputs[i]);
+    }
+
+    return true;
 }
 
 const FlashAttentionTile::Config& FlashAttentionTile::get_config() const {
