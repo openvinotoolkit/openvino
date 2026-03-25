@@ -90,6 +90,7 @@ from openvino import opset13
 from openvino import opset14
 from openvino import opset15
 from openvino import opset16
+from openvino import opset17
 
 # libva related:
 from openvino._pyopenvino import VAContext

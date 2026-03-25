@@ -86,9 +86,13 @@ public:
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                             const std::vector<uint8_t>& network) const;
 
+    /**
+     * @brief Returns the compiler supported options list
+     * @return false if the API is not supported, true otherwise
+     */
     bool get_supported_options(std::vector<char>& options) const;
 
-    bool is_option_supported(const std::string& option, std::optional<std::string> optValue = std::nullopt) const;
+    bool is_option_supported(std::string option, std::optional<std::string> optValue = std::nullopt) const;
 
     std::shared_ptr<void> getLinkedLibrary() const;
 

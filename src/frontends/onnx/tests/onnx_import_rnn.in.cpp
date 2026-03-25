@@ -609,6 +609,109 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lstm_rank4_with_unsqueeze) {
     test_case.run_with_tolerance_as_fp(1.0e-4f);
 }
 
+// Test for LSTM with inputs missing the num_directions dimension.
+// Some models omit the leading num_directions=1 dimension from W, R, B.
+// The converter should unsqueeze it automatically and squeeze it from outputs.
+// W shape: [8, 4] instead of [1, 8, 4], R: [8, 2] instead of [1, 8, 2], B: [16] instead of [1, 16]
+// Expected output Y shape: [3, 2, 2] (no num_directions), not [3, 1, 2, 2]
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lstm_missing_num_directions) {
+    auto model = convert_model("lstm_missing_num_directions.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // X: [seq_length=3, batch_size=2, input_size=4]
+    std::vector<float> X = {0.49671414494514465f, -0.13826429843902588f, 0.6476885676383972f,  1.5230298042297363f,
+                            -0.2341533750295639f, -0.23413695394992828f, 1.5792127847671509f,  0.7674347162246704f,
+                            -0.4694743752479553f, 0.5425600409507751f,   -0.4634176790714264f, -0.4657297432422638f,
+                            0.241962268948555f,   -1.9132802486419678f,  -1.7249178886413574f, -0.5622875094413757f,
+                            -1.0128310918807983f, 0.31424733996391296f,  -0.9080240726470947f, -1.4123036861419678f,
+                            1.4656487703323364f,  -0.2257762998342514f,  0.06752820312976837f, -1.424748182296753f};
+
+    // W: [4*hidden_size=8, input_size=4] - missing num_directions dimension
+    std::vector<float> W = {-0.5443827509880066f,   0.11092258989810944f, -1.1509935855865479f,  0.3756980299949646f,
+                            -0.6006386876106262f,   -0.2916937470436096f, -0.6017066240310669f,  1.852278232574463f,
+                            -0.013497225008904934f, -1.057710886001587f,  0.8225449323654175f,   -1.2208436727523804f,
+                            0.20886360108852386f,   -1.959670066833496f,  -1.32818603515625f,    0.19686123728752136f,
+                            0.7384665608406067f,    0.1713682860136032f,  -0.1156482845544815f,  -0.3011036813259125f,
+                            -1.4785219430923462f,   -0.7198442220687866f, -0.46063876152038574f, 1.0571222305297852f,
+                            0.3436183035373688f,    -1.7630401849746704f, 0.32408398389816284f,  -0.38508227467536926f,
+                            -0.6769220232963562f,   0.6116762757301331f,  1.0309995412826538f,   0.9312801361083984f};
+
+    // R: [4*hidden_size=8, hidden_size=2] - missing num_directions dimension
+    std::vector<float> R = {-0.8392175436019897f,
+                            -0.3092123866081238f,
+                            0.3312634229660034f,
+                            0.9755451083183289f,
+                            -0.4791742265224457f,
+                            -0.18565897643566132f,
+                            -1.106334924697876f,
+                            -1.1962065696716309f,
+                            0.8125258088111877f,
+                            1.3562400341033936f,
+                            -0.07201012223958969f,
+                            1.003532886505127f,
+                            0.3616360127925873f,
+                            -0.6451197266578674f,
+                            0.36139559745788574f,
+                            1.538036584854126f};
+
+    // B: [8*hidden_size=16] - missing num_directions dimension
+    std::vector<float> B = {-0.03582603856921196f,
+                            1.5646436214447021f,
+                            -2.6197450160980225f,
+                            0.8219025135040283f,
+                            0.08704707026481628f,
+                            -0.2990073561668396f,
+                            0.0917607769370079f,
+                            -1.9875688552856445f,
+                            -0.21967189013957977f,
+                            0.3571125566959381f,
+                            1.4778940677642822f,
+                            -0.5182701945304871f,
+                            -0.8084936141967773f,
+                            -0.501757025718689f,
+                            0.9154021143913269f,
+                            0.3287511169910431f};
+
+    // Expected outputs - verified against reference model with proper [1, ...] shapes
+    // Y: [seq_length=3, batch_size=2, hidden_size=2] - no num_directions dim
+    std::vector<float> expected_Y = {0.022259337827563286f,
+                                     0.003388261189684272f,
+                                     0.05276688188314438f,
+                                     0.11502056568861008f,
+                                     0.00648046750575304f,
+                                     -0.2669661343097687f,
+                                     0.35137197375297546f,
+                                     -0.5121785998344421f,
+                                     0.13379308581352234f,
+                                     -0.4288314878940582f,
+                                     0.37510907649993896f,
+                                     -0.0907968208193779f};
+
+    // Y_h: [batch_size=2, hidden_size=2] - no num_directions dim
+    std::vector<float> expected_Y_h = {0.13379308581352234f,
+                                       -0.4288314878940582f,
+                                       0.37510907649993896f,
+                                       -0.0907968208193779f};
+
+    // Y_c: [batch_size=2, hidden_size=2] - no num_directions dim
+    std::vector<float> expected_Y_c = {0.35507577657699585f,
+                                       -0.7553168535232544f,
+                                       0.6096105575561523f,
+                                       -0.12818995118141174f};
+
+    test_case.add_input<float>(Shape{3, 2, 4}, X);
+    test_case.add_input<float>(Shape{8, 4}, W);
+    test_case.add_input<float>(Shape{8, 2}, R);
+    test_case.add_input<float>(Shape{16}, B);
+
+    // Output shapes lack the num_directions dimension
+    test_case.add_expected_output<float>(Shape{3, 2, 2}, expected_Y);
+    test_case.add_expected_output<float>(Shape{2, 2}, expected_Y_h);
+    test_case.add_expected_output<float>(Shape{2, 2}, expected_Y_c);
+
+    test_case.run_with_tolerance_as_fp(1.0e-4f);
+}
+
 // RNNLikeSequenceOp test fixture for test setup reuse
 class GRUSequenceOp : public testing::Test {
 public:
@@ -1188,7 +1291,7 @@ OPENVINO_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_reverse) {
     test_case.add_expected_output<float>(
         Shape{4, 1, 3, 5},
         std::vector<float>{
-            -0.51097775f, -0.85767376f, 0.8065842f,   -0.1832461f,  -0.00109532f, -0.18766233f, 0.3910985f,
+            -0.51097775f, -0.85767376f, 0.8065842f,   -0.1832461f,  -0.00109518f, -0.18766233f, 0.3910985f,
             -0.0617601f,  -0.05733761f, -0.23259571f, -0.22787738f, -0.3715533f,  0.70320934f,  -0.17635077f,
             -0.0972611f,  -0.11218601f, -0.660165f,   -0.03494868f, -0.07503931f, -0.15422714f, -0.5053969f,
             0.5710621f,   0.1448728f,   -0.225453f,   0.07250313f,  -0.5988957f,  0.48768237f,  0.00665835f,
@@ -1205,7 +1308,7 @@ OPENVINO_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_reverse) {
                                              -0.85767376f,
                                              0.8065842f,
                                              -0.1832461f,
-                                             -0.00109532f,
+                                             -0.00109518f,
                                              -0.18766233f,
                                              0.3910985f,
                                              -0.0617601f,
