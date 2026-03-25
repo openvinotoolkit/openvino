@@ -2165,10 +2165,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
         {"NPUW_UNFOLD_IREQS", "NO"},
     };
-    if ((prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa) && m_use_chunk_prefill) {
+    const bool prefill_needs_attn_isolation =
+        prefill_attn_pyramid || prefill_attn_hfa || (prefill_attn_dyn && m_use_chunk_prefill);
+    const bool generate_needs_attn_isolation = generate_attn_dyn || generate_attn_pyramid || generate_attn_hfa;
+
+    if (prefill_needs_attn_isolation) {
         merge_config_with(prefill_config, dyn_attn_opts);
     }
-    if (generate_attn_dyn || generate_attn_pyramid || generate_attn_hfa) {
+    if (generate_needs_attn_isolation) {
         merge_config_with(generate_config, dyn_attn_opts);
     }
 
@@ -2197,7 +2201,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // in a higher memory consumption. This behavior should be reworked!
     // The reason here is that NPUW_DEVICES may come as a global setting,
     // impacting all the stages.
-    if (prefill_attn_dyn || generate_attn_dyn) {
+    if (prefill_needs_attn_isolation || generate_needs_attn_isolation) {
         const ov::AnyMap no_runtime_fallback = {{"NPUW_FALLBACK_EXEC", "NO"}};
         merge_config_with(prefill_config, no_runtime_fallback);
         merge_config_with(generate_config, no_runtime_fallback);
