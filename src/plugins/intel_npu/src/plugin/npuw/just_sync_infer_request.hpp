@@ -135,7 +135,7 @@ protected:
                                                int64_t tile_length);
 
     void connect_subrequests();
-    void recreate_subrequests(std::size_t idx);
+    void refresh_failover_side_resources(std::size_t idx);
 
     // Helper function to setup pyramid attention infer requests
     void setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate);

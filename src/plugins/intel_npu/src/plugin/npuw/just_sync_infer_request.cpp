@@ -350,9 +350,9 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
         // Special cases are handled -- so nothing to do here
         const bool is_piped = is_pipelined(i);
-        bool recompiled = false;
-        auto rqs = create_infer_requests(i, is_piped ? 2 : 1, &recompiled);
-        failover_happened |= recompiled;
+        const auto device_before = m_npuw_model->submodel_device(i);
+        auto rqs = create_infer_requests(i, is_piped ? 2 : 1);
+        failover_happened |= device_before != m_npuw_model->submodel_device(i);
         m_subrequests[i] = rqs.at(0);
         m_subrequest_devices[i] = m_npuw_model->submodel_device(i);
         if (is_piped) {
@@ -1016,46 +1016,32 @@ void ov::npuw::JustInferRequest::function_prologue_pyramid_attn(std::size_t real
     }
 }
 
-void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
+void ov::npuw::JustInferRequest::refresh_failover_side_resources(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+    const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+    const auto active_device = m_npuw_model->submodel_device(real_idx);
 
-    const auto is_piped = is_pipelined(idx);
-    auto new_rqs = create_infer_requests(idx, is_piped ? 2 : 1);
-
-    // NB: Regardless if this subrequest was a function call
-    // or not, always use the real_idx here - for regular
-    // subrequests, real_id == idx, but for function calls it
-    // is critical here to update the function body, not the
-    // function calls (which are left empty now in the vector)
-    m_subrequests[real_idx] = new_rqs.at(0);
-    if (is_piped) {
-        m_funcall_pipeline[real_idx].subrequest = new_rqs.at(1);
+    if (m_subrequest_devices[real_idx] == active_device) {
+        return;
     }
 
-    // Recreate pyramid infer requests if this function has pyramid attention
-    if (comp_model_desc.replaced_by) {
-        auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-        if (proto_comp_model_desc.pyramid_attention) {
-            setup_pyramid_infer_requests(real_idx, is_piped, true);
-        }
-        // Recreate HFA tile infer requests if this function has host flash attention
-        if (proto_comp_model_desc.host_flash_attention) {
-            setup_hfa_infer_requests(real_idx, is_piped, /* is_recreate */ true, /* enable_hfa_optimizations */ true);
-        }
-        // Recreate MoE resources if this function has MoE
-        if (proto_comp_model_desc.moe_experts) {
-            recreate_moe_resources(idx, real_idx);
-        }
+    LOG_INFO("Refreshing side resources for subrequest[" << real_idx << "] after failover to " << active_device
+                                                         << " device.");
+    LOG_BLOCK();
+
+    const bool is_piped = is_pipelined(idx);
+    auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+
+    // The primary infer requests already execute via the failsafe wrapper.
+    // Only helper resources with device-bound side buffers need explicit refresh.
+    if (proto_comp_model_desc.host_flash_attention) {
+        setup_hfa_infer_requests(real_idx, is_piped, /* is_recreate */ true, /* enable_hfa_optimizations */ true);
+    }
+    if (proto_comp_model_desc.moe_experts) {
+        recreate_moe_resources(idx, real_idx);
     }
 
-    // After an infer request is recreated, the internal cross-request
-    // connections should be re-established (in/out tensors reset properly)
-    // Note: these two proceduers do the full I/O reset procedure what's
-    // overkill - only affected subrequest(s) could be updated instead,
-    // but it is a more complex thing and can be implemented separately
-    connect_subrequests();
-    m_subrequest_devices[idx] = m_npuw_model->submodel_device(idx);
+    m_subrequest_devices[real_idx] = active_device;
 }
 
 void ov::npuw::JustInferRequest::initialize_moe_executor() {
@@ -1329,55 +1315,39 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
 void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, bool& failover) {
     failover = false;
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-
-    // Infer is also fail-safe...
-    bool job_done = false;
-    bool dump_in = false;
+    const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
     bool next_prepared = false;
-    while (!job_done) {
-        const auto active_device = m_npuw_model->submodel_device(real_idx);
-        if (m_subrequest_devices[real_idx] != active_device) {
-            // This may happen when there's multiple NPUW's infer
-            // requests created and some failure occurs in one of
-            // those before another reaches this point.
-            LOG_INFO("Recreating subrequest[" << real_idx << "] because model was recompiled for " << active_device
-                                              << " device.");
-            recreate_subrequests(real_idx);
-        }
 
-        // Feeding the global Parameters is now part of the common
-        // execution pipeline: See how it is done in
-        // `unsafe_run_this_prep_next()`.  Now we only need to bind
-        // the subrequest' outputs to global Results, if relevant.
-        bind_global_results(idx);
+    // Another infer request may have already failed over this shared compiled model.
+    refresh_failover_side_resources(idx);
 
-        if (comp_model_desc.replaced_by) {
-            function_prologue(idx);
-        }
-        if (!dump_in) {
-            dump_in = true;
-            dump_input_tensors(idx);
-        }
+    // Feeding the global Parameters is now part of the common
+    // execution pipeline: See how it is done in
+    // `unsafe_run_this_prep_next()`.  Now we only need to bind
+    // the subrequest' outputs to global Results, if relevant.
+    bind_global_results(idx);
 
-        LOG_DEBUG("Trying to run subrequest[" << idx << "]...");
-        LOG_BLOCK();
-        unsafe_run_this_prep_next(idx, next_prepared);
-        job_done = true;
-        failover = failover || (m_subrequest_devices[real_idx] != m_npuw_model->submodel_device(real_idx));
-        if (failover) {
-            recreate_subrequests(real_idx);
-        }
-        LOG_DEBUG("Done: " << idx << "(exec subrequest)");
-    }  // while(job_done)
+    if (comp_model_desc.replaced_by) {
+        function_prologue(idx);
+    }
+    dump_input_tensors(idx);
 
-    if (job_done) {
-        dump_output_tensors(idx);  // FIXME: Called here unconditionally, need to refactor
-        if (is_pipelined(idx) && m_funcall_pipeline[idx].next) {
-            // Swap the next (pipelined, semi-prepared) infer request in the chain
-            // with the default (to be accessed next) one.
-            std::swap(m_subrequests[real_idx], m_funcall_pipeline[real_idx].subrequest);
-        }
+    LOG_DEBUG("Trying to run subrequest[" << idx << "]...");
+    LOG_BLOCK();
+    unsafe_run_this_prep_next(idx, next_prepared);
+
+    const bool device_changed = m_subrequest_devices[real_idx] != m_npuw_model->submodel_device(real_idx);
+    failover = failover || device_changed;
+    if (device_changed) {
+        refresh_failover_side_resources(idx);
+    }
+    LOG_DEBUG("Done: " << idx << "(exec subrequest)");
+
+    dump_output_tensors(idx);  // FIXME: Called here unconditionally, need to refactor
+    if (is_pipelined(idx) && m_funcall_pipeline[idx].next) {
+        // Swap the next (pipelined, semi-prepared) infer request in the chain
+        // with the default (to be accessed next) one.
+        std::swap(m_subrequests[real_idx], m_funcall_pipeline[real_idx].subrequest);
     }
 }
 

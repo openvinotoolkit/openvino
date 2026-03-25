@@ -239,16 +239,6 @@ std::string error_message(const ov::Exception& ex) {
     return ex.what() == nullptr ? std::string{} : std::string(ex.what());
 }
 
-std::shared_ptr<ov::npuw::failsafe::CompiledModel> make_wrapped_compiled_model(
-    const std::shared_ptr<ov::Model>& model,
-    const std::shared_ptr<const ov::IPlugin>& plugin,
-    std::vector<std::string> devices,
-    ov::npuw::failsafe::CompiledModel::Factory factory) {
-    auto compiled = std::make_shared<ov::npuw::failsafe::CompiledModel>(model, plugin, std::move(devices), std::move(factory));
-    (void)compiled->active_device_name();
-    return compiled;
-}
-
 }  // namespace
 
 TEST(FailsafeCompiledModelTest, CompileFailureFallsBackToLaterCandidate) {
@@ -418,14 +408,14 @@ TEST(FailsafeCompiledModelTest, CompileFailureWithoutFallbackPropagatesError) {
     auto first = std::make_shared<CandidateState>(CandidateState{"NPU"});
 
     try {
-        (void)make_wrapped_compiled_model(
+        (void)ov::npuw::failsafe::CompiledModel::create(
             model,
             plugin,
             {"NPU"},
             make_factory(model, plugin, {{"NPU", first}}, {"NPU"}));
         FAIL() << "Expected compile failure";
     } catch (const ov::Exception& ex) {
-        EXPECT_NE(error_message(ex).find("Failsafe compile fallback exhausted"), std::string::npos);
+        EXPECT_NE(error_message(ex).find("compile failed for NPU"), std::string::npos);
     }
 }
 
@@ -434,17 +424,18 @@ TEST(FailsafeCompiledModelTest, CreateInferRequestFailureWithoutFallbackPropagat
     auto plugin = std::make_shared<NullPlugin>();
     auto first = std::make_shared<CandidateState>(CandidateState{"NPU", nullptr, 1});
 
-    auto compiled = make_wrapped_compiled_model(
+    auto compiled = std::dynamic_pointer_cast<TestCompiledModel>(ov::npuw::failsafe::CompiledModel::create(
         model,
         plugin,
         {"NPU"},
-        make_factory(model, plugin, {{"NPU", first}}));
+        make_factory(model, plugin, {{"NPU", first}})));
+    ASSERT_NE(compiled, nullptr);
 
     try {
         (void)compiled->create_sync_infer_request();
         FAIL() << "Expected infer-request creation failure";
     } catch (const ov::Exception& ex) {
-        EXPECT_NE(error_message(ex).find("Failsafe infer-request creation fallback exhausted"), std::string::npos);
+        EXPECT_NE(error_message(ex).find("create request failed for NPU"), std::string::npos);
     }
 }
 
@@ -453,17 +444,18 @@ TEST(FailsafeCompiledModelTest, InferFailureWithoutFallbackPropagatesError) {
     auto plugin = std::make_shared<NullPlugin>();
     auto first = std::make_shared<CandidateState>(CandidateState{"NPU", nullptr, 0, 1});
 
-    auto compiled = make_wrapped_compiled_model(
+    auto compiled = std::dynamic_pointer_cast<TestCompiledModel>(ov::npuw::failsafe::CompiledModel::create(
         model,
         plugin,
         {"NPU"},
-        make_factory(model, plugin, {{"NPU", first}}));
+        make_factory(model, plugin, {{"NPU", first}})));
+    ASSERT_NE(compiled, nullptr);
     auto request = compiled->create_sync_infer_request();
 
     try {
         request->infer();
         FAIL() << "Expected inference failure";
     } catch (const ov::Exception& ex) {
-        EXPECT_NE(error_message(ex).find("Failsafe infer fallback exhausted"), std::string::npos);
+        EXPECT_NE(error_message(ex).find("infer failed for NPU"), std::string::npos);
     }
 }

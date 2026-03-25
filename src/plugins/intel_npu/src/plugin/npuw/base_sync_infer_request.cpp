@@ -34,8 +34,7 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
 }
 
 ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,
-                                                                                       std::size_t nireq,
-                                                                                       bool* recompiled) {
+                                                                                       std::size_t nireq) {
     NPUW_ASSERT(nireq > 0);
     RqPtrs rqs;
     rqs.reserve(nireq);
@@ -44,15 +43,11 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[id];
     NPUW_ASSERT(comp_model_desc.replaced_by.value_or(id) == id);
 
-    const auto device_before = m_npuw_model->submodel_device(id);
     auto& comp_model = comp_model_desc.compiled_model;
     for (std::size_t i = 0u; i < nireq; i++) {
         rqs.emplace_back(comp_model->create_infer_request(), comp_model._so);
     }
     NPUW_ASSERT(rqs.size() == nireq);
-    if (recompiled) {
-        *recompiled = device_before != m_npuw_model->submodel_device(id);
-    }
 
     // TODO: Support creation and return of multiple infer requests
     if (m_npuw_model->m_acc_check && m_ref_subrequests.at(id) == nullptr) {

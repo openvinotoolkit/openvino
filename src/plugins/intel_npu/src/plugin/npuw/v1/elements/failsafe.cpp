@@ -53,6 +53,14 @@ std::shared_ptr<ov::ICompiledModel> ov::npuw::failsafe::CompiledModel::create(
     OPENVINO_ASSERT(!devices.empty(), "Failsafe compiled model requires at least one device");
     OPENVINO_ASSERT(static_cast<bool>(factory), "Failsafe compiled model requires a factory");
 
+    if (devices.size() == 1u) {
+        auto compiled_model = factory(devices.front());
+        OPENVINO_ASSERT(compiled_model != nullptr,
+                        "Failsafe factory returned null compiled model for device ",
+                        devices.front());
+        return compiled_model;
+    }
+
     auto compiled_model = std::make_shared<CompiledModel>(model, plugin, std::move(devices), std::move(factory));
     std::lock_guard<std::mutex> lock(compiled_model->m_mutex);
     compiled_model->ensure_active_compiled_model_locked();

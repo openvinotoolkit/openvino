@@ -89,7 +89,7 @@ protected:
     // function bodies. Function calls are not allowed to have
     // their inference requests anymore - they must be stored
     // only once in the subrequests list
-    RqPtrs create_infer_requests(std::size_t id, size_t nireq = 1, bool* recompiled = nullptr);
+    RqPtrs create_infer_requests(std::size_t id, size_t nireq = 1);
     void ensure_subrequest_is_accurate(std::size_t idx, bool& failover);
     virtual void update_subrequest_links(std::size_t idx) = 0;
 
