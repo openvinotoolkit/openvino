@@ -174,29 +174,29 @@ TEST_F(ZeroCopyOutputTest, buffer_reuse_across_shapes) {
     // M=10: first allocation (40 elements minimum)
     run_and_verify(10);
     void* first_ptr = output_block.memory()->buffer_ptr();
-    size_t first_capacity = output_block.capacity();
-    ASSERT_GE(first_capacity, size_t(40));
+    size_t first_alloc_bytes = output_block.memory()->get_mem_tracker()->size();
+    ASSERT_GE(first_alloc_bytes, size_t(40) * sizeof(ov::float16));
 
     // M=3: smaller shape -> buffer reused, pointer unchanged
     run_and_verify(3);
     ASSERT_EQ(output_block.memory()->buffer_ptr(), first_ptr) << "Buffer should be reused when shape shrinks (reclaim disabled)";
-    ASSERT_EQ(output_block.capacity(), first_capacity);
+    ASSERT_EQ(output_block.memory()->get_mem_tracker()->size(), first_alloc_bytes);
 
     // M=7: still within first capacity -> pointer unchanged
     run_and_verify(7);
     ASSERT_EQ(output_block.memory()->buffer_ptr(), first_ptr) << "Buffer should be reused for shapes within existing capacity";
-    ASSERT_EQ(output_block.capacity(), first_capacity);
+    ASSERT_EQ(output_block.memory()->get_mem_tracker()->size(), first_alloc_bytes);
 
     // M=20: 80 elements exceeds first capacity -> must grow
     run_and_verify(20);
-    size_t grown_capacity = output_block.capacity();
-    ASSERT_GE(grown_capacity, size_t(80)) << "Block should have grown to accommodate 80 elements";
+    size_t grown_alloc_bytes = output_block.memory()->get_mem_tracker()->size();
+    ASSERT_GE(grown_alloc_bytes, size_t(80) * sizeof(ov::float16)) << "Block should have grown to accommodate 80 elements";
 
     // M=15: back to smaller shape -> pointer unchanged after growth
     void* grown_ptr = output_block.memory()->buffer_ptr();
     run_and_verify(15);
     ASSERT_EQ(output_block.memory()->buffer_ptr(), grown_ptr) << "Buffer should be reused after growth when shape shrinks";
-    ASSERT_EQ(output_block.capacity(), grown_capacity);
+    ASSERT_EQ(output_block.memory()->get_mem_tracker()->size(), grown_alloc_bytes);
 
     net->clear_output_memory_blocks();
 }
@@ -221,12 +221,12 @@ TEST_F(ZeroCopyOutputTest, reclaim_oversized_buffer) {
     // M=25: large allocation (100+ elements with predictor padding)
     run_and_verify(25);
     void* large_ptr = output_block.memory()->buffer_ptr();
-    size_t large_bytes = output_block.capacity() * sizeof(ov::float16);
+    size_t large_bytes = output_block.memory()->get_mem_tracker()->size();
 
     // M=1: 4 elements * 2B = 8 bytes vs 200+ bytes -> reclaim triggers
     run_and_verify(1);
     void* small_ptr = output_block.memory()->buffer_ptr();
-    size_t small_bytes = output_block.capacity() * sizeof(ov::float16);
+    size_t small_bytes = output_block.memory()->get_mem_tracker()->size();
 
     ASSERT_NE(large_ptr, small_ptr) << "Buffer should be reclaimed when oversized by >2x";
     ASSERT_LT(small_bytes, large_bytes) << "Reclaimed buffer should be smaller than the original";
