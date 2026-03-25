@@ -44,41 +44,15 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[id];
     NPUW_ASSERT(comp_model_desc.replaced_by.value_or(id) == id);
 
-    bool successful = false;
-    bool can_try_again = true;
-
-    // Altering iterators here!! Contracts should be changed!
-    while (!successful && can_try_again) {
-        bool should_recompile = false;
-        try {
-            // FIXME: As the model may recompile, reference
-            // shouldn't be lifted from the loop
-            auto& comp_model = comp_model_desc.compiled_model;
-            rqs.clear();
-            for (std::size_t i = 0u; i < nireq; i++) {
-                rqs.emplace_back(comp_model->create_infer_request(), comp_model._so);
-            }
-            successful = true;
-        } catch (const std::exception& ex) {
-            LOG_WARN("Subgraph [" << id << "] - Failed to create infer request:" << std::endl << ex.what());
-            should_recompile = true;
-        } catch (...) {
-            LOG_WARN("Subgraph [" << id << "] - Failed to create infer request: REASON UNKNOWN");
-            should_recompile = true;
-        }
-        if (should_recompile) {
-            LOG_INFO("- Trying next device...");
-            comp_model_desc.device_it++;
-            can_try_again = m_npuw_model->compile_for_success(id);
-            if (can_try_again && recompiled) {
-                *recompiled = true;
-            }
-        }
-    }  // while(!new_ireq && can_try_again)
-    if (!successful) {
-        OPENVINO_THROW("NPUW: Fatal - couldn't create infer request for Subgraph[", id, "]");
+    const auto device_before = m_npuw_model->submodel_device(id);
+    auto& comp_model = comp_model_desc.compiled_model;
+    for (std::size_t i = 0u; i < nireq; i++) {
+        rqs.emplace_back(comp_model->create_infer_request(), comp_model._so);
     }
     NPUW_ASSERT(rqs.size() == nireq);
+    if (recompiled) {
+        *recompiled = device_before != m_npuw_model->submodel_device(id);
+    }
 
     // TODO: Support creation and return of multiple infer requests
     if (m_npuw_model->m_acc_check && m_ref_subrequests.at(id) == nullptr) {
@@ -286,8 +260,7 @@ std::vector<ov::ProfilingInfo> ov::npuw::IBaseInferRequest::get_profiling_info()
 
 std::string ov::npuw::IBaseInferRequest::profile_tag(std::size_t idx) const {
     // So far accumulate over devices involved
-    const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(idx)];
-    return *proto_comp_model_desc.device_it;
+    return m_npuw_model->submodel_device(real(idx));
 }
 
 void ov::npuw::IBaseInferRequest::infer() {
@@ -350,8 +323,7 @@ std::string ov::npuw::IBaseInferRequest::global_input_mem_device(std::size_t idx
 
     const auto& to_submodel = m_npuw_model->m_inputs_to_submodels_inputs.at(idx);
     if (to_submodel != CompiledModel::NO_LINK) {
-        const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(to_submodel.first)];
-        return *proto_comp_model_desc.device_it;
+        return m_npuw_model->submodel_device(real(to_submodel.first));
     }
 
     // Resort to global again
@@ -361,8 +333,7 @@ std::string ov::npuw::IBaseInferRequest::global_input_mem_device(std::size_t idx
 std::string ov::npuw::IBaseInferRequest::global_output_mem_device(std::size_t idx) const {
     // Pick the affinitiy based on the producer subgraph
     const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(idx);
-    const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(from_submodel.first)];
-    return *proto_comp_model_desc.device_it;
+    return m_npuw_model->submodel_device(real(from_submodel.first));
 }
 
 void ov::npuw::IBaseInferRequest::alloc_quant_gather() {
@@ -781,7 +752,7 @@ void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr r
                 dst->set_shape(shape);
                 const auto new_ptr = dst->data();
                 if (old_ptr != new_ptr) {
-                    m_footprint[*comp_model_desc.device_it] += dst->get_byte_size();
+                    m_footprint[m_npuw_model->submodel_device(real(idx))] += dst->get_byte_size();
                 }
                 LOG_DEBUG("Do copy: " << shape << "...");
                 view->copy_to(dst._ptr);

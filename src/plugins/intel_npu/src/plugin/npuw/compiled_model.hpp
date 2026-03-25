@@ -125,13 +125,9 @@ private:
     friend class moe::MoEExecutor;
 
     bool compile_for_success(std::size_t id);
-    bool compile_for_device(std::size_t id, const std::string& device_to_try);
+    ov::SoPtr<ov::ICompiledModel> compile_submodel_bundle(std::size_t id, const std::string& device_to_try);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
                                                    const std::string& device);
-    void compile_main_model(std::size_t id, const std::string& device);
-    void compile_moe_models(std::size_t id, const std::string& device);
-    void compile_pyramid_attention_models(std::size_t id, const std::string& device);
-    void compile_host_flash_attention_model(std::size_t id, const std::string& device);
 
     void dump_on_fail(std::size_t id, const std::string& device_to_stry, const char* extra);
     std::string format_subgraph_name(std::size_t id, const std::string& funcall) const;

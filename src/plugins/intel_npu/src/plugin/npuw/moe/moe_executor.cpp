@@ -6,6 +6,7 @@
 
 #include "../compiled_model.hpp"  // For CompiledModel::CompiledModelDesc
 #include "../logging.hpp"
+#include "../v1/elements/failsafe.hpp"
 #include "moe_infer_utils.hpp"
 #include "moe_types.hpp"  // For MoEIO definition
 #include "openvino/core/except.hpp"
@@ -81,38 +82,27 @@ void MoEExecutor::prepare(size_t idx, size_t real_idx, size_t num_sublayers, siz
         requests.resize(pool_size);
 
         // Create first request separately (needed for tensor sharing)
-        try {
-            requests[0] = desc.compiled_model->create_infer_request();
-            requests[0]->infer();  // Warmup
-            LOG_DEBUG("Created and warmed up request[0]");
-        } catch (const std::exception& ex) {
-            LOG_ERROR("Failed to create MoE pool request[0] for sublayer[" << idx << "]: " << ex.what());
-            throw;
-        }
+        requests[0] = desc.compiled_model->create_infer_request();
+        requests[0]->infer();  // Warmup
+        LOG_DEBUG("Created and warmed up request[0]");
 
         // Create remaining requests in parallel, sharing tensors from first request
         ov::parallel_for(pool_size - 1, [&](size_t i) {
             const size_t req_idx = i + 1;
-            try {
-                auto request = desc.compiled_model->create_infer_request();
+            auto request = desc.compiled_model->create_infer_request();
 
-                // Share all input & output tensors from first request to save memory
-                const auto& inputs = desc.compiled_model->inputs();
-                for (size_t input_idx = 0; input_idx < inputs.size(); ++input_idx) {
-                    request->set_tensor(inputs[input_idx], requests[0]->get_tensor(inputs[input_idx]));
-                }
-                const auto& outputs = desc.compiled_model->outputs();
-                for (size_t output_idx = 0; output_idx < outputs.size(); ++output_idx) {
-                    request->set_tensor(outputs[output_idx], requests[0]->get_tensor(outputs[output_idx]));
-                }
-
-                request->infer();  // Warmup
-                requests[req_idx] = std::move(request);
-            } catch (const std::exception& ex) {
-                LOG_ERROR("Failed to create MoE pool request[" << req_idx << "] for sublayer[" << idx
-                                                               << "]: " << ex.what());
-                throw;
+            // Share all input & output tensors from first request to save memory
+            const auto& inputs = desc.compiled_model->inputs();
+            for (size_t input_idx = 0; input_idx < inputs.size(); ++input_idx) {
+                request->set_tensor(inputs[input_idx], requests[0]->get_tensor(inputs[input_idx]));
             }
+            const auto& outputs = desc.compiled_model->outputs();
+            for (size_t output_idx = 0; output_idx < outputs.size(); ++output_idx) {
+                request->set_tensor(outputs[output_idx], requests[0]->get_tensor(outputs[output_idx]));
+            }
+
+            request->infer();  // Warmup
+            requests[req_idx] = std::move(request);
         });
 
         // Initialize cache layer with pre-allocated requests
@@ -581,6 +571,9 @@ std::string MoEExecutor::get_device_name(size_t idx, const void* compiled_model_
     const auto& desc = compiled_model_desc_ptr
                            ? *static_cast<const CompiledModel::CompiledModelDesc*>(compiled_model_desc_ptr)
                            : *static_cast<const CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(idx));
+    if (auto failsafe_model = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(desc.compiled_model._ptr)) {
+        return failsafe_model->active_device_name();
+    }
     return *desc.device_it;
 }
 

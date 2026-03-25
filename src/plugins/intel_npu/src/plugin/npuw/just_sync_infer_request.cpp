@@ -354,7 +354,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         auto rqs = create_infer_requests(i, is_piped ? 2 : 1, &recompiled);
         failover_happened |= recompiled;
         m_subrequests[i] = rqs.at(0);
-        m_subrequest_devices[i] = *comp_model_desc.device_it;
+        m_subrequest_devices[i] = m_npuw_model->submodel_device(i);
         if (is_piped) {
             m_funcall_pipeline[i].subrequest = rqs.at(1);
         }
@@ -1055,7 +1055,7 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     // overkill - only affected subrequest(s) could be updated instead,
     // but it is a more complex thing and can be implemented separately
     connect_subrequests();
-    m_subrequest_devices[idx] = *comp_model_desc.device_it;
+    m_subrequest_devices[idx] = m_npuw_model->submodel_device(idx);
 }
 
 void ov::npuw::JustInferRequest::initialize_moe_executor() {
@@ -1132,21 +1132,9 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
 
     // Create infer requests for all but the last pyramid model
     for (size_t model_idx = 0; model_idx + 1 < num_pyramid_models; ++model_idx) {
-        try {
-            // Create main infer request
-            submodel_desc.pyramid_infer_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
-            // Create pipeline infer request if pipelined
-            if (is_piped) {
-                submodel_desc.pyramid_pipeline_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
-            }
-        } catch (const std::exception& ex) {
-            LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create") << " infer request for pyramid model["
-                                   << model_idx << "]: " << ex.what());
-            NPUW_ASSERT(false && "Pyramid model infer request creation/recreation failed");
-        } catch (...) {
-            LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create") << " infer request for pyramid model["
-                                   << model_idx << "]: Unknown error");
-            NPUW_ASSERT(false && "Pyramid model infer request creation/recreation failed with unknown error");
+        submodel_desc.pyramid_infer_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
+        if (is_piped) {
+            submodel_desc.pyramid_pipeline_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
         }
 
         // Share input tensors between pyramid and main infer requests
@@ -1228,23 +1216,12 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
         submodel_desc.hfa_pipeline_requests.resize(CompiledModel::CompiledModelDesc::HFATileIdx::COUNT);
     }
 
-    // Create infer request for regular tile model
-    try {
-        LOG_INFO("Creating infer request for HFA regular tile model...");
-        submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE] =
+    LOG_INFO("Creating infer request for HFA regular tile model...");
+    submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE] =
+        hfa._compiled_tile_model->create_infer_request();
+    if (is_piped) {
+        submodel_desc.hfa_pipeline_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE] =
             hfa._compiled_tile_model->create_infer_request();
-        if (is_piped) {
-            submodel_desc.hfa_pipeline_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE] =
-                hfa._compiled_tile_model->create_infer_request();
-        }
-    } catch (const std::exception& ex) {
-        LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create")
-                               << " infer request for HFA regular tile model: " << ex.what());
-        OPENVINO_THROW("HFA regular tile model infer request creation failed: ", ex.what());
-    } catch (...) {
-        LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create")
-                               << " infer request for HFA regular tile model: Unknown error");
-        OPENVINO_THROW("HFA regular tile model infer request creation failed with unknown error");
     }
 
     // For final tile model, reuse the main compiled_model's infer request
@@ -1300,7 +1277,7 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
         // Initialize pre-allocated buffers
         m_hfa_runtime_ctx->initialize_mask_cache(
             hfa,
-            *submodel_desc.device_it,
+            m_npuw_model->submodel_device(real_idx),
             [this](const ov::element::Type& dtype, const ov::Shape& shape, const std::string& device) {
                 return allocMem(dtype, shape, device);
             });
@@ -1333,7 +1310,7 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
         m_hfa_runtime_ctx->initialize_state_buffers(
             initial_buffers,
             hfa,
-            *submodel_desc.device_it,
+            m_npuw_model->submodel_device(real_idx),
             [this](const ov::element::Type& dtype, const ov::Shape& shape, const std::string& device) {
                 return allocMem(dtype, shape, device);
             });
@@ -1359,13 +1336,13 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
     bool dump_in = false;
     bool next_prepared = false;
     while (!job_done) {
-        bool should_recreate = false;
-        if (m_subrequest_devices[real_idx] != *m_npuw_model->m_compiled_submodels[real_idx].device_it) {
+        const auto active_device = m_npuw_model->submodel_device(real_idx);
+        if (m_subrequest_devices[real_idx] != active_device) {
             // This may happen when there's multiple NPUW's infer
             // requests created and some failure occurs in one of
             // those before another reaches this point.
             LOG_INFO("Recreating subrequest[" << real_idx << "] because model was recompiled for "
-                                              << *m_npuw_model->m_compiled_submodels[real_idx].device_it << " device.");
+                                              << active_device << " device.");
             recreate_subrequests(real_idx);
         }
 
@@ -1383,39 +1360,15 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
             dump_input_tensors(idx);
         }
 
-        std::string error_text;
-        try {
-            LOG_DEBUG("Trying to run subrequest[" << idx << "]...");
-            LOG_BLOCK();
-            unsafe_run_this_prep_next(idx, next_prepared);
-            job_done = true;
-            LOG_DEBUG("Done: " << idx << "(exec subrequest)");
-        } catch (const std::exception& ex) {
-            error_text = ex.what();
-            LOG_ERROR("Subgraph [" << idx << "] - FAILED to run infer request:" << std::endl
-                                   << error_text << std::endl);
-            should_recreate = true;
-        } catch (...) {
-            LOG_ERROR("Subgraph [" << idx << "] - FAILED to run infer request: REASON UNKNOWN");
-            should_recreate = true;
+        LOG_DEBUG("Trying to run subrequest[" << idx << "]...");
+        LOG_BLOCK();
+        unsafe_run_this_prep_next(idx, next_prepared);
+        job_done = true;
+        failover = failover || (m_subrequest_devices[real_idx] != m_npuw_model->submodel_device(real_idx));
+        if (failover) {
+            recreate_subrequests(real_idx);
         }
-        if (should_recreate) {
-            // Altering iterators here!! Contracts should be changed!
-            comp_model_desc.device_it++;
-
-            // Check if failover is actually possible
-            if ((m_npuw_model->m_dev_list.cend() == comp_model_desc.device_it) ||
-                !m_npuw_model->m_cfg.get<::intel_npu::NPUW_FALLBACK_EXEC>()) {
-                OPENVINO_THROW("Execution error: \"", error_text, "\" - no fallback possible");
-            }
-
-            failover = true;
-            LOG_INFO("- Trying next device...");
-            if (!m_npuw_model->compile_for_success(real_idx)) {
-                OPENVINO_THROW("Execution error: \"", error_text, "\" - failed to recompile the model in runtime");
-            }
-            recreate_subrequests(idx);
-        }
+        LOG_DEBUG("Done: " << idx << "(exec subrequest)");
     }  // while(job_done)
 
     if (job_done) {
