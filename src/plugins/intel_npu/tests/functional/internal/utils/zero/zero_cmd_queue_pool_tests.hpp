@@ -10,13 +10,17 @@
 #include <ze_api.h>
 #include <ze_command_queue_npu_ext.h>
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstddef>
 #include <exception>
 #include <memory>
+#include <mutex>
 #include <random>
+#include <sstream>
 #include <thread>
+#include <vector>
 
 #include "common/npu_test_env_cfg.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"

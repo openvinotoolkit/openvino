@@ -278,9 +278,7 @@ void ZeGraphExtWrappers::initializeGraphThroughCommandList(ze_graph_handle_t gra
     _logger.debug("initializeGraphThroughCommandList init start - create graphCommandList");
     CommandList graphCommandList(_zeroInitStruct);
     _logger.debug("initializeGraphThroughCommandList - get commandQueue");
-    CommandQueueDesc commandQueueDesc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL, ZE_WORKLOAD_TYPE_DEFAULT};
-    std::shared_ptr<CommandQueue> graphCommandQueue =
-        ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, commandQueueDesc);
+    const auto graphCommandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, CommandQueueDesc{});
 
     _logger.debug("initializeGraphThroughCommandList - create fence");
     Fence fence(graphCommandQueue);

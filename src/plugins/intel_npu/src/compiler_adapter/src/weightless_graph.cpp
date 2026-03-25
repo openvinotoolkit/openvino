@@ -314,13 +314,9 @@ void WeightlessGraph::initialize_impl(const FilteredConfig& config) {
             commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
     }
-
-    CommandQueueDesc commandQueueDesc{
-        zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-        zeroUtils::toZeQueueWorkloadType(
-            config.has<WORKLOAD_TYPE>() ? std::optional<ov::WorkloadType>{config.get<WORKLOAD_TYPE>()} : std::nullopt),
-        commandQueueOptions};
-
+    CommandQueueDesc commandQueueDesc{zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+                                      zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()),
+                                      commandQueueOptions};
     _initsCommandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, commandQueueDesc);
 
 #if USE_SINGLE_THREADED_RUN_INIT

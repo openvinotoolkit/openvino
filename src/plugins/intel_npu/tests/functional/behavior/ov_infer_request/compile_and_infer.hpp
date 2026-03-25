@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <chrono>
 #include <common_test_utils/test_assertions.hpp>
 #include <exception>
 #include <mutex>

@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include <ze_graph_ext.h>
+
 #include <atomic>
 #include <mutex>
-
-#include <ze_graph_ext.h>
 
 #include "intel_npu/common/idynamic_graph.hpp"
 #include "intel_npu/network_metadata.hpp"

@@ -7,6 +7,7 @@
 #include <ze_api.h>
 #include <ze_command_queue_npu_ext.h>
 
+#include <memory>
 #include <mutex>
 #include <unordered_map>
 
@@ -38,9 +39,15 @@ struct ZeroCmdQueueKey {
 
 struct ZeroCmdQueueKeyHash {
     size_t operator()(const ZeroCmdQueueKey& k) const {
-        uint64_t hash = 1469598103934665603ULL;
+        // Initial 64-bit seed for deterministic key mixing.
+        static constexpr uint64_t kFnvOffsetBasis64 = 1469598103934665603ULL;
+        // 64-bit golden-ratio constant used by boost-style hash combine.
+        static constexpr uint64_t kHashCombineConstant64 = 0x9e3779b97f4a7c15ULL;
+
+        uint64_t hash = kFnvOffsetBasis64;
         const auto hash_combine = [&hash](const uint64_t value) {
-            hash ^= value + 0x9e3779b97f4a7c15ULL + (hash << 6) + (hash >> 2);
+            // Mix each field into the running hash; suitable for unordered_map use.
+            hash ^= value + kHashCombineConstant64 + (hash << 6) + (hash >> 2);
         };
         hash_combine(std::hash<void*>{}(k.context));
         hash_combine(std::hash<void*>{}(k.device));
@@ -54,7 +61,7 @@ struct ZeroCmdQueueKeyHash {
     }
 };
 
-class ZeroCmdQueuePool {
+class ZeroCmdQueuePool : public std::enable_shared_from_this<ZeroCmdQueuePool> {
 public:
     ZeroCmdQueuePool(const ZeroCmdQueuePool& other) = delete;
     ZeroCmdQueuePool(ZeroCmdQueuePool&& other) = delete;
