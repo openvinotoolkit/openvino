@@ -26,6 +26,7 @@ struct TestData {
 using PagedAttnTokenTypeParams = std::tuple<ov::element::Type_t,
                                             size_t,      //< head_size
                                             size_t,      //< head_num
+                                            int32_t,     //< sliding_window_size
                                             TestData,    //< pattern
                                             std::string  //< Device name
                                             >;

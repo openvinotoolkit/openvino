@@ -43,7 +43,8 @@ static std::shared_ptr<ov::op::v0::Parameter> MakeParam(const PartialShape& psha
 
 static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
                                                ov::Dimension::value_type head_size,
-                                               ov::Dimension::value_type head_num) {
+                                               ov::Dimension::value_type head_num,
+                                               int32_t sliding_window_size) {
     auto q = MakeParam(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "q");
     auto k = MakeParam(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
     auto v = MakeParam(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
@@ -63,7 +64,7 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
 
     float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
     auto scale = std::make_shared<v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
-    auto sliding_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+    auto sliding_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{sliding_window_size});
     auto alibi_slopes = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
     auto max_context_len = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{1024});
     auto score_aggregation_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
@@ -136,11 +137,12 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
 }  // namespace helpers
 
 std::string PagedAttentionTokenTypeTest::getTestCaseName(const testing::TestParamInfo<PagedAttnTokenTypeParams>& obj) {
-    const auto& [inType, head_size, head_num, pattern, device] = obj.param;
+    const auto& [inType, head_size, head_num, sliding_window_size, pattern, device] = obj.param;
     std::ostringstream result;
     result << "Prc=" << inType << "_";
     result << "HS=" << head_size << "_";
     result << "HN=" << head_num << "_";
+    result << "SW=" << sliding_window_size << "_";
     result << "SQ=" << pattern.tokenTypes.size() << "_";
     result << "Device=" << device << "_";
     result << "Name=" << pattern.name;
@@ -149,11 +151,11 @@ std::string PagedAttentionTokenTypeTest::getTestCaseName(const testing::TestPara
 }
 
 void PagedAttentionTokenTypeTest::SetUp() {
-    const auto& [inType, head_size, head_num, pattern, device] = GetParam();
+    const auto& [inType, head_size, head_num, sliding_window_size, pattern, device] = GetParam();
     configuration[ov::hint::inference_precision.name()] = ov::element::f32;
     configuration[ov::hint::kv_cache_precision.name()] = ov::element::f32;
     targetDevice = device;
-    function = helpers::PrepareModel(inType, head_size, head_num);
+    function = helpers::PrepareModel(inType, head_size, head_num, sliding_window_size);
     compile_model();
 }
 
@@ -165,7 +167,7 @@ void PagedAttentionTokenTypeTest::run() {
     RunAndValidate();
 }
 void PagedAttentionTokenTypeTest::RunAndValidate() {
-    const auto& [inType, head_size, head_num, data, device] = this->GetParam();
+    const auto& [inType, head_size, head_num, sliding_window_size, data, device] = this->GetParam();
 
     const size_t seq_len = data.tokenTypes.size();
     const size_t hidden_dim = head_size * head_num;

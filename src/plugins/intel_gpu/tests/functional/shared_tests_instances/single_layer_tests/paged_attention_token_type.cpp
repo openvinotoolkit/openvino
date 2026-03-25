@@ -16,6 +16,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionTokenType,
                          ::testing::Combine(::testing::Values(ElementType::f32),
                                             ::testing::Values(32),  // head_size
                                             ::testing::Values(1),   // head_num
+                                            ::testing::Values(0),   // sliding_window_size
                                             ::testing::ValuesIn(PagedAttentionTokenTypeTest::GetTestDataForHeadSize32HeadNum1()),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          PagedAttentionTokenTypeTest::getTestCaseName);
