@@ -396,7 +396,7 @@ TEST(ze_event, can_create_counter_based_event) {
 	auto ctx = create_ze_test_context();
 	auto base_ev = ctx.ze_test_stream->create_base_event();
 
-	if (std::dynamic_pointer_cast<ze::ze_counter_based_event>(base_ev) != nullptr)
+	if (std::dynamic_pointer_cast<ze::ze_counter_based_event>(base_ev) == nullptr)
 		GTEST_SKIP() << "Counter based events not supported by this stream";
 
 	ASSERT_NE(std::dynamic_pointer_cast<ze::ze_base_event>(base_ev), nullptr);
@@ -407,7 +407,7 @@ TEST(ze_event, can_create_counter_based_event_and_wait) {
 	auto ctx = create_ze_test_context();
 	auto base_ev = ctx.ze_test_stream->create_base_event();
 
-	if (std::dynamic_pointer_cast<ze::ze_counter_based_event>(base_ev) != nullptr)
+	if (std::dynamic_pointer_cast<ze::ze_counter_based_event>(base_ev) == nullptr)
 		GTEST_SKIP() << "Counter based events not supported by this stream";
 
 	base_ev->wait();
