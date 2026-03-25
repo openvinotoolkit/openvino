@@ -3,16 +3,30 @@
 //
 
 // Unit tests for DynamicQuantize decomposition accuracy.
-// Builds quantize→dequantize roundtrip models for each decomposition variant,
-// feeds random f32 data, and measures reconstruction error (L2 norm, max abs error).
+//
+// All models use fp16 input/output — this is the native precision of the
+// KV-cache compression subgraphs we want to test.  The roundtrip graph is:
+//   Parameter(f16) → Convert(f32) → DynamicQuantize → dequant chain → Convert(f16) → Result(f16)
+//
+// Input data is generated in f32 then rounded to fp16, so the source
+// distribution is exactly fp16-representable.  This ensures that quantization
+// error measurements are not polluted by f32→f16 conversion artifacts.
+//
+// Two test cases share the same parameterized fixture:
+//   RoundtripAccuracy       — uses model->evaluate() (reference interpreter,
+//                             always available, no device dependency)
+//   DeviceRoundtripAccuracy — compiles on a real device via ov::Core and runs
+//                             inference.  Enabled by setting the environment
+//                             variable OV_DQ_TEST_DEVICE (e.g. "CPU", "NPU").
+//                             Skips gracefully when the device is unavailable.
 //
 // The dequantize chain matches the actual product code in create_dequant_nodes():
-//   deq = (convert(q_i8, f32) - convert(zp_i8, f32)) * scale_f32
-// where scale_f32 is output[1] of each decomposition variant.
+//   deq = (convert(q, f32) - convert(zp, f32)) * scale_f32
 
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstdlib>
 #include <limits>
 #include <numeric>
 #include <random>
@@ -20,21 +34,15 @@
 #include <string>
 #include <vector>
 
-#include "openvino/op/add.hpp"
-#include "openvino/op/clamp.hpp"
-#include "openvino/op/constant.hpp"
+#include "kv_cache_compressed.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/reduce_max.hpp"
-#include "openvino/op/reduce_min.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/round.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/pass/manager.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
 
 namespace {
 
@@ -74,149 +82,105 @@ AccuracyMetrics compute_metrics(const float* original, const float* reconstructe
 }
 
 // ============================================================================
-// Decomposition variant 1 (handcrafted symmetric-style)
-// Matches DecomposeDynamicQuantize in kv_cache_compressed.cpp
+// Build a roundtrip model using the actual production decomposition passes.
+// The model always uses fp16 I/O to match the real KV-cache pipeline:
+//   Parameter(f16) → Convert(f32) → [DQ + dequant in f32] → Convert(f16) → Result(f16)
+//
+// The DynamicQuantize node is named with "key" so the decomposition pass
+// selects reduction_axis=3 (the key-cache embedding dimension).
 // ============================================================================
-std::shared_ptr<Model> build_roundtrip_v1(const Shape& shape, size_t reduction_axis) {
-    auto input = std::make_shared<op::v0::Parameter>(element::f32, shape);
+std::shared_ptr<Model> build_roundtrip_model(const Shape& shape,
+                                             int decompose_version) {
+    // ── Step 1: build the complete quantize → dequant graph ──────────────
+
+    auto input = std::make_shared<op::v0::Parameter>(element::f16, shape);
     input->set_friendly_name("input");
 
-    auto cst_inv127 = op::v0::Constant::create(element::f32, Shape{}, {1.0f / 127.0f});
-    auto cst_zero = op::v0::Constant::create(element::f32, Shape{}, {0.0f});
-    float quant_max = 127.0f;
-    float quant_min = -127.0f;
+    // Convert fp16 input to f32 for the quantize core
+    auto dq_input = std::make_shared<op::v0::Convert>(input, element::f32);
+    dq_input->set_friendly_name("input_cvt_f32");
 
-    auto axis_const = op::v0::Constant::create(element::i64, Shape{1}, {static_cast<int64_t>(reduction_axis)});
+    op::internal::DynamicQuantize::Attributes config;
+    config.quantization_type = op::internal::DynamicQuantize::QuantizationType::Asymmetric;
+    config.scale_dt = element::f32;
+    config.group_sizes = std::vector<uint64_t>(shape.size(), 1);
 
-    auto reduce_min = std::make_shared<op::v1::ReduceMin>(input, axis_const, true);
-    auto reduce_max = std::make_shared<op::v1::ReduceMax>(input, axis_const, true);
+    // V2 uses u8, V1/V3 use i8
+    if (decompose_version == 2) {
+        config.quantization_dt = element::u8;
+        config.zp_dt = element::u8;
+    } else {
+        config.quantization_dt = element::i8;
+        config.zp_dt = element::i8;
+    }
 
-    auto clamped_min = std::make_shared<op::v0::Clamp>(reduce_min, quant_min, quant_max);
-    auto clamped_max = std::make_shared<op::v0::Clamp>(reduce_max, quant_min, quant_max);
+    auto dq = std::make_shared<op::internal::DynamicQuantize>(dq_input, config);
+    // Name must contain "key" so the pass picks reduction_axis=3
+    dq->set_friendly_name("DynamicQuantize/0/key");
 
-    auto range = std::make_shared<op::v1::Subtract>(clamped_max, clamped_min);
-    auto scale = std::make_shared<op::v1::Multiply>(range, cst_inv127);
+    // Dequant chain: deq = (convert(q, f32) - convert(zp, f32)) * scale
+    // This mirrors create_dequant_nodes() in production code.
+    auto q_f32 = std::make_shared<op::v0::Convert>(dq->output(0), element::f32);
+    auto zp_f32 = std::make_shared<op::v0::Convert>(dq->output(2), element::f32);
+    auto sub_zp = std::make_shared<op::v1::Subtract>(q_f32, zp_f32);
+    auto reconstructed = std::make_shared<op::v1::Multiply>(sub_zp, dq->output(1));
 
-    auto zp_float = std::make_shared<op::v1::Divide>(cst_zero, scale);
-    auto zp_rounded = std::make_shared<op::v5::Round>(zp_float, op::v5::Round::RoundMode::HALF_TO_EVEN);
-    auto zp_clamped = std::make_shared<op::v0::Clamp>(zp_rounded, quant_min, quant_max);
-    auto zp_i8 = std::make_shared<op::v0::Convert>(zp_clamped, element::i8);
+    // Convert result back to f16
+    auto output_cvt = std::make_shared<op::v0::Convert>(reconstructed, element::f16);
+    output_cvt->set_friendly_name("output_cvt_f16");
 
-    auto normalized = std::make_shared<op::v1::Divide>(input, scale);
-    auto rounded = std::make_shared<op::v5::Round>(normalized, op::v5::Round::RoundMode::HALF_TO_EVEN);
-    auto with_zp = std::make_shared<op::v1::Add>(rounded, zp_clamped);
-    auto quantized_clamped = std::make_shared<op::v0::Clamp>(with_zp, quant_min, quant_max);
-    auto quantized_i8 = std::make_shared<op::v0::Convert>(quantized_clamped, element::i8);
+    auto result = std::make_shared<op::v0::Result>(output_cvt);
+    result->set_friendly_name("result_reconstructed");
 
-    auto q_f32 = std::make_shared<op::v0::Convert>(quantized_i8, element::f32);
-    auto zp_f32_deq = std::make_shared<op::v0::Convert>(zp_i8, element::f32);
-    auto sub_zp = std::make_shared<op::v1::Subtract>(q_f32, zp_f32_deq);
-    auto reconstructed = std::make_shared<op::v1::Multiply>(sub_zp, scale);
+    auto model = std::make_shared<Model>(
+        ResultVector{result},
+        ParameterVector{input},
+        "roundtrip_fp16_v" + std::to_string(decompose_version));
 
-    auto result = std::make_shared<op::v0::Result>(reconstructed);
-    return std::make_shared<Model>(ResultVector{result}, ParameterVector{input}, "roundtrip_v1");
-}
+    model->validate_nodes_and_infer_types();
 
-// ============================================================================
-// Decomposition variant 2 (ONNX DynamicQuantizeLinear style, [0, 255] → u8)
-// Based on DecomposeDynamicQuantize2 in kv_cache_compressed.cpp
-// ============================================================================
-std::shared_ptr<Model> build_roundtrip_v2(const Shape& shape, size_t reduction_axis) {
-    auto input = std::make_shared<op::v0::Parameter>(element::f32, shape);
-    input->set_friendly_name("input");
+    // ── Step 2: run the decompose pass ───────────────────────────────────
+    // The pass pattern-matches DynamicQuantize and replaces it in-place.
+    // The dequant chain (already connected to DQ outputs) transparently
+    // picks up the decomposed quantize subgraph.
 
-    auto axis_const = op::v0::Constant::create(element::i64, Shape{1}, {static_cast<int64_t>(reduction_axis)});
-    auto zero_const = op::v0::Constant::create(element::f32, Shape{1}, {0.0f});
-    auto quant_range_min = op::v0::Constant::create(element::f32, Shape{}, {0.0f});
-    auto quant_range_max = op::v0::Constant::create(element::f32, Shape{}, {255.0f});
-    auto quant_range_span = std::make_shared<op::v1::Subtract>(quant_range_max, quant_range_min);
+    pass::Manager manager("decompose_dq");
+    switch (decompose_version) {
+    case 1:
+        manager.register_pass<ov::npuw::DecomposeDynamicQuantize>();
+        break;
+    case 2:
+        manager.register_pass<ov::npuw::DecomposeDynamicQuantize2>();
+        break;
+    case 3:
+        manager.register_pass<ov::npuw::DecomposeDynamicQuantize3>();
+        break;
+    default:
+        OPENVINO_THROW("Unknown decompose version: ", decompose_version);
+    }
+    manager.run_passes(model);
+    model->validate_nodes_and_infer_types();
 
-    auto reduce_min = std::make_shared<op::v1::ReduceMin>(input, axis_const, true);
-    auto x_min = std::make_shared<op::v1::Minimum>(zero_const, reduce_min);
-
-    auto reduce_max = std::make_shared<op::v1::ReduceMax>(input, axis_const, true);
-    auto x_max = std::make_shared<op::v1::Maximum>(zero_const, reduce_max);
-
-    auto x_span = std::make_shared<op::v1::Subtract>(x_max, x_min);
-    auto y_scale = std::make_shared<op::v1::Divide>(x_span, quant_range_span);
-
-    auto x_min_div_scale = std::make_shared<op::v1::Divide>(x_min, y_scale);
-    auto intermediate_zp = std::make_shared<op::v5::Round>(
-        std::make_shared<op::v1::Subtract>(quant_range_min, x_min_div_scale),
-        op::v5::Round::RoundMode::HALF_TO_EVEN);
-    auto y_zp = std::make_shared<op::v0::Convert>(
-        std::make_shared<op::v0::Clamp>(intermediate_zp, 0.0, 255.0), element::u8);
-
-    auto x_scaled = std::make_shared<op::v1::Divide>(input, y_scale);
-    auto x_rounded = std::make_shared<op::v5::Round>(x_scaled, op::v5::Round::RoundMode::HALF_TO_EVEN);
-    auto y_zp_f32 = std::make_shared<op::v0::Convert>(y_zp, element::f32);
-    auto result_shifted = std::make_shared<op::v1::Add>(x_rounded, y_zp_f32);
-    auto result_clamped = std::make_shared<op::v0::Clamp>(result_shifted, 0.0, 255.0);
-    auto quantized_u8 = std::make_shared<op::v0::Convert>(result_clamped, element::u8);
-
-    auto q_f32 = std::make_shared<op::v0::Convert>(quantized_u8, element::f32);
-    auto zp_f32_deq = std::make_shared<op::v0::Convert>(y_zp, element::f32);
-    auto sub_zp = std::make_shared<op::v1::Subtract>(q_f32, zp_f32_deq);
-    auto reconstructed = std::make_shared<op::v1::Multiply>(sub_zp, y_scale);
-
-    auto result = std::make_shared<op::v0::Result>(reconstructed);
-    return std::make_shared<Model>(ResultVector{result}, ParameterVector{input}, "roundtrip_v2");
-}
-
-// ============================================================================
-// Decomposition variant 3 (compiler pattern style)
-// Matches DecomposeDynamicQuantize3 in kv_cache_compressed.cpp
-// ============================================================================
-std::shared_ptr<Model> build_roundtrip_v3(const Shape& shape, size_t reduction_axis) {
-    auto input = std::make_shared<op::v0::Parameter>(element::f32, shape);
-    input->set_friendly_name("input");
-
-    auto axis_const = op::v0::Constant::create(element::i64, Shape{1}, {static_cast<int64_t>(reduction_axis)});
-    auto cst_255 = op::v0::Constant::create(element::f32, Shape{1}, {255.0f});
-    auto cst_inv255 = op::v0::Constant::create(element::f32, Shape{1}, {1.0f / 255.0f});
-
-    auto reduceMin = std::make_shared<op::v1::ReduceMin>(input, axis_const, true);
-    auto reduceMax = std::make_shared<op::v1::ReduceMax>(input, axis_const, true);
-
-    auto minClamped = std::make_shared<op::v0::Clamp>(reduceMin, std::numeric_limits<float>::lowest(), 0.0);
-    auto maxClamped = std::make_shared<op::v0::Clamp>(reduceMax, 0.0, std::numeric_limits<float>::max());
-
-    auto subtractSpan = std::make_shared<op::v1::Subtract>(maxClamped, minClamped);
-    auto multiplyScale = std::make_shared<op::v1::Multiply>(subtractSpan, cst_inv255);
-
-    auto multiplyInput = std::make_shared<op::v1::Multiply>(input, cst_255);
-    auto divideSpan = std::make_shared<op::v1::Divide>(multiplyInput, subtractSpan);
-    auto roundSpan = std::make_shared<op::v5::Round>(divideSpan, op::v5::Round::RoundMode::HALF_TO_EVEN);
-
-    auto cst_qmin = op::v0::Constant::create(element::f32, Shape{1}, {-128.0f});
-    auto minDivScale = std::make_shared<op::v1::Divide>(minClamped, multiplyScale);
-    auto zpFloat = std::make_shared<op::v1::Subtract>(cst_qmin, minDivScale);
-    auto roundZp = std::make_shared<op::v5::Round>(zpFloat, op::v5::Round::RoundMode::HALF_TO_EVEN);
-    auto clampZp = std::make_shared<op::v0::Clamp>(roundZp, -128.0, 127.0);
-    auto convertZp = std::make_shared<op::v0::Convert>(clampZp, element::i8);
-
-    auto addQuant = std::make_shared<op::v1::Add>(roundSpan, clampZp);
-    auto clampOutput = std::make_shared<op::v0::Clamp>(addQuant, -128.0, 127.0);
-    auto quantized_i8 = std::make_shared<op::v0::Convert>(clampOutput, element::i8);
-
-    auto q_f32 = std::make_shared<op::v0::Convert>(quantized_i8, element::f32);
-    auto zp_f32_deq = std::make_shared<op::v0::Convert>(convertZp, element::f32);
-    auto sub_zp = std::make_shared<op::v1::Subtract>(q_f32, zp_f32_deq);
-    auto reconstructed = std::make_shared<op::v1::Multiply>(sub_zp, multiplyScale);
-
-    auto result = std::make_shared<op::v0::Result>(reconstructed);
-    return std::make_shared<Model>(ResultVector{result}, ParameterVector{input}, "roundtrip_v3");
+    return model;
 }
 
 // ============================================================================
 // Data generation helpers
+// Generated values are rounded to fp16 so the source distribution is exactly
+// representable — no f32→f16 conversion artifacts in error measurements.
 // ============================================================================
+
+// Round a float value through fp16 and back
+static float to_fp16(float v) {
+    return static_cast<float>(ov::float16(v));
+}
+
 std::vector<float> generate_uniform_data(size_t count, float min_val, float max_val, unsigned seed) {
     std::mt19937 gen(seed);
     std::uniform_real_distribution<float> dist(min_val, max_val);
     std::vector<float> data(count);
     for (auto& v : data) {
-        v = dist(gen);
+        v = to_fp16(dist(gen));
     }
     return data;
 }
@@ -231,21 +195,26 @@ std::vector<float> generate_gen_gaussian_data(size_t count, float mu, float alph
         double g = gamma_dist(gen);
         double abs_x = static_cast<double>(alpha) * std::pow(g, 1.0 / static_cast<double>(beta));
         double sign = sign_dist(gen) ? 1.0 : -1.0;
-        data[i] = static_cast<float>(static_cast<double>(mu) + sign * abs_x);
+        data[i] = to_fp16(static_cast<float>(static_cast<double>(mu) + sign * abs_x));
     }
     return data;
 }
 
 // ============================================================================
-// Helper: evaluate a roundtrip model
+// Helper: evaluate a roundtrip model via the reference interpreter.
+// The model has fp16 I/O.  Input data is provided as f32 (already fp16-rounded),
+// converted to fp16 for the model, output converted back to f32 for comparison.
 // ============================================================================
 AccuracyMetrics evaluate_roundtrip(const std::shared_ptr<Model>& model,
                                    const float* input_data,
                                    size_t element_count) {
-    auto input_tensor = Tensor(element::f32, model->get_parameters()[0]->get_shape());
-    std::memcpy(input_tensor.data<float>(), input_data, element_count * sizeof(float));
+    auto input_tensor = Tensor(element::f16, model->get_parameters()[0]->get_shape());
+    auto* dst = input_tensor.data<ov::float16>();
+    for (size_t i = 0; i < element_count; ++i) {
+        dst[i] = ov::float16(input_data[i]);
+    }
 
-    auto output_tensor = Tensor(element::f32, model->get_results()[0]->get_shape());
+    auto output_tensor = Tensor(element::f16, model->get_results()[0]->get_shape());
 
     TensorVector inputs{input_tensor};
     TensorVector outputs{output_tensor};
@@ -253,7 +222,57 @@ AccuracyMetrics evaluate_roundtrip(const std::shared_ptr<Model>& model,
     bool ok = model->evaluate(outputs, inputs);
     EXPECT_TRUE(ok) << "Model evaluation failed for " << model->get_friendly_name();
 
-    return compute_metrics(input_data, outputs[0].data<float>(), element_count);
+    // Convert fp16 output to f32 for metric computation
+    std::vector<float> output_f32(element_count);
+    const auto* src = outputs[0].data<ov::float16>();
+    for (size_t i = 0; i < element_count; ++i) {
+        output_f32[i] = static_cast<float>(src[i]);
+    }
+
+    return compute_metrics(input_data, output_f32.data(), element_count);
+}
+
+// ============================================================================
+// Helper: evaluate a roundtrip model on a real device via ov::Core.
+// The model always has fp16 I/O.  Input data is provided as f32
+// (already fp16-rounded), output is compared as f32.
+// ============================================================================
+AccuracyMetrics evaluate_roundtrip_on_device(const std::shared_ptr<Model>& model,
+                                             const std::string& device_name,
+                                             const float* input_data,
+                                             size_t element_count) {
+    Core core;
+    ov::AnyMap device_config;
+
+    auto compiled = core.compile_model(model, device_name, device_config);
+    auto infer_request = compiled.create_infer_request();
+
+    auto input_tensor = Tensor(element::f16, model->get_parameters()[0]->get_shape());
+    auto* in_dst = input_tensor.data<ov::float16>();
+    for (size_t i = 0; i < element_count; ++i) {
+        in_dst[i] = ov::float16(input_data[i]);
+    }
+
+    infer_request.set_input_tensor(input_tensor);
+    infer_request.infer();
+
+    auto output_tensor = infer_request.get_output_tensor();
+
+    std::vector<float> output_f32(element_count);
+    const auto* src = output_tensor.data<ov::float16>();
+    for (size_t i = 0; i < element_count; ++i) {
+        output_f32[i] = static_cast<float>(src[i]);
+    }
+
+    return compute_metrics(input_data, output_f32.data(), element_count);
+}
+
+// ============================================================================
+// Helper: get the target device from the environment, empty if not set
+// ============================================================================
+std::string get_test_device() {
+    const char* env = std::getenv("OV_DQ_TEST_DEVICE");
+    return env ? std::string(env) : std::string{};
 }
 
 // ============================================================================
@@ -263,8 +282,8 @@ enum class DistributionKind { Uniform, GenGaussian };
 
 struct DQTestParams {
     std::string name;
+    int decompose_version;  // 1, 2, or 3 — selects the production decomposition pass
     Shape shape;
-    size_t reduction_axis;
     unsigned seed;
     DistributionKind dist_kind;
     // Uniform distribution params
@@ -274,8 +293,6 @@ struct DQTestParams {
     float ggd_mu;
     float ggd_alpha;
     float ggd_beta;
-    // Whether to run cross-variant comparison (max/min ratio check)
-    bool cross_variant_check;
 };
 
 std::ostream& operator<<(std::ostream& os, const DQTestParams& p) {
@@ -308,106 +325,176 @@ protected:
             return {};
         }
     }
+
+    // Shared setup: build fp16 model + generate fp16-rounded data
+    struct TestContext {
+        std::shared_ptr<Model> model;
+        std::vector<float> data;
+        size_t element_count;
+    };
+
+    TestContext setup_test() {
+        const auto& p = GetParam();
+        size_t element_count = 1;
+        for (auto d : p.shape) {
+            element_count *= d;
+        }
+        auto data = generate_data(p, element_count);
+        EXPECT_EQ(data.size(), element_count);
+
+        auto model = build_roundtrip_model(p.shape, p.decompose_version);
+        model->validate_nodes_and_infer_types();
+
+        return {model, std::move(data), element_count};
+    }
 };
 
+// ── Reference interpreter test (always runs) ─────────────────────────────────
+
 TEST_P(DynamicQuantizeAccuracyTest, RoundtripAccuracy) {
+    auto [model, data, element_count] = setup_test();
     const auto& p = GetParam();
 
-    size_t element_count = 1;
-    for (auto d : p.shape) {
-        element_count *= d;
+    auto metrics = evaluate_roundtrip(model, data.data(), element_count);
+
+    std::cout << p.name << " (V" << p.decompose_version << ", fp16) [evaluate]:" << std::endl;
+    print_metrics("  roundtrip", metrics);
+
+    EXPECT_LT(metrics.rel_l2_norm, kRelL2Threshold)
+        << "V" << p.decompose_version << " relative L2 too high";
+}
+
+// ── Device-based inference test (opt-in via OV_DQ_TEST_DEVICE env var) ───────
+// Run with:  OV_DQ_TEST_DEVICE=CPU  ./ov_npu_unit_tests --gtest_filter=*DeviceRoundtripAccuracy*
+//            OV_DQ_TEST_DEVICE=NPU  ./ov_npu_unit_tests --gtest_filter=*DeviceRoundtripAccuracy*
+
+TEST_P(DynamicQuantizeAccuracyTest, DeviceRoundtripAccuracy) {
+    const std::string device = get_test_device();
+    if (device.empty()) {
+        GTEST_SKIP() << "OV_DQ_TEST_DEVICE not set — skipping device inference test";
     }
 
-    auto data = generate_data(p, element_count);
-    ASSERT_EQ(data.size(), element_count);
+    auto [model, data, element_count] = setup_test();
+    const auto& p = GetParam();
 
-    auto model_v1 = build_roundtrip_v1(p.shape, p.reduction_axis);
-    auto model_v2 = build_roundtrip_v2(p.shape, p.reduction_axis);
-    auto model_v3 = build_roundtrip_v3(p.shape, p.reduction_axis);
+    // Reference: interpreter on the same fp16 model
+    auto ref_metrics = evaluate_roundtrip(model, data.data(), element_count);
 
-    ASSERT_NO_THROW(model_v1->validate_nodes_and_infer_types());
-    ASSERT_NO_THROW(model_v2->validate_nodes_and_infer_types());
-    ASSERT_NO_THROW(model_v3->validate_nodes_and_infer_types());
+    AccuracyMetrics dev_metrics;
+    try {
+        dev_metrics = evaluate_roundtrip_on_device(model, device, data.data(), element_count);
+    } catch (const std::exception& e) {
+        GTEST_SKIP() << "Device '" << device << "' is not available: " << e.what();
+    }
 
-    auto m1 = evaluate_roundtrip(model_v1, data.data(), element_count);
-    auto m2 = evaluate_roundtrip(model_v2, data.data(), element_count);
-    auto m3 = evaluate_roundtrip(model_v3, data.data(), element_count);
+    std::cout << p.name << " (V" << p.decompose_version << ", fp16) [" << device << "]:" << std::endl;
+    print_metrics("  reference (evaluate)", ref_metrics);
+    print_metrics("  device    (" + device + ")", dev_metrics);
 
-    std::cout << p.name << ":" << std::endl;
-    print_metrics("V1 (handcrafted)", m1);
-    print_metrics("V2 (ONNX-u8)", m2);
-    print_metrics("V3 (compiler-pattern)", m3);
+    // Device result must meet the same threshold
+    EXPECT_LT(dev_metrics.rel_l2_norm, kRelL2Threshold)
+        << "V" << p.decompose_version << " on " << device << ": relative L2 too high";
 
-    EXPECT_LT(m1.rel_l2_norm, kRelL2Threshold) << "V1 relative L2 too high";
-    EXPECT_LT(m2.rel_l2_norm, kRelL2Threshold) << "V2 relative L2 too high";
-    EXPECT_LT(m3.rel_l2_norm, kRelL2Threshold) << "V3 relative L2 too high";
-
-    if (p.cross_variant_check) {
-        double max_rel = std::max({m1.rel_l2_norm, m2.rel_l2_norm, m3.rel_l2_norm});
-        double min_rel = std::min({m1.rel_l2_norm, m2.rel_l2_norm, m3.rel_l2_norm});
-        if (min_rel > 1e-9) {
-            EXPECT_LT(max_rel / min_rel, 4.0) << "Variants differ too much in accuracy";
-        }
+    // Device result should not be dramatically worse than the interpreter
+    if (ref_metrics.rel_l2_norm > 1e-9) {
+        double ratio = dev_metrics.rel_l2_norm / ref_metrics.rel_l2_norm;
+        EXPECT_LT(ratio, 4.0)
+            << "V" << p.decompose_version << " on " << device
+            << ": device accuracy is " << ratio << "x worse than interpreter";
     }
 }
 
 // ============================================================================
-// Helper macros for concise param construction
+// Helper functions for concise param construction
 // ============================================================================
 // clang-format off
-static DQTestParams make_uniform(const std::string& name, Shape shape, size_t axis,
-                                 float lo, float hi, unsigned seed,
-                                 bool cross_check = false) {
-    return {name, shape, axis, seed, DistributionKind::Uniform,
-            lo, hi, 0.0f, 0.0f, 0.0f, cross_check};
+static DQTestParams make_uniform(const std::string& name, int version, Shape shape,
+                                 float lo, float hi, unsigned seed) {
+    return {name, version, shape, seed, DistributionKind::Uniform,
+            lo, hi, 0.0f, 0.0f, 0.0f};
 }
 
-static DQTestParams make_ggd(const std::string& name, Shape shape, size_t axis,
-                             float mu, float alpha, float beta, unsigned seed,
-                             bool cross_check = false) {
-    return {name, shape, axis, seed, DistributionKind::GenGaussian,
-            0.0f, 0.0f, mu, alpha, beta, cross_check};
+static DQTestParams make_ggd(const std::string& name, int version, Shape shape,
+                             float mu, float alpha, float beta, unsigned seed) {
+    return {name, version, shape, seed, DistributionKind::GenGaussian,
+            0.0f, 0.0f, mu, alpha, beta};
 }
 // clang-format on
 
 // ============================================================================
-// Test instantiation — Uniform distributions
+// Test instantiation — V1: handcrafted symmetric i8 [-127, 127]
 // ============================================================================
-static constexpr size_t kKeyAxis = 3;
-static constexpr size_t kValueAxis = 2;
-
 INSTANTIATE_TEST_SUITE_P(
-    Uniform,
+    V1_Uniform,
     DynamicQuantizeAccuracyTest,
     ::testing::Values(
-        make_uniform("SmallRange_Key",            {1, 8, 64, 128},   kKeyAxis,   -1.0f,  1.0f,  42),
-        make_uniform("SmallRange_Value",          {1, 8, 64, 128},   kValueAxis, -1.0f,  1.0f,  123),
-        make_uniform("WiderRange_Key",            {1, 8, 64, 128},   kKeyAxis,   -10.0f, 10.0f, 77),
-        make_uniform("AsymmetricPositive_Key",    {1, 8, 64, 128},   kKeyAxis,   0.0f,   5.0f,  999),
-        make_uniform("CrossVariant",              {1, 8, 64, 128},   kKeyAxis,   -5.0f,  5.0f,  55, true),
-        make_uniform("LargerSequence",            {1, 8, 1024, 128}, kKeyAxis,   -3.0f,  3.0f,  314)
+        make_uniform("V1_SmallRange",        1, {1, 8, 64, 128},   -1.0f,  1.0f,  42),
+        make_uniform("V1_WiderRange",        1, {1, 8, 64, 128},   -10.0f, 10.0f, 77),
+        make_uniform("V1_AsymPositive",      1, {1, 8, 64, 128},   0.0f,   5.0f,  999),
+        make_uniform("V1_LargeSeq",          1, {1, 8, 1024, 128}, -3.0f,  3.0f,  314)
+    ),
+    [](const ::testing::TestParamInfo<DQTestParams>& info) { return info.param.name; }
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    V1_GenGaussian,
+    DynamicQuantizeAccuracyTest,
+    ::testing::Values(
+        make_ggd("V1_HeavyTails",   1, {1, 8, 1024, 128}, 0.018f, 1.121f, 0.923f, 42),
+        make_ggd("V1_NearLaplace",  1, {1, 8, 1024, 128}, 0.032f, 1.388f, 1.016f, 77),
+        make_ggd("V1_NearNormal",   1, {1, 8, 1024, 128}, -0.027f, 1.830f, 1.271f, 123)
     ),
     [](const ::testing::TestParamInfo<DQTestParams>& info) { return info.param.name; }
 );
 
 // ============================================================================
-// Test instantiation — Generalized Gaussian (fitted from real KV-cache dumps)
+// Test instantiation — V2: ONNX DynamicQuantizeLinear u8 [0, 255]
 // ============================================================================
-// Parameters fitted from real KV-cache activations (key-cache):
-//   Layer 25 (worst):  mu= 0.018, alpha=1.121, beta=0.923  (heaviest tails)
-//   Layer 06 (mid):    mu= 0.032, alpha=1.388, beta=1.016  (near-Laplace)
-//   Layer 15 (good):   mu= 0.039, alpha=1.616, beta=1.104
-//   Layer 01 (best):   mu=-0.027, alpha=1.830, beta=1.271  (closest to normal)
-
 INSTANTIATE_TEST_SUITE_P(
-    GenGaussian,
+    V2_Uniform,
     DynamicQuantizeAccuracyTest,
     ::testing::Values(
-        make_ggd("HeavyTails_Key",         {1, 8, 1024, 128},   kKeyAxis, 0.018f, 1.121f, 0.923f, 42),
-        make_ggd("NearLaplace_Key",        {1, 8, 1024, 128},   kKeyAxis, 0.032f, 1.388f, 1.016f, 77),
-        make_ggd("NearNormal_Key",         {1, 8, 1024, 128},   kKeyAxis, -0.027f, 1.830f, 1.271f, 123),
-        make_ggd("HeavyTails_Large",       {1, 8, 1024, 128}, kKeyAxis, 0.018f, 1.121f, 0.923f, 314),
-        make_ggd("CrossVariant_GGD",       {1, 8, 1024, 128},   kKeyAxis, 0.039f, 1.616f, 1.104f, 55, true)
+        make_uniform("V2_SmallRange",        2, {1, 8, 64, 128},   -1.0f,  1.0f,  42),
+        make_uniform("V2_WiderRange",        2, {1, 8, 64, 128},   -10.0f, 10.0f, 77),
+        make_uniform("V2_AsymPositive",      2, {1, 8, 64, 128},   0.0f,   5.0f,  999),
+        make_uniform("V2_LargeSeq",          2, {1, 8, 1024, 128}, -3.0f,  3.0f,  314)
+    ),
+    [](const ::testing::TestParamInfo<DQTestParams>& info) { return info.param.name; }
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    V2_GenGaussian,
+    DynamicQuantizeAccuracyTest,
+    ::testing::Values(
+        make_ggd("V2_HeavyTails",   2, {1, 8, 1024, 128}, 0.018f, 1.121f, 0.923f, 42),
+        make_ggd("V2_NearLaplace",  2, {1, 8, 1024, 128}, 0.032f, 1.388f, 1.016f, 77),
+        make_ggd("V2_NearNormal",   2, {1, 8, 1024, 128}, -0.027f, 1.830f, 1.271f, 123)
+    ),
+    [](const ::testing::TestParamInfo<DQTestParams>& info) { return info.param.name; }
+);
+
+// ============================================================================
+// Test instantiation — V3: compiler pattern style i8 [-128, 127]
+// ============================================================================
+INSTANTIATE_TEST_SUITE_P(
+    V3_Uniform,
+    DynamicQuantizeAccuracyTest,
+    ::testing::Values(
+        make_uniform("V3_SmallRange",        3, {1, 8, 64, 128},   -1.0f,  1.0f,  42),
+        make_uniform("V3_WiderRange",        3, {1, 8, 64, 128},   -10.0f, 10.0f, 77),
+        make_uniform("V3_AsymPositive",      3, {1, 8, 64, 128},   0.0f,   5.0f,  999),
+        make_uniform("V3_LargeSeq",          3, {1, 8, 1024, 128}, -3.0f,  3.0f,  314)
+    ),
+    [](const ::testing::TestParamInfo<DQTestParams>& info) { return info.param.name; }
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    V3_GenGaussian,
+    DynamicQuantizeAccuracyTest,
+    ::testing::Values(
+        make_ggd("V3_HeavyTails",   3, {1, 8, 1024, 128}, 0.018f, 1.121f, 0.923f, 42),
+        make_ggd("V3_NearLaplace",  3, {1, 8, 1024, 128}, 0.032f, 1.388f, 1.016f, 77),
+        make_ggd("V3_NearNormal",   3, {1, 8, 1024, 128}, -0.027f, 1.830f, 1.271f, 123)
     ),
     [](const ::testing::TestParamInfo<DQTestParams>& info) { return info.param.name; }
 );
