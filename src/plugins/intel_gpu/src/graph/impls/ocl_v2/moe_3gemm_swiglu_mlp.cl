@@ -8,6 +8,28 @@
 // Fake group size for compatibility and computation performance balance
 #define FAKE_GROUP_SIZE 128
 
+// HAS_ZP: 1 = asymmetric quantization (subtract zero point), 0 = symmetric (no zero point)
+#if HAS_ZP
+#    define ZP_ADJUST_2(sum0, sum1, xg_sum_gk, z0, z1) ((sum0) - (xg_sum_gk) * (z0)), ((sum1) - (xg_sum_gk) * (z1))
+#    define ZP_ADJUST_4(sum0123, xg_sum_gk, z) ((sum0123) - (xg_sum_gk) * (z))
+#else
+#    define ZP_ADJUST_2(sum0, sum1, xg_sum_gk, z0, z1) (sum0), (sum1)
+#    define ZP_ADJUST_4(sum0123, xg_sum_gk, z) (sum0123)
+#endif
+
+// WEIGHT_IS_SIGNED: sign extension helpers for i4/i8 weights
+#if WEIGHT_IS_SIGNED
+// 4-bit sign extension: [0,15] -> [-8,7]. If bit3 is set, OR with 0xF0 to sign-extend to char.
+#    define DEQUANT_4BIT_LO(v) convert_half((char)(((v) & 0x08) ? ((v) | 0xF0) : ((v) & 0x0F)))
+#    define DEQUANT_4BIT_HI(v) convert_half((char)((((v) >> 4) & 0x08) ? (((v) >> 4) | 0xF0) : (((v) >> 4) & 0x0F)))
+// 8-bit sign extension: reinterpret uchar as signed char
+#    define DEQUANT_8BIT(v)    convert_half(as_char(v))
+#else
+#    define DEQUANT_4BIT_LO(v) convert_half((v) & 0x0F)
+#    define DEQUANT_4BIT_HI(v) convert_half((v) >> 4)
+#    define DEQUANT_8BIT(v)    convert_half(v)
+#endif
+
 #if GATE_UP_ENABLE
 inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
                                 __global half* scales,
@@ -28,15 +50,19 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
         float sum_all0 = 0;
         float sum_all1 = 0;
         __global half* S = scales + n;
+#if HAS_ZP
         __global uchar* Z = zps + n / 2;
+#endif
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
             int scale_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
-            int zp_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N / 2;
             half s0 = S[scale_offset];
             half s1 = S[scale_offset + 1];
+#if HAS_ZP
+            int zp_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N / 2;
             uchar z = Z[zp_offset];
             half z_hf0 = convert_half(z & 0xf);
             half z_hf1 = convert_half(z >> 4);
+#endif
 
 #    if SUBGROUP_SIZE == 32
             half2 sum0;
@@ -45,18 +71,23 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
-            sum0.s0 = fma(a.s0, (convert_half(b.s0 & 0x0F)), 0);
-            sum0.s1 = fma(a.s1, (convert_half(b.s1 & 0x0F)), 0);
-            sum0.s0 = fma(a.s2, (convert_half(b.s0 >> 4)), sum0.s0);
-            sum0.s1 = fma(a.s3, (convert_half(b.s1 >> 4)), sum0.s1);
+            sum0.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b.s0)), 0);
+            sum0.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b.s1)), 0);
+            sum0.s0 = fma(a.s2, (DEQUANT_4BIT_HI(b.s0)), sum0.s0);
+            sum0.s1 = fma(a.s3, (DEQUANT_4BIT_HI(b.s1)), sum0.s1);
 
-            sum1.s0 = fma(a.s0, (convert_half(b2.s0 & 0x0F)), 0);
-            sum1.s1 = fma(a.s1, (convert_half(b2.s1 & 0x0F)), 0);
-            sum1.s0 = fma(a.s2, (convert_half(b2.s0 >> 4)), sum1.s0);
-            sum1.s1 = fma(a.s3, (convert_half(b2.s1 >> 4)), sum1.s1);
+            sum1.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b2.s0)), 0);
+            sum1.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b2.s1)), 0);
+            sum1.s0 = fma(a.s2, (DEQUANT_4BIT_HI(b2.s0)), sum1.s0);
+            sum1.s1 = fma(a.s3, (DEQUANT_4BIT_HI(b2.s1)), sum1.s1);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] - xg_sum[gk] * z_hf0) * s0;
             sum_all1 += (sum1[0] + sum1[1] - xg_sum[gk] * z_hf1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1]) * s0;
+            sum_all1 += (sum1[0] + sum1[1]) * s1;
+#endif
 #    else
             half4 sum0;
             half4 sum1;
@@ -64,28 +95,33 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
-            sum0.s0 = fma(a.s0, (convert_half(b.s0 & 0x0F)), 0);
-            sum0.s1 = fma(a.s1, (convert_half(b.s1 & 0x0F)), 0);
-            sum0.s2 = fma(a.s2, (convert_half(b.s2 & 0x0F)), 0);
-            sum0.s3 = fma(a.s3, (convert_half(b.s3 & 0x0F)), 0);
+            sum0.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b.s0)), 0);
+            sum0.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b.s1)), 0);
+            sum0.s2 = fma(a.s2, (DEQUANT_4BIT_LO(b.s2)), 0);
+            sum0.s3 = fma(a.s3, (DEQUANT_4BIT_LO(b.s3)), 0);
 
-            sum0.s0 = fma(a.s4, (convert_half(b.s0 >> 4)), sum0.s0);
-            sum0.s1 = fma(a.s5, (convert_half(b.s1 >> 4)), sum0.s1);
-            sum0.s2 = fma(a.s6, (convert_half(b.s2 >> 4)), sum0.s2);
-            sum0.s3 = fma(a.s7, (convert_half(b.s3 >> 4)), sum0.s3);
+            sum0.s0 = fma(a.s4, (DEQUANT_4BIT_HI(b.s0)), sum0.s0);
+            sum0.s1 = fma(a.s5, (DEQUANT_4BIT_HI(b.s1)), sum0.s1);
+            sum0.s2 = fma(a.s6, (DEQUANT_4BIT_HI(b.s2)), sum0.s2);
+            sum0.s3 = fma(a.s7, (DEQUANT_4BIT_HI(b.s3)), sum0.s3);
 
-            sum1.s0 = fma(a.s0, (convert_half(b2.s0 & 0x0F)), 0);
-            sum1.s1 = fma(a.s1, (convert_half(b2.s1 & 0x0F)), 0);
-            sum1.s2 = fma(a.s2, (convert_half(b2.s2 & 0x0F)), 0);
-            sum1.s3 = fma(a.s3, (convert_half(b2.s3 & 0x0F)), 0);
+            sum1.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b2.s0)), 0);
+            sum1.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b2.s1)), 0);
+            sum1.s2 = fma(a.s2, (DEQUANT_4BIT_LO(b2.s2)), 0);
+            sum1.s3 = fma(a.s3, (DEQUANT_4BIT_LO(b2.s3)), 0);
 
-            sum1.s0 = fma(a.s4, (convert_half(b2.s0 >> 4)), sum1.s0);
-            sum1.s1 = fma(a.s5, (convert_half(b2.s1 >> 4)), sum1.s1);
-            sum1.s2 = fma(a.s6, (convert_half(b2.s2 >> 4)), sum1.s2);
-            sum1.s3 = fma(a.s7, (convert_half(b2.s3 >> 4)), sum1.s3);
+            sum1.s0 = fma(a.s4, (DEQUANT_4BIT_HI(b2.s0)), sum1.s0);
+            sum1.s1 = fma(a.s5, (DEQUANT_4BIT_HI(b2.s1)), sum1.s1);
+            sum1.s2 = fma(a.s6, (DEQUANT_4BIT_HI(b2.s2)), sum1.s2);
+            sum1.s3 = fma(a.s7, (DEQUANT_4BIT_HI(b2.s3)), sum1.s3);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3] - xg_sum[gk] * z_hf0) * s0;
             sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3] - xg_sum[gk] * z_hf1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3]) * s0;
+            sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3]) * s1;
+#endif
 #    endif
         }
 
@@ -122,14 +158,18 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
         float sum_all0 = 0;
         float sum_all1 = 0;
         __global half* S = scales + n;
+#if HAS_ZP
         __global uchar* Z = zps + n;
+#endif
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
             int scale_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
-            int zp_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
             half s0 = S[scale_offset];
             half s1 = S[scale_offset + 1];
+#if HAS_ZP
+            int zp_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
             half z0 = convert_half(Z[zp_offset]);
             half z1 = convert_half(Z[zp_offset + 1]);
+#endif
 
 #    if SUBGROUP_SIZE == 32
             float2 sum0;
@@ -138,18 +178,23 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
-            sum0.s0 = fma((float)a.s0, (float)(convert_half(b.s0)), 0.0f);
-            sum0.s1 = fma((float)a.s1, (float)(convert_half(b.s1)), 0.0f);
-            sum0.s0 = fma((float)a.s2, (float)(convert_half(b.s2)), sum0.s0);
-            sum0.s1 = fma((float)a.s3, (float)(convert_half(b.s3)), sum0.s1);
+            sum0.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b.s0)), 0.0f);
+            sum0.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b.s1)), 0.0f);
+            sum0.s0 = fma((float)a.s2, (float)(DEQUANT_8BIT(b.s2)), sum0.s0);
+            sum0.s1 = fma((float)a.s3, (float)(DEQUANT_8BIT(b.s3)), sum0.s1);
 
-            sum1.s0 = fma((float)a.s0, (float)(convert_half(b2.s0)), 0.0f);
-            sum1.s1 = fma((float)a.s1, (float)(convert_half(b2.s1)), 0.0f);
-            sum1.s0 = fma((float)a.s2, (float)(convert_half(b2.s2)), sum1.s0);
-            sum1.s1 = fma((float)a.s3, (float)(convert_half(b2.s3)), sum1.s1);
+            sum1.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b2.s0)), 0.0f);
+            sum1.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b2.s1)), 0.0f);
+            sum1.s0 = fma((float)a.s2, (float)(DEQUANT_8BIT(b2.s2)), sum1.s0);
+            sum1.s1 = fma((float)a.s3, (float)(DEQUANT_8BIT(b2.s3)), sum1.s1);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] - xg_sum[gk] * z0) * s0;
             sum_all1 += (sum1[0] + sum1[1] - xg_sum[gk] * z1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1]) * s0;
+            sum_all1 += (sum1[0] + sum1[1]) * s1;
+#endif
 #    else
             float4 sum0;
             float4 sum1;
@@ -157,28 +202,33 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
             uchar8 b = intel_sub_group_block_read_uc8((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar8 b2 = intel_sub_group_block_read_uc8((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
-            sum0.s0 = fma((float)a.s0, (float)(convert_half(b.s0)), 0.0f);
-            sum0.s1 = fma((float)a.s1, (float)(convert_half(b.s1)), 0.0f);
-            sum0.s2 = fma((float)a.s2, (float)(convert_half(b.s2)), 0.0f);
-            sum0.s3 = fma((float)a.s3, (float)(convert_half(b.s3)), 0.0f);
+            sum0.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b.s0)), 0.0f);
+            sum0.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b.s1)), 0.0f);
+            sum0.s2 = fma((float)a.s2, (float)(DEQUANT_8BIT(b.s2)), 0.0f);
+            sum0.s3 = fma((float)a.s3, (float)(DEQUANT_8BIT(b.s3)), 0.0f);
 
-            sum0.s0 = fma((float)a.s4, (float)(convert_half(b.s4)), sum0.s0);
-            sum0.s1 = fma((float)a.s5, (float)(convert_half(b.s5)), sum0.s1);
-            sum0.s2 = fma((float)a.s6, (float)(convert_half(b.s6)), sum0.s2);
-            sum0.s3 = fma((float)a.s7, (float)(convert_half(b.s7)), sum0.s3);
+            sum0.s0 = fma((float)a.s4, (float)(DEQUANT_8BIT(b.s4)), sum0.s0);
+            sum0.s1 = fma((float)a.s5, (float)(DEQUANT_8BIT(b.s5)), sum0.s1);
+            sum0.s2 = fma((float)a.s6, (float)(DEQUANT_8BIT(b.s6)), sum0.s2);
+            sum0.s3 = fma((float)a.s7, (float)(DEQUANT_8BIT(b.s7)), sum0.s3);
 
-            sum1.s0 = fma((float)a.s0, (float)(convert_half(b2.s0)), 0.0f);
-            sum1.s1 = fma((float)a.s1, (float)(convert_half(b2.s1)), 0.0f);
-            sum1.s2 = fma((float)a.s2, (float)(convert_half(b2.s2)), 0.0f);
-            sum1.s3 = fma((float)a.s3, (float)(convert_half(b2.s3)), 0.0f);
+            sum1.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b2.s0)), 0.0f);
+            sum1.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b2.s1)), 0.0f);
+            sum1.s2 = fma((float)a.s2, (float)(DEQUANT_8BIT(b2.s2)), 0.0f);
+            sum1.s3 = fma((float)a.s3, (float)(DEQUANT_8BIT(b2.s3)), 0.0f);
 
-            sum1.s0 = fma((float)a.s4, (float)(convert_half(b2.s4)), sum1.s0);
-            sum1.s1 = fma((float)a.s5, (float)(convert_half(b2.s5)), sum1.s1);
-            sum1.s2 = fma((float)a.s6, (float)(convert_half(b2.s6)), sum1.s2);
-            sum1.s3 = fma((float)a.s7, (float)(convert_half(b2.s7)), sum1.s3);
+            sum1.s0 = fma((float)a.s4, (float)(DEQUANT_8BIT(b2.s4)), sum1.s0);
+            sum1.s1 = fma((float)a.s5, (float)(DEQUANT_8BIT(b2.s5)), sum1.s1);
+            sum1.s2 = fma((float)a.s6, (float)(DEQUANT_8BIT(b2.s6)), sum1.s2);
+            sum1.s3 = fma((float)a.s7, (float)(DEQUANT_8BIT(b2.s7)), sum1.s3);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3] - xg_sum[gk] * z0) * s0;
             sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3] - xg_sum[gk] * z1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3]) * s0;
+            sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3]) * s1;
+#endif
 #    endif
         }
 
@@ -474,17 +524,21 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
     unroll_for(int n = n_start; n < n_end; n += 2) {
         const __global uchar* B = weight + n * K / 2;
         __global half* S = scales + n;
+#if HAS_ZP
         __global uchar* Z = zps + n / 2;
+#endif
         float sum_all0 = 0;
         float sum_all1 = 0;
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
             int scale_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
-            int zp_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N / 2;
             half s0 = S[scale_offset];
             half s1 = S[scale_offset + 1];
+#if HAS_ZP
+            int zp_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N / 2;
             ushort z = Z[zp_offset];
             half z_hf0 = convert_half(z & 0xf);
             half z_hf1 = convert_half(z >> 4);
+#endif
 
 #    if SUBGROUP_SIZE == 32
             half2 sum0;
@@ -493,18 +547,23 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
-            sum0.s0 = fma(a.s0, (convert_half(b.s0 & 0x0F)), 0);
-            sum0.s1 = fma(a.s1, (convert_half(b.s1 & 0x0F)), 0);
-            sum0.s0 = fma(a.s2, (convert_half(b.s0 >> 4)), sum0.s0);
-            sum0.s1 = fma(a.s3, (convert_half(b.s1 >> 4)), sum0.s1);
+            sum0.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b.s0)), 0);
+            sum0.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b.s1)), 0);
+            sum0.s0 = fma(a.s2, (DEQUANT_4BIT_HI(b.s0)), sum0.s0);
+            sum0.s1 = fma(a.s3, (DEQUANT_4BIT_HI(b.s1)), sum0.s1);
 
-            sum1.s0 = fma(a.s0, (convert_half(b2.s0 & 0x0F)), 0);
-            sum1.s1 = fma(a.s1, (convert_half(b2.s1 & 0x0F)), 0);
-            sum1.s0 = fma(a.s2, (convert_half(b2.s0 >> 4)), sum1.s0);
-            sum1.s1 = fma(a.s3, (convert_half(b2.s1 >> 4)), sum1.s1);
+            sum1.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b2.s0)), 0);
+            sum1.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b2.s1)), 0);
+            sum1.s0 = fma(a.s2, (DEQUANT_4BIT_HI(b2.s0)), sum1.s0);
+            sum1.s1 = fma(a.s3, (DEQUANT_4BIT_HI(b2.s1)), sum1.s1);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] - xg_sum[gk] * z_hf0) * s0;
             sum_all1 += (sum1[0] + sum1[1] - xg_sum[gk] * z_hf1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1]) * s0;
+            sum_all1 += (sum1[0] + sum1[1]) * s1;
+#endif
 #    else
             half4 sum0;
             half4 sum1;
@@ -512,28 +571,33 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
-            sum0.s0 = fma(a.s0, (convert_half(b.s0 & 0x0F)), 0);
-            sum0.s1 = fma(a.s1, (convert_half(b.s1 & 0x0F)), 0);
-            sum0.s2 = fma(a.s2, (convert_half(b.s2 & 0x0F)), 0);
-            sum0.s3 = fma(a.s3, (convert_half(b.s3 & 0x0F)), 0);
+            sum0.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b.s0)), 0);
+            sum0.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b.s1)), 0);
+            sum0.s2 = fma(a.s2, (DEQUANT_4BIT_LO(b.s2)), 0);
+            sum0.s3 = fma(a.s3, (DEQUANT_4BIT_LO(b.s3)), 0);
 
-            sum0.s0 = fma(a.s4, (convert_half(b.s0 >> 4)), sum0.s0);
-            sum0.s1 = fma(a.s5, (convert_half(b.s1 >> 4)), sum0.s1);
-            sum0.s2 = fma(a.s6, (convert_half(b.s2 >> 4)), sum0.s2);
-            sum0.s3 = fma(a.s7, (convert_half(b.s3 >> 4)), sum0.s3);
+            sum0.s0 = fma(a.s4, (DEQUANT_4BIT_HI(b.s0)), sum0.s0);
+            sum0.s1 = fma(a.s5, (DEQUANT_4BIT_HI(b.s1)), sum0.s1);
+            sum0.s2 = fma(a.s6, (DEQUANT_4BIT_HI(b.s2)), sum0.s2);
+            sum0.s3 = fma(a.s7, (DEQUANT_4BIT_HI(b.s3)), sum0.s3);
 
-            sum1.s0 = fma(a.s0, (convert_half(b2.s0 & 0x0F)), 0);
-            sum1.s1 = fma(a.s1, (convert_half(b2.s1 & 0x0F)), 0);
-            sum1.s2 = fma(a.s2, (convert_half(b2.s2 & 0x0F)), 0);
-            sum1.s3 = fma(a.s3, (convert_half(b2.s3 & 0x0F)), 0);
+            sum1.s0 = fma(a.s0, (DEQUANT_4BIT_LO(b2.s0)), 0);
+            sum1.s1 = fma(a.s1, (DEQUANT_4BIT_LO(b2.s1)), 0);
+            sum1.s2 = fma(a.s2, (DEQUANT_4BIT_LO(b2.s2)), 0);
+            sum1.s3 = fma(a.s3, (DEQUANT_4BIT_LO(b2.s3)), 0);
 
-            sum1.s0 = fma(a.s4, (convert_half(b2.s0 >> 4)), sum1.s0);
-            sum1.s1 = fma(a.s5, (convert_half(b2.s1 >> 4)), sum1.s1);
-            sum1.s2 = fma(a.s6, (convert_half(b2.s2 >> 4)), sum1.s2);
-            sum1.s3 = fma(a.s7, (convert_half(b2.s3 >> 4)), sum1.s3);
+            sum1.s0 = fma(a.s4, (DEQUANT_4BIT_HI(b2.s0)), sum1.s0);
+            sum1.s1 = fma(a.s5, (DEQUANT_4BIT_HI(b2.s1)), sum1.s1);
+            sum1.s2 = fma(a.s6, (DEQUANT_4BIT_HI(b2.s2)), sum1.s2);
+            sum1.s3 = fma(a.s7, (DEQUANT_4BIT_HI(b2.s3)), sum1.s3);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3] - xg_sum[gk] * z_hf0) * s0;
             sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3] - xg_sum[gk] * z_hf1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3]) * s0;
+            sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3]) * s1;
+#endif
 #    endif
         }
         sum_all0 = sub_group_reduce_add(sum_all0);
@@ -562,16 +626,20 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
     unroll_for(int n = n_start; n < n_end; n += 2) {
         const __global uchar* B = weight + n * K;
         __global half* S = scales + n;
+#if HAS_ZP
         __global uchar* Z = zps + n;
+#endif
         float sum_all0 = 0;
         float sum_all1 = 0;
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
             int scale_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
-            int zp_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
             half s0 = S[scale_offset];
             half s1 = S[scale_offset + 1];
+#if HAS_ZP
+            int zp_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
             half z0 = convert_half(Z[zp_offset]);
             half z1 = convert_half(Z[zp_offset + 1]);
+#endif
 
 #    if SUBGROUP_SIZE == 32
             float2 sum0;
@@ -580,18 +648,23 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)B + K + gk * FAKE_GROUP_SIZE);
 
-            sum0.s0 = fma((float)a.s0, (float)(convert_half(b.s0)), 0.0f);
-            sum0.s1 = fma((float)a.s1, (float)(convert_half(b.s1)), 0.0f);
-            sum0.s0 = fma((float)a.s2, (float)(convert_half(b.s2)), sum0.s0);
-            sum0.s1 = fma((float)a.s3, (float)(convert_half(b.s3)), sum0.s1);
+            sum0.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b.s0)), 0.0f);
+            sum0.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b.s1)), 0.0f);
+            sum0.s0 = fma((float)a.s2, (float)(DEQUANT_8BIT(b.s2)), sum0.s0);
+            sum0.s1 = fma((float)a.s3, (float)(DEQUANT_8BIT(b.s3)), sum0.s1);
 
-            sum1.s0 = fma((float)a.s0, (float)(convert_half(b2.s0)), 0.0f);
-            sum1.s1 = fma((float)a.s1, (float)(convert_half(b2.s1)), 0.0f);
-            sum1.s0 = fma((float)a.s2, (float)(convert_half(b2.s2)), sum1.s0);
-            sum1.s1 = fma((float)a.s3, (float)(convert_half(b2.s3)), sum1.s1);
+            sum1.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b2.s0)), 0.0f);
+            sum1.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b2.s1)), 0.0f);
+            sum1.s0 = fma((float)a.s2, (float)(DEQUANT_8BIT(b2.s2)), sum1.s0);
+            sum1.s1 = fma((float)a.s3, (float)(DEQUANT_8BIT(b2.s3)), sum1.s1);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] - xg_sum[gk] * z0) * s0;
             sum_all1 += (sum1[0] + sum1[1] - xg_sum[gk] * z1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1]) * s0;
+            sum_all1 += (sum1[0] + sum1[1]) * s1;
+#endif
 #    else
             float4 sum0;
             float4 sum1;
@@ -599,28 +672,33 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
             uchar8 b = intel_sub_group_block_read_uc8((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar8 b2 = intel_sub_group_block_read_uc8((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
-            sum0.s0 = fma((float)a.s0, (float)(convert_half(b.s0)), 0.0f);
-            sum0.s1 = fma((float)a.s1, (float)(convert_half(b.s1)), 0.0f);
-            sum0.s2 = fma((float)a.s2, (float)(convert_half(b.s2)), 0.0f);
-            sum0.s3 = fma((float)a.s3, (float)(convert_half(b.s3)), 0.0f);
+            sum0.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b.s0)), 0.0f);
+            sum0.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b.s1)), 0.0f);
+            sum0.s2 = fma((float)a.s2, (float)(DEQUANT_8BIT(b.s2)), 0.0f);
+            sum0.s3 = fma((float)a.s3, (float)(DEQUANT_8BIT(b.s3)), 0.0f);
 
-            sum0.s0 = fma((float)a.s4, (float)(convert_half(b.s4)), sum0.s0);
-            sum0.s1 = fma((float)a.s5, (float)(convert_half(b.s5)), sum0.s1);
-            sum0.s2 = fma((float)a.s6, (float)(convert_half(b.s6)), sum0.s2);
-            sum0.s3 = fma((float)a.s7, (float)(convert_half(b.s7)), sum0.s3);
+            sum0.s0 = fma((float)a.s4, (float)(DEQUANT_8BIT(b.s4)), sum0.s0);
+            sum0.s1 = fma((float)a.s5, (float)(DEQUANT_8BIT(b.s5)), sum0.s1);
+            sum0.s2 = fma((float)a.s6, (float)(DEQUANT_8BIT(b.s6)), sum0.s2);
+            sum0.s3 = fma((float)a.s7, (float)(DEQUANT_8BIT(b.s7)), sum0.s3);
 
-            sum1.s0 = fma((float)a.s0, (float)(convert_half(b2.s0)), 0.0f);
-            sum1.s1 = fma((float)a.s1, (float)(convert_half(b2.s1)), 0.0f);
-            sum1.s2 = fma((float)a.s2, (float)(convert_half(b2.s2)), 0.0f);
-            sum1.s3 = fma((float)a.s3, (float)(convert_half(b2.s3)), 0.0f);
+            sum1.s0 = fma((float)a.s0, (float)(DEQUANT_8BIT(b2.s0)), 0.0f);
+            sum1.s1 = fma((float)a.s1, (float)(DEQUANT_8BIT(b2.s1)), 0.0f);
+            sum1.s2 = fma((float)a.s2, (float)(DEQUANT_8BIT(b2.s2)), 0.0f);
+            sum1.s3 = fma((float)a.s3, (float)(DEQUANT_8BIT(b2.s3)), 0.0f);
 
-            sum1.s0 = fma((float)a.s4, (float)(convert_half(b2.s4)), sum1.s0);
-            sum1.s1 = fma((float)a.s5, (float)(convert_half(b2.s5)), sum1.s1);
-            sum1.s2 = fma((float)a.s6, (float)(convert_half(b2.s6)), sum1.s2);
-            sum1.s3 = fma((float)a.s7, (float)(convert_half(b2.s7)), sum1.s3);
+            sum1.s0 = fma((float)a.s4, (float)(DEQUANT_8BIT(b2.s4)), sum1.s0);
+            sum1.s1 = fma((float)a.s5, (float)(DEQUANT_8BIT(b2.s5)), sum1.s1);
+            sum1.s2 = fma((float)a.s6, (float)(DEQUANT_8BIT(b2.s6)), sum1.s2);
+            sum1.s3 = fma((float)a.s7, (float)(DEQUANT_8BIT(b2.s7)), sum1.s3);
 
+#if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3] - xg_sum[gk] * z0) * s0;
             sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3] - xg_sum[gk] * z1) * s1;
+#else
+            sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3]) * s0;
+            sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3]) * s1;
+#endif
 #    endif
         }
         sum_all0 = sub_group_reduce_add(sum_all0);

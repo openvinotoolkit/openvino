@@ -691,8 +691,11 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     jit.make("DOWN_GROUP_SIZE", down_group_size);
     jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
     jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+    jit.make("HAS_ZP", desc->_config.has_zp ? 1 : 0);
 
     ov::element::Type weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
+    bool is_signed_weight = (weight_dt == ov::element::i4 || weight_dt == ov::element::i8);
+    jit.make("WEIGHT_IS_SIGNED", is_signed_weight ? 1 : 0);
     // auto scale_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0)).data_type;
     // auto zp_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::ZP_0)).data_type;
     if (weight_dt == ov::element::u4 || weight_dt == ov::element::i4) {
