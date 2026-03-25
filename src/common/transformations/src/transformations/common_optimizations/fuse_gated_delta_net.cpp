@@ -439,7 +439,9 @@ bool ov::pass::GatedDeltaNetFusion::run_on_model(const std::shared_ptr<ov::Model
     symbolic_ctx_manager->register_pass<ov::pass::TransposeFuse>();
     symbolic_ctx_manager->register_pass<ov::pass::FuseL2NormIntoGDN>();
     symbolic_ctx_manager->register_pass<ov::pass::PrintModel>("after_fuse_gdn_loop.cpp");
-    symbolic_ctx_manager->register_pass<ov::pass::FuseQKRepeatIntoGDN>();
+    if (getenv("FUSE_QK_REPEAT_INTO_GDN")) {
+        symbolic_ctx_manager->register_pass<ov::pass::FuseQKRepeatIntoGDN>();
+    }
     symbolic_ctx_manager->register_pass<ov::pass::PrintModel>("after_repeat_gdn_loop.cpp");
     return symbolic_optimizations.run_on_model(model);
 }

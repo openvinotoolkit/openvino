@@ -8,6 +8,7 @@
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/topology.hpp"
 #include "openvino/op/gated_delta_net.hpp"
+#include "openvino/op/util/variable.hpp"
 #include "primitive.hpp"
 
 namespace cldnn {
@@ -28,8 +29,17 @@ struct gated_delta_net : public primitive_base<gated_delta_net> {
     /// @param fuse_qk_l2norm     A boolean to enable l2norm for variables q and k.
     /// @param q_l2_norm_eps      Epsilon value for q's l2 normalization computation.
     /// @param k_l2_norm_eps      Epsilon value for k's l2 normalization computation.
-    gated_delta_net(const primitive_id& id, const std::vector<input_info>& inputs, bool fuse_qk_l2norm = false, float q_l2_norm_eps = 1e-6f, float k_l2_norm_eps = 1e-6f)
-        : primitive_base(id, inputs), fuse_qk_l2norm(fuse_qk_l2norm), q_l2_norm_eps(q_l2_norm_eps), k_l2_norm_eps(k_l2_norm_eps) {}
+    gated_delta_net(const primitive_id& id,
+                    const std::vector<input_info>& inputs,
+                    bool fuse_qk_l2norm = false,
+                    float q_l2_norm_eps = 1e-6f,
+                    float k_l2_norm_eps = 1e-6f,
+                    const ov::op::util::VariableInfo& variable_info = {})
+        : primitive_base(id, inputs),
+          fuse_qk_l2norm(fuse_qk_l2norm),
+          q_l2_norm_eps(q_l2_norm_eps),
+          k_l2_norm_eps(k_l2_norm_eps),
+          variable_info(variable_info) {}
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -49,8 +59,8 @@ struct gated_delta_net : public primitive_base<gated_delta_net> {
 
         auto rhs_casted = downcast<const gated_delta_net>(rhs);
         return k_head_size == rhs_casted.k_head_size && v_head_size == rhs_casted.v_head_size && k_heads_num == rhs_casted.k_heads_num &&
-               v_heads_num == rhs_casted.v_heads_num && fuse_qk_l2norm == rhs_casted.fuse_qk_l2norm &&
-               q_l2_norm_eps == rhs_casted.q_l2_norm_eps && k_l2_norm_eps == rhs_casted.k_l2_norm_eps;
+               v_heads_num == rhs_casted.v_heads_num && fuse_qk_l2norm == rhs_casted.fuse_qk_l2norm && q_l2_norm_eps == rhs_casted.q_l2_norm_eps &&
+               k_l2_norm_eps == rhs_casted.k_l2_norm_eps;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -82,6 +92,7 @@ struct gated_delta_net : public primitive_base<gated_delta_net> {
     bool fuse_qk_l2norm = false;
     float q_l2_norm_eps = 1e-6f;
     float k_l2_norm_eps = 1e-6f;
+    ov::op::util::VariableInfo variable_info;
 };
 
 }  // namespace cldnn

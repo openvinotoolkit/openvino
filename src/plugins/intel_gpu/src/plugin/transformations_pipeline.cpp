@@ -101,6 +101,7 @@
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "plugin/transformations/gated_delta_net_variable_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
 #include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
@@ -502,6 +503,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
         }
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
+        if (getenv("ENABLE_GDN_FUSION")) {
+            manager.register_pass<ov::intel_gpu::GatedDeltaNetVariableFusion>();
+        }
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
 

@@ -77,6 +77,7 @@ public:
                   const float q_l2_norm_eps = 1e-6F,
                   const float k_l2_norm_eps = 1e-6F);
 
+    std::string get_variable_id() const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 };

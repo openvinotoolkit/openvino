@@ -122,6 +122,11 @@ GatedDeltaNetWithVariable::GatedDeltaNetWithVariable(const ov::OutputVector& arg
     constructor_validate_and_infer_types();
 }
 
+std::string GatedDeltaNetWithVariable::get_variable_id() const {
+    OPENVINO_ASSERT(m_variable, "Variable is not initialized. Variable_id is unavailable");
+    return m_variable->get_info().variable_id;
+}
+
 bool GatedDeltaNetWithVariable::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(GatedDeltaNetWithVariable_visit_attributes);
     GatedDeltaNet::visit_attributes(visitor);
