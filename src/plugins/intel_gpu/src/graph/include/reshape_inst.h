@@ -74,10 +74,13 @@ public:
                 return false;
             if (input_pshape[0].get_length() != 1)
                 return false;
-            // Reject if the reshape just flattens spatial dims while keeping batch=1
-            // (e.g. [1,C,H,W] -> [1,C,H*W]).  Only allow when the batch dim is truly squeezed.
-            auto& out_ps = prim->output_partial_shape;
-            if (!out_ps[0].is_dynamic() && out_ps[0].get_length() == 1)
+            // Reject if the reshape preserves the batch=1 dim (spatial flatten, not batch squeeze).
+            // output_pattern[0] == -1 means the first dim is inferred (batch absorbed/squeezed).
+            // output_pattern[0] == 0 or 1 means batch=1 is explicitly kept.
+            // e.g. [1,C,H,W] -> [1,C,H*W] has pattern [1,-1] => reject
+            //      [1,N,H,W,C] -> [N,H,W,C] has pattern [-1,H,W,C] => allow
+            auto first_out_pattern = prim->output_pattern[0];
+            if (first_out_pattern == 0 || first_out_pattern == 1)
                 return false;
             return true;
         }
