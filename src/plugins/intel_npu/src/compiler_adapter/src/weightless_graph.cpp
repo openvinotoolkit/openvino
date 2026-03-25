@@ -283,7 +283,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
     return std::make_pair(totalBlobSize, initSizes);
 }
 
-void WeightlessGraph::initialize(const FilteredConfig& config) {
+void WeightlessGraph::initialize_impl(const FilteredConfig& config) {
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
         // To ensure that does not throw an issue when subsequently calling `_zeroInitStruct->getDevice()`
         return;
@@ -348,7 +348,7 @@ void WeightlessGraph::initialize(const FilteredConfig& config) {
     _initsCommandQueue.reset();
 
     // The main schedule is initialized after the weights initialization ones in order to save some memory
-    Graph::initialize(config);
+    Graph::initialize_impl(config);
 
     set_weights_inputs();
 }
