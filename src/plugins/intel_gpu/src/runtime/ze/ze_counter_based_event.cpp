@@ -13,7 +13,7 @@ using namespace cldnn;
 using namespace ze;
 
 void ze_counter_based_event::wait_impl() {
-    OV_ZE_EXPECT(zeEventHostSynchronize(m_event, endless_wait));
+    OV_ZE_EXPECT(ze_api->zeEventHostSynchronize(m_event, endless_wait));
 }
 
 void ze_counter_based_event::set_impl() {
@@ -21,7 +21,7 @@ void ze_counter_based_event::set_impl() {
 }
 
 bool ze_counter_based_event::is_set_impl() {
-    auto ret = zeEventQueryStatus(m_event);
+    auto ret = ze_api->zeEventQueryStatus(m_event);
     switch (ret) {
     case ZE_RESULT_SUCCESS:
         return true;
@@ -44,7 +44,7 @@ std::optional<ze_kernel_timestamp_result_t> ze_counter_based_event::query_timest
         return std::nullopt;
     }
     ze_kernel_timestamp_result_t timestamp{};
-    OV_ZE_EXPECT(zeEventQueryKernelTimestamp(m_event, &timestamp));
+    OV_ZE_EXPECT(ze_api->zeEventQueryKernelTimestamp(m_event, &timestamp));
     return timestamp;
 }
 
@@ -68,5 +68,5 @@ bool ze_counter_based_event::get_profiling_info_impl(std::list<instrumentation::
 }
 
 ze_counter_based_event::~ze_counter_based_event() {
-    OV_ZE_WARN(zeEventDestroy(m_event));
+    OV_ZE_WARN(ze_api->zeEventDestroy(m_event));
 }

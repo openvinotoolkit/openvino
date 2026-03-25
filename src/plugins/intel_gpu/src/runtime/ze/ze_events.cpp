@@ -15,7 +15,7 @@ using namespace ze;
 
 void ze_events::wait_impl() {
     if (_last_ze_event) {
-        OV_ZE_EXPECT(zeEventHostSynchronize(_last_ze_event, endless_wait));
+        OV_ZE_EXPECT(ze_api->zeEventHostSynchronize(_last_ze_event, endless_wait));
     }
 }
 
@@ -29,7 +29,7 @@ bool ze_events::is_set_impl() {
         return true;
     }
 
-    auto ret = zeEventQueryStatus(_last_ze_event);
+    auto ret = ze_api->zeEventQueryStatus(_last_ze_event);
     switch (ret) {
     case ZE_RESULT_SUCCESS:
         return true;

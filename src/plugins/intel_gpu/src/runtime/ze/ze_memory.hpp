@@ -36,7 +36,7 @@ public:
     void* ptr() { return _ptr; }
     void memFree() {
         if (!_shared_memory && _ptr != nullptr) {
-            OV_ZE_WARN(zeMemFree(_context, _ptr));
+            OV_ZE_WARN(ze_api->zeMemFree(_context, _ptr));
             _ptr = nullptr;
         }
     }
@@ -70,7 +70,7 @@ public:
         host_desc.pNext = nullptr;
 
         void* memory = nullptr;
-        OV_ZE_EXPECT(zeMemAllocHost(_context, &host_desc, size, 1, &memory));
+        OV_ZE_EXPECT(ze_api->zeMemAllocHost(_context, &host_desc, size, 1, &memory));
         _usm_pointer = std::make_shared<UsmHolder>(_context, memory);
     }
 
@@ -87,7 +87,7 @@ public:
         host_desc.pNext = nullptr;
 
         void* memory = nullptr;
-        OV_ZE_EXPECT(zeMemAllocShared(_context, &device_desc, &host_desc, size, 1, _device, &memory));
+        OV_ZE_EXPECT(ze_api->zeMemAllocShared(_context, &device_desc, &host_desc, size, 1, _device, &memory));
         _usm_pointer = std::make_shared<UsmHolder>(_context, memory);
     }
 
@@ -99,7 +99,7 @@ public:
         device_desc.pNext = nullptr;
 
         void* memory = nullptr;
-        OV_ZE_EXPECT(zeMemAllocDevice(_context, &device_desc, size, 4096, _device, &memory));
+        OV_ZE_EXPECT(ze_api->zeMemAllocDevice(_context, &device_desc, size, 4096, _device, &memory));
         _usm_pointer = std::make_shared<UsmHolder>(_context, memory);
     }
 

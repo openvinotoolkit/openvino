@@ -4,14 +4,14 @@
 #pragma once
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/core/except.hpp"
 
-#include <ze_api.h>
+#include <openvino/zero_api.hpp>
 
 #include <limits>
 #include <string>
 #include <sstream>
 #include <iomanip>
-
 
 // Expect success of level zero command, throw runtime error otherwise
 #define OV_ZE_EXPECT(f) \
@@ -37,7 +37,7 @@
 
 namespace cldnn {
 namespace ze {
-
+extern std::shared_ptr<::ov::zero::ZeroApi> ze_api;
 static constexpr uint64_t endless_wait = std::numeric_limits<uint64_t>::max();
 static constexpr ze_module_format_t ze_module_format_oclc = (ze_module_format_t) 3U;
 

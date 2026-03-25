@@ -58,7 +58,34 @@ namespace ov::zero {
     symbol_statement(zeMemAllocHost)                          \
     symbol_statement(zeMemFree)                               \
     symbol_statement(zeMemGetAllocProperties)                 \
-    symbol_statement(zelLoaderGetVersions)
+    symbol_statement(zelLoaderGetVersions)                    \
+    symbol_statement(zeModuleBuildLogDestroy)                 \
+    symbol_statement(zeModuleDestroy)                         \
+    symbol_statement(zeKernelCreate)                          \
+    symbol_statement(zeKernelDestroy)                         \
+    symbol_statement(zeModuleGetKernelNames)                  \
+    symbol_statement(zeModuleGetNativeBinary)                 \
+    symbol_statement(zeModuleBuildLogGetString)               \
+    symbol_statement(zeEventQueryStatus)                      \
+    symbol_statement(zeEventQueryKernelTimestamp)             \
+    symbol_statement(zeDeviceGetSubDevices)                   \
+    symbol_statement(zeMemAllocShared)                        \
+    symbol_statement(zeModuleCreate)                          \
+    symbol_statement(zeMemGetAddressRange)                    \
+    symbol_statement(zeEventHostSignal)                       \
+    symbol_statement(zeMemAllocDevice)                        \
+    symbol_statement(zeCommandListHostSynchronize)            \
+    symbol_statement(zeCommandListAppendMemoryFill)           \
+    symbol_statement(zeDeviceGetComputeProperties)            \
+    symbol_statement(zeDeviceGetMemoryProperties)            \
+    symbol_statement(zeDeviceGetMemoryAccessProperties)      \
+    symbol_statement(zeDeviceGetModuleProperties)            \
+    symbol_statement(zeDeviceGetImageProperties)             \
+    symbol_statement(zeDeviceGetCacheProperties)             \
+    symbol_statement(zeKernelSetArgumentValue)               \
+    symbol_statement(zeCommandListCreateImmediate)           \
+    symbol_statement(zeKernelSetGroupSize)                   \
+    symbol_statement(zeCommandListAppendLaunchKernel)
 
 //unsupported symbols with older ze_loader versions
 #define weak_symbols_list()                                   \
@@ -106,8 +133,8 @@ weak_symbols_list();
 symbols_list();
 weak_symbols_list();
 #undef symbol_statement
+}  // namespace ov::zero
 #ifndef ZERO_API_KEEP_SYMBOLS_LIST_MACRO
 #undef symbols_list
 #undef weak_symbols_list
 #endif
-}  // namespace ov::zero
