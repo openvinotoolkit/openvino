@@ -106,6 +106,7 @@ SyncInferRequest::~SyncInferRequest() {
     // Clear the network's non-owning pointers to our OutputMemoryBlocks
     // before they are destroyed, to prevent dangling pointers.
     if (!m_output_memory_blocks.empty()) {
+        std::lock_guard<std::mutex> lk(m_graph->get_mutex());
         auto network = m_graph->get_network();
         if (network) {
             network->clear_output_memory_blocks();
@@ -555,6 +556,7 @@ void SyncInferRequest::setup_stream_graph() {
     // When switching to a different graph, clear the old graph's non-owning pointers
     // to our OutputMemoryBlocks to prevent dangling pointers and stale associations.
     if (new_graph != m_graph && !m_output_memory_blocks.empty()) {
+        std::lock_guard<std::mutex> lk(m_graph->get_mutex());
         auto network = m_graph->get_network();
         if (network) {
             network->clear_output_memory_blocks();
