@@ -73,6 +73,9 @@ public:
     metric() = default;
     metric(metric&& m)
         : records(std::move(m.records)),
+          vmin(m.vmin),
+          vmax(m.vmax),
+          total(m.total),
           name(std::move(m.name)),
           enabled(m.enabled),
           emit_timestamps(m.emit_timestamps) {}
@@ -117,24 +120,33 @@ public:
     void record(F&& f) {
         if (!enabled) {
             f();
-        } else if (!emit_timestamps) {
+        } else if (!emit_timestamps || ov::npuw::get_log_level() < ov::npuw::LogLevel::Info) {
             *this += U::sample(f);
         } else {
             auto t_start = std::chrono::system_clock::now();
-            auto start_us = std::chrono::duration_cast<std::chrono::microseconds>(
-                                t_start.time_since_epoch())
-                                .count();
+            auto start_us =
+                std::chrono::duration_cast<std::chrono::microseconds>(t_start.time_since_epoch()).count();
             std::time_t start_tt = std::chrono::system_clock::to_time_t(t_start);
-            std::tm start_tm = *std::localtime(&start_tt);
+            std::tm start_tm{};
+#ifdef _WIN32
+            localtime_s(&start_tm, &start_tt);
+#else
+            localtime_r(&start_tt, &start_tm);
+#endif
             LOG_INFO("PROF " << name << " START @ " << std::put_time(&start_tm, "%H:%M:%S") << "."
                              << std::setfill('0') << std::setw(6) << (start_us % 1000000));
-            *this += U::sample(f);
+            auto sample_ms = U::sample(f);
+            *this += std::move(sample_ms);
             auto t_end = std::chrono::system_clock::now();
-            auto end_us = std::chrono::duration_cast<std::chrono::microseconds>(
-                              t_end.time_since_epoch())
-                              .count();
+            auto end_us =
+                std::chrono::duration_cast<std::chrono::microseconds>(t_end.time_since_epoch()).count();
             std::time_t end_tt = std::chrono::system_clock::to_time_t(t_end);
-            std::tm end_tm = *std::localtime(&end_tt);
+            std::tm end_tm{};
+#ifdef _WIN32
+            localtime_s(&end_tm, &end_tt);
+#else
+            localtime_r(&end_tt, &end_tm);
+#endif
             LOG_INFO("PROF " << name << " END   @ " << std::put_time(&end_tm, "%H:%M:%S") << "."
                              << std::setfill('0') << std::setw(6) << (end_us % 1000000) << " (took "
                              << std::fixed << std::setprecision(3) << ((end_us - start_us) / 1000.0)
