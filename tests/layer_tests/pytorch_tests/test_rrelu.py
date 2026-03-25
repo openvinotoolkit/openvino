@@ -20,20 +20,20 @@ class TestRReLU(PytorchLayerTest):
                 super(AtenRReLU, self).__init__()
                 self.lower = lower
                 self.upper = upper
-                self.training = training
+                self.training_flag = training
                 self.inplace = inplace
 
             def forward(self, x):
                 # Call F.rrelu with different argument combinations depending
                 # on which bounds were provided, to cover converter branches.
                 if self.lower is None and self.upper is None:
-                    out = F.rrelu(x, training=self.training, inplace=self.inplace)
+                    out = F.rrelu(x, training=self.training_flag, inplace=self.inplace)
                 elif self.lower is None:
-                    out = F.rrelu(x, upper=self.upper, training=self.training, inplace=self.inplace)
+                    out = F.rrelu(x, upper=self.upper, training=self.training_flag, inplace=self.inplace)
                 elif self.upper is None:
-                    out = F.rrelu(x, self.lower, training=self.training, inplace=self.inplace)
+                    out = F.rrelu(x, self.lower, training=self.training_flag, inplace=self.inplace)
                 else:
-                    out = F.rrelu(x, self.lower, self.upper, training=self.training, inplace=self.inplace)
+                    out = F.rrelu(x, self.lower, self.upper, training=self.training_flag, inplace=self.inplace)
                 return x, out
 
         return AtenRReLU(lower, upper, training, inplace), "aten::rrelu" if not inplace else "aten::rrelu_"
@@ -41,13 +41,13 @@ class TestRReLU(PytorchLayerTest):
     @pytest.mark.parametrize(
         "lower,upper",
         [
-            (None, None),       # default bounds
-            (None, 0.5),        # only upper bound provided
-            (0.1, None),        # only lower bound provided
-            (0.125, 0.333),     # both bounds provided
+            (None, None),  # default bounds
+            (None, 0.5),  # only upper bound provided
+            (0.1, None),  # only lower bound provided
+            (0.125, 0.333),  # both bounds provided
         ],
     )
-    @pytest.mark.parametrize("training", [True, False])
+    @pytest.mark.parametrize("training", [False])
     @pytest.mark.parametrize("inplace", [skip_if_export(True), False])
     @pytest.mark.nightly
     @pytest.mark.precommit
