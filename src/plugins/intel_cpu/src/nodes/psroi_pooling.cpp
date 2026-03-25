@@ -352,8 +352,8 @@ void PSROIPooling::executeAverage(const inputType* srcData,
             const int gc = (c * groupSize + h) * groupSize + w;
             const int outputBlockResidual = (dstDesc.hasLayoutType(LayoutType::ncsp) ? 0 : c % inBlockSize);
             const int outputBlockIdx = (c / outBlockSize) * outBlockSize;
-            const int binOffsetInput = static_cast<int>((roiBatchInd * inputChannelsPadding + gc) * height * width);
-            const int binOffsetOutput = static_cast<int>((n * outputChannelsPadding + outputBlockIdx) * nh * nw);
+            const auto binOffsetInput = static_cast<int>((roiBatchInd * inputChannelsPadding + gc) * height * width);
+            const auto binOffsetOutput = static_cast<int>((n * outputChannelsPadding + outputBlockIdx) * nh * nw);
             avgPsroi(c, h, w, 0, outputBlockResidual, binOffsetInput, binOffsetOutput);
         });
     } else {  // nChw16c, nChw8c
@@ -366,9 +366,9 @@ void PSROIPooling::executeAverage(const inputType* srcData,
                 const int outputBlockResidual = (dstDesc.hasLayoutType(LayoutType::ncsp) ? 0 : c % inBlockSize);
                 const int inputBlockIdx = (gc / inBlockSize) * inBlockSize;
                 const int outputBlockIdx = (c / outBlockSize) * outBlockSize;
-                const int binOffsetInput =
+                const auto binOffsetInput =
                     static_cast<int>((roiBatchInd * inputChannelsPadding + inputBlockIdx) * height * width);
-                const int binOffsetOutput = static_cast<int>((n * outputChannelsPadding + outputBlockIdx) * nh * nw);
+                const auto binOffsetOutput = static_cast<int>((n * outputChannelsPadding + outputBlockIdx) * nh * nw);
                 avgPsroi(c, h, w, inputBlockResidual, outputBlockResidual, binOffsetInput, binOffsetOutput);
             }
         });
@@ -506,7 +506,7 @@ void PSROIPooling::executeBilinear(const inputType* srcData,
             int cEnd = (blkIdx == outBlockCount - 1 ? nc : cStart + outBlockSize);
             for (int c = cStart; c < cEnd; c++) {
                 const int outputBlockIdx = (c / inBlockSize) * inBlockSize;
-                const int binOffsetOutput =
+                const auto binOffsetOutput =
                     static_cast<int>((currentRoi * outputChannelsPadding + outputBlockIdx) * binCount);
                 const int outputBlockResidual =
                     ((srcDesc.hasLayoutType(LayoutType::nCsp16c) || srcDesc.hasLayoutType(LayoutType::nCsp8c))

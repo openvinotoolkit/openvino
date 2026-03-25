@@ -83,7 +83,7 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         dstDims = VectorDims{1};
     }
 
-    int output_dims_size = static_cast<int>(dstDims.size());
+    auto output_dims_size = static_cast<int>(dstDims.size());
     if (axis < 0) {
         axis += output_dims_size;
     }

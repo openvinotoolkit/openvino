@@ -856,7 +856,7 @@ struct ConvertFromBinPrecision<std::tuple<src_t, dst_t>> {
                         any_of_v<dst_t, ov::float8_e4m3, ov::float8_e5m2, ov::float16, ov::intel_cpu::bfloat16_t>,
                     float,
                     uint8_t>;
-                const uint8_t bit = static_cast<uint8_t>((src[byteIndex] >> bitIndex) & 1U);
+                const auto bit = static_cast<uint8_t>((src[byteIndex] >> bitIndex) & 1U);
                 dst[byteIndex * nBits + bitIndex] = static_cast<dst_t>(static_cast<bin_cast_input_t>(bit));
             }
         });

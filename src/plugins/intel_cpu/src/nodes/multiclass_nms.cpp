@@ -441,7 +441,7 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
                 selected_index = _flattened_index(static_cast<int>(offset + box_info.box_index),
                                                   box_info.class_index,
                                                   static_cast<int>(m_numClasses));
-                int idx = static_cast<int>(box_info.class_index * boxesStrides[0] + offset * boxesStrides[1]);
+                auto idx = static_cast<int>(box_info.class_index * boxesStrides[0] + offset * boxesStrides[1]);
                 const float* curboxes = boxes + idx;  // a slice of boxes of current class current image
                 selected_base[2] = curboxes[4 * box_info.box_index];
                 selected_base[3] = curboxes[4 * box_info.box_index + 1];
@@ -653,7 +653,8 @@ void MultiClassNms::nmsWithoutEta(const float* boxes,
                                   [](const std::pair<float, int>& l, const std::pair<float, int>& r) {
                                       return (l.first > r.first || ((l.first == r.first) && (l.second < r.second)));
                                   });
-                    int offset = static_cast<int>(batch_idx * m_numClasses * m_nmsRealTopk + class_idx * m_nmsRealTopk);
+                    auto offset =
+                        static_cast<int>(batch_idx * m_numClasses * m_nmsRealTopk + class_idx * m_nmsRealTopk);
                     m_filtBoxes[offset + 0] =
                         filteredBoxes(sorted_boxes[0].first, batch_idx, class_idx, sorted_boxes[0].second);
                     io_selection_size++;

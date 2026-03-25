@@ -864,7 +864,7 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     CPU_NODE_ASSERT(selected_pd, "Preferable primitive descriptor is not set.");
     const auto& config = selected_pd->getConfig();
     size_t numberOfInputs = config.inConfs.size();
-    size_t inplaceOutIndx = static_cast<size_t>(selected_pd->getConfig().inConfs[0].inPlace());
+    auto inplaceOutIndx = static_cast<size_t>(selected_pd->getConfig().inConfs[0].inPlace());
     auto baseDim = outputShapes.front().getDims()[axis];
     CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM,
                     "can't use inPlace memory with concatenation on dynamic dimension");

@@ -575,7 +575,7 @@ inline void DetectionOutput::confReorderDense(const float* confData,
     }
     // withAddBoxPred is false
     cpu_parallel->parallel_for2d(imgNum, classesNum, [&](size_t n, size_t c) {
-        const int offset = static_cast<int>(n * priorsNum * classesNum);
+        const auto offset = static_cast<int>(n * priorsNum * classesNum);
         for (int p = 0; p < priorsNum; ++p) {
             reorderedConfData[offset + c * priorsNum + p] = confData[offset + p * classesNum + c];
         }
@@ -597,7 +597,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
         const int offH = n * confInfoLen * classesNum;  // horizontal info
         // reset count
         cpu_parallel->parallel_for(classesNum, [&](size_t c) {
-            const int countIdx = static_cast<int>(offH + c * confInfoLen + priorsNum);
+            const auto countIdx = static_cast<int>(offH + c * confInfoLen + priorsNum);
             reorderedConfDataIndices[countIdx] = 0;
         });
 
@@ -610,7 +610,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
                 if (isShareLoc) {
                     confInfoForPrior[offV + p] = -1;
                 }
-                int confIdxPrior = static_cast<int>(off + p * classesNum);
+                auto confIdxPrior = static_cast<int>(off + p * classesNum);
                 for (int c = 0; c < classesNum; ++c) {
                     float conf = confData[confIdxPrior + c];
                     if (isARMPrior) {
@@ -636,7 +636,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
                 if (isShareLoc) {
                     confInfoForPrior[offV + p] = -1;
                 }
-                int confIdxPrior = static_cast<int>(off + p * classesNum);
+                auto confIdxPrior = static_cast<int>(off + p * classesNum);
                 for (int c = 0; c < classesNum; ++c) {
                     float conf = confData[confIdxPrior + c];
                     if (conf > confidenceThreshold) {
@@ -662,7 +662,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
             if (c == static_cast<size_t>(backgroundClassId)) {  // Ignore background class
                 return;
             }
-            const int countIdx = static_cast<int>(offH + c * confInfoLen + priorsNum);
+            const auto countIdx = static_cast<int>(offH + c * confInfoLen + priorsNum);
             const int count = reorderedConfDataIndices[countIdx];
             const int k = (topK == -1 ? count : (std::min)(topK, count));
 
@@ -699,7 +699,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confDat
             }
             float maxConf = -1;
             int maxCIdx = 0;
-            int confIdxPrior = static_cast<int>(off + p * classesNum);
+            auto confIdxPrior = static_cast<int>(off + p * classesNum);
             for (int c = 0; c < classesNum; ++c) {
                 float conf = confData[confIdxPrior + c];
                 if (withAddBoxPred && isARMPrior) {
@@ -958,8 +958,8 @@ inline void DetectionOutput::generateOutput(const float* reorderedConfData,
                                             const float* decodedBboxesData,
                                             float* dstData) {
     const auto& outDims = getChildEdgeAt(0)->getMemory().getStaticDims();
-    const int numResults = static_cast<int>(outDims[2]);
-    const int DETECTION_SIZE = static_cast<int>(outDims[3]);
+    const auto numResults = static_cast<int>(outDims[2]);
+    const auto DETECTION_SIZE = static_cast<int>(outDims[3]);
     CPU_NODE_ASSERT(DETECTION_SIZE == 7, "has unsupported output layout.");
 
     int dstDataSize = 0;

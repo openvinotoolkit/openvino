@@ -740,7 +740,7 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
     // total bytes
     auto mem_size = src->getSize();
     // the steps need to copy.
-    const int step = static_cast<int>(mem_size / channel_size);
+    const auto step = static_cast<int>(mem_size / channel_size);
     // bytes of selected dim.
     auto strideSize = splited_dim_vec[0] * element_size;
     auto copySize = splited_dim_vec[w_rank] * element_size;
@@ -749,8 +749,8 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
         copySize /= 2;
     }
     cpu_parallel->parallel_for(step, [&](int i) {
-        int dst_offset = static_cast<int>(i * copySize);
-        int src_offset = static_cast<int>(i * splited_size + w_rank * strideSize);
+        auto dst_offset = static_cast<int>(i * copySize);
+        auto src_offset = static_cast<int>(i * splited_size + w_rank * strideSize);
         cpu_parallel_memcpy(dstPtr + dst_offset, srcPtr + src_offset, copySize);
     });
     return ptr;

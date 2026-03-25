@@ -685,9 +685,9 @@ void Deconvolution::initPaddingR(const Shape& inShape, const Shape& outShape) {
     for (size_t i = 0; i < deconvAttrs.paddingR.size(); i++) {
         int with_group = getAlgorithm() == Algorithm::DeconvolutionGrouped ? 1 : 0;
         const auto& weightDims = getWeightDims();
-        int krn = static_cast<int>(weightDims[with_group + 2 + i]);
-        int src = static_cast<int>(outShape.getStaticDims()[2 + i]);
-        int dst = static_cast<int>(inShape.getStaticDims()[2 + i]);
+        auto krn = static_cast<int>(weightDims[with_group + 2 + i]);
+        auto src = static_cast<int>(outShape.getStaticDims()[2 + i]);
+        auto dst = static_cast<int>(inShape.getStaticDims()[2 + i]);
         krn = (krn - 1) * (static_cast<int>(deconvAttrs.dilation[i]) + 1) + 1;
         deconvAttrs.paddingR[i] = (dst - 1) * deconvAttrs.stride[i] - (src - krn + deconvAttrs.paddingL[i]);
     }

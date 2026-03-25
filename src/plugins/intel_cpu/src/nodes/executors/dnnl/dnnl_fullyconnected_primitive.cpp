@@ -219,7 +219,7 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
 
     if (zpPtr && zpPtr->getShape().getRank() != 1) {
         auto zpDims = zpPtr->getShape().getStaticDims();
-        int groupsNum = static_cast<int>(zpDims[1]);
+        auto groupsNum = static_cast<int>(zpDims[1]);
         size_t groupSize = ic / groupsNum;
         if (groupsNum != 1 && groupSize % dqGroupSize) {
             return false;

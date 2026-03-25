@@ -765,8 +765,8 @@ static dnnl::memory::dims getGroupDims(const VectorDims& weiDims, const VectorDi
         return {};
     }
 
-    int N = static_cast<int>(weiDims[weiDims.size() - 2]);
-    int K = static_cast<int>(weiDims[weiDims.size() - 1]);
+    auto N = static_cast<int>(weiDims[weiDims.size() - 2]);
+    auto K = static_cast<int>(weiDims[weiDims.size() - 1]);
     dnnl::memory::dim groupN = N / scaleDims[0];
     dnnl::memory::dim groupK = K / scaleDims[1];
 
@@ -776,8 +776,8 @@ static dnnl::memory::dims getGroupDims(const VectorDims& weiDims, const VectorDi
 static int getMask(const VectorDims& weiDims, const dnnl::memory::dims& groupDims) {
     const int maskN = 1 << (weiDims.size() - 1);
     const int maskK = 1 << (weiDims.size() - 2);
-    int N = static_cast<int>(weiDims[weiDims.size() - 2]);
-    int K = static_cast<int>(weiDims[weiDims.size() - 1]);
+    auto N = static_cast<int>(weiDims[weiDims.size() - 2]);
+    auto K = static_cast<int>(weiDims[weiDims.size() - 1]);
     int mask = 0;
     if (!groupDims.empty() && groupDims[1] != N) {
         mask += maskN;
@@ -899,7 +899,7 @@ void DnnlPostOpsComposer::appendAttrPostOpsLegacy(const ScaleShiftPostOp& postOp
 
     // always align for legacy scale/shift post ops
     constexpr int bufferAlignment = 16;
-    int bufferPaddingSize = static_cast<int>(rnd_up(channelSize, static_cast<size_t>(bufferAlignment)) - channelSize);
+    auto bufferPaddingSize = static_cast<int>(rnd_up(channelSize, static_cast<size_t>(bufferAlignment)) - channelSize);
     depthwiseData.resize(depthwiseDataSize + bufferPaddingSize, 0);
 
     std::array<size_t, 2> offsets = {0};

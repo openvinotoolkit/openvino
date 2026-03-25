@@ -461,7 +461,7 @@ void Split::selectOptimalPrimitiveDescriptor() {
 void Split::optimizedNspc2Ncsp(size_t MB) {
     const auto& cpu_parallel = context->getCpuParallel();
     auto parentEdge = getParentEdgeAt(0);
-    const int rank = static_cast<int>(parentEdge->getMemory().getShape().getRank());
+    const auto rank = static_cast<int>(parentEdge->getMemory().getShape().getRank());
     const auto parentDims = parentEdge->getMemory().getStaticDims();
     const size_t IC = parentDims[1];
     const size_t D = rank == 5 ? parentDims[rank - 3] : 1;
@@ -579,7 +579,7 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
     CPU_NODE_ASSERT(selected_pd, "Preferable primitive descriptor is not set.");
     const auto& config = selected_pd->getConfig();
     size_t numberOfOutputs = config.outConfs.size();
-    size_t inplaceInpIndx = static_cast<size_t>(selected_pd->getConfig().outConfs[0].inPlace());
+    auto inplaceInpIndx = static_cast<size_t>(selected_pd->getConfig().outConfs[0].inPlace());
     auto baseDim = inputShapes.front().getDims()[axis];
     CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM, "can not use inPlace memory with splitting on dynamic dimension");
     auto baseMemBlock = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryBlock();

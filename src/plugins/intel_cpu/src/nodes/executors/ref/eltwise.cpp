@@ -249,7 +249,7 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
         T* dst_ptr_f = reinterpret_cast<T*>(args_ptrs.dst_ptr);
         if (this->m_opData.alpha == 2) {
             cpu_parallel->parallel_for(this->m_fullWorkAmount, [&](size_t i) {
-                const float v =
+                const auto v =
                     static_cast<float>(this->m_opData.beta * static_cast<double>(src_ptr_f[i]) + this->m_opData.gamma);
                 dst_ptr_f[i] = static_cast<T>(v * v);
             });

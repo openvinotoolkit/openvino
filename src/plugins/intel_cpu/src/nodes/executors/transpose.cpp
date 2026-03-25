@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <utility>
 #include <vector>
@@ -120,7 +121,7 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
     int max_threads = parallel_get_max_threads();
     const int n_max = 3;  //  max count dims for parallel
     int n = 0;
-    int work_amount = static_cast<int>(sorted_dst_dims[0]);
+    auto work_amount = static_cast<int>(sorted_dst_dims[0]);
     for (size_t i = 1; i < sorted_dst_dims.size() && n < n_max; i++) {
         n++;
         if (work_amount >= 4 * max_threads) {  //  4 * max_threads is a specially selected value for best performance

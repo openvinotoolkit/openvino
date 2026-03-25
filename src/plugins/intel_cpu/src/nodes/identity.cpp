@@ -4,6 +4,7 @@
 
 #include "identity.hpp"
 
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <numeric>
@@ -67,7 +68,7 @@ void Identity::initSupportedPrimitiveDescriptors() {
 
 void Identity::prepareParams() {
     VectorDims out_shape = getDstMemoryAtPort(0)->getShape().getStaticDims();
-    m_element_num = std::accumulate(out_shape.begin(), out_shape.end(), size_t(1), std::multiplies<>());
+    m_element_num = std::accumulate(out_shape.begin(), out_shape.end(), size_t{1}, std::multiplies<>());
 }
 
 bool Identity::isExecutable() const {

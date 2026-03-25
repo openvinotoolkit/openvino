@@ -994,7 +994,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
 
         // always align for legacy scale/shift post ops
         constexpr int bufferAlignment = 16;
-        int bufferPaddingSize = static_cast<int>(rnd_up(channelSize, bufferAlignment) - channelSize);
+        auto bufferPaddingSize = static_cast<int>(rnd_up(channelSize, bufferAlignment) - channelSize);
         m_depthwiseData.resize(m_depthwiseDataSize + bufferPaddingSize, 0);
     }
 

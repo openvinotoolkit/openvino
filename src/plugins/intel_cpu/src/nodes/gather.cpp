@@ -626,8 +626,8 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
             }
         }
 
-        const int div = static_cast<int>(idxElPerVec / specIndicesSize);
-        const int remainder = static_cast<int>(idxElPerVec % specIndicesSize);
+        const auto div = static_cast<int>(idxElPerVec / specIndicesSize);
+        const auto remainder = static_cast<int>(idxElPerVec % specIndicesSize);
         for (uint64_t i = 0; i < idxElPerVec; i++) {
             if (((start + i) % specIndicesSize) < (specIndicesSize - remainder)) {
                 p.srcBeforeAxisDiff[i] = axisDim * div;

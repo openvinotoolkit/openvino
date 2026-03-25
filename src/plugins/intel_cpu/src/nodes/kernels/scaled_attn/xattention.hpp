@@ -290,7 +290,8 @@ struct Xattn {
         parallel_for3d(_q_num_strided, H, L, [&](size_t b, size_t h, size_t l) {
             auto* data = _attn_sum_temp.ptr<float>(h, l, b, 0);
             auto ncausal = b + 1;
-            auto scale = static_cast<float>(1.0f / sqrtf(static_cast<float>(S)) / stride);
+            auto scale = 1.0f / sqrt(static_cast<float>(S)) / static_cast<float>(stride);
+
             attn_softmax_kernel<float>(data,
                                        reinterpret_cast<float*>(data),
                                        scale,

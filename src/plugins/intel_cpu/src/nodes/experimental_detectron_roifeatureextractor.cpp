@@ -153,7 +153,7 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
     int n_rois = nthreads / channels / pooled_width / pooled_height;
     // (n, c, ph, pw) is an element in the pooled output
     cpu_parallel->parallel_for(n_rois, [&](size_t n) {
-        int index_n = static_cast<int>(n * channels * pooled_width * pooled_height);
+        auto index_n = static_cast<int>(n * channels * pooled_width * pooled_height);
 
         // roi could have 4 or 5 columns
         const T* offset_bottom_rois = bottom_rois + n * roi_cols;
