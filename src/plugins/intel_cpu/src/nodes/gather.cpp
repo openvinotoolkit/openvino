@@ -576,8 +576,8 @@ void Gather::executeDynamicImpl([[maybe_unused]] const dnnl::stream& strm) {
             int beforeAxisDiff[16];
             if (afterAxisSize == 1 && specIndicesSize < idxElPerVec) {
                 permIdxMask[0] = static_cast<int>(idxElPerVec - specIndicesSize);
-                int div = static_cast<int>(idxElPerVec / specIndicesSize);
-                int remainder = static_cast<int>(idxElPerVec % specIndicesSize);
+                auto div = static_cast<int>(idxElPerVec / specIndicesSize);
+                auto remainder = static_cast<int>(idxElPerVec % specIndicesSize);
                 for (uint64_t i = 1; i < idxElPerVec; i++) {
                     permIdxMask[i] = permIdxMask[i - 1] + 1;
                     if (static_cast<uint64_t>(permIdxMask[i]) == idxElPerVec) {

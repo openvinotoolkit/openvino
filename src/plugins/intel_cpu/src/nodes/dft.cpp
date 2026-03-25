@@ -512,8 +512,7 @@ std::vector<float> DFT::generateTwiddlesDFT(size_t n_complex, bool inverse) {
     const auto& cpu_parallel = context->getCpuParallel();
     cpu_parallel->parallel_for(n_complex, [&](const size_t k) {
         for (size_t n = 0; n < n_complex; ++n) {
-            auto phase = static_cast<float>(2.0 * PI * static_cast<double>(n) * static_cast<double>(k) /
-                                            static_cast<double>(n_complex));
+            auto phase = 2.0F * PI * static_cast<float>(n * k) / static_cast<float>(n_complex);
             auto complexReal = std::cos(phase);
             auto complexImag = std::sin(phase) * inverseMultiplier;
             twiddles[2 * (k * n_complex + n)] = complexReal;

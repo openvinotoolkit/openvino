@@ -385,7 +385,7 @@ void GridSampleKernel<isa>::getCoordinates(const Vmm& vHCoord, const Vmm& vWCoor
     Xbyak::Xmm xmmWCoord(vWCoord.getIdx());
     Xbyak::Xmm xmmHCoord(vHCoord.getIdx());
     Xbyak::Xmm xmmAux(vAux.getIdx());
-    const uint32_t xmmVlen = static_cast<uint32_t>(x64::cpu_isa_traits_t<x64::sse41>::vlen);
+    const auto xmmVlen = static_cast<uint32_t>(x64::cpu_isa_traits_t<x64::sse41>::vlen);
 
     uni_vmovups(xmmWCoord, ptr[regGrid]);
     uni_vpshufd(xmmWCoord, xmmWCoord, 0xD8);
@@ -2122,7 +2122,7 @@ void GridSampleKernel<isa>::dataTypeShiftPs2Dq(const Vmm& vDst, const Vmm& vSrc)
 
     if (isa == x64::avx) {  // vpslld works just with XMM for AVX, so use vmulps for YMM
         auto rAux = getReg64();
-        static const float val = static_cast<float>(dataTypeSize);
+        static const auto val = static_cast<float>(dataTypeSize);
         static const float dataTypeSizeArr[8] = {val, val, val, val, val, val, val, val};
         mov(rAux, reinterpret_cast<uintptr_t>(dataTypeSizeArr));
         uni_vmulps(vDst, vSrc, ptr[rAux]);
@@ -2162,7 +2162,7 @@ void GridSampleKernel<isa>::hwShiftPs2dq(const Vmm& vDst, const Vmm& vHCoord, co
     if (isa == x64::avx) {  // vpslld works just with XMM for AVX, so use vmulps for YMM
         if (dataTypeSize > 1) {
             auto rAux = getReg64();
-            const float val = static_cast<float>(dataTypeSize);
+            const auto val = static_cast<float>(dataTypeSize);
             static const float dataTypeSizeArr[8] = {val, val, val, val, val, val, val, val};
             mov(rAux, reinterpret_cast<uintptr_t>(dataTypeSizeArr));
             uni_vmulps(vDst, vDst, ptr[rAux]);
