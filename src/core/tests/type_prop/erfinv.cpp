@@ -4,6 +4,7 @@
 
 #include "openvino/op/erfinv.hpp"
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 
@@ -14,14 +15,9 @@ TEST(type_prop, erfinv_incorrect_type_int) {
     const auto input_type = element::i32;
     const auto input_shape = Shape{1, 3, 6};
     auto data = make_shared<op::v0::Parameter>(input_type, input_shape);
-    try {
-        make_shared<op::v16::ErfInv>(data);
-        FAIL() << "Expected validation error for integer input type.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Input element type must be floating-point, instead got"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason.";
-    }
+    OV_EXPECT_THROW_HAS_SUBSTRING(std::ignore = make_shared<op::v16::ErfInv>(data),
+                                  NodeValidationFailure,
+                                  "Input element type must be floating-point, instead got");
 }
 
 TEST(type_prop, erfinv_f32) {
