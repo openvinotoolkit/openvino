@@ -128,7 +128,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Partially_Dynamic_Disable
         true,
         false);
     model = f.getOriginal();
-    common_config = ov::snippets::pass::CommonOptimizations::Config(1, true);
+    common_config = ov::snippets::pass::CommonOptimizations::Config(1);
     mha_config = ov::snippets::pass::TokenizeMHASnippets::Config(
         ov::snippets::pass::TokenizationConfig(std::numeric_limits<size_t>::max()),
         true,
@@ -146,7 +146,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Partially_Dynamic_Disable
         true,
         true);
     model = f.getOriginal();
-    common_config = ov::snippets::pass::CommonOptimizations::Config(1, true);
+    common_config = ov::snippets::pass::CommonOptimizations::Config(1);
     mha_config = ov::snippets::pass::TokenizeMHASnippets::Config(
         ov::snippets::pass::TokenizationConfig(std::numeric_limits<size_t>::max()),
         true,

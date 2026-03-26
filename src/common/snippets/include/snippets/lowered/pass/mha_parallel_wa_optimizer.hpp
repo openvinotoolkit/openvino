@@ -22,8 +22,7 @@ class SetDynamicWAToOuterMostLoop;
 /**
  * @class MHAParallelWAOptimizer
  * @brief Optimizes the dynamic MHA execution increasing parallel work amount dy dividing Brgemm's "M" dimension to
- * "parallel_m" and "kernel_m". Uses heuristics from snippets::pass::SplitDimensionM for dimension splitting. The
- * optimizer performs the following steps:
+ * "parallel_m" and "kernel_m". The optimizer performs the following steps:
  * - Identifies applicable Brgemm operations within the LinearIR.
  * - Finds parameters whose shapes and layouts need to be adjusted after the split.
  * - Determines loops that should be adjusted.

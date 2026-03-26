@@ -51,7 +51,7 @@ std::vector<std::vector<ov::test::InputShape>> splitm_shapes_4d = {
 static constexpr size_t expected_nodes_mha_splitm_4d_dyn = 2;
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Snippets_MHA_4D_SplitDimensionM,
+    smoke_Snippets_MHA_4D_MHAParallelWAOptimizer,
     MHAWithThreadCount,
     ::testing::Combine(::testing::ValuesIn(splitm_shapes_4d),
                        ::testing::ValuesIn(precision_f32(4)),
@@ -85,7 +85,7 @@ std::vector<std::vector<ov::test::InputShape>> splitm_shapes_3d = {
 };
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Snippets_MHA_3D_SplitDimensionM,
+    smoke_Snippets_MHA_3D_MHAParallelWAOptimizer,
     MHAWithThreadCount,
     ::testing::Combine(::testing::ValuesIn(splitm_shapes_3d),
                        ::testing::ValuesIn(precision_f32(4)),
