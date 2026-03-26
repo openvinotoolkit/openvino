@@ -29,8 +29,7 @@ public:
     struct Config {
         using TransposeSupportCallback = std::function<bool(const std::shared_ptr<const ov::Node>&)>;
 
-        explicit Config(size_t concurrency)
-            : m_concurrency(concurrency) {
+        explicit Config(size_t concurrency) : m_concurrency(concurrency) {
             OPENVINO_ASSERT(concurrency > 0, "Concurrency should be greater than 0");
         }
 

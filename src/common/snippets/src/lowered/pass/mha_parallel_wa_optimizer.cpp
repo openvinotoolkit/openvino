@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <functional>
 #include <iterator>
+#include <memory>
 #include <numeric>
 #include <set>
 #include <tuple>
@@ -17,6 +18,7 @@
 #include <vector>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
@@ -301,8 +303,9 @@ bool MHAParallelWAOptimizer::split(const ov::Shape& shape,
 
 bool MHAParallelWAOptimizer::can_be_optimized(const std::shared_ptr<const ov::Node>& node, size_t concurrency) {
     const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(node);
-    if (!matmul || matmul->get_transpose_a())
+    if (!matmul || matmul->get_transpose_a() || matmul->is_dynamic()) {
         return false;
+    }
     size_t batch_m_dim = 0, new_m_dim = 0;
     return split(node->get_shape(), concurrency, batch_m_dim, new_m_dim);
 }
