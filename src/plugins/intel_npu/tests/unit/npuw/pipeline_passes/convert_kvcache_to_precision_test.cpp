@@ -12,7 +12,7 @@
 
 // --- Design note -------------------------------------------------------------------------
 // The model builder creates KV cache state with ov::element::f32 (the default
-// ModelConfig::precision).  ConvertKVCacheToPrecision is therefore doing *real*
+// BaseModelConfig::precision).  ConvertKVCacheToPrecision is therefore doing *real*
 // work on the test model: it lowers f32 past_key inputs and present outputs to
 // the requested storage type (f16 by default, or whatever
 // ov::hint::kv_cache_precision selects).
