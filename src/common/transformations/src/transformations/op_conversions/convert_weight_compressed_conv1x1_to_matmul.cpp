@@ -232,6 +232,9 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
                 activation = reshape_activations_new;
             }
         }
+
+        // If the activation has a static leading dimension of 1, squeeze it.
+        // This is done to allow pre-selection of OCL implementations for non-IMMAD devices, reducing memory pressure.
         bool squeeze_activation = false;
         if (activation->get_output_partial_shape(0)[0] == 1) {
             squeeze_activation = true;
@@ -240,9 +243,9 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
                 std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                        ov::Shape{3},
                                                        std::vector<int64_t>{1, -1, shape_out[-1].get_length()});
+            MatcherPass::register_new_node(squeeze_const);
             auto squeeze = std::make_shared<ov::op::v1::Reshape>(activation, squeeze_const, false);
-            ov::copy_runtime_info(squeeze, activation);
-            MatcherPass::register_new_node(squeeze);
+            ov::copy_runtime_info(activation, squeeze);
             squeeze->set_friendly_name(activation->get_friendly_name() + "_squeeze");
             activation = squeeze;
         }
@@ -271,15 +274,16 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
         } else {
             matmul_out = matmul;
         }
+
         if (squeeze_activation) {
             auto shape_out = matmul_out->get_output_partial_shape(0);
             auto unsqueeze_const =
                 std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                        ov::Shape{4},
                                                        std::vector<int64_t>{1, 1, -1, shape_out[-1].get_length()});
+            MatcherPass::register_new_node(unsqueeze_const);
             auto unsqueeze = std::make_shared<ov::op::v1::Reshape>(matmul_out, unsqueeze_const, false);
-            ov::copy_runtime_info(unsqueeze, matmul_out);
-            MatcherPass::register_new_node(unsqueeze);
+            ov::copy_runtime_info(matmul_out, unsqueeze);
             unsqueeze->set_friendly_name(matmul_out->get_friendly_name() + "_unsqueeze");
             matmul_out = unsqueeze;
         }
