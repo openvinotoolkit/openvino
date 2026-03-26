@@ -26,7 +26,7 @@ using namespace testing;
 
 namespace {
 
-std::shared_ptr<ov::Node> make_quantize(const std::shared_ptr<ov::op::v0::Parameter>& data) {
+std::shared_ptr<ov::Node> make_fq_converts(const std::shared_ptr<ov::op::v0::Parameter>& data) {
     auto fq = std::make_shared<ov::op::v0::FakeQuantize>(data,
                                                          ov::op::v0::Constant::create(element::f32, Shape{}, {-128.f}),
                                                          ov::op::v0::Constant::create(element::f32, Shape{}, {127.f}),
@@ -82,7 +82,7 @@ TEST_P(HorizontalQDQFusionTest, CompareFunctions) {
     // Build the model: one DQ branch per entry in params.branches.
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 4, 4});
-        auto quantize = make_quantize(data);
+        auto quantize = make_fq_converts(data);
         ResultVector results;
         for (const auto& p : params.branches) {
             auto dq = make_dequantize(quantize, p.scale_value, p.shift_value);
@@ -94,7 +94,7 @@ TEST_P(HorizontalQDQFusionTest, CompareFunctions) {
 
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 4, 4});
-        auto quantize = make_quantize(data);
+        auto quantize = make_fq_converts(data);
 
         // first occurrence of each unique DQParams -> its DQ node.
         std::vector<std::pair<DQParams, std::shared_ptr<ov::Node>>> dq_cache;
