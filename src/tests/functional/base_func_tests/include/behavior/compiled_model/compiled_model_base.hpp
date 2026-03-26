@@ -1074,7 +1074,7 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weight
         compiled_model.export_model(blob_file);
     }
     {
-        model->get_rt_info()["__weights_path"] = w_file_path.string();
+        model->get_rt_info()["__weights_path"] = w_file_path;
         configuration.emplace(ov::hint::compiled_blob(ov::read_tensor_data(blob_file_path)));
         if (target_device == utils::DEVICE_GPU) {
             configuration.emplace(ov::hint::model(model));

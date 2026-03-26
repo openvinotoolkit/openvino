@@ -40,7 +40,7 @@ ov::RTMap get_rt_info(const ov::Model& model) {
         rt_info = model.get_rt_info<ov::AnyMap>("runtime_options");
 
     if (model.has_rt_info("__weights_path")) {
-        rt_info[ov::weights_path.name()] = model.get_rt_info<ov::Any>("__weights_path");
+        rt_info[ov::weights_path.name()] = ov::util::path_to_string(model.get_rt_info<std::filesystem::path>("__weights_path"));
     }
     return rt_info;
 }

@@ -231,8 +231,8 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
             if (auto m = model_hint->second.as<std::shared_ptr<ov::Model>>()) {
                 if (m->has_rt_info("__weights_path")) {
                     AnyMap rt_info;
-                    auto p = m->get_rt_info<std::string>("__weights_path");
-                    rt_info[ov::weights_path.name()] = m->get_rt_info<ov::Any>("__weights_path");
+                    rt_info[ov::weights_path.name()] =
+                        ov::util::path_to_string(m->get_rt_info<std::filesystem::path>("__weights_path"));
                     weights = get_model_weights(rt_info);
                 }
             }
