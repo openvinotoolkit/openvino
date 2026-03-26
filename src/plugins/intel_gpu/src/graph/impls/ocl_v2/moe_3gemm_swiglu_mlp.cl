@@ -419,19 +419,24 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     half* px = x + id_sg * FAKE_GROUP_SIZE;
     half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
     unroll_for(int i = id_sg; i < HIDDEN_SIZE / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
-        //# quantization group
+#if HAS_ZP
         float x_group_sum = 0;
+#endif
         unroll_for(int j = id_local; j < FAKE_GROUP_SIZE / 2; j += SUBGROUP_SIZE) {
             half even = px[2 * j + 0];
             half odd = px[2 * j + 1];
             px2[j] = even;
             px2[j + FAKE_GROUP_SIZE / 2] = odd;
+#if HAS_ZP
             x_group_sum += even + odd;
+#endif
         }
+#if HAS_ZP
         x_group_sum = sub_group_reduce_add(x_group_sum);
         if (id_local == 0) {
             xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
         }
+#endif
     }
 #    else
     //# load x into slm
@@ -441,17 +446,22 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     half* px = x + id_sg * FAKE_GROUP_SIZE;
     half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
     unroll_for(int i = id_sg; i < HIDDEN_SIZE / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
-        //# quantization group
+#if HAS_ZP
         float x_group_sum = 0;
+#endif
         unroll_for(int j = id_local; j < FAKE_GROUP_SIZE; j += SUBGROUP_SIZE) {
             half value = px[j];
             px2[j] = value;
+#if HAS_ZP
             x_group_sum += value;
+#endif
         }
+#if HAS_ZP
         x_group_sum = sub_group_reduce_add(x_group_sum);
         if (id_local == 0) {
             xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
         }
+#endif
     }
 #    endif
 
@@ -849,19 +859,24 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     half* px = x + id_sg * FAKE_GROUP_SIZE;
     half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
     unroll_for(int i = id_sg; i < INTERMEDIATE_SIZE / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
-        //# quantization group
+#if HAS_ZP
         float x_group_sum = 0;
+#endif
         unroll_for(int j = id_local; j < FAKE_GROUP_SIZE / 2; j += SUBGROUP_SIZE) {
             half even = px[2 * j + 0];
             half odd = px[2 * j + 1];
             px2[j] = even;
             px2[j + FAKE_GROUP_SIZE / 2] = odd;
+#if HAS_ZP
             x_group_sum += even + odd;
+#endif
         }
+#if HAS_ZP
         x_group_sum = sub_group_reduce_add(x_group_sum);
         if (id_local == 0) {
             xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
         }
+#endif
     }
 #    else
     //# load x into slm
@@ -871,17 +886,22 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     half* px = x + id_sg * FAKE_GROUP_SIZE;
     half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
     unroll_for(int i = id_sg; i < INTERMEDIATE_SIZE / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
-        //# quantization group
+#if HAS_ZP
         float x_group_sum = 0;
+#endif
         unroll_for(int j = id_local; j < FAKE_GROUP_SIZE; j += SUBGROUP_SIZE) {
             half value = px[j];
             px2[j] = value;
+#if HAS_ZP
             x_group_sum += value;
+#endif
         }
+#if HAS_ZP
         x_group_sum = sub_group_reduce_add(x_group_sum);
         if (id_local == 0) {
             xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
         }
+#endif
     }
 #    endif
 
