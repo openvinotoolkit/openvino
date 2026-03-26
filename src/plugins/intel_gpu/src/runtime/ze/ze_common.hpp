@@ -37,7 +37,7 @@
 
 namespace cldnn {
 namespace ze {
-extern std::shared_ptr<::ov::zero::ZeroApi> ze_api;
+extern std::shared_ptr<::ov::ZeroApi> ze_api;
 static constexpr uint64_t endless_wait = std::numeric_limits<uint64_t>::max();
 static constexpr ze_module_format_t ze_module_format_oclc = (ze_module_format_t) 3U;
 

@@ -15,7 +15,7 @@
 #    define LIB_ZE_LOADER_SUFFIX ".1"
 #endif
 
-namespace ov::zero {
+namespace ov {
 
 // clang-format off
 #define symbols_list()                                        \
@@ -133,7 +133,7 @@ weak_symbols_list();
 symbols_list();
 weak_symbols_list();
 #undef symbol_statement
-}  // namespace ov::zero
+}  // namespace ov
 #ifndef ZERO_API_KEEP_SYMBOLS_LIST_MACRO
 #undef symbols_list
 #undef weak_symbols_list

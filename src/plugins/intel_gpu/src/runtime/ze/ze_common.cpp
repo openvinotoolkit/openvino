@@ -7,7 +7,7 @@
 namespace cldnn {
 namespace ze {
 
-std::shared_ptr<::ov::zero::ZeroApi> ze_api = ::ov::zero::ZeroApi::getInstance();
+std::shared_ptr<::ov::ZeroApi> ze_api = ::ov::ZeroApi::getInstance();
 
 }  // namespace ze
 }  // namespace cldnn

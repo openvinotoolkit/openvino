@@ -9,9 +9,9 @@
 #undef ZERO_API_KEEP_SYMBOLS_LIST_MACRO
 
 namespace intel_npu {
-    using ZeroApi = ::ov::zero::ZeroApi;
+    using ZeroApi = ::ov::ZeroApi;
 
-#define symbol_statement(symbol) inline decltype(&::symbol) symbol = ::ov::zero::symbol;
+#define symbol_statement(symbol) inline decltype(&::symbol) symbol = ::ov::symbol;
 symbols_list();
 weak_symbols_list();
 #undef symbol_statement

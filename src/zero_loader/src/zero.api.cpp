@@ -9,7 +9,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
-namespace ov::zero {
+namespace ov {
 ZeroApi::ZeroApi() {
     const std::filesystem::path baseName = "ze_loader";
     try {
@@ -59,4 +59,4 @@ const std::shared_ptr<ZeroApi> ZeroApi::getInstance() {
     return instance;
 }
 
-}  // namespace ov::zero
+}  // namespace ov
