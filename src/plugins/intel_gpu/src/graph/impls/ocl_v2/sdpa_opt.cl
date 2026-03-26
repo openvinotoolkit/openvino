@@ -1031,16 +1031,18 @@ KERNEL(sdpa_opt)(
     // Bidirectional attention for image token groups (e.g. Gemma3 VLM):
     // Compute per-lane effective causal limit to extend the visible range for image tokens
     // This is a REFERENCE implementation.
-    uint effective_causal_limit =  target_seq_idx + sglid; //< default causal limit for non-image tokens
+    const uint default_casual_token_group_end = target_seq_idx + sglid;
+    uint token_group_end = default_casual_token_group_end;
+    uint token_group_begin = default_casual_token_group_end;
 
-    if (token_type_ids[effective_causal_limit] == 1) {
-        uint new_limit = effective_causal_limit + 1;
-        while (new_limit < SOURCE_SEQ_LEN && token_type_ids[new_limit] == 1) {
-            new_limit++;
+    if (token_type_ids[token_group_end] == 1) {
+        uint new_group_end = token_group_end + 1;
+        while (new_group_end < SOURCE_SEQ_LEN && token_type_ids[new_group_end] == 1) {
+            new_group_end++;
         }
-        effective_causal_limit = new_limit - 1;
+        token_group_end = new_group_end - 1;
     }
-    const uint max_effective_end = sub_group_reduce_max(effective_causal_limit) + 1;
+    const uint max_token_group_end_for_this_sg = sub_group_reduce_max(token_group_end) + 1;
 #endif
 
     const uint num_read_blocks = K_HEAD_SIZE == V_HEAD_SIZE ? 1 :  CEIL_DIV(K_HEAD_SIZE, V_HEAD_SIZE);
@@ -1199,7 +1201,7 @@ KERNEL(sdpa_opt)(
         const uint seq_len = start_partition_idx + sgid * SUBGROUP_SIZE;
 #if IS_CAUSAL
 #if IS_PAGED_ATTENTION && HAS_TOKEN_TYPE_IDS
-        const uint partition_seq_len = min((uint)SEQ_LEN_PARTITION_SIZE, (uint)max(0, (int)(max_effective_end) - (int)start_partition_idx));
+        const uint partition_seq_len = min((uint)SEQ_LEN_PARTITION_SIZE, (uint)max(0, (int)(max_token_group_end_for_this_sg) - (int)start_partition_idx));
 #else
         const uint partition_seq_len = min((uint)SEQ_LEN_PARTITION_SIZE, (uint)max(0, (int)(target_seq_idx + seq_idx_end) - (int)start_partition_idx));
 #endif
@@ -1210,7 +1212,7 @@ KERNEL(sdpa_opt)(
         MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZERO;
 #if IS_CAUSAL
 #if IS_PAGED_ATTENTION && HAS_TOKEN_TYPE_IDS
-        const uint this_subgroup_max_seq_idx = max_effective_end;
+        const uint this_subgroup_max_seq_idx = max_token_group_end_for_this_sg;
 #else
         const uint this_subgroup_max_seq_idx = target_seq_idx;
 #endif
@@ -1428,7 +1430,7 @@ KERNEL(sdpa_opt)(
 #if IS_CAUSAL
                     // causal mask: valid only if m >= n
 #if IS_PAGED_ATTENTION && HAS_TOKEN_TYPE_IDS
-                    const uint this_work_item_max_target_seq_idx = effective_causal_limit;
+                    const uint this_work_item_max_target_seq_idx = token_group_end;
 #else
                     const uint this_work_item_max_target_seq_idx = target_seq_idx + sglid;
 #endif
@@ -1597,13 +1599,15 @@ KERNEL(sdpa_opt)(
                 qk_acc[i] = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]) - qk_max_new);
 #if IS_CAUSAL
 #if IS_PAGED_ATTENTION && HAS_TOKEN_TYPE_IDS
-                const uint this_work_item_max_target_seq_idx = effective_causal_limit;
+                const uint this_work_item_max_target_seq_idx = token_group_end;
 #else
                 const uint this_work_item_max_target_seq_idx = target_seq_idx + sglid;
 #endif
 
 #if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
-                if ((seq_len + i <= this_work_item_max_target_seq_idx) && (this_work_item_max_target_seq_idx < SLIDING_WINDOW_SIZE || seq_len + i >= this_work_item_max_target_seq_idx - SLIDING_WINDOW_SIZE)) {
+                if ((seq_len + i <= this_work_item_max_target_seq_idx) 
+                    && (this_work_item_max_target_seq_idx < SLIDING_WINDOW_SIZE || seq_len + i >= this_work_item_max_target_seq_idx - SLIDING_WINDOW_SIZE)) 
+                {
 #else
                 if (seq_len + i <= this_work_item_max_target_seq_idx) {
 #endif
