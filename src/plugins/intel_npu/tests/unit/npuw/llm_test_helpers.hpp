@@ -19,8 +19,9 @@
 
 namespace ov::test::npuw {
 
-inline ModelConfig make_llm_test_model_config() {
-    ModelConfig cfg;
+template <typename Config = LLMConfig>
+inline Config make_test_model_config() {
+    Config cfg;
     cfg.num_layers = 2;
     cfg.hidden_size = 64;
     cfg.num_heads = 4;
@@ -32,21 +33,17 @@ inline ModelConfig make_llm_test_model_config() {
 
 inline std::shared_ptr<ov::Model> build_llm_test_model() {
     ModelBuilder mb;
-    return mb.build_model(make_llm_test_model_config());
+    return mb.build_llm(make_test_model_config());
 }
 
 inline std::shared_ptr<ov::Model> build_whisper_decoder_test_model() {
-    auto cfg = make_llm_test_model_config();
-    cfg.use_cross_attention = true;
     ModelBuilder mb;
-    return mb.build_model(cfg);
+    return mb.build_whisper_decoder(make_test_model_config<WhisperDecoderConfig>());
 }
 
 inline std::shared_ptr<ov::Model> build_embedding_test_model() {
-    auto cfg = make_llm_test_model_config();
-    cfg.use_token_type_embedding = true;
     ModelBuilder mb;
-    return mb.build_model(cfg);
+    return mb.build_embedding_encoder(make_test_model_config<BertConfig>());
 }
 
 class NullPlugin : public ov::IPlugin {
