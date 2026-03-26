@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -46,12 +47,24 @@ pass::TFLQuantizeConvert::TFLQuantizeConvert() {
         if (!tfl_quantize)
             return false;
 
+        const auto replace_f32_convert = [](const std::shared_ptr<v0::Convert>& consumer_convert,
+                                            const std::shared_ptr<TFLQuantize>& producer) -> bool {
+            if (!consumer_convert || consumer_convert->get_destination_type() != element::f32)
+                return false;
+            consumer_convert->input(0).replace_source_output(producer->output(0));
+            consumer_convert->output(0).replace(producer->output(0));
+            ov::copy_runtime_info({consumer_convert, producer}, producer);
+            return true;
+        };
+
         auto output_targets = tfl_quantize->get_output_target_inputs(0);
 
         // Matcher guarantees at least one Convert consumer for this TFLQuantize.
         if (output_targets.size() == 1) {
             tfl_quantize->set_type(type);
-            convert->output(0).replace(tfl_quantize->output(0));
+            if (!replace_f32_convert(convert, tfl_quantize))
+                return false;
+            tfl_quantize->set_friendly_name(convert->get_friendly_name());
             return true;
         }
 
@@ -60,14 +73,20 @@ pass::TFLQuantizeConvert::TFLQuantizeConvert() {
                                                               tfl_quantize->get_info(),
                                                               tfl_quantize->get_original_type());
         new_tfl_quantize->set_type(type);
+        // Seed new node with original TFLQuantize RT info before replacing consumers.
+        ov::copy_runtime_info(tfl_quantize, new_tfl_quantize);
         bool replaced = false;
+        std::shared_ptr<v0::Convert> first_replaced_convert;
         for (const auto& target : output_targets) {
             auto consumer_convert = ov::as_type_ptr<v0::Convert>(target.get_node()->shared_from_this());
-            if (consumer_convert && consumer_convert->get_destination_type() == element::f32) {
-                consumer_convert->input(0).replace_source_output(new_tfl_quantize->output(0));
-                consumer_convert->output(0).replace(new_tfl_quantize->output(0));
+            if (replace_f32_convert(consumer_convert, new_tfl_quantize)) {
+                if (!first_replaced_convert)
+                    first_replaced_convert = consumer_convert;
                 replaced = true;
             }
+        }
+        if (first_replaced_convert) {
+            new_tfl_quantize->set_friendly_name(first_replaced_convert->get_friendly_name());
         }
         return replaced;
     };
