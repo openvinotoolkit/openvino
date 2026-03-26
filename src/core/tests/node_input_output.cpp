@@ -436,6 +436,8 @@ TEST(node_input_output, output_replace_bidirectional_connection) {
 
     // create model from incorrect net (cycles) to release nodes without leaking memory
     OV_EXPECT_THROW(ov::Model(OutputVector{mul}, ParameterVector{param}), ov::Exception, _);
+    // break circular dependency to release all nodes
+    relu->set_arguments(ov::OutputVector{});
 }
 
 TEST(node_input_output, output_replace_empty_targets) {

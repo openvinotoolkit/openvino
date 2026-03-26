@@ -233,11 +233,9 @@ void replace_nodes(const std::shared_ptr<Model>& f,
 /// It produces an ordering where each node appears after all of its input dependencies.
 ///
 /// \note If a circular dependency is detected (a node is visited more than twice during traversal),
-///       the function clears the offending node's arguments and control dependencies, then throws
-///       an OPENVINO_THROW exception with details about the loop source.
+///       the function throws an OPENVINO_THROW exception with details about the loop source.
 ///
-/// \warning The caller is responsible for providing valid, acyclic graph structures. Circular
-///          dependencies will result in an exception being thrown.
+/// \warning The caller is responsible for clean-up the model connections when circular dependencies are present.
 template <typename T>
 std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
     std::stack<Node*, std::vector<Node*>> nodes_to_do;
@@ -253,9 +251,6 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
         if (nodes_done.count(node) == 0) {
             bool can_add = true;
             if (++nodes_visited[node] > 2) {
-                // break circular dependencies to release memory
-                node->set_arguments(OutputVector{});
-                node->clear_control_dependencies();
                 // Node may be at the top of `nodes_to_do` not more than twice before it's added to `nodes_done` -
                 // when visited and placed in `nodes_to_do` and after the subtree traversal is finished.
                 // Otherwise it's a loop.
