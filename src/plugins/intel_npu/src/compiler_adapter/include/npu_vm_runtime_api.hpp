@@ -16,24 +16,7 @@
 namespace intel_npu {
 
 // clang-format off
-#define nmr_symbols_list()                                      \
-    nmr_symbol_statement(npuMLIRRuntimeGetAPIVersion)           \
-    nmr_symbol_statement(npuMLIRRuntimeCreate)                  \
-    nmr_symbol_statement(npuMLIRRuntimeDestroy)                 \
-    nmr_symbol_statement(npuMLIRRuntimeGetMetadata)             \
-    nmr_symbol_statement(npuMLIRRuntimeExecute)                 \
-    nmr_symbol_statement(npuMLIRRuntimePredictOutputShape)      \
-    nmr_symbol_statement(npuMLIRRuntimeCreateMemRef)            \
-    nmr_symbol_statement(npuMLIRRuntimeDestroyMemRef)           \
-    nmr_symbol_statement(npuMLIRRuntimeSetMemRef)               \
-    nmr_symbol_statement(npuMLIRRuntimeParseMemRef)
-
-
-//unsupported symbols with older runtime versions
-#define nmr_weak_symbols_list()                                     \
-    nmr_symbol_statement(npuMLIRRuntimeCreateExecutionContext)      \
-    nmr_symbol_statement(npuMLIRRuntimeDestroyExecutionContext)     \
-    nmr_symbol_statement(npuMLIRRuntimeUpdateMutableCommandList)    \
+#define nmr_symbols_list()                                          \
     nmr_symbol_statement(npuVMRuntimeGetAPIVersion)                 \
     nmr_symbol_statement(npuVMRuntimeCreate)                        \
     nmr_symbol_statement(npuVMRuntimeDestroy)                       \
@@ -47,6 +30,23 @@ namespace intel_npu {
     nmr_symbol_statement(npuVMRuntimeCreateExecutionContext)        \
     nmr_symbol_statement(npuVMRuntimeDestroyExecutionContext)       \
     nmr_symbol_statement(npuVMRuntimeUpdateMutableCommandList)
+
+
+// Deprecated symbols kept as weak for backward compatibility with older runtime library versions
+#define nmr_weak_symbols_list()                                     \
+    nmr_symbol_statement(npuMLIRRuntimeGetAPIVersion)               \
+    nmr_symbol_statement(npuMLIRRuntimeCreate)                      \
+    nmr_symbol_statement(npuMLIRRuntimeDestroy)                     \
+    nmr_symbol_statement(npuMLIRRuntimeGetMetadata)                 \
+    nmr_symbol_statement(npuMLIRRuntimeExecute)                     \
+    nmr_symbol_statement(npuMLIRRuntimePredictOutputShape)          \
+    nmr_symbol_statement(npuMLIRRuntimeCreateMemRef)                \
+    nmr_symbol_statement(npuMLIRRuntimeDestroyMemRef)               \
+    nmr_symbol_statement(npuMLIRRuntimeSetMemRef)                   \
+    nmr_symbol_statement(npuMLIRRuntimeParseMemRef)                 \
+    nmr_symbol_statement(npuMLIRRuntimeCreateExecutionContext)      \
+    nmr_symbol_statement(npuMLIRRuntimeDestroyExecutionContext)     \
+    nmr_symbol_statement(npuMLIRRuntimeUpdateMutableCommandList)
 
 // clang-format on
 
