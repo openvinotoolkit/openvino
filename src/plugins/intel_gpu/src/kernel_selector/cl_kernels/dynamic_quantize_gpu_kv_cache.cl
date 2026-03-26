@@ -109,13 +109,27 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
     // can address rows with the standard GET_INDEX pitch.
     const uint output_offset = OUTPUT_GET_INDEX(b, f, y, x);
     // Pairs of consecutive SUBGROUP_SIZE blocks are packed together.
-    unroll_for (uint i = 0; i < INNERMOST_DIM_VALUE / SUBGROUP_SIZE; i += 2) {
+    // Process complete pairs first (handles HEAD_SIZE that is multiple of 2*SUBGROUP_SIZE).
+#define NUM_SUBGROUP_CHUNKS (INNERMOST_DIM_VALUE / SUBGROUP_SIZE)
+#define NUM_FULL_PAIRS (NUM_SUBGROUP_CHUNKS / 2)
+    unroll_for (uint i = 0; i < NUM_FULL_PAIRS * 2; i += 2) {
         uchar q0 = (uchar)clamp(convert_int_rte((float)val[i]     * scale_tmp + zp_tmp), 0, UINT4_RANGE);
         uchar q1 = (uchar)clamp(convert_int_rte((float)val[i + 1] * scale_tmp + zp_tmp), 0, UINT4_RANGE);
         // Pack: lo nibble = q0, hi nibble = q1
         char packed = cvt_uint8x2_to_uint4x2((uchar2)(q0, q1));
         OUTPUT_BLOCK_WRITE(output, output_offset + (i / 2) * SUBGROUP_SIZE, packed);
     }
+#if (NUM_SUBGROUP_CHUNKS % 2) != 0
+    // Handle the last odd chunk: pack low nibble only, zero-pad high nibble.
+    {
+        const uint i = NUM_FULL_PAIRS * 2;
+        uchar q0 = (uchar)clamp(convert_int_rte((float)val[i] * scale_tmp + zp_tmp), 0, UINT4_RANGE);
+        char packed = cvt_uint8x2_to_uint4x2((uchar2)(q0, 0));
+        OUTPUT_BLOCK_WRITE(output, output_offset + (i / 2) * SUBGROUP_SIZE, packed);
+    }
+#endif
+#undef NUM_SUBGROUP_CHUNKS
+#undef NUM_FULL_PAIRS
 
     const uint scale_idx = FUNC_CALL(get_scales_offset)(OPTIONAL_SHAPE_INFO_TENSOR b, f, y, x);
     if (grouped_indexes == 0 && sglid == 0) {
