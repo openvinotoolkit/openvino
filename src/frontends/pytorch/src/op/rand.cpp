@@ -344,7 +344,6 @@ OutputVector translate_normal(const NodeContext& context) {
     }
 }
 
-// Add this to src/frontends/pytorch/src/op/rand.cpp
 
 OutputVector translate_poisson(const NodeContext& context) {
 
