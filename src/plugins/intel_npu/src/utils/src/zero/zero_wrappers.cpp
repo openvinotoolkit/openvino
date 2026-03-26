@@ -221,12 +221,14 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
         "zeCommandQueueCreate",
         zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &queue_desc, &_handle));
 
-    if (_init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
-        THROW_ON_FAIL_FOR_LEVELZERO(
-            "zeSetWorkloadType",
-            _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, desc.workload));
-    } else if (desc.workload != ZE_WORKLOAD_TYPE_DEFAULT) {
-        OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
+    if (desc.workload.has_value()) {
+        if (_init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
+            THROW_ON_FAIL_FOR_LEVELZERO(
+                "zeSetWorkloadType",
+                _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, desc.workload.value()));
+        } else {
+            OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
+        }
     }
 }
 void CommandQueue::executeCommandList(CommandList& command_list) const {

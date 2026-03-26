@@ -66,12 +66,12 @@ static inline ze_command_queue_priority_t toZeQueuePriority(const ov::hint::Prio
     }
 }
 
-static inline ze_command_queue_workload_type_t toZeQueueWorkloadType(const ov::WorkloadType val) {
+static inline std::optional<ze_command_queue_workload_type_t> toZeQueueWorkloadType(const ov::WorkloadType val) {
     switch (val) {
     case ov::WorkloadType::DEFAULT:
-        return ZE_WORKLOAD_TYPE_DEFAULT;
+        return std::optional<ze_command_queue_workload_type_t>{ZE_WORKLOAD_TYPE_DEFAULT};
     case ov::WorkloadType::EFFICIENT:
-        return ZE_WORKLOAD_TYPE_BACKGROUND;
+        return std::optional<ze_command_queue_workload_type_t>{ZE_WORKLOAD_TYPE_BACKGROUND};
     default:
         OPENVINO_THROW("Incorrect workload type.");
     }

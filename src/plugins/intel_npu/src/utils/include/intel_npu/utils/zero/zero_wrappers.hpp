@@ -7,6 +7,8 @@
 #include <ze_api.h>
 #include <ze_command_queue_npu_ext.h>
 
+#include <optional>
+
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
@@ -18,7 +20,7 @@ class CommandQueue;
 
 struct CommandQueueDesc {
     ze_command_queue_priority_t priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
-    ze_command_queue_workload_type_t workload = ZE_WORKLOAD_TYPE_DEFAULT;
+    std::optional<ze_command_queue_workload_type_t> workload = std::nullopt;
     uint32_t options = 0;
     const void* owner_tag = nullptr;
 };

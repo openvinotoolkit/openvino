@@ -52,7 +52,7 @@ struct ZeroCmdQueueKeyHash {
         hash_combine(std::hash<void*>{}(key.context));
         hash_combine(std::hash<void*>{}(key.device));
         hash_combine(static_cast<uint64_t>(key.desc.priority));
-        hash_combine(static_cast<uint64_t>(key.desc.workload));
+        hash_combine(std::hash<std::optional<ze_command_queue_workload_type_t>>{}(key.desc.workload));
         hash_combine(static_cast<uint64_t>(key.desc.options));
         if (key.desc.options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) {
             OPENVINO_ASSERT(key.desc.owner_tag != nullptr,

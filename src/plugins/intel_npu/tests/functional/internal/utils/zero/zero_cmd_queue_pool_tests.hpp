@@ -91,7 +91,7 @@ TEST_P(ZeroCmdQueuePoolTests, SetWorkloadType) {
 
 TEST_P(ZeroCmdQueuePoolTests, PoolReusabilityTest) {
     // Test that the pool correctly reuses queues after weak_ptr cleanup
-    ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL, ZE_WORKLOAD_TYPE_DEFAULT};
+    ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL};
 
     // First allocation
     std::shared_ptr<::intel_npu::CommandQueue> queue1 =
@@ -140,6 +140,10 @@ TEST_P(ZeroCmdQueuePoolTests, AllCommandQueueOptionsCombinations) {
         for (auto workload_type : workload_types) {
             for (auto options : option_combinations) {
                 ::intel_npu::CommandQueueDesc cmd_desc{priority, workload_type, options};
+                if (options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) {
+                    static int owner = 1;  // Just a dummy pointer value for testing
+                    cmd_desc.owner_tag = &owner;
+                }
                 auto cmd_queue = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, cmd_desc);
 
                 EXPECT_NE(cmd_queue, nullptr) << "Failed to allocate command queue for priority=" << (int)priority
