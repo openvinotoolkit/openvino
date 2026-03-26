@@ -2080,8 +2080,8 @@ void primitive_inst::prepare_primitive() {
             update_impl(can_use_async_compilation);
             if (get_flag(ExecutionFlags::IMPL_CHANGED)) {
                 update_weights();
-                realloc_if_needed(prev_execution_skipped);
             }
+            realloc_if_needed(prev_execution_skipped);
         }
 
         // Paged Attention may require dispatch data update and internal buffers reallocation
@@ -2225,6 +2225,12 @@ void primitive_inst::execute() {
         _impl_params->output_layouts[0] = _unfused_subgraph->get_output_layout(last_prim_id);
         set_out_event(outputs.at(last_prim_id).get_event());
         return;
+    }
+
+    for (size_t i = 0; i < _outputs.size(); ++i) {
+        OPENVINO_ASSERT(_outputs[i] != nullptr, "[GPU] Output memory for ", id(), " (index ", i, ") is nullptr. ",
+                        "This likely means that the output shape was dynamic and no upper bound was provided, ",
+                        "or reallocation failed at runtime.");
     }
 
     set_out_event(_impl->execute(_impl_params->dep_events, *this));
