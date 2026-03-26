@@ -20,7 +20,7 @@ class TestTFLiteQuantizeMultiOutputs(TFLiteLayerTest):
 
     inputs = ["Input_0", "Input_1"]
     outputs = ["Result_0", "Result_1"]
-    allowed_ops = ['ADD', 'QUANTIZE']
+    allowed_ops = ['ADD']  # After _strip_quantize_wrappers(), only ADD ops remain in the final model
 
     def make_model(self, params):
         tf.compat.v1.reset_default_graph()
@@ -89,7 +89,12 @@ class TestTFLiteQuantizeMultiOutputs(TFLiteLayerTest):
         # Find all ADD operators
         add_indices = []
         for i, op in enumerate(subgraph.operators):
-            code = model_obj.operatorCodes[op.opcodeIndex].builtinCode
+            # Handle both deprecated and normal opcode fields
+            op_code = model_obj.operatorCodes[op.opcodeIndex]
+            code = op_code.builtinCode
+            if (code == schema_fb.BuiltinOperator.PLACEHOLDER_FOR_GREATER_OP_CODES and
+                    op_code.deprecatedBuiltinCode != schema_fb.BuiltinOperator.PLACEHOLDER_FOR_GREATER_OP_CODES):
+                code = op_code.deprecatedBuiltinCode
             if code == schema_fb.BuiltinOperator.ADD:
                 add_indices.append(i)
 
@@ -136,7 +141,38 @@ class TestTFLiteQuantizeMultiOutputs(TFLiteLayerTest):
             inputs_dict[input_name] = np.random.randint(0, 256, size=input_shape, dtype=np.uint8)
         return inputs_dict
 
+    def check_tflite_model_has_only_allowed_ops(self):
+        """
+        Validate that the modified subgraph contains only allowed operators.
+        This override is needed because _strip_quantize_wrappers() rewrites subgraph.operators
+        but does not prune operatorCodes, so the base validation would incorrectly check
+        all original opcodes instead of only the remaining operators.
+        This checks that all operators are in the allowed set, not exact count/order.
+        """
+        if self.allowed_ops is None:
+            return
+        BO = utils.schema_fb.BuiltinOperator
+        builtin_operators = {getattr(BO, name): name for name in dir(BO) if not name.startswith("_")}
+        model = utils.read_model(self.model_path)
+        subgraph = model.subgraphs[0]
+
+        # Collect opcodes actually used in subgraph.operators
+        op_names = []
+        for op in subgraph.operators:
+            op_code = model.operatorCodes[op.opcodeIndex]
+            code = op_code.builtinCode
+            if (code == BO.PLACEHOLDER_FOR_GREATER_OP_CODES and
+                    op_code.deprecatedBuiltinCode != BO.PLACEHOLDER_FOR_GREATER_OP_CODES):
+                code = op_code.deprecatedBuiltinCode
+            op_names.append(builtin_operators[code])
+
+        # Check that all operators are in the allowed set (order/count agnostic)
+        allowed_set = set(self.allowed_ops) if not isinstance(self.allowed_ops, tuple) else set(self.allowed_ops[0])
+        actual_set = set(op_names)
+        assert actual_set == allowed_set, f"TFLite model contains unexpected ops. Expected only {allowed_set}, got {actual_set}"
+
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_quantize_multi_outputs(self, ie_device, precision, temp_dir):
         """
         Test that quantized model with multiple outputs produces correct results.
