@@ -40,7 +40,6 @@ protected:
 
 TEST_P(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalledSetProperty) {
     core.set_property(DEVICE_NPU, config);
-
     std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
     OV_ASSERT_NO_THROW(core.compile_model(model, DEVICE_NPU));
 }
@@ -48,6 +47,15 @@ TEST_P(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalledSetPrope
 TEST_P(OfflineCompilationUnitTests, CompileWithCiPWhenDriverNotInstalled) {
     std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
     OV_ASSERT_NO_THROW(core.compile_model(model, DEVICE_NPU, config));
+}
+
+TEST_P(OfflineCompilationUnitTests, ExpectThrowWhenCreateInferRequestWhenDriverNotInstalled) {
+    std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
+    ov::CompiledModel compiledModel;
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, DEVICE_NPU, config));
+    OV_EXPECT_THROW_HAS_SUBSTRING(compiledModel.create_infer_request(),
+                                  ov::Exception,
+                                  "No available devices. Failed to create infer request!");
 }
 
 INSTANTIATE_TEST_SUITE_P(

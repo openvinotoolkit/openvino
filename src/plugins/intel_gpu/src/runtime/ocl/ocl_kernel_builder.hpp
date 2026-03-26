@@ -17,6 +17,7 @@ namespace ocl {
 class ocl_kernel_builder : public kernel_builder{
     public:
         ocl_kernel_builder(const ocl_device &device) : m_device(device) {}
+        virtual ~ocl_kernel_builder() = default;
 
         void build_kernels(const void *src,
             size_t src_bytes,

@@ -12,7 +12,9 @@ MOE3GemmFusedCompressed::MOE3GemmFusedCompressed(const OutputVector& args, const
 }
 
 void MOE3GemmFusedCompressed::validate_and_infer_types() {
-    const size_t expected_inputs = m_config.routing_type == MOECompressed::RoutingType::SIGMOID_BIAS ? 13 : 11;
+    const size_t expected_inputs = m_config.num_shared_expert > 0 ? 23
+                                 : m_config.routing_type == MOECompressed::RoutingType::SIGMOID_BIAS ? 13
+                                 : 11;
     OPENVINO_ASSERT(get_input_size() == expected_inputs,
                     "MOECompressed: expected ",
                     expected_inputs,
