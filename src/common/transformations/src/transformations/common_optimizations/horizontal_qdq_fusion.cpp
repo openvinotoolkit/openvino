@@ -196,7 +196,7 @@ HorizontalQDQFusion::HorizontalQDQFusion(const ov::element::TypeVector& supporte
                 continue;
 
             // Replace duplicate DQ output (multiply) with the reference DQ output (multiply)
-            dq.multiply->output(0).replace(reference->multiply->output(0));
+            ov::replace_output_update_name(dq.multiply->output(0), reference->multiply->output(0));
             changed = true;
         }
 
