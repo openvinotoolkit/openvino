@@ -176,7 +176,9 @@ void Graph::initialize_impl(const FilteredConfig& config) {
             zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
             config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
             commandQueueOptions,
-            this};
+            this,
+            config.get<SHARED_COMMON_QUEUE>(),
+        };
     }
 
     _zeGraphExt->initializeGraph(_graphDesc);

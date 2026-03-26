@@ -321,7 +321,9 @@ void WeightlessGraph::initialize_impl(const FilteredConfig& config) {
             // incrementing the version here.
         zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
         config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
-        commandQueueOptions};
+        commandQueueOptions,
+        this,
+        config.get<SHARED_COMMON_QUEUE>()};
     _initsCommandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, commandQueueDesc);
 
 #if USE_SINGLE_THREADED_RUN_INIT

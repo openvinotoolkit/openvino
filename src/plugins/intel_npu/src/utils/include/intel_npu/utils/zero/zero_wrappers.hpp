@@ -24,14 +24,22 @@ struct CommandQueueDesc {
     std::optional<ze_command_queue_workload_type_t> workload = std::nullopt;
     uint32_t options = 0;
     const void* owner_tag = nullptr;
+    bool shared_common_queue = true;
 
     bool operator==(const CommandQueueDesc& other) const {
-        if (priority != other.priority || workload != other.workload || options != other.options) {
+        if (priority != other.priority || workload != other.workload || options != other.options ||
+            shared_common_queue != other.shared_common_queue) {
             return false;
         }
         // pointer is only meaningful when the device-sync flag is active
-        if ((options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) && owner_tag != other.owner_tag) {
-            return false;
+        const bool use_owner_tag = (options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) != 0 || !shared_common_queue;
+        const bool other_use_owner_tag =
+            (other.options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) != 0 || !other.shared_common_queue;
+        if (use_owner_tag || other_use_owner_tag) {
+            // when owner_tag participates in the key, require it to be non-null and equal on both sides
+            if (owner_tag == nullptr || other.owner_tag == nullptr || owner_tag != other.owner_tag) {
+                return false;
+            }
         }
 
         return true;

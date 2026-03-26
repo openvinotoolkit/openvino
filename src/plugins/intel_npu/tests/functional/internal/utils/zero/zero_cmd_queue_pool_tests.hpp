@@ -115,6 +115,57 @@ TEST_P(ZeroCmdQueuePoolTests, PoolReusabilityTest) {
     queue3.reset();
 }
 
+TEST_P(ZeroCmdQueuePoolTests, PoolReusabilityDisabledTest) {
+    // Test that the pool correctly reuses queues after weak_ptr cleanup
+    int pointer1 = 1;  // Just a dummy pointer value for testing
+    ::intel_npu::CommandQueueDesc command_queue_desc1{0,
+                                                      ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                      std::nullopt,
+                                                      0,
+                                                      &pointer1,
+                                                      false};
+
+    // First allocation
+    std::shared_ptr<::intel_npu::CommandQueue> queue1 =
+        ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, command_queue_desc1);
+    EXPECT_NE(queue1, nullptr);
+
+    int pointer2 = 2;  // Just a dummy pointer value for testing
+    ::intel_npu::CommandQueueDesc command_queue_desc2{0,
+                                                      ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                      std::nullopt,
+                                                      0,
+                                                      &pointer2,
+                                                      false};
+
+    // Second allocation with same descriptor should return the same instance (while ref is held)
+    std::shared_ptr<::intel_npu::CommandQueue> queue2 =
+        ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, command_queue_desc2);
+    EXPECT_NE(queue2, nullptr) << "Should always be able to allocate a queue";
+    EXPECT_NE(queue1.get(), queue2.get()) << "Same descriptor with different owner_tag should not return the same "
+                                             "pooled queue when shared_common_queue is false";
+
+    int pointer3 = 3;  // Just a dummy pointer value for testing
+    ::intel_npu::CommandQueueDesc command_queue_desc3{0,
+                                                      ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                      std::nullopt,
+                                                      0,
+                                                      &pointer3,
+                                                      false};
+
+    std::shared_ptr<::intel_npu::CommandQueue> queue3 =
+        ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, command_queue_desc3);
+    EXPECT_NE(queue3, nullptr) << "Should always be able to allocate a queue";
+    EXPECT_NE(queue1.get(), queue3.get()) << "Same descriptor with different owner_tag should not return the same "
+                                             "pooled queue when shared_common_queue is false";
+    EXPECT_NE(queue2.get(), queue3.get()) << "Same descriptor with different owner_tag should not return the same "
+                                             "pooled queue when shared_common_queue is false";
+
+    queue1.reset();
+    queue2.reset();
+    queue3.reset();
+}
+
 TEST_P(ZeroCmdQueuePoolTests, AllCommandQueueOptionsCombinations) {
     if (init_struct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1)) {
         GTEST_SKIP() << "Not all the command queue options are supported by the current driver.\n";
