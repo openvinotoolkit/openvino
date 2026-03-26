@@ -5,12 +5,14 @@
 #pragma once
 
 #include <yaml-cpp/yaml.h>
+
+#include "utils/logger.hpp"
+
 #include <memory>
 #include <unordered_set>
 #include <unordered_map>
 #include <string>
 #include <vector>
-#include <iostream>
 
 class ConfigNode {
 public:
@@ -19,12 +21,16 @@ public:
     }
 
     ~ConfigNode() {
-        if (_isRoot && hasUnusedKeys()) {
-            std::cout << "\n------Unused keys:\n";
-            for (const auto& key : getUnusedKeys()) {
-                std::cout << key << " ";
+        if (_isRoot) {
+            std::vector<std::string> unusedKeys = getUnusedKeys();
+            if (!unusedKeys.empty()) {
+                std::string unusedKeysStr = "Unused keys: ";
+                for (size_t i = 0; i < unusedKeys.size(); ++i) {
+                    unusedKeysStr += unusedKeys[i];
+                    if (i < unusedKeys.size() - 1) unusedKeysStr += " ";
+                }
+                LOG_INFO() << unusedKeysStr << std::endl;
             }
-            std::cout << "\n";
         }
     }
 
@@ -32,26 +38,13 @@ public:
     ConfigNode(const ConfigNode&) = delete;
     ConfigNode& operator=(const ConfigNode&) = delete;
 
-    // Custom move to reset _isRoot on source
     ConfigNode(ConfigNode&& other) = delete;
-
     ConfigNode& operator=(ConfigNode&& other)  = delete;
-    // noexcept {
-    //     if (this != &other) {
-    //         _node = std::move(other._node);
-    //         _isRoot = other._isRoot;
-    //         _keys = std::move(other._keys);
-    //         _children = std::move(other._children);
-    //         other._isRoot = false;
-    //     }
-    //     return *this;
-    // }
 
     bool IsSequence() const { return _node.IsSequence(); }
     bool IsMap() const { return _node.IsMap(); }
     std::size_t size() const { return _node.size(); }
 
-    // For simple types, use YAML's converter directly
     template <typename T>
     T as() const {
         // For primitive types, use YAML's converter
@@ -73,23 +66,21 @@ public:
     struct KeyValueProxy {
         std::string first;
         const ConfigNode& second;
-        
+
         const KeyValueProxy* operator->() const { return this; }
-        
-        // Forward ConfigNode methods to .second for convenience
+
         bool IsSequence() const { return second.IsSequence(); }
         bool IsMap() const { return second.IsMap(); }
         std::size_t size() const { return second.size(); }
-        
+
         template <typename T>
         T as() const { return second.as<T>(); }
-        
+
         template <typename Key>
         const ConfigNode& operator[](const Key& key) const { return second[key]; }
-        
+
         explicit operator bool() const { return static_cast<bool>(second); }
-        
-        // Allow implicit conversion to const ConfigNode&
+
         operator const ConfigNode&() const { return second; }
     };
 
@@ -148,8 +139,6 @@ public:
 
     explicit operator bool() const { return _node.IsDefined() && !_node.IsNull(); }
 
-    void setRoot(bool isRoot) { _isRoot = isRoot; }
-
 private:
     void collectKeys() {
         if (_node.IsMap()) {
@@ -168,40 +157,11 @@ private:
         return unused;
     }
 
-    bool hasUnusedKeys() const {
-        if (!_keys.empty()) return true;
-        for (const auto& [key, child] : _children) {
-            if (child->hasUnusedKeys()) return true;
-        }
-        return false;
-    }
-
     YAML::Node _node;
     bool _isRoot = true;
     mutable std::unordered_set<std::string> _keys;
     mutable std::unordered_map<std::string, std::unique_ptr<ConfigNode>> _children;
 };
-
-template <typename Key>
-ConfigNode& ConfigNode::operator[](const Key& key) {
-    std::string keyStr;
-    if constexpr (std::is_convertible_v<Key, std::string>) {
-        keyStr = std::string(key);
-    } else {
-        keyStr = std::to_string(key);
-    }
-
-    _keys.erase(keyStr);
-
-    auto it = _children.find(keyStr);
-    if (it == _children.end()) {
-        auto child = std::make_unique<ConfigNode>(YAML::Clone(_node[key]), false);
-        auto [inserted_it, success] = _children.emplace(keyStr, std::move(child));
-        return *inserted_it->second;
-    }
-
-    return *it->second;
-}
 
 template <typename Key>
 const ConfigNode& ConfigNode::operator[](const Key& key) const {
@@ -216,10 +176,15 @@ const ConfigNode& ConfigNode::operator[](const Key& key) const {
 
     auto it = _children.find(keyStr);
     if (it == _children.end()) {
-        auto child = std::make_unique<ConfigNode>(YAML::Clone(_node[key]), false);
+        auto child = std::make_unique<ConfigNode>(YAML::Clone(_node[key]));
         auto [inserted_it, success] = _children.emplace(keyStr, std::move(child));
         return *inserted_it->second;
     }
 
     return *it->second;
+}
+
+template <typename Key>
+ConfigNode& ConfigNode::operator[](const Key& key) {
+    return const_cast<ConfigNode&>(std::as_const(*this)[key]);
 }
