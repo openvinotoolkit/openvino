@@ -152,7 +152,6 @@ The NPU device is currently supported by AUTO inference modes
          ov::intel_npu::turbo
          ov::intel_npu::platform
          ov::intel_npu::tiles
-         ov::intel_npu::max_tiles
          ov::intel_npu::bypass_umd_caching
          ov::intel_npu::defer_weights_load
          ov::intel_npu::run_inferences_sequentially
@@ -183,6 +182,7 @@ The NPU device is currently supported by AUTO inference modes
          ov::intel_npu::device_total_mem_size
          ov::intel_npu::driver_version
          ov::intel_npu::compiler_version
+         ov::intel_npu::max_tiles
 
 
 .. note::
@@ -270,7 +270,7 @@ or
 
 For on-device compilation, the plugin queries the driver for the available number of tiles and sets ``ov::intel_npu::max_tiles``.
 
-``ov::intel_npu::max_tiles`` is a read-write property to allow users to set it during offline compilation.
+``ov::intel_npu::max_tiles`` is a read-only property, for offline compilation the property will not be reported as supported.  
 
 Note that ``ov::intel_npu::max_tiles`` represents the maximum number of tiles available,
 but the compiler may target a lower number of tiles depending on other properties.

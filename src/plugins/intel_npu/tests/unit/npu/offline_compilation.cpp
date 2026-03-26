@@ -60,10 +60,18 @@ TEST_P(OfflineCompilationUnitTests, ExpectThrowWhenCreateInferRequestWhenDriverN
 
 TEST_P(OfflineCompilationUnitTests, ReadMaxTilesAndExpectThrow) {
     core.set_property(DEVICE_NPU, config);
-    // ASSERT_ANY_THROW(core.get_property(DEVICE_NPU, ov::intel_npu::max_tiles));
     OV_EXPECT_THROW_HAS_SUBSTRING(core.get_property(DEVICE_NPU, ov::intel_npu::max_tiles),
                                 ov::Exception,
-                                "Unsupported configuration key");    
+                                "Unsupported configuration key");
+}
+
+TEST_P(OfflineCompilationUnitTests, ReadSupportedPropertiesMaxTilesNotPresent) {
+    core.set_property(DEVICE_NPU, config);
+    std::vector<ov::PropertyName> supportedProperties;
+    OV_ASSERT_NO_THROW(supportedProperties = core.get_property(DEVICE_NPU, ov::supported_properties));
+    ASSERT_TRUE(std::find(supportedProperties.begin(),
+                          supportedProperties.end(),
+                          ov::intel_npu::max_tiles.name()) == supportedProperties.end());
 }
 
 INSTANTIATE_TEST_SUITE_P(
