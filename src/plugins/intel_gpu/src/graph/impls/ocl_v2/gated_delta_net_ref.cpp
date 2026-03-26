@@ -109,9 +109,12 @@ protected:
             size_t key_offset = get_head_offset(params.input_layouts[1]);
             size_t value_offset = get_head_offset(params.input_layouts[2]);
 
-            const int32_t q_t_stride = q_pitches.size() > 1 ? static_cast<int32_t>(q_pitches[1]) : static_cast<int32_t>(q_shape[2].get_length() * q_shape[3].get_length());
-            const int32_t k_t_stride = k_pitches.size() > 1 ? static_cast<int32_t>(k_pitches[1]) : static_cast<int32_t>(q_shape[2].get_length() * q_shape[3].get_length());
-            const int32_t v_t_stride = v_pitches.size() > 1 ? static_cast<int32_t>(v_pitches[1]) : static_cast<int32_t>(v_shape[2].get_length() * v_shape[3].get_length());
+            const int32_t q_t_stride =
+                q_pitches.size() > 1 ? static_cast<int32_t>(q_pitches[1]) : static_cast<int32_t>(q_shape[2].get_length() * q_shape[3].get_length());
+            const int32_t k_t_stride =
+                k_pitches.size() > 1 ? static_cast<int32_t>(k_pitches[1]) : static_cast<int32_t>(q_shape[2].get_length() * q_shape[3].get_length());
+            const int32_t v_t_stride =
+                v_pitches.size() > 1 ? static_cast<int32_t>(v_pitches[1]) : static_cast<int32_t>(v_shape[2].get_length() * v_shape[3].get_length());
 
             wgs.global = {batch, head_nums, v_blocks * subgroup_size};
             wgs.local = {1, 1, subgroup_size};
