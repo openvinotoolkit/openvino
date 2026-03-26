@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "openvino/core/node.hpp"
 #include "openvino/core/rtti.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
@@ -52,6 +53,14 @@ public:
                       size_t optimal_parallelism_work_amount,
                       size_t& batch_m_dim,
                       size_t& new_m_dim);
+
+    /**
+     * @brief Returns true if the parallel work amount can be increased by splitting the M dimension
+     * @param node MatMul node to check (must be static)
+     * @param concurrency Target parallelism work amount
+     * @return true if M dimension can be split to improve parallelism, otherwise false
+     */
+    static bool can_be_optimized(const std::shared_ptr<const ov::Node>& node, size_t concurrency);
 
 private:
     /**

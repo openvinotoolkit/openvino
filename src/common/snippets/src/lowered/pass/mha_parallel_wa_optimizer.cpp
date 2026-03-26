@@ -18,6 +18,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/expression.hpp"
@@ -296,6 +297,14 @@ bool MHAParallelWAOptimizer::split(const ov::Shape& shape,
             split_fallback_increase_parallel_wa(batch_dim, m_dim, optimal_parallelism_work_amount);
     }
     return split_is_done();
+}
+
+bool MHAParallelWAOptimizer::can_be_optimized(const std::shared_ptr<const ov::Node>& node, size_t concurrency) {
+    const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(node);
+    if (!matmul || matmul->get_transpose_a())
+        return false;
+    size_t batch_m_dim = 0, new_m_dim = 0;
+    return split(node->get_shape(), concurrency, batch_m_dim, new_m_dim);
 }
 
 std::pair<size_t, size_t> MHAParallelWAOptimizer::split_ideally(size_t batch_dim,

@@ -183,6 +183,9 @@
 #endif
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <functional>
+#    include <numeric>
+
 #    include "low_precision/convolution_backprop_data.hpp"
 #    include "low_precision/fold_convert.hpp"
 #    include "low_precision/fuse_convert.hpp"
@@ -196,6 +199,7 @@
 #    include "openvino/op/multiply.hpp"
 #    include "openvino/op/softmax.hpp"
 #    include "openvino/op/subtract.hpp"
+#    include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 #    include "snippets/pass/common_optimizations.hpp"
 #    include "snippets/utils/tokenization_utils.hpp"
 #    include "transformations/common_optimizations/rms_fusion.hpp"
@@ -1376,6 +1380,25 @@ void Transformations::MainSnippets() {
                (is_fp16 && ov::intel_cpu::brgemm_utils::is_fp16_supported()) ||
                (is_int8 && ov::intel_cpu::brgemm_utils::is_i8_supported());
     };
+    auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n,
+                                                   const ov::PartialShape& shape) {
+        // SplitDimensionM transformation doesn't support dynamic shapes, so M dim is split in runtime configurator
+        if (shape.is_dynamic()) {
+            return false;
+        }
+        auto parallel_work_amount = ov::Dimension(1);
+        if (shape.size() > 2) {
+            parallel_work_amount =
+                std::accumulate(shape.rbegin() + 2, shape.rend(), parallel_work_amount, std::multiplies<>());
+        }
+        // Ticket 160154: enable tokenization for MHA with insufficient parallel work amount
+        const auto is_unsupported_parallel_work_amount =
+            static_cast<size_t>(parallel_work_amount.get_length()) < common_optimizations_config.get_concurrency() &&
+            !snippets::lowered::pass::MHAParallelWAOptimizer::can_be_optimized(
+                n,
+                common_optimizations_config.get_concurrency());
+        return is_unsupported_parallel_work_amount;
+    };
 #endif  // OPENVINO_ARCH_X86_64
 
     auto is_supported_op = []([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
@@ -1480,13 +1503,19 @@ void Transformations::MainSnippets() {
                 while (!ov::is_type<const ov::op::v0::MatMul>(child)) {
                     child = child->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
                 }
-                return !is_supported_matmul(child);
+                if (!is_supported_matmul(child))
+                    return true;
+
+                const auto& pshape = child->get_input_partial_shape(0);
+                return is_unsupported_parallel_work_amount(n, pshape);
             },
             TokenizeMHASnippets);
         CPU_SET_CALLBACK_X64(
             snippetsManager,
             [&](const std::shared_ptr<const ov::Node>& n) -> bool {
                 if (!is_supported_matmul(n))
+                    return true;
+                if (is_unsupported_parallel_work_amount(n, n->get_output_partial_shape(0)))
                     return true;
 
                 // We've only tested MLP sequence tokenization on small model shapes
@@ -1506,7 +1535,8 @@ void Transformations::MainSnippets() {
         CPU_SET_CALLBACK_X64(
             snippetsManager,
             [&](const std::shared_ptr<const ov::Node>& n) -> bool {
-                return !is_supported_matmul(n);
+                return !is_supported_matmul(n) ||
+                       is_unsupported_parallel_work_amount(n, n->get_output_partial_shape(0));
             },
             ExtractReshapesFromMHA);
     }
