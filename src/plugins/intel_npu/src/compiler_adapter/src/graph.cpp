@@ -56,6 +56,10 @@ CommandQueueDesc Graph::get_command_queue_desc() const {
 }
 
 void Graph::set_workload_type(const ov::WorkloadType workloadType) {
+    if (_zeroInitStruct == nullptr) {
+        return;
+    }
+
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(workloadType);
     if (_commandQueueDesc.workload == zeWorkloadType) {
