@@ -111,6 +111,18 @@ bool kernels_cache::is_cache_enabled() const {
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll::GetProgramSource");
     std::map<std::string, std::tuple<int32_t, std::vector<batch_program>>> program_buckets;
+    // Pre-check driver version once: skip the separate-batch workaround
+    // for drivers >= 32.0.101.5989 where the compiler issue is fixed.
+    bool skip_separate_batch_wa = false;
+    {
+        auto driver_version = _device->get_info().driver_version;
+        std::array<int, 4> ver = {0, 0, 0, 0};
+        if (std::sscanf(driver_version.c_str(), "%d.%d.%d.%d",
+                        &ver[0], &ver[1], &ver[2], &ver[3]) == 4) {
+            constexpr std::array<int, 4> threshold = {32, 0, 101, 5989};
+            skip_separate_batch_wa = (ver >= threshold);
+        }
+    }
 
     for (const auto& k : kernels_source_code) {
         auto& code = k.second;
@@ -152,6 +164,9 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             // This is a temporary walk-around to avoid severe performance drop.
             // It will be removed after OpenCL compiler is updated.
             auto need_separate_batch = [&](std::string& unique_kernel_name) -> bool {
+                if (skip_separate_batch_wa)
+                    return false;
+
                 const std::vector<std::string> special_kernels = {"gemm_tiled_opt"};
 
                 if (current_bucket.back().kernels_counter > 0) {
