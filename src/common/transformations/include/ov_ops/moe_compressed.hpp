@@ -40,8 +40,13 @@ public:
     /// \brief Constructs a MOECompressed operation with config only
     /// \param args The input tensors, in the following order:
     ///   0: hidden_states - input tensor with hidden representations
-    ///   1: routing_weights - [num_experts, ...] normalized weights for selected experts
-    ///      (input to final multiplication)
+    ///   1: routing_weights - normalized routing weights for selected experts.
+    ///      Supports both:
+    ///        * legacy "scattered" layout: [num_experts, ...] (one slice per expert)
+    ///        * compact post-GatherMatmul layout, consistent with ov::op::MOE
+    ///          routing_weights as documented in openvino/op/moe.hpp.
+    ///      In all cases, the layout must be compatible with router_topk_output_indices
+    ///      and the MOE configuration (top_k, num_expert, etc.).
     ///   2: router_topk_output_indices - [..., topk] indices of selected top-k experts
     ///   3: w0_weight - expert weights for first projection,
     ///   shape [num_experts, inter_size, group_num, group_size]

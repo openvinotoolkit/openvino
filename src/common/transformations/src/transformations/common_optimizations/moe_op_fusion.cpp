@@ -117,7 +117,17 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(size_t 
         }
 
         std::shared_ptr<ov::Node> moe_node;
-        bool is_compressed = pm.count(bgm_gate_6_m) > 0;
+        const bool is_gate_compressed = pm.count(bgm_gate_6_m);
+        const bool is_up_compressed = pm.count(bgm_up_6_m);
+        const bool is_down_compressed = pm.count(bgm_down_6_m);
+
+        // Bail out if BGMs are mixed (some compressed, some plain). The current
+        // MOE/MOECompressed configs assume all-or-nothing compression.
+        if ((is_gate_compressed != is_up_compressed) || (is_gate_compressed != is_down_compressed)) {
+            return false;
+        }
+
+        const bool is_compressed = is_gate_compressed;
 
         if (is_compressed) {
             // Build MOECompressed with 12 inputs: hidden, routing, topk,
@@ -274,7 +284,15 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(size_t 
 
         std::shared_ptr<ov::Node> moe_node;
 
-        const bool is_compressed = pm.count(bgm_gate_up_6_m) > 0;
+        const bool is_gate_up_compressed = pm.count(bgm_gate_up_6_m) > 0;
+        const bool is_down_compressed = pm.count(bgm_down_6_m) > 0;
+
+        // Bail out if BGMs are mixed (some compressed, some plain).
+        if (is_gate_up_compressed != is_down_compressed) {
+            return false;
+        }
+
+        const bool is_compressed = is_gate_up_compressed;
         if (is_compressed) {
             // Build MOECompressed inputs
             // GEMM2 compressed layout: hidden, routing, topk,

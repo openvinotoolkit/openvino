@@ -31,7 +31,7 @@ public:
 class ov::pass::Convert3GatherMatmulMoeBlockToMoeOp : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("Convert3GatherMatmulMoeBlockToMoeOp");
-    Convert3GatherMatmulMoeBlockToMoeOp(size_t has_batch_dim = 1, ov::element::Type out_type = ov::element::f16);
+    Convert3GatherMatmulMoeBlockToMoeOp(size_t has_batch_dim = 1, ov::element::Type out_type = ov::element::dynamic);
 };
 
 class ov::pass::MoeOpFusion : public ov::pass::GraphRewrite {
