@@ -178,7 +178,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     auto token_type_ids_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
     auto token_type_ids_mem = engine.allocate_memory(token_type_ids_layout);
     set_values(token_type_ids_mem, {0});
-    auto qq_bias_layout = layout{ov::PartialShape{16}, data_types::boolean, format::bfyx};
+    auto qq_bias_layout = layout{ov::PartialShape{16}, data_types::u8, format::bfyx};
     auto qq_bias_mem = engine.allocate_memory(qq_bias_layout);
     auto qq_bias_begins_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
     auto qq_bias_begins_mem = engine.allocate_memory(qq_bias_begins_layout);

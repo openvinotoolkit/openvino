@@ -1824,19 +1824,7 @@ public:
 
         if (p.has_qq_bias) {
             pam.qq_bias = p.qq_bias_config.qq_bias;
-
-            if (!p.qq_bias_config.qq_bias_begins.empty()) {
-                pam.qq_bias_begins = p.qq_bias_config.qq_bias_begins;
-            } else {
-                pam.qq_bias_begins.clear();
-                pam.qq_bias_begins.push_back(0);
-                int offset = 0;
-                for (const auto& matrix : pam.qq_bias) {
-                    offset += static_cast<int>(matrix.size());
-                    pam.qq_bias_begins.push_back(offset);
-                }
-            }
-
+            pam.qq_bias_begins = p.qq_bias_config.qq_bias_begins;
         }
 
         if (p.kv_cache_compression)

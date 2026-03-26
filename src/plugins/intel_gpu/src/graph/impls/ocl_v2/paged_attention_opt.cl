@@ -409,14 +409,11 @@ KERNEL(pa_sdpa_opt)(
 #endif
 
 #if SLIDING_WINDOW_SIZE != 0
-            if (token_idx >= seq_len || (seq_len > SLIDING_WINDOW_SIZE && token_idx < (seq_len - SLIDING_WINDOW_SIZE))) {
-                qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
-            } else
+            if (token_idx >= seq_len || (seq_len > SLIDING_WINDOW_SIZE && token_idx < (seq_len - SLIDING_WINDOW_SIZE)))
 #else
-            if (token_idx >= seq_len) {
-                qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
-            }
+            if (token_idx >= seq_len)
 #endif
+                qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
 
 #if HAS_QQ_BIAS && MULTI_TOKENS_PROCESSING
             // token_idx < seq_len, speculative tree mask

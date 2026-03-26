@@ -472,8 +472,8 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
     auto adaptive_rkv_diversity_block_set_indices_layout = layout{ov::PartialShape{1}, data_types::f32, format::bfyx};
     auto adaptive_rkv_diversity_block_set_indices_begins_layout = layout{ov::PartialShape{1}, data_types::f32, format::bfyx};
     auto token_type_ids_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
-    auto qq_bias = layout{ ov::PartialShape{1, 4, 4}, data_types::boolean, format::bfyx };
-    auto qq_bias_begins = layout{ov::PartialShape::dynamic(1), data_types::boolean, format::bfyx};;
+    auto qq_bias = layout{ ov::PartialShape{1, 4, 4}, data_types::u8, format::bfyx };
+    auto qq_bias_begins = layout{ov::PartialShape::dynamic(1), data_types::i32, format::bfyx};;
 
     std::vector<input_info> pa_inputs = {input_info("query"),
                                          input_info("key"),
