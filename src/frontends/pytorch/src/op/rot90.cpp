@@ -26,6 +26,12 @@ OutputVector translate_rot90(const NodeContext& context) {
     auto dims = (input_size < 3 || context.input_is_none(2))
                     ? context.mark_node(v0::Constant::create(element::i64, {2}, {0, 1}))
                     : get_input_concat_if_list(context, 2);
+    // rot90 checks //
+    auto const_node = std::dynamic_pointer_cast<v0::Constant>(dims.get_node_shared_ptr());
+    auto vals = const_node->cast_vector<int64_t>();
+    PYTORCH_OP_CONVERSION_CHECK(vals.size() == 2, "Length of \'dims\' must be 2.");
+    PYTORCH_OP_CONVERSION_CHECK(vals[0] != vals[1], "Expected rotation \'dims\' to be different.");
+    // //
     k = (k % 4 + 4) % 4;
     auto zero = v0::Constant::create(element::i64, Shape{}, {0});
     auto one = v0::Constant::create(element::i64, Shape{}, {1});
