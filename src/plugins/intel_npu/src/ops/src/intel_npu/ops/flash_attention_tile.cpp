@@ -188,9 +188,9 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
                            "Key input rank length must be at least 3 or more.");
     auto key_batch_dims = ov::PartialShape(std::vector<DimType>(key_shape.begin(), key_shape.end() - 3));
     auto kv_head_dim = *(key_shape.end() - 3);
-    const bool key_input_correctness =
-        ov::PartialShape::merge_into(query_batch_dims, key_batch_dims) &&
-        is_gqa_compatible(q_head_dim, kv_head_dim) && DimType::merge(e_dim, e_dim, *(key_shape.end() - 1));
+    const bool key_input_correctness = ov::PartialShape::merge_into(query_batch_dims, key_batch_dims) &&
+                                       is_gqa_compatible(q_head_dim, kv_head_dim) &&
+                                       DimType::merge(e_dim, e_dim, *(key_shape.end() - 1));
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            key_input_correctness,
@@ -207,9 +207,8 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
     auto value_batch_dims = ov::PartialShape(std::vector<DimType>(value_shape.begin(), value_shape.end() - 3));
     auto v_head_dim = *(value_shape.end() - 3);
     const bool value_input_correctness =
-        ov::PartialShape::merge_into(query_batch_dims, value_batch_dims) &&
-        is_gqa_compatible(q_head_dim, v_head_dim) && DimType::merge(kv_head_dim, kv_head_dim, v_head_dim) &&
-        DimType::merge(s_dim, s_dim, *(value_shape.end() - 2));
+        ov::PartialShape::merge_into(query_batch_dims, value_batch_dims) && is_gqa_compatible(q_head_dim, v_head_dim) &&
+        DimType::merge(kv_head_dim, kv_head_dim, v_head_dim) && DimType::merge(s_dim, s_dim, *(value_shape.end() - 2));
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            value_input_correctness,
@@ -238,10 +237,9 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
     const auto& running_max_rank = running_max_shape.rank();
     auto running_max_batch_head =
         ov::PartialShape(std::vector<DimType>(running_max_shape.begin(), running_max_shape.end() - 1));
-    const bool running_max_correctness =
-        running_max_rank.get_length() >= 2 &&
-        ov::PartialShape::merge_into(q_full_batch_dims, running_max_batch_head) &&
-        (*(running_max_shape.end() - 1) == l_dim);
+    const bool running_max_correctness = running_max_rank.get_length() >= 2 &&
+                                         ov::PartialShape::merge_into(q_full_batch_dims, running_max_batch_head) &&
+                                         (*(running_max_shape.end() - 1) == l_dim);
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            running_max_correctness,
@@ -251,10 +249,9 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
     const auto& running_sum_rank = running_sum_shape.rank();
     auto running_sum_batch_head =
         ov::PartialShape(std::vector<DimType>(running_sum_shape.begin(), running_sum_shape.end() - 1));
-    const bool running_sum_correctness =
-        running_sum_rank.get_length() >= 2 &&
-        ov::PartialShape::merge_into(q_full_batch_dims, running_sum_batch_head) &&
-        (*(running_sum_shape.end() - 1) == l_dim);
+    const bool running_sum_correctness = running_sum_rank.get_length() >= 2 &&
+                                         ov::PartialShape::merge_into(q_full_batch_dims, running_sum_batch_head) &&
+                                         (*(running_sum_shape.end() - 1) == l_dim);
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            running_sum_correctness,
@@ -271,15 +268,23 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
                                "Attention mask rank must be 2, 3, or 4; got ",
                                attention_mask_rank_len,
                                ".");
-        // Build the expected shape [B?, H_q, L, S] and broadcast-merge against the mask.
+        // L and S must match exactly — the evaluator indexes the mask as [*, L, S]
+        // without per-element stride logic, so broadcasting on these dims is not supported.
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               DimType::merge(l_dim, l_dim, *(attention_mask.end() - 2)) &&
+                                   DimType::merge(s_dim, s_dim, *(attention_mask.end() - 1)),
+                               "Attention mask L and S dims must match query L and key S.");
+        // Broadcast-merge the leading [B, H] dims against the mask's leading dims.
         auto expected = q_full_batch_dims;
-        expected.push_back(l_dim);
-        expected.push_back(s_dim);
+        auto mask_batch_head = ov::PartialShape(std::vector<DimType>(attention_mask.begin(), attention_mask.end() - 2));
         NODE_SHAPE_INFER_CHECK(
             op,
             input_shapes,
-            ov::PartialShape::broadcast_merge_into(expected, attention_mask, ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY)),
-            "Attention mask input shape not compatible with other inputs.");
+            ov::PartialShape::broadcast_merge_into(expected,
+                                                   mask_batch_head,
+                                                   ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY)),
+            "Attention mask batch/head dims not compatible with query.");
     }
 
     auto result_running_output_shape = q_full_batch_dims;
@@ -492,9 +497,7 @@ static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
                     mask_batch_stride = mask_H * mask_L * mask_S;
                 }
             }
-            OPENVINO_ASSERT(mask_rank <= 4,
-                            "Attention mask rank > 4 is not supported; got rank ",
-                            mask_rank);
+            OPENVINO_ASSERT(mask_rank <= 4, "Attention mask rank > 4 is not supported; got rank ", mask_rank);
         }
     }
 
