@@ -11,12 +11,12 @@
 #include "shared_test_classes/base/utils/ranges.hpp"
 
 namespace {
-enum class PatternType { SharedDQ_ORT, SharedDQ, NeedScalingMulMatMul, NeedScalingResidualBlock, NeedScalingMatMulWithBias, NeedScalingForwardBias };
+enum class PatternType { DuplicatedDQ, SharedDQ, NeedScalingMulMatMul, NeedScalingResidualBlock, NeedScalingMatMulWithBias, NeedScalingForwardBias };
 
 inline std::ostream& operator<<(std::ostream& os, PatternType pattern_type) {
     switch (pattern_type) {
-    case PatternType::SharedDQ_ORT:
-        os << "SharedDQ_ORT";
+    case PatternType::DuplicatedDQ:
+        os << "DuplicatedDQ";
         break;
     case PatternType::SharedDQ:
         os << "SharedDQ";
@@ -113,8 +113,8 @@ protected:
                         "Only i16 and u16 quantization precisions are supported in the test");
         switch (pattern_type) {
             using ov::builder::subgraph::QDQStrippingFunction;
-        case PatternType::SharedDQ_ORT:
-            function = QDQStrippingFunction::build_shared_dq_pattern_ORT(input_shape.first, quantization_precision);
+        case PatternType::DuplicatedDQ:
+            function = QDQStrippingFunction::build_duplicated_dq_pattern(input_shape.first, quantization_precision);
             break;
         case PatternType::SharedDQ:
             function = QDQStrippingFunction::build_shared_dq_pattern(input_shape.first, quantization_precision);
@@ -171,8 +171,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_QDQStripping_f16Only,
                                             ::testing::ValuesIn(input_precisions),
                                             ::testing::ValuesIn(quantization_precisions),
                                             ::testing::Values(ov::element::f16),
-                                            ::testing::Values(/*PatternType::NeedScalingMulMatMul,*/
-                                                              PatternType::SharedDQ_ORT)),
+                                            ::testing::Values(PatternType::NeedScalingMulMatMul,
+                                                              PatternType::DuplicatedDQ)),
                          QDQStrippingTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_QDQStripping_BothPrecisions,

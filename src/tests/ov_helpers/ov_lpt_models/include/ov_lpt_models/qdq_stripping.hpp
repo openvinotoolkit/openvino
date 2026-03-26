@@ -52,12 +52,11 @@ public:
     static std::shared_ptr<ov::Model> build_shared_dq_pattern_ref(const ov::PartialShape& input_shape,
                                                                   bool need_weights_adjustment = true);
     
-    static std::shared_ptr<ov::Model> build_shared_dq_pattern_ORT(const ov::PartialShape& input_shape,
-        const ov::element::Type& quantization_precision);
-    static std::shared_ptr<ov::Model> build_shared_dq_pattern_ORT_ref(const ov::PartialShape& input_shape,
-        bool need_weights_adjustment = true);
+    static std::shared_ptr<ov::Model> build_duplicated_dq_pattern(const ov::PartialShape& input_shape,
+                                                                  const ov::element::Type& quantization_precision);
+    static std::shared_ptr<ov::Model> build_duplicated_dq_pattern_ref(const ov::PartialShape& input_shape,
+                                                                   bool need_weights_adjustment = true);
 
-    
     static std::shared_ptr<ov::Model> build_mul_matmul_pattern(const ov::PartialShape& input_shape,
                                                                const ov::element::Type& quantization_precision);
     static std::shared_ptr<ov::Model> build_mul_matmul_pattern_ref(const ov::PartialShape& input_shape,
