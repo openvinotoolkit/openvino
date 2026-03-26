@@ -406,8 +406,9 @@ std::shared_ptr<lowered::LinearIR> Subgraph::convert_body_to_linear_ir(
     size_t min_kernel_work_amount,
     const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
     const auto& target_machine = m_generator->get_target_machine();
+    const auto ops = body_ptr()->get_ops();
     const auto target_blocks_domain_optimization =
-        std::any_of(body_ptr()->get_ops().begin(), body_ptr()->get_ops().end(), [&target_machine](const auto& op) {
+        std::any_of(ops.begin(), ops.end(), [&target_machine](const auto& op) {
             return !target_machine->supports_domain_optimization(op);
         });
 
