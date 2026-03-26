@@ -53,11 +53,8 @@ const std::shared_ptr<CommandQueue>& Graph::get_command_queue() const {
     return _commandQueue;
 }
 
-uint32_t Graph::get_command_queue_group_ordinal() const {
-    return _commandQueueGroupOrdinal;
-}
-
 void Graph::set_workload_type(const ov::WorkloadType workloadType) const {
+    std::lock_guard<std::mutex> lock(_commandQueueMutex);
     if (_commandQueue == nullptr) {
         return;
     }
@@ -161,7 +158,7 @@ void Graph::set_argument_value_with_strides(uint32_t id, const void* data, const
     _zeGraphExt->setGraphArgumentValueWithStrides(_graphDesc, id, data, strides);
 }
 
-void Graph::initialize(const FilteredConfig& config) {
+void Graph::initialize_impl(const FilteredConfig& config) {
     _logger.debug("Graph initialize start");
 
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
@@ -169,34 +166,31 @@ void Graph::initialize(const FilteredConfig& config) {
         return;
     }
 
-    _commandQueueGroupOrdinal = zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
-                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
-
     uint32_t commandQueueOptions = 0;
-
     if (config.has<TURBO>() && config.get<TURBO>()) {
         if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
             _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
             commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
     }
-
     if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
         config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
         commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
 
-    _commandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                   zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                   _commandQueueGroupOrdinal,
-                                                   commandQueueOptions);
+    {
+        std::lock_guard<std::mutex> lock(_commandQueueMutex);
+        _commandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
+                                                       zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+                                                       commandQueueOptions);
+    }
 
     if (config.has<WORKLOAD_TYPE>()) {
         set_workload_type(config.get<WORKLOAD_TYPE>());
     }
 
-    _zeGraphExt->initializeGraph(_graphDesc, _commandQueueGroupOrdinal);
+    _zeGraphExt->initializeGraph(_graphDesc);
     _logger.debug("Graph initialize finish");
 
     //  We are allowed to release the original blob because weights were loaded in NPU memory during
@@ -215,7 +209,7 @@ void Graph::initialize(const FilteredConfig& config) {
         _lastSubmittedEvent.resize(numberOfCommandLists);
     }
     // To ensure that the initialization of the graph does not exit prematurely due to nullptrs
-    _init_completed = true;
+    _init_completed.store(true, std::memory_order_release);
 }
 
 bool Graph::release_blob(const FilteredConfig& config) {
