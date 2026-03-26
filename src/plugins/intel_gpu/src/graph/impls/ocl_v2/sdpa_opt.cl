@@ -1041,6 +1041,12 @@ KERNEL(sdpa_opt)(
             new_group_end++;
         }
         token_group_end = new_group_end - 1;
+
+        uint new_group_begin = token_group_begin - 1;
+        while (new_group_begin > 0 && token_type_ids[new_group_begin] == 1) {
+            new_group_begin--;
+        }
+        token_group_begin = new_group_begin;
     }
     const uint max_token_group_end_for_this_sg = sub_group_reduce_max(token_group_end) + 1;
 #endif
@@ -1436,7 +1442,15 @@ KERNEL(sdpa_opt)(
 #endif
 
 #if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
-                    if ((seq_len + i <= this_work_item_max_target_seq_idx) && (this_work_item_max_target_seq_idx < SLIDING_WINDOW_SIZE || seq_len + i > this_work_item_max_target_seq_idx - SLIDING_WINDOW_SIZE)) {
+                    const uint default_this_work_item_min_seq_idx = target_seq_idx + sglid - SLIDING_WINDOW_SIZE;
+#if HAS_TOKEN_TYPE_IDS
+                    const uint this_work_item_min_seq_idx = min(token_group_begin, default_this_work_item_min_seq_idx);
+#else
+                    const uint this_work_item_min_seq_idx = default_this_work_item_min_seq_idx;
+#endif
+                    if ((seq_len + i <= this_work_item_max_target_seq_idx) 
+                        && (target_seq_idx + sglid < SLIDING_WINDOW_SIZE 
+                            || seq_len + i > this_work_item_min_seq_idx)) {
 #else
                     if (seq_len + i <= this_work_item_max_target_seq_idx) {
 #endif
@@ -1605,9 +1619,18 @@ KERNEL(sdpa_opt)(
 #endif
 
 #if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
-                if ((seq_len + i <= this_work_item_max_target_seq_idx) 
-                    && (this_work_item_max_target_seq_idx < SLIDING_WINDOW_SIZE || seq_len + i >= this_work_item_max_target_seq_idx - SLIDING_WINDOW_SIZE)) 
-                {
+                const uint default_this_work_item_min_seq_idx = target_seq_idx + sglid - SLIDING_WINDOW_SIZE;
+#if HAS_TOKEN_TYPE_IDS
+                const uint this_work_item_min_seq_idx = min(token_group_begin, default_this_work_item_min_seq_idx);
+#else
+                const uint this_work_item_min_seq_idx = default_this_work_item_min_seq_idx;
+#endif
+                // WARNING! Following condition is almost the same as in the version for IS_FLASHATTEN_V2
+                // above, the only difference is in the second part of the condition where ">" is replaced with ">=".
+                // Fixing it to be exactly the same as in IS_FLASHATTEN_V2 version causes smoke_paged_attention/paged_attention_test.basic/92
+                // to fail, so it is left as is for now, but it needs to be revisited and properly fixed later.
+                if ((seq_len + i <= this_work_item_max_target_seq_idx) &&
+                    (target_seq_idx + sglid < SLIDING_WINDOW_SIZE || seq_len + i >= this_work_item_min_seq_idx)) {
 #else
                 if (seq_len + i <= this_work_item_max_target_seq_idx) {
 #endif

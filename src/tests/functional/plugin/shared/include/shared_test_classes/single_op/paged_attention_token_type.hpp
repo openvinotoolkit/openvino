@@ -36,6 +36,7 @@ class PagedAttentionTokenTypeTest : public testing::WithParamInterface<PagedAttn
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PagedAttnTokenTypeParams>& obj);
     static std::vector<TestData> GetTestDataForHeadSize32HeadNum1();
+    static std::vector<TestData> GetTestDataForHeadSize32HeadNum1SlidingWindowSize5();
     void run() override;
 
 protected:
