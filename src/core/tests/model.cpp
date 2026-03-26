@@ -1534,6 +1534,7 @@ TEST(model, topological_sort_throws_if_loop_with_one_node) {
 
         // Loop relu1->relu1
         relu1->input(0).replace_source_output(relu1->output(0));
+        nodes = {arg0, relu1};
 
         auto result = std::make_shared<ov::op::v0::Result>(relu1);
         ASSERT_THROW(std::ignore = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{arg0}),
@@ -1573,6 +1574,7 @@ TEST(model, topological_sort_throws_if_loop_with_several_nodes) {
         // Loop relu2->relu3->relu2
         auto relu2 = std::make_shared<ov::op::v0::Relu>(relu1->output(0));
         auto relu3 = std::make_shared<ov::op::v0::Relu>(relu2);
+        nodes = {arg0, relu1, relu2, relu3};
         ov::replace_node(relu1, relu3);
 
         ASSERT_THROW(std::ignore = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{arg0}),
@@ -1590,6 +1592,7 @@ TEST(model, topological_sort_throws_if_loop_with_control_dependency) {
         auto relu1 = std::make_shared<ov::op::v0::Relu>(arg0);
         auto relu2 = std::make_shared<ov::op::v0::Relu>(relu1);
         auto result = std::make_shared<ov::op::v0::Result>(relu2);
+        nodes = {arg0, relu1, relu2};
 
         // Loop relu1->relu2->relu1
         relu1->add_control_dependency(relu2);
@@ -1612,6 +1615,7 @@ TEST(model, topological_sort_throws_if_loop_with_control_dependency_only) {
         auto arg1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
         auto relu1 = std::make_shared<ov::op::v0::Relu>(arg1);
         auto result1 = std::make_shared<ov::op::v0::Result>(relu1);
+        nodes = {arg0, relu0, arg1, relu1};
 
         // Loop relu0->relu1->relu0
         relu0->add_control_dependency(relu1);
