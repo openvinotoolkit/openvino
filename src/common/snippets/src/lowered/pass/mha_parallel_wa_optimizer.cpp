@@ -268,6 +268,10 @@ bool MHAParallelWAOptimizer::split(const ov::Shape& shape,
                                    size_t optimal_parallelism_work_amount,
                                    size_t& batch_m_dim,
                                    size_t& new_m_dim) {
+    // Shape must have at least 2 dimensions (M and K); shapes like [] or [K] are not splittable
+    if (shape.size() < 2) {
+        return false;
+    }
     const auto batch_dim =
         std::accumulate(shape.rbegin() + 2, shape.rend(), static_cast<size_t>(1), std::multiplies<>());
     const auto m_dim = *(shape.rbegin() + 1);
