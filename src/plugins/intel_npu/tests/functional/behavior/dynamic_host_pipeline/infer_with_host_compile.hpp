@@ -28,14 +28,20 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel() {
 
     auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input,
                                                          Strides{1, 1},
-                                                         Shape{0, 0},
-                                                         Shape{0, 0},
                                                          Shape{1, 1},
+                                                         Shape{1, 1},
+                                                         Shape{3, 3},
                                                          op::RoundingType::FLOOR,
                                                          op::PadType::EXPLICIT);
     maxpool->set_friendly_name("MaxPool_2");
 
-    auto result = std::make_shared<ov::op::v0::Result>(maxpool);
+    auto scale = ov::opset6::Constant::create(element::f32, Shape{}, {2.0f});
+    scale->set_friendly_name("scale_const");
+
+    auto mul = std::make_shared<ov::op::v1::Multiply>(maxpool, scale);
+    mul->set_friendly_name("Mul_1");
+
+    auto result = std::make_shared<ov::op::v0::Result>(mul);
     result->set_friendly_name("output");
 
     return std::make_shared<Model>(ResultVector{result}, ParameterVector{input}, "MaxPool");
@@ -415,7 +421,7 @@ void dumpTensor(const ov::Tensor& tensor) {
 
 // The test to compile, create infer request and infer with a LevelZeroTensor input, then compare the output with a
 // CPU reference result.
-TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithCPU) {
+TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithReference) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
@@ -424,7 +430,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithCPU) {
 
     auto model = createMaxPoolModel();
     ov::CompiledModel compiledModel;
-    ov::CompiledModel cpuCompiledModel;
+    ov::CompiledModel referenceCompiledModel;
 
     // Create log callback function which will store log to string, the set to ov
     std::stringstream customLogger;
@@ -443,7 +449,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithCPU) {
 
     OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
     try {
-        cpuCompiledModel = core->compile_model(model, "CPU");
+        referenceCompiledModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
         GTEST_SKIP() << "CPU plugin is not available for reference comparison: " << e.what();
     }
@@ -458,26 +464,27 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithCPU) {
         GTEST_SKIP() << "Cannot load library, skip test.";
     }
 
-    ov::InferRequest reqCPU = cpuCompiledModel.create_infer_request();
+    ov::InferRequest reqReference = referenceCompiledModel.create_infer_request();
 
     // create input tensor match the customized models
     ov::Shape shape = {1, 16, 720, 1280};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
-    OV_ASSERT_NO_THROW(reqCPU.set_input_tensor(0, inTensor));
-    OV_ASSERT_NO_THROW(reqCPU.infer());
+    OV_ASSERT_NO_THROW(reqReference.set_input_tensor(0, inTensor));
+    OV_ASSERT_NO_THROW(reqReference.infer());
 
     auto npuOutputTensor = reqDynamic.get_tensor(model->output());
-    auto cpuOutputTensor = reqCPU.get_tensor(model->output());
-    OV_ASSERT_NO_THROW(ov::test::utils::compare(cpuOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type()));
+    auto referenceOutputTensor = reqReference.get_tensor(model->output());
+    OV_ASSERT_NO_THROW(
+        ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type()));
 
     std::cout << "Output input tensor from NPU:" << std::endl;
     dumpTensor(inTensor);
     std::cout << "Output tensor from NPU:" << std::endl;
     dumpTensor(npuOutputTensor);
-    std::cout << "Output tensor from CPU:" << std::endl;
-    dumpTensor(cpuOutputTensor);
+    std::cout << "Output tensor from reference:" << std::endl;
+    dumpTensor(referenceOutputTensor);
 
     // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
@@ -486,7 +493,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithCPU) {
     customLogger.str("");
     customLogger.clear();
     OV_ASSERT_NO_THROW(reqDynamic.infer());
-    OV_ASSERT_NO_THROW(reqCPU.infer());
+    OV_ASSERT_NO_THROW(reqReference.infer());
     // Rerun inferrequest with current tensor, the command list is reused without update since no tensor change detected
     ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
                 std::string::npos)
@@ -494,14 +501,14 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithCPU) {
            "inference, but got: "
         << customLogger.str();
     auto npuOutputTensorSecondRun = reqDynamic.get_tensor(model->output());
-    auto cpuOutputTensorSecondRun = reqCPU.get_tensor(model->output());
-    OV_ASSERT_NO_THROW(ov::test::utils::compare(cpuOutputTensorSecondRun,
+    auto referenceOutputTensorSecondRun = reqReference.get_tensor(model->output());
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(referenceOutputTensorSecondRun,
                                                 npuOutputTensorSecondRun,
                                                 npuOutputTensorSecondRun.get_element_type()));
     std::cout << "Output tensor from NPU after second inference:" << std::endl;
     dumpTensor(npuOutputTensorSecondRun);
-    std::cout << "Output tensor from CPU after second inference:" << std::endl;
-    dumpTensor(cpuOutputTensorSecondRun);
+    std::cout << "Output tensor from reference after second inference:" << std::endl;
+    dumpTensor(referenceOutputTensorSecondRun);
 
     customLogger.str("");
     customLogger.clear();
@@ -513,11 +520,11 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithCPU) {
 
     customLogger.str("");
     customLogger.clear();
-    ov::InferRequest reqCPU1 = cpuCompiledModel.create_infer_request();
+    ov::InferRequest reqReference1 = referenceCompiledModel.create_infer_request();
     OV_ASSERT_NO_THROW(reqDynamic1.set_input_tensor(0, npuOutputTensorSecondRun));
     OV_ASSERT_NO_THROW(reqDynamic1.infer());
-    OV_ASSERT_NO_THROW(reqCPU1.set_input_tensor(0, cpuOutputTensorSecondRun));
-    OV_ASSERT_NO_THROW(reqCPU1.infer());
+    OV_ASSERT_NO_THROW(reqReference1.set_input_tensor(0, referenceOutputTensorSecondRun));
+    OV_ASSERT_NO_THROW(reqReference1.infer());
 
     // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
     ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
@@ -526,14 +533,14 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithCPU) {
         << customLogger.str();
 
     auto npuOutputTensorThirdRun = reqDynamic1.get_tensor(model->output());
-    auto cpuOutputTensorThirdRun = reqCPU1.get_tensor(model->output());
-    OV_ASSERT_NO_THROW(ov::test::utils::compare(cpuOutputTensorThirdRun,
+    auto referenceOutputTensorThirdRun = reqReference1.get_tensor(model->output());
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(referenceOutputTensorThirdRun,
                                                 npuOutputTensorThirdRun,
                                                 npuOutputTensorThirdRun.get_element_type()));
     std::cout << "Output tensor from NPU after third inference:" << std::endl;
     dumpTensor(npuOutputTensorThirdRun);
-    std::cout << "Output tensor from CPU after third inference:" << std::endl;
-    dumpTensor(cpuOutputTensorThirdRun);
+    std::cout << "Output tensor from reference after third inference:" << std::endl;
+    dumpTensor(referenceOutputTensorThirdRun);
 }
 
 // The test to compile, create infer request and infer with dynamic shapes. Set tensor that can be imported by level
