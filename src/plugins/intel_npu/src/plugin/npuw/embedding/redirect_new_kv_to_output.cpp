@@ -111,6 +111,10 @@ bool redirect_new_kv_to_output(const std::shared_ptr<ov::Model>& model) {
 
 }  // namespace
 
+namespace ov::npuw {
+
 bool RedirectNewKvToOutput::run_on_model(const std::shared_ptr<ov::Model>& model) {
     return redirect_new_kv_to_output(model);
 }
+
+}  // namespace ov::npuw

@@ -118,6 +118,10 @@ bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
 
 }  // namespace
 
+namespace ov::npuw {
+
 bool RemoveEmptyKVInputs::run_on_model(const std::shared_ptr<ov::Model>& model) {
     return remove_empty_kv_inputs(model);
 }
+
+}  // namespace ov::npuw

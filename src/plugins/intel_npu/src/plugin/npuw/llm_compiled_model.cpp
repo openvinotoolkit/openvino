@@ -894,16 +894,16 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     if (!m_is_embedding) {
         if (!m_use_chunk_prefill) {
-            NPUW_ASSERT(RemoveEmptyKVInputs().run_on_model(prefill_model));
+            NPUW_ASSERT(ov::npuw::RemoveEmptyKVInputs().run_on_model(prefill_model));
         } else {
             LOG_DEBUG("Don't remove input key/values from prefill model.");
             LOG_DEBUG("Ask prefill model to output key/values for prefill chunk size tokens.");
-            RedirectNewKvToOutput().run_on_model(prefill_model);
+            ov::npuw::RedirectNewKvToOutput().run_on_model(prefill_model);
         }
 
         LOG_DEBUG("Optimize generate model to output key/values for new token.");
         for (size_t i = 0; i < generate_model_variants.size(); ++i) {
-            RedirectNewKvToOutput().run_on_model(generate_model_variants[i]);
+            ov::npuw::RedirectNewKvToOutput().run_on_model(generate_model_variants[i]);
         }
     }
 
