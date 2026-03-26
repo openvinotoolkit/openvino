@@ -92,7 +92,7 @@ TEST_P(ZeroCmdQueuePoolTests, SetWorkloadType) {
 
 TEST_P(ZeroCmdQueuePoolTests, PoolReusabilityTest) {
     // Test that the pool correctly reuses queues after weak_ptr cleanup
-    ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL, ZE_WORKLOAD_TYPE_BACKGROUND};
+    ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL, ZE_WORKLOAD_TYPE_DEFAULT};
 
     // First allocation
     std::shared_ptr<::intel_npu::CommandQueue> queue1 =
