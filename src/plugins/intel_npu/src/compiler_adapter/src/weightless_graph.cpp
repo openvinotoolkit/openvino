@@ -315,7 +315,9 @@ void WeightlessGraph::initialize_impl(const FilteredConfig& config) {
         }
     }
     CommandQueueDesc commandQueueDesc{zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                      zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()),
+                                      config.has<WORKLOAD_TYPE>()
+                                          ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>())
+                                          : ZE_WORKLOAD_TYPE_DEFAULT,
                                       commandQueueOptions};
     _initsCommandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, commandQueueDesc);
 

@@ -38,7 +38,7 @@ struct ZeroCmdQueueKey {
 };
 
 struct ZeroCmdQueueKeyHash {
-    size_t operator()(const ZeroCmdQueueKey& k) const {
+    size_t operator()(const ZeroCmdQueueKey& key) const {
         // Initial 64-bit seed for deterministic key mixing.
         static constexpr uint64_t kFnvOffsetBasis64 = 1469598103934665603ULL;
         // 64-bit golden-ratio constant used by boost-style hash combine.
@@ -49,13 +49,15 @@ struct ZeroCmdQueueKeyHash {
             // Mix each field into the running hash; suitable for unordered_map use.
             hash ^= value + kHashCombineConstant64 + (hash << 6) + (hash >> 2);
         };
-        hash_combine(std::hash<void*>{}(k.context));
-        hash_combine(std::hash<void*>{}(k.device));
-        hash_combine(static_cast<uint64_t>(k.desc.priority));
-        hash_combine(static_cast<uint64_t>(k.desc.workload));
-        hash_combine(static_cast<uint64_t>(k.desc.options));
-        if (k.desc.options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) {
-            hash_combine(std::hash<const void*>{}(k.desc.owner_tag));
+        hash_combine(std::hash<void*>{}(key.context));
+        hash_combine(std::hash<void*>{}(key.device));
+        hash_combine(static_cast<uint64_t>(key.desc.priority));
+        hash_combine(static_cast<uint64_t>(key.desc.workload));
+        hash_combine(static_cast<uint64_t>(key.desc.options));
+        if (key.desc.options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) {
+            OPENVINO_ASSERT(key.desc.owner_tag != nullptr,
+                            "owner_tag must not be null when ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC is set");
+            hash_combine(std::hash<const void*>{}(key.desc.owner_tag));
         }
         return static_cast<size_t>(hash);
     }

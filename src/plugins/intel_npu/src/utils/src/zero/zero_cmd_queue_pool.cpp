@@ -49,7 +49,7 @@ std::shared_ptr<CommandQueue> ZeroCmdQueuePool::getCommandQueue(
                                                      delete ptr;
                                                  });
 
-    _pool.emplace(key, new_obj);
+    _pool.insert_or_assign(key, new_obj);
 
     return new_obj;
 }

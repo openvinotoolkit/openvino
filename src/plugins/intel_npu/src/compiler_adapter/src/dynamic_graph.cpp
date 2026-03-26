@@ -566,10 +566,12 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
 
     {
         std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
-        _commandQueueDesc = CommandQueueDesc{zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                             zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()),
-                                             commandQueueOptions,
-                                             this};
+        _commandQueueDesc =
+            CommandQueueDesc{zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+                             config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>())
+                                                         : ZE_WORKLOAD_TYPE_DEFAULT,
+                             commandQueueOptions,
+                             this};
         _commandQueueDescVersion.fetch_add(1, std::memory_order_release);
     }
 
