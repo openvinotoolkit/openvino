@@ -2610,6 +2610,7 @@ TEST(eltwise_gpu_int, basic_in4x4x4x4) {
                     5.f,   7.f,   2.f,   2.f,
                     15.f,  17.f,   8.f,   8.f,
                     6.f,   8.f, 2.f,  10.f };
+            set_values(input2, input_2_vec);
 
             network network(engine, topology, get_test_default_config(engine));
             network.set_input_data("input", input);
@@ -2775,6 +2776,7 @@ TEST(eltwise_gpu_f32_int, basic_in4x4x4x4) {
                     5.f,   7.f,   2.f,   2.f,
                     15.f,  17.f,   8.f,   8.f,
                     6.f,   8.f, 2.f,  10.f };
+            set_values(input2, input_2_vec);
 
             network network(engine, topology, get_test_default_config(engine));
             network.set_input_data("input", input);
