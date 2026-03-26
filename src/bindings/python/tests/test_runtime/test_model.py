@@ -36,6 +36,15 @@ from openvino import (
     save_model,
     serialize,
     set_batch,
+    OVAny,
+)
+from openvino import Output, get_version
+from openvino.op.util import VariableInfo, Variable
+
+from tests.utils.helpers import (
+    generate_add_model,
+    generate_model_with_memory,
+    create_filenames_for_ir,
 )
 from openvino.op.util import Variable, VariableInfo
 
@@ -1137,6 +1146,7 @@ def test_model_with_statement():
 
         with Core().read_model(f"{model_save_dir}/model.xml") as model:
             assert mem_model.friendly_name == model.friendly_name
+            assert model.get_rt_info("OpenVINO Runtime") == get_version()
 
         with pytest.raises(AttributeError):
             save_model(model, f"{model_save_dir}/model.xml")
