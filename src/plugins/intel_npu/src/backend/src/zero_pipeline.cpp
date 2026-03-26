@@ -57,9 +57,7 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                    _config.get<RUN_INFERENCES_SEQUENTIALLY>()),
       _pipeline_unique_id_per_graph(get_graph_unique_id_or_throw(graph)),
       _logger(logName, _config.get<LOG_LEVEL>()) {
-    const auto command_queue_state = get_command_queue_state_snapshot();
-    _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_state.desc);
-    _command_queue_version = command_queue_state.version;
+    _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, _graph->get_command_queue_desc());
 
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
     std::optional<bool> compiled_with_profiling = _graph->is_profiling_blob();
@@ -99,18 +97,6 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
         }  // else appendGraphExecute will fail in case the model was compiled with profiling enabled
     }
 };
-
-IPipeline::CommandQueueStateSnapshot IPipeline::get_command_queue_state_snapshot() {
-    while (true) {
-        const auto version_before = _graph->get_command_queue_desc_version();
-        auto desc = _graph->get_command_queue_desc();
-        const auto version_after = _graph->get_command_queue_desc_version();
-
-        if (version_before == version_after) {
-            return {desc, version_after};
-        }
-    }
-}
 
 std::vector<ov::ProfilingInfo> IPipeline::get_profiling_info() const {
     _logger.debug("get_profiling_info - started");
@@ -299,18 +285,14 @@ void Pipeline::push() {
         _graph->set_last_submitted_id(_pipeline_unique_id_per_graph);
     }
 
-    const auto command_queue_version = _graph->get_command_queue_desc_version();
-    const bool command_queue_changed = (command_queue_version != _command_queue_version);
-    if (command_queue_changed) {
-        const auto command_queue_state = get_command_queue_state_snapshot();
-        if (command_queue_state.version != _command_queue_version) {
-            _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_state.desc);
-            _command_queue_version = command_queue_state.version;
+    const auto command_queue_desc = _graph->get_command_queue_desc();
+    const bool command_queue_version_changed = (command_queue_desc.version != _command_queue->desc().version);
+    if (command_queue_version_changed) {
+        _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_desc);
 
-            if (_sync_output_with_fences) {
-                for (size_t i = 0; i < _fences.size(); i++) {
-                    _fences[i] = std::make_unique<Fence>(_command_queue);
-                }
+        if (_sync_output_with_fences) {
+            for (size_t i = 0; i < _fences.size(); i++) {
+                _fences[i] = std::make_unique<Fence>(_command_queue);
             }
         }
     }

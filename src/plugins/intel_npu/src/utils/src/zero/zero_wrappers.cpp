@@ -194,14 +194,15 @@ void CommandList::updateMutableCommandListWithStrides(uint32_t index,
 
 CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const CommandQueueDesc& desc)
     : _init_structs(init_structs),
+      _desc(desc),
       _log("CommandQueue", Logger::global().level()) {
-    ze_command_queue_desc_t queue_desc = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC,
-                                          nullptr,
-                                          _init_structs->getCommandQueueGroupOrdinal(),
-                                          0,
-                                          0,
-                                          ZE_COMMAND_QUEUE_MODE_DEFAULT,
-                                          desc.priority};
+    ze_command_queue_desc_t ze_queue_desc = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC,
+                                             nullptr,
+                                             _init_structs->getCommandQueueGroupOrdinal(),
+                                             0,
+                                             0,
+                                             ZE_COMMAND_QUEUE_MODE_DEFAULT,
+                                             desc.priority};
     ze_command_queue_desc_npu_ext_t turbo_cfg = {};
     ze_command_queue_desc_npu_ext_2_t command_queue_desc = {};
 
@@ -209,17 +210,17 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
         if (_init_structs->getCommandQueueDdiTable().version() == ZE_MAKE_VERSION(1, 0)) {
             turbo_cfg.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT;
             turbo_cfg.turbo = desc.options & ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
-            queue_desc.pNext = &turbo_cfg;
+            ze_queue_desc.pNext = &turbo_cfg;
         } else if (_init_structs->getCommandQueueDdiTable().version() > ZE_MAKE_VERSION(1, 0)) {
             command_queue_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT_2;
             command_queue_desc.options = desc.options;
-            queue_desc.pNext = &command_queue_desc;
+            ze_queue_desc.pNext = &command_queue_desc;
         }
     }
 
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeCommandQueueCreate",
-        zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &queue_desc, &_handle));
+        zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &ze_queue_desc, &_handle));
 
     if (desc.workload.has_value()) {
         if (_init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {

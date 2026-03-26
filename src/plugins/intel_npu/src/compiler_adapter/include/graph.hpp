@@ -8,7 +8,6 @@
 
 #include <ze_graph_ext.h>
 
-#include <atomic>
 #include <mutex>
 
 #include "intel_npu/common/igraph.hpp"
@@ -44,7 +43,6 @@ public:
     void update_network_name(std::string_view name) override;
 
     CommandQueueDesc get_command_queue_desc() const override;
-    uint64_t get_command_queue_desc_version() const override;
     void set_workload_type(const ov::WorkloadType workloadType) override;
 
     void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) override;
@@ -76,7 +74,6 @@ protected:
     NetworkMetadata _metadata;
 
     mutable std::mutex _commandQueueDescMutex;
-    std::atomic<uint64_t> _commandQueueDescVersion{0};
     CommandQueueDesc _commandQueueDesc;
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 

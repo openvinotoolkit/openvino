@@ -54,10 +54,6 @@ CommandQueueDesc Graph::get_command_queue_desc() const {
     return _commandQueueDesc;
 }
 
-uint64_t Graph::get_command_queue_desc_version() const {
-    return _commandQueueDescVersion.load(std::memory_order_acquire);
-}
-
 void Graph::set_workload_type(const ov::WorkloadType workloadType) {
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(workloadType);
@@ -65,7 +61,7 @@ void Graph::set_workload_type(const ov::WorkloadType workloadType) {
         return;
     }
     _commandQueueDesc.workload = zeWorkloadType;
-    _commandQueueDescVersion.fetch_add(1, std::memory_order_release);
+    ++_commandQueueDesc.version;
 }
 
 ze_graph_handle_t Graph::get_handle() const {
@@ -176,11 +172,11 @@ void Graph::initialize_impl(const FilteredConfig& config) {
     {
         std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
         _commandQueueDesc = CommandQueueDesc{
+            _commandQueueDesc.version + 1,
             zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
             config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
             commandQueueOptions,
             this};
-        _commandQueueDescVersion.fetch_add(1, std::memory_order_release);
     }
 
     _zeGraphExt->initializeGraph(_graphDesc);

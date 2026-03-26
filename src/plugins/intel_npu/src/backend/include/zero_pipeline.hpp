@@ -43,13 +43,6 @@ public:
 protected:
     void enable_profiling();
 
-    struct CommandQueueStateSnapshot {
-        CommandQueueDesc desc;
-        uint64_t version;
-    };
-
-    CommandQueueStateSnapshot get_command_queue_state_snapshot();
-
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     std::shared_ptr<IGraph> _graph;
     const Config _config;
@@ -68,7 +61,6 @@ protected:
     size_t _batch_size;
 
     std::shared_ptr<CommandQueue> _command_queue = nullptr;
-    uint64_t _command_queue_version = 0;
     std::vector<std::unique_ptr<Fence>> _fences;
     std::shared_ptr<EventPool> _event_pool;
     std::vector<std::shared_ptr<Event>> _events;

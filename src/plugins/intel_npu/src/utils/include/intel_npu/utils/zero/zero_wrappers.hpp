@@ -19,6 +19,7 @@ class CommandList;
 class CommandQueue;
 
 struct CommandQueueDesc {
+    uint64_t version = 0;
     ze_command_queue_priority_t priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
     std::optional<ze_command_queue_workload_type_t> workload = std::nullopt;
     uint32_t options = 0;
@@ -143,9 +144,14 @@ public:
     inline ze_command_queue_handle_t handle() const {
         return _handle;
     }
+    inline CommandQueueDesc desc() const {
+        return _desc;
+    }
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+
+    CommandQueueDesc _desc;
 
     Logger _log;
 

@@ -181,18 +181,14 @@ void DynamicPipeline::push() {
     auto* dynamicGraph = dynamic_cast<IDynamicGraph*>(_graph.get());
     OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
 
-    const auto command_queue_version = _graph->get_command_queue_desc_version();
-    const bool command_queue_changed = (command_queue_version != _command_queue_version);
-    if (command_queue_changed) {
-        const auto command_queue_state = get_command_queue_state_snapshot();
-        if (command_queue_state.version != _command_queue_version) {
-            _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_state.desc);
-            _command_queue_version = command_queue_state.version;
+    const auto command_queue_desc = _graph->get_command_queue_desc();
+    const bool command_queue_version_changed = (command_queue_desc.version != _command_queue->desc().version);
+    if (command_queue_version_changed) {
+        _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_desc);
 
-            if (_sync_output_with_fences) {
-                for (size_t i = 0; i < _fences.size(); i++) {
-                    _fences[i] = std::make_unique<Fence>(_command_queue);
-                }
+        if (_sync_output_with_fences) {
+            for (size_t i = 0; i < _fences.size(); i++) {
+                _fences[i] = std::make_unique<Fence>(_command_queue);
             }
         }
     }
