@@ -31,6 +31,14 @@ static size_t GetVecWidth(const permute_params& params) {
     }
 }
 
+// Y-blocking factor: largest value in {1, 2, 4} that divides Y.
+static size_t GetYBlock(const permute_params& params) {
+    const size_t y = params.inputs[0].Y().v;
+    if (y % 4 == 0) return 4;
+    if (y % 2 == 0) return 2;
+    return 1;
+}
+
 ParamsKey PermuteKernel_b_f_axes::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -64,15 +72,19 @@ JitConstants PermuteKernel_b_f_axes::GetJitConstants(const permute_params& param
     auto jit = Parent::GetJitConstants(params, {});
 
     const size_t vec_width = GetVecWidth(params);
-    const size_t x_size    = params.inputs[0].X().v;
-    const size_t x_tiles   = x_size / vec_width;
-    const size_t x_rem     = x_size % vec_width;
+    const size_t x_size = params.inputs[0].X().v;
+    const size_t x_tiles = x_size / vec_width;
+    const size_t x_rem = x_size % vec_width;
 
-    jit.AddConstant(MakeJitConstant("VEC_WIDTH",       vec_width));
-    jit.AddConstant(MakeJitConstant("X_TILES",         x_tiles));
+    jit.AddConstant(MakeJitConstant("VEC_WIDTH", vec_width));
+    jit.AddConstant(MakeJitConstant("X_TILES", x_tiles));
     jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE", x_rem));
 
-    jit.AddConstant(MakeJitConstant("INPUTVTYPE",  "CAT(INPUT0_TYPE, VEC_WIDTH)"));
+    const size_t y_block = GetYBlock(params);
+    jit.AddConstant(MakeJitConstant("Y_BLOCK", y_block));
+    jit.AddConstant(MakeJitConstant("Y_TILES_Y", CeilDiv(params.inputs[0].Y().v, y_block)));
+
+    jit.AddConstant(MakeJitConstant("INPUTVTYPE", "CAT(INPUT0_TYPE, VEC_WIDTH)"));
     jit.AddConstant(MakeJitConstant("OUTPUTVTYPE", "CAT(OUTPUT_TYPE, VEC_WIDTH)"));
 
     if (!params.fused_ops.empty()) {
@@ -93,18 +105,20 @@ JitConstants PermuteKernel_b_f_axes::GetJitConstants(const permute_params& param
 CommonDispatchData PermuteKernel_b_f_axes::SetDefault(const permute_params& params) const {
     CommonDispatchData dispatchData;
 
-    const auto& in        = params.inputs[0];
-    const auto in_layout  = in.GetLayout();
+    const auto& in = params.inputs[0];
+    const auto in_layout = in.GetLayout();
     const auto out_layout = params.outputs[0].GetLayout();
     const size_t vec_width = GetVecWidth(params);
     const size_t x_tiles = CeilDiv(in.X().v, vec_width);
+    const size_t y_block = GetYBlock(params);
+    const size_t y_tiles_y = CeilDiv(in.Y().v, y_block);
 
     size_t spatial_outer = 1;
     if (in.GetDims().size() >= 5) spatial_outer *= in.Z().v;
     if (in.GetDims().size() >= 6) spatial_outer *= in.W().v;
 
     // F is looped inside the kernel; GWS[2] covers B only.
-    dispatchData.gws = {x_tiles, in.Y().v * spatial_outer, in.Batch().v};
+    dispatchData.gws = {x_tiles, y_tiles_y * spatial_outer, in.Batch().v};
 
     const std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
         {Tensor::DataChannelName::X},
@@ -152,7 +166,7 @@ KernelsPriority PermuteKernel_b_f_axes::GetKernelsPriority(const Params& params)
     permute_params& newParams = *static_cast<permute_params*>(kd.params.get());
 
     const size_t vec_width = GetVecWidth(newParams);
-    const size_t x_size    = newParams.inputs[0].X().v;
+    const size_t x_size = newParams.inputs[0].X().v;
 
     if (x_size >= vec_width * 2 && (x_size % vec_width == 0))
         return FORCE_PRIORITY_2;
