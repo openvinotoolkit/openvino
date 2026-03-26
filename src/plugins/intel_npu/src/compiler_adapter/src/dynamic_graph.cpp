@@ -13,6 +13,7 @@
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
 namespace intel_npu {
@@ -501,7 +502,10 @@ void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) {
         return;
     }
     _commandQueueDesc.workload = zeWorkloadType;
-    ++_commandQueueDesc.version;
+
+    const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
+    const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
+    _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
 }
 
 void DynamicGraph::set_argument_value(uint32_t argi, const void* argv) const {
@@ -563,12 +567,15 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
     {
         std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
         _commandQueueDesc = CommandQueueDesc{
-            _commandQueueDesc.version + 1,
             zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
             config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
             commandQueueOptions,
             this,
             config.get<SHARED_COMMON_QUEUE>()};
+
+        const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
+        const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
+        _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
     }
 
     _logger.debug("Graph initialize finish");

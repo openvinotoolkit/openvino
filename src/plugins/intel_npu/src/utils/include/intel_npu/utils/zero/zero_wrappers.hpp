@@ -19,12 +19,12 @@ class CommandList;
 class CommandQueue;
 
 struct CommandQueueDesc {
-    uint64_t version = 0;
     ze_command_queue_priority_t priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
     std::optional<ze_command_queue_workload_type_t> workload = std::nullopt;
     uint32_t options = 0;
     const void* owner_tag = nullptr;
     bool shared_common_queue = true;
+    uint64_t key = 0;
 
     bool operator==(const CommandQueueDesc& other) const {
         if (priority != other.priority || workload != other.workload || options != other.options ||

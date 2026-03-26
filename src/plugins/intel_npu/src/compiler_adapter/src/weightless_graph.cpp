@@ -315,10 +315,6 @@ void WeightlessGraph::initialize_impl(const FilteredConfig& config) {
         }
     }
     CommandQueueDesc commandQueueDesc{
-        0,  // Note: version is set to 0 here, because the command queue for init schedules is created and destroyed
-            // within the scope of this function, so we don't need to worry about changing configurations at runtime. If
-            // in the future we want to support changing configurations at runtime for init schedules, we can consider
-            // incrementing the version here.
         zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
         config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
         commandQueueOptions,

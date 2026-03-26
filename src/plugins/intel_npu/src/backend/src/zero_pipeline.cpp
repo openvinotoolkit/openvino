@@ -286,7 +286,7 @@ void Pipeline::push() {
     }
 
     const auto command_queue_desc = _graph->get_command_queue_desc();
-    const bool command_queue_version_changed = (command_queue_desc.version != _command_queue->desc().version);
+    const bool command_queue_version_changed = (command_queue_desc.key != _command_queue->desc().key);
     if (command_queue_version_changed) {
         _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_desc);
 
