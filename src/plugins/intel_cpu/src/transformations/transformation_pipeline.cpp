@@ -64,6 +64,7 @@
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
+#include "transformations/common_optimizations/horizontal_qdq_fusion.hpp"
 #include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
@@ -507,10 +508,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             ov::pass::Manager qdq_stripping_manager("Plugin:CPU:QDQ_Stripping");
             using namespace ov::element;
             // QDQ stripping pipeline
+            // 0. Deduplicate identical DQ subgraphs sharing a common Convert node
+            qdq_stripping_manager.register_pass<ov::pass::HorizontalQDQFusion>(TypeVector{i16, u16}, TypeVector{f32});
             // 1. Fuse FQ->Convert->DQ to a single FQ
             qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16},
-                                                                                     TypeVector{f32},
-                                                                                     true);
+                                                                                     TypeVector{f32});
             // 2. Strip FQ layers with unsupported levels
             qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, false);
             qdq_stripping_manager.run_passes(model);
