@@ -9,13 +9,13 @@
 #include "low_precision/kv_cache_concat.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/move_fake_convert_up_through_kv_cache_concat.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/op_conversions/fake_convert_decomposition.hpp"
 
@@ -128,6 +128,8 @@ ov::element::Type optimize_kv_cache_storage(const std::shared_ptr<ov::Model>& mo
 }  // namespace npuw
 }  // namespace ov
 
+namespace ov::npuw {
+
 ConvertKVCacheToPrecision::ConvertKVCacheToPrecision(const ov::element::Type lptype) : m_lp_type(lptype) {}
 
 bool ConvertKVCacheToPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -139,3 +141,5 @@ bool ConvertKVCacheToPrecision::run_on_model(const std::shared_ptr<ov::Model>& m
 
     return true;
 }
+
+}  // namespace ov::npuw

@@ -268,8 +268,12 @@ bool decompose_GQA(std::shared_ptr<ov::Model> model, bool is_prefill_model) {
 
 }  // namespace
 
+namespace ov::npuw {
+
 DecomposeGQA::DecomposeGQA(bool is_prefill_model) : m_is_prefill_model(is_prefill_model) {}
 
 bool DecomposeGQA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     return decompose_GQA(model, m_is_prefill_model);
 }
+
+}  // namespace ov::npuw

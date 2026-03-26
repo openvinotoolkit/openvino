@@ -6,9 +6,13 @@
 
 #include "openvino/pass/pass.hpp"
 
+namespace ov::npuw {
+
 class PatchPhi3SlidingMask : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::PatchPhi3SlidingMask");
     explicit PatchPhi3SlidingMask() = default;
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
+
+}  // namespace ov::npuw

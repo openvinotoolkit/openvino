@@ -6,8 +6,8 @@
 
 #include "../util.hpp"
 #include "openvino/op/ops.hpp"
-#include "openvino/op/util/node_util.hpp"
 #include "openvino/op/util/assign_base.hpp"
+#include "openvino/op/util/node_util.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 
 namespace {
@@ -57,8 +57,12 @@ void convert_stateful_lora_to_stateless(const std::shared_ptr<ov::Model>& model)
 
 }  // namespace
 
+namespace ov::npuw {
+
 bool LoraStatefulToStatelessPass::run_on_model(const std::shared_ptr<ov::Model>& model) {
     convert_stateful_lora_to_stateless(model);
 
     return true;
 }
+
+}  // namespace ov::npuw

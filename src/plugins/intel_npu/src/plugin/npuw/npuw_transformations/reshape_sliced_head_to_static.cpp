@@ -36,6 +36,8 @@ void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model,
 
 }  // namespace
 
+namespace ov::npuw {
+
 ReshapeSlicedHeadToStatic::ReshapeSlicedHeadToStatic(uint32_t batch_dim, std::size_t max_generation_token_len)
     : m_batch_dim(batch_dim),
       m_max_generation_token_len(max_generation_token_len) {}
@@ -45,3 +47,5 @@ bool ReshapeSlicedHeadToStatic::run_on_model(const std::shared_ptr<ov::Model>& m
 
     return true;
 }
+
+}  // namespace ov::npuw

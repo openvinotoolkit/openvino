@@ -11,12 +11,16 @@ namespace {
 
 bool patch_phi3_sliding_mask(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager manager;
-    manager.register_pass<Phi3SlidingMask>();
+    manager.register_pass<ov::npuw::Phi3SlidingMask>();
     return manager.run_passes(model);
 }
 
 }  // namespace
 
+namespace ov::npuw {
+
 bool PatchPhi3SlidingMask::run_on_model(const std::shared_ptr<ov::Model>& model) {
     return patch_phi3_sliding_mask(model);
 }
+
+}  // namespace ov::npuw

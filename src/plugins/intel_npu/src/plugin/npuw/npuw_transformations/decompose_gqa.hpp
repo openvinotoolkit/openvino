@@ -6,6 +6,8 @@
 
 #include "openvino/pass/pass.hpp"
 
+namespace ov::npuw {
+
 class DecomposeGQA : public ov::pass::ModelPass {
     bool m_is_prefill_model;
 
@@ -14,3 +16,5 @@ public:
     explicit DecomposeGQA(bool is_prefill_model);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
+
+}  // namespace ov::npuw

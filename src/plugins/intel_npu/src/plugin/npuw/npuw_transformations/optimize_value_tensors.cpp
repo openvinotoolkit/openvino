@@ -337,4 +337,3 @@ bool ov::npuw::util::OptimizeValueTensors::run_on_model(const std::shared_ptr<ov
     // NB: matmul parameters gets transposed, if pass applied
     return ctx.bTransposed;
 }
-

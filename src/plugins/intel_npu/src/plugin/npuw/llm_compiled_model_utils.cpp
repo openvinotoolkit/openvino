@@ -11,4 +11,3 @@ bool ov::npuw::util::has_input(const std::shared_ptr<ov::Model>& model, const st
     });
     return it != inputs.end();
 }
-

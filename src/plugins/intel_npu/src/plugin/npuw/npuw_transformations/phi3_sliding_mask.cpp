@@ -374,6 +374,8 @@ public:
 
 }  // namespace
 
+namespace ov::npuw {
+
 bool Phi3SlidingMask::run_on_model(const std::shared_ptr<ov::Model>& model) {
     std::shared_ptr<ov::Node> attention_mask_node_ptr = nullptr;
     std::shared_ptr<ov::Node> position_ids_node_ptr = nullptr;
@@ -403,3 +405,5 @@ bool Phi3SlidingMask::run_on_model(const std::shared_ptr<ov::Model>& model) {
     rewriter->add_matcher<OldPhi3SlidingMaskMatcher>();
     return manager.run_passes(model);
 }
+
+}  // namespace ov::npuw

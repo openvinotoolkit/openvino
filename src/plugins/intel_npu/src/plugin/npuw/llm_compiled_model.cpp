@@ -11,6 +11,14 @@
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
 #include "moe_transformations/apply_moe_device_routed_transforms.hpp"
+#include "npuw_transformations/convert_kvcache_to_precision.hpp"
+#include "npuw_transformations/decompose_gqa.hpp"
+#include "npuw_transformations/lora_stateful_to_stateless.hpp"
+#include "npuw_transformations/optimize_value_tensors.hpp"
+#include "npuw_transformations/patch_phi3_sliding_mask.hpp"
+#include "npuw_transformations/reshape_sliced_head_to_static.hpp"
+#include "npuw_transformations/reshape_to_static.hpp"
+#include "npuw_transformations/slice_out_embeds.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/ops.hpp"
@@ -33,17 +41,8 @@
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
-#include "whisper/whisper_infer_request.hpp"
 #include "whisper/prepare_whisper_model.hpp"
-#include "npuw_transformations/convert_kvcache_to_precision.hpp"
-#include "npuw_transformations/decompose_gqa.hpp"
-#include "npuw_transformations/lora_stateful_to_stateless.hpp"
-#include "npuw_transformations/patch_phi3_sliding_mask.hpp"
-#include "npuw_transformations/reshape_sliced_head_to_static.hpp"
-#include "npuw_transformations/reshape_to_static.hpp"
-#include "npuw_transformations/slice_out_embeds.hpp"
-#include "npuw_transformations/optimize_value_tensors.hpp"
-
+#include "whisper/whisper_infer_request.hpp"
 
 namespace opp = ov::pass::pattern;
 
@@ -567,7 +566,7 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
                              << "): reshaping to static");
 
         // Reshape to target size
-        ReshapeToStatic(max_generation_token_len, kv_size, axes, m_max_lora_rank, whisper_lhs_seq_size)
+        ov::npuw::ReshapeToStatic(max_generation_token_len, kv_size, axes, m_max_lora_rank, whisper_lhs_seq_size)
             .run_on_model(generate_variant);
 
         // Set unique name for this variant
@@ -771,7 +770,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     }
 
-    LoraStatefulToStatelessPass().run_on_model(kvcache_model);
+    ov::npuw::LoraStatefulToStatelessPass().run_on_model(kvcache_model);
 
     LOG_DEBUG("   ...also convert BF16 to FP16");
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
@@ -783,7 +782,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     if (!m_is_whisper) {
         LOG_DEBUG("Try patch Phi-3 sliding window mask, if it exists.");
-        PatchPhi3SlidingMask().run_on_model(kvcache_model);
+        ov::npuw::PatchPhi3SlidingMask().run_on_model(kvcache_model);
     }
 
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
@@ -809,17 +808,17 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Make prefill model with static shapes");
     m_max_lora_rank = m_cfg.get<::intel_npu::NPUW_LLM_MAX_LORA_RANK>();
     if (m_use_chunk_prefill) {
-        ReshapeToStatic(static_cast<uint32_t>(m_prefill_chunk_size),
-                        m_kvcache_desc.max_prompt_size,
-                        axes,
-                        m_max_lora_rank)
+        ov::npuw::ReshapeToStatic(static_cast<uint32_t>(m_prefill_chunk_size),
+                                  m_kvcache_desc.max_prompt_size,
+                                  axes,
+                                  m_max_lora_rank)
             .run_on_model(prefill_model);
     } else {
-        ReshapeToStatic(m_kvcache_desc.max_prompt_size,
-                        m_kvcache_desc.max_prompt_size,
-                        axes,
-                        m_max_lora_rank,
-                        whisper_lhs_seq_size)
+        ov::npuw::ReshapeToStatic(m_kvcache_desc.max_prompt_size,
+                                  m_kvcache_desc.max_prompt_size,
+                                  axes,
+                                  m_max_lora_rank,
+                                  whisper_lhs_seq_size)
             .run_on_model(prefill_model);
     }
     LOG_DEBUG("Make kvcache model with static shapes");
@@ -831,15 +830,16 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Shared LM head: slice the prefill output");
         // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
         // so only apply slice to the Prefill model:
-        SliceOutEmbeds(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(prefill_model);
+        ov::npuw::SliceOutEmbeds(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(prefill_model);
         LOG_DEBUG("Make LM head model with static shapes");
-        ReshapeSlicedHeadToStatic(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(lm_head_model);
+        ov::npuw::ReshapeSlicedHeadToStatic(axes.batch, m_kvcache_desc.max_generation_token_len)
+            .run_on_model(lm_head_model);
     }
 
     LOG_DEBUG("5.1, decompose GroupQueryAttention OP");
-    DecomposeGQA(true).run_on_model(prefill_model);
+    ov::npuw::DecomposeGQA(true).run_on_model(prefill_model);
     for (auto& model_variant : generate_model_variants) {
-        DecomposeGQA(false).run_on_model(model_variant);
+        ov::npuw::DecomposeGQA(false).run_on_model(model_variant);
     }
 
     const auto prefill_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
@@ -909,10 +909,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     LOG_DEBUG("Converting KV-cache in generate model to FP16.");
     for (size_t i = 0; i < generate_model_variants.size(); ++i) {
-        ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(generate_model_variants[i]);
+        ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(generate_model_variants[i]);
     }
     LOG_DEBUG("Converting KV-cache in prefill model to FP16.");
-    ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(prefill_model);
+    ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(prefill_model);
 
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();

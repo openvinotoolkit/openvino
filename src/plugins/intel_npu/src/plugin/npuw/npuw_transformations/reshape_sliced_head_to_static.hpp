@@ -4,7 +4,12 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #include "openvino/pass/pass.hpp"
+
+namespace ov::npuw {
 
 class ReshapeSlicedHeadToStatic : public ov::pass::ModelPass {
     uint32_t m_batch_dim;
@@ -15,3 +20,5 @@ public:
     explicit ReshapeSlicedHeadToStatic(uint32_t batch_dim, std::size_t max_generation_token_len);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
+
+}  // namespace ov::npuw

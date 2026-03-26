@@ -6,8 +6,8 @@
 
 #include "../llm_eagle3_extension.hpp"
 #include "../logging.hpp"
-#include "openvino/core/partial_shape.hpp"
 #include "../util.hpp"
+#include "openvino/core/partial_shape.hpp"
 
 namespace {
 
@@ -78,9 +78,11 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
 
 }  // namespace
 
+namespace ov::npuw {
+
 ReshapeToStatic::ReshapeToStatic(const uint32_t input_size,
                                  const uint32_t kvcache_size,
-                                 const ov::npuw::KVAxesPosition& kv_axes_position,
+                                 const KVAxesPosition& kv_axes_position,
                                  const uint32_t lora_rank,
                                  const uint32_t lhs_seq_size)
     : m_input_size(input_size),
@@ -94,3 +96,5 @@ bool ReshapeToStatic::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     return true;
 }
+
+}  // namespace ov::npuw

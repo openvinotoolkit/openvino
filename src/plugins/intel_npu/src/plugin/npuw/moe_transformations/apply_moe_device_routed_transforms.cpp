@@ -4,9 +4,9 @@
 
 #include "apply_moe_device_routed_transforms.hpp"
 
+#include "../logging.hpp"
 #include "../moe_transformations/device_routed_moe_transform.hpp"
 #include "../moe_transformations/gather_to_2d_gather.hpp"
-#include "../logging.hpp"
 
 namespace {
 

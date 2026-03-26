@@ -56,6 +56,8 @@ void slice_out_embeds(std::shared_ptr<ov::Model> model,
 
 }  // namespace
 
+namespace ov::npuw {
+
 SliceOutEmbeds::SliceOutEmbeds(uint32_t batch_dim, std::size_t max_generation_token_len)
     : m_batch_dim(batch_dim),
       m_max_generation_token_len(max_generation_token_len) {}
@@ -65,3 +67,5 @@ bool SliceOutEmbeds::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     return true;
 }
+
+}  // namespace ov::npuw
