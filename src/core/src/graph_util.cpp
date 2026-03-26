@@ -13,6 +13,7 @@
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/version.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -316,6 +317,9 @@ void save_model(const std::shared_ptr<const ov::Model>& m,
                 const std::filesystem::path& output_model,
                 bool compress_to_fp16) {
     auto cloned = m->clone();
+    const auto& [build_number, description] = ov::get_openvino_version();
+    cloned->set_rt_info(build_number, description);
+
     if (compress_to_fp16) {
         // TODO: Implement on-the-fly compression in pass::Serialize, Ticket: 145380
         bool postponed = true;
