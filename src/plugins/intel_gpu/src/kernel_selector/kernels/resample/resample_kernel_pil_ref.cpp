@@ -315,6 +315,7 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
             float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
             int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
             auto ybox_first = GetFirstRow(params);
+            const bool needVerticalPass = NeedVerticalPass(params);
             jit_constants.AddConstants({MakeJitConstant("INTERMEDIATE_BUF", GetIntermediateBufferSize(params)),
                 MakeJitConstant("BEGIN_PADDING_BATCH", params.pads_begin[0]),
                 MakeJitConstant("BEGIN_PADDING_FEATURE", params.pads_begin[1]),
@@ -328,23 +329,14 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
                 MakeJitConstant("FEATURE_HORIZONTAL_OFFSET", params.axes[eHorizontal] == InterpolateAxis::FEATURE ? ybox_first : 0),
                 MakeJitConstant("Y_HORIZONTAL_OFFSET", params.axes[eHorizontal] == InterpolateAxis::Y ? ybox_first : 0),
                 MakeJitConstant("X_HORIZONTAL_OFFSET", params.axes[eHorizontal] == InterpolateAxis::X ? ybox_first : 0),
-                MakeJitConstant("ENABLE_VERTICAL_PASS", NeedVerticalPass(params)),
+                MakeJitConstant("ENABLE_VERTICAL_PASS", needVerticalPass),
                 MakeJitConstant("ENABLE_HORIZONTAL_PASS", NeedHorizontalPass(params)),
                 MakeJitConstant("KSIZE", ksize),
             });
-            if (!NeedVerticalPass(params)) {
-                if (!params.fused_ops.empty()) {
-                    std::vector<std::string> idx_order;
-                    if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
-                        idx_order = {"b", "f", "y", "x"};
-                    } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
-                        idx_order = {"b", "f", "z", "y", "x"};
-                    } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 6) {
-                        idx_order = {"b", "f", "w", "z", "y", "x"};
-                    }
-                    FusedOpsConfiguration conf = {"", idx_order, "ss", GetAccumulatorType(params), 1};
-                    jit_constants.Merge(MakeFusedOpsJitConstants(params, {conf}));
-                }
+            if (needVerticalPass) {
+                jit_constants.AddConstant(MakeJitConstant("RESAMPLE_HORIZONTAL_OUTPUT_TYPE", "INTERMEDIATE_BUF_TYPE"));
+            } else {
+                jit_constants.AddConstant(MakeJitConstant("RESAMPLE_HORIZONTAL_OUTPUT_TYPE", "OUTPUT_TYPE"));
             }
             break;
         }
@@ -374,6 +366,7 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
             float filter_scale = std::max(1.f, scale);
             float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
             int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
+            const bool needHorizontalPass = NeedHorizontalPass(params);
             jit_constants.AddConstants({MakeJitConstant("INTERMEDIATE_BUF", GetIntermediateBufferSize(params)),
                 MakeJitConstant("BEGIN_PADDING_BATCH", params.pads_begin[0]),
                 MakeJitConstant("BEGIN_PADDING_FEATURE", params.pads_begin[1]),
@@ -384,28 +377,37 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
                 MakeJitConstant("Y_IS_VERTICAL_AXIS", params.axes[eVertical] == InterpolateAxis::Y),
                 MakeJitConstant("X_IS_VERTICAL_AXIS", params.axes[eVertical] == InterpolateAxis::X),
                 MakeJitConstant("ENABLE_VERTICAL_PASS", NeedVerticalPass(params)),
-                MakeJitConstant("ENABLE_HORIZONTAL_PASS", NeedHorizontalPass(params)),
+                MakeJitConstant("ENABLE_HORIZONTAL_PASS", needHorizontalPass),
                 MakeJitConstant("KSIZE", ksize),
-            });
-
-            if (!params.fused_ops.empty()) {
-                std::vector<std::string> idx_order;
-                if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
-                    idx_order = {"b", "f", "y", "x"};
-                } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
-                    idx_order = {"b", "f", "z", "y", "x"};
-                } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 6) {
-                    idx_order = {"b", "f", "w", "z", "y", "x"};
-                }
-                FusedOpsConfiguration conf = {"", idx_order, "ss", GetAccumulatorType(params), 1};
-                jit_constants.Merge(MakeFusedOpsJitConstants(params, {conf}));
+            }); 
+            if (needHorizontalPass) {
+                jit_constants.AddConstant(MakeJitConstant("RESAMPLE_VERTICAL_INPUT_TYPE", "INTERMEDIATE_BUF_TYPE"));
+            } else {
+                jit_constants.AddConstant(MakeJitConstant("RESAMPLE_VERTICAL_INPUT_TYPE", "INPUT0_TYPE"));
             }
 
             break;
         }
+
         default:
             throw std::invalid_argument("Kernel index is out of range. Kernel index for resample_pillow should be in range 0..3.");
         }
+
+    if (!params.fused_ops.empty()) {
+        if ((id == eResampleHorizontal && !NeedVerticalPass(params)) || id == eResampleVertical){
+            std::vector<std::string> idx_order;
+            if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
+                idx_order = {"b", "f", "y", "x"};
+            } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
+                idx_order = {"b", "f", "z", "y", "x"};
+            } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 6) {
+                idx_order = {"b", "f", "w", "z", "y", "x"};
+            }
+            FusedOpsConfiguration conf = {"", idx_order, "ss", GetAccumulatorType(params), 1};
+            jit_constants.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        }
+    }
+
     return jit_constants;
 }
 

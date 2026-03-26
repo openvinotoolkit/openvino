@@ -72,12 +72,6 @@ KERNEL (calculate_coefficients_gpu_ref)(__global float* coefficients, __global i
 
 #elif RESAMPLE_PILLOW_STAGE == STAGE_RESAMPLE_HORIZONTAL
 
-#if ENABLE_VERTICAL_PASS
-#define RESAMPLE_HORIZONTAL_OUTPUT_TYPE INTERMEDIATE_BUF_TYPE
-#else
-#define RESAMPLE_HORIZONTAL_OUTPUT_TYPE OUTPUT_TYPE
-#endif
-
 KERNEL (resample_horizontal_gpu_ref)(  __global INPUT0_TYPE* input
                                      , __global float* coefficients
                                      , __global int* bounds
@@ -171,12 +165,6 @@ KERNEL (resample_horizontal_gpu_ref)(  __global INPUT0_TYPE* input
 }
 
 #else // RESAMPLE_PILLOW_STAGE == STAGE_RESAMPLE_VERTICAL
-
-#if ENABLE_HORIZONTAL_PASS
-#define RESAMPLE_VERTICAL_INPUT_TYPE INTERMEDIATE_BUF_TYPE
-#else
-#define RESAMPLE_VERTICAL_INPUT_TYPE INPUT0_TYPE
-#endif
 
 KERNEL (resample_vertical_gpu_ref)(  __global RESAMPLE_VERTICAL_INPUT_TYPE* input
                                      , __global float* coefficients
