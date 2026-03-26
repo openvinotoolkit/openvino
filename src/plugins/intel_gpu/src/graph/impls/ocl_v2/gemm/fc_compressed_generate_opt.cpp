@@ -14,6 +14,11 @@ namespace {
 // Sub-group / vectorisation constants — must match gemm_generate_opt.cl definitions.
 static constexpr int SG_SIZE  = 16;   // Intel GPU sub-group width for f16
 static constexpr int VEC_SIZE = 8;    // half8 / u4-nibble-vec per lane
+// Work-group size for the SLM-optimised int4 GEMV kernel.
+// WG_SIZE work-items share one SLM tile of cached activations.
+static constexpr int WG_SIZE  = 256;
+// Each work-item computes TILE_N output channels.
+static constexpr int TILE_N   = 1;
 
 // -----------------------------------------------------------------------
 // Helper: derive the packed-layout input index ordering from kernel_impl_params.
@@ -128,7 +133,8 @@ protected:
             make_jit_constant("B_SIZE",        static_cast<int>(B)),
             make_jit_constant("SG_SIZE",       SG_SIZE),
             make_jit_constant("VEC_SIZE",      VEC_SIZE),
-
+            make_jit_constant("WG_SIZE",       WG_SIZE),
+            make_jit_constant("TILE_N",        TILE_N),
         });
 
         // WOQ-specific constants.
@@ -199,11 +205,13 @@ protected:
             for (size_t i = 0; i + 1 < rank; ++i)
                 B *= shape_a[i];
 
-            // N-parallel: each lane = one output
+            // N-parallel: each work-item computes TILE_N outputs;
+            // WG_SIZE work-items per work-group share SLM-cached activations.
+            const size_t n_items = (N + TILE_N - 1) / TILE_N;  // total work-items needed
             auto& wgs = kd.params.workGroups;
-            const size_t n_padded = (N + SG_SIZE - 1) / SG_SIZE * SG_SIZE;
+            const size_t n_padded = (n_items + WG_SIZE - 1) / WG_SIZE * WG_SIZE;
             wgs.global = {n_padded, B, 1};
-            wgs.local  = {static_cast<size_t>(SG_SIZE), 1, 1};
+            wgs.local  = {static_cast<size_t>(WG_SIZE), 1, 1};
         }};
     }
 };
