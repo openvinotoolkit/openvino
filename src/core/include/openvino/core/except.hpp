@@ -51,7 +51,7 @@ std::ostream& write_all_to_stream(std::ostream& str, TS&&... args) {
 /// Base error for ov runtime errors.
 class OPENVINO_API Exception : public std::runtime_error {
 public:
-    [[noreturn]] static OPENVINO_API void create(const char* file, int line, const std::string& explanation);
+    [[noreturn]] static void create(const char* file, int line, const std::string& explanation);
     virtual ~Exception();
 
     static const std::string default_msg;
@@ -69,11 +69,11 @@ protected:
 /// Base class for check failure exceptions.
 class OPENVINO_API AssertFailure : public Exception {
 public:
-    [[noreturn]] static OPENVINO_API void create(const char* file,
-                                                 int line,
-                                                 const char* check_string,
-                                                 const std::string& context_info,
-                                                 const std::string& explanation);
+    [[noreturn]] static void create(const char* file,
+                                    int line,
+                                    const char* check_string,
+                                    const std::string& context_info,
+                                    const std::string& explanation);
     virtual ~AssertFailure();
 
 protected:
@@ -83,7 +83,7 @@ protected:
 /// Exception class to be thrown on not implemented code
 class OPENVINO_API NotImplemented : public AssertFailure {
 public:
-    [[noreturn]] static OPENVINO_API void create(const char* file, int line, const std::string& explanation);
+    [[noreturn]] static void create(const char* file, int line, const std::string& explanation);
     virtual ~NotImplemented();
 
     static const std::string default_msg;

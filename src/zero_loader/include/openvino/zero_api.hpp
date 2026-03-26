@@ -77,14 +77,14 @@ namespace ov::zero {
     symbol_statement(zeCommandListHostSynchronize)            \
     symbol_statement(zeCommandListAppendMemoryFill)           \
     symbol_statement(zeDeviceGetComputeProperties)            \
-    symbol_statement(zeDeviceGetMemoryProperties)            \
-    symbol_statement(zeDeviceGetMemoryAccessProperties)      \
-    symbol_statement(zeDeviceGetModuleProperties)            \
-    symbol_statement(zeDeviceGetImageProperties)             \
-    symbol_statement(zeDeviceGetCacheProperties)             \
-    symbol_statement(zeKernelSetArgumentValue)               \
-    symbol_statement(zeCommandListCreateImmediate)           \
-    symbol_statement(zeKernelSetGroupSize)                   \
+    symbol_statement(zeDeviceGetMemoryProperties)             \
+    symbol_statement(zeDeviceGetMemoryAccessProperties)       \
+    symbol_statement(zeDeviceGetModuleProperties)             \
+    symbol_statement(zeDeviceGetImageProperties)              \
+    symbol_statement(zeDeviceGetCacheProperties)              \
+    symbol_statement(zeKernelSetArgumentValue)                \
+    symbol_statement(zeCommandListCreateImmediate)            \
+    symbol_statement(zeKernelSetGroupSize)                    \
     symbol_statement(zeCommandListAppendLaunchKernel)
 
 //unsupported symbols with older ze_loader versions
