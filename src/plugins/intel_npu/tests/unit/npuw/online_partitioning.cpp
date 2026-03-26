@@ -18,7 +18,7 @@
 #include "partitioning/online/snapshot.hpp"
 
 using ov::test::npuw::ModelBuilder;
-using ov::test::npuw::ModelConfig;
+using ov::test::npuw::LLMConfig;
 
 namespace {
 
@@ -675,14 +675,14 @@ INSTANTIATE_TEST_SUITE_P(OnlinePartitioningTest,
 // always exposes its boundary Add in getInputs(), detects the mask mismatch, and
 // correctly sets irregular_io=true regardless of hash order.
 TEST(OnlinePartitioningTest, IsRegularParameterCase_PrefillModel_InputsEmbeds) {
-    ModelConfig config;
+    LLMConfig config;
     config.num_layers = 4;
     config.hidden_size = 64;
     config.use_inputs_embeds = true;  // layer 0's residual Add reads inputs_embeds (ov::Parameter)
     config.use_kv_cache = true;
 
     ModelBuilder mb;
-    auto model = mb.build_model(config);
+    auto model = mb.build_llm(config);
 
     // Partitioning requires a static-shape stateless model, matching the real
     // production path in LLMCompiledModel before getPartitioning() is called.
