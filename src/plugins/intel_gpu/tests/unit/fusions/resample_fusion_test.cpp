@@ -577,8 +577,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_bicubic_pillow_axes_activation,
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F32_6, RESAMPLE_BICUBIC_PILLOW_AXES_ACTIVATION_CNT },
 }));
 
-class resample_bicubic_pillow_axes_quantize_i8 : public ResampleAxesPrimitiveFusingTest {};
-TEST_P(resample_bicubic_pillow_axes_quantize_i8, basic) {
+class resample_bicubic_pillow_axes_quantize : public ResampleAxesPrimitiveFusingTest {};
+TEST_P(resample_bicubic_pillow_axes_quantize, basic_i8) {
     auto p = GetParam();
     auto sizes = get_sizes_for_axes(p);
     create_topologies(
@@ -598,25 +598,7 @@ TEST_P(resample_bicubic_pillow_axes_quantize_i8, basic) {
     execute(p);
 }
 
-#define RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT 2, 3
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_bicubic_pillow_axes_quantize_i8,
-    ::testing::ValuesIn(std::vector<resample_axes_test_params>{
-        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F16_1, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
-        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F16_2, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
-        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F16_3, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
-        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F16_4, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
-        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F16_5, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
-        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F16_6, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
-        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F32_1, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
-        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F32_2, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
-        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F32_3, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
-        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F32_4, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
-        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F32_5, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
-        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F32_6, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
-}));
-
-class resample_bicubic_pillow_axes_quantize_u8 : public ResampleAxesPrimitiveFusingTest {};
-TEST_P(resample_bicubic_pillow_axes_quantize_u8, basic) {
+TEST_P(resample_bicubic_pillow_axes_quantize, basic_u8) {
     auto p = GetParam();
     auto sizes = get_sizes_for_axes(p);
     create_topologies(
@@ -636,7 +618,8 @@ TEST_P(resample_bicubic_pillow_axes_quantize_u8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_bicubic_pillow_axes_quantize_u8,
+#define RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT 2, 3
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_bicubic_pillow_axes_quantize,
     ::testing::ValuesIn(std::vector<resample_axes_test_params>{
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F16_1, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F16_2, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
