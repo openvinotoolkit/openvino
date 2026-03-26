@@ -479,7 +479,7 @@ static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
     int32_t mask_head_stride = 0;
     int32_t mask_B = 0;
     ov::Tensor mask_f32;
-    if (inputs.size() >= 7 && inputs[ATTENTION_MASK].get_size() > 1) {
+    if (inputs.size() >= 7) {
         mask_f32 = to_f32(inputs[ATTENTION_MASK]);
         attention_mask = mask_f32.data<const float>();
         const auto& mask_shape = inputs[ATTENTION_MASK].get_shape();
