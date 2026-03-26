@@ -563,5 +563,23 @@ size_t count_out_of_f16_range(const float* arg, size_t count) {
     return std::count_if(arg, arg + count, is_out_of_f16_range);
 }
 
+size_t count_lossy_f16_compression(const float* arg, size_t count) {
+    constexpr double max_relative_error = 1e-4;
+    constexpr double max_abs_error = 1.0;
+
+    const auto is_lossy = [](const float v) {
+        // Skip values that are out of f16 range (counted separately by count_out_of_f16_range)
+        if ((std::abs(v) < float16::from_bits(0x0001) && v != 0.0f) || v > std::numeric_limits<float16>::max() ||
+            v < std::numeric_limits<float16>::lowest()) {
+            return false;
+        }
+        const double roundtripped = static_cast<double>(static_cast<float>(static_cast<float16>(v)));
+        const double abs_diff = std::abs(v - roundtripped);
+        return (abs_diff / std::abs(v) > max_relative_error) || (abs_diff > max_abs_error);
+    };
+    // std::count_if is auto-vectorized by the compiler
+    return static_cast<size_t>(std::count_if(arg, arg + count, is_lossy));
+}
+
 }  // namespace reference
 }  // namespace ov

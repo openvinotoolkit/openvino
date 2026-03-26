@@ -58,7 +58,17 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::
             dst_data[i] = std::numeric_limits<ov::float16>::lowest();
             num_out_of_range++;
         } else {
-            dst_data[i] = static_cast<ov::float16>(src_data[i]);
+            constexpr double max_relative_error = 1e-4;
+            constexpr double max_abs_error = 1.0;
+
+            const ov::float16 f16_val = static_cast<ov::float16>(src_data[i]);
+            const double roundtripped = static_cast<double>(static_cast<src_type>(f16_val));
+            const double abs_diff = std::abs(src_data[i] - roundtripped);
+            if ((abs_diff / std::abs(src_data[i]) > max_relative_error) ||
+               (abs_diff > max_abs_error)) {
+                num_out_of_range++;
+            }
+            dst_data[i] = f16_val;
         }
     }
 
@@ -176,15 +186,15 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
 
         auto c_type = const_node->get_element_type();
 
-        // Skip FP16 compression for scalar constants with significant rounding error.
-        // Scalar constants often serve as mathematical scale factors (e.g., log(16) in attention
-        // bucketing) where FP16 rounding error cascades through every computation that uses them.
-        if (ov::shape_size(const_node->get_shape()) == 1) {
-            if (c_type == ov::element::f32 && scalar_has_high_f16_error<float>(*const_node))
-                return false;
-            if (c_type == ov::element::f64 && scalar_has_high_f16_error<double>(*const_node))
-                return false;
-        }
+        // // Skip FP16 compression for scalar constants with significant rounding error.
+        // // Scalar constants often serve as mathematical scale factors (e.g., log(16) in attention
+        // // bucketing) where FP16 rounding error cascades through every computation that uses them.
+        // if (ov::shape_size(const_node->get_shape()) == 1) {
+        //     if (c_type == ov::element::f32 && scalar_has_high_f16_error<float>(*const_node))
+        //         return false;
+        //     if (c_type == ov::element::f64 && scalar_has_high_f16_error<double>(*const_node))
+        //         return false;
+        // }
 
         std::shared_ptr<ov::Node> new_const;
 
@@ -201,8 +211,10 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
             auto size = shape_size(const_node->get_output_shape(0));
             if (size == 0)
                 return false;
+            const auto* src_data = const_node->get_data_ptr<float>();
             auto num_out_of_range =
-                ov::reference::count_out_of_f16_range(const_node->get_data_ptr<ov::element::f32>(), size);
+                ov::reference::count_out_of_f16_range(src_data, size);
+            num_out_of_range += ov::reference::count_lossy_f16_compression(src_data, size);
 
             // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
             const float keep_threshold = 0.75f;

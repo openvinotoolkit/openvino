@@ -85,6 +85,9 @@ void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count);
 // Count how many f32 values is out of normal finite numbers range when converted to f16
 size_t count_out_of_f16_range(const float* arg, size_t count);
 
+// Count how many in-range f32 values lose significant precision when rounded to f16
+size_t count_lossy_f16_compression(const float* arg, size_t count);
+
 // Convert values from f32 to f16 with clamping to f16 min/max when value is out of normal finite numbers range
 void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count);
 

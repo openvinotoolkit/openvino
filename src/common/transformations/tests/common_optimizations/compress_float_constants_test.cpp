@@ -684,6 +684,51 @@ TEST_F(TransformationTestsF, CompressConstants_compress_non_scalar_with_high_err
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
+// Non-scalar constant with high absolute FP16 error (e.g. RoPE frequency table)
+// should NOT be compressed — value 5002.0 has FP16 abs error = 2.0 (ULP=4 in [4096,8192) range).
+TEST_F(TransformationTestsF, CompressConstants_skip_non_scalar_with_high_abs_error) {
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 4});
+        auto freqs = v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 100.0f, 500.0f, 5002.0f});
+        auto mul = std::make_shared<ov::opset8::Multiply>(input, freqs);
+        model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
+
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
+        manager.register_pass<ov::pass::CompressFloatConstants>();
+    }
+
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 4});
+        // Stays FP32: 5002.0 rounds to 5000.0 in FP16, abs error = 2.0 > threshold 1.0
+        auto freqs = v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 100.0f, 500.0f, 5002.0f});
+        auto mul = std::make_shared<ov::opset8::Multiply>(input, freqs);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+// Non-scalar constant with low absolute FP16 error (normal weights) should be compressed.
+TEST_F(TransformationTestsF, CompressConstants_compress_non_scalar_with_low_abs_error) {
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 4});
+        auto weights = v0::Constant::create(ov::element::f32, ov::Shape{4}, {0.5f, 1.23f, -3.14f, 7.77f});
+        auto mul = std::make_shared<ov::opset8::Multiply>(input, weights);
+        model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
+
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
+        manager.register_pass<ov::pass::CompressFloatConstants>();
+    }
+
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 4});
+        auto weights = v0::Constant::create(ov::element::f16, ov::Shape{4}, {0.5f, 1.23f, -3.14f, 7.77f});
+        auto convert = std::make_shared<v0::Convert>(weights, ov::element::f32);
+        auto mul = std::make_shared<ov::opset8::Multiply>(input, convert);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
 namespace {
 struct TestParams {
     TestParams() = default;
