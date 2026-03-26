@@ -33,8 +33,8 @@ ov::pass::pattern::op::QDQBlock::QDQBlock(ov::pass::pattern::op::Predicate data_
     auto dq_convert_pattern = pattern::wrap_type<v0::Convert>({q_convert_pattern}, dq_convert_pred);
 
     auto zero_point_pattern = pattern::any_input();
-    auto sub_pattern = pattern::optional<v1::Subtract>({dq_convert_pattern, zero_point_pattern},
-                                                       pattern::consumers_count(1));
+    auto sub_pattern =
+        pattern::optional<v1::Subtract>({dq_convert_pattern, zero_point_pattern}, pattern::consumers_count(1));
 
     auto scale_pattern = pattern::any_input();
     auto mul_pattern = pattern::wrap_type<v1::Multiply>({sub_pattern, scale_pattern});

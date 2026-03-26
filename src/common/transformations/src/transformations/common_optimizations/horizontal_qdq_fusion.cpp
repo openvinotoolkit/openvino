@@ -43,10 +43,10 @@ HorizontalQDQFusion::HorizontalQDQFusion(const ov::element::TypeVector& supporte
     MATCHER_SCOPE(HorizontalQDQFusion);
 
     using namespace ov::pass::pattern;
-    auto qdq_block = std::make_shared<op::QDQBlock>(
-        type_matches_any(supported_original_precisions),
-        type_matches_any(supported_low_precisions),
-        type_matches_any(supported_original_precisions) && consumers_more_than(1));
+    auto qdq_block =
+        std::make_shared<op::QDQBlock>(type_matches_any(supported_original_precisions),
+                                       type_matches_any(supported_low_precisions),
+                                       type_matches_any(supported_original_precisions) && consumers_more_than(1));
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

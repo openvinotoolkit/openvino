@@ -29,10 +29,10 @@ ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVect
     MATCHER_SCOPE(ConvertQuantizeDequantize);
 
     using namespace ov::pass::pattern;
-    auto qdq_block = std::make_shared<op::QDQBlock>(
-        type_matches_any(supported_original_precisions),
-        type_matches_any(supported_low_precisions) && consumers_count(1),
-        type_matches_any(supported_original_precisions) && consumers_count(1));
+    auto qdq_block =
+        std::make_shared<op::QDQBlock>(type_matches_any(supported_original_precisions),
+                                       type_matches_any(supported_low_precisions) && consumers_count(1),
+                                       type_matches_any(supported_original_precisions) && consumers_count(1));
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -44,15 +44,16 @@ ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVect
         auto data = *qdq_block->get_anchor("data_pattern", pattern_map);
         auto input_low = *qdq_block->get_anchor("input_low_pattern", pattern_map);
         auto input_high = *qdq_block->get_anchor("input_high_pattern", pattern_map);
-        auto output_low =
-            ov::as_type_ptr<v0::Constant>(qdq_block->get_anchor("output_low_pattern", pattern_map)->get_node_shared_ptr());
+        auto output_low = ov::as_type_ptr<v0::Constant>(
+            qdq_block->get_anchor("output_low_pattern", pattern_map)->get_node_shared_ptr());
         if (!output_low)
             return false;
-        auto output_high =
-            ov::as_type_ptr<v0::Constant>(qdq_block->get_anchor("output_high_pattern", pattern_map)->get_node_shared_ptr());
+        auto output_high = ov::as_type_ptr<v0::Constant>(
+            qdq_block->get_anchor("output_high_pattern", pattern_map)->get_node_shared_ptr());
         if (!output_high)
             return false;
-        auto fq = ov::as_type_ptr<v0::FakeQuantize>(qdq_block->get_anchor("fq_pattern", pattern_map)->get_node_shared_ptr());
+        auto fq =
+            ov::as_type_ptr<v0::FakeQuantize>(qdq_block->get_anchor("fq_pattern", pattern_map)->get_node_shared_ptr());
         if (!fq)
             return false;
         auto scale = *qdq_block->get_anchor("scale_pattern", pattern_map);
