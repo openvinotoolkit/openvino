@@ -111,6 +111,7 @@
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/horizontal_qdq_fusion.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
@@ -417,6 +418,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::pass::Manager qdq_stripping_manager("Plugin:GPU:QDQ_Stripping");
             using namespace ov::element;
             // QDQ stripping pipeline
+            // 0. Deduplicate identical DQ subgraphs sharing a common Convert node
+            qdq_stripping_manager.register_pass<ov::pass::HorizontalQDQFusion>(TypeVector{i16, u16}, TypeVector{f32});
             // 1. Fuse FQ->Convert->DQ to a single FQ
             qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16}, TypeVector{f32}, true);
             // 2. Strip FQ layers with unsupported levels
