@@ -184,7 +184,7 @@ protected:
                                                                  padType,
                                                                  convOutChannels,
                                                                  numGroups);
-        function = makeNgraphFunction(netType, params, groupConv, "groupConvolution");
+        function = create_ov_model(netType, params, groupConv, "groupConvolution");
     }
 };
 

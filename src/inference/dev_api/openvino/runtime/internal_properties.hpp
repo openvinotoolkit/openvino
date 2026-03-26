@@ -13,6 +13,10 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 
+namespace ov::weight_sharing {
+struct Context;
+}
+
 namespace ov {
 
 namespace internal {
@@ -169,6 +173,7 @@ static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quan
  */
 
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};
+
 /* 
 * @brief Namespace for properties related to MLIR operations within the GPU plugin.
  * These properties are used as evaluation context parameters for MLIR operations,
@@ -200,5 +205,16 @@ static constexpr Property<void**> result_event{"RESULT_EVENT"};
 static constexpr Property<std::vector<bool>> is_kernel_arg_usm{"IS_KERNEL_ARG_USM"};
 
 } // namespace mlir_meta
+
+using WeightSharingCtxPtr = std::shared_ptr<const weight_sharing::Context>;
+
+/**
+ * @brief Property to pass weight sharing context.
+ *
+ * The property is used to pass weight sharing context to plugins on model compile/import.
+ * The property can be retrieved from a compiled model to get the weight sharing context
+ * for further sharing of weights between models.
+ */
+inline constexpr Property<WeightSharingCtxPtr, PropertyMutability::RW> model_sharing_context{"MODEL_SHARING_CONTEXT"};
 }  // namespace internal
 }  // namespace ov

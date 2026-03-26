@@ -4,108 +4,48 @@
 
 #include <cstddef>
 #include <cstdlib>
-#include <memory>
 #include <sstream>
 #include <string>
 #ifdef SNIPPETS_DEBUG_CAPS
 
+#    include "emitters/snippets/common/verbose_utils.hpp"
 #    include "jit_gemm_copy_b_emitter.hpp"
 #    include "jit_gemm_emitter.hpp"
 #    include "jit_kernel_emitter.hpp"
 #    include "jit_memory_emitters.hpp"
 #    include "jit_segfault_detector_emitter.hpp"
+#    include "openvino/util/common_util.hpp"
 #    include "verbose.hpp"
 
-#    ifndef _WIN32
-#        include <cxxabi.h>
-#    endif
-
 namespace ov::intel_cpu::aarch64 {
-
-template <typename T>
-std::string join(const T& v, const std::string& sep = ", ") {
-    std::ostringstream ss;
-    size_t count = 0;
-    for (const auto& x : v) {
-        if (count++ > 0) {
-            ss << sep;
-        }
-        ss << x;
-    }
-    return ss.str();
-}
-
-template <typename T>
-std::string vector_to_string(const T& v) {
-    std::ostringstream os;
-    os << "[ " << join(v) << " ]";
-    return os.str();
-}
-
-std::string get_emitter_type_name(const jit_emitter* emitter) {
-    std::string name = typeid(*emitter).name();
-#    ifndef _WIN32
-    int status = 0;
-    std::unique_ptr<char, void (*)(void*)> demangled_name(abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status),
-                                                          std::free);
-    name = demangled_name.get();
-#    endif
-    return name;
-}
-
-std::string init_info_jit_memory_emitter(const jit_memory_emitter* emitter) {
-    std::stringstream ss;
-    ss << " src_precision:" << emitter->src_prc << " dst_precision:" << emitter->dst_prc
-       << " load/store_element_number:" << emitter->count << " byte_offset:" << emitter->compiled_byte_offset;
-    return ss.str();
-}
-
-static std::string init_info_jit_load_memory_emitter(const jit_load_memory_emitter* emitter) {
-    std::stringstream ss;
-    std::string memory_emitter_info = init_info_jit_memory_emitter(emitter);
-    ss << "Emitter_type_name:jit_load_memory_emitter" << memory_emitter_info;
-    return ss.str();
-}
-
-static std::string init_info_jit_load_broadcast_emitter(const jit_load_broadcast_emitter* emitter) {
-    std::stringstream ss;
-    std::string memory_emitter_info = init_info_jit_memory_emitter(emitter);
-    ss << "Emitter_type_name:jit_load_broadcast_emitter" << memory_emitter_info;
-    return ss.str();
-}
-
-static std::string init_info_jit_store_memory_emitter(const jit_store_memory_emitter* emitter) {
-    std::stringstream ss;
-    std::string memory_emitter_info = init_info_jit_memory_emitter(emitter);
-    ss << "Emitter_type_name:jit_store_memory_emitter" << memory_emitter_info;
-    return ss.str();
-}
 
 std::string init_info_jit_gemm_emitter(const jit_gemm_emitter* emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_gemm_emitter"
-       << " is_f16:" << emitter->m_is_f16 << " m_memory_offset:" << vector_to_string(emitter->m_memory_offsets)
-       << " m_buffer_ids:" << vector_to_string(emitter->m_buffer_ids);
+       << " is_f16:" << emitter->m_is_f16
+       << " m_memory_offset:" << ov::util::vector_to_string(emitter->m_memory_offsets)
+       << " m_buffer_ids:" << ov::util::vector_to_string(emitter->m_buffer_ids);
     return ss.str();
 }
 
 std::string init_info_jit_gemm_copy_b_emitter(const jit_gemm_copy_b_emitter* emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_gemm_copy_b_emitter"
-       << " is_f16:" << emitter->m_is_f16 << " m_memory_offset:" << vector_to_string(emitter->m_memory_offsets)
-       << " m_buffer_ids:" << vector_to_string(emitter->m_buffer_ids);
+       << " is_f16:" << emitter->m_is_f16
+       << " m_memory_offset:" << ov::util::vector_to_string(emitter->m_memory_offsets)
+       << " m_buffer_ids:" << ov::util::vector_to_string(emitter->m_buffer_ids);
     return ss.str();
 }
 
 std::string init_info_jit_kernel_static_emitter(const jit_kernel_static_emitter* emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_kernel_static_emitter"
-       << " jcp.exec_domain:" << vector_to_string(emitter->jcp.exec_domain)
-       << " master_shape:" << vector_to_string(emitter->master_shape) << " num_inputs:" << emitter->num_inputs
+       << " jcp.exec_domain:" << ov::util::vector_to_string(emitter->jcp.exec_domain)
+       << " master_shape:" << ov::util::vector_to_string(emitter->master_shape) << " num_inputs:" << emitter->num_inputs
        << " num_outputs:" << emitter->num_outputs << " num_unique_buffers:" << emitter->num_unique_buffers
-       << " data_ptr_regs_idx:" << vector_to_string(emitter->data_ptr_regs_idx);
+       << " data_ptr_regs_idx:" << ov::util::vector_to_string(emitter->data_ptr_regs_idx);
     for (size_t i = 0; i < emitter->data_offsets.size(); ++i) {
-        ss << " data_offsets for " << i << " is:" << vector_to_string(emitter->data_offsets[i]);
+        ss << " data_offsets for " << i << " is:" << ov::util::vector_to_string(emitter->data_offsets[i]);
     }
     return ss.str();
 }
@@ -115,7 +55,7 @@ std::string init_info_jit_kernel_dynamic_emitter(const jit_kernel_dynamic_emitte
     ss << "Emitter_type_name:jit_kernel_dynamic_emitter"
        << " num_inputs:" << emitter->num_inputs << " num_outputs:" << emitter->num_outputs
        << " num_unique_buffers:" << emitter->num_unique_buffers
-       << " data_ptr_regs_idx:" << vector_to_string(emitter->data_ptr_regs_idx);
+       << " data_ptr_regs_idx:" << ov::util::vector_to_string(emitter->data_ptr_regs_idx);
     return ss.str();
 }
 
@@ -137,32 +77,33 @@ std::string init_info_jit_uni_segfault_detector_emitter(const jit_uni_segfault_d
 
 static std::string init_info_jit_emitter_general(const jit_emitter* emitter) {
     std::stringstream ss;
-    ss << "Emitter_type_name:" << get_emitter_type_name(emitter);
+    ss << "Emitter_type_name:" << snippets_common::get_emitter_type_name(emitter);
     return ss.str();
 }
 
-void jit_emitter_info_t::init(const jit_emitter* emitter) {
+void jit_emitter_info_t::init(const void* emitter) {
     if (is_initialized_) {
         return;
     }
-    if (const auto* e_type = dynamic_cast<const jit_load_memory_emitter*>(emitter)) {
-        str_ = init_info_jit_load_memory_emitter(e_type);
-    } else if (const auto* e_type = dynamic_cast<const jit_load_broadcast_emitter*>(emitter)) {
-        str_ = init_info_jit_load_broadcast_emitter(e_type);
-    } else if (const auto* e_type = dynamic_cast<const jit_store_memory_emitter*>(emitter)) {
-        str_ = init_info_jit_store_memory_emitter(e_type);
-    } else if (const auto* e_type = dynamic_cast<const jit_gemm_emitter*>(emitter)) {
+    const auto* e = static_cast<const jit_emitter*>(emitter);
+    if (const auto* e_type = dynamic_cast<const jit_load_memory_emitter*>(e)) {
+        str_ = snippets_common::init_info_jit_load_memory_emitter(e_type);
+    } else if (const auto* e_type = dynamic_cast<const jit_load_broadcast_emitter*>(e)) {
+        str_ = snippets_common::init_info_jit_load_broadcast_emitter(e_type);
+    } else if (const auto* e_type = dynamic_cast<const jit_store_memory_emitter*>(e)) {
+        str_ = snippets_common::init_info_jit_store_memory_emitter(e_type);
+    } else if (const auto* e_type = dynamic_cast<const jit_gemm_emitter*>(e)) {
         str_ = init_info_jit_gemm_emitter(e_type);
-    } else if (const auto* e_type = dynamic_cast<const jit_gemm_copy_b_emitter*>(emitter)) {
+    } else if (const auto* e_type = dynamic_cast<const jit_gemm_copy_b_emitter*>(e)) {
         str_ = init_info_jit_gemm_copy_b_emitter(e_type);
-    } else if (const auto* e_type = dynamic_cast<const jit_kernel_static_emitter*>(emitter)) {
+    } else if (const auto* e_type = dynamic_cast<const jit_kernel_static_emitter*>(e)) {
         str_ = init_info_jit_kernel_static_emitter(e_type);
-    } else if (const auto* e_type = dynamic_cast<const jit_kernel_dynamic_emitter*>(emitter)) {
+    } else if (const auto* e_type = dynamic_cast<const jit_kernel_dynamic_emitter*>(e)) {
         str_ = init_info_jit_kernel_dynamic_emitter(e_type);
-    } else if (const auto* e_type = dynamic_cast<const jit_uni_segfault_detector_emitter*>(emitter)) {
+    } else if (const auto* e_type = dynamic_cast<const jit_uni_segfault_detector_emitter*>(e)) {
         str_ = init_info_jit_uni_segfault_detector_emitter(e_type);
     } else {
-        str_ = init_info_jit_emitter_general(emitter);
+        str_ = init_info_jit_emitter_general(e);
     }
     is_initialized_ = true;
 }
