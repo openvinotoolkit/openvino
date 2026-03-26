@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include "intel_gpu/op/moe_compressed.hpp"
+#include "ov_ops/moe_compressed.hpp"
 
 namespace ov::intel_gpu::op {
 
 /// \brief MOE3GemmFusedCompressed that support compressed and fused MOE for GEMM3_SWIGLU.
-class MOE3GemmFusedCompressed : public MOECompressed {
+class MOE3GemmFusedCompressed : public ov::op::internal::MOECompressed {
 public:
-    OPENVINO_OP("MOE3GemmFusedCompressed", "gpu_opset", MOECompressed);
+    OPENVINO_OP("MOE3GemmFusedCompressed", "gpu_opset", ov::op::internal::MOECompressed);
 
-    MOE3GemmFusedCompressed() = default;
+    MOE3GemmFusedCompressed() = delete;
 
     /// \brief Constructs a MOE3GemmFusedCompressed operation with config only
     /// \param args The input tensors, in the following order:

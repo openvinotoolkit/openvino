@@ -39,6 +39,7 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     const auto& weight_layout = params.input_layouts[m_wei_idx];
     const auto& scale_layout = params.input_layouts[m_scale_idx];
     const auto& zp_layout = params.input_layouts[m_zp_idx];
+    const bool is_weight_symmetric_quantized = (zp_layout.count() == 0);
 
     // Internal generator of JIT constants, require intermediate buffers and part of primitive's inputs.
     // JitConstants jit = make_base_jit_constants(params);
@@ -75,9 +76,7 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     jit.make("INPUT4_TYPE", to_ocl_type(data_types::i32));             // n_array: i32
     jit.make("WEIGHT_SCALE_DT", to_ocl_type(scale_layout.data_type));  // scale: f16
 
-    auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
-    const bool has_zp = desc->_config.has_zp;
-    if (has_zp) {
+    if (!is_weight_symmetric_quantized) {
         if (zp_layout.data_type == ov::element::u4 || zp_layout.data_type == ov::element::i4) {
             jit.make("WEIGHT_ZP_DT", to_ocl_type(data_types::u8));  // zp: u4/i4
             jit.make("WEIGHT_COMPRESSED_ZP_INT4", 1);
@@ -104,6 +103,7 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
         GPU_DEBUG_TRACE_DETAIL << "\t NUM_GROUPS: 1" << std::endl;
     }
 
+    auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
     switch (m_type) {
     case MoE3GemmMicroKernelType::MLP_GATE:
     case MoE3GemmMicroKernelType::MLP_UP:
@@ -194,6 +194,8 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const auto& weight_layout = params.get_input_layout(wei_idx);
     const auto& scale_layout = params.get_input_layout(scale_idx);
     const auto& zp_layout = params.get_input_layout(zp_idx);
+    // Symmetric quantization: ZP placeholder has count()==0 (element::dynamic, Shape{0})
+    const bool is_weight_symmetric_quantized = (zp_layout.count() == 0);
 
     MoE3GemmMicroGenerator::GemmCacheKey key;
     key.type = type;
@@ -250,7 +252,6 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
         problem_moe.aqGroupK = static_cast<int>(group_size);
 
         opts_moe.scaleA = true;
-        const bool is_weight_symmetric_quantized = !desc->_config.has_zp;
         if (!is_weight_symmetric_quantized) {
             // zp layout example: u4:bfyx:4x8x3072:nopad
             const auto& zp_layout = params.get_input_layout(zp_idx);
@@ -365,7 +366,7 @@ std::string MoE3GemmMicroGenerator::get_build_options(const kernel_impl_params& 
 Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
     auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
-    const bool has_zp = desc->_config.has_zp;
+    const bool is_weight_symmetric_quantized = (params.input_layouts[m_zp_idx].count() == 0);
 
     switch (m_type) {
     case MoE3GemmMicroKernelType::MLP_GATE:
@@ -383,7 +384,7 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                            // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_0)});                 // scale
-        if (has_zp)
+        if (!is_weight_symmetric_quantized)
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_0)});  // zp
         break;
     case MoE3GemmMicroKernelType::MLP_UP:
@@ -396,7 +397,7 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                            // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_1)});                 // scale
-        if (has_zp)
+        if (!is_weight_symmetric_quantized)
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_1)});  // zp
         break;
     case MoE3GemmMicroKernelType::MLP_DOWN:
@@ -409,7 +410,7 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                            // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_2)});                 // scale
-        if (has_zp)
+        if (!is_weight_symmetric_quantized)
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_2)});  // zp
         break;
     default:

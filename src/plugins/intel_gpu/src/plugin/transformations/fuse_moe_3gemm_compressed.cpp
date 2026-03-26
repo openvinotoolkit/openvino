@@ -11,40 +11,29 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/type.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/pass/pattern/op/optional.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "openvino/pass/pattern/op/pattern.hpp"
-#include "openvino/pass/pattern/op/label.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/utils.hpp"
-
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/op.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
+#include "ov_ops/moe_compressed.hpp"
 
 namespace ov::intel_gpu {
 FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
@@ -63,13 +52,9 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
 
     auto sm_reduce = wrap_type<ov::op::v1::ReduceSum>({sm_topk->output(0), ANY}, consumers_count(1));
     auto sm_norm = wrap_type<ov::op::v1::Divide>({sm_topk->output(0), sm_reduce}, consumers_count(1));
-
     auto sm_convert_topk = optional<ov::op::v0::Convert>({sm_topk->output(1)});
-    auto sm_bc = wrap_type<ov::op::v3::Broadcast>({ANY, ANY});
-
-    // Optional slice on normalized weights (covers Qwen3-next pattern)
-    auto sm_shape_of = wrap_type<ov::op::v3::ShapeOf>({sm_convert_topk}, consumers_count(1));
-    auto sm_norm_slice = optional<ov::op::v8::Slice>({sm_norm, ANY, sm_shape_of, ANY, ANY}, consumers_count(1));
+    auto sm_transpose = wrap_type<ov::op::v1::Transpose>({sm_norm, ANY}, consumers_count(1));
+    auto sm_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({sm_transpose, ANY}, consumers_count(1));
 
     // ── Sigmoid+bias routing branch ─────────────────────────────────────
     auto sig_sigmoid = wrap_type<ov::op::v0::Sigmoid>({matmul});
@@ -88,16 +73,13 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     });
     auto sig_add_eps = wrap_type<ov::op::v1::Add>({sig_reduce, sig_eps_value}, consumers_count(1));
     auto sig_norm = wrap_type<ov::op::v1::Divide>({sig_gather_el, sig_add_eps}, consumers_count(1));
-    auto sig_slice = wrap_type<ov::op::v8::Slice>({sig_norm, ANY, ANY, ANY, ANY}, consumers_count(1));
-    auto sig_bc = wrap_type<ov::op::v3::Broadcast>({ANY, ANY}, consumers_count(1));
+    auto sig_slice = optional<ov::op::v8::Slice>({sig_norm, ANY, ANY, ANY, ANY});
+    auto sig_transpose = wrap_type<ov::op::v1::Transpose>({sig_slice, ANY}, consumers_count(1));
+    auto sig_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({sig_transpose, ANY}, consumers_count(1));
 
+    // ── Or-pattern: combine both branches ───────────────────────────────
     auto topk_idces = sm_convert_topk | sig_convert_topk;
-    auto scatter = wrap_type<ov::op::v12::ScatterElementsUpdate>({sm_bc | sig_bc, topk_idces, sm_norm_slice | sig_slice, ANY}, consumers_count(1));
-
-    // ── Shared tail: scatter → transpose → reshape → unsqueeze ──────────
-    auto transpose = wrap_type<ov::op::v1::Transpose>({scatter, ANY}, consumers_count(1));
-    auto reshape = wrap_type<ov::op::v1::Reshape>({transpose, ANY}, consumers_count(1));
-    auto unsqueeze_moe = wrap_type<ov::op::v0::Unsqueeze>({reshape, ANY}, consumers_count(1));
+    auto unsqueeze_moe = sm_unsqueeze | sig_unsqueeze;
 
     // ── Common: hidden state + compressed weights + MOECompressed ───────
     auto gate_wei_m = wrap_const();
@@ -122,7 +104,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
                                    down_wei_m,
                                    down_scale_m,
                                    down_zp_m};
-    auto moe_compressed_no_shared_m = wrap_type<ov::intel_gpu::op::MOECompressed>(moe_inputs);
+    auto moe_compressed_no_shared_m = wrap_type<ov::op::internal::MOECompressed>(moe_inputs);
 
     // ── Shared expert weights ───────────────────────────────────────────
     auto shared_gate_wei_m = wrap_const();
@@ -147,14 +129,14 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     moe_inputs_shared.push_back(shared_down_zp_m);
     auto shared_gate_gate_wei_m = ANY;
     moe_inputs_shared.push_back(shared_gate_gate_wei_m);
-    auto moe_compressed_shared_m = wrap_type<ov::intel_gpu::op::MOECompressed>(moe_inputs_shared);
+    auto moe_compressed_shared_m = wrap_type<ov::op::internal::MOECompressed>(moe_inputs_shared);
 
     auto moe_compressed_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{moe_compressed_no_shared_m, moe_compressed_shared_m});
 #undef ANY
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto moe_compressed = ov::as_type_ptr<ov::intel_gpu::op::MOECompressed>(pattern_map.at(moe_compressed_m).get_node_shared_ptr());
+        auto moe_compressed = ov::as_type_ptr<ov::op::internal::MOECompressed>(pattern_map.at(moe_compressed_m).get_node_shared_ptr());
         if (!moe_compressed || transformation_callback(moe_compressed)) {
             return false;
         }
@@ -184,7 +166,7 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
         if (pattern_map.count(sig_routing_bias)) {
             args.push_back(pattern_map.at(sig_routing_bias));
             args.push_back(pattern_map.at(sig_eps_value));
-            config.routing_type = ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS;
+            config.routing_type = ov::op::internal::MOECompressed::RoutingType::SIGMOID_BIAS;
         } else if (has_shared_expert) {
             // SOFTMAX + shared expert: insert dummy placeholders at indices 11-12
             // so that shared expert inputs always start at index 13.

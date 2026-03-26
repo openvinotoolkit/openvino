@@ -66,6 +66,13 @@ public:
     /// \param config Configuration for the MOE operation
     MOECompressed(const OutputVector& args, const Config& config);
 
+    const Config& get_config() const {
+        return m_config;
+    }
+    void set_config(const Config& config) {
+        m_config = config;
+    }
+
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

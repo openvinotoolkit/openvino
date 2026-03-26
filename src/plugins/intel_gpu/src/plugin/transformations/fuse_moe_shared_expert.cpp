@@ -16,6 +16,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/swish.hpp"
+#include "ov_ops/moe_compressed.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -34,11 +35,31 @@ FuseMOESharedExpert::FuseMOESharedExpert() {
     auto up_weight_m = any_input();
     auto down_weight_m = any_input();
 
-    auto moe_m = wrap_type<ov::op::internal::MOE>({hidden_states_m, routing_weights_m, topk_m, gate_weight_m, up_weight_m, down_weight_m},
-                                                  [](const ov::Output<ov::Node>& output) {
-                                                      auto moe = ov::as_type_ptr<ov::op::internal::MOE>(output.get_node_shared_ptr());
-                                                      return moe && moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
-                                                  });
+    auto is_gemm3_swiglu = [](const ov::Output<ov::Node>& output) {
+        auto moe = ov::as_type_ptr<ov::op::internal::MOE>(output.get_node_shared_ptr());
+        return moe && moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+    };
+
+    auto moe_base_m = wrap_type<ov::op::internal::MOE>({hidden_states_m, routing_weights_m, topk_m,
+                                                         gate_weight_m, up_weight_m, down_weight_m},
+                                                        is_gemm3_swiglu);
+
+    // Match MOECompressed node (12 inputs: hidden, routing, topk, gate/scale/zp, up/scale/zp, down/scale/zp)
+    auto gate_scale_m = any_input();
+    auto gate_zp_m = any_input();
+    auto up_scale_m = any_input();
+    auto up_zp_m = any_input();
+    auto down_scale_m = any_input();
+    auto down_zp_m = any_input();
+
+    auto moe_compressed_m = wrap_type<ov::op::internal::MOECompressed>(
+        {hidden_states_m, routing_weights_m, topk_m,
+         gate_weight_m, gate_scale_m, gate_zp_m,
+         up_weight_m, up_scale_m, up_zp_m,
+         down_weight_m, down_scale_m, down_zp_m},
+        is_gemm3_swiglu);
+
+    auto moe_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{moe_base_m, moe_compressed_m});
 
     // Shared expert subgraph:
     //   shared_gate = MatMul(shared_hidden, shared_gate_weight)
@@ -81,24 +102,21 @@ FuseMOESharedExpert::FuseMOESharedExpert() {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto root_node = pattern_map.at(root).get_node_shared_ptr();
-        auto moe = ov::as_type_ptr<ov::op::internal::MOE>(pattern_map.at(moe_m).get_node_shared_ptr());
+        auto moe_node = pattern_map.at(moe_m).get_node_shared_ptr();
+        auto moe = ov::as_type_ptr<ov::op::internal::MOE>(moe_node);
         if (!moe || transformation_callback(root_node)) {
             return false;
         }
 
-        // Build new MOE with shared expert weights as additional inputs:
-        //   {hidden, routing, topk, gate, up, down, sh_gate, sh_up, sh_down, gate_gate}
-        OutputVector new_inputs = {
-            moe->input_value(0),                   // hidden_states
-            moe->input_value(1),                   // routing_weights
-            moe->input_value(2),                   // topk_indices
-            moe->input_value(3),                   // gate weight (decompressed)
-            moe->input_value(4),                   // up weight (decompressed)
-            moe->input_value(5),                   // down weight (decompressed)
-            pattern_map.at(shared_gate_weight_m),  // shared gate weight
-            pattern_map.at(shared_up_weight_m),    // shared up weight
-            pattern_map.at(shared_down_weight_m),  // shared down weight
-        };
+        // Build new MOE/MOECompressed with shared expert weights as additional inputs.
+        // Copy all original inputs, then append shared expert weights.
+        OutputVector new_inputs;
+        for (size_t i = 0; i < moe->get_input_size(); ++i) {
+            new_inputs.push_back(moe->input_value(i));
+        }
+        new_inputs.push_back(pattern_map.at(shared_gate_weight_m));  // shared gate weight
+        new_inputs.push_back(pattern_map.at(shared_up_weight_m));    // shared up weight
+        new_inputs.push_back(pattern_map.at(shared_down_weight_m));  // shared down weight
 
         // Use shared_gate_sigmoid_m to reliably detect whether the gating branch matched.
         // shared_gate_gate_wei_m is any_input() and may be spuriously bound even when
@@ -107,15 +125,21 @@ FuseMOESharedExpert::FuseMOESharedExpert() {
         if (has_gating) {
             new_inputs.push_back(pattern_map.at(shared_gate_gate_wei_m));
         } else {
-            // Models without gate_gate: insert a dummy so input count is always 10
+            // Models without gate_gate: insert a dummy so input count is consistent
             size_t hidden_size = moe->get_output_partial_shape(0).rbegin()->get_length();
             new_inputs.push_back(
                 ov::op::v0::Constant::create(ov::element::f16, ov::Shape{hidden_size, 1}, std::vector<float>(hidden_size, 0.0f)));
         }
 
-        auto new_moe = std::make_shared<ov::op::internal::MOE>(new_inputs, moe->get_config());
+        std::shared_ptr<ov::Node> new_moe;
+        auto moe_compressed = ov::as_type_ptr<ov::op::internal::MOECompressed>(moe_node);
+        if (moe_compressed) {
+            new_moe = std::make_shared<ov::op::internal::MOECompressed>(new_inputs, moe_compressed->get_config());
+        } else {
+            new_moe = std::make_shared<ov::op::internal::MOE>(new_inputs, moe->get_config());
+        }
         new_moe->set_friendly_name(root_node->get_friendly_name());
-        ov::copy_runtime_info({moe, root_node}, new_moe);
+        ov::copy_runtime_info({moe_node, root_node}, new_moe);
         ov::replace_node(root_node, new_moe);
 
         return true;
