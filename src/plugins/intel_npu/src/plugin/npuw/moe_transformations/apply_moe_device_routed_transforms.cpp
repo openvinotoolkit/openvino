@@ -25,8 +25,12 @@ void apply_moe_device_routed_transforms(const std::shared_ptr<ov::Model>& model)
 
 }  // namespace
 
+namespace ov::npuw {
+
 bool ApplyMoEDeviceRoutedTransforms::run_on_model(const std::shared_ptr<ov::Model>& model) {
     apply_moe_device_routed_transforms(model);
 
     return true;
 }
+
+}  // namespace ov::npuw

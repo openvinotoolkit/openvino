@@ -6,6 +6,8 @@
 
 #include "openvino/pass/pass.hpp"
 
+namespace ov::npuw {
+
 // Apply DEVICE_ROUTED MoE transformations to models
 class ApplyMoEDeviceRoutedTransforms : public ov::pass::ModelPass {
 public:
@@ -13,3 +15,5 @@ public:
     ApplyMoEDeviceRoutedTransforms() = default;
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
+
+}  // namespace ov::npuw

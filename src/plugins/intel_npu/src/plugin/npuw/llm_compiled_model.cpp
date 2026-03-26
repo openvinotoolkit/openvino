@@ -977,7 +977,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
             LOG_INFO("Applying DEVICE_ROUTED MoE transformations to " << generate_model_variants.size() << " variants");
             for (auto&& model_variant : generate_model_variants) {
-                ApplyMoEDeviceRoutedTransforms().run_on_model(model_variant);
+                ov::npuw::ApplyMoEDeviceRoutedTransforms().run_on_model(model_variant);
             }
             LOG_INFO("DEVICE_ROUTED MoE transformations completed");
         }
