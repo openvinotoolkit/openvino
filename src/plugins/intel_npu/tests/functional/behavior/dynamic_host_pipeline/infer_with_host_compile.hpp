@@ -167,12 +167,12 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     ov::CompiledModel compiledModel;
 
     // Create log callback function which will store log to string, the set to ov
-    std::stringstream custom_logger;
-    std::function<void(std::string_view)> custom_log_callback =
+    std::stringstream customLogger;
+    std::function<void(std::string_view)> customLogCallback =
         [&](std::string_view s) {  // switch to query allocation info for import flag when possible
-            custom_logger << s << std::endl;
+            customLogger << s << std::endl;
         };
-    ov::util::set_log_callback(custom_log_callback);
+    ov::util::set_log_callback(customLogCallback);
     struct ResetLogCallbackGuard {
         ~ResetLogCallbackGuard() {
             ov::util::reset_log_callback();
@@ -199,43 +199,43 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
     // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
-    ASSERT_TRUE(custom_logger.str().find("Reset command list to run with runtime") != std::string::npos)
-        << "Expected log to contain 'Reset command list to run with runtime', but got: " << custom_logger.str();
+    ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
 
-    custom_logger.str("");
-    custom_logger.clear();
+    customLogger.str("");
+    customLogger.clear();
     OV_ASSERT_NO_THROW(reqDynamic.infer());
     // Rerun inferrequest with current tensor, the command list is reused without update since no tensor change detected
-    ASSERT_TRUE(custom_logger.str().find("Reuse command list without update since no tensor change detected") !=
+    ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
                 std::string::npos)
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for second "
            "inference, but got: "
-        << custom_logger.str();
+        << customLogger.str();
 
-    custom_logger.str("");
+    customLogger.str("");
     ov::Tensor inTensor1 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor1));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
     // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused with
     // data copy
-    ASSERT_TRUE(custom_logger.str().find("Reuse command list without update since no tensor change detected") !=
+    ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
                 std::string::npos)
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for third "
            "inference, but got: "
-        << custom_logger.str();
+        << customLogger.str();
 
-    custom_logger.str("");
-    custom_logger.clear();
+    customLogger.str("");
+    customLogger.clear();
     ov::Shape shape2 = {1, 16, 720, 720};
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor3));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
     // Set new tensor with new shape, it can not be used by runtime directly, local LevelZero tensor are not reused
     // since the original one is too small, command list is reset to run with runtime
-    ASSERT_TRUE(custom_logger.str().find("Reset command list to run with runtime") != std::string::npos)
+    ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime' for fourth inference with new shape, but "
            "got: "
-        << custom_logger.str();
+        << customLogger.str();
 }
 
 // The test to compile, create infer request and infer with dynamic shapes. the original shape is small, then set large
@@ -251,12 +251,12 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     ov::CompiledModel compiledModel;
 
     // Create log callback function which will store log to string, the set to ov
-    std::stringstream custom_logger;
-    std::function<void(std::string_view)> custom_log_callback =
+    std::stringstream customLogger;
+    std::function<void(std::string_view)> customLogCallback =
         [&](std::string_view s) {  // switch to query allocation info for import flag when possible
-            custom_logger << s << std::endl;
+            customLogger << s << std::endl;
         };
-    ov::util::set_log_callback(custom_log_callback);
+    ov::util::set_log_callback(customLogCallback);
     struct ResetLogCallbackGuard {
         ~ResetLogCallbackGuard() {
             ov::util::reset_log_callback();
@@ -283,43 +283,43 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
     // The first time to set tensor, the command list is reset to run with runtime
-    ASSERT_TRUE(custom_logger.str().find("Reset command list to run with runtime") != std::string::npos)
-        << "Expected log to contain 'Reset command list to run with runtime', but got: " << custom_logger.str();
+    ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
 
-    custom_logger.str("");
-    custom_logger.clear();
+    customLogger.str("");
+    customLogger.clear();
     OV_ASSERT_NO_THROW(reqDynamic.infer());
     // Rerun inferrequest with current tensor, the command list is reused without update since no tensor change detected
-    ASSERT_TRUE(custom_logger.str().find("Reuse command list without update since no tensor change detected") !=
+    ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
                 std::string::npos)
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for second "
            "inference, but got: "
-        << custom_logger.str();
+        << customLogger.str();
 
-    custom_logger.str("");
+    customLogger.str("");
     ov::Tensor inTensor1 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor1));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
     // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused with
     // data copy
-    ASSERT_TRUE(custom_logger.str().find("Reuse command list without update since no tensor change detected") !=
+    ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
                 std::string::npos)
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for third "
            "inference, but got: "
-        << custom_logger.str();
+        << customLogger.str();
 
-    custom_logger.str("");
-    custom_logger.clear();
+    customLogger.str("");
+    customLogger.clear();
     ov::Shape shape2 = {1, 16, 720, 1280};
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor3));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
     // Set new tensor with new shape, it can not be used by runtime directly, local LevelZero tensor are not reused
     // since the original one is too small, command list is reset to run with runtime
-    ASSERT_TRUE(custom_logger.str().find("Reset command list to run with runtime") != std::string::npos)
+    ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime' for fourth inference with new shape, but "
            "got: "
-        << custom_logger.str();
+        << customLogger.str();
 }
 
 // The test to compile, create infer request and infer with dynamic shapes. Set LevelZeroTensor to trigger command list
@@ -335,12 +335,12 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     ov::CompiledModel compiledModel;
 
     // Create log callback function which will store log to string, the set to ov
-    std::stringstream custom_logger;
-    std::function<void(std::string_view)> custom_log_callback =
+    std::stringstream customLogger;
+    std::function<void(std::string_view)> customLogCallback =
         [&](std::string_view s) {  // switch to query allocation info for import flag when possible
-            custom_logger << s << std::endl;
+            customLogger << s << std::endl;
         };
-    ov::util::set_log_callback(custom_log_callback);
+    ov::util::set_log_callback(customLogCallback);
     struct ResetLogCallbackGuard {
         ~ResetLogCallbackGuard() {
             ov::util::reset_log_callback();
@@ -368,26 +368,36 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     OV_ASSERT_NO_THROW(reqDynamic.infer());
 
     // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
-    ASSERT_TRUE(custom_logger.str().find("Reset command list to run with runtime") != std::string::npos)
-        << "Expected log to contain 'Reset command list to run with runtime', but got: " << custom_logger.str();
+    ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
 
-    custom_logger.str("");
-    custom_logger.clear();
+    customLogger.str("");
+    customLogger.clear();
     ov::InferRequest reqDynamic1 = compiledModel.create_infer_request();
     OV_ASSERT_NO_THROW(reqDynamic1.infer());
     // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
-    ASSERT_TRUE(custom_logger.str().find("Reset command list to run with runtime") != std::string::npos)
-        << "Expected log to contain 'Reset command list to run with runtime', but got: " << custom_logger.str();
-    custom_logger.str("");
-    custom_logger.clear();
+    ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
+    customLogger.str("");
+    customLogger.clear();
     auto outputTensorFromReq = reqDynamic.get_tensor(model->output());
     OV_ASSERT_NO_THROW(reqDynamic1.set_input_tensor(0, outputTensorFromReq));
     OV_ASSERT_NO_THROW(reqDynamic1.infer());
-    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
-    ASSERT_TRUE(custom_logger.str().find("Update command list with new tensor pointer") != std::string::npos)
+    // Level zero tensor with same shape will be used instead of local tensor
+    ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
         << "Expected log to contain 'Update command list with new tensor pointer' for third "
            "inference, but got: "
-        << custom_logger.str();
+        << customLogger.str();
+
+    auto zeroContext = core->get_default_context(target_device);
+    auto inputHostTensor = zeroContext.create_host_tensor(model->input().get_element_type(), shape);
+    OV_ASSERT_NO_THROW(reqDynamic1.set_input_tensor(0, inputHostTensor));
+    OV_ASSERT_NO_THROW(reqDynamic1.infer());
+    // Level zero tensor with same shape will be used instead of local tensor
+    ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
+        << "Expected log to contain 'Update command list with new tensor pointer' for third "
+           "inference, but got: "
+        << customLogger.str();
 }
 
 void dumpTensor(const ov::Tensor& tensor);
@@ -396,6 +406,7 @@ void dumpTensor(const ov::Tensor& tensor) {
     std::cout << "Tensor shape: " << tensor.get_shape() << ", element type: " << tensor.get_element_type() << std::endl;
     const float* data = tensor.data<float>();
     size_t count = ov::shape_size(tensor.get_shape());
+    count = count > 50 ? 50 : count;
     for (size_t i = 0; i < count; i++) {
         std::cout << data[i] << " ";
     }
@@ -416,12 +427,12 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithCPU) {
     ov::CompiledModel cpuCompiledModel;
 
     // Create log callback function which will store log to string, the set to ov
-    std::stringstream custom_logger;
-    std::function<void(std::string_view)> custom_log_callback =
+    std::stringstream customLogger;
+    std::function<void(std::string_view)> customLogCallback =
         [&](std::string_view s) {  // switch to query allocation info for import flag when possible
-            custom_logger << s << std::endl;
+            customLogger << s << std::endl;
         };
-    ov::util::set_log_callback(custom_log_callback);
+    ov::util::set_log_callback(customLogCallback);
     struct ResetLogCallbackGuard {
         ~ResetLogCallbackGuard() {
             ov::util::reset_log_callback();
@@ -469,19 +480,19 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithCPU) {
     dumpTensor(cpuOutputTensor);
 
     // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
-    ASSERT_TRUE(custom_logger.str().find("Reset command list to run with runtime") != std::string::npos)
-        << "Expected log to contain 'Reset command list to run with runtime', but got: " << custom_logger.str();
+    ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
 
-    custom_logger.str("");
-    custom_logger.clear();
+    customLogger.str("");
+    customLogger.clear();
     OV_ASSERT_NO_THROW(reqDynamic.infer());
     OV_ASSERT_NO_THROW(reqCPU.infer());
     // Rerun inferrequest with current tensor, the command list is reused without update since no tensor change detected
-    ASSERT_TRUE(custom_logger.str().find("Reuse command list without update since no tensor change detected") !=
+    ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
                 std::string::npos)
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for second "
            "inference, but got: "
-        << custom_logger.str();
+        << customLogger.str();
     auto npuOutputTensorSecondRun = reqDynamic.get_tensor(model->output());
     auto cpuOutputTensorSecondRun = reqCPU.get_tensor(model->output());
     OV_ASSERT_NO_THROW(ov::test::utils::compare(cpuOutputTensorSecondRun,
@@ -492,16 +503,16 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithCPU) {
     std::cout << "Output tensor from CPU after second inference:" << std::endl;
     dumpTensor(cpuOutputTensorSecondRun);
 
-    custom_logger.str("");
-    custom_logger.clear();
+    customLogger.str("");
+    customLogger.clear();
     ov::InferRequest reqDynamic1 = compiledModel.create_infer_request();
     OV_ASSERT_NO_THROW(reqDynamic1.infer());
     // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
-    ASSERT_TRUE(custom_logger.str().find("Reset command list to run with runtime") != std::string::npos)
-        << "Expected log to contain 'Reset command list to run with runtime', but got: " << custom_logger.str();
+    ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
 
-    custom_logger.str("");
-    custom_logger.clear();
+    customLogger.str("");
+    customLogger.clear();
     ov::InferRequest reqCPU1 = cpuCompiledModel.create_infer_request();
     OV_ASSERT_NO_THROW(reqDynamic1.set_input_tensor(0, npuOutputTensorSecondRun));
     OV_ASSERT_NO_THROW(reqDynamic1.infer());
@@ -509,10 +520,10 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithCPU) {
     OV_ASSERT_NO_THROW(reqCPU1.infer());
 
     // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
-    ASSERT_TRUE(custom_logger.str().find("Update command list with new tensor pointer") != std::string::npos)
+    ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
         << "Expected log to contain 'Update command list with new tensor pointer' for third "
            "inference, but got: "
-        << custom_logger.str();
+        << customLogger.str();
 
     auto npuOutputTensorThirdRun = reqDynamic1.get_tensor(model->output());
     auto cpuOutputTensorThirdRun = reqCPU1.get_tensor(model->output());
@@ -538,12 +549,12 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithAlignedTensor) {
     ov::CompiledModel compiledModel;
 
     // Create log callback function which will store log to string, the set to ov
-    std::stringstream custom_logger;
-    std::function<void(std::string_view)> custom_log_callback =
+    std::stringstream customLogger;
+    std::function<void(std::string_view)> customLogCallback =
         [&](std::string_view s) {  // switch to query allocation info for import flag when possible
-            custom_logger << s << std::endl;
+            customLogger << s << std::endl;
         };
-    ov::util::set_log_callback(custom_log_callback);
+    ov::util::set_log_callback(customLogCallback);
     struct ResetLogCallbackGuard {
         ~ResetLogCallbackGuard() {
             ov::util::reset_log_callback();
@@ -571,11 +582,11 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithAlignedTensor) {
     OV_ASSERT_NO_THROW(reqDynamic.infer());
 
     // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
-    ASSERT_TRUE(custom_logger.str().find("Reset command list to run with runtime") != std::string::npos)
-        << "Expected log to contain 'Reset command list to run with runtime', but got: " << custom_logger.str();
+    ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
 
-    custom_logger.str("");
-    custom_logger.clear();
+    customLogger.str("");
+    customLogger.clear();
     // shape size is aligned to standard page size, align address as well
     auto data = static_cast<float*>(
         ::operator new(ov::shape_size(shape) * model->input().get_element_type().size(), std::align_val_t(4096)));
@@ -585,10 +596,10 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithAlignedTensor) {
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor1));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
     // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
-    ASSERT_TRUE(custom_logger.str().find("Update command list with new tensor pointer") != std::string::npos)
+    ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
         << "Expected log to contain 'Update command list with new tensor pointer' for third "
            "inference, but got: "
-        << custom_logger.str();
+        << customLogger.str();
 }
 
 }  // namespace behavior

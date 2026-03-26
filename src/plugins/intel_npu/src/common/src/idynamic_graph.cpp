@@ -10,7 +10,6 @@
 namespace intel_npu {
 
 void IDynamicGraph::MemRefType::setArg(const void* arg) {
-    Logger::global().debug("Set argument with pointer: %p", arg);
     if (_basePtr != arg) {
         Logger::global().debug("Base pointer is updated from %p to %p", _basePtr, arg);
         _basePtr = _data = arg;
@@ -42,7 +41,7 @@ void IDynamicGraph::MemRefType::setSize(const ov::Shape& shape) {
     }
 }
 
-void IDynamicGraph::MemRefType::setStrides(const ov::Strides& strides) {
+void IDynamicGraph::MemRefType::setStrides(const ov::Strides& strides, int32_t elementSize) {
     if (_dimsCount == 0) {
         OPENVINO_THROW("Dimension count is zero, shall call setSize before setStrides");
     } else if (_dimsCount != static_cast<int64_t>(strides.size())) {
@@ -51,14 +50,15 @@ void IDynamicGraph::MemRefType::setStrides(const ov::Strides& strides) {
                        ", new dimension count: ",
                        strides.size());
     }
-
+    int64_t stridesWithElementSize = 0;
     for (int64_t i = 0; i < _dimsCount; ++i) {
-        if (_strides[i] != static_cast<int64_t>(strides[i])) {
+        stridesWithElementSize = static_cast<int64_t>(strides[i] / elementSize);
+        if (_strides[i] != stridesWithElementSize) {
             if (_strides[i] != 0) {
-                Logger::global().debug("Stride %d is updated from %d to %d", i, _strides[i], strides[i]);
+                Logger::global().debug("Stride %d is updated from %d to %d", i, _strides[i], stridesWithElementSize);
                 _strideUpdated = true;
             }
-            _strides[i] = static_cast<int64_t>(strides[i]);
+            _strides[i] = stridesWithElementSize;
         }
     }
 }

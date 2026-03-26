@@ -286,7 +286,7 @@ void ZeroDynamicInferRequest::predict_shapes(std::vector<IDynamicGraph::MemRefTy
 
 void ZeroDynamicInferRequest::check_tensor_and_predicted_shapes(
     const std::vector<IDynamicGraph::MemRefType>& outputProps) {
-    if (outputProps.size() == 0) {
+    if (outputProps.empty()) {
         _logger.debug("check_tensor_and_predicted_shapes - no output props to check, skip check");
         return;
     }
