@@ -4,6 +4,8 @@
 
 #include "utils.hpp"
 
+#include <unordered_map>
+
 #include "../../../logging.hpp"
 #include "intel_npu/config/npuw.hpp"
 
@@ -12,6 +14,14 @@ using ov::npuw::online::util::ReadAttributes;
 
 // FIXME: metadesc should be hash of layer's meta, not string
 std::string ov::npuw::online::util::getMetaDesc(const std::shared_ptr<ov::Node>& ov_node) {
+    // Cache the result per node pointer: the node's structure is fixed once created.
+    static thread_local std::unordered_map<ov::Node*, std::string> s_metadesc_cache;
+    auto* raw = ov_node.get();
+    auto it = s_metadesc_cache.find(raw);
+    if (it != s_metadesc_cache.end()) {
+        return it->second;
+    }
+
     std::stringstream ss;
     ss << ov_node->description() << ' ';
 
@@ -32,7 +42,9 @@ std::string ov::npuw::online::util::getMetaDesc(const std::shared_ptr<ov::Node>&
 
     // FIXME: should be { self type. self inputs. self outputs. self attrs. self data }
     //        can't extract data here?
-    return ss.str();
+    auto result = ss.str();
+    s_metadesc_cache.emplace(raw, result);
+    return result;
 }
 
 std::tuple<ov::npuw::online::PatternType, std::string, std::string> ov::npuw::online::util::parse(

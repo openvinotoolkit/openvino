@@ -145,10 +145,12 @@ const std::unordered_set<std::shared_ptr<ov::Node>>& Group::getOutputs() const {
 
 void Group::addInput(const std::shared_ptr<ov::Node>& node) {
     m_input_layers.insert(node);
+    m_mic_io_valid = false;
 }
 
 void Group::addOutput(const std::shared_ptr<ov::Node>& node) {
     m_output_layers.insert(node);
+    m_mic_io_valid = false;
 }
 
 void Group::addContent(const std::shared_ptr<ov::Node>& node) {
@@ -173,6 +175,7 @@ own::ade::NodeHandle Group::getHandle() const {
 
 // Not every input should be included - those layers which contained inside merging group are not inputs anymore
 void Group::updateInputLayers(const Group::GPtr& gptr_other) {
+    m_mic_io_valid = false;
     detail::OVNodeSet combined_input;
     combined_input.insert(m_input_layers.begin(), m_input_layers.end());
     combined_input.insert(gptr_other->m_input_layers.begin(), gptr_other->m_input_layers.end());
@@ -199,6 +202,7 @@ void Group::updateInputLayers(const Group::GPtr& gptr_other) {
 // Not every output should be included - those layers which are consumed _ONLY_ by the merged group are not outputs
 // anymore
 void Group::updateOutputLayers(const Group::GPtr& gptr_other) {
+    m_mic_io_valid = false;
     detail::OVNodeSet combined_output;
     combined_output.insert(m_output_layers.begin(), m_output_layers.end());
     combined_output.insert(gptr_other->m_output_layers.begin(), gptr_other->m_output_layers.end());
@@ -333,21 +337,26 @@ void Group::takeFlags(const Group::GPtr& gptr_other) {
 
 // Check if there is indirect path from this to gptr_cons
 bool Group::hasCycle(const Group::GPtr& gptr_cons) const {
-    std::unordered_set<own::ade::NodeHandle> visited;
+    // Fast-path: if this group has at most 1 consumer, there is no alternative path
+    // to gptr_cons and therefore no cycle.
+    if (m_nh->dstNodes().size() <= 1) {
+        return false;
+    }
 
+    std::unordered_set<own::ade::NodeHandle> visited;
     std::stack<own::ade::NodeHandle> st;
 
     for (const auto& prod : gptr_cons->srcNodes()) {
         // skip self during this iter
         if (!(m_nh == prod)) {
             st.push(prod);
+            visited.insert(prod);  // mark at push time to avoid duplicate pushes
         }
     }
 
     while (!st.empty()) {
         auto nh = st.top();
         st.pop();
-        visited.insert(nh);
 
         if (nh == m_nh) {
             // Found another path from self to gptr_cons
@@ -355,8 +364,9 @@ bool Group::hasCycle(const Group::GPtr& gptr_cons) const {
         }
 
         for (const auto& prod : nh->srcNodes()) {
-            if (visited.find(prod) == visited.end()) {
+            if (!visited.count(prod)) {
                 st.push(prod);
+                visited.insert(prod);  // mark at push time
             }
         }
     }
@@ -425,23 +435,28 @@ PairMICSetIO Group::metaInterconnect(const Group::GPtr& gptr_prod) const {
                      ic.output_port});
     }
 
-    MetaInterconnectIO mic_io;
-    auto locked_snapshot = m_snapshot.lock();
-    for (const auto& oi : m_input_layers) {
-        mic_io.output_imeta.insert(ov::npuw::online::util::getMetaDesc(oi));
-    }
-    for (const auto& oo : m_output_layers) {
-        mic_io.output_ometa.insert(ov::npuw::online::util::getMetaDesc(oo));
+    // Cache the MetaInterconnectIO part — it only depends on m_input_layers /
+    // m_output_layers which are invalidated (m_mic_io_valid = false) whenever
+    // those sets change (addInput / addOutput / updateInputLayers / updateOutputLayers).
+    if (!m_mic_io_valid) {
+        m_cached_mic_io = MetaInterconnectIO{};
+        for (const auto& oi : m_input_layers) {
+            m_cached_mic_io.output_imeta.insert(ov::npuw::online::util::getMetaDesc(oi));
+        }
+        for (const auto& oo : m_output_layers) {
+            m_cached_mic_io.output_ometa.insert(ov::npuw::online::util::getMetaDesc(oo));
+        }
+        m_mic_io_valid = true;
     }
 
-    return {mics, mic_io};
+    return {mics, m_cached_mic_io};
 }
 
 std::unordered_set<Interconnect> Group::interconnect(const Group::GPtr& gptr_prod) const {
     std::unordered_set<Interconnect> ics;
 
     auto locked_snapshot = m_snapshot.lock();
-    auto ports_map = locked_snapshot->getPortsMap();
+    const auto& ports_map = locked_snapshot->getPortsMap();
 
     for (const auto& layer : m_content) {
         for (const auto& input_layer : locked_snapshot->getNodeProducers(layer)) {
