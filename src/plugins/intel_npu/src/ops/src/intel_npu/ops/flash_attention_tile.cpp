@@ -262,35 +262,24 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
 
     if (has_attention_mask) {
         const auto& attention_mask = input_shapes[6];
-        const auto& attention_mask_rank = attention_mask.rank();
-        const auto& attention_mask_rank_len = attention_mask_rank.get_length();
-        bool attention_mask_input_correctness = attention_mask_rank_len >= 2 &&
-                                                DimType::merge(l_dim, l_dim, *(attention_mask.end() - 2)) &&
-                                                DimType::merge(s_dim, s_dim, *(attention_mask.end() - 1));
-        if (attention_mask_rank_len >= 3) {
-            // Right-align mask batch+head dims against q_full_batch_dims.
-            // Missing leading dims are allowed (mask is broadcast across those).
-            // Present dims may be 1 (broadcast) or must match the query dim.
-            auto mask_batch_head_dims =
-                ov::PartialShape(std::vector<DimType>(attention_mask.begin(), attention_mask.end() - 2));
-            const auto mask_bh_len = static_cast<int64_t>(mask_batch_head_dims.size());
-            const auto q_bh_len = static_cast<int64_t>(q_full_batch_dims.size());
-            if (mask_bh_len > q_bh_len) {
-                attention_mask_input_correctness = false;
-            } else {
-                for (int64_t i = 0; i < mask_bh_len && attention_mask_input_correctness; ++i) {
-                    DimType merged{};
-                    attention_mask_input_correctness = DimType::broadcast_merge(
-                        merged,
-                        q_full_batch_dims[q_bh_len - mask_bh_len + i],
-                        mask_batch_head_dims[i]);
-                }
-            }
-        }
+        const auto attention_mask_rank_len = attention_mask.rank().get_length();
+        // Mask rank is limited to 2, 3, or 4: [L,S], [H,L,S], or [B,H,L,S].
+        // Higher ranks would require per-dimension broadcast strides in evaluate().
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
-                               attention_mask_input_correctness,
-                               "Attention mask input shape not compatible with other inputs.");
+                               attention_mask_rank_len >= 2 && attention_mask_rank_len <= 4,
+                               "Attention mask rank must be 2, 3, or 4; got ",
+                               attention_mask_rank_len,
+                               ".");
+        // Build the expected shape [B?, H_q, L, S] and broadcast-merge against the mask.
+        auto expected = q_full_batch_dims;
+        expected.push_back(l_dim);
+        expected.push_back(s_dim);
+        NODE_SHAPE_INFER_CHECK(
+            op,
+            input_shapes,
+            ov::PartialShape::broadcast_merge_into(expected, attention_mask, ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY)),
+            "Attention mask input shape not compatible with other inputs.");
     }
 
     auto result_running_output_shape = q_full_batch_dims;
@@ -497,15 +486,15 @@ static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
             if (mask_H > 1) {
                 mask_head_stride = mask_L * mask_S;
             }
-            if (mask_rank >= 4) {
-                mask_B = 1;
-                for (size_t i = 0; i < mask_rank - 3; ++i) {
-                    mask_B *= static_cast<int32_t>(mask_shape[i]);
-                }
+            if (mask_rank == 4) {
+                mask_B = static_cast<int32_t>(mask_shape[0]);
                 if (mask_B > 1) {
                     mask_batch_stride = mask_H * mask_L * mask_S;
                 }
             }
+            OPENVINO_ASSERT(mask_rank <= 4,
+                            "Attention mask rank > 4 is not supported; got rank ",
+                            mask_rank);
         }
     }
 
