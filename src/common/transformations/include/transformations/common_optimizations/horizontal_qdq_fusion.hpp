@@ -22,16 +22,12 @@ class TRANSFORMATIONS_API HorizontalQDQFusion;
 /**
  * @ingroup ov_transformation_common_api
  * @brief HorizontalQDQFusion detects multiple identical dequantization subgraphs
- * (Convert->Subtract->Multiply) sharing a common quantization Convert node and replaces
+ * (Convert->Subtract->Multiply) sharing a common quantization and replaces
  * all duplicate DQ chains with a single shared one.
  *
  * The pattern matched is:
- * FakeQuantize -> Convert(to low precision, >1 consumer) -> Convert(to original precision)
+ * FakeQuantize -> Convert(to low precision) -> Convert(to original precision)
  *   -> [Subtract(zero_point)] -> Multiply(scale)
- *
- * When the Convert(to low precision) node has multiple consumers that form identical
- * DQ subgraphs (same zero_point and scale values), the duplicates are replaced with
- * the original DQ subgraph matched by the pattern.
  */
 
 class ov::pass::HorizontalQDQFusion : public ov::pass::MatcherPass {

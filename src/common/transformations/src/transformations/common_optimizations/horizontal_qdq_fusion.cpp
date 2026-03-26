@@ -9,32 +9,10 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/equal.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
 #include "transformations/pattern_blocks/qdq_block.hpp"
 #include "transformations/utils/utils.hpp"
-
-namespace {
-
-// Check if two outputs represent the same constant value by constant-folding an Equal node.
-bool outputs_are_equal(const ov::Output<ov::Node>& a, const ov::Output<ov::Node>& b) {
-    auto eq = std::make_shared<ov::op::v1::Equal>(a, b);
-    auto folded = ov::util::get_constant_from_source(eq);
-    if (!folded)
-        return false;
-    auto constant = ov::as_type_ptr<ov::op::v0::Constant>(folded);
-    if (!constant)
-        return false;
-    const auto& values = constant->get_vector<bool>();
-    return std::all_of(values.begin(), values.end(), [](bool v) {
-        return v;
-    });
-}
-
-}  // namespace
 
 namespace ov::pass {
 
@@ -75,7 +53,7 @@ HorizontalQDQFusion::HorizontalQDQFusion(const ov::element::TypeVector& supporte
                 auto sub = ov::as_type_ptr<ov::op::v1::Subtract>(consumer);
                 if (!sub || sub->get_input_node_shared_ptr(0) != dq_convert)
                     continue;
-                if (!outputs_are_equal(sub->input_value(1), ref_zero_point))
+                if (!ov::op::util::outputs_are_equal(sub->input_value(1), ref_zero_point))
                     continue;
                 const auto sub_consumers = sub->get_output_target_inputs(0);
                 if (sub_consumers.size() != 1)
@@ -92,7 +70,7 @@ HorizontalQDQFusion::HorizontalQDQFusion(const ov::element::TypeVector& supporte
             if (mul == ref_mul)
                 continue;
 
-            if (!outputs_are_equal(mul->input_value(1), ref_scale))
+            if (!ov::op::util::outputs_are_equal(mul->input_value(1), ref_scale))
                 continue;
 
             changed = changed || ov::replace_output_update_name(mul->output(0), ref_mul->output(0));

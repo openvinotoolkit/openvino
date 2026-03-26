@@ -270,6 +270,9 @@ TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>&
 
 TRANSFORMATIONS_API bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int64_t& v);
 
+/// @brief Returns true if a and b are constant-foldable outputs with identical values.
+TRANSFORMATIONS_API bool outputs_are_equal(const Output<Node>& a, const Output<Node>& b);
+
 template <typename... AllowedTypes>
 bool is_on_path(const ov::Output<ov::Node>& output) {
     auto status = true;

@@ -11,11 +11,11 @@
 
 #include "itt.hpp"
 #include "low_precision/network_helper.hpp"
+#include "transformations/utils/utils.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/equal.hpp"
 #include "openvino/op/fake_convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/read_value.hpp"
@@ -80,14 +80,9 @@ KVCacheConcat::KVCacheConcat(const std::shared_ptr<Model>& model) {
             }
             const auto cache_node = pattern_map.at(const_cache).get_node_shared_ptr();
             const auto kv_node = pattern_map.at(const_kv).get_node_shared_ptr();
-            const auto equal_node = ov::as_type_ptr<v0::Constant>(fold<v1::Equal>(cache_node, kv_node));
-            OPENVINO_ASSERT(equal_node != nullptr, "Downconvert scaleshift must be constant.");
-            const auto equal_res = equal_node->get_vector<bool>();
             // Note: the optimization can be applied only if quantization scales and shifts on both
             // concat branches are equal.
-            return std::all_of(equal_res.begin(), equal_res.end(), [](bool x) {
-                return x;
-            });
+            return ov::op::util::outputs_are_equal(cache_node->output(0), kv_node->output(0));
         };
 
         if (!check_dequantization_pairs(down_scale_cache, down_scale_kv) ||

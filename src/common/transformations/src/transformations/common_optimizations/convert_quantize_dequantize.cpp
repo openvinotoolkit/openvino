@@ -24,6 +24,49 @@ namespace op_util = ov::op::util;
 
 namespace ov::pass {
 
+// ConvertQuantizeDequantize converts Quantize/Dequantize pair to a single FakeQuantize.
+// Since Quantize is decomposed to FakeQuantize and Dequantize is decomposed to Subtract->Multiply,
+// the full pattern to match is presented on the left hand side of the graph below.
+// On the right hand side is the graph after transformation.
+// Currently transformation supports only i8, u8, i16, u16 quantized data type.
+// That implies 'levels' attribute to be 256 or 65536, as well as (output_low, output_high)
+// be (-128, 127) or (0, 255) or (-32768, 32767) or (0, 65535) (depends on type and depends
+// on sign of the quantized data type). Another limitation is that 'zero_point' and 'scale' have to be broadcastable to
+// the output of FakeQuantize.
+//
+//
+//                                   |  |  |  |  |
+//                                   |  |  |  |  |
+//                                   v  v  v  v  v
+//                                  +------------+
+//                                  |FakeQuantize|
+//                                  +------------+
+//                                        |
+//                                        v
+//                              +---------------------+
+//                              |      Convert        |
+//                              |(e.g. from f32 to u8)|
+//                              +---------+-----------+                            |  |  |  |  |
+//                                        |                                        |  |  |  |  |
+//                                        v                                        v  v  v  v  v
+//                              +---------------------+                           +------------+
+//                              |      Convert        |            ====>          |FakeQuantize|
+//                              |  (from u8 to f32)   |                           +------------+
+//                              +---------+-----------+                                 |
+//                                        |                                             v
+//                                        v
+//                  +----------+    +------------+
+//                  |zero point|--->|  Subtract  |
+//                  +----------+    +-----+------+
+//                                        |
+//                                        v
+//                   +---------+    +------------+
+//                   |  scale  |--->|  Multiply  |
+//                   +---------+    +-----+------+
+//                                        |
+//                                        v
+//
+
 ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVector& supported_low_precisions,
                                                      const ov::element::TypeVector& supported_original_precisions) {
     MATCHER_SCOPE(ConvertQuantizeDequantize);

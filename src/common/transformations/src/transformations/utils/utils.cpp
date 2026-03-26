@@ -27,6 +27,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
@@ -578,6 +579,17 @@ bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int6
         });
     }
     return false;
+}
+
+bool outputs_are_equal(const Output<Node>& a, const Output<Node>& b) {
+    auto eq = std::make_shared<v1::Equal>(a, b);
+    auto folded = ov::util::get_constant_from_source(eq);
+    if (!folded)
+        return false;
+    const auto& values = folded->get_vector<bool>();
+    return std::all_of(values.begin(), values.end(), [](bool v) {
+        return v;
+    });
 }
 
 bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node) {
