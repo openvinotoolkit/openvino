@@ -349,7 +349,7 @@ KERNEL(sdpa_opt)(
                 //   byte at phys_offset = (head_idx_index/2 + sglid) holds:
                 //     lo order_in_packed -> key val at head dim [head_idx_index + sglid]
                 //     hi order_in_packed -> key val at head dim [head_idx_index + SUBGROUP_SIZE + sglid]
-                for (uint head_idx_index = 0; head_idx_index < K_HEAD_SIZE; head_idx_index += 2 * SUBGROUP_SIZE) {
+                for (uint head_idx_index = 0; head_idx_index + 2 * SUBGROUP_SIZE <= K_HEAD_SIZE; head_idx_index += 2 * SUBGROUP_SIZE) {
                     #define KEY_BLOCK_READ_1(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset)
                     INPUT1_TYPE packed_byte = KEY_BLOCK_READ_1(key_input, key_offset + head_idx_index / 2);
                     char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
@@ -367,6 +367,26 @@ KERNEL(sdpa_opt)(
                     }
                     #undef KEY_BLOCK_READ_1
                 }
+                // Handle leftover chunk when K_HEAD_SIZE is not a multiple of 2*SUBGROUP_SIZE
+#if (K_HEAD_SIZE % (2 * SUBGROUP_SIZE)) != 0
+                {
+                    const uint head_idx_index = (K_HEAD_SIZE / (2 * SUBGROUP_SIZE)) * (2 * SUBGROUP_SIZE);
+                    #define KEY_BLOCK_READ_1(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset)
+                    INPUT1_TYPE packed_byte = KEY_BLOCK_READ_1(key_input, key_offset + head_idx_index / 2);
+                    char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
+
+                    // Only the lo nibble is valid for the leftover chunk
+                    KEY_COMPRESSION_SCALE_TYPE key_val0 = (CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(unpacked.s0) - comp_zp) * comp_scale;
+
+                    uint query_offset = head_idx_index + sglid;
+                    unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
+                        query_offset + = seq_idx * K_HEAD_SIZE;
+                        INPUT0_TYPE q_val0 = query_local[query_offset];
+                        acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(q_val0), TO_SOFTMAX_ACCUMULATOR_TYPE(key_val0), acc[seq_idx]);
+                    }
+                    #undef KEY_BLOCK_READ_1
+                }
+#endif
 
                 // Sum up all accumulators accross SG and save result to SLM
                 unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
@@ -1474,7 +1494,7 @@ KERNEL(sdpa_opt)(
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset);
                     #define QUERY_VEC MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
                     const uint key_pitch_int4 = K_HEAD_SIZE;
-                    for (uint hi = 0; hi < K_HEAD_SIZE; hi += 2 * SUBGROUP_SIZE) {
+                    for (uint hi = 0; hi + 2 * SUBGROUP_SIZE <= K_HEAD_SIZE; hi += 2 * SUBGROUP_SIZE) {
                         QUERY_VEC qvec_lo, qvec_hi;
                         uint qlo = hi * TARGET_SEQ_LEN_BLOCK_SIZE + sglid;
                         uint qhi_off = (hi + SUBGROUP_SIZE) * TARGET_SEQ_LEN_BLOCK_SIZE + sglid;
@@ -1495,6 +1515,26 @@ KERNEL(sdpa_opt)(
                             }
                         }
                     }
+                    // Handle leftover chunk when K_HEAD_SIZE is not a multiple of 2*SUBGROUP_SIZE
+#if (K_HEAD_SIZE % (2 * SUBGROUP_SIZE)) != 0
+                    {
+                        const uint hi = (K_HEAD_SIZE / (2 * SUBGROUP_SIZE)) * (2 * SUBGROUP_SIZE);
+                        QUERY_VEC qvec_lo;
+                        uint qlo = hi * TARGET_SEQ_LEN_BLOCK_SIZE + sglid;
+                        unroll_for (uint q_row = 0; q_row < TARGET_SEQ_LEN_BLOCK_SIZE; q_row++) {
+                            qvec_lo[q_row] = slm_query[qlo];
+                            qlo += TARGET_SEQ_LEN_BLOCK_SIZE;
+                        }
+                        unroll_for (uint key_row_idx = 0; key_row_idx < TARGET_SEQ_LEN_BLOCK_SIZE; key_row_idx++) {
+                            const INPUT1_TYPE packed_byte = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch_int4 + hi / 2);
+                            char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
+                            KEY_COMPRESSION_SCALE_TYPE key_lo = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
+                            unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
+                                qk_acc[key_row_idx] = mad(sub_group_broadcast(key_lo, i), qvec_lo[i], qk_acc[key_row_idx]);
+                            }
+                        }
+                    }
+#endif
                 }
 #else  // !IS_INT4_COMPRESSED
                 uint head_idx_index = 0;
@@ -1571,7 +1611,7 @@ KERNEL(sdpa_opt)(
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset)
                     #define QUERY_VEC_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
                     const uint key_pitch_int4 = K_HEAD_SIZE;
-                    for (uint hi = 0; hi < K_HEAD_SIZE; hi += 2 * SUBGROUP_SIZE) {
+                    for (uint hi = 0; hi + 2 * SUBGROUP_SIZE <= K_HEAD_SIZE; hi += 2 * SUBGROUP_SIZE) {
                         QUERY_VEC_TYPE qvec_lo, qvec_hi;
                         uint qlo = hi * TARGET_SEQ_LEN_BLOCK_SIZE + sglid;
                         uint qhi_off = (hi + SUBGROUP_SIZE) * TARGET_SEQ_LEN_BLOCK_SIZE + sglid;
@@ -1596,6 +1636,29 @@ KERNEL(sdpa_opt)(
                             }
                         }
                     }
+                    // Handle leftover chunk when K_HEAD_SIZE is not a multiple of 2*SUBGROUP_SIZE
+#if (K_HEAD_SIZE % (2 * SUBGROUP_SIZE)) != 0
+                    {
+                        const uint hi = (K_HEAD_SIZE / (2 * SUBGROUP_SIZE)) * (2 * SUBGROUP_SIZE);
+                        QUERY_VEC_TYPE qvec_lo;
+                        uint qlo = hi * TARGET_SEQ_LEN_BLOCK_SIZE + sglid;
+                        unroll_for (uint q_row = 0; q_row < TARGET_SEQ_LEN_BLOCK_SIZE; q_row++) {
+                            qvec_lo[q_row] = slm_query[qlo];
+                            qlo += TARGET_SEQ_LEN_BLOCK_SIZE;
+                        }
+                        unroll_for (uint key_row_idx = 0; key_row_idx < TARGET_SEQ_LEN_BLOCK_SIZE; key_row_idx++) {
+                            KEY_COMPRESSION_SCALE_TYPE key_lo = 0;
+                            if (key_row_idx < seq_len_calc_size) {
+                                const INPUT1_TYPE packed_byte = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch_int4 + hi / 2);
+                                char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
+                                key_lo = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
+                            }
+                            unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
+                                qk_acc[key_row_idx] = mad(sub_group_broadcast(key_lo, i), qvec_lo[i], qk_acc[key_row_idx]);
+                            }
+                        }
+                    }
+#endif
                 }
 #else  // !IS_INT4_COMPRESSED
                 uint head_idx_index = 0;
