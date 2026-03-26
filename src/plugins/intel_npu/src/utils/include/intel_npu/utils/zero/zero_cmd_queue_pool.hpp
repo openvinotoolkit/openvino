@@ -25,15 +25,7 @@ struct ZeroCmdQueueKey {
         if (context != other.context || device != other.device) {
             return false;
         }
-        if (desc.priority != other.desc.priority || desc.workload != other.desc.workload ||
-            desc.options != other.desc.options) {
-            return false;
-        }
-        // pointer is only meaningful when the device-sync flag is active
-        if ((desc.options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) && desc.owner_tag != other.desc.owner_tag) {
-            return false;
-        }
-        return true;
+        return desc == other.desc;
     }
 };
 

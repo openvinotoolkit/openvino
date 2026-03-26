@@ -202,18 +202,18 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
                                              0,
                                              0,
                                              ZE_COMMAND_QUEUE_MODE_DEFAULT,
-                                             desc.priority};
+                                             _desc.priority};
     ze_command_queue_desc_npu_ext_t turbo_cfg = {};
     ze_command_queue_desc_npu_ext_2_t command_queue_desc = {};
 
-    if (desc.options) {
+    if (_desc.options) {
         if (_init_structs->getCommandQueueDdiTable().version() == ZE_MAKE_VERSION(1, 0)) {
             turbo_cfg.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT;
-            turbo_cfg.turbo = desc.options & ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+            turbo_cfg.turbo = _desc.options & ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
             ze_queue_desc.pNext = &turbo_cfg;
         } else if (_init_structs->getCommandQueueDdiTable().version() > ZE_MAKE_VERSION(1, 0)) {
             command_queue_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT_2;
-            command_queue_desc.options = desc.options;
+            command_queue_desc.options = _desc.options;
             ze_queue_desc.pNext = &command_queue_desc;
         }
     }
@@ -222,11 +222,11 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
         "zeCommandQueueCreate",
         zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &ze_queue_desc, &_handle));
 
-    if (desc.workload.has_value()) {
+    if (_desc.workload.has_value()) {
         if (_init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
             THROW_ON_FAIL_FOR_LEVELZERO(
                 "zeSetWorkloadType",
-                _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, desc.workload.value()));
+                _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, _desc.workload.value()));
         } else {
             OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
         }

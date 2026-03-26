@@ -24,6 +24,18 @@ struct CommandQueueDesc {
     std::optional<ze_command_queue_workload_type_t> workload = std::nullopt;
     uint32_t options = 0;
     const void* owner_tag = nullptr;
+
+    bool operator==(const CommandQueueDesc& other) const {
+        if (priority != other.priority || workload != other.workload || options != other.options) {
+            return false;
+        }
+        // pointer is only meaningful when the device-sync flag is active
+        if ((options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) && owner_tag != other.owner_tag) {
+            return false;
+        }
+
+        return true;
+    }
 };
 
 class EventPool {
