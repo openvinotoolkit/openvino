@@ -38,6 +38,7 @@
 #include "openvino/util/variant_visitor.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "ov_plugins.hpp"
+#include "shared_context_manager.hpp"
 #ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/plugin.hpp"
 #    include "openvino/proxy/properties.hpp"
@@ -292,6 +293,11 @@ std::string get_blob_id_or_compute(const ov::AnyMap& user_config, std::function<
     } else {
         return calculate_blob_id();
     }
+}
+
+ov::SharedContextManager& get_cache_wsh_ctx_manager() {
+    static ov::SharedContextManager s_cache_wsh_ctx_manager;
+    return s_cache_wsh_ctx_manager;
 }
 }  // namespace
 
@@ -871,8 +877,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     } else if (cache_manager && device_supports_model_caching(plugin, parsed.m_config) && !is_proxy_device(plugin)) {
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), get_cache_model_path(config)};
-        m_cache_wsh_ctx_manager.init_and_sync_context(std::filesystem::hash_value(cache_dir),
-                                                      cache_content.m_shared_ctx);
+        get_cache_wsh_ctx_manager().init_and_sync_context(std::filesystem::hash_value(cache_dir),
+                                                          cache_content.m_shared_ctx);
 
         const auto compiled_config = create_compile_config(plugin, parsed.m_config);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
@@ -921,8 +927,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     } else if (cache_manager && device_supports_model_caching(plugin, parsed.m_config) && !is_proxy_device(plugin)) {
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), get_cache_model_path(config)};
-        m_cache_wsh_ctx_manager.init_and_sync_context(std::filesystem::hash_value(cache_dir),
-                                                      cache_content.m_shared_ctx);
+        get_cache_wsh_ctx_manager().init_and_sync_context(std::filesystem::hash_value(cache_dir),
+                                                          cache_content.m_shared_ctx);
         const auto compiled_config = create_compile_config(plugin, parsed.m_config);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
             return ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
@@ -956,8 +962,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::filesystem:
         CoreConfig::remove_core(parsed.m_config);
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), model_path};
-        m_cache_wsh_ctx_manager.init_and_sync_context(std::filesystem::hash_value(cache_dir),
-                                                      cache_content.m_shared_ctx);
+        get_cache_wsh_ctx_manager().init_and_sync_context(std::filesystem::hash_value(cache_dir),
+                                                          cache_content.m_shared_ctx);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
             return ModelCache::compute_hash(cache_content.m_model_path, create_compile_config(plugin, parsed.m_config));
         });
@@ -988,8 +994,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     } else if (cache_manager && device_supports_model_caching(plugin, parsed.m_config) && !is_proxy_device(plugin)) {
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap()};
-        m_cache_wsh_ctx_manager.init_and_sync_context(std::filesystem::hash_value(cache_dir),
-                                                      cache_content.m_shared_ctx);
+        get_cache_wsh_ctx_manager().init_and_sync_context(std::filesystem::hash_value(cache_dir),
+                                                          cache_content.m_shared_ctx);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
             return ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed.m_config));
         });
@@ -1872,9 +1878,3 @@ std::map<std::string, ov::Version> ov::CoreImpl::get_versions(const std::string&
 
     return versions;
 }
-
-ov::CoreImpl::~CoreImpl() {
-    m_cache_wsh_ctx_manager.clean();
-}
-
-ov::SharedContextManager ov::CoreImpl::m_cache_wsh_ctx_manager{};

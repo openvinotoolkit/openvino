@@ -15,7 +15,6 @@
 #include "openvino/runtime/icache_manager.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
-#include "shared_context_manager.hpp"
 
 namespace ov {
 
@@ -201,7 +200,6 @@ private:
     mutable std::unordered_set<std::string> m_opset_names;
     mutable std::vector<Extension::Ptr> m_extensions;
     std::map<std::string, PluginDescriptor> m_plugin_registry;
-    static SharedContextManager m_cache_wsh_ctx_manager;
 
     ov::SoPtr<ov::ICompiledModel> compile_model_and_cache(ov::Plugin& plugin,
                                                           const std::shared_ptr<const ov::Model>& model,
@@ -235,7 +233,7 @@ private:
 
 public:
     CoreImpl();
-    ~CoreImpl() override;
+    ~CoreImpl() override = default;
 
     /**
      * @brief Register plugins for devices which are located in .xml configuration file.
