@@ -256,8 +256,8 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                     // input_0 == int && input_1 == int
                     if (is_integer_type(input_1_type)) {
                         if (ew.mode == EltwiseMode::MODULU) {
-                            // Use raw integer inputs for modulo to avoid float % float
-                            op += "INPUT_" + op_num_str + "_0 % INPUT_" + op_num_str + "_1";
+                            // Use cast inputs for modulo (cast_type handles scalar/vector paths)
+                            op += input0_str + " % " + input1_str;
                         } else {
                             // Check if accumulator is floating-point (happens when input types
                             // like INT8/INT16/UINT8/UINT16 are not in GetAccumulatorType's list).
