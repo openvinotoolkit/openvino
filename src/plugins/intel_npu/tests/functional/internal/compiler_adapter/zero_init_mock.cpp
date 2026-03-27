@@ -194,7 +194,7 @@ ZeroInitStructsMock::ZeroInitStructsMock(uint32_t zeDriverNpuExtVersion,
                                          uint32_t zeContextNpuExtVersion,
                                          uint32_t zeMutableCommandListExtVersion,
                                          uint32_t zeExternalMemMapSysMemExtVersion)
-    : _zero_api(ZeroApi::getInstance()),
+    : _zero_api(ZeroApi::get_instance()),
       _log("NPUZeroInitStructsHolder", Logger::global().level()) {
     _log.debug("ZeroInitStructsHolder - initialize NPU Driver");
     initNpuDriver();

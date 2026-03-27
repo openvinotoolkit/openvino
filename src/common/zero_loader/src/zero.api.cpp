@@ -9,6 +9,10 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
+#ifndef _WIN32
+#    define LIB_ZE_LOADER_SUFFIX ".1"
+#endif
+
 namespace ov {
 ZeroApi::ZeroApi() {
     const std::filesystem::path baseName = "ze_loader";
@@ -46,7 +50,7 @@ ZeroApi::ZeroApi() {
 #undef symbol_statement
 }
 
-const std::shared_ptr<ZeroApi> ZeroApi::getInstance() {
+const std::shared_ptr<ZeroApi> ZeroApi::get_instance() {
     static std::mutex mutex;
     static std::weak_ptr<ZeroApi> weak_instance;
 

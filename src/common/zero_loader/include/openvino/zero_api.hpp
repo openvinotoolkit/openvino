@@ -11,13 +11,13 @@
 
 #include "openvino/core/except.hpp"
 
-#ifndef _WIN32
-#    define LIB_ZE_LOADER_SUFFIX ".1"
-#endif
-
 namespace ov {
 
 // clang-format off
+/**
+ * @def symbols_list
+ * @brief Macro that expands to declarations of required Level Zero API symbols.
+ */
 #define symbols_list()                                        \
     symbol_statement(zeCommandListAppendBarrier)              \
     symbol_statement(zeCommandListAppendEventReset)           \
@@ -87,7 +87,10 @@ namespace ov {
     symbol_statement(zeKernelSetGroupSize)                    \
     symbol_statement(zeCommandListAppendLaunchKernel)
 
-//unsupported symbols with older ze_loader versions
+/**
+ * @def weak_symbols_list
+ * @brief Macro that expands to declarations of optional Level Zero API symbols.
+ */
 #define weak_symbols_list()                                   \
     symbol_statement(zeCommandListGetNextCommandIdExp)        \
     symbol_statement(zeCommandListUpdateMutableCommandsExp)   \
@@ -96,7 +99,16 @@ namespace ov {
     symbol_statement(zelSetDriverTeardown)
 // clang-format on
 
-class ZeroApi {
+/**
+ * @class ZeroApi
+ * @brief Singleton for dynamically loading and accessing Level Zero API symbols.
+ * 
+ * Dynamicaly loads ze_loader during construction and resolves required and optional symbols.
+ * Provides wrappers for resolved symbols and throws when missing symbol is called.
+ * 
+ * @note User must store shared pointer returned by get_instance() to prevent unloading.
+ */
+class OPENVINO_API ZeroApi {
 public:
     ZeroApi();
     ZeroApi(const ZeroApi& other) = delete;
@@ -106,7 +118,7 @@ public:
 
     ~ZeroApi() = default;
 
-    static const std::shared_ptr<ZeroApi> getInstance();
+    static const std::shared_ptr<ZeroApi> get_instance();
 
 #define symbol_statement(symbol) decltype(&::symbol) symbol;
     symbols_list();
@@ -120,7 +132,7 @@ private:
 #define symbol_statement(symbol)                                                                            \
     template <typename... Args>                                                                             \
     inline typename std::invoke_result<decltype(&::symbol), Args...>::type wrapped_##symbol(Args... args) { \
-        const auto& ptr = ZeroApi::getInstance();                                                           \
+        const auto& ptr = ZeroApi::get_instance();                                                           \
         if (ptr->symbol == nullptr) {                                                                       \
             OPENVINO_THROW("Unsupported symbol " #symbol);                                                  \
         }                                                                                                   \

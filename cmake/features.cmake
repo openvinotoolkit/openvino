@@ -58,8 +58,6 @@ ov_dependent_option (ENABLE_GPU_DEBUG_CAPS "enable GPU debug capabilities at run
 ov_dependent_option (ENABLE_CPU_DEBUG_CAPS "enable CPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_CPU" OFF)
 ov_dependent_option (ENABLE_SNIPPETS_DEBUG_CAPS "enable Snippets debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS" OFF)
 
-ov_dependent_option (ENABLE_OV_ZERO_LOADER "Enable OpenVINO Level Zero loader" ON "ENABLE_INTEL_NPU OR ENABLE_INTEL_GPU" OFF)
-
 ov_dependent_option (ENABLE_SNIPPETS_LIBXSMM_TPP "allow Snippets to use LIBXSMM Tensor Processing Primitives" OFF "ENABLE_INTEL_CPU AND (X86_64 OR AARCH64)" OFF)
 
 ## ITT tracing level: OFF | BASE | FULL
@@ -220,6 +218,12 @@ if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
     set(FORCE_FRONTENDS_USE_PROTOBUF ON)
 else()
     set(FORCE_FRONTENDS_USE_PROTOBUF OFF)
+endif()
+
+if(ENABLE_INTEL_NPU OR (ENABLE_INTEL_GPU AND GPU_RT_TYPE STREQUAL "L0"))
+    set(ENABLE_OV_ZERO_LOADER ON)
+else()
+    set(ENABLE_OV_ZERO_LOADER OFF)
 endif()
 
 #

@@ -5,9 +5,8 @@
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/core/except.hpp"
-
 #define ZERO_API_KEEP_SYMBOLS_LIST_MACRO
-#include <openvino/zero_api.hpp>
+#include "openvino/zero_api.hpp"
 
 #include <limits>
 #include <string>
@@ -41,7 +40,7 @@ namespace ze {
 
 inline std::shared_ptr<::ov::ZeroApi> get_ze_api_instance() {
     // Load ZeroApi on first call and keep it alive
-    static std::shared_ptr<::ov::ZeroApi> ze_api = ::ov::ZeroApi::getInstance();
+    static std::shared_ptr<::ov::ZeroApi> ze_api = ::ov::ZeroApi::get_instance();
     return ze_api;
 }
 
