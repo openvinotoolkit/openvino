@@ -10,6 +10,7 @@
 #include <string>
 
 #include "attention.hpp"
+#include "sdpa_utils.hpp"
 
 namespace ov {
 namespace npuw {
@@ -59,42 +60,6 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
 
 // Helper function to validate model and extract necessary information for pyramid attention
 std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(const std::shared_ptr<ov::Model>& model);
-
-// Structure to hold SDPA pattern nodes
-struct SDPAPatternNodes {
-    std::shared_ptr<ov::Node> matmul1_node = nullptr;
-    std::shared_ptr<ov::Node> matmul2_node = nullptr;
-    std::shared_ptr<ov::Node> softmax_node = nullptr;
-    std::shared_ptr<ov::Node> add_node = nullptr;
-    // Support multiple block parameters after KV cache split
-    std::vector<std::shared_ptr<ov::Node>> past_key_param_nodes;
-    std::vector<std::shared_ptr<ov::Node>> past_value_param_nodes;
-    std::shared_ptr<ov::Node> past_key_concat_node = nullptr;
-    std::shared_ptr<ov::Node> past_value_concat_node = nullptr;
-
-    bool is_valid() const {
-        return matmul1_node && matmul2_node && softmax_node && add_node && !past_key_param_nodes.empty() &&
-               !past_value_param_nodes.empty() && past_key_concat_node && past_value_concat_node;
-    }
-
-    // Log pattern information for debugging
-    void log_pattern() const {
-        LOG_DEBUG("SDPA Pattern nodes:");
-        LOG_DEBUG("  MatMul1: " << (matmul1_node ? matmul1_node->get_friendly_name() : "null"));
-        LOG_DEBUG("  Add: " << (add_node ? add_node->get_friendly_name() : "null"));
-        LOG_DEBUG("  Softmax: " << (softmax_node ? softmax_node->get_friendly_name() : "null"));
-        LOG_DEBUG("  MatMul2: " << (matmul2_node ? matmul2_node->get_friendly_name() : "null"));
-        LOG_DEBUG("  Key Concat: " << (past_key_concat_node ? past_key_concat_node->get_friendly_name() : "null"));
-        LOG_DEBUG(
-            "  Value Concat: " << (past_value_concat_node ? past_value_concat_node->get_friendly_name() : "null"));
-    }
-};
-
-// Function to find SDPA pattern nodes in the model
-SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model);
-
-// Function to find mask parameter by traversing from Add node
-std::shared_ptr<ov::op::v0::Parameter> find_mask_parameter(const std::shared_ptr<ov::Node>& add_node);
 
 // PyramidAttention structure definition
 struct PyramidAttention {

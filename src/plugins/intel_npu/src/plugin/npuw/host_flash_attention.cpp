@@ -15,7 +15,7 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "pyramid_attention.hpp"
+#include "sdpa_utils.hpp"
 #include "util.hpp"
 
 namespace ov {

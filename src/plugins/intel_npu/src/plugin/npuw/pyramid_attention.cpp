@@ -27,30 +27,6 @@ namespace ov {
 namespace npuw {
 namespace function {
 
-// Helper function to find mask parameter by traversing from Add node
-std::shared_ptr<ov::op::v0::Parameter> find_mask_parameter(const std::shared_ptr<ov::Node>& add_node) {
-    if (!add_node || add_node->get_input_size() < 2) {
-        return nullptr;
-    }
-
-    // Traverse the Add node's mask input (input 1) upwards to find the proper Parameter
-    // Only unary ops are allowed along the way
-    auto mask_in_node = add_node->input(1).get_source_output().get_node_shared_ptr();
-    while (mask_in_node && !ov::op::util::is_parameter(mask_in_node)) {
-        if (mask_in_node->inputs().size() != 1) {
-            LOG_WARN("Non-unary or disconnected op on the way from Add to input mask");
-            return nullptr;
-        }
-        mask_in_node = mask_in_node->inputs()[0].get_source_output().get_node_shared_ptr();
-    }
-
-    if (mask_in_node && ov::op::util::is_parameter(mask_in_node)) {
-        return std::static_pointer_cast<ov::op::v0::Parameter>(mask_in_node);
-    }
-
-    return nullptr;
-}
-
 // Helper function to create Attention instance from a model
 std::optional<ov::npuw::function::Attention> create_attention_from_model(
     const std::shared_ptr<ov::Model>& model,
@@ -323,99 +299,6 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
                                    full_context_length,
                                    past_key_sequence_dims,
                                    past_value_sequence_dims};
-}
-
-SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model) {
-    // Find decomposed SDPA pattern components
-    SDPAPatternNodes pattern_nodes;
-
-    // Find all past key and value parameter nodes (support multiple blocks after split)
-    for (auto input : model->inputs()) {
-        auto input_node = input.get_node();
-        auto input_name = input_node->get_friendly_name();
-        if (ov::npuw::util::isPastKeyValuesKey(input_name)) {
-            pattern_nodes.past_key_param_nodes.push_back(input_node->shared_from_this());
-        } else if (ov::npuw::util::isPastKeyValuesValue(input_name)) {
-            pattern_nodes.past_value_param_nodes.push_back(input_node->shared_from_this());
-        }
-    }
-
-    // Helper lambda to trace from MatMul to find Concat node
-    auto find_concat_from_matmul = [](const std::shared_ptr<ov::Node>& matmul_node,
-                                      size_t input_idx) -> std::shared_ptr<ov::Node> {
-        if (!matmul_node)
-            return nullptr;
-
-        auto current_node = matmul_node->input(input_idx).get_source_output().get_node_shared_ptr();
-
-        // Traverse backwards through reshape/transpose operations to find Concat
-        while (current_node) {
-            if (ov::is_type<ov::op::v0::Concat>(current_node)) {
-                return current_node;
-            }
-
-            // Allow traversing through Reshape and Transpose
-            if (ov::is_type<ov::op::v1::Reshape>(current_node) || ov::is_type<ov::op::v3::Broadcast>(current_node) ||
-                ov::is_type<ov::op::v0::Unsqueeze>(current_node)) {
-                if (current_node->get_input_size() > 0) {
-                    current_node = current_node->input(0).get_source_output().get_node_shared_ptr();
-                } else {
-                    break;
-                }
-            } else {
-                // Stop at other operations
-                break;
-            }
-        }
-
-        return nullptr;
-    };
-
-    // Search for the pattern: MatMul -> Add -> Softmax -> MatMul
-    auto ops = model->get_ordered_ops();
-    for (auto&& node : ops) {
-        if (ov::is_type<ov::op::v8::Softmax>(node)) {
-            pattern_nodes.softmax_node = node;
-
-            // Check if softmax is fed by Add
-            auto softmax_input = node->input(0).get_source_output().get_node_shared_ptr();
-            if (ov::is_type<ov::op::v1::Add>(softmax_input)) {
-                pattern_nodes.add_node = softmax_input;
-
-                // Check if add is fed by MatMul (first MatMul)
-                auto add_input0 = pattern_nodes.add_node->input(0).get_source_output().get_node_shared_ptr();
-                if (ov::is_type<ov::op::v0::MatMul>(add_input0)) {
-                    pattern_nodes.matmul1_node = add_input0;
-
-                    // Find Concat node for past key (input 1 of MatMul1)
-                    pattern_nodes.past_key_concat_node = find_concat_from_matmul(pattern_nodes.matmul1_node, 1);
-                }
-            }
-
-            // Check if softmax feeds into MatMul (second MatMul)
-            for (auto&& output : node->outputs()) {
-                for (auto&& target_input : output.get_target_inputs()) {
-                    auto target_node = target_input.get_node()->shared_from_this();
-                    if (ov::is_type<ov::op::v0::MatMul>(target_node)) {
-                        pattern_nodes.matmul2_node = target_node;
-
-                        // Find Concat node for past value (input 1 of MatMul2)
-                        pattern_nodes.past_value_concat_node = find_concat_from_matmul(pattern_nodes.matmul2_node, 1);
-                        break;
-                    }
-                }
-                if (pattern_nodes.matmul2_node)
-                    break;
-            }
-
-            if (pattern_nodes.is_valid()) {
-                pattern_nodes.log_pattern();
-                break;  // Found complete pattern
-            }
-        }
-    }
-
-    return pattern_nodes;
 }
 
 std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov::Model>& model) {
