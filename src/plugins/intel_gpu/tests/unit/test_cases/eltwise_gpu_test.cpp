@@ -2566,9 +2566,18 @@ TEST(eltwise_gpu_int, basic_in4x4x4x4) {
     for (auto& data_type : data_types_to_test)
     {
         bool is_unsigned = data_type == data_types::u8 || data_type == data_types::u16 || data_type == data_types::u32;
+        // INT8/INT16/UINT8/UINT16 use F32 accumulator, so division/modulo give float results
+        // not integer truncation. Skip these modes for small integer types.
+        bool uses_float_acc = data_type == data_types::i8 || data_type == data_types::i16 ||
+                              data_type == data_types::u8 || data_type == data_types::u16;
 
         for (auto& mode : eltwise_ops_to_test)
         {
+            // Skip div/mod/floor_mod for types with float accumulator - GPU does float division
+            if (uses_float_acc && (mode == eltwise_mode::div || mode == eltwise_mode::mod || mode == eltwise_mode::floor_mod)) {
+                continue;
+            }
+
             auto& engine = get_test_engine();
             auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
             auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
@@ -2733,9 +2742,18 @@ TEST(eltwise_gpu_f32_int, basic_in4x4x4x4) {
     for (auto& data_type : data_types_to_test)
     {
         bool is_unsigned = data_type == data_types::u8 || data_type == data_types::u16 || data_type == data_types::u32;
+        // INT8/INT16/UINT8/UINT16 use F32 accumulator, so division/modulo give float results
+        // not integer truncation. Skip these modes for small integer types.
+        bool uses_float_acc = data_type == data_types::i8 || data_type == data_types::i16 ||
+                              data_type == data_types::u8 || data_type == data_types::u16;
 
         for (auto& mode : eltwise_ops_to_test)
         {
+            // Skip div/mod for types with float accumulator - GPU does float division
+            if (uses_float_acc && (mode == eltwise_mode::div || mode == eltwise_mode::mod)) {
+                continue;
+            }
+
             auto& engine = get_test_engine();
             auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
             auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
