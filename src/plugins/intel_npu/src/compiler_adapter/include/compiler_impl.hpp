@@ -10,7 +10,10 @@
 #include "compiler.h"
 #include "intel_npu/common/filtered_config.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/runtime/common.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace intel_npu {
 
