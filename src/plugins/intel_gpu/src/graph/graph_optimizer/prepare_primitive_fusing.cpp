@@ -1080,7 +1080,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                        dts_supports_fusings(parents[i].first->as<depth_to_space>())) ||
                                       (parents[i].first->is_type<gather>() &&
                                        (gather_supports_fusings(parents[i].first->as<gather>()) ||
-                                       is_static_scalar_output(*parents[1 - i].first))) ||
+                                       is_static_scalar_output(*parents[(i == 0) ? 1u : 0u].first))) ||
                                       (parents[i].first->is_type<reduce>() &&
                                        reduce_supports_fusings(parents[i].first->as<reduce>())) ||
                                       (parents[i].first->is_type<lrn>()) ||
