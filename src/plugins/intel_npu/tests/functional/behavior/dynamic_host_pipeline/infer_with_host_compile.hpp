@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/manager.hpp"
@@ -200,7 +201,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     }
 
     // create input tensor match the customized models
-    ov::Shape shape = {1, 16, 700, 1280};
+    ov::Shape shape = {1, 16, 720, 1280};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
@@ -237,7 +238,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor3));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
     // Set new tensor with new shape, it can not be used by runtime directly, local LevelZero tensor are not reused
-    // since the original one is too small, command list is reset to run with runtime
+    // since the original one has differnet shape, command list is reset to run with runtime
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime' for fourth inference with new shape, but "
            "got: "
@@ -321,7 +322,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor3));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
     // Set new tensor with new shape, it can not be used by runtime directly, local LevelZero tensor are not reused
-    // since the original one is too small, command list is reset to run with runtime
+    // since shape change, command list is reset to run with runtime
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime' for fourth inference with new shape, but "
            "got: "
@@ -419,8 +420,8 @@ void dumpTensor(const ov::Tensor& tensor) {
     std::cout << std::endl;
 }
 
-// The test to compile, create infer request and infer with a LevelZeroTensor input, then compare the output with a
-// CPU reference result.
+// The test to compile, create infer request and infer, then compare the output with reference result from template
+// plugin
 TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithReference) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -466,7 +467,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
 
     ov::InferRequest reqReference = referenceCompiledModel.create_infer_request();
 
-    // create input tensor match the customized models
+    // Compare results of first inference
     ov::Shape shape = {1, 16, 720, 1280};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
@@ -476,17 +477,18 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
 
     auto npuOutputTensor = reqDynamic.get_tensor(model->output());
     auto referenceOutputTensor = reqReference.get_tensor(model->output());
+
+    std::cout << "Dump input tensor for NPU, shape: " << inTensor.get_shape() << std::endl;
+    dumpTensor(inTensor);
+    std::cout << "Dump output tensor from NPU, shape: " << npuOutputTensor.get_shape() << std::endl;
+    dumpTensor(npuOutputTensor);
+    std::cout << "Dump output tensor from Template plugin, shape: " << referenceOutputTensor.get_shape() << std::endl;
+    dumpTensor(referenceOutputTensor);
+
     OV_ASSERT_NO_THROW(
         ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type()));
 
-    std::cout << "Output input tensor from NPU:" << std::endl;
-    dumpTensor(inTensor);
-    std::cout << "Output tensor from NPU:" << std::endl;
-    dumpTensor(npuOutputTensor);
-    std::cout << "Output tensor from reference:" << std::endl;
-    dumpTensor(referenceOutputTensor);
-
-    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
+    // First inference, execute with runtime
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
 
@@ -502,19 +504,23 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
         << customLogger.str();
     auto npuOutputTensorSecondRun = reqDynamic.get_tensor(model->output());
     auto referenceOutputTensorSecondRun = reqReference.get_tensor(model->output());
+
+    std::cout << "Dump output tensor from NPU after second inference, shape: " << npuOutputTensorSecondRun.get_shape()
+              << std::endl;
+    dumpTensor(npuOutputTensorSecondRun);
+    std::cout << "Dump output tensor from reference after second inference, shape: "
+              << referenceOutputTensorSecondRun.get_shape() << std::endl;
+    dumpTensor(referenceOutputTensorSecondRun);
+
     OV_ASSERT_NO_THROW(ov::test::utils::compare(referenceOutputTensorSecondRun,
                                                 npuOutputTensorSecondRun,
                                                 npuOutputTensorSecondRun.get_element_type()));
-    std::cout << "Output tensor from NPU after second inference:" << std::endl;
-    dumpTensor(npuOutputTensorSecondRun);
-    std::cout << "Output tensor from reference after second inference:" << std::endl;
-    dumpTensor(referenceOutputTensorSecondRun);
 
     customLogger.str("");
     customLogger.clear();
     ov::InferRequest reqDynamic1 = compiledModel.create_infer_request();
     OV_ASSERT_NO_THROW(reqDynamic1.infer());
-    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
+    // First inferece, execute with runtime
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
 
@@ -523,10 +529,10 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
     ov::InferRequest reqReference1 = referenceCompiledModel.create_infer_request();
     OV_ASSERT_NO_THROW(reqDynamic1.set_input_tensor(0, npuOutputTensorSecondRun));
     OV_ASSERT_NO_THROW(reqDynamic1.infer());
-    OV_ASSERT_NO_THROW(reqReference1.set_input_tensor(0, referenceOutputTensorSecondRun));
+    OV_ASSERT_NO_THROW(reqReference1.set_input_tensor(0, npuOutputTensorSecondRun));
     OV_ASSERT_NO_THROW(reqReference1.infer());
 
-    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
+    // Set new level zero tensor with same shape, it can be used by runtime directly
     ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
         << "Expected log to contain 'Update command list with new tensor pointer' for third "
            "inference, but got: "
@@ -534,13 +540,17 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
 
     auto npuOutputTensorThirdRun = reqDynamic1.get_tensor(model->output());
     auto referenceOutputTensorThirdRun = reqReference1.get_tensor(model->output());
+
+    std::cout << "Dump output tensor from NPU after third inference, shape: " << npuOutputTensorThirdRun.get_shape()
+              << std::endl;
+    dumpTensor(npuOutputTensorThirdRun);
+    std::cout << "Dump output tensor from reference after third inference, shape: "
+              << referenceOutputTensorThirdRun.get_shape() << std::endl;
+    dumpTensor(referenceOutputTensorThirdRun);
+
     OV_ASSERT_NO_THROW(ov::test::utils::compare(referenceOutputTensorThirdRun,
                                                 npuOutputTensorThirdRun,
                                                 npuOutputTensorThirdRun.get_element_type()));
-    std::cout << "Output tensor from NPU after third inference:" << std::endl;
-    dumpTensor(npuOutputTensorThirdRun);
-    std::cout << "Output tensor from reference after third inference:" << std::endl;
-    dumpTensor(referenceOutputTensorThirdRun);
 }
 
 // The test to compile, create infer request and infer with dynamic shapes. Set tensor that can be imported by level
@@ -602,11 +612,23 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithAlignedTensor) {
 
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor1));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
-    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
-    ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
-        << "Expected log to contain 'Update command list with new tensor pointer' for third "
-           "inference, but got: "
-        << customLogger.str();
+
+    if (::intel_npu::ZeroInitStructsHolder::getInstance()->isExternalMemoryStandardAllocationSupported()) {
+        // Set new tensor with same shape, it can be imported as LevelZero tensor, command list is updated with new
+        // tensor pointer
+        ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
+            << "Expected log to contain 'Update command list with new tensor pointer' for third "
+               "inference, but got: "
+            << customLogger.str();
+    } else {
+        // Tensor can not be imported as LevelZero tensor, local LevelZero tensor are reused with data copy, command
+        // list is not updated
+        ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
+                    std::string::npos)
+            << "Expected log to contain 'Reuse command list without update since no tensor change detected' for second "
+               "inference, but got: "
+            << customLogger.str();
+    }
 }
 
 }  // namespace behavior
