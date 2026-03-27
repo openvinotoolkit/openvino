@@ -1627,7 +1627,23 @@ void primitive_inst::do_runtime_skip_gather() {
 
     auto input_shape = _impl_params->get_input_layout(0).get_shape();
     auto axis = _impl_params->typed_desc<gather>()->axis;
-    auto idx_id = get_node().get_dependency(1).id();
+    // Walk up the dependency chain for input 1 to check for sampled_tokens_indices
+    const program_node* idx_node = &get_node().get_dependency(1);
+    bool is_sampled_tokens_indices_path = true;
+    std::string matched_sampled_tokens_indices_id;
+    while (idx_node) {
+        const std::string& idx_id = idx_node->id();
+        if (idx_id == "sampled_tokens_indices" ||
+            idx_id.rfind("sampled_tokens_indices.", 0) == 0 ||
+            idx_id.rfind("sampled_tokens_indices:", 0) == 0) {
+            is_sampled_tokens_indices_path = true;
+            matched_sampled_tokens_indices_id = idx_id;
+            break;
+        }
+        if (idx_node->get_dependencies().empty())
+            break;
+        idx_node = &idx_node->get_dependency(0);
+    }
     auto idx_shape = _impl_params->get_input_layout(1).get_shape();
     auto idx_rank = idx_shape.size();
 
@@ -1658,25 +1674,35 @@ void primitive_inst::do_runtime_skip_gather() {
         return;
     }
     if (input_shape[axis] != 1) {
-        auto queue_type = get_network().get_stream().get_queue_type();
-        if (queue_type == QueueTypes::out_of_order)
-            get_network().get_stream().wait_for_events({_deps[1].first->get_impl_params()->out_event});
-        else
-            get_network().get_stream().finish();
-        mem_lock<int32_t, mem_lock_type::read> idx_data(dep_memory_ptr(1), get_network().get_stream());
-        for (int64_t i = 0; i < static_cast<int32_t>(idx_shape[0]); ++i) {
-            if (idx_data[i] != i) {
-                GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because idx_data [" << i << "] (" << idx_data[i] << ") != " << i << std::endl;
-                if (_impl_params->output_layouts[0].data_padding.is_dynamic())
-                    _impl_params->output_layouts[0].data_padding = padding();
-                // for runtime skippable nodes, if previous iter is skipped while this iter not, its output memory needs to be revalidate
-                // as memory opt/release may be applied for these nodes to reduce memory footprint in previous iters
-                if (can_be_optimized()) {
-                    set_flag(ExecutionFlags::SHAPE_CHANGED);
-                }
-                set_can_be_optimized(false);
-                return;
+        if (!is_sampled_tokens_indices_path) {
+            auto queue_type = get_network().get_stream().get_queue_type();
+            auto idx_dep_event = _deps[1].first->get_impl_params()->out_event;
+            if (queue_type == QueueTypes::out_of_order) {
+                get_network().get_stream().wait_for_events({idx_dep_event});
+            } else if (idx_dep_event) {
+                // Prefer scoped synchronization to avoid stalling unrelated work on in-order queues.
+                get_network().get_stream().wait_for_events({idx_dep_event});
+            } else {
+                // In-order execution may not always produce explicit events.
+                get_network().get_stream().finish();
             }
+            mem_lock<int32_t, mem_lock_type::read> idx_data(dep_memory_ptr(1), get_network().get_stream());
+            for (int64_t i = 0; i < static_cast<int32_t>(idx_shape[0]); ++i) {
+                if (idx_data[i] != i) {
+                    GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because idx_data [" << i << "] (" << idx_data[i] << ") != " << i << std::endl;
+                    if (_impl_params->output_layouts[0].data_padding.is_dynamic())
+                        _impl_params->output_layouts[0].data_padding = padding();
+                    // for runtime skippable nodes, if previous iter is skipped while this iter not, its output memory needs to be revalidate
+                    // as memory opt/release may be applied for these nodes to reduce memory footprint in previous iters
+                    if (can_be_optimized()) {
+                        set_flag(ExecutionFlags::SHAPE_CHANGED);
+                    }
+                    set_can_be_optimized(false);
+                    return;
+                }
+            }
+        } else {
+            GPU_DEBUG_TRACE_DETAIL << "--- Skip indices data validation for known sampled_tokens_indices path: " << matched_sampled_tokens_indices_id << std::endl;
         }
     }
     // propagate input layout including correct paddings.

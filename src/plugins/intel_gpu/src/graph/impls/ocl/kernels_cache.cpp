@@ -300,7 +300,16 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     std::string cached_bin_name = get_cache_path() + std::to_string(batch.hash_value) + ".cl_cache";
     ///////////////////////////////////////////////////////////////////////////////////
     std::vector<uint8_t> precompiled;
-    if (is_cache_enabled()) {
+    const bool enable_in_memory_binary_reuse = _config.get_enable_kernels_reuse();
+    if (enable_in_memory_binary_reuse) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        const auto it = _in_memory_batch_binaries.find(batch.hash_value);
+        if (it != _in_memory_batch_binaries.end()) {
+            precompiled = it->second;
+        }
+    }
+
+    if (precompiled.empty() && is_cache_enabled()) {
         std::lock_guard<std::mutex> lock(cacheAccessMutex);
         precompiled = ov::util::load_binary(ov::util::make_path(cached_bin_name));
     }
@@ -342,6 +351,12 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
         }
     }
     {
+        if (enable_in_memory_binary_reuse && !kernels.empty()) {
+            auto binary = kernels[0]->get_binary();
+            std::lock_guard<std::mutex> lock(_mutex);
+            _in_memory_batch_binaries.emplace(batch.hash_value, std::move(binary));
+        }
+
         std::lock_guard<std::mutex> lock(_mutex);
         for (auto& k : kernels) {
             auto entry_point = k->get_id();
@@ -456,6 +471,7 @@ void kernels_cache::reset() {
     _kernels.clear();
     _kernels_code.clear();
     _kernel_batch_hash.clear();
+    _in_memory_batch_binaries.clear();
     _pending_compilation = false;
 }
 
@@ -592,9 +608,7 @@ kernels_cache::compiled_kernels kernels_cache::compile(const kernel_impl_params&
     kernels_code t_kernels_code;
 
     // Get kernels code from kernel sources
-    for (size_t k = 0; k < kernel_sources.size(); ++k) {
-        t_kernels_code.insert({params, {kernel_sources, params, dump_custom_program}});
-    }
+    t_kernels_code.insert({params, {kernel_sources, params, dump_custom_program}});
 
     // Create batches
     std::vector<batch_program> batches;
