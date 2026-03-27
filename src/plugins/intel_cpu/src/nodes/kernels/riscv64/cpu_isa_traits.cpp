@@ -78,6 +78,11 @@ bool can_compile_rvv100() {
     return status;
 }
 
+bool can_compile_zvfh() {
+    static const bool status = can_execute_generated_code<ZvfhGenerator>();
+    return status;
+}
+
 }  // namespace
 
 bool mayiuse(const cpu_isa_t cpu_isa) {
@@ -94,6 +99,8 @@ bool mayiuse(const cpu_isa_t cpu_isa) {
     // [TODO] If needed, support other RVV versions
     case gv:
         return mayiuse(g) && cpu.hasExtension(RISCVExtension::V) && can_compile_rvv100();
+    case gv_zvfh:
+        return mayiuse(gv) && can_compile_zvfh();
     case isa_all:
         return false;
     case isa_undef:
@@ -103,8 +110,7 @@ bool mayiuse(const cpu_isa_t cpu_isa) {
 }
 
 bool has_zvfh_support() {
-    static const bool status = mayiuse(gv) && can_execute_generated_code<ZvfhGenerator>();
-    return status;
+    return mayiuse(cpu_isa_t::gv_zvfh);
 }
 
 std::string isa2str(cpu_isa_t isa) {
@@ -115,6 +121,8 @@ std::string isa2str(cpu_isa_t isa) {
         return "g";
     case cpu_isa_t::gv:
         return "gv";
+    case cpu_isa_t::gv_zvfh:
+        return "gv_zvfh";
     case cpu_isa_t::isa_all:
         return "all";
     default:

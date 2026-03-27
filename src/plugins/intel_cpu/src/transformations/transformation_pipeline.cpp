@@ -1435,23 +1435,27 @@ void Transformations::MainSnippets() {
             // TODO [105804] int32 isn't supported in general because i32 emitters are required for bit-exact i32
             // calculations in some cases So i32 is supported exclusively for transposes and broadcast
             static const auto supported_element_types = [] {
-                std::set<ov::element::Type> types{
-                    ov::element::f32,
-                    ov::element::i8,
-                    ov::element::u8,
-#if !defined(OPENVINO_ARCH_ARM64)
-                    ov::element::bf16,
-#endif
-#if !defined(OPENVINO_ARCH_RISCV64)
-                    ov::element::f16,
-#endif
-                };
-#if defined(OPENVINO_ARCH_RISCV64)
-                if (ov::intel_cpu::riscv64::has_zvfh_support()) {
+#if defined(OPENVINO_ARCH_ARM64)
+                return std::set<ov::element::Type>{ov::element::f32,
+                                                   ov::element::f16,
+                                                   ov::element::i8,
+                                                   ov::element::u8};
+#elif defined(OPENVINO_ARCH_RISCV64)
+                auto types =
+                    std::set<ov::element::Type>{ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8};
+                if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::cpu_isa_t::gv_zvfh)) {
                     types.insert(ov::element::f16);
                 }
-#endif
                 return types;
+#else
+                return std::set<ov::element::Type>{
+                    ov::element::f32,
+                    ov::element::bf16,
+                    ov::element::f16,
+                    ov::element::i8,
+                    ov::element::u8,
+                };
+#endif
             }();
 
             if (!ignoreCallback) {

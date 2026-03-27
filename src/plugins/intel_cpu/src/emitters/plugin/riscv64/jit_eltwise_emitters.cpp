@@ -161,7 +161,7 @@ jit_convert_saturation_emitter::jit_convert_saturation_emitter(ov::intel_cpu::ri
                               input_type,
                               " -> ",
                               output_type);
-    OV_CPU_JIT_EMITTER_ASSERT(!requires_zvfh(input_type, output_type) || has_zvfh_support(),
+    OV_CPU_JIT_EMITTER_ASSERT(!requires_zvfh(input_type, output_type) || mayiuse(cpu_isa_t::gv_zvfh),
                               "Unsupported Zvfh conversion: ",
                               input_type,
                               " -> ",
@@ -376,7 +376,7 @@ jit_convert_truncation_emitter::jit_convert_truncation_emitter(ov::intel_cpu::ri
                               input_type,
                               " -> ",
                               output_type);
-    OV_CPU_JIT_EMITTER_ASSERT(!requires_zvfh(input_type, output_type) || has_zvfh_support(),
+    OV_CPU_JIT_EMITTER_ASSERT(!requires_zvfh(input_type, output_type) || mayiuse(cpu_isa_t::gv_zvfh),
                               "Unsupported Zvfh conversion: ",
                               input_type,
                               " -> ",
