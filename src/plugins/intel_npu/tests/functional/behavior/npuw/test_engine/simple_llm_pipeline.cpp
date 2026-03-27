@@ -28,7 +28,7 @@ int64_t get_token_as_max_logit(ov::Tensor logits) {
 }
 } // anonymous namespace
 
-void SimpleLLMPipeline::initialize(const std::string& model_path, ov::Core& core, const ov::AnyMap& config) {
+void SimpleLLMPipeline::initialize(const std::shared_ptr<ov::Model>& model, ov::Core& core, const ov::AnyMap& config) {
     ov::AnyMap properties(config);
     m_max_prompt_len = get_or_default(properties, "NPUW_LLM_MAX_PROMPT_LEN", 128);
     m_min_response_len = get_or_default(properties, "NPUW_LLM_MIN_RESPONSE_LEN", 4);
@@ -37,11 +37,14 @@ void SimpleLLMPipeline::initialize(const std::string& model_path, ov::Core& core
     update_config(properties, {"NPU_USE_NPUW", "YES"});
     update_config(properties, {"NPUW_LLM", "YES"});
 
-    std::shared_ptr<ov::Model> model = core.read_model(model_path);
     m_compiled_model =
         std::make_shared<ov::CompiledModel>(core.compile_model(model, "NPU",
         properties));
     m_request = std::make_shared<ov::InferRequest>(m_compiled_model->create_infer_request());
+}
+
+void SimpleLLMPipeline::initialize(const std::string& model_path, ov::Core& core, const ov::AnyMap& config) {
+    initialize(core.read_model(model_path), core, config);
 }
 
 std::vector<int64_t> SimpleLLMPipeline::generate(const std::vector<int64_t>& input_ids_vec) {
