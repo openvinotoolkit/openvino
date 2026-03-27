@@ -15,6 +15,8 @@ namespace {
 std::vector<ChannelName> get_data_channels_order(size_t rank) {
     using channel = ChannelName;
     switch (rank) {
+    case 0:
+        return {};
     case 1:
         return {channel::BATCH};
     case 2:
