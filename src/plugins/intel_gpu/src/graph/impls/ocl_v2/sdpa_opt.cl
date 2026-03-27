@@ -1027,29 +1027,50 @@ KERNEL(sdpa_opt)(
     const uint seq_idx_end = min(TARGET_SEQ_LEN - target_seq_idx, (uint)TARGET_SEQ_LEN_BLOCK_SIZE);
 #endif
 
-#if IS_PAGED_ATTENTION && HAS_TOKEN_TYPE_IDS
-    // Bidirectional attention for image token groups (e.g. Gemma3 VLM):
-    // Compute per-lane effective causal limit to extend the visible range for image tokens
-    // This is a REFERENCE implementation.
-    const uint default_casual_token_group_end = target_seq_idx + sglid;
-    uint token_group_end = default_casual_token_group_end;
-    uint token_group_begin = default_casual_token_group_end;
+#if IS_CAUSAL
+    const int default_this_work_item_max_seq_idx = target_seq_idx + sglid;
+    const int default_this_work_item_min_seq_idx = 0;
+    #if IS_PAGED_ATTENTION
 
-    if (token_type_ids[token_group_end] == 1) {
-        uint new_group_end = token_group_end + 1;
-        while (new_group_end < SOURCE_SEQ_LEN && token_type_ids[new_group_end] == 1) {
-            new_group_end++;
-        }
-        token_group_end = new_group_end - 1;
+        #if HAS_TOKEN_TYPE_IDS
+            // Bidirectional attention for image token groups (e.g. Gemma3 VLM):
+            // Compute per-lane effective causal limit to extend the visible range for image tokens
+            // This is a REFERENCE implementation.
+            
+            int token_group_end = default_this_work_item_max_seq_idx;
+            int token_group_begin = default_this_work_item_max_seq_idx;
 
-        uint new_group_begin = token_group_begin - 1;
-        while (new_group_begin > 0 && token_type_ids[new_group_begin] == 1) {
-            new_group_begin--;
-        }
-        token_group_begin = new_group_begin;
-    }
-    const uint max_token_group_end_for_this_sg = sub_group_reduce_max(token_group_end) + 1;
-#endif
+            if (token_type_ids[token_group_end] == 1) {
+                int new_group_end = token_group_end + 1;
+                while (new_group_end < SOURCE_SEQ_LEN && token_type_ids[new_group_end] == 1) {
+                    new_group_end++;
+                }
+                token_group_end = new_group_end - 1;
+
+                int new_group_begin = token_group_begin - 1;
+                while (new_group_begin >= 0 && token_type_ids[new_group_begin] == 1) {
+                    new_group_begin--;
+                }
+                token_group_begin = new_group_begin + 1;
+            }
+            const int this_work_item_max_seq_idx = token_group_end;
+            const int max_token_group_end_for_this_sg = sub_group_reduce_max(token_group_end) + 1;
+        #else
+            const int this_work_item_max_seq_idx = default_this_work_item_max_seq_idx;
+        #endif
+
+        #if SLIDING_WINDOW_SIZE != 0
+            const int default_this_work_item_min_seq_idx_sliding_window = default_this_work_item_max_seq_idx - SLIDING_WINDOW_SIZE + 1;
+            #if HAS_TOKEN_TYPE_IDS
+                const int this_work_item_min_seq_idx = min(token_group_begin, default_this_work_item_min_seq_idx_sliding_window);
+            #else
+                const int this_work_item_min_seq_idx = default_this_work_item_min_seq_idx_sliding_window;
+            #endif
+        #else
+            const int this_work_item_min_seq_idx = default_this_work_item_min_seq_idx;
+        #endif //< SLIDING_WINDOW_SIZE
+    #endif //< IS_PAGED_ATTENTION
+#endif //< IS_CAUSAL
 
     const uint num_read_blocks = K_HEAD_SIZE == V_HEAD_SIZE ? 1 :  CEIL_DIV(K_HEAD_SIZE, V_HEAD_SIZE);
 
@@ -1435,26 +1456,11 @@ KERNEL(sdpa_opt)(
                 unroll_for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
 #if IS_CAUSAL
                     // causal mask: valid only if m >= n
-#if IS_PAGED_ATTENTION && HAS_TOKEN_TYPE_IDS
-                    const uint this_work_item_max_target_seq_idx = token_group_end;
-#else
-                    const uint this_work_item_max_target_seq_idx = target_seq_idx + sglid;
-#endif
-
-#if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
-                    const uint default_this_work_item_min_seq_idx = target_seq_idx + sglid - SLIDING_WINDOW_SIZE;
-#if HAS_TOKEN_TYPE_IDS
-                    const uint this_work_item_min_seq_idx = min(token_group_begin, default_this_work_item_min_seq_idx);
-#else
-                    const uint this_work_item_min_seq_idx = default_this_work_item_min_seq_idx;
-#endif
-                    if ((seq_len + i <= this_work_item_max_target_seq_idx) 
-                        && (target_seq_idx + sglid < SLIDING_WINDOW_SIZE 
-                            || seq_len + i > this_work_item_min_seq_idx)) {
-#else
-                    if (seq_len + i <= this_work_item_max_target_seq_idx) {
-#endif
+                    const int curr_seq_idx = seq_len + i;
+                    if ((curr_seq_idx <= this_work_item_max_seq_idx) 
+                        && (curr_seq_idx >= this_work_item_min_seq_idx)) {
 #endif  // IS_CAUSAL
+
 #if !APPLY_SCALES_TO_QUERY
 #if HAS_SCALE_INPUT
                         const OUTPUT_TYPE scale_val = *scale;
@@ -1609,31 +1615,26 @@ KERNEL(sdpa_opt)(
 
             SOFTMAX_ACCUMULATOR_TYPE exp_sum_new = SOFTMAX_ACCUMULATOR_VAL_ZERO;
 
-            for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
+            for (int i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
                 qk_acc[i] = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]) - qk_max_new);
 #if IS_CAUSAL
-#if IS_PAGED_ATTENTION && HAS_TOKEN_TYPE_IDS
-                const uint this_work_item_max_target_seq_idx = token_group_end;
-#else
-                const uint this_work_item_max_target_seq_idx = target_seq_idx + sglid;
-#endif
-
-#if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
-                const uint default_this_work_item_min_seq_idx = target_seq_idx + sglid - SLIDING_WINDOW_SIZE;
-#if HAS_TOKEN_TYPE_IDS
-                const uint this_work_item_min_seq_idx = min(token_group_begin, default_this_work_item_min_seq_idx);
-#else
-                const uint this_work_item_min_seq_idx = default_this_work_item_min_seq_idx;
-#endif
-                // WARNING! Following condition is almost the same as in the version for IS_FLASHATTEN_V2
-                // above, the only difference is in the second part of the condition where ">" is replaced with ">=".
-                // Fixing it to be exactly the same as in IS_FLASHATTEN_V2 version causes smoke_paged_attention/paged_attention_test.basic/92
-                // to fail, so it is left as is for now, but it needs to be revisited and properly fixed later.
-                if ((seq_len + i <= this_work_item_max_target_seq_idx) &&
-                    (target_seq_idx + sglid < SLIDING_WINDOW_SIZE || seq_len + i >= this_work_item_min_seq_idx)) {
-#else
-                if (seq_len + i <= this_work_item_max_target_seq_idx) {
-#endif
+    // WARNING! Following condition is almost the same as in the version for IS_FLASHATTEN_V2
+    // above, the only difference is in the second part of the condition where ">" is replaced with ">=".
+    // Fixing it to be exactly the same as in IS_FLASHATTEN_V2 version causes smoke_paged_attention/paged_attention_test.basic/92
+    // to fail, so it is left as is for now, but it needs to be revisited and properly fixed later.
+    // This is a HACK, propably that was a bug and test smoke_paged_attention/paged_attention_test.basic/92 
+    // is not correct.
+    #if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
+                const int default_this_work_item_min_seq_idx = default_this_work_item_max_seq_idx - SLIDING_WINDOW_SIZE;
+        #if HAS_TOKEN_TYPE_IDS
+                const int this_work_item_min_seq_idx = min(token_group_begin, default_this_work_item_min_seq_idx);
+        #else
+                const int this_work_item_min_seq_idx = default_this_work_item_min_seq_idx;
+        #endif
+    #endif
+                const int curr_seq_idx = seq_len + i;
+                if ((curr_seq_idx <= this_work_item_max_seq_idx)
+                    && (curr_seq_idx >= this_work_item_min_seq_idx)) {
                     exp_sum_new += qk_acc[i];
                 }
 # else
