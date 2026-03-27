@@ -72,7 +72,13 @@ struct onednn_matmul {
     dnnl::primitive_attr attr;
     dnnl::post_ops postops;
 
-    onednn_matmul(dnnl::memory::data_type act_dtype, dnnl::memory::data_type weight_dtype, int batch_size, int ic, int oc, int ic_group_size = -1, bool has_zp = true) {
+    onednn_matmul(dnnl::memory::data_type act_dtype,
+                  dnnl::memory::data_type weight_dtype,
+                  int batch_size,
+                  int ic,
+                  int oc,
+                  int ic_group_size = -1,
+                  bool has_zp = true) {
         m_a_type = act_dtype;
         m_w_type = weight_dtype;
         m_K_groups = 0;
