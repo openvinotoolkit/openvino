@@ -270,7 +270,7 @@ or
 
 For on-device compilation, the plugin queries the driver for the available number of tiles and sets ``ov::intel_npu::max_tiles``.
 
-``ov::intel_npu::max_tiles`` is a read-only property, for offline compilation the property will not be reported as supported.  
+``ov::intel_npu::max_tiles`` is a read-only property, and it will not be listed as supported in cases where no device is present.
 
 Note that ``ov::intel_npu::max_tiles`` represents the maximum number of tiles available,
 but the compiler may target a lower number of tiles depending on other properties.
