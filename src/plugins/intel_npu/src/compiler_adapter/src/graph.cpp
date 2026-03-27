@@ -23,7 +23,8 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              std::optional<ov::Tensor> blob,
              const FilteredConfig& config,
              const bool blobIsPersistent,
-             const bool calledFromWeightlessGraph)
+             const bool calledFromWeightlessGraph,
+             const bool wasEncrypted)
     : IGraph(),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
@@ -41,6 +42,8 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
         // Will be called at a later stage from WeightlessGraph::initialize() in order to save some memory
         initialize(config);
     }
+
+    _was_encrypted = wasEncrypted;
 }
 
 const NetworkMetadata& Graph::get_metadata() const {
@@ -86,7 +89,8 @@ ze_graph_handle_t Graph::get_handle() const {
     return _graphDesc._handle;
 }
 
-std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std::ostream& stream) const {
+std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std::ostream& stream,
+                                                                             const Config& config) {
     const uint8_t* blobPtr = nullptr;
     size_t blobSize;
     std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
@@ -107,7 +111,15 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
     if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
         OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
     }
-    stream.write(reinterpret_cast<const char*>(blobPtr), static_cast<std::streamsize>(blobSize));
+
+    std::string encryptedString;
+    if (!_was_encrypted && config.get<CACHE_ENCRYPTION_CALLBACKS>().get().encrypt != nullptr) {
+        encryptedString = config.get<CACHE_ENCRYPTION_CALLBACKS>().get().encrypt(
+            std::string(reinterpret_cast<const char*>(blobPtr), blobSize));
+        _was_encrypted = true;
+    }
+    stream.write(encryptedString.empty() ? reinterpret_cast<const char*>(blobPtr) : encryptedString.c_str(),
+                 static_cast<std::streamsize>(blobSize));
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
@@ -120,9 +132,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
             result = ((result << 7) + result) + static_cast<uint32_t>(*it);
         }
 
-        std::stringstream str;
-        str << "Blob size: " << blobSize << ", hash: " << std::hex << result;
-        _logger.info(str.str().c_str());
+        _logger.info("Blob size: {}, hash: {0X}", blobSize, result);
     }
 
     size_t size = utils::align_size_to_standard_page_size(blobSize);

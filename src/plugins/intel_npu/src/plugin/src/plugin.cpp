@@ -670,8 +670,33 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             (npuPluginProperties.find(IMPORT_RAW_BLOB::key().data()) != npuPluginProperties.end())
                 ? npuPluginProperties[IMPORT_RAW_BLOB::key().data()].as<bool>()
                 : _propertiesManager->getConfig().get<IMPORT_RAW_BLOB>();
+
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = MetadataBase::getFileSize(stream);
+
+        if (auto it = npuPluginProperties.find(ov::cache_encryption_callbacks.name());
+            it != npuPluginProperties.end()) {
+            std::string blobStr(blobSize, '\0');
+            stream.read(&blobStr.at(0), blobSize);
+            // +1x blob size below, ov::EncryptionCallbacks should work with ov::Tensor instead of std::string to avoid
+            // this
+            auto decryptedBlobSO =
+                std::make_shared<std::string>(it->second.as<ov::EncryptionCallbacks>().decrypt(std::move(blobStr)));
+            ov::Tensor decryptedBlobView(ov::element::u8, ov::Shape{blobSize}, &decryptedBlobSO->at(0));
+
+            if (!importRawBlob && !skipCompatibility) {
+                // fallback to metadata read from tensor
+                metadata = read_metadata_from(decryptedBlobView);
+                blobSize = metadata->get_blob_size();
+            } else {
+                _logger.info("Blob compatibility check skipped.");
+            }
+
+            auto decryptedBlobViewImpl = ov::get_tensor_impl(decryptedBlobView);
+            decryptedBlobViewImpl._so = decryptedBlobSO;  // keep decrypted string alive and ov::Tensor as its wrapper
+            ov::Tensor roiTensor(ov::make_tensor(decryptedBlobViewImpl), ov::Coordinate{0}, ov::Coordinate{blobSize});
+            return parse(roiTensor, std::move(metadata), npuPluginProperties);
+        }
 
         if (!importRawBlob && !skipCompatibility) {
             // Read only metadata from the stream and check if blob is compatible. Load blob into memory only in case it
@@ -739,13 +764,27 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = compiledBlob.get_byte_size();
 
+        auto copyCompiledBlob = compiledBlob;
+        if (auto it = npuPluginProperties.find(ov::cache_encryption_callbacks.name());
+            it != npuPluginProperties.end()) {
+            std::string blobStr(compiledBlob.data<const char>(), compiledBlob.get_byte_size());
+            // +1x blob size below, ov::EncryptionCallbacks should work with ov::Tensor instead of std::string to avoid
+            // this
+            auto decryptedBlobSO =
+                std::make_shared<std::string>(it->second.as<ov::EncryptionCallbacks>().decrypt(std::move(blobStr)));
+            copyCompiledBlob = ov::Tensor(ov::element::u8, ov::Shape{blobSize}, &decryptedBlobSO->at(0));
+            auto copyCompiledBlobImpl = ov::get_tensor_impl(copyCompiledBlob);
+            copyCompiledBlobImpl._so = decryptedBlobSO;
+            copyCompiledBlob = ov::make_tensor(copyCompiledBlobImpl);
+        }
+
         if (!importRawBlob && !skipCompatibility) {
-            metadata = read_metadata_from(compiledBlob);
+            metadata = read_metadata_from(copyCompiledBlob);
             blobSize = metadata->get_blob_size();
         } else {
             _logger.info("Blob compatibility check skipped.");
         }
-        const ov::Tensor roiTensor(compiledBlob,
+        const ov::Tensor roiTensor(copyCompiledBlob,
                                    ov::Coordinate{0},
                                    ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
         return parse(roiTensor, std::move(metadata), npuPluginProperties);

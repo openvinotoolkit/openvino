@@ -30,7 +30,8 @@ public:
      * @return A pair made of the size of the main binary object and an optional variable. The optional variable
      * constitues the size of each init binary object if weights separation is enabled.
      */
-    virtual std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const;
+    virtual std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream,
+                                                                                  const Config& config);
 
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const;
 
@@ -82,6 +83,7 @@ protected:
     // happen only once per graph, typically when the graph is first used (e.g. when the first inference starts)
     std::mutex _initialize_mutex;
     std::atomic<bool> _init_completed{false};
+    bool _was_encrypted = false;
 };
 
 }  // namespace intel_npu

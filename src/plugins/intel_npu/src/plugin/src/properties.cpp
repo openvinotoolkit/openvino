@@ -599,6 +599,12 @@ void Properties::registerPluginProperties() {
                                        return std::shared_ptr<const ov::Model>(nullptr);
                                    });
 
+    FORCE_REGISTER_CUSTOM_PROPERTY(ov::cache_encryption_callbacks,
+                                   CACHE_ENCRYPTION_CALLBACKS,
+                                   true,
+                                   ov::PropertyMutability::WO,
+                                   nullptr);
+
     // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
     // to enable those for OV Core to query.
     for_each_exposed_npuw_option([&](auto tag) {
@@ -785,6 +791,12 @@ void Properties::registerCompiledModelProperties() {
                                    [](const Config& /* unusedConfig */) {
                                        return std::shared_ptr<const ov::Model>(nullptr);
                                    });
+
+    FORCE_REGISTER_CUSTOM_PROPERTY(ov::cache_encryption_callbacks,
+                                   CACHE_ENCRYPTION_CALLBACKS,
+                                   true,
+                                   ov::PropertyMutability::WO,
+                                   nullptr);
 
     // 2. Metrics (static device and enviroment properties)
     // ========
@@ -1096,6 +1108,11 @@ FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& proper
 
     updatedConfig.update(cfgsToSet);
 
+    // special case for encryption callbacks where stringified form is not possible
+    if (auto it = properties.find(ov::cache_encryption_callbacks.name()); it != properties.end()) {
+        updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>().get() = it->second.as<ov::EncryptionCallbacks>();
+    }
+
     return updatedConfig;
 }
 
@@ -1137,6 +1154,11 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
     }
 
     updatedConfig.update(cfgsToSet);
+
+    // special case for encryption callbacks where stringified form is not possible
+    if (auto it = properties.find(ov::cache_encryption_callbacks.name()); it != properties.end()) {
+        updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>().get() = it->second.as<ov::EncryptionCallbacks>();
+    }
 
     return std::move(updatedConfig);
 }

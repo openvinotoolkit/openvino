@@ -145,4 +145,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CachingSupportCase_NPU_Check_Config
                                             ::testing::ValuesIn(cachingProperties)),
                          ov::test::utils::appendPlatformTypeTestName<CompileModelLoadFromCacheTest>);
 
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CompileModelWithCacheEncryptionTest_NPU,
+                         CompileModelWithCacheEncryptionTest,
+                         ::testing::Values(ov::test::utils::DEVICE_NPU),
+                         ov::test::utils::appendPlatformTypeTestName<CompileModelWithCacheEncryptionTest>);
+
 }  // namespace

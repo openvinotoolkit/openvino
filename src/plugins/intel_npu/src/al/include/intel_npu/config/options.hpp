@@ -1546,11 +1546,37 @@ struct SHARED_COMMON_QUEUE final : OptionBase<SHARED_COMMON_QUEUE, bool> {
 
     static bool defaultValue() {
         return true;
+    };
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
+// Below option will be dropped in future commits, addded for testing purposes only
+struct CACHE_ENCRYPTION_CALLBACKS final
+    : OptionBase<CACHE_ENCRYPTION_CALLBACKS, std::reference_wrapper<ov::EncryptionCallbacks>> {
+    static std::string_view key() {
+        return ov::cache_encryption_callbacks.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "std::reference_wrapper<ov::EncryptionCallbacks>";
+    }
+
+    static std::reference_wrapper<ov::EncryptionCallbacks> defaultValue() {
+        return encryptionCallbacks;
     }
 
     static OptionMode mode() {
         return OptionMode::RunTime;
     }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    inline static ov::EncryptionCallbacks encryptionCallbacks = {nullptr, nullptr};
 };
 
 }  // namespace intel_npu
