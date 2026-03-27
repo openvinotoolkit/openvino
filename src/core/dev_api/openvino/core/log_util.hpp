@@ -520,6 +520,41 @@ bool is_verbose_logging();
             }                                                                                                 \
         } while (0);
 
+// pattern/op/block.cpp
+#    define OPENVINO_LOG_BLOCK1(matcher, block_name)                                             \
+        do {                                                                                     \
+            OPENVINO_LOG_MATCHING(matcher,                                                       \
+                                  ov::util::LevelString::get()++,                                \
+                                  OPENVINO_BLOCK_BODY_RIGHT,                                     \
+                                  " ENTERING BLOCK \"",                                         \
+                                  block_name,                                                    \
+                                  "\":");                                                        \
+        } while (0);
+
+#    define OPENVINO_LOG_BLOCK2(matcher, block_name)                                             \
+        do {                                                                                     \
+            OPENVINO_LOG_MATCHING(matcher, --ov::util::LevelString::get(), OPENVINO_BLOCK_BODY); \
+            OPENVINO_LOG_MATCHING(matcher,                                                       \
+                                  ov::util::LevelString::get(),                                  \
+                                  OPENVINO_BLOCK_END,                                            \
+                                  OPENVINO_GREEN,                                                \
+                                  "  BLOCK \"",                                                  \
+                                  block_name,                                                    \
+                                  "\" MATCHED");                                                 \
+        } while (0);
+
+#    define OPENVINO_LOG_BLOCK3(matcher, block_name)                                             \
+        do {                                                                                     \
+            OPENVINO_LOG_MATCHING(matcher, --ov::util::LevelString::get(), OPENVINO_BLOCK_BODY); \
+            OPENVINO_LOG_MATCHING(matcher,                                                       \
+                                  ov::util::LevelString::get(),                                  \
+                                  OPENVINO_BLOCK_END,                                            \
+                                  OPENVINO_RED,                                                  \
+                                  "  BLOCK \"",                                                  \
+                                  block_name,                                                    \
+                                  "\" DIDN'T MATCH");                                            \
+        } while (0);
+
 // pattern/op/wrap_type.cpp
 #    define OPENVINO_LOG_WRAPTYPE1(matcher, pattern_value, graph_value)                                  \
         do {                                                                                             \
@@ -740,6 +775,16 @@ bool is_verbose_logging();
 
 #    define OPENVINO_LOG_TRUE1(...) \
         do {                        \
+        } while (0)
+
+#    define OPENVINO_LOG_BLOCK1(...) \
+        do {                         \
+        } while (0)
+#    define OPENVINO_LOG_BLOCK2(...) \
+        do {                         \
+        } while (0)
+#    define OPENVINO_LOG_BLOCK3(...) \
+        do {                         \
         } while (0)
 
 #    define OPENVINO_LOG_OPTIONAL1(...) \
