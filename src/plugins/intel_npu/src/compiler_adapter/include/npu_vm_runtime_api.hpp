@@ -10,9 +10,6 @@
 #include "intel_npu/runtime/npu_vm_runtime.hpp"
 #include "openvino/core/except.hpp"
 
-// TODO: to be removed as soon as we are ready to use NPU VM Runtime API
-#include "intel_npu/npu_mlir_runtime.hpp"
-
 namespace intel_npu {
 
 // clang-format off
@@ -32,22 +29,6 @@ namespace intel_npu {
     nmr_symbol_statement(npuVMRuntimeUpdateMutableCommandList)
 
 
-// Deprecated symbols kept as weak for backward compatibility with older runtime library versions
-#define nmr_weak_symbols_list()                                     \
-    nmr_symbol_statement(npuMLIRRuntimeGetAPIVersion)               \
-    nmr_symbol_statement(npuMLIRRuntimeCreate)                      \
-    nmr_symbol_statement(npuMLIRRuntimeDestroy)                     \
-    nmr_symbol_statement(npuMLIRRuntimeGetMetadata)                 \
-    nmr_symbol_statement(npuMLIRRuntimeExecute)                     \
-    nmr_symbol_statement(npuMLIRRuntimePredictOutputShape)          \
-    nmr_symbol_statement(npuMLIRRuntimeCreateMemRef)                \
-    nmr_symbol_statement(npuMLIRRuntimeDestroyMemRef)               \
-    nmr_symbol_statement(npuMLIRRuntimeSetMemRef)                   \
-    nmr_symbol_statement(npuMLIRRuntimeParseMemRef)                 \
-    nmr_symbol_statement(npuMLIRRuntimeCreateExecutionContext)      \
-    nmr_symbol_statement(npuMLIRRuntimeDestroyExecutionContext)     \
-    nmr_symbol_statement(npuMLIRRuntimeUpdateMutableCommandList)
-
 // clang-format on
 
 class NPUVMRuntimeApi {
@@ -64,7 +45,6 @@ public:
 
 #define nmr_symbol_statement(symbol) decltype(&::symbol) symbol;
     nmr_symbols_list();
-    nmr_weak_symbols_list();
 #undef nmr_symbol_statement
 
 private:
@@ -81,10 +61,8 @@ private:
         return ptr->symbol(std::forward<Args>(args)...);                                                    \
     }
 nmr_symbols_list();
-nmr_weak_symbols_list();
 #undef nmr_symbol_statement
 #define nmr_symbol_statement(symbol) inline decltype(&::symbol) symbol = wrapped_##symbol;
 nmr_symbols_list();
-nmr_weak_symbols_list();
 #undef nmr_symbol_statement
 }  // namespace intel_npu
