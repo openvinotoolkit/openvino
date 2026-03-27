@@ -4,7 +4,7 @@
 
 #pragma once
 #include "primitive.hpp"
-#include "intel_gpu/op/moe_compressed.hpp"
+#include "ov_ops/moe_compressed.hpp"
 
 namespace cldnn {
 
@@ -33,7 +33,7 @@ struct moe_scatter_reduction : public primitive_base<moe_scatter_reduction> {
                           const input_info& experts_info_offsets,
                           const input_info& tokens_len_per_expert,
                           const input_info& experts_ids,
-                          const ov::intel_gpu::op::MOECompressed::Config& moe_config)
+                          const ov::op::internal::MOECompressed::Config& moe_config)
         : primitive_base(id, {data, experts_per_token, expert_weights_per_token, tokens_per_expert, experts_info_offsets, tokens_len_per_expert, experts_ids}),
           num_active_experts_per_token(static_cast<int32_t>(moe_config.top_k)),
           has_batch_dim(moe_config.has_batch_dim) {}

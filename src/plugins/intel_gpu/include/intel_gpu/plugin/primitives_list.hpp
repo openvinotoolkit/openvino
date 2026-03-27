@@ -316,3 +316,4 @@ REGISTER_FACTORY(internal, LoraSubgraphFused);
 REGISTER_FACTORY(internal, VLSDPA);
 REGISTER_FACTORY(internal, MOE3GemmFusedCompressed);
 REGISTER_FACTORY(internal, MOECompressed);
+REGISTER_FACTORY(internal, GatherMatmulCompressed);
