@@ -67,7 +67,7 @@ using ConvertTiledMoeBlockToGatherMatmulsParams = std::tuple<MoEType,  // moe_ty
 
 inline std::shared_ptr<ov::Node> build_matmul_weights(const ov::Shape& weights_shape,
                                                       const ov::element::Type& weights_precision,
-                                                      size_t seed,
+                                                      int seed,
                                                       bool transpose_b) {
     // Note: builder takes planar weights shape, but it is transposed here
     // only if transpose_b=true (which is the default case for MoE matmuls)
@@ -121,7 +121,7 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
         false);
 
     // Note: we need to use different seed to avoid the exact weights generation for the MatMuls with the same shape
-    size_t seed = 1;
+    int seed = 1;
     auto gate_up_weights =
         build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size * fusion_factor},
                              weights_precision,
@@ -349,7 +349,7 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraphRef(bool use_scatter_v12,
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{0, 1}));
 
     // Note: we need to use different seed to avoid the exact weights generation for the MatMuls with the same shape
-    size_t seed = 1;
+    int seed = 1;
     auto gate_up_weights =
         build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size * fusion_factor},
                              weights_precision,
@@ -477,7 +477,7 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
         false);
 
     // Note: we need to use different seed to avoid the exact weights generation for the MatMuls with the same shape
-    size_t seed = 1;
+    int seed = 1;
     auto gate_weights = build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size},
                                              weights_precision,
                                              seed++,
@@ -678,7 +678,7 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
     auto router_topk_indices = router_topk_values_and_indices->output(1);
 
     // Note: we need to use different seed to avoid the exact weights generation for the MatMuls with the same shape
-    size_t seed = 1;
+    int seed = 1;
     auto gate_weights = build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size},
                                              weights_precision,
                                              seed++,

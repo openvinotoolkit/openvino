@@ -201,7 +201,7 @@ TEST(GatherMatmulTest, fail_B_not_constant) {
     auto B = make_param(element::f32, {8, 4096, 2048});  // Parameter, not Constant
     auto idx = make_param(element::i32, {64, 2});
 
-    OV_EXPECT_THROW(std::make_shared<GatherMatmul>(A, B, idx),
+    OV_EXPECT_THROW((void)std::make_shared<GatherMatmul>(A, B, idx),
                     ov::NodeValidationFailure,
                     testing::HasSubstr("Input B must be on constant path"));
 }
@@ -211,7 +211,7 @@ TEST(GatherMatmulTest, fail_A_rank_2d) {
     auto B = make_const(element::f32, {8, 4096, 2048});
     auto idx = make_param(element::i32, {64, 2});
 
-    OV_EXPECT_THROW(std::make_shared<GatherMatmul>(A, B, idx),
+    OV_EXPECT_THROW((void)std::make_shared<GatherMatmul>(A, B, idx),
                     ov::NodeValidationFailure,
                     testing::HasSubstr("Input A rank must be exactly 3D"));
 }
@@ -221,7 +221,7 @@ TEST(GatherMatmulTest, fail_A_rank_4d) {
     auto B = make_const(element::f32, {8, 4096, 2048});
     auto idx = make_param(element::i32, {64, 2});
 
-    OV_EXPECT_THROW(std::make_shared<GatherMatmul>(A, B, idx),
+    OV_EXPECT_THROW((void)std::make_shared<GatherMatmul>(A, B, idx),
                     ov::NodeValidationFailure,
                     testing::HasSubstr("Input A rank must be exactly 3D"));
 }
@@ -231,7 +231,7 @@ TEST(GatherMatmulTest, fail_B_rank_2d) {
     auto B = make_const(element::f32, {4096, 2048});
     auto idx = make_param(element::i32, {64, 2});
 
-    OV_EXPECT_THROW(std::make_shared<GatherMatmul>(A, B, idx),
+    OV_EXPECT_THROW((void)std::make_shared<GatherMatmul>(A, B, idx),
                     ov::NodeValidationFailure,
                     testing::HasSubstr("Input B rank must be 3D or 4D"));
 }
@@ -241,7 +241,7 @@ TEST(GatherMatmulTest, fail_B_rank_5d) {
     auto B = make_const(element::f32, {8, 4096, 4, 4, 32});
     auto idx = make_param(element::i32, {64, 2});
 
-    OV_EXPECT_THROW(std::make_shared<GatherMatmul>(A, B, idx),
+    OV_EXPECT_THROW((void)std::make_shared<GatherMatmul>(A, B, idx),
                     ov::NodeValidationFailure,
                     testing::HasSubstr("Input B rank must be 3D or 4D"));
 }
@@ -251,7 +251,7 @@ TEST(GatherMatmulTest, fail_indices_rank_1d) {
     auto B = make_const(element::f32, {8, 4096, 2048});
     auto idx = make_param(element::i32, {64});
 
-    OV_EXPECT_THROW(std::make_shared<GatherMatmul>(A, B, idx),
+    OV_EXPECT_THROW((void)std::make_shared<GatherMatmul>(A, B, idx),
                     ov::NodeValidationFailure,
                     testing::HasSubstr("Input indices rank must be exactly 2D"));
 }
@@ -261,7 +261,7 @@ TEST(GatherMatmulTest, fail_indices_rank_3d) {
     auto B = make_const(element::f32, {8, 4096, 2048});
     auto idx = make_param(element::i32, {1, 64, 2});
 
-    OV_EXPECT_THROW(std::make_shared<GatherMatmul>(A, B, idx),
+    OV_EXPECT_THROW((void)std::make_shared<GatherMatmul>(A, B, idx),
                     ov::NodeValidationFailure,
                     testing::HasSubstr("Input indices rank must be exactly 2D"));
 }
@@ -272,7 +272,7 @@ TEST(GatherMatmulTest, fail_bias_rank_2d) {
     auto idx = make_param(element::i32, {64, 2});
     auto bias = make_const(element::f32, {1, 4096});
 
-    OV_EXPECT_THROW(std::make_shared<GatherMatmul>(A, B, idx, bias),
+    OV_EXPECT_THROW((void)std::make_shared<GatherMatmul>(A, B, idx, bias),
                     ov::NodeValidationFailure,
                     testing::HasSubstr("Input bias rank must be either 1D, scalar"));
 }
@@ -283,7 +283,7 @@ TEST(GatherMatmulTest, fail_A0_not_broadcastable_to_topk) {
     auto B = make_const(element::f32, {8, 4096, 2048});
     auto idx = make_param(element::i32, {64, 2});
 
-    OV_EXPECT_THROW(std::make_shared<GatherMatmul>(A, B, idx),
+    OV_EXPECT_THROW((void)std::make_shared<GatherMatmul>(A, B, idx),
                     ov::NodeValidationFailure,
                     testing::HasSubstr("first dimension of input A must be equal"));
 }
@@ -294,7 +294,7 @@ TEST(GatherMatmulTest, fail_topk_exceeds_experts) {
     auto B = make_const(element::f32, {4, 4096, 2048});
     auto idx = make_param(element::i32, {64, 8});
 
-    OV_EXPECT_THROW(std::make_shared<GatherMatmul>(A, B, idx),
+    OV_EXPECT_THROW((void)std::make_shared<GatherMatmul>(A, B, idx),
                     ov::NodeValidationFailure,
                     testing::HasSubstr("second dimension of input indices must be less"));
 }
@@ -305,7 +305,7 @@ TEST(GatherMatmulTest, fail_seq_length_mismatch) {
     auto B = make_const(element::f32, {8, 4096, 2048});
     auto idx = make_param(element::i32, {32, 2});
 
-    OV_EXPECT_THROW(std::make_shared<GatherMatmul>(A, B, idx),
+    OV_EXPECT_THROW((void)std::make_shared<GatherMatmul>(A, B, idx),
                     ov::NodeValidationFailure,
                     testing::HasSubstr("first dimension of input indices must be equal"));
 }
@@ -322,7 +322,7 @@ TEST(GatherMatmulCompressedTest, fail_scales_not_constant) {
     auto scales = make_param(element::f32, {8, 4096, 1});  // Parameter, not Constant
     auto zp = make_const(element::u8, {8, 4096, 1});
 
-    OV_EXPECT_THROW(std::make_shared<GatherMatmulCompressed>(A, B, idx, bias, scales, zp),
+    OV_EXPECT_THROW((void)std::make_shared<GatherMatmulCompressed>(A, B, idx, bias, scales, zp),
                     ov::NodeValidationFailure,
                     testing::HasSubstr("Input weight_scales must be a Constant"));
 }
@@ -335,7 +335,7 @@ TEST(GatherMatmulCompressedTest, fail_zp_not_constant) {
     auto scales = make_const(element::f32, {8, 4096, 1});
     auto zp = make_param(element::u8, {8, 4096, 1});  // Parameter, not Constant
 
-    OV_EXPECT_THROW(std::make_shared<GatherMatmulCompressed>(A, B, idx, bias, scales, zp),
+    OV_EXPECT_THROW((void)std::make_shared<GatherMatmulCompressed>(A, B, idx, bias, scales, zp),
                     ov::NodeValidationFailure,
                     testing::HasSubstr("Input weight_zero_points must be a Constant"));
 }
