@@ -178,145 +178,6 @@ std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model) 
     return lm_head_model;
 }
 
-<<<<<<< HEAD
-=======
-void reshape_to_static(std::shared_ptr<ov::Model> model,
-                       const uint32_t input_size,
-                       const uint32_t kvcache_size,
-                       const KVAxesPosition& kv_axes_position,
-                       const uint32_t lora_rank,
-                       const uint32_t lhs_seq_size = 0) {
-    std::map<std::string, ov::PartialShape> new_shapes;
-    for (const auto& input : model->inputs()) {
-        const auto& input_name = input.get_any_name();
-        ov::PartialShape new_shape;
-        if (input_name.find("input_ids") != std::string::npos) {
-            new_shape = ov::PartialShape({1, input_size});
-        } else if (input_name.find("token_type_ids") != std::string::npos) {
-            new_shape = ov::PartialShape({1, input_size});
-        } else if (input_name.find("inputs_embeds") != std::string::npos) {
-            // NB: VLMs case, model accepts inputs_embeds[BATCH, SEQ_LEN, EMB_SIZE]
-            NPUW_ASSERT(input.get_partial_shape().size() == 3u);
-            NPUW_ASSERT(input.get_partial_shape()[2].is_static());
-            new_shape = ov::PartialShape({1, input_size, input.get_partial_shape()[2]});
-        } else if (input_name.find("attention_mask") != std::string::npos) {
-            new_shape = ov::PartialShape({1, kvcache_size});
-            if (lhs_seq_size && kvcache_size > 4)
-                // NB: for whisper kvcache model attn mask should be size + 1
-                new_shape = ov::PartialShape({1, kvcache_size + 1});
-        } else if (input_name.find("position_ids") != std::string::npos) {
-            const auto partial_shape_size = input.get_partial_shape().size();
-            // NB: Regular LLM uses 2D shapes, Qwen2.5 VL/Omni uses 3D shapes
-            // The first dimension (3) represents the three components of position encoding: time, height, and width
-            // enabling alignment across multimodal inputs like text, audio, and video
-            NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
-            new_shape =
-                partial_shape_size == 3u ? ov::PartialShape({3, 1, input_size}) : ov::PartialShape({1, input_size});
-        } else if (input_name.find("cache_position") != std::string::npos) {
-            // NB: Whisper case
-            new_shape = ov::PartialShape({1});
-        } else if (input_name.find("encoder_hidden_states") != std::string::npos) {
-            // NB: Whisper case
-            const auto& partial_shape = input.get_partial_shape();
-            new_shape = partial_shape;
-            new_shape[0] = 1;  // batch_dim
-        } else if (ov::npuw::matchEagle3HiddenStatesString(input_name)) {
-            new_shape = ov::npuw::Eagle3Extension::get_static_input(model, input, input_size);
-        } else if (ov::npuw::util::matchLoRAMatMulAString(input_name)) {
-            new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
-        } else if (ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
-            new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
-        } else if (ov::npuw::util::matchLoRAMatMulBString(input_name)) {
-            new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
-        } else {
-            const auto& partial_shape = input.get_partial_shape();
-            new_shape = partial_shape;
-            new_shape[kv_axes_position.batch] = 1;
-            if (lhs_seq_size) {  // Whisper model
-                new_shape[kv_axes_position.seq_len] = (input_name.find(".decoder") != std::string::npos)
-                                                          ? kvcache_size - input_size  // kv_size for decoder
-                                                          : lhs_seq_size;  // sequence size for encoder hidden states
-            } else {                                                       // LLM/VLM
-                new_shape[kv_axes_position.seq_len] = kvcache_size - input_size;
-            }
-        }
-        new_shapes.emplace(input_name, new_shape);
-    }
-    model->reshape(new_shapes);
-}
-
-void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model,
-                                   const uint32_t& batch_dim,
-                                   std::size_t max_generation_token_len) {
-    // We have only one input with dynamic shapes: output embeds.
-    // Output embeds should have "max_generation_token_len" for dimension representing
-    // number of embeddings to send to the matmul. Batch size should be equal to "1"
-    // for NPU.
-    const auto& input = lm_head_model->input(0);
-    const auto& partial_shape = input.get_partial_shape();
-    NPUW_ASSERT(partial_shape.size() == 3);
-
-    ov::PartialShape new_shape = partial_shape;
-    new_shape[batch_dim] = 1;
-    // Left dynamic axis will be for number of embeddings
-    for (auto i = 0; i < new_shape.rank().get_length(); i++) {
-        if (new_shape[i].is_dynamic()) {
-            new_shape[i] = max_generation_token_len;
-            // Sanity check that only one left dimension is dynamic, as
-            // another one should contain embedding space rank
-            break;
-        }
-    }
-
-    lm_head_model->reshape(new_shape);
-}
-
-void slice_out_embeds(std::shared_ptr<ov::Model> model,
-                      const uint32_t& batch_dim,
-                      std::size_t max_generation_token_len) {
-    std::shared_ptr<ov::Node> embed_result;
-    for (auto&& output : model->outputs()) {
-        if (output.get_any_name() == ov::npuw::LLMCompiledModel::layer_names::output_embeds) {
-            embed_result = output.get_node_shared_ptr();
-        }
-    }
-
-    if (embed_result) {
-        auto shape = embed_result->input(0).get_shape();
-        // If shape.size() is 3, then last axis should contain the rank of embedding dimension.
-        // But 1st and 2nd axes can mean different things.
-        // 1st axis can represent the batch size, while 2nd - the number of embeddings,
-        // or vice-versa (in chatglm)
-        if (shape.size() == 3) {
-            OPENVINO_ASSERT(batch_dim <= 1, "Unexpected value of batch_dim: ", batch_dim, ", expected 0 or 1!");
-            uint32_t num_embeds_dim = 1 - batch_dim;
-            OPENVINO_ASSERT(shape[num_embeds_dim] >= max_generation_token_len,
-                            "Number of output embeddings should be greater or equal to the slicing range!");
-            if (shape[num_embeds_dim] != max_generation_token_len) {
-                std::vector<int32_t> start_pos{
-                    static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - max_generation_token_len)),
-                    static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - max_generation_token_len)),
-                    0};
-                std::vector<int32_t> stop_pos{static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - 1)) + 1,
-                                              static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)) + 1,
-                                              static_cast<int32_t>(shape[2])};
-                auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, start_pos);
-                auto stop = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, stop_pos);
-                auto step = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                                   ov::Shape{3},
-                                                                   std::vector<int32_t>{1, 1, 1});
-
-                auto slice = std::make_shared<ov::op::v8::Slice>(embed_result->input_value(0), start, stop, step);
-
-                embed_result->input(0).replace_source_output(slice);
-                embed_result->validate_and_infer_types();
-                model->validate_nodes_and_infer_types();
-            }
-        }
-    }
-}
-
->>>>>>> a45ae792e1 (Improved CutLMHead to not interfere with other outputs)
 bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
     std::vector<std::string> rt_info_path = {"nncf", "weight_compression", "group_size"};
     if (!model->has_rt_info(rt_info_path)) {
@@ -777,6 +638,96 @@ std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model
 }  // namespace
 
 // Apply DEVICE_ROUTED MoE transformations to models
+class ApplyMoEDeviceRoutedTransforms : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::ApplyMoEDeviceRoutedTransforms");
+    ApplyMoEDeviceRoutedTransforms() = default;
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        apply_moe_device_routed_transforms(model);
+
+        return true;
+    }
+};
+
+class LoraStatefulToStatelessPass : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::LoraStatefulToStatelessPass");
+
+    explicit LoraStatefulToStatelessPass() = default;
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        convert_stateful_lora_to_stateless(model);
+
+        return true;
+    }
+};
+
+std::map<std::string, std::vector<std::size_t>> find_other_dynamic_outputs(const std::shared_ptr<ov::Model>& model) {
+    std::map<std::string, std::vector<std::size_t>> other_dynamic_outputs;
+    for (const auto& output : model->outputs()) {
+        // Filter logits, as we are collecting only "other" than logits outputs.
+        if (output.get_names().count(ov::npuw::LLMCompiledModel::layer_names::logits)) {
+            LOG_VERB("Skipping output port " << output.get_index() << " as it is identified as logits." << std::endl);
+            continue;
+        }
+
+        const auto& shape = output.get_partial_shape();
+        if (!shape.is_dynamic()) {
+            continue;
+        }
+
+        std::vector<std::size_t> dynamic_dims_ids;
+        for (auto dim_it = shape.begin(); dim_it != shape.end(); ++dim_it) {
+            if (dim_it->is_dynamic()) {
+                dynamic_dims_ids.push_back(std::distance(shape.begin(), dim_it));
+            }
+        }
+        OPENVINO_ASSERT(!dynamic_dims_ids.empty() && "Dynamic output should have at least one dynamic dimension");
+        const auto& output_name = output.get_any_name();
+        other_dynamic_outputs[output_name] = dynamic_dims_ids;
+        LOG_VERB("Find other dynamic output with name \"" << output_name << "\" at port: " << output << " with shape: "
+                                                          << shape << " with dynamic dimension indices: ");
+        if ((ov::npuw::get_log_level() >= ov::npuw::LogLevel::Verbose)) {
+            for (const auto& dim_id : dynamic_dims_ids) {
+                LOG_VERB("    - " << dim_id);
+            }
+        }
+    }
+    return other_dynamic_outputs;
+}
+
+std::map<ov::Output<const ov::Node>, std::size_t> find_other_outputs_with_seqdim(
+    const std::shared_ptr<ov::npuw::ICompiledModel_v0>& compiled_model,
+    const std::map<std::string, std::vector<std::size_t>>& other_dynamic_outputs,
+    const std::size_t static_seqdim_value) {
+    std::map<ov::Output<const ov::Node>, std::size_t> other_outputs_with_seqdim;
+    for (const auto& [name, dynamic_dims] : other_dynamic_outputs) {
+        const auto& cm_outs = compiled_model->outputs();
+        if (auto it = std::find_if(cm_outs.begin(),
+                                   cm_outs.end(),
+                                   [&name](const ov::Output<const ov::Node>& output) {
+                                       return output.get_names().count(name) > 0;
+                                   });
+            it != cm_outs.end()) {
+            const auto& port = *it;
+            const auto& static_shape = port.get_partial_shape();
+            OPENVINO_ASSERT(static_shape.is_static() && "Model should have static shape at this point");
+            for (const auto& dyn_dim : dynamic_dims) {
+                if (static_shape[dyn_dim] == static_seqdim_value) {
+                    other_outputs_with_seqdim.emplace(port, dyn_dim);
+                    // NB: Assuming only one dynamic dimension can match the sequence length, break after finding the
+                    //     first match.
+                    //     Batch size is expected to be always 1, so it won't be equal to the max sequence length in the
+                    //     prefill model.
+                    break;
+                }
+            }
+        }
+    }
+    return other_outputs_with_seqdim;
+}
+
 std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_generate_model_variants(
     const std::shared_ptr<ov::Model>& generate_model,
     const KVAxesPosition& axes,
@@ -1033,6 +984,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
     const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
     KVAxesPosition axes{batch_dim, seq_len_dim};
+
+    std::map<std::string, std::vector<std::size_t>> other_dynamic_outputs;
+    if (m_use_chunk_prefill) {
+        LOG_VERB("Find all models outputs besides logits that also have dynamic shapes to handle in chunked prefill.");
+        other_dynamic_outputs = find_other_dynamic_outputs(model);
+    }
 
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
@@ -1621,6 +1578,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_prefill_compiled = m_compiled_model_factory(prefill_model, plugin, prefill_config);
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
                                       "model and its config, please check passed config.");
+    if (m_use_chunk_prefill) {
+        LOG_VERB("Find all models outputs besides logits that have seq_dim value.");
+        m_prefill_other_outs_to_seqdims =
+            find_other_outputs_with_seqdim(m_prefill_compiled, other_dynamic_outputs, m_prefill_chunk_size);
+    }
     if (lm_head_model) {
         auto lm_head_config = get_default_lm_head_config(npudesc);
         merge_config_with(lm_head_config, other_props);
@@ -2107,7 +2069,7 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_sync_i
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_llm_infer_request() {
     auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
-    return std::make_shared<ov::npuw::LLMInferRequest>(this_sptr);
+    return std::make_shared<ov::npuw::LLMInferRequest>(this_sptr, m_prefill_other_outs_to_seqdims);
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_whisper_infer_request() {
