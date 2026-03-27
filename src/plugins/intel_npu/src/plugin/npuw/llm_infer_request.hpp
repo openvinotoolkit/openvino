@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
 
 #include "base_sync_infer_request.hpp"
 #include "llm_compiled_model.hpp"
@@ -15,12 +16,21 @@
 #include "openvino/core/descriptor/output.hpp"
 #include "perf.hpp"
 
+template <>
+struct std::hash<ov::Output<const ov::Node>> {
+    std::size_t operator()(const ov::Output<const ov::Node>& port) const {
+        return ((hash<string>()(port.get_node()->get_name())) ^ (hash<std::size_t>()(port.get_index()) << 1));
+    }
+};
+
 namespace ov {
 namespace npuw {
 
 class LLMInferRequest : public ov::npuw::LLMInferBaseRequest {
 public:
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
+    explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model,
+                             const std::map<ov::Output<const ov::Node>, std::size_t>& prefill_other_outs_to_seqdims);
 
     void infer() override;
 
@@ -47,6 +57,11 @@ protected:
     void infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                ov::SoPtr<ov::ITensor> attention_mask,
                                ov::SoPtr<ov::ITensor> position_ids);
+
+    void accumulate_other_chunked_outputs(uint32_t start_offset,
+                                          uint32_t chunk_token_count,
+                                          uint32_t stored_token_count,
+                                          uint32_t max_seq_len);
 
     void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
                              ov::SoPtr<ov::ITensor> attention_mask,
@@ -79,6 +94,8 @@ protected:
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
     ov::SoPtr<ov::ITensor> m_logits;
     std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_other_outputs;
+    std::map<ov::Output<const ov::Node>, std::size_t> m_prefill_other_out_seqdims;
+    std::unordered_map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>> m_prefill_other_accumulated_outs;
 
     PortsMap m_prefill_in_ports;
     PortsMap m_prefill_out_ports;
