@@ -21,6 +21,7 @@ class TestRad2Deg(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", [np.float32, np.float64, np.int32])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_rad2deg(self, input_shape, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"input_shape": input_shape, "dtype": dtype})
