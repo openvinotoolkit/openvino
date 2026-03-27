@@ -35,6 +35,7 @@ namespace intel_npu {
 
 // symbols that may not be supported in older versions of vcl
 #define vcl_weak_symbols_list()                             \
+    vcl_symbol_statement(vclAllocatedExecutableCreate)     \
     vcl_symbol_statement(vclAllocatedExecutableCreateWSOneShot)
 // clang-format on
 
