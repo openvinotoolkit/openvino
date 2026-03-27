@@ -78,13 +78,13 @@ std::shared_ptr<ze_module_holder> ze_kernel_builder::build_module_l0(const void 
     }
     ze_module_handle_t module_handle;
     ze_module_build_log_handle_t log_handle;
-    ze_result_t build_result = ze_api->zeModuleCreate(m_device.get_context(), m_device.get_device(), &module_desc, &module_handle, &log_handle);
+    ze_result_t build_result = ze::zeModuleCreate(m_device.get_context(), m_device.get_device(), &module_desc, &module_handle, &log_handle);
     if (build_result != ZE_RESULT_SUCCESS) {
         size_t log_size = 0;
-        OV_ZE_EXPECT(ze_api->zeModuleBuildLogGetString(log_handle, &log_size, nullptr));
+        OV_ZE_EXPECT(ze::zeModuleBuildLogGetString(log_handle, &log_size, nullptr));
         std::string log(log_size, ' ');
-        OV_ZE_EXPECT(ze_api->zeModuleBuildLogGetString(log_handle, &log_size, log.data()));
-        OV_ZE_EXPECT(ze_api->zeModuleBuildLogDestroy(log_handle));
+        OV_ZE_EXPECT(ze::zeModuleBuildLogGetString(log_handle, &log_size, log.data()));
+        OV_ZE_EXPECT(ze::zeModuleBuildLogDestroy(log_handle));
         GPU_DEBUG_INFO << "-------- Kernel build error" << std::endl;
         GPU_DEBUG_INFO << log << std::endl;
         GPU_DEBUG_INFO << "-------- End of Kernel build error" << std::endl;

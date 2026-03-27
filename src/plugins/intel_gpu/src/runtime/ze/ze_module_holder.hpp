@@ -20,8 +20,8 @@ public:
     ze_module_holder(const ze_module_holder& other) = delete;
     ze_module_holder& operator=(const ze_module_holder& other) = delete;
     ~ze_module_holder() {
-        OV_ZE_WARN(ze_api->zeModuleBuildLogDestroy(m_build_log));
-        OV_ZE_WARN(ze_api->zeModuleDestroy(m_module));
+        OV_ZE_WARN(ze::zeModuleBuildLogDestroy(m_build_log));
+        OV_ZE_WARN(ze::zeModuleDestroy(m_module));
     }
     ze_module_handle_t get_module_handle() const { return m_module; }
     ze_module_build_log_handle_t get_build_log_handle() const { return m_build_log; }

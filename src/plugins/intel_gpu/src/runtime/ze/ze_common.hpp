@@ -6,6 +6,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/core/except.hpp"
 
+#define ZERO_API_KEEP_SYMBOLS_LIST_MACRO
 #include <openvino/zero_api.hpp>
 
 #include <limits>
@@ -37,9 +38,36 @@
 
 namespace cldnn {
 namespace ze {
-extern std::shared_ptr<::ov::ZeroApi> ze_api;
+
+inline std::shared_ptr<::ov::ZeroApi> get_ze_api_instance() {
+    // Load ZeroApi on first call and keep it alive
+    static std::shared_ptr<::ov::ZeroApi> ze_api = ::ov::ZeroApi::getInstance();
+    return ze_api;
+}
+
+// All Level Zero calls should go through this wrapper
+#define symbol_statement(symbol)                                                                            \
+    template <typename... Args>                                                                             \
+    inline typename std::invoke_result<decltype(&::symbol), Args...>::type wrapped_##symbol(Args... args) { \
+        const auto& ptr = get_ze_api_instance();                                                            \
+        if (ptr->symbol == nullptr) {                                                                       \
+            OPENVINO_THROW("Unsupported symbol " #symbol);                                                  \
+        }                                                                                                   \
+        return ptr->symbol(std::forward<Args>(args)...);                                                    \
+    }
+symbols_list();
+weak_symbols_list();
+#undef symbol_statement
+#define symbol_statement(symbol) inline decltype(&::symbol) symbol = wrapped_##symbol;
+symbols_list();
+weak_symbols_list();
+#undef symbol_statement
+
 static constexpr uint64_t endless_wait = std::numeric_limits<uint64_t>::max();
 static constexpr ze_module_format_t ze_module_format_oclc = (ze_module_format_t) 3U;
 
 }  // namespace ze
 }  // namespace cldnn
+
+#undef symbols_list
+#undef weak_symbols_list
