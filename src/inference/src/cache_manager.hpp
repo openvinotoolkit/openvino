@@ -54,8 +54,14 @@ private:
         std::ofstream stream(blob_path, std::ios_base::binary);
         writer(stream);
         stream.close();
-        std::filesystem::permissions(blob_path,
-                                     std::filesystem::perms::owner_read | std::filesystem::perms::group_read);
+        try {
+            std::filesystem::permissions(blob_path,
+                                         std::filesystem::perms::owner_read | std::filesystem::perms::group_read);
+        } catch (const std::filesystem::filesystem_error& e) {
+            std::cout << "Warning: Failed to set permissions for cache file: " << blob_path.string() << ". " << e.what()
+                      << std::endl;
+            throw;
+        }
     }
 
     void read_cache_entry(const std::string& id, bool enable_mmap, StreamReader reader) override {
