@@ -108,11 +108,11 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(size_t 
         // Extract expert_beta from Swish
         float expert_beta = 1.0f;
         auto swish_node = pm.at(swish_m).get_node_shared_ptr();
-        if (auto swish_op = ov::as_type_ptr<v4::Swish>(swish_node)) {
-            if (swish_op->get_input_size() > 1) {
-                if (auto beta_const = ov::as_type_ptr<v0::Constant>(swish_op->get_input_node_shared_ptr(1))) {
-                    expert_beta = beta_const->cast_vector<float>()[0];
-                }
+
+        auto swish_op = ov::as_type_ptr<v4::Swish>(swish_node);
+        if (swish_op->get_input_size() > 1) {
+            if (auto beta_const = ov::as_type_ptr<v0::Constant>(swish_op->get_input_node_shared_ptr(1))) {
+                expert_beta = beta_const->cast_vector<float>()[0];
             }
         }
 
@@ -277,9 +277,7 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(size_t 
 
         // Extract expert_alpha from Clamp max
         float expert_alpha = 0.0f;
-        if (auto clamp_op = ov::as_type_ptr<v0::Clamp>(pm.at(clamp_m).get_node_shared_ptr())) {
-            expert_alpha = static_cast<float>(clamp_op->get_max());
-        }
+        auto clamp_op = ov::as_type_ptr<v0::Clamp>(pm.at(clamp_m).get_node_shared_ptr());
 
         std::shared_ptr<ov::Node> moe_node;
 

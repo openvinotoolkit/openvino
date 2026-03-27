@@ -227,12 +227,6 @@ ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls() {
         ov::copy_runtime_info(router_transpose_node, new_router_transpose);
         new_router_transpose->set_friendly_name(router_transpose_node->get_friendly_name());
 
-        // Disconnect ScatterElementsUpdate from chosen_experts (Divide) so downstream
-        // passes see correct consumers_count on both Divide and new_router_transpose.
-        // Use a dummy constant to avoid giving new_router_transpose an extra dead consumer.
-        auto scat_dummy = v0::Constant::create(ov::element::f32, ov::Shape{1}, {0});
-        pm.at(p.scatter_elements_update).get_node_shared_ptr()->input(2).replace_source_output(scat_dummy->output(0));
-
         const auto router_unsqueeze_const = v0::Constant::create(ov::element::i32, ov::Shape{}, {-1});
         const auto router_unsqueeze = std::make_shared<v0::Unsqueeze>(new_router_transpose, router_unsqueeze_const);
         ov::copy_runtime_info(router_transpose_node, {router_unsqueeze_const, router_unsqueeze});
@@ -319,12 +313,6 @@ ConvertTiledMoeBlockTo3GatherMatmuls::ConvertTiledMoeBlockTo3GatherMatmuls() {
             std::make_shared<v1::Transpose>(chosen_experts_input, router_transpose_node->input_value(1));
         ov::copy_runtime_info(router_transpose_node, new_router_transpose);
         new_router_transpose->set_friendly_name(router_transpose_node->get_friendly_name());
-
-        // Disconnect ScatterElementsUpdate from chosen_experts (Divide) so downstream
-        // passes see correct consumers_count on both Divide and new_router_transpose.
-        // Use a dummy constant to avoid giving new_router_transpose an extra dead consumer.
-        auto scat_dummy = v0::Constant::create(ov::element::f32, ov::Shape{1}, {0});
-        pm.at(p.scatter_elements_update).get_node_shared_ptr()->input(2).replace_source_output(scat_dummy->output(0));
 
         const auto router_unsqueeze_const = v0::Constant::create(ov::element::i32, ov::Shape{}, {-1});
         const auto router_unsqueeze = std::make_shared<v0::Unsqueeze>(new_router_transpose, router_unsqueeze_const);
