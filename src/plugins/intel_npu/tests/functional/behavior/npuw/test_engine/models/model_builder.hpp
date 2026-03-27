@@ -222,6 +222,12 @@ struct LLMConfig : public BaseModelConfig {
     /// Token mixer for linear layers (e.g. GatedDeltaNetMixer or ShortConvMixer). build_llm wires
     /// its seq_source/beam_idx. A new mixer type needs no build_llm change.
     std::shared_ptr<LinearMixer> linear_mixer;
+
+    // Support of LLM with multiple outputs: OmniThinker
+    bool add_hidden_states_output = false;
+    std::string hidden_states_output_name = "hidden_states";
+    bool add_pooled_output = false;
+    std::string pooled_output_name = "pooled_hidden_state";
 };
 
 struct WhisperConfig : public BaseModelConfig {
