@@ -162,7 +162,6 @@ static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization
  * @brief Turning on this key bypasses the device max allocation size check and switches
  * addressing mode to allow allocations larger than 4GB as described here:
  * https://github.com/intel/compute-runtime/blob/master/programmers-guide/ALLOCATIONS_GREATER_THAN_4GB.md#creating-allocations-greater-than-4GB
- * This is also useful when a single buffer exceeds the device's CL_DEVICE_MAX_MEM_ALLOC_SIZE.
  * Note: Performance may be lower with this option enabled.
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
