@@ -9,7 +9,6 @@
 #include <ze_graph_ext.h>
 
 #include "intel_npu/common/igraph.hpp"
-#include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "ze_graph_ext_wrappers.hpp"
@@ -23,22 +22,18 @@ public:
           const GraphDescriptor& graphDesc,
           NetworkMetadata metadata,
           std::optional<ov::Tensor> blob,
-          const Config& config,
+          const FilteredConfig& config,
           const bool blobIsPersistent = false,
-          const ov::SoPtr<ICompiler>& compiler = {nullptr},
           const bool calledFromWeightlessGraph = false);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
-    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
-                                                            const Config& config) const override;
+    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const override;
 
     void set_argument_value(uint32_t id, const void* data) const override;
     void set_argument_value_with_strides(uint32_t id,
                                          const void* data,
                                          const std::vector<size_t>& strides) const override;
-
-    void initialize(const Config& config) override;
 
     const NetworkMetadata& get_metadata() const override;
     ze_graph_handle_t get_handle() const override;
@@ -46,7 +41,6 @@ public:
     void update_network_name(std::string_view name) override;
 
     const std::shared_ptr<CommandQueue>& get_command_queue() const override;
-    uint32_t get_command_queue_group_ordinal() const override;
 
     void set_workload_type(const ov::WorkloadType workloadType) const override;
 
@@ -61,10 +55,14 @@ public:
     void set_last_submitted_id(uint32_t id_index) override;
     uint32_t get_last_submitted_id() const override;
 
+    std::optional<bool> is_profiling_blob() const override;
+
     ~Graph() override;
 
 protected:
-    bool release_blob(const Config& config);
+    void initialize_impl(const FilteredConfig& config) override;
+
+    bool release_blob(const FilteredConfig& config);
     std::optional<size_t> determine_batch_size();
 
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
@@ -74,8 +72,8 @@ protected:
     GraphDescriptor _graphDesc;
     NetworkMetadata _metadata;
 
+    mutable std::mutex _commandQueueMutex;
     std::shared_ptr<CommandQueue> _commandQueue;
-    uint32_t _commandQueueGroupOrdinal = 0;
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 
     std::optional<ov::Tensor> _blob;
@@ -94,7 +92,6 @@ protected:
      */
     std::optional<std::size_t> _batchSize = std::nullopt;
 
-    const ov::SoPtr<ICompiler> _compiler;
     Logger _logger;
 };
 

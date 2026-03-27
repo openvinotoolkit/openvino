@@ -8,6 +8,7 @@
 #include "../../util.hpp"
 #include "../patterns/avoid.hpp"
 #include "../patterns/compute.hpp"
+#include "../patterns/moe.hpp"
 #include "../patterns/sdpa.hpp"
 #include "group.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -171,28 +172,39 @@ bool isRegularParameterCase(const std::unordered_map<std::shared_ptr<Repeated>, 
             continue;
         }
 
-        auto firstGroup = *(gset.begin());
-        for (auto input_layer : firstGroup->getInputs()) {
-            // this is the reference mask expected from all other matched layers
-            // in the remaining groups of the repeated block
-            auto expected_producers_mask = getProducersMask(input_layer);
+        // Iterate over ALL groups' input layers instead of only the first group's.
+        // A group whose boundary node reads exclusively from ov::Parameters (e.g.
+        // the first transformer layer reading inputs_embeds) may not expose that
+        // node via getInputs() — getInputs() filters out nodes whose only external
+        // producers satisfy !isOp() (Parameter/Constant). Any sibling group in the
+        // repeated set will have the corresponding boundary node in its getInputs()
+        // (its producer is a computation node from the preceding group). That node's
+        // match bank also contains the first-layer node, which will show a different
+        // producers mask — exactly the mismatch we need to detect.
+        for (const auto& gptr : gset) {
+            for (auto input_layer : gptr->getInputs()) {
+                // this is the reference mask expected from all other matched layers
+                // in the remaining groups of the repeated block
+                auto expected_producers_mask = getProducersMask(input_layer);
 
-            auto this_layer_name = input_layer->get_friendly_name();
-            auto layer_bank_iter = std::find_if(matches.begin(), matches.end(), [&](const std::set<std::string>& lrs) {
-                return lrs.count(this_layer_name) > 0;
-            });
+                auto this_layer_name = input_layer->get_friendly_name();
+                auto layer_bank_iter =
+                    std::find_if(matches.begin(), matches.end(), [&](const std::set<std::string>& lrs) {
+                        return lrs.count(this_layer_name) > 0;
+                    });
 
-            NPUW_ASSERT(layer_bank_iter != matches.end());
+                NPUW_ASSERT(layer_bank_iter != matches.end());
 
-            // match input layers across all groups in the repeated block
-            // and compare their producers mask
-            for (const auto& layer_name : *layer_bank_iter) {
-                auto layer_ptr = node_id_cache.at(layer_name);
-                auto actual_producers_mask = getProducersMask(layer_ptr);
-                if (actual_producers_mask != expected_producers_mask) {
-                    LOG_INFO("This is NOT a regular parameter case. Producers mask mismatch found for "
-                             << layer_name << " and " << this_layer_name << " input layers.");
-                    return false;
+                // match input layers across all groups in the repeated block
+                // and compare their producers mask
+                for (const auto& layer_name : *layer_bank_iter) {
+                    auto layer_ptr = node_id_cache.at(layer_name);
+                    auto actual_producers_mask = getProducersMask(layer_ptr);
+                    if (actual_producers_mask != expected_producers_mask) {
+                        LOG_INFO("This is NOT a regular parameter case. Producers mask mismatch found for "
+                                 << layer_name << " and " << this_layer_name << " input layers.");
+                        return false;
+                    }
                 }
             }
         }
@@ -577,8 +589,13 @@ void Snapshot::earlyAvoids() {
         }
         case PatternType::PATTERN: {
             // FIXME: refactor as more patterns are supported
-            if (avoid.pattern != "RMSNorm" && avoid.pattern != "SinCos" && avoid.pattern != "GemmaRoPE") {
-                LOG_WARN("OPENVINO_NPUW_AVOID only supports RMSNorm, SinCos and GemmaRoPE as patterns "
+            if (avoid.pattern != "RMSNorm" && avoid.pattern != "SinCos" && avoid.pattern != "GemmaRoPE" &&
+                avoid.pattern != "DownsampleInterpolate" && avoid.pattern != "FloorModFP32" &&
+                avoid.pattern != "CumSumSinGen" && avoid.pattern != "BoxMullerNoise" &&
+                avoid.pattern != "AngleComplex") {
+                LOG_WARN("OPENVINO_NPUW_AVOID only supports RMSNorm, SinCos, GemmaRoPE, "
+                         "DownsampleInterpolate, FloorModFP32, CumSumSinGen, BoxMullerNoise "
+                         "and AngleComplex as patterns "
                          "(don't confuse with operations). "
                          "Avoid pattern "
                          << avoid.pattern << " is skipped!");
@@ -591,6 +608,16 @@ void Snapshot::earlyAvoids() {
                 rewr.add_matcher<ov::npuw::patterns::avoid::SinCos>(shared_from_this(), avoid.device);
             } else if (avoid.pattern == "GemmaRoPE") {
                 rewr.add_matcher<ov::npuw::patterns::avoid::GemmaRoPE>(shared_from_this(), avoid.device);
+            } else if (avoid.pattern == "DownsampleInterpolate") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::DownsampleInterpolate>(shared_from_this(), avoid.device);
+            } else if (avoid.pattern == "FloorModFP32") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::FloorModFP32>(shared_from_this(), avoid.device);
+            } else if (avoid.pattern == "CumSumSinGen") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::CumSumSinGen>(shared_from_this(), avoid.device);
+            } else if (avoid.pattern == "BoxMullerNoise") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::BoxMullerNoise>(shared_from_this(), avoid.device);
+            } else if (avoid.pattern == "AngleComplex") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::AngleComplex>(shared_from_this(), avoid.device);
             }
 
             break;
@@ -643,6 +670,11 @@ void Snapshot::earlyRegroup() {
         rewr.add_matcher<ov::npuw::patterns::attn::p>(shared_from_this(), isolate.tag); \
         handle_patterns = true;                                                         \
     }
+#define HNDL_MOE(p)                                                                    \
+    if (isolate.pattern == #p) {                                                       \
+        rewr.add_matcher<ov::npuw::patterns::moe::p>(shared_from_this(), isolate.tag); \
+        handle_patterns = true;                                                        \
+    }
             HNDL(RMSNorm);
             HNDL(RMSNorm2);
             HNDL(RMSNorm3);
@@ -654,10 +686,13 @@ void Snapshot::earlyRegroup() {
             HNDL(DQMatMulConv);
             HNDL(VocabMatMul);
             HNDL(VariadicSplit);
+            HNDL_MOE(GPTOSSExpert);
+            HNDL_MOE(GPTOSSRouter);
             HNDL_FAKE(FakeConvert);
             HNDL_FAKE(FakeQuantize);
             HNDL_ATTN(SDPA);
             HNDL_ATTN(SDPADecomposed);
+#undef HNDL_MOE
 #undef HNDL_ATTN
 #undef HNDL_FAKE
 #undef HNDL

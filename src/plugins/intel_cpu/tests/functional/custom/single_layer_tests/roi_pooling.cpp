@@ -200,7 +200,7 @@ protected:
         }
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(roi_pooling)};
 
-        function = makeNgraphFunction(netPrecision, params, roi_pooling, "ROIPooling");
+        function = create_ov_model(netPrecision, params, roi_pooling, "ROIPooling");
         functionRefs = function->clone();
     }
 };

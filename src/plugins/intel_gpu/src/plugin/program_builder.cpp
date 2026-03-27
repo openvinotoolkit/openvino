@@ -109,6 +109,8 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
 
     auto ops = model->get_ordered_ops();
+
+    GPU_DEBUG_LOG << "Build model name: " << m_model->get_name() << " friendly name: " << m_model->get_friendly_name() << std::endl;
     m_program = build(ops, is_inner_program);
 }
 

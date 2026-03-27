@@ -580,7 +580,7 @@ class PatternSymbolValue:
                 :type value: openvino.Symbol
         """
     @typing.overload
-    def __init__(self, value: typing.SupportsInt) -> None:
+    def __init__(self, value: typing.SupportsInt | typing.SupportsIndex) -> None:
         """
                 Create PatternSymbolValue with the given value.
         
@@ -588,7 +588,7 @@ class PatternSymbolValue:
                 :type value: int
         """
     @typing.overload
-    def __init__(self, value: typing.SupportsFloat) -> None:
+    def __init__(self, value: typing.SupportsFloat | typing.SupportsIndex) -> None:
         """
                 Create PatternSymbolValue with the given value.
         
@@ -691,7 +691,7 @@ class Version:
         ...
     def __index__(self) -> int:
         ...
-    def __init__(self, value: typing.SupportsInt) -> None:
+    def __init__(self, value: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def __int__(self) -> int:
         ...
@@ -703,7 +703,7 @@ class Version:
         ...
     def __repr__(self) -> str:
         ...
-    def __setstate__(self, state: typing.SupportsInt) -> None:
+    def __setstate__(self, state: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def __str__(self) -> str:
         ...
@@ -1112,11 +1112,11 @@ class WrapType(openvino._pyopenvino.Node):
         ...
 def attrs_match(arg0: typing.Any) -> Predicate:
     ...
-def consumers_count(arg0: typing.SupportsInt) -> Predicate:
+def consumers_count(arg0: typing.SupportsInt | typing.SupportsIndex) -> Predicate:
     ...
-def has_static_dim(arg0: typing.SupportsInt) -> Predicate:
+def has_static_dim(arg0: typing.SupportsInt | typing.SupportsIndex) -> Predicate:
     ...
-def has_static_dims(arg0: collections.abc.Sequence[typing.SupportsInt]) -> Predicate:
+def has_static_dims(arg0: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> Predicate:
     ...
 def has_static_rank() -> Predicate:
     ...

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import platform
 
 from datasets import Audio, load_dataset
 from huggingface_hub import hf_hub_download, model_info, snapshot_download
@@ -154,13 +155,13 @@ class TestTransformersModel(TestTorchConvertModel):
 
             prompts = [[
                 "User: What is in this image?",
-                "https://upload.wikimedia.org/wikipedia/commons/8/86/Id%C3%A9fix.JPG",
+                self.image,
                 "<end_of_utterance>",
 
                 "\nAssistant: This picture depicts Idefix, the dog of Obelix in Asterix and Obelix. Idefix is running on the ground.<end_of_utterance>",
 
                 "\nUser:",
-                "https://static.wikia.nocookie.net/asterix/images/2/25/R22b.gif/revision/latest?cb=20110815073052",
+                self.image,
                 "And who is that?<end_of_utterance>",
 
                 "\nAssistant:",
@@ -296,6 +297,8 @@ class TestTransformersModel(TestTorchConvertModel):
             inputs = processor(
                 text=prompt, images=self.image, return_tensors="pt")
             example = dict(inputs)
+            if 'pixel_values' in example and example['pixel_values'].ndim == 5:
+                example['pixel_values'] = example['pixel_values'].squeeze(1)
         elif 'vitmatte' in mi.tags:
             processor = AutoImageProcessor.from_pretrained(model_cached)
             filepath = hf_hub_download(repo_id="hf-internal-testing/image-matting-fixtures",
@@ -445,6 +448,12 @@ class TestTransformersModel(TestTorchConvertModel):
                     example = dict(encoded_input)
             except:
                 pass
+        if model is None and "blip_2_qformer" in mi.tags:
+            from transformers import Blip2QFormerConfig, Blip2QFormerModel
+            qformer_config = Blip2QFormerConfig.from_pretrained(model_cached)
+            qformer_config.torchscript = True
+            model = Blip2QFormerModel.from_pretrained(
+                model_cached, config=qformer_config)
         if model is None:
             model = self.load_model_with_default_class(name, **model_kwargs)
         if hasattr(model, "set_default_language"):
@@ -487,6 +496,10 @@ class TestTransformersModel(TestTorchConvertModel):
 
         if "hybridbert" in mi.tags and "token_type_ids" in example:
             del example["token_type_ids"]
+        if "instructblip" in mi.tags:
+            # The processor does not insert image_token_index into input_ids,
+            # so force the concatenation path in the model's forward method.
+            model.config.image_token_index = None
         self.example = example
         if "vit_mae" in mi.tags:
             # vit-mae by default will generate random noise
@@ -529,6 +542,8 @@ class TestTransformersModel(TestTorchConvertModel):
                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):
+        if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+            pytest.skip("hf_transformers models are not enabled on ARM")
         self.run(model_name=name, model_link=type, ie_device=ie_device)
 
     @pytest.mark.parametrize("name,type", [("bert-base-uncased", "bert"),
@@ -536,6 +551,8 @@ class TestTransformersModel(TestTorchConvertModel):
                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit_export(self, name, type, ie_device):
+        if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+            pytest.skip("hf_transformers models are not enabled on ARM")
         self.mode = "export"
         self.run(model_name=name, model_link=type, ie_device=ie_device)
 

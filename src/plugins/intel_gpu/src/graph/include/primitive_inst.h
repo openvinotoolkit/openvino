@@ -366,6 +366,7 @@ public:
     std::shared_ptr<const PType> get_typed_desc() const { return _impl_params->typed_desc<PType>(); }
 
     virtual void update_output_memory() {}
+    void clear_output_memory();
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
     virtual void update_shape_info_tensor(const kernel_impl_params& params);
@@ -466,6 +467,8 @@ protected:
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     void update_impl(bool use_async_compilation);
     void realloc_if_needed(bool prev_execution_skipped = false);
+    void realloc_outputs(bool prev_execution_skipped = false);
+    void realloc_intermediates();
 
     cldnn::network::ptr get_unfused_subgraph();
 
@@ -504,8 +507,6 @@ protected:
     }
 
     virtual bool need_reset_output_memory() const;
-
-    void clear_output_memory();
 
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key

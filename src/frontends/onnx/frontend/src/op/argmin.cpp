@@ -15,7 +15,7 @@ ov::OutputVector argmin(const ov::frontend::onnx::Node& node) {
     return {arg_factory.make_arg_min()};
 }
 
-ONNX_OP("ArgMin", {1, 11}, ai_onnx::opset_1::argmin);
+ONNX_OP("ArgMin", OPSET_RANGE(1, 11), ai_onnx::opset_1::argmin);
 }  // namespace opset_1
 
 namespace opset_12 {
