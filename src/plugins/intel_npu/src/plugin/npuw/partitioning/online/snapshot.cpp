@@ -754,7 +754,7 @@ void Snapshot::identifyUniques() {
         // This pass should only be called at the very beginning,
         // thus check and use only the single initial layer
         auto ov_node = group->getInitialNode();
-        auto metadesc = ov::npuw::online::util::getMetaDesc(ov_node);
+        auto metadesc = getMetaDesc(ov_node);
         const auto& avoids = group->avoidedTargets();
         const auto& special_tags = group->specialTags();
         uniques[{metadesc, avoids, special_tags}].insert(group);
@@ -1347,7 +1347,7 @@ void Snapshot::completeRepeating(const std::shared_ptr<Repeated>& reptag, const 
 
     for (const auto& gptr : gset) {
         for (const auto& layer : gptr->getContent()) {  // FIXME: should it be a part of group's API instead?
-            const auto& metadesc = ov::npuw::online::util::getMetaDesc(layer);
+            const auto& metadesc = getMetaDesc(layer);
             const auto& archetype = gptr->getReptrack(layer);
             matches[{std::move(metadesc), std::move(archetype)}].insert(layer);
         }
@@ -1430,6 +1430,17 @@ std::shared_ptr<own::ade::Graph> Snapshot::getGraph() const {
 
 size_t Snapshot::graphSize() const {
     return m_graph->nodes().size();
+}
+
+std::string Snapshot::getMetaDesc(const std::shared_ptr<ov::Node>& node) const {
+    auto id = node->get_instance_id();
+    auto it = m_metadesc_cache.find(id);
+    if (it != m_metadesc_cache.end()) {
+        return it->second;
+    }
+    auto result = util::getMetaDesc(node);
+    m_metadesc_cache.emplace(id, result);
+    return result;
 }
 
 const OVPortsMap& Snapshot::getPortsMap() const {
