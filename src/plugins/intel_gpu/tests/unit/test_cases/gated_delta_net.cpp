@@ -107,9 +107,9 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         for (size_t i_b = 0; i_b < this->B; i_b++) {
             for (size_t i_h = 0; i_h < this->H; i_h++) {
                 for (size_t i_v = 0; i_v < this->V; i_v++) {
-                    float init_state[128] = {0};
-                    float b_k[128] = {0};
-                    float b_q[128] = {0};
+                    std::vector<float> init_state(this->K, 0.0f);
+                    std::vector<float> b_k(this->K, 0.0f);
+                    std::vector<float> b_q(this->K, 0.0f);
                     // B, T, HK, K for Q/K and B, T, H, K for V
                     size_t BATCH_STRIDE_Q = this->HK * this->K * this->T;
                     size_t BATCH_STRIDE_K = this->HK * this->K * this->T;
@@ -135,22 +135,22 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
                             b_q[j] = q_ptr[i * this->K * this->HK + j];
                         }
 
-                        l2norm(b_k, this->K);
-                        l2norm(b_q, this->K);
+                        l2norm(b_k.data(), this->K);
+                        l2norm(b_q.data(), this->K);
 
-                        scale(b_q, attn_scale, this->K);
+                        scale(b_q.data(), attn_scale, this->K);
 
                         // h0 * g
-                        scale(init_state, b_g, this->K);
-                        float h_k = dot_product(init_state, b_k, this->K);
+                        scale(init_state.data(), b_g, this->K);
+                        float h_k = dot_product(init_state.data(), b_k.data(), this->K);
                         float b_v = v_ptr[i_v + i * this->V * this->H];
                         b_v -= h_k;
                         // b_v * b_k
                         b_v *= b_beta;
-                        scale(b_k, b_v, this->K);
+                        scale(b_k.data(), b_v, this->K);
                         // h = h0 + update
-                        add(init_state, b_k, this->K);
-                        float b_output = dot_product(init_state, b_q, this->K);
+                        add(init_state.data(), b_k.data(), this->K);
+                        float b_output = dot_product(init_state.data(), b_q.data(), this->K);
                         // B, T, H, V
                         output[i_b * this->T * this->H * this->V + i * this->H * this->V + i_h * this->V + i_v] = b_output;
                     }

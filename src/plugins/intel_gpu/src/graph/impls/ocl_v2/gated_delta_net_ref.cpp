@@ -24,9 +24,8 @@ size_t get_subgroup_size(gpu_arch arch) {
     case gpu_arch::xe_hpc:
     case gpu_arch::xe2:
     case gpu_arch::xe3:
-        return 16;
     default:
-        return 0;
+        return 16;
     }
 }
 
@@ -52,6 +51,7 @@ protected:
         jit.make("K_HEAD_DIM", k_head_dims);
         jit.make("V_HEAD_DIM", v_head_dims);
         jit.make("SUBGROUP_SIZE", get_subgroup_size(params.get_device_info().arch));
+        jit.make("V_BLOCK_SIZE", v_block_size);
         jit.make("FUSE_QK_L2NORM", desc->fuse_qk_l2norm ? 1 : 0);
         jit.make("Q_L2_NORM_EPS", desc->q_l2_norm_eps);
         jit.make("K_L2_NORM_EPS", desc->k_l2_norm_eps);

@@ -7,7 +7,6 @@
 #include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/sub_group_shuffle.cl"
-#define V_BLOCK_SIZE 4
 
 inline float FUNC(l2norm_scale)(float sum, float extra_scale, float eps) {
     sum = sub_group_reduce_add(sum);
