@@ -198,9 +198,13 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
     }
 
     MemoryCPtr scalesPtr = memory.count(ARG_WEI | ARG_ATTR_SCALES) ? memory.at(ARG_WEI | ARG_ATTR_SCALES) : nullptr;
-    int ic = weightsDesc->getShape().getStaticDims()[1];
+    size_t ic = weightsDesc->getShape().getStaticDims()[1];
 
-    if (ic < static_cast<int>(simdWidth)) {
+    if (ic < simdWidth) {
+        return false;
+    }
+
+    if (ic < dqGroupSize) {
         return false;
     }
 
@@ -263,9 +267,6 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
 
     if (auto it = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS); it != memory.end()) {
         auto dstPrc = useDynamicQuantization ? ov::element::u8 : ov::element::f32;
-        if (weiDesc->getPrecision() == ov::element::u2) {
-            dstPrc = ov::element::u2;
-        }
         dnnlpoc.appendDecompressionZeroPointsLegacy(it->second, !attrs.weightsNonTransposed, dstPrc);
     }
 
