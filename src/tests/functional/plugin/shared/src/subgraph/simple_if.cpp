@@ -4,8 +4,8 @@
 
 #include "shared_test_classes/subgraph/simple_if.hpp"
 
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/if.hpp"
@@ -176,7 +176,9 @@ void SimpleIfNotConstConditionTest::generate_inputs(const std::vector<ov::Shape>
             ov::test::utils::InputGenerateData in_data;
             in_data.start_from = -5;
             in_data.range = 10;
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                             targetInputStaticShapes[i],
+                                                             in_data);
         }
 
         inputs.insert({funcInput.get_node_shared_ptr(), tensor});
@@ -301,11 +303,13 @@ void SimpleIfNotConstConditionUnusedOutputPortsTest::SetUp() {
 
     const size_t axis = 1;
     const size_t dim = inputDynamicShapes[0][axis].get_length();  // should be static for this test suit
-    auto thenOp_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
+    auto thenOp_axis_op =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
     auto thenOp = std::make_shared<ov::op::v1::Split>(p1, thenOp_axis_op, dim);
     auto thenRes = std::make_shared<ov::op::v0::Result>(thenOp->output(dim / 2));
 
-    auto elseOp_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
+    auto elseOp_axis_op =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
     auto elseOp = std::make_shared<ov::op::v1::Split>(p2, elseOp_axis_op, dim);
     auto elseRes = std::make_shared<ov::op::v0::Result>(elseOp->output(dim - 1));
 
@@ -320,6 +324,87 @@ void SimpleIfNotConstConditionUnusedOutputPortsTest::SetUp() {
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(ifRes)};
     function = std::make_shared<ov::Model>(results, params, "SimpleIfNotConstConditionUnusedOutputPortsTest");
+}
+
+void SimpleIfNoRedefinePathTest::SetUp() {
+    const auto& [shapes, inType, _condition, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
+
+    init_input_shapes(shapes);
+    OPENVINO_ASSERT(inputDynamicShapes.size() == 3,
+                    "SimpleIfNoRedefinePathTest expects 2 data inputs and condition input");
+
+    ov::ParameterVector params;
+    params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]));
+    params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1]));
+    params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, inputDynamicShapes[2]));
+
+    const ov::PartialShape bodyDynamicShape0 = inputDynamicShapes[0];
+    const ov::PartialShape bodyDynamicShape1 = inputDynamicShapes[1];
+    OPENVINO_ASSERT(bodyDynamicShape0.compatible(bodyDynamicShape1),
+                    "SimpleIfNoRedefinePathTest expects compatible data input shapes");
+
+    auto thenP0 = std::make_shared<ov::op::v0::Parameter>(inType, bodyDynamicShape0);
+    auto thenP1 = std::make_shared<ov::op::v0::Parameter>(inType, bodyDynamicShape1);
+
+    auto elseP0 = std::make_shared<ov::op::v0::Parameter>(inType, bodyDynamicShape0);
+    auto elseP1 = std::make_shared<ov::op::v0::Parameter>(inType, bodyDynamicShape1);
+
+    auto thenSum = std::make_shared<ov::op::v1::Add>(thenP0, thenP1);
+    auto thenRes = std::make_shared<ov::op::v0::Result>(thenSum);
+
+    auto elseSum = std::make_shared<ov::op::v1::Add>(elseP1, elseP0);
+    auto elseRes = std::make_shared<ov::op::v0::Result>(elseSum);
+
+    auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{thenRes}, ov::ParameterVector{thenP0, thenP1});
+    auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{elseRes}, ov::ParameterVector{elseP0, elseP1});
+
+    auto ifOp = std::make_shared<ov::op::v8::If>(params[2]);
+    ifOp->set_then_body(thenBody);
+    ifOp->set_else_body(elseBody);
+    ifOp->set_input(params[0], thenP0, elseP0);
+    ifOp->set_input(params[1], thenP1, elseP1);
+    auto ifRes = ifOp->set_output(thenRes, elseRes);
+
+    auto outZero = ov::op::v0::Constant::create(inType, ov::Shape{2, 3, 10, 10}, {0});
+    auto outAdd = std::make_shared<ov::op::v1::Add>(ifRes, outZero);
+
+    function = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(outAdd)},
+                                           params,
+                                           "SimpleIfNoRedefinePathTest");
+}
+
+void SimpleIfNoRedefinePathTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    OPENVINO_ASSERT(targetInputStaticShapes.size() == 3,
+                    "SimpleIfNoRedefinePathTest expects 2 static data input shapes and condition input shape");
+
+    constexpr int32_t kStart = -5;
+    constexpr uint32_t kRange = 16;
+    constexpr size_t kSecondInputOffset = 7;
+    constexpr size_t kInputStep = 13;
+
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = static_cast<int32_t>(kStart + static_cast<int32_t>(inputGenIter % kRange));
+    in_data.range = kRange;
+    ov::Tensor input = ov::test::utils::create_and_fill_tensor(function->inputs()[0].get_element_type(),
+                                                               targetInputStaticShapes[0],
+                                                               in_data);
+    in_data.start_from =
+        static_cast<int32_t>(kStart + static_cast<int32_t>((inputGenIter + kSecondInputOffset) % kRange));
+    ov::Tensor input2 = ov::test::utils::create_and_fill_tensor(function->inputs()[1].get_element_type(),
+                                                                targetInputStaticShapes[1],
+                                                                in_data);
+
+    ov::Tensor condTensor(ov::element::boolean, targetInputStaticShapes[2]);
+    const bool currentCond = condIter >= 2;
+    condTensor.data<bool>()[0] = currentCond;
+
+    inputs.clear();
+    inputs.insert({function->inputs()[0].get_node_shared_ptr(), input});
+    inputs.insert({function->inputs()[1].get_node_shared_ptr(), input2});
+    inputs.insert({function->inputs()[2].get_node_shared_ptr(), condTensor});
+    inputGenIter += kInputStep;
+    condIter++;
 }
 
 }  // namespace test
