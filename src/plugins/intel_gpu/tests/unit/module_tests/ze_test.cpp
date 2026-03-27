@@ -113,6 +113,114 @@ TEST(ze_engine, memory_creation) {
 	ASSERT_EQ(std::dynamic_pointer_cast<simple_attached_memory>(mem)->lock(*ze_test_stream, mem_lock_type::read), host_data.data());
 }
 
+TEST(ze_engine, memory_creation_usm_host) {
+    std::shared_ptr<engine> ze_test_engine = nullptr;
+    try {
+        ze_test_engine = create_test_engine(engine_types::ze, runtime_types::ze);
+    } catch (const std::exception& e) {
+        GTEST_SKIP() << e.what();
+    }
+
+    ASSERT_NE(ze_test_engine, nullptr);
+
+    if (!ze_test_engine->supports_allocation(allocation_type::usm_host)) {
+        GTEST_SKIP() << "usm_host allocation is not supported on this device";
+    }
+
+    auto ze_test_stream = ze_test_engine->create_stream(get_test_default_config(*ze_test_engine));
+
+    const layout test_layout = {{1, 1, 16, 1}, data_types::u8, format::bfyx};
+
+    memory::ptr mem = nullptr;
+    OV_ASSERT_NO_THROW(mem = ze_test_engine->allocate_memory(test_layout, allocation_type::usm_host));
+
+    ASSERT_NE(mem, nullptr);
+    ASSERT_EQ(mem->get_layout(), test_layout);
+    ASSERT_EQ(mem->get_allocation_type(), allocation_type::usm_host);
+    ASSERT_NE(std::dynamic_pointer_cast<ze::gpu_usm>(mem), nullptr);
+    ASSERT_TRUE(mem->is_allocated_by(*ze_test_engine));
+    ASSERT_EQ(ze_test_engine->detect_usm_allocation_type(mem->buffer_ptr()), allocation_type::usm_host);
+
+    std::vector<uint8_t> src(16, 7);
+    std::vector<uint8_t> dst(16, 0);
+
+    OV_ASSERT_NO_THROW(mem->copy_from(*ze_test_stream, src.data(), true));
+    OV_ASSERT_NO_THROW(mem->copy_to(*ze_test_stream, dst.data(), true));
+    ASSERT_EQ(src, dst);
+}
+
+TEST(ze_engine, memory_creation_usm_device) {
+    std::shared_ptr<engine> ze_test_engine = nullptr;
+    try {
+        ze_test_engine = create_test_engine(engine_types::ze, runtime_types::ze);
+    } catch (const std::exception& e) {
+        GTEST_SKIP() << e.what();
+    }
+
+    ASSERT_NE(ze_test_engine, nullptr);
+
+    if (!ze_test_engine->supports_allocation(allocation_type::usm_device)) {
+        GTEST_SKIP() << "usm_device allocation is not supported on this device";
+    }
+
+    auto ze_test_stream = ze_test_engine->create_stream(get_test_default_config(*ze_test_engine));
+
+    const layout test_layout = {{1, 1, 16, 1}, data_types::u8, format::bfyx};
+
+    memory::ptr mem = nullptr;
+    OV_ASSERT_NO_THROW(mem = ze_test_engine->allocate_memory(test_layout, allocation_type::usm_device));
+
+    ASSERT_NE(mem, nullptr);
+    ASSERT_EQ(mem->get_layout(), test_layout);
+    ASSERT_EQ(mem->get_allocation_type(), allocation_type::usm_device);
+    ASSERT_NE(std::dynamic_pointer_cast<ze::gpu_usm>(mem), nullptr);
+    ASSERT_TRUE(mem->is_allocated_by(*ze_test_engine));
+    ASSERT_EQ(ze_test_engine->detect_usm_allocation_type(mem->buffer_ptr()), allocation_type::usm_device);
+
+    std::vector<uint8_t> src(16, 7);
+    std::vector<uint8_t> dst(16, 0);
+
+    OV_ASSERT_NO_THROW(mem->copy_from(*ze_test_stream, src.data(), true));
+    OV_ASSERT_NO_THROW(mem->copy_to(*ze_test_stream, dst.data(), true));
+    ASSERT_EQ(src, dst);
+}
+
+TEST(ze_engine, memory_creation_usm_shared) {
+    std::shared_ptr<engine> ze_test_engine = nullptr;
+    try {
+        ze_test_engine = create_test_engine(engine_types::ze, runtime_types::ze);
+    } catch (const std::exception& e) {
+        GTEST_SKIP() << e.what();
+    }
+
+    ASSERT_NE(ze_test_engine, nullptr);
+
+    if (!ze_test_engine->supports_allocation(allocation_type::usm_shared)) {
+        GTEST_SKIP() << "usm_shared allocation is not supported on this device";
+    }
+
+    auto ze_test_stream = ze_test_engine->create_stream(get_test_default_config(*ze_test_engine));
+
+    const layout test_layout = {{1, 1, 16, 1}, data_types::u8, format::bfyx};
+
+    memory::ptr mem = nullptr;
+    OV_ASSERT_NO_THROW(mem = ze_test_engine->allocate_memory(test_layout, allocation_type::usm_shared));
+
+    ASSERT_NE(mem, nullptr);
+    ASSERT_EQ(mem->get_layout(), test_layout);
+    ASSERT_EQ(mem->get_allocation_type(), allocation_type::usm_shared);
+    ASSERT_NE(std::dynamic_pointer_cast<ze::gpu_usm>(mem), nullptr);
+    ASSERT_TRUE(mem->is_allocated_by(*ze_test_engine));
+    ASSERT_EQ(ze_test_engine->detect_usm_allocation_type(mem->buffer_ptr()), allocation_type::usm_shared);
+
+    std::vector<uint8_t> src(16, 7);
+    std::vector<uint8_t> dst(16, 0);
+
+    OV_ASSERT_NO_THROW(mem->copy_from(*ze_test_stream, src.data(), true));
+    OV_ASSERT_NO_THROW(mem->copy_to(*ze_test_stream, dst.data(), true));
+    ASSERT_EQ(src, dst);
+}
+
 TEST(ze_engine, large_allocation) {
 	// This test is used for manual testing only.
 	GTEST_SKIP();
