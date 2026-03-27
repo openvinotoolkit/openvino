@@ -245,7 +245,7 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
         problem_moe.aqGroupK = static_cast<int>(group_size);
 
         opts_moe.scaleA = true;
-        const bool is_weight_symmetric_quantized = false;
+        const bool is_weight_symmetric_quantized = !desc->_config.has_zp;
         if (!is_weight_symmetric_quantized) {
             // zp layout example: u4:bfyx:4x8x3072:nopad
             const auto& zp_layout = params.get_input_layout(zp_idx);

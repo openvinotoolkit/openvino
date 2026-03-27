@@ -955,7 +955,7 @@ public:
 
         // Remove this limitation once micro_gemm kernels has supported i8/u8 weights.
         const auto& weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
-        if (weight_dt != data_types::u4 && use_micro_gemm_prefill) {
+        if (!(weight_dt == data_types::u4 || weight_dt == data_types::i4) && use_micro_gemm_prefill) {
             use_micro_gemm_prefill = false;
         }
 
