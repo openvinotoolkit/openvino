@@ -68,6 +68,7 @@
 
 #    include "emitters/snippets/riscv64/cpu_generator.hpp"
 #    include "executors/riscv64/subgraph.hpp"
+#    include "openvino/core/except.hpp"
 #else
 #    include "emitters/snippets/cpu_runtime_configurator.hpp"
 #    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
@@ -218,8 +219,9 @@ static _ov_dnnl_cpu_isa getHostIsa() {
 #elif defined(OPENVINO_ARCH_ARM64)
     return dnnl::impl::cpu::aarch64::asimd;
 #elif defined(OPENVINO_ARCH_RISCV64)
-    return ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv) ? ov::intel_cpu::riscv64::gv
-                                                                       : ov::intel_cpu::riscv64::g;
+    OPENVINO_ASSERT(ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv),
+                    "RISC-V Subgraph code generation requires vector ISA support");
+    return ov::intel_cpu::riscv64::gv;
 #else
     OPENVINO_THROW("Subgraphs code-generator is not supported on this platform");
 #endif
