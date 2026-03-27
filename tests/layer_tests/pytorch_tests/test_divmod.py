@@ -31,6 +31,9 @@ class TestBuiltinDivmod():
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    # TracerWarning fires from OV's own patch_functions.py which patches divmod() to
+    # work during TorchScript tracing; not actionable at the test level.
+    @pytest.mark.filterwarnings("ignore:Converting a tensor to a Python number:torch.jit.TracerWarning")
     def test_divmod_on_assert_path(self, ie_device, precision):
         fw_model = self.divmod_on_assert_path()
         inputs = SeededRandom(42).torch_randn(2, 3, 28)
@@ -51,6 +54,12 @@ class TestBuiltinDivmod():
     @pytest.mark.parametrize("x_shape", [[1], [2], [3], [4], [5], [6]])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    # TracerWarning fires from OV's own patch_functions.py which patches divmod() to
+    # work during TorchScript tracing; not actionable at the test level.
+    @pytest.mark.filterwarnings("ignore:Converting a tensor to a Python number:torch.jit.TracerWarning")
+    # The divmod result is a Python scalar; torch.tensor(scalar) inside forward
+    # is traced as a constant, which is the intended and correct behaviour here.
+    @pytest.mark.filterwarnings("ignore:torch.tensor results are registered as constants:torch.jit.TracerWarning")
     def test_divmod_on_compute_path(self, ie_device, precision, x_shape):
         fw_model = self.divmod_on_compute_path()
         x = SeededRandom(42).torch_randn(*x_shape)

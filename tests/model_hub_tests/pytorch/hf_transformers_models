@@ -87,7 +87,7 @@ hiera,namangarg110/hiera_base_224
 hifigan,microsoft/speecht5_hifigan,xfail,Load error: The size of tensor a (100) must match the size of tensor b (80) at non-singleton dimension 1
 hubert,facebook/hubert-large-ls960-ft
 hybridbert,gokuls/bert_12_layer_model_v1
-ibert,DunnBC22/ibert-roberta-base-Abusive_Or_Threatening_Speech
+ibert,kssteven/ibert-roberta-base
 idefics,HuggingFaceM4/tiny-random-idefics
 imagegpt,openai/imagegpt-small
 informer,huggingface/informer-tourism-monthly,xfail,Load error: mat1 and mat2 shapes cannot be multiplied
