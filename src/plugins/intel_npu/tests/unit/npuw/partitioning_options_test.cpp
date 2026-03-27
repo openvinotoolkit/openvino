@@ -117,6 +117,51 @@ std::shared_ptr<ov::Model> build_repeated_model(std::size_t repetitions = 10) {
     return mb.get_model_with_repeated_blocks(repetitions);
 }
 
+// Model where a single Add output feeds two Result nodes with different names.
+// Mimics the OmniThinker multi-output scenario after CutLMHead: the same tensor
+// backs two named model outputs.
+std::shared_ptr<ov::Model> build_multi_result_model() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    input->set_friendly_name("input");
+
+    auto add = std::make_shared<ov::op::v1::Add>(input, input);
+    add->set_friendly_name("add");
+
+    auto result_a = std::make_shared<ov::op::v0::Result>(add->output(0));
+    result_a->set_friendly_name("result_a");
+
+    auto result_b = std::make_shared<ov::op::v0::Result>(add->output(0));
+    result_b->set_friendly_name("result_b");
+
+    return std::make_shared<ov::Model>(ov::ResultVector{result_a, result_b}, ov::ParameterVector{input});
+}
+
+// Same as above but with a downstream Sin reader that can be forced into a separate
+// group via NPUW_ONLINE_AVOID.  This exercises the cross-group linking path when
+// result_cache holds multiple entries for the same output.
+std::shared_ptr<ov::Model> build_multi_result_with_downstream_model() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    input->set_friendly_name("input");
+
+    auto add = std::make_shared<ov::op::v1::Add>(input, input);
+    add->set_friendly_name("add");
+
+    auto sin = std::make_shared<ov::op::v0::Sin>(add);
+    sin->set_friendly_name("sin");
+
+    // Two Results from the same Add output (different names, same data)
+    auto result_a = std::make_shared<ov::op::v0::Result>(add->output(0));
+    result_a->set_friendly_name("result_a");
+    auto result_b = std::make_shared<ov::op::v0::Result>(add->output(0));
+    result_b->set_friendly_name("result_b");
+
+    // Third Result from Sin output
+    auto result_c = std::make_shared<ov::op::v0::Result>(sin->output(0));
+    result_c->set_friendly_name("result_c");
+
+    return std::make_shared<ov::Model>(ov::ResultVector{result_a, result_b, result_c}, ov::ParameterVector{input});
+}
+
 TEST(PartitioningOptionsTest, PipelineNoneMergesUnaryModelIntoSingleGroup) {
     auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "NONE"}});
     auto ens = ov::npuw::online::buildPartitioning(build_unary_chain_model(), cfg);
@@ -307,5 +352,96 @@ TEST(PartitioningOptionsTest, DumpFullWritesModelXmlIntoCurrentDirectory) {
     std::filesystem::remove(temp_dir);
 }
 #endif
+
+bool has_result_named(const ov::npuw::Subgraph& sg, const std::string& name) {
+    return std::any_of(sg._results.begin(), sg._results.end(), [&](const auto& r) {
+        return r->get_friendly_name() == name;
+    });
+}
+
+TEST(PartitioningOptionsTest, MultiResultFromSameOutputPreservesBothResults) {
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "NONE"}});
+    auto partitioning = ov::npuw::getPartitioning(build_multi_result_model(), cfg);
+
+    ASSERT_EQ(partitioning.subgraphs.size(), 1u);
+    ASSERT_EQ(partitioning.subgraphs[0]._results.size(), 2u);
+    EXPECT_TRUE(has_result_named(partitioning.subgraphs[0], "result_a"));
+    EXPECT_TRUE(has_result_named(partitioning.subgraphs[0], "result_b"));
+}
+
+TEST(PartitioningOptionsTest, MultiResultFromSameOutputConnectsDownstreamAcrossGroups) {
+    // Sin is avoided to force a second group; Add's output feeds two Results AND the Sin reader.
+    // Tests that result_cache (now a vector) correctly handles linking when multiple Results
+    // exist from the same output.
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "NONE"}, {"NPUW_ONLINE_AVOID", "Op:Sin/NPU"}});
+    auto partitioning = ov::npuw::getPartitioning(build_multi_result_with_downstream_model(), cfg);
+
+    // Expect at least 2 subgraphs (Add group, Sin group)
+    ASSERT_GE(partitioning.subgraphs.size(), 2u);
+
+    // Find the subgraph containing the two Results from Add's output
+    const ov::npuw::Subgraph* add_sg = nullptr;
+    for (const auto& sg : partitioning.subgraphs) {
+        if (has_result_named(sg, "result_a")) {
+            add_sg = &sg;
+            break;
+        }
+    }
+    ASSERT_NE(add_sg, nullptr) << "No subgraph contains result_a";
+    EXPECT_TRUE(has_result_named(*add_sg, "result_b"));
+
+    // result_c (from Sin) must exist and be in a *different* subgraph
+    const ov::npuw::Subgraph* sin_sg = nullptr;
+    for (const auto& sg : partitioning.subgraphs) {
+        if (has_result_named(sg, "result_c")) {
+            sin_sg = &sg;
+            break;
+        }
+    }
+    ASSERT_NE(sin_sg, nullptr) << "No subgraph contains result_c";
+    EXPECT_NE(sin_sg, add_sg) << "result_c must be in a different subgraph than result_a/result_b";
+
+    // A cross-group link must exist (Sin group reads Add's output)
+    EXPECT_FALSE(partitioning.input_to_prev_output.empty());
+}
+
+TEST(PartitioningOptionsTest, RepPipelinePreservesMultiResultInLLMModel) {
+    // Build a static LLM model (4 repeated transformer layers) and add a second
+    // Result from the same output as the existing logits Result. This mimics the
+    // OmniThinker/CutLMHead scenario on a model with repeated blocks detected by
+    // the REP pipeline.
+    auto model = build_static_prefill_model();
+
+    // Find the "logits" Result and duplicate it: attach a second Result to the same source.
+    // This mimics the CutLMHead scenario where the output before the LM head already had
+    // a Result, and cutting the head creates another Result from the same tensor.
+    std::shared_ptr<ov::op::v0::Result> logits_result;
+    for (const auto& r : model->get_results()) {
+        if (r->get_friendly_name() == "logits") {
+            logits_result = r;
+            break;
+        }
+    }
+    ASSERT_NE(logits_result, nullptr) << "Model must have a 'logits' Result";
+    auto source_output = logits_result->input(0).get_source_output();
+    auto extra_result = std::make_shared<ov::op::v0::Result>(source_output);
+    extra_result->set_friendly_name("extra_output");
+    model->add_results({extra_result});
+
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"}, {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"}});
+    auto partitioning = ov::npuw::getPartitioning(model, cfg);
+
+    // The tail subgraph must contain both the original Result and the extra_output
+    // Result, verified by their friendly names.
+    const ov::npuw::Subgraph* tail_sg = nullptr;
+    for (const auto& sg : partitioning.subgraphs) {
+        if (has_result_named(sg, "extra_output")) {
+            tail_sg = &sg;
+            break;
+        }
+    }
+    ASSERT_NE(tail_sg, nullptr) << "No subgraph contains extra_output";
+    EXPECT_TRUE(has_result_named(*tail_sg, "logits"));
+}
 
 }  // namespace

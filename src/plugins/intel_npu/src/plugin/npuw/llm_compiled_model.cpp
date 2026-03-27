@@ -2348,7 +2348,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
                                       "model and its config, please check passed config.");
     if (m_use_chunk_prefill) {
-        LOG_VERB("Find all models outputs besides logits that have seq_dim value.");
+        LOG_VERB("Find all models outputs besides logits that have sequence dimension to handle in chunked prefill.");
         m_prefill_other_outs_to_seqdims =
             find_other_outputs_with_seqdim(m_prefill_compiled, other_dynamic_outputs, m_prefill_chunk_size);
     }

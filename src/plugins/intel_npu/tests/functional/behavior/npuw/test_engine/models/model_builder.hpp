@@ -387,6 +387,10 @@ struct ModelConfig {
     bool use_cross_attention = false;
     bool use_token_type_embedding = false;
     bool pre_norm = true;
+    bool add_hidden_states_output = false;
+    std::string hidden_states_output_name = "hidden_states";
+    bool add_pooled_output = false;
+    std::string pooled_output_name = "pooled_hidden_state";
 
     ov::element::Type precision = ov::element::f32;
 

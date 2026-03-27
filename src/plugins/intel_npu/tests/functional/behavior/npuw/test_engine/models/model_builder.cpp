@@ -1534,6 +1534,36 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const ModelConfig& config_in)
     if (config.lm_head_weight) {
         auto logits =
             make_lm_head(final_norm, config.hidden_size, config.vocab_size, "lm_head", prec, config.lm_head_weight);
+        if (config.add_hidden_states_output || config.add_pooled_output) {
+            ov::OutputVector outputs;
+
+            auto logits_result = std::make_shared<ov::op::v0::Result>(logits);
+            logits_result->set_friendly_name("logits");
+            logits_result->output(0).set_names({"logits"});
+            outputs.push_back(logits_result->output(0));
+
+            if (config.add_hidden_states_output) {
+                auto hidden_states_result = std::make_shared<ov::op::v0::Result>(final_norm);
+                hidden_states_result->set_friendly_name(config.hidden_states_output_name);
+                hidden_states_result->output(0).set_names({config.hidden_states_output_name});
+                outputs.push_back(hidden_states_result->output(0));
+            }
+
+            if (config.add_pooled_output) {
+                auto seq_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+                auto pooled = std::make_shared<ov::opset11::ReduceMean>(final_norm, seq_axis, false);
+                pooled->set_friendly_name(config.pooled_output_name + "_reduce");
+                auto pooled_result = std::make_shared<ov::op::v0::Result>(pooled);
+                pooled_result->set_friendly_name(config.pooled_output_name);
+                pooled_result->output(0).set_names({config.pooled_output_name});
+                outputs.push_back(pooled_result->output(0));
+            }
+
+            return std::make_shared<ov::Model>(
+                outputs,
+                m_sinks,
+                model_name);
+        }
         return make_model(logits, "logits", model_name);
     }
     return make_model(final_norm, "last_hidden_state", model_name);
