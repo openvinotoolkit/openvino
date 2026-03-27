@@ -1978,13 +1978,13 @@ struct AttentionExecutor : public PagedAttentionExecutor {
               PlainTensor& adaptive_rkv_evictable_sizes,
               PlainTensor& adaptive_rkv_diversity_block_set_indices,
               PlainTensor& adaptive_rkv_diversity_block_set_indices_begins,
-              PlainTensor& qq_bias,
-              PlainTensor& qq_bias_begins,
               PlainTensor& output_emb,
               PlainTensor& output_score,
               std::vector<PlainTensor>& sparse_attention_mask,
               PlainTensor& output_arkv_similarity,
-              PlainTensor& token_type_ids) {
+              PlainTensor& token_type_ids,
+              PlainTensor& qq_bias,
+              PlainTensor& qq_bias_begins) {
         q.reset(inputs[ID_Q]);  // [B_token, H * S]
         k.reset(inputs[ID_K]);
         v.reset(inputs[ID_V]);
@@ -2051,6 +2051,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 token_type_ids = token_type_ids.reshape({total});
             }
         }
+
+        OPENVINO_ASSERT(inputs[ID_QQ_BIAS]->getShape().hasZeroDims(),
+                        "CPU plugin doesn't support qq_bias (tree mask) in paged attention yet");
 
         output_emb.reset(outputs[0]);
         if (outputs.size() >= 2) {
@@ -2341,13 +2344,15 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         PlainTensor adaptive_rkv_evictable_sizes;
         PlainTensor adaptive_rkv_diversity_block_set_indices;
         PlainTensor adaptive_rkv_diversity_block_set_indices_begins;
-        PlainTensor qq_bias;
-        PlainTensor qq_bias_begins;
+
         PlainTensor output_emb;
         PlainTensor output_score;
         PlainTensor output_arkv_similarity;
 
         PlainTensor token_type_ids;
+
+        PlainTensor qq_bias;
+        PlainTensor qq_bias_begins;
 
         std::vector<PlainTensor>
             sparse_attention_mask;  // Each vector element corresponds to a batch, and each PlainTensor corresponds to a
@@ -2380,13 +2385,13 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              adaptive_rkv_evictable_sizes,
              adaptive_rkv_diversity_block_set_indices,
              adaptive_rkv_diversity_block_set_indices_begins,
-             qq_bias,
-             qq_bias_begins,
              output_emb,
              output_score,
              sparse_attention_mask,
              output_arkv_similarity,
-             token_type_ids);
+             token_type_ids,
+             qq_bias,
+             qq_bias_begins);
 
         if (token_type_ids) {
             _helper.set_token_type(token_type_ids, subsequence_begins, past_lens);
