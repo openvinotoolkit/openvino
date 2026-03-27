@@ -1,0 +1,170 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "paged_gated_delta_net_ref.hpp"
+
+#include "intel_gpu/primitives/paged_gated_delta_net.hpp"
+#include "primitive_ocl_base.hpp"
+#include "utils/kernel_generator.hpp"
+
+namespace ov::intel_gpu::ocl {
+namespace {
+
+constexpr size_t v_block_size = 4;
+
+size_t get_subgroup_size(gpu_arch arch) {
+    switch (arch) {
+    case gpu_arch::gen9:
+    case gpu_arch::gen11:
+    case gpu_arch::xe_lp:
+    case gpu_arch::xe_hp:
+    case gpu_arch::xe_hpg:
+        return 8;
+    case gpu_arch::xe_hpc:
+    case gpu_arch::xe2:
+    case gpu_arch::xe3:
+        return 16;
+    default:
+        return 8;
+    }
+}
+
+class PagedGatedDeltaNetRefGenerator : public KernelGenerator {
+public:
+    PagedGatedDeltaNetRefGenerator() : KernelGenerator("paged_gated_delta_net_ref") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+
+        const auto& q_shape = params.get_input_layout(paged_gated_delta_net::QUERY).get_partial_shape();
+        const auto& v_shape = params.get_input_layout(paged_gated_delta_net::VALUE).get_partial_shape();
+
+        const size_t k_head_nums = q_shape[1].get_length();
+        const size_t k_head_dims = q_shape[2].get_length();
+        const size_t v_head_nums = v_shape[1].get_length();
+        const size_t v_head_dims = v_shape[2].get_length();
+        const float scale_factor = 1.0f / std::sqrt(static_cast<double>(k_head_dims));
+
+        jit.make("K_HEAD_NUM", k_head_nums);
+        jit.make("V_HEAD_NUM", v_head_nums);
+        jit.make("K_HEAD_DIM", k_head_dims);
+        jit.make("V_HEAD_DIM", v_head_dims);
+        jit.make("V_BLOCK_SIZE", v_block_size);
+        jit.make("SUBGROUP_SIZE", get_subgroup_size(params.get_device_info().arch));
+        jit.make("SCALE_FACTOR", scale_factor);
+
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+
+        for (uint32_t i = 0; i < params.input_layouts.size(); i++) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, i});
+        }
+
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+
+        for (size_t i = 0; i < 10; i++) {
+            args.push_back({ArgumentDescriptor::Types::SCALAR, static_cast<uint32_t>(i)});
+        }
+
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+            assert(!params.is_dynamic());
+            auto& wgs = kd.params.workGroups;
+
+            const auto& q_shape = params.get_input_layout(paged_gated_delta_net::QUERY).get_partial_shape();
+            const auto& v_shape = params.get_input_layout(paged_gated_delta_net::VALUE).get_partial_shape();
+            const auto& seq_shape = params.get_input_layout(paged_gated_delta_net::SUBSEQUENCE_BEGINS).get_partial_shape();
+
+            const size_t sequences = seq_shape[0].get_length() > 0 ? seq_shape[0].get_length() - 1 : 0;
+            const size_t head_nums = v_shape[1].get_length();
+            const size_t v_head_dims = v_shape[2].get_length();
+            const size_t v_blocks = (v_head_dims + v_block_size - 1) / v_block_size;
+            const size_t subgroup_size = get_subgroup_size(params.get_device_info().arch);
+
+            auto get_head_offset = [](const cldnn::layout& layout, size_t head_dim_idx) {
+                const auto& lower_pads = layout.data_padding._lower_size;
+                return lower_pads.size() > head_dim_idx ? lower_pads[head_dim_idx] : 0;
+            };
+
+            const auto& q_layout = params.input_layouts[paged_gated_delta_net::QUERY];
+            const auto& k_layout = params.input_layouts[paged_gated_delta_net::KEY];
+            const auto& v_layout = params.input_layouts[paged_gated_delta_net::VALUE];
+            auto read_pitch = [](const cldnn::layout& layout, size_t idx) -> int32_t {
+                const auto& pitches = layout.get_pitches();
+                if (idx < pitches.size())
+                    return static_cast<int32_t>(pitches[idx]);
+                return 1;
+            };
+
+            const int32_t q_token_stride = read_pitch(q_layout, 0);
+            const int32_t q_head_stride = read_pitch(q_layout, 1);
+            const int32_t k_token_stride = read_pitch(k_layout, 0);
+            const int32_t k_head_stride = read_pitch(k_layout, 1);
+            const int32_t v_token_stride = read_pitch(v_layout, 0);
+            const int32_t v_head_stride = read_pitch(v_layout, 1);
+
+            const int32_t query_head_offset = static_cast<int32_t>(get_head_offset(q_layout, 1));
+            const int32_t key_head_offset = static_cast<int32_t>(get_head_offset(k_layout, 1));
+            const int32_t value_head_offset = static_cast<int32_t>(get_head_offset(v_layout, 1));
+
+            wgs.global = {sequences, head_nums, v_blocks * subgroup_size};
+            wgs.local = {1, 1, subgroup_size};
+
+            kd.params.scalars.clear();
+            std::vector<int32_t> scalars{
+                static_cast<int32_t>(sequences),
+                query_head_offset,
+                key_head_offset,
+                value_head_offset,
+                q_token_stride,
+                q_head_stride,
+                k_token_stride,
+                k_head_stride,
+                v_token_stride,
+                v_head_stride,
+            };
+
+            for (auto v : scalars) {
+                scalar_desc desc;
+                desc.t = scalar_desc::Types::INT32;
+                desc.v.s32 = v;
+                kd.params.scalars.push_back(desc);
+            }
+        }};
+    }
+};
+
+class PagedGatedDeltaNetRefImpl : public PrimitiveImplOCL {
+public:
+    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::PagedGatedDeltaNetRefImpl)
+
+    Stage::Ptr paged_gated_delta_net = make_stage<PagedGatedDeltaNetRefGenerator>();
+
+    PagedGatedDeltaNetRefImpl() : PrimitiveImplOCL(PagedGatedDeltaNetRef::get_type_info_static()) {}
+    PagedGatedDeltaNetRefImpl(const program_node& node, const RuntimeParams& params) : PagedGatedDeltaNetRefImpl() {
+        add_stage(paged_gated_delta_net, params);
+    }
+
+    [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
+        return make_deep_copy<PagedGatedDeltaNetRefImpl>(this);
+    }
+};
+
+}  // namespace
+
+std::unique_ptr<primitive_impl> PagedGatedDeltaNetRef::create_impl(const program_node& node, const RuntimeParams& params) const {
+    assert(node.is_type<paged_gated_delta_net>());
+    return std::make_unique<PagedGatedDeltaNetRefImpl>(node, params);
+}
+
+}  // namespace ov::intel_gpu::ocl
+
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::PagedGatedDeltaNetRefImpl)

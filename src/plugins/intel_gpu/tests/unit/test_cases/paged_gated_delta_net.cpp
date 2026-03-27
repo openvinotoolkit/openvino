@@ -1,0 +1,379 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <cmath>
+#include <cstddef>
+#include <algorithm>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/paged_gated_delta_net.hpp>
+#include <numeric>
+#include <vector>
+
+#include "paged_gated_delta_net_inst.h"
+#include "random_generator.hpp"
+#include "test_utils.h"
+
+using namespace cldnn;
+using namespace ::tests;
+
+namespace {
+
+struct paged_gated_delta_net_test_params {
+    int32_t tokens;
+    int32_t num_sequences;
+    int32_t qk_heads;
+    int32_t v_heads;
+    int32_t head_size;
+    ov::element::Type precision;
+};
+
+struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_gated_delta_net_test_params> {
+    tests::random_generator rg;
+
+    template <typename T>
+    static void normalize_and_scale(const T* src, size_t n, float scale, std::vector<float>& dst) {
+        dst.resize(n);
+        float sum = 0.0f;
+        for (size_t i = 0; i < n; i++) {
+            float v = static_cast<float>(src[i]);
+            dst[i] = v;
+            sum += v * v;
+        }
+        float inv = 1.0f / std::sqrt(sum + 1e-6f);
+        for (size_t i = 0; i < n; i++) {
+            dst[i] *= inv * scale;
+        }
+    }
+
+    template <typename T>
+    static T to_data_type(float v) {
+        if constexpr (std::is_same<T, ov::float16>::value) {
+            return ov::float16(v);
+        }
+        return static_cast<T>(v);
+    }
+
+    template <typename T>
+    static void run_reference(const std::vector<T>& query,
+                              const std::vector<T>& key,
+                              const std::vector<T>& value,
+                              const std::vector<T>& gate,
+                              const std::vector<T>& beta,
+                              std::vector<T>& recurrent_state_table,
+                              const std::vector<int32_t>& subsequence_begins,
+                              const std::vector<int32_t>& block_indices,
+                              const std::vector<int32_t>& block_indices_begins,
+                              const std::vector<int32_t>& past_lens,
+                              const std::vector<int32_t>& cache_interval,
+                              int32_t qk_heads,
+                              int32_t v_heads,
+                              int32_t head_size,
+                              std::vector<T>& output) {
+        const int32_t tokens = static_cast<int32_t>(query.size()) / (qk_heads * head_size);
+        output.resize(static_cast<size_t>(tokens) * v_heads * head_size);
+
+        const auto state_off = [=](int32_t block, int32_t h, int32_t k_idx, int32_t v_idx) {
+            return ((block * v_heads + h) * head_size + k_idx) * head_size + v_idx;
+        };
+
+        const float attn_scale = 1.0f / std::sqrt(static_cast<float>(head_size));
+        const int32_t num_sequences = static_cast<int32_t>(subsequence_begins.size()) - 1;
+        const int32_t group_size = v_heads / qk_heads;
+
+        for (int32_t seq = 0; seq < num_sequences; seq++) {
+            const int32_t token_begin = subsequence_begins[seq];
+            const int32_t token_end = subsequence_begins[seq + 1];
+            const int32_t block_begin = block_indices_begins[seq];
+            const int32_t block_end = block_indices_begins[seq + 1];
+            const int32_t seq_blocks = std::max(block_end - block_begin, 0);
+            const int32_t past_len = past_lens[seq];
+            const int32_t interval = cache_interval[seq];
+
+            for (int32_t h = 0; h < v_heads; h++) {
+                const int32_t hk = h / group_size;
+                std::vector<float> state(static_cast<size_t>(head_size) * head_size, 0.0f);
+
+                if (interval > 0 && seq_blocks > 0 && past_len > 0) {
+                    int32_t init_slot = (past_len - 1) / interval;
+                    init_slot = std::min(init_slot, seq_blocks - 1);
+                    const int32_t block_id = block_indices[block_begin + init_slot];
+
+                    for (int32_t k_idx = 0; k_idx < head_size; k_idx++) {
+                        for (int32_t v_idx = 0; v_idx < head_size; v_idx++) {
+                            state[k_idx * head_size + v_idx] = static_cast<float>(recurrent_state_table[state_off(block_id, h, k_idx, v_idx)]);
+                        }
+                    }
+                }
+
+                for (int32_t token = token_begin; token < token_end; token++) {
+                    const auto q_ptr = query.data() + (token * qk_heads + hk) * head_size;
+                    const auto k_ptr = key.data() + (token * qk_heads + hk) * head_size;
+
+                    std::vector<float> q_norm;
+                    std::vector<float> k_norm;
+                    normalize_and_scale(q_ptr, head_size, attn_scale, q_norm);
+                    normalize_and_scale(k_ptr, head_size, 1.0f, k_norm);
+
+                    const float b_g = std::exp(static_cast<float>(gate[token * v_heads + h]));
+                    const float b_beta = static_cast<float>(beta[token * v_heads + h]);
+
+                    for (int32_t v_idx = 0; v_idx < head_size; v_idx++) {
+                        const float b_v = static_cast<float>(value[(token * v_heads + h) * head_size + v_idx]);
+
+                        float h_k = 0.0f;
+                        for (int32_t k_idx = 0; k_idx < head_size; k_idx++) {
+                            auto& s = state[k_idx * head_size + v_idx];
+                            s *= b_g;
+                            h_k += s * k_norm[k_idx];
+                        }
+
+                        const float update = (b_v - h_k) * b_beta;
+                        float out_v = 0.0f;
+                        for (int32_t k_idx = 0; k_idx < head_size; k_idx++) {
+                            auto& s = state[k_idx * head_size + v_idx];
+                            s += k_norm[k_idx] * update;
+                            out_v += s * q_norm[k_idx];
+                        }
+
+                        output[(token * v_heads + h) * head_size + v_idx] = to_data_type<T>(out_v);
+                    }
+
+                    if (interval > 0 && seq_blocks > 0) {
+                        const int32_t local_token_idx = token - token_begin;
+                        const int32_t absolute_token_idx = past_len + local_token_idx;
+                        if (((absolute_token_idx + 1) % interval) == 0) {
+                            const int32_t slot = absolute_token_idx / interval;
+                            if (slot < seq_blocks) {
+                                const int32_t block_id = block_indices[block_begin + slot];
+                                for (int32_t k_idx = 0; k_idx < head_size; k_idx++) {
+                                    for (int32_t v_idx = 0; v_idx < head_size; v_idx++) {
+                                        recurrent_state_table[state_off(block_id, h, k_idx, v_idx)] =
+                                            to_data_type<T>(state[k_idx * head_size + v_idx]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    template <typename T>
+    void execute_t(const paged_gated_delta_net_test_params& p) {
+        auto& engine = get_test_engine();
+
+        const int32_t tokens = p.tokens;
+        const int32_t num_sequences = p.num_sequences;
+        const int32_t qk_heads = p.qk_heads;
+        const int32_t v_heads = p.v_heads;
+        const int32_t head_size = p.head_size;
+
+        OPENVINO_ASSERT(num_sequences > 1, "Test should cover num_sequences > 1");
+        OPENVINO_ASSERT(tokens >= num_sequences, "tokens should be >= num_sequences");
+
+        std::vector<int32_t> subsequence_begins;
+        std::vector<int32_t> past_lens;
+        std::vector<int32_t> cache_interval;
+        std::vector<int32_t> block_indices;
+        std::vector<int32_t> block_indices_begins;
+
+        subsequence_begins.reserve(static_cast<size_t>(num_sequences + 1));
+        block_indices_begins.reserve(static_cast<size_t>(num_sequences + 1));
+        past_lens.reserve(static_cast<size_t>(num_sequences));
+        cache_interval.reserve(static_cast<size_t>(num_sequences));
+
+        subsequence_begins.push_back(0);
+        block_indices_begins.push_back(0);
+
+        int32_t acc_tokens = 0;
+        int32_t total_blocks = 0;
+        for (int32_t seq = 0; seq < num_sequences; seq++) {
+            const int32_t rem_tokens = tokens - acc_tokens;
+            const int32_t rem_seq = num_sequences - seq;
+            const int32_t seq_tokens = rem_tokens / rem_seq;
+            acc_tokens += seq_tokens;
+            subsequence_begins.push_back(acc_tokens);
+
+            const int32_t seq_past_len = 1 + (seq % 3);
+            const int32_t seq_interval = 2 + (seq % 2);
+            past_lens.push_back(seq_past_len);
+            cache_interval.push_back(seq_interval);
+
+            const int32_t required_slots = std::max<int32_t>(1, (seq_past_len + seq_tokens + seq_interval - 1) / seq_interval);
+            for (int32_t i = 0; i < required_slots; i++) {
+                block_indices.push_back(total_blocks + i);
+            }
+            total_blocks += required_slots;
+            block_indices_begins.push_back(total_blocks);
+        }
+
+        layout q_layout({tokens, qk_heads, head_size}, p.precision, format::bfyx);
+        layout k_layout({tokens, qk_heads, head_size}, p.precision, format::bfyx);
+        layout v_layout({tokens, v_heads, head_size}, p.precision, format::bfyx);
+        layout state_layout({static_cast<int32_t>(block_indices.size()), v_heads, head_size, head_size}, p.precision, format::bfyx);
+        layout gate_layout({tokens, v_heads}, p.precision, format::bfyx);
+        layout beta_layout({tokens, v_heads}, p.precision, format::bfyx);
+        layout seq_begins_layout({static_cast<int32_t>(subsequence_begins.size())}, data_types::i32, format::bfyx);
+        layout block_indices_layout({static_cast<int32_t>(block_indices.size())}, data_types::i32, format::bfyx);
+        layout block_indices_begins_layout({static_cast<int32_t>(block_indices_begins.size())}, data_types::i32, format::bfyx);
+        layout past_lens_layout({static_cast<int32_t>(past_lens.size())}, data_types::i32, format::bfyx);
+        layout cache_interval_layout({static_cast<int32_t>(cache_interval.size())}, data_types::i32, format::bfyx);
+
+        auto q_mem = engine.allocate_memory(q_layout);
+        auto k_mem = engine.allocate_memory(k_layout);
+        auto v_mem = engine.allocate_memory(v_layout);
+        auto state_mem = engine.allocate_memory(state_layout);
+        auto gate_mem = engine.allocate_memory(gate_layout);
+        auto beta_mem = engine.allocate_memory(beta_layout);
+        auto seq_begins_mem = engine.allocate_memory(seq_begins_layout);
+        auto block_indices_mem = engine.allocate_memory(block_indices_layout);
+        auto block_indices_begins_mem = engine.allocate_memory(block_indices_begins_layout);
+        auto past_lens_mem = engine.allocate_memory(past_lens_layout);
+        auto cache_interval_mem = engine.allocate_memory(cache_interval_layout);
+
+        auto query = rg.generate_random_1d<T>(q_mem->count(), -1, 1, 127);
+        auto key = rg.generate_random_1d<T>(k_mem->count(), -1, 1, 127);
+        auto value = rg.generate_random_1d<T>(v_mem->count(), -1, 1, 127);
+        auto gate = rg.generate_random_1d<T>(gate_mem->count(), -1, 1, 127);
+        auto beta = rg.generate_random_1d<T>(beta_mem->count(), 0, 1, 127);
+        auto state = rg.generate_random_1d<T>(state_mem->count(), -1, 1, 127);
+
+        set_values(q_mem, query);
+        set_values(k_mem, key);
+        set_values(v_mem, value);
+        set_values(gate_mem, gate);
+        set_values(beta_mem, beta);
+        set_values(state_mem, state);
+        set_values(seq_begins_mem, subsequence_begins);
+        set_values(block_indices_mem, block_indices);
+        set_values(block_indices_begins_mem, block_indices_begins);
+        set_values(past_lens_mem, past_lens);
+        set_values(cache_interval_mem, cache_interval);
+
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", k_layout));
+        topo.add(input_layout("v", v_layout));
+        topo.add(input_layout("state", state_layout));
+        topo.add(input_layout("g", gate_layout));
+        topo.add(input_layout("beta", beta_layout));
+        topo.add(input_layout("subsequence_begins", seq_begins_layout));
+        topo.add(input_layout("block_indices", block_indices_layout));
+        topo.add(input_layout("block_indices_begins", block_indices_begins_layout));
+        topo.add(input_layout("past_lens", past_lens_layout));
+        topo.add(input_layout("cache_interval", cache_interval_layout));
+        topo.add(paged_gated_delta_net("paged_gdn",
+                                       {input_info("q"),
+                                        input_info("k"),
+                                        input_info("v"),
+                                        input_info("state"),
+                                        input_info("g"),
+                                        input_info("beta"),
+                                        input_info("subsequence_begins"),
+                                        input_info("block_indices"),
+                                        input_info("block_indices_begins"),
+                                        input_info("past_lens"),
+                                        input_info("cache_interval")}));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
+
+        network->set_input_data("q", q_mem);
+        network->set_input_data("k", k_mem);
+        network->set_input_data("v", v_mem);
+        network->set_input_data("state", state_mem);
+        network->set_input_data("g", gate_mem);
+        network->set_input_data("beta", beta_mem);
+        network->set_input_data("subsequence_begins", seq_begins_mem);
+        network->set_input_data("block_indices", block_indices_mem);
+        network->set_input_data("block_indices_begins", block_indices_begins_mem);
+        network->set_input_data("past_lens", past_lens_mem);
+        network->set_input_data("cache_interval", cache_interval_mem);
+
+        auto outputs = network->execute();
+        auto out_mem = outputs.at("paged_gdn").get_memory();
+
+        std::vector<T> ref_output;
+        auto ref_state = state;
+        run_reference(query,
+                      key,
+                      value,
+                      gate,
+                      beta,
+                      ref_state,
+                      subsequence_begins,
+                      block_indices,
+                      block_indices_begins,
+                      past_lens,
+                      cache_interval,
+                      qk_heads,
+                      v_heads,
+                      head_size,
+                      ref_output);
+
+        const float tol = std::is_same<T, ov::float16>::value ? 0.03f : 1e-4f;
+
+        {
+            cldnn::mem_lock<T, mem_lock_type::read> out_lock(out_mem, get_test_stream());
+            ASSERT_EQ(out_mem->count(), ref_output.size());
+            for (size_t i = 0; i < ref_output.size(); i++) {
+                ASSERT_NEAR(static_cast<float>(out_lock[i]), static_cast<float>(ref_output[i]), tol) << " at output index=" << i;
+            }
+        }
+
+        {
+            cldnn::mem_lock<T, mem_lock_type::read> state_lock(state_mem, get_test_stream());
+            ASSERT_EQ(state_mem->count(), ref_state.size());
+            for (size_t i = 0; i < ref_state.size(); i++) {
+                ASSERT_NEAR(static_cast<float>(state_lock[i]), static_cast<float>(ref_state[i]), tol) << " at state index=" << i;
+            }
+        }
+    }
+
+    void execute(const paged_gated_delta_net_test_params& p) {
+        if (p.precision == ov::element::f16) {
+            execute_t<ov::float16>(p);
+            return;
+        }
+
+        if (p.precision == ov::element::f32) {
+            execute_t<float>(p);
+            return;
+        }
+
+        FAIL() << "Unsupported precision for paged_gated_delta_net test";
+    }
+
+    static std::string PrintToStringParamName(const testing::TestParamInfo<paged_gated_delta_net_test_params>& info) {
+        std::string result = "paged_gated_delta_net_gpu_test_" + info.param.precision.to_string() + "_" +
+                             std::to_string(info.param.tokens) + "_" + std::to_string(info.param.num_sequences) + "_" +
+                             std::to_string(info.param.qk_heads) + "_" +
+                             std::to_string(info.param.v_heads) + "_" + std::to_string(info.param.head_size);
+        return result;
+    }
+};
+
+TEST_P(paged_gated_delta_net_gpu_test, basic) {
+    execute(GetParam());
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_paged_gated_delta_net_gpu_test,
+                         paged_gated_delta_net_gpu_test,
+                         ::testing::Values(
+                             paged_gated_delta_net_test_params{6, 2, 2, 2, 16, ov::element::f16},
+                             paged_gated_delta_net_test_params{6, 2, 2, 4, 16, ov::element::f16},
+                             paged_gated_delta_net_test_params{6, 2, 2, 2, 64, ov::element::f16},
+                             paged_gated_delta_net_test_params{6, 2, 2, 4, 64, ov::element::f16},
+                             paged_gated_delta_net_test_params{6, 2, 2, 2, 128, ov::element::f16},
+                             paged_gated_delta_net_test_params{9, 3, 2, 2, 64, ov::element::f16},
+                             paged_gated_delta_net_test_params{9, 3, 2, 2, 128, ov::element::f16},
+                             paged_gated_delta_net_test_params{6, 2, 2, 2, 16, ov::element::f32},
+                             paged_gated_delta_net_test_params{6, 2, 2, 2, 64, ov::element::f32},
+                             paged_gated_delta_net_test_params{6, 2, 2, 2, 128, ov::element::f32},
+                             paged_gated_delta_net_test_params{9, 3, 2, 2, 64, ov::element::f32}),
+                         paged_gated_delta_net_gpu_test::PrintToStringParamName);
+
+}  // namespace
