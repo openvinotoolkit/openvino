@@ -268,6 +268,7 @@
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)
+#    include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #    include "openvino/op/power.hpp"
 #    include "openvino/op/select.hpp"
 #    include "openvino/op/swish.hpp"
@@ -1203,7 +1204,7 @@ void Transformations::MainSnippets() {
 #elif defined(OPENVINO_ARCH_ARM64)
         return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
 #elif defined(OPENVINO_ARCH_RISCV64)
-        return true;  // RISC-V with Vector Extension supports snippets
+        return ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv);
 #endif
         return false;
     };
