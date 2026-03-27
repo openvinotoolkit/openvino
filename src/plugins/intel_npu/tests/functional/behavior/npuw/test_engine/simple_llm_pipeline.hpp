@@ -10,7 +10,16 @@
 class SimpleLLMPipeline {
 public:
     void initialize(const std::string& model_path, ov::Core& core, const ov::AnyMap& config);
+    void initialize(const std::shared_ptr<ov::Model>& model, ov::Core& core, const ov::AnyMap& config);
     std::vector<int64_t> generate(const std::vector<int64_t>& input_ids_vec);
+
+    std::shared_ptr<ov::CompiledModel> get_compiled_model() const {
+        return m_compiled_model;
+    }
+
+    std::shared_ptr<ov::InferRequest> get_request() const {
+        return m_request;
+    }
 private:
     uint32_t m_max_prompt_len{std::numeric_limits<uint32_t>::max()};
     uint32_t m_min_response_len{std::numeric_limits<uint32_t>::max()};
