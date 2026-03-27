@@ -9,8 +9,8 @@
 
 #include "compiler.h"
 #include "intel_npu/common/filtered_config.hpp"
-#include "intel_npu/common/network_metadata.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/profiling_info.hpp"
 
 namespace intel_npu {
 
@@ -63,17 +63,6 @@ public:
      * @returns SupportedOpsMap structure with information about supported layers
      */
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const FilteredConfig& config) const;
-
-    /**
-     * @brief Parses already compiled network to extract meta information:
-     *        inputs and outputs descriptions
-     * @param network compiled network represented as a vector of char
-     * @param config a reference to NPUConfig containing plugin config options
-     *        Note: compilation options will be ignored,
-     *        since the network is already compiled
-     * @return a shared pointer on an object implementing NetworkDescription interface
-     */
-    NetworkMetadata parse(const std::vector<uint8_t>& network, const FilteredConfig& config) const;
 
     /**
      * @brief Returns the compiler version

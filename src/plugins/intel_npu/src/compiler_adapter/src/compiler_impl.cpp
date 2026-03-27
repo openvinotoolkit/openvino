@@ -539,12 +539,6 @@ ov::Tensor VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov::Model>&
     return compile(model, updatedConfig, true);
 }
 
-intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network,
-                                                  const FilteredConfig& config) const {
-    // VCL returns empty metadata. In plugin adapter, use driver metadata instead.
-    OPENVINO_THROW_NOT_IMPLEMENTED("VCL does not support parse.");
-}
-
 std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const std::vector<uint8_t>& profData,
                                                                          const std::vector<uint8_t>& network) const {
     _logger.debug("process_profiling_output start");
