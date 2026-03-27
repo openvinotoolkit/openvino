@@ -425,12 +425,13 @@ void Group::setRepeated(const std::shared_ptr<Repeated>& rep) {
 PairMICSetIO Group::metaInterconnect(const Group::GPtr& gptr_prod) const {
     MICSet mics;
 
+    auto locked_snapshot = m_snapshot.lock();
     auto ics = interconnect(gptr_prod);
     for (const auto& ic : ics) {
-        mics.insert({ov::npuw::online::util::getMetaDesc(ic.input_node),
+        mics.insert({locked_snapshot->getMetaDesc(ic.input_node),
                      gptr_prod->m_reptrack.at(ic.input_node),
                      ic.input_port,
-                     ov::npuw::online::util::getMetaDesc(ic.output_node),
+                     locked_snapshot->getMetaDesc(ic.output_node),
                      m_reptrack.at(ic.output_node),
                      ic.output_port});
     }
@@ -441,10 +442,10 @@ PairMICSetIO Group::metaInterconnect(const Group::GPtr& gptr_prod) const {
     if (!m_mic_io_valid) {
         m_cached_mic_io = MetaInterconnectIO{};
         for (const auto& oi : m_input_layers) {
-            m_cached_mic_io.output_imeta.insert(ov::npuw::online::util::getMetaDesc(oi));
+            m_cached_mic_io.output_imeta.insert(locked_snapshot->getMetaDesc(oi));
         }
         for (const auto& oo : m_output_layers) {
-            m_cached_mic_io.output_ometa.insert(ov::npuw::online::util::getMetaDesc(oo));
+            m_cached_mic_io.output_ometa.insert(locked_snapshot->getMetaDesc(oo));
         }
         m_mic_io_valid = true;
     }
