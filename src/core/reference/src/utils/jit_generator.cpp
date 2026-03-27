@@ -25,9 +25,9 @@ namespace {
 // not round up the *size*, so two small allocations may share a page.)
 struct PageAlignedAllocator : public Xbyak::Allocator {
     uint8_t* alloc(size_t size) override {
-        const size_t pageSize = Xbyak::inner::getPageSize();
-        size = (size + pageSize - 1) & ~(pageSize - 1);
-        return reinterpret_cast<uint8_t*>(Xbyak::AlignedMalloc(size, pageSize));
+        const size_t page_size = Xbyak::inner::getPageSize();
+        size = (size + page_size - 1) & ~(page_size - 1);
+        return reinterpret_cast<uint8_t*>(Xbyak::AlignedMalloc(size, page_size));
     }
     void free(uint8_t* p) override {
         Xbyak::AlignedFree(p);
@@ -90,7 +90,7 @@ bool Generator::is_x64() {
     return sizeof(void*) == 8;
 }
 Generator::Generator(cpu_isa_t isa, void* code_ptr, size_t code_size)
-    : Xbyak::CodeGenerator(code_size, code_ptr, code_ptr ? nullptr : &getPageAlignedAllocator()),
+    : Xbyak::CodeGenerator(code_size, code_ptr, OV_ENABLE_EXTERNAL_SANITIZER ? &getPageAlignedAllocator() : nullptr),
       size_of_abi_save_regs(num_abi_save_gpr_regs * rax.getBit() / 8 + xmm_to_preserve * xmm_len),
       reg_EVEX_max_8b_offt(rbp) {
     if (isa == avx512_core) {
