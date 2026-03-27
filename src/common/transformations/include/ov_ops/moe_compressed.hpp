@@ -15,9 +15,6 @@ class TRANSFORMATIONS_API MOECompressed : public ov::op::internal::MOE {
 public:
     OPENVINO_OP("MOECompressed", "", ov::op::internal::MOE);
 
-    MOECompressed() = default;
-    MOECompressed(const OutputVector& args) : MOE(args) {}
-
     enum class RoutingType { SOFTMAX, SIGMOID_BIAS };
 
     struct Config : public MOE::Config {
@@ -68,9 +65,6 @@ public:
     ///   shape [num_experts, hidden_size, group_num, 1]
     /// \param config Configuration for the MOE operation
     MOECompressed(const OutputVector& args, const Config& config);
-
-    const Config& get_config() const;
-    void set_config(const Config& config);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;

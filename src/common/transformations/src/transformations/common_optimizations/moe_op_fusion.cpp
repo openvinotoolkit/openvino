@@ -9,6 +9,7 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
@@ -40,8 +41,7 @@ namespace v1 = ov::op::v1;
 namespace v4 = ov::op::v4;
 namespace v8 = ov::op::v8;
 
-Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(size_t has_batch_dim,
-                                                                         ov::element::Type out_type) {
+Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(size_t has_batch_dim) {
     MATCHER_SCOPE(Convert3GatherMatmulMoeBlockToMoeOp);
 
     auto experts_reshape_m = pattern::any_input();
@@ -166,7 +166,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(size_t 
                 group_compressed ? weight_shape[3] : std::numeric_limits<size_t>::max(),
                 has_batch_dim,
                 false,
-                out_type,
+                ov::element::f16,
             };
 
             auto moe_compressed = std::make_shared<MOECompressed>(moe_inputs, compressed_config);
@@ -201,8 +201,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(size_t 
     this->register_matcher(matcher, callback);
 }
 
-Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(size_t has_batch_dim,
-                                                                         ov::element::Type out_type) {
+Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(size_t has_batch_dim) {
     MATCHER_SCOPE(Convert2GatherMatmulMoeBlockToMoeOp);
 
     auto experts_reshape_m = pattern::any_input();
@@ -343,7 +342,7 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(size_t 
                 group_compressed ? weight_shape[3] : std::numeric_limits<size_t>::max(),
                 has_batch_dim,
                 has_zp,
-                out_type,
+                ov::element::dynamic,
             };
 
             moe_node = std::make_shared<MOECompressed>(moe_inputs, compressed_config);

@@ -10,14 +10,6 @@ MOECompressed::MOECompressed(const OutputVector& args, const Config& config) : M
     constructor_validate_and_infer_types();
 }
 
-const MOECompressed::Config& MOECompressed::get_config() const {
-    return m_config;
-}
-
-void MOECompressed::set_config(const Config& config) {
-    m_config = config;
-}
-
 std::shared_ptr<ov::Node> MOECompressed::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
 

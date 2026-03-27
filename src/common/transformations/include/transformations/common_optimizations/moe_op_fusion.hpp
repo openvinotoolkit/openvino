@@ -25,13 +25,13 @@ class TRANSFORMATIONS_API MoeOpFusion;
 class ov::pass::Convert2GatherMatmulMoeBlockToMoeOp : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("Convert2GatherMatmulMoeBlockToMoeOp");
-    Convert2GatherMatmulMoeBlockToMoeOp(size_t has_batch_dim = 1, ov::element::Type out_type = ov::element::dynamic);
+    Convert2GatherMatmulMoeBlockToMoeOp(size_t has_batch_dim = 1);
 };
 
 class ov::pass::Convert3GatherMatmulMoeBlockToMoeOp : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("Convert3GatherMatmulMoeBlockToMoeOp");
-    Convert3GatherMatmulMoeBlockToMoeOp(size_t has_batch_dim = 1, ov::element::Type out_type = ov::element::dynamic);
+    Convert3GatherMatmulMoeBlockToMoeOp(size_t has_batch_dim = 1);
 };
 
 class ov::pass::MoeOpFusion : public ov::pass::GraphRewrite {
