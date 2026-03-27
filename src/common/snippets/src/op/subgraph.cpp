@@ -124,7 +124,8 @@ auto Subgraph::is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bo
                               ov::op::v1::Broadcast,
                               ov::op::v3::Broadcast,
                               ov::op::v12::GroupNormalization,
-                              ov::snippets::op::ReduceBase,
+                              ov::snippets::op::ReduceSum,
+                              ov::snippets::op::ReduceMax,
                               op::Reshape>(op);
 }
 
