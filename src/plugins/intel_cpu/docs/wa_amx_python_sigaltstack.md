@@ -18,7 +18,7 @@ We choose to fix it in constructor/destructor of `Engine` class, a member variab
 
 [1]: https://www.moritz.systems/blog/how-debuggers-work-getting-and-setting-x86-registers-part-2/
 
-[2]: https://www.kernel.org/doc/html/latest/x86/xstate.html
+[2]: https://www.kernel.org/doc/html/latest/arch/x86/xstate.html
 
 [3]:https://github.com/oneapi-src/oneDNN/blob/master/src/cpu/x64/cpu_isa_traits.cpp#L333
 

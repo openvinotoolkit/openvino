@@ -71,8 +71,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     tensor = std::move(networkDesc.compiledNetworkTensor);
 
     if (config.get<COMPILATION_MODE>() == "HostCompile") {
-        // no _compiler::parse call is required. networkmetadata will be obtained in DynamicGraph constructor
-        _logger.debug("blob is not ELF format, create graph for LLVM IR!");
+        // metadata will be obtained in initialze() of DynamicGraph
+        _logger.debug("Use dynamicGraph to hold blob for HostCompile mode!");
         return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), true, config);
     }
 
@@ -138,7 +138,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
         std::shared_ptr<NetworkDescription> mainNetworkDescription = initMainNetworkDescriptions.back();
         initMainNetworkDescriptions.pop_back();
-        OPENVINO_ASSERT(initMainNetworkDescriptions.size() > 0, "No init schedules have been returned by the compiler");
+        if (initMainNetworkDescriptions.empty()) {
+            _logger.warning("NPU compiler did not produce any init schedules. "
+                            "This likely means that the compiled model blob has weights inside even "
+                            "though weightless compilation was requested.");
+        }
+
         std::vector<std::shared_ptr<NetworkDescription>> initNetworkDescriptions =
             std::move(initMainNetworkDescriptions);
         tensorMain = std::move(mainNetworkDescription->compiledNetworkTensor);
