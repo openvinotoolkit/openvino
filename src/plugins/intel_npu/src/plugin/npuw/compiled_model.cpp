@@ -1979,6 +1979,10 @@ void ov::npuw::CompiledModel::compile_host_flash_attention_model(std::size_t id,
         return;
     }
 
+    // Set the flag for using tensor view based on device capabilities
+    hfa._can_use_tensor_view = m_meta_devices[device].count("NPU_ENABLE_STRIDES_FOR") &&
+                               m_meta_devices[device]["NPU_ENABLE_STRIDES_FOR"] == "k_tile,v_tile";
+
     // Note: The final tile model has already been compiled via compile_submodel(m_compiled_submodels[id].model, ...)
     // because m_compiled_submodels[id].model points to _final_tile_model for HFA
     // So we only need to compile the regular tile model here
