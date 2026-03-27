@@ -45,7 +45,7 @@ TEST_P(QDQStrippingTest, smoke_LPT_SharedDQ) {
 
 }
 
-TEST_P(QDQStrippingTest, smoke_LPT_SharedDQ_ORT) {
+TEST_P(QDQStrippingTest, smoke_LPT_DuplicatedDQT) {
     const auto& [need_weights_adjustment, quantization_precision] = GetParam();
     const auto input_shape = ov::PartialShape{ 1, 3, 8, 8 };
     model = QDQStrippingFunction::build_duplicated_dq_pattern(input_shape, quantization_precision);
