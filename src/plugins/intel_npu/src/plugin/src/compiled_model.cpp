@@ -82,7 +82,7 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
-    auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
+    auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream, get_config());
 
     if (!_propertiesManager->getConfig().get<EXPORT_RAW_BLOB>()) {
         std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
