@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/plugin/variable_state.hpp"
+#include "intel_gpu/plugin/output_memory_block.hpp"
 #include "intel_gpu/primitives/read_value.hpp"
 #include "intel_gpu/primitives/lora.hpp"
 #include "intel_gpu/primitives/data.hpp"
@@ -671,6 +672,79 @@ void network::reset_output_remote_memory_ptrs() {
     }
 }
 
+void network::invalidate_output_memory_chain(const primitive_id& id) {
+    auto p_inst = find_primitive(id);
+    p_inst->clear_output_memory();
+
+    auto o_iter = _output_chains.find(id);
+    if (o_iter != _output_chains.end()) {
+        for (auto* prim : o_iter->second) {
+            if (prim != p_inst.get()) {
+                prim->clear_output_memory();
+            }
+        }
+    }
+}
+
+void network::invalidate_ext_block_compute_nodes(const primitive_id& output_id) {
+    // Walk backward from the output node through optimized single-dependency
+    // predecessors until we reach the compute node (the first non-optimized one).
+    // Clear its _outputs[0] so that prepare_primitive's null-check triggers
+    // realloc_if_needed, which will re-probe forward and pick up the new ext_block
+    // buffer after a double-buffer flip.
+    //
+    // Stop at runtime-skippable nodes: they may have had can_be_optimized flipped
+    // to false by do_runtime_skip_*() and should not participate in the ext_block chain.
+    auto cursor = find_primitive(output_id);
+    while (cursor->can_be_optimized() && !cursor->dependencies().empty()) {
+        cursor->clear_output_memory();
+        GPU_DEBUG_TRACE_DETAIL << "[double-buffer] cleared output memory on optimized node " << cursor->id() << std::endl;
+        auto dep_id = cursor->dependencies().front().first->id();
+        auto dep = find_primitive(dep_id);
+        // Stop before runtime-skippable nodes: their can_be_optimized() may
+        // have been re-evaluated at runtime — they are the compute boundary.
+        if (dep->get_node().is_runtime_skippable())
+            break;
+        cursor = dep;
+    }
+    // cursor is now the compute node — clear its output so it re-acquires from ext_block
+    if (!cursor->has_inner_networks() && !cursor->can_be_optimized()) {
+        cursor->clear_output_memory();
+        GPU_DEBUG_TRACE_DETAIL << "[double-buffer] cleared output memory on compute node " << cursor->id() << std::endl;
+    }
+}
+
+void network::register_output_memory_block(const primitive_id& id, ov::intel_gpu::OutputMemoryBlock* block) {
+    OPENVINO_ASSERT(block != nullptr, "[GPU] Use unregister path (nullptr) via clear_output_memory_blocks or erase");
+
+    auto [it, inserted] = _output_memory_blocks.emplace(id, block);
+    if (!inserted) {
+        if (it->second == block)
+            return;  // Same block already registered — nothing to do
+        it->second = block;
+    }
+}
+
+void network::unregister_output_memory_block(const primitive_id& id) {
+    auto it = _output_memory_blocks.find(id);
+    if (it != _output_memory_blocks.end()) {
+        _output_memory_blocks.erase(it);
+        invalidate_ext_block_compute_nodes(id);
+    }
+}
+
+ov::intel_gpu::OutputMemoryBlock* network::get_output_memory_block(const primitive_id& id) const {
+    auto it = _output_memory_blocks.find(id);
+    return (it != _output_memory_blocks.end()) ? it->second : nullptr;
+}
+
+void network::clear_output_memory_blocks() {
+    for (auto& [prim_id, block_ptr] : _output_memory_blocks) {
+        invalidate_ext_block_compute_nodes(prim_id);
+    }
+    _output_memory_blocks.clear();
+}
+
 void network::add_to_exec_order(const primitive_id& id) {
     auto inst = get_primitive(id);
     _exec_order.push_back(inst);
@@ -715,13 +789,13 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
         }
     }
 
-    // We shouldn't call surfaces_lock::create() function constantly here, but due to
+    // We shouldn't call create_surfaces_lock function constantly here, but due to
     // some changes in assembler code, performance drops in case if we move it under
     // `shared_mem_found` condition (it somehow connected with get_cl_queue() - this function call
-    // makes asm faster for some reasons). So, as WA we keep this surfaces_lock::create() here
+    // makes asm faster for some reasons). So, as WA we keep this create_surfaces_lock here
     // with empty memory vector and do nothing inside this function for saving performance
     // in some cases.
-    auto surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
+    auto surf_lock = get_stream().create_surfaces_lock(in_out_mem);
 
     execute_impl(dependencies);
 
