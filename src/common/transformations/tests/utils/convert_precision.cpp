@@ -1653,45 +1653,11 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_U32ToI32) {
     constant_convert_test(element::Type_t::u32, element::Type_t::i32, 42, 42);
 }
 
-TEST(TransformationTests, ConvertPrecision_ConstantConversion_F64ToF32_SpecialValues) {
-    using namespace ov;
-
-    std::vector<double> input_values = {
-        std::numeric_limits<double>::infinity(),
-        -std::numeric_limits<double>::infinity(),
-        std::numeric_limits<double>::quiet_NaN(),
-        1.0,
-        1e308 
-    };
-
-    std::shared_ptr<Model> model;
-    {
-        auto constant = std::make_shared<opset4::Constant>(
-            element::f64,
-            Shape{input_values.size()},
-            input_values.data());
-
-        model = std::make_shared<Model>(OutputVector{constant}, ParameterVector{});
-
-        pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(
-            precisions_map{{element::f64, element::f32}});
-        manager.run_passes(model);
-    }
-
-    auto ops = model->get_ordered_ops();
-    auto converted_const = ov::as_type_ptr<opset4::Constant>(ops[0]);
-    ASSERT_NE(converted_const, nullptr);
-    ASSERT_EQ(converted_const->get_element_type(), element::f32);
-
-    auto data = converted_const->cast_vector<float>();
-
-    EXPECT_TRUE(std::isinf(data[0]));
-    EXPECT_TRUE(std::isinf(data[1]));
-    EXPECT_TRUE(std::isnan(data[2]));
-    EXPECT_FLOAT_EQ(data[3], 1.0f);
-
-    EXPECT_TRUE(std::isinf(data[4]));
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_F64ToF32) {
+    constant_convert_test(element::Type_t::f64, element::Type_t::f32, std::numeric_limits<double>::infinity(), std::numeric_limits<float>::infinity());
+    constant_convert_test(element::Type_t::f64, element::Type_t::f32, -std::numeric_limits<double>::infinity(), -std::numeric_limits<float>::infinity());
+    constant_convert_test(element::Type_t::f64, element::Type_t::f32, std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<float>::quiet_NaN());
+    constant_convert_test(element::Type_t::f64, element::Type_t::f32, 1e308, std::numeric_limits<float>::infinity());
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_BoolToU8) {
