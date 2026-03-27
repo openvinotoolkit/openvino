@@ -45,6 +45,15 @@
 
 #include <windows.h>
 
+// Verify that LOAD_LIBRARY_SEARCH_* flags are available.
+// These require _WIN32_WINNT >= 0x0602 (Windows 8) in the Windows SDK headers.
+// OpenVINO minimum supported platform is Windows 10, so this should always hold.
+#if !defined(LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR) || !defined(LOAD_LIBRARY_SEARCH_SYSTEM32) || \
+    !defined(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS)
+#    error \
+        "LOAD_LIBRARY_SEARCH_* flags not available. Ensure _WIN32_WINNT >= 0x0602 (Windows 8) or use a Windows 10+ SDK."
+#endif
+
 namespace ov::util {
 
 std::shared_ptr<void> load_shared_object(const std::filesystem::path& path) {
