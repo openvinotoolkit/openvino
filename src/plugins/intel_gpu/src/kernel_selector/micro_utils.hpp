@@ -17,27 +17,28 @@
 # define NOMINMAX
 #endif
 
-#include "gpu/intel/microkernels/package.hpp"
+#include "gpu/intel/gemm/jit/include/gemmstone/microkernel/package.hpp"
 #include "gpu/intel/gemm/jit/include/gemmstone/kernel_selector.hpp"
-#include "gpu/intel/gemm/jit/include/gemmstone/microkernel_provider.hpp"
-#include "gpu/intel/microkernels/shim.hpp"
+#include "gpu/intel/gemm/jit/include/gemmstone/microkernel_selector.hpp"
+#include "gpu/intel/gemm/jit/include/gemmstone/microkernel/shim.hpp"
 #include "common/utils.hpp"
 
 namespace micro {
 
-using Package = dnnl::impl::gpu::intel::micro::Package;
-using HWInformation = gemmstone::HWInformation;
+using Package = gemmstone::microkernel::Package;
+using HWInformation = gemmstone::microkernel::HWInformation;
 using GEMMProblem = gemmstone::GEMMProblem;
 using ABOffset = gemmstone::ABOffset;
 using GEMMStrategy = gemmstone::GEMMStrategy;
-using GEMMProtocol = dnnl::impl::gpu::intel::micro::GEMMProtocol;
+using GEMMProtocol = gemmstone::microkernel::Protocol;
+using GEMMOptions = gemmstone::microkernel::GEMMOptions;
 using MatrixLayout = gemmstone::MatrixLayout;
 using Type = gemmstone::Type;
 using SizeParams = gemmstone::SizeParams;
 using StrategyRequirement = gemmstone::StrategyRequirement;
-using ShimOptions = dnnl::impl::gpu::intel::micro::ShimOptions;
-using HostLanguage = dnnl::impl::gpu::intel::micro::HostLanguage;
-using Setting = dnnl::impl::gpu::intel::micro::Setting;
+using ShimOptions = gemmstone::microkernel::ShimOptions;
+using HostLanguage = gemmstone::microkernel::HostLanguage;
+using Setting = gemmstone::microkernel::Package::Setting;
 
 using dnnl::impl::utils::rnd_up_pow2;
 
@@ -72,18 +73,18 @@ struct MicroKernelPackage {
     }
 };
 
-inline Package select_gemm_microkernel(GEMMProtocol protocol, HWInformation hw_info, SizeParams sizes, const GEMMProblem &problem,
+inline Package select_gemm_microkernel(GEMMOptions &options, HWInformation hw_info, SizeParams sizes, const GEMMProblem &problem,
                                         const std::vector<StrategyRequirement> &reqs = std::vector<StrategyRequirement>(),
                                         void (*strategyAdjuster)(GEMMStrategy &strategy) = nullptr, gemmstone::SelectionObserver *observer = nullptr) {
-    return gemmstone::selectGEMMMicrokernel(protocol, hw_info, sizes, problem, reqs, strategyAdjuster, observer);
+    return gemmstone::microkernel::selectGEMM(options, hw_info, sizes, problem, reqs, strategyAdjuster);
 }
-inline Package select_gemm_microkernel(GEMMProtocol protocol, HWInformation hw_info, SizeParams sizes, const GEMMProblem &problem,
+inline Package select_gemm_microkernel(GEMMOptions &options, HWInformation hw_info, SizeParams sizes, const GEMMProblem &problem,
         gemmstone::SelectionObserver *observer) {
-    return gemmstone::selectGEMMMicrokernel(protocol, hw_info, sizes, problem, {}, nullptr, observer);
+    return gemmstone::microkernel::selectGEMM(options, hw_info, sizes, problem, {}, nullptr);
 }
 
 static inline int alignment_for_ld(int ld) {
-    return  gemmstone::alignmentForLD(ld);
+    return  gemmstone::microkernel::alignmentForLD(ld);
 }
 
 }  // namespace micro
