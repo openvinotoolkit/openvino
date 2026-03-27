@@ -78,6 +78,7 @@
 #include "snippets/lowered/pass/validate_unified_loops.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/reshape.hpp"
+#include "snippets/op/reduce.hpp"
 #include "snippets/op/result.hpp"
 #include "snippets/op/shape_infer_op.hpp"
 #include "snippets/pass/align_element_types.hpp"
@@ -123,6 +124,7 @@ auto Subgraph::is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bo
                               ov::op::v1::Broadcast,
                               ov::op::v3::Broadcast,
                               ov::op::v12::GroupNormalization,
+                              ov::snippets::op::ReduceBase,
                               op::Reshape>(op);
 }
 
@@ -405,18 +407,10 @@ std::shared_ptr<lowered::LinearIR> Subgraph::convert_body_to_linear_ir(
     size_t min_parallel_work_amount,
     size_t min_kernel_work_amount,
     const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
-    const auto& target_machine = m_generator->get_target_machine();
-    const auto ops = body_ptr()->get_ops();
-    const auto target_blocks_domain_optimization =
-        std::any_of(ops.begin(), ops.end(), [&target_machine](const auto& op) {
-            return !target_machine->supports_domain_optimization(op);
-        });
-
     lowered::Config lowering_config;
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
     lowering_config.m_loop_depth = tile_rank;
-    lowering_config.m_enable_domain_optimization =
-        !config.m_has_domain_sensitive_ops && !target_blocks_domain_optimization;
+    lowering_config.m_enable_domain_optimization = !config.m_has_domain_sensitive_ops;
     lowering_config.m_min_parallel_work_amount = min_parallel_work_amount;
     lowering_config.m_min_kernel_work_amount = min_kernel_work_amount;
 #ifdef SNIPPETS_DEBUG_CAPS

@@ -116,15 +116,6 @@ public:
     [[nodiscard]] virtual std::shared_ptr<TargetMachine> clone() const = 0;
 
     /**
-     * @brief checks if domain optimization can be applied to the given op on this target
-     * @return true, if target lowering supports dimension collapsing and tile-rank updates for the op
-     */
-    [[nodiscard]] virtual bool supports_domain_optimization(
-        [[maybe_unused]] const std::shared_ptr<ov::Node>& op) const {
-        return true;
-    }
-
-    /**
      * @brief gets runtime configurator
      * @return shared pointer with runtime configurator
      */
