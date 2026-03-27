@@ -109,10 +109,6 @@ bool mayiuse(const cpu_isa_t cpu_isa) {
     return false;
 }
 
-bool has_zvfh_support() {
-    return mayiuse(cpu_isa_t::gv_zvfh);
-}
-
 std::string isa2str(cpu_isa_t isa) {
     switch (isa) {
     case cpu_isa_t::isa_undef:
