@@ -553,11 +553,24 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
             return false;  // Early return
         }
 
+        const auto& pyramid_top = proto_comp_model_desc.pyramid_attention.value();
         auto pyramid_id = m_pyramid_selector->pyramid_id();
-        auto& pyramid_attn = proto_comp_model_desc.pyramid_attention.value()._attention_infos[pyramid_id];
-        return std::any_of(pyramid_attn.params.begin(), pyramid_attn.params.end(), [&](const auto& p) -> bool {
-            return p.idx == sub_in_idx;
-        });
+        const auto& pyramid_attn = pyramid_top._attention_infos[pyramid_id];
+
+        // Check spatial KV params (non-block, used for view/copy binding).
+        if (std::any_of(pyramid_attn.params.begin(), pyramid_attn.params.end(), [&](const auto& p) -> bool {
+                return p.idx == sub_in_idx;
+            }))
+            return true;
+
+        // Check KV block params using the *full-model* block index space.
+        // past_key/value_block_param_indices hold the main model's parameter indices (block0..blockN).
+        // (per-variant past_key/value_block_variant_param_indices don't match sub_in_idx.)
+        auto is_block = [&](const std::vector<size_t>& indices) {
+            return std::find(indices.begin(), indices.end(), sub_in_idx) != indices.end();
+        };
+        return is_block(pyramid_top.past_key_block_global_param_indices) ||
+               is_block(pyramid_top.past_value_block_global_param_indices);
     };
 
     auto is_hfa_attn_param = [&](std::size_t sub_in_idx) -> bool {
@@ -873,7 +886,37 @@ void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx,
                                                static_cast<uint32_t>(param.dim),
                                                static_cast<uint32_t>(param.dim));
         }
+
+        // Bind KV block port tensors (block-split mode only, PREFILL path).
+        // bind_global_params stored each block tensor into m_attention_io at the full-model param index.
+        // main_block_indices[m] = full-model index (lookup key in m_attention_io).
+        // variant_port_indices[m] = this variant's compiled-model port (set_tensor target).
+        // M (variant block count) <= N (full-model block count).
+        // TODO (Phase C): replace with BlockKVCacheExtension::bind_pyramid_prefill_blocks().
+        auto bind_block_ports = [&](const std::vector<size_t>& main_block_indices,
+                                    const std::vector<size_t>& variant_port_indices) {
+            NPUW_ASSERT(variant_port_indices.size() <= main_block_indices.size());
+            for (size_t m = 0; m < variant_port_indices.size(); ++m) {
+                const auto& iport = pyramid_model->inputs()[variant_port_indices[m]];
+                const auto& tensor = m_attention_io[idx].inputs.at(main_block_indices[m]);
+                if (tensor) {
+                    request->set_tensor(iport, tensor);
+                }
+            }
+        };
+        bind_block_ports(pyramid_attention.past_key_block_global_param_indices,
+                         attention_info.past_key_block_variant_param_indices);
+        bind_block_ports(pyramid_attention.past_value_block_global_param_indices,
+                         attention_info.past_value_block_variant_param_indices);
     } else if (infer_case == pyramid_attention::Selector::Case::GENERATE) {
+        // Guard: block KV cache + pyramid GENERATE is not validated.
+        // Use NPUW_LLM_GENERATE_PYRAMID=YES for block KV cache instead of
+        // NPUW_LLM_GENERATE_ATTENTION_HINT=PYRAMID, which routes through this path.
+        NPUW_ASSERT(pyramid_attention.past_key_block_global_param_indices.empty() &&
+                    "Pyramid GENERATE with block KV cache is not supported. "
+                    "Use NPUW_LLM_GENERATE_PYRAMID=YES instead of "
+                    "NPUW_LLM_GENERATE_ATTENTION_HINT=PYRAMID when block KV cache is enabled.");
+
         // GENERATE: Set or copy past KV, preserving existing data
         for (auto&& param : attention_info.params) {
             const auto& iport = pyramid_model->inputs()[param.idx];

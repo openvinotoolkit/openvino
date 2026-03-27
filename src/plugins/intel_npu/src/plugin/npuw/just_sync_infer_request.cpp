@@ -1130,6 +1130,39 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
         submodel_desc.pyramid_pipeline_requests.resize(num_pyramid_models);
     }
 
+    const auto& pyr_attn = submodel_desc.pyramid_attention.value();
+    const auto& main_inputs = submodel_desc.compiled_model->inputs();
+
+    // Alias block_N (N>0) tensors to block_0 in each main request.
+    // Uses HFA-style pre-parsed past_key/value_block_indices (built in set_compiled_models).
+    auto alias_blocks_to_block0 = [&](ov::SoPtr<ov::IAsyncInferRequest>& req) {
+        if (!pyr_attn.past_key_block_global_param_indices.empty()) {
+            auto key_block0 = req->get_tensor(main_inputs[pyr_attn.past_key_block_global_param_indices[0]]);
+            for (size_t i = 1; i < pyr_attn.past_key_block_global_param_indices.size(); ++i)
+                req->set_tensor(main_inputs[pyr_attn.past_key_block_global_param_indices[i]], key_block0);
+        }
+        if (!pyr_attn.past_value_block_global_param_indices.empty()) {
+            auto val_block0 = req->get_tensor(main_inputs[pyr_attn.past_value_block_global_param_indices[0]]);
+            for (size_t i = 1; i < pyr_attn.past_value_block_global_param_indices.size(); ++i)
+                req->set_tensor(main_inputs[pyr_attn.past_value_block_global_param_indices[i]], val_block0);
+        }
+    };
+
+    alias_blocks_to_block0(m_subrequests[real_idx]);
+    if (is_piped) {
+        alias_blocks_to_block0(m_funcall_pipeline[real_idx].subrequest);
+    }
+
+    // Build a name→main-port map once for sharing non-block inputs into pyramid variants.
+    // (This is one-time setup cost, not per-inference.)
+    std::unordered_map<std::string, ov::Output<const ov::Node>> main_name_to_port;
+    main_name_to_port.reserve(main_inputs.size() * 2);
+    for (const auto& inp : main_inputs) {
+        for (const auto& n : inp.get_names()) {
+            main_name_to_port[n] = inp;
+        }
+    }
+
     // Create infer requests for all but the last pyramid model
     for (size_t model_idx = 0; model_idx + 1 < num_pyramid_models; ++model_idx) {
         try {
@@ -1149,28 +1182,61 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
             NPUW_ASSERT(false && "Pyramid model infer request creation/recreation failed with unknown error");
         }
 
-        // Share input tensors between pyramid and main infer requests
-        const size_t num_inputs = pyramid_models[model_idx]->inputs().size();
-        NPUW_ASSERT(num_inputs == submodel_desc.compiled_model->inputs().size());
-        for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
-            auto pyramid_input = pyramid_models[model_idx]->inputs()[input_idx];
-            auto main_input = submodel_desc.compiled_model->inputs()[input_idx];
+        // Share inputs into this pyramid variant:
+        //   • Block ports (K/V): after aliasing, main block_N already holds block_0's tensor →
+        //     only need to get key_block_0 / value_block_0 from main and set_tensor directly
+        //     (shapes match since all block slots are the same size).
+        //   • Non-block ports: may have different shapes (e.g. attention mask) → share buffer
+        //     pointer with the variant's own (possibly smaller) shape.
+        const auto& info = pyr_attn._attention_infos[model_idx];
+        const auto& variant_inputs = pyramid_models[model_idx]->inputs();
 
-            // Get tensor from main infer request and share its memory with the pyramid infer request
-            auto main_tensor_ptr = m_subrequests[real_idx]->get_tensor(main_input)->data();
-            auto pyramid_tensor = submodel_desc.pyramid_infer_requests[model_idx]->get_tensor(pyramid_input);
-            auto shared_tensor = ov::get_tensor_impl(
-                ov::Tensor(pyramid_tensor->get_element_type(), pyramid_tensor->get_shape(), main_tensor_ptr));
-            submodel_desc.pyramid_infer_requests[model_idx]->set_tensor(pyramid_input, shared_tensor);
+        // Build O(1) lookup sets for key/value block port indices of this variant.
+        const std::unordered_set<size_t> key_block_ports(info.past_key_block_variant_param_indices.begin(),
+                                                         info.past_key_block_variant_param_indices.end());
+        const std::unordered_set<size_t> val_block_ports(info.past_value_block_variant_param_indices.begin(),
+                                                         info.past_value_block_variant_param_indices.end());
 
-            // Repeat for pipeline infer request if pipelined
-            if (is_piped) {
-                auto pipeline_tensor = submodel_desc.pyramid_pipeline_requests[model_idx]->get_tensor(pyramid_input);
-                auto pipeline_tensor_ptr = m_funcall_pipeline[real_idx].subrequest->get_tensor(main_input)->data();
-                auto shared_pipeline_tensor = ov::get_tensor_impl(
-                    ov::Tensor(pipeline_tensor->get_element_type(), pipeline_tensor->get_shape(), pipeline_tensor_ptr));
-                submodel_desc.pyramid_pipeline_requests[model_idx]->set_tensor(pyramid_input, shared_pipeline_tensor);
+        auto share_inputs_for_request = [&](ov::SoPtr<ov::IAsyncInferRequest>& req,
+                                            ov::SoPtr<ov::IAsyncInferRequest>& main_req) {
+            // Cache block_0 tensors from the (aliased) main request.
+            ov::SoPtr<ov::ITensor> key_block0, val_block0;
+            if (!pyr_attn.past_key_block_global_param_indices.empty())
+                key_block0 = main_req->get_tensor(main_inputs[pyr_attn.past_key_block_global_param_indices[0]]);
+            if (!pyr_attn.past_value_block_global_param_indices.empty())
+                val_block0 = main_req->get_tensor(main_inputs[pyr_attn.past_value_block_global_param_indices[0]]);
+
+            for (size_t j = 0; j < variant_inputs.size(); ++j) {
+                if (key_block_ports.count(j)) {
+                    // Key block: share block_0 tensor directly (shapes match).
+                    if (key_block0)
+                        req->set_tensor(variant_inputs[j], key_block0);
+                } else if (val_block_ports.count(j)) {
+                    // Value block: share block_0 tensor directly (shapes match).
+                    if (val_block0)
+                        req->set_tensor(variant_inputs[j], val_block0);
+                } else {
+                    // Non-block input: share buffer pointer with variant's own shape.
+                    const auto& names = variant_inputs[j].get_names();
+                    if (names.empty())
+                        continue;
+                    const auto it = main_name_to_port.find(*names.begin());
+                    if (it == main_name_to_port.end())
+                        continue;
+                    auto main_tensor = main_req->get_tensor(it->second);
+                    auto pyr_tensor = req->get_tensor(variant_inputs[j]);
+                    auto shared = ov::get_tensor_impl(
+                        ov::Tensor(pyr_tensor->get_element_type(), pyr_tensor->get_shape(), main_tensor->data()));
+                    req->set_tensor(variant_inputs[j], shared);
+                }
             }
+        };
+
+        share_inputs_for_request(submodel_desc.pyramid_infer_requests[model_idx], m_subrequests[real_idx]);
+
+        if (is_piped) {
+            share_inputs_for_request(submodel_desc.pyramid_pipeline_requests[model_idx],
+                                     m_funcall_pipeline[real_idx].subrequest);
         }
     }
 
