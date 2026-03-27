@@ -28,7 +28,6 @@ namespace intel_npu {
     nmr_symbol_statement(npuVMRuntimeDestroyExecutionContext)       \
     nmr_symbol_statement(npuVMRuntimeUpdateMutableCommandList)
 
-
 // clang-format on
 
 class NPUVMRuntimeApi {
