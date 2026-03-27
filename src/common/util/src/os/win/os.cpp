@@ -10,7 +10,9 @@ namespace ov::util {
 bool may_i_use_dynamic_code() {
     // The function GetProcessMitigationPolicy may not be available in the kernel32 library. It depends on the Windows version.
     // Need to check this at runtime if the project was built on a different platform.
-    if (HMODULE kernel32 = LoadLibrary("kernel32")) {
+    // Use GetModuleHandleW instead of LoadLibrary — kernel32.dll is always loaded in every Windows process.
+    // This avoids DLL search path concerns entirely (SDL436).
+    if (HMODULE kernel32 = GetModuleHandleW(L"kernel32.dll")) {
         typedef BOOL (*fnGetProcessMitigationPolicy)(HANDLE, _PROCESS_MITIGATION_POLICY, PVOID, SIZE_T);
         fnGetProcessMitigationPolicy get_process_mitigation_policy =
             (fnGetProcessMitigationPolicy)GetProcAddress(kernel32, "GetProcessMitigationPolicy");
