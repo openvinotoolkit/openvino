@@ -52,14 +52,15 @@ if (NOT GPU_RT_TYPE STREQUAL "OCL")
     endforeach()
 endif()
 
-  file(GLOB_RECURSE SOURCES_WITH_ZE_RT
-    "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/ze_test.cpp"
-    )
-  if (NOT GPU_RT_TYPE STREQUAL "L0")
+file(GLOB_RECURSE SOURCES_WITH_ZE_RT
+    "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/ze/*.cpp"
+  )
+
+if (NOT GPU_RT_TYPE STREQUAL "L0")
     foreach (SOURCE_FILE IN LISTS SOURCES_WITH_ZE_RT)
-      list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
+        list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
     endforeach()
-  endif()
+endif()
 
 if (NOT ENABLE_ONEDNN_FOR_GPU)
     set(EXCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn/")
