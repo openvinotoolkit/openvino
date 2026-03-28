@@ -19,25 +19,57 @@ namespace function {
 
 // Helper struct to hold validation and setup results
 struct PyramidValidationResult {
+    // ── Shared ───────────────────────────────────────────────────────────────────
     size_t query_length = 0;
-    size_t past_kv_length = 0;
     size_t full_context_length = 0;
+    // True when the model has already been processed by SplitKVCacheIntoBlocks.
+    // Determines which of the two mode-specific field groups below is populated.
+    bool is_block_split = false;
+
+    // ── Contiguous mode only ─────────────────────────────────────────────────────
+    // Empty when is_block_split == true.
+    size_t past_kv_length = 0;
     std::map<std::string, size_t> past_key_sequence_dims;
     std::map<std::string, size_t> past_value_sequence_dims;
-    // True when the model has already been processed by SplitKVCacheIntoBlocks.
-    // In this case past_key_sequence_dims / past_value_sequence_dims are empty;
-    // process_pyramid_model() uses the Concat-shrink path instead of per-param reshape.
-    bool has_block_layout = false;
 
-    // In block-split mode: parameter indices for all N past-key/value blocks in the full (original)
-    // model. Populated by validate_and_setup_pyramid_attention() so that from() can propagate them
-    // into function::Attention (variant) and function::PyramidAttention (global). Empty otherwise.
+    static PyramidValidationResult make_contiguous(size_t query_len,
+                                                   size_t ctx_len,
+                                                   size_t past_kv_len,
+                                                   std::map<std::string, size_t> key_seq_dims,
+                                                   std::map<std::string, size_t> val_seq_dims) {
+        PyramidValidationResult r;
+        r.query_length = query_len;
+        r.full_context_length = ctx_len;
+        r.past_kv_length = past_kv_len;
+        r.past_key_sequence_dims = std::move(key_seq_dims);
+        r.past_value_sequence_dims = std::move(val_seq_dims);
+        return r;
+    }
+
+    // ── Block mode only ──────────────────────────────────────────────────────────
+    // Parameter indices for all N past-key/value blocks in the full (original) model.
+    // Populated by validate_and_setup_pyramid_attention() so that from() can propagate
+    // them into function::Attention (variant) and function::PyramidAttention (global).
+    // Empty when is_block_split == false.
     std::vector<size_t> past_key_block_global_param_indices;
     std::vector<size_t> past_value_block_global_param_indices;
 
+    static PyramidValidationResult make_block(size_t query_len,
+                                              size_t ctx_len,
+                                              std::vector<size_t> key_block_indices,
+                                              std::vector<size_t> val_block_indices) {
+        PyramidValidationResult r;
+        r.query_length = query_len;
+        r.full_context_length = ctx_len;
+        r.is_block_split = true;
+        r.past_key_block_global_param_indices = std::move(key_block_indices);
+        r.past_value_block_global_param_indices = std::move(val_block_indices);
+        return r;
+    }
+
     // Validation helper
     bool is_valid() const {
-        if (has_block_layout) {
+        if (is_block_split) {
             // Block mode: dim maps are intentionally empty; only sizes must be sane.
             return query_length > 0 && full_context_length > 0 && full_context_length >= query_length;
         }
@@ -63,7 +95,7 @@ std::optional<ov::npuw::function::Attention> create_attention_from_model(
     const std::map<std::string, size_t>& past_value_sequence_dims);
 
 // Helper function to process a single pyramid model (clone, reshape, patch, optimize).
-// When has_block_layout is true the model has already been processed by SplitKVCacheIntoBlocks;
+// When is_block_split is true the model has already been processed by SplitKVCacheIntoBlocks;
 // in this case the function shrinks the KV Concat inputs rather than reshaping parameters.
 std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov::Model>& original_model,
                                                         size_t model_idx,
@@ -73,20 +105,22 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                                                         size_t full_context_length,
                                                         const std::map<std::string, size_t>& past_key_sequence_dims,
                                                         const std::map<std::string, size_t>& past_value_sequence_dims,
-                                                        bool has_block_layout = false);
+                                                        bool is_block_split = false);
 
 // Helper function to validate model and extract necessary information for pyramid attention
 std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(const std::shared_ptr<ov::Model>& model);
 
 // PyramidAttention structure definition
 struct PyramidAttention {
+    // ── Shared ───────────────────────────────────────────────────────────────────
     std::vector<Attention> _attentions;
     std::vector<std::shared_ptr<ov::Model>> _models;
     size_t _query_length = 0;
     size_t _full_context_length = 0;
 
+    // ── Block mode only ──────────────────────────────────────────────────────────
     // Global (full-model) KV block parameter indices (block0..blockN).
-    // Populated by from() in block-split mode from the PyramidValidationResult; empty otherwise.
+    // Populated by from() when is_block_split; empty in contiguous mode.
     std::vector<size_t> past_key_block_global_param_indices;
     std::vector<size_t> past_value_block_global_param_indices;
 
@@ -114,20 +148,27 @@ struct PyramidAttentionInfo {
         std::size_t idx;  // function input index for this spatial parameter
         std::size_t dim;
     };
-    std::vector<Param> params;
+
+    // ── Shared ───────────────────────────────────────────────────────────────────
     std::size_t mask_idx = 0u;
     std::size_t query_size = 0u;      // Added for PositionIDs selector compatibility
     std::size_t context_length = 0u;  // Context length this pyramid model supports
 
+    // ── Contiguous mode only ─────────────────────────────────────────────────────
+    // Used during both PREFILL and GENERATE to bind per-step KV slices. Empty in block mode.
+    std::vector<Param> params;
+
+    // ── Block mode only ──────────────────────────────────────────────────────────
     // Per-variant KV block parameter indices (block0..blockM, M <= N).
     // Copied from function::Attention::past_key/value_block_variant_param_indices by
-    // the compiled::PyramidAttention constructor.
+    // the compiled::PyramidAttention constructor. Empty in contiguous mode.
     std::vector<size_t> past_key_block_variant_param_indices;
     std::vector<size_t> past_value_block_variant_param_indices;
 };
 
 // Compile-time pyramid attention information
 struct PyramidAttention {
+    // ── Shared ───────────────────────────────────────────────────────────────────
     std::vector<PyramidAttentionInfo> _attention_infos;
     std::vector<ov::SoPtr<ov::ICompiledModel>> _compiled_models;
     std::vector<std::size_t> _context_lengths;
@@ -144,8 +185,10 @@ struct PyramidAttention {
     // Compiled models are set later via set_compiled_models()
     explicit PyramidAttention(const function::PyramidAttention& func_pyramid);
 
+    // ── Block mode only ──────────────────────────────────────────────────────────
     // Global (full-model) KV block parameter indices (block0..blockN).
-    // Copied from function::PyramidAttention::past_key/value_block_global_param_indices by the constructor.
+    // Copied from function::PyramidAttention::past_key/value_block_global_param_indices
+    // by the constructor. Empty in contiguous mode.
     std::vector<size_t> past_key_block_global_param_indices;
     std::vector<size_t> past_value_block_global_param_indices;
 

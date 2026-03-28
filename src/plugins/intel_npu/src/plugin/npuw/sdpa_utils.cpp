@@ -57,9 +57,9 @@ SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model
     for (auto input : model->inputs()) {
         auto input_node = input.get_node();
         auto input_name = input_node->get_friendly_name();
-        if (ov::npuw::util::isPastKeyValuesKey(input_name)) {
+        if (ov::npuw::util::isPastKeyParam(input_name)) {
             pattern_nodes.past_key_param_nodes.push_back(input_node->shared_from_this());
-        } else if (ov::npuw::util::isPastKeyValuesValue(input_name)) {
+        } else if (ov::npuw::util::isPastValueParam(input_name)) {
             pattern_nodes.past_value_param_nodes.push_back(input_node->shared_from_this());
         }
     }

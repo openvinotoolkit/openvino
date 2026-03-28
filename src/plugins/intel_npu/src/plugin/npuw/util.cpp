@@ -912,16 +912,27 @@ void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fi
     std::memset(tensor_data, fill_val, byte_size);
 }
 
-bool ov::npuw::util::isPastKeyValuesKey(const std::string& str) {
-    // Match both original format and block-split format (numbered and tail blocks)
-    // Examples: "past_key_values.0.key", "past_key_values.0.key_block_3", "past_key_values.0.key_block_tail"
-    std::regex pattern(R"(past_key_values\.\d+\.key(_block_(\d+|tail))?)");
+bool ov::npuw::util::isPastKeyParam(const std::string& str) {
+    // Match any past key param: contiguous or block-split (e.g. key_block_3, key_block_tail).
+    std::regex pattern(R"(past_key_values\.\d+\.key(_block_(\d+|tail))?)" );
     return std::regex_match(str, pattern);
 }
 
-bool ov::npuw::util::isPastKeyValuesValue(const std::string& str) {
-    // Match both original format and block-split format (numbered and tail blocks)
-    // Examples: "past_key_values.0.value", "past_key_values.0.value_block_3", "past_key_values.0.value_block_tail"
-    std::regex pattern(R"(past_key_values\.\d+\.value(_block_(\d+|tail))?)");
+bool ov::npuw::util::isPastValueParam(const std::string& str) {
+    // Match any past value param: contiguous or block-split.
+    std::regex pattern(R"(past_key_values\.\d+\.value(_block_(\d+|tail))?)" );
+    return std::regex_match(str, pattern);
+}
+
+bool ov::npuw::util::isPastKeyParamContiguous(const std::string& str) {
+    // Match only the single contiguous past key param (no _block_ suffix).
+    // Use in contexts that operate exclusively on non-block-split models.
+    std::regex pattern(R"(past_key_values\.\d+\.key)" );
+    return std::regex_match(str, pattern);
+}
+
+bool ov::npuw::util::isPastValueParamContiguous(const std::string& str) {
+    // Match only the single contiguous past value param (no _block_ suffix).
+    std::regex pattern(R"(past_key_values\.\d+\.value)" );
     return std::regex_match(str, pattern);
 }

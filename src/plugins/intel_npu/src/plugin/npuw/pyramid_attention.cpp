@@ -55,12 +55,12 @@ std::optional<ov::npuw::function::Attention> create_attention_from_model(
     const auto& params = model->get_parameters();
     for (const auto& param : params) {
         const std::string param_name = param->get_friendly_name();
-        if (ov::npuw::util::isPastKeyValuesKey(param_name)) {
+        if (ov::npuw::util::isPastKeyParamContiguous(param_name)) {
             auto dim_iter = past_key_sequence_dims.find(param_name);
             if (dim_iter != past_key_sequence_dims.end()) {
                 attention._inputs.push_back(ov::npuw::function::Attention::Param{param, dim_iter->second});
             }
-        } else if (ov::npuw::util::isPastKeyValuesValue(param_name)) {
+        } else if (ov::npuw::util::isPastValueParamContiguous(param_name)) {
             auto dim_iter = past_value_sequence_dims.find(param_name);
             if (dim_iter != past_value_sequence_dims.end()) {
                 attention._inputs.push_back(ov::npuw::function::Attention::Param{param, dim_iter->second});
@@ -101,7 +101,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                                                         size_t full_context_length,
                                                         const std::map<std::string, size_t>& past_key_sequence_dims,
                                                         const std::map<std::string, size_t>& past_value_sequence_dims,
-                                                        bool has_block_layout) {
+                                                        bool is_block_split) {
     // Clone the original model for modification
     auto cloned_model = original_model->clone();
 
@@ -129,7 +129,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
     LOG_DEBUG("  Past length: " << current_past_length);
 
     // -------------------------------------------------------------------------
-    // Block-split KV cache path (has_block_layout == true)
+    // Block-split KV cache path (is_block_split == true)
     //
     // The model has already been through SplitKVCacheIntoBlocks. The KV Concat
     // now has the form:
@@ -140,7 +140,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
     //   model[1]  -> Concat([block_0, present_key])  (1 past block)
     //   model[idx]-> Concat([block_0..block_{idx-1}, present_key])
     // -------------------------------------------------------------------------
-    if (has_block_layout) {
+    if (is_block_split) {
         const size_t num_blocks_needed = model_idx;  // model[idx] needs exactly idx past blocks
 
         // Lambda: shrink one Concat (key or value) to keep only num_blocks_needed past inputs.
@@ -315,7 +315,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                 new_shapes[param->output(0)] = new_shape;
                 LOG_DEBUG("  Mask param '" << param_name << "' shape: " << original_shape << " -> " << new_shape);
             }
-        } else if (ov::npuw::util::isPastKeyValuesKey(param_name)) {
+        } else if (ov::npuw::util::isPastKeyParamContiguous(param_name)) {
             // Handle past key parameters
             // Use pre-analyzed sequence dimension information
             auto dim_iter = past_key_sequence_dims.find(param_name);
@@ -330,7 +330,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                 LOG_WARN("No pre-analyzed sequence dimension for past key param: " << param_name);
                 return std::nullopt;
             }
-        } else if (ov::npuw::util::isPastKeyValuesValue(param_name)) {
+        } else if (ov::npuw::util::isPastValueParamContiguous(param_name)) {
             // Handle past value parameters
             // Use pre-analyzed sequence dimension information
             auto dim_iter = past_value_sequence_dims.find(param_name);
@@ -396,7 +396,6 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
     // Extract query_length and full_context_length from Softmax output shape
     auto softmax_output_shape = pattern_nodes.softmax_node->get_output_shape(0);
     size_t query_length = 0;
-    size_t past_kv_length = 0;
     size_t full_context_length = 0;
 
     if (softmax_output_shape.size() >= 2) {
@@ -421,12 +420,12 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
     // Detect block-split KV cache layout.
     // After SplitKVCacheIntoBlocks the single past_key param becomes N block params named
     // "{original_name}_block_{i}". We detect this by either count > 1 or the name suffix.
-    const bool has_block_layout =
+    const bool is_block_split =
         !pattern_nodes.past_key_param_nodes.empty() &&
         (pattern_nodes.past_key_param_nodes.size() > 1 ||
-         pattern_nodes.past_key_param_nodes[0]->get_friendly_name().find("_block_") != std::string::npos);
+         !ov::npuw::util::isPastKeyParamContiguous(pattern_nodes.past_key_param_nodes[0]->get_friendly_name()));
 
-    if (has_block_layout) {
+    if (is_block_split) {
         LOG_INFO("Detected block-split KV cache (" << pattern_nodes.past_key_param_nodes.size()
                                                    << " past key block(s)): using Concat-shrink path");
         // Compute full-model block param indices from the **Concat input order** (block_0, block_1, ..., present).
@@ -436,20 +435,15 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         std::vector<size_t> full_key_indices, full_val_indices;
         collect_concat_block_indices(model, pattern_nodes.past_key_concat_node, full_key_indices);
         collect_concat_block_indices(model, pattern_nodes.past_value_concat_node, full_val_indices);
-        // Sequence-dim maps are not needed in block mode; process_pyramid_model() uses
-        // direct Concat-shrinking instead of per-parameter reshape.
-        return PyramidValidationResult{query_length,
-                                       0u,  // past_kv_length: unused in block mode
-                                       full_context_length,
-                                       {},
-                                       {},
-                                       true,
-                                       std::move(full_key_indices),
-                                       std::move(full_val_indices)};
+        return PyramidValidationResult::make_block(query_length,
+                                                   full_context_length,
+                                                   std::move(full_key_indices),
+                                                   std::move(full_val_indices));
     }
 
     // Pre-analyze original model to find sequence dimensions for past key/value parameters
     // This avoids repeated analysis in each cloned model
+    size_t past_kv_length = 0;
     std::map<std::string, size_t> past_key_sequence_dims;
     std::map<std::string, size_t> past_value_sequence_dims;
 
@@ -474,8 +468,8 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         const auto& original_params = model->get_parameters();
         for (const auto& param : original_params) {
             const std::string param_name = param->get_friendly_name();
-            bool is_target_param = is_key ? ov::npuw::util::isPastKeyValuesKey(param_name)
-                                          : ov::npuw::util::isPastKeyValuesValue(param_name);
+            bool is_target_param = is_key ? ov::npuw::util::isPastKeyParamContiguous(param_name)
+                                          : ov::npuw::util::isPastValueParamContiguous(param_name);
 
             if (is_target_param) {
                 sequence_dims[param_name] = concat_axis;
@@ -505,12 +499,11 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         return std::nullopt;
     }
 
-    return PyramidValidationResult{query_length,
-                                   past_kv_length,
-                                   full_context_length,
-                                   past_key_sequence_dims,
-                                   past_value_sequence_dims,
-                                   false};  // has_block_layout
+    return PyramidValidationResult::make_contiguous(query_length,
+                                                    full_context_length,
+                                                    past_kv_length,
+                                                    past_key_sequence_dims,
+                                                    past_value_sequence_dims);
 }
 
 std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov::Model>& model) {
@@ -525,7 +518,7 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     size_t full_context_length = validation_result->full_context_length;
     const auto& past_key_sequence_dims = validation_result->past_key_sequence_dims;
     const auto& past_value_sequence_dims = validation_result->past_value_sequence_dims;
-    const bool has_block_layout = validation_result->has_block_layout;
+    const bool is_block_split = validation_result->is_block_split;
 
     std::vector<std::shared_ptr<ov::Model>> pyramid_models;
 
@@ -558,7 +551,7 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
             // In block mode the last model IS the full/original model (N blocks).
             // Propagate the full-model block indices into this variant's attention so
             // compiled::PyramidAttentionInfo can copy them without re-scanning the graph.
-            if (has_block_layout) {
+            if (is_block_split) {
                 last_attention->past_key_block_variant_param_indices =
                     validation_result->past_key_block_global_param_indices;
                 last_attention->past_value_block_variant_param_indices =
@@ -577,7 +570,7 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
                                                 full_context_length,
                                                 past_key_sequence_dims,
                                                 past_value_sequence_dims,
-                                                has_block_layout);
+                                                is_block_split);
             if (!result) {
                 return std::nullopt;
             }
@@ -595,9 +588,7 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     pyramid_attention._full_context_length = full_context_length;
     pyramid_attention._models = pyramid_models;
     pyramid_attention._attentions = pyramid_attentions;
-
-    // In block mode, propagate the full-model block param indices computed during validation.
-    // All variant attentions already carry their per-variant slice; this level holds the global N.
+    // Block indices are empty in contiguous mode; assigned unconditionally for simplicity.
     pyramid_attention.past_key_block_global_param_indices = validation_result->past_key_block_global_param_indices;
     pyramid_attention.past_value_block_global_param_indices = validation_result->past_value_block_global_param_indices;
 
