@@ -77,15 +77,18 @@ std::optional<ov::npuw::function::Attention> create_attention_from_model(
 static void collect_concat_block_indices(const std::shared_ptr<ov::Model>& model,
                                          const std::shared_ptr<ov::Node>& concat_node,
                                          std::vector<size_t>& out) {
-    if (!concat_node)
+    if (!concat_node) {
         return;
+    }
     const size_t n = concat_node->get_input_size();
     for (size_t i = 0; i + 1 < n; ++i) {
         auto node = concat_node->get_input_node_shared_ptr(i);
-        if (auto cvt = std::dynamic_pointer_cast<ov::op::v0::Convert>(node))
+        if (auto cvt = std::dynamic_pointer_cast<ov::op::v0::Convert>(node)) {
             node = cvt->input_value(0).get_node_shared_ptr();
-        if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node))
+        }
+        if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node)) {
             out.push_back(model->get_parameter_index(param));
+        }
     }
 }
 
