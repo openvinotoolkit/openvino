@@ -35,7 +35,7 @@ struct Attention {
     PPtr _mask;
     ov::Shape _mask_shape;
 
-    // Per-variant KV block parameter indices (populated by process_pyramid_model in block-split mode).
+    // Per-variant KV block parameter indices.
     // Ordered by Concat input order: [block_0_idx, ..., block_{M-1}_idx] in this variant's model.
     // Empty in the non-block (contiguous KV) case.
     std::vector<size_t> past_key_block_variant_param_indices;

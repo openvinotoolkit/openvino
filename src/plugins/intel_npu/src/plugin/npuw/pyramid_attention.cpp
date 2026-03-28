@@ -5,7 +5,6 @@
 #include "pyramid_attention.hpp"
 
 #include <algorithm>
-#include <cstdlib>
 #include <utility>
 
 #include "openvino/core/validation_util.hpp"
@@ -72,6 +71,24 @@ std::optional<ov::npuw::function::Attention> create_attention_from_model(
     return attention;
 }
 
+// Collect past KV block parameter indices from a Concat node in Concat input order.
+// All inputs except the last (present_key/value) are past block params.
+// SplitKVCacheIntoBlocks may insert a Convert between each block Parameter and the Concat.
+static void collect_concat_block_indices(const std::shared_ptr<ov::Model>& model,
+                                         const std::shared_ptr<ov::Node>& concat_node,
+                                         std::vector<size_t>& out) {
+    if (!concat_node)
+        return;
+    const size_t n = concat_node->get_input_size();
+    for (size_t i = 0; i + 1 < n; ++i) {
+        auto node = concat_node->get_input_node_shared_ptr(i);
+        if (auto cvt = std::dynamic_pointer_cast<ov::op::v0::Convert>(node))
+            node = cvt->input_value(0).get_node_shared_ptr();
+        if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node))
+            out.push_back(model->get_parameter_index(param));
+    }
+}
+
 // Helper function to process a single pyramid model (clone, reshape, patch, optimize)
 std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov::Model>& original_model,
                                                         size_t model_idx,
@@ -121,8 +138,6 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
     //   model[idx]-> Concat([block_0..block_{idx-1}, present_key])
     // -------------------------------------------------------------------------
     if (has_block_layout) {
-        std::cout << "Processing block-mode pyramid model[" << model_idx << "], query_length=" << query_length
-                  << ", full_past_kv_length=" << full_past_kv_length << std::endl;
         const size_t num_blocks_needed = model_idx;  // model[idx] needs exactly idx past blocks
 
         // Lambda: shrink one Concat (key or value) to keep only num_blocks_needed past inputs.
@@ -143,9 +158,6 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                                                   << " blocks but global model only has " << num_global_past_blocks);
                 return false;
             }
-
-            std::cout << "  Shrinking Concat inputs, global past blocks=" << num_global_past_blocks
-                      << ", needed past blocks=" << num_blocks_needed << std::endl;
 
             ov::OutputVector new_inputs;
             new_inputs.reserve(num_blocks_needed + 1u);
@@ -171,7 +183,6 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                     if (block_param) {
                         params_to_remove.push_back(block_param);
                         LOG_DEBUG("  Dropping block param: " << block_param->get_friendly_name());
-                        std::cout << "  Dropping block param: " << block_param->get_friendly_name() << std::endl;
                     }
                 }
             }
@@ -211,7 +222,6 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
         }
 
         LOG_DEBUG("  Concat nodes shrunk successfully for model[" << model_idx << "]");
-        std::cout << "  Concat nodes shrunk successfully for model[" << model_idx << "]" << std::endl;
 
         // Apply the same pre-reshape patching + reshape sequence as the non-block path:
         //   1. patch_broadcast_constants — fix Broadcast shape constants referencing full_context_length
@@ -233,21 +243,12 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                 new_mask_shape[new_mask_shape.rank().get_length() - 1] = current_context_length;
                 mask_param->set_partial_shape(new_mask_shape);
                 LOG_INFO("  Set mask '" << mask_param->get_friendly_name() << "' partial shape -> " << new_mask_shape);
-                std::cout << "  Set mask '" << mask_param->get_friendly_name() << "' partial shape -> "
-                          << new_mask_shape << std::endl;
             }
         } else {
             LOG_WARN("  No mask parameter found in block-mode cloned model (model_idx=" << model_idx << ")");
         }
 
         cloned_model->validate_nodes_and_infer_types();
-
-        if (1) {
-            const std::string ir_path = "pyramid_block_variant_" + std::to_string(model_idx) + ".xml";
-            ov::save_model(cloned_model, ir_path);
-            LOG_INFO("Saved block-mode pyramid variant[" << model_idx << "] to " << ir_path);
-            std::cout << "Saved block-mode pyramid variant[" << model_idx << "] to " << ir_path << std::endl;
-        }
 
         // Build a minimal Attention descriptor for block mode.
         // Cannot use create_attention_from_model() because is_valid() requires past_key_param_nodes
@@ -266,25 +267,12 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
             block_attention._mask_shape = mask_p->get_shape();
 
             // Collect past key/value block parameter indices from the (shrunk) Concat inputs.
-            // All inputs except the last (present KV) are past block params.
-            auto collect_block_param_indices = [&](const std::shared_ptr<ov::Node>& concat_node,
-                                                   std::vector<size_t>& out) {
-                if (!concat_node)
-                    return;
-                const size_t n = concat_node->get_input_size();
-                for (size_t i = 0; i + 1 < n; ++i) {
-                    auto node = concat_node->get_input_node_shared_ptr(i);
-                    // SplitKVCacheIntoBlocks may insert a Convert; unwrap it.
-                    if (auto cvt = std::dynamic_pointer_cast<ov::op::v0::Convert>(node))
-                        node = cvt->input_value(0).get_node_shared_ptr();
-                    if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node))
-                        out.push_back(cloned_model->get_parameter_index(param));
-                }
-            };
-            collect_block_param_indices(post_pattern.past_key_concat_node,
-                                        block_attention.past_key_block_variant_param_indices);
-            collect_block_param_indices(post_pattern.past_value_concat_node,
-                                        block_attention.past_value_block_variant_param_indices);
+            collect_concat_block_indices(cloned_model,
+                                         post_pattern.past_key_concat_node,
+                                         block_attention.past_key_block_variant_param_indices);
+            collect_concat_block_indices(cloned_model,
+                                         post_pattern.past_value_concat_node,
+                                         block_attention.past_value_block_variant_param_indices);
         }
 
         LOG_INFO("Block-mode pyramid model[" << model_idx << "] ready: " << num_blocks_needed
@@ -439,29 +427,16 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         LOG_INFO("Detected block-split KV cache (" << pattern_nodes.past_key_param_nodes.size()
                                                    << " past key block(s)): using Concat-shrink path");
         // Compute full-model block param indices from the **Concat input order** (block_0, block_1, ..., present).
-        // This is the same order used by process_pyramid_model / collect_block_param_indices, so
+        // This is the same order used by process_pyramid_model / collect_concat_block_indices, so
         // global and variant indices are always aligned for bind_block_ports.
         // Do NOT use past_key_param_nodes order (model parameter list) — it may differ.
-        auto collect_global_indices = [&](const std::shared_ptr<ov::Node>& concat_node, std::vector<size_t>& out) {
-            if (!concat_node)
-                return;
-            const size_t n = concat_node->get_input_size();
-            // All inputs except the last (present_key/value) are past block params.
-            for (size_t i = 0; i + 1 < n; ++i) {
-                auto node = concat_node->get_input_node_shared_ptr(i);
-                if (auto cvt = std::dynamic_pointer_cast<ov::op::v0::Convert>(node))
-                    node = cvt->input_value(0).get_node_shared_ptr();
-                if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node))
-                    out.push_back(model->get_parameter_index(param));
-            }
-        };
         std::vector<size_t> full_key_indices, full_val_indices;
-        collect_global_indices(pattern_nodes.past_key_concat_node, full_key_indices);
-        collect_global_indices(pattern_nodes.past_value_concat_node, full_val_indices);
+        collect_concat_block_indices(model, pattern_nodes.past_key_concat_node, full_key_indices);
+        collect_concat_block_indices(model, pattern_nodes.past_value_concat_node, full_val_indices);
         // Sequence-dim maps are not needed in block mode; process_pyramid_model() uses
         // direct Concat-shrinking instead of per-parameter reshape.
         return PyramidValidationResult{query_length,
-                                       0u,
+                                       0u,  // past_kv_length: unused in block mode
                                        full_context_length,
                                        {},
                                        {},
@@ -635,7 +610,7 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
 namespace compiled {
 
 // Constructor implementation - extracts metadata and stores models for compilation.
-// KV block parameter indices are read from function::Attention._past_key/value_block_params,
+// KV block parameter indices are read from function::Attention::past_key/value_block_variant_param_indices,
 // which were populated in process_pyramid_model (block path) from the Concat inputs.
 PyramidAttention::PyramidAttention(const function::PyramidAttention& func_pyramid)
     : query_size(func_pyramid._query_length),
