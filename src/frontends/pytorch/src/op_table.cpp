@@ -112,6 +112,8 @@ OP_CONVERTER(translate_fill);
 OP_CONVERTER(translate_fill_diagonal);
 OP_CONVERTER(translate_flatten);
 OP_CONVERTER(translate_flip);
+OP_CONVERTER(translate_fractional_max_pool2d);
+OP_CONVERTER(translate_fractional_max_pool3d);
 OP_CONVERTER(translate_floor_divide);
 OP_CONVERTER(translate_fmod);
 OP_CONVERTER(translate_frobenius_norm);
@@ -321,6 +323,8 @@ OP_CONVERTER(translate_full_fx);
 OP_CONVERTER(translate_full_like_fx);
 OP_CONVERTER(translate_gelu_fx);
 OP_CONVERTER(translate_group_norm_fx);
+OP_CONVERTER(translate_fractional_max_pool2d_fx);
+OP_CONVERTER(translate_fractional_max_pool3d_fx);
 OP_CONVERTER(translate_index_fx);
 OP_CONVERTER(translate_layer_norm_fx);
 OP_CONVERTER(translate_leaky_relu_fx);
@@ -535,6 +539,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::fill_diagonal", op::translate_fill_diagonal},
         {"aten::flatten", op::quantizable_op<op::translate_flatten>},
         {"aten::flip", op::translate_flip},
+        {"aten::fractional_max_pool2d", op::translate_fractional_max_pool2d},
+        {"aten::fractional_max_pool3d", op::translate_fractional_max_pool3d},
         {"aten::floor", op::optional_out<op::translate_1to1_match_1_inputs<opset10::Floor>, 1>},
         {"aten::floor_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Floor>>},
         {"aten::floor_divide", op::translate_floor_divide},
@@ -948,6 +954,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.fill.Tensor", op::translate_fill},
         {"aten.fill_.Tensor", op::inplace_op<op::translate_fill>},
         {"aten.flip.default", op::translate_flip},
+        {"aten.fractional_max_pool2d.default", op::translate_fractional_max_pool2d_fx},
+        {"aten.fractional_max_pool3d.default", op::translate_fractional_max_pool3d_fx},
         {"aten.floor.default", op::translate_1to1_match_1_inputs<opset10::Floor>},
         {"aten.floor_divide.default", op::translate_floor_divide},
         {"aten.fmod.Scalar", op::translate_fmod},
