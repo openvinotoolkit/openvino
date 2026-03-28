@@ -2,7 +2,7 @@
 
 ## Key Contacts
 
-For assistance regarding CPU, contact a member of [openvino-ie-cpu-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-cpu-maintainers) group.
+For assistance regarding CPU, contact a member of the [OpenVINO Maintainers](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md) group.
 
 ## Components
 
