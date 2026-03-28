@@ -568,8 +568,7 @@ bool Convolution::canFuse(const NodePtr& node) const {
     if (!fusedWith.empty()) {
         // Allow FakeQuantize to fuse after a single Eltwise activation
         // to enable Conv -> Activation -> FakeQuantize for the ACL INT8 path.
-        if (fusedWith.size() == 1 &&
-            fusedWith[0]->getType() == Type::Eltwise &&
+        if (fusedWith.back()->getType() == Type::Eltwise &&
             node->getType() == Type::FakeQuantize) {
             const auto fqOutPrc = node->getOriginalOutputPrecisionAtPort(0);
             const auto convInPrc = getOriginalInputPrecisionAtPort(0);
