@@ -4,8 +4,6 @@
 
 #include "split_kvcache_into_blocks.hpp"
 
-#include <algorithm>
-#include <cctype>
 #include <memory>
 #include <string>
 #include <vector>
@@ -17,14 +15,13 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
+#include "util.hpp"
 
 namespace ov {
 namespace npuw {
 namespace pass {
 
 namespace {
-
-static constexpr const char* past_key_values = "past_key_values";
 
 /**
  * @brief Structure to hold parameter and its associated Concat node
@@ -35,59 +32,6 @@ struct KVCacheTransformInfo {
     ov::Output<ov::Node> present_kv_input;
     std::shared_ptr<ov::Node> convert_node;  // Convert node between param and concat (if exists)
 };
-
-/**
- * @brief Check if parameter is K (key) tensor
- * Matches: "past_key.0", "past_key_values.0.key", etc.
- */
-bool is_key_parameter(const std::shared_ptr<ov::op::v0::Parameter>& param) {
-    std::string name = param->get_friendly_name();
-    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-
-    // Match "past_key_values.X.key" pattern
-    if (name.find(past_key_values) != std::string::npos && name.find(".key") != std::string::npos) {
-        return true;
-    }
-    // Match "past_key.X" pattern (but not "past_key_values")
-    if (name.find("past_key") != std::string::npos && name.find(past_key_values) == std::string::npos) {
-        return true;
-    }
-    return false;
-}
-
-/**
- * @brief Check if parameter is V (value) tensor
- * Matches: "past_value.0", "past_key_values.0.value", etc.
- */
-bool is_value_parameter(const std::shared_ptr<ov::op::v0::Parameter>& param) {
-    std::string name = param->get_friendly_name();
-    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-
-    // Match "past_key_values.X.value" pattern
-    if (name.find(past_key_values) != std::string::npos && name.find(".value") != std::string::npos) {
-        return true;
-    }
-    // Match "past_value.X" pattern
-    if (name.find("past_value") != std::string::npos) {
-        return true;
-    }
-    return false;
-}
-
-/**
- * @brief Check if parameter name indicates KV cache
- *
- * KV cache parameters typically have names like:
- * - "past_key.0", "past_value.0" (standard naming)
- * - "past_key_values.0.key", "past_key_values.0.value" (alternative naming)
- */
-bool is_kv_cache_parameter(const std::shared_ptr<ov::op::v0::Parameter>& param) {
-    std::string name = param->get_friendly_name();
-    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-
-    return (name.find("past_key") != std::string::npos || name.find("past_value") != std::string::npos ||
-            name.find(past_key_values) != std::string::npos);
-}
 
 }  // namespace
 
@@ -103,7 +47,11 @@ bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& mode
     std::vector<std::shared_ptr<ov::op::v0::Parameter>> params_to_remove;
 
     for (const auto& param : model->get_parameters()) {
-        if (!is_kv_cache_parameter(param)) {
+        const std::string& param_name = param->get_friendly_name();
+
+        // Only process contiguous past key/value params (not already-split block params).
+        if (!ov::npuw::util::isPastKeyParamContiguous(param_name) &&
+            !ov::npuw::util::isPastValueParamContiguous(param_name)) {
             continue;
         }
 
@@ -202,10 +150,10 @@ bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& mode
         // For Key: always [B, H, S, D]
         // For Value transposed: [B, H, D, S]
         // For Value not transposed: [B, H, S, D]
-        if (is_key_parameter(param)) {
+        if (ov::npuw::util::isPastKeyParamContiguous(param->get_friendly_name())) {
             seq_len = orig_shape[2].is_static() ? orig_shape[2].get_length() : -1;
             head_dim = orig_shape[3].is_static() ? orig_shape[3].get_length() : -1;
-        } else if (is_value_parameter(param) && m_v_transposed) {
+        } else if (ov::npuw::util::isPastValueParamContiguous(param->get_friendly_name()) && m_v_transposed) {
             head_dim = orig_shape[2].is_static() ? orig_shape[2].get_length() : -1;
             seq_len = orig_shape[3].is_static() ? orig_shape[3].get_length() : -1;
         } else {
@@ -223,12 +171,10 @@ bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& mode
 
         // Determine concat axis based on parameter type
         int64_t concat_axis = -1;
-        if (is_key_parameter(param)) {
+        if (ov::npuw::util::isPastKeyParamContiguous(param->get_friendly_name())) {
             concat_axis = 2;  // K: [B, H, S, D] concat on S
-        } else if (is_value_parameter(param)) {
-            concat_axis = m_v_transposed
-                              ? 3
-                              : 2;  // V transposed: [B, H, D, S] concat on S; not transposed: [B, H, S, D] concat on S
+        } else if (ov::npuw::util::isPastValueParamContiguous(param->get_friendly_name())) {
+            concat_axis = m_v_transposed ? 3 : 2;  // V transposed: [B,H,D,S]; not transposed: [B,H,S,D]
         } else {
             concat_axis = concat->get_axis();
         }

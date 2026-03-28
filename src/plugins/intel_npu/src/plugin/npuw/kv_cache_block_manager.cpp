@@ -4,8 +4,6 @@
 
 #include "kv_cache_block_manager.hpp"
 
-#include <algorithm>
-
 #include "logging.hpp"
 #include "util.hpp"
 
@@ -28,15 +26,16 @@ KVCacheBlockManager::KVCacheBlockManager(uint32_t block_size,
     // For Value (transposed): [batch, num_heads, head_dim, seq_len] e.g., [1, 8, 128, 1024]
     // The seq_len dimension already equals block_size, no modification needed
     block_shape_ = base_shape;
-    OPENVINO_ASSERT(std::any_of(base_shape.begin(),
-                                base_shape.end(),
-                                [block_size](size_t dim) {
-                                    return dim == block_size;
-                                }),
+    // The sequence dimension must equal block_size.
+    // For non-transposed tensors (K, and V when !v_transposed) it is dim 2,
+    // for transposed V it is dim 3. Only these two positions are valid; checking
+    // all four dims would also accept shapes where head_dim == block_size by accident.
+    OPENVINO_ASSERT(base_shape.size() == 4 && (base_shape[2] == block_size || base_shape[3] == block_size),
                     "KVCacheBlockManager: base_shape ",
                     base_shape,
-                    " does not contain a dimension equal to block_size=",
-                    block_size);
+                    " does not have block_size=",
+                    block_size,
+                    " in sequence dimension (expected at dim 2 or 3)");
 
     // Initialize block pool (lazy memory allocation)
     blocks_.reserve(max_blocks);
@@ -119,12 +118,9 @@ void KVCacheBlockManager::update_block_tokens(uint32_t block_id, uint32_t num_to
     auto& block = blocks_[block_id];
     block.num_tokens = num_tokens;
 
-    // Update state
-    if (num_tokens >= block_size_) {
-        block.state = Block::State::FULL;
-    } else if (num_tokens > 0) {
-        block.state = Block::State::ALLOCATED;
-    }
+    // Update state: FULL when the block is filled, ALLOCATED otherwise
+    // (num_tokens==0 is valid after a reset).
+    block.state = (num_tokens >= block_size_) ? Block::State::FULL : Block::State::ALLOCATED;
 
     LOG_VERB("KVCacheBlockManager: Updated block " << block_id << " tokens: " << num_tokens << "/" << block_size_);
 }

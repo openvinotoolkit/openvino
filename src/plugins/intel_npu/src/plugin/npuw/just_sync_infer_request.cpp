@@ -1133,9 +1133,9 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
     const auto& pyr_attn = submodel_desc.pyramid_attention.value();
     const auto& main_inputs = submodel_desc.compiled_model->inputs();
 
-    // Alias block_N (N>0) tensors to block_0 in each main request.
-    // Uses HFA-style pre-parsed past_key/value_block_indices (built in set_compiled_models).
-    auto alias_blocks_to_block0 = [&](ov::SoPtr<ov::IAsyncInferRequest>& req) {
+    // Share KV block buffers across all block ports of the main request.
+    // bind_pyramid_attention_inputs() will set the real per-block tensors at inference time.
+    auto share_kv_block_buffers = [&](ov::SoPtr<ov::IAsyncInferRequest>& req) {
         if (!pyr_attn.past_key_block_global_param_indices.empty()) {
             auto key_block0 = req->get_tensor(main_inputs[pyr_attn.past_key_block_global_param_indices[0]]);
             for (size_t i = 1; i < pyr_attn.past_key_block_global_param_indices.size(); ++i) {
@@ -1150,9 +1150,9 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
         }
     };
 
-    alias_blocks_to_block0(m_subrequests[real_idx]);
+    share_kv_block_buffers(m_subrequests[real_idx]);
     if (is_piped) {
-        alias_blocks_to_block0(m_funcall_pipeline[real_idx].subrequest);
+        share_kv_block_buffers(m_funcall_pipeline[real_idx].subrequest);
     }
 
     // Build a name→main-port map once for sharing non-block inputs into pyramid variants.

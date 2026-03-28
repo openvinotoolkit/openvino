@@ -588,7 +588,7 @@ void BlockKVCacheExtension::copy_outputs_to_blocks(const std::shared_ptr<ov::IAs
         }
 
         // Parse layer index from output name (e.g., "present.0.key" → layer 0)
-        std::regex layer_regex(R"(present\.(\d+)\.)");
+        static const std::regex layer_regex(R"(present\.(\d+)\.)");
         std::smatch match;
         uint32_t layer_idx = 0;
         if (std::regex_search(output_name, match, layer_regex) && match.size() > 1) {
@@ -712,13 +712,13 @@ BlockKVCacheExtension::DummyTensors BlockKVCacheExtension::allocate_dummy_block_
     const BlockShapeInfo& shapes) const {
     DummyTensors dummies;
     dummies.key_tensor =
-        ov::npuw::util::allocMem(shapes.elem_type, shapes.key_shape, "NPU", m_compiled_model->get_plugin());
+        ov::npuw::util::allocMem(shapes.elem_type, shapes.key_shape, m_device, m_compiled_model->get_plugin());
     LOG_INFO("Allocated shared dummy key tensor: " << shapes.key_shape << " (" << dummies.key_tensor->get_byte_size()
                                                    << " bytes)");
 
     if (shapes.found_value && shapes.value_shape != shapes.key_shape) {
         dummies.value_tensor =
-            ov::npuw::util::allocMem(shapes.elem_type, shapes.value_shape, "NPU", m_compiled_model->get_plugin());
+            ov::npuw::util::allocMem(shapes.elem_type, shapes.value_shape, m_device, m_compiled_model->get_plugin());
         LOG_INFO("Allocated shared dummy value tensor: " << shapes.value_shape << " ("
                                                          << dummies.value_tensor->get_byte_size() << " bytes)");
     } else {
@@ -763,7 +763,7 @@ BlockKVCacheExtension::LayerBlockNames BlockKVCacheExtension::parse_block_inputs
         if (name.find("_block_") == std::string::npos) {
             continue;
         }
-        std::regex layer_regex(R"(past_key_values\.(\d+)\.)");
+        static const std::regex layer_regex(R"(past_key_values\.(\d+)\.)");
         std::smatch match;
         uint32_t layer_idx = 0;
         if (std::regex_search(name, match, layer_regex) && match.size() > 1) {
@@ -812,7 +812,7 @@ void BlockKVCacheExtension::create_block_managers_and_helpers(
                                                                                max_blocks,
                                                                                first_key_port.get_shape(),
                                                                                first_key_port.get_element_type(),
-                                                                               "NPU",
+                                                                               m_device,
                                                                                m_compiled_model->get_plugin());
         }
 
@@ -824,7 +824,7 @@ void BlockKVCacheExtension::create_block_managers_and_helpers(
                                                                                  max_blocks,
                                                                                  first_value_port.get_shape(),
                                                                                  first_value_port.get_element_type(),
-                                                                                 "NPU",
+                                                                                 m_device,
                                                                                  m_compiled_model->get_plugin());
         }
 

@@ -53,7 +53,7 @@ TEST_F(SplitKVCacheIntoBlocksTest, TransformKeyParameter) {
     const ov::Shape orig_shape{1, 32, 64, 128};        // [B, H, S=64, D]
     const uint32_t expected_blocks = 64 / block_size;  // 4 blocks
 
-    auto model = create_kv_cache_model("past_key.0", orig_shape, 2);
+    auto model = create_kv_cache_model("past_key_values.0.key", orig_shape, 2);
 
     // Apply transformation (max_blocks removed, auto-calculated from shape)
     ov::pass::Manager manager;
@@ -95,7 +95,7 @@ TEST_F(SplitKVCacheIntoBlocksTest, TransformValueParameterTransposed) {
     const uint32_t block_size = 16;
     const ov::Shape orig_shape{1, 32, 128, 64};  // [B, H, D, S] - transposed
 
-    auto model = create_kv_cache_model("past_value.0", orig_shape, 3);
+    auto model = create_kv_cache_model("past_key_values.0.value", orig_shape, 3);
 
     // Apply transformation with v_transposed=true
     ov::pass::Manager manager;
@@ -133,7 +133,7 @@ TEST_F(SplitKVCacheIntoBlocksTest, TransformValueParameterNotTransposed) {
     const uint32_t block_size = 16;
     const ov::Shape orig_shape{1, 32, 64, 128};  // [B, H, S, D] - same as K
 
-    auto model = create_kv_cache_model("past_value.0", orig_shape, 2);
+    auto model = create_kv_cache_model("past_key_values.0.value", orig_shape, 2);
 
     // Apply transformation with v_transposed=false
     ov::pass::Manager manager;
@@ -248,10 +248,10 @@ TEST_F(SplitKVCacheIntoBlocksTest, MultipleKVParameters) {
 
     // Create model with both past_key and past_value
     auto key_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 32, 64, 128});
-    key_param->set_friendly_name("past_key.0");
+    key_param->set_friendly_name("past_key_values.0.key");
 
     auto value_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 32, 128, 64});
-    value_param->set_friendly_name("past_value.0");
+    value_param->set_friendly_name("past_key_values.0.value");
 
     auto new_k = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 32, 1, 128});
     auto new_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 32, 128, 1});
@@ -276,11 +276,11 @@ TEST_F(SplitKVCacheIntoBlocksTest, MultipleKVParameters) {
     // Count block parameters
     size_t key_blocks = 0, value_blocks = 0;
     for (const auto& param : model->get_parameters()) {
-        if (param->get_friendly_name().find("past_key") != std::string::npos &&
+        if (param->get_friendly_name().find(".key") != std::string::npos &&
             param->get_friendly_name().find("_block_") != std::string::npos) {
             key_blocks++;
         }
-        if (param->get_friendly_name().find("past_value") != std::string::npos &&
+        if (param->get_friendly_name().find(".value") != std::string::npos &&
             param->get_friendly_name().find("_block_") != std::string::npos) {
             value_blocks++;
         }
@@ -299,7 +299,7 @@ TEST_F(SplitKVCacheIntoBlocksTest, TailBlockHandling) {
     const uint32_t expected_tail_size = 70 % block_size;                                             // 6
     const uint32_t expected_total_blocks = expected_full_blocks + (expected_tail_size > 0 ? 1 : 0);  // 5
 
-    auto model = create_kv_cache_model("past_key.0", orig_shape, 2);
+    auto model = create_kv_cache_model("past_key_values.0.key", orig_shape, 2);
 
     // Apply transformation
     ov::pass::Manager manager;
@@ -343,7 +343,7 @@ TEST_F(SplitKVCacheIntoBlocksTest, WithConvertNode) {
 
     // Create KV cache parameter
     auto kv_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, orig_shape);
-    kv_param->set_friendly_name("past_key.0");
+    kv_param->set_friendly_name("past_key_values.0.key");
 
     // Create Convert node (f16 -> f32)
     auto convert = std::make_shared<ov::op::v0::Convert>(kv_param, ov::element::f32);
