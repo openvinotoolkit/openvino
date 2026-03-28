@@ -6,7 +6,9 @@
 #include <vector>
 
 #include "gated_delta_net_inst.h"
+#include "gated_delta_net_shape_inference.hpp"
 #include "json_object.h"
+#include "openvino/op/gated_delta_net.hpp"
 #include "primitive_type_base.h"
 #include "to_string_utils.h"
 
@@ -23,19 +25,30 @@ std::vector<layout> gated_delta_net_inst::calc_output_layouts(const gated_delta_
     const auto& all_inputs = node.get_input_layouts();
     const auto num_outputs = desc->output_size();
     OPENVINO_ASSERT(all_inputs.size() == 6, "gated_delta_net's must have 6 inputs");
-    // query, key, value, initial_states, g, beta,
-    auto query_layout = impl_param.get_input_layout(0);
-    auto value_layout = impl_param.get_input_layout(2);
-    auto out_ps = value_layout.get_partial_shape();
-    const auto& q_ps = query_layout.get_partial_shape();
-    if (out_ps.rank().is_static() && q_ps.rank().is_static() && out_ps.rank().get_length() == 4 && q_ps.rank().get_length() == 4) {
-        out_ps[0] = q_ps[0];
-        out_ps[1] = q_ps[1];
-    }
+
+    ov::op::internal::GatedDeltaNet op;
+
+    std::vector<ShapeType> input_shapes = {
+        impl_param.get_input_layout(0).get<ShapeType>(),
+        impl_param.get_input_layout(1).get<ShapeType>(),
+        impl_param.get_input_layout(2).get<ShapeType>(),
+        impl_param.get_input_layout(3).get<ShapeType>(),
+        impl_param.get_input_layout(4).get<ShapeType>(),
+        impl_param.get_input_layout(5).get<ShapeType>(),
+    };
+    auto output_shapes = ov::op::internal::shape_infer(&op, input_shapes);
+    OPENVINO_ASSERT(num_outputs <= output_shapes.size(),
+                    "gated_delta_net shape infer produced fewer outputs than requested: ",
+                    output_shapes.size(),
+                    " < ",
+                    num_outputs);
+
+    const auto value_layout = impl_param.get_input_layout(2);
+    const auto state_layout = impl_param.get_input_layout(3);
     std::vector<layout> output_layouts;
-    output_layouts.emplace_back(out_ps, value_layout.data_type, value_layout.format);
+    output_layouts.emplace_back(output_shapes[0], value_layout.data_type, value_layout.format);
     if (num_outputs == 2) {
-        output_layouts.push_back(impl_param.get_input_layout(3));
+        output_layouts.emplace_back(output_shapes[1], state_layout.data_type, state_layout.format);
     }
     return output_layouts;
 }
