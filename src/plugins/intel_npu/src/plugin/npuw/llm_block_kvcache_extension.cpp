@@ -788,7 +788,7 @@ void BlockKVCacheExtension::create_block_managers_and_helpers(
     const std::vector<std::shared_ptr<ov::IAsyncInferRequest>>& generate_requests,
     const std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap>& gen_variant_in_ports) {
     const uint32_t block_size = static_cast<uint32_t>(m_compiled_model->m_prefill_chunk_size);
-    const uint32_t max_blocks = m_compiled_model->m_kvcache_desc.total_size / block_size;
+    const uint32_t max_blocks = (m_compiled_model->m_kvcache_desc.total_size + block_size - 1) / block_size;
 
     LOG_INFO("Block configuration: size=" << block_size << " tokens, max_blocks=" << max_blocks);
 
