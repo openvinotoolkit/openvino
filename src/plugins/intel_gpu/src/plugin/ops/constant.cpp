@@ -101,6 +101,9 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     } else {
         cldnn::memory::ptr mem = nullptr;
         if (constLayout.bytes_count() > 0) {
+            // Ensure the engine respects the large allocation config before allocating constant memory
+            p.get_engine().set_enable_large_allocations(p.get_config().get_enable_large_allocations());
+
             mem = p.get_engine().allocate_memory(constLayout, false);
         } else {
             // In the case of empty const data with {0} shape, it has zero byte.
