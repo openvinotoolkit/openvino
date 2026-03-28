@@ -234,19 +234,15 @@ TEST_P(ConvertMOEToMOE3GemmSymmetricCompressedTest, GEMM3SwiGLUSymmetric) {
         auto scale_gate = op::v0::Constant::create(element::f16, Shape{128, 768, 16, 1}, {0.01f});
         auto scale_reshape_gate = std::make_shared<op::v1::Reshape>(scale_gate, reshape_const_gate_up, false);
         auto scale_transpose_gate = std::make_shared<ov::op::v1::Transpose>(scale_reshape_gate, transpose_const_gate_up);
-        // Dummy zero-filled ZP for symmetric
-        auto zp_gate_dummy = op::v0::Constant::create(element::i4, Shape{128, 768, 16, 1}, {0});
-        auto zp_reshape_gate = std::make_shared<op::v1::Reshape>(zp_gate_dummy, reshape_const_gate_up, false);
-        auto zp_transpose_gate = std::make_shared<ov::op::v1::Transpose>(zp_reshape_gate, transpose_const_gate_up);
+        // Scalar dummy ZP for symmetric (has_zp=false) — minimizes memory allocation
+        auto zp_gate_dummy = op::v0::Constant::create(element::i4, Shape{1}, {0});
 
         auto wei_up = op::v0::Constant::create(element::i4, Shape{128, 768, 16, 128}, {1});
         auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 768, 16, 1}, {0.01f});
         auto scale_reshape_up = std::make_shared<op::v1::Reshape>(scale_up, reshape_const_gate_up, false);
         auto scale_transpose_up = std::make_shared<ov::op::v1::Transpose>(scale_reshape_up, transpose_const_gate_up);
-        // Dummy zero-filled ZP for symmetric
-        auto zp_up_dummy = op::v0::Constant::create(element::i4, Shape{128, 768, 16, 1}, {0});
-        auto zp_reshape_up = std::make_shared<op::v1::Reshape>(zp_up_dummy, reshape_const_gate_up, false);
-        auto zp_transpose_up = std::make_shared<ov::op::v1::Transpose>(zp_reshape_up, transpose_const_gate_up);
+        // Scalar dummy ZP for symmetric (has_zp=false) — minimizes memory allocation
+        auto zp_up_dummy = op::v0::Constant::create(element::i4, Shape{1}, {0});
 
         // Down projection
         auto wei_down = op::v0::Constant::create(element::i4, Shape{128, 2048, 6, 128}, {1});
@@ -255,10 +251,8 @@ TEST_P(ConvertMOEToMOE3GemmSymmetricCompressedTest, GEMM3SwiGLUSymmetric) {
         auto transpose_const_down = op::v0::Constant::create(element::i32, Shape{3}, {0, 2, 1});
         auto scale_reshape_down = std::make_shared<op::v1::Reshape>(scale_down, reshape_const_down, false);
         auto scale_transpose_down = std::make_shared<ov::op::v1::Transpose>(scale_reshape_down, transpose_const_down);
-        // Dummy zero-filled ZP for symmetric
-        auto zp_down_dummy = op::v0::Constant::create(element::i4, Shape{128, 2048, 6, 1}, {0});
-        auto zp_reshape_down = std::make_shared<op::v1::Reshape>(zp_down_dummy, reshape_const_down, false);
-        auto zp_transpose_down = std::make_shared<ov::op::v1::Transpose>(zp_reshape_down, transpose_const_down);
+        // Scalar dummy ZP for symmetric (has_zp=false) — minimizes memory allocation
+        auto zp_down_dummy = op::v0::Constant::create(element::i4, Shape{1}, {0});
 
         ov::intel_gpu::op::MOECompressed::Config config;
         config.hidden_size = 2048;
@@ -273,13 +267,13 @@ TEST_P(ConvertMOEToMOE3GemmSymmetricCompressedTest, GEMM3SwiGLUSymmetric) {
                                                                                                                        routing_idx,
                                                                                                                        wei_gate,
                                                                                                                        scale_transpose_gate,
-                                                                                                                       zp_transpose_gate,
+                                                                                                                       zp_gate_dummy,
                                                                                                                        wei_up,
                                                                                                                        scale_transpose_up,
-                                                                                                                       zp_transpose_up,
+                                                                                                                       zp_up_dummy,
                                                                                                                        wei_down,
                                                                                                                        scale_transpose_down,
-                                                                                                                       zp_transpose_down},
+                                                                                                                       zp_down_dummy},
                                                                                                       config);
         if (config.out_type != data_type) {
             moe_compressed = std::make_shared<ov::op::v0::Convert>(moe_compressed, data_type);
