@@ -110,8 +110,8 @@ void expect_host_flash_attention_equal(const ov::npuw::compiled::HostFlashAttent
     EXPECT_EQ(lhs._k_seq_dim, rhs._k_seq_dim);
     EXPECT_EQ(lhs._v_seq_dim, rhs._v_seq_dim);
     EXPECT_EQ(lhs._sdpa_indices.query, rhs._sdpa_indices.query);
-    EXPECT_EQ(lhs._sdpa_indices.past_key, rhs._sdpa_indices.past_key);
-    EXPECT_EQ(lhs._sdpa_indices.past_value, rhs._sdpa_indices.past_value);
+    EXPECT_EQ(lhs._sdpa_indices.past_key_blocks, rhs._sdpa_indices.past_key_blocks);
+    EXPECT_EQ(lhs._sdpa_indices.past_value_blocks, rhs._sdpa_indices.past_value_blocks);
     EXPECT_EQ(lhs._sdpa_indices.present_key, rhs._sdpa_indices.present_key);
     EXPECT_EQ(lhs._sdpa_indices.present_value, rhs._sdpa_indices.present_value);
     EXPECT_EQ(lhs._sdpa_indices.attention_mask, rhs._sdpa_indices.attention_mask);
@@ -520,7 +520,20 @@ TEST(SerializationTest, OVTypes_PyramidAttention) {
     var.query_size = 16;
     var.full_context_size = 128;
     var._context_lengths = {16, 32, 64, 128};
-    var._attention_infos = {{{{0, 2}, {1, 3}}, 4, 16, 32}, {{{2, 1}}, 5, 16, 64}};
+
+    ov::npuw::compiled::PyramidAttentionInfo info1;
+    info1.params = {{0, 2}, {1, 3}};
+    info1.mask_idx = 4;
+    info1.query_size = 16;
+    info1.context_length = 32;
+
+    ov::npuw::compiled::PyramidAttentionInfo info2;
+    info2.params = {{2, 1}};
+    info2.mask_idx = 5;
+    info2.query_size = 16;
+    info2.context_length = 64;
+
+    var._attention_infos = {info1, info2};
 
     ov::npuw::compiled::PyramidAttention res;
 
@@ -540,7 +553,7 @@ TEST(SerializationTest, OVTypes_HostFlashAttention) {
     var._sdpa_attention_info._context_size = 32;
     var._sdpa_attention_info._k_seq_dim = 1;
     var._sdpa_attention_info._v_seq_dim = 2;
-    var._sdpa_attention_info._sdpa_indices = {3, 4, 5, 6, 7, 8};
+    var._sdpa_attention_info._sdpa_indices = {3, {4}, {5}, 6, 7, 8};
     var._sdpa_attention_info._tile_input_indices = {9, 10, 11, 12, 13, 14, 15};
     var._sdpa_attention_info._tile_output_indices = {16, 17, 18};
     var._tile_size = 64;
