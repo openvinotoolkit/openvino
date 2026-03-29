@@ -149,7 +149,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         m_prefill_out_ports.emplace(output_port.get_any_name(), output_port);
     }
 
-    init_pre_alloc_device();
+    m_pre_alloc_device = init_pre_alloc_device();
     init_lora_states();
 
     m_eagle3_ext.initialize(m_npuw_llm_compiled_model->m_is_eagle, m_prefill_in_ports, m_prefill_out_ports);
