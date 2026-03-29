@@ -363,7 +363,7 @@ class KVCacheTests: public ::testing::Test {
                     seq_len.data<int32_t>()[0] = trim.trim_seq;
                     return trim.trim_seq;
                 } else {
-                    OPENVINO_ASSERT(past_seq_len < std::numeric_limits<int32_t>::max());
+                    OPENVINO_ASSERT(past_seq_len < static_cast<uint32_t>(std::numeric_limits<int32_t>::max()));
                     seq_len.data<int32_t>()[0] = static_cast<int32_t>(past_seq_len);
                     return std::nullopt;
                 }

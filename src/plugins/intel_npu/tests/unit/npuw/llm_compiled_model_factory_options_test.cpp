@@ -12,9 +12,8 @@
 #include <utility>
 #include <vector>
 
-#include "embedding_model_utils.hpp"
 #include "llm_test_helpers.hpp"
-#include "llm_compiled_model_utils.hpp"
+#include "whisper/prepare_whisper_model.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 
 namespace {
