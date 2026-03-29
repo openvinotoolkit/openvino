@@ -35,7 +35,7 @@ namespace npuw {
  *   auto block_id = manager.allocate_block();
  *   auto tensor = manager.get_block_tensor(block_id.value());
  *   manager.update_block_tokens(block_id.value(), 256);
- *   manager.free_block(block_id.value());
+ *   manager.clear_all();
  */
 class KVCacheBlockManager {
 public:
@@ -43,16 +43,15 @@ public:
      * @brief Represents a single block of KV cache memory
      */
     struct Block {
-        uint32_t id;                    ///< Unique block identifier
-        ov::SoPtr<ov::ITensor> tensor;  ///< Block memory tensor
-        uint32_t num_tokens;            ///< Number of tokens stored in this block
+        ov::SoPtr<ov::ITensor> tensor;  ///< Block memory tensor (allocated on-demand)
+        uint32_t num_tokens = 0;        ///< Number of tokens stored in this block
 
         enum class State {
             FREE,       ///< Block is free and available for allocation
             ALLOCATED,  ///< Block is allocated but not yet filled
             FULL,       ///< Block is completely filled
         };
-        State state;
+        State state = State::FREE;
     };
 
     /**
