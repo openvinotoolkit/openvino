@@ -384,6 +384,40 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::value_cache_precision.name(),
                                ". Supported values: u4, u8, bf16, f16, f32");
             }
+        } else if (key == ov::internal::kv_cache_codec.name()) {
+            auto codec = val.as<ov::internal::CacheCodecMode>();
+            keyCacheCodec = codec;
+            valueCacheCodec = codec;
+            if (codec == ov::internal::CacheCodecMode::TURBO_QUANT_3 ||
+                codec == ov::internal::CacheCodecMode::TURBO_QUANT_4 ||
+                codec == ov::internal::CacheCodecMode::TURBO_QUANT_3_QJL ||
+                codec == ov::internal::CacheCodecMode::TURBO_QUANT_4_QJL ||
+                codec == ov::internal::CacheCodecMode::POLAR_QUANT_3 ||
+                codec == ov::internal::CacheCodecMode::POLAR_QUANT_4) {
+                // TBQ/Polar requires u8 backing storage
+                kvCachePrecision = ov::element::u8;
+                keyCachePrecision = ov::element::u8;
+                valueCachePrecision = ov::element::u8;
+                kvCachePrecisionSetExplicitly = true;
+                keyCachePrecisionSetExplicitly = true;
+                valueCachePrecisionSetExplicitly = true;
+            }
+        } else if (key == ov::internal::key_cache_codec.name()) {
+            auto codec = val.as<ov::internal::CacheCodecMode>();
+            keyCacheCodec = codec;
+            if (codec != ov::internal::CacheCodecMode::NONE) {
+                // TBQ/Polar requires u8 backing storage
+                keyCachePrecision = ov::element::u8;
+                keyCachePrecisionSetExplicitly = true;
+            }
+        } else if (key == ov::internal::value_cache_codec.name()) {
+            auto codec = val.as<ov::internal::CacheCodecMode>();
+            valueCacheCodec = codec;
+            if (codec != ov::internal::CacheCodecMode::NONE) {
+                // TBQ/Polar requires u8 backing storage
+                valueCachePrecision = ov::element::u8;
+                valueCachePrecisionSetExplicitly = true;
+            }
         } else if (key == ov::key_cache_group_size.name() || key == ov::value_cache_group_size.name()) {
             try {
                 const auto groupSize = val.as<uint64_t>();

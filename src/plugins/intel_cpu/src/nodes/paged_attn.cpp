@@ -26,6 +26,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "transformations/utils/utils.hpp"
@@ -246,6 +247,19 @@ void PagedAttention::createPrimitive() {
         auto kCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
         auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
         const auto& cpuConfig = context->getConfig();
+
+        // TurboQuant/PolarQuant is not supported for paged attention in v1.
+        if (cpuConfig.keyCacheCodec == ov::internal::CacheCodecMode::TURBO_QUANT_3 ||
+            cpuConfig.keyCacheCodec == ov::internal::CacheCodecMode::TURBO_QUANT_4 ||
+            cpuConfig.valueCacheCodec == ov::internal::CacheCodecMode::TURBO_QUANT_3 ||
+            cpuConfig.valueCacheCodec == ov::internal::CacheCodecMode::TURBO_QUANT_4 ||
+            cpuConfig.keyCacheCodec == ov::internal::CacheCodecMode::POLAR_QUANT_3 ||
+            cpuConfig.keyCacheCodec == ov::internal::CacheCodecMode::POLAR_QUANT_4 ||
+            cpuConfig.valueCacheCodec == ov::internal::CacheCodecMode::POLAR_QUANT_3 ||
+            cpuConfig.valueCacheCodec == ov::internal::CacheCodecMode::POLAR_QUANT_4) {
+            OPENVINO_THROW("TurboQuant/PolarQuant KV cache is not supported with paged attention. "
+                           "Use non-paged SDPA or switch to u8/f16/f32 cache precision.");
+        }
 
         bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
         bool quantValuebyChannel =

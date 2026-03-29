@@ -523,6 +523,18 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::value_cache_precision)::value_type(engConfig.valueCachePrecision);
     }
 
+    if (name == ov::internal::kv_cache_codec) {
+        return engConfig.keyCacheCodec;
+    }
+
+    if (name == ov::internal::key_cache_codec) {
+        return engConfig.keyCacheCodec;
+    }
+
+    if (name == ov::internal::value_cache_codec) {
+        return engConfig.valueCacheCodec;
+    }
+
     if (name == ov::key_cache_group_size) {
         return static_cast<decltype(ov::key_cache_group_size)::value_type>(engConfig.keyCacheGroupSize);
     }
@@ -589,6 +601,9 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
                                                    RW_property(ov::hint::kv_cache_precision.name()),
                                                    RW_property(ov::key_cache_precision.name()),
                                                    RW_property(ov::value_cache_precision.name()),
+                                                   RW_property(ov::internal::kv_cache_codec.name()),
+                                                   RW_property(ov::internal::key_cache_codec.name()),
+                                                   RW_property(ov::internal::value_cache_codec.name()),
                                                    RW_property(ov::key_cache_group_size.name()),
                                                    RW_property(ov::value_cache_group_size.name()),
                                                    RW_property(ov::enable_weightless.name())};

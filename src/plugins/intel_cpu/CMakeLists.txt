@@ -316,9 +316,20 @@ cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 SVE NEON_FP16 ANY
                     src/nodes/kernels/scaled_attn/attn_quant.cpp
         API         src/nodes/kernels/scaled_attn/attn_quant.hpp
-        NAME        attn_quantkv paged_attn_quantkv attn_quant_u8 attn_dequant_u8 attn_quant_by_channel_u8 attn_dequant_by_channel_u8
+        NAME        attn_quantkv paged_attn_quantkv attn_quant_u8 attn_quant_u4 attn_dequant_u8 attn_quant_by_channel_u8 attn_dequant_by_channel_u8
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/scaled_attn/attn_quant_turboq.cpp
+        API         src/nodes/kernels/scaled_attn/attn_quant_turboq.hpp
+        NAME        turboq_quantize_head turboq_fused_qk_dot turboq_fused_v_accum turboq_reduce_head turboq_head_bytes turboq_row_bytes turboq_head_bytes_qjl turboq_quantize_head_qjl mha_turboq polarq_quantize_head polarq_fused_qk_dot polarq_fused_v_accum polarq_head_bytes
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+## @todo: turboq_rotation.cpp not cross-compiled — the dispatcher generator
+## cannot handle no-argument functions (turboq_get_rotation_matrix).
+## turboq_matvec is inline in the header and gets SIMD when called from
+## cross-compiled attn_quant_turboq.cpp (AVX2/AVX512F variants).
 
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F ANY

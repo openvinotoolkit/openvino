@@ -17,6 +17,7 @@
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "utils/debug_caps_config.h"
@@ -86,6 +87,8 @@ struct Config {
     size_t valueCacheGroupSize = 0UL;
     CacheQuantMode keyCacheQuantMode = CacheQuantMode::AUTO;
     CacheQuantMode valueCacheQuantMode = CacheQuantMode::AUTO;
+    ov::internal::CacheCodecMode keyCacheCodec = ov::internal::CacheCodecMode::NONE;
+    ov::internal::CacheCodecMode valueCacheCodec = ov::internal::CacheCodecMode::NONE;
     bool enableSageAttn = false;
     ov::threading::IStreamsExecutor::Config streamExecutorConfig;
     int streams = 1;

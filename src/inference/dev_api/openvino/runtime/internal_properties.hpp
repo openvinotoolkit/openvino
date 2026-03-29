@@ -174,6 +174,84 @@ static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quan
 
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};
 
+/**
+ * @brief Enum to define KV cache quantization codec.
+ * Orthogonal to cache precision (element::Type) — precision controls backing storage,
+ * codec controls the quantization algorithm.
+ */
+enum class CacheCodecMode {
+    NONE = 0,               // Default: behavior determined by element::Type precision
+    TURBO_QUANT_3 = 1,      // TurboQuant 3-bit (Lloyd-Max codebook, random orthogonal rotation)
+    TURBO_QUANT_4 = 2,      // TurboQuant 4-bit
+    TURBO_QUANT_3_QJL = 3,  // TurboQuant 3-bit + QJL correction bit (not yet supported)
+    TURBO_QUANT_4_QJL = 4,  // TurboQuant 4-bit + QJL correction bit (not yet supported)
+    POLAR_QUANT_3 = 5,      // PolarQuant 3-bit (recursive polar decomposition)
+    POLAR_QUANT_4 = 6,      // PolarQuant 4-bit
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const CacheCodecMode& mode) {
+    switch (mode) {
+    case CacheCodecMode::NONE:
+        return os << "NONE";
+    case CacheCodecMode::TURBO_QUANT_3:
+        return os << "TURBO_QUANT_3";
+    case CacheCodecMode::TURBO_QUANT_4:
+        return os << "TURBO_QUANT_4";
+    case CacheCodecMode::TURBO_QUANT_3_QJL:
+        return os << "TURBO_QUANT_3_QJL";
+    case CacheCodecMode::TURBO_QUANT_4_QJL:
+        return os << "TURBO_QUANT_4_QJL";
+    case CacheCodecMode::POLAR_QUANT_3:
+        return os << "POLAR_QUANT_3";
+    case CacheCodecMode::POLAR_QUANT_4:
+        return os << "POLAR_QUANT_4";
+    default:
+        OPENVINO_THROW("Unsupported cache codec mode");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, CacheCodecMode& mode) {
+    std::string str;
+    is >> str;
+    if (str == "NONE" || str == "none") {
+        mode = CacheCodecMode::NONE;
+    } else if (str == "TURBO_QUANT_3" || str == "tbq3") {
+        mode = CacheCodecMode::TURBO_QUANT_3;
+    } else if (str == "TURBO_QUANT_4" || str == "tbq4") {
+        mode = CacheCodecMode::TURBO_QUANT_4;
+    } else if (str == "TURBO_QUANT_3_QJL" || str == "tbq3_qjl") {
+        mode = CacheCodecMode::TURBO_QUANT_3_QJL;
+    } else if (str == "TURBO_QUANT_4_QJL" || str == "tbq4_qjl") {
+        mode = CacheCodecMode::TURBO_QUANT_4_QJL;
+    } else if (str == "POLAR_QUANT_3" || str == "polar3") {
+        mode = CacheCodecMode::POLAR_QUANT_3;
+    } else if (str == "POLAR_QUANT_4" || str == "polar4") {
+        mode = CacheCodecMode::POLAR_QUANT_4;
+    } else {
+        OPENVINO_THROW("Unsupported cache codec mode: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Define quantization codec for KV cache.
+ */
+static constexpr Property<CacheCodecMode, PropertyMutability::RW> kv_cache_codec{"KV_CACHE_CODEC"};
+
+/**
+ * @brief Define quantization codec for key cache only.
+ * Overrides kv_cache_codec for key cache when asymmetric K/V codecs are desired.
+ */
+static constexpr Property<CacheCodecMode, PropertyMutability::RW> key_cache_codec{"KEY_CACHE_CODEC"};
+
+/**
+ * @brief Define quantization codec for value cache only.
+ * Overrides kv_cache_codec for value cache when asymmetric K/V codecs are desired.
+ */
+static constexpr Property<CacheCodecMode, PropertyMutability::RW> value_cache_codec{"VALUE_CACHE_CODEC"};
+
 using WeightSharingCtxPtr = std::shared_ptr<const weight_sharing::Context>;
 
 /**
