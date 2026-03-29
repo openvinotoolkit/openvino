@@ -24,6 +24,26 @@ std::string make_block_tail_input_name(const std::string& kv_type, const std::st
     return "past_key_values." + layer_idx + "." + kv_type + "_block_tail";
 }
 
+// Classify a port name as a numbered block KV param (non-contiguous, non-tail).
+// Returns: true  => numbered key block (key_block_N)
+//          false => numbered value block (value_block_N)
+//          nullopt => skip (not a KV param, contiguous, or tail)
+std::optional<bool> classify_numbered_block_param(const std::string& name) {
+    namespace uu = ov::npuw::util;
+    const bool is_key = uu::isPastKeyParam(name);
+    const bool is_value = uu::isPastValueParam(name);
+    if (!is_key && !is_value) {
+        return std::nullopt;
+    }
+    if (uu::isPastKeyParamContiguous(name) || uu::isPastValueParamContiguous(name)) {
+        return std::nullopt;
+    }
+    if (name.find("block_tail") != std::string::npos) {
+        return std::nullopt;
+    }
+    return is_key;
+}
+
 // Set dummy tensors on all numbered block inputs in a ports map.
 // Returns the count of block inputs that were set.
 template <typename PortMapType, typename SetTensorFn>
@@ -33,14 +53,12 @@ size_t set_dummy_block_tensors(const PortMapType& ports_map,
                                const ov::SoPtr<ov::ITensor>& dummy_value_tensor) {
     size_t block_count = 0;
     for (const auto& [name, port] : ports_map) {
-        if (name.find("block_tail") != std::string::npos) {
+        const auto kv_type = classify_numbered_block_param(name);
+        if (!kv_type.has_value()) {
             continue;
         }
-        if (name.find("_block_") != std::string::npos) {
-            bool is_key_block = (name.find("key_block") != std::string::npos);
-            set_tensor_fn(port, is_key_block ? dummy_key_tensor : dummy_value_tensor);
-            block_count++;
-        }
+        set_tensor_fn(port, kv_type.value() ? dummy_key_tensor : dummy_value_tensor);
+        block_count++;
     }
     return block_count;
 }
@@ -139,11 +157,14 @@ bool BlockKVCacheExtension::initialize(
     create_block_managers_and_helpers(layer_blocks, prefill_in_ports, generate_requests, gen_variant_in_ports);
 
     // Phase 5: Snapshot original prefill output tensors for restore_prefill_output_buffers().
-    // These are the model-owned buffers that exist before any zero-copy redirect happens.
+    // Also build m_output_kv_info (output_name → layer/kv classification) to avoid per-call
+    // regex in copy_outputs_to_blocks().
     for (const auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
         const std::string layer_str = std::to_string(layer_idx);
-        for (const char* kv_type : {"key", "value"}) {
-            std::string output_name = "present." + layer_str + "." + kv_type;
+        for (const bool is_key : {true, false}) {
+            const std::string kv_type = is_key ? "key" : "value";
+            const std::string output_name = "present." + layer_str + "." + kv_type;
+            m_output_kv_info[output_name] = {layer_idx, is_key};
             auto port_it = prefill_out_ports.find(output_name);
             if (port_it != prefill_out_ports.end()) {
                 m_prefill_original_output_tensors[output_name] = prefill_request->get_tensor(port_it->second);
@@ -581,19 +602,14 @@ void BlockKVCacheExtension::copy_outputs_to_blocks(const std::shared_ptr<ov::IAs
          ++i) {
         const auto& output_name = compiled->outputs()[i].get_any_name();
 
-        bool is_key = (output_name.find("key") != std::string::npos);
-        bool is_value = (output_name.find("value") != std::string::npos);
-        if (!is_key && !is_value) {
+        // Classify output port via pre-computed map (avoids per-call regex).
+        auto info_it = m_output_kv_info.find(output_name);
+        if (info_it == m_output_kv_info.end()) {
             continue;
         }
-
-        // Parse layer index from output name (e.g., "present.0.key" → layer 0)
-        static const std::regex layer_regex(R"(present\.(\d+)\.)");
-        std::smatch match;
-        uint32_t layer_idx = 0;
-        if (std::regex_search(output_name, match, layer_regex) && match.size() > 1) {
-            layer_idx = static_cast<uint32_t>(std::stoi(match[1].str()));
-        }
+        const bool is_key = info_it->second.is_key;
+        const bool is_value = !is_key;
+        const uint32_t layer_idx = info_it->second.layer_idx;
 
         auto it = m_kv_cache_block_managers.find(layer_idx);
         if (it == m_kv_cache_block_managers.end()) {
@@ -685,24 +701,25 @@ void BlockKVCacheExtension::commit_generate_kv_and_rebind(
 BlockKVCacheExtension::BlockShapeInfo BlockKVCacheExtension::find_block_shapes(const PortsMap& prefill_in_ports) const {
     BlockShapeInfo shapes;
     for (const auto& [name, port] : prefill_in_ports) {
-        if (name.find("block_tail") != std::string::npos) {
+        const auto kv_type = classify_numbered_block_param(name);
+        if (!kv_type.has_value()) {
             continue;
         }
-        if (name.find("_block_") != std::string::npos) {
-            if (!shapes.found_key && name.find("key_block") != std::string::npos) {
-                shapes.key_shape = port.get_shape();
-                shapes.elem_type = port.get_element_type();
-                shapes.found_key = true;
-                LOG_DEBUG("Detected key block shape: " << shapes.key_shape << ", type: " << shapes.elem_type);
-            }
-            if (!shapes.found_value && name.find("value_block") != std::string::npos) {
-                shapes.value_shape = port.get_shape();
-                shapes.found_value = true;
-                LOG_DEBUG("Detected value block shape: " << shapes.value_shape);
-            }
-            if (shapes.found_key && shapes.found_value) {
-                break;
-            }
+        const bool is_key = kv_type.value();
+        const bool is_value = !is_key;
+        if (!shapes.found_key && is_key) {
+            shapes.key_shape = port.get_shape();
+            shapes.elem_type = port.get_element_type();
+            shapes.found_key = true;
+            LOG_DEBUG("Detected key block shape: " << shapes.key_shape << ", type: " << shapes.elem_type);
+        }
+        if (!shapes.found_value && is_value) {
+            shapes.value_shape = port.get_shape();
+            shapes.found_value = true;
+            LOG_DEBUG("Detected value block shape: " << shapes.value_shape);
+        }
+        if (shapes.found_key && shapes.found_value) {
+            break;
         }
     }
     return shapes;
@@ -760,7 +777,9 @@ BlockKVCacheExtension::LayerBlockNames BlockKVCacheExtension::parse_block_inputs
     LayerBlockNames layer_blocks;
 
     for (const auto& [name, port] : prefill_in_ports) {
-        if (name.find("_block_") == std::string::npos) {
+        const bool is_key = ov::npuw::util::isPastKeyParam(name);
+        const bool is_value = ov::npuw::util::isPastValueParam(name);
+        if (!is_key && !is_value) {
             continue;
         }
         static const std::regex layer_regex(R"(past_key_values\.(\d+)\.)");
@@ -772,7 +791,6 @@ BlockKVCacheExtension::LayerBlockNames BlockKVCacheExtension::parse_block_inputs
             LOG_DEBUG("WARNING: Could not parse layer index from " << name << ", using default 0");
         }
 
-        bool is_key = (name.find("key_block") != std::string::npos);
         if (is_key) {
             layer_blocks[layer_idx].first.push_back(name);
         } else {

@@ -237,6 +237,13 @@ private:
     // layer_idx → {key_block_names, value_block_names}
     using LayerBlockNames = std::unordered_map<uint32_t, std::pair<std::vector<std::string>, std::vector<std::string>>>;
 
+    // Pre-computed classification for each KV output port (e.g. "present.0.key").
+    // Built once in initialize(); used by copy_outputs_to_blocks() to avoid per-call regex.
+    struct OutputKVInfo {
+        uint32_t layer_idx;
+        bool is_key;  // false → value port
+    };
+
     // -------------------------------------------------------------------------
     // Initialization helpers (called once from initialize())
     // -------------------------------------------------------------------------
@@ -285,6 +292,9 @@ private:
     // Pre-computed binding helpers: variant_request → layer_idx → {key_helper, value_helper}
     std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, std::unordered_map<uint32_t, LayerBlockBindingHelpers>>
         m_variant_block_binding_helpers;
+
+    // output_name → {layer_idx, is_key}: pre-computed in initialize(), used in copy_outputs_to_blocks()
+    std::unordered_map<std::string, OutputKVInfo> m_output_kv_info;
 
     // Zero-copy prefill output state
     std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_prefill_original_output_tensors;
