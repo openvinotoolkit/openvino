@@ -921,3 +921,14 @@ bool ov::npuw::util::isPastKeyValuesValue(const std::string& str) {
     std::regex pattern(R"(past_key_values\.\d+\.value)");
     return std::regex_match(str, pattern);
 }
+
+bool ov::npuw::util::isPastKeyParamContiguous(const std::string& str) {
+    // Use a static regex to avoid recompilation on every call.
+    static const std::regex pattern(R"(past_key_values\.\d+\.key)");
+    return std::regex_match(str, pattern);
+}
+
+bool ov::npuw::util::isPastValueParamContiguous(const std::string& str) {
+    static const std::regex pattern(R"(past_key_values\.\d+\.value)");
+    return std::regex_match(str, pattern);
+}

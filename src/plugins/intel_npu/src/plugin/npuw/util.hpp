@@ -247,6 +247,12 @@ bool isPastKeyValuesKey(const std::string& str);
 
 bool isPastKeyValuesValue(const std::string& str);
 
+// Matches only the contiguous (non-block-split) past key parameter.
+bool isPastKeyParamContiguous(const std::string& str);
+
+// Matches only the contiguous (non-block-split) past value parameter.
+bool isPastValueParamContiguous(const std::string& str);
+
 }  // namespace util
 }  // namespace npuw
 }  // namespace ov
