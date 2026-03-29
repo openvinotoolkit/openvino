@@ -134,7 +134,15 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
     const uint scale_idx = FUNC_CALL(get_scales_offset)(OPTIONAL_SHAPE_INFO_TENSOR b, f, y, x);
     if (grouped_indexes == 0 && sglid == 0) {
         output_scale[scale_idx]     = (OUTPUT1_TYPE)(1.0f / scale_tmp); // dequant scale
-        output_scale[scale_idx + 1] = (OUTPUT1_TYPE)(zp_tmp);           // zero-point
+#if ASYMMETRIC_QUANTIZATION && !GROUP_SCALES_WITH_ZP
+    #if OUTPUT2_IS_FP
+        output_zp[scale_idx] = (OUTPUT2_TYPE)(zp_tmp);
+    #else
+        output_zp[scale_idx] = convert_char_rte(zp_tmp);
+    #endif
+#else
+        output_scale[scale_idx + 1] = (OUTPUT1_TYPE)(zp_tmp);           // zero-point (interleaved)
+#endif
     }
 
 #else  // !IS_INT4_COMPRESSED — original INT8 path
