@@ -4,8 +4,6 @@
 
 #include "kv_cache_block_manager.hpp"
 
-#include <algorithm>
-
 #include "logging.hpp"
 #include "util.hpp"
 
@@ -23,31 +21,20 @@ KVCacheBlockManager::KVCacheBlockManager(uint32_t block_size,
       element_type_(elem_type),
       device_(device),
       plugin_(plugin) {
-    // Set block shape: base_shape already contains the full block shape from model
-    // For Key:   [batch, num_heads, seq_len, head_dim] e.g., [1, 8, 1024, 128]
-    // For Value (transposed): [batch, num_heads, head_dim, seq_len] e.g., [1, 8, 128, 1024]
-    // The seq_len dimension already equals block_size, no modification needed
     block_shape_ = base_shape;
-    OPENVINO_ASSERT(std::any_of(base_shape.begin(),
-                                base_shape.end(),
-                                [block_size](size_t dim) {
-                                    return dim == block_size;
-                                }),
+    // Check that the sequence dimension (dim 2 for K/non-transposed-V, dim 3 for transposed V)
+    // equals block_size. Checking only dim 2/3 avoids false positives when head_dim == block_size.
+    OPENVINO_ASSERT(base_shape.size() == 4 && (base_shape[2] == block_size || base_shape[3] == block_size),
                     "KVCacheBlockManager: base_shape ",
                     base_shape,
-                    " does not contain a dimension equal to block_size=",
-                    block_size);
+                    " does not have block_size=",
+                    block_size,
+                    " in sequence dimension (expected at dim 2 or 3)");
 
-    // Initialize block pool (lazy memory allocation)
+    // Initialize block pool (tensors allocated on-demand, not here)
     blocks_.reserve(max_blocks);
     for (uint32_t i = 0; i < max_blocks; ++i) {
-        Block block;
-        block.id = i;
-        // block.tensor defaults to empty SoPtr (allocate on-demand)
-        block.num_tokens = 0;
-        block.state = Block::State::FREE;
-
-        blocks_.push_back(std::move(block));
+        blocks_.push_back({});
     }
 
     // Push block IDs to stack in reverse order (so block 0 is on top)
@@ -119,12 +106,9 @@ void KVCacheBlockManager::update_block_tokens(uint32_t block_id, uint32_t num_to
     auto& block = blocks_[block_id];
     block.num_tokens = num_tokens;
 
-    // Update state
-    if (num_tokens >= block_size_) {
-        block.state = Block::State::FULL;
-    } else if (num_tokens > 0) {
-        block.state = Block::State::ALLOCATED;
-    }
+    // Update state: FULL when the block is filled, ALLOCATED otherwise
+    // (num_tokens==0 is valid after a reset).
+    block.state = (num_tokens >= block_size_) ? Block::State::FULL : Block::State::ALLOCATED;
 
     LOG_VERB("KVCacheBlockManager: Updated block " << block_id << " tokens: " << num_tokens << "/" << block_size_);
 }
@@ -136,11 +120,11 @@ uint32_t KVCacheBlockManager::get_block_tokens(uint32_t block_id) const {
 
 std::vector<uint32_t> KVCacheBlockManager::get_allocated_blocks() const {
     std::vector<uint32_t> allocated;
-    allocated.reserve(max_blocks_);
+    allocated.reserve(max_blocks_ - free_block_ids_.size());
 
-    for (const auto& block : blocks_) {
-        if (block.state != Block::State::FREE) {
-            allocated.push_back(block.id);
+    for (uint32_t i = 0; i < blocks_.size(); ++i) {
+        if (blocks_[i].state != Block::State::FREE) {
+            allocated.push_back(i);
         }
     }
 
@@ -150,23 +134,17 @@ std::vector<uint32_t> KVCacheBlockManager::get_allocated_blocks() const {
 void KVCacheBlockManager::clear_all() {
     LOG_DEBUG("KVCacheBlockManager: Clearing all blocks");
 
-    // Free all allocated blocks
     for (auto& block : blocks_) {
-        if (block.state != Block::State::FREE) {
-            block.num_tokens = 0;
-            block.state = Block::State::FREE;
-        }
+        block.num_tokens = 0;
+        block.state = Block::State::FREE;
     }
 
     // Rebuild free stack (push in reverse order so block 0 is on top)
     std::stack<uint32_t> empty;
     free_block_ids_.swap(empty);
-
     for (int32_t i = max_blocks_ - 1; i >= 0; --i) {
         free_block_ids_.push(static_cast<uint32_t>(i));
     }
-
-    LOG_DEBUG("KVCacheBlockManager: All blocks cleared");
 }
 
 void KVCacheBlockManager::validate_block_id(uint32_t block_id) const {

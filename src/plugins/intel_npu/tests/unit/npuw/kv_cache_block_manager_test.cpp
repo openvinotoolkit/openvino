@@ -6,6 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <set>
+
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 
