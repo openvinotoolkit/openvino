@@ -251,11 +251,10 @@ void ZeGraphExtWrappers::setGraphArgumentValueWithStrides(const GraphDescriptor&
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnSetArgumentValue2 for data", result, _zeroInitStruct->getGraphDdiTable());
 }
 
-void ZeGraphExtWrappers::initializeGraph(const GraphDescriptor& graphDescriptor,
-                                         uint32_t commandQueueGroupOrdinal) const {
+void ZeGraphExtWrappers::initializeGraph(const GraphDescriptor& graphDescriptor) const {
     if (_graphExtVersion < ZE_MAKE_VERSION(1, 8)) {
         _logger.debug("Use initializeGraphThroughCommandList for ext version smaller than 1.8");
-        initializeGraphThroughCommandList(graphDescriptor._handle, commandQueueGroupOrdinal);
+        initializeGraphThroughCommandList(graphDescriptor._handle);
     } else {
         _logger.debug("Initialize graph based on graph properties for ext version larger than 1.8");
         ze_graph_properties_2_t properties = {};
@@ -269,20 +268,17 @@ void ZeGraphExtWrappers::initializeGraph(const GraphDescriptor& graphDescriptor,
         }
 
         if (properties.initStageRequired & ZE_GRAPH_STAGE_COMMAND_LIST_INITIALIZE) {
-            initializeGraphThroughCommandList(graphDescriptor._handle, commandQueueGroupOrdinal);
+            initializeGraphThroughCommandList(graphDescriptor._handle);
         }
     }
 }
 
-void ZeGraphExtWrappers::initializeGraphThroughCommandList(ze_graph_handle_t graphHandle,
-                                                           uint32_t commandQueueGroupOrdinal) const {
+void ZeGraphExtWrappers::initializeGraphThroughCommandList(ze_graph_handle_t graphHandle) const {
     _logger.debug("initializeGraphThroughCommandList init start - create graphCommandList");
-    CommandList graphCommandList(_zeroInitStruct, commandQueueGroupOrdinal);
+    CommandList graphCommandList(_zeroInitStruct);
     _logger.debug("initializeGraphThroughCommandList - create graphCommandQueue");
-    std::shared_ptr<CommandQueue> graphCommandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                                                     ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
-                                                                                     commandQueueGroupOrdinal,
-                                                                                     false);
+    std::shared_ptr<CommandQueue> graphCommandQueue =
+        std::make_shared<CommandQueue>(_zeroInitStruct, ZE_COMMAND_QUEUE_PRIORITY_NORMAL, false);
     _logger.debug("initializeGraphThroughCommandList - create fence");
     Fence fence(graphCommandQueue);
 
