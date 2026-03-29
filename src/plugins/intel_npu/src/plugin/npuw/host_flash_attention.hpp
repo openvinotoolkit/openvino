@@ -146,6 +146,12 @@ struct HostFlashAttention {
     // This is created during pattern analysis in from() method
     std::map<SDPAInputId, std::size_t> _sdpa_param_index_map;
 
+    // KV cache block parameter indices (for split KV cache support)
+    // After SplitKVCacheIntoBlocks transformation, KV cache is split into multiple block parameters
+    // These vectors store all block parameter indices in order
+    std::vector<std::size_t> _past_key_block_indices;    // [block_0_idx, block_1_idx, ..., block_N_idx]
+    std::vector<std::size_t> _past_value_block_indices;  // [block_0_idx, block_1_idx, ..., block_N_idx]
+
     // Tile model parameter index mapping
     // Maps tile parameter IDs (PAST_ACC, K_TILE, Q, etc.) to actual input indices
     // Tile model I/O: Inputs[past_acc, past_max, past_d, k_tile, v_tile, q, mask_tile]
@@ -191,8 +197,9 @@ struct HostFlashAttentionInfo {
     // Pre-cached SDPA parameter indices
     struct {
         std::size_t query = 0u;
-        std::size_t past_key = 0u;
-        std::size_t past_value = 0u;
+        // Support multiple KV cache blocks after split transformation
+        std::vector<std::size_t> past_key_blocks;    // All past_key block parameter indices
+        std::vector<std::size_t> past_value_blocks;  // All past_value block parameter indices
         std::size_t present_key = 0u;
         std::size_t present_value = 0u;
         std::size_t attention_mask = 0u;

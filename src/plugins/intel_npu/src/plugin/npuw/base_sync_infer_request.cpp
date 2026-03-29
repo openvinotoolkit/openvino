@@ -553,8 +553,19 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
             return false;  // Early return
         }
 
-        auto pyramid_id = m_pyramid_selector->pyramid_id();
-        auto& pyramid_attn = proto_comp_model_desc.pyramid_attention.value()._attention_infos[pyramid_id];
+        const auto& pyramid_top = proto_comp_model_desc.pyramid_attention.value();
+
+        // Block KV mode: params list is empty; check full-model block index space only.
+        if (!pyramid_top.past_key_block_global_param_indices.empty()) {
+            auto in_vec = [&](const std::vector<size_t>& v) {
+                return std::find(v.begin(), v.end(), sub_in_idx) != v.end();
+            };
+            return in_vec(pyramid_top.past_key_block_global_param_indices) ||
+                   in_vec(pyramid_top.past_value_block_global_param_indices);
+        }
+
+        // Contiguous KV mode: check per-variant params list.
+        const auto& pyramid_attn = pyramid_top._attention_infos[m_pyramid_selector->pyramid_id()];
         return std::any_of(pyramid_attn.params.begin(), pyramid_attn.params.end(), [&](const auto& p) -> bool {
             return p.idx == sub_in_idx;
         });
@@ -567,9 +578,15 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         // Check if sub_in_idx matches any SDPA parameter index
         auto& hfa_attn = proto_comp_model_desc.host_flash_attention.value()._sdpa_attention_info;
         const auto& sdpa_in = hfa_attn._sdpa_indices;
-        return sub_in_idx == sdpa_in.query || sub_in_idx == sdpa_in.past_key || sub_in_idx == sdpa_in.past_value ||
-               sub_in_idx == sdpa_in.present_key || sub_in_idx == sdpa_in.present_value ||
-               sub_in_idx == sdpa_in.attention_mask;
+
+        // Check if sub_in_idx is in past_key_blocks or past_value_blocks vectors
+        auto is_past_kv = [&](const std::vector<std::size_t>& blocks) {
+            return std::find(blocks.begin(), blocks.end(), sub_in_idx) != blocks.end();
+        };
+
+        return sub_in_idx == sdpa_in.query || is_past_kv(sdpa_in.past_key_blocks) ||
+               is_past_kv(sdpa_in.past_value_blocks) || sub_in_idx == sdpa_in.present_key ||
+               sub_in_idx == sdpa_in.present_value || sub_in_idx == sdpa_in.attention_mask;
     };
 
     for (auto&& it : iodesc.global_params) {
@@ -813,16 +830,40 @@ void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx,
     const auto& attention_info = pyramid_attention._attention_infos[pyramid_id];
     const auto& pyramid_model = pyramid_attention._compiled_models[pyramid_id];
 
+    const bool block_mode = !pyramid_attention.past_key_block_global_param_indices.empty();
+
+    // Bind pre-allocated block tensors to this variant's compiled-model ports.
+    // bind_global_params stored each block tensor in m_attention_io at the full-model index.
+    // main_block_indices[m] = full-model lookup key; variant_port_indices[m] = set_tensor target.
+    // M (variant block count) <= N (full-model block count).
+    auto bind_block_ports = [&](const std::vector<size_t>& main_block_indices,
+                                const std::vector<size_t>& variant_port_indices) {
+        NPUW_ASSERT(variant_port_indices.size() <= main_block_indices.size());
+        for (size_t m = 0; m < variant_port_indices.size(); ++m) {
+            const auto& iport = pyramid_model->inputs()[variant_port_indices[m]];
+            const auto& tensor = m_attention_io[idx].inputs.at(main_block_indices[m]);
+            if (tensor) {
+                request->set_tensor(iport, tensor);
+            }
+        }
+    };
+
     const auto pos_id = m_pyramid_selector->length();
     if (pos_id == -1) {
         // Pyramid dynamic range couldn't be identified - fallback to the default
-        // (worst case) behavior
-        for (auto&& param : attention_info.params) {
-            const auto& iport = pyramid_model->inputs()[param.idx];
-            const auto& input = m_attention_io[idx].inputs.at(param.idx);
-            request->set_tensor(iport, input);
+        // (worst case) behavior: use pyramid_id variant as-is (typically the full/last variant).
+        if (block_mode) {
+            bind_block_ports(pyramid_attention.past_key_block_global_param_indices,
+                             attention_info.past_key_block_variant_param_indices);
+            bind_block_ports(pyramid_attention.past_value_block_global_param_indices,
+                             attention_info.past_value_block_variant_param_indices);
+        } else {
+            for (auto&& param : attention_info.params) {
+                const auto& iport = pyramid_model->inputs()[param.idx];
+                const auto& input = m_attention_io[idx].inputs.at(param.idx);
+                request->set_tensor(iport, input);
+            }
         }
-
         return;
     }
 
@@ -834,40 +875,55 @@ void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx,
 
     // Process each KV parameter based on inference case
     if (infer_case == pyramid_attention::Selector::Case::PREFILL) {
-        // PREFILL: Set or copy past KV to destination tensors
-        for (auto&& param : attention_info.params) {
-            const auto& iport = pyramid_model->inputs()[param.idx];
-            const auto& input = m_attention_io[idx].inputs.at(param.idx);
-            const auto& input_shape = input->get_shape();
+        if (block_mode) {
+            bind_block_ports(pyramid_attention.past_key_block_global_param_indices,
+                             attention_info.past_key_block_variant_param_indices);
+            bind_block_ports(pyramid_attention.past_value_block_global_param_indices,
+                             attention_info.past_value_block_variant_param_indices);
+        } else {
+            // Contiguous KV mode: view/copy the right slice of each past KV tensor.
+            for (auto&& param : attention_info.params) {
+                const auto& iport = pyramid_model->inputs()[param.idx];
+                const auto& input = m_attention_io[idx].inputs.at(param.idx);
+                const auto& input_shape = input->get_shape();
 
-            LOG_DEBUG(iport);
-            LOG_BLOCK();
+                LOG_DEBUG(iport);
+                LOG_BLOCK();
 
-            // Optimization for the last chunk: Direct tensor reuse when shapes match
-            if (static_cast<int64_t>(input_shape[param.dim]) == past_len) {
-                request->set_tensor(iport, input);
-                continue;
+                // Optimization for the last chunk: Direct tensor reuse when shapes match
+                if (static_cast<int64_t>(input_shape[param.dim]) == past_len) {
+                    request->set_tensor(iport, input);
+                    continue;
+                }
+
+                // Create view of past KV data
+                const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
+                const auto& shape = view->get_shape();
+
+                // Handle empty shape case (first chunk)
+                if (ov::shape_size(shape) == 0) {
+                    request->get_tensor(iport)->set_shape(shape);
+                    continue;
+                }
+
+                // Copy past KV to full destination tensor
+                LOG_DEBUG("Do copy: " << shape << "...");
+                const auto& dst = request->get_tensor(iport);
+                ov::npuw::util::copy_tensor_by_dim(view,
+                                                   dst,
+                                                   static_cast<uint32_t>(param.dim),
+                                                   static_cast<uint32_t>(param.dim));
             }
-
-            // Create view of past KV data
-            const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
-            const auto& shape = view->get_shape();
-
-            // Handle empty shape case (first chunk)
-            if (ov::shape_size(shape) == 0) {
-                request->get_tensor(iport)->set_shape(shape);
-                continue;
-            }
-
-            // Copy past KV to full destination tensor
-            LOG_DEBUG("Do copy: " << shape << "...");
-            const auto& dst = request->get_tensor(iport);
-            ov::npuw::util::copy_tensor_by_dim(view,
-                                               dst,
-                                               static_cast<uint32_t>(param.dim),
-                                               static_cast<uint32_t>(param.dim));
         }
     } else if (infer_case == pyramid_attention::Selector::Case::GENERATE) {
+        // Guard: block KV cache + pyramid GENERATE is not validated.
+        // Use NPUW_LLM_GENERATE_PYRAMID=YES for block KV cache instead of
+        // NPUW_LLM_GENERATE_ATTENTION_HINT=PYRAMID, which routes through this path.
+        NPUW_ASSERT(pyramid_attention.past_key_block_global_param_indices.empty() &&
+                    "Pyramid GENERATE with block KV cache is not supported. "
+                    "Use NPUW_LLM_GENERATE_PYRAMID=YES instead of "
+                    "NPUW_LLM_GENERATE_ATTENTION_HINT=PYRAMID when block KV cache is enabled.");
+
         // GENERATE: Set or copy past KV, preserving existing data
         for (auto&& param : attention_info.params) {
             const auto& iport = pyramid_model->inputs()[param.idx];

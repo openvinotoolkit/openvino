@@ -1130,6 +1130,41 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
         submodel_desc.pyramid_pipeline_requests.resize(num_pyramid_models);
     }
 
+    const auto& pyr_attn = submodel_desc.pyramid_attention.value();
+    const auto& main_inputs = submodel_desc.compiled_model->inputs();
+
+    // Share KV block buffers across all block ports of the main request.
+    // bind_pyramid_attention_inputs() will set the real per-block tensors at inference time.
+    auto share_kv_block_buffers = [&](ov::SoPtr<ov::IAsyncInferRequest>& req) {
+        if (!pyr_attn.past_key_block_global_param_indices.empty()) {
+            auto key_block0 = req->get_tensor(main_inputs[pyr_attn.past_key_block_global_param_indices[0]]);
+            for (size_t i = 1; i < pyr_attn.past_key_block_global_param_indices.size(); ++i) {
+                req->set_tensor(main_inputs[pyr_attn.past_key_block_global_param_indices[i]], key_block0);
+            }
+        }
+        if (!pyr_attn.past_value_block_global_param_indices.empty()) {
+            auto val_block0 = req->get_tensor(main_inputs[pyr_attn.past_value_block_global_param_indices[0]]);
+            for (size_t i = 1; i < pyr_attn.past_value_block_global_param_indices.size(); ++i) {
+                req->set_tensor(main_inputs[pyr_attn.past_value_block_global_param_indices[i]], val_block0);
+            }
+        }
+    };
+
+    share_kv_block_buffers(m_subrequests[real_idx]);
+    if (is_piped) {
+        share_kv_block_buffers(m_funcall_pipeline[real_idx].subrequest);
+    }
+
+    // Build a name→main-port map once for sharing non-block inputs into pyramid variants.
+    // (This is one-time setup cost, not per-inference.)
+    std::unordered_map<std::string, ov::Output<const ov::Node>> main_name_to_port;
+    main_name_to_port.reserve(main_inputs.size());
+    for (const auto& inp : main_inputs) {
+        if (!inp.get_names().empty()) {
+            main_name_to_port[inp.get_any_name()] = inp;
+        }
+    }
+
     // Create infer requests for all but the last pyramid model
     for (size_t model_idx = 0; model_idx + 1 < num_pyramid_models; ++model_idx) {
         try {
@@ -1149,28 +1184,61 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
             NPUW_ASSERT(false && "Pyramid model infer request creation/recreation failed with unknown error");
         }
 
-        // Share input tensors between pyramid and main infer requests
-        const size_t num_inputs = pyramid_models[model_idx]->inputs().size();
-        NPUW_ASSERT(num_inputs == submodel_desc.compiled_model->inputs().size());
-        for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
-            auto pyramid_input = pyramid_models[model_idx]->inputs()[input_idx];
-            auto main_input = submodel_desc.compiled_model->inputs()[input_idx];
+        // Share inputs into this pyramid variant:
+        //   Block ports (K/V): after aliasing, main block_N already holds block_0's tensor →
+        //     only need to get key_block_0 / value_block_0 from main and set_tensor directly
+        //     (shapes match since all block slots are the same size).
+        //   Non-block ports: may have different shapes (e.g. attention mask) → share buffer
+        //     pointer with the variant's own (possibly smaller) shape.
+        const auto& info = pyr_attn._attention_infos[model_idx];
+        const auto& variant_inputs = pyramid_models[model_idx]->inputs();
 
-            // Get tensor from main infer request and share its memory with the pyramid infer request
-            auto main_tensor_ptr = m_subrequests[real_idx]->get_tensor(main_input)->data();
-            auto pyramid_tensor = submodel_desc.pyramid_infer_requests[model_idx]->get_tensor(pyramid_input);
-            auto shared_tensor = ov::get_tensor_impl(
-                ov::Tensor(pyramid_tensor->get_element_type(), pyramid_tensor->get_shape(), main_tensor_ptr));
-            submodel_desc.pyramid_infer_requests[model_idx]->set_tensor(pyramid_input, shared_tensor);
+        // Build O(1) lookup sets for key/value block port indices of this variant.
+        const std::unordered_set<size_t> key_block_port_indices(info.past_key_block_variant_param_indices.begin(),
+                                                                info.past_key_block_variant_param_indices.end());
+        const std::unordered_set<size_t> val_block_port_indices(info.past_value_block_variant_param_indices.begin(),
+                                                                info.past_value_block_variant_param_indices.end());
 
-            // Repeat for pipeline infer request if pipelined
-            if (is_piped) {
-                auto pipeline_tensor = submodel_desc.pyramid_pipeline_requests[model_idx]->get_tensor(pyramid_input);
-                auto pipeline_tensor_ptr = m_funcall_pipeline[real_idx].subrequest->get_tensor(main_input)->data();
-                auto shared_pipeline_tensor = ov::get_tensor_impl(
-                    ov::Tensor(pipeline_tensor->get_element_type(), pipeline_tensor->get_shape(), pipeline_tensor_ptr));
-                submodel_desc.pyramid_pipeline_requests[model_idx]->set_tensor(pyramid_input, shared_pipeline_tensor);
+        auto share_inputs_for_request = [&](ov::SoPtr<ov::IAsyncInferRequest>& req,
+                                            ov::SoPtr<ov::IAsyncInferRequest>& main_req) {
+            // Cache block_0 tensors from the (aliased) main request.
+            ov::SoPtr<ov::ITensor> key_block0, val_block0;
+            if (!pyr_attn.past_key_block_global_param_indices.empty()) {
+                key_block0 = main_req->get_tensor(main_inputs[pyr_attn.past_key_block_global_param_indices[0]]);
             }
+            if (!pyr_attn.past_value_block_global_param_indices.empty()) {
+                val_block0 = main_req->get_tensor(main_inputs[pyr_attn.past_value_block_global_param_indices[0]]);
+            }
+
+            for (size_t j = 0; j < variant_inputs.size(); ++j) {
+                if (key_block_port_indices.count(j)) {
+                    // Key block: share block_0 tensor directly (shapes match).
+                    req->set_tensor(variant_inputs[j], key_block0);
+                } else if (val_block_port_indices.count(j)) {
+                    // Value block: share block_0 tensor directly (shapes match).
+                    req->set_tensor(variant_inputs[j], val_block0);
+                } else {
+                    // Non-block input: share buffer pointer with variant's own shape.
+                    if (variant_inputs[j].get_names().empty()) {
+                        continue;
+                    }
+                    const auto it = main_name_to_port.find(variant_inputs[j].get_any_name());
+                    if (it == main_name_to_port.end()) {
+                        continue;
+                    }
+                    auto main_tensor = main_req->get_tensor(it->second);
+                    auto pyr_tensor = req->get_tensor(variant_inputs[j]);
+                    auto shared = ov::get_tensor_impl(
+                        ov::Tensor(pyr_tensor->get_element_type(), pyr_tensor->get_shape(), main_tensor->data()));
+                    req->set_tensor(variant_inputs[j], shared);
+                }
+            }
+        };
+
+        share_inputs_for_request(submodel_desc.pyramid_infer_requests[model_idx], m_subrequests[real_idx]);
+        if (is_piped) {
+            share_inputs_for_request(submodel_desc.pyramid_pipeline_requests[model_idx],
+                                     m_funcall_pipeline[real_idx].subrequest);
         }
     }
 
@@ -1568,8 +1636,20 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     // Use pre-cached SDPA indices
     const auto& sdpa_in = sdpa_info._sdpa_indices;
 
-    auto past_key_tensor = hfa_inputs.at(sdpa_in.past_key);
-    auto past_value_tensor = hfa_inputs.at(sdpa_in.past_value);
+    std::vector<ov::SoPtr<ov::ITensor>> past_key_blocks;
+    std::vector<ov::SoPtr<ov::ITensor>> past_value_blocks;
+
+    NPUW_ASSERT(!sdpa_in.past_key_blocks.empty() && !sdpa_in.past_value_blocks.empty() &&
+                "SDPA indices must have at least one past_key/value block");
+    NPUW_ASSERT(sdpa_in.past_key_blocks.size() == sdpa_in.past_value_blocks.size() &&
+                "Number of past key blocks must match number of past value blocks");
+
+    // Collect all KV block tensors (works for both single-block and multi-block cases)
+    for (size_t i = 0; i < sdpa_in.past_key_blocks.size(); ++i) {
+        past_key_blocks.push_back(hfa_inputs.at(sdpa_in.past_key_blocks[i]));
+        past_value_blocks.push_back(hfa_inputs.at(sdpa_in.past_value_blocks[i]));
+    }
+
     auto query_tensor = hfa_inputs.at(sdpa_in.query);
     auto present_key_tensor = hfa_inputs.at(sdpa_in.present_key);
     auto attention_mask_tensor = hfa_inputs.at(sdpa_in.attention_mask);
@@ -1745,22 +1825,49 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     };
 
     int64_t mask_tile_offset = 0;
-    int64_t kv_tile_offset = 0;
+    int64_t global_kv_offset = 0;  // Global KV offset across all blocks
 
-    // Process regular tiles (all but the last one)
+    // Process regular tiles (all but the last one) - iterate through past KV blocks
     // Each regular tile processes past KV cache and outputs intermediate states (acc, max, d)
-    for (int64_t tile_idx = 0; tile_idx < num_tiles - 1; ++tile_idx) {
-        process_tile(regular_tile_request,
-                     hfa_desc._compiled_tile_model,
-                     past_key_tensor,
-                     past_value_tensor,
-                     kv_tile_offset,
-                     mask_tile_offset,
-                     tile_size);
+    int64_t past_kv_tiles = num_tiles - 1;  // Exclude final tile (present KV)
 
-        kv_tile_offset += tile_size;
-        mask_tile_offset += tile_size;
+    for (size_t block_idx = 0; block_idx < past_key_blocks.size() && past_kv_tiles > 0; ++block_idx) {
+        const auto& k_block = past_key_blocks[block_idx];
+        const auto& v_block = past_value_blocks[block_idx];
+
+        // Get block size from tensor shape
+        const int64_t block_size = static_cast<int64_t>(k_block->get_shape()[K_SEQ_DIM]);
+        NPUW_ASSERT(block_size % tile_size == 0 && "HFA block size must be a multiple of tile size for correct tiling");
+
+        // Calculate number of tiles in this block
+        // Example: 8K total tokens (7K past + 1K present), tile_size = 1K
+        //   - Single-block mode: past KV block_size = 7K → tiles_in_block = 7 (process 7 past tiles in this block)
+        //   - Multi-block mode (1K split): 7 blocks × 1K each, block_size = 1K → tiles_in_block = 1 (process 1 past
+        //   tile per block)
+        // Note: The present KV tile is processed after this loop completes
+        const int64_t tiles_in_block = block_size / tile_size;
+
+        // Process all tiles in this block (but only up to past_kv_tiles remaining)
+        for (int64_t tile_in_block = 0; tile_in_block < tiles_in_block && past_kv_tiles > 0; ++tile_in_block) {
+            const int64_t kv_offset_in_block = tile_in_block * tile_size;
+
+            // Process this tile directly from the block (no extraction needed)
+            process_tile(regular_tile_request,
+                         hfa_desc._compiled_tile_model,
+                         k_block,
+                         v_block,
+                         kv_offset_in_block,
+                         mask_tile_offset,
+                         tile_size);
+
+            mask_tile_offset += tile_size;
+            global_kv_offset += tile_size;
+            past_kv_tiles--;
+        }
     }
+
+    // Verify that all past tiles were processed correctly
+    NPUW_ASSERT(past_kv_tiles == 0 && "HFA: All past KV blocks should contain exactly (num_tiles - 1) tiles in total");
 
     // Process final tile separately
     // Final tile processes present KV tokens and produces final attention output

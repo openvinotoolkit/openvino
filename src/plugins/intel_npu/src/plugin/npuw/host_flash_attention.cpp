@@ -15,7 +15,7 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "pyramid_attention.hpp"
+#include "sdpa_utils.hpp"
 #include "util.hpp"
 
 namespace ov {
@@ -719,31 +719,69 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
         hfa._sdpa_param_index_map[SDPAInputId::QUERY] = q_idx;
     }
 
-    // Extract past_key parameter - input 0 of past_key_concat
+    // Extract past_key parameters - all inputs of past_key_concat except the last (present_key)
     if (pattern_nodes.past_key_concat_node) {
-        if (auto past_k_param = extract_param(pattern_nodes.past_key_concat_node->get_input_node_shared_ptr(0))) {
-            std::size_t past_k_idx = model->get_parameter_index(past_k_param);
-            hfa._sdpa_param_index_map[SDPAInputId::PAST_KEY] = past_k_idx;
+        size_t num_inputs = pattern_nodes.past_key_concat_node->get_input_size();
+
+        // Clear and reserve space for blocks
+        hfa._past_key_block_indices.clear();
+        hfa._past_key_block_indices.reserve(num_inputs - 1);
+
+        // Extract all past_key block parameters (all inputs except the last one)
+        for (size_t i = 0; i < num_inputs - 1; ++i) {
+            if (auto past_k_block_param =
+                    extract_param(pattern_nodes.past_key_concat_node->get_input_node_shared_ptr(i))) {
+                std::size_t block_idx = model->get_parameter_index(past_k_block_param);
+                hfa._past_key_block_indices.push_back(block_idx);
+                LOG_DEBUG("  Found past_key block[" << i << "] at parameter index " << block_idx);
+
+                // Keep first block in map for backward compatibility (default continuous past_key input)
+                if (i == 0) {
+                    hfa._sdpa_param_index_map[SDPAInputId::PAST_KEY] = block_idx;
+                }
+            }
         }
 
-        // Extract present_key parameter - input 1 of past_key_concat
-        if (auto present_k_param = extract_param(pattern_nodes.past_key_concat_node->get_input_node_shared_ptr(1))) {
+        // Extract present_key parameter - last input of past_key_concat
+        size_t last_input_idx = num_inputs - 1;
+        if (auto present_k_param =
+                extract_param(pattern_nodes.past_key_concat_node->get_input_node_shared_ptr(last_input_idx))) {
             std::size_t present_k_idx = model->get_parameter_index(present_k_param);
             hfa._sdpa_param_index_map[SDPAInputId::PRESENT_KEY] = present_k_idx;
+            LOG_DEBUG("  Found present_key at parameter index " << present_k_idx);
         }
     }
 
-    // Extract past_value parameter - input 0 of past_value_concat
+    // Extract past_value parameters - all inputs of past_value_concat except the last (present_value)
     if (pattern_nodes.past_value_concat_node) {
-        if (auto past_v_param = extract_param(pattern_nodes.past_value_concat_node->get_input_node_shared_ptr(0))) {
-            std::size_t past_v_idx = model->get_parameter_index(past_v_param);
-            hfa._sdpa_param_index_map[SDPAInputId::PAST_VALUE] = past_v_idx;
+        size_t num_inputs = pattern_nodes.past_value_concat_node->get_input_size();
+
+        // Clear and reserve space for blocks
+        hfa._past_value_block_indices.clear();
+        hfa._past_value_block_indices.reserve(num_inputs - 1);
+
+        // Extract all past_value block parameters (all inputs except the last one)
+        for (size_t i = 0; i < num_inputs - 1; ++i) {
+            if (auto past_v_block_param =
+                    extract_param(pattern_nodes.past_value_concat_node->get_input_node_shared_ptr(i))) {
+                std::size_t block_idx = model->get_parameter_index(past_v_block_param);
+                hfa._past_value_block_indices.push_back(block_idx);
+                LOG_DEBUG("  Found past_value block[" << i << "] at parameter index " << block_idx);
+
+                // Keep first block in map for backward compatibility (default continuous past_value input)
+                if (i == 0) {
+                    hfa._sdpa_param_index_map[SDPAInputId::PAST_VALUE] = block_idx;
+                }
+            }
         }
 
-        // Extract present_value parameter - input 1 of past_value_concat
-        if (auto present_v_param = extract_param(pattern_nodes.past_value_concat_node->get_input_node_shared_ptr(1))) {
+        // Extract present_value parameter - last input of past_value_concat
+        size_t last_input_idx = num_inputs - 1;
+        if (auto present_v_param =
+                extract_param(pattern_nodes.past_value_concat_node->get_input_node_shared_ptr(last_input_idx))) {
             std::size_t present_v_idx = model->get_parameter_index(present_v_param);
             hfa._sdpa_param_index_map[SDPAInputId::PRESENT_VALUE] = present_v_idx;
+            LOG_DEBUG("  Found present_value at parameter index " << present_v_idx);
         }
     }
 
@@ -754,6 +792,8 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
     }
 
     LOG_INFO("Built SDPA input mapping with " << hfa._sdpa_param_index_map.size() << " entries");
+    LOG_INFO("  Past key blocks: " << hfa._past_key_block_indices.size());
+    LOG_INFO("  Past value blocks: " << hfa._past_value_block_indices.size());
 
     // Print the complete mapping table
     LOG_DEBUG("");
@@ -763,6 +803,18 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
     for (const auto& [input_id, param_idx] : hfa._sdpa_param_index_map) {
         LOG_DEBUG("  " << sdpa_input_id_to_string(input_id) << " -> parameter[" << param_idx << "]");
     }
+
+    // Print KV cache blocks
+    LOG_DEBUG("Past key blocks (" << hfa._past_key_block_indices.size() << "):");
+    for (size_t i = 0; i < hfa._past_key_block_indices.size(); ++i) {
+        LOG_DEBUG("  block[" << i << "] -> parameter[" << hfa._past_key_block_indices[i] << "]");
+    }
+
+    LOG_DEBUG("Past value blocks (" << hfa._past_value_block_indices.size() << "):");
+    for (size_t i = 0; i < hfa._past_value_block_indices.size(); ++i) {
+        LOG_DEBUG("  block[" << i << "] -> parameter[" << hfa._past_value_block_indices[i] << "]");
+    }
+
     LOG_DEBUG("=============================================");
 }
 
@@ -1077,8 +1129,11 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     };
 
     _sdpa_attention_info._sdpa_indices.query = get_sdpa_param_idx(SDPAInputId::QUERY);
-    _sdpa_attention_info._sdpa_indices.past_key = get_sdpa_param_idx(SDPAInputId::PAST_KEY);
-    _sdpa_attention_info._sdpa_indices.past_value = get_sdpa_param_idx(SDPAInputId::PAST_VALUE);
+
+    // Copy all KV cache block indices
+    _sdpa_attention_info._sdpa_indices.past_key_blocks = func_hfa._past_key_block_indices;
+    _sdpa_attention_info._sdpa_indices.past_value_blocks = func_hfa._past_value_block_indices;
+
     _sdpa_attention_info._sdpa_indices.present_key = get_sdpa_param_idx(SDPAInputId::PRESENT_KEY);
     _sdpa_attention_info._sdpa_indices.present_value = get_sdpa_param_idx(SDPAInputId::PRESENT_VALUE);
     _sdpa_attention_info._sdpa_indices.attention_mask = get_sdpa_param_idx(SDPAInputId::ATTENTION_MASK);
@@ -1115,11 +1170,12 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     _sdpa_attention_info._tile_output_indices.d = get_tile_output_idx(HFATileOutputId::D);
 
     LOG_INFO("Pre-cached SDPA indices: [query="
-             << _sdpa_attention_info._sdpa_indices.query << ", past_key=" << _sdpa_attention_info._sdpa_indices.past_key
-             << ", past_value=" << _sdpa_attention_info._sdpa_indices.past_value
+             << _sdpa_attention_info._sdpa_indices.query
              << ", present_key=" << _sdpa_attention_info._sdpa_indices.present_key
              << ", present_value=" << _sdpa_attention_info._sdpa_indices.present_value
              << ", attention_mask=" << _sdpa_attention_info._sdpa_indices.attention_mask << "]");
+    LOG_INFO("  Past key blocks: " << _sdpa_attention_info._sdpa_indices.past_key_blocks.size());
+    LOG_INFO("  Past value blocks: " << _sdpa_attention_info._sdpa_indices.past_value_blocks.size());
     LOG_INFO("Attention configuration: query_size="
              << _sdpa_attention_info._query_size << ", context_size=" << _sdpa_attention_info._context_size
              << ", k_seq_dim=" << _sdpa_attention_info._k_seq_dim << ", v_seq_dim=" << _sdpa_attention_info._v_seq_dim);
