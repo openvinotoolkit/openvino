@@ -21,131 +21,210 @@ namespace behavior {
 std::string WeightlessCacheAccuracy::get_test_case_name(const ::testing::TestParamInfo<WeightlessCacheAccuracyTestParams>& obj) {
     std::ostringstream result;
 
-    result << "use_compile_model_api=" << utils::bool2str(std::get<0>(obj.param));
-    result << "_do_encryption="        << utils::bool2str(std::get<1>(obj.param));
-    result << "_inference_mode="       << std::get<2>(obj.param);
-    result << "_model_dtype="          << std::get<3>(obj.param);
+    result << "do_encryption="   << utils::bool2str(std::get<0>(obj.param));
+    result << "_inference_mode=" << std::get<1>(obj.param);
+    result << "_model_dtype="    << std::get<2>(obj.param);
     result << "_config=";
-    for (const auto& [name, value] : std::get<4>(obj.param)) {
+    for (const auto& [name, value] : std::get<3>(obj.param)) {
         result << name << "[" << value.as<std::string>() << "]|";
     }
-    result << "_device=" << std::get<5>(obj.param);
+    result << "_device=" << std::get<4>(obj.param);
 
     return result.str();
 }
 
 void WeightlessCacheAccuracy::SetUp() {
-    std::string filePrefix = ov::test::utils::generateTestFilePrefix();
-    m_xml_path = filePrefix + ".xml";
-    m_bin_path = filePrefix + ".bin";
-    m_cache_path = filePrefix + ".blob";
-    m_cache_dir = filePrefix + "_cache_dir";
+    const std::string file_prefix = ov::test::utils::generateTestFilePrefix();
+    m_xml_path   = file_prefix + ".xml";
+    m_bin_path   = file_prefix + ".bin";
+    m_cache_path = file_prefix + ".blob";
+    m_cache_dir_ir = file_prefix + "_cache_dir_ir";
+    m_cache_dir_model = file_prefix + "_cache_dir_model";
 
-    std::tie(m_use_compile_model_api, m_do_encryption, m_inference_mode, m_model_dtype, std::ignore, m_target_device) =
+    std::tie(m_do_encryption, m_inference_mode, m_model_dtype, std::ignore, m_target_device) =
         GetParam();
 }
 
 void WeightlessCacheAccuracy::TearDown() {
-    std::remove(m_xml_path.c_str());
-    std::remove(m_bin_path.c_str());
-    std::remove(m_cache_path.c_str());
+    std::filesystem::remove(m_xml_path);
+    std::filesystem::remove(m_bin_path);
+    std::filesystem::remove(m_cache_path);
 
-    ov::test::utils::removeFilesWithExt(m_cache_dir, "blob");
-    ov::test::utils::removeFilesWithExt(m_cache_dir, "cl_cache");
-    ov::test::utils::removeDir(m_cache_dir);
+    std::filesystem::remove_all(m_cache_dir_ir);
+    std::filesystem::remove_all(m_cache_dir_model);
 }
 
 void WeightlessCacheAccuracy::run() {
-    ov::AnyMap config = {ov::cache_dir(m_cache_dir), ov::hint::inference_precision(m_inference_mode)};
-    for (const auto& property : std::get<4>(GetParam())) {
+    ov::AnyMap config = {hint::inference_precision(m_inference_mode)};
+    for (const auto& property : std::get<3>(GetParam())) {
         config.insert(property);
     }
-
-    auto config_with_weights_path = config;
-    if (ov::util::is_weightless_enabled(config).value_or(false)) {
-        config_with_weights_path.insert(ov::weights_path(m_bin_path));
-    }
-    config_with_weights_path.erase(ov::cache_dir.name());
-
     if (m_do_encryption) {
-        ov::EncryptionCallbacks encryption_callbacks;
-        encryption_callbacks.encrypt = ov::util::codec_xor;
-        encryption_callbacks.decrypt = ov::util::codec_xor;
-        config.insert(ov::cache_encryption_callbacks(encryption_callbacks));
-        config_with_weights_path.insert(ov::cache_encryption_callbacks(encryption_callbacks));
+        config.insert(cache_encryption_callbacks(EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor}));
     }
+
     auto core = ov::test::utils::PluginCache::get().core();
     ov::pass::Serialize(m_xml_path, m_bin_path).run_on_model(m_model);
 
-    auto compiled_model = core->compile_model(m_xml_path, m_target_device, config);
-
-    if (!m_use_compile_model_api) {
-        auto ofstr = std::ofstream(m_cache_path, std::ofstream::binary);
-        compiled_model.export_model(ofstr);
-        ofstr.close();
-    }
-
-    auto get_cache_path = [&]() {
-        std::string path;
-        if (m_use_compile_model_api) {
-            auto blobs = ov::test::utils::listFilesWithExt(m_cache_dir, "blob");
-            EXPECT_EQ(blobs.size(), 1);
-            path = blobs[0];
-        } else {
-            path = m_cache_path;
+    auto get_modification_time = [](const std::filesystem::path& cache_dir) {
+        const static std::filesystem::path blob_ext{".blob"};
+        std::filesystem::file_time_type result;
+        uint64_t counter{0};
+        for (auto const& dir_entry : std::filesystem::directory_iterator{cache_dir}) {
+            if (dir_entry.path().extension() == blob_ext) {
+                result = dir_entry.last_write_time();
+                counter++;
+            }
         }
-        return path;
+        EXPECT_EQ(counter, 1);
+        return result;
     };
 
-    auto get_mod_time = [&](const std::string& path) {
-        struct stat result;
-        if (stat(path.c_str(), &result) == 0) {
-            return result.st_mtime;
-        }
-        return static_cast<time_t>(0);
-    };
-
-    auto first_cache_path = get_cache_path();
-    auto first_mod_time = get_mod_time(first_cache_path);
-    ASSERT_NE(first_mod_time, static_cast<time_t>(0));
-
-    ov::CompiledModel imported_model;
-    if (m_use_compile_model_api) {
-        imported_model = core->compile_model(m_xml_path, m_target_device, config);
-    } else {
-        auto ifstr = std::ifstream(m_cache_path, std::ifstream::binary);
-        imported_model = core->import_model(ifstr, m_target_device, config_with_weights_path);
-        ifstr.close();
-    }
-
-    auto second_cache_path = get_cache_path();
-    auto second_mod_time = get_mod_time(second_cache_path);
-
-    // Something went wrong if a new cache is created during the second run.
-    ASSERT_EQ(first_mod_time, second_mod_time);
-
-    auto orig_req = compiled_model.create_infer_request();
-    auto new_req = imported_model.create_infer_request();
-
-    for (size_t param_idx = 0; param_idx < m_model->get_parameters().size(); ++param_idx) {
+    std::unordered_map<std::shared_ptr<ov::Node>, ov::Tensor> inputs;
+    for (size_t param_idx = 0; param_idx < m_model->get_parameters().size(); param_idx++) {
         auto input = m_model->get_parameters().at(param_idx);
         auto tensor = ov::test::utils::create_and_fill_tensor_real_distribution(input->get_element_type(),
                                                                                 input->get_shape(),
                                                                                 -100,
                                                                                 100,
                                                                                 param_idx);
-        orig_req.set_tensor(input, tensor);
-        new_req.set_tensor(input, tensor);
+        inputs.insert({input, tensor});
     }
 
-    orig_req.infer();
-    new_req.infer();
-
     auto result_vector = m_model->get_results();
-    for (auto& res : result_vector) {
-        auto orig_out = orig_req.get_tensor(res);
-        auto new_out = new_req.get_tensor(res);
-        ov::test::utils::compare(orig_out, new_out, m_inference_mode);
+    std::vector<ov::Tensor> outputs_ref, outputs_ir, outputs_model, output_imported_strm;
+
+    using CompileModelFn = std::function<ov::CompiledModel(const ov::AnyMap&)>;
+    auto compile_model_and_infer = [&](std::vector<ov::Tensor>& outputs, const std::filesystem::path& cache_dir, CompileModelFn core_compile_model) {
+        auto config_new = config;
+        config_new.insert(ov::cache_dir(cache_dir.string()));
+        // Compile model and create cache.
+        auto compiled_model_1 = core_compile_model(config_new);
+        auto first_mod_time = get_modification_time(cache_dir);
+
+        // Load cached model
+        auto compiled_model_2 = core_compile_model(config_new);
+
+        auto second_mod_time = get_modification_time(cache_dir);
+
+        // Something went wrong if a new cache is created during the second run.
+        ASSERT_EQ(first_mod_time, second_mod_time);
+
+        // Inference
+        auto infer_request = compiled_model_2.create_infer_request();
+        for (const auto& input : inputs) {
+            infer_request.set_tensor(input.first, input.second);
+        }
+        infer_request.infer();
+        for (const auto& output : result_vector) {
+            outputs.push_back(infer_request.get_tensor(output));
+        }
+    };
+
+    std::exception_ptr reference_error, ir_error, model_error, import_error;
+    /////////////////////////////////////////////
+    std::thread t_reference([&] {
+        try {
+            auto compiled_model = core->compile_model(m_xml_path, m_target_device, config);
+            auto infer_request = compiled_model.create_infer_request();
+            for (const auto& input : inputs) {
+                infer_request.set_tensor(input.first, input.second);
+            }
+            infer_request.infer();
+            for (const auto& output : result_vector) {
+                outputs_ref.push_back(infer_request.get_tensor(output));
+            }
+        } catch (...) {
+            reference_error = std::current_exception();
+        }
+    });
+    /////////////////////////////////////////////
+    std::thread t_ir([&] {
+        try {
+            compile_model_and_infer(outputs_ir, m_cache_dir_ir, [&](const ov::AnyMap& config){
+                return core->compile_model(m_xml_path, m_target_device, config);
+            });
+        } catch (...) {
+            ir_error = std::current_exception();
+        }
+    });
+    /////////////////////////////////////////////
+    std::thread t_model([&] {
+        try {
+            compile_model_and_infer(outputs_model, m_cache_dir_model, [&](const ov::AnyMap& config) {
+                auto readed_model = core->read_model(m_xml_path);
+                return core->compile_model(readed_model, m_target_device, config);
+            });
+        } catch (...) {
+            model_error = std::current_exception();
+        }
+    });
+    /////////////////////////////////////////////
+    std::thread t_import([&] {
+        try {
+            {
+                auto config_new = config;
+                auto compiled_model = core->compile_model(m_xml_path, m_target_device, config_new);
+                auto ofstr = std::ofstream(m_cache_path, std::ofstream::binary);
+                compiled_model.export_model(ofstr);
+                ofstr.close();
+            }
+            auto first_mod_time = std::filesystem::last_write_time(m_cache_path);
+
+            ov::CompiledModel compiled_model_2;
+            {
+                auto config_with_weights_path = config;
+                if (ov::util::is_weightless_enabled(config).value_or(false)) {
+                    config_with_weights_path.insert(ov::weights_path(m_bin_path.string()));
+                }
+                config_with_weights_path.erase(ov::cache_dir.name());
+
+                auto ifstr = std::ifstream(m_cache_path, std::ifstream::binary);
+                compiled_model_2 = core->import_model(ifstr, m_target_device, config_with_weights_path);
+                ifstr.close();
+            }
+
+            auto second_mod_time = std::filesystem::last_write_time(m_cache_path);
+
+            // Something went wrong if a new cache is created during the second run.
+            ASSERT_EQ(first_mod_time, second_mod_time);
+
+            auto infer_request = compiled_model_2.create_infer_request();
+            for (const auto& input : inputs) {
+                infer_request.set_tensor(input.first, input.second);
+            }
+            infer_request.infer();
+            for (const auto& output : result_vector) {
+                output_imported_strm.push_back(infer_request.get_tensor(output));
+            }
+        } catch (...) {
+            import_error = std::current_exception();
+        }
+    });
+    /////////////////////////////////////////////
+    
+    t_reference.join();
+    t_ir.join();
+    t_model.join();
+    t_import.join();
+
+    if (reference_error) {
+        std::rethrow_exception(reference_error);
+    }
+    if (ir_error) {
+        std::rethrow_exception(ir_error);
+    }
+    if (model_error) {
+        std::rethrow_exception(model_error);
+    }
+    if (import_error) {
+        std::rethrow_exception(import_error);
+    }
+
+    for (size_t i = 0UL; i < outputs_ref.size(); i++) {
+        ov::test::utils::compare(outputs_ref[i], outputs_ir[i], m_inference_mode);
+        ov::test::utils::compare(outputs_ref[i], outputs_model[i], m_inference_mode);
+        ov::test::utils::compare(outputs_ref[i], output_imported_strm[i], m_inference_mode);
     }
 }
 
