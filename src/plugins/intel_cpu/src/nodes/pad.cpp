@@ -9,7 +9,6 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
-#include <numeric>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/core/type/float16.hpp>
 #include <openvino/op/constant.hpp>
