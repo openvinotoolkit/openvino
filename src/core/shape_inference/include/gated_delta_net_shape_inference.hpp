@@ -22,13 +22,13 @@ std::vector<TRShape> shape_infer(const OpType* op, const std::vector<T>& input_s
     const auto& gate_ps = input_shapes[4];
     const auto& beta_ps = input_shapes[5];
 
-    const auto q_head_num = query_ps[2];
-    const auto k_head_num = key_ps[2];
-    const auto v_head_num = value_ps[2];
+    const auto& q_head_num = query_ps[2];
+    const auto& k_head_num = key_ps[2];
+    const auto& v_head_num = value_ps[2];
 
-    const auto k_head_size = key_ps[3];
-    const auto q_head_size = query_ps[3];
-    const auto v_head_size = value_ps[3];
+    const auto& k_head_size = key_ps[3];
+    const auto& q_head_size = query_ps[3];
+    const auto& v_head_size = value_ps[3];
 
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
@@ -48,8 +48,8 @@ std::vector<TRShape> shape_infer(const OpType* op, const std::vector<T>& input_s
                            q_head_size,
                            ".");
 
-    const auto gate_head_num = gate_ps[2];
-    const auto beta_head_num = beta_ps[2];
+    const auto& gate_head_num = gate_ps[2];
+    const auto& beta_head_num = beta_ps[2];
 
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
@@ -61,9 +61,9 @@ std::vector<TRShape> shape_infer(const OpType* op, const std::vector<T>& input_s
                            ".");
 
     // [batch, v_head_nums, k_head_size, v_head_size]
-    const auto state_head_num = state_ps[1];
-    const auto state_hidden_size_0 = state_ps[2];
-    const auto state_hidden_size_1 = state_ps[3];
+    const auto& state_head_num = state_ps[1];
+    const auto& state_hidden_size_0 = state_ps[2];
+    const auto& state_hidden_size_1 = state_ps[3];
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            state_head_num.compatible(v_head_num),
