@@ -4,8 +4,13 @@
 
 #pragma once
 
+#include <algorithm>
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -23,6 +28,28 @@ namespace test {
 namespace behavior {
 
 inline std::shared_ptr<ov::Model> createMaxPoolModel() {
+    // If set env CHECK_SIMPLE_MODEL=1, then use simple model
+    const char* check_simple_model = std::getenv("CHECK_SIMPLE_MODEL");
+    if (check_simple_model && std::string(check_simple_model) == "1") {
+        auto input =
+            std::make_shared<ov::op::v0::Parameter>(element::f16, PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
+        input->set_friendly_name("input1");
+
+        auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input,
+                                                             Strides{1, 1},
+                                                             Shape{0, 0},
+                                                             Shape{0, 0},
+                                                             Shape{1, 1},
+                                                             op::RoundingType::FLOOR,
+                                                             op::PadType::EXPLICIT);
+        maxpool->set_friendly_name("MaxPool_2");
+
+        auto result = std::make_shared<ov::op::v0::Result>(maxpool);
+        result->set_friendly_name("output");
+
+        return std::make_shared<Model>(ResultVector{result}, ParameterVector{input}, "MaxPool");
+    }
+
     auto input =
         std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
     input->set_friendly_name("input1");
@@ -115,11 +142,102 @@ public:
         return region.find("llvm") != std::string::npos;
     }
 
+    static void dumpTensor(const ov::Tensor& tensor, std::string name);
+
+    static void compareAndDumpInferenceResult(const std::shared_ptr<ov::Model>& model,
+                                              ov::InferRequest& reqDynamic,
+                                              ov::InferRequest& reqReference,
+                                              const std::string& dumpPrefix);
+
+    static void inferAndCompare(const std::shared_ptr<ov::Model>& model,
+                                ov::InferRequest& reqDynamic,
+                                ov::InferRequest& reqReference,
+                                const std::string& dumpPrefix);
+
+    static void setInputInferAndCompare(const std::shared_ptr<ov::Model>& model,
+                                        ov::InferRequest& reqDynamic,
+                                        ov::InferRequest& reqReference,
+                                        const ov::Tensor& inputTensor,
+                                        const std::string& dumpPrefix);
+
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     bool isTargetDevice = false;
 };
+
+void InferWithHostCompileTests::dumpTensor(const ov::Tensor& tensor, std::string name) {
+    std::cout << "Tensor name: " << name << ", shape: " << tensor.get_shape()
+              << ", element type: " << tensor.get_element_type() << std::endl;
+    const float* data = tensor.data<float>();
+    size_t count = ov::shape_size(tensor.get_shape());
+    count = count > 50 ? 50 : count;
+    for (size_t i = 0; i < count; i++) {
+        std::cout << data[i] << " ";
+    }
+    std::cout << std::endl;
+
+    // Dump tensor data to file for debugging
+    // Add random suffix to avoid file name conflict when multiple tests run in parallel
+    std::cout << "Dump tensor to file for debugging, tensor name: " << name << std::endl;
+    std::string fileName = name + "_" + std::to_string(std::rand()) + ".txt";
+    std::ofstream outFile(fileName);
+    if (outFile.is_open()) {
+        outFile << "Tensor name: " << name << ", shape: " << tensor.get_shape()
+                << ", element type: " << tensor.get_element_type() << std::endl;
+        size_t totalCount = ov::shape_size(tensor.get_shape());
+        for (size_t i = 0; i < totalCount; i++) {
+            outFile << data[i] << " ";
+        }
+        outFile << std::endl;
+    }
+    std::cout << "Tensor data dumped to file: " << fileName << std::endl;
+}
+
+void InferWithHostCompileTests::compareAndDumpInferenceResult(const std::shared_ptr<ov::Model>& model,
+                                                              ov::InferRequest& reqDynamic,
+                                                              ov::InferRequest& reqReference,
+                                                              const std::string& dumpPrefix) {
+    const auto inputTensor = reqDynamic.get_input_tensor(0);
+    const auto npuOutputTensor = reqDynamic.get_tensor(model->output());
+    const auto referenceOutputTensor = reqReference.get_tensor(model->output());
+    // Only dump tensor when set env DUMP_TENSOR_FOR_DYNAMIC=1, since dump tensor may cause overhead and affect the test
+    // result
+    const char* dumpTensorEnv = std::getenv("DUMP_TENSOR_FOR_DYNAMIC");
+    if (dumpTensorEnv && std::string(dumpTensorEnv) == "1") {
+        std::cout << "Dump tensor for dynamic shape test since DUMP_TENSOR_FOR_DYNAMIC is set to 1" << std::endl;
+        std::cout << "Dump input tensor for " << dumpPrefix << ", shape: " << inputTensor.get_shape() << std::endl;
+        dumpTensor(inputTensor, dumpPrefix + "_input");
+        std::cout << "Dump output tensor from NPU for " << dumpPrefix << ", shape: " << npuOutputTensor.get_shape()
+                  << std::endl;
+        dumpTensor(npuOutputTensor, dumpPrefix + "_npu_output");
+        std::cout << "Dump output tensor from Template plugin for " << dumpPrefix
+                  << ", shape: " << referenceOutputTensor.get_shape() << std::endl;
+        dumpTensor(referenceOutputTensor, dumpPrefix + "_template_output");
+    }
+
+    OV_ASSERT_NO_THROW(
+        ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type()));
+}
+
+void InferWithHostCompileTests::inferAndCompare(const std::shared_ptr<ov::Model>& model,
+                                                ov::InferRequest& reqDynamic,
+                                                ov::InferRequest& reqReference,
+                                                const std::string& dumpPrefix) {
+    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    OV_ASSERT_NO_THROW(reqReference.infer());
+    compareAndDumpInferenceResult(model, reqDynamic, reqReference, dumpPrefix);
+}
+
+void InferWithHostCompileTests::setInputInferAndCompare(const std::shared_ptr<ov::Model>& model,
+                                                        ov::InferRequest& reqDynamic,
+                                                        ov::InferRequest& reqReference,
+                                                        const ov::Tensor& inputTensor,
+                                                        const std::string& dumpPrefix) {
+    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inputTensor));
+    OV_ASSERT_NO_THROW(reqReference.set_input_tensor(0, inputTensor));
+    inferAndCompare(model, reqDynamic, reqReference, dumpPrefix);
+}
 
 // Test compilation without executor creation
 TEST_P(InferWithHostCompileTests, Compile) {
@@ -161,36 +279,6 @@ TEST_P(InferWithHostCompileTests, CompileAndImport) {
     OV_ASSERT_NO_THROW(core->import_model(modelStream, target_device, configuration));
 }
 
-void dumpTensor(const ov::Tensor& tensor, std::string name);
-
-void dumpTensor(const ov::Tensor& tensor, std::string name) {
-    std::cout << "Tensor name: " << name << ", shape: " << tensor.get_shape()
-              << ", element type: " << tensor.get_element_type() << std::endl;
-    const float* data = tensor.data<float>();
-    size_t count = ov::shape_size(tensor.get_shape());
-    count = count > 50 ? 50 : count;
-    for (size_t i = 0; i < count; i++) {
-        std::cout << data[i] << " ";
-    }
-    std::cout << std::endl;
-
-    // Dump tensor data to file for debugging
-    // Add random suffix to avoid file name conflict when multiple tests run in parallel
-    std::cout << "Dump tensor to file for debugging, tensor name: " << name << std::endl;
-    std::string fileName = name + "_" + std::to_string(std::rand()) + ".txt";
-    std::ofstream outFile(fileName);
-    if (outFile.is_open()) {
-        outFile << "Tensor name: " << name << ", shape: " << tensor.get_shape()
-                << ", element type: " << tensor.get_element_type() << std::endl;
-        size_t totalCount = ov::shape_size(tensor.get_shape());
-        for (size_t i = 0; i < totalCount; i++) {
-            outFile << data[i] << " ";
-        }
-        outFile << std::endl;
-    }
-    std::cout << "Tensor data dumped to file: " << fileName << std::endl;
-}
-
 // The test to compile, create infer request and infer with dynamic shapes, the original shape is large, then set small
 // shape
 TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
@@ -202,6 +290,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
 
     auto model = createMaxPoolModel();
     ov::CompiledModel compiledModel;
+    ov::CompiledModel referenceCompiledModel;
 
     // Create log callback function which will store log to string, the set to ov
     std::stringstream customLogger;
@@ -219,6 +308,11 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
 
     OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
+    try {
+        referenceCompiledModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "CPU plugin is not available for reference comparison: " << e.what();
+    }
 
     ov::InferRequest reqDynamic;
     try {
@@ -229,19 +323,19 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
             << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
         GTEST_SKIP() << "Cannot load library, skip test.";
     }
+    ov::InferRequest reqReference = referenceCompiledModel.create_infer_request();
 
     // create input tensor match the customized models
     ov::Shape shape = {1, 16, 720, 1280};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor, "CompileAndInferWithDecreasedSize_first");
     // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
 
     customLogger.str("");
     customLogger.clear();
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    inferAndCompare(model, reqDynamic, reqReference, "CompileAndInferWithDecreasedSize_second");
     // Rerun inferrequest with current tensor, the command list is reused without update since no tensor change detected
     ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
                 std::string::npos)
@@ -250,9 +344,9 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
         << customLogger.str();
 
     customLogger.str("");
+    customLogger.clear();
     ov::Tensor inTensor1 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor1));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor1, "CompileAndInferWithDecreasedSize_third");
     // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused with
     // data copy
     ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
@@ -265,8 +359,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     customLogger.clear();
     ov::Shape shape2 = {1, 16, 720, 720};
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor3));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor3, "CompileAndInferWithDecreasedSize_fourth");
     // Set new tensor with new shape, it can not be used by runtime directly, local LevelZero tensor are not reused
     // since the original one has differnet shape, command list is reset to run with runtime
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
@@ -286,6 +379,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
 
     auto model = createMaxPoolModel();
     ov::CompiledModel compiledModel;
+    ov::CompiledModel referenceCompiledModel;
 
     // Create log callback function which will store log to string, the set to ov
     std::stringstream customLogger;
@@ -303,6 +397,11 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
 
     OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
+    try {
+        referenceCompiledModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "CPU plugin is not available for reference comparison: " << e.what();
+    }
 
     ov::InferRequest reqDynamic;
     try {
@@ -313,19 +412,19 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
             << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
         GTEST_SKIP() << "Cannot load library, skip test.";
     }
+    ov::InferRequest reqReference = referenceCompiledModel.create_infer_request();
 
     // create input tensor match the customized models
     ov::Shape shape = {1, 16, 720, 720};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor, "CompileAndInferWithIncreasedSize_first");
     // The first time to set tensor, the command list is reset to run with runtime
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
 
     customLogger.str("");
     customLogger.clear();
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    inferAndCompare(model, reqDynamic, reqReference, "CompileAndInferWithIncreasedSize_second");
     // Rerun inferrequest with current tensor, the command list is reused without update since no tensor change detected
     ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
                 std::string::npos)
@@ -334,9 +433,9 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
         << customLogger.str();
 
     customLogger.str("");
+    customLogger.clear();
     ov::Tensor inTensor1 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor1));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor1, "CompileAndInferWithIncreasedSize_third");
     // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused with
     // data copy
     ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
@@ -349,8 +448,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     customLogger.clear();
     ov::Shape shape2 = {1, 16, 720, 1280};
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor3));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor3, "CompileAndInferWithIncreasedSize_fourth");
     // Set new tensor with new shape, it can not be used by runtime directly, local LevelZero tensor are not reused
     // since shape change, command list is reset to run with runtime
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
@@ -370,6 +468,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
 
     auto model = createMaxPoolModel();
     ov::CompiledModel compiledModel;
+    ov::CompiledModel referenceCompiledModel;
 
     // Create log callback function which will store log to string, the set to ov
     std::stringstream customLogger;
@@ -387,6 +486,11 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
 
     OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
+    try {
+        referenceCompiledModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "CPU plugin is not available for reference comparison: " << e.what();
+    }
 
     ov::InferRequest reqDynamic;
     try {
@@ -397,12 +501,12 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
             << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
         GTEST_SKIP() << "Cannot load library, skip test.";
     }
+    ov::InferRequest reqReference = referenceCompiledModel.create_infer_request();
 
     // create input tensor match the customized models
     ov::Shape shape = {1, 16, 720, 1280};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor, "CompileAndInferWithZeroTensor_first");
 
     // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
@@ -411,25 +515,35 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     customLogger.str("");
     customLogger.clear();
     ov::InferRequest reqDynamic1 = compiledModel.create_infer_request();
-    OV_ASSERT_NO_THROW(reqDynamic1.infer());
+    ov::InferRequest reqReference1 = referenceCompiledModel.create_infer_request();
+    setInputInferAndCompare(model, reqDynamic1, reqReference1, inTensor, "CompileAndInferWithZeroTensor_second");
     // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
+
     customLogger.str("");
     customLogger.clear();
     auto outputTensorFromReq = reqDynamic.get_tensor(model->output());
-    OV_ASSERT_NO_THROW(reqDynamic1.set_input_tensor(0, outputTensorFromReq));
-    OV_ASSERT_NO_THROW(reqDynamic1.infer());
+    setInputInferAndCompare(model,
+                            reqDynamic1,
+                            reqReference1,
+                            outputTensorFromReq,
+                            "CompileAndInferWithZeroTensor_third");
     // Level zero tensor with same shape will be used instead of local tensor
     ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
         << "Expected log to contain 'Update command list with new tensor pointer' for third "
            "inference, but got: "
         << customLogger.str();
 
+    customLogger.str("");
+    customLogger.clear();
     auto zeroContext = core->get_default_context(target_device);
     auto inputHostTensor = zeroContext.create_host_tensor(model->input().get_element_type(), shape);
-    OV_ASSERT_NO_THROW(reqDynamic1.set_input_tensor(0, inputHostTensor));
-    OV_ASSERT_NO_THROW(reqDynamic1.infer());
+    auto hostTensorSource = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
+    ASSERT_EQ(hostTensorSource.get_byte_size(), inputHostTensor.get_byte_size())
+        << "Source and destination tensors must have identical byte sizes for copy";
+    std::memcpy(inputHostTensor.data(), hostTensorSource.data(), hostTensorSource.get_byte_size());
+    setInputInferAndCompare(model, reqDynamic1, reqReference1, inputHostTensor, "CompileAndInferWithZeroTensor_fourth");
     // Level zero tensor with same shape will be used instead of local tensor
     ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
         << "Expected log to contain 'Update command list with new tensor pointer' for third "
@@ -487,23 +601,11 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
     // Compare results of first inference
     ov::Shape shape = {1, 16, 720, 1280};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    OV_ASSERT_NO_THROW(reqReference.set_input_tensor(0, inTensor));
-    OV_ASSERT_NO_THROW(reqReference.infer());
-
-    auto npuOutputTensor = reqDynamic.get_tensor(model->output());
-    auto referenceOutputTensor = reqReference.get_tensor(model->output());
-
-    std::cout << "Dump input tensor for NPU, shape: " << inTensor.get_shape() << std::endl;
-    dumpTensor(inTensor, "inTensor");
-    std::cout << "Dump output tensor from NPU, shape: " << npuOutputTensor.get_shape() << std::endl;
-    dumpTensor(npuOutputTensor, "npuOutputTensor");
-    std::cout << "Dump output tensor from Template plugin, shape: " << referenceOutputTensor.get_shape() << std::endl;
-    dumpTensor(referenceOutputTensor, "referenceOutputTensor");
-
-    OV_ASSERT_NO_THROW(
-        ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type()));
+    setInputInferAndCompare(model,
+                            reqDynamic,
+                            reqReference,
+                            inTensor,
+                            "CompileAndInferWithZeroTensorCompareWithReference_first");
 
     // First inference, execute with runtime
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
@@ -511,8 +613,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
 
     customLogger.str("");
     customLogger.clear();
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    OV_ASSERT_NO_THROW(reqReference.infer());
+    inferAndCompare(model, reqDynamic, reqReference, "CompileAndInferWithZeroTensorCompareWithReference_second");
     // Rerun inferrequest with current tensor, the command list is reused without update since no tensor change detected
     ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
                 std::string::npos)
@@ -520,18 +621,6 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
            "inference, but got: "
         << customLogger.str();
     auto npuOutputTensorSecondRun = reqDynamic.get_tensor(model->output());
-    auto referenceOutputTensorSecondRun = reqReference.get_tensor(model->output());
-
-    std::cout << "Dump output tensor from NPU after second inference, shape: " << npuOutputTensorSecondRun.get_shape()
-              << std::endl;
-    dumpTensor(npuOutputTensorSecondRun, "npuOutputTensorSecondRun");
-    std::cout << "Dump output tensor from reference after second inference, shape: "
-              << referenceOutputTensorSecondRun.get_shape() << std::endl;
-    dumpTensor(referenceOutputTensorSecondRun, "referenceOutputTensorSecondRun");
-
-    OV_ASSERT_NO_THROW(ov::test::utils::compare(referenceOutputTensorSecondRun,
-                                                npuOutputTensorSecondRun,
-                                                npuOutputTensorSecondRun.get_element_type()));
 
     customLogger.str("");
     customLogger.clear();
@@ -544,30 +633,17 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
     customLogger.str("");
     customLogger.clear();
     ov::InferRequest reqReference1 = referenceCompiledModel.create_infer_request();
-    OV_ASSERT_NO_THROW(reqDynamic1.set_input_tensor(0, npuOutputTensorSecondRun));
-    OV_ASSERT_NO_THROW(reqDynamic1.infer());
-    OV_ASSERT_NO_THROW(reqReference1.set_input_tensor(0, npuOutputTensorSecondRun));
-    OV_ASSERT_NO_THROW(reqReference1.infer());
+    setInputInferAndCompare(model,
+                            reqDynamic1,
+                            reqReference1,
+                            npuOutputTensorSecondRun,
+                            "CompileAndInferWithZeroTensorCompareWithReference_third");
 
     // Set new level zero tensor with same shape, it can be used by runtime directly
     ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
         << "Expected log to contain 'Update command list with new tensor pointer' for third "
            "inference, but got: "
         << customLogger.str();
-
-    auto npuOutputTensorThirdRun = reqDynamic1.get_tensor(model->output());
-    auto referenceOutputTensorThirdRun = reqReference1.get_tensor(model->output());
-
-    std::cout << "Dump output tensor from NPU after third inference, shape: " << npuOutputTensorThirdRun.get_shape()
-              << std::endl;
-    dumpTensor(npuOutputTensorThirdRun, "npuOutputTensorThirdRun");
-    std::cout << "Dump output tensor from reference after third inference, shape: "
-              << referenceOutputTensorThirdRun.get_shape() << std::endl;
-    dumpTensor(referenceOutputTensorThirdRun, "referenceOutputTensorThirdRun");
-
-    OV_ASSERT_NO_THROW(ov::test::utils::compare(referenceOutputTensorThirdRun,
-                                                npuOutputTensorThirdRun,
-                                                npuOutputTensorThirdRun.get_element_type()));
 }
 
 // The test to compile, create infer request and infer with dynamic shapes. Set tensor that can be imported by level
@@ -581,6 +657,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithAlignedTensor) {
 
     auto model = createMaxPoolModel();
     ov::CompiledModel compiledModel;
+    ov::CompiledModel referenceCompiledModel;
 
     // Create log callback function which will store log to string, the set to ov
     std::stringstream customLogger;
@@ -598,6 +675,11 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithAlignedTensor) {
     core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
 
     OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
+    try {
+        referenceCompiledModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "CPU plugin is not available for reference comparison: " << e.what();
+    }
 
     ov::InferRequest reqDynamic;
     try {
@@ -608,12 +690,12 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithAlignedTensor) {
             << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
         GTEST_SKIP() << "Cannot load library, skip test.";
     }
+    ov::InferRequest reqReference = referenceCompiledModel.create_infer_request();
 
     // create input tensor match the customized models
     ov::Shape shape = {1, 16, 720, 768};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor, "CompileAndInferWithAlignedTensor_first");
 
     // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
@@ -622,13 +704,18 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithAlignedTensor) {
     customLogger.str("");
     customLogger.clear();
     // shape size is aligned to standard page size, align address as well
-    auto data = static_cast<float*>(
-        ::operator new(ov::shape_size(shape) * model->input().get_element_type().size(), std::align_val_t(4096)));
-    // auto AlignedTensor = ov::make_tensor(model->input().get_element_type(), shape, data);
-    ov::Tensor inTensor1(model->input().get_element_type(), shape, data);
+    auto alignedData = std::unique_ptr<float, void (*)(float*)>(
+        static_cast<float*>(
+            ::operator new(ov::shape_size(shape) * model->input().get_element_type().size(), std::align_val_t(4096))),
+        [](float* ptr) {
+            ::operator delete(ptr, std::align_val_t(4096));
+        });
+    ov::Tensor inTensor1(model->input().get_element_type(), shape, alignedData.get());
+    ASSERT_EQ(inTensor.get_byte_size(), inTensor1.get_byte_size())
+        << "Source and destination tensors must have identical byte sizes for copy";
+    std::memcpy(inTensor1.data(), inTensor.data(), inTensor.get_byte_size());
 
-    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor1));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor1, "CompileAndInferWithAlignedTensor_second");
 
     if (::intel_npu::ZeroInitStructsHolder::getInstance()->isExternalMemoryStandardAllocationSupported()) {
         // Set new tensor with same shape, it can be imported as LevelZero tensor, command list is updated with new
