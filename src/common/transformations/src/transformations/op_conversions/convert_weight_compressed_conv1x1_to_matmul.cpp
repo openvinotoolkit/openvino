@@ -243,7 +243,6 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
                 std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                        ov::Shape{3},
                                                        std::vector<int64_t>{1, -1, shape_out[-1].get_length()});
-            MatcherPass::register_new_node(squeeze_const);
             auto squeeze = std::make_shared<ov::op::v1::Reshape>(activation, squeeze_const, false);
             ov::copy_runtime_info(activation, squeeze);
             squeeze->set_friendly_name(activation->get_friendly_name() + "_squeeze");
@@ -281,7 +280,6 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
                 std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                        ov::Shape{4},
                                                        std::vector<int64_t>{1, 1, -1, shape_out[-1].get_length()});
-            MatcherPass::register_new_node(unsqueeze_const);
             auto unsqueeze = std::make_shared<ov::op::v1::Reshape>(matmul_out, unsqueeze_const, false);
             ov::copy_runtime_info(matmul_out, unsqueeze);
             unsqueeze->set_friendly_name(matmul_out->get_friendly_name() + "_unsqueeze");
