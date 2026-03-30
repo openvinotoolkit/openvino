@@ -419,7 +419,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             using namespace ov::element;
             // QDQ stripping pipeline
             // 0. Deduplicate identical DQ subgraphs sharing a common Convert node
-            qdq_stripping_manager.register_pass<ov::pass::HorizontalQDQFusion>(TypeVector{i16, u16}, TypeVector{f32});
+            qdq_stripping_manager.register_pass<ov::pass::SharedOpOptimization>();
             // 1. Fuse FQ->Convert->DQ to a single FQ
             qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16}, TypeVector{f32});
             // 2. Strip FQ layers with unsupported levels
