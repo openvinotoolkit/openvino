@@ -671,7 +671,11 @@ KERNEL(sdpa_opt)(
             const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, 0);
             VALUE_COMPRESSION_SCALE_TYPE comp_scale = val_scale[comp_offset];
 #if USE_ASYMMETRIC_QUANTIZATION
+#if HAS_KV_CACHE_ZP_INPUT
+            VALUE_COMPRESSION_SCALE_TYPE comp_zp = val_zp[comp_offset];
+#else
             VALUE_COMPRESSION_SCALE_TYPE comp_zp = val_scale[comp_offset + 1];
+#endif
 #endif
 #endif
 
