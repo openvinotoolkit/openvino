@@ -142,6 +142,16 @@ jobs:
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'true'
 
+      - name: Install CMake 4.3
+        run: |
+          $cmakeUrl = "https://cmake.org/files/v4.3/cmake-4.3.0-windows-x86_64.zip"
+          Invoke-WebRequest -Uri $cmakeUrl -OutFile cmake.zip
+          Expand-Archive -Path cmake.zip -DestinationPath C:\cmake
+          Remove-Item cmake.zip
+          echo "C:\cmake\cmake-4.3.0-windows-x86_64\bin" >> $env:GITHUB_PATH
+          $env:PATH = "C:\cmake\cmake-4.3.0-windows-x86_64\bin;$env:PATH"
+          cmake --version
+
       # Test with the short names of the arguments
       - name: Build cpp samples
         run: |

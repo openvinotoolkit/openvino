@@ -90,6 +90,24 @@ jobs:
         with:
           toolset: 14.42 # v2022
 
+      - name: Install CMake 4.3 (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          wget -q https://cmake.org/files/v4.3/cmake-4.3.0-linux-x86_64.sh
+          sh cmake-4.3.0-linux-x86_64.sh --skip-license --prefix=/usr/local
+          rm cmake-4.3.0-linux-x86_64.sh
+          cmake --version
+
+      - name: Install CMake 4.3 (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          wget -q https://cmake.org/files/v4.3/cmake-4.3.0-macos-universal.tar.gz
+          tar -xzf cmake-4.3.0-macos-universal.tar.gz
+          sudo cp -R cmake-4.3.0-macos-universal/CMake.app/Contents/bin/* /usr/local/bin/
+          sudo cp -R cmake-4.3.0-macos-universal/CMake.app/Contents/share/* /usr/local/share/
+          rm -rf cmake-4.3.0-macos-universal cmake-4.3.0-macos-universal.tar.gz
+          cmake --version
+
       - name: Build cpp samples
         run: $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples
 
