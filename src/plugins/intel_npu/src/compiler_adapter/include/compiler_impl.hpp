@@ -92,7 +92,7 @@ public:
      */
     bool get_supported_options(std::vector<char>& options) const;
 
-    bool is_option_supported(const std::string& option, std::optional<std::string> optValue = std::nullopt) const;
+    bool is_option_supported(std::string option, std::optional<std::string> optValue = std::nullopt) const;
 
     std::shared_ptr<void> getLinkedLibrary() const;
 

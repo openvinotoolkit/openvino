@@ -65,19 +65,19 @@ jobs:
           submodules: 'false'
 
       - name: Download OpenVINO artifacts (wheels)
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO artifacts (tests)
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO artifacts (tokenizers_wheel)
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: openvino_tokenizers_wheel
           path: ${{ env.INSTALL_DIR }}
@@ -138,14 +138,6 @@ jobs:
         env:
           TEST_DEVICE: CPU
 
-      - name: RoPE Test
-        if: ${{ inputs.model_scope == 'precommit' }}
-        run: |
-          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_rope_tests.html --self-contained-html -v --tb=short -n 2
-        env:
-          TEST_DEVICE: CPU
-
       - name: StatefulToStateless Test
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
@@ -170,6 +162,15 @@ jobs:
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pip install optimum-intel==1.25.2 transformers==4.53.3 --upgrade
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_moe_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_moe_tests.html --self-contained-html -vvv -s --tb=short -n 2
+        env:
+          TEST_DEVICE: CPU
+
+      - name: RoPE Test
+        if: ${{ inputs.model_scope == 'precommit' }}
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_rope.txt
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_rope_tests.html --self-contained-html -v --tb=short -n 2
         env:
           TEST_DEVICE: CPU
 
