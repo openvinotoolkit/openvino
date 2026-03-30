@@ -340,6 +340,16 @@ static constexpr ov::Property<WSVersion> separate_weights_version{"NPU_SEPARATE_
 
 /**
  * @brief [Only for NPU Plugin]
+ * Type: bool. Default is "false".
+ *
+ * This option enables/disables the "weights separation" feature. If enabled, the result of compilation will be a binary
+ * object stripped of a significant amount of weights. Before running the model, these weights need to be provided by
+ * external means.
+ */
+static constexpr ov::Property<bool> weightless_blob{"NPU_WEIGHTLESS_BLOB"};
+
+/**
+ * @brief [Only for NPU Plugin]
  * Type: enum. Default is "AUTO".
  *
  * This config option concerns the algorithm used for serializing the "ov::Model" at compilation time in order to be
