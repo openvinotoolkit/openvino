@@ -79,8 +79,8 @@ void PagedAttentionExtension::validate_and_infer_types() {
     OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 25,
-                          "PagedAttensionExtension expects 25 inputs, but it has ",
+                          get_input_size() == 26,
+                          "PagedAttensionExtension expects 26 inputs, but it has ",
                           get_input_size());
 
     // format: Node*, input_idx, name, {rank_list}, {type_list}
@@ -93,7 +93,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 6, "subsequence_begins", {1}, {element::i32});
     input_check(this, 7, "block_indices", {1}, {element::i32});
     input_check(this, 8, "block_indices_begins", {1}, {element::i32});
-    input_check(this, 9, "scale", {0, 1}, get_real_types());
+    input_check(this, 9, "scale", {0}, get_real_types());
     input_check(this, 10, "sliding_window", {0}, {element::i32});
     input_check(this, 11, "alibi_slopes", {1}, get_real_types());
     input_check(this, 12, "max_context_len", {0}, {element::i32});
@@ -101,7 +101,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 14, "rotated_block_indices", {1}, {element::i32});
     input_check(this, 15, "rotation_deltas", {1, 2}, {element::i32});
     input_check(this, 16, "rotation_trig_lut", {1, 2}, {element::f16, element::f32});
-    input_check(this, 17, "xattention_threshold", {0, 1}, {element::f16, element::f32});
+    input_check(this, 17, "xattention_threshold", {1}, {element::f16, element::f32});
     input_check(this, 18, "xattention_block_size", {0}, {element::i32});
     input_check(this, 19, "xattention_stride", {0}, {element::i32});
     input_check(this, 20, "sinks", {1, 4}, {});
@@ -109,6 +109,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 22, "adaptive_rkv_evictable_sizes", {1}, {element::i32});
     input_check(this, 23, "adaptive_rkv_diversity_block_set_indices", {1}, {element::i32});
     input_check(this, 24, "adaptive_rkv_diversity_block_set_indices_begins", {1}, {element::i32});
+    input_check(this, 25, "token_type_ids", {1, 2}, {element::i32});
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);

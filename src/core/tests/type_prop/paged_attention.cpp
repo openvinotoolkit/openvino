@@ -51,7 +51,7 @@ ov::OutputVector make_valid_pa_args(const element::Type& t = element::f32) {
     auto deltas = std::make_shared<Parameter>(element::i32, PartialShape{6});
     auto trig = std::make_shared<Parameter>(trig_t, PartialShape{6});
 
-    auto xthr = std::make_shared<Parameter>(trig_t, PartialShape{});
+    auto xthr = std::make_shared<Parameter>(trig_t, PartialShape{1});
     auto xbs = std::make_shared<Parameter>(element::i32, PartialShape{});
     auto xst = std::make_shared<Parameter>(element::i32, PartialShape{});
 
@@ -62,9 +62,11 @@ ov::OutputVector make_valid_pa_args(const element::Type& t = element::f32) {
     auto arkv_idx = std::make_shared<Parameter>(element::i32, PartialShape{3});
     auto arkv_beg = std::make_shared<Parameter>(element::i32, PartialShape{3});
 
-    return {query, key,   value, key_cache,  value_cache, past_lens, subseq,  block_idx, block_beg,
-            scale, slide, alibi, maxctx,     scorew,      rotated,   deltas,  trig,      xthr,
-            xbs,   xst,   sinks, arkv_start, arkv_evict,  arkv_idx,  arkv_beg};
+    auto token_type_ids = std::make_shared<Parameter>(element::i32, PartialShape{0});
+
+    return {query, key,   value, key_cache,  value_cache, past_lens, subseq,   block_idx,     block_beg,
+            scale, slide, alibi, maxctx,     scorew,      rotated,   deltas,   trig,          xthr,
+            xbs,   xst,   sinks, arkv_start, arkv_evict,  arkv_idx,  arkv_beg, token_type_ids};
 }
 }  // namespace
 TEST(type_prop, paged_attention_static_eviction_per_block) {
@@ -100,6 +102,8 @@ TEST(type_prop, paged_attention_static_eviction_per_block) {
     const auto adaptive_rkv_diversity_block_set_indices_begins =
         std::make_shared<op::v0::Parameter>(element::i32, PartialShape{5});
 
+    const auto token_type_ids = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{0});
+
     ov::OutputVector args = {query,
                              key,
                              value,
@@ -124,7 +128,8 @@ TEST(type_prop, paged_attention_static_eviction_per_block) {
                              adaptive_rkv_start_size,
                              adaptive_rkv_evictable_sizes,
                              adaptive_rkv_diversity_block_set_indices,
-                             adaptive_rkv_diversity_block_set_indices_begins};
+                             adaptive_rkv_diversity_block_set_indices_begins,
+                             token_type_ids};
 
     const auto op = std::make_shared<op::PagedAttentionExtension>(args);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
@@ -164,6 +169,8 @@ TEST(type_prop, paged_attention_static_eviction_per_token) {
     const auto adaptive_rkv_diversity_block_set_indices_begins =
         std::make_shared<op::v0::Parameter>(element::i32, PartialShape{5});
 
+    const auto token_type_ids = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{0});
+
     ov::OutputVector args = {query,
                              key,
                              value,
@@ -188,7 +195,8 @@ TEST(type_prop, paged_attention_static_eviction_per_token) {
                              adaptive_rkv_start_size,
                              adaptive_rkv_evictable_sizes,
                              adaptive_rkv_diversity_block_set_indices,
-                             adaptive_rkv_diversity_block_set_indices_begins};
+                             adaptive_rkv_diversity_block_set_indices_begins,
+                             token_type_ids};
 
     const auto op = std::make_shared<op::PagedAttentionExtension>(args);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
@@ -229,6 +237,8 @@ TEST(type_prop, paged_attention_dynamic_ranks_and_types) {
     const auto adaptive_rkv_diversity_block_set_indices_begins =
         std::make_shared<op::v0::Parameter>(element::dynamic, dyn);
 
+    const auto token_type_ids = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{0});
+
     ov::OutputVector args = {query,
                              key,
                              value,
@@ -253,7 +263,8 @@ TEST(type_prop, paged_attention_dynamic_ranks_and_types) {
                              adaptive_rkv_start_size,
                              adaptive_rkv_evictable_sizes,
                              adaptive_rkv_diversity_block_set_indices,
-                             adaptive_rkv_diversity_block_set_indices_begins};
+                             adaptive_rkv_diversity_block_set_indices_begins,
+                             token_type_ids};
 
     EXPECT_NO_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args));
 }
@@ -288,7 +299,7 @@ TEST(type_prop, paged_attention_invalid_input_count) {
     args.pop_back();  // 24 instead of 25
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args),
                     ov::NodeValidationFailure,
-                    HasSubstr("25 inputs"));
+                    HasSubstr("26 inputs"));
 }
 
 TEST(type_prop, paged_attention_invalid_past_lens_rank) {
@@ -332,9 +343,9 @@ TEST(type_prop, paged_attention_gqa_output_shape) {
     // Output features = q * v / k = 24 * 8 / 8 = 24  (= q_heads * v_head_size)
     auto args = make_valid_pa_args();
     const auto B = 3;
-    args[0] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{B, 24});  // Q: 6 heads * 4
-    args[1] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{B, 8});   // K: 2 heads * 4
-    args[2] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{B, 8});   // V: 2 heads * 4
+    args[0] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{B, 24});        // Q: 6 heads * 4
+    args[1] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{B, 8});         // K: 2 heads * 4
+    args[2] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{B, 8});         // V: 2 heads * 4
     args[3] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{4, 2, 32, 4});  // key_cache
     args[4] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{4, 2, 32, 4});  // value_cache
     const auto op = std::make_shared<op::PagedAttentionExtension>(args);

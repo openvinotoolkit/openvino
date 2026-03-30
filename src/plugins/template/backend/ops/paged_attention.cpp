@@ -49,7 +49,7 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
               ov::reference::paged_attention_cache::PagedCacheManager* cache_manager) {
     using T = typename ov::element_type_traits<ET>::value_type;
 
-    OPENVINO_ASSERT(inputs.size() == 25, "PagedAttentionExtension: expected 25 inputs");
+    OPENVINO_ASSERT(inputs.size() == 26, "PagedAttentionExtension: expected 26 inputs");
     OPENVINO_ASSERT(outputs.size() == 3, "PagedAttentionExtension: expected 3 outputs");
 
     resize_pa_outputs(pa_op, outputs, inputs);

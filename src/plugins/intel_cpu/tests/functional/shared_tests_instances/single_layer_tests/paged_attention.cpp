@@ -134,7 +134,7 @@ INSTANTIATE_TEST_SUITE_P(mediumAlibi_PagedAttentionLayerTest,
                                             ::testing::ValuesIn(additional_configs_ref)),
                          PagedAttentionLayerTest::getTestCaseName);
 
-// Advanced tests - all 25 inputs with various feature combinations
+// Advanced tests - all 26 inputs with various feature combinations
 
 // 5) 3-step with non-trivial past_lens: prompt(L=2), prefill(L=3, past=2), decode(L=1)
 INSTANTIATE_TEST_SUITE_P(adv3Step_PagedAttentionLayerTest,

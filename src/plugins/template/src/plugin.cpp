@@ -7,6 +7,7 @@
 #include <fstream>
 #include <memory>
 
+#include "attach_cache_manager_to_paged_attention.hpp"
 #include "itt.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/manager.hpp"
@@ -17,7 +18,6 @@
 #include "openvino/util/file_util.hpp"
 #include "remote_context.hpp"
 #include "template/properties.hpp"
-#include "attach_cache_manager_to_paged_attention.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"

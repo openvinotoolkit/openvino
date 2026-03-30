@@ -216,13 +216,16 @@ protected:
         }
 
         ov::ParameterVector params = {q,k,v,key_cache,value_cache,past_lens,subseq_begins,block_indices,block_indices_begins};
+        auto token_type_ids = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i32, ov::Shape{0}, std::vector<int32_t>{});
         ov::OutputVector pa_inputs = {q,k,v,key_cache,value_cache,past_lens,subseq_begins,block_indices,block_indices_begins,
                                       scale,sliding_windows,alibi_slopes,max_context_len,score_aggregation_window,
                                       rotated_block_indices,rotation_deltas,rotation_trig_lut,
                                       xattention_threshold,xattention_block_size,xattention_stride,
                                       sinks,
                                       adaptive_rkv_start_size,adaptive_rkv_evictable_sizes,
-                                      adaptive_rkv_diversity_block_set_indices,adaptive_rkv_diversity_block_set_indices_begins};
+                                      adaptive_rkv_diversity_block_set_indices,adaptive_rkv_diversity_block_set_indices_begins,
+                                      token_type_ids};
 
         auto pa = std::make_shared<ov::op::PagedAttentionExtension>(pa_inputs);
 
