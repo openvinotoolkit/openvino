@@ -30,7 +30,7 @@ ParamsKey ResampleKernelBfyxCubicOpt::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableReampleType(ResampleType::CUBIC);
+    k.EnableResampleType(ResampleType::CUBIC);
     return k;
 }
 
