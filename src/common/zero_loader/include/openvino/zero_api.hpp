@@ -108,7 +108,7 @@ namespace ov {
  * 
  * @note User must store shared pointer returned by get_instance() to prevent unloading.
  */
-class OPENVINO_API ZeroApi {
+class ZeroApi {
 public:
     ZeroApi();
     ZeroApi(const ZeroApi& other) = delete;
