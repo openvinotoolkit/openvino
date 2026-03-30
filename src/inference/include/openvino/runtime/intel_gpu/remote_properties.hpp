@@ -11,6 +11,7 @@
 #pragma once
 
 #include "openvino/runtime/properties.hpp"
+#include <filesystem>
 
 namespace ov {
 namespace intel_gpu {
@@ -189,6 +190,37 @@ static constexpr Property<uint32_t> dev_object_handle{"DEV_OBJECT_HANDLE"};
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 static constexpr Property<uint32_t> va_plane{"VA_PLANE"};
+
+/**
+ * @brief Struct to define file descriptor
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+struct FileDescriptor {
+    FileDescriptor(const std::filesystem::path& file_path, std::size_t offset_in_bytes = 0)
+        : _file_path(file_path),
+          _offset_in_bytes(offset_in_bytes) {
+        if (file_path.empty()) {
+            OPENVINO_THROW("Provided path is empty.");
+        }
+    }
+
+    std::filesystem::path _file_path;  //!< File path
+    std::size_t _offset_in_bytes = 0;  //!< Offset in bytes to read from the file
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const FileDescriptor& file_descriptor) {
+    return os << "FileDescriptor{file_path: " << file_descriptor._file_path
+              << ", offset_in_bytes: " << file_descriptor._offset_in_bytes << "}";
+}
+/** @endcond */
+
+/**
+ * @brief This key identifies file descriptor
+ * in a shared memory mapped tensor parameter map
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+static constexpr Property<FileDescriptor> file_descriptor{"FILE_DESCRIPTOR"};
 
 }  // namespace intel_gpu
 }  // namespace ov

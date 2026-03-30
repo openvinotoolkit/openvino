@@ -9,6 +9,14 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
 
+#ifdef OV_GPU_WITH_OCL_RT
+#include <CL/cl_ext.h>
+#include "ocl/ocl_engine.hpp"
+#include "ocl/ocl_ext.hpp"
+#include "ocl/ocl_stream.hpp"
+#endif
+#include <fstream>
+#include <limits>
 #include <memory>
 
 namespace ov::intel_gpu {
@@ -149,7 +157,8 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
                                    TensorType mem_type,
                                    cldnn::shared_handle mem,
                                    cldnn::shared_surface surf,
-                                   uint32_t plane)
+                                   uint32_t plane,
+                                   const std::optional<ov::intel_gpu::FileDescriptor>& file_descriptor)
     : m_context(context)
     , m_element_type(element_type)
     , m_shape(shape)
@@ -157,12 +166,14 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
     , m_mem_type(mem_type)
     , m_mem(mem)
     , m_surf(surf)
-    , m_plane(plane) {
+    , m_plane(plane)
+    , m_file_descriptor(file_descriptor) {
     update_hash();
     allocate();
 }
 
 RemoteTensorImpl::~RemoteTensorImpl() {
+    release_external_mem_if_needed();
     deallocate();
 }
 
@@ -273,6 +284,7 @@ void RemoteTensorImpl::set_shape(ov::Shape shape) {
 }
 
 bool RemoteTensorImpl::deallocate() noexcept {
+    release_external_mem_if_needed();
     m_memory_object.reset();
     return m_memory_object == nullptr;
 }
@@ -365,6 +377,12 @@ void RemoteTensorImpl::allocate() {
     }
     default:
         m_memory_object.reset();
+    }
+
+    // If file_descriptor is provided, copy data from file
+    if (m_file_descriptor.has_value() && m_memory_object) {
+        auto bytes = ov::shape_size(m_shape) * m_element_type.size();
+        copy_file_data_to_memory(bytes);
     }
 
     update_properties();
@@ -504,6 +522,125 @@ void RemoteTensorImpl::update_properties() {
     default:
         OPENVINO_THROW("[GPU] Unsupported shared object type ", static_cast<int>(m_mem_type));
     }
+}
+
+void RemoteTensorImpl::copy_file_data_to_memory(size_t size_to_read) {
+    if (!m_file_descriptor.has_value()) {
+        OPENVINO_THROW("No parameter ", ov::intel_gpu::file_descriptor.name(), " found in parameters map");
+    }
+
+    OPENVINO_ASSERT(
+        m_file_descriptor.value()._offset_in_bytes <= static_cast<size_t>(std::numeric_limits<std::streamsize>::max()),
+        "[GPU] Cannot set offset ",
+        m_file_descriptor.value()._offset_in_bytes,
+        " from ",
+        m_file_descriptor.value()._file_path,
+        ", because the value exceeds std::streamsize limit");
+
+    OPENVINO_ASSERT(size_to_read <= static_cast<size_t>(std::numeric_limits<std::streamsize>::max()),
+                    "[GPU] Cannot read size ",
+                    size_to_read,
+                    " from ",
+                    m_file_descriptor.value()._file_path,
+                    ", because the value exceeds std::streamsize limit");
+
+    std::streamoff offset = static_cast<std::streamoff>(m_file_descriptor.value()._offset_in_bytes);
+
+    std::ifstream fin(m_file_descriptor.value()._file_path, std::ios::binary);
+    OPENVINO_ASSERT(fin.is_open(), "[GPU] Cannot open file: ", m_file_descriptor.value()._file_path);
+
+    fin.seekg(0, std::ios::end);
+    std::streamoff file_size = fin.tellg();
+
+    if (offset >= file_size) {
+        OPENVINO_THROW("[GPU] Offset is beyond the end of the file.");
+    }
+
+    fin.seekg(offset, std::ios::beg);
+
+    std::streamoff bytes_to_read = static_cast<std::streamoff>(size_to_read);
+    auto& stream = m_context->get_engine().get_service_stream();
+    const auto alloc_type = m_memory_object->get_allocation_type();
+
+    // acquire/release is only meaningful for externally-owned cl_mem buffers (BT_BUF_SHARED),
+    // where the buffer was created from an external handle and may be in use by the OS/another API.
+    // For internally allocated buffers mem_lock provides sufficient synchronization on its own.
+    const bool is_external_cl_mem = (m_mem_type == TensorType::BT_BUF_SHARED) &&
+                                    (alloc_type == cldnn::allocation_type::cl_mem);
+
+#ifdef OV_GPU_WITH_OCL_RT
+        auto* ocl_eng = dynamic_cast<cldnn::ocl::ocl_engine*>(&m_context->get_engine());
+        const bool ext_mem_supported = ocl_eng && ocl_eng->extension_supported("cl_khr_external_memory");
+    if (is_external_cl_mem && ext_mem_supported && !m_external_mem_acquired) {
+        auto* ocl_mem = m_memory_object->buffer_ptr();
+        OPENVINO_ASSERT(ocl_mem != nullptr, "[GPU] Failed to get OpenCL memory handle for external acquire");
+        auto* ocl_stream = dynamic_cast<cldnn::ocl::ocl_stream*>(&stream);
+        OPENVINO_ASSERT(ocl_stream != nullptr, "[GPU] Failed to cast service stream to OCL stream for external acquire");
+
+        cl_mem mem_obj = static_cast<cl_mem>(ocl_mem);
+        cl_command_queue queue = ocl_stream->get_cl_queue().get();
+        auto acquire_external_mem = load_entrypoint<clEnqueueAcquireExternalMemObjectsKHR_fn>(
+            queue,
+            "clEnqueueAcquireExternalMemObjectsKHR");
+        cl_int err = acquire_external_mem(queue, 1, &mem_obj, 0, nullptr, nullptr);
+        OPENVINO_ASSERT(err == CL_SUCCESS,
+                        "[GPU] clEnqueueAcquireExternalMemObjectsKHR failed with error: ",
+                        err);
+
+        m_acquired_external_mem = static_cast<cldnn::shared_handle>(mem_obj);
+        m_external_mem_acquired = true;
+    }
+#endif
+
+    if (alloc_type == cldnn::allocation_type::usm_host || alloc_type == cldnn::allocation_type::usm_shared) {
+        auto* dst = reinterpret_cast<char*>(m_memory_object->buffer_ptr());
+        OPENVINO_ASSERT(dst != nullptr, "[GPU] Failed to get writable pointer for mapped memory");
+        fin.read(dst, bytes_to_read);
+    } else if (alloc_type == cldnn::allocation_type::usm_device) {
+        OPENVINO_THROW("[GPU] File mapping is not supported for USM_DEVICE allocation. Use cl_mem/usm_host/usm_shared tensor type");
+    } else {
+        cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write> dst_lock{m_memory_object, stream};
+        auto* dst = reinterpret_cast<char*>(dst_lock.data());
+        OPENVINO_ASSERT(dst != nullptr, "[GPU] Failed to map device memory for file read");
+        fin.read(dst, bytes_to_read);
+    }
+
+    OPENVINO_ASSERT(fin.gcount() == bytes_to_read,
+                    "[GPU] Failed to read expected number of bytes from file. Read: ",
+                    fin.gcount(),
+                    ", Expected: ",
+                    bytes_to_read);
+}
+
+void RemoteTensorImpl::release_external_mem_if_needed() noexcept {
+    if (!m_external_mem_acquired || m_acquired_external_mem == nullptr || !m_context) {
+        return;
+    }
+
+    try {
+#ifdef OV_GPU_WITH_OCL_RT
+    auto* ocl_eng_rel = dynamic_cast<cldnn::ocl::ocl_engine*>(&m_context->get_engine());
+    if (ocl_eng_rel && ocl_eng_rel->extension_supported("cl_khr_external_memory")) {
+            auto& stream = m_context->get_engine().get_service_stream();
+            auto* ocl_stream = dynamic_cast<cldnn::ocl::ocl_stream*>(&stream);
+            OPENVINO_ASSERT(ocl_stream != nullptr, "[GPU] Failed to cast service stream to OCL stream for external release");
+            cl_command_queue queue = ocl_stream->get_cl_queue().get();
+            auto release_external_mem = load_entrypoint<clEnqueueReleaseExternalMemObjectsKHR_fn>(
+                queue,
+                "clEnqueueReleaseExternalMemObjectsKHR");
+            cl_mem mem_obj = static_cast<cl_mem>(m_acquired_external_mem);
+            cl_int err = release_external_mem(queue, 1, &mem_obj, 0, nullptr, nullptr);
+            if (err != CL_SUCCESS) {
+                GPU_DEBUG_INFO << "[GPU] Warning: clEnqueueReleaseExternalMemObjectsKHR failed with error: " << err << std::endl;
+            }
+        }
+#endif
+    } catch (...) {
+        GPU_DEBUG_INFO << "[GPU] Warning: exception while releasing external memory object" << std::endl;
+    }
+
+    m_acquired_external_mem = nullptr;
+    m_external_mem_acquired = false;
 }
 
 }  // namespace ov::intel_gpu

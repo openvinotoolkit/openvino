@@ -63,6 +63,9 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
         if (params.find(ov::intel_gpu::tile_id.name()) != params.end()) {
             target_tile_id = extract_object(params, ov::intel_gpu::tile_id);
         }
+        if (params.find(ov::intel_gpu::file_descriptor.name()) != params.end()) {
+            m_file_descriptor = extract_object(params, ov::intel_gpu::file_descriptor);
+        }
     }
 
     const auto initialize_devices = true;
@@ -129,9 +132,18 @@ ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::
 ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element::Type& type, const ov::Shape& shape, const ov::AnyMap& params) {
     OPENVINO_ASSERT(m_is_initialized, "[GPU] create_tensor() called on uninitialized context. Please initialize the context before use");
 
+    // Extract file_descriptor from params or use context-level one
+    std::optional<ov::intel_gpu::FileDescriptor> file_descriptor_object = std::nullopt;
+    
+    if (params.find(ov::intel_gpu::file_descriptor.name()) != params.end()) {
+        file_descriptor_object = extract_object(params, ov::intel_gpu::file_descriptor);
+    } else if (m_file_descriptor.has_value()) {
+        file_descriptor_object = m_file_descriptor;
+    }
+
     if (params.empty()) {
         // user wants plugin to allocate tensor by itself and return handle
-        return { create_buffer(type, shape), nullptr };
+        return { create_buffer(type, shape, file_descriptor_object), nullptr };
     } else {
         // user will supply shared object handle
         auto mem_type = extract_object(params, ov::intel_gpu::shared_mem_type);
@@ -147,9 +159,9 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
             check_if_shared();
             return { reuse_surface(type, shape, params), nullptr };
         } else if (ov::intel_gpu::SharedMemType::USM_HOST_BUFFER == mem_type) {
-            return { create_usm(type, shape, TensorType::BT_USM_HOST_INTERNAL), nullptr };
+            return { create_usm(type, shape, TensorType::BT_USM_HOST_INTERNAL, file_descriptor_object), nullptr };
         } else if (ov::intel_gpu::SharedMemType::USM_DEVICE_BUFFER == mem_type) {
-            return { create_usm(type, shape, TensorType::BT_USM_DEVICE_INTERNAL), nullptr };
+            return { create_usm(type, shape, TensorType::BT_USM_DEVICE_INTERNAL, file_descriptor_object), nullptr };
         } else {
             TensorType tensor_type;
             cldnn::shared_handle mem = nullptr;
@@ -173,7 +185,7 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
                 OPENVINO_THROW("[GPU] Unsupported shared object type ", mem_type);
             }
 
-            return { reuse_memory(type, shape, mem, tensor_type), nullptr };
+            return { reuse_memory(type, shape, mem, tensor_type, file_descriptor_object), nullptr };
         }
     }
 }
@@ -223,16 +235,17 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_surface(const ov::el
 std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory(const ov::element::Type type,
                                                                    const ov::Shape& shape,
                                                                    cldnn::shared_handle mem,
-                                                                   TensorType tensor_type) {
-    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, tensor_type, mem);
+                                                                   TensorType tensor_type,
+                                                                   const std::optional<ov::intel_gpu::FileDescriptor>& file_descriptor) {
+    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, tensor_type, mem, 0, 0, file_descriptor);
 }
 
-std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::create_buffer(const ov::element::Type type, const ov::Shape& shape) {
-    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, TensorType::BT_BUF_INTERNAL);
+std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::create_buffer(const ov::element::Type type, const ov::Shape& shape, const std::optional<ov::intel_gpu::FileDescriptor>& file_descriptor) {
+    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, TensorType::BT_BUF_INTERNAL, nullptr, 0, 0, file_descriptor);
 }
 
-std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::create_usm(const ov::element::Type type, const ov::Shape& shape, TensorType alloc_type) {
-    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, alloc_type);
+std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::create_usm(const ov::element::Type type, const ov::Shape& shape, TensorType alloc_type, const std::optional<ov::intel_gpu::FileDescriptor>& file_descriptor) {
+    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, alloc_type, nullptr, 0, 0, file_descriptor);
 }
 
 void RemoteContextImpl::check_if_shared() const {
