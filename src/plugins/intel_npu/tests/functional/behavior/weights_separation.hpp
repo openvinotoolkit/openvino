@@ -122,6 +122,40 @@ public:
         return model;
     }
 
+    // This is a special model that has weightless constants that are guaranteed
+    // to be skipped by weights schedule. This tests cases where compiler
+    // produces "blob with weights" when "weightless blob" is requested: in
+    // theory, this may happen, and must not cause any errors.
+    std::shared_ptr<ov::Model> createTestModelWeightlessWithDummyConstants() {
+        constexpr auto precision = element::f32;
+
+        const auto reshapeWeights =
+            std::make_shared<op::v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 2, 3});
+
+        const auto input1 = std::make_shared<op::v0::Parameter>(precision, Shape{6});
+        const auto input2 = std::make_shared<op::v0::Parameter>(precision, Shape{1, 2, 3});
+        const auto reshapedInput1 = std::make_shared<op::v1::Reshape>(input1, reshapeWeights, /*special_zero=*/false);
+        auto add = std::make_shared<op::v1::Add>(reshapedInput1, input2);
+
+        reshapeWeights->set_friendly_name("weights");
+        input1->set_friendly_name("input1");
+        input2->set_friendly_name("input2");
+        reshapedInput1->set_friendly_name("reshapedInput1");
+        add->set_friendly_name("add");
+
+        // Note: Reshape weights with weightless cache attribute satisfy the
+        // basic requirement to create weights schedule. However, since this is
+        // a static reshape, these weights would "disappear" during compilation,
+        // causing the compiler to put nothing into the weights schedule.
+        reshapeWeights->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+            ov::WeightlessCacheAttribute(reshapeWeights->get_byte_size(), 0, reshapeWeights->get_element_type());
+
+        auto model =
+            std::make_shared<Model>(OutputVector{add}, ParameterVector{input1, input2}, "Dummy weightless model");
+        ov::util::set_tensors_names(AUTO, *model, {}, {{0, {"add"}}});
+        return model;
+    }
+
     /**
      * @brief This model was fine-tuned in order to compile fast and yield a light init schedule.
      */
@@ -145,6 +179,54 @@ public:
         return std::make_shared<ov::Model>(ov::OutputVector{add}, parameter_vector);
     }
 
+    // This is a special test model with multiple constants using the same weights buffer.
+    std::shared_ptr<ov::Model> createTestModelWeightlessWithDuplicateConstants() {
+        const std::vector<float> sharedData{1.0f, 2.0f, 3.0f, 4.0f};
+        constexpr auto precision = element::f32;
+
+        auto input1 = std::make_shared<op::v0::Parameter>(precision, Shape{1, 1, 4});
+        auto input2 = std::make_shared<op::v0::Parameter>(precision, Shape{1, 4, 1});
+
+        auto weights1 = std::make_shared<op::v0::Constant>(precision, Shape{1, 1, 4}, sharedData);
+        auto multiply1 = std::make_shared<op::v1::Multiply>(input1, weights1);
+
+        auto weights2 = std::make_shared<op::v0::Constant>(precision, Shape{1, 4, 1}, sharedData);
+        auto multiply2 = std::make_shared<op::v1::Multiply>(input2, weights2);
+
+        auto reshapeWeights = std::make_shared<op::v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 4, 1});
+        auto reshape = std::make_shared<op::v1::Reshape>(multiply1, reshapeWeights, false);
+
+        auto add = std::make_shared<op::v1::Add>(reshape, multiply2);
+
+        input1->set_friendly_name("input1");
+        input2->set_friendly_name("input2");
+        weights1->set_friendly_name("weights");
+        multiply1->set_friendly_name("multiply1");
+        weights2->set_friendly_name("weights_new_shape");
+        multiply2->set_friendly_name("multiply2");
+        reshapeWeights->set_friendly_name("reshapeWeights");
+        reshape->set_friendly_name("reshape");
+        add->set_friendly_name("add");
+
+        // Note: if this offset is changed, compiled_model->export_model() =>
+        // core->import_model() would fail as the weightless bin offset is
+        // "reset" through this boundary; right now this is by design
+        constexpr size_t theOnlyFunctioningBinOffset = 0;
+        weights1->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+            ov::WeightlessCacheAttribute(weights1->get_byte_size(),
+                                         theOnlyFunctioningBinOffset,
+                                         weights1->get_element_type());
+        weights2->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+            ov::WeightlessCacheAttribute(weights2->get_byte_size(),
+                                         theOnlyFunctioningBinOffset,
+                                         weights2->get_element_type());
+
+        auto model =
+            std::make_shared<Model>(OutputVector{add}, ParameterVector{input1, input2}, "duplicate_weights_model");
+        ov::util::set_tensors_names(AUTO, *model, {}, {{0, {"add"}}});
+        return model;
+    }
+
     Tensor from_stream(std::istream& stream, const size_t size) {
         ov::Tensor t(element::from<char>(), Shape{size});
         stream.read(t.data<char>(), size);
@@ -163,6 +245,9 @@ public:
         OV_ASSERT_NO_THROW(utils::compare(expected, output));
     }
 
+    // This is a "template" of a test used in multiple configurations
+    void runCorrectInferenceResultIfCannotCompileAsWeightless();
+
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
@@ -179,7 +264,7 @@ protected:
  */
 TEST_P(WeightsSeparationTests, CheckOneShotVersionThrows) {
     model = createTestModel();
-    configuration.insert(ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER));
+    configuration[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::DRIVER;
     configuration.insert(ov::intel_npu::weightless_blob(true));
     configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ONE_SHOT));
     OV_EXPECT_THROW(compiled_model = core->compile_model(model, target_device, configuration), ov::Exception, _);
@@ -192,7 +277,6 @@ TEST_P(WeightsSeparationTests, CheckOneShotVersionThrows) {
 TEST_P(WeightsSeparationTests, CheckForFailureNoWeightlessCacheAttribute) {
     model = createTestModel(false);
     configuration.insert(ov::intel_npu::weightless_blob(true));
-    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
     OV_EXPECT_THROW(compiled_model = core->compile_model(model, target_device, configuration), ov::Exception, _);
 }
 
@@ -205,7 +289,6 @@ TEST_P(WeightsSeparationTests, CorrectInferenceResultIfCachingUsed) {
 
     model = createTestModel();
     configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
-    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ASSERT_TRUE(compiled_model);
@@ -489,6 +572,73 @@ TEST_P(WeightsSeparationTests, WeightlessBlobIsSmaller) {
     ASSERT_TRUE(weightfullBlobStream.str().size() > weightlessBlobStream.str().size());
 }
 
+void WeightsSeparationTests::runCorrectInferenceResultIfCannotCompileAsWeightless() {
+    model = createTestModelWeightlessWithDummyConstants();
+
+    model_path = ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix()}).string();
+    ov::serialize(model, model_path + ".xml", model_path + ".bin");
+
+    // compilation should succeed
+    configuration.insert(ov::intel_npu::weightless_blob(true));
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    configuration.insert(ov::weights_path(model_path + ".bin"));
+    OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+
+    // inference should also succeed
+    const ov::Tensor input1 =
+        utils::create_tensor(element::f32, Shape{6}, std::vector<float>{40.0f, 40.0f, 40.0f, 40.0f, 40.0f, 40.0f});
+    const ov::Tensor input2 =
+        utils::create_tensor(element::f32, Shape{1, 2, 3}, std::vector<float>{0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(inference_request.set_tensor("input1", input1));
+    OV_ASSERT_NO_THROW(inference_request.set_tensor("input2", input2));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    const ov::Tensor expected = utils::create_tensor(element::f32,
+                                                     Shape{1, 2, 3},
+                                                     std::vector<float>{40.0f, 41.0f, 42.0f, 43.0f, 44.0f, 45.0f});
+    const ov::Tensor output = inference_request.get_tensor("add");
+    OV_ASSERT_NO_THROW(utils::compare(expected, output));
+}
+
+TEST_P(WeightsSeparationTests, CorrectInferenceResultWeightlessWithDuplicateConstants) {
+    model = createTestModelWeightlessWithDuplicateConstants();
+    configuration.insert(ov::intel_npu::weightless_blob(true));
+
+    model_path = ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix()}).string();
+    ov::serialize(model, model_path + ".xml", model_path + ".bin");
+
+    // compilation should succeed
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    configuration.insert(ov::weights_path(model_path + ".bin"));
+    OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+
+    // inference should also succeed
+    const ov::Tensor input1 = utils::create_tensor(element::f32, Shape{1, 1, 4}, std::vector<float>(4, -2.0f));
+    const ov::Tensor input2 = utils::create_tensor(element::f32, Shape{1, 4, 1}, std::vector<float>(4, 0.0f));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(inference_request.set_tensor("input1", input1));
+    OV_ASSERT_NO_THROW(inference_request.set_tensor("input2", input2));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    const ov::Tensor expected =
+        utils::create_tensor(element::f32, Shape{1, 4, 1}, std::vector<float>{-2.0f, -4.0f, -6.0f, -8.0f});
+    const ov::Tensor output = inference_request.get_tensor("add");
+    OV_ASSERT_NO_THROW(utils::compare(expected, output));
+}
+
 using WeightsSeparationOneShotTests = WeightsSeparationTests;
 
 /**
@@ -506,6 +656,17 @@ TEST_P(WeightsSeparationOneShotTests, CorrectInferenceResultNoImportOneShot) {
     create_infer_request_and_check_result();
 }
 
+/**
+ * @brief compile -> import the result, ov::weights_path provided -> create inference request -> run one inference and
+ * check the result
+ * compilation and inference must work even if the weightless model is not actually weightless
+ * (compiler may not be able to find any "suitable" weights)
+ */
+TEST_P(WeightsSeparationOneShotTests, CorrectInferenceResultIfCannotCompileAsWeightlessOneShot) {
+    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ONE_SHOT));
+    runCorrectInferenceResultIfCannotCompileAsWeightless();
+}
+
 using WeightsSeparationIterativeTests = WeightsSeparationTests;
 
 /**
@@ -521,6 +682,15 @@ TEST_P(WeightsSeparationIterativeTests, CorrectInferenceResultNoImportIterative)
     EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
 
     create_infer_request_and_check_result();
+}
+
+/**
+ * @brief Compiles a special model in WeightsSeparation ITERATIVE mode to ensure
+ * compilation succeeds. This is similar to the ONE_SHOT version test.
+ */
+TEST_P(WeightsSeparationIterativeTests, CorrectInferenceResultIfCannotCompileAsWeightlessIterative) {
+    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
+    runCorrectInferenceResultIfCannotCompileAsWeightless();
 }
 
 }  // namespace behavior
