@@ -27,12 +27,14 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<IDevice>& device,
                              const std::shared_ptr<IGraph>& graph,
                              const FilteredConfig& config,
-                             const std::optional<int64_t>& batchSize)
+                             const std::optional<int64_t>& batchSize,
+                             const std::optional<std::function<std::string(const std::string&)>>& encryptionCallback)
     : ICompiledModel(model, plugin),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
       _graph(graph),
-      _batchSize(batchSize) {
+      _batchSize(batchSize),
+      _encryptionCallback(encryptionCallback) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
@@ -82,7 +84,7 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
-    auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream, get_config());
+    auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream, _encryptionCallback);
 
     if (!_propertiesManager->getConfig().get<EXPORT_RAW_BLOB>()) {
         std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
@@ -109,7 +111,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
                                            std::move(inputLayouts),
                                            std::move(outputLayouts),
                                            compilerVersion)
-            .write(stream);
+            .write(stream, _encryptionCallback);
     }
 }
 

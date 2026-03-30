@@ -1110,11 +1110,6 @@ FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& proper
 
     updatedConfig.update(cfgsToSet);
 
-    // special case for encryption callbacks where stringified form is not possible
-    if (auto it = properties.find(ov::cache_encryption_callbacks.name()); it != properties.end()) {
-        updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>().get() = it->second.as<ov::EncryptionCallbacks>();
-    }
-
     return std::move(updatedConfig);
 }
 
@@ -1156,11 +1151,6 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
     }
 
     updatedConfig.update(cfgsToSet);
-
-    // special case for encryption callbacks where stringified form is not possible
-    if (auto it = properties.find(ov::cache_encryption_callbacks.name()); it != properties.end()) {
-        updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>().get() = it->second.as<ov::EncryptionCallbacks>();
-    }
 
     return std::move(updatedConfig);
 }

@@ -8,7 +8,9 @@
 
 namespace intel_npu {
 
-std::pair<uint64_t, std::optional<std::vector<uint64_t>>> IGraph::export_blob(std::ostream&, const Config& config) {
+std::pair<uint64_t, std::optional<std::vector<uint64_t>>> IGraph::export_blob(
+    std::ostream&,
+    const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) const {
     OPENVINO_THROW("export_blob not implemented");
 }
 
