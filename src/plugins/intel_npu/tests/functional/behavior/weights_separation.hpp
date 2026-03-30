@@ -579,7 +579,7 @@ void WeightsSeparationTests::runCorrectInferenceResultIfCannotCompileAsWeightles
     ov::serialize(model, model_path + ".xml", model_path + ".bin");
 
     // compilation should succeed
-    configuration.insert(ov::intel_npu::weightless_blob(true));
+    configuration.insert(ov::enable_weightless(true));
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ASSERT_TRUE(compiled_model);
 
@@ -609,7 +609,7 @@ void WeightsSeparationTests::runCorrectInferenceResultIfCannotCompileAsWeightles
 
 TEST_P(WeightsSeparationTests, CorrectInferenceResultWeightlessWithDuplicateConstants) {
     model = createTestModelWeightlessWithDuplicateConstants();
-    configuration.insert(ov::intel_npu::weightless_blob(true));
+    configuration.insert(ov::enable_weightless(true));
 
     model_path = ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix()}).string();
     ov::serialize(model, model_path + ".xml", model_path + ".bin");
