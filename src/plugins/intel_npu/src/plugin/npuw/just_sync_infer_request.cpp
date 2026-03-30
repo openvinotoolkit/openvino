@@ -367,13 +367,10 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             }
             // Create HFA tile infer requests if this function has host flash attention
             if (proto_comp_model_desc.host_flash_attention) {
-                const bool enable_hfa_optimizations =
-                    std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(proto_comp_model_desc.compiled_model._ptr) ==
-                    nullptr;
                 setup_hfa_infer_requests(real_idx,
                                          is_piped,
                                          /* is_recreate */ false,
-                                         enable_hfa_optimizations);
+                                         /* enable_hfa_optimizations */ true);
             }
         }
 
@@ -1267,12 +1264,10 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
     }
 }
 
-void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, bool& failover) {
-    failover = false;
+void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
     bool next_prepared = false;
-    const auto active_device_before = m_npuw_model->submodel_device(real_idx);
 
     // Feeding the global Parameters is now part of the common
     // execution pipeline: See how it is done in
@@ -1289,7 +1284,6 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
     LOG_BLOCK();
     unsafe_run_this_prep_next(idx, next_prepared);
 
-    failover = failover || (active_device_before != m_npuw_model->submodel_device(real_idx));
     LOG_DEBUG("Done: " << idx << "(exec subrequest)");
 
     dump_output_tensors(idx);  // FIXME: Called here unconditionally, need to refactor

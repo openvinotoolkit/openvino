@@ -88,7 +88,7 @@ protected:
     void prepare_for_infer() override;
     bool valid_subrequest(std::size_t idx) const override;
     void start_subrequest(std::size_t idx) override;
-    void run_subrequest_for_success(std::size_t idx, bool& failover) override;
+    void run_subrequest_for_success(std::size_t idx) override;
     void subscribe_subrequest(std::size_t idx, Completed cb) override;
     void complete_subrequest(std::size_t idx) override;
     void cancel_subrequest(std::size_t idx) override;

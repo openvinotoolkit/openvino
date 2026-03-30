@@ -73,10 +73,9 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
     return rqs;
 }
 
-void ov::npuw::IBaseInferRequest::ensure_subrequest_is_accurate(std::size_t idx, bool& failover) {
+void ov::npuw::IBaseInferRequest::ensure_subrequest_is_accurate(std::size_t idx) {
     LOG_INFO("Check if subrequest[" << idx << "] is accurate...");
     LOG_BLOCK();
-    failover = false;
     if (m_ref_subrequests.at(idx) != nullptr && m_subrequests.at(idx)._ptr != m_ref_subrequests.at(idx)._ptr) {
         NPUW_ASSERT(m_npuw_model->m_compiled_submodels.at(idx).switched_to_ref == false);
         NPUW_ASSERT(m_npuw_model->m_compiled_submodels.at(idx).replaced_by.value_or(idx) == idx);
@@ -116,7 +115,6 @@ void ov::npuw::IBaseInferRequest::ensure_subrequest_is_accurate(std::size_t idx,
             m_npuw_model->m_compiled_submodels.at(idx).switched_to_ref = true;
             m_subrequests.at(idx) = m_ref_subrequests.at(idx);
             update_subrequest_links(idx);
-            failover = true;
         }
 
         LOG_INFO("Done");
@@ -260,33 +258,23 @@ std::string ov::npuw::IBaseInferRequest::profile_tag(std::size_t idx) const {
 void ov::npuw::IBaseInferRequest::infer() {
     m_now_idx.reset();
     prepare_for_infer();
-    bool failover_happened = false;
     for (std::size_t idx = 0u; idx < m_num_submodels; idx++) {
         m_now_idx = idx;
         if (!valid_subrequest(idx)) {
             continue;
         }
         subscribe_subrequest(idx, [](std::exception_ptr) {});
-        bool failover = false;
         m_profile[profile_tag(idx)].record([&]() {
-            run_subrequest_for_success(idx, failover);
+            run_subrequest_for_success(idx);
         });
-        failover_happened |= failover;
         complete_subrequest(idx);
         if (m_npuw_model->m_acc_check) {
-            ensure_subrequest_is_accurate(idx, failover);
-            failover_happened |= failover;
+            ensure_subrequest_is_accurate(idx);
         }
     }
 
     // Increment counter regardless if dumps etc are enabled or not.
     m_run_iter++;
-
-    if (failover_happened) {
-        LOG_INFO("Refined device distribution:");
-        LOG_BLOCK();
-        m_npuw_model->log_device_dist();
-    }
     m_now_idx.reset();
 }
 

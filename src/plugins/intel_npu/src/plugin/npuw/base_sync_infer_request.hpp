@@ -65,7 +65,7 @@ public:
     virtual bool valid_subrequest(std::size_t idx) const = 0;  // FIXME: Get rid of this!
     virtual void start_subrequest(std::size_t idx) = 0;
     virtual void subscribe_subrequest(std::size_t idx, Completed cb) = 0;
-    virtual void run_subrequest_for_success(std::size_t idx, bool& failover) = 0;
+    virtual void run_subrequest_for_success(std::size_t idx) = 0;
     virtual void complete_subrequest(std::size_t idx) = 0;
     virtual void cancel_subrequest(std::size_t idx) = 0;
     virtual std::size_t total_subrequests() const;
@@ -90,7 +90,7 @@ protected:
     // their inference requests anymore - they must be stored
     // only once in the subrequests list
     RqPtrs create_infer_requests(std::size_t id, size_t nireq = 1);
-    void ensure_subrequest_is_accurate(std::size_t idx, bool& failover);
+    void ensure_subrequest_is_accurate(std::size_t idx);
     virtual void update_subrequest_links(std::size_t idx) = 0;
 
     std::shared_ptr<ov::npuw::CompiledModel> m_npuw_model;
