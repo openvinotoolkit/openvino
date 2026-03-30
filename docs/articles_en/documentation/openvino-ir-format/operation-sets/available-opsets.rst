@@ -10,7 +10,6 @@ Available Operation Sets
    :maxdepth: 1
    :hidden:
 
-   available-opsets/opset17
    available-opsets/opset16
    available-opsets/opset15
    available-opsets/opset14
@@ -38,8 +37,6 @@ This topic provides a complete list of available sets of operations supported in
 
     * - OpenVINO™ Version
       - Operation Set
-    * - 2026.2
-      - :doc:`opset17 <available-opsets/opset17>`
     * - 2026.0
       - :doc:`opset16 <available-opsets/opset16>`
     * - 2024.5
