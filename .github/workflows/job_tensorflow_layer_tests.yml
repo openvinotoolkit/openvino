@@ -132,9 +132,11 @@ jobs:
           # tensorflow test requirements
           ${{ env.PIP_INSTALL_COMMAND }} -r ${{ env.INSTALL_TEST_DIR }}/requirements_tensorflow
 
-      - name: Debug HF token resolution
+      - name: Debug HF token resolution (Linux/macOS)
+        if: ${{ runner.os != 'Windows' }}
+        shell: bash
         run: |
-          python3 -c "
+          python3 - <<'EOF'
           from huggingface_hub import get_token
           import os
           token = get_token()
@@ -142,8 +144,23 @@ jobs:
               print(f'HF token resolved: {token[:4]}...{token[-4:]} (length={len(token)})')
           else:
               print('WARNING: No HF token found by huggingface_hub')
-          print(f'HF_TOKEN_PATH={os.environ.get(\"HF_TOKEN_PATH\", \"not set\")}')
-          "
+          print(f'HF_TOKEN_PATH={os.environ.get("HF_TOKEN_PATH", "not set")}')
+          EOF
+
+      - name: Debug HF token resolution (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        run: |
+          python3 -c @'
+          from huggingface_hub import get_token
+          import os
+          token = get_token()
+          if token:
+              print(f"HF token resolved: {token[:4]}...{token[-4:]} (length={len(token)})")
+          else:
+              print("WARNING: No HF token found by huggingface_hub")
+          print(f"HF_TOKEN_PATH={os.environ.get('HF_TOKEN_PATH', 'not set')}")
+          '@
 
       - name: TensorFlow 1 Layer Tests - TF FE
         if: ${{ fromJSON(inputs.affected-components).TF_FE.test }}
