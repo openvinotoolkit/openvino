@@ -40,6 +40,16 @@ OPENVINO_API std::optional<size_t> get_memory_size_safe(const element::Type& typ
 OPENVINO_API std::optional<size_t> get_memory_size_safe(const element::Type& type, const ov::Shape& shape);
 
 /**
+ * @brief Gets the maximum number of elements that can fit into the given memory size for a specific element type.
+ * @note Function get_memory_size(type, returned_value) may return less than the provided memory_size, but the
+ * difference shall be less than the size of single element.
+ * @param type        Element precision.
+ * @param memory_size Available memory size in bytes.
+ * @return Maximum number of elements that can fit into the given memory size.
+ */
+OPENVINO_API size_t get_max_elements_for_memory_size(const element::Type& type, const size_t memory_size);
+
+/**
  * @brief Calculates padding size in bytes to align given position to specified alignment.
  *
  * @param alignment  The desired alignment value (bytes).

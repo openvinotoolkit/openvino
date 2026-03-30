@@ -92,6 +92,103 @@ TEST(GetMemorySizeOverflowTest, zero_number_of_elements) {
     EXPECT_EQ(ov::util::get_memory_size_safe(element::string, 0), std::optional<size_t>(0));
 }
 
+// element type, memory size, expected max number of elements
+using MaxElementsForMemorySizeParam = std::tuple<element::Type, size_t, size_t>;
+
+class GetMaxElementsForMemorySizeTest : public testing::TestWithParam<MaxElementsForMemorySizeParam> {
+public:
+    static std::string get_test_name(const testing::TestParamInfo<MaxElementsForMemorySizeParam>& obj) {
+        const auto& [type, memory_size, exp_elements] = obj.param;
+        std::ostringstream result;
+        result << "type=" << type << "_memory_size=" << memory_size << "_exp_elements=" << exp_elements;
+        return result.str();
+    }
+};
+
+TEST_P(GetMaxElementsForMemorySizeTest, calculate_max_elements) {
+    const auto& [type, memory_size, exp_elements] = GetParam();
+    EXPECT_EQ(util::get_max_elements_for_memory_size(type, memory_size), exp_elements);
+}
+
+INSTANTIATE_TEST_SUITE_P(bit_type_precision,
+                         GetMaxElementsForMemorySizeTest,
+                         testing::Values(std::make_tuple(element::u1, 0, 0),
+                                         std::make_tuple(element::u1, 1, 8),
+                                         std::make_tuple(element::u1, 2, 16),
+                                         std::make_tuple(element::u1, 3, 24),
+                                         std::make_tuple(element::u1, 4, 32),
+                                         std::make_tuple(element::u2, 0, 0),
+                                         std::make_tuple(element::u2, 1, 4),
+                                         std::make_tuple(element::u2, 2, 8),
+                                         std::make_tuple(element::u2, 3, 12),
+                                         std::make_tuple(element::u2, 4, 16)),
+                         GetMaxElementsForMemorySizeTest::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(nibble_type_precision,
+                         GetMaxElementsForMemorySizeTest,
+                         testing::Values(std::make_tuple(element::i4, 0, 0),
+                                         std::make_tuple(element::u4, 0, 0),
+                                         std::make_tuple(element::u4, 1, 2),
+                                         std::make_tuple(element::u4, 2, 4),
+                                         std::make_tuple(element::i4, 3, 6),
+                                         std::make_tuple(element::i4, 4, 8)),
+                         GetMaxElementsForMemorySizeTest::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(split_bit_type_precision,
+                         GetMaxElementsForMemorySizeTest,
+                         testing::Values(std::make_tuple(element::u3, 0, 0),
+                                         std::make_tuple(element::u3, 1, 2),
+                                         std::make_tuple(element::u3, 2, 5),
+                                         std::make_tuple(element::u3, 3, 8),
+                                         std::make_tuple(element::u3, 4, 10),
+                                         std::make_tuple(element::u3, 11, 29),
+                                         std::make_tuple(element::u6, 0, 0),
+                                         std::make_tuple(element::u6, 1, 1),
+                                         std::make_tuple(element::u6, 2, 2),
+                                         std::make_tuple(element::u6, 3, 4),
+                                         std::make_tuple(element::u6, 4, 5),
+                                         std::make_tuple(element::u6, 11, 14)),
+                         GetMaxElementsForMemorySizeTest::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(byte_type_precision,
+                         GetMaxElementsForMemorySizeTest,
+                         testing::Values(std::make_tuple(element::u8, 0, 0),
+                                         std::make_tuple(element::u8, 1, 1),
+                                         std::make_tuple(element::u8, 2, 2),
+                                         std::make_tuple(element::u8, 3, 3),
+                                         std::make_tuple(element::u8, 4, 4),
+                                         std::make_tuple(element::i16, 0, 0),
+                                         std::make_tuple(element::i16, 1, 0),
+                                         std::make_tuple(element::i16, 2, 1),
+                                         std::make_tuple(element::i16, 3, 1),
+                                         std::make_tuple(element::i16, 4, 2),
+                                         std::make_tuple(element::f32, 0, 0),
+                                         std::make_tuple(element::f32, 1, 0),
+                                         std::make_tuple(element::f32, 4, 1),
+                                         std::make_tuple(element::f32, 7, 1),
+                                         std::make_tuple(element::f32, 8, 2),
+                                         std::make_tuple(element::f32, 15, 3),
+                                         std::make_tuple(element::f32, 16, 4),
+                                         std::make_tuple(element::f64, 0, 0),
+                                         std::make_tuple(element::f64, 1, 0),
+                                         std::make_tuple(element::f64, 7, 0),
+                                         std::make_tuple(element::f64, 8, 1),
+                                         std::make_tuple(element::f64, 15, 1),
+                                         std::make_tuple(element::f64, 16, 2),
+                                         std::make_tuple(element::f64, 24, 3),
+                                         std::make_tuple(element::f64, 32, 4),
+                                         std::make_tuple(element::f64, 33, 4)),
+                         GetMaxElementsForMemorySizeTest::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(string_type,
+                         GetMaxElementsForMemorySizeTest,
+                         testing::Values(std::make_tuple(element::string, 0, 0),
+                                         std::make_tuple(element::string, sizeof(std::string), 1),
+                                         std::make_tuple(element::string, 2 * sizeof(std::string), 2),
+                                         std::make_tuple(element::string, 3 * sizeof(std::string), 3),
+                                         std::make_tuple(element::string, 4 * sizeof(std::string), 4)),
+                         GetMaxElementsForMemorySizeTest::get_test_name);
+
 using AlignTestParam = std::tuple<uintptr_t, size_t, size_t>;
 
 class AlignTest : public ::testing::TestWithParam<AlignTestParam> {};

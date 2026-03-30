@@ -51,4 +51,12 @@ std::optional<size_t> get_memory_size_safe(const element::Type& type, const ov::
     auto byte_size = shape_size_safe(shape);
     return byte_size ? get_memory_size_safe(type, *byte_size) : byte_size;
 }
+
+size_t get_max_elements_for_memory_size(const element::Type& type, const size_t memory_size) {
+    if (element::is_split_bit_type(type)) {
+        return (memory_size * (24 / type.bitwidth())) / 3;
+    } else {
+        return (memory_size * 8) / type.bitwidth();
+    }
+}
 }  // namespace ov::util

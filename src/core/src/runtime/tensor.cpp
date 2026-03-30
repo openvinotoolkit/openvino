@@ -142,7 +142,7 @@ ov::Shape calc_static_shape_for_file(size_t max_size,
                                      size_t offset) {
     if (partial_shape.is_static()) {
         auto static_shape = partial_shape.get_shape();
-        const auto memory_size = ov::util::get_memory_size_safe(element_type, static_shape);
+        const auto memory_size = util::get_memory_size_safe(element_type, static_shape);
         OPENVINO_ASSERT(memory_size && *memory_size + offset <= max_size,
                         "Requested space exceeds available bounds: available bytes=",
                         max_size,
@@ -173,13 +173,19 @@ ov::Shape calc_static_shape_for_file(size_t max_size,
 
     auto max_size_to_read = max_size - offset;
 
-    OPENVINO_ASSERT((max_size_to_read * 8) % element_type.bitwidth() == 0,
-                    "cannot fit ",
-                    element_type.get_type_name(),
-                    " into ",
+    const auto elements_to_read = util::get_max_elements_for_memory_size(element_type, max_size_to_read);
+    const auto expected_memory_size = util::get_memory_size_safe(element_type, {elements_to_read});
+    OPENVINO_ASSERT(expected_memory_size && max_size_to_read == *expected_memory_size,
+                    "Cannot fit available bytes into requested PartialShape ",
+                    partial_shape,
+                    ": available bytes=",
                     max_size_to_read,
-                    " bytes");
-    auto elements_to_read = max_size_to_read * 8 / element_type.bitwidth();
+                    " expected size for ",
+                    elements_to_read,
+                    " elements of type ",
+                    element_type.get_type_name(),
+                    " is ",
+                    expected_memory_size ? std::to_string(*expected_memory_size) : "uncountable");
 
     auto new_dimension = ov::Dimension(elements_to_read) / slice_size;
     OPENVINO_ASSERT(dynamic_dimension.compatible(new_dimension),
