@@ -1,0 +1,36 @@
+# Core OpenVINO dependencies
+openvino>=2024.0.0
+openvino-dev[onnx,pytorch]>=2024.0.0
+
+# HuggingFace ecosystem
+transformers>=4.30.0
+tokenizers>=0.13.0
+datasets>=2.12.0
+
+# ONNX support
+onnx>=1.14.0
+onnxruntime>=1.15.0
+
+# PyTorch (for model loading)
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Optimization and quantization
+nncf>=2.6.0
+
+# Utilities
+numpy>=1.21.0
+pandas>=1.5.0
+tqdm>=4.64.0
+psutil>=5.9.0
+pyyaml>=6.0
+click>=8.0.0
+
+# Benchmarking
+matplotlib>=3.5.0
+seaborn>=0.11.0
+
+# Development
+pytest>=7.0.0
+black>=22.0.0
+flake8>=5.0.0
