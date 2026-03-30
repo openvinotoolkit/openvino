@@ -48,9 +48,8 @@ public:
 
     virtual void update_network_name(std::string_view name);
 
-    virtual const std::shared_ptr<CommandQueue>& get_command_queue() const;
-
-    virtual void set_workload_type(const ov::WorkloadType workloadType) const;
+    virtual CommandQueueDesc get_command_queue_desc() const;
+    virtual void set_workload_type(const ov::WorkloadType workloadType);
 
     std::mutex& get_mutex() {
         return _initialize_mutex;

@@ -170,6 +170,7 @@ public:
         REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
         REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
         REGISTER_OPTION(ENABLE_STRIDES_FOR);
+        REGISTER_OPTION(SHARED_COMMON_QUEUE);
 
         if (backend) {
             if (backend->isCommandQueueExtSupported()) {

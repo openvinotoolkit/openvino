@@ -6,6 +6,8 @@
 
 #include <ze_graph_ext.h>
 
+#include <mutex>
+
 #include "intel_npu/common/idynamic_graph.hpp"
 #include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -125,9 +127,8 @@ public:
 
     void update_network_name(std::string_view name) override;
 
-    const std::shared_ptr<CommandQueue>& get_command_queue() const override;
-
-    void set_workload_type(const ov::WorkloadType workloadType) const override;
+    CommandQueueDesc get_command_queue_desc() const override;
+    void set_workload_type(const ov::WorkloadType workloadType) override;
 
     void set_batch_size(std::size_t batch) override;
 
@@ -170,8 +171,8 @@ private:
      */
     uint64_t _num_of_subgraphs = 1;
 
-    mutable std::mutex _commandQueueMutex;
-    std::shared_ptr<CommandQueue> _commandQueue;
+    mutable std::mutex _commandQueueDescMutex;
+    CommandQueueDesc _commandQueueDesc;
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 
     std::optional<ov::Tensor> _blob;
