@@ -2495,6 +2495,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic_opt) {
     auto& engine = get_test_engine();
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"interpolate", {format::bfyx, "resample_bfyx_cubic_opt"}}}));
 
     int b = 2;
     int f = 2;
@@ -2561,6 +2563,8 @@ TEST(resample_gpu, interpolate_in1x1x3x2_cubic_opt) {
     auto& engine = get_test_engine();
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"interpolate", {format::bfyx, "resample_bfyx_cubic_opt"}}}));
 
     int b = 1;
     int f = 1;

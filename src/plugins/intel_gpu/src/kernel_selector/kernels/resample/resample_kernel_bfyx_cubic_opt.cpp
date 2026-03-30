@@ -76,6 +76,12 @@ bool ResampleKernelBfyxCubicOpt::Validate(const Params& p) const {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
+    // Non-spatial dimensions (batch and feature) must not be resized.
+    const auto& in = params.inputs[0];
+    const auto& out = params.outputs[0];
+    if (in.Batch().v != out.Batch().v || in.Feature().v != out.Feature().v)
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+
     return true;
 }
 
