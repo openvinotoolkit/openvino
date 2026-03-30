@@ -170,7 +170,7 @@ static constexpr ov::Property<int64_t> tiles{"NPU_TILES"};
  * will be populated by driver.
  * @ingroup ov_runtime_npu_prop_cpp_api
  */
-static constexpr ov::Property<int64_t> max_tiles{"NPU_MAX_TILES"};
+static constexpr ov::Property<int64_t, ov::PropertyMutability::RO> max_tiles{"NPU_MAX_TILES"};
 
 /**
  * @brief [Only for NPU plugin]

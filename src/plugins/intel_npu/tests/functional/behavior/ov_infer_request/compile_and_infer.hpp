@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <chrono>
 #include <common_test_utils/test_assertions.hpp>
 #include <exception>
 #include <mutex>
@@ -15,6 +16,7 @@
 #include <vector>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -297,6 +299,172 @@ TEST_P(OVCompileAndInferRequestMultiThreading, CreateInferRequestsAndRunOnDiffer
             FAIL() << ex.what();
         } catch (...) {
             FAIL() << "Unknown exception occurred in one of the threads.";
+        }
+    }
+}
+
+TEST_P(OVCompileAndInferRequestMultiThreading, CreateInferRequestsAndRunOnDifferentThreadsWithWorkloadType) {
+    if (!isCommandQueueExtSupported()) {
+        GTEST_SKIP() << "Workload type update is not supported with current driver.\n";
+    }
+
+    configuration[intel_npu::defer_weights_load.name()] = true;
+    OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
+
+    int num_threads = 32;
+    std::vector<std::thread> threads;
+    std::vector<std::exception_ptr> exceptions;
+    std::mutex exceptions_mutex;
+
+    for (int i = 0; i < num_threads; ++i) {
+        threads.emplace_back([this, &exceptions, &exceptions_mutex, i]() {
+            try {
+                // Stagger threads to desynchronize property setting and expose race conditions
+                std::this_thread::sleep_for(std::chrono::milliseconds(i % 10));
+                if (i % 2 == 0) {
+                    execNet.set_property(ov::workload_type(WorkloadType::DEFAULT));
+                } else {
+                    execNet.set_property(ov::workload_type(WorkloadType::EFFICIENT));
+                }
+                auto req = execNet.create_infer_request();
+                req.infer();
+            } catch (...) {
+                std::lock_guard<std::mutex> lock(exceptions_mutex);
+                exceptions.emplace_back(std::current_exception());
+            }
+        });
+    }
+
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    if (!exceptions.empty()) {
+        try {
+            std::rethrow_exception(exceptions.front());
+        } catch (const std::exception& ex) {
+            FAIL() << ex.what();
+        } catch (...) {
+            FAIL() << "Unknown exception occurred in one of the threads.";
+        }
+    }
+}
+
+TEST_P(OVCompileAndInferRequestMultiThreading,
+       CompileModelCreateInferRequestsAndRunOnDifferentThreadsWithWorkloadType) {
+    if (!isCommandQueueExtSupported()) {
+        GTEST_SKIP() << "Workload type update is not supported with current driver.\n";
+    }
+
+    configuration[intel_npu::defer_weights_load.name()] = true;
+
+    int num_threads = 32;
+    std::vector<std::thread> threads;
+    std::vector<std::exception_ptr> exceptions;
+    std::vector<ov::CompiledModel> compiled_models(num_threads);
+    std::mutex exceptions_mutex;
+
+    for (int i = 0; i < num_threads; ++i) {
+        threads.emplace_back([this, &exceptions, &exceptions_mutex, &compiled_models, i]() {
+            try {
+                compiled_models[i] = core->compile_model(function, target_device, configuration);
+                // Stagger threads to desynchronize property setting and expose race conditions
+                std::this_thread::sleep_for(std::chrono::milliseconds(i % 10));
+                if (i % 2 == 0) {
+                    compiled_models[i].set_property(ov::workload_type(WorkloadType::DEFAULT));
+                } else {
+                    compiled_models[i].set_property(ov::workload_type(WorkloadType::EFFICIENT));
+                }
+                auto req = compiled_models[i].create_infer_request();
+                req.infer();
+            } catch (...) {
+                std::lock_guard<std::mutex> lock(exceptions_mutex);
+                exceptions.emplace_back(std::current_exception());
+            }
+        });
+    }
+
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    if (!exceptions.empty()) {
+        try {
+            std::rethrow_exception(exceptions.front());
+        } catch (const std::exception& ex) {
+            FAIL() << ex.what();
+        } catch (...) {
+            FAIL() << "Unknown exception occurred in one of the threads.";
+        }
+    }
+
+    for (int i = 0; i < num_threads; ++i) {
+        if (i % 2 == 0) {
+            ASSERT_EQ(compiled_models[i].get_property(ov::workload_type.name()).as<WorkloadType>(),
+                      WorkloadType::DEFAULT);
+        } else {
+            ASSERT_EQ(compiled_models[i].get_property(ov::workload_type.name()).as<WorkloadType>(),
+                      WorkloadType::EFFICIENT);
+        }
+    }
+}
+
+TEST_P(OVCompileAndInferRequestMultiThreading,
+       CompileModelCreateInferRequestsAndRunOnDifferentThreadsWithWorkloadTypeAndSharedCommonQueueDisabled) {
+    if (!isCommandQueueExtSupported()) {
+        GTEST_SKIP() << "Workload type update is not supported with current driver.\n";
+    }
+
+    configuration[intel_npu::defer_weights_load.name()] = true;
+    configuration[intel_npu::shared_common_queue.name()] = false;
+
+    int num_threads = 32;
+    std::vector<std::thread> threads;
+    std::vector<std::exception_ptr> exceptions;
+    std::vector<ov::CompiledModel> compiled_models(num_threads);
+    std::mutex exceptions_mutex;
+
+    for (int i = 0; i < num_threads; ++i) {
+        threads.emplace_back([this, &exceptions, &exceptions_mutex, &compiled_models, i]() {
+            try {
+                compiled_models[i] = core->compile_model(function, target_device, configuration);
+                // Stagger threads to desynchronize property setting and expose race conditions
+                std::this_thread::sleep_for(std::chrono::milliseconds(i % 10));
+                if (i % 2 == 0) {
+                    compiled_models[i].set_property(ov::workload_type(WorkloadType::DEFAULT));
+                } else {
+                    compiled_models[i].set_property(ov::workload_type(WorkloadType::EFFICIENT));
+                }
+                auto req = compiled_models[i].create_infer_request();
+                req.infer();
+            } catch (...) {
+                std::lock_guard<std::mutex> lock(exceptions_mutex);
+                exceptions.emplace_back(std::current_exception());
+            }
+        });
+    }
+
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    if (!exceptions.empty()) {
+        try {
+            std::rethrow_exception(exceptions.front());
+        } catch (const std::exception& ex) {
+            FAIL() << ex.what();
+        } catch (...) {
+            FAIL() << "Unknown exception occurred in one of the threads.";
+        }
+    }
+
+    for (int i = 0; i < num_threads; ++i) {
+        if (i % 2 == 0) {
+            ASSERT_EQ(compiled_models[i].get_property(ov::workload_type.name()).as<WorkloadType>(),
+                      WorkloadType::DEFAULT);
+        } else {
+            ASSERT_EQ(compiled_models[i].get_property(ov::workload_type.name()).as<WorkloadType>(),
+                      WorkloadType::EFFICIENT);
         }
     }
 }
