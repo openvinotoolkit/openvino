@@ -192,6 +192,8 @@ class TestUnaryOp(PytorchLayerTest):
         self.dtype = dtype
         if self.use_torch_export() and op_type == "aten::atanh" and dtype in [torch.int8, torch.int32, torch.int64]:
             pytest.xfail(reason="torch.export after 2.4.0 doesn't support unsigned int types for atanh in some configurations")
+        if ie_device == "GPU" and op_type == "aten::erfinv":
+            pytest.xfail(reason="erfinv is not supported on GPU")
         self._test(unary_op_net(OPS[op_type], dtype), op_type,
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"unit_range": op_type in ("aten::atanh", "aten::erfinv")})
@@ -281,6 +283,8 @@ class TestUnaryOp(PytorchLayerTest):
                              ])
     def test_unary_op_out(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
+        if ie_device == "GPU" and op_type == "aten::erfinv":
+            pytest.xfail(reason="erfinv is not supported on GPU")
         self._test(unary_op_out_net(OPS[op_type], dtype), op_type,
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"unit_range": op_type in ("aten::atanh", "aten::erfinv")})
