@@ -28,7 +28,7 @@ namespace test {
 namespace behavior {
 
 inline std::shared_ptr<ov::Model> createMaxPoolModel() {
-    // If set env CHECK_SIMPLE_MODEL=1, then use simple model
+    // Use a reduced model when CHECK_SIMPLE_MODEL=1 to simplify local debugging.
     const char* check_simple_model = std::getenv("CHECK_SIMPLE_MODEL");
     if (check_simple_model && std::string(check_simple_model) == "1") {
         auto input =
@@ -131,7 +131,7 @@ public:
 
         modelStream.seekg(0, std::ios::beg);
 
-        // Assume the first 20 char of LLVM blob shall have key word 'llvm'
+        // Host-compiled blobs are expected to expose the "llvm" marker near the beginning.
         std::string region(20, '\0');
         modelStream.read(&region[0], 20);
         region.resize(modelStream.gcount());
@@ -177,8 +177,7 @@ void InferWithHostCompileTests::dumpTensor(const ov::Tensor& tensor, std::string
     }
     std::cout << std::endl;
 
-    // Dump tensor data to file for debugging
-    // Add random suffix to avoid file name conflict when multiple tests run in parallel
+    // Add a random suffix to avoid collisions when tests run in parallel.
     std::cout << "Dump tensor to file for debugging, tensor name: " << name << std::endl;
     std::string fileName = name + "_" + std::to_string(std::rand()) + ".txt";
     std::ofstream outFile(fileName);
@@ -201,8 +200,7 @@ void InferWithHostCompileTests::compareAndDumpInferenceResult(const std::shared_
     const auto inputTensor = reqDynamic.get_input_tensor(0);
     const auto npuOutputTensor = reqDynamic.get_tensor(model->output());
     const auto referenceOutputTensor = reqReference.get_tensor(model->output());
-    // Only dump tensor when set env DUMP_TENSOR_FOR_DYNAMIC=1, since dump tensor may cause overhead and affect the test
-    // result
+    // Dump tensors only when explicitly requested because file output can distort timing-sensitive behavior.
     const char* dumpTensorEnv = std::getenv("DUMP_TENSOR_FOR_DYNAMIC");
     if (dumpTensorEnv && std::string(dumpTensorEnv) == "1") {
         std::cout << "Dump tensor for dynamic shape test since DUMP_TENSOR_FOR_DYNAMIC is set to 1" << std::endl;
@@ -279,8 +277,8 @@ TEST_P(InferWithHostCompileTests, CompileAndImport) {
     OV_ASSERT_NO_THROW(core->import_model(modelStream, target_device, configuration));
 }
 
-// The test to compile, create infer request and infer with dynamic shapes, the original shape is large, then set small
-// shape
+// Compile, infer with a large shape, then shrink the input shape and verify both output correctness and command-list
+// reuse behavior.
 TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -292,12 +290,11 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     ov::CompiledModel compiledModel;
     ov::CompiledModel referenceCompiledModel;
 
-    // Create log callback function which will store log to string, the set to ov
+    // Capture plugin logs so the test can verify command-list reuse decisions.
     std::stringstream customLogger;
-    std::function<void(std::string_view)> customLogCallback =
-        [&](std::string_view s) {  // switch to query allocation info for import flag when possible
-            customLogger << s << std::endl;
-        };
+    std::function<void(std::string_view)> customLogCallback = [&](std::string_view s) {
+        customLogger << s << std::endl;
+    };
     ov::util::set_log_callback(customLogCallback);
     struct ResetLogCallbackGuard {
         ~ResetLogCallbackGuard() {
@@ -318,25 +315,25 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     try {
         reqDynamic = compiledModel.create_infer_request();
     } catch (const ov::Exception& e) {
-        // check if the exception info is "Cannot load library"
+        // Host compile can be enabled even when the runtime library is unavailable.
         ASSERT_TRUE(std::string(e.what()).find("Cannot load library") != std::string::npos)
             << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
         GTEST_SKIP() << "Cannot load library, skip test.";
     }
     ov::InferRequest reqReference = referenceCompiledModel.create_infer_request();
 
-    // create input tensor match the customized models
+    // Start with the largest shape in the dynamic range.
     ov::Shape shape = {1, 16, 720, 1280};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model, reqDynamic, reqReference, inTensor, "CompileAndInferWithDecreasedSize_first");
-    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
+    // The first run materializes runtime state for the initial shape.
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
 
     customLogger.str("");
     customLogger.clear();
     inferAndCompare(model, reqDynamic, reqReference, "CompileAndInferWithDecreasedSize_second");
-    // Rerun inferrequest with current tensor, the command list is reused without update since no tensor change detected
+    // Reusing the same input should keep the existing command list intact.
     ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
                 std::string::npos)
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for second "
@@ -347,8 +344,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     customLogger.clear();
     ov::Tensor inTensor1 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model, reqDynamic, reqReference, inTensor1, "CompileAndInferWithDecreasedSize_third");
-    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused with
-    // data copy
+    // A new host tensor with the same shape should still reuse the command list.
     ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
                 std::string::npos)
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for third "
@@ -360,16 +356,15 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     ov::Shape shape2 = {1, 16, 720, 720};
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
     setInputInferAndCompare(model, reqDynamic, reqReference, inTensor3, "CompileAndInferWithDecreasedSize_fourth");
-    // Set new tensor with new shape, it can not be used by runtime directly, local LevelZero tensor are not reused
-    // since the original one has differnet shape, command list is reset to run with runtime
+    // Shrinking the shape should force runtime reconfiguration for the new tensor layout.
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime' for fourth inference with new shape, but "
            "got: "
         << customLogger.str();
 }
 
-// The test to compile, create infer request and infer with dynamic shapes. the original shape is small, then set large
-// shape
+// Compile, infer with a small shape, then grow the input shape and verify both output correctness and command-list
+// reuse behavior.
 TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -381,12 +376,11 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     ov::CompiledModel compiledModel;
     ov::CompiledModel referenceCompiledModel;
 
-    // Create log callback function which will store log to string, the set to ov
+    // Capture plugin logs so the test can verify command-list reuse decisions.
     std::stringstream customLogger;
-    std::function<void(std::string_view)> customLogCallback =
-        [&](std::string_view s) {  // switch to query allocation info for import flag when possible
-            customLogger << s << std::endl;
-        };
+    std::function<void(std::string_view)> customLogCallback = [&](std::string_view s) {
+        customLogger << s << std::endl;
+    };
     ov::util::set_log_callback(customLogCallback);
     struct ResetLogCallbackGuard {
         ~ResetLogCallbackGuard() {
@@ -407,25 +401,25 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     try {
         reqDynamic = compiledModel.create_infer_request();
     } catch (const ov::Exception& e) {
-        // check if the exception info is "Failed to create MLIR runtime engine"
+        // Host compile can be enabled even when the runtime library is unavailable.
         ASSERT_TRUE(std::string(e.what()).find("Cannot load library") != std::string::npos)
             << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
         GTEST_SKIP() << "Cannot load library, skip test.";
     }
     ov::InferRequest reqReference = referenceCompiledModel.create_infer_request();
 
-    // create input tensor match the customized models
+    // Start with a smaller valid dynamic shape.
     ov::Shape shape = {1, 16, 720, 720};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model, reqDynamic, reqReference, inTensor, "CompileAndInferWithIncreasedSize_first");
-    // The first time to set tensor, the command list is reset to run with runtime
+    // The first run materializes runtime state for the initial shape.
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
 
     customLogger.str("");
     customLogger.clear();
     inferAndCompare(model, reqDynamic, reqReference, "CompileAndInferWithIncreasedSize_second");
-    // Rerun inferrequest with current tensor, the command list is reused without update since no tensor change detected
+    // Reusing the same input should keep the existing command list intact.
     ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
                 std::string::npos)
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for second "
@@ -436,8 +430,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     customLogger.clear();
     ov::Tensor inTensor1 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model, reqDynamic, reqReference, inTensor1, "CompileAndInferWithIncreasedSize_third");
-    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused with
-    // data copy
+    // A new host tensor with the same shape should still reuse the command list.
     ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
                 std::string::npos)
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for third "
@@ -449,16 +442,14 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     ov::Shape shape2 = {1, 16, 720, 1280};
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
     setInputInferAndCompare(model, reqDynamic, reqReference, inTensor3, "CompileAndInferWithIncreasedSize_fourth");
-    // Set new tensor with new shape, it can not be used by runtime directly, local LevelZero tensor are not reused
-    // since shape change, command list is reset to run with runtime
+    // Growing the shape should force runtime reconfiguration for the new tensor layout.
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime' for fourth inference with new shape, but "
            "got: "
         << customLogger.str();
 }
 
-// The test to compile, create infer request and infer with dynamic shapes. Set LevelZeroTensor to trigger command list
-// update
+// Exercise imported Level Zero tensors and verify both output correctness and command-list pointer updates.
 TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -470,12 +461,11 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     ov::CompiledModel compiledModel;
     ov::CompiledModel referenceCompiledModel;
 
-    // Create log callback function which will store log to string, the set to ov
+    // Capture plugin logs so the test can verify command-list reuse decisions.
     std::stringstream customLogger;
-    std::function<void(std::string_view)> customLogCallback =
-        [&](std::string_view s) {  // switch to query allocation info for import flag when possible
-            customLogger << s << std::endl;
-        };
+    std::function<void(std::string_view)> customLogCallback = [&](std::string_view s) {
+        customLogger << s << std::endl;
+    };
     ov::util::set_log_callback(customLogCallback);
     struct ResetLogCallbackGuard {
         ~ResetLogCallbackGuard() {
@@ -496,19 +486,19 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     try {
         reqDynamic = compiledModel.create_infer_request();
     } catch (const ov::Exception& e) {
-        // check if the exception info is "Failed to create MLIR runtime engine"
+        // Host compile can be enabled even when the runtime library is unavailable.
         ASSERT_TRUE(std::string(e.what()).find("Cannot load library") != std::string::npos)
             << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
         GTEST_SKIP() << "Cannot load library, skip test.";
     }
     ov::InferRequest reqReference = referenceCompiledModel.create_infer_request();
 
-    // create input tensor match the customized models
+    // Start from a regular host tensor.
     ov::Shape shape = {1, 16, 720, 1280};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model, reqDynamic, reqReference, inTensor, "CompileAndInferWithZeroTensor_first");
 
-    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
+    // The first run materializes runtime state for the initial shape.
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
 
@@ -517,7 +507,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     ov::InferRequest reqDynamic1 = compiledModel.create_infer_request();
     ov::InferRequest reqReference1 = referenceCompiledModel.create_infer_request();
     setInputInferAndCompare(model, reqDynamic1, reqReference1, inTensor, "CompileAndInferWithZeroTensor_second");
-    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
+    // A fresh infer request rebuilds runtime state on its first execution.
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
 
@@ -529,7 +519,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
                             reqReference1,
                             outputTensorFromReq,
                             "CompileAndInferWithZeroTensor_third");
-    // Level zero tensor with same shape will be used instead of local tensor
+    // Feeding an imported output tensor should update the command list to the new pointer.
     ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
         << "Expected log to contain 'Update command list with new tensor pointer' for third "
            "inference, but got: "
@@ -544,15 +534,14 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
         << "Source and destination tensors must have identical byte sizes for copy";
     std::memcpy(inputHostTensor.data(), hostTensorSource.data(), hostTensorSource.get_byte_size());
     setInputInferAndCompare(model, reqDynamic1, reqReference1, inputHostTensor, "CompileAndInferWithZeroTensor_fourth");
-    // Level zero tensor with same shape will be used instead of local tensor
+    // Feeding a context-allocated host tensor should also update the command list to the new pointer.
     ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
         << "Expected log to contain 'Update command list with new tensor pointer' for third "
            "inference, but got: "
         << customLogger.str();
 }
 
-// The test to compile, create infer request and infer, then compare the output with reference result from template
-// plugin
+// Compare HostCompile inference results against the Template plugin while also checking command-list reuse behavior.
 TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithReference) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -564,12 +553,11 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
     ov::CompiledModel compiledModel;
     ov::CompiledModel referenceCompiledModel;
 
-    // Create log callback function which will store log to string, the set to ov
+    // Capture plugin logs so the test can verify command-list reuse decisions.
     std::stringstream customLogger;
-    std::function<void(std::string_view)> customLogCallback =
-        [&](std::string_view s) {  // switch to query allocation info for import flag when possible
-            customLogger << s << std::endl;
-        };
+    std::function<void(std::string_view)> customLogCallback = [&](std::string_view s) {
+        customLogger << s << std::endl;
+    };
     ov::util::set_log_callback(customLogCallback);
     struct ResetLogCallbackGuard {
         ~ResetLogCallbackGuard() {
@@ -590,7 +578,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
     try {
         reqDynamic = compiledModel.create_infer_request();
     } catch (const ov::Exception& e) {
-        // check if the exception info is "Failed to create MLIR runtime engine"
+        // Host compile can be enabled even when the runtime library is unavailable.
         ASSERT_TRUE(std::string(e.what()).find("Cannot load library") != std::string::npos)
             << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
         GTEST_SKIP() << "Cannot load library, skip test.";
@@ -598,7 +586,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
 
     ov::InferRequest reqReference = referenceCompiledModel.create_infer_request();
 
-    // Compare results of first inference
+    // Use a regular host tensor for the initial comparison against the Template plugin.
     ov::Shape shape = {1, 16, 720, 1280};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
@@ -607,14 +595,14 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
                             inTensor,
                             "CompileAndInferWithZeroTensorCompareWithReference_first");
 
-    // First inference, execute with runtime
+    // The first run materializes runtime state for the initial shape.
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
 
     customLogger.str("");
     customLogger.clear();
     inferAndCompare(model, reqDynamic, reqReference, "CompileAndInferWithZeroTensorCompareWithReference_second");
-    // Rerun inferrequest with current tensor, the command list is reused without update since no tensor change detected
+    // Reusing the same input should keep the existing command list intact.
     ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
                 std::string::npos)
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for second "
@@ -626,7 +614,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
     customLogger.clear();
     ov::InferRequest reqDynamic1 = compiledModel.create_infer_request();
     OV_ASSERT_NO_THROW(reqDynamic1.infer());
-    // First inferece, execute with runtime
+    // A fresh infer request rebuilds runtime state on its first execution.
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
 
@@ -639,15 +627,14 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
                             npuOutputTensorSecondRun,
                             "CompileAndInferWithZeroTensorCompareWithReference_third");
 
-    // Set new level zero tensor with same shape, it can be used by runtime directly
+    // Feeding an imported output tensor should update the command list to the new pointer.
     ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
         << "Expected log to contain 'Update command list with new tensor pointer' for third "
            "inference, but got: "
         << customLogger.str();
 }
 
-// The test to compile, create infer request and infer with dynamic shapes. Set tensor that can be imported by level
-// zero to trigger command list update
+// Exercise page-aligned external memory and verify both output correctness and command-list pointer updates.
 TEST_P(InferWithHostCompileTests, CompileAndInferWithAlignedTensor) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -659,12 +646,11 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithAlignedTensor) {
     ov::CompiledModel compiledModel;
     ov::CompiledModel referenceCompiledModel;
 
-    // Create log callback function which will store log to string, the set to ov
+    // Capture plugin logs so the test can verify command-list reuse decisions.
     std::stringstream customLogger;
-    std::function<void(std::string_view)> customLogCallback =
-        [&](std::string_view s) {  // switch to query allocation info for import flag when possible
-            customLogger << s << std::endl;
-        };
+    std::function<void(std::string_view)> customLogCallback = [&](std::string_view s) {
+        customLogger << s << std::endl;
+    };
     ov::util::set_log_callback(customLogCallback);
     struct ResetLogCallbackGuard {
         ~ResetLogCallbackGuard() {
@@ -685,25 +671,25 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithAlignedTensor) {
     try {
         reqDynamic = compiledModel.create_infer_request();
     } catch (const ov::Exception& e) {
-        // check if the exception info is "Failed to create MLIR runtime engine"
+        // Host compile can be enabled even when the runtime library is unavailable.
         ASSERT_TRUE(std::string(e.what()).find("Cannot load library") != std::string::npos)
             << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
         GTEST_SKIP() << "Cannot load library, skip test.";
     }
     ov::InferRequest reqReference = referenceCompiledModel.create_infer_request();
 
-    // create input tensor match the customized models
+    // Start from a regular host tensor.
     ov::Shape shape = {1, 16, 720, 768};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model, reqDynamic, reqReference, inTensor, "CompileAndInferWithAlignedTensor_first");
 
-    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
+    // The first run materializes runtime state for the initial shape.
     ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
         << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
 
     customLogger.str("");
     customLogger.clear();
-    // shape size is aligned to standard page size, align address as well
+    // Allocate page-aligned external memory so the import path can be exercised.
     auto alignedData = std::unique_ptr<float, void (*)(float*)>(
         static_cast<float*>(
             ::operator new(ov::shape_size(shape) * model->input().get_element_type().size(), std::align_val_t(4096))),
@@ -718,15 +704,13 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithAlignedTensor) {
     setInputInferAndCompare(model, reqDynamic, reqReference, inTensor1, "CompileAndInferWithAlignedTensor_second");
 
     if (::intel_npu::ZeroInitStructsHolder::getInstance()->isExternalMemoryStandardAllocationSupported()) {
-        // Set new tensor with same shape, it can be imported as LevelZero tensor, command list is updated with new
-        // tensor pointer
+        // Importable external memory should switch execution to the new tensor pointer.
         ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
             << "Expected log to contain 'Update command list with new tensor pointer' for third "
                "inference, but got: "
             << customLogger.str();
     } else {
-        // Tensor can not be imported as LevelZero tensor, local LevelZero tensor are reused with data copy, command
-        // list is not updated
+        // Without import support, execution falls back to copying into the existing internal allocation.
         ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
                     std::string::npos)
             << "Expected log to contain 'Reuse command list without update since no tensor change detected' for second "
