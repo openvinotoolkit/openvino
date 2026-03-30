@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <string>
+
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/op/util/attr_types.hpp"  // for op::PadMode
@@ -19,5 +21,13 @@ void pad(const char* data,
          const CoordinateDiff& padding_below,
          const CoordinateDiff& padding_above,
          const op::PadMode pad_mode);
-}
+
+void pad(const std::string* data,
+         const std::string& pad_value,
+         std::string* out,
+         const Shape& data_shape,
+         const Shape& out_shape,
+         const CoordinateDiff& padding_below,
+         const CoordinateDiff& padding_above);
+}  // namespace reference
 }  // namespace ov

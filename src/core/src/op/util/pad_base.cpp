@@ -10,8 +10,6 @@
 #include "openvino/op/pad.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/reference/pad.hpp"
-#include "openvino/reference/utils/coordinate_index.hpp"
-#include "openvino/reference/utils/coordinate_transform.hpp"
 #include "pad_shape_inference.hpp"
 
 namespace ov {
@@ -86,6 +84,10 @@ void op::util::PadBase::validate_and_infer_types() {
     }
 
     NODE_VALIDATION_CHECK(this,
+                          arg_element_type != element::string || m_pad_mode == op::PadMode::CONSTANT,
+                          "Only CONSTANT pad mode is supported for element::string");
+
+    NODE_VALIDATION_CHECK(this,
                           pads_begin_element_type.is_integral_number(),
                           "pads_begin must be an integral number, but is: ",
                           pads_begin_element_type,
@@ -105,9 +107,6 @@ bool op::util::PadBase::evaluate_pad(TensorVector& outputs, const TensorVector& 
     const auto& data = inputs[0];
 
     if (data.get_element_type() == element::string) {
-        OPENVINO_ASSERT(get_pad_mode() == op::PadMode::CONSTANT,
-                        "Only CONSTANT pad mode is supported for element::string");
-
         const CoordinateDiff pads_begin = op::v0::Constant(inputs[1]).cast_vector<ptrdiff_t>();
         const CoordinateDiff pads_end = op::v0::Constant(inputs[2]).cast_vector<ptrdiff_t>();
 
@@ -122,20 +121,7 @@ bool op::util::PadBase::evaluate_pad(TensorVector& outputs, const TensorVector& 
         const std::string pad_str =
             (get_input_size() == 4) ? *static_cast<const std::string*>(inputs[3].data()) : std::string{};
 
-        for (const auto& out_coord : ov::CoordinateTransformBasic{padded_shape}) {
-            Coordinate in_coord(data_shape.size());
-            bool in_bounds = true;
-            for (size_t ax = 0; ax < data_shape.size(); ++ax) {
-                const ptrdiff_t c = static_cast<ptrdiff_t>(out_coord[ax]) - pads_begin[ax];
-                if (c < 0 || c >= static_cast<ptrdiff_t>(data_shape[ax])) {
-                    in_bounds = false;
-                    break;
-                }
-                in_coord[ax] = static_cast<size_t>(c);
-            }
-            dst[ov::coordinate_index(out_coord, padded_shape)] =
-                in_bounds ? src[ov::coordinate_index(in_coord, data_shape)] : pad_str;
-        }
+        ov::reference::pad(src, pad_str, dst, data_shape, padded_shape, pads_begin, pads_end);
         return true;
     }
 
