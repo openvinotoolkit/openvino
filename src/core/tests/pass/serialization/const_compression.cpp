@@ -401,8 +401,8 @@ TEST_F(SerializationConstantCompressionTest, StringConstantsRoundTrip) {
     auto model_imported = core.read_model(m_out_xml_path_1, m_out_bin_path_1);
 
     std::vector<std::shared_ptr<ov::op::v0::Constant>> consts;
-    for (const auto& op : model_imported->get_ordered_ops()) {
-        if (const auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(op)) {
+    for (const auto& result : model_imported->get_results()) {
+        if (const auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(result->get_input_node_shared_ptr(0))) {
             if (c->get_element_type() == ov::element::string) {
                 consts.push_back(c);
             }
@@ -414,14 +414,12 @@ TEST_F(SerializationConstantCompressionTest, StringConstantsRoundTrip) {
     for (const auto& c : consts) {
         actual.push_back(c->get_vector<std::string>());
     }
-    std::sort(actual.begin(), actual.end());
 
     std::vector<std::vector<std::string>> expected{
         {"UNKNOWN", "cat", "dog", "fish"},
         {"UNKNOWN", "red", "green", "blue"},
         {"sports", "politics", "tech"},
     };
-    std::sort(expected.begin(), expected.end());
 
     EXPECT_EQ(actual, expected);
 }
