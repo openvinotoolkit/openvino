@@ -217,7 +217,8 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
                                           bias_down_gemm2_m},
                                          [](const ov::Output<ov::Node>& output) {
                                              auto moe_op = ov::as_type_ptr<ov::op::internal::MOE>(output.get_node_shared_ptr());
-                                             return moe_op->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP;
+                                             return moe_op &&
+                                                    moe_op->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP;
                                          });
 
     // gemm2 pattern finished
