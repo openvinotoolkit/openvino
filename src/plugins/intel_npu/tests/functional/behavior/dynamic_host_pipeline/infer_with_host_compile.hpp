@@ -32,7 +32,7 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel() {
     const char* check_simple_model = std::getenv("CHECK_SIMPLE_MODEL");
     if (check_simple_model && std::string(check_simple_model) == "1") {
         auto input =
-            std::make_shared<ov::op::v0::Parameter>(element::f16, PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
+            std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
         input->set_friendly_name("input1");
 
         auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input,
@@ -84,6 +84,40 @@ using InferWithHostCompileParams = std::tuple<std::string,  // Device name
 class InferWithHostCompileTests : public testing::WithParamInterface<InferWithHostCompileParams>,
                                   public OVInferRequestTestBase {
 public:
+    enum class RuntimeCompareStatus {
+        ready,
+        skip,
+        fail,
+    };
+
+    struct ScopedLogCapture {
+        ScopedLogCapture();
+        ~ScopedLogCapture();
+
+        void clear();
+        std::string str() const;
+
+    private:
+        std::stringstream stream;
+        std::function<void(std::string_view)> callback;
+
+        friend class InferWithHostCompileTests;
+    };
+
+    struct RuntimeCompareContext {
+        std::shared_ptr<ov::Model> model;
+        ov::CompiledModel compiledModel;
+        ov::CompiledModel referenceCompiledModel;
+        ov::InferRequest reqDynamic;
+        ov::InferRequest reqReference;
+    };
+
+    struct RuntimeCompareSetupResult {
+        RuntimeCompareStatus status = RuntimeCompareStatus::ready;
+        std::string message;
+        RuntimeCompareContext context;
+    };
+
     static std::string getTestCaseName(testing::TestParamInfo<InferWithHostCompileParams> obj) {
         std::string target_device;
         ov::AnyMap configuration;
@@ -160,11 +194,35 @@ public:
                                         const ov::Tensor& inputTensor,
                                         const std::string& dumpPrefix);
 
+    static bool logContains(const ScopedLogCapture& logCapture, const std::string& expectedEntry);
+
+    RuntimeCompareSetupResult prepareRuntimeCompareContext(const std::shared_ptr<ov::Model>& model);
+
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     bool isTargetDevice = false;
 };
+
+InferWithHostCompileTests::ScopedLogCapture::ScopedLogCapture()
+    : callback([this](std::string_view s) {
+          stream << s << std::endl;
+      }) {
+    ov::util::set_log_callback(callback);
+}
+
+InferWithHostCompileTests::ScopedLogCapture::~ScopedLogCapture() {
+    ov::util::reset_log_callback();
+}
+
+void InferWithHostCompileTests::ScopedLogCapture::clear() {
+    stream.str("");
+    stream.clear();
+}
+
+std::string InferWithHostCompileTests::ScopedLogCapture::str() const {
+    return stream.str();
+}
 
 void InferWithHostCompileTests::dumpTensor(const ov::Tensor& tensor, std::string name) {
     std::cout << "Tensor name: " << name << ", shape: " << tensor.get_shape()
@@ -237,6 +295,50 @@ void InferWithHostCompileTests::setInputInferAndCompare(const std::shared_ptr<ov
     inferAndCompare(model, reqDynamic, reqReference, dumpPrefix);
 }
 
+bool InferWithHostCompileTests::logContains(const ScopedLogCapture& logCapture, const std::string& expectedEntry) {
+    return logCapture.str().find(expectedEntry) != std::string::npos;
+}
+
+InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::prepareRuntimeCompareContext(
+    const std::shared_ptr<ov::Model>& model) {
+    RuntimeCompareSetupResult result;
+    result.context.model = model;
+
+    try {
+        result.context.compiledModel = core->compile_model(model, target_device, configuration);
+    } catch (const ov::Exception& e) {
+        result.status = RuntimeCompareStatus::fail;
+        result.message = std::string("Failed to compile model for target device: ") + e.what();
+        return result;
+    }
+
+    try {
+        result.context.referenceCompiledModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+    } catch (const ov::Exception& e) {
+        result.status = RuntimeCompareStatus::skip;
+        result.message = std::string("CPU plugin is not available for reference comparison: ") + e.what();
+        return result;
+    }
+
+    try {
+        result.context.reqDynamic = result.context.compiledModel.create_infer_request();
+    } catch (const ov::Exception& e) {
+        if (std::string(e.what()).find("Cannot load library") == std::string::npos) {
+            result.status = RuntimeCompareStatus::fail;
+            result.message =
+                std::string("Expected exception message to contain 'Cannot load library', but got: ") + e.what();
+            return result;
+        }
+
+        result.status = RuntimeCompareStatus::skip;
+        result.message = "Cannot load library, skip test.";
+        return result;
+    }
+
+    result.context.reqReference = result.context.referenceCompiledModel.create_infer_request();
+    return result;
+}
+
 // Test compilation without executor creation
 TEST_P(InferWithHostCompileTests, Compile) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
@@ -287,80 +389,64 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     }
 
     auto model = createMaxPoolModel();
-    ov::CompiledModel compiledModel;
-    ov::CompiledModel referenceCompiledModel;
-
-    // Capture plugin logs so the test can verify command-list reuse decisions.
-    std::stringstream customLogger;
-    std::function<void(std::string_view)> customLogCallback = [&](std::string_view s) {
-        customLogger << s << std::endl;
-    };
-    ov::util::set_log_callback(customLogCallback);
-    struct ResetLogCallbackGuard {
-        ~ResetLogCallbackGuard() {
-            ov::util::reset_log_callback();
-        }
-    } reset_log_callback_guard;
+    ScopedLogCapture logCapture;
 
     core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
-
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
-    try {
-        referenceCompiledModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
-    } catch (const ov::Exception& e) {
-        GTEST_SKIP() << "CPU plugin is not available for reference comparison: " << e.what();
+    auto setupResult = prepareRuntimeCompareContext(model);
+    if (setupResult.status == RuntimeCompareStatus::fail) {
+        FAIL() << setupResult.message;
     }
-
-    ov::InferRequest reqDynamic;
-    try {
-        reqDynamic = compiledModel.create_infer_request();
-    } catch (const ov::Exception& e) {
-        // Host compile can be enabled even when the runtime library is unavailable.
-        ASSERT_TRUE(std::string(e.what()).find("Cannot load library") != std::string::npos)
-            << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
-        GTEST_SKIP() << "Cannot load library, skip test.";
+    if (setupResult.status == RuntimeCompareStatus::skip) {
+        GTEST_SKIP() << setupResult.message;
     }
-    ov::InferRequest reqReference = referenceCompiledModel.create_infer_request();
+    auto& testContext = setupResult.context;
 
     // Start with the largest shape in the dynamic range.
     ov::Shape shape = {1, 16, 720, 1280};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor, "CompileAndInferWithDecreasedSize_first");
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            inTensor,
+                            "CompileAndInferWithDecreasedSize_first");
     // The first run materializes runtime state for the initial shape.
-    ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
-        << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
 
-    customLogger.str("");
-    customLogger.clear();
-    inferAndCompare(model, reqDynamic, reqReference, "CompileAndInferWithDecreasedSize_second");
+    logCapture.clear();
+    inferAndCompare(model, testContext.reqDynamic, testContext.reqReference, "CompileAndInferWithDecreasedSize_second");
     // Reusing the same input should keep the existing command list intact.
-    ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
-                std::string::npos)
+    ASSERT_TRUE(logContains(logCapture, "Reuse command list without update since no tensor change detected"))
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for second "
            "inference, but got: "
-        << customLogger.str();
+        << logCapture.str();
 
-    customLogger.str("");
-    customLogger.clear();
+    logCapture.clear();
     ov::Tensor inTensor1 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor1, "CompileAndInferWithDecreasedSize_third");
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            inTensor1,
+                            "CompileAndInferWithDecreasedSize_third");
     // A new host tensor with the same shape should still reuse the command list.
-    ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
-                std::string::npos)
+    ASSERT_TRUE(logContains(logCapture, "Reuse command list without update since no tensor change detected"))
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for third "
            "inference, but got: "
-        << customLogger.str();
+        << logCapture.str();
 
-    customLogger.str("");
-    customLogger.clear();
+    logCapture.clear();
     ov::Shape shape2 = {1, 16, 720, 720};
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
-    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor3, "CompileAndInferWithDecreasedSize_fourth");
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            inTensor3,
+                            "CompileAndInferWithDecreasedSize_fourth");
     // Shrinking the shape should force runtime reconfiguration for the new tensor layout.
-    ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
         << "Expected log to contain 'Reset command list to run with runtime' for fourth inference with new shape, but "
            "got: "
-        << customLogger.str();
+        << logCapture.str();
 }
 
 // Compile, infer with a small shape, then grow the input shape and verify both output correctness and command-list
@@ -373,80 +459,64 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     }
 
     auto model = createMaxPoolModel();
-    ov::CompiledModel compiledModel;
-    ov::CompiledModel referenceCompiledModel;
-
-    // Capture plugin logs so the test can verify command-list reuse decisions.
-    std::stringstream customLogger;
-    std::function<void(std::string_view)> customLogCallback = [&](std::string_view s) {
-        customLogger << s << std::endl;
-    };
-    ov::util::set_log_callback(customLogCallback);
-    struct ResetLogCallbackGuard {
-        ~ResetLogCallbackGuard() {
-            ov::util::reset_log_callback();
-        }
-    } reset_log_callback_guard;
+    ScopedLogCapture logCapture;
 
     core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
-
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
-    try {
-        referenceCompiledModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
-    } catch (const ov::Exception& e) {
-        GTEST_SKIP() << "CPU plugin is not available for reference comparison: " << e.what();
+    auto setupResult = prepareRuntimeCompareContext(model);
+    if (setupResult.status == RuntimeCompareStatus::fail) {
+        FAIL() << setupResult.message;
     }
-
-    ov::InferRequest reqDynamic;
-    try {
-        reqDynamic = compiledModel.create_infer_request();
-    } catch (const ov::Exception& e) {
-        // Host compile can be enabled even when the runtime library is unavailable.
-        ASSERT_TRUE(std::string(e.what()).find("Cannot load library") != std::string::npos)
-            << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
-        GTEST_SKIP() << "Cannot load library, skip test.";
+    if (setupResult.status == RuntimeCompareStatus::skip) {
+        GTEST_SKIP() << setupResult.message;
     }
-    ov::InferRequest reqReference = referenceCompiledModel.create_infer_request();
+    auto& testContext = setupResult.context;
 
     // Start with a smaller valid dynamic shape.
     ov::Shape shape = {1, 16, 720, 720};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor, "CompileAndInferWithIncreasedSize_first");
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            inTensor,
+                            "CompileAndInferWithIncreasedSize_first");
     // The first run materializes runtime state for the initial shape.
-    ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
-        << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
 
-    customLogger.str("");
-    customLogger.clear();
-    inferAndCompare(model, reqDynamic, reqReference, "CompileAndInferWithIncreasedSize_second");
+    logCapture.clear();
+    inferAndCompare(model, testContext.reqDynamic, testContext.reqReference, "CompileAndInferWithIncreasedSize_second");
     // Reusing the same input should keep the existing command list intact.
-    ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
-                std::string::npos)
+    ASSERT_TRUE(logContains(logCapture, "Reuse command list without update since no tensor change detected"))
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for second "
            "inference, but got: "
-        << customLogger.str();
+        << logCapture.str();
 
-    customLogger.str("");
-    customLogger.clear();
+    logCapture.clear();
     ov::Tensor inTensor1 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor1, "CompileAndInferWithIncreasedSize_third");
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            inTensor1,
+                            "CompileAndInferWithIncreasedSize_third");
     // A new host tensor with the same shape should still reuse the command list.
-    ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
-                std::string::npos)
+    ASSERT_TRUE(logContains(logCapture, "Reuse command list without update since no tensor change detected"))
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for third "
            "inference, but got: "
-        << customLogger.str();
+        << logCapture.str();
 
-    customLogger.str("");
-    customLogger.clear();
+    logCapture.clear();
     ov::Shape shape2 = {1, 16, 720, 1280};
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
-    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor3, "CompileAndInferWithIncreasedSize_fourth");
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            inTensor3,
+                            "CompileAndInferWithIncreasedSize_fourth");
     // Growing the shape should force runtime reconfiguration for the new tensor layout.
-    ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
         << "Expected log to contain 'Reset command list to run with runtime' for fourth inference with new shape, but "
            "got: "
-        << customLogger.str();
+        << logCapture.str();
 }
 
 // Exercise imported Level Zero tensors and verify both output correctness and command-list pointer updates.
@@ -458,75 +528,52 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     }
 
     auto model = createMaxPoolModel();
-    ov::CompiledModel compiledModel;
-    ov::CompiledModel referenceCompiledModel;
-
-    // Capture plugin logs so the test can verify command-list reuse decisions.
-    std::stringstream customLogger;
-    std::function<void(std::string_view)> customLogCallback = [&](std::string_view s) {
-        customLogger << s << std::endl;
-    };
-    ov::util::set_log_callback(customLogCallback);
-    struct ResetLogCallbackGuard {
-        ~ResetLogCallbackGuard() {
-            ov::util::reset_log_callback();
-        }
-    } reset_log_callback_guard;
+    ScopedLogCapture logCapture;
 
     core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
-
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
-    try {
-        referenceCompiledModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
-    } catch (const ov::Exception& e) {
-        GTEST_SKIP() << "CPU plugin is not available for reference comparison: " << e.what();
+    auto setupResult = prepareRuntimeCompareContext(model);
+    if (setupResult.status == RuntimeCompareStatus::fail) {
+        FAIL() << setupResult.message;
     }
-
-    ov::InferRequest reqDynamic;
-    try {
-        reqDynamic = compiledModel.create_infer_request();
-    } catch (const ov::Exception& e) {
-        // Host compile can be enabled even when the runtime library is unavailable.
-        ASSERT_TRUE(std::string(e.what()).find("Cannot load library") != std::string::npos)
-            << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
-        GTEST_SKIP() << "Cannot load library, skip test.";
+    if (setupResult.status == RuntimeCompareStatus::skip) {
+        GTEST_SKIP() << setupResult.message;
     }
-    ov::InferRequest reqReference = referenceCompiledModel.create_infer_request();
+    auto& testContext = setupResult.context;
 
     // Start from a regular host tensor.
     ov::Shape shape = {1, 16, 720, 1280};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor, "CompileAndInferWithZeroTensor_first");
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            inTensor,
+                            "CompileAndInferWithZeroTensor_first");
 
     // The first run materializes runtime state for the initial shape.
-    ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
-        << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
 
-    customLogger.str("");
-    customLogger.clear();
-    ov::InferRequest reqDynamic1 = compiledModel.create_infer_request();
-    ov::InferRequest reqReference1 = referenceCompiledModel.create_infer_request();
+    logCapture.clear();
+    ov::InferRequest reqDynamic1 = testContext.compiledModel.create_infer_request();
+    ov::InferRequest reqReference1 = testContext.referenceCompiledModel.create_infer_request();
     setInputInferAndCompare(model, reqDynamic1, reqReference1, inTensor, "CompileAndInferWithZeroTensor_second");
     // A fresh infer request rebuilds runtime state on its first execution.
-    ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
-        << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
 
-    customLogger.str("");
-    customLogger.clear();
-    auto outputTensorFromReq = reqDynamic.get_tensor(model->output());
+    logCapture.clear();
+    auto outputTensorFromReq = testContext.reqDynamic.get_tensor(model->output());
     setInputInferAndCompare(model,
                             reqDynamic1,
                             reqReference1,
                             outputTensorFromReq,
                             "CompileAndInferWithZeroTensor_third");
     // Feeding an imported output tensor should update the command list to the new pointer.
-    ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
-        << "Expected log to contain 'Update command list with new tensor pointer' for third "
-           "inference, but got: "
-        << customLogger.str();
+    ASSERT_TRUE(logContains(logCapture, "Update command list with new tensor pointer"))
+        << "Expected log to contain 'Update command list with new tensor pointer' for third inference, but got: "
+        << logCapture.str();
 
-    customLogger.str("");
-    customLogger.clear();
+    logCapture.clear();
     auto zeroContext = core->get_default_context(target_device);
     auto inputHostTensor = zeroContext.create_host_tensor(model->input().get_element_type(), shape);
     auto hostTensorSource = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
@@ -535,10 +582,9 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     std::memcpy(inputHostTensor.data(), hostTensorSource.data(), hostTensorSource.get_byte_size());
     setInputInferAndCompare(model, reqDynamic1, reqReference1, inputHostTensor, "CompileAndInferWithZeroTensor_fourth");
     // Feeding a context-allocated host tensor should also update the command list to the new pointer.
-    ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
-        << "Expected log to contain 'Update command list with new tensor pointer' for third "
-           "inference, but got: "
-        << customLogger.str();
+    ASSERT_TRUE(logContains(logCapture, "Update command list with new tensor pointer"))
+        << "Expected log to contain 'Update command list with new tensor pointer' for fourth inference, but got: "
+        << logCapture.str();
 }
 
 // Compare HostCompile inference results against the Template plugin while also checking command-list reuse behavior.
@@ -550,77 +596,52 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
     }
 
     auto model = createMaxPoolModel();
-    ov::CompiledModel compiledModel;
-    ov::CompiledModel referenceCompiledModel;
-
-    // Capture plugin logs so the test can verify command-list reuse decisions.
-    std::stringstream customLogger;
-    std::function<void(std::string_view)> customLogCallback = [&](std::string_view s) {
-        customLogger << s << std::endl;
-    };
-    ov::util::set_log_callback(customLogCallback);
-    struct ResetLogCallbackGuard {
-        ~ResetLogCallbackGuard() {
-            ov::util::reset_log_callback();
-        }
-    } reset_log_callback_guard;
+    ScopedLogCapture logCapture;
 
     core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
-
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
-    try {
-        referenceCompiledModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
-    } catch (const ov::Exception& e) {
-        GTEST_SKIP() << "CPU plugin is not available for reference comparison: " << e.what();
+    auto setupResult = prepareRuntimeCompareContext(model);
+    if (setupResult.status == RuntimeCompareStatus::fail) {
+        FAIL() << setupResult.message;
     }
-
-    ov::InferRequest reqDynamic;
-    try {
-        reqDynamic = compiledModel.create_infer_request();
-    } catch (const ov::Exception& e) {
-        // Host compile can be enabled even when the runtime library is unavailable.
-        ASSERT_TRUE(std::string(e.what()).find("Cannot load library") != std::string::npos)
-            << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
-        GTEST_SKIP() << "Cannot load library, skip test.";
+    if (setupResult.status == RuntimeCompareStatus::skip) {
+        GTEST_SKIP() << setupResult.message;
     }
-
-    ov::InferRequest reqReference = referenceCompiledModel.create_infer_request();
+    auto& testContext = setupResult.context;
 
     // Use a regular host tensor for the initial comparison against the Template plugin.
     ov::Shape shape = {1, 16, 720, 1280};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
-                            reqDynamic,
-                            reqReference,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
                             inTensor,
                             "CompileAndInferWithZeroTensorCompareWithReference_first");
 
     // The first run materializes runtime state for the initial shape.
-    ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
-        << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
 
-    customLogger.str("");
-    customLogger.clear();
-    inferAndCompare(model, reqDynamic, reqReference, "CompileAndInferWithZeroTensorCompareWithReference_second");
+    logCapture.clear();
+    inferAndCompare(model,
+                    testContext.reqDynamic,
+                    testContext.reqReference,
+                    "CompileAndInferWithZeroTensorCompareWithReference_second");
     // Reusing the same input should keep the existing command list intact.
-    ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
-                std::string::npos)
+    ASSERT_TRUE(logContains(logCapture, "Reuse command list without update since no tensor change detected"))
         << "Expected log to contain 'Reuse command list without update since no tensor change detected' for second "
            "inference, but got: "
-        << customLogger.str();
-    auto npuOutputTensorSecondRun = reqDynamic.get_tensor(model->output());
+        << logCapture.str();
+    auto npuOutputTensorSecondRun = testContext.reqDynamic.get_tensor(model->output());
 
-    customLogger.str("");
-    customLogger.clear();
-    ov::InferRequest reqDynamic1 = compiledModel.create_infer_request();
+    logCapture.clear();
+    ov::InferRequest reqDynamic1 = testContext.compiledModel.create_infer_request();
     OV_ASSERT_NO_THROW(reqDynamic1.infer());
     // A fresh infer request rebuilds runtime state on its first execution.
-    ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
-        << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
 
-    customLogger.str("");
-    customLogger.clear();
-    ov::InferRequest reqReference1 = referenceCompiledModel.create_infer_request();
+    logCapture.clear();
+    ov::InferRequest reqReference1 = testContext.referenceCompiledModel.create_infer_request();
     setInputInferAndCompare(model,
                             reqDynamic1,
                             reqReference1,
@@ -628,10 +649,9 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
                             "CompileAndInferWithZeroTensorCompareWithReference_third");
 
     // Feeding an imported output tensor should update the command list to the new pointer.
-    ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
-        << "Expected log to contain 'Update command list with new tensor pointer' for third "
-           "inference, but got: "
-        << customLogger.str();
+    ASSERT_TRUE(logContains(logCapture, "Update command list with new tensor pointer"))
+        << "Expected log to contain 'Update command list with new tensor pointer' for third inference, but got: "
+        << logCapture.str();
 }
 
 // Exercise page-aligned external memory and verify both output correctness and command-list pointer updates.
@@ -643,52 +663,32 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithAlignedTensor) {
     }
 
     auto model = createMaxPoolModel();
-    ov::CompiledModel compiledModel;
-    ov::CompiledModel referenceCompiledModel;
-
-    // Capture plugin logs so the test can verify command-list reuse decisions.
-    std::stringstream customLogger;
-    std::function<void(std::string_view)> customLogCallback = [&](std::string_view s) {
-        customLogger << s << std::endl;
-    };
-    ov::util::set_log_callback(customLogCallback);
-    struct ResetLogCallbackGuard {
-        ~ResetLogCallbackGuard() {
-            ov::util::reset_log_callback();
-        }
-    } reset_log_callback_guard;
+    ScopedLogCapture logCapture;
 
     core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
-
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
-    try {
-        referenceCompiledModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
-    } catch (const ov::Exception& e) {
-        GTEST_SKIP() << "CPU plugin is not available for reference comparison: " << e.what();
+    auto setupResult = prepareRuntimeCompareContext(model);
+    if (setupResult.status == RuntimeCompareStatus::fail) {
+        FAIL() << setupResult.message;
     }
-
-    ov::InferRequest reqDynamic;
-    try {
-        reqDynamic = compiledModel.create_infer_request();
-    } catch (const ov::Exception& e) {
-        // Host compile can be enabled even when the runtime library is unavailable.
-        ASSERT_TRUE(std::string(e.what()).find("Cannot load library") != std::string::npos)
-            << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
-        GTEST_SKIP() << "Cannot load library, skip test.";
+    if (setupResult.status == RuntimeCompareStatus::skip) {
+        GTEST_SKIP() << setupResult.message;
     }
-    ov::InferRequest reqReference = referenceCompiledModel.create_infer_request();
+    auto& testContext = setupResult.context;
 
     // Start from a regular host tensor.
     ov::Shape shape = {1, 16, 720, 768};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor, "CompileAndInferWithAlignedTensor_first");
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            inTensor,
+                            "CompileAndInferWithAlignedTensor_first");
 
     // The first run materializes runtime state for the initial shape.
-    ASSERT_TRUE(customLogger.str().find("Reset command list to run with runtime") != std::string::npos)
-        << "Expected log to contain 'Reset command list to run with runtime', but got: " << customLogger.str();
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
 
-    customLogger.str("");
-    customLogger.clear();
+    logCapture.clear();
     // Allocate page-aligned external memory so the import path can be exercised.
     auto alignedData = std::unique_ptr<float, void (*)(float*)>(
         static_cast<float*>(
@@ -701,21 +701,23 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithAlignedTensor) {
         << "Source and destination tensors must have identical byte sizes for copy";
     std::memcpy(inTensor1.data(), inTensor.data(), inTensor.get_byte_size());
 
-    setInputInferAndCompare(model, reqDynamic, reqReference, inTensor1, "CompileAndInferWithAlignedTensor_second");
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            inTensor1,
+                            "CompileAndInferWithAlignedTensor_second");
 
     if (::intel_npu::ZeroInitStructsHolder::getInstance()->isExternalMemoryStandardAllocationSupported()) {
         // Importable external memory should switch execution to the new tensor pointer.
-        ASSERT_TRUE(customLogger.str().find("Update command list with new tensor pointer") != std::string::npos)
-            << "Expected log to contain 'Update command list with new tensor pointer' for third "
-               "inference, but got: "
-            << customLogger.str();
+        ASSERT_TRUE(logContains(logCapture, "Update command list with new tensor pointer"))
+            << "Expected log to contain 'Update command list with new tensor pointer' for second inference, but got: "
+            << logCapture.str();
     } else {
         // Without import support, execution falls back to copying into the existing internal allocation.
-        ASSERT_TRUE(customLogger.str().find("Reuse command list without update since no tensor change detected") !=
-                    std::string::npos)
+        ASSERT_TRUE(logContains(logCapture, "Reuse command list without update since no tensor change detected"))
             << "Expected log to contain 'Reuse command list without update since no tensor change detected' for second "
                "inference, but got: "
-            << customLogger.str();
+            << logCapture.str();
     }
 }
 
