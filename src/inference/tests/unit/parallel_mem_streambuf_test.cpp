@@ -2,25 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-/// Unit tests for ov::util::ParallelMemStreamBuf.
-///
-/// Goals:
-///  1. Verify byte-exact correctness for small reads (memcpy path, threshold=SIZE_MAX).
-///  2. Verify byte-exact correctness for the parallel memcpy path (threshold=1).
-///  3. Verify correct behaviour for non-zero logical start (pointer offset within
-///     a larger allocation).
-///  4. Verify seekoff / seekpos for all three seek directions (beg, cur, end).
-///  5. Verify underflow() / get() path (peeking + char-by-char consumption).
-///  6. Verify uflow() advances the internal cursor correctly.
-///  7. Verify showmanyc() / in_avail() reports remaining bytes accurately.
-///  8. Verify boundary conditions: out-of-range seek, read beyond end.
-///  9. Verify mixed underflow + bulk read: drain underflow first, then xsgetn.
-/// 10. Verify large parallel memcpy (>= DEFAULT_THRESHOLD on any ≥2-core machine).
-///
-/// The "parallel dispatch" tests use buffers large enough that
-///   size / MIN_CHUNK_SIZE (2 MB) >= 2
-/// on any machine, so num_chunks > 1 whenever hardware parallelism exists.
-/// With threshold=1 the parallel_copy() branch is taken for every xsgetn call.
+/**
+ * @brief Unit tests for ov::util::ParallelMemStreamBuf.
+ *
+ * Goals:
+ *  1. Verify byte-exact correctness for small reads (memcpy path, threshold=SIZE_MAX).
+ *  2. Verify byte-exact correctness for the parallel memcpy path (threshold=1).
+ *  3. Verify correct behaviour for non-zero logical start (pointer offset within
+ *     a larger allocation).
+ *  4. Verify seekoff / seekpos for all three seek directions (beg, cur, end).
+ *  5. Verify underflow() / get() path (peeking + char-by-char consumption).
+ *  6. Verify uflow() advances the internal cursor correctly.
+ *  7. Verify showmanyc() / in_avail() reports remaining bytes accurately.
+ *  8. Verify boundary conditions: out-of-range seek, read beyond end.
+ *  9. Verify mixed underflow + bulk read: drain underflow first, then xsgetn.
+ * 10. Verify large parallel memcpy (>= DEFAULT_THRESHOLD on any >=2-core machine).
+ *
+ * The "parallel dispatch" tests use buffers large enough that
+ *   size / MIN_CHUNK_SIZE (2 MB) >= 2
+ * on any machine, so num_chunks > 1 whenever hardware parallelism exists.
+ * With threshold=1 the parallel_copy() branch is taken for every xsgetn call.
+ */
 
 #include "openvino/util/parallel_mem_streambuf.hpp"
 
@@ -32,11 +34,7 @@
 
 namespace ov::test {
 
-// ---------------------------------------------------------------------------
-// Helper: fill a vector with a deterministic pattern unique per byte index.
-// Using prime modulus 251 so the period is never aligned with any power-of-two
-// chunk or page size.
-// ---------------------------------------------------------------------------
+/**\n * @brief Fill a vector with a deterministic pattern unique per byte index.\n *\n * Using prime modulus 251 so the period is never aligned with any power-of-two\n * chunk or page size.\n */
 namespace {
 void fill_pattern(std::vector<uint8_t>& buf, size_t start_index = 0) {
     for (size_t i = 0; i < buf.size(); ++i) {

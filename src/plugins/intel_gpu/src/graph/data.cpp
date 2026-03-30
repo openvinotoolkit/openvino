@@ -1,16 +1,18 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "data_inst.h"
-#include "primitive_type_base.h"
-#include "intel_gpu/runtime/memory.hpp"
 
+#include "data_inst.h"
 #include "json_object.h"
+#include "primitive_type_base.h"
+
+#include "intel_gpu/runtime/memory.hpp"
+#include "openvino/core/parallel.hpp"
+
 #include <algorithm>
 #include <cstring>
 #include <memory>
 #include <string>
-#include "openvino/core/parallel.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(data)

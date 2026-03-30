@@ -21,8 +21,7 @@
 #    include <unistd.h>
 #endif
 
-namespace ov {
-namespace util {
+namespace ov::util {
 
 ParallelReadStreamBuf::ParallelReadStreamBuf(const std::filesystem::path& path,
                                              std::streamoff header_offset,
@@ -325,8 +324,8 @@ bool ParallelReadStreamBuf::parallel_read(char* dst, size_t size, size_t file_of
                 }
 
                 char* cur = ptr;
-                size_t remaining = read_size;
-                size_t cur_file_offset = thread_file_offset;
+                auto remaining = read_size;
+                auto cur_file_offset = thread_file_offset;
                 while (remaining > 0 && success) {
                     const DWORD to_read =
                         static_cast<DWORD>(std::min(remaining, static_cast<size_t>(UINT_MAX - 1024u)));
@@ -386,5 +385,4 @@ bool ParallelReadStreamBuf::parallel_read(char* dst, size_t size, size_t file_of
     return success.load();
 }
 
-}  // namespace util
-}  // namespace ov
+}  // namespace ov::util

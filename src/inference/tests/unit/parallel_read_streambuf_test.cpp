@@ -2,27 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-/// Unit tests for ov::util::ParallelReadStreamBuf.
-///
-/// Goals:
-///  1. Verify byte-exact correctness of the parallel I/O path (large reads split
-///     across N workers must produce the same result as a single-threaded read).
-///  2. Verify correct behaviour for non-zero header_offset (the streambuf's
-///     logical position 0 maps to a non-zero file offset).
-///  3. Verify that seekoff / seekpos work for all seek directions and that
-///     seekg + read returns the right bytes.
-///  4. Exercise the `underflow()` path (single-char / getline-style reads) in
-///     addition to the fast `xsgetn()` bulk path.
-///  5. Verify boundary conditions: read beyond EOF, seek out of range.
-///
-/// Strategy for exercising the parallel dispatch:
-///   - Tests that verify the parallel-dispatch logic itself use data large enough
-///     that parallel_read() chooses num_threads > 1 on any ≥ 2-core CI machine
-///     (at least 2 MB – the current heuristic is 1 thread per MB).
-///   - Tests that verify seek / underflow semantics use small data with
-///     threshold=1 so that parallel_read() is *called* on every xsgetn; even
-///     when hardware_concurrency==1 it still falls back to single_read() and the
-///     seek / offset math remains exercised.
+/**
+ * @brief Unit tests for ov::util::ParallelReadStreamBuf.
+ *
+ * Goals:
+ *  1. Verify byte-exact correctness of the parallel I/O path (large reads split
+ *     across N workers must produce the same result as a single-threaded read).
+ *  2. Verify correct behaviour for non-zero header_offset (the streambuf's
+ *     logical position 0 maps to a non-zero file offset).
+ *  3. Verify that seekoff / seekpos work for all seek directions and that
+ *     seekg + read returns the right bytes.
+ *  4. Exercise the underflow() path (single-char / getline-style reads) in
+ *     addition to the fast xsgetn() bulk path.
+ *  5. Verify boundary conditions: read beyond EOF, seek out of range.
+ *
+ * Strategy for exercising the parallel dispatch:
+ *   - Tests that verify the parallel-dispatch logic itself use data large enough
+ *     that parallel_read() chooses num_threads > 1 on any >= 2-core CI machine
+ *     (at least 2 MB -- the current heuristic is 1 thread per MB).
+ *   - Tests that verify seek / underflow semantics use small data with
+ *     threshold=1 so that parallel_read() is called on every xsgetn; even
+ *     when hardware_concurrency==1 it still falls back to single_read() and the
+ *     seek / offset math remains exercised.
+ */
 
 #include "openvino/util/parallel_read_streambuf.hpp"
 
@@ -44,18 +46,23 @@ namespace ov::test {
 
 namespace {
 
-/// Fill `buf` with a deterministic pattern that is unique per byte position:
-///   byte[i] = (i % 251)   (251 is prime – the period never aligns with any
-///                           power-of-two chunk/page size)
+/**
+ * @brief Fill a vector with a deterministic pattern unique per byte position.
+ *
+ * byte[i] = (i % 251) -- 251 is prime so the period never aligns with any
+ * power-of-two chunk/page size.
+ */
 void fill_pattern(std::vector<uint8_t>& buf, size_t start_index = 0) {
     for (size_t i = 0; i < buf.size(); ++i) {
         buf[i] = static_cast<uint8_t>((start_index + i) % 251u);
     }
 }
 
-/// Write `data` to a file, preceded by `prefix_size` bytes of a recognisable
-/// "garbage" prefix (0xFF repeated) so that non-zero-offset tests can verify
-/// that the header bytes are never surfaced through the streambuf.
+/**
+ * @brief Write data to a file, preceded by prefix_size bytes of 0xFF garbage
+ *        so that non-zero-offset tests can verify the header bytes are never
+ *        surfaced through the streambuf.
+ */
 // ASSERT_* macros expand to `return` (void), so they cannot be used directly
 // in a non-void function.  The canonical GTest pattern is to delegate to a
 // void helper, then check HasFatalFailure() before continuing.

@@ -194,25 +194,25 @@ TEST_F(SingleFileStorageTest, AppendOnlyCacheEntry) {
 TEST_F(SingleFileStorageTest, WriteReadLargeBlob_ParallelPath) {
     // 5 MB + 1 byte so that even after padding the blob data itself exceeds the
     // 4 MB parallel threshold.
-    constexpr size_t kBlobSize = 5UL * 1024 * 1024 + 1;
+    constexpr size_t k_blob_size = 5UL * 1024 * 1024 + 1;
     const std::string blob_id = "999";
 
     // Build a deterministic pattern so byte-exact comparison is possible.
-    std::vector<uint8_t> expected(kBlobSize);
-    for (size_t i = 0; i < kBlobSize; ++i) {
+    std::vector<uint8_t> expected(k_blob_size);
+    for (size_t i = 0; i < k_blob_size; ++i) {
         expected[i] = static_cast<uint8_t>(i % 251u);
     }
 
     m_storage->write_cache_entry(blob_id, [&](std::ostream& s) {
-        s.write(reinterpret_cast<const char*>(expected.data()), static_cast<std::streamsize>(kBlobSize));
+        s.write(reinterpret_cast<const char*>(expected.data()), static_cast<std::streamsize>(k_blob_size));
     });
 
     // --- non-mmap path (ParallelReadStreamBuf) ---
     m_storage->read_cache_entry(blob_id, /*enable_mmap=*/false, [&](const ICacheManager::CompiledBlobVariant& cv) {
         auto& stream = std::get<std::reference_wrapper<std::istream>>(cv).get();
 
-        std::vector<uint8_t> got(kBlobSize);
-        ASSERT_TRUE(stream.read(reinterpret_cast<char*>(got.data()), static_cast<std::streamsize>(kBlobSize)));
+        std::vector<uint8_t> got(k_blob_size);
+        ASSERT_TRUE(stream.read(reinterpret_cast<char*>(got.data()), static_cast<std::streamsize>(k_blob_size)));
         EXPECT_EQ(got, expected) << "Parallel read returned incorrect data for large blob";
     });
 
@@ -223,8 +223,8 @@ TEST_F(SingleFileStorageTest, WriteReadLargeBlob_ParallelPath) {
     reopened.read_cache_entry(blob_id, /*enable_mmap=*/false, [&](const ICacheManager::CompiledBlobVariant& cv) {
         auto& stream = std::get<std::reference_wrapper<std::istream>>(cv).get();
 
-        std::vector<uint8_t> got(kBlobSize);
-        ASSERT_TRUE(stream.read(reinterpret_cast<char*>(got.data()), static_cast<std::streamsize>(kBlobSize)));
+        std::vector<uint8_t> got(k_blob_size);
+        ASSERT_TRUE(stream.read(reinterpret_cast<char*>(got.data()), static_cast<std::streamsize>(k_blob_size)));
         EXPECT_EQ(got, expected) << "Parallel read after re-open returned incorrect data for large blob";
     });
 }

@@ -26,11 +26,14 @@
 namespace {
 
 #ifdef _WIN32
-/// Convert a kernel device path (\Device\HarddiskVolume3\foo\bar) to a
-/// Win32 drive path (C:\foo\bar).
+/**
+ * @brief Convert a kernel device path (\Device\HarddiskVolume3\foo\bar) to a
+ *        Win32 drive path (C:\foo\bar).
+ */
 static bool resolve_device_path(const wchar_t* dev_path, wchar_t* out, DWORD out_len) {
-    wchar_t drives[512] = {};
-    if (!GetLogicalDriveStringsW(512, drives))
+    const size_t MAX_DRIVES_LEN = 512;
+    wchar_t drives[MAX_DRIVES_LEN] = {};
+    if (!GetLogicalDriveStringsW(MAX_DRIVES_LEN, drives))
         return false;
     for (const wchar_t* d = drives; *d; d += wcslen(d) + 1) {
         wchar_t drive[3] = {d[0], d[1], L'\0'};
@@ -47,9 +50,12 @@ static bool resolve_device_path(const wchar_t* dev_path, wchar_t* out, DWORD out
     return false;
 }
 #else
-/// Parse /proc/self/maps to find the file backing an mmap address.
-/// Returns true and fills out_path/out_offset if the address is inside
-/// a named file mapping (not anonymous / [stack] / [heap]).
+/**
+ * @brief Parse /proc/self/maps to find the file backing an mmap address.
+ *
+ * Returns true and fills out_path/out_offset if the address is inside
+ * a named file mapping (not anonymous / [stack] / [heap]).
+ */
 static bool get_mmap_file_info(const void* addr, std::filesystem::path& out_path, std::streamoff& out_offset) {
     std::ifstream maps_file("/proc/self/maps");
     if (!maps_file.is_open())
@@ -93,8 +99,7 @@ static bool get_mmap_file_info(const void* addr, std::filesystem::path& out_path
 
 }  // namespace
 
-namespace ov {
-namespace util {
+namespace ov::util {
 
 ParallelMemStreamBuf::ParallelMemStreamBuf(const void* data, size_t size, size_t threshold)
     : m_begin(static_cast<const char*>(data)),
@@ -242,7 +247,6 @@ std::streamsize ParallelMemStreamBuf::showmanyc() {
 }
 
 void ParallelMemStreamBuf::parallel_copy(char* dst, const char* src, size_t size) {
-    constexpr size_t MIN_CHUNK = 2UL * 1024 * 1024;  // 2 MB minimum per thread
 #ifdef _WIN32
     // On Windows, mmap page faults require acquiring the PFN database lock
     // once per page.  Too many concurrent threads cause severe kernel-level
@@ -295,5 +299,4 @@ void ParallelMemStreamBuf::parallel_copy(char* dst, const char* src, size_t size
     }
 }
 
-}  // namespace util
-}  // namespace ov
+}  // namespace ov::util
