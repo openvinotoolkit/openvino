@@ -161,6 +161,36 @@ TEST_P(InferWithHostCompileTests, CompileAndImport) {
     OV_ASSERT_NO_THROW(core->import_model(modelStream, target_device, configuration));
 }
 
+void dumpTensor(const ov::Tensor& tensor, std::string name);
+
+void dumpTensor(const ov::Tensor& tensor, std::string name) {
+    std::cout << "Tensor name: " << name << ", shape: " << tensor.get_shape()
+              << ", element type: " << tensor.get_element_type() << std::endl;
+    const float* data = tensor.data<float>();
+    size_t count = ov::shape_size(tensor.get_shape());
+    count = count > 50 ? 50 : count;
+    for (size_t i = 0; i < count; i++) {
+        std::cout << data[i] << " ";
+    }
+    std::cout << std::endl;
+
+    // Dump tensor data to file for debugging
+    // Add random suffix to avoid file name conflict when multiple tests run in parallel
+    std::cout << "Dump tensor to file for debugging, tensor name: " << name << std::endl;
+    std::string fileName = name + "_" + std::to_string(std::rand()) + ".txt";
+    std::ofstream outFile(fileName);
+    if (outFile.is_open()) {
+        outFile << "Tensor name: " << name << ", shape: " << tensor.get_shape()
+                << ", element type: " << tensor.get_element_type() << std::endl;
+        size_t totalCount = ov::shape_size(tensor.get_shape());
+        for (size_t i = 0; i < totalCount; i++) {
+            outFile << data[i] << " ";
+        }
+        outFile << std::endl;
+    }
+    std::cout << "Tensor data dumped to file: " << fileName << std::endl;
+}
+
 // The test to compile, create infer request and infer with dynamic shapes, the original shape is large, then set small
 // shape
 TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
@@ -407,19 +437,6 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
         << customLogger.str();
 }
 
-void dumpTensor(const ov::Tensor& tensor);
-
-void dumpTensor(const ov::Tensor& tensor) {
-    std::cout << "Tensor shape: " << tensor.get_shape() << ", element type: " << tensor.get_element_type() << std::endl;
-    const float* data = tensor.data<float>();
-    size_t count = ov::shape_size(tensor.get_shape());
-    count = count > 50 ? 50 : count;
-    for (size_t i = 0; i < count; i++) {
-        std::cout << data[i] << " ";
-    }
-    std::cout << std::endl;
-}
-
 // The test to compile, create infer request and infer, then compare the output with reference result from template
 // plugin
 TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithReference) {
@@ -479,11 +496,11 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
     auto referenceOutputTensor = reqReference.get_tensor(model->output());
 
     std::cout << "Dump input tensor for NPU, shape: " << inTensor.get_shape() << std::endl;
-    dumpTensor(inTensor);
+    dumpTensor(inTensor, "inTensor");
     std::cout << "Dump output tensor from NPU, shape: " << npuOutputTensor.get_shape() << std::endl;
-    dumpTensor(npuOutputTensor);
+    dumpTensor(npuOutputTensor, "npuOutputTensor");
     std::cout << "Dump output tensor from Template plugin, shape: " << referenceOutputTensor.get_shape() << std::endl;
-    dumpTensor(referenceOutputTensor);
+    dumpTensor(referenceOutputTensor, "referenceOutputTensor");
 
     OV_ASSERT_NO_THROW(
         ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type()));
@@ -507,10 +524,10 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
 
     std::cout << "Dump output tensor from NPU after second inference, shape: " << npuOutputTensorSecondRun.get_shape()
               << std::endl;
-    dumpTensor(npuOutputTensorSecondRun);
+    dumpTensor(npuOutputTensorSecondRun, "npuOutputTensorSecondRun");
     std::cout << "Dump output tensor from reference after second inference, shape: "
               << referenceOutputTensorSecondRun.get_shape() << std::endl;
-    dumpTensor(referenceOutputTensorSecondRun);
+    dumpTensor(referenceOutputTensorSecondRun, "referenceOutputTensorSecondRun");
 
     OV_ASSERT_NO_THROW(ov::test::utils::compare(referenceOutputTensorSecondRun,
                                                 npuOutputTensorSecondRun,
@@ -543,10 +560,10 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorCompareWithRefere
 
     std::cout << "Dump output tensor from NPU after third inference, shape: " << npuOutputTensorThirdRun.get_shape()
               << std::endl;
-    dumpTensor(npuOutputTensorThirdRun);
+    dumpTensor(npuOutputTensorThirdRun, "npuOutputTensorThirdRun");
     std::cout << "Dump output tensor from reference after third inference, shape: "
               << referenceOutputTensorThirdRun.get_shape() << std::endl;
-    dumpTensor(referenceOutputTensorThirdRun);
+    dumpTensor(referenceOutputTensorThirdRun, "referenceOutputTensorThirdRun");
 
     OV_ASSERT_NO_THROW(ov::test::utils::compare(referenceOutputTensorThirdRun,
                                                 npuOutputTensorThirdRun,
