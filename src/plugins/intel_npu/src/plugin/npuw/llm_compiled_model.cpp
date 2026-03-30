@@ -1262,7 +1262,6 @@ struct NPUDesc {
     bool compiler_matmul_gate = false;
     int64_t compiler_ver = 0;
     bool support_flash_attention_tile = false;
-    bool support_strided_tensors = false;
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -1285,11 +1284,6 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     if (std::find(supported_properties.begin(), supported_properties.end(), "NPU_COMPILER_DYNAMIC_QUANTIZATION") !=
         supported_properties.end()) {
         desc.compiler_dq = true;
-    }
-
-    if (std::find(supported_properties.begin(), supported_properties.end(), ov::intel_npu::enable_strides_for.name()) !=
-        supported_properties.end()) {
-        desc.support_strided_tensors = true;
     }
 
     // Get compiler version based on NPU_COMPILER_TYPE configuration
@@ -1882,15 +1876,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (other_props.count("NPUW_ATTN_HFA_FUSED") == 0 && is_hfa && hfa_fused_npu_supported) {
         other_props["NPUW_ATTN_HFA_FUSED"] = "YES";
         LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
-    }
-
-    // If fused HFA is enabled, enable strided tensors for k/v tiles
-    const auto use_fused_hfa =
-        other_props.count("NPUW_ATTN_HFA_FUSED") > 0 && other_props["NPUW_ATTN_HFA_FUSED"].as<std::string>() == "YES";
-    const auto can_use_strided_tensors = npudesc.has_value() && npudesc->support_strided_tensors;
-    if (use_fused_hfa && can_use_strided_tensors && !other_props.count(ov::intel_npu::enable_strides_for.name())) {
-        other_props[ov::intel_npu::enable_strides_for.name()] = "k_tile,v_tile";
-        LOG_INFO("NPU_ENABLE_STRIDES_FOR is set to k_tile,v_tile for better performance with fused HFA.");
     }
 
     m_is_whisper = use_whisper_key.value_or(false).as<bool>() == true;
