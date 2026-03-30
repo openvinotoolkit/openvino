@@ -23,8 +23,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              std::optional<ov::Tensor> blob,
              const FilteredConfig& config,
              const bool blobIsPersistent,
-             const bool calledFromWeightlessGraph,
-             const bool wasEncrypted)
+             const bool calledFromWeightlessGraph)
     : IGraph(),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
@@ -42,8 +41,6 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
         // Will be called at a later stage from WeightlessGraph::initialize() in order to save some memory
         initialize(config);
     }
-
-    _was_encrypted = wasEncrypted;
 }
 
 const NetworkMetadata& Graph::get_metadata() const {
@@ -89,8 +86,9 @@ ze_graph_handle_t Graph::get_handle() const {
     return _graphDesc._handle;
 }
 
-std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std::ostream& stream,
-                                                                             const Config& config) {
+std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(
+    std::ostream& stream,
+    const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) const {
     const uint8_t* blobPtr = nullptr;
     size_t blobSize;
     std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
@@ -112,13 +110,11 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
         OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
     }
 
-    std::string encryptedString;
-    if (!_was_encrypted && config.get<CACHE_ENCRYPTION_CALLBACKS>().get().encrypt != nullptr) {
-        encryptedString = config.get<CACHE_ENCRYPTION_CALLBACKS>().get().encrypt(
-            std::string(reinterpret_cast<const char*>(blobPtr), blobSize));
-        _was_encrypted = true;
+    std::string encryptedBlobStr;
+    if (encryptionCallbackOpt.has_value()) {
+        encryptedBlobStr = encryptionCallbackOpt.value()(std::string(reinterpret_cast<const char*>(blobPtr), blobSize));
     }
-    stream.write(encryptedString.empty() ? reinterpret_cast<const char*>(blobPtr) : encryptedString.c_str(),
+    stream.write(encryptedBlobStr.empty() ? reinterpret_cast<const char*>(blobPtr) : encryptedBlobStr.c_str(),
                  static_cast<std::streamsize>(blobSize));
 
     if (!stream) {
@@ -131,8 +127,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
         for (const uint8_t* it = blobPtr; it != blobPtr + blobSize; ++it) {
             result = ((result << 7) + result) + static_cast<uint32_t>(*it);
         }
-
-        _logger.info("Blob size: {}, hash: {0X}", blobSize, result);
+        _logger.info("Blob size: %ld, hash: %x", blobSize, result);
     }
 
     size_t size = utils::align_size_to_standard_page_size(blobSize);

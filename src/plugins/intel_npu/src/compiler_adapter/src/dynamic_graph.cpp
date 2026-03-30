@@ -429,8 +429,9 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
     initialize(config);
 }
 
-std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_blob(std::ostream& stream,
-                                                                                    const Config& /* unusedConfig */) {
+std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_blob(
+    std::ostream& stream,
+    const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) const {
     const uint8_t* blobPtr = nullptr;
     size_t blobSize = 0;
 

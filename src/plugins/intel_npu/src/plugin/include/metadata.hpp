@@ -40,7 +40,8 @@ public:
     /**
      * @brief Writes metadata to a stream.
      */
-    virtual void write(std::ostream& stream) = 0;
+    virtual void write(std::ostream& stream,
+                       const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) = 0;
 
     virtual uint64_t get_blob_size() const;
 
@@ -107,7 +108,9 @@ protected:
      * @note This operation was detached from "write" since "write" writes at the beginning of the stream, while this
      * method writes at the end. This change allows better extension of class hierarchy.
      */
-    void append_padding_blob_size_and_magic(std::ostream& stream);
+    void append_padding_blob_size_and_magic(
+        std::ostream& stream,
+        const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt);
 
     uint32_t _version;
     uint64_t _blobDataSize;
@@ -182,7 +185,8 @@ public:
     /**
      * @brief Writes version data to a stream.
      */
-    void write(std::ostream& stream);
+    void write(std::ostream& stream,
+               const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt);
 
     uint16_t get_major() const;
 
@@ -227,7 +231,8 @@ public:
      * This is the quickest way to handle many incompatible blob cases without needing to traverse the whole NPU
      * metadata section.
      */
-    void write(std::ostream& stream) override;
+    void write(std::ostream& stream,
+               const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) override;
 
     size_t get_metadata_size() const override;
 
@@ -255,7 +260,8 @@ public:
      * @details The number of init schedules, along with the size of each init binary object are written in addition to
      * the information registered by the previous metadata versions.
      */
-    void write(std::ostream& stream) override;
+    void write(std::ostream& stream,
+               const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) override;
 
     std::optional<std::vector<uint64_t>> get_init_sizes() const override;
 
@@ -279,7 +285,8 @@ public:
 
     void read() override;
 
-    void write(std::ostream& stream) override;
+    void write(std::ostream& stream,
+               const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) override;
 
     std::optional<int64_t> get_batch_size() const override;
 
@@ -305,7 +312,8 @@ public:
 
     void read() override;
 
-    void write(std::ostream& stream) override;
+    void write(std::ostream& stream,
+               const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) override;
 
     size_t get_metadata_size() const override;
 

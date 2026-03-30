@@ -26,11 +26,11 @@ public:
           std::optional<ov::Tensor> blob,
           const FilteredConfig& config,
           const bool blobIsPersistent = false,
-          const bool calledFromWeightlessGraph = false,
-          const bool wasEncrypted = false);
+          const bool calledFromWeightlessGraph = false);
 
-    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream,
-                                                                          const Config& config) override;
+    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(
+        std::ostream& stream,
+        const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) const override;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const override;
 

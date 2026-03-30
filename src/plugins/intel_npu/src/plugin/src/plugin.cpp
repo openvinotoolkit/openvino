@@ -603,9 +603,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
+    std::optional<std::function<std::string(const std::string&)>> encryptionCallback = std::nullopt;
+    if (auto encryptionCallbackIt = localProperties.find(ov::cache_encryption_callbacks.name());
+        encryptionCallbackIt != localProperties.end()) {
+        encryptionCallback = encryptionCallbackIt->second.as<ov::EncryptionCallbacks>().encrypt;
+    }
+
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
-        compiledModel = std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig, batch);
+        compiledModel = std::make_shared<CompiledModel>(model,
+                                                        shared_from_this(),
+                                                        device,
+                                                        graph,
+                                                        localConfig,
+                                                        batch,
+                                                        encryptionCallback);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -670,7 +682,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             (npuPluginProperties.find(IMPORT_RAW_BLOB::key().data()) != npuPluginProperties.end())
                 ? npuPluginProperties[IMPORT_RAW_BLOB::key().data()].as<bool>()
                 : _propertiesManager->getConfig().get<IMPORT_RAW_BLOB>();
-
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = MetadataBase::getFileSize(stream);
 
@@ -984,9 +995,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         }
     }
 
+    std::optional<std::function<std::string(const std::string&)>> encryptionCallback = std::nullopt;
+    if (auto encryptionCallbackIt = localProperties.find(ov::cache_encryption_callbacks.name());
+        encryptionCallbackIt != localProperties.end()) {
+        encryptionCallback = encryptionCallbackIt->second.as<ov::EncryptionCallbacks>().encrypt;
+    }
+
     OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
 
-    return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig, batchSize);
+    return std::make_shared<CompiledModel>(modelDummy,
+                                           shared_from_this(),
+                                           device,
+                                           graph,
+                                           localConfig,
+                                           batchSize,
+                                           encryptionCallback);
 }
 
 void Plugin::update_log_level(const ov::AnyMap& properties) const {
