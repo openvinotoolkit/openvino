@@ -359,7 +359,7 @@ void GatedDeltaNet::SetUp() {
     inType = prec;
     configuration[ov::hint::inference_precision.name()] = prec;
 
-    abs_threshold = 0.0015f;
+    abs_threshold = 0.01f;
 
     if (prec == ov::element::f32) {
         abs_threshold = 1e-6f;

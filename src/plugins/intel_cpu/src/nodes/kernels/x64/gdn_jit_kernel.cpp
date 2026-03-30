@@ -1,0 +1,646 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "gdn_jit_kernel.hpp"
+
+#include <common/utils.hpp>
+#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include <type_traits>
+
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
+
+namespace ov::intel_cpu::kernel {
+
+#define GET_OFF(field) offsetof(jit_gdn_call_args, field)
+
+template <cpu_isa_t isa>
+void jit_gdn_kernel<isa>::load(const Vmm& vmm_dst,
+                               const Xbyak::Reg64& reg_src,
+                               ov::element::Type src_prc,
+                               const int& elt_num,
+                               bool fill,
+                               size_t offset) {
+    // Typed load helper (src_prc -> f32 VMM via jit emitter)
+    const auto seed = load_emitter_params(src_prc, ov::element::f32, elt_num, fill, "float_min").hash();
+    if (!emitters[seed]) {
+        constexpr cpu_isa_t load_isa = ((isa & zmm_bit) != 0) ? avx512_core : isa;
+        emitters[seed] = std::make_unique<jit_load_emitter>(this,
+                                                            load_isa,
+                                                            src_prc,
+                                                            ov::element::f32,
+                                                            elt_num,
+                                                            ov::element::f32,
+                                                            fill,
+                                                            "float_min");
+    }
+    emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), offset},
+                              {static_cast<size_t>(vmm_dst.getIdx())},
+                              pool_aux_vmm_idxs,
+                              pool_aux_gpr_idxs);
+}
+
+template <cpu_isa_t isa>
+void jit_gdn_kernel<isa>::store(const Xbyak::Reg64& reg_dst,
+                                const Vmm& vmm_src,
+                                ov::element::Type dst_prc,
+                                const int& elt_num,
+                                size_t offset) {
+    // Typed store helper (f32 VMM -> dst_prc via jit emitter)
+    const auto seed = store_emitter_params(ov::element::f32, dst_prc, elt_num).hash();
+    if (!emitters[seed]) {
+        constexpr cpu_isa_t store_isa = ((isa & zmm_bit) != 0) ? avx512_core : isa;
+        emitters[seed] = std::make_unique<jit_store_emitter>(this, store_isa, ov::element::f32, dst_prc, elt_num);
+    }
+    emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())},
+                              {static_cast<size_t>(reg_dst.getIdx()), offset},
+                              pool_aux_vmm_idxs,
+                              pool_aux_gpr_idxs);
+}
+
+template <cpu_isa_t isa>
+void jit_gdn_kernel<isa>::reduce_zmm_f32_to_xmm_scalar(const Xbyak::Zmm& zmm_src,
+                                                       const Xbyak::Xmm& xmm_dst,
+                                                       const Xbyak::Xmm& xmm_tmp0,
+                                                       const Xbyak::Xmm& xmm_tmp1) {
+    // Horizontal reduce 16x f32 (ZMM) into scalar lane of xmm_dst
+    vextractf32x8(Xbyak::Ymm(xmm_tmp1.getIdx()), zmm_src, 1);
+    vaddps(Xbyak::Ymm(xmm_tmp0.getIdx()), Xbyak::Ymm(zmm_src.getIdx()), Xbyak::Ymm(xmm_tmp1.getIdx()));
+    vextractf128(xmm_tmp1, Xbyak::Ymm(xmm_tmp0.getIdx()), 1);
+    vaddps(xmm_tmp0, xmm_tmp0, xmm_tmp1);
+    vhaddps(xmm_tmp0, xmm_tmp0, xmm_tmp0);
+    vhaddps(xmm_tmp0, xmm_tmp0, xmm_tmp0);
+    vaddss(xmm_dst, xmm_dst, xmm_tmp0);
+}
+
+// ============================================
+// Native xf16 helpers - FP16-only implementation
+// ============================================
+
+template <cpu_isa_t isa>
+void jit_gdn_kernel<isa>::load_vector_native_xf16(Vmm* vmm_array, const Xbyak::Reg64& reg_src, int num_regs) {
+    // Load fp16 vector (up to 4 ZMMs) directly from memory
+    for (int i = 0; i < num_regs; i++) {
+        vmovups(vmm_array[i], ptr[reg_src + i * 64]);
+    }
+}
+
+template <cpu_isa_t isa>
+void jit_gdn_kernel<isa>::store_vector_native_xf16(const Xbyak::Reg64& reg_dst, Vmm* vmm_array, int num_regs) {
+    // Store fp16 vector (up to 4 ZMMs) to memory
+    for (int i = 0; i < num_regs; i++) {
+        vmovups(ptr[reg_dst + i * 64], vmm_array[i]);
+    }
+}
+
+template <cpu_isa_t isa>
+void jit_gdn_kernel<isa>::dot_product_native_xf16(const Xbyak::Xmm& xmm_dst, Vmm* vmm_a, Vmm* vmm_b, int num_regs) {
+    if (m_jcp.data_prc == ov::element::bf16) {
+        // bf16 path: accumulate directly in fp32 with vdpbf16ps
+        uni_vpxor(v_aux0, v_aux0, v_aux0);
+        for (int i = 0; i < num_regs; i++) {
+            vdpbf16ps(v_aux0, vmm_a[i], vmm_b[i]);
+        }
+        uni_vpxor(xmm_dst, xmm_dst, xmm_dst);
+        reduce_zmm_f32_to_xmm_scalar(Xbyak::Zmm(v_aux0.getIdx()), xmm_dst, x_tmp0, x_tmp1);
+        return;
+    }
+
+    // f16 path: native fp16 accumulation then fp32 reduction
+    uni_vpxor(v_tmp0, v_tmp0, v_tmp0);  // fp16 accumulator (32 lanes)
+
+    for (int i = 0; i < num_regs; i++) {
+        vfmadd231ph(v_tmp0, vmm_a[i], vmm_b[i]);
+    }
+
+    vcvtph2ps(v_aux0, Xbyak::Ymm(v_tmp0.getIdx()));
+    vextractf32x8(Xbyak::Ymm(x_tmp0.getIdx()), Xbyak::Zmm(v_tmp0.getIdx()), 1);
+    vcvtph2ps(v_aux1, Xbyak::Ymm(x_tmp0.getIdx()));
+    vaddps(v_aux0, v_aux0, v_aux1);
+
+    uni_vpxor(xmm_dst, xmm_dst, xmm_dst);
+    reduce_zmm_f32_to_xmm_scalar(Xbyak::Zmm(v_aux0.getIdx()), xmm_dst, x_tmp0, x_tmp1);
+}
+
+template <cpu_isa_t isa>
+void jit_gdn_kernel<isa>::scale_vector_native_xf16(Vmm* vmm_array, const Xbyak::Xmm& xmm_scalar, int num_regs) {
+    if (m_jcp.data_prc == ov::element::bf16) {
+        // bf16 path: unpack->fp32 mul->pack bf16 per half
+        vbroadcastss(v_aux2, xmm_scalar);
+
+        for (int i = 0; i < num_regs; i++) {
+            // lower 16 bf16 -> fp32
+            vpmovzxwd(v_aux0, Xbyak::Ymm(vmm_array[i].getIdx()));
+            vpslld(v_aux0, v_aux0, 16);
+            vmulps(v_aux0, v_aux0, v_aux2);
+            vcvtneps2bf16(Xbyak::Ymm(x_tmp0.getIdx()), v_aux0);
+
+            // upper 16 bf16 -> fp32
+            vextractf32x8(Xbyak::Ymm(v_aux1.getIdx()), Xbyak::Zmm(vmm_array[i].getIdx()), 1);
+            vpmovzxwd(v_aux1, Xbyak::Ymm(v_aux1.getIdx()));
+            vpslld(v_aux1, v_aux1, 16);
+            vmulps(v_aux1, v_aux1, v_aux2);
+            vcvtneps2bf16(Xbyak::Ymm(x_tmp1.getIdx()), v_aux1);
+
+            vinsertf32x8(Xbyak::Zmm(vmm_array[i].getIdx()), Xbyak::Zmm(x_tmp0.getIdx()), Xbyak::Ymm(x_tmp1.getIdx()), 1);
+        }
+        return;
+    }
+
+    // f16 path
+    vcvtps2ph(x_tmp0, xmm_scalar, 0);
+    vpbroadcastw(v_aux2, x_tmp0);
+
+    for (int i = 0; i < num_regs; i++) {
+        vmulph(vmm_array[i], vmm_array[i], v_aux2);
+    }
+}
+
+template <cpu_isa_t isa>
+void jit_gdn_kernel<isa>::fmadd_vector_native_xf16(Vmm* vmm_dst,
+                                                   Vmm* vmm_src,
+                                                   const Xbyak::Xmm& xmm_scalar,
+                                                   int num_regs) {
+    if (m_jcp.data_prc == ov::element::bf16) {
+        // bf16 path: unpack dst/src -> fp32 fma -> pack bf16 per half
+        vbroadcastss(v_aux2, xmm_scalar);
+
+        for (int i = 0; i < num_regs; i++) {
+            // lower half
+            vpmovzxwd(v_aux0, Xbyak::Ymm(vmm_dst[i].getIdx()));
+            vpslld(v_aux0, v_aux0, 16);
+            vpmovzxwd(v_aux1, Xbyak::Ymm(vmm_src[i].getIdx()));
+            vpslld(v_aux1, v_aux1, 16);
+            vfmadd231ps(v_aux0, v_aux1, v_aux2);
+            vcvtneps2bf16(Xbyak::Ymm(x_tmp0.getIdx()), v_aux0);
+
+            // upper half
+            vextractf32x8(Xbyak::Ymm(v_aux0.getIdx()), Xbyak::Zmm(vmm_dst[i].getIdx()), 1);
+            vpmovzxwd(v_aux0, Xbyak::Ymm(v_aux0.getIdx()));
+            vpslld(v_aux0, v_aux0, 16);
+            vextractf32x8(Xbyak::Ymm(v_aux1.getIdx()), Xbyak::Zmm(vmm_src[i].getIdx()), 1);
+            vpmovzxwd(v_aux1, Xbyak::Ymm(v_aux1.getIdx()));
+            vpslld(v_aux1, v_aux1, 16);
+            vfmadd231ps(v_aux0, v_aux1, v_aux2);
+            vcvtneps2bf16(Xbyak::Ymm(x_tmp1.getIdx()), v_aux0);
+
+            vinsertf32x8(Xbyak::Zmm(vmm_dst[i].getIdx()), Xbyak::Zmm(x_tmp0.getIdx()), Xbyak::Ymm(x_tmp1.getIdx()), 1);
+        }
+        return;
+    }
+
+    // f16 path
+    vcvtps2ph(x_tmp0, xmm_scalar, 0);
+    vpbroadcastw(v_aux2, x_tmp0);
+
+    for (int i = 0; i < num_regs; i++) {
+        vfmadd231ph(vmm_dst[i], vmm_src[i], v_aux2);
+    }
+}
+
+template <cpu_isa_t isa>
+void jit_gdn_kernel<isa>::l2norm_inplace_native_xf16(Vmm* vmm_array, const Xbyak::Xmm& xmm_eps, int num_regs) {
+    // L2 normalization: vmm /= sqrt(sum(vmm^2) + eps)
+    uni_vpxor(v_aux0, v_aux0, v_aux0);  // fp32 accumulator
+
+    if (m_jcp.data_prc == ov::element::bf16) {
+        for (int i = 0; i < num_regs; i++) {
+            vdpbf16ps(v_aux0, vmm_array[i], vmm_array[i]);
+        }
+    } else {
+        for (int i = 0; i < num_regs; i++) {
+            // lower 16 fp16 lanes
+            vcvtph2ps(v_aux1, Xbyak::Ymm(vmm_array[i].getIdx()));
+            vfmadd231ps(v_aux0, v_aux1, v_aux1);
+
+            // upper 16 fp16 lanes
+            vextractf32x8(Xbyak::Ymm(v_tmp0.getIdx()), Xbyak::Zmm(vmm_array[i].getIdx()), 1);
+            vcvtph2ps(v_aux1, Xbyak::Ymm(v_tmp0.getIdx()));
+            vfmadd231ps(v_aux0, v_aux1, v_aux1);
+        }
+    }
+
+    // Reduce to scalar: sqrt(sum + eps), then compute reciprocal
+    // NOTE: do not use x_tmp0 as destination of reduce_zmm_f32_to_xmm_scalar,
+    // because x_tmp0 is used internally as a scratch register in that helper.
+    uni_vpxor(x_hk, x_hk, x_hk);
+    reduce_zmm_f32_to_xmm_scalar(Xbyak::Zmm(v_aux0.getIdx()), x_hk, x_tmp0, x_tmp1);
+    vaddss(x_hk, x_hk, xmm_eps);
+    vsqrtss(x_hk, x_hk, x_hk);
+
+    mov(reg_aux.cvt32(), float2int(1.0F));
+    vmovd(x_tmp1, reg_aux.cvt32());
+    vdivss(x_tmp1, x_tmp1, x_hk);  // reciprocal
+
+    // Scale vector by reciprocal
+    scale_vector_native_xf16(vmm_array, x_tmp1, num_regs);
+}
+
+// ============================================
+// Buffer-based L2 norm helper for qk_head_size > 128
+// ============================================
+
+template <cpu_isa_t isa>
+void jit_gdn_kernel<isa>::l2norm_buffer_compute_scale_native_xf16(const Xbyak::Reg64& reg_buffer,
+                                                                    const Xbyak::Xmm& xmm_eps,
+                                                                    const Xbyak::Xmm& xmm_scale_out,
+                                                                    int num_regs,
+                                                                    int num_chunks) {
+    // Compute L2 norm scale: 1/sqrt(sum(x^2) + eps)
+    // Accumulates across all chunks from buffer, returns scale factor
+    uni_vpxor(v_aux0, v_aux0, v_aux0);
+    if (m_jcp.data_prc == ov::element::f16) {
+        uni_vpxor(v_tmp0, v_tmp0, v_tmp0);
+    }
+
+    // Accumulate sum of squares across all chunks
+    for (int chunk = 0; chunk < num_chunks; chunk++) {
+        const int chunk_start = chunk * MAX_REGS_PER_VEC;
+        const int chunk_regs = std::min(MAX_REGS_PER_VEC, num_regs - chunk_start);
+        const size_t chunk_offset = chunk_start * XF16_ELEMS_PER_ZMM * m_jcp.data_prc.size();
+
+        mov(reg_aux2, reg_buffer);
+        add(reg_aux2, chunk_offset);
+        load_vector_native_xf16(const_cast<Vmm*>(v_k), reg_aux2, chunk_regs);
+
+        if (m_jcp.data_prc == ov::element::bf16) {
+            for (int i = 0; i < chunk_regs; i++) {
+                vdpbf16ps(v_aux0, v_k[i], v_k[i]);
+            }
+        } else {
+            // fp16 path - accumulate in native fp16
+            for (int i = 0; i < chunk_regs; i++) {
+                vfmadd231ph(v_tmp0, v_k[i], v_k[i]);
+            }
+        }
+    }
+
+    // Convert fp16 to fp32 after all chunks
+    if (m_jcp.data_prc == ov::element::f16) {
+        vcvtph2ps(v_aux1, Xbyak::Ymm(v_tmp0.getIdx()));
+        vextractf32x8(Xbyak::Ymm(x_tmp0.getIdx()), Xbyak::Zmm(v_tmp0.getIdx()), 1);
+        vcvtph2ps(v_aux2, Xbyak::Ymm(x_tmp0.getIdx()));
+        vaddps(v_aux0, v_aux1, v_aux2);
+    }
+
+    // Compute reciprocal: 1/sqrt(sum + eps)
+    uni_vpxor(xmm_scale_out, xmm_scale_out, xmm_scale_out);
+    reduce_zmm_f32_to_xmm_scalar(Xbyak::Zmm(v_aux0.getIdx()), xmm_scale_out, x_tmp0, x_tmp1);
+    vaddss(xmm_scale_out, xmm_scale_out, xmm_eps);
+    vsqrtss(xmm_scale_out, xmm_scale_out, xmm_scale_out);
+    mov(reg_aux.cvt32(), float2int(1.0F));
+    vmovd(x_value, reg_aux.cvt32());
+    vdivss(xmm_scale_out, x_value, xmm_scale_out);
+}
+
+template <cpu_isa_t isa>
+void jit_gdn_kernel<isa>::scale_buffer_native_xf16(const Xbyak::Reg64& reg_buffer,
+                                                     const Xbyak::Xmm& xmm_scale,
+                                                     Vmm* vmm_temp,
+                                                     int num_regs,
+                                                     int num_chunks) {
+    // Scale all chunks of a buffer by a scalar
+    for (int chunk = 0; chunk < num_chunks; chunk++) {
+        const int chunk_start = chunk * MAX_REGS_PER_VEC;
+        const int chunk_regs = std::min(MAX_REGS_PER_VEC, num_regs - chunk_start);
+        const size_t chunk_offset = chunk_start * XF16_ELEMS_PER_ZMM * m_jcp.data_prc.size();
+
+        mov(reg_aux2, reg_buffer);
+        add(reg_aux2, chunk_offset);
+        load_vector_native_xf16(vmm_temp, reg_aux2, chunk_regs);
+        scale_vector_native_xf16(vmm_temp, xmm_scale, chunk_regs);
+        store_vector_native_xf16(reg_aux2, vmm_temp, chunk_regs);
+    }
+}
+
+// ============================================
+// Main native xf16 kernel
+// ============================================
+
+template <cpu_isa_t isa>
+void jit_gdn_kernel<isa>::generate() {
+    // JIT codegen for native xf16 path
+    // For qk_head_size <= 128: register-resident Q/K/H
+    // For qk_head_size > 128: use temp buffers
+
+    auto exp_injector = std::make_shared<jit_uni_eltwise_injector_t<isa>>(this,
+                                                                          dnnl::impl::alg_kind::eltwise_exp,
+                                                                          0.F,
+                                                                          0.F,
+                                                                          1.F,
+                                                                          dnnl::impl::data_type::f32,
+                                                                          true,
+                                                                          Xbyak::Reg64(Xbyak::Operand::RCX),
+                                                                          Xbyak::Opmask(1),
+                                                                          true,
+                                                                          false,
+                                                                          false,
+                                                                          false);
+
+    this->preamble();
+
+    Xbyak::Label l_t_loop;
+    Xbyak::Label l_end;
+
+    mov(reg_args, abi_param1);
+
+    mov(reg_state, ptr[reg_args + GET_OFF(state)]);
+    mov(reg_key_seq, ptr[reg_args + GET_OFF(key_seq)]);
+    mov(reg_query_seq, ptr[reg_args + GET_OFF(query_seq)]);
+    mov(reg_value_seq, ptr[reg_args + GET_OFF(value_seq)]);
+    mov(reg_gate_seq, ptr[reg_args + GET_OFF(gate_seq)]);
+    mov(reg_beta_seq, ptr[reg_args + GET_OFF(beta_seq)]);
+    mov(reg_out_seq, ptr[reg_args + GET_OFF(output_seq)]);
+    mov(reg_t, ptr[reg_args + GET_OFF(t_size)]);
+
+    // Determine if we use registers or temp buffers
+    const size_t qk = m_jcp.qk_head_size;
+    const bool use_registers = (qk <= 128);
+    const int num_regs = static_cast<int>(qk / XF16_ELEMS_PER_ZMM);
+    const int num_chunks = (num_regs + MAX_REGS_PER_VEC - 1) / MAX_REGS_PER_VEC;
+
+    // One-time setup
+    exp_injector->load_table_addr();
+
+    if (use_registers) {
+        // Load H once at kernel start (persistent across timesteps)
+        load_vector_native_xf16(const_cast<Vmm*>(v_h), reg_state, num_regs);
+    } else {
+        // For large head_size, H stays in state buffer
+        mov(reg_key_tmp, ptr[reg_args + GET_OFF(key_tmp)]);
+        mov(reg_query_tmp, ptr[reg_args + GET_OFF(query_tmp)]);
+    }
+
+    test(reg_t, reg_t);
+    jz(l_end, T_NEAR);
+
+    L(l_t_loop);
+    {
+        // Reload scalar constants each iteration
+        mov(reg_aux.cvt32(), float2int(m_jcp.k_l2_norm_eps));
+        vmovd(x_eps_k, reg_aux.cvt32());
+        mov(reg_aux.cvt32(), float2int(m_jcp.q_l2_norm_eps));
+        vmovd(x_eps_q, reg_aux.cvt32());
+        mov(reg_aux.cvt32(), float2int(m_jcp.q_scale));
+        vmovd(x_qscale, reg_aux.cvt32());
+
+        if (use_registers) {
+            // Load K, Q directly into registers
+            load_vector_native_xf16(const_cast<Vmm*>(v_k), reg_key_seq, num_regs);
+            load_vector_native_xf16(const_cast<Vmm*>(v_q), reg_query_seq, num_regs);
+
+            // Optional L2 normalization
+            if (m_jcp.fuse_qk_l2norm) {
+                l2norm_inplace_native_xf16(const_cast<Vmm*>(v_k), x_eps_k, num_regs);
+                l2norm_inplace_native_xf16(const_cast<Vmm*>(v_q), x_eps_q, num_regs);
+            }
+
+            // Scale query
+            scale_vector_native_xf16(const_cast<Vmm*>(v_q), x_qscale, num_regs);
+
+            // Scale hidden state by exp(gate)
+            load(Vmm(x_gate.getIdx()), reg_gate_seq, m_jcp.data_prc, 1, false);
+            exp_injector->compute_vector_range(x_gate.getIdx(), x_gate.getIdx() + 1);
+            scale_vector_native_xf16(const_cast<Vmm*>(v_h), x_gate, num_regs);
+
+            // Compute hk = dot(H, K)
+            dot_product_native_xf16(x_hk, const_cast<Vmm*>(v_h), const_cast<Vmm*>(v_k), num_regs);
+
+            // delta = (value - hk) * beta
+            load(Vmm(x_value.getIdx()), reg_value_seq, m_jcp.data_prc, 1, false);
+            load(Vmm(x_beta.getIdx()), reg_beta_seq, m_jcp.data_prc, 1, false);
+
+            vsubss(x_delta, x_value, x_hk);
+            vmulss(x_delta, x_delta, x_beta);
+
+            // Update: H += K * delta
+            fmadd_vector_native_xf16(const_cast<Vmm*>(v_h), const_cast<Vmm*>(v_k), x_delta, num_regs);
+
+            // Output: out = dot(H, Q)
+            dot_product_native_xf16(x_out, const_cast<Vmm*>(v_h), const_cast<Vmm*>(v_q), num_regs);
+        } else {
+            // Large head_size: use temp buffers and process in chunks
+            // Reset temp buffer pointers
+            mov(reg_key_tmp, ptr[reg_args + GET_OFF(key_tmp)]);
+            mov(reg_query_tmp, ptr[reg_args + GET_OFF(query_tmp)]);
+
+            // Copy K, Q to temp buffers
+            for (int chunk = 0; chunk < num_chunks; chunk++) {
+                const int chunk_start = chunk * MAX_REGS_PER_VEC;
+                const int chunk_regs = std::min(MAX_REGS_PER_VEC, num_regs - chunk_start);
+                const size_t chunk_offset = chunk_start * XF16_ELEMS_PER_ZMM * m_jcp.data_prc.size();
+
+                mov(reg_aux2, reg_key_seq);
+                add(reg_aux2, chunk_offset);
+                load_vector_native_xf16(const_cast<Vmm*>(v_k), reg_aux2, chunk_regs);
+
+                mov(reg_aux2, reg_key_tmp);
+                add(reg_aux2, chunk_offset);
+                store_vector_native_xf16(reg_aux2, const_cast<Vmm*>(v_k), chunk_regs);
+
+                mov(reg_aux2, reg_query_seq);
+                add(reg_aux2, chunk_offset);
+                load_vector_native_xf16(const_cast<Vmm*>(v_q), reg_aux2, chunk_regs);
+
+                mov(reg_aux2, reg_query_tmp);
+                add(reg_aux2, chunk_offset);
+                store_vector_native_xf16(reg_aux2, const_cast<Vmm*>(v_q), chunk_regs);
+            }
+
+            // Optional L2 normalization (process in chunks)
+            if (m_jcp.fuse_qk_l2norm) {
+                // Normalize K
+                l2norm_buffer_compute_scale_native_xf16(reg_key_tmp, x_eps_k, x_beta, num_regs, num_chunks);
+                scale_buffer_native_xf16(reg_key_tmp, x_beta, const_cast<Vmm*>(v_k), num_regs, num_chunks);
+
+                // Normalize Q and combine with q_scale
+                l2norm_buffer_compute_scale_native_xf16(reg_query_tmp, x_eps_q, x_beta, num_regs, num_chunks);
+                vmulss(x_beta, x_beta, x_qscale);  // Combine: l2norm_scale * q_scale
+                scale_buffer_native_xf16(reg_query_tmp, x_beta, const_cast<Vmm*>(v_q), num_regs, num_chunks);
+            } else {
+                // No L2 norm, just scale Q by q_scale
+                scale_buffer_native_xf16(reg_query_tmp, x_qscale, const_cast<Vmm*>(v_q), num_regs, num_chunks);
+            }
+
+            // Compute gate scalar
+            load(Vmm(x_gate.getIdx()), reg_gate_seq, m_jcp.data_prc, 1, false);
+            exp_injector->compute_vector_range(x_gate.getIdx(), x_gate.getIdx() + 1);
+
+            // Scale H by exp(gate)
+            scale_buffer_native_xf16(reg_state, x_gate, const_cast<Vmm*>(v_h), num_regs, num_chunks);
+
+            // accumulate dot product of two vectors into v_aux0
+            auto accumulate_dot_product = [&](Vmm* vmm_a, Vmm* vmm_b, int chunk_regs) {
+                if (m_jcp.data_prc == ov::element::bf16) {
+                    for (int i = 0; i < chunk_regs; i++) {
+                        vdpbf16ps(v_aux0, vmm_a[i], vmm_b[i]);
+                    }
+                } else {
+                    for (int i = 0; i < chunk_regs; i++) {
+                        // lower 16 elements
+                        vcvtph2ps(v_aux1, Xbyak::Ymm(vmm_a[i].getIdx()));
+                        vcvtph2ps(v_aux2, Xbyak::Ymm(vmm_b[i].getIdx()));
+                        vfmadd231ps(v_aux0, v_aux1, v_aux2);
+                        // upper 16 elements
+                        vextractf32x8(Xbyak::Ymm(v_aux1.getIdx()), Xbyak::Zmm(vmm_a[i].getIdx()), 1);
+                        vcvtph2ps(v_aux1, Xbyak::Ymm(v_aux1.getIdx()));
+                        vextractf32x8(Xbyak::Ymm(v_aux2.getIdx()), Xbyak::Zmm(vmm_b[i].getIdx()), 1);
+                        vcvtph2ps(v_aux2, Xbyak::Ymm(v_aux2.getIdx()));
+                        vfmadd231ps(v_aux0, v_aux1, v_aux2);
+                    }
+                }
+            };
+
+            // Compute hk = dot(H, K)
+            uni_vpxor(v_aux0, v_aux0, v_aux0);
+            for (int chunk = 0; chunk < num_chunks; chunk++) {
+                const int chunk_start = chunk * MAX_REGS_PER_VEC;
+                const int chunk_regs = std::min(MAX_REGS_PER_VEC, num_regs - chunk_start);
+                const size_t chunk_offset = chunk_start * XF16_ELEMS_PER_ZMM * m_jcp.data_prc.size();
+
+                mov(reg_aux2, reg_state);
+                add(reg_aux2, chunk_offset);
+                load_vector_native_xf16(const_cast<Vmm*>(v_h), reg_aux2, chunk_regs);
+
+                mov(reg_aux2, reg_key_tmp);
+                add(reg_aux2, chunk_offset);
+                load_vector_native_xf16(const_cast<Vmm*>(v_k), reg_aux2, chunk_regs);
+
+                accumulate_dot_product(const_cast<Vmm*>(v_h), const_cast<Vmm*>(v_k), chunk_regs);
+            }
+            uni_vpxor(x_hk, x_hk, x_hk);
+            reduce_zmm_f32_to_xmm_scalar(Xbyak::Zmm(v_aux0.getIdx()), x_hk, x_tmp0, x_tmp1);
+
+            // delta = (value - hk) * beta
+            load(Vmm(x_value.getIdx()), reg_value_seq, m_jcp.data_prc, 1, false);
+            load(Vmm(x_beta.getIdx()), reg_beta_seq, m_jcp.data_prc, 1, false);
+
+            vsubss(x_delta, x_value, x_hk);
+            vmulss(x_delta, x_delta, x_beta);
+
+            // Update: H += K * delta
+            for (int chunk = 0; chunk < num_chunks; chunk++) {
+                const int chunk_start = chunk * MAX_REGS_PER_VEC;
+                const int chunk_regs = std::min(MAX_REGS_PER_VEC, num_regs - chunk_start);
+                const size_t chunk_offset = chunk_start * XF16_ELEMS_PER_ZMM * m_jcp.data_prc.size();
+
+                mov(reg_aux2, reg_state);
+                add(reg_aux2, chunk_offset);
+                load_vector_native_xf16(const_cast<Vmm*>(v_h), reg_aux2, chunk_regs);
+
+                mov(reg_aux2, reg_key_tmp);
+                add(reg_aux2, chunk_offset);
+                load_vector_native_xf16(const_cast<Vmm*>(v_k), reg_aux2, chunk_regs);
+
+                fmadd_vector_native_xf16(const_cast<Vmm*>(v_h), const_cast<Vmm*>(v_k), x_delta, chunk_regs);
+
+                mov(reg_aux2, reg_state);
+                add(reg_aux2, chunk_offset);
+                store_vector_native_xf16(reg_aux2, const_cast<Vmm*>(v_h), chunk_regs);
+            }
+
+            // Output: out = dot(H, Q)
+            uni_vpxor(v_aux0, v_aux0, v_aux0);
+            for (int chunk = 0; chunk < num_chunks; chunk++) {
+                const int chunk_start = chunk * MAX_REGS_PER_VEC;
+                const int chunk_regs = std::min(MAX_REGS_PER_VEC, num_regs - chunk_start);
+                const size_t chunk_offset = chunk_start * XF16_ELEMS_PER_ZMM * m_jcp.data_prc.size();
+
+                mov(reg_aux2, reg_state);
+                add(reg_aux2, chunk_offset);
+                load_vector_native_xf16(const_cast<Vmm*>(v_h), reg_aux2, chunk_regs);
+
+                mov(reg_aux2, reg_query_tmp);
+                add(reg_aux2, chunk_offset);
+                load_vector_native_xf16(const_cast<Vmm*>(v_q), reg_aux2, chunk_regs);
+
+                accumulate_dot_product(const_cast<Vmm*>(v_h), const_cast<Vmm*>(v_q), chunk_regs);
+            }
+            uni_vpxor(x_out, x_out, x_out);
+            reduce_zmm_f32_to_xmm_scalar(Xbyak::Zmm(v_aux0.getIdx()), x_out, x_tmp0, x_tmp1);
+        }
+
+        // Convert and store output
+        store(reg_out_seq, Vmm(x_out.getIdx()), m_jcp.data_prc, 1);
+
+        // Advance pointers using stride parameters
+        mov(reg_aux2, ptr[reg_args + GET_OFF(key_query_stride)]);
+        imul(reg_aux2, reg_aux2, m_jcp.data_prc.size());
+        add(reg_key_seq, reg_aux2);
+        add(reg_query_seq, reg_aux2);
+
+        mov(reg_aux2, ptr[reg_args + GET_OFF(value_stride)]);
+        imul(reg_aux2, reg_aux2, m_jcp.data_prc.size());
+        add(reg_value_seq, reg_aux2);
+
+        mov(reg_aux2, ptr[reg_args + GET_OFF(gate_beta_stride)]);
+        imul(reg_aux2, reg_aux2, m_jcp.data_prc.size());
+        add(reg_gate_seq, reg_aux2);
+        add(reg_beta_seq, reg_aux2);
+
+        mov(reg_aux2, ptr[reg_args + GET_OFF(output_stride)]);
+        imul(reg_aux2, reg_aux2, m_jcp.data_prc.size());
+        add(reg_out_seq, reg_aux2);
+
+        dec(reg_t);
+        jnz(l_t_loop, T_NEAR);
+    }
+
+    L(l_end);
+
+    if (use_registers) {
+        // Store H back to state
+        store_vector_native_xf16(reg_state, const_cast<Vmm*>(v_h), num_regs);
+    }
+    // For large head_size, H is already in state buffer
+
+    this->postamble();
+
+    exp_injector->prepare_table();
+}
+
+std::shared_ptr<JitKernelBase> create_gdn_jit_kernel(ov::element::Type data_prc,
+                                                     size_t qk_head_size,
+                                                     bool fuse_qk_l2norm,
+                                                     float q_l2_norm_eps,
+                                                     float k_l2_norm_eps) {
+    std::shared_ptr<JitKernelBase> res;
+    jit_gdn_compile_params jcp;
+    jcp.data_prc = data_prc;
+    jcp.qk_head_size = qk_head_size;
+    jcp.fuse_qk_l2norm = fuse_qk_l2norm;
+    jcp.q_l2_norm_eps = q_l2_norm_eps;
+    jcp.k_l2_norm_eps = k_l2_norm_eps;
+    jcp.q_scale = 1.0F / std::sqrt(static_cast<float>(qk_head_size));
+
+    if (data_prc != ov::element::bf16 && data_prc != ov::element::f16) {
+        return res;
+    }
+    if (qk_head_size == 0 || qk_head_size % 32 != 0) {
+        return res;
+    }
+
+    if (data_prc == ov::element::bf16) {
+        if (mayiuse(avx512_core_bf16)) {
+            res = std::make_shared<jit_gdn_kernel<avx512_core_bf16>>(jcp);
+        }
+    } else if (data_prc == ov::element::f16) {
+        if (mayiuse(avx512_core_fp16)) {
+            res = std::make_shared<jit_gdn_kernel<avx512_core_fp16>>(jcp);
+        }
+    }
+
+    if (res) {
+        res->create_kernel();
+    }
+
+    return res;
+}
+
+template struct jit_gdn_kernel<avx512_core_bf16>;
+template struct jit_gdn_kernel<avx512_core_fp16>;
+
+}  // namespace ov::intel_cpu::kernel

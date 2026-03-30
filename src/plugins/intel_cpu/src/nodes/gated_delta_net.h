@@ -15,6 +15,10 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
+namespace ov::intel_cpu::kernel {
+class JitKernelBase;
+}
+
 namespace ov::intel_cpu::node {
 
 class GatedDeltaNet : public Node {
@@ -48,6 +52,9 @@ private:
     bool m_fuse_qk_l2norm = false;
     float m_q_l2_norm_eps = 1e-6F;
     float m_k_l2_norm_eps = 1e-6F;
+#if defined(OPENVINO_ARCH_X86_64)
+    std::shared_ptr<kernel::JitKernelBase> m_gdnJitKernel;
+#endif
 };
 
 }  // namespace ov::intel_cpu::node
