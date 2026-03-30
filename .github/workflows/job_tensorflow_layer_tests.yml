@@ -40,7 +40,6 @@ jobs:
         - /mount:/mount
         - /home/runner/secrets/:/secrets:ro
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      options: "-e HF_TOKEN_PATH=/secrets/huggingface/hf-token" # Needed for HuggingFace cache authentication
     defaults:
       run:
         shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
@@ -51,14 +50,12 @@ jobs:
       USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
       HF_HUB_VERBOSITY: debug
       TRANSFORMERS_VERBOSITY: debug
+      HF_TOKEN_PATH: ${{ contains(inputs.runner, 'win') && 'C:\secrets\huggingface\hf-token' || '/secrets/huggingface/hf-token' }}
     steps:
-      - name: Append the environment variable - load HF_TOKEN from file
-        shell: bash
+      - name: Debug HF token path
         run: |
-          HF_TOKEN="$(cat /secrets/huggingface/hf-token)"
-          echo "::add-mask::${HF_TOKEN}"
-          echo "HF_TOKEN=${HF_TOKEN}" >> $GITHUB_ENV
-          echo "✓ HuggingFace token loaded and masked"
+          echo "HF_TOKEN_PATH=${HF_TOKEN_PATH}"
+          ls -la "${HF_TOKEN_PATH}" 2>&1 || echo "File not found: ${HF_TOKEN_PATH}"
 
       - name: Fetch custom actions
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
@@ -125,6 +122,19 @@ jobs:
         run: |
           # tensorflow test requirements
           ${{ env.PIP_INSTALL_COMMAND }} -r ${{ env.INSTALL_TEST_DIR }}/requirements_tensorflow
+
+      - name: Debug HF token resolution
+        run: |
+          python3 -c "
+          from huggingface_hub import get_token
+          import os
+          token = get_token()
+          if token:
+              print(f'HF token resolved: {token[:4]}...{token[-4:]} (length={len(token)})')
+          else:
+              print('WARNING: No HF token found by huggingface_hub')
+          print(f'HF_TOKEN_PATH={os.environ.get(\"HF_TOKEN_PATH\", \"not set\")}')
+          "
 
       - name: TensorFlow 1 Layer Tests - TF FE
         if: ${{ fromJSON(inputs.affected-components).TF_FE.test }}
