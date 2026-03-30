@@ -197,13 +197,6 @@ void pad(const char* data,
 }  // namespace impl
 
 namespace reference {
-Shape pad_output_shape(const Shape& data_shape, const CoordinateDiff& pads_begin, const CoordinateDiff& pads_end) {
-    Shape out_shape(data_shape.size());
-    for (size_t i = 0; i < data_shape.size(); ++i)
-        out_shape[i] = data_shape[i] + pads_begin[i] + pads_end[i];
-    return out_shape;
-}
-
 void pad(const char* data,
          const char* pad_value,
          char* out,
@@ -216,45 +209,33 @@ void pad(const char* data,
     impl::pad(data, pad_value, out, elem_size, data_shape, out_shape, padding_below, padding_above, pad_mode);
 }
 
-void pad(const std::string* data,
-         const std::string& pad_value,
-         std::string* out,
-         const Shape& data_shape,
-         const Shape& out_shape,
-         const CoordinateDiff& padding_below,
-         const CoordinateDiff& padding_above) {
+void pad_string(TensorVector& outputs, const TensorVector& inputs, bool has_pad_value) {
+    const CoordinateDiff pads_begin = op::v0::Constant(inputs[1]).cast_vector<ptrdiff_t>();
+    const CoordinateDiff pads_end = op::v0::Constant(inputs[2]).cast_vector<ptrdiff_t>();
+
+    const auto& data_shape = inputs[0].get_shape();
+    Shape out_shape(data_shape.size());
+    for (size_t i = 0; i < data_shape.size(); ++i)
+        out_shape[i] = data_shape[i] + pads_begin[i] + pads_end[i];
+    outputs[0].set_shape(out_shape);
+
+    const std::string pad_str = has_pad_value ? *static_cast<const std::string*>(inputs[3].data()) : std::string{};
+    const auto* src = static_cast<const std::string*>(inputs[0].data());
+    auto* dst = static_cast<std::string*>(outputs[0].data());
+
     Coordinate in_coord(data_shape.size());
     for (const auto& out_coord : CoordinateTransformBasic{out_shape}) {
         bool in_bounds = true;
         for (size_t ax = 0; ax < data_shape.size(); ++ax) {
-            const ptrdiff_t c = static_cast<ptrdiff_t>(out_coord[ax]) - padding_below[ax];
+            const ptrdiff_t c = static_cast<ptrdiff_t>(out_coord[ax]) - pads_begin[ax];
             if (c < 0 || c >= static_cast<ptrdiff_t>(data_shape[ax])) {
                 in_bounds = false;
                 break;
             }
             in_coord[ax] = static_cast<size_t>(c);
         }
-        out[coordinate_index(out_coord, out_shape)] =
-            in_bounds ? data[coordinate_index(in_coord, data_shape)] : pad_value;
+        dst[coordinate_index(out_coord, out_shape)] = in_bounds ? src[coordinate_index(in_coord, data_shape)] : pad_str;
     }
-}
-
-void pad_string(TensorVector& outputs, const TensorVector& inputs, bool has_pad_value) {
-    const CoordinateDiff pads_begin = op::v0::Constant(inputs[1]).cast_vector<ptrdiff_t>();
-    const CoordinateDiff pads_end = op::v0::Constant(inputs[2]).cast_vector<ptrdiff_t>();
-
-    const auto& data_shape = inputs[0].get_shape();
-    outputs[0].set_shape(pad_output_shape(data_shape, pads_begin, pads_end));
-
-    const std::string pad_str = has_pad_value ? *static_cast<const std::string*>(inputs[3].data()) : std::string{};
-
-    pad(static_cast<const std::string*>(inputs[0].data()),
-        pad_str,
-        static_cast<std::string*>(outputs[0].data()),
-        data_shape,
-        outputs[0].get_shape(),
-        pads_begin,
-        pads_end);
 }
 }  // namespace reference
 }  // namespace ov
