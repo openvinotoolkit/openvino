@@ -11,6 +11,7 @@
 #include <memory>
 #include <ostream>
 #include <string>
+#include <vector>
 
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
@@ -59,9 +60,8 @@ public:
             FilePosition offset = m_offset;
             m_offset += new_size;
             return offset;
-        } else {
-            return util::ConstantWriter::write_scatter(chunks, new_size);
         }
+        return util::ConstantWriter::write_scatter(chunks, new_size);
     }
 
     void skip_weights(bool skip_weights) {
