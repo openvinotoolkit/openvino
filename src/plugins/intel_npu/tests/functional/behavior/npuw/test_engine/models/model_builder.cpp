@@ -1810,7 +1810,9 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperDeco
 
     auto input_ids = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "input_ids");
     auto encoder_hidden_states =
-        parameter(ov::element::f32, ov::PartialShape{-1, -1, static_cast<int64_t>(d)}, "encoder_hidden_states");
+        parameter(ov::element::f32,
+                  ov::PartialShape{-1, static_cast<int64_t>(config.encoder_seq_len), static_cast<int64_t>(d)},
+                  "encoder_hidden_states");
     auto beam_idx = parameter(ov::element::i32, ov::PartialShape{-1}, "beam_idx");
 
     ov::Output<ov::Node> enc_hs = encoder_hidden_states->output(0);

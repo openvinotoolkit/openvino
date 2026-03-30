@@ -418,6 +418,7 @@ struct WhisperEncoderConfig : public BaseModelConfig {
 struct WhisperDecoderConfig : public BaseModelConfig {
     size_t decoder_layers = 0;
     size_t max_target_positions = 448;
+    size_t encoder_seq_len = 1500;  ///< Encoder output sequence length (matches max_source_positions)
 
     size_t get_decoder_layers() const {
         return decoder_layers == 0 ? num_layers : decoder_layers;
