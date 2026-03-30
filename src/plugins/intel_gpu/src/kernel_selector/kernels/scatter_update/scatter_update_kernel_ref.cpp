@@ -211,9 +211,11 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     JitConstants jit = MakeBaseParamsJitConstants(params);
     size_t axis_value = GetScatterUpdateChannelIndex(params);
 
+    const auto input2_has_padding = params.inputs[2].has_dynamic_pad() || params.inputs[2].PitchesDifferFromLogicalDims();
+
     const auto blocked_layout = !(SimpleLayout(params.inputs[0].GetLayout()) &&
                                   SimpleLayout(params.inputs[1].GetLayout()) &&
-                                  SimpleLayout(params.inputs[2].GetLayout()));
+                                  SimpleLayout(params.inputs[2].GetLayout())) || input2_has_padding;
 
     if (blocked_layout) {
         jit.AddConstant(MakeJitConstant("BLOCKED_LAYOUT", "1"));
@@ -262,7 +264,7 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     auto default_order = GetDefaultOrder(output.GetDims().size());
 
     size_t dims = default_order.size();
-    std::string get_update_idx = "(INPUT2_OFFSET)";
+    std::string get_update_idx = blocked_layout ? "0" : "(INPUT2_OFFSET)";
     for (size_t i = 0; i < dims; ++i) {
         if (i >= axis_value) {
             std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH";
