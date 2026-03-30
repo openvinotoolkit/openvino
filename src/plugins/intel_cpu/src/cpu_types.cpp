@@ -263,7 +263,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"LoraSubgraph", Type::LoRA},
         {"BatchGatherMatmul", Type::GatherMatmul},
         {"BatchGatherMatmulCompressed", Type::GatherMatmul},
-        {"GatedDeltaNet", Type::GatedDeltaNet}};
+        {"GatedDeltaNet", Type::GatedDeltaNet},
+        {"PagedGatedDeltaNet", Type::GatedDeltaNet}};
     return type_to_name_tbl;
 }
 
