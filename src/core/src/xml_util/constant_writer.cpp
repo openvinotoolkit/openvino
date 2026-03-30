@@ -61,6 +61,50 @@ ConstantWriter::FilePosition ConstantWriter::write(const char* ptr,
     return offset;
 }
 
+ConstantWriter::FilePosition ConstantWriter::write_scatter(const std::vector<Chunk>& chunks, size_t& new_size) {
+    const FilePosition write_pos = m_binary_output.get().tellp();
+    const auto offset = write_pos - m_blob_offset;
+
+    new_size = 0;
+    for (const auto& chunk : chunks) {
+        new_size += chunk.size;
+    }
+
+    if (m_enable_compression) {
+        // Compute a combined hash over all chunks in sequence
+        HashValue hash = 0;
+        for (const auto& chunk : chunks) {
+            hash = util::u64_hash_combine(hash, ov::runtime::compute_hash(chunk.data, chunk.size));
+        }
+
+        // Check whether an identical contiguous blob was written before
+        const auto found = m_hash_to_file_positions.equal_range(hash);
+        for (auto it = found.first; it != found.second; ++it) {
+            const char* stored = static_cast<const char*>(it->second.second);
+            bool match = true;
+            for (const auto& chunk : chunks) {
+                if (memcmp(chunk.data, stored, chunk.size) != 0) {
+                    match = false;
+                    break;
+                }
+                stored += chunk.size;
+            }
+            if (match) {
+                return it->second.first;
+            }
+        }
+        m_data_hash = util::u64_hash_combine(m_data_hash, hash);
+    } else {
+        m_data_hash = util::u64_hash_combine(m_data_hash, new_size);
+    }
+
+    for (const auto& chunk : chunks) {
+        m_binary_output.get().write(static_cast<const char*>(chunk.data), chunk.size);
+    }
+
+    return offset;
+}
+
 std::unique_ptr<char[]> ConstantWriter::compress_data_to_fp16(const char* ptr,
                                                               size_t size,
                                                               const element::Type& src_type,

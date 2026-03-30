@@ -49,6 +49,21 @@ public:
         return offset;
     }
 
+    WeightlessWriter::FilePosition write_scatter(const std::vector<Chunk>& chunks, size_t& new_size) override {
+        new_size = 0;
+        for (const auto& chunk : chunks) {
+            new_size += chunk.size;
+        }
+
+        if (m_skip_weights) {
+            FilePosition offset = m_offset;
+            m_offset += new_size;
+            return offset;
+        } else {
+            return util::ConstantWriter::write_scatter(chunks, new_size);
+        }
+    }
+
     void skip_weights(bool skip_weights) {
         m_skip_weights = skip_weights;
     }

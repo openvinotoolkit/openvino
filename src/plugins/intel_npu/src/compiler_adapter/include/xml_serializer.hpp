@@ -20,6 +20,11 @@ public:
     FilePosition write(const char*, size_t, size_t&, bool, ov::element::Type, bool) override {
         return 0;
     }
+
+    FilePosition write_scatter(const std::vector<Chunk>&, size_t& new_size) override {
+        new_size = 0;
+        return 0;
+    }
 };
 
 /**

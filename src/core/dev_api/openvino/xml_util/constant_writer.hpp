@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <map>
+#include <vector>
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -19,6 +20,11 @@ public:
     using HashValue = size_t;
     using ConstWritePositions = std::multimap<HashValue, std::pair<FilePosition, const void*>>;
 
+    struct Chunk {
+        const void* data;
+        size_t size;
+    };
+
     ConstantWriter(std::ostream& bin_data, bool enable_compression = true);
     virtual ~ConstantWriter();
 
@@ -28,6 +34,8 @@ public:
                                bool compress_to_fp16 = false,
                                ov::element::Type src_type = ov::element::dynamic,
                                bool ptr_is_temporary = false);
+
+    virtual FilePosition write_scatter(const std::vector<Chunk>& chunks, size_t& new_size);
 
     uint64_t get_data_hash() const {
         return m_data_hash;

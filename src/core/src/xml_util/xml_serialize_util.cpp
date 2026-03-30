@@ -723,8 +723,9 @@ void XmlSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>&
                 num_elements = a2->get()->get_num_elements();
             }
 
-            std::vector<char> packed(header_size);
-            std::memcpy(packed.data(), header_ptr.get(), header_size);
+            std::vector<ov::util::ConstantWriter::Chunk> chunks;
+            chunks.reserve(1 + num_elements);
+            chunks.push_back({header_ptr.get(), header_size});
             for (size_t ind = 0; ind < num_elements; ++ind) {
                 const char* raw_string_ptr;
                 size_t raw_string_size;
@@ -733,16 +734,11 @@ void XmlSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>&
                 } else {
                     a2->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
                 }
-                packed.insert(packed.end(), raw_string_ptr, raw_string_ptr + raw_string_size);
+                chunks.push_back({raw_string_ptr, raw_string_size});
             }
 
             size_t new_size = 0;
-            int64_t offset = get_constant_write_handler().write(packed.data(),
-                                                                packed.size(),
-                                                                new_size,
-                                                                m_compress_to_fp16,
-                                                                m_output_element_type,
-                                                                true);
+            int64_t offset = get_constant_write_handler().write_scatter(chunks, new_size);
 
             m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
             m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
