@@ -214,8 +214,6 @@ npuVMRuntimeParseMemRef(npu_vm_runtime_mem_ref_handle_t hMemRef,  ///< [in] hand
                           int64_t* pStrides,                          ///< [out] pointer to tensor strides
                           int64_t* pDimsCount);                       ///< [out] value of tensor rank
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @brief Extension version 1.1
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Init VM runtime instance and return handle
