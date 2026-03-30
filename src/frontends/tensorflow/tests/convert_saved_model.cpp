@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_test_utils/test_common.hpp"
 #include "conversion_with_reference.hpp"
 #include "gtest/gtest.h"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
@@ -172,7 +173,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithNumericalNames) {
     comparator.enable(FunctionsComparator::CmpValues::TENSOR_NAMES);
     // The test aims to check that model with only numerical names for operation
     // is successfully converted
-    // it is a tricky case because colision between naming input and output ports may occur
+    // it is a tricky case because collision between naming input and output ports may occur
     { model = convert_model("saved_model_with_numerical_names"); }
     {
         // create a reference graph
@@ -189,5 +190,49 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithNumericalNames) {
         auto result = make_shared<v0::Result>(sub);
         result->output(0).set_names({"4"});
         model_ref = make_shared<Model>(ResultVector{result}, ParameterVector{x, y, z});
+    }
+}
+
+// Test that a crafted SavedModel with integer overflow in BundleEntryProto
+// offset/size fields produces a clean exception, not a SIGSEGV.
+// The malicious variables.index has entry.offset = 0x7FFFFFFFFFFFFFF0 and entry.size = 16.
+// The sum overflows signed int64 to INT64_MIN, which would bypass the old bounds check.
+TEST(FrontEndConvertModelTest, SavedModelMaliciousOverflowOffset) {
+    shared_ptr<Model> model = nullptr;
+    // Test with mmap enabled (default) — triggers crash at variables_index.cpp CKOG path
+    try {
+        model = convert_model("saved_model_malicious_overflow");
+        FAIL() << "Loading a malicious SavedModel with overflow offset should throw an exception.";
+    } catch (const ov::Exception& error) {
+        string error_message = error.what();
+        EXPECT_TRUE(error_message.find("entry") != string::npos || error_message.find("offset") != string::npos ||
+                    error_message.find("bounds") != string::npos || error_message.find("negative") != string::npos ||
+                    error_message.find("size") != string::npos)
+            << "Unexpected error message: " << error_message;
+        EXPECT_EQ(model, nullptr);
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected exception type: " << e.what();
+    } catch (...) {
+        FAIL() << "Unexpected non-std exception thrown";
+    }
+}
+
+// Same test with mmap disabled to verify the stream code path is also protected
+TEST(FrontEndConvertModelTest, SavedModelMaliciousOverflowOffsetNoMmap) {
+    shared_ptr<Model> model = nullptr;
+    try {
+        model = convert_model("saved_model_malicious_overflow", nullptr, {}, {}, {}, {}, {}, true /* disable_mmap */);
+        FAIL() << "Loading a malicious SavedModel with overflow offset should throw an exception.";
+    } catch (const ov::Exception& error) {
+        string error_message = error.what();
+        EXPECT_TRUE(error_message.find("entry") != string::npos || error_message.find("offset") != string::npos ||
+                    error_message.find("bounds") != string::npos || error_message.find("negative") != string::npos ||
+                    error_message.find("size") != string::npos)
+            << "Unexpected error message: " << error_message;
+        EXPECT_EQ(model, nullptr);
+    } catch (const std::exception& e) {
+        FAIL() << "Unexpected exception type: " << e.what();
+    } catch (...) {
+        FAIL() << "Unexpected non-std exception thrown";
     }
 }

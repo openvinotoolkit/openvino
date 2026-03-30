@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -40,7 +40,7 @@ class TestNeg(JaxLayerTest):
         [1, 1, 9, 1]
     ])
     @pytest.mark.parametrize('input_type', [np.int8, np.int16, np.int32,
-                                            np.int64,np.float16, 
+                                            np.int64,np.float16,
                                             np.float32, np.float64])
     @pytest.mark.nightly
     @pytest.mark.precommit

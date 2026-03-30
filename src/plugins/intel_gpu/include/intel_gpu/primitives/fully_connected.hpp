@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -216,6 +216,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         ob << weights_rank;
         ob << dynamic_quantized_activation;
         ob << dynamic_quantized_activation_zp;
+        ob << dynamic_quantized_precomputed_reduction;
 
         if (decompression_zero_point_scalar.has_value()) {
             ob << true;
@@ -240,6 +241,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         ib >> weights_rank;
         ib >> dynamic_quantized_activation;
         ib >> dynamic_quantized_activation_zp;
+        ib >> dynamic_quantized_precomputed_reduction;
 
         bool has_value;
         ib >> has_value;

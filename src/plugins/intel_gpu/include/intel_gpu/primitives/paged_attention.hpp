@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,6 +39,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ADAPTIVE_RKV_EVICTABLE_SIZES = 22,
         ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES = 23,
         ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS = 24,
+        TOKEN_TYPE_IDS = 25,
     };
 
     static constexpr size_t block_size = 16;
@@ -49,7 +50,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     paged_attention(const primitive_id& id,
                     const std::vector<input_info>& inputs)
         : primitive_base(id, inputs) {
-        OPENVINO_ASSERT((inputs.size() == 25),
+        OPENVINO_ASSERT((inputs.size() == 26),
                         "[GPU] Unexpected inputs number for PagedAttention primitive: ",
                         inputs.size());
     }
@@ -70,6 +71,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         seed = hash_combine(seed, has_score_aggregation);
         seed = hash_combine(seed, has_xattention);
         seed = hash_combine(seed, has_sink_input);
+        seed = hash_combine(seed, has_adaptive_rkv);
         if (scale_val.has_value()) {
             seed = hash_combine(seed, scale_val.value());
         }
@@ -88,11 +90,15 @@ struct paged_attention : public primitive_base<paged_attention> {
                v_head_size == rhs_casted.v_head_size &&
                heads_num == rhs_casted.heads_num &&
                kv_heads_num == rhs_casted.kv_heads_num &&
-               sliding_window == rhs_casted.sliding_window &&
                has_alibi == rhs_casted.has_alibi &&
-               has_score_aggregation == rhs_casted.has_score_aggregation &&
                has_rotated_blocks == rhs_casted.has_rotated_blocks &&
-               scale_val.value_or(1.0f) == rhs_casted.scale_val.value_or(1.0f);
+               sliding_window == rhs_casted.sliding_window &&
+               has_score_aggregation == rhs_casted.has_score_aggregation &&
+               has_xattention == rhs_casted.has_xattention &&
+               has_sink_input == rhs_casted.has_sink_input &&
+               has_adaptive_rkv == rhs_casted.has_adaptive_rkv &&
+               scale_val.value_or(1.0f) == rhs_casted.scale_val.value_or(1.0f) &&
+               is_key_by_channel == rhs_casted.is_key_by_channel;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

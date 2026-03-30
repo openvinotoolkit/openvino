@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -138,7 +138,8 @@ enum class Type : uint8_t {
     SearchSorted,
     SegmentMax,
     LoRA,
-    GatherMatmul
+    GatherMatmul,
+    GatedDeltaNet
 };
 
 enum class Algorithm : uint8_t {

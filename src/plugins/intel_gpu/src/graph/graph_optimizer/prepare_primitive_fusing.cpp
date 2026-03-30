@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -753,21 +753,37 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return lora_is_single_user && is_simple_lora;
         };
 
+        auto gather_supports_fusings = [&](gather_node& node) -> bool {
+            auto in_rank = node.get_input_layout(0).get_rank();
+            auto out_rank = node.get_output_layout().get_rank();
+
+            return (in_rank <= out_rank);
+        };
+
+        auto is_static_scalar_output = [&](program_node& node) -> bool {
+            const auto& out_layout = node.get_output_layout();
+            return out_layout.is_static() && out_layout.count() == 1;
+        };
+
         auto broadcast_supports_fusings = [&](broadcast_node& bcast_node) -> bool {
             if (bcast_node.get_outputs_count() != 1)
                 return false;
 
-            bool out_eltw = bcast_node.get_users().front()->is_type<eltwise>();
-            if (!out_eltw)
-                return false;
-
-            auto input_layout = bcast_node.get_output_layout();
-            auto output_layout = bcast_node.get_users().front()->get_output_layout();
-            if (input_layout.data_type != output_layout.data_type) {
-                return false;
+            const auto& consumer = bcast_node.get_users().front();
+            if (consumer->is_type<quantize>()) {
+                return true;
             }
 
-            return true;
+            if (consumer->is_type<eltwise>()) {
+                const auto& input_layout = bcast_node.get_output_layout();
+                const auto& output_layout = consumer->get_output_layout();
+                if (input_layout.data_type != output_layout.data_type) {
+                    return false;
+                }
+                return true;
+            }
+
+            return false;
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
@@ -1006,6 +1022,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                            input_data.as<softmax>().get_primitive()->dimension == 1 &&
                            per_tensor_values;
 
+            should_fuse |= input_data.is_type<broadcast>() && broadcast_supports_fusings(input_data.as<broadcast>());
 
             if (!should_fuse)
                 return;
@@ -1061,7 +1078,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<pooling>()) ||
                                       (parents[i].first->is_type<depth_to_space>() &&
                                        dts_supports_fusings(parents[i].first->as<depth_to_space>())) ||
-                                      (parents[i].first->is_type<gather>()) ||
+                                      (parents[i].first->is_type<gather>() &&
+                                       (gather_supports_fusings(parents[i].first->as<gather>()) ||
+                                       is_static_scalar_output(*parents[(i == 0) ? 1u : 0u].first))) ||
                                       (parents[i].first->is_type<reduce>() &&
                                        reduce_supports_fusings(parents[i].first->as<reduce>())) ||
                                       (parents[i].first->is_type<lrn>()) ||

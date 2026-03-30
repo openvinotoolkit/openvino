@@ -784,21 +784,9 @@ Example:
     </skip_config>
 
     <skip_config>
-        <message>Only "developer built" compilers support weights separation</message>
+        <message>Non "developer build" CiDs don't support weights separation yet</message>
         <filters>
-            <filter>.*WeightsSeparationTests.*</filter>
-            <filter>.*WeightsSeparationIterativeTests.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- C#165445 -->
-    <skip_config>
-        <message>OVBlobCompatibilityNPU tests designed for NPU3720</message>
-        <enable_rules>
-            <device>!3720</device>
-        </enable_rules>
-        <filters>
-            <filter>.*OVBlobCompatibilityNPU.*</filter>
+            <filter>.*WeightsSeparationIterativeTests.*DRIVER.*</filter>
         </filters>
     </skip_config>
 
@@ -818,20 +806,14 @@ Example:
 
     <!-- E###### -->
     <skip_config>
-        <message>Data type u1 not supported by NPU4000.</message>
+        <message>Data type u1 not supported by NPU4000 and NPU5010.</message>
         <enable_rules>
             <device>4000</device>
+            <device>5010</device>
         </enable_rules>
         <filters>
             <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
-        </filters>
-    </skip_config>
-
-    <skip_config>
-        <message>The "one shot" implementation of the weights separation feature is supported only in the compiler-in-plugin flow</message>
-        <filters>
-            <filter>.*WeightsSeparationOneShotTests.*</filter>
         </filters>
     </skip_config>
 
@@ -841,6 +823,59 @@ Example:
             <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_INFO.*</filter>
             <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_DEBUG.*</filter>
             <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_TRACE.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Blobs for OVBlobCompatibilityNPU need to be updated for NPU5010</message>
+        <enable_rules>
+            <device>5010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*OVBlobCompatibilityNPU.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Set of caching properties that are not suported by PV driver</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
+            <operating_system>windows</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*CompileModelLoadFromCacheTest.*EXECUTION_MODE_HINT.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*INFERENCE_PRECISION_HINT.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_BATCH_COMPILER_MODE_SETTINGS.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_BATCH_MODE.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_COMPILER_DYNAMIC_QUANTIZATION.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_DYNAMIC_SHAPE_TO_STATIC.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_MAX_TILES.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_TILES.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_TURBO.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_QDQ_OPTIMIZATION.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_QDQ_OPTIMIZATION_AGGRESSIVE.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Skip test-cases failing with Win Drv UD48</message>
+        <enable_rules>
+            <operating_system>windows</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*DX12RemoteRunTests.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>PV driver cannot create infer request for models with boolean inputs</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
+        </enable_rules>
+        <filters>
+            <filter>.*BooleanPrecisionInferRequestRunTests.*</filter>
         </filters>
     </skip_config>
 

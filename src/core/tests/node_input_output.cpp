@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
@@ -18,9 +19,11 @@
 #include "openvino/op/relu.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov;
-using namespace std;
+namespace ov::test {
+
 using ov::op::util::disconnect_output_from_consumers;
+using std::make_shared;
+using testing::_;
 
 TEST(node_input_output, input_create) {
     auto x = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
@@ -430,6 +433,11 @@ TEST(node_input_output, output_replace_bidirectional_connection) {
     EXPECT_EQ(mul_count, 2) << "mul should have exactly 2 connections from add2";
 
     EXPECT_EQ(add1->output(0).get_target_inputs().size(), 0) << "add1 should have no targets";
+
+    // create model from incorrect net (cycles) to release nodes without leaking memory
+    OV_EXPECT_THROW(ov::Model(OutputVector{mul}, ParameterVector{param}), ov::Exception, _);
+    // break circular dependency to release all nodes
+    relu->set_arguments(ov::OutputVector{});
 }
 
 TEST(node_input_output, output_replace_empty_targets) {
@@ -475,3 +483,4 @@ TEST(node_input_output, output_replace_cascade) {
     EXPECT_EQ(add2->output(0).get_target_inputs().size(), 0);
     EXPECT_EQ(add3->output(0).get_target_inputs().size(), 0);
 }
+}  // namespace ov::test

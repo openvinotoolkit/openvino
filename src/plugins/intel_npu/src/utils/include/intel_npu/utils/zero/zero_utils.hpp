@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,8 @@
 #include <limits.h>
 #include <ze_api.h>
 #include <ze_graph_ext.h>
+
+#include <optional>
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -24,31 +26,31 @@ namespace zeroUtils {
             OPENVINO_THROW("L0 ",                                                           \
                            step,                                                            \
                            " result: ",                                                     \
-                           ze_result_to_string(ret),                                        \
+                           intel_npu::ze_result_to_string(ret),                             \
                            ", code 0x",                                                     \
                            std::hex,                                                        \
                            uint64_t(ret),                                                   \
                            " - ",                                                           \
-                           ze_result_to_description(ret),                                   \
+                           intel_npu::ze_result_to_description(ret),                        \
                            " . ",                                                           \
                            intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext)); \
         }                                                                                   \
     }
 
-#define THROW_ON_FAIL_FOR_LEVELZERO(step, result)          \
-    {                                                      \
-        ze_result_t ret = (result);                        \
-        if (ZE_RESULT_SUCCESS != ret) {                    \
-            OPENVINO_THROW("L0 ",                          \
-                           step,                           \
-                           " result: ",                    \
-                           ze_result_to_string(ret),       \
-                           ", code 0x",                    \
-                           std::hex,                       \
-                           uint64_t(ret),                  \
-                           " - ",                          \
-                           ze_result_to_description(ret)); \
-        }                                                  \
+#define THROW_ON_FAIL_FOR_LEVELZERO(step, result)                     \
+    {                                                                 \
+        ze_result_t ret = (result);                                   \
+        if (ZE_RESULT_SUCCESS != ret) {                               \
+            OPENVINO_THROW("L0 ",                                     \
+                           step,                                      \
+                           " result: ",                               \
+                           intel_npu::ze_result_to_string(ret),       \
+                           ", code 0x",                               \
+                           std::hex,                                  \
+                           uint64_t(ret),                             \
+                           " - ",                                     \
+                           intel_npu::ze_result_to_description(ret)); \
+        }                                                             \
     }
 
 static inline ze_command_queue_priority_t toZeQueuePriority(const ov::hint::Priority& val) {
@@ -61,6 +63,17 @@ static inline ze_command_queue_priority_t toZeQueuePriority(const ov::hint::Prio
         return ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_HIGH;
     default:
         OPENVINO_THROW("Incorrect queue priority.");
+    }
+}
+
+static inline std::optional<ze_command_queue_workload_type_t> toZeQueueWorkloadType(const ov::WorkloadType val) {
+    switch (val) {
+    case ov::WorkloadType::DEFAULT:
+        return std::optional<ze_command_queue_workload_type_t>{ZE_WORKLOAD_TYPE_DEFAULT};
+    case ov::WorkloadType::EFFICIENT:
+        return std::optional<ze_command_queue_workload_type_t>{ZE_WORKLOAD_TYPE_BACKGROUND};
+    default:
+        OPENVINO_THROW("Incorrect workload type.");
     }
 }
 
@@ -117,53 +130,6 @@ static inline ov::element::Type_t toOVElementType(const ze_graph_argument_precis
     }
 }
 
-static inline uint32_t findCommandQueueGroupOrdinal(
-    ze_device_handle_t device_handle,
-    const ze_command_queue_group_property_flags_t& command_queue_group_property) {
-    auto log = Logger::global().clone("findCommandQueueGroupOrdinal");
-
-    std::vector<ze_command_queue_group_properties_t> command_group_properties;
-    uint32_t command_queue_group_count = 0;
-
-    // Discover all command queue groups
-    THROW_ON_FAIL_FOR_LEVELZERO(
-        "zeDeviceGetCommandQueueGroupProperties",
-        zeDeviceGetCommandQueueGroupProperties(device_handle, &command_queue_group_count, nullptr));
-
-    log.debug("zero_utils::findCommandQueueGroupOrdinal - resize command_queue_group_count");
-    command_group_properties.resize(command_queue_group_count);
-
-    for (auto& prop : command_group_properties) {
-        prop.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_GROUP_PROPERTIES;
-        prop.pNext = nullptr;
-    }
-
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetCommandQueueGroupProperties",
-                                zeDeviceGetCommandQueueGroupProperties(device_handle,
-                                                                       &command_queue_group_count,
-                                                                       command_group_properties.data()));
-
-    for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
-        const auto& flags = command_group_properties[index].flags;
-        if (flags == command_queue_group_property) {
-            return index;
-        }
-    }
-
-    // if we don't find a group where only the proper flag is enabled then search for a group where that flag is
-    // enabled
-    for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
-        const auto& flags = command_group_properties[index].flags;
-        if (flags & command_queue_group_property) {
-            return index;
-        }
-    }
-
-    // if still don't find compute flag, return a warning
-    log.warning("Fail to find a command queue group that contains compute flag, it will be set to 0.");
-    return 0;
-}
-
 static inline std::string getLatestBuildError(ze_graph_dditable_ext_curr_t& _graph_ddi_table_ext) {
     Logger _logger("LevelZeroUtils", Logger::global().level());
     _logger.debug("getLatestBuildError start");
@@ -214,6 +180,75 @@ static inline uint64_t get_l0_context_memory_allocation_id(ze_context_handle_t h
         return desc.id;
     }
 
+    return 0;
+}
+
+template <typename Type>
+std::optional<Type> extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
+    auto itrHandle = params.find(p.name());
+    if (itrHandle == params.end()) {
+        return std::nullopt;
+    }
+
+    return ov::Any(itrHandle->second).as<Type>();
+}
+
+static inline size_t get_capacity_size(const ov::Shape& shape, const ov::Strides& strides) {
+    size_t capacity = 0;
+    const size_t rank = shape.size();
+    for (size_t i = 0; i < rank; ++i) {
+        if (i == rank - 1) {
+            // Last dimension: use shape[i] * stride[i]
+            capacity += shape[i] * strides[i];
+        } else {
+            // Other dimensions: use (shape[i] - 1) * stride[i]
+            capacity += (shape[i] - 1) * strides[i];
+        }
+    }
+
+    return capacity;
+}
+
+static inline uint32_t findCommandQueueGroupOrdinal(
+    ze_device_handle_t device_handle,
+    const ze_command_queue_group_property_flags_t command_queue_group_property) {
+    std::vector<ze_command_queue_group_properties_t> command_group_properties;
+    uint32_t command_queue_group_count = 0;
+
+    // Discover all command queue groups
+    THROW_ON_FAIL_FOR_LEVELZERO(
+        "zeDeviceGetCommandQueueGroupProperties",
+        intel_npu::zeDeviceGetCommandQueueGroupProperties(device_handle, &command_queue_group_count, nullptr));
+
+    command_group_properties.resize(command_queue_group_count);
+
+    for (auto& prop : command_group_properties) {
+        prop.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_GROUP_PROPERTIES;
+        prop.pNext = nullptr;
+    }
+
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetCommandQueueGroupProperties",
+                                intel_npu::zeDeviceGetCommandQueueGroupProperties(device_handle,
+                                                                                  &command_queue_group_count,
+                                                                                  command_group_properties.data()));
+
+    for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
+        const auto& flags = command_group_properties[index].flags;
+        if (flags == command_queue_group_property) {
+            return index;
+        }
+    }
+
+    // if we don't find a group where only the proper flag is enabled then search for a group where that flag is
+    // enabled
+    for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
+        const auto& flags = command_group_properties[index].flags;
+        if (flags & command_queue_group_property) {
+            return index;
+        }
+    }
+
+    // if still don't find compute flag, return 0
     return 0;
 }
 

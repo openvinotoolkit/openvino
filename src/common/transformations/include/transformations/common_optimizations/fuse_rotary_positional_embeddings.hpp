@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,7 @@ class TRANSFORMATIONS_API RoPEFusionPreprocess;
 class TRANSFORMATIONS_API RoPEFusionCosSinPreprocess;
 class TRANSFORMATIONS_API RoPEShareCosSin;
 class TRANSFORMATIONS_API RoPEFusionGPTOSS;
+class TRANSFORMATIONS_API RoPEFusionLtxVideo;
 
 }  // namespace pass
 }  // namespace ov
@@ -96,6 +97,12 @@ class ov::pass::RoPEFusionGPTOSS : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("RoPEFusionGPTOSS");
     RoPEFusionGPTOSS();
+};
+
+class ov::pass::RoPEFusionLtxVideo : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("RoPEFusionLtxVideo");
+    RoPEFusionLtxVideo();
 };
 
 /**

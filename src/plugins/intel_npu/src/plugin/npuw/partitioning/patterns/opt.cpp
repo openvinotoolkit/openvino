@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1531,7 +1531,8 @@ HostGather::HostGather(Context::Ref ctx) {
     auto cvtids = opp::optional<ov::op::v0::Convert>({pids->output(0)});
 
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
-    auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight, cvtids, opp::any_input()});
+    auto qweight_cvt = opp::optional<ov::op::v0::Convert>({qweight->output(0)});
+    auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight_cvt, cvtids, opp::any_input()});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
@@ -1918,7 +1919,8 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
 //     Const(S) ---------------------> Multiply -> to(f32) -> MatMul -> Result
 //     ???(Act) -------------------------------------------->
 
-PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatMulAsymm::Results to_keep) {
+PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
+                                                           PreserveConstDictMatMulAsymm::Results to_keep) {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
@@ -1929,7 +1931,21 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatM
     auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
     auto qmmi = opp::any_input();
     auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtm});
-    auto qres = opp::wrap_type<ov::op::v0::Result>({qmm});
+    std::shared_ptr<Node> qres;
+
+    // MatMul -> Divide -> Tanh -> Multiply -> Result
+    if (ctx.get().mm_gate) {
+        auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({qmm, opp::any_input()});
+        auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
+        auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
+
+        auto matmul_or =
+            std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{qmm->output(0), matmul_multiply->output(0)});
+
+        qres = opp::wrap_type<ov::op::v0::Result>({matmul_or});
+    } else {
+        qres = opp::wrap_type<ov::op::v0::Result>({qmm});
+    }
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
@@ -1963,14 +1979,28 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatM
 //     Const(S) ----------------> Multiply -> MatMul -> Result
 //     ???(Act) ---------------------------->
 
-PreserveConstDictMatMulSymm::PreserveConstDictMatMulSymm(PreserveConstDictMatMulSymm::Results to_keep) {
+PreserveConstDictMatMulFP8::PreserveConstDictMatMulFP8(Context::Ref ctx, PreserveConstDictMatMulFP8::Results to_keep) {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
+    auto optional_cvt = opp::optional<ov::op::v0::Convert>({qmuls});
     auto qmmi = opp::any_input();
-    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qmuls});
-    auto qres = opp::wrap_type<ov::op::v0::Result>({qmm});
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, optional_cvt});
+    std::shared_ptr<Node> qres;
+    // // MatMul -> Divide -> Tanh -> Multiply -> Result
+    if (ctx.get().mm_gate) {
+        auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({qmm, opp::any_input()});
+        auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
+        auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
+
+        auto matmul_or =
+            std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{qmm->output(0), matmul_multiply->output(0)});
+
+        qres = opp::wrap_type<ov::op::v0::Result>({matmul_or});
+    } else {
+        qres = opp::wrap_type<ov::op::v0::Result>({qmm});
+    }
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
@@ -1996,7 +2026,7 @@ PreserveConstDictMatMulSymm::PreserveConstDictMatMulSymm(PreserveConstDictMatMul
         }
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(qres, "OptPreserveConstDictMatMulSymm"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(qres, "OptPreserveConstDictMatMulFP8"), std::move(callback));
 }
 
 SliceLastMatmul::SliceLastMatmul() {

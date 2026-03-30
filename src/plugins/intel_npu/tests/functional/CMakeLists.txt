@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation SPDX-License-Identifier: Apache-2.0
+# Copyright (C) 2018-2026 Intel Corporation SPDX-License-Identifier: Apache-2.0
 #
 
 if(ENABLE_LTO)
@@ -42,7 +42,13 @@ ov_add_test_target(
   "${CMAKE_CURRENT_SOURCE_DIR}/behavior"
   "${CMAKE_CURRENT_SOURCE_DIR}/internal"
   OBJECT_FILES
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/async_infer_request.cpp"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiled_model.cpp"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/remote_context.cpp"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/transformations.cpp"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/properties.cpp"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metrics.cpp"
   LINK_LIBRARIES
   ${OPTIONAL_FUNC_TESTS_LIBS}
   openvino::func_test_utils
@@ -52,16 +58,17 @@ ov_add_test_target(
   openvino::runtime
   openvino::npu_al)
 
-if(WIN32)
-    if(ENABLE_DX12)
-        target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DX12)
-        target_link_libraries(${TARGET_NAME} PRIVATE d3d12 dxcore)
-    endif()
+if(ENABLE_INTEL_CPU)
+    add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
+    target_compile_definitions(${TARGET_NAME} PRIVATE WITH_CPU_PLUGIN)
 endif()
 
+if(WIN32)
+    target_link_libraries(${TARGET_NAME} PRIVATE d3d12)
+endif()
 
 set_target_properties(
-  ${TARGET_NAME} PROPERTIES FOLDER ${CMAKE_CURRENT_SOURCE_DIR} CXX_STANDARD 17)
+  ${TARGET_NAME} PROPERTIES CXX_STANDARD 17)
 
 if(MSVC)
   # Enforce standards conformance on MSVC
@@ -70,7 +77,7 @@ endif()
 
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")
 
-file(GLOB_RECURSE BLOBS "*.blob")
+file(GLOB_RECURSE BLOBS "*.blob" "*.xml" "*.bin")
 file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/intel_npu_blobs)
 add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
                   COMMAND ${CMAKE_COMMAND} -E copy ${BLOBS}

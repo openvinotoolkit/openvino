@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,6 +92,14 @@ constexpr uint64_t u64_hash_combine(uint64_t h, uint64_t k) {
     h *= m;
 
     return h + 0xe6546b64;
+}
+
+constexpr uint64_t u64_hash_combine(std::initializer_list<uint64_t>&& values) {
+    uint64_t h = 0;
+    for (uint64_t k : values) {
+        h = u64_hash_combine(h, k);
+    }
+    return h;
 }
 
 /**

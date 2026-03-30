@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -9,7 +9,7 @@ import numpy as np
 
 # pylint: disable=no-name-in-module,import-error
 from openvino import Tensor, PartialShape
-from openvino.tools.ovc.cli_parser import single_input_to_input_cut_info, _InputCutInfo
+from openvino.tools.ovc.cli_parser import input_to_input_cut_info, single_input_to_input_cut_info, _InputCutInfo
 from openvino.tools.ovc.error import Error
 
 
@@ -19,6 +19,131 @@ def extract_module_extensions(args):
     if not isinstance(extensions, (list, tuple)):
         extensions = [extensions]
     return {extension.module: extension for extension in extensions if isinstance(extension, ModuleExtension)}
+
+
+def _build_dynamic_shapes(inputs, input_specs=None):
+    """Build dynamic_shapes for torch.export.export.
+
+    If input_specs (list of _InputCutInfo from the 'input' parameter) is provided
+    and contains shapes, dimensions marked as -1 (fully dynamic) get Dim.AUTO,
+    dimensions with min/max constraints (e.g. Dimension(1, 10)) get
+    Dim("dI_D", min=..., max=...), and fixed dimensions stay static.
+    When no specs are given returns None so that torch.export.export produces
+    a fully static graph.
+
+    The input_specs list is flat (one spec per leaf tensor), while inputs may
+    contain nested tuples/lists (e.g. past_key_values). pytree is used to
+    flatten inputs, pair each leaf with its spec, and then unflatten the
+    result back into the original structure that torch.export expects.
+    """
+    import torch
+    from torch.export import Dim
+    from torch.utils._pytree import tree_flatten, tree_unflatten
+
+    if input_specs is None:
+        return None
+
+    def _dims_for_tensor(tensor, spec_shape, input_idx):
+        """Return a per-dim dict mapping dim index to Dim hint.
+
+        - Fully dynamic dims (-1) → Dim.AUTO
+        - Constrained dims (min, max) → Dim("dI_D", min=..., max=...)
+        - Static dims → omitted (stays static)
+        """
+        if not isinstance(tensor, torch.Tensor) or tensor.ndim == 0:
+            return None
+        if spec_shape is None:
+            return None
+        dims = {}
+        for d in range(tensor.ndim):
+            if d >= len(spec_shape):
+                continue
+            sd = spec_shape[d]
+            if isinstance(sd, tuple):
+                # Constrained dimension with (min, max) bounds
+                min_val, max_val = sd
+                kwargs = {}
+                if min_val > 0:
+                    kwargs['min'] = min_val
+                if max_val != -1:  # -1 means unbounded
+                    kwargs['max'] = max_val
+                dims[d] = Dim(f"d{input_idx}_{d}", **kwargs)
+            elif sd == -1:
+                dims[d] = Dim.AUTO
+        # If no dynamic dims, return None
+        if not dims:
+            return None
+        return dims
+
+    # Resolve spec shapes (list of dim descriptors aligned to flat leaves).
+    # Each dim is: int (static), -1 (fully dynamic), or (min, max) tuple.
+    def _get_spec_shapes():
+        shapes = []
+        for spec in input_specs:
+            if spec is None or getattr(spec, 'shape', None) is None or not spec.shape.rank.is_static:
+                shapes.append(None)
+                continue
+            dims = []
+            for i in range(spec.shape.rank.get_length()):
+                dim = spec.shape.get_dimension(i)
+                if dim.is_static:
+                    dims.append(dim.get_length())
+                elif dim.get_min_length() == 0 and dim.get_max_length() == -1:
+                    dims.append(-1)  # Fully dynamic (unbounded)
+                else:
+                    dims.append((dim.get_min_length(), dim.get_max_length()))  # Constrained
+            shapes.append(dims)
+        return shapes
+
+    spec_shapes = _get_spec_shapes()
+
+    # Flatten the (possibly nested) inputs to get leaf tensors and the
+    # tree structure.  Build a flat list of per-leaf dim specs, then
+    # unflatten back so that dynamic_shapes mirrors the input structure
+    # exactly as torch.export.export requires.
+    if isinstance(inputs, torch.Tensor):
+        inputs = (inputs,)
+
+    flat_leaves, tree_spec = tree_flatten(inputs)
+
+    flat_dim_specs = []
+    for i, leaf in enumerate(flat_leaves):
+        ss = spec_shapes[i] if i < len(spec_shapes) else None
+        flat_dim_specs.append(_dims_for_tensor(leaf, ss, i))
+
+    return tree_unflatten(flat_dim_specs, tree_spec)
+
+
+def _export_torch_model(model, inputs, input_specs=None):
+    """Export a torch.nn.Module using torch.export.export with Dim.AUTO dynamic shapes."""
+    import torch
+
+    model.eval()
+    dynamic_shapes = _build_dynamic_shapes(inputs, input_specs=input_specs)
+
+    # Normalize inputs to a tuple for torch.export.export
+    if isinstance(inputs, dict):
+        export_args = ()
+        export_kwargs = inputs
+    else:
+        if isinstance(inputs, torch.Tensor):
+            export_args = (inputs,)
+        elif isinstance(inputs, (list, tuple)):
+            export_args = tuple(inputs)
+        else:
+            export_args = (inputs,)
+        export_kwargs = None
+
+    if export_kwargs is not None:
+        export_args_dict = dict(args=export_args, kwargs=export_kwargs)
+    else:
+        export_args_dict = dict(args=export_args)
+
+    if dynamic_shapes is not None:
+        export_args_dict["dynamic_shapes"] = dynamic_shapes
+
+    exported_program = torch.export.export(model, **export_args_dict)
+    return exported_program
 
 
 def get_pytorch_decoder(model, example_inputs, args):
@@ -47,9 +172,22 @@ def get_pytorch_decoder(model, example_inputs, args):
                                "supported directly. Please upgrade nncf or "
                                "export to ONNX first.")
     inputs = prepare_torch_inputs(example_inputs)
+    use_dynamo = args.get("dynamo", False)
     if not isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
         if hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram)):
             decoder = TorchFXPythonDecoder.from_exported_program(model)
+        elif use_dynamo and isinstance(model, torch.nn.Module):
+            if inputs is None:
+                raise Error("example_input is required when dynamo=True")
+            # Extract user-provided input shape specs to constrain dynamic dims.
+            # Normalize raw user input (PartialShape, list, etc.) to list of _InputCutInfo
+            # because _build_dynamic_shapes expects _InputCutInfo objects with .shape attribute.
+            raw_input = args.get('input', None) or None
+            input_specs = input_to_input_cut_info(raw_input) if raw_input is not None else None
+            exported_program = _export_torch_model(model, inputs, input_specs=input_specs)
+            has_dynamic = input_specs is not None
+            decoder = TorchFXPythonDecoder.from_exported_program(
+                exported_program, dynamic_shapes=has_dynamic)
         else:
             decoder = TorchScriptPythonDecoder(
                 model,
@@ -193,6 +331,10 @@ def extract_input_info_from_example(args, inputs):
             name = example[0]
             example = example[1]
         shape = PartialShape([-1] * example.ndim) if hasattr(example, "ndim") else PartialShape.dynamic()
+        if getattr(args, 'dynamo', False):
+            # For dynamo mode, use concrete shapes from example; dynamic dims
+            # are only introduced when the user explicitly provides 'input'.
+            shape = PartialShape(list(example.shape)) if hasattr(example, "shape") else shape
         dtype = getattr(example, "dtype", type(example))
         dtype = pt_to_ov_type_map.get(str(dtype))
         if name:

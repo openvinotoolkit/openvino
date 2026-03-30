@@ -58,13 +58,13 @@ jobs:
       SETUPVARS: ${{ github.workspace }}/install/${{ contains(inputs.runner, 'win') && 'setupvars.ps1' || 'setupvars.sh' }}
     steps:
       - name: Download OpenVINO artifacts (package)
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
-      
+
       - name: Download OpenVINO artifacts (tests)
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
@@ -132,19 +132,27 @@ jobs:
         if: ${{ fromJSON(inputs.affected-components).PDPD_FE.test && runner.os != 'Windows' }} # Ticket: 149651
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
-          ${{ env.INSTALL_TEST_DIR }}/paddle_tests --gtest_filter="-PaddleFuzzyOpTest*" --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleTests.xml
+          ${{ env.INSTALL_TEST_DIR }}/ov_paddle_tests --gtest_filter="-PaddleFuzzyOpTest*" --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleTests.xml
 
       - name: PaddlePaddle frontend Fuzzy Op tests
         if: ${{ inputs.event_name == 'schedule' && runner.os != 'Windows' }} # Ticket: 149651
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
-          ${{ env.INSTALL_TEST_DIR }}/paddle_tests --gtest_filter="PaddleFuzzyOpTest*" --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleFuzzyOpTests.xml
+          ${{ env.INSTALL_TEST_DIR }}/ov_paddle_tests --gtest_filter="PaddleFuzzyOpTest*" --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleFuzzyOpTests.xml
 
-      - name: ONNX frontend tests
+      - name: ONNX frontend tests (GraphIterator default)
         if: ${{ fromJSON(inputs.affected-components).ONNX_FE.test && runner.arch != 'ARM64' }} # Ticket for macOS ARM64: 122663, for Linux ARM64: 126280, 153161
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
-          ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend.xml
+          ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend-GraphIteratorEnabled.xml
+
+      - name: ONNX frontend tests ONNX_ITERATOR=disabled (legacy implementation)
+        if: ${{ fromJSON(inputs.affected-components).ONNX_FE.test && runner.arch != 'ARM64' }} # Ticket for macOS ARM64: 122663, for Linux ARM64: 126280, 153161
+        env:
+          ONNX_ITERATOR: "0"
+        run: |
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend-GraphIteratorDisabled.xml
 
       - name: TensorFlow Common frontend tests
         if: fromJSON(inputs.affected-components).TF_FE.test ||
@@ -196,12 +204,12 @@ jobs:
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests_vectorized --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTestsVectorized.xml
 
-      - name: NPU plugin unit tests 
+      - name: NPU plugin unit tests
         if: ${{fromJSON(inputs.affected-components).NPU.test && runner.os == 'Windows'}}
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_npu_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-NPUUnitTests.xml
-      
+
       - name: ov_subgraphs_dumper_tests tests
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
@@ -248,7 +256,7 @@ jobs:
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_unit_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_unit_tests.xml
-      
+
       # Disabled for debug build due to long execution time
       - name: AutoBatch func tests
         if: ${{ fromJSON(inputs.affected-components).AUTO_BATCH.test && inputs.build-type != 'debug' }}
@@ -276,7 +284,7 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*" --gtest_filter=-"nightly*"
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: ${{ !cancelled() }}
         with:
           name: test-results-cpp

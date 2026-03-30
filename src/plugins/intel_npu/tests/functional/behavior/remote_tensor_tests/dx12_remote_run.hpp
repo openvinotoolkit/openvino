@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,32 +18,9 @@
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 #ifdef _WIN32
-#    ifdef ENABLE_DX12
-#        include <initguid.h>  // it has to be placed before dxcore
-#    endif
-#endif
 
-#ifdef _WIN32
-#    ifdef ENABLE_DX12
-#        ifndef NOMINMAX
-#            define NOMINMAX
-#            define NOMINMAX_DEFINED_CTX_UT
-#        endif
-
-#        include <combaseapi.h>
-#        include <d3d12.h>
-#        include <d3dcommon.h>
-#        include <dxcore.h>
-#        include <dxcore_interface.h>
-#        include <wrl.h>
-#        include <wrl/client.h>
-
-#        include "d3dx12_core.h"
-
-#        ifdef NOMINMAX_DEFINED_CTX_UT
-#            undef NOMINMAX
-#            undef NOMINMAX_DEFINED_CTX_UT
-#        endif
+#    include <d3d12.h>
+#    include <wrl.h>
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -59,8 +36,7 @@ protected:
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> ov_model;
 
-    Microsoft::WRL::ComPtr<IDXCoreAdapter> adapter;
-    Microsoft::WRL::ComPtr<ID3D12Device9> device;
+    Microsoft::WRL::ComPtr<ID3D12Device> device;
     Microsoft::WRL::ComPtr<ID3D12Heap> heap = nullptr;
     Microsoft::WRL::ComPtr<ID3D12Resource> placed_resources = nullptr;
     Microsoft::WRL::ComPtr<ID3D12Resource> comitted_resource;
@@ -95,8 +71,7 @@ public:
         OVPluginTestBase::SetUp();
         ov_model = getDefaultNGraphFunctionForTheDeviceNPU();
 
-        createAdapter();
-        creeateDevice();
+        createDevice();
     }
 
     void TearDown() override {
@@ -107,51 +82,9 @@ public:
         APIBaseTest::TearDown();
     }
 
-    void createAdapter() {
-        Microsoft::WRL::ComPtr<IDXCoreAdapterFactory> factory;
-
-        auto res = DXCoreCreateAdapterFactory(IID_PPV_ARGS(factory.GetAddressOf()));
-        ASSERT_FALSE(res != S_OK) << "DXCoreCreateAdapterFactory failed.";
-
-        const auto regex = std::regex("^\\bIntel\\b.*?\\bGraphics\\b.*?");
-        const GUID guids[] = {DXCORE_ADAPTER_ATTRIBUTE_D3D12_CORE_COMPUTE};
-
-        // create the adapter list
-        Microsoft::WRL::ComPtr<IDXCoreAdapterList> adapter_list;
-        res = factory->CreateAdapterList(ARRAYSIZE(guids), guids, IID_PPV_ARGS(adapter_list.ReleaseAndGetAddressOf()));
-        ASSERT_FALSE(res != S_OK) << "CreateAdapterList failed.";
-
-        // find our adapter
-        for (uint32_t iter = 0; iter < adapter_list->GetAdapterCount(); iter++) {
-            Microsoft::WRL::ComPtr<IDXCoreAdapter> local_adapter;
-            res = adapter_list->GetAdapter(iter, IID_PPV_ARGS(local_adapter.ReleaseAndGetAddressOf()));
-            ASSERT_FALSE(res != S_OK) << "GetAdapter failed.";
-
-            size_t driver_desc_size = 0;
-            res = local_adapter->GetPropertySize(DXCoreAdapterProperty::DriverDescription, &driver_desc_size);
-            ASSERT_FALSE(res != S_OK) << "GetPropertySize failed.";
-
-            std::vector<char> driver_desc(driver_desc_size);
-            res =
-                local_adapter->GetProperty(DXCoreAdapterProperty::DriverDescription, driver_desc_size, &driver_desc[0]);
-            ASSERT_FALSE(res != S_OK) << "GetProperty failed.";
-
-            if (std::regex_match(std::string(driver_desc.data()), regex)) {
-                adapter = local_adapter;
-                break;
-            }
-        }
-
-        auto check_adapter = adapter->IsValid();
-        if (!check_adapter) {
-            OPENVINO_THROW("GPU adapter is not valid");
-        }
-    }
-
-    void creeateDevice() {
-        auto res =
-            D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_1_0_CORE, IID_PPV_ARGS(device.ReleaseAndGetAddressOf()));
-        ASSERT_FALSE(res != S_OK) << "D3D12CreateDevice failed.";
+    void createDevice() {
+        auto res = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(device.ReleaseAndGetAddressOf()));
+        ASSERT_FALSE(FAILED(res)) << "D3D12CreateDevice failed.";
     }
 
     void createHeap(const size_t byte_size) {
@@ -168,10 +101,10 @@ public:
         desc_heap.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
         desc_heap.Flags = D3D12_HEAP_FLAG_SHARED_CROSS_ADAPTER | D3D12_HEAP_FLAG_SHARED;
         auto res = device->CreateHeap(&desc_heap, IID_PPV_ARGS(heap.ReleaseAndGetAddressOf()));
-        ASSERT_FALSE(res != S_OK) << "CreateHeap failed.";
+        ASSERT_FALSE(FAILED(res)) << "CreateHeap failed.";
 
         res = device->CreateSharedHandle(heap.Get(), nullptr, GENERIC_ALL, nullptr, &shared_mem);
-        ASSERT_FALSE(res != S_OK) << "CreateSharedHandle failed.";
+        ASSERT_FALSE(FAILED(res)) << "CreateSharedHandle failed.";
     }
 
     void createPlacedResources(const size_t byte_size) {
@@ -192,17 +125,31 @@ public:
                                                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                                                 nullptr,
                                                 IID_PPV_ARGS(placed_resources.ReleaseAndGetAddressOf()));
-        ASSERT_FALSE(res != S_OK) << "CreatePlacedResource failed.";
+        ASSERT_FALSE(FAILED(res)) << "CreatePlacedResource failed.";
     }
 
     void createComittedResources(const size_t byte_size) {
-        auto res = device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+        D3D12_HEAP_PROPERTIES heap_properties{};
+        heap_properties.Type = D3D12_HEAP_TYPE_UPLOAD;
+        heap_properties.CreationNodeMask = 1;
+        heap_properties.VisibleNodeMask = 1;
+
+        D3D12_RESOURCE_DESC resource_desc{};
+        resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        resource_desc.Width = byte_size;
+        resource_desc.Height = 1;
+        resource_desc.DepthOrArraySize = 1;
+        resource_desc.MipLevels = 1;
+        resource_desc.SampleDesc.Count = 1;
+        resource_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+        auto res = device->CreateCommittedResource(&heap_properties,
                                                    D3D12_HEAP_FLAG_NONE,
-                                                   &CD3DX12_RESOURCE_DESC::Buffer(byte_size),
+                                                   &resource_desc,
                                                    D3D12_RESOURCE_STATE_GENERIC_READ,
                                                    nullptr,
                                                    IID_PPV_ARGS(comitted_resource.ReleaseAndGetAddressOf()));
-        ASSERT_FALSE(res != S_OK) << "CreateCommittedResource failed.";
+        ASSERT_FALSE(FAILED(res)) << "CreateCommittedResource failed.";
     }
 
     void createResources(const size_t byte_size) {
@@ -224,40 +171,40 @@ public:
         desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
         desc.NodeMask = 0;
         auto res = device->CreateCommandQueue(&desc, IID_PPV_ARGS(command_queue.ReleaseAndGetAddressOf()));
-        ASSERT_FALSE(res != S_OK) << "CreateCommandQueue failed.";
+        ASSERT_FALSE(FAILED(res)) << "CreateCommandQueue failed.";
 
         res = device->CreateFence(0, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS(fence.ReleaseAndGetAddressOf()));
-        ASSERT_FALSE(res != S_OK) << "CreateFence failed.";
+        ASSERT_FALSE(FAILED(res)) << "CreateFence failed.";
 
-        res = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE,
-                                             IID_PPV_ARGS(command_allocator.ReleaseAndGetAddressOf()));
-        ASSERT_FALSE(res != S_OK) << "CreateCommandAllocator failed.";
+        res = device.Get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE,
+                                                   IID_PPV_ARGS(command_allocator.ReleaseAndGetAddressOf()));
+        ASSERT_FALSE(FAILED(res)) << "CreateCommandAllocator failed.";
 
         res = device->CreateCommandList(0,
                                         D3D12_COMMAND_LIST_TYPE_COMPUTE,
                                         command_allocator.Get(),
                                         nullptr,
                                         IID_PPV_ARGS(command_list.ReleaseAndGetAddressOf()));
-        ASSERT_FALSE(res != S_OK) << "CreateCommandList failed.";
+        ASSERT_FALSE(FAILED(res)) << "CreateCommandList failed.";
 
         command_list->CopyBufferRegion(placed_resources.Get(), 0, comitted_resource.Get(), 0, byte_size);
         res = command_list->Close();
-        ASSERT_FALSE(res != S_OK) << "Close command list failed.";
+        ASSERT_FALSE(FAILED(res)) << "Close command list failed.";
 
         ID3D12CommandList* command_lists[] = {command_list.Get()};
         command_queue->ExecuteCommandLists(ARRAYSIZE(command_lists), command_lists);
         res = command_queue->Signal(fence.Get(), ++fence_value);
-        ASSERT_FALSE(res != S_OK) << "Signal command queue failed.";
+        ASSERT_FALSE(FAILED(res)) << "Signal command queue failed.";
 
         volatile auto event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
         res = fence->SetEventOnCompletion(fence_value, event);
-        ASSERT_FALSE(res != S_OK) << "SetEventOnCompletion failed.";
+        ASSERT_FALSE(FAILED(res)) << "SetEventOnCompletion failed.";
         WaitForSingleObject(event, INFINITE);
     }
 };
 
 TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuf) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
@@ -283,7 +230,7 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuf) {
 }
 
 TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
@@ -330,7 +277,7 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
 }
 
 TEST_P(DX12RemoteRunTests, CheckOutputDataFromMultipleRuns) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -387,5 +334,4 @@ TEST_P(DX12RemoteRunTests, CheckOutputDataFromMultipleRuns) {
 }  // namespace test
 }  // namespace ov
 
-#    endif
 #endif

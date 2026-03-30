@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 const fs = require("node:fs/promises");
@@ -94,38 +94,36 @@ describe("ov.InferRequest tests", () => {
       inferRequest = compiledModel.createInferRequest();
     });
 
-    it("Test inferAsync(inputData: { [inputName: string]: Tensor })", () => {
-      inferRequest.inferAsync({ data: tensor }).then((result) => {
-        assert.ok(result["fc_out"] instanceof ov.Tensor);
-        assert.deepStrictEqual(Object.keys(result), ["fc_out"]);
-        assert.deepStrictEqual(
-          result["fc_out"].data.length,
-          lengthFromShape(testModelFP32.outputShape),
-        );
-      });
+    it("Test inferAsync(inputData: { [inputName: string]: Tensor })", async () => {
+      const result = await inferRequest.inferAsync({ data: tensor });
+      assert.ok(result["fc_out"] instanceof ov.Tensor);
+      assert.deepStrictEqual(Object.keys(result), ["fc_out"]);
+      assert.deepStrictEqual(
+        result["fc_out"].data.length,
+        lengthFromShape(testModelFP32.outputShape),
+      );
     });
 
-    it("Test inferAsync(inputData: Tensor[])", () => {
-      inferRequest.inferAsync([tensor]).then((result) => {
-        assert.ok(result["fc_out"] instanceof ov.Tensor);
-        assert.deepStrictEqual(Object.keys(result), ["fc_out"]);
-        assert.deepStrictEqual(
-          result["fc_out"].data.length,
-          lengthFromShape(testModelFP32.outputShape),
-        );
-      });
+    it("Test inferAsync(inputData: Tensor[])", async () => {
+      const result = await inferRequest.inferAsync([tensor]);
+      assert.ok(result["fc_out"] instanceof ov.Tensor);
+      assert.deepStrictEqual(Object.keys(result), ["fc_out"]);
+      assert.deepStrictEqual(
+        result["fc_out"].data.length,
+        lengthFromShape(testModelFP32.outputShape),
+      );
     });
 
-    it("Test inferAsync([data]) throws", () => {
-      assert.throws(
-        () => inferRequest.inferAsync(["string"]).then(),
+    it("Test inferAsync([data]) throws", async () => {
+      await assert.rejects(
+        async () => await inferRequest.inferAsync(["string"]),
         /Cannot create a tensor from the passed Napi::Value./,
       );
     });
 
-    it('Test inferAsync({ data: "string"}) throws', () => {
-      assert.throws(
-        () => inferRequest.inferAsync({ data: "string" }).then(),
+    it('Test inferAsync({ data: "string"}) throws', async () => {
+      await assert.rejects(
+        async () => await inferRequest.inferAsync({ data: "string" }),
         /Cannot create a tensor from the passed Napi::Value./,
       );
     });
@@ -400,9 +398,8 @@ describe("ov.InferRequest tests with missing outputs names", () => {
     assert.deepStrictEqual(Object.keys(result).length, 1);
   });
 
-  it("Test inferAsync(inputData: Tensor[])", () => {
-    inferRequest.inferAsync([tensor]).then((result) => {
-      assert.deepStrictEqual(Object.keys(result).length, 1);
-    });
+  it("Test inferAsync(inputData: Tensor[])", async () => {
+    const result = await inferRequest.inferAsync([tensor]);
+    assert.deepStrictEqual(Object.keys(result).length, 1);
   });
 });

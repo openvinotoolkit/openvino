@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -244,6 +244,9 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
 
     auto weights_u8 = ov::as_type_ptr<v0::Constant>(bitwise_and->get_input_node_shared_ptr(0));
     auto weights_u8_bitwise_shift = ov::as_type_ptr<v0::Constant>(bitwise_shift->get_input_node_shared_ptr(0));
+    if (!weights_u8 || !weights_u8_bitwise_shift)
+        return nullptr;
+
     if (weights_u8->get_data_ptr() != weights_u8_bitwise_shift->get_data_ptr())
         return nullptr;
 

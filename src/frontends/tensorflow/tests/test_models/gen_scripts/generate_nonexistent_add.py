@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -18,7 +18,7 @@ def main():
     with tf.compat.v1.Session() as sess:
         const2 = tf.constant(2.0, dtype=tf.float32)
         x = tf.compat.v1.placeholder(dtype=tf.float32, shape=[2, 3], name='x')
-        relu = tf.nn.relu(x)    
+        relu = tf.nn.relu(x)
         add = tf.add(relu, const2, name="add")
         tf.multiply(add, relu)
 

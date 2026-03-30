@@ -49,27 +49,27 @@ ENV ANDROID_SDK_ROOT="$ANDROID_HOME"
 ENV PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/cmdline-tools/bootstrap/bin:$ANDROID_HOME/platform-tools:$PATH"
 
 # Android configuration
-ENV ANDROID_API_LEVEL=29
+ENV ANDROID_API_LEVEL=30
 ENV ANDROID_TARGET="google_apis"
 ENV ANDROID_ARCH="x86_64"
 
 RUN mkdir -p ${ANDROID_HOME}/cmdline-tools && \
     cd /tmp && \
-    wget -q https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip && \
-    unzip -q commandlinetools-linux-7583922_latest.zip && \
-    # place as a bootstrap toolset; then we install "cmdline-tools;latest" via sdkmanager
-    mv cmdline-tools ${ANDROID_HOME}/cmdline-tools/bootstrap && \
-    rm -f commandlinetools-linux-7583922_latest.zip && \
+    wget -q https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip && \
+    unzip -q commandlinetools-linux-12266719_latest.zip && \
+    mv cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest && \
+    rm -f commandlinetools-linux-12266719_latest.zip && \
     mkdir -p /root/.android && touch /root/.android/repositories.cfg
 
 # Accept Android licenses and install SDK components
 RUN yes | sdkmanager --sdk_root=${ANDROID_HOME} --licenses && \
     sdkmanager --sdk_root=${ANDROID_HOME} \
-        "cmdline-tools;latest" \
+        "cmdline-tools;16.0" \
         "platform-tools" \
         "platforms;android-${ANDROID_API_LEVEL}" \
         "system-images;android-${ANDROID_API_LEVEL};${ANDROID_TARGET};${ANDROID_ARCH}" \
-        "emulator"
+        "emulator" && \
+        ${ANDROID_HOME}/cmdline-tools/16.0/bin/sdkmanager tools
 
 # Install additional tools for emulator
 RUN apt update && \

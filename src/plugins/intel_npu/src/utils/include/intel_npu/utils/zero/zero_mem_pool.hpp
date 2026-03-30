@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,6 @@ namespace intel_npu {
  */
 class ZeroMemPool final {
 public:
-    ZeroMemPool();
     ZeroMemPool(const ZeroMemPool& other) = delete;
     ZeroMemPool(ZeroMemPool&& other) = delete;
     void operator=(const ZeroMemPool&) = delete;
@@ -71,6 +70,8 @@ public:
         const bool is_input = false);
 
 private:
+    ZeroMemPool();
+
     std::shared_ptr<ZeroMem> import_standard_allocation(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                                         const void* data,
                                                         const size_t bytes,

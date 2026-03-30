@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -38,7 +38,7 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 
 project(OpenVINO
         DESCRIPTION "OpenVINO toolkit"
-        HOMEPAGE_URL "https://docs.openvino.ai/2025/index.html"
+        HOMEPAGE_URL "https://docs.openvino.ai/2026/index.html"
         LANGUAGES C CXX)
 
 find_package(OpenVINODeveloperScripts REQUIRED
@@ -146,7 +146,7 @@ endfunction()
 #
 
 # Configure job pools (only for Ninja generators)
-if(CMAKE_GENERATOR MATCHES "Ninja")
+if(CMAKE_GENERATOR STREQUAL "Ninja" OR CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
     # Because we use Ninja generator, we can set the number of parallel
     # jobs separately for different tasks, like compiling and linking.
     # Especially useful on Windows, we avoid to be out of memory during linking stage that way.

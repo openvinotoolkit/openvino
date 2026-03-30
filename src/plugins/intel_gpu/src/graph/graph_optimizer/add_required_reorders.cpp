@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "program_node.h"
 #include "convert_color_inst.h"
 #include "fully_connected_inst.h"
+#include "gated_mlp_inst.h"
 #include "assign_inst.h"
 #include "mvn_inst.h"
 
@@ -276,7 +277,7 @@ void add_required_reorders::run(program& p) {
             continue;
 
         bool correct_layout_selected = false;
-        bool weights_data = (usr->is_type<convolution>() || usr->is_type<deconvolution>() || usr->is_type<fully_connected>());
+        bool weights_data = (usr->is_type<convolution>() || usr->is_type<deconvolution>() || usr->is_type<fully_connected>() || usr->is_type<gated_mlp>());
 
         layout original_layout = usr->get_output_layout();
 
@@ -339,6 +340,6 @@ void add_required_reorders::run(program& p) {
         OPENVINO_ASSERT(correct_layout_selected,
                         "[GPU] No layout format available for ", usr->id(),  ", impl_type: ", usr->get_preferred_impl_type(),
                         " (format: ", original_layout.format.to_string(),
-                        ", data_type: ", ov::element::Type(original_layout.data_type), ") ");
+                        ", data_type: ", ov::element::Type(original_layout.data_type), ") ", original_layout.to_string(), ", ", correct_layout_selected);
     }
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,12 +21,7 @@ const auto& inputShapeSelect = SNIPPETS_TESTS_STATIC_SHAPES(
     {{2, 52, 6, 102}, {2, 52, 6, 102}, {1, 6, 52, 52}, {1, 6, 1, 1}, {1, 6, 1, 1}, {2, 52, 6, 102}}
 );
 
-// Transpose is moved outside of Subgraph on ARM64
-#if defined(OPENVINO_ARCH_ARM64)
-static constexpr size_t expected_nodes_mha_select = 5;
-#else
 static constexpr size_t expected_nodes_mha_select = 3;
-#endif
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHA,
@@ -35,7 +30,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(precision_f32(6)),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(false),  // Need to support True for graph builder in tests
-                       ::testing::Values(MHA::default_thread_count),
                        ::testing::Values(expected_nodes_mha_select),
                        ::testing::Values(3),  // Transpose1 + Less + MHA
                        ::testing::Values(ov::test::utils::DEVICE_CPU),

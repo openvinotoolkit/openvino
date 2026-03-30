@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,14 +66,14 @@ struct Config {
 #if defined(OV_CPU_WITH_ACL)
     bool aclFastMath = false;
 #endif
-#if defined(OV_CPU_WITH_ACL) || defined(OV_CPU_WITH_SHL)
+#if defined(OV_CPU_WITH_ACL)
     // TODO: Executor cache may leads to incorrect behavior on oneDNN ACL primitives
     size_t rtCacheCapacity = 0UL;
 #else
     size_t rtCacheCapacity = 5000UL;
 #endif
     size_t snippetsCacheCapacity = 5000UL;
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     ov::element::Type kvCachePrecision = ov::element::u8;
     ov::element::Type keyCachePrecision = ov::element::u8;
     ov::element::Type valueCachePrecision = ov::element::u8;

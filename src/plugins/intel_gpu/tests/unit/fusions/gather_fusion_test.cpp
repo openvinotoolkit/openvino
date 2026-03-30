@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -236,4 +236,103 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_eltwise_activation_dynamic, ::testi
     gather_test_params{ CASE_GATHER_FP16_6, 4, 7 },
     gather_test_params{ CASE_GATHER_FP16_7, 5, 8 },
     gather_test_params{ CASE_GATHER_INT8_1, 4, 7 },
+}));
+
+#define CASE_GATHER_RANK_DECREASE_FP16 { 1, 2, 4, 4, 8 }, { }, { 1, 4, 4, 8 }, 1, data_types::f16, format::bfzyx, data_types::f16, format::bfyx
+#define CASE_GATHER_RANK_INCREASE_FP16 { 2, 5, 2, 4 }, { 3, 2, 1 }, { 2, 3, 2, 1, 2, 4 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+
+class gather_rank_change_fusing : public GatherPrimitiveFusingTest {
+public:
+    void execute(gather_test_params& p) {
+        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        auto input_prim = get_mem(get_input_layout(p));
+        auto indices_prim = get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p) - 1));
+
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
+
+        network_not_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("gather_indices", indices_prim);
+        network_fused.set_input_data("input", input_prim);
+        network_fused.set_input_data("gather_indices", indices_prim);
+
+        compare(network_not_fused, network_fused, p);
+    }
+
+    enum class eltwise_input_type { scalar, per_channel, full_tensor };
+
+    layout get_eltwise_data_layout(gather_test_params& p, eltwise_input_type type) {
+        switch (type) {
+            case eltwise_input_type::scalar:
+                return get_single_element_layout(p);
+            case eltwise_input_type::per_channel:
+                return get_per_channel_layout(p);
+            case eltwise_input_type::full_tensor: {
+                std::vector<ov::Dimension> dims;
+                for (size_t i = 0; i < p.out_shape.size(); ++i)
+                    dims.push_back(ov::Dimension(p.out_shape[i]));
+                auto fmt = format::bfyx;
+                if (p.out_shape.size() == 5) fmt = format::bfzyx;
+                else if (p.out_shape.size() == 6) fmt = format::bfwzyx;
+                return layout{ ov::PartialShape(dims), p.default_type, fmt };
+            }
+            default:
+                return get_single_element_layout(p);
+        }
+    }
+
+    void create_eltwise_topology(gather_test_params& p, eltwise_input_type type) {
+        auto dyn_input = layout{ov::PartialShape::dynamic(p.dictionary_shape.size()), p.data_type, p.input_format};
+        auto dyn_indices = layout{ov::PartialShape::dynamic(p.indices_shape.size()), p.data_type, format::bfyx};
+        auto elt_layout = get_eltwise_data_layout(p, type);
+
+        create_topologies(
+            input_layout("input", dyn_input),
+            input_layout("gather_indices", dyn_indices),
+            data("elt_mul_data", get_mem(elt_layout, -10, 10)),
+            data("elt_add_data", get_mem(elt_layout, -10, 10)),
+            gather("gather_prim", input_info("input"), input_info("gather_indices"),
+                   p.axis, p.dictionary_shape.size(), p.out_shape),
+            eltwise("elt_mul", {input_info("gather_prim"), input_info("elt_mul_data")}, eltwise_mode::prod),
+            eltwise("elt_add", {input_info("elt_mul"), input_info("elt_add_data")}, eltwise_mode::sum),
+            reorder("reorder_bfyx", input_info("elt_add"), p.default_format, data_types::f32,
+                    std::vector<float>(), cldnn::reorder_mean_mode::subtract, cldnn::padding(), true)
+        );
+    }
+};
+
+TEST_P(gather_rank_change_fusing, eltwise_scalar) {
+    auto p = GetParam();
+    create_eltwise_topology(p, eltwise_input_type::scalar);
+    tolerance = 1e-2f;
+    p.expected_fused_primitives = 3;
+    p.expected_not_fused_primitives = 5;
+    execute(p);
+}
+
+TEST_P(gather_rank_change_fusing, eltwise_per_channel) {
+    auto p = GetParam();
+    create_eltwise_topology(p, eltwise_input_type::per_channel);
+    tolerance = 1e-2f;
+    bool is_decrease = p.dictionary_shape.size() > p.out_shape.size();
+    p.expected_fused_primitives = is_decrease ? 4 : 3;
+    p.expected_not_fused_primitives = 5;
+    execute(p);
+}
+
+TEST_P(gather_rank_change_fusing, eltwise_full_tensor) {
+    auto p = GetParam();
+    create_eltwise_topology(p, eltwise_input_type::full_tensor);
+    tolerance = 1e-2f;
+    bool is_decrease = p.dictionary_shape.size() > p.out_shape.size();
+    p.expected_fused_primitives = is_decrease ? 4 : 3;
+    p.expected_not_fused_primitives = 5;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_rank_change_fusing, ::testing::ValuesIn(std::vector<gather_test_params>{
+    gather_test_params{ CASE_GATHER_RANK_DECREASE_FP16, 2, 3 },
+    // gather_test_params{ CASE_GATHER_RANK_INCREASE_FP16, 2, 3 },  TODO)
 }));
