@@ -1287,7 +1287,7 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         desc.compiler_dq = true;
     }
 
-    if (std::find(supported_properties.begin(), supported_properties.end(), "NPU_ENABLE_STRIDES_FOR") !=
+    if (std::find(supported_properties.begin(), supported_properties.end(), ov::intel_npu::enable_strides_for.name()) !=
         supported_properties.end()) {
         desc.support_strided_tensors = true;
     }
@@ -1888,8 +1888,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const auto use_fused_hfa =
         other_props.count("NPUW_ATTN_HFA_FUSED") > 0 && other_props["NPUW_ATTN_HFA_FUSED"].as<std::string>() == "YES";
     const auto can_use_strided_tensors = npudesc.has_value() && npudesc->support_strided_tensors;
-    if (use_fused_hfa && !other_props.count("NPU_ENABLE_STRIDES_FOR") && can_use_strided_tensors) {
-        other_props["NPU_ENABLE_STRIDES_FOR"] = "k_tile,v_tile";
+    if (use_fused_hfa && can_use_strided_tensors && !other_props.count(ov::intel_npu::enable_strides_for.name())) {
+        other_props[ov::intel_npu::enable_strides_for.name()] = "k_tile,v_tile";
         LOG_INFO("NPU_ENABLE_STRIDES_FOR is set to k_tile,v_tile for better performance with fused HFA.");
     }
 
